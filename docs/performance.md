@@ -1,7 +1,55 @@
 # Performance
 
-Every number here was measured, and each one names its baseline. None of them is a same-save, same-machine
-comparison against the original game: we have not run one yet (see the last section).
+Every number here was measured, and each one names its baseline. The first section compares with the original game
+on the same save and machine; the others compare our builds with each other.
+
+## Against the original game
+
+**Setup.** Intel i7-14700KF, NVIDIA RTX 3070 Ti, Windows 11, 2560x1440 display. Save: a real multiplayer game,
+Lekmod v34.15 on Lekmap Pangaea Fractal, Huge, turn 95, 12 major civilizations and 24 city-states, Immortal, Quick
+speed, hybrid turns, Quick Combat on, Quick Movement off. Its second human seat is played by the AI on both sides.
+
+- **Original:** Civilization V 1.0.3.279 DX11 with Lekmod v34.15 and EUI, the save loaded as a LAN host (single player
+  does not load multiplayer saves). Window 1920x1080, MSAA 4x, vsync off, otherwise high settings.
+- **Ours:** the save imported with `tools/save-import`, the release server with the optimized gamecore under WSL2, the
+  normal client (original UI, WebGPU, High preset, MSAA 4x, threaded build) in Chrome 148 at 1920x1080, device pixel
+  ratio 1, `--disable-gpu-vsync --disable-frame-rate-limit`.
+
+**End of turn 95 to 96.** The same screen watcher on both sides (30 Hz, the turn button's screen region): from the click
+on NEXT TURN to the button asking the player for the next action.
+
+| | Run 1 | Run 2 | Run 3 |
+|---|---|---|---|
+| Original | 17.4 s | 17.1 s | about 17.3 s (timed from a later point) |
+| Ours | 2.07 s | 2.10 s | 1.91 s |
+
+The original spends about 15.8 s of it on "Please wait", which includes the AI units' move animations. Ours spends
+about 1.0 s in the server's AI phase (`hist.ai_phase_ms` 941-1064 ms), then about 0.7 s to load the new turn into the
+browser. Our client does not animate the AI's moves. After the turn the two games differ (the original asks for a free
+technology, ours for city production), so the AI did not do exactly the same work; we have not found the cause yet.
+
+**Loading.** Ours: page open to the map with the interface, 11.7-14.4 s (saved login, no lobby). Original: Launch in the
+lobby to the map, about 40-55 s, timed by hand.
+
+**Frame rate.** 10 s after loading, 30 s per phase, first 5 s skipped. Idle at the start view; panning with the arrow
+keys, left and right for 3 s each, 5 times, over land. Original: PresentMon. Ours: the page's requestAnimationFrame
+stamps (PresentMon on Chrome needs administrator rights on this machine).
+
+| | Idle p50 / 1 % low | Panning p50 / 1 % low |
+|---|---|---|
+| Original | 358.5 / 290.2 | 529.4 / 348.4 |
+| Ours | 340.7 / 218.6 | 346.0 / 221.0 |
+| Ours, second launch | 383.9 / 257.4 | 392.2 / 253.8 (pan ran into sea and clouds) |
+| Ours, vsync on | 151.1 / 131.7 | 150.9 / 131.7 |
+
+Launch-to-launch spread of ours is about 10 %. Our picture resembles the original's but is not identical, so equal
+settings do not mean equal work.
+
+**Network.** The original is lockstep: every machine runs the game, and measuring it needs two machines with two
+copies of the game. We did not have them, so it is not measured. Ours (`cargo xtask nettest --scenario latency,weak`,
+test core): over a link with 200 ms round trip, an order's result arrives after 201 ms p50 and 229 ms p95 (one round
+trip); over a weak link that also holds 3 % of the traffic for 0.2-1 s, after 211-214 ms p50 and 768-868 ms p95, with
+no reconnects.
 
 ## Simulation: AI turn time
 
@@ -90,8 +138,8 @@ the same asset sets:
 
 ## Not measured yet
 
-- The original game's DLL and our core on the same save and machine (AI turn time).
-- The original game's frame rate and load time.
-- Bandwidth, ping and per-order latency of the current replica protocol.
+- The original game's network latency (needs two machines with two copies of the game).
+- The original game's DLL and our core computing the same turn without animations (headless host).
+- Bandwidth of the current replica protocol.
 - Frame rate on integrated GPUs, phones and tablets; any browser other than desktop Chrome.
 - How long a full asset pipeline run takes.
