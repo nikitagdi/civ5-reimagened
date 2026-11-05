@@ -1,0 +1,21 @@
+[package]
+name = "client-core"
+description = "Sans-IO client logic: session, app states, game replica"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "client"
+
+[dependencies]
+protocol.workspace = true
+wire.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+game-host.workspace = true

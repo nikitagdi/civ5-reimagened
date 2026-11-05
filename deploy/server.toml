@@ -1,0 +1,47 @@
+# civ5-server in the container. The registration code comes from CIV5_PASSWORD.
+# Accounts: players register a nick and a password of their own on the login page (`POST /api/auth/register`).
+# CIV5_PASSWORD is the registration code a new player has to enter (the invitation code), not a login password;
+# `--open-access` would open registration to anyone. The browser session is an HttpOnly cookie (civ5_session) with
+# Secure; a server reached over plain http on a LAN address needs `cookie_secure = false`, because browsers drop
+# Secure cookies there. Accounts live in state_dir/accounts.json. auto_register stays off here: it is for `--dev` and
+# tests. A lost password: `civ5-server admin POST /admin/accounts/<nick>/reset`.
+listen = "0.0.0.0:8080"
+allow_plain_nonlocal = true   # the port is published to 127.0.0.1 only (compose.public.yaml)
+test_hooks = false
+admin_listen = "127.0.0.1:9090"
+state_dir = "/var/lib/civ5"
+web_root = "/srv/civ5/web"
+cross_origin_isolation = true   # COOP/COEP/CORP: threaded client by default (single-threaded only as a fallback)
+assets_root = "/srv/civ5/assets"
+core = "real"
+gamedata_dir = "/srv/civ5/gamedata"
+max_games = 8   # min_free_mem_mb still guards the memory
+max_sessions = 64
+min_free_mem_mb = 800
+trusted_proxies = ["127.0.0.1", "172.16.0.0/12"]   # the reverse proxy (Caddy on the host or in Docker)
+hang_s = 180
+hibernate_idle_min = 5
+empty_close_min = 5                 # no human online this long: the game is closed, its saves stay (0 = never)
+host_lost_s = 60
+
+[worker]
+audit_fog = false
+autosave = { min_interval_s = 60, ring = 10, keep_every = 10 }
+
+# What the server keeps on disk. A pass runs at start and every interval_min minutes.
+[retention]
+keep_games = 10                # the newest 10 games' saves are never deleted
+finished_max_age_days = 30     # an older game is deleted 30 days after it finished; running/sleeping/faulted: never
+logs_max_mb = 256              # logs/game-*.jsonl* + logs/worker-*.log* in all; the oldest go first
+worker_log_max_mb = 16         # a worker's stderr file turns over at this size
+recordings_games = 5           # recordings/ (below): the last 5 games ...
+recordings_max_mb = 1024       # ... within 1 GiB in all
+
+# The recording of every game: recordings/g<game>-<time>/, replayed with tools/civ5-replay.
+[recording]
+enabled = true
+full_every = 10                # a full snapshot every 10th turn, the patch from the previous turn between
+detail_turns = 20              # the last 20 turns keep every snapshot; older ones only the full ones
+max_game_mb = 300              # one game over this keeps no more snapshots (over twice: stops)
+pin_days = 14                  # a client report keeps the recording of its game this long ...
+max_pins = 3                   # ... at most 3 recordings at once

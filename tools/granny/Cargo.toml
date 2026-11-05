@@ -1,0 +1,17 @@
+[package]
+name = "granny"
+description = "Granny 3D (.gr2) reader: sections, Oodle1, type tree, meshes, skeletons, animations"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+# Our code is MIT; src/curve.rs and src/oodle1.rs port Apache-2.0 code of nwn2mdk (oodle1.rs: a file that states
+# BSL-1.0). Texts: ../../LICENSE-MIT, LICENSE-APACHE, LICENSE-BOOST; see ../../third_party/NOTICE-granny.md.
+license = "MIT AND Apache-2.0 AND BSL-1.0"
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "tool"
+
+[dependencies]
+thiserror.workspace = true

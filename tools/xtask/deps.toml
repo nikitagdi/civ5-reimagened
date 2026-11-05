@@ -1,0 +1,45 @@
+# Allow-lists for the dependency rules (architecture §4). Change only through review.
+
+[r2]
+# Third-party crates through which web-sys and js-sys may transitively reach shared and client.
+# A path from a workspace crate to web-sys/js-sys is allowed if all its third-party intermediates
+# are in this list. Set taken from `cargo tree --target wasm32-unknown-unknown -i web-sys`
+# (wgpu 30.0.1 with webgpu + webgl, winit 0.30.13), plus egui-wgpu 0.37.0 (interim-ui, SIMP-001).
+allowed_web_paths = [
+    "wgpu",
+    "wgpu-core",
+    "wgpu-core-deps-wasm",
+    "wgpu-hal",
+    "wgpu-naga-bridge",
+    "wgpu-types",
+    "egui-wgpu",
+    "glow",
+    "winit",
+    "web-time",
+    "wasm-bindgen-futures",
+    "getrandom",
+]
+
+[r5]
+# Allowed direct dependencies of protocol (serde_json is optional, behind the `json` feature).
+protocol_allowed = ["serde", "postcard", "serde_json", "thiserror"]
+
+[r10]
+# R10 (B4): the client holds a replica of the game, never the rules. `game-host` (the server's worker) is
+# unreachable from the client builds (app-web, app-desktop) over normal dependency edges, on the host and
+# wasm32 graphs. `gamecore` is reachable, but only through the `replica` crate: a crate of the layers client,
+# platform-* and app-* may depend on it directly only if it is listed in `allowed`; `gamecore-sys` is closed
+# to all of them (only `gamecore` links it).
+# mode = "deny": any violation fails the check. "warn" would print it as a WARNING only (and `exceptions` would
+# silence known reaches); N4.5 removed the B1 brain mode, so it is "deny" with no exceptions.
+mode = "deny"
+forbidden = ["game-host"]
+exceptions = []
+
+[[r10.direct]]
+target = "gamecore"
+allowed = ["replica"]
+
+[[r10.direct]]
+target = "gamecore-sys"
+allowed = []

@@ -1,0 +1,305 @@
+# Triage of the golden captures. One table per capture:
+#   [S1a]
+#   verdict = "accept"   # accept | reject | pending
+#   note = "why"
+# and one table per mask over its threshold (AC-0.4):
+#   [S1a.masks.land]
+#   verdict = "bug"      # bug (reference: the task or defect) | simp (reference: SIMP-NNN)
+#   reference = "..."
+#   note = "the visible difference"
+# `cargo xtask golden report --stage accept` fails while a capture has no `accept` here or a mask over its threshold
+# has no verdict. Verdicts of 2026-10-27 (b2/r-triage), from the crops of `target/golden/report`; S3 re-judged
+# the same day after b2/r-atmos (distance fog, sea colour).
+
+# ---------------------------------------------------------------- S1a, S1b (start of the game, S1 save)
+
+[S1a.masks.all]
+verdict = "simp"
+reference = "SIMP-062"
+note = "Three quarters of the frame are fog clouds: the puffs lie on our own grid, so their lumps and the cloud edge round the revealed hexes differ (fog SSIM 0.94); the rest is the land, trees and units below."
+
+[S1a.masks.land]
+verdict = "simp"
+reference = "SIMP-035"
+note = "Hills and slopes have other shapes and shading (the variant of each relief piece comes from our own stream); the cloud edge over the border hexes differs (SIMP-062)."
+
+[S1a.masks.river]
+verdict = "simp"
+reference = "SIMP-040"
+note = "The river runs a few pixels off the capture's and bends otherwise (meander by eye); its banks lie on other relief (SIMP-035)."
+
+[S1a.masks.forest]
+verdict = "simp"
+reference = "SIMP-009"
+note = "Trees stand elsewhere in the hex (SIMP-009: the lists come from the game's CRT rand stream, seeded per game and drawn by the terrain build). Leaf colour and soft edges as the capture's since b2/r-forest (the atlas was read with v flipped; trees now back to front): forest FLIP 0.387 -> 0.364, SSIM 0.396 -> 0.368 (finer detail on other places)."
+
+[S1a.masks.unit]
+verdict = "bug"
+reference = "SIMP-023"
+note = "FLIP unchanged by the pack: the settler figure eurofemale18 now plays its idle clip (b2 pack with fixed idle clips, re-judged 2026-10-28: no figure stands in the bind pose); left: the figures of a squad have their own jitter (SIMP-023), the shared cell is ours (SIMP-044), and the figures cast their shadow on the ground since b2/r-water2 (the UnitShader family goes into the shadow map whatever the Shadows flag of its material says)."
+
+[S1a.masks.landmark]
+verdict = "simp"
+reference = "SIMP-045"
+note = "The stones of the quarry and the deer stand elsewhere in their hexes (layouts by eye). Since b2/fb2-terrain the quarry ground is a terrain decal draped on the relief (landmark FLIP 0.306, SSIM 0.648)."
+
+[S1a.masks.fog]
+verdict = "simp"
+reference = "SIMP-062"
+note = "Cloud puffs on our own grid: other lumps and a different edge round the revealed hexes."
+
+[S1a.masks.overlay]
+verdict = "simp"
+reference = "SIMP-035"
+note = "The grid lines and the selection ring lie on our relief, so they bend and sit a few pixels off the capture's on hills and slopes."
+
+[S1b.masks.all]
+verdict = "simp"
+reference = "SIMP-062"
+note = "As S1a (the same view a frame later): fog clouds of our own grid over three quarters of the frame; land, trees and units below."
+
+[S1b.masks.land]
+verdict = "simp"
+reference = "SIMP-035"
+note = "As S1a: other hill shapes and shading; cloud edge differs."
+
+[S1b.masks.river]
+verdict = "simp"
+reference = "SIMP-040"
+note = "As S1a: the river bends otherwise and runs a few pixels off."
+
+[S1b.masks.forest]
+verdict = "simp"
+reference = "SIMP-009"
+note = "As S1a: other tree places; leaf light as the capture's since b2/r-forest (FLIP 0.383 -> 0.358, SSIM 0.387 -> 0.364)."
+
+[S1b.masks.unit]
+verdict = "bug"
+reference = "SIMP-023"
+note = "FLIP unchanged by the pack: the settler figure eurofemale18 now plays its idle clip (b2 pack with fixed idle clips, re-judged 2026-10-28: no figure stands in the bind pose); left: the figures of a squad have their own jitter (SIMP-023), the shared cell is ours (SIMP-044), and the figures cast their shadow on the ground since b2/r-water2 (the UnitShader family goes into the shadow map whatever the Shadows flag of its material says)."
+
+[S1b.masks.landmark]
+verdict = "simp"
+reference = "SIMP-045"
+note = "As S1a: quarry stones and deer elsewhere in their hexes."
+
+[S1b.masks.fog]
+verdict = "simp"
+reference = "SIMP-062"
+note = "As S1a: other puffs and cloud edge."
+
+[S1b.masks.overlay]
+verdict = "simp"
+reference = "SIMP-035"
+note = "As S1a: grid and ring drape over other relief."
+
+# ---------------------------------------------------------------- S2, S2-bake (wider view of the S1 game)
+
+[S2.masks.all]
+verdict = "simp"
+reference = "SIMP-035"
+note = "Land and trees fill most of the frame: other hill shapes (the ridge right of the settlers is taller in ours), other tree places; clouds at the right edge differ (SIMP-062)."
+
+[S2.masks.land]
+verdict = "simp"
+reference = "SIMP-035"
+note = "Other hill and ridge shapes and their shading; the cloud edge at the bottom and right covers other hexes (SIMP-062)."
+
+[S2.masks.river]
+verdict = "simp"
+reference = "SIMP-040"
+note = "The river bends otherwise and runs a few pixels off."
+
+[S2.masks.forest]
+verdict = "simp"
+reference = "SIMP-009"
+note = "Tree places differ (SIMP-009); since b2/r-forest the forest edge is soft and light as the capture's (atlas v flip fixed, back-to-front order): FLIP 0.399 -> 0.378, dE 10.8 -> 10.1, SSIM 0.391 -> 0.369."
+
+[S2.masks.unit]
+verdict = "bug"
+reference = "SIMP-023"
+note = "FLIP unchanged by the pack: the settler figure eurofemale18 now plays its idle clip (b2 pack with fixed idle clips, re-judged 2026-10-28: no figure stands in the bind pose); left: the figures of a squad have their own jitter (SIMP-023), the shared cell is ours (SIMP-044), and the figures cast their shadow on the ground since b2/r-water2 (the UnitShader family goes into the shadow map whatever the Shadows flag of its material says)."
+
+[S2.masks.landmark]
+verdict = "simp"
+reference = "SIMP-045"
+note = "Quarry stones, deer and the marsh plants stand elsewhere in their hexes."
+
+[S2.masks.fog]
+verdict = "simp"
+reference = "SIMP-062"
+note = "Other puffs; the cloud edge covers other hexes at the bottom and right."
+
+[S2.masks.overlay]
+verdict = "simp"
+reference = "SIMP-035"
+note = "Grid and ring drape over other relief: lines a few pixels off on the slopes."
+
+[S2-bake.masks.all]
+verdict = "simp"
+reference = "SIMP-035"
+note = "As S2 (the same view): other hill shapes and tree places; other cloud edge."
+
+[S2-bake.masks.land]
+verdict = "simp"
+reference = "SIMP-035"
+note = "As S2: other hill and ridge shapes."
+
+[S2-bake.masks.river]
+verdict = "simp"
+reference = "SIMP-040"
+note = "As S2: the river bends otherwise."
+
+[S2-bake.masks.forest]
+verdict = "simp"
+reference = "SIMP-009"
+note = "As S2: other tree places (FLIP 0.382 -> 0.362, SSIM 0.395 -> 0.371)."
+
+[S2-bake.masks.unit]
+verdict = "bug"
+reference = "SIMP-023"
+note = "FLIP unchanged by the pack: the settler figure eurofemale18 now plays its idle clip (b2 pack with fixed idle clips, re-judged 2026-10-28: no figure stands in the bind pose); left: the figures of a squad have their own jitter (SIMP-023), the shared cell is ours (SIMP-044), and the figures cast their shadow on the ground since b2/r-water2 (the UnitShader family goes into the shadow map whatever the Shadows flag of its material says)."
+
+[S2-bake.masks.landmark]
+verdict = "simp"
+reference = "SIMP-045"
+note = "As S2: stones, deer and marsh plants elsewhere."
+
+[S2-bake.masks.fog]
+verdict = "simp"
+reference = "SIMP-062"
+note = "As S2: other puffs and cloud edge."
+
+[S2-bake.masks.overlay]
+verdict = "simp"
+reference = "SIMP-035"
+note = "As S2: grid and ring over other relief."
+
+# ---------------------------------------------------------------- S3 (late-game benchmark map)
+
+[S3.masks.all]
+verdict = "bug"
+reference = "SIMP-021, SIMP-035"
+note = "b2/r-water2 (all SSIM 0.307 to 0.326, FLIP 0.414 to 0.410): the hex grid now lies over the water (the ocean and the rivers read the map of the overlay), the fishing boats stand with their nets (the landmark meshes are drawn in the node state of the plot), the units cast their shadows. The distance fog, the sea and the cities come close to the capture; left: the layout of the cities by eye (SIMP-021) and the shape of the coast and the hills (SIMP-035)."
+
+[S3.masks.land]
+verdict = "bug"
+reference = "SIMP-045, SIMP-047, SIMP-035"
+note = "Hill and slope shapes differ (SIMP-035). b2/fb2-terrain (land FLIP 0.415 to 0.382, SSIM 0.387 to 0.353): the farm fields are the cvFarmSimSystem groups of farm_types.xml (continent crops, wheat yellow, half built, damage) in a patchwork whose fields belong to the hex of their centre, laid in the world (SIMP-045: not the road-network faces of the original); the roads are the dirt piece of roadsandrails laid as a decal along the original's in-hex spline (they were invisible), curved from edge middle to edge middle like the capture's (SIMP-047: control points at 1/4 and 3/4, which model the road handler lays is RW-17's); the landmark grounds are terrain decals; the X wrap seam is closed. Left: the field polygons, the road model choice. The haze of the far land is matched since b2/r-atmos."
+
+[S3.masks.water]
+verdict = "bug"
+reference = "SIMP-021, SIMP-035"
+note = "Colour and haze match since b2/r-atmos. b2/r-water2 (water SSIM 0.388 to 0.448, FLIP 0.327 to 0.299): the hex grid over the water and the boats with their nets on the 18 improved fishing plots (the ships of the units were all there: 33 of them; the missing ones were these boats); the shallows are smoothed over a quarter of a hex. Left: the coast shallows are a thinner light band than the capture's wide soft one (the shelf of the coast hexes is the terrain's), the net is opaque brown where the capture's is grey and translucent, no smoke of the volcano."
+
+[S3.masks.river]
+verdict = "simp"
+reference = "SIMP-040"
+note = "The rivers bend otherwise and run a few pixels off (meander by eye); the far ones are hazed like the capture's since b2/r-atmos."
+
+[S3.masks.forest]
+verdict = "simp"
+reference = "SIMP-009"
+note = "Trees stand elsewhere in the hex (SIMP-009: S3 is another game, none of its tree lists is in S1/S2/S4); leaf light fixed in b2/r-forest (not re-measured: S3 does not settle, anim clips pending); the far forests are hazed like the capture's since b2/r-atmos."
+
+[S3.masks.unit]
+verdict = "bug"
+reference = "SIMP-023"
+note = "As S1a: the settler figure eurofemale18 now plays its idle clip (b2 pack with fixed idle clips, re-judged 2026-10-28: no figure stands in the bind pose); left: the figures of a squad have their own jitter (SIMP-023), the shared cell is ours (SIMP-044), and the figures cast their shadow on the ground since b2/r-water2 (the UnitShader family goes into the shadow map whatever the Shadows flag of its material says). The far figures are hazed by the same g_FogConsts as the terrain (checked with a debug output of the unit pixel shader: fog factor 0.6-0.8 times the ramp, ramp 0 at the bottom of the frame, up to 0.9 at the top); no unit-draw change was needed."
+
+[S3.masks.city]
+verdict = "simp"
+reference = "SIMP-021"
+note = "b2/r-citylayout (city SSIM 0.051 to 0.095, FLIP 0.524 to 0.473; the city mask 82099 to 62887 px): the layout is the port of cvCityBuildingLayoutGen over the authored density and tensor fields (tx:df_*, tx:tf_* of b2-city), the wall is the round hull of the original with towers every 12 units, the wonders stand on the hex corners of FindWonderPlacementSlot. Follow-up: house scale 0.038 (FUN_088587b8, building size 1.0), a random quarter turn a house, the city size of GetVariableCitySizeFromPopulation (S3 pops 12-23 are sizes 6-9, not the densest field), the land band of the houses (raw height 13001..34999), and the houses lit by <culture>_cubelight.dds with hiconreflmap_soft/sharp as S3 binds them (they were lit by the unit cubes, about 3x brighter: the whiteness). Left (SIMP-021): the height class of each catalog model, the wall mesh between the towers (no gatehouse), the wonder kind and heading."
+
+[S3.masks.landmark]
+verdict = "simp"
+reference = "SIMP-045"
+note = "Improvements and resources stand elsewhere in their hexes (layouts by eye); the far ones are hazed like the capture's since b2/r-atmos. Since b2/fb2-terrain the LandmarkShader grounds (quarries, camps, mines, natural wonders) are terrain decals, not flat quads (landmark FLIP 0.456, SSIM 0.370)."
+
+[S3.masks.overlay]
+verdict = "simp"
+reference = "SIMP-035"
+note = "Borders and grid lines drape over other relief, so they bend and sit a few pixels off the capture's on hills and slopes."
+
+# ---------------------------------------------------------------- S4-path, S4-select (S1 game, unit orders)
+
+[S4-path.masks.all]
+verdict = "simp"
+reference = "SIMP-062"
+note = "Three quarters of the frame are fog clouds of our own grid (other lumps and edge); the rest: land, trees and units below."
+
+[S4-path.masks.land]
+verdict = "simp"
+reference = "SIMP-035"
+note = "Other hill shapes and shading; cloud edge over the border hexes differs (SIMP-062)."
+
+[S4-path.masks.river]
+verdict = "simp"
+reference = "SIMP-040"
+note = "The river bends otherwise and runs a few pixels off."
+
+[S4-path.masks.forest]
+verdict = "simp"
+reference = "SIMP-009"
+note = "Other tree places (SIMP-009); leaf light as the capture's since b2/r-forest (FLIP 0.374 -> 0.350, SSIM 0.397 -> 0.378)."
+
+[S4-path.masks.unit]
+verdict = "bug"
+reference = "SIMP-023"
+note = "FLIP unchanged by the pack: the settler figure eurofemale18 now plays its idle clip (b2 pack with fixed idle clips, re-judged 2026-10-28: no figure stands in the bind pose); left: the figures of a squad have their own jitter (SIMP-023), the shared cell is ours (SIMP-044), and the figures cast their shadow on the ground since b2/r-water2 (the UnitShader family goes into the shadow map whatever the Shadows flag of its material says)."
+
+[S4-path.masks.landmark]
+verdict = "simp"
+reference = "SIMP-045"
+note = "Quarry stones and deer elsewhere in their hexes."
+
+[S4-path.masks.fog]
+verdict = "simp"
+reference = "SIMP-062"
+note = "Other puffs and cloud edge."
+
+[S4-path.masks.overlay]
+verdict = "simp"
+reference = "SIMP-035"
+note = "The path contour, grid and ring drape over other relief: a few pixels off on the slopes."
+
+[S4-select.masks.all]
+verdict = "simp"
+reference = "SIMP-062"
+note = "As S4-path: fog clouds of our own grid over most of the frame; land, trees and units below."
+
+[S4-select.masks.land]
+verdict = "simp"
+reference = "SIMP-035"
+note = "As S4-path: other hill shapes; cloud edge differs."
+
+[S4-select.masks.river]
+verdict = "simp"
+reference = "SIMP-040"
+note = "As S4-path: the river bends otherwise."
+
+[S4-select.masks.forest]
+verdict = "simp"
+reference = "SIMP-009"
+note = "As S4-path: other tree places (FLIP 0.437 -> 0.410, SSIM 0.367 -> 0.350)."
+
+[S4-select.masks.unit]
+verdict = "bug"
+reference = "SIMP-023"
+note = "FLIP unchanged by the pack: the settler figure eurofemale18 now plays its idle clip (b2 pack with fixed idle clips, re-judged 2026-10-28: no figure stands in the bind pose); left: the figures of a squad have their own jitter (SIMP-023), the shared cell is ours (SIMP-044), and the figures cast their shadow on the ground since b2/r-water2 (the UnitShader family goes into the shadow map whatever the Shadows flag of its material says)."
+
+[S4-select.masks.landmark]
+verdict = "simp"
+reference = "SIMP-045"
+note = "As S4-path: stones and deer elsewhere."
+
+[S4-select.masks.fog]
+verdict = "simp"
+reference = "SIMP-062"
+note = "As S4-path: other puffs and cloud edge."
+
+[S4-select.masks.overlay]
+verdict = "simp"
+reference = "SIMP-035"
+note = "As S4-path: the selection ring and grid drape over other relief."

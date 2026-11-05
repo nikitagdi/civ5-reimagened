@@ -1,0 +1,28 @@
+# The far view (B3 far LOD). No capture of the original: `golden far` draws the world of S3 from the
+# game's camera at its farthest zoom (LEVEL_MAX, where the bench's far phases are) with FarLOD off and
+# on, and compares the two frames (and FarLOD off against itself for the noise of the frame).
+[scene]
+id = "S5"
+captures = ["S5-far"]
+[setup]
+scenario_map = "{game}/Tutorials/Maps/LateGameTest.Civ5Map"
+world_builder_map = "maps/Tutorials/Maps/LateGameTest.Civ5Map"
+[view]
+player = 0
+reveal = "capture-mask"
+basis_nw = "all"
+[render]
+preset = "high"
+size = [1920, 1080]
+msaa = 4
+disable = ["YieldIcons"]
+# The grid is off, as in a game.
+grid = false
+# The whole map is revealed, as in S3.
+settle_s = 600
+camera = "game"
+[compare]
+masks = ["land", "water", "river", "forest", "unit", "city", "landmark", "fog", "overlay"]
+[far]
+world = "S3"
+level = 20.5

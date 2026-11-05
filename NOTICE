@@ -1,0 +1,42 @@
+civ5-reimagened
+Copyright (c) 2026 The civ5-reimagened authors
+
+The program is licensed under the GNU Affero General Public License v3.0 or later (LICENSE), with the
+additional permission in LICENSE-EXCEPTION.md. The crates tools/asset-pipeline, tools/shader-re
+and the shared crates they build on (crates/shared/asset-format, crates/shared/sqlite-sys,
+crates/shared/build-support) are licensed under the MIT license (LICENSE-MIT). tools/granny is licensed
+MIT AND Apache-2.0 AND BSL-1.0: our code is MIT, two files port third-party code (below). See the `license`
+field of each Cargo.toml.
+
+Legal notice
+------------
+Unofficial fan project, not affiliated with or endorsed by Firaxis Games, 2K, Aspyr or Take-Two Interactive.
+Sid Meier's Civilization V, Civ, Civilization, 2K Games, Firaxis Games, Take-Two Interactive Software and their
+logos are trademarks of Take-Two Interactive Software, Inc. This repository contains no game assets; you need
+your own legally obtained copy of the game.
+
+Third-party components in this repository
+------------------------------------------
+- Lua 5.1.5 (third_party/lua-5.1.5): MIT license, Copyright (C) 1994-2012 Lua.org, PUC-Rio; text in
+  third_party/lua-5.1.5/COPYRIGHT. luaconf.h carries two marked changes (third_party/lua-5.1.5/SOURCE.txt).
+- SQLite 3.53.2 amalgamation (third_party/sqlite-3.53.2): public domain (https://www.sqlite.org/copyright.html).
+- Ubuntu Light font (tools/asset-pipeline/fonts/Ubuntu-Light.ttf): Copyright Canonical Ltd., Ubuntu Font
+  License 1.0, text in tools/asset-pipeline/fonts/UFL.txt (third_party/NOTICE-ui-cyrillic-font.md).
+- Oodle1 decompressor port and Granny curve decoding (tools/granny/src/oodle1.rs, curve.rs): ported from
+  nwn2mdk (https://github.com/Arbos/nwn2mdk), Apache License 2.0, text in tools/granny/LICENSE-APACHE; the
+  ported gr2_decompress.cpp states the Boost Software License 1.0, text in tools/granny/LICENSE-BOOST.
+  Curve layouts 12-18 follow LSLib (MIT), no code copied. Details: third_party/NOTICE-granny.md.
+- FLIP error metric port (tools/golden/src/metrics/flip.rs): BSD-3-Clause, NVIDIA; see
+  third_party/NOTICE-flip.md.
+- egui default fonts (compiled in through the epaint_default_fonts crate): see third_party/NOTICE-egui-fonts.md.
+- Rust crates from crates.io (Cargo.lock): each under its own license (MIT / Apache-2.0 and compatible).
+
+Not in this repository
+----------------------
+- The gamecore (a build of the Lekmod fork of the Civilization V CvGameCoreDLL sources) is a separate project
+  under its own terms; this program links it only when you build it yourself (see LICENSE-EXCEPTION.md).
+- Game data (textures, models, sounds, UI files, the game database, cursors, animation graphs) is produced on
+  your machine from your own install by tools/asset-pipeline and is never committed.
+- The game's shaders. The WGSL shaders in crates/client/render/src/shaders were written for this project by
+  studying the compiled shaders of the game (reverse engineering for interoperability); they contain no
+  shader bytecode or source from the game.

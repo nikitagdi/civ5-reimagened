@@ -1,0 +1,39 @@
+[package]
+name = "app-web"
+description = "Web client wasm entry point"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "app-web"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# The replica self-test (`cargo xtask web-selftest`, page `replica-selftest.html`): links the replica (and so the
+# gamecore) into the module and exports `replica_selftest`. The replica itself is always linked (WO-6, the original UI).
+replica-selftest = []
+
+[dependencies]
+assets.workspace = true
+client-app.workspace = true
+replica.workspace = true
+jobs.workspace = true
+platform.workspace = true
+platform-web.workspace = true
+protocol.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+js-sys.workspace = true
+# Test hooks' JSON (`?test=1`).
+serde_json.workspace = true
+tracing.workspace = true
+
+[dependencies.web-sys]
+workspace = true
+features = ["Document", "HtmlCanvasElement", "Location", "Performance", "Url", "UrlSearchParams", "Window"]

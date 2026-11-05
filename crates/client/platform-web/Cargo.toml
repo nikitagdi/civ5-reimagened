@@ -1,0 +1,82 @@
+[package]
+name = "platform-web"
+description = "Browser platform services"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "platform-web"
+
+[dependencies]
+platform.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+js-sys.workspace = true
+tracing.workspace = true
+# tracing output to the browser console (custom writer over the fmt layer).
+tracing-subscriber.workspace = true
+
+[dependencies.web-sys]
+workspace = true
+features = [
+    "AudioBuffer",
+    "AudioBufferSourceNode",
+    "AudioContext",
+    "AudioContextState",
+    "AudioDestinationNode",
+    "AudioNode",
+    "AudioScheduledSourceNode",
+    "AudioParam",
+    "BaseAudioContext",
+    "BinaryType",
+    "Blob",
+    "Cache",
+    "CacheStorage",
+    "CloseEvent",
+    "CssStyleDeclaration",
+    "DedicatedWorkerGlobalScope",
+    "Document",
+    "Element",
+    "ErrorEvent",
+    "Headers",
+    "Event",
+    "GainNode",
+    "EventTarget",
+    "FileSystemDirectoryHandle",
+    "FileSystemFileHandle",
+    "FileSystemGetFileOptions",
+    "FileSystemHandle",
+    "FileSystemReadWriteOptions",
+    "FileSystemSyncAccessHandle",
+    "HtmlAudioElement",
+    "HtmlCanvasElement",
+    "HtmlElement",
+    "HtmlMediaElement",
+    "MediaElementAudioSourceNode",
+    "Location",
+    "MessageEvent",
+    "Navigator",
+    "Node",
+    "PageTransitionEvent",
+    "Performance",
+    "Request",
+    "Response",
+    "StereoPannerNode",
+    "Storage",
+    "StorageManager",
+    "Url",
+    "UrlSearchParams",
+    "VisibilityState",
+    "WebSocket",
+    "Window",
+    "Worker",
+    "WorkerGlobalScope",
+    "WorkerNavigator",
+    "WorkerOptions",
+    "WorkerType",
+    "console",
+]

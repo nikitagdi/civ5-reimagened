@@ -1,0 +1,30 @@
+[package]
+name = "civ5-replay"
+description = "Replays and reads game recordings: info, log, verify, step, hang, diff, export"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "tool"
+
+[[bin]]
+name = "civ5-replay"
+path = "src/main.rs"
+
+# Native only. The core (a Linux gamecore library) is needed by verify, step, hang, diff and `export --record`; info, log
+# and `export --turn` read the files only.
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+gamecore.workspace = true
+game-host.workspace = true
+gamecore-sys.workspace = true
+protocol.workspace = true
+recording.workspace = true
+serde_json.workspace = true
+turntrace.workspace = true
+wire.workspace = true

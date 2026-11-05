@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Network check</title>
+<style>
+  body { font: 16px/1.4 system-ui, sans-serif; margin: 2rem auto; max-width: 34rem; padding: 0 1rem; }
+  table { border-collapse: collapse; } td { padding: .15rem 1rem .15rem 0; }
+  button { font: inherit; padding: .4rem 1rem; margin-right: .5rem; }
+</style>
+</head>
+<body>
+<h1>Network check</h1>
+<p>Sends one message per second for 90 seconds to the game server and times the answers. Keep this tab open and in front.</p>
+<p><button id="start">Start</button><button id="copy" disabled>Copy result as JSON</button></p>
+<table id="out"></table>
+<script>
+"use strict";
+const N = 90;
+const out = document.getElementById("out");
+const startBtn = document.getElementById("start");
+const copyBtn = document.getElementById("copy");
+let result = null;
+
+function pct(sorted, p) { return sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] : null; }
+function row(k, v) { return "<tr><td>" + k + "</td><td>" + v + "</td></tr>"; }
+function fmt(x) { return x === null ? "-" : x.toFixed(1) + " ms"; }
+
+async function firstHttp() {
+  const t0 = performance.now();
+  try { await fetch("/healthz", { cache: "no-store" }); } catch (e) { return null; }
+  return performance.now() - t0;
+}
+
+function summarize(rtts, sent, http) {
+  const s = rtts.slice().sort((a, b) => a - b);
+  let jitter = 0;
+  for (let i = 1; i < rtts.length; i++) jitter += Math.abs(rtts[i] - rtts[i - 1]);
+  jitter = rtts.length > 1 ? jitter / (rtts.length - 1) : null;
+  return {
+    n: rtts.length, sent: sent, lost: sent - rtts.length,
+    first_http_ms: http, min_ms: s.length ? s[0] : null, median_ms: pct(s, 0.5), p95_ms: pct(s, 0.95),
+    max_ms: s.length ? s[s.length - 1] : null, jitter_ms: jitter,
+    browser: navigator.userAgent, time: new Date().toISOString(), page: location.origin,
+  };
+}
+
+function show(r, running) {
+  out.innerHTML = row("answers", r.n + " / " + r.sent + (running ? " (running)" : "")) +
+    row("lost", r.lost) + row("first HTTP connection", fmt(r.first_http_ms)) +
+    row("min", fmt(r.min_ms)) + row("median", fmt(r.median_ms)) + row("p95", fmt(r.p95_ms)) +
+    row("max", fmt(r.max_ms)) + row("jitter", fmt(r.jitter_ms));
+}
+
+startBtn.onclick = async () => {
+  startBtn.disabled = true; copyBtn.disabled = true;
+  const http = await firstHttp();
+  const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/netcheck/ws";
+  const ws = new WebSocket(url);
+  const pending = new Map();
+  const rtts = [];
+  let sent = 0;
+  ws.onmessage = (ev) => {
+    const t0 = pending.get(String(ev.data));
+    if (t0 !== undefined) { pending.delete(String(ev.data)); rtts.push(performance.now() - t0); }
+  };
+  await new Promise((res) => { ws.onopen = res; ws.onerror = res; ws.onclose = res; });
+  if (ws.readyState === WebSocket.OPEN) {
+    for (let i = 0; i < N && ws.readyState === WebSocket.OPEN; i++) {
+      const id = String(i);
+      pending.set(id, performance.now()); ws.send(id); sent++;
+      show(summarize(rtts, sent, http), true);
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  try { ws.close(); } catch (e) {}
+  result = summarize(rtts, sent, http);
+  show(result, false);
+  startBtn.disabled = false; copyBtn.disabled = false;
+};
+copyBtn.onclick = () => navigator.clipboard.writeText(JSON.stringify(result, null, 2));
+</script>
+</body>
+</html>

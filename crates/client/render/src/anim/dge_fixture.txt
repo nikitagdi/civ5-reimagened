@@ -1,0 +1,37 @@
+# Synthetic blend graphs for the unit tests of render::anim, written by hand for the tests (not read from
+# the game). Each one has only the selections, loop modes and entry blends the tests check; the real table
+# comes from the user's install (tools/asset-pipeline, set client-data, blob data:dge-graphs).
+IDLE_GRAPH.DGE
+Sub[Select(sel=Path(0), default=1){0:ec1000(loop=0,clamp=1,cont=0,spd=1,off=0); 1:ec2000(loop=0,clamp=1,cont=0,spd=1,off=0)}]
+AIM_IDLE_GRAPH.DGE
+Sub[Blend(p=const[1.0], from=Select(sel=Path(0), default=1){0:ec1000(loop=0,clamp=1,cont=0,spd=1,off=0); 1:ec2000(loop=0,clamp=1,cont=0,spd=1,off=0)}, to=ec1710(loop=0,clamp=1,cont=0,spd=1,off=0), mask=Mask(TrackMaskAIM_LAYER w=1->0))]
+IDLE_OFFSET_CONTINUE_TRUE_GRAPH.DGE
+Sub[Select(sel=Path(0), default=1){0:ec1000(loop=0,clamp=1,cont=1,spd=1,off=0); 1:ec2000(loop=0,clamp=1,cont=1,spd=1,off=0)}]
+TRANSITIONS_FOR_IDLES.DGE
+Sub[Blend(p=Curve3(BlendTime(0.1)), from=-, to=Select(sel=Path(0), default=1){0:ec1020(loop=1,clamp=1,cont=0,spd=1,off=0); 1:ec2020(loop=1,clamp=1,cont=0,spd=1,off=0)}, mask=-)]
+AIM_TRANSITIONS_FOR_IDLES.DGE
+Sub[Blend(p=const[1.0], from=Blend(p=Curve3(BlendTime(0.25)), from=-, to=Select(sel=Path(0), default=1){0:ec1020(loop=1,clamp=1,cont=0,spd=1,off=0); 1:ec2020(loop=1,clamp=1,cont=0,spd=1,off=0)}, mask=-), to=ec1710(loop=0,clamp=1,cont=0,spd=1,off=0), mask=Mask(TrackMaskAIM_LAYER w=1->0))]
+FIDGETS_GRAPH.DGE
+Sub[Blend(p=Curve3(BlendTime(0.3333)), from=-, to=Select(sel=Path(0), default=1){0:ec1040(loop=1,clamp=1,cont=0,spd=1,off=0); 1:ec2040(loop=1,clamp=1,cont=0,spd=1,off=0)}, mask=-)]
+ENTER_FORTIFY.DGE
+Sub[Blend(p=Curve3(BlendTime(0.15)), from=-, to=Select(sel=Path(6), default=1){0:ec1500(loop=1,clamp=1,cont=0,spd=1,off=0); 1:ec1520(loop=1,clamp=1,cont=0,spd=1,off=0)}, mask=-)]
+FORTIFY_GRAPH.DGE
+Sub[ec1520(loop=0,clamp=1,cont=1,spd=1,off=0)]
+AIM_FORTIFY_GRAPH.DGE
+Sub[Blend(p=const[1.0], from=ec1520(loop=0,clamp=1,cont=1,spd=1,off=0), to=ec1710(loop=0,clamp=1,cont=0,spd=1,off=0), mask=Mask(TrackMaskAIM_LAYER w=1->0))]
+FORTIFY_FIDGET_GRAPH.DGE
+Sub[Blend(p=BlendTime(0.18), from=-, to=ec1540(loop=1,clamp=1,cont=0,spd=1,off=0), mask=-)]
+AIM_FORTIFY_FIDGET_GRAPH.DGE
+Sub[Blend(p=const[1.0], from=Blend(p=BlendTime(0.25), from=-, to=ec1540(loop=1,clamp=1,cont=0,spd=1,off=0), mask=-), to=ec1710(loop=0,clamp=1,cont=0,spd=1,off=0), mask=Mask(TrackMaskAIM_LAYER w=1->0))]
+FORTIFY_LEAVE_GRAPH.DGE
+Sub[Blend(p=Curve3(BlendTime(0.2)), from=-, to=Select(sel=Path(1), default=1){0:ec1580(loop=1,clamp=1,cont=0,spd=1,off=0); 1:ec1560(loop=1,clamp=1,cont=0,spd=1,off=0); 2:ec1620(loop=1,clamp=1,cont=0,spd=1,off=0)}, mask=-)]
+AIM_FORTIFY_LEAVE_GRAPH.DGE
+Sub[Blend(p=const[1.0], from=Blend(p=Curve3(BlendTime(0.15)), from=-, to=Select(sel=Path(1), default=1){0:ec1580(loop=1,clamp=1,cont=0,spd=1,off=0); 1:ec1560(loop=1,clamp=1,cont=0,spd=1,off=0); 2:ec1620(loop=1,clamp=1,cont=0,spd=1,off=0)}, mask=-), to=ec1710(loop=0,clamp=1,cont=0,spd=1,off=0), mask=Mask(TrackMaskAIM_LAYER w=1->0))]
+WORKER_ENTER_SLEEP.DGE
+Sub[Blend(p=Curve3(BlendTime(0.2)), from=-, to=ec1500(loop=1,clamp=1,cont=0,spd=1,off=0), mask=-)]
+WORKER_EXIT_SLEEP.DGE
+Sub[Blend(p=Curve3(BlendTime(0.2)), from=-, to=ec1580(loop=1,clamp=1,cont=0,spd=1,off=0), mask=-)]
+WORKER_WORK.DGE
+Sub[Select(sel=Path(2), default=1){0:ec1910(loop=0,clamp=1,cont=1,spd=1,off=0); 1:ec1920(loop=0,clamp=1,cont=1,spd=1,off=0); 2:ec1930(loop=0,clamp=1,cont=1,spd=1,off=0); 3:ec1940(loop=0,clamp=1,cont=1,spd=1,off=0); 4:ec1950(loop=0,clamp=1,cont=1,spd=1,off=0); 5:ec1960(loop=0,clamp=1,cont=1,spd=1,off=0)}]
+PROBE_EVERY_FORM.DGE
+Sub[Blend(p=Curve3(BlendEC(1420)), from=-, to=Blend(p=Path(2.1e-31), from=Select(sel=const[1.0], default=0){0:ec1000(loop=0,clamp=1,cont=0,spd=1,off=0); 1:ec1400(loop=0,clamp=1,cont=0,spd=1,off=0) IN[Path(6)]}, to=Select(sel=-, default=1){0:-; 1:ec1420(loop=1,clamp=1,cont=0,spd=1,off=0)}, mask=-), mask=-)]

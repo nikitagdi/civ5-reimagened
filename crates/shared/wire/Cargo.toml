@@ -1,0 +1,19 @@
+[package]
+name = "wire"
+description = "WebSocket frame with encoding byte, zstd compression, length-prefixed IPC frames"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "shared"
+
+# Shared layer, builds for wasm32-unknown-unknown (R8). `protocol` is used for the postcard codec only.
+[dependencies]
+protocol.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+ruzstd.workspace = true

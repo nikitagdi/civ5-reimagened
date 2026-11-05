@@ -1,0 +1,22 @@
+[package]
+name = "loc"
+description = "Firaxis localization engine: text keys, template grammar, plural rules, numbers, Locale string functions"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "shared"
+
+[features]
+# C ABI for the Lekmod fork (`include/loc.h`): the only module with `unsafe`.
+capi = []
+
+# std only: no third-party dependencies.
+[dependencies]
+
+[dev-dependencies]
+roxmltree.workspace = true

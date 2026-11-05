@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#05080f">
+  <!-- "Add to home screen" opens the game without the browser bars (manifest: display fullscreen; the apple tags
+       are iOS Safari's equivalent). The "full screen" button for a plain tab is fullscreen.js. -->
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-180.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Civ5 Reimagined">
+  <title>civ5-reimagened</title>
+  <link rel="stylesheet" href="./ui.css">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      /* No text selection, magnifier or callout menu from a long press: a held finger is a right click. */
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+      background: #05080f;
+      overscroll-behavior: none;
+    }
+    /* touch-action: none: the client handles gestures. */
+    #civ5-canvas {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      /* The visible height on a phone whose address bar slides away. */
+      height: 100dvh;
+      display: block;
+      touch-action: none;
+      outline: none;
+    }
+    #civ5-status {
+      position: fixed;
+      left: 12px;
+      bottom: 10px;
+      color: #8a96aa;
+      font: 12px/1.4 system-ui, sans-serif;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="civ5-canvas" tabindex="0"></canvas>
+  <div id="civ5-status">loading…</div>
+
+  <!-- The login page, the lobby list and the room: plain DOM over the canvas (auth.js, ui.js). Hidden until
+       one of them has something to show; `?egui=1` keeps it hidden and the canvas draws these screens. -->
+  <div id="civ5-ui" hidden>
+    <section id="civ5-auth" class="auth" hidden aria-labelledby="auth-title">
+      <div class="brandmark">
+        <svg class="emblem" viewBox="0 0 40 40" width="56" height="56" aria-hidden="true">
+          <path d="M20 2 35.6 11v18L20 38 4.4 29V11z" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M20 7.5 30.8 13.7v12.6L20 32.5 9.2 26.3V13.7z" fill="currentColor" opacity=".14"/>
+          <path d="M13 23.5c2.2 2.6 4.6 3.9 7 3.9s4.8-1.3 7-3.9M14.5 18.5c1.6 1.9 3.5 2.8 5.5 2.8s3.9-.9 5.5-2.8M20 11v16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <h1 id="auth-title">civ5-reimagened</h1>
+        <div class="tagline">Civilization V with Lekmod, multiplayer in the browser</div>
+      </div>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" id="tab-login" aria-selected="true" aria-controls="form-login">Sign in</button>
+        <button type="button" role="tab" id="tab-register" aria-selected="false" aria-controls="form-register">Create account</button>
+      </div>
+      <div id="auth-app-error" class="err" role="alert" hidden></div>
+      <div id="auth-app-buttons" class="row" hidden></div>
+
+      <form id="form-login" class="frame" method="post" action="/api/auth/login" novalidate>
+        <label for="login-username">Nick</label>
+        <input id="login-username" name="username" type="text" autocomplete="username" autocapitalize="off"
+               autocorrect="off" spellcheck="false" maxlength="24" required>
+        <label for="login-password">Password</label>
+        <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+        <div class="err" role="alert" hidden></div>
+        <button type="submit" class="primary">Sign in</button>
+      </form>
+
+      <form id="form-register" class="frame" method="post" action="/api/auth/register" novalidate hidden>
+        <label for="reg-username">Nick</label>
+        <input id="reg-username" name="username" type="text" autocomplete="username" autocapitalize="off"
+               autocorrect="off" spellcheck="false" maxlength="24" required>
+        <label for="reg-password">Password <span class="hint" id="reg-min">(at least 8 characters)</span></label>
+        <input id="reg-password" name="password" type="password" autocomplete="new-password" required>
+        <label for="reg-password2">Repeat the password</label>
+        <input id="reg-password2" name="password2" type="password" autocomplete="new-password" required>
+        <div id="reg-code-row" hidden>
+          <label for="reg-code">Код приглашения</label>
+          <input id="reg-code" name="code" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <div class="err" role="alert" hidden></div>
+        <button type="submit" class="primary">Create account</button>
+      </form>
+    </section>
+    <div id="civ5-main"></div>
+  </div>
+
+  <script type="module" src="./fullscreen.js"></script>
+  <script type="module" src="./cursor-edge.js"></script>
+  <script defer src="./auth.js"></script>
+  <script defer src="./ui.js"></script>
+  <script type="module" src="./bootstrap.js"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>replica selftest</title>
+<pre id="out">replica_load: running</pre>
+<script type="module">
+// Fetches the fixture named by ?fixture=<dir> (list.json names the files), runs the scripted replica in wasm and
+// logs one line `replica_load: PASS|FAIL <json>` for tools/web-selftest/run.mjs.
+// ?mt=1: the same in the threaded build (./pkg-mt/, needs a cross-origin isolated page).
+const params = new URLSearchParams(location.search);
+const pkg = params.get("mt") === "1" ? "./pkg-mt" : "./pkg";
+const { default: init, replica_selftest } = await import(`${pkg}/app_web.js`);
+
+const out = document.getElementById("out");
+const dir = params.get("fixture") ?? "fixture/tiny";
+try {
+  const t0 = performance.now();
+  const wasm = await (await fetch(`${pkg}/app_web_bg.wasm`)).arrayBuffer();
+  const tFetch = performance.now();
+  await init({ module_or_path: wasm });
+  const tInit = performance.now();
+  const names = await (await fetch(`${dir}/list.json`)).json();
+  const files = {};
+  let bytes = 0;
+  const tData0 = performance.now();
+  await Promise.all(
+    names.map(async (n) => {
+      const r = await fetch(`${dir}/${n}`);
+      if (!r.ok) throw new Error(`${n}: HTTP ${r.status}`);
+      files[n] = new Uint8Array(await r.arrayBuffer());
+      bytes += files[n].length;
+    }),
+  );
+  const tData = performance.now();
+  const report = JSON.parse(replica_selftest(dir.split("/").pop(), files));
+  const tRun = performance.now();
+  report.threads = pkg === "./pkg-mt" ? { isolated: self.crossOriginIsolated === true } : null;
+  report.wasm_bytes = wasm.byteLength;
+  report.wasm_fetch_ms = tFetch - t0;
+  report.wasm_instantiate_ms = tInit - tFetch;
+  report.fixture_fetch_ms = tData - tData0;
+  report.fixture_bytes = bytes;
+  report.run_total_ms = tRun - tData;
+  const line = `replica_load: ${report.ok ? "PASS" : "FAIL"} ${JSON.stringify(report)}`;
+  out.textContent = line;
+  console.log(line);
+} catch (e) {
+  const line = `replica_load: FAIL ${JSON.stringify({ ok: false, error: String(e && e.stack ? e.stack : e) })}`;
+  out.textContent = line;
+  console.log(line);
+}
+</script>

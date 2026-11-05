@@ -1,0 +1,162 @@
+# FireGrafixMaterial strings (the names of the material blocks of the game's .fgx files). Stripped packs keep !crc32(name) in their place.
+# First section: the block's member names (they resolve by hash without this file; listed for
+# reference and for the hash check). Second: shader sets, parameter blocks, parameter names and
+# fallback materials harvested from gr2 files that keep their text (MiscData, EffectData, DLC).
+# Regrow with: cargo run --release -p granny --example harvest_fgx -- <install>
+
+# member names
+ShaderSet
+FallbackMtl
+UseFallbackMtl
+AlphaMode
+ZMode
+AlphaRef
+SkinBoneCount
+Reflections
+Shadows
+AlphaSort
+Version
+Invisible
+Z-Fail
+typeName
+FireGrafixMaterial
+ParameterSetCount
+ParameterSet0
+ParameterSet1
+ParameterSet2
+ParameterSet3
+ParamBlock
+ParamCount
+ParamNames
+ParamTypes
+ParamUsage
+ParamRegs
+ParamSize
+ParamSemantics
+ParamStoreIdx
+ParamDataF
+ParamDataI
+ParamDataT
+ParamActive
+ParamFlags
+
+# harvested strings
+01 - Default
+03 - Default
+23 - Default
+AlphaLookupMap0
+AlphaLookupMap1
+AlphaLookupMap2
+AlphaLookupMap3
+AlphaLookupMap4
+ArrowShaderConstants
+BaseSampler
+BaseTextureMap
+BaseTextureMap0
+BaseTextureMap1
+BaseTextureMap2
+BaseTextureMap3
+BaseTextureMap4
+BuildingDataDynamic
+BuildingGlobal
+BuildingSREF
+BuildingShader
+BuildingShader_Skinned
+BuildingTextures
+CameraParameters
+Civ5LeaderMatteTextures
+Civ5LeaderheadTextures
+Civ5LightingTextures
+ColorCorrection
+Diffuse
+DiffuseMap
+DistanceFogRamp
+DullEnvironmentCubeMap
+ElapsedTime
+EnvironmentCubeMap
+EnvironmentMap
+EnvironmentMapSampler
+EnvironmentMaskSampler
+FOWBaseLayer
+FOWColorKey
+FOWMask
+FXShader
+FXShaderMaxData
+FXShaderTextures
+FXShader_Skinned
+Fallback_Seagull
+HeightTextureMap
+Irradiance
+IrradianceCubeMap
+IrradianceMap
+LandmarkShader
+LandmarkShaderTextures
+LandmarkShader_Shadow
+LandmarkShader_Stencil
+Leader
+Leader_Fur
+Leader_Glass
+Leader_Hair
+Leader_MatteParameters
+Leader_Opaque_Cloth
+Leader_Opaque_Hair
+Leader_Opaque_Matte
+Leader_Skin
+Leader_Transparent_Matte
+LifeTime
+LightCubeMapSampler
+Matte
+MatteShadowTint
+NormalMap
+OverlayProjection
+SREFMap
+SimpleShader
+SimpleTextures
+SpecSharp
+SpecSoft
+SpecTextureMap
+Standard_13
+Standard_3
+Standard_7
+TeamColorR
+TeamColorSampler
+Transform
+Transparency
+TransparencyMap
+Tree cutter
+Treecutter
+UIShader
+UIShaderTextures
+UVScrollingMap0
+UVScrollingMap1
+UVScrollingMap2
+UVScrollingMap3
+UVScrollingMap4
+Uffizi [Uffizi]
+UnitShader
+UnitShaderDynamicData
+UnitShaderGlobalData
+UnitShaderTextures
+ViewInverseMatrix
+ViewMatrix
+ViewProjMatrix
+WaterFogRamp
+WorldMatrix
+WorldTime
+banana shadow
+f3FogColor
+f4ControlValues
+f4FOWBaseScale
+fWaterHeight
+fZBias
+g_FogConsts
+g_bIsShadowPass
+mtxViewInv
+mtxViewProj
+shadows
+sugar shadow
+tree cut
+v3CameraWorld
+
+# ShaderSet values the spec lists for the world (AB 3.1) that no named file spells out
+UnitShader_Skinned

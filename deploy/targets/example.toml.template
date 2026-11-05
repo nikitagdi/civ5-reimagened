@@ -1,0 +1,11 @@
+# A deploy target for `cargo xtask deploy --target <name>`. Copy this file to deploy/targets/<name>.toml (git ignores
+# *.toml there) or anywhere else (then pass the path), and fill in every value. While a value is empty or still names
+# example.com, the deploy refuses to run.
+docker_context = ""                       # docker context of the host ("default" for the local one)
+ssh = "deploy@civ5.example.com"           # user@host, for the asset and game data sync
+domain = "civ5.example.com"               # the public name, or the IP address of the host with `--tls internal`
+dir = "/srv/civ5"                         # data dir on the host (assets, gamedata, civ5.env), writable by the ssh user
+caddy_mode = "host"                       # "host" (Caddy on the host), "docker" (Caddy in a container) or "none"
+caddy_dir = "/etc/caddy/conf.d"           # directory of the included Caddy files (host/docker)
+reload_cmd = "sudo systemctl reload caddy" # reloads Caddy (host/docker)
+compose = "deploy/compose.public.yaml"    # compose override next to deploy/compose.yaml

@@ -1,0 +1,21 @@
+[package]
+name = "app-desktop"
+description = "Native client entry point"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "app-desktop"
+
+[dependencies]
+client-app.workspace = true
+# `CIV5_JOBS=N`: N native workers of the pool (B3 render-mt), for goldens on threads.
+jobs.workspace = true
+platform-native.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "ansi"] }
+anyhow.workspace = true

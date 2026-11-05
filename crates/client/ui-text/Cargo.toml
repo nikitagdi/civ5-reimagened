@@ -1,0 +1,19 @@
+[package]
+name = "ui-text"
+description = "UI text: .ggxml fonts, markup, wrapping, truncation and glyph quads of the original TextControl"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "client"
+
+[dependencies]
+draw-list.workspace = true
+glam.workspace = true
+roxmltree.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

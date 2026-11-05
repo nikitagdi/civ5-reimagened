@@ -1,0 +1,15 @@
+{
+  "name": "civ5-playtest",
+  "private": true,
+  "type": "module",
+  "description": "B1 acceptance playtests",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "playtest": "node run.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.60.0"
+  }
+}

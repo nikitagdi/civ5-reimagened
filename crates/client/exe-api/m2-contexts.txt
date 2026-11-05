@@ -1,0 +1,40 @@
+# Contexts of milestone M2 for `cargo xtask exe-api-coverage`.
+# Source: our inventory of the EUI contexts and of the context tree they open (project notes, not in this repository).
+# A context is the bare name of its Lua file; the scripts it `include`s are followed.
+# `[core]` is the EUI core the clusters share; it is also reached through the includes of the clusters.
+
+# K1 World HUD: the root, the EUI context, the anchored managers and the world view.
+[K1]
+InGame
+EUI_context
+YieldIconManager
+PlotHelpManager
+ResourceIconManager
+GenericWorldAnchor
+UnitFlagManager
+CityBannerManager
+WorldView
+PathHelpManager
+PlotHelpText
+UnitMemberOverlay
+
+# K2 Top panel.
+[K2]
+TopPanel
+
+# K3 Unit panel, combat and notifications.
+[K3]
+ActionInfoPanel
+NotificationPanel
+EnemyUnitPanel
+UnitPanel
+
+# The EUI core and the shared libraries every cluster includes.
+[core]
+ToolTips
+EUI_core_library
+EUI_utilities
+EUI_tooltip_library
+InstanceManager
+IconSupport
+SupportFunctions

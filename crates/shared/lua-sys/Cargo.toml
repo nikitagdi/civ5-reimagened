@@ -1,0 +1,25 @@
+[package]
+name = "lua-sys"
+description = "Lua 5.1 (C++ with exceptions, C linkage) and raw FFI"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+# Dependent build scripts read DEP_LUA51_INCLUDE and DEP_LUA51_CPP_INCLUDE.
+links = "lua51"
+
+[package.metadata.civ5]
+layer = "shared"
+
+[dependencies]
+
+[build-dependencies]
+build-support.workspace = true
+
+# Smoke run of the safe API inside wasm (`tests/wasm_smoke.mjs` loads it in Node):
+# cargo build -p lua-sys --example wasm_smoke --target wasm32-unknown-unknown
+[[example]]
+name = "wasm_smoke"
+crate-type = ["cdylib"]

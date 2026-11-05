@@ -1,0 +1,29 @@
+[package]
+name = "ui-client"
+description = "The client side of the original UI: files, textures and text for ui, the boot from the ui asset set, the per-frame layer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "client"
+
+[dependencies]
+asset-format.workspace = true
+assets.workspace = true
+audio.workspace = true
+draw-list.workspace = true
+loc.workspace = true
+lua-sys.workspace = true
+platform.workspace = true
+ui.workspace = true
+ui-text.workspace = true
+glam.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+blake3.workspace = true

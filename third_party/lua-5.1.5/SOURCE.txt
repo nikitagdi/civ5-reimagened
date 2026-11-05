@@ -1,0 +1,13 @@
+Lua 5.1.5, https://www.lua.org/ftp/lua-5.1.5.tar.gz
+sha256 2640fc56a795f29d28ef15e13c34a47e223960b0240e8cb0a82d9b0738695333 (matches lua.org)
+License: MIT, see COPYRIGHT.
+
+Contents: src/*.c, the internal headers and the public headers lua.h, lualib.h, lauxlib.h, luaconf.h.
+Not vendored: lua.c, luac.c, print.c (standalone programs). Built by crates/shared/lua-sys.
+
+All files are unmodified except luaconf.h, which carries two blocks marked "LEKMOD:" (active only when
+LEKMOD_LUA_INTEGER is defined, as lua-sys and the portable gamecore build do with -DLEKMOD_LUA_INTEGER=int):
+- lua_Integer is pinned to LEKMOD_LUA_INTEGER (4 bytes on every target, as ptrdiff_t is on Win32);
+- lua_number2int / lua_number2integer round half to even (like the game's MSVC build of Lua).
+These are the same two blocks as in the luaconf.h the portable gamecore is built with, so lua-sys and the
+gamecore agree on the Lua ABI and number conversion.

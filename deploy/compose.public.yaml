@@ -1,0 +1,7 @@
+# Compose override of a deploy target with Caddy (or another reverse proxy) on the host: the gateway answers on
+# loopback only and the proxy terminates TLS. Caddy in Docker: replace `ports` by the Caddy network. Set the limits
+# for your host. Name another override with `compose = "..."` in the target file.
+services:
+  civ5:
+    ports: ["127.0.0.1:8080:8080"]
+    # mem_limit and cpus: by your host.

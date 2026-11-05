@@ -1,0 +1,32 @@
+# Common part of the civ5 service, used with an override (default compose.public.yaml) by `cargo xtask deploy`.
+# The deploy sets CIV5_BUILD, CIV5_DIST (build context), CIV5_DIR (the data dir of the target on the host) and
+# CIV5_PASSWORD. The client reads them, so this works with a remote docker context; nothing secret is stored here.
+# CIV5_PASSWORD is the registration code of new accounts (the invitation code field of the register form; not a
+# login password).
+services:
+  civ5:
+    image: civ5-server:${CIV5_BUILD:?set CIV5_BUILD}
+    build:
+      context: ${CIV5_DIST:-.}
+      dockerfile: Dockerfile
+    container_name: civ5
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 60s
+    user: "1000:1000"
+    environment:
+      CIV5_PASSWORD: ${CIV5_PASSWORD:-}
+    volumes:
+      - civ5-state:/var/lib/civ5
+      - ${CIV5_DIR:?set CIV5_DIR}/assets:/srv/civ5/assets:ro
+      - ${CIV5_DIR:?set CIV5_DIR}/gamedata:/srv/civ5/gamedata:ro
+    healthcheck:
+      test: ["CMD", "civ5-server", "--config", "/etc/civ5/server.toml", "healthcheck"]
+      interval: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  civ5-state: {}

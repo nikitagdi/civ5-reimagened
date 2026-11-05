@@ -1,0 +1,36 @@
+[package]
+name = "net-test"
+description = "Net-test stand: the headless bot (net-bot); the runner lives in runner/"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "tool"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "net-bot"
+path = "src/bin/net-bot.rs"
+
+[[bin]]
+name = "netproxy"
+path = "src/bin/netproxy.rs"
+
+# The bot is a raw peer on `protocol` and `wire` (NT-D3): no `client-core`, no tokio.
+# `netproxy` (src/proxy) is the one part on tokio and axum (layer `tool`).
+[dependencies]
+protocol = { workspace = true, features = ["json"] }
+wire.workspace = true
+tungstenite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+clap.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+axum.workspace = true

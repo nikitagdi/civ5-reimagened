@@ -1,0 +1,41 @@
+{
+ "schema": "civ5-golden-draws/1",
+ "scene": "S1",
+ "capture": "S1a",
+ "width": 1920,
+ "height": 1080,
+ "ui_boundary_event": 21,
+ "draws": [
+  {
+   "event": 2, "pass": 0, "world": true,
+   "vs": "a9993e364706816aba3e25717850c26c9cd0d89d",
+   "ps": "A9993E364706816ABA3E25717850C26C9CD0D89D",
+   "hs": null, "ds": null,
+   "vs_entry": "TerrainShader::P:VS", "ps_entry": "TerrainShader::P:PS", "hs_entry": null, "ds_entry": null,
+   "topology": "TriangleList", "index_count": 3, "vertex_count": 0, "instances": 1,
+   "targets": [{"format": "R8G8B8A8_UNORM", "width": 1920, "height": 1080, "samples": 4}],
+   "depth_format": "D24_UNORM_S8_UINT"
+  },
+  {
+   "event": 3, "pass": 0, "world": true,
+   "vs": "84983e441c3bd26ebaae4aa1f95129e5e54670f1",
+   "ps": null,
+   "hs": null, "ds": null,
+   "vs_entry": null, "ps_entry": null, "hs_entry": null, "ds_entry": null,
+   "topology": "TriangleList", "index_count": 0, "vertex_count": 6, "instances": 1,
+   "targets": [],
+   "depth_format": "D32_FLOAT"
+  },
+  {
+   "event": 21, "pass": 1, "world": false,
+   "vs": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+   "ps": "84983e441c3bd26ebaae4aa1f95129e5e54670f1",
+   "hs": null, "ds": null,
+   "vs_entry": null, "ps_entry": "UIShader::Text:PS", "hs_entry": null, "ds_entry": null,
+   "topology": "TriangleStrip", "index_count": 0, "vertex_count": 4, "instances": 1,
+   "targets": [{"format": "R8G8B8A8_UNORM", "width": 1920, "height": 1080, "samples": 4}],
+   "depth_format": null
+  }
+ ],
+ "by_entry": {"TerrainShader::P:PS": [2], "UIShader::Text:PS": [21]}
+}

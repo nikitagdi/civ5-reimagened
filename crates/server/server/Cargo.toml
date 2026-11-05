@@ -1,0 +1,56 @@
+[package]
+name = "server"
+description = "civ5-reimagened authoritative server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "server"
+
+[[bin]]
+name = "civ5-server"
+path = "src/main.rs"
+
+# Test double of the worker process (GS-D9). A bin target so that cargo builds it for the
+# integration tests (`CARGO_BIN_EXE_mock-worker`) even with `--test <name>`. Not shipped.
+[[bin]]
+name = "mock-worker"
+path = "tests/common/mock_worker.rs"
+test = false
+doc = false
+
+[dependencies]
+protocol.workspace = true
+wire.workspace = true
+turntrace.workspace = true
+recording.workspace = true
+gamecore.workspace = true
+# The worker shell (`src/worker/`) only: the gateway code does not build a core (GH-D2, `xtask check`).
+game-host.workspace = true
+tokio.workspace = true
+axum.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "ansi"] }
+thiserror.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+getrandom.workspace = true
+# Account password hashes (argon2id PHC strings).
+argon2.workspace = true
+# Patches between the replica snapshots of two turns (`worker/packer.rs`; approved
+# 2026-10-29). The C library, server side only: the client decodes with ruzstd.
+zstd.workspace = true
+# Client log reports (`http/reports.rs`).
+flate2.workspace = true
+
+[dev-dependencies]
+# Paused time for timer tests (`tokio::time::pause`).
+tokio = { workspace = true, features = ["test-util"] }
+# WebSocket client for integration tests.
+tungstenite.workspace = true

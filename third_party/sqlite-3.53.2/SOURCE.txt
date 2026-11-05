@@ -1,0 +1,4 @@
+SQLite 3.53.2 amalgamation (sqlite3.c, sqlite3.h, sqlite3ext.h), unmodified.
+Taken from the sqlite3/ directory of the libsqlite3-sys 0.38.2 crate on crates.io
+(https://static.crates.io/crates/libsqlite3-sys/libsqlite3-sys-0.38.2.crate).
+SQLite is in the public domain: https://www.sqlite.org/copyright.html

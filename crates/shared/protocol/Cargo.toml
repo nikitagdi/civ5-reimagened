@@ -1,0 +1,25 @@
+[package]
+name = "protocol"
+description = "Client-server messages, protocol version, codecs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "shared"
+
+[features]
+json = ["dep:serde_json"]
+
+# R5: direct deps limited to serde, postcard, serde_json, thiserror.
+[dependencies]
+serde.workspace = true
+postcard.workspace = true
+serde_json = { workspace = true, optional = true }
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

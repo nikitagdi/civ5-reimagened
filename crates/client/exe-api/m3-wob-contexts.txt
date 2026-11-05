@@ -1,0 +1,17 @@
+# Contexts of M3 WO-B: K9 tech tree, K10 social policies and ideology, K11 religion (by bare Lua name).
+[K9]
+TechTree
+TechPopup
+TechAwardPopup
+TechButtonInclude
+TechHelpInclude
+
+[K10]
+SocialPolicyPopup
+ChooseIdeologyPopup
+
+[K11]
+ChoosePantheonPopup
+ChooseReligionPopup
+ReligionOverview
+ChooseFaithGreatPerson

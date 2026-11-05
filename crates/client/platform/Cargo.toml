@@ -1,0 +1,16 @@
+[package]
+name = "platform"
+description = "Platform service traits and shared input types"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "client"
+
+# Traits and types only.
+[dependencies]
+thiserror.workspace = true

@@ -1,0 +1,17 @@
+[package]
+name = "turntrace"
+description = "Per-turn timeline spans (the shared envelope of the logging spec): recorder, Chrome/Perfetto export, turn summary"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "shared"
+
+# No I/O: the clock is passed in. serde for the IPC and the jsonl, serde_json for the exports.
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,14 @@
+[package]
+name = "jobs"
+description = "A pool of worker threads for pure CPU jobs (web workers on wasm with threads); none: inline"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "client"
+
+[dependencies]

@@ -1,0 +1,5 @@
+# sha256 of the pinned DB snapshot: hashes only, no game data.
+# Snapshot: Lekmod v34.15, taken from the real game 2026-10-17 (profile with EUI).
+# Changing these lines changes the game: do it on purpose.
+gameplay_db_sha256 = 259087778ea7f67bfb7253bdafea15074aec169d0afa2465792ed300c1681254  # Civ5DebugDatabase.db
+loc_sha256         = 7da47da3c5a692d0383a5213afd6421a13d00341181e32d373355709ef72d92c  # Localization-Merged.db

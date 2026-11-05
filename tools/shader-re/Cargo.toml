@@ -1,0 +1,31 @@
+[package]
+name = "shader-re"
+description = "Original-game shader extraction, catalog and WGSL checks"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license = "MIT"
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "tool"
+
+[lib]
+name = "shader_re"
+path = "src/lib.rs"
+
+[[bin]]
+name = "shader-re"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+naga.workspace = true
+toml.workspace = true
+# Native GPU runs of the oracle and of hand-written WGSL (harness, AC-R9.2). wgpu is already a
+# workspace dependency (same entry as the renderer); only this crate's edge in Cargo.lock is new.
+wgpu.workspace = true

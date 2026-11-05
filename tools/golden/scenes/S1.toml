@@ -1,0 +1,31 @@
+[scene]
+id = "S1"
+captures = ["S1a", "S1b"]
+[setup]
+sync_seed = 12345
+map_seed = 12345
+world_size = "WORLDSIZE_DUEL"
+map_script = "Assets/Maps/Lekmap v5.2/LekmapPangaeaFractalv5.2.lua"
+human = "CIVILIZATION_ROME"
+ai = ["CIVILIZATION_GREECE"]
+city_states = []
+handicap = "HANDICAP_PRINCE"
+speed = "GAMESPEED_STANDARD"
+era = "ERA_ANCIENT"
+# The game of the original saved right after the F12 of S1b; the autosave of the S1a session gives the same state digest.
+save = "v2/S1/golden-S1a.Civ5Save"
+[view]
+player = 0
+reveal = "game"
+basis_nw = "all"
+[render]
+preset = "high"
+size = [1920, 1080]
+msaa = 4
+disable = ["YieldIcons"]
+# The captures show the hex grid (TerrainShader::ScreenSpaceOverlayPS over the cells).
+grid = true
+camera = "capture"
+time_constants = ["*Time*", "*Scroll*"]
+[compare]
+masks = ["land", "water", "river", "forest", "unit", "city", "landmark", "fog", "overlay"]

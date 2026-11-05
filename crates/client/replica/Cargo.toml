@@ -1,0 +1,32 @@
+[package]
+name = "replica"
+description = "The client's replica of the server's game: state machine over the replica stream, snapshot and patch loading, CHECK policy, outgoing UI messages, the GameSide the exe-api uses"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "client"
+
+# R10: the only client crate with a direct dependency on `gamecore`.
+[dependencies]
+asset-format.workspace = true
+gamecore.workspace = true
+lua-sys.workspace = true
+client-core.workspace = true
+platform.workspace = true
+protocol.workspace = true
+wire.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+# The late-huge scenario reads the GCS1 out of a server save (C5SV).
+game-host.workspace = true
+# Tests only: makes real zstd patch frames (a dictionary of the entropy header and the previous snapshot) for the
+# ruzstd decoding path. The workspace entry is the one the asset pipeline and the server use.
+zstd.workspace = true

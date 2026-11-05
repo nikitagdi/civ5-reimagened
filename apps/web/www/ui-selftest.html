@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>ui selftest</title>
+<link rel="stylesheet" href="./ui.css">
+<!-- The page's own screens (ui.js) without the game: tools/playtest/ui-selftest.mjs drives window.__civ5ui with
+     made-up views and art and checks the DOM (markup, the civ tip, the option groups, the saves per game). -->
+<div id="civ5-status"></div>
+<div id="civ5-ui" hidden><div id="civ5-main"></div></div>
+<script>
+  window.__civ5auth = { show() {}, hide() {}, logout() {}, mayHaveSession: () => true };
+</script>
+<script src="./ui.js"></script>

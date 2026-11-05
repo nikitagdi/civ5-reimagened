@@ -1,0 +1,117 @@
+# Format map of the comparison wrapper. In git; owner: shader-re.
+#
+# Where our texture format differs from the one D3D9 used, the oracle and the hand-written module
+# get the SAME texture in OUR format, and the oracle's wrapper applies the swizzle and the
+# quantisation that make it see what D3D9 would have seen.
+#
+#   [format.<name>]
+#   our      Rgba8Unorm | R8Unorm | Rgba16Float      our texture format
+#   view     four of r g b a 0 1                      where x, y, z, w of the D3D9 value come from
+#   quantize 565 | unorm16 (optional)                  random texel data is made representable
+#
+#   [[sampler]]   which sampler of which entry uses the row (by CTAB sampler name)
+#   entry    Package::Entry:STAGE, `*` matches any run of characters
+#   name     CTAB name of the sampler
+#   format   a [format.*] row
+#
+# A new substitution of a format is first a row here, then a `[[sampler]]` line.
+
+[format.R5G6B5]
+d3d9 = "D3DFMT_R5G6B5"
+our = "Rgba8Unorm"
+view = "rgb1"
+quantize = "565"
+owner = "world-terrain"
+
+[format.L8]
+d3d9 = "D3DFMT_L8"
+our = "R8Unorm"
+view = "rrr1"
+owner = "world-terrain, world-water"
+
+[format.A8]
+d3d9 = "D3DFMT_A8"
+our = "R8Unorm"
+view = "000r"
+owner = "world-terrain"
+
+[format.LEAN_CROSS]
+d3d9 = "D3DFMT_A16B16G16R16 (second LEAN map; the value is read from w)"
+our = "Rgba16Float"
+view = "000r"
+quantize = "unorm16"
+owner = "world-water"
+
+[format.A16B16G16R16]
+d3d9 = "D3DFMT_A16B16G16R16 (LEAN)"
+our = "Rgba16Float"
+view = "rgba"
+quantize = "unorm16"
+owner = "world-water"
+
+# ---- uses -------------------------------------------------------------------------------
+# Only the samplers the specs name by their CTAB name are listed; the owners add the rest
+# (the cache pages of the terrain, the L8 masks `floodplains_depth` and `icedisplacement`).
+
+# A8 height tiles.
+[[sampler]]
+entry = "TerrainShader::*"
+name = "DisplacementMap"
+format = "A8"
+
+# The same tile of heights in the macro shadow.
+[[sampler]]
+entry = "TerrainShader::*"
+name = "HeightMap"
+format = "A8"
+
+# LEAN maps of the water (A16B16G16R16).
+[[sampler]]
+entry = "WaterShader::*"
+name = "LEAN1_1"
+format = "A16B16G16R16"
+
+[[sampler]]
+entry = "WaterShader::*"
+name = "LEAN1_2"
+format = "A16B16G16R16"
+
+[[sampler]]
+entry = "WaterShader::*"
+name = "LEAN2_1"
+format = "A16B16G16R16"
+
+[[sampler]]
+entry = "WaterShader::*"
+name = "LEAN2_2"
+format = "A16B16G16R16"
+
+# The height tiles the water reads (A8 in the original, `R8Unorm` here; world-water WW-1).
+[[sampler]]
+entry = "WaterShader::*"
+name = "WorldHeightMap"
+format = "A8"
+
+# The heights the currents map is made from: read as the red channel (`TerrainHeight`, WW-2); the
+# format of the original's texture is not known (S1 has no draw of `WorldCurrents`), L8 is assumed.
+[[sampler]]
+entry = "WorldCurrents::*"
+name = "TerrainHeight"
+format = "L8"
+
+# LEAN maps of the ice sheets (A16B16G16R16); the second map of the sides keeps only its `w`, which
+# our asset pack stores in `x` of a one channel texture (LEAN_CROSS).
+[[sampler]]
+entry = "IceShader::*"
+name = "g_Lean1"
+format = "A16B16G16R16"
+
+[[sampler]]
+entry = "IceShader::*"
+name = "g_Lean1_Side"
+format = "A16B16G16R16"
+
+[[sampler]]
+entry = "IceShader::*"
+name = "g_Lean2_Side"
+format = "LEAN_CROSS"

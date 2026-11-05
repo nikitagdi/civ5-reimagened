@@ -1,0 +1,16 @@
+# Thresholds of the golden comparison.
+# threshold = max(1.5 * noise, noise + margin, floor), per mask and metric.
+# margin and floor are the starting values (preliminary). Changing them is a record in BUILD section 9.
+# The [noise.<mask>] tables are filled from `golden noise` (S1a against S1b); empty until the captures exist.
+
+[flip_mean]
+margin = 0.02
+floor = 0.05
+
+[one_minus_ssim]
+margin = 0.02
+floor = 0.10
+
+[de2000_mean]
+margin = 0.5
+floor = 2.0

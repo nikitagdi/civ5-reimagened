@@ -1,0 +1,175 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/shared/protocol",
+    "crates/shared/wire",
+    "crates/shared/lua-sys",
+    "crates/shared/sqlite-sys",
+    "crates/shared/gamecore-sys",
+    "crates/shared/gamecore",
+    "crates/shared/game-host",
+    "crates/shared/turntrace",
+    "crates/server/recording",
+    "crates/shared/build-support",
+    "crates/shared/asset-format",
+    "crates/shared/loc",
+    "crates/client/platform",
+    "crates/client/replica",
+    "crates/client/client-core",
+    "crates/client/assets",
+    "crates/client/audio",
+    "crates/client/draw-list",
+    "crates/client/jobs",
+    "crates/client/ui",
+    "crates/client/ui-text",
+    "crates/client/ui-client",
+    "crates/client/exe-api",
+    "crates/client/render",
+    "crates/client/interim-ui",
+    "crates/client/client-app",
+    "crates/client/platform-web",
+    "crates/client/platform-native",
+    "crates/server/server",
+    "apps/web",
+    "apps/desktop",
+    "tools/xtask",
+    "tools/asset-pipeline",
+    "tools/granny",
+    "tools/golden",
+    "tools/shader-re",
+    "tools/net-test",
+    "tools/save-import",
+    "tools/civ5-replay",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/nikitagdi/civ5-reimagened"
+
+[workspace.dependencies]
+# Workspace crates
+protocol = { path = "crates/shared/protocol" }
+wire = { path = "crates/shared/wire" }
+lua-sys = { path = "crates/shared/lua-sys" }
+sqlite-sys = { path = "crates/shared/sqlite-sys" }
+gamecore-sys = { path = "crates/shared/gamecore-sys" }
+gamecore = { path = "crates/shared/gamecore" }
+game-host = { path = "crates/shared/game-host" }
+turntrace = { path = "crates/shared/turntrace" }
+recording = { path = "crates/server/recording" }
+build-support = { path = "crates/shared/build-support" }
+asset-format = { path = "crates/shared/asset-format" }
+loc = { path = "crates/shared/loc" }
+granny = { path = "tools/granny" }
+platform = { path = "crates/client/platform" }
+client-core = { path = "crates/client/client-core" }
+replica = { path = "crates/client/replica" }
+assets = { path = "crates/client/assets" }
+audio = { path = "crates/client/audio" }
+draw-list = { path = "crates/client/draw-list" }
+jobs = { path = "crates/client/jobs" }
+ui = { path = "crates/client/ui" }
+ui-text = { path = "crates/client/ui-text" }
+ui-client = { path = "crates/client/ui-client" }
+exe-api = { path = "crates/client/exe-api" }
+render = { path = "crates/client/render" }
+interim-ui = { path = "crates/client/interim-ui" }
+client-app = { path = "crates/client/client-app" }
+platform-web = { path = "crates/client/platform-web" }
+platform-native = { path = "crates/client/platform-native" }
+
+# Graphics and window
+wgpu = { version = "30.0.1", features = ["webgpu", "webgl"] }
+winit = "0.30.13"
+glam = "0.34.1"
+bytemuck = { version = "1.25.2", features = ["derive"] }
+
+# Interim UI (SIMP-001): only the interim-ui crate may depend on egui (rule R9).
+egui = { version = "0.37", default-features = false, features = ["default_fonts"] }
+egui-wgpu = { version = "0.37", default-features = false }
+
+# Web. wasm-bindgen is pinned exactly: the CLI must be the same version.
+wasm-bindgen = "=0.2.129"
+wasm-bindgen-futures = "0.4.79"
+web-sys = "0.3.106"
+js-sys = "0.3.106"
+
+# Protocol
+serde = { version = "1.0.229", features = ["derive"] }
+postcard = { version = "1.1.3", default-features = false, features = ["use-std"] }
+serde_json = "1.0.154"
+
+# Compression (net-protocol NP-D9): pure Rust zstd, one crate for wasm decode and server encode. Approved 2026-10-21.
+ruzstd = "=0.9.0"
+# Terrain-piece sections (assets-b2 AB-D3): packing in the asset pipeline only, level 19. Same version as the one
+# `ctt` already pulls in. Approved 2026-10-21.
+zstd = "=0.13.3"
+# Client log reports (`POST /client-report/v2`, packet P4 of the logging spec): the gzip body is inflated with a size cap and the stored log is
+# gzip again. Pure Rust backend; the version is already in Cargo.lock (the png crate pulls it). Server side only.
+flate2 = { version = "=1.1.10", default-features = false, features = ["rust_backend"] }
+
+# Server and network
+# io-util, process, fs: gateway IPC and state files (approved 2026-10-21). Dev feature test-util is set on `server` only.
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "net", "sync", "time", "signal", "io-util", "process", "fs"] }
+# Random tokens (GS-D2). Version already in Cargo.lock (approved 2026-10-21).
+getrandom = "0.3.4"
+# Account password hashes (argon2id, `server/identity.rs`). RustCrypto; server side only.
+argon2 = { version = "0.5.3", default-features = false, features = ["alloc", "std", "password-hash"] }
+axum = { version = "0.8.9", features = ["ws"] }
+# Same minor version as axum's tokio-tungstenite 0.29, to avoid a duplicate in the graph.
+tungstenite = "0.29"
+
+# Logging and errors
+tracing = "0.1.44"
+# No default features: web uses only fmt; native binaries add env-filter and ansi.
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["std", "fmt", "registry"] }
+thiserror = "2.0.21"
+anyhow = "1.0.104"
+
+# Asset pipeline (tool layer, native only)
+blake3 = { version = "1.8.7", default-features = false }
+ddsfile = "0.6.0"
+bcdec_rs = "0.2.0"
+ctt = "=0.6.0"
+gltf = "1.4.1"
+gltf-json = "1.4.1"
+roxmltree = "0.21.1"
+# Rasterises the Cyrillic glyphs the asset pipeline adds to the Tw Cen MT atlases (SIMP-exe-716).
+ab_glyph = "0.2.32"
+clap = { version = "4.6.7", features = ["derive"] }
+rayon = "1.12.0"
+
+# WGSL validation (shader-re). Same version as the naga inside wgpu: one entry in Cargo.lock. Approved 2026-10-21.
+naga = { version = "=30.0.1", default-features = false, features = ["wgsl-in", "glsl-out"] }
+
+# Build and tools
+cc = "1"
+cargo_metadata = "0.23.1"
+toml = "1"
+
+[profile.dev]
+# P5: Rust panics must not unwind through C++ frames.
+panic = "abort"
+# Many parallel worktrees: full debug info made each target/ 20-50 GB. Line tables keep backtraces.
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+panic = "abort"
+
+# The terrain-piece packer runs zstd level 19 over 300 pieces; unoptimised C makes the pipeline tests take minutes.
+[profile.dev.package.zstd-sys]
+opt-level = 3
+
+# Argon2id (m = 19 MiB, t = 2) is slow unoptimised; the account tests hash and verify a lot.
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3

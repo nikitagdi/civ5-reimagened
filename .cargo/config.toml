@@ -1,0 +1,18 @@
+[alias]
+xtask = "run -p xtask --"
+
+# Default stack for threads spawned by cargo-run binaries and tests (rayon workers included):
+# the BC7 encoder (ctt) overflows the 2 MiB default in debug builds when tests run in parallel.
+[env]
+RUST_MIN_STACK = "8388608"
+
+# getrandom is not in the wasm32-unknown-unknown graph today (checked with `cargo tree --target
+# wasm32-unknown-unknown -i getrandom@0.3.4`), so no backend flag is set. If getrandom 0.3
+# appears, add:
+# [target.wasm32-unknown-unknown]
+# rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
+
+# 8 MiB wasm stack (SIMP-004): the default ~1 MiB is too small for the gamecore brain in the
+# game worker; same value as the Lekmod smoke.
+[target.wasm32-unknown-unknown]
+rustflags = ['-C', 'link-arg=-zstack-size=8388608']

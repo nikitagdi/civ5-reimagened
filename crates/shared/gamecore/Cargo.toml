@@ -1,0 +1,18 @@
+[package]
+name = "gamecore"
+description = "Safe gamecore API: Game, Setup, GCQ1 queries, HostServices"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "shared"
+
+[dependencies]
+gamecore-sys.workspace = true
+lua-sys.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

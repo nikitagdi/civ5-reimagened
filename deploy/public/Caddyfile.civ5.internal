@@ -1,0 +1,39 @@
+# Site block for an IP address with a self-signed certificate (`--tls internal`: a target without a domain).
+# Players accept the browser warning once. No HSTS in this mode.
+https://203.0.113.5 {
+	tls internal
+	# Cross-origin isolation (threads by default): the page loads the threaded build. Every
+	# subresource is same-origin; CORP marks the files as such for a page under COEP require-corp.
+	header {
+		Cross-Origin-Opener-Policy same-origin
+		Cross-Origin-Embedder-Policy require-corp
+		Cross-Origin-Resource-Policy same-origin
+	}
+	@dyn path /ws /catalog/* /replica/* /netcheck/ws /healthz
+	handle @dyn {
+		reverse_proxy 127.0.0.1:8080
+	}
+	handle /assets/manifest {
+		root * /srv/civ5
+		header Cache-Control "no-cache"
+		file_server
+	}
+	handle /assets/* {
+		root * /srv/civ5
+		header Cache-Control "public, max-age=31536000, immutable"
+		# <hash>.br / <hash>.zst made by `civ5-assets precompress`; Caddy picks by Accept-Encoding.
+		file_server {
+			precompressed br zstd
+		}
+	}
+	handle {
+		root * /srv/civ5/web
+		# Revalidate on every load (Caddy adds the ETag and answers 304).
+		header Cache-Control "no-cache"
+		# Files without a sidecar (html, json) are compressed on the fly.
+		encode zstd gzip
+		file_server {
+			precompressed br zstd
+		}
+	}
+}

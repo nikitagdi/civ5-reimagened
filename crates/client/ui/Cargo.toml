@@ -1,0 +1,24 @@
+[package]
+name = "ui"
+description = "Control tree, layout, input and Lua contexts of the original Civ5 UI (EUI)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "client"
+
+[dependencies]
+asset-format.workspace = true
+lua-sys.workspace = true
+assets.workspace = true
+platform.workspace = true
+draw-list.workspace = true
+audio.workspace = true
+glam.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+

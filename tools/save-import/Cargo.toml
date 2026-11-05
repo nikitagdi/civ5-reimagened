@@ -1,0 +1,23 @@
+[package]
+name = "save-import"
+description = "Puts a .Civ5Save of the original into a server state dir as a sleeping game (B4 M5 goldens)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "tool"
+
+[[bin]]
+name = "save-import"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+gamecore.workspace = true
+game-host.workspace = true
+protocol.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,9 @@
+{
+  "_why": "FLIP (NVIDIA flip-evaluator 1.7, mean error 0..1, ldr, 1920x1080). Measured 2026-10-30 (WO-H, first S1-S3): whole-frame mean S1 0.371, S2 0.419, S3 0.378; the frames are dominated by the B3 terrain/water/cloud/model rendering, which is not the original's (SIMP-exe-425), so the whole-frame limit is only a regression guard: measured + about 0.05. The top_panel band (the EUI top bar, pure UI) is the sharp one: measured 0.105 / 0.146 / 0.208, limit measured + 0.05.",
+  "scenes": {
+    "S1": { "mean": 0.42, "bands.top_panel.mean": 0.16 },
+    "S2": { "mean": 0.47, "bands.top_panel.mean": 0.20 },
+    "S3": { "mean": 0.43, "bands.top_panel.mean": 0.26 }
+  },
+  "default": { "mean": 0.5 }
+}

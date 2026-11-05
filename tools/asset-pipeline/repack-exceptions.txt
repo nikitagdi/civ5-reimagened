@@ -1,0 +1,16 @@
+# Textures the `repack` pass keeps as RGBA8. The `variants` pass gives them no
+# BC7 and no ASTC variant either: they are the data tables of the texture-compression exceptions.
+# One rule per line: pattern TAB reason. `*` matches any run of characters, matching is
+# case-insensitive on the whole logical id ("@low" variants included). '#' starts a comment.
+# Not listed here, because the pass finds them itself: textures of the terrain / feature / river
+# / icon art tables (texture arrays need one format), sizes that are not a multiple of 4 or
+# are 8x8 and smaller, cubes, volumes, and textures that fail the PSNR gate.
+tx:df_*	read on the CPU as raw pixels (city layout fields, Renderer::set_city_layout_fields)
+tx:tf_*	read on the CPU as raw pixels (city layout fields, Renderer::set_city_layout_fields)
+tx:flowfield*	data, not a picture (water currents)
+tx:fogramp*	data, not a picture (colour ramp sampled without filtering)
+tx:waterdepthcolor*	data, not a picture (depth colour table)
+tx:specgray*	data, not a picture (specular table)
+tx:*_uv_*	data, not a picture (UV tables of the FX)
+tx:unresolved_*	stand-ins of unresolved texture names
+tx:icedisplacement*	read on the CPU (world/water/ice.rs displacement(): only R8 and Rgba8 are sampled)

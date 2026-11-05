@@ -1,0 +1,23 @@
+[scene]
+id = "S3"
+captures = ["S3"]
+[setup]
+scenario_map = "{game}/Tutorials/Maps/LateGameTest.Civ5Map"
+world_builder_map = "maps/Tutorials/Maps/LateGameTest.Civ5Map"
+[view]
+player = 0
+reveal = "capture-mask"
+basis_nw = "all"
+[render]
+preset = "high"
+size = [1920, 1080]
+msaa = 4
+disable = ["YieldIcons"]
+# The capture shows the hex grid over land and water, as S1, S2 and S4.
+grid = true
+# The whole map is revealed (2772 cells): its terrain takes longer than 120 s to build.
+settle_s = 600
+camera = "capture"
+time_constants = ["*Time*", "*Scroll*"]
+[compare]
+masks = ["land", "water", "river", "forest", "unit", "city", "landmark", "fog", "overlay"]

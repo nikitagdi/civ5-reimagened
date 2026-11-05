@@ -1,0 +1,8 @@
+# Stand-ins the B2 asset build may contain (4.15 item 7).
+#
+# A stub is any stand-in for data of the original (a marker, a flat-colour texture, a default
+# material, a skipped clip). The pipeline has no path that makes one, so this list is empty and
+# `civ5-assets verify` fails on any stub event (stubs-b2.json in the output directory) that is not
+# listed here. For AC-R3.1 this file never has a line about a unit.
+#
+# One entry per line:   id | reason | owner | YYYY-MM-DD

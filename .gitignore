@@ -1,0 +1,41 @@
+# Build output
+/target/
+
+# Game files and derivatives. Patterns are case-insensitive
+# so they work with core.ignorecase=false.
+*.[eE][xX][eE]
+*.[dD][lL][lL]
+*.[dD][dD][sS]
+*.[gG][rR]2
+*.[fF][pP][kK]
+*.[cC][iI][vV]5[sS][aA][vV][eE]
+*.[dD][bB]
+*.[fF][xX][sS][xX][mM][lL]
+*.[wW][aA][vV]
+*.[oO][gG][gG]
+
+# Third-party code may legitimately contain such files.
+!third_party/**
+
+__pycache__/
+*.pyc
+
+# Screenshots of UI runs (not committed)
+/target-screens/
+
+# Converted assets and other outputs of the asset pipeline (built from your own install)
+/assets-out/
+*.rgba
+*.ani
+*.dge
+
+# Deploy targets of your own hosts (deploy/targets/example.toml.template is the template)
+/deploy/targets/*.toml
+
+# Local junk
+*.profraw
+*.log
+/wt/
+/.claude/
+node_modules/
+

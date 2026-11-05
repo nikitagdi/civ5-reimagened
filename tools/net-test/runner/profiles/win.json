@@ -1,0 +1,16 @@
+{
+  "name": "win",
+  "description": "P-WIN: Windows, the server and the bots run here, the test world",
+  "host": "local",
+  "capabilities": {
+    "core-real": false,
+    "netem": false,
+    "proxy": "probe",
+    "browser": "probe",
+    "web": "probe",
+    "headed": "probe",
+    "docker": "probe",
+    "hooks": true,
+    "admin": true
+  }
+}

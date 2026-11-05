@@ -1,0 +1,16 @@
+[package]
+name = "draw-list"
+description = "UI draw list types: shared language of ui and render"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "client"
+
+[dependencies]
+glam.workspace = true
+bytemuck.workspace = true

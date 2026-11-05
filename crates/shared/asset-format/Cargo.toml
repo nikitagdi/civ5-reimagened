@@ -1,0 +1,20 @@
+[package]
+name = "asset-format"
+description = "Asset blob and manifest formats shared by the pipeline and the client"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license = "MIT"
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "shared"
+
+[dependencies]
+serde.workspace = true
+postcard.workspace = true
+glam.workspace = true
+thiserror.workspace = true
+# Unpacks the zstd sections of the terrain pieces; pure Rust, builds for wasm32 (AB-D3).
+ruzstd.workspace = true

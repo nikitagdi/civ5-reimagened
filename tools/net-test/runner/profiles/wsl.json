@@ -1,0 +1,16 @@
+{
+  "name": "wsl",
+  "description": "P-LIN: Linux in WSL2 (Ubuntu-24.04), the real core, netem in a netns",
+  "host": "wsl",
+  "capabilities": {
+    "core-real": true,
+    "netem": "probe",
+    "proxy": "probe",
+    "browser": "probe",
+    "web": "probe",
+    "headed": false,
+    "docker": false,
+    "hooks": true,
+    "admin": true
+  }
+}

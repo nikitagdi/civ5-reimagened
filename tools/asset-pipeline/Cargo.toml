@@ -1,0 +1,45 @@
+[package]
+name = "asset-pipeline"
+description = "Offline asset pipeline: Civ5 game files to content-addressed blobs (civ5-assets)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license = "MIT"
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "tool"
+
+[[bin]]
+name = "civ5-assets"
+path = "src/main.rs"
+
+[dependencies]
+asset-format.workspace = true
+sqlite-sys.workspace = true
+granny.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "ansi"] }
+rayon.workspace = true
+blake3 = { workspace = true, features = ["std"] }
+ddsfile.workspace = true
+bcdec_rs.workspace = true
+ctt = { workspace = true, features = ["rayon"] }
+roxmltree.workspace = true
+ab_glyph.workspace = true
+# Packs the sections of the terrain pieces (native packer only, AB-D3).
+zstd.workspace = true
+# PNG blobs of the web-lobby set (the lobby page is a DOM page: its art is PNG, compressed).
+flate2.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+postcard.workspace = true
+gltf-json = { workspace = true, features = ["names"] }
+glam.workspace = true
+
+[dev-dependencies]
+gltf.workspace = true

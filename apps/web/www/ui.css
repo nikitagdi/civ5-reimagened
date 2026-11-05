@@ -1,0 +1,485 @@
+/* The login page, the lobby list and the room (auth.js, ui.js). Plain DOM over the canvas.
+ *
+ * P15 direction: the game's own menus. Ink-navy surfaces in a few steps, bronze hairline frames with a second inner
+ * line (the Civ V panel border), gold for the one action that matters on a screen, parchment for the text of the
+ * game. The pictures are the game's own icons (leader portraits, civ and unique icons, icon-font glyphs); everything
+ * else is CSS and inline SVG. Signature: the hexagon (the map's cell) in the emblem, the slot numbers and the dots. */
+:root {
+  --ink-0: #070b14;
+  --ink-1: #0e1525;
+  --ink-2: #141d31;
+  --ink-3: #1b2640;
+  --line: rgba(196, 160, 96, 0.26);
+  --line-soft: rgba(196, 160, 96, 0.14);
+  --bronze: #a8803f;
+  --gold: #e2bf74;
+  --gold-hi: #f0d491;
+  --gold-ink: #1d1508;
+  --parch: #efe3c4;
+  --text: #e9e3d3;
+  --text-2: #b9b2a1;
+  --muted: #8b8473;
+  --ok: #7cc47a;
+  --bad: #ec8b7c;
+  --warn: #e6be5a;
+  --info: #7fa6dd;
+  --serif: "Palatino Linotype", Palatino, "Book Antiqua", "URW Palladio L", Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --r-ctl: 8px;
+  --r-card: 12px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+[hidden] { display: none !important; }
+
+#civ5-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  color: var(--text);
+  font: 15px/1.5 var(--sans);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+  background-color: var(--ink-0);
+  /* A faint hex lattice under a vignette: the map, far away. */
+  background-image:
+    radial-gradient(ellipse 120% 80% at 50% 0%, rgba(30, 44, 74, 0.55), rgba(7, 11, 20, 0) 70%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='97' viewBox='0 0 56 97'%3E%3Cpath d='M28 0v16M0 32l28-16 28 16v32L28 80 0 64zM28 80v17' fill='none' stroke='%23c4a060' stroke-opacity='.05'/%3E%3C/svg%3E");
+  background-attachment: fixed;
+  /* No touch-action here: the page scrolls and the on-screen keyboard works. */
+}
+#civ5-ui *, #civ5-ui *::before, #civ5-ui *::after { box-sizing: border-box; }
+
+#civ5-ui button,
+#civ5-ui input,
+#civ5-ui select {
+  font: inherit;
+  font-size: 16px; /* 16 px: iOS does not zoom into the field */
+  color: var(--text);
+  max-width: 100%;
+}
+#civ5-ui input[type="text"],
+#civ5-ui input[type="password"],
+#civ5-ui input[type="number"],
+#civ5-ui select {
+  min-height: 44px;
+  padding: 8px 12px;
+  background: var(--ink-0);
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  width: 100%;
+  transition: border-color 0.15s var(--ease);
+}
+#civ5-ui select { appearance: auto; }
+#civ5-ui input:hover:not(:disabled), #civ5-ui select:hover:not(:disabled) { border-color: rgba(226, 191, 116, 0.5); }
+#civ5-ui :focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+#civ5-ui input[type="checkbox"],
+#civ5-ui input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  accent-color: var(--bronze);
+  flex: none;
+}
+#civ5-ui button {
+  min-height: 44px;
+  padding: 8px 16px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease), transform 0.1s var(--ease);
+}
+#civ5-ui button:hover:not(:disabled) { border-color: rgba(226, 191, 116, 0.6); background: var(--ink-3); }
+#civ5-ui button:active:not(:disabled) { transform: scale(0.98); }
+#civ5-ui button.primary {
+  background: linear-gradient(#ecca80, #c99f52);
+  border-color: #f2d898;
+  color: var(--gold-ink);
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 244, 214, 0.5), 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+#civ5-ui button.primary:hover:not(:disabled) { background: linear-gradient(#f4d895, #d5ad62); border-color: #fbe6b3; }
+#civ5-ui button.big { min-height: 48px; padding: 10px 24px; font-size: 16px; }
+#civ5-ui button.small { min-height: 36px; padding: 4px 12px; font-size: 14px; }
+#civ5-ui button.quiet { background: transparent; border-color: transparent; color: var(--text-2); }
+#civ5-ui button.quiet:hover:not(:disabled) { color: var(--text); border-color: var(--line-soft); background: rgba(255, 255, 255, 0.03); }
+#civ5-ui button.danger { border-color: #8a443c; color: #f2b3a8; }
+#civ5-ui button:disabled,
+#civ5-ui input:disabled,
+#civ5-ui select:disabled { opacity: 0.5; cursor: not-allowed; }
+.auth label { display: block; color: var(--text-2); font-size: 14px; margin: 16px 0 4px; }
+#civ5-ui .hint, #civ5-ui .sub { color: var(--muted); font-size: 13px; }
+#civ5-ui .sub { margin: 2px 0 0; }
+#civ5-ui .err { color: var(--bad); margin: 8px 0 0; font-size: 14px; overflow-wrap: anywhere; }
+#civ5-ui .note { color: var(--warn); margin: 8px 0; overflow-wrap: anywhere; }
+#civ5-ui .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* ---- the frame: a bronze hairline, a dark gap and a fainter inner line ---- */
+.frame {
+  position: relative;
+  background: linear-gradient(var(--ink-2), var(--ink-1) 120px);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: inset 0 0 0 3px var(--ink-1), inset 0 0 0 4px var(--line-soft), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.frame::before {
+  /* the crest notch on the top edge */
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  transform: rotate(45deg);
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  pointer-events: none;
+}
+
+/* ---- login page ---- */
+.auth {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 48px 16px 40px;
+  min-height: 100dvh;
+}
+.auth .brandmark { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--gold); margin-bottom: 20px; }
+.auth h1 { font: 500 26px/1.2 var(--serif); letter-spacing: 0.04em; margin: 0; text-align: center; color: var(--parch); }
+.auth .tagline { color: var(--text-2); font-size: 14px; text-align: center; }
+.auth .tabs { display: flex; gap: 4px; margin-bottom: 12px; padding: 4px; background: var(--ink-1); border: 1px solid var(--line-soft); border-radius: 10px; }
+#civ5-ui .auth .tabs button { flex: 1; min-height: 40px; background: transparent; border-color: transparent; color: var(--text-2); }
+#civ5-ui .auth .tabs button[aria-selected="true"] { background: var(--ink-3); border-color: var(--line); color: var(--parch); }
+.auth form { padding: 4px 20px 20px; border-radius: var(--r-card); }
+.auth form > button[type="submit"] { width: 100%; margin-top: 20px; }
+.auth form label:first-child { margin-top: 16px; }
+
+/* ---- shared page frame ---- */
+.page { max-width: 1280px; margin: 0 auto; padding: 16px 24px 32px; }
+.top { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line-soft); }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; color: var(--gold); }
+.top h1 { font: 500 24px/1.15 var(--serif); letter-spacing: 0.03em; color: var(--parch); margin: 0; overflow-wrap: anywhere; min-width: 0; }
+.kicker { color: var(--muted); font-size: 13px; }
+.emblem { flex: none; color: var(--gold); }
+.who-bar { display: flex; align-items: center; gap: 12px; }
+.who-bar .me { font-weight: 600; color: var(--parch); }
+.conn { display: inline-flex; align-items: center; color: var(--text-2); font-size: 13px; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #6d6d6d; margin-right: 6px; vertical-align: middle; flex: none; }
+.dot.Green { background: var(--ok); }
+.dot.Yellow { background: var(--warn); }
+.dot.Red { background: #dc5a4c; }
+.tag { font-size: 12px; color: var(--gold); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; margin-left: 6px; line-height: 18px; font-weight: 500; }
+.chip { font-size: 12px; color: var(--text-2); background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line-soft); border-radius: 4px; padding: 0 6px; font-variant-numeric: tabular-nums; }
+.count { margin-left: 8px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.status { font-size: 13px; color: var(--text-2); }
+.status.ok { color: var(--ok); }
+.status.warn { color: var(--warn); }
+.turn { font-variant-numeric: tabular-nums; color: var(--parch); }
+
+/* ---- lobby ---- */
+.banner { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; justify-content: space-between; padding: 16px 20px; margin-bottom: 16px; }
+.banner-txt b { color: var(--parch); }
+.lobby-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.lobby-grid > * { min-width: 0; }
+.ltabs .short { display: none; }
+@media (min-width: 960px) {
+  .lobby-grid { grid-template-columns: minmax(0, 1fr) 280px; }
+  .online { position: sticky; top: 16px; }
+}
+.hero { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: center; justify-content: space-between; padding: 24px; margin-bottom: 16px; }
+.hero h2 { font: 500 22px/1.2 var(--serif); color: var(--parch); margin: 0 0 4px; letter-spacing: 0.02em; }
+.hero p { margin: 0; color: var(--text-2); max-width: 44ch; }
+.hero-act { display: flex; flex-wrap: wrap; gap: 12px; }
+.ltabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 12px; overflow-x: auto; scrollbar-width: none; }
+#civ5-ui .ltabs button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: var(--r-ctl) var(--r-ctl) 0 0;
+  color: var(--text-2);
+  white-space: nowrap;
+  padding: 8px 16px;
+  margin-bottom: -1px;
+}
+#civ5-ui .ltabs button[aria-selected="true"] {
+  color: var(--parch);
+  background: var(--ink-1);
+  border-color: var(--line);
+  border-bottom: 1px solid var(--ink-1);
+  box-shadow: inset 0 2px 0 var(--gold);
+}
+.card { background: var(--ink-1); border: 1px solid var(--line-soft); border-radius: var(--r-card); padding: 16px; margin: 0 0 8px; transition: border-color 0.15s var(--ease); }
+.card:hover { border-color: var(--line); }
+.room-card, .card > summary { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; justify-content: space-between; }
+.card-main { min-width: 0; flex: 1 1 240px; }
+.card .title { font: 500 18px/1.3 var(--serif); color: var(--parch); overflow-wrap: anywhere; }
+.facts { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; color: var(--text-2); font-size: 14px; margin-top: 2px; }
+.facts b { color: var(--text); font-weight: 500; }
+.civs { color: var(--muted); font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
+.card-head { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; justify-content: space-between; }
+.seats { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-top: 12px; }
+.seat { display: flex; align-items: center; gap: 8px; background: var(--ink-0); border: 1px solid var(--line-soft); border-radius: var(--r-ctl); padding: 4px 4px 4px 12px; font-size: 14px; min-height: 44px; }
+.seat.yours { border-color: var(--line); }
+.seat-civ { color: var(--parch); }
+.seat-who { color: var(--text-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 40px 16px; color: var(--bronze); border: 1px dashed var(--line-soft); border-radius: var(--r-card); }
+.empty-title { font: 500 18px var(--serif); color: var(--parch); }
+.empty-txt { color: var(--text-2); max-width: 44ch; }
+
+/* saves grouped per game */
+details.save-group { padding: 0; }
+details.save-group > summary { padding: 16px; cursor: pointer; list-style: none; }
+details.save-group > summary::-webkit-details-marker { display: none; }
+details.save-group > summary .title::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin: 0 10px 3px 0;
+  border-right: 2px solid var(--gold);
+  border-bottom: 2px solid var(--gold);
+  transform: rotate(-45deg);
+  transition: transform 0.15s var(--ease);
+}
+details.save-group[open] > summary .title::before { transform: rotate(45deg); }
+.save-rows { list-style: none; margin: 0; padding: 0 16px 12px; border-top: 1px solid var(--line-soft); }
+.save-rows li { display: flex; align-items: center; gap: 16px; min-height: 48px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.save-rows li:last-child { border-bottom: none; }
+.save-rows .turn { width: 80px; }
+.save-rows .when { flex: 1; color: var(--text-2); font-size: 14px; font-variant-numeric: tabular-nums; }
+
+/* online players */
+.online { padding: 4px 16px 8px; }
+details.plain > summary { display: flex; align-items: center; cursor: pointer; min-height: 48px; font: 500 17px var(--serif); color: var(--parch); list-style: none; }
+details.plain > summary::-webkit-details-marker { display: none; }
+.online-list { list-style: none; margin: 0; padding: 0; }
+.online-list li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line-soft); }
+.o-main { flex: 1; min-width: 0; }
+.o-nick { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.o-status { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.hexdot { width: 12px; height: 14px; flex: none; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: var(--muted); }
+/* Present and free: green, the lobby (the player's own line too); in a room: gold; in a game: blue; grey is the fallback for a place the page does not know. */
+.place-lobby .hexdot { background: var(--ok); }
+.place-room .hexdot { background: var(--gold); }
+.place-game .hexdot { background: var(--info); }
+.ready-mark { font-size: 12px; color: var(--muted); border: 1px solid var(--line-soft); border-radius: 4px; padding: 0 6px; line-height: 18px; white-space: nowrap; }
+.ready-mark.on { color: var(--ok); border-color: rgba(124, 196, 122, 0.45); }
+
+/* ---- room ---- */
+.cols { display: grid; grid-template-columns: 1fr; gap: 0 16px; align-items: start; }
+@media (min-width: 960px) {
+  .cols { grid-template-columns: minmax(0, 7fr) minmax(0, 6fr); }
+  .cols .players-col { position: sticky; top: 16px; }
+}
+.cols > * { min-width: 0; }
+details.section { margin: 0 0 16px; }
+details.section > summary { cursor: pointer; padding: 16px 20px; min-height: 48px; list-style: none; display: flex; align-items: center; gap: 8px; }
+details.section > summary::-webkit-details-marker { display: none; }
+details.section > summary .sumtitle { font: 500 18px var(--serif); color: var(--parch); letter-spacing: 0.02em; flex: 1; }
+details.section > summary::after, details.plain > summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-right: 2px solid var(--bronze);
+  border-bottom: 2px solid var(--bronze);
+  transform: rotate(45deg);
+  transition: transform 0.15s var(--ease);
+}
+details.plain > summary .sumtitle { flex: 1; }
+details.plain > summary::after { margin-left: 12px; }
+details[open].section > summary::after, details[open].plain > summary::after { transform: rotate(-135deg); }
+details.section > .body { padding: 0 20px 20px; }
+details.fold { margin-top: 12px; border-top: 1px solid var(--line-soft); }
+details.fold > summary { cursor: pointer; padding: 12px 0; min-height: 44px; color: var(--text-2); }
+.field { margin: 12px 0; min-width: 0; }
+.field > .lab { display: block; color: var(--text-2); font-size: 14px; margin-bottom: 4px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+@media (max-width: 599px) { .grid2 { grid-template-columns: 1fr; } }
+.check { display: flex; gap: 12px; align-items: flex-start; min-height: 44px; padding: 8px 0; cursor: pointer; }
+.check .txt { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.checks > .check + .check, .checks > * + .check { border-top: 1px solid rgba(255, 255, 255, 0.04); }
+.inline { display: flex; gap: 8px; align-items: center; }
+#civ5-ui .inline input[type="number"] { width: 112px; }
+.opt-group { margin-top: 12px; border: 1px solid var(--line-soft); border-radius: var(--r-ctl); padding: 0 12px; background: rgba(0, 0, 0, 0.18); }
+.opt-group.on { border-color: var(--line); }
+.opt-head { display: flex; align-items: center; gap: 12px; min-height: 48px; cursor: pointer; }
+.opt-head-title { flex: 1; font: 500 16px var(--serif); color: var(--gold); }
+.opt-group > .checks { border-top: 1px solid var(--line-soft); padding-bottom: 4px; }
+
+.slot { background: var(--ink-0); border: 1px solid var(--line-soft); border-radius: var(--r-card); padding: 12px; margin: 0 0 8px; }
+.slot.me { border-color: var(--line); box-shadow: inset 3px 0 0 var(--gold); }
+.slot.closed { opacity: 0.6; }
+.slot .who { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin-bottom: 8px; min-height: 28px; }
+.slot .num {
+  width: 24px;
+  height: 27px;
+  display: inline-grid;
+  place-items: center;
+  font: 600 13px var(--serif);
+  color: var(--gold-ink);
+  background: var(--bronze);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  flex: none;
+}
+.slot .nick { color: var(--parch); }
+.slot .kind { color: var(--text-2); }
+.slot .tag { margin-left: 0; }
+.slot-ctl { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 8px; align-items: start; }
+.slot-ctl > :only-child { grid-column: 1 / -1; }
+@media (max-width: 599px) { .slot-ctl { grid-template-columns: 1fr; } }
+.slot-act { margin-top: 8px; }
+
+/* the civilization picker */
+.civpick { position: relative; min-width: 0; }
+#civ5-ui .civpick-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 12px 4px 4px;
+  min-height: 52px;
+  background: var(--ink-2);
+  text-align: left;
+}
+.civpick-name { flex: 1; min-width: 0; font: 500 16px var(--serif); color: var(--parch); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.caret { width: 8px; height: 8px; border-right: 2px solid var(--bronze); border-bottom: 2px solid var(--bronze); transform: rotate(45deg); margin: -4px 4px 0 0; flex: none; }
+.civpick.open .caret { transform: rotate(-135deg); margin-top: 4px; }
+.civpick-list {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: min(420px, 60vh);
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--ink-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+#civ5-ui .civpick-opt {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 4px 8px;
+  background: transparent;
+  border-color: transparent;
+  text-align: left;
+  font-weight: 400;
+}
+#civ5-ui .civpick-opt:hover { background: var(--ink-3); border-color: var(--line-soft); }
+#civ5-ui .civpick-opt.on { background: var(--ink-3); border-color: var(--line); color: var(--parch); }
+.civicon { display: inline-block; flex: none; border-radius: 50%; }
+.civicon.none { background: var(--ink-3); }
+.civicon.random {
+  width: 40px;
+  height: 40px;
+  display: inline-grid;
+  place-items: center;
+  font: 600 18px var(--serif);
+  color: var(--bronze);
+  border: 1px dashed var(--line);
+}
+.civicon.random.small { width: 32px; height: 32px; font-size: 15px; }
+details.civinfo { margin-top: 8px; }
+details.civinfo > summary { cursor: pointer; color: var(--text-2); font-size: 14px; min-height: 36px; display: flex; align-items: center; }
+@media (hover: hover) and (pointer: fine) and (min-width: 900px) { details.civinfo { display: none; } }
+
+/* sprites (cells of the game's icon sheets) */
+.spr { display: inline-block; position: relative; overflow: hidden; flex: none; vertical-align: middle; }
+.spr .cell { position: absolute; left: 0; top: 0; transform-origin: 0 0; image-rendering: auto; }
+/* the drawn glyph's middle on the middle of the digits and capitals: `middle` alone leaves it about 1px low (measured
+ * on the real font-icon cells at 15px text) */
+.gicon { display: inline-flex; vertical-align: middle; position: relative; top: -1px; margin: 0 1px; line-height: 0; }
+.gicon .spr { display: block; }
+.gc { white-space: normal; }
+
+/* the civilization tip: a framed card */
+.civtip-float {
+  position: fixed;
+  z-index: 60;
+  width: min(380px, calc(100vw - 16px));
+  pointer-events: none;
+}
+.tipcard {
+  background: linear-gradient(#18223a, #0e1525 140px);
+  border: 1px solid rgba(226, 191, 116, 0.55);
+  border-radius: var(--r-card);
+  box-shadow: inset 0 0 0 3px #0e1525, inset 0 0 0 4px rgba(226, 191, 116, 0.2), 0 16px 40px rgba(0, 0, 0, 0.6);
+  padding: 16px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.tipcard.embedded { box-shadow: inset 0 0 0 3px #0e1525, inset 0 0 0 4px rgba(226, 191, 116, 0.2); margin-top: 4px; }
+.tip-head { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.portrait { flex: none; border-radius: 50%; box-shadow: 0 0 0 2px var(--bronze), 0 0 0 4px var(--ink-1), 0 0 0 5px var(--line); line-height: 0; }
+.portrait .spr { border-radius: 50%; }
+.tip-names { min-width: 0; }
+.tip-civ { display: flex; align-items: center; gap: 8px; font: 500 19px/1.2 var(--serif); color: var(--gold); letter-spacing: 0.02em; }
+.tip-leader { color: var(--parch); font-size: 15px; margin-top: 2px; }
+.tip-sec { padding-top: 12px; }
+.tip-sec + .tip-sec { margin-top: 12px; border-top: 1px solid var(--line-soft); }
+.trait + .trait { margin-top: 8px; }
+.trait-name { font: 500 15px var(--serif); color: var(--gold-hi); }
+.trait-desc { color: var(--text); }
+.uniques { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.unique { display: flex; align-items: flex-start; gap: 12px; }
+.unique .spr, .unique .uicon.none { margin-top: 2px; }
+.u-body { min-width: 0; flex: 1; }
+.uicon { border-radius: 50%; }
+.uicon.none { width: 40px; height: 40px; background: var(--ink-3); display: inline-block; flex: none; }
+.u-kind { color: var(--muted); font-size: 12px; }
+.u-name { color: var(--parch); font-weight: 500; }
+.u-replaces { color: var(--muted); font-size: 12.5px; }
+.u-stats { display: flex; flex-wrap: wrap; gap: 0 10px; margin-top: 2px; color: var(--text); font-size: 12.5px; }
+.u-stat { white-space: nowrap; }
+.u-help { margin-top: 3px; color: var(--text); font-size: 12.5px; line-height: 1.4; opacity: 0.88; }
+
+.bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background: rgba(10, 15, 27, 0.96);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+  padding: 12px 24px calc(12px + env(safe-area-inset-bottom));
+  margin-top: 16px;
+}
+.bar .inner { max-width: 1280px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.bar .why { flex: 1 1 200px; color: var(--text-2); font-size: 14px; min-width: 0; overflow-wrap: anywhere; text-align: right; }
+.bar .saves { flex-basis: 100%; max-height: 40vh; overflow-y: auto; padding-top: 8px; }
+.bar .check { min-height: 44px; align-items: center; padding: 0 8px; }
+
+@media (max-width: 599px) {
+  .page { padding: 12px 16px 16px; }
+  .top h1 { font-size: 20px; }
+  .conn-txt { display: none; }
+  .ltabs .long { display: none; }
+  .ltabs .short { display: inline; }
+  .hero { padding: 16px; }
+  .hero-act { width: 100%; }
+  .hero-act button { flex: 1; }
+  .bar { padding-left: 16px; padding-right: 16px; }
+  .bar .why { text-align: left; flex-basis: 100%; order: -1; }
+  .bar .inner > button.primary { flex: 1; }
+  details.section > summary { padding: 12px 16px; }
+  details.section > .body { padding: 0 12px 16px; }
+  .save-rows .turn { width: 64px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #civ5-ui * { transition: none !important; }
+}

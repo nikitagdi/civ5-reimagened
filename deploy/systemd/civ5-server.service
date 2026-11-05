@@ -1,0 +1,23 @@
+# Fallback path: the Docker Compose deploy is the normal way.
+[Unit]
+Description=civ5-reimagened game server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=civ5
+EnvironmentFile=/etc/civ5/civ5.env
+ExecStart=/opt/civ5/civ5-server --config /etc/civ5/server.toml
+Restart=on-failure
+# SIGTERM drains: the gateway saves every game and exits (GS-D12); workers get the same signal.
+KillMode=mixed
+TimeoutStopSec=60
+StateDirectory=civ5
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+ReadOnlyPaths=/srv/civ5
+
+[Install]
+WantedBy=multi-user.target

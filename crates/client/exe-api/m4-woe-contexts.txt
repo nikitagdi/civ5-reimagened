@@ -1,0 +1,18 @@
+# Contexts of M4 WO-E: K13 World Congress, K14 espionage, K15 trade routes (by bare Lua name).
+[K13]
+LeagueOverview
+LeagueSplash
+LeagueProjectPopup
+DiploVotePopup
+VoteResultsPopup
+ProposalChartPopup
+CCVotePopup
+
+[K14]
+EspionageOverview
+
+[K15]
+ChooseInternationalTradeRoutePopup
+ChooseTradeUnitNewHome
+TradeRouteOverview
+

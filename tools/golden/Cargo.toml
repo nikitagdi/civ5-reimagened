@@ -1,0 +1,40 @@
+[package]
+name = "golden"
+description = "Golden scenes: original-game captures vs our frames, metrics and thresholds"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "tool"
+
+[[bin]]
+name = "golden"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+# The pieces and the manifest of the install for `golden terrain`.
+asset-format.workspace = true
+clap.workspace = true
+ddsfile.workspace = true
+# `golden world` with a save of the original: the setup of the import (`gamecore::Setup`) and the C5SV file
+# the worker loads (`game_host::saves`).
+gamecore.workspace = true
+game-host.workspace = true
+# GameCamera and its constants (camera check): the camera is compared with the real one.
+glam.workspace = true
+protocol.workspace = true
+render.workspace = true
+# Replay tests run the hand-written WGSL with the harness of shader-re.
+shader-re = { path = "../shader-re" }
+wgpu.workspace = true
+# The worker's IPC frames.
+wire.workspace = true
+naga.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
