@@ -55,7 +55,7 @@ tables are in [docs/performance.md](docs/performance.md).
 - Multiplayer only: no single-player campaign, no scenarios, no hot-seat. Up to 8 humans per game, plus AI.
 - Only Brave New World with Lekmod v34.15, game version 1.0.3.279. Other mods are not supported.
 - The server needs the gamecore built from our Lekmod fork,
-  [nikitagdi/Lekmod](https://github.com/nikitagdi/Lekmod/tree/reimagened/v34.15), branch
+  [nikitagdi/civ5-reimagened-coregame](https://github.com/nikitagdi/civ5-reimagened-coregame/tree/reimagened/v34.15), branch
   `reimagened/v34.15`. Without it only a stub core and a test world run.
 - Fog of war is applied by the client only: every browser holds the full game state. Play with people you trust.
 
@@ -69,7 +69,7 @@ wasi-sdk 33, MSVC, WSL2 with clang 18): [docs/install.md](docs/install.md).
 
    ```sh
    git clone https://github.com/nikitagdi/civ5-reimagened
-   git clone -b reimagened/v34.15 https://github.com/nikitagdi/Lekmod
+   git clone -b reimagened/v34.15 https://github.com/nikitagdi/civ5-reimagened-coregame Lekmod
    cd civ5-reimagened
    ```
 

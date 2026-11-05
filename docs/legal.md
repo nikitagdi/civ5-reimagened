@@ -60,7 +60,7 @@ reads the compiled shaders of your own install for that study, ships no game sha
 | Additional permission (section 7) | linking with the gamecore built from the Lekmod/Firaxis sources, and the Lua and SQLite libraries it uses ([LICENSE-EXCEPTION.md](../LICENSE-EXCEPTION.md)) |
 | `tools/asset-pipeline`, `tools/shader-re`, `crates/shared/asset-format`, `crates/shared/sqlite-sys`, `crates/shared/build-support` | MIT ([LICENSE-MIT](../LICENSE-MIT)) |
 | `tools/granny` | `MIT AND Apache-2.0 AND BSL-1.0`: our code is MIT; `src/curve.rs` and `src/oodle1.rs` port code of nwn2mdk under Apache-2.0 ([LICENSE-APACHE](../tools/granny/LICENSE-APACHE)), and `oodle1.rs` also under the Boost Software License 1.0 its source file states ([LICENSE-BOOST](../tools/granny/LICENSE-BOOST)); see [NOTICE-granny.md](../third_party/NOTICE-granny.md) |
-| The gamecore fork ([nikitagdi/Lekmod](https://github.com/nikitagdi/Lekmod/tree/reimagened/v34.15)) | its own terms: Lekmod's terms for the upstream files and changes to them, MIT for the project's own files under `headless/`; see its `NOTICE-REIMAGENED.md` |
+| The gamecore fork ([nikitagdi/civ5-reimagened-coregame](https://github.com/nikitagdi/civ5-reimagened-coregame/tree/reimagened/v34.15)) | its own terms: Lekmod's terms for the upstream files and changes to them, MIT for the project's own files under `headless/`; see its `NOTICE-REIMAGENED.md` |
 
 The `license` field of each `Cargo.toml` is authoritative for its crate. AGPL means: if you run a modified
 server for other people over a network, you must offer them the source of your modified version. The gamecore

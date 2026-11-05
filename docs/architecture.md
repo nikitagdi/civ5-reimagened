@@ -65,7 +65,7 @@ the network, and any non-determinism is a desync the host has to repair.
 ## The gamecore boundary
 
 The gamecore lives in the fork
-[nikitagdi/Lekmod](https://github.com/nikitagdi/Lekmod/tree/reimagened/v34.15) (branch
+[nikitagdi/civ5-reimagened-coregame](https://github.com/nikitagdi/civ5-reimagened-coregame/tree/reimagened/v34.15) (branch
 `reimagened/v34.15`): Lekmod's `CvGameCoreDLL_Expansion2` sources plus `headless/`, which reimplements the
 closed engine libraries the DLL expects and builds `libgamecore.a` with clang for Linux and wasm32 (plain and
 threaded). Changes to Lekmod's files are optimizations and determinism fixes behind `LEKMOD_HEADLESS_*`

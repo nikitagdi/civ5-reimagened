@@ -30,7 +30,7 @@ Changes that touch the gamecore, the replica or the original UI should also be t
   `crates/client/exe-api/src/simp.rs`. The `SIMP-...` ids in these comments are internal tracking ids;
   their full register is kept outside this repository, so the comment itself must say enough.
 - A change of the gamecore C ABI (`crates/shared/gamecore-sys/cpp/include/gamecore_abi.h`) needs the same
-  change in the fork ([nikitagdi/Lekmod](https://github.com/nikitagdi/Lekmod/tree/reimagened/v34.15))
+  change in the fork ([nikitagdi/civ5-reimagened-coregame](https://github.com/nikitagdi/civ5-reimagened-coregame/tree/reimagened/v34.15))
   so that both copies stay byte-identical.
 
 ## Never commit game files
