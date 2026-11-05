@@ -101,7 +101,7 @@ Put both repositories in one folder. The build looks for the gamecore fork at `.
 
 ```sh
 git clone https://github.com/nikitagdi/civ5-reimagened
-git clone -b reimagened/v34.15 https://github.com/nikitagdi/civ5-coregame-reimagened Lekmod
+git clone -b reimagened/v34.15 https://github.com/nikitagdi/Lekmod
 ```
 
 Without the fork everything still builds, with a stub gamecore; the asset pipeline and `cargo xtask dev`

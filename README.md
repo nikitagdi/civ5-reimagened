@@ -23,21 +23,22 @@ the game's own Lua/XML interface and a new WebGPU renderer, both fed from assets
 
 ## Why
 
-- **One server is the authority.** The server runs the only authoritative gamecore and all of the AI. Each
-  browser keeps a replica of the game that follows the server's journal and is checked against a server
-  digest of the whole game state at every check point. When a replica diverges it is repaired automatically
-  from a server snapshot (a few seconds of reload on a big game), so a desync never ends or stalls the game.
-  There is no host migration and no waiting for the slowest machine to simulate the AI turn.
-- **Play in the browser.** Windows, macOS, Linux, and phones or tablets (touch controls exist: tap, drag to
-  pan, hold for right click). Honest status: tested mainly on desktop Chrome with WebGPU; the WebGL2 fallback
-  has known terrain issues; Firefox, Safari and mobile are experimental. See
-  [docs/limitations.md](docs/limitations.md#platforms).
+- **One server is the authority.** The whole simulation runs on the server: one gamecore applies every
+  player's orders and computes the world and every turn. Players' machines do not simulate the game, so they
+  cannot drift apart from each other: no desyncs between players, no host migration, no waiting for the
+  slowest machine to finish the turn. The browser keeps only a read-only copy of the state for the
+  interface, checked against the server and reloaded from it if it ever differs
+  ([docs/architecture.md](docs/architecture.md#authority-model)).
+- **Play in the browser, on any device.** Windows, macOS, Linux, and Android phones and tablets in Chrome
+  (touch controls: tap, drag to pan, hold for right click). Tested on desktop Chrome with WebGPU and on
+  Chrome for Android; the WebGL2 fallback has known terrain issues; Firefox, Safari and iOS are not tested
+  yet. See [docs/limitations.md](docs/limitations.md#platforms).
 - **Faster simulation, network and render.** Measured numbers, each against a stated baseline:
 
 | What | Baseline | Before | After |
 |---|---|---|---|
-| AI turn, late Huge game, turn 126 | unoptimized build of the same Lekmod gamecore | 14.0-15.2 s | 3.9-4.6 s |
-| AI turns 125-130 of a late Huge save | same | 18.6-49.0 s | 2.8-7.8 s |
+| Turn simulation, late Huge game, turn 126 | unoptimized build of the same Lekmod gamecore | 14.0-15.2 s | 3.9-4.6 s |
+| Turns 125-130 of a late Huge save | same | 18.6-49.0 s | 2.8-7.8 s |
 | Render FPS (p50), heavy Huge test scene, default view | our previous renderer | 10.6 | 155.8 |
 | Render FPS (p50), same scene, panning far | our previous renderer | 12.8 | 257.4 |
 | Cold start to the map, 100 Mbit/s | our previous asset delivery | 16.2 s | 10.8 s |
@@ -54,7 +55,7 @@ tables are in [docs/performance.md](docs/performance.md).
 - Multiplayer only: no single-player campaign, no scenarios, no hot-seat. Up to 8 humans per game, plus AI.
 - Only Brave New World with Lekmod v34.15, game version 1.0.3.279. Other mods are not supported.
 - The server needs the gamecore built from our Lekmod fork,
-  [nikitagdi/civ5-coregame-reimagened](https://github.com/nikitagdi/civ5-coregame-reimagened), branch
+  [nikitagdi/Lekmod](https://github.com/nikitagdi/Lekmod/tree/reimagened/v34.15), branch
   `reimagened/v34.15`. Without it only a stub core and a test world run.
 - Fog of war is applied by the client only: every browser holds the full game state. Play with people you trust.
 
@@ -68,7 +69,7 @@ wasi-sdk 33, MSVC, WSL2 with clang 18): [docs/install.md](docs/install.md).
 
    ```sh
    git clone https://github.com/nikitagdi/civ5-reimagened
-   git clone -b reimagened/v34.15 https://github.com/nikitagdi/civ5-coregame-reimagened Lekmod
+   git clone -b reimagened/v34.15 https://github.com/nikitagdi/Lekmod
    cd civ5-reimagened
    ```
 

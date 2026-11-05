@@ -32,8 +32,10 @@ What does not work, or works differently from the original game. This list refle
 - **Turn change.** The AI phase reaches the browsers as a whole snapshot each turn: late in big games the
   screen freezes for about 0.5-3 s at the turn change, and AI units jump to their new positions instead of
   animating their moves.
-- **Desync repair.** When a replica diverges from the server it reloads from a snapshot: a few seconds of
-  frozen screen on a big game, instead of a lost game. One known cause is still open.
+- **Interface copy reload.** The game itself runs only on the server, so players never desync from each
+  other. The browser's read-only copy of the state for the interface can still differ from the server; then
+  it reloads from a server snapshot: a few seconds of frozen screen on a big game. One known cause is still
+  open.
 - **Taking over a seat** mid-turn plays from the next turn.
 
 ## Render gaps
@@ -59,6 +61,6 @@ by eye. Known gaps:
 | Chrome on Linux or macOS | expected to work, not tested by us |
 | Firefox | uses WebGL2 automatically, because its WebGPU ran the GPU process out of memory; `?gfx=webgpu` overrides. Not tested visually |
 | Safari, iOS | not tested. iPhone Safari has no Fullscreen API; the client suggests Add to Home Screen instead |
-| Phones and tablets | touch controls are implemented (tap, drag to pan, 500 ms hold for right click, Low preset by default); no recorded test on a real device. Typing in the sign-in fields on phones has had problems. Textures need BC compression support, which many phones lack; the GPU memory of a Huge game (1.1-1.3 GB) is a risk on phones |
+| Android phones and tablets, Chrome | works: touch controls (tap, drag to pan, 500 ms hold for right click), Low preset by default. GPUs without BC texture compression get uncompressed fallback textures, which need more memory; the GPU memory of a Huge game (1.1-1.3 GB) can be a limit on weaker phones |
 | Native desktop app (`apps/desktop`) | builds and runs with the stub core only |
 | Server | Linux x86_64 (Docker). On Windows the real server runs inside WSL2 |

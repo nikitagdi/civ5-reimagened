@@ -53,7 +53,7 @@ wasm archives are linked natively; the Linux one is used inside WSL.
 ## The gamecore
 
 The gamecore comes from the fork
-[nikitagdi/civ5-coregame-reimagened](https://github.com/nikitagdi/civ5-coregame-reimagened), branch
+[nikitagdi/Lekmod](https://github.com/nikitagdi/Lekmod/tree/reimagened/v34.15), branch
 `reimagened/v34.15` (Lekmod v34.15 plus the `headless/` portable build). Its `headless/README.md` describes
 the build in full.
 

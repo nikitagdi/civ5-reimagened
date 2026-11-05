@@ -43,8 +43,8 @@ gamecore, linked through a narrow C ABI.
 - **One authority.** For each game the server runs one gamecore in a worker process, single-threaded. Only
   it applies orders and runs the AI. The original UI's turn handshake becomes `EndTurn` / `CancelEndTurn`
   orders; other UI network messages travel as frames to the server.
-- **Replica.** The browser loads the same gamecore compiled to wasm, because the original UI reads game state
-  through synchronous getters. The replica loads a snapshot (`GCS1`), then applies journal batches (`GCJ1`)
+- **Replica.** The replica serves only the interface. The browser loads the same gamecore compiled to wasm,
+  because the original UI reads game state through synchronous getters. The replica loads a snapshot (`GCS1`), then applies journal batches (`GCJ1`)
   of the human phase that the server writes. It refuses to advance time or take input on its own.
 - **Checks.** Some batches end with a `CHECK` record: a digest of the whole game state. If the replica's
   digest differs, or a batch is rejected, unreadable or missing, the client sends `GcResync` (`Diverged`,
@@ -65,7 +65,7 @@ the network, and any non-determinism is a desync the host has to repair.
 ## The gamecore boundary
 
 The gamecore lives in the fork
-[nikitagdi/civ5-coregame-reimagened](https://github.com/nikitagdi/civ5-coregame-reimagened) (branch
+[nikitagdi/Lekmod](https://github.com/nikitagdi/Lekmod/tree/reimagened/v34.15) (branch
 `reimagened/v34.15`): Lekmod's `CvGameCoreDLL_Expansion2` sources plus `headless/`, which reimplements the
 closed engine libraries the DLL expects and builds `libgamecore.a` with clang for Linux and wasm32 (plain and
 threaded). Changes to Lekmod's files are optimizations and determinism fixes behind `LEKMOD_HEADLESS_*`
