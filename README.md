@@ -33,20 +33,7 @@ the game's own Lua/XML interface and a new WebGPU renderer, both fed from assets
   (touch controls: tap, drag to pan, hold for right click). Tested on desktop Chrome with WebGPU and on
   Chrome for Android; the WebGL2 fallback has known terrain issues; Firefox, Safari and iOS are not tested
   yet. See [docs/limitations.md](docs/limitations.md#platforms).
-- **Faster simulation, network and render.** Measured numbers, each against a stated baseline:
-
-| What | Baseline | Before | After |
-|---|---|---|---|
-| Turn simulation, late Huge game, turn 126 | unoptimized build of the same Lekmod gamecore | 14.0-15.2 s | 3.9-4.6 s |
-| Turns 125-130 of a late Huge save | same | 18.6-49.0 s | 2.8-7.8 s |
-| Render FPS (p50), heavy Huge test scene, default view | our previous renderer | 10.6 | 155.8 |
-| Render FPS (p50), same scene, panning far | our previous renderer | 12.8 | 257.4 |
-| Cold start to the map, 100 Mbit/s | our previous asset delivery | 16.2 s | 10.8 s |
-
-The optimized gamecore gives bit-identical results (equal state digests every turn). For context, not as a
-like-for-like comparison: in a real 2-human Huge game on the original game (Lekmod v34.15, turns 55-61) a turn
-took 55-87 s, of which 21-29 s was the game waiting for unit-move animations. Hardware, method and the full
-tables are in [docs/performance.md](docs/performance.md).
+- **Faster simulation, network and render.** 
 
 ## Limitations
 
