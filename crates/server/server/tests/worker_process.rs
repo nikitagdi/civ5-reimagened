@@ -685,3 +685,63 @@ fn the_save_of_another_game_can_be_started_from_by_its_absolute_path() {
     let _ = std::fs::remove_dir_all(&src);
     let _ = std::fs::remove_dir_all(&dst);
 }
+
+/// IPC v9: a worker keeps no table of owners until it is asked; then it sends the truth, and at the next turn change a
+/// `Full` again that carries a border change of the test hook.
+#[test]
+fn the_table_of_owners_is_sent_on_request_and_at_every_turn_change() {
+    use protocol::{FixtureTest, FlipOwner, OwnersUpdate};
+    let mut i = init(fixture(), Start::New(setup(1, 1)));
+    i.cfg.fixture_test = Some(FixtureTest {
+        flip_owner: Some(FlipOwner {
+            at_turn: 2,
+            plot: 5,
+            owner: 3,
+        }),
+        ..FixtureTest::default()
+    });
+    let mut p = Proc::start();
+    p.send(&ToWorker::Init(i));
+    let turn = |m: &WorkerMsg| matches!(m, WorkerMsg::Turn(t) if t.phase == TurnPhase::Humans);
+    let WorkerMsg::Turn(first) = p.wait_msg("Turn in the human phase", turn) else {
+        unreachable!()
+    };
+    assert!(
+        !p.all_msgs()
+            .iter()
+            .any(|m| matches!(m, WorkerMsg::Owners(_))),
+        "nothing before the request"
+    );
+    p.send(&ToWorker::WantOwners);
+    let WorkerMsg::Owners(OwnersUpdate::Full { rev, owners, .. }) =
+        p.wait_msg("the table", |m| matches!(m, WorkerMsg::Owners(_)))
+    else {
+        panic!("a Full was expected")
+    };
+    assert_eq!(owners.len(), 40 * 24);
+    assert!(owners.contains(&0), "the human owns land");
+    assert_ne!(owners[5], 3);
+    p.send(&ToWorker::Cmd {
+        player: 0,
+        cmd: Cmd {
+            id: 1,
+            turn: first.turn,
+            cmd: Command::EndTurn { force: false },
+        },
+    });
+    let WorkerMsg::Owners(OwnersUpdate::Full {
+        rev: rev2,
+        turn: t2,
+        owners: o2,
+    }) = p.wait_msg("the table of the next turn", |m| {
+        matches!(m, WorkerMsg::Owners(OwnersUpdate::Full { .. }))
+    })
+    else {
+        panic!("a Full was expected")
+    };
+    assert!(rev2 > rev);
+    assert_eq!(t2, first.turn + 1);
+    assert_eq!(o2[5], 3, "the border change of the hook");
+    p.send(&ToWorker::Shutdown { save: false });
+    assert_eq!(p.exit_code(), Some(0));
+}

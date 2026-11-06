@@ -774,6 +774,9 @@ impl Core for SlowAi {
     ) -> Result<(), CoreError> {
         self.inner.plots(t, s, out)
     }
+    fn owners(&mut self, s: Option<&[u32]>, out: &mut Vec<(u32, i8)>) -> Result<(), CoreError> {
+        self.inner.owners(s, out)
+    }
     fn basis(
         &mut self,
         s: Option<&[u32]>,
@@ -3166,4 +3169,163 @@ fn the_ai_turn_queue_starts_every_ai_at_once_and_ends_them_one_by_one() {
         })
         .expect("the turn comes back to the humans");
     assert!(ended.last().unwrap().0 <= turn_back);
+}
+
+// ---------------------------------------------------------------- the table of owners (IPC v9, T22)
+
+use protocol::OwnersUpdate;
+
+/// Every `Owners` message the worker sent from frame `from` on: (frame number, position in the frame, update).
+fn owners_sent(h: &Harness, from: usize) -> Vec<(usize, usize, OwnersUpdate)> {
+    let mut v = Vec::new();
+    for (fi, f) in h.frames.iter().enumerate().skip(from) {
+        for (mi, m) in f.msgs.iter().enumerate() {
+            if let WorkerMsg::Owners(u) = m {
+                v.push((fi, mi, u.clone()));
+            }
+        }
+    }
+    v
+}
+
+fn truth(h: &mut Harness) -> Vec<i8> {
+    let mut out = Vec::new();
+    h.w.core_mut().owners(None, &mut out).unwrap();
+    out.into_iter().map(|(_, o)| o).collect()
+}
+
+fn full_of(u: &OwnersUpdate) -> (u32, i32, &Vec<i8>) {
+    match u {
+        OwnersUpdate::Full { rev, turn, owners } => (*rev, *turn, owners),
+        other => panic!("a Full was expected, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_game_that_never_asks_gets_no_owners() {
+    let mut h = started(2, 1, false);
+    h.cmd(0, end_turn());
+    h.run();
+    h.next_turn();
+    h.next_turn();
+    assert!(owners_sent(&h, 0).is_empty(), "no table without a request");
+}
+
+#[test]
+fn want_owners_answers_with_the_truth_first_in_its_frame() {
+    let mut h = started(2, 1, false);
+    let before = h.frames.len();
+    h.send(ToWorker::WantOwners);
+    let sent = owners_sent(&h, before);
+    assert_eq!(sent.len(), 1);
+    let (fi, mi, u) = &sent[0];
+    assert_eq!((*fi, *mi), (before, 0), "alone in its frame, first");
+    let (rev, turn, owners) = full_of(u);
+    assert_eq!((rev, turn), (1, 1));
+    let w = h.ready.as_ref().unwrap();
+    assert_eq!(owners.len(), usize::from(w.width) * usize::from(w.height));
+    assert_eq!(owners, &truth(&mut h));
+    assert!(owners.contains(&0) && owners.contains(&1));
+    // The seats' own views are fogged: the table holds more than the first seat may know.
+    let known = h.view(0).map.plots.iter().filter(|p| p.owner >= 0).count();
+    let all = owners.iter().filter(|&&o| o >= 0).count();
+    assert!(
+        all > known,
+        "the truth ({all}) is more than the view ({known})"
+    );
+}
+
+#[test]
+fn an_owner_change_in_the_middle_of_a_turn_is_a_delta_before_the_results() {
+    let mut h = started(2, 1, false);
+    h.send(ToWorker::WantOwners);
+    let n = h.frames.len();
+    // A plot nobody sees: far from the starts, on the last row.
+    let plot = truth(&mut h).iter().rposition(|&o| o < 0).unwrap() as u32;
+    assert!(h.w.core_mut().set_owner(plot, 2));
+    let id = h.cmd(0, end_turn());
+    h.run();
+    let sent = owners_sent(&h, n);
+    assert_eq!(sent.len(), 1, "{sent:?}");
+    let (fi, mi, u) = &sent[0];
+    assert_eq!(
+        u,
+        &OwnersUpdate::Delta {
+            base_rev: 1,
+            rev: 2,
+            changes: vec![(plot, 2)]
+        }
+    );
+    // Before the results of the order that ran in the same round.
+    let f = &h.frames[*fi];
+    let results_at = f
+        .msgs
+        .iter()
+        .position(|m| matches!(m, WorkerMsg::Results { .. }))
+        .expect("the order is answered in that frame");
+    assert!(*mi < results_at, "owners at {mi}, results at {results_at}");
+    assert!(!h.outcome(0, id).is_empty());
+    // Nothing changed since: the next round sends nothing.
+    let n2 = h.frames.len();
+    h.cmd(1, end_turn());
+    h.run();
+    let again = owners_sent(&h, n2);
+    assert!(
+        again
+            .iter()
+            .all(|(_, _, u)| matches!(u, OwnersUpdate::Full { .. })),
+        "no delta without a change: {again:?}"
+    );
+}
+
+#[test]
+fn every_turn_change_sends_a_full_and_the_hook_flips_an_owner() {
+    let mut h = Harness::start(Opts {
+        cfg: WorkerConfig {
+            fixture_test: Some(FixtureTest {
+                flip_owner: Some(protocol::FlipOwner {
+                    at_turn: 2,
+                    plot: 5,
+                    owner: 3,
+                }),
+                ..FixtureTest::default()
+            }),
+            ..WorkerConfig::default()
+        },
+        ..Opts::new(2, 1)
+    });
+    h.run();
+    h.send(ToWorker::WantOwners);
+    let first = full_of(&owners_sent(&h, 0)[0].2).2.clone();
+    assert_ne!(first[5], 3);
+    let n = h.frames.len();
+    h.next_turn();
+    let sent = owners_sent(&h, n);
+    let fulls: Vec<_> = sent
+        .iter()
+        .filter(|(_, _, u)| matches!(u, OwnersUpdate::Full { .. }))
+        .collect();
+    assert_eq!(fulls.len(), 1, "one Full at the turn change: {sent:?}");
+    let (rev, turn, owners) = full_of(&fulls[0].2);
+    assert_eq!(turn, 2);
+    assert!(rev > 1);
+    assert_eq!(owners[5], 3, "the flipped plot is in the table");
+    assert_eq!(owners, &truth(&mut h));
+    // The Full stands before the Turn message and the views of the seats.
+    let f = &h.frames[fulls[0].0];
+    let at = fulls[0].1;
+    assert!(
+        f.msgs[..at]
+            .iter()
+            .all(|m| !matches!(m, WorkerMsg::View { .. } | WorkerMsg::Results { .. }))
+    );
+    // A turn with no change still sends the safety-net Full.
+    let n = h.frames.len();
+    h.next_turn();
+    let sent = owners_sent(&h, n);
+    assert!(
+        sent.iter()
+            .any(|(_, _, u)| matches!(u, OwnersUpdate::Full { turn: 3, .. })),
+        "{sent:?}"
+    );
 }

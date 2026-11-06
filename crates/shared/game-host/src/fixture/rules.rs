@@ -364,6 +364,7 @@ impl Game {
         }
         self.repair_plots();
         self.apply_basis_hook();
+        self.apply_owner_hook();
         self.refresh_fog();
         let turn = self.turn;
         self.note(
@@ -450,6 +451,17 @@ impl Game {
                 p.flags = PlotFlags(p.flags.0 & !bits);
             }
             self.dirty.insert(i);
+        }
+    }
+
+    /// `fixture_test.flip_owner`: at the start of that turn the plot gets the owner (a border change); it is dirty.
+    fn apply_owner_hook(&mut self) {
+        let Some(f) = self.hooks.flip_owner.filter(|f| f.at_turn == self.turn) else {
+            return;
+        };
+        if let Some(p) = self.map.plot_mut(f.plot) {
+            p.owner = f.owner;
+            self.dirty.insert(f.plot);
         }
     }
 

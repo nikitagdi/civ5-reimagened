@@ -1231,6 +1231,11 @@ fn samples() -> Pins {
             ai_step_delay_ms: 5,
             leak_fog: true,
             change_basis_at_turn: Some(4),
+            flip_owner: Some(FlipOwner {
+                at_turn: 5,
+                plot: 7,
+                owner: -1,
+            }),
         }),
         ..WorkerConfig::default()
     };
@@ -1771,4 +1776,21 @@ fn mod_samples(p: &mut Pins) {
     };
     p.add("ToWorker::Mods", &ToWorker::Mods(section.clone()));
     p.add("WorkerMsg::ModsLoaded", &WorkerMsg::ModsLoaded(section));
+    p.add("ToWorker::WantOwners", &ToWorker::WantOwners);
+    p.add(
+        "WorkerMsg::Owners::Full",
+        &WorkerMsg::Owners(OwnersUpdate::Full {
+            rev: 2,
+            turn: 7,
+            owners: vec![-1, 0, 3, -1],
+        }),
+    );
+    p.add(
+        "WorkerMsg::Owners::Delta",
+        &WorkerMsg::Owners(OwnersUpdate::Delta {
+            base_rev: 2,
+            rev: 3,
+            changes: vec![(1, 4), (3, -1)],
+        }),
+    );
 }

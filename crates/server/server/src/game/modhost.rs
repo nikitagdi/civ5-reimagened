@@ -5,7 +5,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex, PoisonError};
 
-use mod_api::{LogLevel, MapShape, Owner, PlotClass, PlotIdx, Seat, WorldFacts};
+use mod_api::{LogLevel, Seat, WorldFacts};
 use mod_host_server::{
     CallEnv, ClientOutcome, DropReason, GameMods, HostRegistry, LogLine, ModOutput, ModStatus,
     ModStore, set_view,
@@ -124,40 +124,6 @@ pub fn admit(plan: &ModSetView, hello: Option<&ClientMods>) -> Result<Admitted, 
 
 // ------------------------------------------------------------------ the server halves of a game (T18, T19)
 
-/// The facts a mod sees until the owner table of the actor is there (T22): the shape of the map and the turn, and
-/// `Owner::Unknown` for every plot, which a mod must treat as "refuse the edit".
-#[derive(Debug, Clone, Copy)]
-pub struct UnknownFacts {
-    pub map: (u16, u16),
-    pub turn: i32,
-}
-
-impl WorldFacts for UnknownFacts {
-    fn map(&self) -> MapShape {
-        MapShape {
-            width: self.map.0,
-            height: self.map.1,
-            wrap_x: false,
-            wrap_y: false,
-        }
-    }
-    fn turn(&self) -> i32 {
-        self.turn
-    }
-    fn plot_at(&self, x: i16, y: i16) -> Option<PlotIdx> {
-        self.map().index(x, y)
-    }
-    fn owner(&self, _p: PlotIdx) -> Owner {
-        Owner::Unknown
-    }
-    fn class(&self, _p: PlotIdx) -> PlotClass {
-        PlotClass::Water
-    }
-    fn seat_player(&self, seat: Seat) -> Option<PlayerId> {
-        Some(seat.player())
-    }
-}
-
 /// What one call of the host produced: the messages by seat (in the order the mods returned them), the raw outputs
 /// (for the recording) and what the game must do about the sender.
 #[derive(Debug, Default)]
@@ -250,6 +216,11 @@ impl ModHost {
     /// Some mod has a server half.
     pub fn has_code(&self) -> bool {
         !self.mods.is_empty()
+    }
+
+    /// Some mod reads the world (`world.read`): the actor keeps the whole-truth table for it (T22).
+    pub fn wants_world(&self) -> bool {
+        self.mods.wants_world()
     }
 
     /// The server's plan (every mod available); `None` for a game without mods.

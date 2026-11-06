@@ -3,6 +3,7 @@
 //! * [`store`] (module `modset-store`): scans the installed mods, resolves the host's picks and freezes the
 //!   result into a [`mod_manifest::ModSet`] with the wire view the protocol carries.
 //! * [`registry`]: the mod code linked into the server binary; creates a game's instances from a frozen set.
+//! * [`facts`]: the whole-truth map facts (owners, terrain classes) the actor keeps and mods read (T22).
 //! * [`instance`]: the mods of one game behind the D7 checks (size, rate, panic isolation, output filter).
 //! * [`limits`]: counts repeated violations of a seat (the disconnect signal).
 //!
@@ -10,6 +11,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod facts;
 pub mod instance;
 pub mod limits;
 pub mod registry;
@@ -18,6 +20,7 @@ pub mod store;
 #[cfg(test)]
 mod tests;
 
+pub use facts::{Applied, WorldTable};
 pub use instance::{
     CallEnv, ClientOutcome, DropReason, GameMods, LogLine, ModInstance, ModOutput, ModStatus,
     PANIC_ISOLATION,

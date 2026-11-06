@@ -720,6 +720,22 @@ impl FixtureCore {
 
     /// The test hooks of `WorkerConfig.fixture_test`: a basis change at a turn, a fog leak in the units.
     /// May be set before or after the start.
+    /// Test hook: the plot gets this owner now (a border change in the middle of a turn) and becomes dirty. `false`:
+    /// no game or no such plot.
+    pub fn set_owner(&mut self, plot: u32, owner: i8) -> bool {
+        let Some(g) = self.game.as_mut() else {
+            return false;
+        };
+        match g.map.plot_mut(plot) {
+            Some(p) => {
+                p.owner = owner;
+                g.dirty.insert(plot);
+                true
+            }
+            None => false,
+        }
+    }
+
     pub fn set_test_hooks(&mut self, hooks: FixtureTest) {
         self.hooks = hooks;
         if let Some(g) = self.game.as_mut() {
@@ -1009,6 +1025,19 @@ impl Core for FixtureCore {
                     .map(|p| PlotView::unrevealed_of(&p))
             };
             out.extend(record.map(|p| (i, p)));
+        }
+        Ok(())
+    }
+
+    fn owners(
+        &mut self,
+        subset: Option<&[u32]>,
+        out: &mut Vec<(u32, i8)>,
+    ) -> Result<(), CoreError> {
+        // The truth of the map, not `plots(-1, ..)`: no team's fog slot is `-1`, that view is all unrevealed.
+        let g = self.game()?;
+        for i in g.indexes(subset)? {
+            out.extend(g.map.plot(i).map(|p| (i, p.owner)));
         }
         Ok(())
     }
