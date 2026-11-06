@@ -106,6 +106,7 @@ fn view(entries: &[(&str, u16, bool)]) -> ModSetView {
                 sync: ModSync::Cosmetic,
                 client_required: false,
                 available: *available,
+                pack: None,
             })
             .collect(),
     }

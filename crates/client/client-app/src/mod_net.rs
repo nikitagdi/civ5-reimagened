@@ -214,6 +214,7 @@ mod tests {
                 sync: ModSync::Cosmetic,
                 client_required: false,
                 available: true,
+                pack: None,
             }],
         })
     }
