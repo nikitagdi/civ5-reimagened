@@ -42,6 +42,9 @@ pub struct ServerConfig {
     pub assets_root: Option<PathBuf>,
     /// Installed mods (`<dir>/<id>/mod.toml`). `None`: no mods, every game is a game without mods.
     pub mods_dir: Option<PathBuf>,
+    /// The server halves of the mods this binary contains (`register`ed by the distribution build). Empty by default:
+    /// a mod with a server part that is installed but not registered here refuses the game that uses it.
+    pub mod_registry: Arc<mod_host_server::HostRegistry>,
     /// A logged-in session with no frame from the client (pong included) for this long is lost
     /// (20 s).
     pub idle_timeout: Duration,
@@ -124,6 +127,7 @@ impl Default for ServerConfig {
             cross_origin_isolation: true,
             assets_root: None,
             mods_dir: None,
+            mod_registry: Arc::default(),
             idle_timeout: Duration::from_secs(20),
             ping_interval: Duration::from_secs(5),
             limits: session::limits::LimitsConfig::default(),
@@ -217,6 +221,8 @@ pub struct Shared {
     pub sessions: session::Sessions,
     /// The mods installed on this server, scanned at start (T13).
     pub mod_store: Arc<mod_host_server::ModStore>,
+    /// What the logged-in sessions say they have built in (`ModHello`), by session (T17).
+    pub mod_hellos: Arc<game::modhost::ModHellos>,
     choices: Mutex<Arc<LobbyChoices>>,
 }
 
@@ -264,6 +270,7 @@ impl Shared {
             gate,
             sessions: session::Sessions::default(),
             mod_store,
+            mod_hellos: Arc::default(),
             choices: Mutex::new(Arc::new(LobbyChoices::default())),
             config,
             identity,
@@ -318,6 +325,9 @@ impl Shared {
             wall: Arc::clone(&self.config.wall_clock),
             replica: Arc::clone(&self.replica),
             recording: self.config.recording.clone(),
+            mod_store: Arc::clone(&self.mod_store),
+            mod_registry: Arc::clone(&self.config.mod_registry),
+            mod_hellos: Arc::clone(&self.mod_hellos),
         };
         Ok(game::spawn(env, init))
     }

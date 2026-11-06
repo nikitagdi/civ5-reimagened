@@ -152,6 +152,15 @@ fn spawn_from_meta(
         .mod_store
         .restore_set(meta.mods_lock.as_deref(), meta.settings.mods.len())
         .map_err(|e| format!("the game cannot be restored: {e}"))?;
+    if meta.mods_lock.is_some() {
+        super::modhost::ModHost::build(
+            meta.id,
+            Arc::clone(&shared.mod_store),
+            Arc::clone(&shared.config.mod_registry),
+            meta.mods_lock.as_deref(),
+        )
+        .map_err(|e| format!("the game cannot be restored: {e}"))?;
+    }
     let kicked: BTreeMap<_, _> = meta
         .seats
         .iter()

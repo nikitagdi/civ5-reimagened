@@ -977,6 +977,15 @@ impl LobbyActor {
         let last_room = load.is_none().then(|| setup.settings.clone());
         // The host's mod picks are resolved once, here; the game keeps the frozen set (T15).
         let mods_lock = crate::game::mods::freeze(&shared.mod_store, &mut setup)?;
+        // The mods with a server part need their code in this binary: else the start is refused with the sentence.
+        if mods_lock.is_some() {
+            crate::game::modhost::ModHost::build(
+                game,
+                Arc::clone(&shared.mod_store),
+                Arc::clone(&shared.config.mod_registry),
+                mods_lock.as_deref(),
+            )?;
+        }
         shared.start_game(
             GameInit {
                 id: game,

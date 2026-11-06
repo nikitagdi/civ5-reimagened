@@ -30,6 +30,8 @@ turntrace.workspace = true
 recording.workspace = true
 # The installed mods and the freezing of a game's mod set (T15).
 mod-host-server.workspace = true
+mod-api.workspace = true
+mod-manifest.workspace = true
 gamecore.workspace = true
 # The worker shell (`src/worker/`) only: the gateway code does not build a core (GH-D2, `xtask check`).
 game-host.workspace = true

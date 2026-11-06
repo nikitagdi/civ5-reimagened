@@ -6,7 +6,8 @@
 use std::sync::Arc;
 
 use protocol::{
-    BasisClaim, CatalogRef, CmdId, DetachReason, KeyframeReason, PlayerId, Resume, ServerMsg,
+    AttachMode, BasisClaim, CatalogRef, CmdId, DetachReason, KeyframeReason, ModSetView, PlayerId,
+    Resume, ServerMsg,
 };
 use tokio::sync::mpsc;
 use wire::Encoder;
@@ -29,6 +30,8 @@ pub struct AttachReq {
     pub claim: Option<BasisClaim>,
     pub catalog: CatalogRef,
     pub last_cmd_id: CmdId,
+    /// The mod set as this connection sees it (`GameMsg::Mods` opens a `Fresh` stream); `None`: a game without mods.
+    pub mods: Option<ModSetView>,
 }
 
 /// A message for the lobby that the pipeline sends right after it queued `Detached`, so that the
@@ -88,6 +91,10 @@ pub enum SeatInput {
     NeedKeyframe {
         session: u64,
         reason: KeyframeReason,
+    },
+    /// End the session after what is queued has been written (a seat with repeated mod violations).
+    Disconnect {
+        session: u64,
     },
     /// A control message (`QueryResult`) for the session.
     Control {
@@ -172,6 +179,7 @@ pub fn kind_tag(kind: &str) -> u8 {
         "chat" => 7,
         "basis" => 8,
         "gc" => 9,
+        "mod" => 14,
         _ => 255,
     }
 }
@@ -235,6 +243,12 @@ impl SeatTask {
                     } else {
                         true
                     }
+                }
+                SeatInput::Disconnect { session } => {
+                    if let Some(a) = self.att.as_ref().filter(|a| a.session == session) {
+                        let _ = a.out.close_after_flush();
+                    }
+                    true
                 }
                 SeatInput::Control { session, msg } => {
                     if self.att.as_ref().is_some_and(|a| a.session == session) {
@@ -378,7 +392,14 @@ impl SeatTask {
             catalog: req.catalog,
             last_cmd_id: req.last_cmd_id,
         };
-        let Some(out) = self.with_stream(true, move |s| s.attach(args)).await else {
+        let mods = req.mods.clone();
+        let Some(out) = self
+            .with_stream(true, move |s| {
+                s.set_mods(mods);
+                s.attach(args)
+            })
+            .await
+        else {
             return false;
         };
         let Some(out) = out else {
@@ -393,6 +414,13 @@ impl SeatTask {
         self.send_msg(&out.attached);
         for frame in out.frames {
             self.push(frame);
+        }
+        // A `Fresh` stream of a game with mods: the actor sends the snapshot of the mods (`on_attach`) behind it.
+        if req.mods.is_some() && out.mode == AttachMode::Fresh {
+            let _ = self.notify.send(ActorMsg::FreshAttached {
+                player: self.player,
+                session: req.session,
+            });
         }
         true
     }

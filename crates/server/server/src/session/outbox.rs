@@ -84,6 +84,12 @@ impl Outbox {
         self.tx.send(frame).map_err(|_| PushError::Closed)
     }
 
+    /// Ends the session after everything queued so far has been written (a refusal such as `Reject` is the last thing
+    /// the client reads). The marker is an empty frame, which no message is.
+    pub fn close_after_flush(&self) -> Result<(), PushError> {
+        self.push(Vec::new())
+    }
+
     /// Closes the queue as if it had overflowed: the session ends with 1013 (test hook `close_socket`).
     pub fn close(&self) {
         self.state.overflow.store(true, Ordering::Release);
@@ -161,6 +167,16 @@ mod tests {
             tx.push(vec![0; 1 << 20]).unwrap();
         }
         assert_eq!(tx.push(vec![0]), Err(PushError::Overflow));
+    }
+
+    #[tokio::test]
+    async fn the_close_marker_is_an_empty_frame_behind_the_queued_ones() {
+        let (tx, mut rx) = channel(4, 100);
+        tx.push(vec![1]).unwrap();
+        tx.close_after_flush().unwrap();
+        assert_eq!(rx.recv().await, Some(vec![1]));
+        assert_eq!(rx.recv().await, Some(Vec::new()));
+        assert!(!tx.is_overflowed());
     }
 
     #[tokio::test]
