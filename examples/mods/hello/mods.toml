@@ -1,0 +1,5 @@
+# The public example list of mods for `cargo xtask mods check|build --mods examples/mods/hello/mods.toml`.
+# Paths are relative to this file. `mods.lock` is written next to it by `mods check` (ignored by git).
+
+[[mod]]
+path = "."

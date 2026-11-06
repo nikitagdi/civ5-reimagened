@@ -4688,6 +4688,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cargo_metadata",
+ "mod-api",
+ "mod-host-server",
+ "mod-manifest",
  "serde",
  "toml",
 ]

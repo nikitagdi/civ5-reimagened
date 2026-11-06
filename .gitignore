@@ -39,3 +39,4 @@ __pycache__/
 /.claude/
 node_modules/
 
+examples/mods/*/mods.lock
