@@ -414,8 +414,8 @@ mod tests {
     }
 
     #[test]
-    fn protocol_version_is_12() {
-        assert_eq!(PROTOCOL_VERSION, 12);
+    fn protocol_version_is_13() {
+        assert_eq!(PROTOCOL_VERSION, 13);
     }
 
     /// New ClientMsg variants keep tags 2..=5 (after Hello = 0, Ping = 1).
@@ -1223,7 +1223,186 @@ mod tests {
             map_seed: None,
             auto_choices: AutoChoices::default(),
             diplo_auto_decline: true,
+            mods: Vec::new(),
         }
+    }
+
+    // ------------------------------------------------------------ v13: mods
+
+    #[test]
+    fn tag_stability_v13_mods() {
+        assert_eq!(
+            tag(&ClientMsg::ModHello {
+                api: (1, 2, 3),
+                built_in: vec![],
+            }),
+            [16, 1, 2, 3, 0]
+        );
+        assert_eq!(
+            tag(&ClientMsg::Mod(ModC2S {
+                mod_idx: 2,
+                ch: 5,
+                payload: vec![9],
+            })),
+            [17, 2, 5, 1, 9]
+        );
+        assert_eq!(
+            tag(&GameMsg::Mods(ModSetView {
+                modset_hash: 0,
+                mods: vec![],
+            })),
+            [13, 0, 0]
+        );
+        assert_eq!(
+            tag(&GameMsg::Mod(ModS2C {
+                mod_idx: 1,
+                ch: 4,
+                from: Some(2),
+                payload: vec![],
+            })),
+            [14, 1, 4, 1, 2, 0]
+        );
+        assert_eq!(tag(&RejectReason::ModMismatch(vec![])), [6, 0]);
+        assert_eq!(
+            tag(&ServerMsg::Reject(RejectReason::ModMismatch(vec![
+                ModProblem { text: "x".into() }
+            ]))),
+            [1, 6, 1, 1, b'x']
+        );
+        assert_eq!(
+            ClientMsg::ModHello {
+                api: (0, 0, 0),
+                built_in: vec![]
+            }
+            .kind(),
+            "ModHello"
+        );
+        assert_eq!(
+            ClientMsg::Mod(ModC2S {
+                mod_idx: 0,
+                ch: 0,
+                payload: vec![]
+            })
+            .kind(),
+            "Mod"
+        );
+        assert_eq!(RejectReason::ModMismatch(vec![]).kind(), "ModMismatch");
+    }
+
+    #[test]
+    fn v13_messages_round_trip_in_both_codecs() {
+        let set = ModSetView {
+            modset_hash: u64::MAX,
+            mods: vec![ModView {
+                id: "m".into(),
+                version: "1.0.0".into(),
+                load_idx: 300,
+                sync: ModSync::Gameplay,
+                client_required: true,
+                available: false,
+            }],
+        };
+        let client = vec![
+            ClientMsg::ModHello {
+                api: (u16::MAX, 0, 1),
+                built_in: vec![BuiltMod {
+                    id: "m".into(),
+                    version: "1.0.0".into(),
+                    code_hash: [0xAB; 16],
+                }],
+            },
+            ClientMsg::Mod(ModC2S {
+                mod_idx: 7,
+                ch: 255,
+                payload: vec![0; MOD_PAYLOAD_MAX],
+            }),
+        ];
+        let game = vec![
+            GameMsg::Mods(set),
+            GameMsg::Mod(ModS2C {
+                mod_idx: 7,
+                ch: 255,
+                from: None,
+                payload: vec![1; MOD_PAYLOAD_MAX],
+            }),
+        ];
+        let rejects = vec![RejectReason::ModMismatch(vec![
+            ModProblem { text: "a".into() },
+            ModProblem { text: "b".into() },
+        ])];
+        for m in client {
+            {
+                rt(&Postcard, &m);
+                rt(&Json, &m);
+            }
+        }
+        for m in game {
+            {
+                rt(&Postcard, &m);
+                rt(&Json, &m);
+            }
+        }
+        for m in rejects {
+            {
+                rt(&Postcard, &m);
+                rt(&Json, &m);
+            }
+            assert!(m.to_string().contains("a; b"));
+        }
+        // The envelope of a largest payload stays under the 64 KiB gateway frame.
+        let big = ClientMsg::Mod(ModC2S {
+            mod_idx: u16::MAX,
+            ch: 255,
+            payload: vec![0; MOD_PAYLOAD_MAX],
+        });
+        assert!(Postcard.encode(&big).unwrap().len() < 64 * 1024);
+        // A payload is not dumped into the log.
+        assert!(!format!("{big:?}").contains("[0, 0"));
+    }
+
+    /// v12 bytes of `GameSettings` (frozen from the v12 build) still load: `SETG`, recording headers.
+    #[test]
+    fn game_settings_v12_bytes_still_decode() {
+        let v12 = GameSettingsV12 {
+            name: "g".into(),
+            world_size: "WORLDSIZE_DUEL".into(),
+            map_script: "m".into(),
+            map_options: vec![("k".into(), -1)],
+            speed: "s".into(),
+            start_era: "e".into(),
+            handicap: "h".into(),
+            minor_civs: 3,
+            turn_mode: TurnMode::Hybrid,
+            timer: TimerMode::Fixed { seconds: 90 },
+            game_options: vec![],
+            seed: Some(7),
+            map_seed: None,
+            auto_choices: AutoChoices::default(),
+            diplo_auto_decline: true,
+        };
+        let old = Postcard.encode(&v12).unwrap();
+        // The v13 layout is the v12 one plus an empty list at the end.
+        let mut now = Postcard.encode(&settings()).unwrap();
+        assert_eq!(now.pop(), Some(0));
+        assert_eq!(old, now);
+        assert!(Postcard.decode::<GameSettings>(&old).is_err());
+        assert_eq!(GameSettings::decode_postcard(&old).unwrap(), settings());
+        let with_mods = GameSettings {
+            mods: vec![ModPick {
+                id: "m".into(),
+                req: "*".into(),
+            }],
+            ..settings()
+        };
+        let bytes = Postcard.encode(&with_mods).unwrap();
+        assert_eq!(GameSettings::decode_postcard(&bytes).unwrap(), with_mods);
+        // JSON (`meta.json`, `prefs.json`) written before v13 has no `mods`.
+        let mut json: serde_json::Value = serde_json::to_value(settings()).unwrap();
+        json.as_object_mut().unwrap().remove("mods");
+        assert_eq!(
+            serde_json::from_value::<GameSettings>(json).unwrap(),
+            settings()
+        );
     }
 
     #[test]

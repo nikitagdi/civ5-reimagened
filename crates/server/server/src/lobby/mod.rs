@@ -50,6 +50,8 @@ pub struct LoginInfo {
 }
 
 /// What reaches the lobby actor.
+// `LobbyCmd` carries `GameSettings`; the messages are built and matched once each, a Box is not worth it.
+#[allow(clippy::large_enum_variant)]
 pub enum LobbyMsg {
     Login(LoginInfo),
     /// A session ended.

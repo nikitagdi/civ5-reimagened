@@ -164,6 +164,7 @@ mod tests {
             map_seed: Some(8),
             auto_choices: AutoChoices::default(),
             diplo_auto_decline: true,
+            mods: Vec::new(),
         }
     }
 

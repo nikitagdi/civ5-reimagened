@@ -183,6 +183,7 @@ pub fn game_settings(
         map_seed: spec.map_seed,
         auto_choices: AutoChoices::default(),
         diplo_auto_decline: true,
+        mods: Vec::new(),
     })
 }
 

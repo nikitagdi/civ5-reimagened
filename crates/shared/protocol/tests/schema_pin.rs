@@ -364,6 +364,10 @@ fn settings() -> GameSettings {
             steal_tech: false,
         },
         diplo_auto_decline: false,
+        mods: vec![ModPick {
+            id: "example-mod".into(),
+            req: "^1.2".into(),
+        }],
     }
 }
 
@@ -406,6 +410,7 @@ fn room_state() -> RoomState {
             },
         ],
         from_save: Some("save-1".into()),
+        mod_plan: ModPlan::Ok(vec![mod_view()]),
     }
 }
 
@@ -530,6 +535,13 @@ fn choices() -> LobbyChoices {
             }],
         }],
         max_minor_civs: 41,
+        mods: vec![InstalledModView {
+            id: "example-mod".into(),
+            version: "1.2.3".into(),
+            title: "Example".into(),
+            sync: ModSync::Gameplay,
+            client_required: true,
+        }],
     }
 }
 
@@ -1439,6 +1451,7 @@ fn samples() -> Pins {
     }
     replica_samples(&mut p);
     account_samples(&mut p);
+    mod_samples(&mut p);
     p
 }
 
@@ -1653,4 +1666,93 @@ fn record(blob: &[u8], index: usize) -> Option<&[u8]> {
         at = end;
     }
     None
+}
+
+fn mod_view() -> ModView {
+    ModView {
+        id: "example-mod".into(),
+        version: "1.2.3".into(),
+        load_idx: 3,
+        sync: ModSync::Cosmetic,
+        client_required: false,
+        available: true,
+    }
+}
+
+/// v13 additions: the mod envelope.
+fn mod_samples(p: &mut Pins) {
+    p.add(
+        "ClientMsg::ModHello",
+        &ClientMsg::ModHello {
+            api: (1, 2, 3),
+            built_in: vec![BuiltMod {
+                id: "example-mod".into(),
+                version: "1.2.3".into(),
+                code_hash: [7; 16],
+            }],
+        },
+    );
+    p.add(
+        "ClientMsg::Mod",
+        &ClientMsg::Mod(ModC2S {
+            mod_idx: 2,
+            ch: 5,
+            payload: vec![1, 2, 3],
+        }),
+    );
+    let set = ModSetView {
+        modset_hash: 0x0123_4567_89AB_CDEF,
+        mods: vec![
+            mod_view(),
+            ModView {
+                id: "other".into(),
+                version: "0.1.0".into(),
+                load_idx: 4,
+                sync: ModSync::Client,
+                client_required: true,
+                available: false,
+            },
+        ],
+    };
+    p.add("ModSetView", &set);
+    p.add(
+        "GameBatch(Mods)",
+        &GameBatch {
+            seq: 1,
+            msgs: vec![GameMsg::Mods(set)],
+        },
+    );
+    p.add(
+        "GameMsg::Mod",
+        &GameMsg::Mod(ModS2C {
+            mod_idx: 2,
+            ch: 5,
+            from: Some(1),
+            payload: vec![9, 8, 7],
+        }),
+    );
+    p.add(
+        "GameMsg::Mod(no from)",
+        &GameMsg::Mod(ModS2C {
+            mod_idx: 0,
+            ch: 0,
+            from: None,
+            payload: Vec::new(),
+        }),
+    );
+    for s in [ModSync::Gameplay, ModSync::Cosmetic, ModSync::Client] {
+        p.add("ModSync", &s);
+    }
+    let problem = || ModProblem {
+        text: "mod 'example-mod' 1.2.3 is required".into(),
+    };
+    p.add("ModPlan::Err", &ModPlan::Err(vec![problem()]));
+    p.add(
+        "RejectReason::ModMismatch",
+        &RejectReason::ModMismatch(vec![problem()]),
+    );
+    p.add(
+        "ServerMsg::Reject(ModMismatch)",
+        &ServerMsg::Reject(RejectReason::ModMismatch(vec![problem()])),
+    );
 }

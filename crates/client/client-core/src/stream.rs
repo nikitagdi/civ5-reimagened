@@ -370,6 +370,8 @@ impl Stream {
                 GameMsg::GcTurn(t) => self.replica.push(ReplicaMsg::Turn(t)),
                 // The answers to orders are taken by the orders module, after the view.
                 GameMsg::Results(_) => {}
+                // v13: the mod host is not in this client yet.
+                GameMsg::Mods(_) | GameMsg::Mod(_) => {}
             }
         }
         if staged.is_some() {

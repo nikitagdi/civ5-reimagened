@@ -507,6 +507,10 @@ async fn drive(
                     }
                 }
             }
+            // v13: mods have no handler yet (they come with the mod host): dropped with a line in the log.
+            Ok(m @ (ClientMsg::ModHello { .. } | ClientMsg::Mod(_))) => {
+                tracing::debug!(kind = m.kind(), "mod message dropped: no mod host yet");
+            }
             Ok(ClientMsg::Hello { .. }) => return "repeated Hello",
             Ok(ClientMsg::Login(_)) => return "repeated Login",
             Ok(other) => {

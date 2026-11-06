@@ -451,6 +451,8 @@ pub fn reject_text(reason: &RejectReason) -> Option<(&'static str, Option<ErrorB
             Some(ErrorButton::Retry),
         ),
         // The error screen shows it.
+        // v13: the lines of the refusal are in the reason; the mod screen shows them.
+        RejectReason::ModMismatch(_) => ("The game needs mods this client does not have.", None),
         RejectReason::Unsupported { .. } => return None,
     })
 }
@@ -1626,6 +1628,7 @@ Building: Baths"
                 })
                 .collect(),
             from_save: None,
+            mod_plan: protocol::ModPlan::default(),
         }
     }
 
@@ -2030,6 +2033,7 @@ Building: Baths"
                         settings,
                         slots,
                         from_save: None,
+                        mod_plan: protocol::ModPlan::default(),
                     });
                 }
                 LobbyCmd::Settings(s) => self.room.as_mut().unwrap().settings = s,

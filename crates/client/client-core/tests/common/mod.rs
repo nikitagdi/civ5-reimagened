@@ -42,6 +42,7 @@ pub fn settings() -> GameSettings {
         map_seed: None,
         auto_choices: Default::default(),
         diplo_auto_decline: false,
+        mods: Vec::new(),
     }
 }
 
@@ -54,6 +55,7 @@ pub fn room(id: u32, host: &str) -> RoomState {
         settings: settings(),
         slots: vec![],
         from_save: None,
+        mod_plan: protocol::ModPlan::default(),
     }
 }
 

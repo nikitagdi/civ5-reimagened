@@ -645,6 +645,7 @@ impl Core for RealCore {
             victories: lobby_options::victories_of(&desc),
             map_options: lobby_options::map_options_of(&desc, &self.map_scripts),
             max_minor_civs,
+            mods: Vec::new(),
         };
         let bytes = Postcard
             .encode(&choices)
@@ -1199,6 +1200,7 @@ mod tests {
                 map_seed: None,
                 auto_choices: AutoChoices::default(),
                 diplo_auto_decline: true,
+                mods: Vec::new(),
             },
             slots: vec![
                 SlotSetup {

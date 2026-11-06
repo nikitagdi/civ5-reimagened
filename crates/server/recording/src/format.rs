@@ -424,14 +424,71 @@ pub fn decode_next(buf: &[u8]) -> Next {
     }
     let tag = buf[4];
     let payload = &buf[5..4 + n];
+    let skipped = Next::Skipped {
+        tag,
+        len: n - 1,
+        total: 4 + n,
+    };
+    if tag == 0 {
+        // The header holds `GameSettings`, which grew a field in protocol v13 (postcard is positional): the
+        // current layout must fill the record exactly, otherwise it is read as the v12 layout.
+        return match decode_header(payload) {
+            Some(e) => Next::Entry(Box::new(e), 4 + n),
+            None => skipped,
+        };
+    }
     match postcard::from_bytes::<Entry>(payload) {
         Ok(e) if e.body.tag() == tag => Next::Entry(Box::new(e), 4 + n),
-        _ => Next::Skipped {
-            tag,
-            len: n - 1,
-            total: 4 + n,
-        },
+        _ => skipped,
     }
+}
+
+/// `HeaderRec` before protocol v13: `GameSettings` without `mods`.
+#[derive(Deserialize)]
+#[cfg_attr(test, derive(Serialize))]
+struct HeaderRecV12 {
+    format: u16,
+    game: u32,
+    gateway: String,
+    core_build: String,
+    seed: u64,
+    wall_at_mono0_ms: u64,
+    created_ms: u64,
+    name: String,
+    settings: Option<protocol::GameSettingsV12>,
+    seats: Vec<protocol::SlotSetup>,
+}
+
+fn decode_header(payload: &[u8]) -> Option<Entry> {
+    if let Ok((e, rest)) = postcard::take_from_bytes::<Entry>(payload)
+        && rest.is_empty()
+        && e.body.tag() == 0
+    {
+        return Some(e);
+    }
+    let (mono_us, r) = postcard::take_from_bytes::<u64>(payload).ok()?;
+    let (wall_ms, r) = postcard::take_from_bytes::<u64>(r).ok()?;
+    let (tag, r) = postcard::take_from_bytes::<u32>(r).ok()?;
+    let (h, rest) = postcard::take_from_bytes::<HeaderRecV12>(r).ok()?;
+    if tag != 0 || !rest.is_empty() {
+        return None;
+    }
+    Some(Entry {
+        mono_us,
+        wall_ms,
+        body: Body::Header(HeaderRec {
+            format: h.format,
+            game: h.game,
+            gateway: h.gateway,
+            core_build: h.core_build,
+            seed: h.seed,
+            wall_at_mono0_ms: h.wall_at_mono0_ms,
+            created_ms: h.created_ms,
+            name: h.name,
+            settings: h.settings.map(Into::into),
+            seats: h.seats,
+        }),
+    })
 }
 
 #[cfg(test)]
@@ -444,6 +501,78 @@ mod tests {
             wall_ms: 1_700_000_000_000,
             body,
         }
+    }
+
+    /// A recording written before protocol v13 has `GameSettings` without `mods` in its header: it still reads.
+    #[test]
+    fn a_v12_header_still_reads() {
+        let settings = protocol::GameSettingsV12 {
+            name: "g".into(),
+            world_size: "w".into(),
+            map_script: "m".into(),
+            map_options: vec![],
+            speed: "s".into(),
+            start_era: "e".into(),
+            handicap: "h".into(),
+            minor_civs: 2,
+            turn_mode: protocol::TurnMode::Hybrid,
+            timer: protocol::TimerMode::Off,
+            game_options: vec![("o".into(), 1)],
+            seed: Some(5),
+            map_seed: None,
+            auto_choices: protocol::AutoChoices::default(),
+            diplo_auto_decline: false,
+        };
+        let old = HeaderRecV12 {
+            format: 1,
+            game: 3,
+            gateway: "gw".into(),
+            core_build: "cb".into(),
+            seed: 9,
+            wall_at_mono0_ms: 1,
+            created_ms: 2,
+            name: "n".into(),
+            settings: Some(settings),
+            seats: vec![],
+        };
+        let payload = postcard::to_stdvec(&(5u64, 6u64, 0u32, &old)).unwrap();
+        let mut rec = ((payload.len() + 1) as u32).to_le_bytes().to_vec();
+        rec.push(0);
+        rec.extend_from_slice(&payload);
+        let Next::Entry(e, used) = decode_next(&rec) else {
+            panic!("the v12 header is skipped");
+        };
+        assert_eq!(used, rec.len());
+        let Body::Header(h) = e.body else {
+            panic!("not a header")
+        };
+        assert_eq!(
+            (e.mono_us, e.wall_ms, h.game, h.name.as_str()),
+            (5, 6, 3, "n")
+        );
+        assert!(
+            h.settings
+                .is_some_and(|s| s.mods.is_empty() && s.minor_civs == 2)
+        );
+        // The current layout round trips as before.
+        let now = Entry {
+            mono_us: 1,
+            wall_ms: 2,
+            body: Body::Header(HeaderRec {
+                format: 1,
+                game: 3,
+                gateway: "gw".into(),
+                core_build: String::new(),
+                seed: 1,
+                wall_at_mono0_ms: 1,
+                created_ms: 2,
+                name: "n".into(),
+                settings: None,
+                seats: vec![],
+            }),
+        };
+        let bytes = encode_entry(&now).unwrap();
+        assert!(matches!(decode_next(&bytes), Next::Entry(e, _) if *e == now));
     }
 
     #[test]

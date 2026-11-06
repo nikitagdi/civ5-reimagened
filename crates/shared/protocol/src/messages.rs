@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::account::{AccountData, AccountSave};
 use crate::context::Focus;
 use crate::lobby::{LobbyChoices, LobbyCmd, LobbyState};
+use crate::mods::{BuiltMod, ModC2S, ModProblem};
 use crate::replica::GcResyncReason;
 use crate::session::{Attached, ChatSend, DetachReason, GameCtl, GameCtlReason, Login, Session};
 use crate::stream::{Cmd, GameBatch, KeyframeReason};
@@ -66,6 +67,13 @@ pub enum ClientMsg {
     },
     /// v12 (tag 15): a change of the account's store (settings and toggles); no answer.
     Account(AccountSave),
+    /// v13 (tag 16): the mods this client has built in and the mod API it speaks; sent once, right after `Hello`.
+    ModHello {
+        api: (u16, u16, u16),
+        built_in: Vec<BuiltMod>,
+    },
+    /// v13 (tag 17): a message of a mod's client part (at most `MOD_PAYLOAD_MAX` bytes).
+    Mod(ModC2S),
 }
 
 impl ClientMsg {
@@ -87,6 +95,8 @@ impl ClientMsg {
             ClientMsg::GcNet(_) => "GcNet",
             ClientMsg::GcResync { .. } => "GcResync",
             ClientMsg::Account(_) => "Account",
+            ClientMsg::ModHello { .. } => "ModHello",
+            ClientMsg::Mod(_) => "Mod",
         }
     }
 }
@@ -202,6 +212,8 @@ pub enum RejectReason {
     Full,
     /// v3 (tag 5): the nick is reserved for another token, or its record has a live session.
     NickTaken,
+    /// v13 (tag 6): the client does not have the mods the game needs.
+    ModMismatch(Vec<ModProblem>),
 }
 
 impl RejectReason {
@@ -213,6 +225,7 @@ impl RejectReason {
             RejectReason::Unsupported { .. } => "Unsupported",
             RejectReason::Full => "Full",
             RejectReason::NickTaken => "NickTaken",
+            RejectReason::ModMismatch(_) => "ModMismatch",
         }
     }
 }
@@ -230,6 +243,14 @@ impl fmt::Display for RejectReason {
             RejectReason::Unsupported { kind } => write!(f, "unsupported message: {kind}"),
             RejectReason::Full => f.write_str("server is full"),
             RejectReason::NickTaken => f.write_str("nickname is taken"),
+            RejectReason::ModMismatch(p) => {
+                f.write_str("mod mismatch")?;
+                for (i, x) in p.iter().enumerate() {
+                    f.write_str(if i == 0 { ": " } else { "; " })?;
+                    f.write_str(&x.text)?;
+                }
+                Ok(())
+            }
         }
     }
 }

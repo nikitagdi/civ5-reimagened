@@ -34,6 +34,7 @@ fn game() -> GameSetup {
             map_seed: None,
             auto_choices: AutoChoices::default(),
             diplo_auto_decline: true,
+            mods: Vec::new(),
         },
         slots: vec![
             slot(0, SlotControl::Human { nick: "a".into() }),

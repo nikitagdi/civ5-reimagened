@@ -250,6 +250,7 @@ mod tests {
                 map_seed: None,
                 auto_choices: protocol::AutoChoices::default(),
                 diplo_auto_decline: true,
+                mods: Vec::new(),
             },
             seats: vec![seat(0, Some("alice")), seat(1, None)],
             host: "alice".into(),

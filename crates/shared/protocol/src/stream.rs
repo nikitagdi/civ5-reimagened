@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::context::ContextMsg;
+use crate::mods::{ModS2C, ModSetView};
 use crate::replica::{GcBase, GcJournal, GcTurn};
 use crate::view::ViewDiff;
 use crate::world::{Command, JournalEntry, MapBasis, PlayerId, TeamId, WorldView};
@@ -47,6 +48,10 @@ pub enum GameMsg {
     /// Tag 12 (v7, was the AI progress of v6), worker via gateway: which civilizations the core started and ended during
     /// the AI phase (SIMP-exe-820), as they happen.
     AiTurn(AiTurn),
+    /// Tag 13 (v13), gateway: the frozen mod set of the game; the first message of every `Fresh` stream.
+    Mods(ModSetView),
+    /// Tag 14 (v13), gateway: a message of a mod's server part.
+    Mod(ModS2C),
 }
 
 /// One `setTurnActive` of a civilization that is not a human, as the server's core did it in the AI phase: the original

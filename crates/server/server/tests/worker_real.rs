@@ -88,6 +88,7 @@ fn setup(world_size: &str, humans: usize, ais: usize) -> GameSetup {
             map_seed: None,
             auto_choices: AutoChoices::default(),
             diplo_auto_decline: true,
+            mods: Vec::new(),
         },
         slots,
     }

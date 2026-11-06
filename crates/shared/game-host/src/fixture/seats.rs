@@ -351,6 +351,7 @@ pub fn choices() -> LobbyChoices {
             }],
         }],
         max_minor_civs: 0,
+        mods: Vec::new(),
     };
     // The hash of the content with `hash` zero.
     if let Ok(bytes) = Postcard.encode(&c) {
@@ -807,6 +808,7 @@ pub(crate) mod testing {
             map_seed: None,
             auto_choices: protocol::AutoChoices::default(),
             diplo_auto_decline: true,
+            mods: Vec::new(),
         }
     }
 

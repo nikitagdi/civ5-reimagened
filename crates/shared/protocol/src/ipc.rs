@@ -510,6 +510,7 @@ mod tests {
                 map_seed: None,
                 auto_choices: crate::AutoChoices::default(),
                 diplo_auto_decline: true,
+                mods: Vec::new(),
             },
             slots: vec![SlotSetup {
                 player: 0,

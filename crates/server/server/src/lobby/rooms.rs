@@ -427,6 +427,7 @@ impl Room {
             settings: self.settings.clone(),
             slots: self.slots.clone(),
             from_save: self.from_save.as_ref().map(|f| f.id.clone()),
+            mod_plan: protocol::ModPlan::default(),
         }
     }
 
@@ -471,6 +472,7 @@ mod tests {
             map_seed: None,
             auto_choices: AutoChoices::default(),
             diplo_auto_decline: true,
+            mods: Vec::new(),
         }
     }
 

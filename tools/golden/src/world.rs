@@ -89,6 +89,7 @@ pub fn scene_setup(scene: &Scene) -> Result<GameSetup> {
             map_seed: s.map_seed,
             auto_choices: AutoChoices::default(),
             diplo_auto_decline: true,
+            mods: Vec::new(),
         };
         // The scenario of the map has two players (`LateGameTest`: the core refuses a game with fewer seats).
         return Ok(GameSetup {
@@ -144,6 +145,7 @@ pub fn scene_setup(scene: &Scene) -> Result<GameSetup> {
             map_seed: s.map_seed,
             auto_choices: AutoChoices::default(),
             diplo_auto_decline: true,
+            mods: Vec::new(),
         },
         slots,
     })

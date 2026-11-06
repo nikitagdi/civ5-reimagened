@@ -159,6 +159,7 @@ pub fn default_settings(
         },
         // SIMP-003: offers of the AI are declined.
         diplo_auto_decline: true,
+        mods: Vec::new(),
     })
 }
 
@@ -427,6 +428,7 @@ mod tests {
                 })
                 .collect(),
             from_save: None,
+            mod_plan: protocol::ModPlan::default(),
         }
     }
 

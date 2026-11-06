@@ -363,6 +363,7 @@ fn main() -> Result<()> {
         map_seed,
         auto_choices: AutoChoices::default(),
         diplo_auto_decline: true,
+        mods: Vec::new(),
     };
     let slots: Vec<SlotSetup> = majors
         .iter()

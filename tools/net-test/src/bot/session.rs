@@ -117,13 +117,15 @@ fn kind_of(m: &GameMsg) -> &'static str {
         GameMsg::GcJournal(_) => "GcJournal",
         GameMsg::GcTurn(_) => "GcTurn",
         GameMsg::AiTurn(_) => "AiTurn",
+        GameMsg::Mods(_) => "Mods",
+        GameMsg::Mod(_) => "Mod",
     }
 }
 
 /// Position of a message kind in the order of a batch (net-protocol 4.4).
 fn rank(m: &GameMsg) -> u8 {
     match m {
-        GameMsg::MapBasis(_) => 0,
+        GameMsg::MapBasis(_) | GameMsg::Mods(_) => 0,
         GameMsg::Keyframe(_) | GameMsg::Diff(_) => 1,
         GameMsg::Results(_) => 2,
         GameMsg::Journal(_) => 3,
@@ -134,6 +136,8 @@ fn rank(m: &GameMsg) -> u8 {
         // The replica stream (v4) comes after the view's messages; the bot keeps no replica.
         GameMsg::GcBase(_) | GameMsg::GcJournal(_) | GameMsg::GcTurn(_) => 8,
         GameMsg::AiTurn(_) => 8,
+        // v13: the mod set opens a `Fresh` stream; mod messages come after everything else.
+        GameMsg::Mod(_) => 9,
     }
 }
 
@@ -752,6 +756,7 @@ impl Session {
             GameMsg::GcBase(_) | GameMsg::GcJournal(_) | GameMsg::GcTurn(_) => {}
             // Nor is the AI progress.
             GameMsg::AiTurn(_) => {}
+            GameMsg::Mods(_) | GameMsg::Mod(_) => {}
         }
     }
 

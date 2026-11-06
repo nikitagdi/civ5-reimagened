@@ -183,12 +183,24 @@ pub fn try_encode_with(
     sections: &SaveSections,
     pack_gcs1: impl FnOnce(&[u8]) -> Vec<u8>,
 ) -> Result<Vec<u8>, SaveError> {
+    let setg = pack(&sections.settings)?;
+    encode_raw(header, gcs1, sections, setg, pack_gcs1)
+}
+
+/// [`try_encode_with`] with the bytes of the `SETG` section given (tests write the v12 layout with it).
+fn encode_raw(
+    header: &SaveHeader,
+    gcs1: &[u8],
+    sections: &SaveSections,
+    setg: Vec<u8>,
+    pack_gcs1: impl FnOnce(&[u8]) -> Vec<u8>,
+) -> Result<Vec<u8>, SaveError> {
     let mut memo: Vec<&(TeamId, Vec<CityMemo>)> = sections.city_memo.iter().collect();
     memo.sort_by_key(|(t, _)| *t);
     let bodies: [([u8; 4], Vec<u8>); 6] = [
         (TAG_GCS1, pack_gcs1(gcs1)),
         (TAG_SEAT, pack(&sections.seats)?),
-        (TAG_SETG, pack(&sections.settings)?),
+        (TAG_SETG, setg),
         (TAG_JRNL, pack(&sections.journals)?),
         (TAG_CMDS, pack(&sections.cmds)?),
         (TAG_CMEM, pack(&memo)?),
@@ -288,6 +300,15 @@ impl<'a> Parsed<'a> {
             .map(|(_, b)| *b)
     }
 
+    /// `SETG`: v13 layout, or the v12 one of saves written before the mod system (no mods).
+    fn settings(&self) -> Result<GameSettings, SaveError> {
+        let body = self
+            .section(TAG_SETG)
+            .ok_or_else(|| SaveError::Section("no SETG section".into()))?;
+        GameSettings::decode_postcard(body)
+            .map_err(|e| SaveError::Section(format!("SETG does not parse: {e}")))
+    }
+
     /// A section that must be there, checked and parsed.
     fn need<T: serde::de::DeserializeOwned>(&self, tag: [u8; 4]) -> Result<T, SaveError> {
         let name = String::from_utf8_lossy(&tag).into_owned();
@@ -377,7 +398,7 @@ fn parse(file: &[u8]) -> Result<Parsed<'_>, SaveError> {
 pub fn read_header(file: &[u8]) -> Result<SaveInfo, SaveError> {
     let p = parse(file)?;
     let seats = p.need(TAG_SEAT)?;
-    let settings = p.need(TAG_SETG)?;
+    let settings = p.settings()?;
     Ok(SaveInfo {
         header: p.header,
         seats,
@@ -404,7 +425,7 @@ pub fn decode(file: &[u8]) -> Result<Save, SaveError> {
     Ok(Save {
         info: SaveInfo {
             seats: p.need(TAG_SEAT)?,
-            settings: p.need(TAG_SETG)?,
+            settings: p.settings()?,
             header: p.header.clone(),
         },
         gcs1,
@@ -501,6 +522,7 @@ mod tests {
             map_seed: None,
             auto_choices: AutoChoices::default(),
             diplo_auto_decline: true,
+            mods: Vec::new(),
         }
     }
 
@@ -554,6 +576,22 @@ mod tests {
                 }],
             )],
         }
+    }
+
+    /// A save written before protocol v13 holds `SETG` without the mod list: it still loads, with no mods.
+    #[test]
+    fn a_v12_save_still_loads() {
+        let now = settings();
+        let mut v12 = Postcard.encode(&now).unwrap();
+        assert_eq!(v12.pop(), Some(0)); // the empty `mods` list is the last byte
+        let file = encode_raw(&header(), b"core bytes", &sections(), v12, |g| {
+            wire::compress(g)
+        })
+        .unwrap();
+        let s = decode(&file).unwrap();
+        assert_eq!(s.info.settings, now);
+        assert!(s.info.settings.mods.is_empty());
+        assert_eq!(read_header(&file).unwrap().settings, now);
     }
 
     #[test]

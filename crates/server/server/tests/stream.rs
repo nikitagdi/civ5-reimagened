@@ -114,6 +114,8 @@ fn kinds(b: &GameBatch) -> Vec<&'static str> {
             GameMsg::GcBase(_) => "GcBase",
             GameMsg::GcJournal(_) => "GcJournal",
             GameMsg::GcTurn(_) => "GcTurn",
+            GameMsg::Mods(_) => "Mods",
+            GameMsg::Mod(_) => "Mod",
             GameMsg::AiTurn(_) => "AiTurn",
         })
         .collect()
@@ -827,6 +829,7 @@ fn settings() -> GameSettings {
         map_seed: None,
         auto_choices: AutoChoices::default(),
         diplo_auto_decline: true,
+        mods: Vec::new(),
     }
 }
 

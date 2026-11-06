@@ -145,9 +145,11 @@ mod tests {
                 map_seed: None,
                 auto_choices: Default::default(),
                 diplo_auto_decline: false,
+                mods: Vec::new(),
             },
             slots: vec![],
             from_save: None,
+            mod_plan: protocol::ModPlan::default(),
         }
     }
 

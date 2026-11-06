@@ -3,6 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::mods::{InstalledModView, ModPick, ModPlan};
 use crate::session::BasisClaim;
 use crate::stream::{SeatControl, TurnMode};
 use crate::world::{AutoChoices, GameId, LobbyChoice, PlayerId};
@@ -142,6 +143,8 @@ pub struct RoomState {
     pub settings: GameSettings,
     pub slots: Vec<RoomSlot>,
     pub from_save: Option<SaveId>,
+    /// v13: the resolved mod set of the room, or why there is none.
+    pub mod_plan: ModPlan,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -178,6 +181,10 @@ pub struct GameSettings {
     pub map_seed: Option<u32>,
     pub auto_choices: AutoChoices,
     pub diplo_auto_decline: bool,
+    /// v13: the mods the host picked. Postcard is positional: bytes written before v13 end before this field, see
+    /// [`GameSettings::decode_postcard`]. JSON (`meta.json`, `prefs.json`) takes the default.
+    #[serde(default)]
+    pub mods: Vec<ModPick>,
 }
 
 /// Turn timer. `Off` by default; `Original` names a row of the `TurnTimers` table (`LobbyChoices.timers`,
@@ -268,6 +275,8 @@ pub struct LobbyChoices {
     pub map_options: Vec<MapScriptOptions>,
     /// v8: how many city-states the game data has (`#MinorCivilizations`): the original slider's upper end.
     pub max_minor_civs: u8,
+    /// v13: the mods installed on the server.
+    pub mods: Vec<InstalledModView>,
 }
 
 /// A `game_options` key that is a victory condition (`VICTORY_TIME` ...), not a `GameOptions` row. The worker
@@ -352,4 +361,63 @@ pub struct OptionChoice {
     pub help: String,
     /// v8.
     pub group: OptionGroup,
+}
+
+/// `GameSettings` as protocol v12 wrote it (no `mods`). Old `SETG` sections, recording headers and stored rooms
+/// hold this layout in postcard.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GameSettingsV12 {
+    pub name: String,
+    pub world_size: String,
+    pub map_script: String,
+    pub map_options: Vec<(String, i32)>,
+    pub speed: String,
+    pub start_era: String,
+    pub handicap: String,
+    pub minor_civs: u8,
+    pub turn_mode: TurnMode,
+    pub timer: TimerMode,
+    pub game_options: Vec<(String, i32)>,
+    pub seed: Option<u32>,
+    pub map_seed: Option<u32>,
+    pub auto_choices: AutoChoices,
+    pub diplo_auto_decline: bool,
+}
+
+impl From<GameSettingsV12> for GameSettings {
+    fn from(o: GameSettingsV12) -> Self {
+        GameSettings {
+            name: o.name,
+            world_size: o.world_size,
+            map_script: o.map_script,
+            map_options: o.map_options,
+            speed: o.speed,
+            start_era: o.start_era,
+            handicap: o.handicap,
+            minor_civs: o.minor_civs,
+            turn_mode: o.turn_mode,
+            timer: o.timer,
+            game_options: o.game_options,
+            seed: o.seed,
+            map_seed: o.map_seed,
+            auto_choices: o.auto_choices,
+            diplo_auto_decline: o.diplo_auto_decline,
+            mods: Vec::new(),
+        }
+    }
+}
+
+impl GameSettings {
+    /// Reads settings that fill `bytes` whole, from this version or from v12 (no mods: the list is empty).
+    /// For stored postcard only (`SETG`); the wire is always the current layout.
+    pub fn decode_postcard(bytes: &[u8]) -> Result<Self, crate::CodecError> {
+        use crate::Codec;
+        match crate::Postcard.decode::<GameSettings>(bytes) {
+            Ok(s) => Ok(s),
+            Err(e) => crate::Postcard
+                .decode::<GameSettingsV12>(bytes)
+                .map(Into::into)
+                .map_err(|_| e),
+        }
+    }
 }
