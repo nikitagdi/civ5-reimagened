@@ -448,7 +448,7 @@ enum GoldenState {
 }
 
 impl App {
-    fn new(config: AppConfig, services: Services, hooks: ModHooks) -> Self {
+    fn new(config: AppConfig, services: Services, mut hooks: ModHooks) -> Self {
         let Services {
             transport,
             http,
@@ -475,6 +475,11 @@ impl App {
         let hud_on = config.hud;
         let (config_original_ui, config_ui_volume) = (config.original_ui, config.ui_volume);
         let http: Rc<dyn platform::HttpClient> = Rc::from(http);
+        // The mods' hooks learn where the server is (their asset packs are fetched from it).
+        hooks.bind(&crate::mod_hooks::HookEnv {
+            http: Rc::clone(&http),
+            server_url: config.server_url.clone(),
+        });
         let clock: Rc<dyn platform::Clock> = Rc::from(clock);
         // One store for the net client (token, nick) and the original UI (options, user data): its keys differ.
         let shared_kv: Rc<dyn platform::KeyValueStore> =
@@ -1795,6 +1800,13 @@ impl App {
                         } else {
                             self.pointer.release(w);
                         }
+                    }
+                    // A required mod that cannot run here (no pack): the game ends with the reason on the screen.
+                    if let Some(text) = self.hooks.take_problem() {
+                        if let Some(w) = self.window.as_ref() {
+                            self.pointer.release(w);
+                        }
+                        self.net = Link::NetFailed(format!("Cannot play this game: {text}"));
                     }
                 }
                 // The virtual focus: while a mod holds the camera the strategic one stays where the mod is, so the

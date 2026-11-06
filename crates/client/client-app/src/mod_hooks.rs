@@ -53,6 +53,14 @@ pub struct FrameInfo<'a> {
     pub terrain: Option<&'a TerrainSampler>,
 }
 
+/// What the app gives the hooks once, when it starts: the services a mod's host needs that only the app has.
+pub struct HookEnv {
+    /// The platform's HTTP client (the packs of the mods are fetched with it).
+    pub http: std::rc::Rc<dyn platform::HttpClient>,
+    /// The address of the game server (`ws://host/ws`); the packs are at the same host.
+    pub server_url: String,
+}
+
 /// The client side of a mod, as far as the input goes. More hooks (frame, camera) join it with the
 /// tasks that need them.
 pub trait ModHook {
@@ -66,6 +74,15 @@ pub trait ModHook {
     /// to move a camera of the mod and hand it over with `HookCtl::set_camera`. A pointer lock asked here
     /// is carried out, but on the web a lock needs the gesture of an input event: ask it from `claim_input`.
     fn frame(&mut self, _info: &FrameInfo<'_>, _ctl: &mut HookCtl) {}
+
+    /// Called once by the app at its start with what only the app has (`HookEnv`).
+    fn bind(&mut self, _env: &HookEnv) {}
+
+    /// A reason the game cannot be played with the mods this hook carries (a required mod lacks its pack), once. The
+    /// app shows it and leaves the game.
+    fn take_problem(&mut self) -> Option<String> {
+        None
+    }
 
     /// The mods this hook carries put themselves into the config of the network core (`ModHello`, T35). Called once,
     /// before the core is made.
@@ -147,6 +164,18 @@ impl ModHooks {
             }
         }
         claim
+    }
+
+    /// Hands the app's services to the hooks (once, at the start of the app).
+    pub fn bind(&mut self, env: &HookEnv) {
+        for h in &mut self.hooks {
+            h.bind(env);
+        }
+    }
+
+    /// The first reason a hook gives for the game being impossible; the app shows it.
+    pub fn take_problem(&mut self) -> Option<String> {
+        self.hooks.iter_mut().find_map(|h| h.take_problem())
     }
 
     /// Lets the mods put themselves into the config of the network core (`ModHello`).
