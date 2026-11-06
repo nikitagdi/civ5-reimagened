@@ -37,6 +37,7 @@ members = [
     "crates/server/server",
     "apps/web",
     "apps/desktop",
+    "examples/mods/hello/hello-client",
     "examples/mods/hello/hello-shared",
     "examples/mods/hello/hello-server",
     "tools/xtask",

@@ -905,4 +905,170 @@ mod tests {
         let mut hooks = services_hooks(&store, &http, &log);
         assert!(!hooks.unclaimed_input(&f13(true, false, false)).taken);
     }
+
+    // ---- render systems (T36, R1) ----
+
+    use render::frame::{
+        DrawContext, InitContext, MainSlot, ModGpu, PassSlot, PrepareContext, RenderSystem,
+        SystemId,
+    };
+    use render::wgpu;
+
+    /// Every mod's system says it is `SystemId::Mod(0)`; the host numbers them.
+    struct Stub(Rc<RefCell<Vec<&'static str>>>);
+
+    impl RenderSystem for Stub {
+        fn id(&self) -> SystemId {
+            SystemId::Mod(0)
+        }
+        fn passes(&self) -> &'static [PassSlot] {
+            &[PassSlot::Main(MainSlot::Mod)]
+        }
+        fn init(&mut self, _: &mut InitContext<'_>) {}
+        fn prepare(&mut self, _: &mut PrepareContext<'_>) {
+            self.0.borrow_mut().push("prepare");
+        }
+        fn record(&self, _: PassSlot, _: &mut DrawContext<'_, '_>) {}
+    }
+
+    struct Drawer(Rc<RefCell<Vec<&'static str>>>);
+
+    impl ClientMod for Drawer {
+        fn render_systems(
+            &mut self,
+            cx: &mut dyn ClientCtx,
+        ) -> Vec<Box<dyn mod_client::ModRenderSystem>> {
+            // The device is what the mod builds its pipelines from; without it there is no system.
+            if cx.gpu().is_err() {
+                return Vec::new();
+            }
+            vec![Box::new(Stub(Rc::clone(&self.0)))]
+        }
+    }
+
+    fn test_device() -> Option<ModGpu> {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let adapter = pollster_free_block_on(
+            instance.request_adapter(&wgpu::RequestAdapterOptions::default()),
+        )
+        .ok()?;
+        let (device, queue) =
+            pollster_free_block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
+                .ok()?;
+        let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: None,
+            entries: &[],
+        });
+        Some(ModGpu {
+            device,
+            queue,
+            view_layout: layout.clone(),
+            frame_layout: layout,
+            color_format: wgpu::TextureFormat::Rgba8Unorm,
+            depth_format: wgpu::TextureFormat::Depth32Float,
+            samples: 1,
+        })
+    }
+
+    fn pollster_free_block_on<F: std::future::Future>(fut: F) -> F::Output {
+        use std::task::{Context, Poll, Wake, Waker};
+        struct Park(std::thread::Thread);
+        impl Wake for Park {
+            fn wake(self: std::sync::Arc<Self>) {
+                self.0.unpark();
+            }
+        }
+        let mut fut = std::pin::pin!(fut);
+        let waker = Waker::from(std::sync::Arc::new(Park(std::thread::current())));
+        let mut cx = Context::from_waker(&waker);
+        loop {
+            if let Poll::Ready(v) = fut.as_mut().poll(&mut cx) {
+                return v;
+            }
+            std::thread::park();
+        }
+    }
+
+    #[test]
+    fn render_systems_wait_for_the_renderer_and_get_numbers_of_their_own() {
+        let calls: Rc<RefCell<Vec<&'static str>>> = Rc::default();
+        let c2 = Rc::clone(&calls);
+        let mut r = ClientRegistry::new();
+        for id in ["drawer", "painter"] {
+            let c = Rc::clone(&c2);
+            r.add_built(
+                id,
+                ModBuild {
+                    version: Version::new(1, 0, 0),
+                    caps: Caps::of(&[Cap::RenderPipeline]),
+                    code_hash: [4; 16],
+                },
+                move || Box::new(Drawer(Rc::clone(&c))),
+            );
+        }
+        let mut hooks = ModHooks::new();
+        hooks.register(Box::new(ClientModsHook::new(r).unwrap()));
+        let set = ClientEvent::ModSet(ModSetView {
+            modset_hash: 1,
+            mods: ["drawer", "painter"]
+                .iter()
+                .enumerate()
+                .map(|(i, id)| ModView {
+                    id: (*id).into(),
+                    version: "1.0.0".into(),
+                    load_idx: i as u16,
+                    sync: ModSync::Cosmetic,
+                    client_required: false,
+                    available: true,
+                    pack: None,
+                })
+                .collect(),
+        });
+        hooks.net_event(&set);
+        // No renderer yet: no systems are asked for.
+        hooks.frame(&info());
+        assert!(hooks.take_requests().systems.is_empty());
+        let Some(gpu) = test_device() else {
+            eprintln!("SKIP render systems: no adapter");
+            return;
+        };
+        let with_gpu = FrameInfo {
+            gpu: Some(&gpu),
+            ..info()
+        };
+        hooks.frame(&with_gpu);
+        let req = hooks.take_requests();
+        let ids: Vec<SystemId> = req.systems.iter().map(|s| s.id()).collect();
+        assert_eq!(
+            ids,
+            [SystemId::Mod(0), SystemId::Mod(1)],
+            "numbered by the host"
+        );
+        // Asked once per game, not every frame.
+        hooks.frame(&with_gpu);
+        assert!(hooks.take_requests().systems.is_empty());
+        // After the game the systems draw nothing any more: their prepare is not called.
+        let mut systems = req.systems;
+        let services = render::frame::WorldServices::default();
+        let mut frame = None;
+        systems[0].prepare(&mut PrepareContext::new(
+            &gpu.device,
+            &gpu.queue,
+            &services,
+            &mut frame,
+        ));
+        assert_eq!(calls.borrow().len(), 1);
+        hooks.net_event(&ClientEvent::Detached(protocol::DetachReason::Left));
+        systems[0].prepare(&mut PrepareContext::new(
+            &gpu.device,
+            &gpu.queue,
+            &services,
+            &mut frame,
+        ));
+        assert_eq!(
+            calls.borrow().len(),
+            1,
+            "a finished game's system is dormant"
+        );
+    }
 }

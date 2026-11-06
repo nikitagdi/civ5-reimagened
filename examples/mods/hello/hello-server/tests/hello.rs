@@ -56,14 +56,15 @@ fn mod_toml_follows_the_example_contract() {
     assert_eq!(m.id.as_str(), "hello");
     assert_eq!(m.sync, SyncClass::Cosmetic);
     assert_eq!(m.client_policy(), ClientPolicy::Optional);
-    assert!(m.has_part(Part::ServerRs));
+    assert!(m.has_part(Part::ServerRs) && m.has_part(Part::ClientRs));
     assert!(m.api.matches(&MOD_API_VERSION));
     assert_eq!(m.license, "MIT");
     assert_eq!(m.channels.len(), 1);
     assert_eq!((m.channels[0].id, m.channels[0].name.as_str()), (0, "echo"));
     let caps = Caps::from_manifest(&m).unwrap();
     assert!(caps.has(Cap::NetChannel));
-    assert_eq!(caps.iter().count(), 1);
+    // The server half uses `net.channel` only; the rest belong to the client half (hello-client).
+    assert_eq!(caps.iter().count(), 6);
 }
 
 #[test]

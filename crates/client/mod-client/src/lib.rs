@@ -56,8 +56,11 @@ pub use ctx::{
     ClientCtx, ClientHost, CtxError, CutoutMask, Guarded, Hotkeys, HudTextures, ModAssets,
     ModAudio, ModKv, ModTerrain, ModWorld,
 };
+pub use draw_list::{TextureId, UiDrawList};
 pub use hotkeys::{HotkeyTable, KeyUse, game_key};
 pub use kv::{KV_KEY_MAX, KV_VALUE_MAX, NamespacedKv};
+pub use mod_api::{LogLevel, PlayerId};
+pub use platform::InputEvent;
 pub use registry::{ClientRegistry, ModDispatcher};
 pub use render::cutout::{CutoutGrid, CutoutRegion};
 pub use types::{
