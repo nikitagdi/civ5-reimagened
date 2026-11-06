@@ -126,6 +126,7 @@ fn main() -> Result<()> {
             journals: vec![],
             cmds: vec![],
             city_memo: vec![],
+            mods: None,
         },
     );
     let keep = out.join("keep");

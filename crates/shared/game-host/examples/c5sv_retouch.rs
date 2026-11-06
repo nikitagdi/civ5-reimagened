@@ -55,6 +55,7 @@ fn main() -> Result<(), String> {
         journals: save.journals.clone(),
         cmds: save.cmds.clone(),
         city_memo: save.city_memo.clone().unwrap_or_default(),
+        mods: save.mods.clone(),
     };
     if let Some(n) = name {
         sections.settings.name = n;

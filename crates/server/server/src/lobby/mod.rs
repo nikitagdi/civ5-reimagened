@@ -947,7 +947,7 @@ impl LobbyActor {
     fn start(&mut self, shared: &Arc<Shared>, nick: &str) -> Result<(), String> {
         let k = key(nick);
         let choices = shared.choices();
-        let setup = self
+        let mut setup = self
             .my_room(&k)
             .and_then(|r| r.start_setup(nick, &choices))?;
         if let Some(why) = crate::game::restore::no_room_for_a_game(shared) {
@@ -975,6 +975,8 @@ impl LobbyActor {
         let seed = setup.settings.seed.map_or_else(random_seed, u64::from);
         // v12: the settings of the room are the defaults of the host's next room (a room from a save is not).
         let last_room = load.is_none().then(|| setup.settings.clone());
+        // The host's mod picks are resolved once, here; the game keeps the frozen set (T15).
+        let mods_lock = crate::game::mods::freeze(&shared.mod_store, &mut setup)?;
         shared.start_game(
             GameInit {
                 id: game,
@@ -985,6 +987,7 @@ impl LobbyActor {
                 load,
                 kicked: BTreeMap::new(),
                 created_ms: None,
+                mods_lock,
             },
             Arc::clone(&choices),
         )?;

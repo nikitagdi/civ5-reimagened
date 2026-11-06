@@ -47,6 +47,7 @@ fn measure_gcs1_packers() {
             journals: save.journals.clone(),
             cmds: save.cmds.clone(),
             city_memo: save.city_memo.clone().unwrap_or_default(),
+            mods: save.mods.clone(),
         };
         let t = Instant::now();
         let out = saves::encode(&save.info.header, &save.gcs1, &sections);
@@ -90,6 +91,7 @@ fn measure_whole_game_dir_at_the_server_level() {
             journals: save.journals.clone(),
             cmds: save.cmds.clone(),
             city_memo: save.city_memo.clone().unwrap_or_default(),
+            mods: save.mods.clone(),
         };
         let t = Instant::now();
         let out = saves::encode_with(&save.info.header, &save.gcs1, &sections, |raw| {

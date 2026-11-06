@@ -404,6 +404,7 @@ fn main() -> Result<()> {
             journals: vec![],
             cmds: vec![],
             city_memo: vec![],
+            mods: None,
         },
     );
     let gdir = state.join("games").join(game.to_string());

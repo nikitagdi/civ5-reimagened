@@ -147,6 +147,11 @@ fn spawn_from_meta(
         .pick(0)
         .cloned()
         .ok_or_else(|| "the game has no save this core build can load".to_owned())?;
+    // The mods of the game must be here as they were frozen (S4): else the game stays asleep with a reason.
+    shared
+        .mod_store
+        .restore_set(meta.mods_lock.as_deref(), meta.settings.mods.len())
+        .map_err(|e| format!("the game cannot be restored: {e}"))?;
     let kicked: BTreeMap<_, _> = meta
         .seats
         .iter()
@@ -165,6 +170,7 @@ fn spawn_from_meta(
         }),
         kicked,
         created_ms: Some(meta.created_ms),
+        mods_lock: meta.mods_lock.clone(),
     };
     shared.start_game(init, shared.choices())
 }

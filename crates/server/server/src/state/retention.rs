@@ -543,6 +543,7 @@ mod tests {
             created_ms: 0,
             finished_ms: finished_days_ago.map(|d| NOW - d * DAY_MS),
             turn: 5,
+            mods_lock: None,
         }
         .write(&g)
         .unwrap();

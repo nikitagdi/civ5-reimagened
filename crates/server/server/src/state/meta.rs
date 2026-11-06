@@ -76,6 +76,10 @@ pub struct GameMeta {
     /// The turn the game was at when it was last written.
     #[serde(default)]
     pub turn: i32,
+    /// The frozen mod set (`mods.lock` text) of a game with mods; absent for a game without. `settings.mods` then
+    /// lists the same mods pinned to their versions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mods_lock: Option<String>,
 }
 
 impl GameMeta {
@@ -346,6 +350,7 @@ mod tests {
             created_ms: 1,
             finished_ms: None,
             turn: 0,
+            mods_lock: None,
         }
     }
 
@@ -361,6 +366,29 @@ mod tests {
         assert_eq!(all.iter().map(|m| m.id).collect::<Vec<_>>(), [2, 10]);
         assert_eq!(all[0], meta(2, MetaStatus::Running));
         assert_eq!(all[0].humans(), [(0, "alice".to_owned())]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The frozen mod set rides in `meta.json`; a game without mods writes exactly the file it always did, and a
+    /// meta from before the mod system reads as a game without mods.
+    #[test]
+    fn the_frozen_mod_set_is_kept_and_a_game_without_mods_writes_no_trace() {
+        let dir = scratch("modslock");
+        let g = dir.join("games").join("3");
+        let mut m = meta(3, MetaStatus::Running);
+        m.write(&g).unwrap();
+        let text = std::fs::read_to_string(GameMeta::path(&g)).unwrap();
+        assert!(!text.contains("mods_lock"), "{text}");
+        assert_eq!(read_all(&dir).unwrap()[0].mods_lock, None);
+
+        m.mods_lock = Some(
+            "# mods.lock
+version = 1
+"
+            .into(),
+        );
+        m.write(&g).unwrap();
+        assert_eq!(read_all(&dir).unwrap()[0], m);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

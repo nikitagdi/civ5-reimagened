@@ -879,6 +879,7 @@ async fn world(name: &str, mode: &str, humans: &[&str], delays: [Duration; 3]) -
                 load: None,
                 kicked: Default::default(),
                 created_ms: None,
+                mods_lock: None,
             },
             shared.choices(),
         )

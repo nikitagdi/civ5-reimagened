@@ -326,10 +326,21 @@ fn wait_save(dir: &Path, game: u32) {
 
 /// `host` and `guest` in a game, slot 2 an AI when `ai`; both attached with a first state.
 fn make_game(srv: &TestServer, host: &str, guest: &str, ai: bool) -> (Client, Client) {
+    make_game_with(srv, host, guest, ai, settings(TimerMode::Off))
+}
+
+/// [`make_game`] with the settings of the room given.
+fn make_game_with(
+    srv: &TestServer,
+    host: &str,
+    guest: &str,
+    ai: bool,
+    room_settings: GameSettings,
+) -> (Client, Client) {
     let mut h = Client::login(srv, host);
     h.until("the lobby", |m| matches!(m, ServerMsg::LobbyState(_)));
     h.send(&ClientMsg::Lobby(LobbyCmd::CreateRoom {
-        settings: settings(TimerMode::Off),
+        settings: room_settings,
     }));
     let ServerMsg::LobbyState(s) = h.until(
         "the room",
@@ -1003,4 +1014,136 @@ fn leave_seat_in_a_sleeping_game_updates_its_stored_seats() {
     can_make_a_room(&mut bob);
     srv.stop();
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---------------------------------------------------------------- mods (T15, S4)
+
+/// Installs a data-only mod `hello` 1.0.0 under `<dir>/mods`.
+fn install_mod(dir: &Path, id: &str) -> PathBuf {
+    let root = dir.join("mods");
+    std::fs::create_dir_all(root.join(id)).unwrap();
+    std::fs::write(
+        root.join(id).join("mod.toml"),
+        format!(
+            "[mod]
+id=\"{id}\"
+name=\"{id}\"
+version=\"1.0.0\"
+api=\"^1\"
+license=\"MIT\"
+sync=\"gameplay\"
+parts=[\"data\"]
+"
+        ),
+    )
+    .unwrap();
+    root
+}
+
+/// The set a game was started with is frozen into its `meta.json`; a restart that finds the mod brings the game back, one
+/// that does not leaves it asleep with a reason, and a game without mods keeps no trace of the system.
+#[test]
+fn a_game_with_mods_keeps_a_frozen_set_and_is_refused_without_the_mod() {
+    let dir = dir_for("p-mods");
+    let root = install_mod(&dir, "hello");
+    let mods_dir = root.clone();
+    let a = boot(&dir, "echo turns=1", |c| {
+        c.mods_dir = Some(mods_dir.clone())
+    });
+    let mut s = settings(TimerMode::Off);
+    s.mods = vec![protocol::ModPick {
+        id: "hello".into(),
+        req: "^1".into(),
+    }];
+    let (alice, bob) = make_game_with(&a, "alice", "bob", false, s);
+    admin_game(&a, 1, AdminCtl::Save);
+    wait_save(&dir, 1);
+    drop((alice, bob));
+    let meta = meta_on_disk(&dir);
+    assert_eq!(meta["settings"]["mods"][0]["id"], "hello");
+    assert_eq!(meta["settings"]["mods"][0]["req"], "=1.0.0");
+    let lock = meta["mods_lock"].as_str().expect("the lock is in the meta");
+    assert!(
+        lock.contains("hello") && lock.contains("modset_hash"),
+        "{lock}"
+    );
+    a.stop();
+
+    // The mod is gone: the game does not come back and the reason names the mod.
+    let empty = dir.join("no-mods");
+    std::fs::create_dir_all(&empty).unwrap();
+    let b = boot(&dir, "echo turns=1", |c| c.mods_dir = Some(empty.clone()));
+    assert!(b.shared.games.get(1).is_none());
+    assert!(b.shared.games.dormant(1).is_some());
+    let err = server::game::restore::wake(&b.shared, 1)
+        .map(|_| ())
+        .unwrap_err();
+    assert!(err.contains("`hello` 1.0.0 is not installed"), "{err}");
+    b.stop();
+
+    // The mod changed on disk (same version, other content): refused as well.
+    std::fs::write(root.join("hello").join("extra.txt"), "edited").unwrap();
+    let c = boot(&dir, "echo turns=1", |cfg| {
+        cfg.mods_dir = Some(mods_dir.clone())
+    });
+    let err = server::game::restore::wake(&c.shared, 1)
+        .map(|_| ())
+        .unwrap_err();
+    assert!(err.contains("changed since the game was created"), "{err}");
+    c.stop();
+
+    // Back as it was: the game comes up.
+    std::fs::remove_file(root.join("hello").join("extra.txt")).unwrap();
+    let d = boot(&dir, "echo turns=1", |cfg| {
+        cfg.mods_dir = Some(mods_dir.clone())
+    });
+    {
+        let _guard = d.rt.as_ref().unwrap().enter();
+        server::game::restore::wake(&d.shared, 1).expect("the game wakes with its mod back");
+    }
+    d.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_pick_of_a_mod_that_is_not_installed_refuses_the_start_and_a_game_without_picks_has_no_lock() {
+    let dir = dir_for("p-mods-none");
+    let srv = boot(&dir, "echo turns=1", |_| {});
+    // No picks: the meta has no `mods_lock` (nothing of the mod system on disk).
+    let (a, b) = make_game(&srv, "alice", "bob", false);
+    let meta = meta_on_disk(&dir);
+    assert!(meta.get("mods_lock").is_none(), "{meta}");
+    drop((a, b));
+    srv.stop();
+
+    // With picks of a mod nobody installed the host's `Start` is refused with the sentence.
+    let dir2 = dir_for("p-mods-none2");
+    let srv = boot(&dir2, "echo turns=1", |_| {});
+    let mut h = Client::login(&srv, "alice");
+    h.until("the lobby", |m| matches!(m, ServerMsg::LobbyState(_)));
+    let mut s = settings(TimerMode::Off);
+    s.mods = vec![protocol::ModPick {
+        id: "ghost".into(),
+        req: "*".into(),
+    }];
+    h.send(&ClientMsg::Lobby(LobbyCmd::CreateRoom { settings: s }));
+    lobby_of(&mut h, "a room", |s| s.room.is_some());
+    h.send(&ClientMsg::Lobby(LobbyCmd::Slot {
+        index: 1,
+        occupant: protocol::SlotOccupant::Ai,
+        civ: protocol::CivPick::Random,
+    }));
+    h.send(&ClientMsg::Lobby(LobbyCmd::Start));
+    let ServerMsg::LobbyError { text, .. } =
+        h.until("a refusal", |m| matches!(m, ServerMsg::LobbyError { .. }))
+    else {
+        unreachable!()
+    };
+    assert!(
+        text.contains("ghost") && text.contains("not installed"),
+        "{text}"
+    );
+    srv.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_dir_all(&dir2);
 }

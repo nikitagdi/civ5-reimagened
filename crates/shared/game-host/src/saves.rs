@@ -23,9 +23,10 @@
 //! | header checksum | u64, xxh64 (seed 0) of everything before it |
 //!
 //! then the sections one after the other in the order of the table: `GCS1` (the core's save, compressed with
-//! `wire::compress`), `SEAT`, `SETG`, `JRNL`, `CMDS`, `CMEM` (all postcard; `CMEM` may be missing: a save
-//! from before the memory of cities is read with an empty memory). A section the reader does not know is
-//! skipped, one it needs and does not find is an error.
+//! `wire::compress`), `SEAT`, `SETG`, `JRNL`, `CMDS`, `CMEM`, and `MODS` only for a game with mods (all postcard;
+//! `CMEM` may be missing: a save from before the memory of cities is read with an empty memory; a save without
+//! `MODS` is a game without mods, byte for byte what this build wrote before the mod system). A section the
+//! reader does not know is skipped, one it needs and does not find is an error.
 
 use protocol::{
     CmdId, Codec, GameId, GameSettings, JournalEntry, PlayerId, Postcard, SaveKind, SlotSetup,
@@ -44,10 +45,14 @@ const TAG_SETG: [u8; 4] = *b"SETG";
 const TAG_JRNL: [u8; 4] = *b"JRNL";
 const TAG_CMDS: [u8; 4] = *b"CMDS";
 const TAG_CMEM: [u8; 4] = *b"CMEM";
+const TAG_MODS: [u8; 4] = *b"MODS";
 
 /// Most sections a header lists, and the biggest core save after unpacking: bounds for a damaged file.
 const MAX_SECTIONS: usize = 32;
 const MAX_GCS1: usize = 1 << 30;
+/// Bounds for the `MODS` section of a damaged or hostile file: the `mods.lock` text and the number of mod states.
+const MAX_MODS_LOCK: usize = 256 * 1024;
+const MAX_MODS_STATES: usize = protocol::MAX_MODS;
 
 /// Directories of a game's save directory.
 pub const RING_DIR: &str = "ring";
@@ -69,6 +74,29 @@ pub struct SaveHeader {
     pub build_id: String,
 }
 
+/// `MODS`: the frozen mod set of the game and the state of each server-side mod. Opaque to this crate (it does
+/// not know the manifest types): `lock` is the `mods.lock` text of the set (it carries the set hash), and the
+/// mod host checks it with `mod_manifest::parse_lock`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ModsSection {
+    pub lock: String,
+    /// `persist()` of every server-side mod that has state, by mod id, in load order.
+    pub states: Vec<ModState>,
+}
+
+/// The saved state of one server-side mod.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ModState {
+    pub id: String,
+    pub state: Vec<u8>,
+}
+
+impl ModsSection {
+    fn within_limits(&self) -> bool {
+        self.lock.len() <= MAX_MODS_LOCK && self.states.len() <= MAX_MODS_STATES
+    }
+}
+
 /// The sections of a save besides the core's own.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SaveSections {
@@ -82,6 +110,8 @@ pub struct SaveSections {
     pub cmds: Vec<(PlayerId, CmdId)>,
     /// `CMEM`: the last seen values of foreign cities, by team.
     pub city_memo: Vec<(TeamId, Vec<CityMemo>)>,
+    /// `MODS`: `None` for a game without mods; then the section is not written.
+    pub mods: Option<ModsSection>,
 }
 
 /// What the lobby needs of a save: the header, the seats and the settings. Reading it does not unpack the
@@ -103,6 +133,8 @@ pub struct Save {
     pub cmds: Vec<(PlayerId, CmdId)>,
     /// `None`: the save has no `CMEM` section.
     pub city_memo: Option<Vec<(TeamId, Vec<CityMemo>)>>,
+    /// `None`: the save has no `MODS` section (a game without mods).
+    pub mods: Option<ModsSection>,
 }
 
 /// Why a file is not a usable save. The text is for the log and the player.
@@ -197,7 +229,7 @@ fn encode_raw(
 ) -> Result<Vec<u8>, SaveError> {
     let mut memo: Vec<&(TeamId, Vec<CityMemo>)> = sections.city_memo.iter().collect();
     memo.sort_by_key(|(t, _)| *t);
-    let bodies: [([u8; 4], Vec<u8>); 6] = [
+    let mut bodies: Vec<([u8; 4], Vec<u8>)> = vec![
         (TAG_GCS1, pack_gcs1(gcs1)),
         (TAG_SEAT, pack(&sections.seats)?),
         (TAG_SETG, setg),
@@ -205,6 +237,17 @@ fn encode_raw(
         (TAG_CMDS, pack(&sections.cmds)?),
         (TAG_CMEM, pack(&memo)?),
     ];
+    if let Some(mods) = &sections.mods {
+        if !mods.within_limits() {
+            return Err(SaveError::Section("the MODS section is too big".into()));
+        }
+        bodies.push((TAG_MODS, pack(mods)?));
+    }
+    Ok(assemble(header, &bodies))
+}
+
+/// The file from the header fields and the section bodies, in order.
+fn assemble(header: &SaveHeader, bodies: &[([u8; 4], Vec<u8>)]) -> Vec<u8> {
     let build = clip(&header.build_id);
     let len = 4 + 2 + 4 + 8 + 4 + 4 + 8 + 1 + 2 + build.len() + 1 + bodies.len() * 16 + 8;
     let mut h = Vec::with_capacity(len);
@@ -219,7 +262,7 @@ fn encode_raw(
     h.extend_from_slice(&(build.len() as u16).to_le_bytes());
     h.extend_from_slice(build);
     h.push(bodies.len() as u8);
-    for (tag, body) in &bodies {
+    for (tag, body) in bodies {
         h.extend_from_slice(tag);
         h.extend_from_slice(&u32::try_from(body.len()).unwrap_or(u32::MAX).to_le_bytes());
         h.extend_from_slice(&xxh64(0, body).to_le_bytes());
@@ -228,10 +271,10 @@ fn encode_raw(
     h.extend_from_slice(&sum.to_le_bytes());
     debug_assert_eq!(h.len(), len);
     let mut file = h;
-    for (_, body) in &bodies {
+    for (_, body) in bodies {
         file.extend_from_slice(body);
     }
-    Ok(file)
+    file
 }
 
 /// At most `u16::MAX` bytes of `s`, cut on a character boundary.
@@ -422,6 +465,16 @@ pub fn decode(file: &[u8]) -> Result<Save, SaveError> {
         Some(_) => Some(p.need(TAG_CMEM)?),
         None => None,
     };
+    let mods = match p.section(TAG_MODS) {
+        Some(_) => {
+            let m: ModsSection = p.need(TAG_MODS)?;
+            if !m.within_limits() {
+                return Err(SaveError::Section("the MODS section is too big".into()));
+            }
+            Some(m)
+        }
+        None => None,
+    };
     Ok(Save {
         info: SaveInfo {
             seats: p.need(TAG_SEAT)?,
@@ -432,6 +485,7 @@ pub fn decode(file: &[u8]) -> Result<Save, SaveError> {
         journals: p.need(TAG_JRNL)?,
         cmds: p.need(TAG_CMDS)?,
         city_memo,
+        mods,
     })
 }
 
@@ -575,6 +629,7 @@ mod tests {
                     buildings: vec![2, 4],
                 }],
             )],
+            mods: None,
         }
     }
 
@@ -676,6 +731,113 @@ mod tests {
         let s = decode(&h).unwrap();
         assert_eq!(s.city_memo, None);
         assert_eq!(s.gcs1, b"core");
+    }
+
+    fn mods_section() -> ModsSection {
+        ModsSection {
+            lock: "# mods.lock
+version = 1
+"
+            .into(),
+            states: vec![
+                ModState {
+                    id: "echo".into(),
+                    state: vec![1, 2, 3],
+                },
+                ModState {
+                    id: "hello".into(),
+                    state: Vec::new(),
+                },
+            ],
+        }
+    }
+
+    fn tags(file: &[u8]) -> Vec<[u8; 4]> {
+        parse(file)
+            .unwrap()
+            .sections
+            .iter()
+            .map(|(t, _)| *t)
+            .collect()
+    }
+
+    /// A game without mods writes exactly the six sections it always did.
+    #[test]
+    fn no_mods_writes_no_mods_section() {
+        let file = encode(&header(), b"core", &sections());
+        assert_eq!(
+            tags(&file),
+            [TAG_GCS1, TAG_SEAT, TAG_SETG, TAG_JRNL, TAG_CMDS, TAG_CMEM]
+        );
+        assert_eq!(decode(&file).unwrap().mods, None);
+    }
+
+    #[test]
+    fn the_mods_section_goes_there_and_back() {
+        let mut sec = sections();
+        sec.mods = Some(mods_section());
+        let file = encode(&header(), b"core", &sec);
+        assert_eq!(tags(&file).last(), Some(&TAG_MODS));
+        let s = decode(&file).unwrap();
+        assert_eq!(s.mods, Some(mods_section()));
+        // The other sections are untouched by it.
+        assert_eq!(s.cmds, sec.cmds);
+        assert_eq!(s.city_memo, Some(sec.city_memo.clone()));
+        assert_eq!(file, encode(&header(), b"core", &sec));
+        // The lobby's header read ignores it.
+        assert_eq!(read_header(&file).unwrap().settings, settings());
+    }
+
+    /// A reader that does not know `MODS` skips it (the rule for unknown sections): rebuilt without it, the
+    /// same file reads as a game without mods.
+    #[test]
+    fn a_reader_without_mods_support_skips_the_section() {
+        let mut sec = sections();
+        sec.mods = Some(mods_section());
+        let file = encode(&header(), b"core", &sec);
+        let p = parse(&file).unwrap();
+        let kept: Vec<([u8; 4], Vec<u8>)> = p
+            .sections
+            .iter()
+            .filter(|(t, _)| *t != TAG_MODS)
+            .map(|(t, b)| (*t, b.to_vec()))
+            .collect();
+        let old = assemble(&p.header, &kept);
+        assert_eq!(old, encode(&header(), b"core", &sections()));
+        assert_eq!(decode(&old).unwrap().mods, None);
+    }
+
+    #[test]
+    fn the_mods_section_is_bounded() {
+        // Seven sections fit the table with room to spare.
+        const { assert!(7 + 8 <= MAX_SECTIONS) };
+        let mut sec = sections();
+        let mut m = mods_section();
+        m.lock = "x".repeat(MAX_MODS_LOCK + 1);
+        sec.mods = Some(m);
+        assert!(matches!(
+            try_encode_with(&header(), b"core", &sec, wire::compress),
+            Err(SaveError::Section(_))
+        ));
+        // A hostile file that carries an oversized section anyway is refused on read.
+        let mut big = mods_section();
+        big.lock = "x".repeat(MAX_MODS_LOCK + 1);
+        let plain = encode(&header(), b"core", &sections());
+        let p = parse(&plain).unwrap();
+        let mut bodies: Vec<([u8; 4], Vec<u8>)> =
+            p.sections.iter().map(|(t, b)| (*t, b.to_vec())).collect();
+        bodies.push((TAG_MODS, pack(&big).unwrap()));
+        assert!(matches!(
+            decode(&assemble(&p.header, &bodies)),
+            Err(SaveError::Section(_))
+        ));
+        // A MODS body that does not parse is an error, never silently "no mods".
+        let last = bodies.len() - 1;
+        bodies[last].1 = vec![0xFF, 0xFF, 0xFF];
+        assert!(matches!(
+            decode(&assemble(&p.header, &bodies)),
+            Err(SaveError::Section(_))
+        ));
     }
 
     #[test]
