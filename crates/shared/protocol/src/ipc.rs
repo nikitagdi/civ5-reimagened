@@ -17,7 +17,7 @@ use crate::world::{
 
 /// Version of this IPC contract. The first frame of the gateway (`ToWorker::Init`) names it; a worker of
 /// another version answers `Fatal`.
-pub const IPC_VERSION: u32 = 8;
+pub const IPC_VERSION: u32 = 9;
 
 // ---------------------------------------------------------------- gateway -> worker
 
@@ -59,6 +59,11 @@ pub enum ToWorker {
     /// Tag 11 (v8): the mods block (frozen set and mod states) that every save from now on carries as its `MODS`
     /// section. Sent only for a game with mods, whenever a mod's state changed and before an explicit save.
     Mods(ModsSection),
+    /// Tag 12 (v9): the gateway wants the whole-truth owners of the plots (`WorkerMsg::Owners`): the worker starts to
+    /// keep the table and answers with a `Full` at once. Sent for a game whose mods read the world (`world.read`), at
+    /// every start of the worker and whenever the gateway lost a `Delta` (a gap in `rev`). Never sent for a game
+    /// without such a mod: its worker never builds the table.
+    WantOwners,
 }
 
 /// What happens to a seat (`ToWorker::Seat`, `WorkerMsg::SeatDone`).
@@ -154,6 +159,17 @@ pub struct FixtureTest {
     pub leak_fog: bool,
     /// Change one record of the map basis at the start of this turn (a `basis` diff), if set.
     pub change_basis_at_turn: Option<i32>,
+    /// Change the owner of one plot at the start of a turn, if set (v9, the table of owners).
+    pub flip_owner: Option<FlipOwner>,
+}
+
+/// `FixtureTest.flip_owner`: at the start of turn `at_turn` the plot `plot` (`y * width + x`) gets the owner `owner`
+/// (`-1`: nobody). The plot becomes dirty like a border change of the real core.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FlipOwner {
+    pub at_turn: i32,
+    pub plot: u32,
+    pub owner: i8,
 }
 
 /// Worker settings (game-host-mp section 5). Defaults in `Default`.
@@ -212,7 +228,9 @@ impl Default for WorkerConfig {
 // ---------------------------------------------------------------- worker -> gateway
 
 /// Everything one call of the worker produced. Contract: at most one `View` and one `Basis` per seat; order
-/// for a seat: `Basis`, `View`, `Results`, `Journal`, `Context`; `Turn` after all seats.
+/// for a seat: `Basis`, `View`, `Results`, `Journal`, `Context`; `Turn` after all seats. `Owners` (v9) stands before
+/// everything of the seats (after `Ready`, `Catalog`, `Choices`, `ModsLoaded`), so the table of the gateway is never
+/// older than the last `Results` it has seen.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkerFrame {
     pub msgs: Vec<WorkerMsg>,
@@ -335,6 +353,27 @@ pub enum WorkerMsg {
     /// the save has one. The gateway starts the server halves of the mods from it (a worker that restarts from an
     /// older save rewinds the mods with it).
     ModsLoaded(ModsSection),
+    /// Tag 26 (v9): the owners of the plots, the whole truth (not a fogged view), after `ToWorker::WantOwners`. Before
+    /// the messages of the seats in the frame (see `WorkerFrame`).
+    Owners(OwnersUpdate),
+}
+
+/// The table of owners of the plots (`WorkerMsg::Owners`), index `y * width + x`, `-1` nobody.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum OwnersUpdate {
+    /// Tag 0: the whole table. `rev` grows with every update; `turn` is the game turn the worker was in. Sent when
+    /// the gateway asks, and at every turn change whatever the core reported dirty (a safety net).
+    Full {
+        rev: u32,
+        turn: i32,
+        owners: Vec<i8>,
+    },
+    /// Tag 1: the plots whose owner changed since revision `base_rev` (ascending index). Not sent when nothing changed.
+    Delta {
+        base_rev: u32,
+        rev: u32,
+        changes: Vec<(u32, i8)>,
+    },
 }
 
 /// Which part of the game a recorded journal batch belongs to (`WorkerMsg::RecJournal`).
@@ -543,6 +582,11 @@ mod tests {
                     ai_step_delay_ms: 5,
                     leak_fog: true,
                     change_basis_at_turn: Some(4),
+                    flip_owner: Some(FlipOwner {
+                        at_turn: 5,
+                        plot: 7,
+                        owner: -1,
+                    }),
                 }),
                 stats: true,
                 ..WorkerConfig::default()
@@ -607,6 +651,7 @@ mod tests {
             },
             ToWorker::ReplicaSnapshot { player: 2 },
             ToWorker::Mods(mods_section()),
+            ToWorker::WantOwners,
         ]
     }
 
@@ -786,6 +831,11 @@ mod tests {
                 begin: true,
             },
             WorkerMsg::ModsLoaded(mods_section()),
+            WorkerMsg::Owners(OwnersUpdate::Full {
+                rev: 1,
+                turn: 3,
+                owners: vec![-1, 0, 5],
+            }),
         ]
     }
 
@@ -871,7 +921,7 @@ mod tests {
     #[test]
     fn tag_stability_to_worker() {
         let tags: Vec<u8> = to_worker().iter().map(|m| tag(m)[0]).collect();
-        assert_eq!(tags, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+        assert_eq!(tags, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
         assert_eq!(
             tag(&ToWorker::WantFull {
                 player: 2,
@@ -918,7 +968,23 @@ mod tests {
     fn tag_stability_worker_msg() {
         let mut msgs = worker_msgs();
         let tags: Vec<u8> = msgs.iter().map(|m| tag(m)[0]).collect();
-        assert_eq!(tags, (0..=25).collect::<Vec<u8>>());
+        assert_eq!(tags, (0..=26).collect::<Vec<u8>>());
+        assert_eq!(
+            tag(&OwnersUpdate::Delta {
+                base_rev: 1,
+                rev: 2,
+                changes: vec![]
+            }),
+            [1, 1, 2, 0]
+        );
+        assert_eq!(
+            tag(&OwnersUpdate::Full {
+                rev: 1,
+                turn: 0,
+                owners: vec![]
+            }),
+            [0, 1, 0, 0]
+        );
         assert_eq!(tag(&RecPhase::Human), [0]);
         assert_eq!(tag(&RecPhase::Ai), [1]);
         assert_eq!(tag(&RecPhase::Cut), [2]);

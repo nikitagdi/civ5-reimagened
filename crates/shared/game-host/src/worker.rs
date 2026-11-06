@@ -54,6 +54,8 @@ pub enum Out {
 pub(crate) struct Fb {
     /// First: `Ready`, `Catalog`, `Choices`.
     pub head: Vec<WorkerMsg>,
+    /// The table of owners (v9), right after `head`, before everything of the seats.
+    pub owners: Option<protocol::OwnersUpdate>,
     /// Seats that get the map basis before their `Full`.
     pub basis_for: Vec<PlayerId>,
     pub views: BTreeMap<PlayerId, ViewUpdate>,
@@ -121,6 +123,7 @@ impl Fb {
 
     fn is_empty(&self) -> bool {
         self.head.is_empty()
+            && self.owners.is_none()
             && self.basis_for.is_empty()
             && self.views.is_empty()
             && self.results.is_empty()
@@ -136,6 +139,9 @@ impl Fb {
             return None;
         }
         let mut msgs = self.head;
+        if let Some(u) = self.owners {
+            msgs.push(WorkerMsg::Owners(u));
+        }
         if let (false, Some(basis)) = (self.basis_for.is_empty(), basis) {
             msgs.push(WorkerMsg::Basis {
                 players: self.basis_for,
@@ -231,6 +237,8 @@ pub struct Worker<C: Core> {
     /// The mods block every save carries (`MODS`): from the loaded save, then from the gateway (`ToWorker::Mods`).
     /// `None`: a game without mods, no section is written.
     pub(crate) mods: Option<protocol::ModsSection>,
+    /// The table of owners for the gateway, kept only after `ToWorker::WantOwners` (`owners.rs`).
+    pub(crate) owners: crate::owners::OwnersState,
     /// After a load: the owners of the slots the gateway named, applied at the first safe point.
     pub(crate) load_controls: Option<Vec<(PlayerId, SlotControl)>>,
     /// The replica stream (`replica.rs`).
@@ -308,6 +316,7 @@ impl<C: Core> Worker<C> {
             settings: None,
             saves: SaveState::new(!init.save_dir.is_empty(), now_ms),
             mods: None,
+            owners: crate::owners::OwnersState::default(),
             load_controls: None,
             rep: ReplicaState::new(),
             tl: Timeline::new(u64::from(init.game)),
@@ -662,6 +671,7 @@ impl<C: Core> Worker<C> {
         let dirty = self.core.dirty_plots();
         let dirty = dirty.as_deref();
         let basis_diff = self.update_basis(dirty)?;
+        self.owners_round(dirty, fb)?;
         let players: Vec<PlayerId> = self.seats.keys().copied().collect();
         let mut parts: BTreeMap<
             PlayerId,
@@ -923,6 +933,7 @@ impl<C: Core> Worker<C> {
             ToWorker::Net { player, msgs } => self.replica_net(player, msgs, fb),
             ToWorker::ReplicaSnapshot { player } => self.replica_resync(player),
             // A block that does not fit the bounds of the section would make every save fail: it is dropped.
+            ToWorker::WantOwners => self.want_owners(fb)?,
             ToWorker::Mods(m) if m.within_limits() => self.mods = Some(m),
             ToWorker::Mods(_) => {
                 tracing::warn!("the mods block of the gateway is too big, ignored")

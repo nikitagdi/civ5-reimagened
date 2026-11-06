@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use std::time::Duration;
 
+use mod_host_server::{Applied, WorldTable};
 use protocol::{
     AiTurn, BasisClaim, CatalogRef, ChatLine, ChatSend, CivPick, Cmd, CmdId, CommandOutcome,
     CommandResult, Conn, DetachReason, Focus, GameCtl, GameCtlReason, GameId, GameMsg, GameSetup,
@@ -19,7 +20,7 @@ use tokio::sync::{mpsc, oneshot};
 
 use super::chat;
 use super::gamelog;
-use super::modhost::{Delivery, ModHost, UnknownFacts};
+use super::modhost::{Delivery, ModHost};
 use super::orders::{OrderBook, Verdict};
 use super::recording::{KeyframeArgs, Recorder};
 use super::replica::{ReplicaBlobs, ReplicaChain, resync_index};
@@ -418,6 +419,8 @@ pub fn spawn(env: GameEnv, init: GameInit) -> GameHandle {
         mods_lock,
         mods,
         mod_turn: None,
+        world: WorldTable::new(),
+        world_on: false,
         kicked_seed: kicked,
         stopping: None,
         idle_since: None,
@@ -478,6 +481,10 @@ struct GameActor {
     mods: ModHost,
     /// The turn the mods were last told about.
     mod_turn: Option<i32>,
+    /// The whole-truth facts the mods read (T22): shape, turn, owners, terrain classes. Fed by the worker's frames.
+    world: WorldTable,
+    /// Some mod reads the world: the worker was asked for the table of owners. A game without such a mod never is.
+    world_on: bool,
     boot_at: std::time::Instant,
     /// When the worker last failed (the restore time is measured from here).
     restart_at: Option<std::time::Instant>,
@@ -1718,6 +1725,7 @@ impl GameActor {
         }
         self.core_build = ready.build_id.clone();
         self.map = (ready.width, ready.height);
+        self.start_world(&ready, catalog.as_ref().map(|(_, b)| b.as_slice()));
         // The server halves of the mods start from the state of the save this worker loaded (a worker that restarts
         // from an older save rewinds them with it); a new game starts them fresh.
         self.start_mods(loaded_mods);
@@ -1831,6 +1839,9 @@ impl GameActor {
         for msg in frame.msgs {
             match msg {
                 WorkerMsg::Basis { players, basis } => {
+                    if self.world_on {
+                        self.world.set_basis(&basis);
+                    }
                     for p in players {
                         if self.has_pipe(p) {
                             parts.entry(p).or_default().basis = Some(basis.clone());
@@ -1838,6 +1849,13 @@ impl GameActor {
                     }
                 }
                 WorkerMsg::View { player, update } => {
+                    // The map basis changes the terrain classes the mods see; every seat's diff carries the same records.
+                    if self.world_on
+                        && let protocol::ViewUpdate::Delta { diff, .. } = &update
+                        && !diff.basis.is_empty()
+                    {
+                        self.world.apply_basis(&diff.basis);
+                    }
                     if self.has_pipe(player) {
                         parts.entry(player).or_default().view = Some(update);
                     }
@@ -1856,6 +1874,7 @@ impl GameActor {
                         parts.entry(player).or_default().results.extend(results);
                     }
                 }
+                WorkerMsg::Owners(u) => self.on_owners(&u),
                 WorkerMsg::Journal { player, entries } => {
                     if self.has_pipe(player) {
                         parts.entry(player).or_default().journal.extend(entries);
@@ -2062,6 +2081,7 @@ impl GameActor {
                         });
                         self.system_line("The game is over".to_owned());
                     }
+                    self.world.set_turn(info.turn);
                     self.note_mod_turn(info.turn);
                     self.last_info = Some(info);
                     turn_changed |= self.refresh_turn();
@@ -2973,10 +2993,65 @@ impl GameActor {
 
     // ------------------------------------------------------------ mods (T18, T19)
 
-    fn mod_facts(&self) -> UnknownFacts {
-        UnknownFacts {
-            map: self.map,
-            turn: self.turn.as_ref().map_or(0, |t| t.turn),
+    /// The facts the mods read: the humans of the table are the seats with a pipeline right now (no allocation).
+    fn refresh_world(&mut self) {
+        let mut mask = 0u64;
+        for (p, seat) in &self.seats {
+            if seat.pipe.is_some() && (0..64).contains(p) {
+                mask |= 1u64 << p;
+            }
+        }
+        self.world.set_human_mask(mask);
+    }
+
+    /// (Re)starts the whole-truth facts for a worker that just came up: the shape of its map, the turn, the id of
+    /// `FEATURE_ICE`; and, when a mod reads the world, asks it for the table of owners.
+    fn start_world(&mut self, ready: &protocol::WorkerReady, catalog: Option<&[u8]>) {
+        self.world.restart(
+            mod_api::MapShape {
+                width: ready.width,
+                height: ready.height,
+                wrap_x: ready.wrap_x,
+                wrap_y: ready.wrap_y,
+            },
+            ready.turn,
+        );
+        self.world_on = self.mods.wants_world();
+        if !self.world_on {
+            return;
+        }
+        let ice = catalog
+            .and_then(|b| {
+                <protocol::Postcard as protocol::Codec>::decode::<protocol::Catalog>(
+                    &protocol::Postcard,
+                    b,
+                )
+                .ok()
+            })
+            .and_then(|c| {
+                c.features
+                    .iter()
+                    .find(|f| f.type_name == "FEATURE_ICE")
+                    .map(|f| f.id)
+            });
+        self.world.set_ice(ice.unwrap_or(-1));
+        let _ = self.sup.send(ToWorker::WantOwners);
+    }
+
+    /// `WorkerMsg::Owners`: the table the mods read. A `Delta` that does not follow asks the worker for a `Full`.
+    fn on_owners(&mut self, u: &protocol::OwnersUpdate) {
+        if !self.world_on {
+            return;
+        }
+        match self.world.apply_owners(u) {
+            Applied::Ok => {}
+            Applied::Gap | Applied::Bad => {
+                tracing::warn!(
+                    game = self.id,
+                    "the table of owners is out of step, asking for it again"
+                );
+                let _ = self.sup.send(ToWorker::WantOwners);
+            }
         }
     }
 
@@ -2995,8 +3070,9 @@ impl GameActor {
         if !self.mods.has_set() {
             return;
         }
-        let (facts, now) = (self.mod_facts(), self.env.clock.now_ms());
-        self.mods.start(&facts, now, saved);
+        self.refresh_world();
+        let (facts, now) = (&self.world, self.env.clock.now_ms());
+        self.mods.start(facts, now, saved);
         self.flush_mods();
     }
 
@@ -3006,8 +3082,9 @@ impl GameActor {
         if !self.mods.has_set() {
             return;
         }
-        let (facts, now) = (self.mod_facts(), self.env.clock.now_ms());
-        if let Some(sec) = self.mods.persist(&facts, now)
+        self.refresh_world();
+        let (facts, now) = (&self.world, self.env.clock.now_ms());
+        if let Some(sec) = self.mods.persist(facts, now)
             && self.sup.send(ToWorker::Mods(sec.clone())).is_ok()
         {
             self.mods.sent(sec);
@@ -3020,9 +3097,10 @@ impl GameActor {
         if !self.mods.has_set() {
             return;
         }
-        let (facts, now) = (self.mod_facts(), self.env.clock.now_ms());
+        self.refresh_world();
         let humans = self.humans();
-        let d = self.mods.on_client(&facts, now, player, m, &humans);
+        let (facts, now) = (&self.world, self.env.clock.now_ms());
+        let d = self.mods.on_client(facts, now, player, m, &humans);
         if self.info.rec.is_on() {
             self.info
                 .rec
@@ -3099,9 +3177,10 @@ impl GameActor {
         {
             return;
         }
-        let (facts, now) = (self.mod_facts(), self.env.clock.now_ms());
+        self.refresh_world();
         let humans = self.humans();
-        let d = self.mods.on_attach(&facts, now, player, &humans);
+        let (facts, now) = (&self.world, self.env.clock.now_ms());
+        let d = self.mods.on_attach(facts, now, player, &humans);
         self.deliver_mods(d);
         self.flush_mods();
     }
@@ -3127,8 +3206,9 @@ impl GameActor {
     fn note_mod_turn(&mut self, turn: i32) {
         let prev = self.mod_turn.replace(turn);
         if prev.is_some_and(|p| p != turn) && self.mods.has_code() {
-            let (facts, now) = (self.mod_facts(), self.env.clock.now_ms());
-            self.mods.on_turn(&facts, now, turn);
+            self.refresh_world();
+            let (facts, now) = (&self.world, self.env.clock.now_ms());
+            self.mods.on_turn(facts, now, turn);
             self.flush_mods();
         }
     }

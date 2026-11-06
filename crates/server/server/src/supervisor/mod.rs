@@ -264,6 +264,7 @@ impl SupervisorConfig {
                     ai_step_delay_ms: f.ai_step_delay_ms,
                     leak_fog: f.leak_fog,
                     change_basis_at_turn: None,
+                    flip_owner: f.flip_owner,
                 });
         }
         Ok(Self {

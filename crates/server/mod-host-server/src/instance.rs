@@ -10,7 +10,7 @@ use std::any::Any;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use mod_api::{
-    Audience, Caps, ChannelId, HostServices, Limiter, LogLevel, Outgoing, Seat, ServerCtx,
+    Audience, Cap, Caps, ChannelId, HostServices, Limiter, LogLevel, Outgoing, Seat, ServerCtx,
     ServerMod, Verdict, WorldFacts,
 };
 use mod_manifest::ModId;
@@ -285,6 +285,15 @@ impl GameMods {
     /// No instance at all: the game behaves exactly as without the mod system.
     pub fn is_empty(&self) -> bool {
         self.slots.iter().all(Option::is_none)
+    }
+
+    /// Some mod with a server half declared `world.read`: the host keeps the table of owners for them (T22). A game
+    /// where no mod does never asks the worker for it.
+    pub fn wants_world(&self) -> bool {
+        self.slots
+            .iter()
+            .flatten()
+            .any(|m| m.caps.has(Cap::WorldRead))
     }
 
     /// The size of the load order (including mods without a server half).

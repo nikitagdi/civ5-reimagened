@@ -80,17 +80,71 @@ impl ServerMod for Echo {
     }
 }
 
+/// Answers a question about a plot from the whole-truth facts: `[x, y]` -> `[owner tag, owner value, class, turn, 0xAA]`
+/// (owner tags: 0 nobody, 1 seat, 2 npc, 3 unknown; class: land, hills, mountain, water, lake, ice as 0..5). Without
+/// `world.read` the answer is `[255; 5]`.
+struct Probe;
+
+impl ServerMod for Probe {
+    fn start(&mut self, _cx: &mut ServerCtx<'_>, _saved: Option<&[u8]>) {}
+    fn on_client(
+        &mut self,
+        cx: &mut ServerCtx<'_>,
+        _from: Seat,
+        ch: u8,
+        p: &[u8],
+    ) -> Vec<Outgoing> {
+        use mod_api::{Owner, PlotClass};
+        let reply = match cx.facts() {
+            Err(_) => vec![255; 5],
+            Ok(f) => match f.plot_at(i16::from(p[0]), i16::from(p[1])) {
+                None => vec![254; 5],
+                Some(i) => {
+                    let (t, v) = match f.owner(i) {
+                        Owner::None => (0, 0),
+                        Owner::Seat(s) => (1, s.player() as u8),
+                        Owner::Npc(n) => (2, n as u8),
+                        _ => (3, 0),
+                    };
+                    let c = match f.class(i) {
+                        PlotClass::Land => 0,
+                        PlotClass::Hills => 1,
+                        PlotClass::Mountain => 2,
+                        PlotClass::Water => 3,
+                        PlotClass::Lake => 4,
+                        _ => 5,
+                    };
+                    vec![t, v, c, f.turn() as u8, 0xAA]
+                }
+            },
+        };
+        vec![Outgoing::to_sender(ch, reply)]
+    }
+    fn on_attach(&mut self, _cx: &mut ServerCtx<'_>, _seat: Seat) -> Vec<Outgoing> {
+        Vec::new()
+    }
+    fn persist(&self) -> Vec<u8> {
+        Vec::new()
+    }
+}
+
 fn registry() -> Arc<HostRegistry> {
     let mut r = HostRegistry::new();
     r.register(|r| {
         r.add("hello", || Box::new(Echo::default()));
         r.add("flair", || Box::new(Echo::default()));
+        r.add("probe", || Box::new(Probe));
+        r.add("blind", || Box::new(Probe));
     });
     Arc::new(r)
 }
 
 /// Installs a mod with a server half under `<dir>/mods/<id>`: one channel, 64 bytes in, 20 messages burst.
 fn install(dir: &Path, id: &str, sync: &str, client: &str) -> PathBuf {
+    install_caps(dir, id, sync, client, r#""net.channel""#)
+}
+
+fn install_caps(dir: &Path, id: &str, sync: &str, client: &str, caps: &str) -> PathBuf {
     let root = dir.join("mods");
     std::fs::create_dir_all(root.join(id)).unwrap();
     std::fs::write(
@@ -108,7 +162,7 @@ parts = ["server-rs"]
 
 [rust]
 server = {{ crate = "{id}-server", entry = "{id}_server::register" }}
-caps = ["net.channel"]
+caps = [{caps}]
 state_max = 64
 
 [[channels]]
@@ -153,10 +207,19 @@ impl TestServer {
 }
 
 fn boot(dir: &Path, mods_dir: Option<&Path>, edit: impl FnOnce(&mut ServerConfig)) -> TestServer {
+    boot_mode(dir, mods_dir, "echo turns=1", edit)
+}
+
+fn boot_mode(
+    dir: &Path,
+    mods_dir: Option<&Path>,
+    mode: &str,
+    edit: impl FnOnce(&mut ServerConfig),
+) -> TestServer {
     let clock = Arc::new(TestClock::new());
     let mut config = mock_server_config(
         dir,
-        "echo turns=1",
+        mode,
         Duration::from_secs(20),
         [Duration::ZERO, Duration::ZERO, Duration::ZERO],
     );
@@ -855,6 +918,171 @@ fn a_start_is_refused_when_the_binary_has_no_code_for_a_server_mod() {
         unreachable!()
     };
     assert!(text.contains("`hello`") && text.contains("code"), "{text}");
+    srv.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---------------------------------------------------------------- the whole-truth owners (T22)
+
+const PROBE: &[(&str, &str)] = &[("probe", "1.0.0")];
+const BLIND: &[(&str, &str)] = &[("blind", "1.0.0")];
+
+fn install_probes(dir: &Path) -> PathBuf {
+    install_caps(
+        dir,
+        "probe",
+        "gameplay",
+        "",
+        r#""net.channel", "world.read""#,
+    );
+    install(dir, "blind", "gameplay", "")
+}
+
+/// What the probe mod says about a plot: owner (tag, value), class, turn.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Seen {
+    owner: (u8, u8),
+    class: u8,
+    turn: u8,
+}
+
+const UNKNOWN: (u8, u8) = (3, 0);
+
+impl Client {
+    /// One question to the probe mod (index 0); `None`: the mod has no `world.read` or the plot is off the map.
+    fn probe_once(&mut self, x: u8, y: u8) -> Option<Seen> {
+        self.mod_msg(0, &[x, y]);
+        let a = self.next_mod("a probe answer", |m| m.payload.len() == 5);
+        match a.payload[..] {
+            [t, v, class, turn, 0xAA] if t < 4 => Some(Seen {
+                owner: (t, v),
+                class,
+                turn,
+            }),
+            _ => None,
+        }
+    }
+
+    /// Asks until the table of owners is there (the first `Full` is on its way when a client attaches).
+    fn probe(&mut self, x: u8, y: u8) -> Seen {
+        for _ in 0..200 {
+            let s = self.probe_once(x, y).expect("the probe answers");
+            if s.owner != UNKNOWN {
+                return s;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        panic!("the owners stay unknown");
+    }
+
+    /// An order of the seat, and its answer (`Results`) heard.
+    fn order(&mut self, id: u32) {
+        self.send(&ClientMsg::Cmd(protocol::Cmd {
+            id,
+            turn: 1,
+            cmd: protocol::Command::CancelEndTurn,
+        }));
+        self.until("the answer to the order", |m| {
+            matches!(m, ServerMsg::Game(b) if b.msgs.iter().any(|g|
+                matches!(g, GameMsg::Results(r) if r.iter().any(|x| x.id == id))))
+        });
+    }
+}
+
+fn probe_game(
+    dir: &Path,
+    mode: &str,
+    picks: &[&str],
+    hello: Option<&[(&str, &str)]>,
+) -> (TestServer, Client, Client) {
+    let mods = install_probes(dir);
+    let srv = boot_mode(dir, Some(&mods), mode, |_| {});
+    let (mut alice, mut bob) = start_game(&srv, picks, hello, hello);
+    alice.attached();
+    bob.attached();
+    (srv, alice, bob)
+}
+
+/// T22: a mod with `world.read` reads the owners the worker sent (the truth), the terrain classes of the basis, the
+/// shape and the turn; an owner that changes between two batches is seen new in the second one, and never older than
+/// the last answer the seat got.
+#[test]
+fn a_mod_reads_the_whole_truth_and_sees_an_owner_change_between_two_batches() {
+    let dir = temp_dir("mh-owners");
+    let (srv, mut alice, _bob) = probe_game(&dir, "echo turns=1 owners=1", &["probe"], Some(PROBE));
+    let at = |c: &mut Client, i: u8| c.probe(i % 8, i / 8);
+    // Plot 1 is player 0's (alice's seat), plot 2 is player 5's, plot 0 nobody's.
+    assert_eq!(at(&mut alice, 0).owner, (0, 0));
+    assert_eq!(at(&mut alice, 1).owner, (1, 0));
+    assert_eq!(at(&mut alice, 2).owner, (2, 5));
+    // The classes of the basis: land, water, lake, hills, mountain.
+    let classes: Vec<u8> = (3..7).map(|i| at(&mut alice, i).class).collect();
+    assert_eq!(classes, [3, 4, 1, 2]);
+    assert_eq!(at(&mut alice, 0).class, 0);
+    assert_eq!(alice.probe_once(8, 0), None, "off the map");
+    // Batch one: plot 9 is nobody's. An order changes it (the Delta is ahead of the order's Results) ...
+    let first = at(&mut alice, 9);
+    assert_eq!(first.owner, (0, 0));
+    alice.order(1);
+    // ... batch two: no waiting, the new owner (player 1 = bob's seat) is there.
+    assert_eq!(
+        at(&mut alice, 9).owner,
+        (1, 1),
+        "never older than the Results"
+    );
+    alice.order(2);
+    assert_eq!(at(&mut alice, 9).owner, (0, 0), "and back");
+    srv.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// T22: a `Delta` that does not follow makes the table unknown (mods refuse) until the worker's `Full` arrives.
+#[test]
+fn a_lost_delta_makes_the_owners_unknown_until_the_worker_sends_the_table_again() {
+    let dir = temp_dir("mh-owners-gap");
+    let log = dir.join("wants.log");
+    let mode = format!("echo turns=1 owners=1 gap=1 want_log={}", log.display());
+    let (srv, mut alice, _bob) = probe_game(&dir, &mode, &["probe"], Some(PROBE));
+    assert_eq!(alice.probe(1, 1).owner, (0, 0));
+    alice.order(1);
+    // The flip was lost; once the answer to the second ask is in, the truth (player 1) is back.
+    assert_eq!(alice.probe(1, 1).owner, (1, 1));
+    let wants = std::fs::read_to_string(&log).unwrap();
+    assert_eq!(wants.lines().count(), 2, "the start and the gap: {wants:?}");
+    srv.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// T22: only a game with a mod that reads the world makes the worker keep the table: no `WantOwners` for a mod without
+/// `world.read` (the mod is refused the facts) and none for a game without mods.
+#[test]
+fn the_worker_is_asked_for_owners_only_when_a_mod_reads_the_world() {
+    // A mod without world.read.
+    let dir = temp_dir("mh-owners-blind");
+    let log = dir.join("wants.log");
+    let mode = format!("echo turns=1 owners=1 want_log={}", log.display());
+    let (srv, mut alice, _bob) = probe_game(&dir, &mode, &["blind"], Some(BLIND));
+    assert_eq!(
+        alice.probe_once(1, 0),
+        None,
+        "no facts without the capability"
+    );
+    alice.order(1);
+    assert!(!log.exists(), "the worker was never asked");
+    srv.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+    // A game without mods.
+    let dir = temp_dir("mh-owners-none");
+    let log = dir.join("wants.log");
+    let mode = format!("echo turns=1 owners=1 want_log={}", log.display());
+    let (srv, mut alice, _bob) = probe_game(&dir, &mode, &[], None);
+    alice.order(1);
+    alice.send(&ClientMsg::Ping {
+        seq: 1,
+        client_ms: 7,
+    });
+    alice.until("a pong", |m| matches!(m, ServerMsg::Pong { seq: 1, .. }));
+    assert!(!log.exists(), "the worker was never asked");
     srv.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }

@@ -869,6 +869,26 @@ impl Core for RealCore {
         Ok(())
     }
 
+    fn owners(
+        &mut self,
+        subset: Option<&[u32]>,
+        out: &mut Vec<(u32, i8)>,
+    ) -> Result<(), CoreError> {
+        // Viewer -1 is the whole truth: the owner as the core holds it now, revealed or not.
+        let list = match subset {
+            None => self.game.plots(-1),
+            Some(s) => self.game.plots_at(-1, s),
+        }
+        .map_err(failed("Q_PLOTS"))?;
+        let w = u32::from(self.map.width);
+        for p in &list {
+            let index = u32::try_from(p.y).unwrap_or(0) * w + u32::try_from(p.x).unwrap_or(0);
+            let owner = p.owner.and_then(|o| i8::try_from(o).ok()).unwrap_or(-1);
+            out.push((index, owner));
+        }
+        Ok(())
+    }
+
     fn basis(
         &mut self,
         subset: Option<&[u32]>,

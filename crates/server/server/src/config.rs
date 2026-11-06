@@ -141,6 +141,8 @@ impl Default for Autosave {
 pub struct FixtureTest {
     pub ai_step_delay_ms: u32,
     pub leak_fog: bool,
+    /// Change the owner of one plot at the start of a turn (the table of owners for mods, IPC v9).
+    pub flip_owner: Option<protocol::FlipOwner>,
 }
 
 /// `[worker]` table.

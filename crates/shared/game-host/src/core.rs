@@ -244,6 +244,11 @@ pub trait Core {
         subset: Option<&[u32]>,
         out: &mut Vec<(u32, PlotBasisView)>,
     ) -> Result<(), CoreError>;
+    /// The owner of every plot, or of the `subset` of indexes (ascending), as `(index, player)` appended to `out`,
+    /// `-1` nobody. The whole truth: no team's view, no fog (`gc_query` viewer `-1`). For the table of owners the
+    /// gateway keeps for server mods (`ToWorker::WantOwners`).
+    fn owners(&mut self, subset: Option<&[u32]>, out: &mut Vec<(u32, i8)>)
+    -> Result<(), CoreError>;
     /// Units the team sees (its own, and others on visible plots).
     fn units(&mut self, team: TeamId) -> Result<Vec<UnitView>, CoreError>;
     // No `combat_turns`: there is no combat readiness in B2 (user decision 2026-10-21, NP-D24, RW-28).

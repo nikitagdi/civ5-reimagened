@@ -35,6 +35,12 @@
 //! The mods block (IPC v8): `ToWorker::Mods` is kept and written as the `MODS` section of every save; a loaded save
 //! that has one is announced with `ModsLoaded` before `Ready`.
 //!
+//! The table of owners (IPC v9): `ToWorker::WantOwners` is answered with `Owners::Full` of a made-up 8x4 map (plot 1 is
+//! player 0's, plot 2 player 5's, nobody else's) when `owners=1`; with it the first `Basis` is a typed one (plot 3
+//! water, 4 lake, 5 hills, 6 mountain, the rest land). Every `Cmd` of a seat then flips the owner of plot 9 between
+//! nobody and player 1 and sends the `Delta` in the frame of the order, ahead of its `Results`. `gap=N`: the N-th
+//! `Delta` names a wrong base revision. `want_log=PATH`: a line per `WantOwners`.
+//!
 //! `replica=1` (every mode that plays) makes the mock a server of the replica stream (protocol v4) with made-up
 //! bodies: a `ReplicaBlob` and `ReplicaBase` (epoch 77, `jseq` 0) with the first views, a `ReplicaJournal` batch
 //! `J<n>` for every `Cmd` but `EndTurn`, a `ReplicaTurn` (a new body, and with `patch=1` a patch body) for an
@@ -106,6 +112,77 @@ fn write_raw(out: &Out, body: &[u8]) {
     // A write error means the gateway is gone: nothing left to do.
     if wire::ipc::write_frame(&mut *o, body).is_err() {
         std::process::exit(0);
+    }
+}
+
+/// The made-up map of `owners=1`: 8x4 plots, a few relief kinds (see the module doc).
+fn typed_basis() -> MapBasis {
+    use protocol::{PlotBasisView, PlotFlags, PlotType};
+    let mut plots = vec![PlotBasisView::default(); 32];
+    plots[3].plot_type = PlotType::Water;
+    plots[4].plot_type = PlotType::Water;
+    plots[4].flags = PlotFlags(PlotFlags::IS_LAKE);
+    plots[5].plot_type = PlotType::Hill;
+    plots[6].plot_type = PlotType::Mountain;
+    let mut m = MapBasis {
+        width: 8,
+        height: 4,
+        terrain_seed: 1,
+        plots,
+        ..MapBasis::default()
+    };
+    m.basis_hash = protocol::basis_hash_of(&m);
+    m
+}
+
+/// The made-up owners of `owners=1`.
+struct MockOwners {
+    table: Vec<i8>,
+    rev: u32,
+    wanted: bool,
+    deltas: u64,
+    gap: u64,
+    log: Option<String>,
+}
+
+impl MockOwners {
+    fn new(opts: &Opts) -> Self {
+        let mut table = vec![-1i8; 32];
+        table[1] = 0;
+        table[2] = 5;
+        Self {
+            table,
+            rev: 0,
+            wanted: false,
+            deltas: 0,
+            gap: opts.num("gap", 0),
+            log: opts.kv.get("want_log").cloned(),
+        }
+    }
+
+    fn full(&mut self) -> WorkerMsg {
+        self.rev += 1;
+        WorkerMsg::Owners(protocol::OwnersUpdate::Full {
+            rev: self.rev,
+            turn: 1,
+            owners: self.table.clone(),
+        })
+    }
+
+    /// The order of a seat flips plot 9; the frame of the order carries the change.
+    fn flip(&mut self) -> Option<WorkerMsg> {
+        if !self.wanted {
+            return None;
+        }
+        self.table[9] = if self.table[9] < 0 { 1 } else { -1 };
+        self.deltas += 1;
+        let base_rev = self.rev + if self.deltas == self.gap { 5 } else { 0 };
+        self.rev += 1;
+        Some(WorkerMsg::Owners(protocol::OwnersUpdate::Delta {
+            base_rev,
+            rev: self.rev,
+            changes: vec![(9, self.table[9])],
+        }))
     }
 }
 
@@ -592,9 +669,17 @@ fn main() -> ExitCode {
         })
         .collect();
     let mut replica = (opts.num("replica", 0) == 1).then(|| Replica::new(&opts));
+    let mut mock_owners = (opts.num("owners", 0) == 1).then(|| MockOwners::new(&opts));
+    let basis_of = |opts: &Opts| {
+        if opts.num("owners", 0) == 1 {
+            typed_basis()
+        } else {
+            mock_basis()
+        }
+    };
     let mut first = vec![WorkerMsg::Basis {
         players: humans.clone(),
-        basis: mock_basis(),
+        basis: basis_of(&opts),
     }];
     first.extend(seats.iter().map(|(p, s)| full(*p, s)));
     first.push(match &mut turns {
@@ -655,7 +740,24 @@ fn main() -> ExitCode {
                         t.advance(&players);
                         msgs.extend(t.changed(&players));
                     }
+                    if let Some(f) = mock_owners.as_mut().and_then(MockOwners::flip) {
+                        msgs.insert(0, f);
+                    }
                     send(&out, msgs);
+                }
+            }
+            ToWorker::WantOwners => {
+                if let Some(mo) = &mut mock_owners {
+                    mo.wanted = true;
+                    if let Some(path) = &mo.log
+                        && let Ok(mut f) = std::fs::OpenOptions::new()
+                            .create(true)
+                            .append(true)
+                            .open(path)
+                    {
+                        let _ = writeln!(f, "want");
+                    }
+                    send(&out, vec![mo.full()]);
                 }
             }
             ToWorker::Query { qid, .. } => send(
