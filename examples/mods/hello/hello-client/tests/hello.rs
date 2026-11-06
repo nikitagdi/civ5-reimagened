@@ -218,3 +218,24 @@ fn the_hotkey_of_a_nick_less_player_still_shows() {
     let lines = m.lines(|id| format!("PLAYER {id}"));
     assert_eq!(lines[2], "PLAYER 5 SAID: hi");
 }
+
+#[test]
+fn the_cube_stands_on_a_plot_of_the_local_player() {
+    let mut h = host();
+    let mut m = HelloClient::default();
+    let mut list = UiDrawList::new();
+    // Nothing known yet: the default hex.
+    m.hud(&mut h, &mut list);
+    assert_eq!(m.home().get(), hello_client::HEX);
+    // The game tells who we are and who owns what.
+    h.world.set_me(1);
+    h.world.set_owner(7, 2, Some(0));
+    h.world.set_owner(5, 5, Some(1));
+    h.world.set_owner(6, 5, Some(1));
+    m.hud(&mut h, &mut list);
+    assert_eq!(m.home().get(), (5, 5));
+    // A change of the world is picked up.
+    h.world.set_owner(2, 1, Some(1));
+    m.hud(&mut h, &mut list);
+    assert_eq!(m.home().get(), (2, 1));
+}

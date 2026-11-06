@@ -125,6 +125,7 @@ All commands, the gamecore build and the environment variables: [docs/building.m
 - [Building](docs/building.md)
 - [Hosting](docs/hosting.md)
 - [Architecture](docs/architecture.md)
+- [Mods](docs/modding.md)
 - [Performance](docs/performance.md)
 - [Limitations](docs/limitations.md)
 - [Legal and licenses](docs/legal.md)
