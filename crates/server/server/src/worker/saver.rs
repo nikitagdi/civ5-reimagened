@@ -275,6 +275,7 @@ mod tests {
                 journals: Vec::new(),
                 cmds: Vec::new(),
                 city_memo: Vec::new(),
+                mods: None,
             },
             ring: 10,
         }

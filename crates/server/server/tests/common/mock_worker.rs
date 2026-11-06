@@ -844,6 +844,7 @@ fn saved(seats: &BTreeMap<i8, Seat>, seq: u64) -> WorkerMsg {
             journals: vec![],
             cmds: vec![],
             city_memo: vec![],
+            mods: None,
         };
         let bytes = game_host::saves::encode(&header, b"mock core", &sections);
         let _ = std::fs::create_dir_all("ring");

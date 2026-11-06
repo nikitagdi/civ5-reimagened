@@ -378,6 +378,8 @@ impl<C: Core> Worker<C> {
                 journals,
                 cmds,
                 city_memo,
+                // T15 fills this from the game's frozen mod set.
+                mods: None,
             },
             ring: self.cfg.autosave.ring,
         })

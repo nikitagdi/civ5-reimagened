@@ -471,6 +471,7 @@ fn take_from_save(o: &Options, scene: &Scene, save: &Path) -> Result<Taken> {
             journals: vec![],
             cmds: vec![],
             city_memo: vec![],
+            mods: None,
         },
     );
     let c5sv = dir.join("import.c5sv");

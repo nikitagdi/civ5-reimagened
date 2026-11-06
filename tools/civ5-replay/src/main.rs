@@ -919,6 +919,7 @@ fn write_save(store: &Store, turn: i32, gcs1: &[u8], out: &Path) -> Result<()> {
         journals: Vec::new(),
         cmds: Vec::new(),
         city_memo: Vec::new(),
+        mods: None,
     };
     let bytes = game_host::saves::encode(&header, gcs1, &sections);
     std::fs::write(out, bytes).with_context(|| out.display().to_string())?;
