@@ -1,0 +1,15 @@
+[package]
+name = "hello-shared"
+description = "Example mod hello: wire messages and the saved-state format shared by its halves"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license = "MIT"
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "shared"
+
+# No dependencies on purpose: the shared half is plain data.
+[dependencies]

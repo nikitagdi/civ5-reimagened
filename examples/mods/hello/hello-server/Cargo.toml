@@ -1,0 +1,20 @@
+[package]
+name = "hello-server"
+description = "Example mod hello: the server half (echo on channel 0, a persisted counter)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license = "MIT"
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "server"
+
+# R11: a mod crate depends only on mod-api, mod-manifest and its own shared crate.
+[dependencies]
+hello-shared = { path = "../hello-shared" }
+mod-api.workspace = true
+
+[dev-dependencies]
+mod-manifest.workspace = true
