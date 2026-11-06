@@ -33,15 +33,13 @@ the game's own Lua/XML interface and a new WebGPU renderer, both fed from assets
   (touch controls: tap, drag to pan, hold for right click). Tested on desktop Chrome with WebGPU and on
   Chrome for Android; the WebGL2 fallback has known terrain issues; Firefox, Safari and iOS are not tested
   yet. See [docs/limitations.md](docs/limitations.md#platforms).
-- **Faster simulation, network and render.** Compared with the original game on the same PC (i7-14700KF,
-  RTX 3070 Ti) and the same save (a real Lekmod v34.15 game: Huge, turn 95, 12 civilizations and 24
-  city-states), 1920x1080, MSAA 4x, frame rate uncapped:
+- **Faster turns and loading.** Compared with the original game on the same PC (i7-14700KF, RTX 3070 Ti)
+  and the same save (a real Lekmod v34.15 game: Huge, turn 95, 12 civilizations and 24 city-states):
 
 | What | Original (Lekmod v34.15) | civ5-reimagened (Chrome) |
 |---|---|---|
 | End of turn: click to the next turn, 3 runs | 17.1-17.4 s | 1.9-2.1 s |
 | Loading the save to a playable map | about 40-55 s | 12-14 s |
-| FPS p50, start view / panning | 359 / 529 | 341 / 346 |
 | Order to result over a 200 ms link, p50 / p95 | not measured | 201 / 229 ms |
 
 The original plays every AI unit's move on screen before the turn ends (this game had Quick Movement off); ours
