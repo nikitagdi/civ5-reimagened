@@ -176,6 +176,8 @@ pub fn start() {
         } else {
             platform_web::WebUiBridge::detect().map(|b| Box::new(b) as Box<dyn platform::UiBridge>)
         },
+        pointer_lock_probe: platform_web::WebPointerLockProbe::new()
+            .map(|p| Box::new(p) as Box<dyn platform::PointerLockProbe>),
         group_stats_sink: Some(Box::new(|group, values| {
             let v: Vec<(&str, f64)> = values.iter().map(|(k, n)| (k.as_str(), *n)).collect();
             // `turn` nests its rows by turn (`__civ5stats.turn.turns[<turn>]`).

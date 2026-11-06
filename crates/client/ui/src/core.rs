@@ -250,7 +250,10 @@ impl UiCore {
                 self.resize(sz.width, sz.height);
                 false
             }
-            InputEvent::ScaleFactor(_) | InputEvent::Focused(_) => false,
+            InputEvent::ScaleFactor(_)
+            | InputEvent::Focused(_)
+            | InputEvent::PointerDelta { .. }
+            | InputEvent::PointerLockChanged(_) => false,
         };
         if handled {
             InputResult::Consumed

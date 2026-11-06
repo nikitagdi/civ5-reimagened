@@ -8,6 +8,7 @@ mod audio;
 mod blob;
 mod http;
 mod input;
+mod pointer_lock;
 mod store;
 mod task;
 mod time;
@@ -20,6 +21,9 @@ pub use http::{HttpClient, HttpError, HttpOp, HttpResponse};
 pub use input::{
     InputEvent, Key, KeyEvent, Modifiers, MouseButton, NamedKey, PhysicalPosition, PhysicalSize,
     PointerEvent, PointerId, PointerKind, PointerPhase, WheelDelta, WheelEvent,
+};
+pub use pointer_lock::{
+    CursorGrab, GrabError, PointerLock, PointerLockMode, PointerLockProbe, PointerLockStatus,
 };
 pub use store::{HostEvent, KeyValueStore, MemoryStore};
 pub use task::{Job, TaskPool};

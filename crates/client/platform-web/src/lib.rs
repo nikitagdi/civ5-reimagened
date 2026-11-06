@@ -6,6 +6,7 @@ pub mod host;
 mod http;
 mod log;
 pub mod page;
+mod pointer_lock;
 pub mod stats;
 mod store;
 mod transport;
@@ -22,6 +23,7 @@ pub use log::{
     CRASH_ID, ConsoleMakeWriter, ConsoleWriter, RingLayer, flush_ring, init_logging, ring_line_now,
     show_crash,
 };
+pub use pointer_lock::WebPointerLockProbe;
 pub use store::LocalStorage;
 pub use transport::{BACKLOG_REASON, LimitedWebSocketTransport, WebSocketTransport};
 pub use ui_bridge::WebUiBridge;

@@ -9,6 +9,15 @@ pub enum InputEvent {
     Resized(PhysicalSize),
     ScaleFactor(f64),
     Focused(bool),
+    /// Relative motion of the mouse in physical pixels (X right, Y down), made only while a pointer lock
+    /// is engaged ([`crate::PointerLock`]); never without a request, so existing consumers see no new events.
+    PointerDelta {
+        dx: f64,
+        dy: f64,
+    },
+    /// The pointer lock was engaged (`true`) or ended (`false`), also by the browser (Esc). Made only
+    /// after a request.
+    PointerLockChanged(bool),
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]

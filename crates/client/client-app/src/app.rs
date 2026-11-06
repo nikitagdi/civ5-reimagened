@@ -16,7 +16,7 @@ use interim_ui::screens::{self, Screens, UiAction};
 use protocol::{GameId, WorldView};
 use render::{Camera, CameraView, GameCamera, RenderError, Renderer, Scene};
 use winit::application::ApplicationHandler;
-use winit::event::WindowEvent;
+use winit::event::{DeviceEvent, DeviceId, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
 
@@ -343,6 +343,8 @@ struct App {
     ui_press: crate::ui_press::UiPress,
     /// Three fingers held: toggles the performance panel.
     hud_hold: crate::touch_hud::HudHold,
+    /// The pointer lock of the window (client-hooks); idle until something asks for it.
+    pointer: crate::pointer::PointerService,
     /// `?showcase=1` only: orbit camera and the Warrior.
     showcase_mode: bool,
     camera: Camera,
@@ -451,6 +453,7 @@ impl App {
             group_stats_sink,
             audio,
             ui_bridge,
+            pointer_lock_probe,
         } = services;
         let hud_on = config.hud;
         let (config_original_ui, config_ui_volume) = (config.original_ui, config.ui_volume);
@@ -587,6 +590,7 @@ impl App {
             long_press: crate::touch_press::LongPress::new(),
             ui_press: crate::ui_press::UiPress::default(),
             hud_hold: crate::touch_hud::HudHold::new(),
+            pointer: crate::pointer::PointerService::new(pointer_lock_probe),
             camera: Camera::default(),
             controller: CameraController::new(1, 1),
             game_camera: GameCamera::default(),
@@ -1929,7 +1933,9 @@ impl App {
                     }
                 }
             }
-            if let (Some(c), Some(w)) = (&self.cursors, &self.window) {
+            // A locked pointer has no cursor to show: the animated game cursor would bring it back.
+            if let (Some(c), Some(w), false) = (&self.cursors, &self.window, self.pointer.engaged())
+            {
                 // The globe while the game loads and while the server runs the turn, else the arrow.
                 let busy =
                     self.loading_cursor || self.m2.as_ref().is_some_and(|m| m.turn_processing());
@@ -2456,6 +2462,11 @@ impl ApplicationHandler for App {
             self.long_press.set_scale(w.scale_factor());
             self.hud_hold.set_scale(w.scale_factor());
         }
+        if matches!(event, WindowEvent::Focused(false))
+            && let Some(w) = &self.window
+        {
+            self.pointer.focus_lost(w);
+        }
         for ev in self.input.translate(&event) {
             self.hud_hold.observe(&ev, self.clock.now_ms());
             for ev in self.long_press.filter(ev, self.clock.now_ms()) {
@@ -2477,6 +2488,15 @@ impl ApplicationHandler for App {
         }
     }
 
+    fn device_event(&mut self, _event_loop: &ActiveEventLoop, _id: DeviceId, event: DeviceEvent) {
+        // The relative motion of the mouse, only while the pointer lock is engaged (never otherwise).
+        if let DeviceEvent::MouseMotion { delta: (dx, dy) } = event
+            && let Some(ev) = self.pointer.motion(dx, dy)
+        {
+            self.on_input(ev);
+        }
+    }
+
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         // The cursors of the asset set, once they have arrived (custom cursors are made on the event loop).
         if let Some(set) = self.pending_cursors.take() {
@@ -2491,6 +2511,12 @@ impl ApplicationHandler for App {
         }
         // A key press held for its modifiers goes out at the end of the batch.
         if let Some(ev) = self.input.flush() {
+            self.on_input(ev);
+        }
+        // The pointer lock: the browser may have ended it (Esc); a change reaches the input as an event.
+        if let Some(w) = &self.window
+            && let Some(ev) = self.pointer.poll(w)
+        {
             self.on_input(ev);
         }
         // A finger held still presses the right button; the lift releases it (touch_press.rs).
