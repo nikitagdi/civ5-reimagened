@@ -507,15 +507,17 @@ mod tests {
     }
 
     #[test]
-    fn a_mod_without_a_client_half_registers_nothing() {
+    fn the_public_example_registers_its_client_half() {
+        // hello has a client half since T37. A mod without one registers nothing: `gen_client` tests that.
         let s = Scratch::new();
         let p = prepared("examples/mods/hello/mods.toml", &s);
         let mods = dist_mods(&p).unwrap();
         let dir = s.0.join("client");
         generate_client(&repo(), &dir, &mods).unwrap();
         let lib = std::fs::read_to_string(dir.join("web/src/lib.rs")).unwrap();
-        assert!(lib.contains("//! - hello 0.1.0 (no client code)"));
-        assert!(!lib.contains("ClientRegistry"));
+        assert!(lib.contains("register_hello(&mut registry);"));
+        assert!(lib.contains("hello_client::register(r);"));
+        assert!(!lib.contains("(no client code)"));
         assert!(lib.contains("app_web::start_with(mod_hooks())"));
     }
 
