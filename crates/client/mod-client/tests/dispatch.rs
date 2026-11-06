@@ -6,11 +6,14 @@ use std::rc::Rc;
 use draw_list::UiDrawList;
 use glam::Vec2;
 use mod_api::{Cap, Caps, ChannelId, PlayerId, PlotClass, Version};
+use mod_client::gpu::{
+    DrawContext, FirstPerson, InitContext, MainSlot, PassSlot, PrepareContext, SystemId,
+};
 use mod_client::testing::MockClientCtx;
 use mod_client::{
-    AttachInfo, CameraOverride, Claim, ClientCtx, ClientHost, ClientMod, ClientRegistry, CtxError,
-    CutoutRegion, FrameOut, Guarded, HotkeySpec, ModDispatcher, ModInfo, ModRenderSystem,
-    NamespacedKv, PackState, PlayOpts,
+    AttachInfo, Claim, ClientCtx, ClientHost, ClientMod, ClientRegistry, CtxError, CutoutRegion,
+    FrameOut, Guarded, HotkeySpec, ModDispatcher, ModInfo, ModRenderSystem, NamespacedKv,
+    PackState, PlayOpts,
 };
 use mod_manifest::ModId;
 use platform::{InputEvent, Key, KeyEvent, MemoryStore, Modifiers};
@@ -36,11 +39,17 @@ fn key(code: &str) -> InputEvent {
     })
 }
 
-struct RenderStub(&'static str);
+struct RenderStub(u16);
 impl ModRenderSystem for RenderStub {
-    fn name(&self) -> &str {
-        self.0
+    fn id(&self) -> SystemId {
+        SystemId::Mod(self.0)
     }
+    fn passes(&self) -> &'static [PassSlot] {
+        &[PassSlot::Main(MainSlot::Mod)]
+    }
+    fn init(&mut self, _cx: &mut InitContext<'_>) {}
+    fn prepare(&mut self, _cx: &mut PrepareContext<'_>) {}
+    fn record(&self, _slot: PassSlot, _cx: &mut DrawContext<'_, '_>) {}
 }
 
 /// A scriptable mod that logs every call it receives.
@@ -48,9 +57,10 @@ struct Probe {
     name: &'static str,
     log: Log,
     consume: bool,
-    camera: Option<CameraOverride>,
+    /// Near plane of the camera it returns each frame.
+    camera: Option<f32>,
     suppress_ui: bool,
-    systems: Vec<&'static str>,
+    systems: Vec<u16>,
 }
 
 impl Probe {
@@ -98,7 +108,11 @@ impl ClientMod for Probe {
     fn frame(&mut self, _cx: &mut dyn ClientCtx, dt: f32) -> FrameOut {
         self.note(format!("frame {dt}"));
         FrameOut {
-            camera: self.camera,
+            camera: self.camera.map(|near| {
+                let mut c = FirstPerson::new(mod_client::gpu::glam::Vec3::new(1.0, 6.5, 2.0));
+                c.near = near;
+                Box::new(c) as Box<dyn mod_client::gpu::ModCamera>
+            }),
             suppress_ui: self.suppress_ui,
         }
     }
@@ -109,20 +123,8 @@ impl ClientMod for Probe {
     fn render_systems(&mut self, _cx: &mut dyn ClientCtx) -> Vec<Box<dyn ModRenderSystem>> {
         self.systems
             .iter()
-            .map(|n| Box::new(RenderStub(n)) as Box<dyn ModRenderSystem>)
+            .map(|&n| Box::new(RenderStub(n)) as Box<dyn ModRenderSystem>)
             .collect()
-    }
-}
-
-fn cam(near: f32) -> CameraOverride {
-    CameraOverride {
-        eye: [1.0, 6.5, 2.0],
-        yaw: 0.0,
-        pitch: -0.1,
-        near,
-        far: 3000.0,
-        fov_y_deg: 75.0,
-        focus_xz: [1.0, 2.0],
     }
 }
 
@@ -142,7 +144,8 @@ fn empty_dispatcher_does_nothing() {
     assert!(d.is_empty());
     d.attach(&mut host);
     assert_eq!(d.claim_input(&mut host, &key("KeyB")), Claim::Pass);
-    assert_eq!(d.frame(&mut host, 0.016), FrameOut::default());
+    let out = d.frame(&mut host, 0.016);
+    assert!(out.camera.is_none() && !out.suppress_ui);
     let mut list = UiDrawList::new();
     d.hud(&mut host, &mut list);
     assert!(list.is_empty());
@@ -264,12 +267,12 @@ fn passing_mods_let_the_event_through() {
 fn frame_merges_camera_and_suppress_ui_by_capability() {
     let log: Log = Log::default();
     let mut a = Probe::new("alpha", &log);
-    a.camera = Some(cam(0.5));
+    a.camera = Some(0.5);
     a.suppress_ui = true; // no capability for either
     let mut b = Probe::new("beta", &log);
-    b.camera = Some(cam(1.0));
+    b.camera = Some(1.0);
     let mut c = Probe::new("gamma", &log);
-    c.camera = Some(cam(2.0));
+    c.camera = Some(2.0);
     c.suppress_ui = true;
     let mut d = dispatcher(vec![
         (info(0, "alpha", &[]), a),
@@ -279,7 +282,7 @@ fn frame_merges_camera_and_suppress_ui_by_capability() {
     let mut host = MockClientCtx::new();
     let out = d.frame(&mut host, 0.016);
     assert_eq!(
-        out.camera.map(|c| c.near),
+        out.camera.map(|c| c.near()),
         Some(1.0),
         "first holder of `camera` wins"
     );
@@ -309,9 +312,9 @@ fn suppress_ui_alone_without_input_claim_is_dropped() {
 fn hud_and_render_systems_need_their_capabilities() {
     let log: Log = Log::default();
     let mut a = Probe::new("alpha", &log);
-    a.systems = vec!["cube"];
+    a.systems = vec![7];
     let mut b = Probe::new("beta", &log);
-    b.systems = vec!["avatars", "outline"];
+    b.systems = vec![1, 2];
     let mut d = dispatcher(vec![
         (info(0, "alpha", &[]), a),
         (info(1, "beta", &[Cap::Hud, Cap::RenderPipeline]), b),
@@ -322,8 +325,8 @@ fn hud_and_render_systems_need_their_capabilities() {
     assert_eq!(*log.borrow(), ["beta:hud"]);
     assert_eq!(list.commands().len(), 1);
     let systems = d.render_systems(&mut host);
-    let names: Vec<(u16, &str)> = systems.iter().map(|(i, s)| (*i, s.name())).collect();
-    assert_eq!(names, [(1, "avatars"), (1, "outline")]);
+    let ids: Vec<(u16, SystemId)> = systems.iter().map(|(i, s)| (*i, s.id())).collect();
+    assert_eq!(ids, [(1, SystemId::Mod(1)), (1, SystemId::Mod(2))]);
 }
 
 #[test]

@@ -12,15 +12,15 @@
 //! The services a mod can call are the ones of `client_core::NetHost` (`send` and the pointer lock); the rest answer
 //! `Unavailable` until the app's own host (T36). With no mod built in the hook is not registered at all.
 
-use client_core::{ClientCore, ClientEvent, ModNet, NetConfig, NetHost};
+use client_core::{ClientCore, ClientEvent, ModNet, NetConfig};
+use draw_list::UiDrawList;
 use mod_api::Cap;
-use mod_client::PackState;
-use mod_client::{CameraOverride, Claim, ClientRegistry};
+use mod_client::{Claim, ClientRegistry, PackState, ScreenInfo};
 use platform::InputEvent;
 
 use crate::mod_assets::{PackEvent, PackSet, mods_base_from_ws_url};
 use crate::mod_hooks::{FrameInfo, HookCtl, HookEnv, ModHook};
-use crate::mod_host::{HostState, HostView};
+use crate::mod_host::{Env, HostState, HostView, KvSet, ModSystem, TerrainView};
 
 /// The hook of the client mods built into this binary.
 pub struct ClientModsHook {
@@ -31,8 +31,24 @@ pub struct ClientModsHook {
     suppressing: bool,
     camera_held: bool,
     pointer_held: bool,
+    /// The mods of the new set have not been asked for their render systems yet (that waits for the renderer).
+    systems_pending: bool,
     /// A required mod cannot run on this client (its pack is missing or refused): the app ends the game with it.
     problem: Option<String>,
+}
+
+/// What a call into the mods sees besides the host's own state, from the frame the app gave the hook.
+fn env_of<'a>(info: &FrameInfo<'a>) -> Env<'a> {
+    Env {
+        world: info.world,
+        terrain: info.terrain.map(TerrainView),
+        gpu: info.gpu,
+        screen: Some(ScreenInfo {
+            width: info.screen.0,
+            height: info.screen.1,
+            scale: info.screen.2,
+        }),
+    }
 }
 
 impl ClientModsHook {
@@ -43,13 +59,11 @@ impl ClientModsHook {
         }
         Some(Self {
             net: ModNet::new(registry),
-            st: HostState {
-                net: NetHost::new(),
-                packs: None,
-            },
+            st: HostState::new(),
             suppressing: false,
             camera_held: false,
             pointer_held: false,
+            systems_pending: false,
             problem: None,
         })
     }
@@ -66,6 +80,26 @@ impl ClientModsHook {
         }
     }
 
+    /// Moves what the services queued into the requests the app carries out.
+    fn flush_requests(&mut self, ctl: &mut HookCtl) {
+        for c in self.st.cutout.take() {
+            ctl.cutout(c);
+        }
+        for (id, data) in self.st.hud.take() {
+            ctl.ui_texture(id, data);
+        }
+        let (sounds, mute) = self.st.audio.take();
+        for s in sounds {
+            ctl.play_sound(s);
+        }
+        if let Some(m) = mute {
+            ctl.mute_world(m);
+        }
+        for n in self.st.hotkeys.take_notices() {
+            tracing::info!("{n}");
+        }
+    }
+
     /// The game ended or its mods did: what they had raised comes down.
     fn lower(&mut self, ctl: &mut HookCtl) {
         if std::mem::take(&mut self.suppressing) {
@@ -77,6 +111,8 @@ impl ClientModsHook {
         if std::mem::take(&mut self.pointer_held) {
             ctl.request_pointer_lock(false);
         }
+        self.systems_pending = false;
+        self.st.end_game();
     }
 
     /// Advances the pack downloads and acts on the ones that settled badly (T33).
@@ -119,21 +155,12 @@ impl ClientModsHook {
         } else {
             tracing::warn!(mod_id = %ev.id, "mod switched off: {why}");
         }
-        let mut host = HostView::new(&mut self.st);
-        d.detach_one(&mut host, ev.mod_idx);
+        {
+            let mut host = HostView::new(&mut self.st, Env::default());
+            d.detach_one(&mut host, ev.mod_idx);
+        }
+        self.st.release_mod(ev.mod_idx);
     }
-}
-
-/// The stand-in `CameraOverride` of a mod as the first-person camera of the render crate. Its terrain focus is the
-/// point under the eye (`CameraOverride::focus_xz` is not carried yet).
-fn first_person(c: &CameraOverride) -> render::FirstPerson {
-    let mut cam = render::FirstPerson::new(glam::Vec3::from(c.eye));
-    cam.yaw = c.yaw;
-    cam.pitch = c.pitch;
-    cam.near = c.near;
-    cam.far = c.far;
-    cam.fov_y = c.fov_y_deg.to_radians();
-    cam
 }
 
 impl ModHook for ClientModsHook {
@@ -143,6 +170,7 @@ impl ModHook for ClientModsHook {
             tracing::warn!(url = %env.server_url, "no HTTP address for mod packs; they cannot be fetched");
         }
         self.st.packs = Some(PackSet::new(std::rc::Rc::clone(&env.http), base));
+        self.st.kv = Some(KvSet::new(std::rc::Rc::clone(&env.kv)));
     }
 
     fn configure_net(&self, cfg: &mut NetConfig) {
@@ -150,21 +178,26 @@ impl ModHook for ClientModsHook {
     }
 
     fn on_net_event(&mut self, ev: &ClientEvent, ctl: &mut HookCtl) {
-        // The packs are asked for before the mods attach, so a mod sees `Pending` from its first call.
-        if let (ClientEvent::ModSet(view), Some(packs)) = (ev, self.st.packs.as_mut()) {
-            packs.start(view);
+        // The packs are asked for and the namespaces opened before the mods attach, so a mod sees `Pending` and its
+        // own keys from its first call.
+        if let ClientEvent::ModSet(view) = ev {
+            if let Some(packs) = self.st.packs.as_mut() {
+                packs.start(view);
+            }
+            if let Some(kv) = self.st.kv.as_mut() {
+                kv.start(view);
+            }
+            self.systems_pending = true;
         }
         {
-            let mut host = HostView::new(&mut self.st);
+            let mut host = HostView::new(&mut self.st, Env::default());
             self.net.on_event(ev, &mut host);
         }
         self.carry_out_pointer(ctl);
         if !self.net.active() {
             self.lower(ctl);
-            if let Some(p) = self.st.packs.as_mut() {
-                p.clear();
-            }
         }
+        self.flush_requests(ctl);
     }
 
     fn flush_net(&mut self, core: &mut ClientCore) {
@@ -180,25 +213,76 @@ impl ModHook for ClientModsHook {
             return false;
         };
         let taken = {
-            let mut host = HostView::new(&mut self.st);
+            let mut host = HostView::new(&mut self.st, Env::default());
             d.claim_input(&mut host, event) == Claim::Consume
         };
         self.carry_out_pointer(ctl);
+        self.flush_requests(ctl);
         taken
+    }
+
+    fn unclaimed_input(&mut self, event: &InputEvent, ctl: &mut HookCtl) -> bool {
+        let InputEvent::Key(k) = event else {
+            return false;
+        };
+        let (Some(code), true, false) = (k.code.as_deref(), k.pressed, k.modifiers.meta) else {
+            return false;
+        };
+        let Some((idx, id)) = self
+            .st
+            .hotkeys
+            .matches(code, k.modifiers.ctrl, k.modifiers.shift, k.modifiers.alt)
+            .map(|(i, id)| (i, id.to_owned()))
+        else {
+            return false;
+        };
+        // A held key repeats: swallowed, fired once.
+        if !k.repeat
+            && let Some(d) = self.net.dispatcher()
+        {
+            let mut host = HostView::new(&mut self.st, Env::default());
+            d.on_hotkey(&mut host, idx, &id);
+        }
+        self.carry_out_pointer(ctl);
+        self.flush_requests(ctl);
+        true
     }
 
     fn frame(&mut self, info: &FrameInfo<'_>, ctl: &mut HookCtl) {
         self.poll_packs();
+        if let Some(grid) = info.cutout_grid {
+            self.st.cutout.grid = Some(grid);
+        }
         let Some(d) = self.net.dispatcher() else {
             return;
         };
         let out = {
-            let mut host = HostView::new(&mut self.st);
+            let mut host = HostView::new(&mut self.st, env_of(info));
             d.frame(&mut host, info.dt)
         };
+        // The render systems wait for the renderer (the pipelines are built from its device).
+        if self.systems_pending && info.gpu.is_some() {
+            self.systems_pending = false;
+            let systems = {
+                let mut host = HostView::new(&mut self.st, env_of(info));
+                d.render_systems(&mut host)
+            };
+            for (_idx, system) in systems {
+                let Some(next) = self.st.next_system.checked_add(1) else {
+                    tracing::warn!("too many render systems of mods; one is left out");
+                    continue;
+                };
+                let number = std::mem::replace(&mut self.st.next_system, next);
+                ctl.add_render_system(Box::new(ModSystem::new(
+                    system,
+                    number,
+                    std::rc::Rc::clone(&self.st.alive),
+                )));
+            }
+        }
         match out.camera {
             Some(c) => {
-                ctl.set_camera(Some(Box::new(first_person(&c))));
+                ctl.set_camera(Some(c));
                 self.camera_held = true;
             }
             None if self.camera_held => {
@@ -212,6 +296,18 @@ impl ModHook for ClientModsHook {
             self.suppressing = out.suppress_ui;
         }
         self.carry_out_pointer(ctl);
+        self.flush_requests(ctl);
+    }
+
+    fn hud(&mut self, info: &FrameInfo<'_>, list: &mut UiDrawList, ctl: &mut HookCtl) {
+        let Some(d) = self.net.dispatcher() else {
+            return;
+        };
+        {
+            let mut host = HostView::new(&mut self.st, env_of(info));
+            d.hud(&mut host, list);
+        }
+        self.flush_requests(ctl);
     }
 }
 
@@ -258,15 +354,15 @@ mod tests {
                 return FrameOut::default();
             }
             FrameOut {
-                camera: Some(CameraOverride {
-                    eye: [4.0, 6.5, 8.0],
-                    yaw: 0.5,
-                    pitch: -0.2,
-                    near: 0.4,
-                    far: 900.0,
-                    fov_y_deg: 60.0,
-                    focus_xz: [4.0, 8.0],
-                }),
+                camera: Some(Box::new({
+                    let mut c = render::FirstPerson::new(glam::Vec3::new(4.0, 6.5, 8.0));
+                    c.yaw = 0.5;
+                    c.pitch = -0.2;
+                    c.near = 0.4;
+                    c.far = 900.0;
+                    c.fov_y = 60f32.to_radians();
+                    c
+                })),
                 suppress_ui: true,
             }
         }
@@ -306,9 +402,7 @@ mod tests {
     fn info() -> FrameInfo<'static> {
         FrameInfo {
             dt: 0.016,
-            now_ms: 0,
-            focus: glam::Vec2::ZERO,
-            terrain: None,
+            ..FrameInfo::default()
         }
     }
 
@@ -475,6 +569,7 @@ mod tests {
         hook.bind(&HookEnv {
             http,
             server_url: "ws://h/ws".into(),
+            kv: Rc::new(platform::MemoryStore::new()),
         });
         (hook, seen, detached, hash)
     }
@@ -558,5 +653,256 @@ mod tests {
             seen.borrow().iter().all(|(_, bytes)| bytes.is_none()),
             "no byte of it reached the mod"
         );
+    }
+
+    // ---- the services of the host (T36) ----
+
+    use crate::mod_host::ReplicaWorld;
+    use draw_list::UiDrawList;
+    use mod_client::{CutoutRegion, HotkeySpec, PlayOpts};
+    use platform::KeyValueStore as _;
+    use render::world::terrain::{TerrainFrame, TerrainSampler};
+
+    /// A mod that uses every service the host has: a counter in `kv` that survives a restart, a hotkey that sends,
+    /// plays a sound, cuts a column and counts; a HUD with a texture; the world and the terrain read in `frame`.
+    struct Services {
+        count: u32,
+        tex: Option<draw_list::TextureId>,
+        log: Rc<RefCell<Vec<String>>>,
+    }
+
+    impl ClientMod for Services {
+        fn attach(&mut self, cx: &mut dyn ClientCtx, _: &AttachInfo) {
+            self.count = cx
+                .kv()
+                .unwrap()
+                .get("count")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0);
+            // A bare key of the game is refused, a free key works.
+            assert!(
+                cx.hotkeys()
+                    .unwrap()
+                    .register(HotkeySpec::new("bad", "KeyW", "w"))
+                    .is_err()
+            );
+            cx.hotkeys()
+                .unwrap()
+                .register(HotkeySpec::new("go", "F13", "Go"))
+                .unwrap();
+            // No world, terrain or gpu outside a frame.
+            assert!(cx.world().is_err() && cx.terrain().is_err() && cx.gpu().is_err());
+        }
+
+        fn on_hotkey(&mut self, cx: &mut dyn ClientCtx, id: &str) {
+            assert_eq!(id, "go");
+            self.count += 1;
+            cx.kv().unwrap().set("count", &self.count.to_string());
+            cx.send(0, &self.count.to_le_bytes()).unwrap();
+            cx.audio()
+                .unwrap()
+                .play("sounds/dig", PlayOpts::default())
+                .unwrap();
+            assert!(
+                cx.audio()
+                    .unwrap()
+                    .play("sounds/none", PlayOpts::default())
+                    .is_err()
+            );
+            let g = cx
+                .cutout()
+                .unwrap()
+                .grid()
+                .expect("the last frame had a map");
+            cx.cutout()
+                .unwrap()
+                .set_cutout_mask(
+                    CutoutRegion {
+                        x0: 3,
+                        z0: g.bz0 + 2,
+                        width: 2,
+                        height: 1,
+                    },
+                    &[1, 1],
+                )
+                .unwrap();
+        }
+
+        fn frame(&mut self, cx: &mut dyn ClientCtx, _dt: f32) -> FrameOut {
+            let w = cx.world().unwrap();
+            let t = cx.terrain().unwrap();
+            self.log.borrow_mut().push(format!(
+                "turn={} me={:?} h={:?} near={:?} built={}",
+                w.turn(),
+                w.me(),
+                t.height(10.0, -10.0).map(|h| h as i32),
+                t.height_nearest(10.0, -10.0).map(|h| h as i32),
+                t.is_built(0)
+            ));
+            if self.tex.is_none() {
+                self.tex = Some(
+                    cx.hud_textures()
+                        .unwrap()
+                        .upload_rgba8(1, 1, &[255; 4])
+                        .unwrap(),
+                );
+            }
+            FrameOut::default()
+        }
+
+        fn hud(&mut self, _cx: &mut dyn ClientCtx, list: &mut UiDrawList) {
+            if let Some(t) = self.tex {
+                list.add_rect(
+                    t,
+                    glam::Vec2::ZERO,
+                    glam::Vec2::splat(8.0),
+                    glam::Vec2::ZERO,
+                    glam::Vec2::ONE,
+                    [255; 4],
+                );
+            }
+        }
+    }
+
+    fn all_caps() -> Caps {
+        Caps::of(&[
+            Cap::NetChannel,
+            Cap::WorldRead,
+            Cap::InputClaim,
+            Cap::Hud,
+            Cap::Kv,
+            Cap::Audio,
+            Cap::Assets,
+            Cap::TerrainCutout,
+        ])
+    }
+
+    fn services_hooks(
+        store: &Rc<platform::MemoryStore>,
+        http: &Rc<FakeHttp>,
+        log: &Rc<RefCell<Vec<String>>>,
+    ) -> ModHooks {
+        let log = Rc::clone(log);
+        let mut r = ClientRegistry::new();
+        r.add_built(
+            "services",
+            ModBuild {
+                version: Version::new(1, 0, 0),
+                caps: all_caps(),
+                code_hash: [2; 16],
+            },
+            move || {
+                Box::new(Services {
+                    count: 0,
+                    tex: None,
+                    log: Rc::clone(&log),
+                })
+            },
+        );
+        let mut hook = ClientModsHook::new(r).unwrap();
+        let kv: Rc<dyn platform::KeyValueStore> = store.clone();
+        hook.bind(&HookEnv {
+            http: http.clone(),
+            server_url: "ws://h/ws".into(),
+            kv,
+        });
+        let mut hooks = ModHooks::new();
+        hooks.register(Box::new(hook));
+        hooks
+    }
+
+    fn services_set(hash: &Sha256) -> ClientEvent {
+        let mut ev = pack_set(hash, false);
+        if let ClientEvent::ModSet(v) = &mut ev {
+            v.mods[0].id = "services".into();
+        }
+        ev
+    }
+
+    fn f13(pressed: bool, repeat: bool, shift: bool) -> InputEvent {
+        InputEvent::Key(KeyEvent {
+            key: Key::Named(NamedKey::Escape),
+            code: Some("F13".into()),
+            pressed,
+            repeat,
+            modifiers: Modifiers {
+                shift,
+                ..Modifiers::default()
+            },
+        })
+    }
+
+    #[test]
+    fn a_mod_uses_every_service_and_its_state_survives_a_restart() {
+        let store = Rc::new(platform::MemoryStore::new());
+        let http = Rc::new(FakeHttp::default());
+        let hash = http.serve("http://h/mods/", &pack_bytes("services"));
+        let log: Rc<RefCell<Vec<String>>> = Rc::default();
+        let mut hooks = services_hooks(&store, &http, &log);
+        hooks.net_event(&services_set(&hash));
+
+        let world = crate::test_world::world();
+        let replica = ReplicaWorld::new(&world, 5);
+        let sampler = TerrainSampler::new(TerrainFrame::new(16, 10, true));
+        let grid = render::cutout::CutoutGrid::for_map(16, 10, true);
+        let info = FrameInfo {
+            dt: 0.016,
+            world: Some(&replica),
+            terrain: Some(&sampler),
+            cutout_grid: Some(grid),
+            screen: (1280, 720, 1.0),
+            ..FrameInfo::default()
+        };
+        // The pack arrives during the first frames; the frame reads the world and the ground.
+        hooks.frame(&info);
+        hooks.frame(&info);
+        let l = log.borrow().clone();
+        assert!(
+            l[0].contains(&format!("turn={}", world.turn)) && l[0].contains("built=true"),
+            "{l:?}"
+        );
+
+        // The hotkey is taken once the UI has not used the key; claim_input (before the UI) leaves it alone.
+        assert!(!hooks.claim_input(&f13(true, false, false)).taken);
+        assert!(hooks.unclaimed_input(&f13(true, false, false)).taken);
+        // A repeat of the held key is swallowed, not fired; a release and a chord with Shift are not the hotkey.
+        assert!(hooks.unclaimed_input(&f13(true, true, false)).taken);
+        assert!(!hooks.unclaimed_input(&f13(false, false, false)).taken);
+        assert!(!hooks.unclaimed_input(&f13(true, false, true)).taken);
+
+        let req = hooks.take_requests();
+        assert_eq!(req.sounds.len(), 1, "one press, one sound");
+        assert_eq!(req.sounds[0].sound, "sounds/dig");
+        assert_eq!(req.cutouts.len(), 1);
+        assert_eq!(req.textures.len(), 1);
+        assert_eq!(store.get("civ5.mod.services.count").as_deref(), Some("1"));
+        assert_eq!(store.get("count"), None, "keys are namespaced");
+
+        let mut list = UiDrawList::new();
+        hooks.hud(&info, &mut list);
+        assert_eq!(list.commands().len(), 1);
+        assert_eq!(list.commands()[0].texture, req.textures[0].0);
+
+        // The game ends: the cutout is taken back.
+        hooks.net_event(&ClientEvent::Detached(protocol::DetachReason::Left));
+        let end = hooks.take_requests();
+        assert_eq!(end.cutouts, [crate::mod_hooks::CutoutCmd::Clear]);
+
+        // A new run of the client with the same store: the mod starts from the saved count.
+        let mut hooks2 = services_hooks(&store, &http, &log);
+        hooks2.net_event(&services_set(&hash));
+        hooks2.frame(&info);
+        hooks2.frame(&info);
+        assert!(hooks2.unclaimed_input(&f13(true, false, false)).taken);
+        assert_eq!(store.get("civ5.mod.services.count").as_deref(), Some("2"));
+    }
+
+    #[test]
+    fn without_a_game_the_hotkey_is_nobodys() {
+        let store = Rc::new(platform::MemoryStore::new());
+        let http = Rc::new(FakeHttp::default());
+        let log = Rc::default();
+        let mut hooks = services_hooks(&store, &http, &log);
+        assert!(!hooks.unclaimed_input(&f13(true, false, false)).taken);
     }
 }

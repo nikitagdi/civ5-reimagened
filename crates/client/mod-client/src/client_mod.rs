@@ -7,15 +7,9 @@ use platform::InputEvent;
 use crate::ctx::ClientCtx;
 use crate::types::{AttachInfo, Claim, FrameOut};
 
-/// A render system a mod contributes to `MainSlot::Mod`.
-///
-/// STAND-IN (T25/T36): replaced by the engine's `RenderSystem` once `SystemId::Mod` exists. It is a trait here so
-/// the dispatcher and the capability gate (`render.pipeline`) can be built and tested without wgpu; `mod-client`
-/// deliberately does not depend on `render`.
-pub trait ModRenderSystem {
-    /// Name for perf scopes and logs.
-    fn name(&self) -> &str;
-}
+/// A render system a mod contributes to `MainSlot::Mod`: the engine's own `render::frame::RenderSystem` trait. Its id
+/// must be `SystemId::Mod(_)`; the host renumbers it so that two mods never clash.
+pub use render::frame::RenderSystem as ModRenderSystem;
 
 /// The client half of a mod. One instance per game; all calls run on the main thread, in load order.
 ///
@@ -54,7 +48,8 @@ pub trait ClientMod {
     /// Draws HUD into the list that is rendered after the game's UI (needs `hud`).
     fn hud(&mut self, _cx: &mut dyn ClientCtx, _list: &mut UiDrawList) {}
 
-    /// Called once after `attach` to collect render systems (needs `render.pipeline`).
+    /// Called once, when the renderer is there (after `attach`), to collect render systems (needs `render.pipeline`).
+    /// Build the pipelines from `ClientCtx::gpu()`.
     fn render_systems(&mut self, _cx: &mut dyn ClientCtx) -> Vec<Box<dyn ModRenderSystem>> {
         Vec::new()
     }

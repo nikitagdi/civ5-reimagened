@@ -5,8 +5,9 @@
 //! wgpu object. The dispatcher runs the mods in load order, checks their capabilities, and is a no-op with no mods
 //! (D11). It needs no window or GPU, so a mod's behaviour is testable with [`testing::MockClientCtx`].
 //!
-//! Some hook types do not exist in the engine yet; this crate carries marked stand-ins (`CameraOverride`,
-//! `ModRenderSystem`, `CutoutRegion`) that the wiring task T36 replaces or connects.
+//! The few engine types a client mod needs are the engine's own, re-exported here (`render`): the camera
+//! (`ModCamera`, `FirstPerson`), the cutout region and grid, the render system and `ModGpu` (see [`gpu`]). A mod
+//! crate depends on `mod-client` only (rule R11).
 //!
 //! ```
 //! use mod_api::{Cap, Caps, Version};
@@ -44,6 +45,7 @@
 
 mod client_mod;
 mod ctx;
+mod hotkeys;
 mod kv;
 mod registry;
 pub mod testing;
@@ -54,9 +56,23 @@ pub use ctx::{
     ClientCtx, ClientHost, CtxError, CutoutMask, Guarded, Hotkeys, HudTextures, ModAssets,
     ModAudio, ModKv, ModTerrain, ModWorld,
 };
+pub use hotkeys::{HotkeyTable, KeyUse, game_key};
 pub use kv::{KV_KEY_MAX, KV_VALUE_MAX, NamespacedKv};
 pub use registry::{ClientRegistry, ModDispatcher};
+pub use render::cutout::{CutoutGrid, CutoutRegion};
 pub use types::{
-    AttachInfo, CameraOverride, Claim, CutoutRegion, FrameOut, HotkeySpec, ModBuild, ModInfo,
-    PackState, PlayOpts, PlayerInfo, PlotView, ScreenInfo, SetEntry,
+    AttachInfo, Claim, FrameOut, HotkeySpec, ModBuild, ModInfo, PackState, PlayOpts, PlayerInfo,
+    PlotView, ScreenInfo, SetEntry,
 };
+
+/// The engine types behind the hooks, for mods that draw or move the camera. A mod does not name the `render` or
+/// `wgpu` crates: R11 lets it depend on `mod-client` only.
+pub mod gpu {
+    pub use render::frame::{
+        DrawContext, FrameShared, InitContext, MainSlot, ModGpu, PassSlot, PrepareContext,
+        RenderSystem, SystemId,
+    };
+    pub use render::glam;
+    pub use render::wgpu;
+    pub use render::{CameraHints, CameraView, FirstPerson, ModCamera};
+}

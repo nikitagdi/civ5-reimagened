@@ -16,6 +16,8 @@ mod-api.workspace = true
 mod-manifest.workspace = true
 platform.workspace = true
 draw-list.workspace = true
+# The engine types a mod meets (D2 exception, see the spec): the camera, the cutout region, the render system.
+render.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

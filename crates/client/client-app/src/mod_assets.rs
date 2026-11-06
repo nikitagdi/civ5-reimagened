@@ -81,7 +81,7 @@ struct Slot {
     required: bool,
     fetch: Option<PackFetch>,
     state: PackState,
-    pack: Option<Pack>,
+    pack: Option<Rc<Pack>>,
     /// The state changed since `poll` last reported it.
     fresh: bool,
 }
@@ -170,7 +170,7 @@ impl PackSet {
                 s.fresh = true;
                 match r {
                     Ok(pack) => {
-                        s.pack = Some(pack);
+                        s.pack = Some(Rc::new(pack));
                         s.state = PackState::Ready;
                     }
                     Err(FetchError::Missing) => s.state = PackState::Missing,
@@ -192,6 +192,11 @@ impl PackSet {
     /// The mod the next `ModAssets` calls are about.
     pub fn select(&mut self, mod_idx: u16) {
         self.cur = mod_idx;
+    }
+
+    /// The verified pack of `mod_idx`, once it is `Ready`.
+    pub fn pack_of(&self, mod_idx: u16) -> Option<Rc<Pack>> {
+        self.slots.get(&mod_idx)?.pack.clone()
     }
 
     /// State of the pack of `mod_idx` (`Missing` for a mod with no slot).

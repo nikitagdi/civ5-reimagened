@@ -2104,6 +2104,7 @@ dependencies = [
  "mod-api",
  "mod-manifest",
  "platform",
+ "render",
  "thiserror 2.0.21",
 ]
 

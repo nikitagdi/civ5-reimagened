@@ -3,6 +3,7 @@
 
 use mod_api::{PlayerId, PlotClass, Version};
 use mod_manifest::ModId;
+use render::ModCamera;
 
 /// One mod of the game as the client sees it: its place in the resolved load order and what it may do.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,32 +42,26 @@ pub enum Claim {
     Consume,
 }
 
-/// A camera the mod wants instead of the strategic one for this frame.
-///
-/// STAND-IN (T27/T36): replaced by the engine's `CameraView` override (near/far/FOV, shadow range, far-LOD distance,
-/// terrain focus, listener position). Only values: the host builds its camera from these.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct CameraOverride {
-    /// Eye position in world units.
-    pub eye: [f32; 3],
-    /// Rotation around the vertical axis, radians.
-    pub yaw: f32,
-    /// Up/down rotation, radians (negative looks down).
-    pub pitch: f32,
-    pub near: f32,
-    pub far: f32,
-    pub fov_y_deg: f32,
-    /// Virtual focus for streaming, audio listener, labels and minimap: world XZ.
-    pub focus_xz: [f32; 2],
-}
-
 /// What a mod returns from `frame`.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[derive(Default)]
 pub struct FrameOut {
-    /// Camera override for this frame (needs the `camera` capability). The first mod in load order wins.
-    pub camera: Option<CameraOverride>,
+    /// The camera the mod wants instead of the strategic one for this frame (needs the `camera` capability). The
+    /// first mod in load order wins. `render::FirstPerson` is a ready one; a mod may implement `ModCamera` itself
+    /// (planes, shadow range, far-LOD distance, terrain focus, listener position). While a camera is returned the app
+    /// moves the strategic camera to its `terrain_focus`, so labels, minimap, picking and world sound follow.
+    pub camera: Option<Box<dyn ModCamera>>,
     /// Hide the game's own UI while the mod owns the screen (needs `input.claim`).
     pub suppress_ui: bool,
+}
+
+impl FrameOut {
+    /// A frame that holds the camera.
+    pub fn with_camera(camera: impl ModCamera + 'static) -> Self {
+        Self {
+            camera: Some(Box::new(camera)),
+            suppress_ui: false,
+        }
+    }
 }
 
 /// A player in the game, as the replica knows them.
@@ -165,27 +160,6 @@ pub enum PackState {
     Missing,
     /// Fetched but rejected (hash, lock or format).
     Failed(String),
-}
-
-/// Columns of the terrain mask a mod writes (D13): a rectangle of the column grid, the same fields as
-/// `render::cutout::CutoutRegion`. `x0` is a block column (it wraps at `width * 16`), `z0` the block row
-/// of the first row (negative on a map), one byte per column, row by row, above 0 is cut.
-///
-/// TO-BE-WIRED (T36): `ClientCtx::set_cutout_mask` calls `Renderer::set_cutout_mask` with the render's
-/// type of the same shape.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CutoutRegion {
-    pub x0: i32,
-    pub z0: i32,
-    pub width: u32,
-    pub height: u32,
-}
-
-impl CutoutRegion {
-    /// Number of bytes a mask for this region holds.
-    pub fn byte_len(&self) -> usize {
-        self.width as usize * self.height as usize
-    }
 }
 
 /// What this binary knows about a mod it contains, declared next to its registration: the version and the

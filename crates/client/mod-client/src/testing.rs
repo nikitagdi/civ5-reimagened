@@ -7,14 +7,13 @@ use std::collections::BTreeMap;
 
 use draw_list::TextureId;
 use mod_api::{Cap, ChannelId, LogLevel, MapShape, PlayerId, PlotClass, PlotIdx};
+use render::cutout::{CutoutGrid, CutoutRegion};
 
 use crate::ctx::{
     ClientCtx, ClientHost, CtxError, CutoutMask, Hotkeys, HudTextures, ModAssets, ModAudio, ModKv,
     ModTerrain, ModWorld,
 };
-use crate::types::{
-    CutoutRegion, HotkeySpec, PackState, PlayOpts, PlayerInfo, PlotView, ScreenInfo,
-};
+use crate::types::{HotkeySpec, PackState, PlayOpts, PlayerInfo, PlotView, ScreenInfo};
 
 /// A message `send` recorded.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -298,9 +297,14 @@ impl HudTextures for MockHud {
 pub struct MockCutout {
     pub writes: Vec<(CutoutRegion, Vec<u8>)>,
     pub cleared: u32,
+    /// The column grid the mock reports (`None`: no map yet; regions are not range-checked then).
+    pub grid: Option<CutoutGrid>,
 }
 
 impl CutoutMask for MockCutout {
+    fn grid(&self) -> Option<CutoutGrid> {
+        self.grid
+    }
     fn set_cutout_mask(&mut self, region: CutoutRegion, bytes: &[u8]) -> Result<(), CtxError> {
         if bytes.len() != region.byte_len() {
             return Err(CtxError::Rejected(format!(

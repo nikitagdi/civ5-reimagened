@@ -187,7 +187,7 @@ mod tests {
             dt,
             now_ms: 0,
             focus: Vec2::new(40.0, -30.0),
-            terrain: None,
+            ..FrameInfo::default()
         }
     }
 
