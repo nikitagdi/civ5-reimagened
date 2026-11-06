@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::context::{ContextMsg, Focus};
 use crate::lobby::{GameSetup, LobbyChoices, SlotSetup};
+use crate::mods::ModsSection;
 use crate::replica::{GcBlobRef, GcPatchRef};
 use crate::stream::{Cmd, CmdId, CommandResult, TurnMode, TurnPhase};
 use crate::view::ViewDiff;
@@ -16,7 +17,7 @@ use crate::world::{
 
 /// Version of this IPC contract. The first frame of the gateway (`ToWorker::Init`) names it; a worker of
 /// another version answers `Fatal`.
-pub const IPC_VERSION: u32 = 7;
+pub const IPC_VERSION: u32 = 8;
 
 // ---------------------------------------------------------------- gateway -> worker
 
@@ -55,6 +56,9 @@ pub enum ToWorker {
     Net { player: PlayerId, msgs: Vec<u8> },
     /// Tag 10 (v4): a fresh replica snapshot for this seat at the next safe point (`ClientMsg::GcResync`).
     ReplicaSnapshot { player: PlayerId },
+    /// Tag 11 (v8): the mods block (frozen set and mod states) that every save from now on carries as its `MODS`
+    /// section. Sent only for a game with mods, whenever a mod's state changed and before an explicit save.
+    Mods(ModsSection),
 }
 
 /// What happens to a seat (`ToWorker::Seat`, `WorkerMsg::SeatDone`).
@@ -327,6 +331,10 @@ pub enum WorkerMsg {
         what: String,
         begin: bool,
     },
+    /// Tag 25 (v8): the `MODS` section of the save the worker loaded (`Start::Load`), sent before `Ready` and only when
+    /// the save has one. The gateway starts the server halves of the mods from it (a worker that restarts from an
+    /// older save rewinds the mods with it).
+    ModsLoaded(ModsSection),
 }
 
 /// Which part of the game a recorded journal batch belongs to (`WorkerMsg::RecJournal`).
@@ -598,6 +606,7 @@ mod tests {
                 msgs: vec![1, 2, 3],
             },
             ToWorker::ReplicaSnapshot { player: 2 },
+            ToWorker::Mods(mods_section()),
         ]
     }
 
@@ -776,7 +785,18 @@ mod tests {
                 what: "a step".into(),
                 begin: true,
             },
+            WorkerMsg::ModsLoaded(mods_section()),
         ]
+    }
+
+    fn mods_section() -> ModsSection {
+        ModsSection {
+            lock: "lock".into(),
+            states: vec![crate::ModState {
+                id: "m".into(),
+                state: vec![1, 2],
+            }],
+        }
     }
 
     fn rt<C: Codec, T>(codec: &C, v: &T)
@@ -851,7 +871,7 @@ mod tests {
     #[test]
     fn tag_stability_to_worker() {
         let tags: Vec<u8> = to_worker().iter().map(|m| tag(m)[0]).collect();
-        assert_eq!(tags, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        assert_eq!(tags, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
         assert_eq!(
             tag(&ToWorker::WantFull {
                 player: 2,
@@ -898,7 +918,7 @@ mod tests {
     fn tag_stability_worker_msg() {
         let mut msgs = worker_msgs();
         let tags: Vec<u8> = msgs.iter().map(|m| tag(m)[0]).collect();
-        assert_eq!(tags, (0..=24).collect::<Vec<u8>>());
+        assert_eq!(tags, (0..=25).collect::<Vec<u8>>());
         assert_eq!(tag(&RecPhase::Human), [0]);
         assert_eq!(tag(&RecPhase::Ai), [1]);
         assert_eq!(tag(&RecPhase::Cut), [2]);

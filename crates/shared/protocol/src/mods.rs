@@ -159,3 +159,31 @@ impl Default for ModPlan {
         ModPlan::Ok(Vec::new())
     }
 }
+
+/// Longest `mods.lock` text of a [`ModsSection`], bytes.
+pub const MAX_MODS_LOCK: usize = 256 * 1024;
+
+/// The mods block of a save (`MODS` section of `C5SV`) and of the gateway-worker IPC (`ToWorker::Mods`,
+/// `WorkerMsg::ModsLoaded`): the frozen set of the game and the state of each server-side mod. Opaque to the
+/// worker (it does not know the manifest types): `lock` is the `mods.lock` text (it carries the set hash), and the
+/// mod host checks it with `mod_manifest::parse_lock`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModsSection {
+    pub lock: String,
+    /// `persist()` of every server-side mod that has state, by mod id, in load order.
+    pub states: Vec<ModState>,
+}
+
+/// The saved state of one server-side mod.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModState {
+    pub id: String,
+    pub state: Vec<u8>,
+}
+
+impl ModsSection {
+    /// The bounds that protect a reader from a damaged or hostile file or frame.
+    pub fn within_limits(&self) -> bool {
+        self.lock.len() <= MAX_MODS_LOCK && self.states.len() <= MAX_MODS
+    }
+}

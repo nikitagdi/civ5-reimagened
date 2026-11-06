@@ -228,6 +228,9 @@ pub struct Worker<C: Core> {
     pub(crate) settings: Option<GameSettings>,
     /// Saves: what is due, what is being written.
     pub(crate) saves: SaveState,
+    /// The mods block every save carries (`MODS`): from the loaded save, then from the gateway (`ToWorker::Mods`).
+    /// `None`: a game without mods, no section is written.
+    pub(crate) mods: Option<protocol::ModsSection>,
     /// After a load: the owners of the slots the gateway named, applied at the first safe point.
     pub(crate) load_controls: Option<Vec<(PlayerId, SlotControl)>>,
     /// The replica stream (`replica.rs`).
@@ -304,6 +307,7 @@ impl<C: Core> Worker<C> {
             times: StepTimes::default(),
             settings: None,
             saves: SaveState::new(!init.save_dir.is_empty(), now_ms),
+            mods: None,
             load_controls: None,
             rep: ReplicaState::new(),
             tl: Timeline::new(u64::from(init.game)),
@@ -401,6 +405,11 @@ impl<C: Core> Worker<C> {
         self.core.start(CoreStart::Load(&save.gcs1))?;
         self.turn = save.info.header.turn;
         fb.head.push(self.catalog_msg()?);
+        if let Some(m) = &save.mods {
+            // The gateway starts the server halves of the mods from the state of this very save.
+            self.mods = Some(m.clone());
+            fb.head.push(WorkerMsg::ModsLoaded(m.clone()));
+        }
         self.map = self.core.map();
         // The owners of the gateway are the truth; a slot it does not name stays as the core holds it.
         let mut seats = self.core.seats()?;
@@ -913,6 +922,11 @@ impl<C: Core> Worker<C> {
             ToWorker::Shutdown { save } => self.shutdown(save, fb)?,
             ToWorker::Net { player, msgs } => self.replica_net(player, msgs, fb),
             ToWorker::ReplicaSnapshot { player } => self.replica_resync(player),
+            // A block that does not fit the bounds of the section would make every save fail: it is dropped.
+            ToWorker::Mods(m) if m.within_limits() => self.mods = Some(m),
+            ToWorker::Mods(_) => {
+                tracing::warn!("the mods block of the gateway is too big, ignored")
+            }
         }
         Ok(())
     }

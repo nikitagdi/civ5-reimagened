@@ -50,9 +50,6 @@ const TAG_MODS: [u8; 4] = *b"MODS";
 /// Most sections a header lists, and the biggest core save after unpacking: bounds for a damaged file.
 const MAX_SECTIONS: usize = 32;
 const MAX_GCS1: usize = 1 << 30;
-/// Bounds for the `MODS` section of a damaged or hostile file: the `mods.lock` text and the number of mod states.
-const MAX_MODS_LOCK: usize = 256 * 1024;
-const MAX_MODS_STATES: usize = protocol::MAX_MODS;
 
 /// Directories of a game's save directory.
 pub const RING_DIR: &str = "ring";
@@ -74,28 +71,7 @@ pub struct SaveHeader {
     pub build_id: String,
 }
 
-/// `MODS`: the frozen mod set of the game and the state of each server-side mod. Opaque to this crate (it does
-/// not know the manifest types): `lock` is the `mods.lock` text of the set (it carries the set hash), and the
-/// mod host checks it with `mod_manifest::parse_lock`.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct ModsSection {
-    pub lock: String,
-    /// `persist()` of every server-side mod that has state, by mod id, in load order.
-    pub states: Vec<ModState>,
-}
-
-/// The saved state of one server-side mod.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct ModState {
-    pub id: String,
-    pub state: Vec<u8>,
-}
-
-impl ModsSection {
-    fn within_limits(&self) -> bool {
-        self.lock.len() <= MAX_MODS_LOCK && self.states.len() <= MAX_MODS_STATES
-    }
-}
+pub use protocol::{ModState, ModsSection};
 
 /// The sections of a save besides the core's own.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -541,7 +517,9 @@ pub fn ring_excess(seqs: &[u64], ring: usize) -> Vec<u64> {
 
 #[cfg(test)]
 mod tests {
-    use protocol::{AutoChoices, CivPick, JournalKind, SlotControl, TimerMode, TurnMode};
+    use protocol::{
+        AutoChoices, CivPick, JournalKind, MAX_MODS_LOCK, SlotControl, TimerMode, TurnMode,
+    };
 
     use super::*;
 
