@@ -457,11 +457,35 @@ pub fn reject_text(reason: &RejectReason) -> Option<(&'static str, Option<ErrorB
     })
 }
 
+/// The lines of a `ModMismatch` refusal for the player: what the game needs of the client, one mod per line.
+/// The server writes the problems in full sentences; at most `MOD_PROBLEM_LINES` are shown.
+pub fn mod_mismatch_text(problems: &[protocol::ModProblem]) -> String {
+    const MOD_PROBLEM_LINES: usize = 6;
+    let mut text = String::from("This game needs mods your client does not have.");
+    for p in problems.iter().take(MOD_PROBLEM_LINES) {
+        text.push('\n');
+        text.push_str(&p.text);
+    }
+    if problems.len() > MOD_PROBLEM_LINES {
+        text.push_str(&format!(
+            "\n...and {} more.",
+            problems.len() - MOD_PROBLEM_LINES
+        ));
+    }
+    text
+}
+
 /// SIMPLIFIED(SIMP-uic-62): the sign-in is our own account page (the web page shows this view).
 pub fn login_view(nick: &str, server: &str, rejected: Option<&RejectReason>) -> LoginView {
-    let (error, button) = match rejected.and_then(reject_text) {
-        Some((text, button)) => (Some(text.to_owned()), button),
-        None => (None, None),
+    let (error, button) = match rejected {
+        // The reason carries the sentences of the server: they are what the player needs to read.
+        Some(RejectReason::ModMismatch(problems)) if !problems.is_empty() => {
+            (Some(mod_mismatch_text(problems)), None)
+        }
+        other => match other.and_then(reject_text) {
+            Some((text, button)) => (Some(text.to_owned()), button),
+            None => (None, None),
+        },
     };
     LoginView {
         nick: nick.to_owned(),
@@ -1169,6 +1193,7 @@ fn refusal_text(e: OrderRefused) -> &'static str {
         OrderRefused::NoGame => "Not now",
         OrderRefused::TooMany => "Too many requests, wait a moment",
         OrderRefused::TurnChanged => "The turn has changed",
+        OrderRefused::TooBig => "The message is too big",
     }
 }
 
@@ -1887,6 +1912,30 @@ Building: Baths"
         let v = login_view("alice", "ws://h/ws", Some(&RejectReason::BadPassword));
         assert_eq!(v.error.as_deref(), Some("Wrong nick or password."));
         assert_eq!(login_view("a", "s", None).error, None);
+    }
+
+    #[test]
+    fn a_mod_mismatch_shows_what_the_server_says() {
+        let p = |t: &str| protocol::ModProblem { text: t.into() };
+        let r = RejectReason::ModMismatch(vec![
+            p("mod `hello` 0.1.0 is required to play this game, your client does not have it"),
+            p("mod `other` 2.0.0 is required to play this game, your client has version 1.0.0"),
+        ]);
+        let v = login_view("alice", "ws://h/ws", Some(&r));
+        let text = v.error.expect("an error");
+        assert!(text.starts_with("This game needs mods your client does not have."));
+        assert_eq!(text.lines().count(), 3);
+        assert!(text.contains("`hello` 0.1.0") && text.contains("has version 1.0.0"));
+        // Many problems are cut; an empty list falls back to the plain sentence.
+        let many = RejectReason::ModMismatch((0..9).map(|i| p(&format!("m{i}"))).collect());
+        let t = login_view("a", "s", Some(&many)).error.unwrap();
+        assert_eq!(t.lines().count(), 8);
+        assert!(t.ends_with("...and 3 more."));
+        let none = RejectReason::ModMismatch(vec![]);
+        assert_eq!(
+            login_view("a", "s", Some(&none)).error.as_deref(),
+            Some("The game needs mods this client does not have.")
+        );
     }
 
     #[test]

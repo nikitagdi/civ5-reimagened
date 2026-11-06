@@ -14,6 +14,9 @@ layer = "client"
 [dependencies]
 protocol.workspace = true
 wire.workspace = true
+# The client halves of mods (T35): the dispatcher is driven from here, the host supplies the services.
+mod-client.workspace = true
+mod-api.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 

@@ -6,6 +6,10 @@
 pub struct NetConfig {
     pub build: String,
     pub nick: String,
+    /// The mod API the client speaks and the mods it has built in, for `ModHello` (T35). Empty: no `ModHello` is
+    /// sent (to the server that is the same as an empty list).
+    pub mod_api: (u16, u16, u16),
+    pub built_in: Vec<protocol::BuiltMod>,
     /// Seed of the jitter generator (reconnect pauses); tests fix it.
     pub jitter_seed: u64,
     /// Application `Ping` period. Visible tab only.
@@ -56,6 +60,8 @@ impl NetConfig {
         NetConfig {
             build: build.into(),
             nick: nick.into(),
+            mod_api: (1, 0, 0),
+            built_in: Vec::new(),
             jitter_seed: 0x9E37_79B9_7F4A_7C15,
             ping_interval_ms: 2_000,
             poor_after_ms: 4_000,

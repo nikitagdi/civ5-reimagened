@@ -161,6 +161,8 @@ impl NetLink {
                     | ClientEvent::GameCtlRejected { .. }
                     | ClientEvent::HostChanged { .. }
                     | ClientEvent::EndTurnCancelled { .. }
+                    | ClientEvent::ModSet(_)
+                    | ClientEvent::ModMsg(_)
             ) {
                 self.game_events.push(ev);
             }
@@ -502,8 +504,11 @@ impl App {
                 Some(url) => AddrContext::Page { url },
                 None => AddrContext::Desktop,
             };
+            // The mods built in tell the server in the handshake (`ModHello`); no mods, no change.
+            let mut net_config = NetConfig::new(config.build.clone(), nick);
+            hooks.configure_net(&mut net_config);
             match NetClient::new(
-                NetConfig::new(config.build.clone(), nick),
+                net_config,
                 ctx,
                 Some(&config.server_url),
                 transport,
@@ -1323,6 +1328,11 @@ impl App {
         };
         let now = self.clock.now_ms();
         for ev in events {
+            // The client halves of mods see the set, their messages and the game's attach and detach.
+            if !self.hooks.is_empty() {
+                let lock = self.hooks.net_event(&ev);
+                self.apply_pointer_request(lock);
+            }
             self.hud.on_game_event(&ev, now);
             // The original UI's end of turn: a refusal brings the end-turn button back (live game 931).
             if let Some(m2) = self.m2.as_mut() {
@@ -1373,6 +1383,12 @@ impl App {
                 }
                 _ => {}
             }
+        }
+        // What the mods sent since the last frame goes out as `ClientMsg::Mod`.
+        if !self.hooks.is_empty()
+            && let Link::Net(n) = &self.net
+        {
+            n.handle.with(|core| self.hooks.flush_net(core));
         }
     }
 

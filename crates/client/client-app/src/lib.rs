@@ -84,6 +84,7 @@ pub mod map_camera;
 pub mod map_labels;
 pub mod minimap_image;
 pub mod mod_hooks;
+pub mod mod_net;
 pub mod net;
 pub mod net_ui;
 pub mod original_ui;

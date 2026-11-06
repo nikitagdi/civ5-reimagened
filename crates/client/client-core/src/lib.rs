@@ -10,6 +10,7 @@ mod config;
 mod conn;
 mod contexts;
 mod lobby_model;
+mod mods;
 mod orders;
 mod overlay;
 mod session;
@@ -33,6 +34,7 @@ pub use contexts::{
     ContextView, Contexts, Ctx, FOCUS_NEXT, FocusPlan, OrderSink, UnitContextExt, unit_of,
 };
 pub use lobby_model::{HostChange, HostWatch, LobbyModel};
+pub use mods::{ModNet, NetHost, OutgoingMod};
 pub use protocol::{GcBase, GcBlobRef, GcJournal, GcPatchRef, GcResyncReason, GcTurn};
 pub use session::{AttachInfo, NoticeKind};
 pub use stats::{ClientStats, NeedKeyframeCounts};
@@ -55,6 +57,8 @@ pub enum OrderRefused {
     TooMany,
     /// The picture the order was given on is of a turn the server has left: the order does nothing (B1).
     TurnChanged,
+    /// A mod message over the payload limit of the protocol (T35).
+    TooBig,
 }
 
 /// What the screens show (`lobby-ui`). Computed from the session and the events; it decides nothing.
@@ -147,6 +151,11 @@ pub enum ClientEvent {
     },
     /// A message of the replica stream, in order (`Replica::on_msg`).
     Replica(ReplicaMsg),
+    /// v13: the frozen mod set of the game, the first message of every fresh stream (`ModNet::on_event` attaches
+    /// the client halves).
+    ModSet(protocol::ModSetView),
+    /// v13: a message of a mod's server half, in stream order after the set.
+    ModMsg(protocol::ModS2C),
 }
 
 pub struct ClientCore {
@@ -483,6 +492,23 @@ impl ClientCore {
             at_jseq,
             reason,
         });
+        Ok(())
+    }
+
+    /// v13: a message of a mod's client half to its server half (`ClientMsg::Mod`). Refused like an order when
+    /// there is no connection or game, and when the payload is over `MOD_PAYLOAD_MAX`; the channel limits and the
+    /// rate are the server's to enforce (D7).
+    pub fn send_mod(&mut self, mod_idx: u16, ch: u8, payload: Vec<u8>) -> Result<(), OrderRefused> {
+        self.refusal(true)?;
+        let msg = protocol::ModC2S {
+            mod_idx,
+            ch,
+            payload,
+        };
+        if !msg.within_limits() {
+            return Err(OrderRefused::TooBig);
+        }
+        self.send_current(&ClientMsg::Mod(msg));
         Ok(())
     }
 
@@ -947,10 +973,20 @@ impl ClientCore {
         });
     }
 
+    /// `Hello`, then `ModHello` (v13: before `Login`, which may attach to a running game at once) when the client
+    /// has mods built in, then `Login`. A client with no mods sends no `ModHello`: to the server that is the same
+    /// as an empty list, and the traffic stays what it was.
     fn send_hello_login(&mut self, sock: Sock) {
-        for msg in self.sess.hello_login(&self.cfg.build) {
-            self.send(sock, &msg);
+        let [hello, login] = self.sess.hello_login(&self.cfg.build);
+        self.send(sock, &hello);
+        if !self.cfg.built_in.is_empty() {
+            let mods = ClientMsg::ModHello {
+                api: self.cfg.mod_api,
+                built_in: self.cfg.built_in.clone(),
+            };
+            self.send(sock, &mods);
         }
+        self.send(sock, &login);
     }
 
     fn send_current(&mut self, msg: &ClientMsg) {
@@ -1265,7 +1301,9 @@ impl ClientCore {
         }
         self.apply_effects(fx);
         let replica = self.stream.take_replica();
+        let mods = self.stream.take_mods();
         if !broken {
+            self.events.extend(mods);
             self.stats.replica_msgs += replica.len() as u64;
             self.events
                 .extend(replica.into_iter().map(ClientEvent::Replica));
