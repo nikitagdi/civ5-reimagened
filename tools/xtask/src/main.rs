@@ -5,6 +5,7 @@ mod deploy;
 mod exe_api_coverage;
 mod graph;
 mod meta;
+mod mods;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -1613,6 +1614,7 @@ fn main() -> Result<()> {
         "web-selftest" => cmd_web_selftest(&root, rest),
         "bench" => cmd_bench(&root, rest),
         "nettest" => cmd_nettest(&root, rest),
+        "mods" => mods::cmd_mods(&root, rest),
         "dist" => deploy::cmd_dist(&root, rest).map(|_| ()),
         "deploy" => deploy::cmd_deploy(&root, rest),
         // Debug: list the import modules of an arbitrary .wasm.

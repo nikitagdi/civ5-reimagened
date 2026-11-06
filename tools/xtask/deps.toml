@@ -43,3 +43,11 @@ allowed = ["replica"]
 [[r10.direct]]
 target = "gamecore-sys"
 allowed = []
+
+[r11]
+# R11 (mods): the workspace crates that the halves of a mod may depend on directly (besides the mod's own shared
+# crates). A server half: the mod API and the manifest types; a client half: `mod-client` only. Dev-dependencies are
+# exempt (tests may use client crates, e.g. `hexgrid` for a plot lookup). Adding a crate here exposes it to every
+# mod: change only through review.
+server_allowed = ["mod-api", "mod-manifest"]
+client_allowed = ["mod-client"]

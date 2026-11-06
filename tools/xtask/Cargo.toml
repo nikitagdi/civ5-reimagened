@@ -16,3 +16,7 @@ cargo_metadata.workspace = true
 serde.workspace = true
 toml.workspace = true
 anyhow.workspace = true
+# `mods check` / `mods build`: the manifest, the resolver and the lock format; the content hash of an installed mod.
+mod-manifest.workspace = true
+mod-api.workspace = true
+mod-host-server.workspace = true

@@ -10,12 +10,17 @@ use crate::graph::{EdgeKind, Graph, Layer};
 
 // Without all_features, optional deps behind non-default features are not resolved.
 pub fn load(root: &Path, triple: &str, all_features: bool) -> Result<Metadata> {
+    load_manifest(&root.join("Cargo.toml"), triple, all_features)
+}
+
+/// Like [`load`] for any `Cargo.toml` (the generated dist workspace).
+pub fn load_manifest(manifest: &Path, triple: &str, all_features: bool) -> Result<Metadata> {
     let mut opts = vec!["--filter-platform".to_string(), triple.to_string()];
     if all_features {
         opts.push("--all-features".to_string());
     }
     MetadataCommand::new()
-        .manifest_path(root.join("Cargo.toml"))
+        .manifest_path(manifest)
         .other_options(opts)
         .exec()
         .with_context(|| {
@@ -27,6 +32,26 @@ pub fn load(root: &Path, triple: &str, all_features: bool) -> Result<Metadata> {
 
 /// Returns the graph and layer errors (crate without a layer, or with an unknown one).
 pub fn build_graph(md: &Metadata) -> Result<(Graph, Vec<String>)> {
+    build_graph_of(md, md.workspace_members.iter().collect())
+}
+
+/// The graph of a dist workspace: its crates are path dependencies outside the dist workspace root, not
+/// workspace members, so every package without a registry or git source counts as a crate of ours (each needs a
+/// layer).
+pub fn build_graph_local(md: &Metadata) -> Result<(Graph, Vec<String>)> {
+    let local = md
+        .packages
+        .iter()
+        .filter(|p| p.source.is_none())
+        .map(|p| &p.id)
+        .collect();
+    build_graph_of(md, local)
+}
+
+fn build_graph_of(
+    md: &Metadata,
+    members: Vec<&cargo_metadata::PackageId>,
+) -> Result<(Graph, Vec<String>)> {
     let resolve = md
         .resolve
         .as_ref()
@@ -35,7 +60,7 @@ pub fn build_graph(md: &Metadata) -> Result<(Graph, Vec<String>)> {
     let mut g = Graph::default();
     let mut errors = Vec::new();
 
-    for id in &md.workspace_members {
+    for id in members {
         let Some(p) = by_id.get(id) else { continue };
         let layer = p
             .metadata
