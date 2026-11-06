@@ -909,16 +909,22 @@ fn cmd_dev(root: &Path, extra: &[String]) -> Result<()> {
         .cloned()
         .collect();
     // `--mods <file>` (and `--mod-packs <dir>`): the dist of that list instead of the public server and client.
-    let (mods_list, mod_packs, extra) = mods::dev::take_args(&extra)?;
+    // `--config <file>` is merged with `mods_dir` into a derived file; the caller's file is not written.
+    let mods::dev::ModsArgs {
+        list: mods_list,
+        packs: mod_packs,
+        config: user_config,
+        rest: extra,
+    } = mods::dev::take_args(&extra)?;
     let extra = &extra[..];
-    if mods_list.is_some() && wsl {
-        bail!("dev --mods does not run with --wsl yet: the dist is built for this machine");
-    }
-    if mods_list.is_some() && has_flag(extra, "--config") {
-        bail!("dev --mods writes the server config itself; `--config` cannot be combined with it");
-    }
     let dist = match &mods_list {
-        Some(list) => Some(mods::dev::prepare_dev(root, list, mod_packs.as_deref())?),
+        Some(list) => Some(mods::dev::prepare_dev(
+            root,
+            list,
+            mod_packs.as_deref(),
+            wsl,
+            user_config.as_deref(),
+        )?),
         None => None,
     };
     let web = match &dist {
@@ -1010,18 +1016,38 @@ fn cmd_dev(root: &Path, extra: &[String]) -> Result<()> {
     // WSL: the gateway with the real brain runs in Linux (the gamecore is a Linux library); the port is
     // forwarded to Windows, so `http://localhost:8080/healthz` answers from Windows too.
     let target = target_dir(root)?;
-    let wsl_target = target.join("wsl");
+    // The dist (`--mods`) has its own workspace, so its own target directory (`target/dist-wsl/target`).
+    let wsl_target = match &dist {
+        Some(d) => d
+            .manifest
+            .parent()
+            .context("dist manifest has no directory")?
+            .join("target"),
+        None => target.join("wsl"),
+    };
     let to_wsl = |p: &Path| windows_to_wsl_path(&p.to_string_lossy());
+    std::fs::create_dir_all(&wsl_target)?;
     let mut script = format!(
         "export CARGO_TARGET_DIR={} && cd {}",
-        sh_quote(&to_wsl(&wsl_target)?),
+        sh_quote(&to_wsl(&std::fs::canonicalize(&wsl_target)?)?),
         sh_quote(&to_wsl(root)?)
     );
     for (var, path) in GAMECORE_ENV.get().into_iter().flatten() {
         let dir = std::fs::canonicalize(path)?;
         script.push_str(&format!(" && export {var}={}", sh_quote(&to_wsl(&dir)?)));
     }
-    script.push_str(" && cargo run -p server --bin civ5-server --");
+    match &dist {
+        Some(d) => {
+            let manifest = std::fs::canonicalize(&d.manifest)?;
+            let config = std::fs::canonicalize(&d.config)?;
+            script.push_str(&format!(
+                " && cargo run --manifest-path {} -p dist-server --bin civ5-server -- --config {}",
+                sh_quote(&to_wsl(&manifest)?),
+                sh_quote(&to_wsl(&config)?)
+            ));
+        }
+        None => script.push_str(" && cargo run -p server --bin civ5-server --"),
+    }
     for f in &flags {
         script.push(' ');
         script.push_str(&sh_quote(f));

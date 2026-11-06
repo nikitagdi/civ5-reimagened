@@ -85,9 +85,28 @@ pub fn norm(p: &Path) -> Result<PathBuf> {
     })
 }
 
-/// `/`-separated form for generated manifests.
+thread_local! {
+    /// While set, [`toml_path`] writes drive paths as WSL paths (`/mnt/<drive>/...`).
+    static LINUX_PATHS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Runs `f` with [`toml_path`] writing Linux-visible paths: the dist for a build inside WSL (`dev --mods --wsl`).
+pub fn with_linux_paths<T>(f: impl FnOnce() -> T) -> T {
+    let before = LINUX_PATHS.with(|c| c.replace(true));
+    let out = f();
+    LINUX_PATHS.with(|c| c.set(before));
+    out
+}
+
+/// `/`-separated form for generated manifests (the WSL form of a drive path under [`with_linux_paths`]).
 pub fn toml_path(p: &Path) -> String {
-    p.to_string_lossy().replace('\\', "/")
+    let s = p.to_string_lossy();
+    if LINUX_PATHS.with(|c| c.get())
+        && let Ok(l) = crate::windows_to_wsl_path(&s)
+    {
+        return l;
+    }
+    s.replace('\\', "/")
 }
 
 /// The mods of the resolved set with the directories of their Rust halves.
@@ -236,8 +255,18 @@ fn wasm_bindgen_req(root: &Path) -> Result<String> {
 
 /// Writes (or refreshes) `target/dist/`. Files whose bytes are unchanged are left alone, so cargo's fingerprints hold.
 pub fn generate(root: &Path, p: &Prepared, mode: Mode) -> Result<Dist> {
+    generate_in(root, p, mode, "dist")
+}
+
+/// The server package of the dist for a build inside WSL: `target/dist-wsl/`, the same workspace with Linux-visible
+/// paths in its manifests (a drive path such as `E:/x` is a relative path to a Linux cargo).
+pub fn generate_wsl(root: &Path, p: &Prepared) -> Result<Dist> {
+    with_linux_paths(|| generate_in(root, p, Mode::Server, "dist-wsl"))
+}
+
+fn generate_in(root: &Path, p: &Prepared, mode: Mode, name: &str) -> Result<Dist> {
     let root = norm(root)?;
-    let dir = crate::target_dir(&root)?.join("dist");
+    let dir = crate::target_dir(&root)?.join(name);
     std::fs::create_dir_all(&dir).with_context(|| format!("cannot create {}", dir.display()))?;
     let mods = dist_mods(p)?;
     write_if_changed(&dir.join("mods.lock"), &p.lock_text())?;
@@ -508,13 +537,19 @@ mod tests {
 
     #[test]
     fn a_mod_without_a_client_half_registers_nothing() {
+        // A mod with data only (the example mod has a client half since T36).
         let s = Scratch::new();
-        let p = prepared("examples/mods/hello/mods.toml", &s);
+        s.file(
+            "m/aa/mod.toml",
+            &check::tests::manifest("aa", "0.1.0", "", "MIT"),
+        );
+        s.file("m/aa/mods.toml", "[[mod]]\npath = \".\"\n");
+        let p = check::prepare(&s.0.join("m/aa/mods.toml"), &s.0.join("work")).unwrap();
         let mods = dist_mods(&p).unwrap();
         let dir = s.0.join("client");
         generate_client(&repo(), &dir, &mods).unwrap();
         let lib = std::fs::read_to_string(dir.join("web/src/lib.rs")).unwrap();
-        assert!(lib.contains("//! - hello 0.1.0 (no client code)"));
+        assert!(lib.contains("//! - aa 0.1.0 (no client code)"));
         assert!(!lib.contains("ClientRegistry"));
         assert!(lib.contains("app_web::start_with(mod_hooks())"));
     }
