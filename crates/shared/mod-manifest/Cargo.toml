@@ -1,0 +1,16 @@
+[package]
+name = "mod-manifest"
+description = "Mod manifest (mod.toml), semver subset, dependency resolver, mod set and mods.lock"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license = "MIT"
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "shared"
+
+[dependencies]
+thiserror.workspace = true
+toml.workspace = true

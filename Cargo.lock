@@ -2061,6 +2061,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-manifest"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.21",
+ "toml",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
