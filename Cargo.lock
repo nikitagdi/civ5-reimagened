@@ -655,7 +655,9 @@ dependencies = [
  "loc",
  "lua-sys",
  "mod-api",
+ "mod-assets",
  "mod-client",
+ "mod-manifest",
  "platform",
  "platform-native",
  "protocol",
@@ -1626,6 +1628,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
+name = "hello-client"
+version = "0.1.0"
+dependencies = [
+ "hello-shared",
+ "mod-api",
+ "mod-client",
+ "mod-manifest",
+ "platform",
+ "render",
+]
+
+[[package]]
 name = "hello-server"
 version = "0.1.0"
 dependencies = [
@@ -2102,6 +2116,7 @@ dependencies = [
  "mod-api",
  "mod-manifest",
  "platform",
+ "render",
  "thiserror 2.0.21",
 ]
 

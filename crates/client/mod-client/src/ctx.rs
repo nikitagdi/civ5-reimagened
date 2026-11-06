@@ -9,9 +9,10 @@ use mod_api::{Cap, CapDenied, Caps, ChannelId, LogLevel, MapShape, PlayerId, Plo
 use mod_manifest::CHANNEL_PAYLOAD_CEILING;
 use thiserror::Error;
 
-use crate::types::{
-    CutoutRegion, HotkeySpec, PackState, PlayOpts, PlayerInfo, PlotView, ScreenInfo,
-};
+use render::cutout::{CutoutGrid, CutoutRegion};
+use render::frame::ModGpu;
+
+use crate::types::{HotkeySpec, PackState, PlayOpts, PlayerInfo, PlotView, ScreenInfo};
 
 /// Why a context call failed.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -64,10 +65,14 @@ pub trait ModTerrain {
     fn is_built(&self, p: PlotIdx) -> bool;
 }
 
-/// The terrain cutout mask (D13). Needs `terrain.cutout`.
-///
-/// TO-BE-WIRED (T28/T36): the host forwards to the renderer's `set_cutout_mask`.
+/// The terrain cutout mask (D13). Needs `terrain.cutout`. The host forwards to `Renderer::set_cutout_mask`; the mask
+/// is one texture for the whole terrain, so mods share it: a column cut by any mod is cut.
 pub trait CutoutMask {
+    /// The column grid of the map (`None` before there is a map). A region must lie inside it.
+    fn grid(&self) -> Option<CutoutGrid> {
+        None
+    }
+
     /// Writes one byte per column of `region` (non-zero = cut out). `bytes.len()` must equal `region.byte_len()`.
     fn set_cutout_mask(&mut self, region: CutoutRegion, bytes: &[u8]) -> Result<(), CtxError>;
     /// Removes every cutout of this mod.
@@ -102,9 +107,7 @@ pub trait ModAssets {
     fn get(&self, id: &str) -> Option<&[u8]>;
 }
 
-/// HUD textures (U1).
-///
-/// TO-BE-WIRED (T36): the host uploads to the UI texture cache.
+/// HUD textures (U1). The host uploads them to the UI texture cache.
 pub trait HudTextures {
     /// Uploads tightly packed RGBA8 pixels; the returned id is valid in the mod's `UiDrawList`.
     fn upload_rgba8(&mut self, width: u32, height: u32, rgba: &[u8])
@@ -135,6 +138,12 @@ pub trait ClientCtx {
     /// Needs `hud`.
     fn hud_textures(&mut self) -> Result<&mut dyn HudTextures, CtxError>;
     fn screen(&self) -> ScreenInfo;
+    /// What a render system needs to build its pipelines (device, queue, layouts, formats). This is the one place a
+    /// wgpu handle crosses the boundary: a pipeline cannot be built from values. Needs `render.pipeline`; unavailable
+    /// until the renderer exists.
+    fn gpu(&self) -> Result<&ModGpu, CtxError> {
+        Err(CtxError::Unavailable("gpu"))
+    }
     /// Captures or releases the pointer. Browsers grant the lock only inside a user gesture, so call it from
     /// `claim_input`. Needs `input.claim`.
     fn request_pointer_lock(&mut self, lock: bool) -> Result<(), CtxError>;
@@ -222,6 +231,11 @@ impl ClientCtx for Guarded<'_> {
 
     fn screen(&self) -> ScreenInfo {
         self.inner.screen()
+    }
+
+    fn gpu(&self) -> Result<&ModGpu, CtxError> {
+        self.caps.require(Cap::RenderPipeline)?;
+        self.inner.gpu()
     }
 
     fn request_pointer_lock(&mut self, lock: bool) -> Result<(), CtxError> {

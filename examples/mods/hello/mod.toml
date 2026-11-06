@@ -1,5 +1,5 @@
 # The public example mod: a synced-cosmetic echo (D3, SPEC-mod-example-hello.md).
-# The client half (`client-rs`) is added with hello-client (T37); the client stays optional.
+# The client half (`client-rs`, hello-client, T37) is optional: a client without it plays and hears nothing of the mod.
 
 [mod]
 id      = "hello"
@@ -10,11 +10,12 @@ license = "MIT"
 authors = ["The civ5-reimagened authors"]
 sync    = "cosmetic"
 client  = "optional"
-parts   = ["server-rs"]
+parts   = ["server-rs", "client-rs"]
 
 [rust]
 server    = { crate = "hello-server", entry = "hello_server::register" }
-caps      = ["net.channel"]
+client    = { crate = "hello-client", entry = "hello_client::register" }
+caps      = ["net.channel", "world.read", "input.claim", "hud", "kv", "render.pipeline"]
 state_max = 16
 
 [[channels]]

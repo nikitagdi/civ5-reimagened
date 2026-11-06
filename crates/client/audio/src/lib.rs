@@ -3,6 +3,7 @@
 
 mod button;
 mod engine;
+mod mod_sound;
 pub mod music;
 mod notify;
 mod soundscape;
@@ -14,6 +15,7 @@ pub use engine::{
     AudioError, Category, DUCK_FADE_MS, HEX_UNITS, Listener, MAX_SAME_SOUNDS, MAX_WAIT_MS,
     MIN_BUS_GAIN, PlayOutcome, Suppressed, UNDUCK_FADE_MS, UiAudio,
 };
+pub use mod_sound::{FIRST_SAMPLE as MOD_SAMPLE_BASE, ModSoundError, ModSounds};
 pub use music::{MusicCiv, MusicCmd, MusicDirector, MusicEvent, MusicMode, MusicScene, MusicView};
 pub use notify::NotificationQueue;
 pub use soundscape::{

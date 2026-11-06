@@ -190,6 +190,10 @@ pub struct UiSound {
     played: Rc<Cell<u64>>,
     /// Sounds logged so far (the first few only).
     logged: u32,
+    /// The sounds of the mods (A2), decoded once.
+    mod_sounds: audio::ModSounds,
+    /// A mod silences the world's soundscape while it owns the screen.
+    world_muted: bool,
 }
 
 impl UiSound {
@@ -217,7 +221,29 @@ impl UiSound {
             stats: SoundStats::default(),
             played: Rc::new(Cell::new(0)),
             logged: 0,
+            mod_sounds: audio::ModSounds::new(),
+            world_muted: false,
         }
+    }
+
+    /// Plays a sound of a mod (`wav` is the file of its pack) at `gain` times the SFX knob and playback `rate`. The
+    /// output is the one the UI sounds use, but this does not wait for the UI's sound table: a mod's sound plays
+    /// as soon as the output runs. Before that (a browser starts after the first gesture) the sound is dropped.
+    pub fn play_mod_sound(&mut self, key: &str, wav: &[u8], gain: f32, rate: f32) {
+        let gain = gain * self.knob("SFX");
+        let out: &mut dyn AudioOutput = match &mut self.stage {
+            Stage::Idle(o) | Stage::Table(o, _) => &mut **o,
+            Stage::Ready(a) => a.output_mut(),
+            Stage::Off => return,
+        };
+        if let Err(e) = self.mod_sounds.play(out, key, wav, gain, rate) {
+            tracing::warn!(sound = key, "mod sound not played: {e}");
+        }
+    }
+
+    /// A mod silences (`true`) or gives back the strategic soundscape of the world.
+    pub fn set_world_muted(&mut self, muted: bool) {
+        self.world_muted = muted;
     }
 
     /// A volume knob of the options menu moved (`"MUSIC"`, `"SFX"`, `"SPEECH"`, `"AMBIENCE"`, 0..=1): only the sounds
@@ -272,7 +298,7 @@ impl UiSound {
     /// screen, `None` when it is not (no game, the loading screen). With no input, or with the volume at zero, every
     /// bed ends. Call it before [`Self::update`], which fetches the files the beds and sounds ask for.
     pub fn world(&mut self, now_ms: u64, loader: &mut AssetLoader, input: Option<&WorldInput<'_>>) {
-        let live = input.is_some() && self.knob("AMBIENCE") > 0.0;
+        let live = input.is_some() && self.knob("AMBIENCE") > 0.0 && !self.world_muted;
         self.scape = match std::mem::replace(&mut self.scape, ScapeStage::Off) {
             ScapeStage::Idle if live && matches!(self.stage, Stage::Ready(_)) => {
                 let h = loader.request(

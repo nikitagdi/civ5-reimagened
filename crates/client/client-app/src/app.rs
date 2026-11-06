@@ -362,6 +362,8 @@ struct App {
     pointer: crate::pointer::PointerService,
     /// The hooks of the client's mods: they see the input first (empty: nothing changes).
     hooks: ModHooks,
+    /// The HUD textures of mods that are on the GPU (kept, to put them back when the cache evicts one).
+    mod_textures: Vec<(draw_list::TextureId, render::UiTextureData)>,
     /// `?showcase=1` only: orbit camera and the Warrior.
     showcase_mode: bool,
     camera: Camera,
@@ -448,7 +450,7 @@ enum GoldenState {
 }
 
 impl App {
-    fn new(config: AppConfig, services: Services, hooks: ModHooks) -> Self {
+    fn new(config: AppConfig, services: Services, mut hooks: ModHooks) -> Self {
         let Services {
             transport,
             http,
@@ -479,6 +481,13 @@ impl App {
         // One store for the net client (token, nick) and the original UI (options, user data): its keys differ.
         let shared_kv: Rc<dyn platform::KeyValueStore> =
             Rc::from(kv_store.unwrap_or_else(|| Box::new(platform::MemoryStore::new())));
+        // The mods' hooks learn what only the app has: the HTTP client and address (their asset packs are fetched
+        // from the server) and the player's settings store (their keys live in it, one namespace per mod).
+        hooks.bind(&crate::mod_hooks::HookEnv {
+            http: Rc::clone(&http),
+            server_url: config.server_url.clone(),
+            kv: Rc::clone(&shared_kv),
+        });
         // The graphics choices stay on the device: a store of their own, else the page's (not through the account).
         let device_kv: Rc<dyn platform::KeyValueStore> = match device_store {
             Some(store) => Rc::from(store),
@@ -612,6 +621,7 @@ impl App {
             hud_hold: crate::touch_hud::HudHold::new(),
             pointer: crate::pointer::PointerService::new(pointer_lock_probe),
             hooks,
+            mod_textures: Vec::new(),
             camera: Camera::default(),
             controller: CameraController::new(1, 1),
             game_camera: GameCamera::default(),
@@ -1783,18 +1793,36 @@ impl App {
                 self.map_controller.update(dt, &mut self.game_camera);
                 // The hooks of mods move their camera (client-hooks C2). No hooks: nothing happens.
                 if !self.hooks.is_empty() {
-                    let info = crate::mod_hooks::FrameInfo {
-                        dt,
-                        now_ms: now,
-                        focus: self.game_camera.focus(),
-                        terrain: renderer.terrain_system().sampler(),
-                    };
-                    if let (Some(want), Some(w)) = (self.hooks.frame(&info), self.window.as_ref()) {
+                    let screen = self.window.as_ref().map_or((0, 0, 1.0), |w| {
+                        let s = w.inner_size();
+                        (s.width, s.height, w.scale_factor() as f32)
+                    });
+                    let focus = self.game_camera.focus();
+                    let hooks = &mut self.hooks;
+                    let lock =
+                        with_mod_info(&self.net, renderer, (dt, now, focus), screen, |info| {
+                            hooks.frame(info)
+                        });
+                    if let (Some(want), Some(w)) = (lock, self.window.as_ref()) {
                         if want {
                             self.pointer.request(w);
                         } else {
                             self.pointer.release(w);
                         }
+                    }
+                    let req = self.hooks.take_requests();
+                    apply_mod_requests(
+                        renderer,
+                        self.ui_sound.as_mut(),
+                        req,
+                        &mut self.mod_textures,
+                    );
+                    // A required mod that cannot run here (no pack): the game ends with the reason on the screen.
+                    if let Some(text) = self.hooks.take_problem() {
+                        if let Some(w) = self.window.as_ref() {
+                            self.pointer.release(w);
+                        }
+                        self.net = Link::NetFailed(format!("Cannot play this game: {text}"));
                     }
                 }
                 // The virtual focus: while a mod holds the camera the strategic one stays where the mod is, so the
@@ -2035,6 +2063,25 @@ impl App {
                 for k in m2.take_camera_keys() {
                     self.map_controller.handle(&k, &mut self.game_camera);
                 }
+            }
+            // The HUD of the mods, after the game's own UI of the frame.
+            if !self.hooks.is_empty() {
+                let screen = self.window.as_ref().map_or((0, 0, 1.0), |w| {
+                    let s = w.inner_size();
+                    (s.width, s.height, w.scale_factor() as f32)
+                });
+                let focus = self.game_camera.focus();
+                let (hooks, ui) = (&mut self.hooks, &mut self.ui);
+                with_mod_info(&self.net, renderer, (dt, now, focus), screen, |info| {
+                    hooks.hud(info, ui);
+                });
+                let req = self.hooks.take_requests();
+                apply_mod_requests(
+                    renderer,
+                    self.ui_sound.as_mut(),
+                    req,
+                    &mut self.mod_textures,
+                );
             }
             drop(_slow_ui);
             let mod_camera = self
@@ -2656,6 +2703,14 @@ impl App {
                 self.map_controller.handle(&k, &mut self.game_camera);
             }
         }
+        // A key that neither the Lua UI nor the game's keys used is the mods' hotkey (client-hooks C4).
+        if !taken && !self.hooks.is_empty() {
+            let claim = self.hooks.unclaimed_input(&ev);
+            self.apply_pointer_request(claim.pointer_lock);
+            if claim.taken {
+                return;
+            }
+        }
         if !taken {
             self.map_controller.handle(&ev, &mut self.game_camera);
         } else if ends_press(&ev) {
@@ -2722,8 +2777,14 @@ impl App {
         }
         if self.m2.is_some() && !self.showcase_mode {
             // A mod that owns the screen (client-hooks C3) has hidden the original UI: it gets no input either.
-            if self.interim.handle_input(&ev) && !self.hooks.ui_suppressed() {
-                self.m2_input(ev);
+            if self.interim.handle_input(&ev) {
+                if !self.hooks.ui_suppressed() {
+                    self.m2_input(ev);
+                } else if !self.hooks.is_empty() {
+                    // The original UI is hidden: the keys it would have seen are the mods' to bind.
+                    let claim = self.hooks.unclaimed_input(&ev);
+                    self.apply_pointer_request(claim.pointer_lock);
+                }
             }
             return;
         }
@@ -2732,6 +2793,13 @@ impl App {
                 self.showcase.handle_input(&ev);
                 self.controller.handle(&ev, &mut self.camera);
             } else {
+                if !self.hooks.is_empty() && self.in_game() {
+                    let claim = self.hooks.unclaimed_input(&ev);
+                    self.apply_pointer_request(claim.pointer_lock);
+                    if claim.taken {
+                        return;
+                    }
+                }
                 if let platform::InputEvent::Key(k) = &ev {
                     let esc =
                         k.pressed && k.key == platform::Key::Named(platform::NamedKey::Escape);
@@ -2792,6 +2860,102 @@ impl App {
                         self.play_apply(|play, world| play.right_click(world, p.cell));
                     }
                 }
+            }
+        }
+    }
+}
+
+/// Runs `f` with what the mods can see of the frame: the replica of the game (when a game is on and the core is free),
+/// the terrain sampler, the column grid of the cutout mask and the renderer's `ModGpu`.
+fn with_mod_info<R>(
+    net: &Link,
+    renderer: &Renderer,
+    (dt, now_ms, focus): (f32, u64, glam::Vec2),
+    screen: (u32, u32, f32),
+    f: impl FnOnce(&crate::mod_hooks::FrameInfo<'_>) -> R,
+) -> R {
+    fn build<'a>(
+        renderer: &'a Renderer,
+        world: Option<&'a dyn mod_client::ModWorld>,
+        (dt, now_ms, focus): (f32, u64, glam::Vec2),
+        screen: (u32, u32, f32),
+    ) -> crate::mod_hooks::FrameInfo<'a> {
+        crate::mod_hooks::FrameInfo {
+            dt,
+            now_ms,
+            focus,
+            terrain: renderer.terrain_system().sampler(),
+            world,
+            cutout_grid: renderer.cutout_grid(),
+            gpu: Some(renderer.mod_gpu()),
+            screen,
+        }
+    }
+    let time = (dt, now_ms, focus);
+    let mut f = Some(f);
+    let seen = match net {
+        Link::Net(n) if n.playing => n.handle.peek(|core| {
+            let run = f.take()?;
+            Some(match core.shown() {
+                Some(view) => {
+                    let world = crate::mod_host::ReplicaWorld::new(view, core.revision());
+                    run(&build(renderer, Some(&world), time, screen))
+                }
+                None => run(&build(renderer, None, time, screen)),
+            })
+        }),
+        _ => None,
+    };
+    match seen.flatten() {
+        Some(r) => r,
+        // No game, or the core was in use: the mods see no world this frame.
+        None => (f.take().expect("not consumed"))(&build(renderer, None, time, screen)),
+    }
+}
+
+/// Carries out what the mods asked of the renderer and the sound output (client-hooks, T36): render systems,
+/// cutout writes, HUD textures, sounds. Textures stay in `kept`; one the cache evicted is put back.
+fn apply_mod_requests(
+    renderer: &mut Renderer,
+    sound: Option<&mut crate::ui_sound::UiSound>,
+    req: crate::mod_hooks::Requests,
+    kept: &mut Vec<(draw_list::TextureId, render::UiTextureData)>,
+) {
+    for system in req.systems {
+        if let Err(e) = renderer.add_mod_system(system) {
+            tracing::warn!("a render system of a mod was refused: {e}");
+        }
+    }
+    for cmd in req.cutouts {
+        match cmd {
+            crate::mod_hooks::CutoutCmd::Set(region, bytes) => {
+                if let Err(e) = renderer.set_cutout_mask(region, &bytes) {
+                    tracing::warn!("a cutout mask of a mod was refused: {e}");
+                }
+            }
+            crate::mod_hooks::CutoutCmd::Clear => renderer.clear_cutout_mask(),
+        }
+    }
+    for (id, data) in req.textures {
+        if let Err(e) = renderer.ui_textures_mut().upload(id, &data) {
+            tracing::warn!(texture = id.0, "a HUD texture of a mod was refused: {e}");
+            continue;
+        }
+        kept.retain(|(k, _)| *k != id);
+        kept.push((id, data));
+    }
+    for (id, data) in kept.iter() {
+        if !renderer.ui_textures_mut().contains(*id) {
+            let _ = renderer.ui_textures_mut().upload(*id, data);
+        }
+    }
+    if let Some(snd) = sound {
+        if let Some(m) = req.mute_world {
+            snd.set_world_muted(m);
+        }
+        for s in req.sounds {
+            if let Some(wav) = s.pack.get(&s.sound) {
+                snd.play_mod_sound(&s.key, wav, s.volume, s.pitch);
             }
         }
     }

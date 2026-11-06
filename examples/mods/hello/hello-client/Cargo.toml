@@ -1,0 +1,25 @@
+[package]
+name = "hello-client"
+description = "Example mod hello: the client half (a hotkey that says hello, the echo on the HUD, a cube in MainSlot::Mod)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license = "MIT"
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "client"
+
+# R11: a client half depends only on mod-client and its own shared crate. Everything it draws with (the camera and
+# render-system types, wgpu, glam) comes through `mod_client::gpu`.
+[dependencies]
+hello-shared = { path = "../hello-shared" }
+mod-client.workspace = true
+
+# Tests may use more (R11 exempts dev-dependencies): the manifest, and the renderer's contexts for the GPU test.
+[dev-dependencies]
+mod-manifest.workspace = true
+mod-api.workspace = true
+render.workspace = true
+platform.workspace = true

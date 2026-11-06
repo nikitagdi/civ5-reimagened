@@ -5,9 +5,52 @@
 //! the app. With no hook registered nothing here does anything: `claim_input` returns "not taken" at once, no
 //! state changes, and the app behaves as it did without this module.
 
+use draw_list::{TextureId, UiDrawList};
+use mod_client::{CutoutGrid, CutoutRegion, ModWorld};
 use platform::InputEvent;
-use render::ModCamera;
+use render::frame::{ModGpu, RenderSystem};
 use render::world::terrain::TerrainSampler;
+use render::{ModCamera, UiTextureData};
+
+/// A change to the terrain cutout mask a mod asked for (D13). The app applies it to the renderer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CutoutCmd {
+    /// Write the bytes of the region (`Renderer::set_cutout_mask`).
+    Set(CutoutRegion, Vec<u8>),
+    /// Drop the mask (`Renderer::clear_cutout_mask`).
+    Clear,
+}
+
+/// One sound a mod asked for: the sound's file of the mod's pack (a WAV) and how to play it.
+pub struct SoundReq {
+    /// `<mod_idx>:<sound id>`: the player decodes a sound once per key.
+    pub key: String,
+    pub pack: std::rc::Rc<mod_assets::Pack>,
+    pub sound: String,
+    pub volume: f32,
+    pub pitch: f32,
+}
+
+/// What the hooks asked of the renderer and the sound since the app last took it. The app applies it in the frame.
+#[derive(Default)]
+pub struct Requests {
+    pub systems: Vec<Box<dyn RenderSystem>>,
+    pub cutouts: Vec<CutoutCmd>,
+    pub textures: Vec<(TextureId, UiTextureData)>,
+    pub sounds: Vec<SoundReq>,
+    /// The strategic soundscape of the world is silenced (`Some(true)`) or given back (`Some(false)`).
+    pub mute_world: Option<bool>,
+}
+
+impl Requests {
+    pub fn is_empty(&self) -> bool {
+        self.systems.is_empty()
+            && self.cutouts.is_empty()
+            && self.textures.is_empty()
+            && self.sounds.is_empty()
+            && self.mute_world.is_none()
+    }
+}
 
 /// What a hook asks of the app while it handles an event or a frame. Requests are values; the app carries
 /// them out.
@@ -17,6 +60,7 @@ pub struct HookCtl {
     suppress_ui: Option<bool>,
     /// `Some(None)`: the hook gives the camera back; `None`: it did not ask.
     camera: Option<Option<Box<dyn ModCamera>>>,
+    requests: Requests,
 }
 
 impl HookCtl {
@@ -39,6 +83,31 @@ impl HookCtl {
     pub fn set_camera(&mut self, camera: Option<Box<dyn ModCamera>>) {
         self.camera = Some(camera);
     }
+
+    /// Registers a render system of a mod with the renderer (`MainSlot::Mod`).
+    pub fn add_render_system(&mut self, system: Box<dyn RenderSystem>) {
+        self.requests.systems.push(system);
+    }
+
+    /// Changes the terrain cutout mask.
+    pub fn cutout(&mut self, cmd: CutoutCmd) {
+        self.requests.cutouts.push(cmd);
+    }
+
+    /// Makes `data` the UI texture `id` (HUD textures of a mod).
+    pub fn ui_texture(&mut self, id: TextureId, data: UiTextureData) {
+        self.requests.textures.push((id, data));
+    }
+
+    /// Plays a sound of a mod.
+    pub fn play_sound(&mut self, req: SoundReq) {
+        self.requests.sounds.push(req);
+    }
+
+    /// Silences (`true`) or restores the strategic soundscape of the world.
+    pub fn mute_world(&mut self, mute: bool) {
+        self.requests.mute_world = Some(mute);
+    }
 }
 
 /// What a hook sees of the frame, as values.
@@ -51,6 +120,39 @@ pub struct FrameInfo<'a> {
     pub focus: glam::Vec2,
     /// The heights of the map, once there is one: where the ground is under an eye.
     pub terrain: Option<&'a TerrainSampler>,
+    /// The replica of the game as the player sees it (W1); `None` outside a game.
+    pub world: Option<&'a dyn ModWorld>,
+    /// The column grid of the cutout mask, once the map is set.
+    pub cutout_grid: Option<CutoutGrid>,
+    /// What a render system builds its pipelines from; `None` until the renderer exists.
+    pub gpu: Option<&'a ModGpu>,
+    /// The window in physical pixels and its scale factor.
+    pub screen: (u32, u32, f32),
+}
+
+impl Default for FrameInfo<'_> {
+    fn default() -> Self {
+        Self {
+            dt: 0.0,
+            now_ms: 0,
+            focus: glam::Vec2::ZERO,
+            terrain: None,
+            world: None,
+            cutout_grid: None,
+            gpu: None,
+            screen: (0, 0, 1.0),
+        }
+    }
+}
+
+/// What the app gives the hooks once, when it starts: the services a mod's host needs that only the app has.
+pub struct HookEnv {
+    /// The platform's HTTP client (the packs of the mods are fetched with it).
+    pub http: std::rc::Rc<dyn platform::HttpClient>,
+    /// The address of the game server (`ws://host/ws`); the packs are at the same host.
+    pub server_url: String,
+    /// The player's settings store (the device's): mods keep their own keys in it (`civ5.mod.<id>.`).
+    pub kv: std::rc::Rc<dyn platform::KeyValueStore>,
 }
 
 /// The client side of a mod, as far as the input goes. More hooks (frame, camera) join it with the
@@ -62,10 +164,28 @@ pub trait ModHook {
     /// Keys: read `KeyEvent::code` (the physical key, `KeyW`), not `key`, so the layout and Shift do not matter.
     fn claim_input(&mut self, event: &InputEvent, ctl: &mut HookCtl) -> bool;
 
+    /// Called with the key presses the game's own UI did not use (the Lua UI has no text focus and no game key took
+    /// it): the place for the mods' hotkeys. Returns true if the event is taken.
+    fn unclaimed_input(&mut self, _event: &InputEvent, _ctl: &mut HookCtl) -> bool {
+        false
+    }
+
+    /// Draws the HUD of the mods into `list`, after the game's UI of the frame.
+    fn hud(&mut self, _info: &FrameInfo<'_>, _list: &mut UiDrawList, _ctl: &mut HookCtl) {}
+
     /// Called once a frame, before the camera is chosen (nothing is called with no hook registered). The place
     /// to move a camera of the mod and hand it over with `HookCtl::set_camera`. A pointer lock asked here
     /// is carried out, but on the web a lock needs the gesture of an input event: ask it from `claim_input`.
     fn frame(&mut self, _info: &FrameInfo<'_>, _ctl: &mut HookCtl) {}
+
+    /// Called once by the app at its start with what only the app has (`HookEnv`).
+    fn bind(&mut self, _env: &HookEnv) {}
+
+    /// A reason the game cannot be played with the mods this hook carries (a required mod lacks its pack), once. The
+    /// app shows it and leaves the game.
+    fn take_problem(&mut self) -> Option<String> {
+        None
+    }
 
     /// The mods this hook carries put themselves into the config of the network core (`ModHello`, T35). Called once,
     /// before the core is made.
@@ -93,6 +213,7 @@ pub struct Claim {
 pub struct ModHooks {
     hooks: Vec<Box<dyn ModHook>>,
     ui_suppressed: bool,
+    requests: Requests,
     /// The camera a hook holds in place of the strategic one (C2); `None`: the strategic camera.
     camera: Option<Box<dyn ModCamera>>,
 }
@@ -129,6 +250,14 @@ impl ModHooks {
         if let Some(camera) = ctl.camera {
             self.camera = camera;
         }
+        let r = ctl.requests;
+        self.requests.systems.extend(r.systems);
+        self.requests.cutouts.extend(r.cutouts);
+        self.requests.textures.extend(r.textures);
+        self.requests.sounds.extend(r.sounds);
+        if r.mute_world.is_some() {
+            self.requests.mute_world = r.mute_world;
+        }
         ctl.pointer_lock
     }
 
@@ -147,6 +276,49 @@ impl ModHooks {
             }
         }
         claim
+    }
+
+    /// Hands the app's services to the hooks (once, at the start of the app).
+    pub fn bind(&mut self, env: &HookEnv) {
+        for h in &mut self.hooks {
+            h.bind(env);
+        }
+    }
+
+    /// The first reason a hook gives for the game being impossible; the app shows it.
+    pub fn take_problem(&mut self) -> Option<String> {
+        self.hooks.iter_mut().find_map(|h| h.take_problem())
+    }
+
+    /// The key presses the game's UI did not use, in order, up to the first hook that takes one.
+    pub fn unclaimed_input(&mut self, event: &InputEvent) -> Claim {
+        let mut claim = Claim::default();
+        for i in 0..self.hooks.len() {
+            let mut ctl = HookCtl::default();
+            let taken = self.hooks[i].unclaimed_input(event, &mut ctl);
+            if let Some(on) = self.absorb(ctl) {
+                claim.pointer_lock = Some(on);
+            }
+            if taken {
+                claim.taken = true;
+                break;
+            }
+        }
+        claim
+    }
+
+    /// Lets every hook draw its HUD.
+    pub fn hud(&mut self, info: &FrameInfo<'_>, list: &mut UiDrawList) {
+        for i in 0..self.hooks.len() {
+            let mut ctl = HookCtl::default();
+            self.hooks[i].hud(info, list, &mut ctl);
+            self.absorb(ctl);
+        }
+    }
+
+    /// What the hooks asked of the renderer and the sound output since the last call.
+    pub fn take_requests(&mut self) -> Requests {
+        std::mem::take(&mut self.requests)
     }
 
     /// Lets the mods put themselves into the config of the network core (`ModHello`).
@@ -345,9 +517,7 @@ mod tests {
     fn info(dt: f32) -> FrameInfo<'static> {
         FrameInfo {
             dt,
-            now_ms: 0,
-            focus: glam::Vec2::ZERO,
-            terrain: None,
+            ..FrameInfo::default()
         }
     }
 
