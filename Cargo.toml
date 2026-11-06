@@ -14,10 +14,12 @@ members = [
     "crates/shared/asset-format",
     "crates/shared/mod-manifest",
     "crates/shared/mod-api",
+    "crates/shared/mod-assets",
     "crates/shared/loc",
     "crates/client/platform",
     "crates/client/replica",
     "crates/client/client-core",
+    "crates/client/mod-client",
     "crates/client/assets",
     "crates/client/audio",
     "crates/client/draw-list",
@@ -34,6 +36,8 @@ members = [
     "crates/server/server",
     "apps/web",
     "apps/desktop",
+    "examples/mods/hello/hello-shared",
+    "examples/mods/hello/hello-server",
     "tools/xtask",
     "tools/asset-pipeline",
     "tools/granny",
@@ -67,9 +71,11 @@ build-support = { path = "crates/shared/build-support" }
 asset-format = { path = "crates/shared/asset-format" }
 mod-manifest = { path = "crates/shared/mod-manifest" }
 mod-api = { path = "crates/shared/mod-api" }
+mod-assets = { path = "crates/shared/mod-assets" }
 loc = { path = "crates/shared/loc" }
 granny = { path = "tools/granny" }
 platform = { path = "crates/client/platform" }
+mod-client = { path = "crates/client/mod-client" }
 client-core = { path = "crates/client/client-core" }
 replica = { path = "crates/client/replica" }
 assets = { path = "crates/client/assets" }
