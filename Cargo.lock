@@ -2069,6 +2069,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-assets"
+version = "0.1.0"
+dependencies = [
+ "mod-manifest",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "mod-manifest"
 version = "0.1.0"
 dependencies = [

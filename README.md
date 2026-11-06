@@ -138,7 +138,7 @@ Issues and pull requests are welcome. Run `cargo xtask check` before a PR and ne
 
 AGPL-3.0-or-later ([LICENSE](LICENSE)) with an additional permission under section 7 to link the gamecore
 ([LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)). The standalone tools `tools/asset-pipeline` and
-`tools/shader-re` and the crates `asset-format`, `sqlite-sys`, `build-support`, `mod-manifest` and `mod-api` are MIT
+`tools/shader-re` and the crates `asset-format`, `sqlite-sys`, `build-support`, `mod-manifest`, `mod-api` and `mod-assets` are MIT
 ([LICENSE-MIT](LICENSE-MIT)). `tools/granny` is `MIT AND Apache-2.0 AND BSL-1.0`: our code is MIT, and two
 files port code of nwn2mdk ([third_party/NOTICE-granny.md](third_party/NOTICE-granny.md)). The gamecore fork has its own terms. Details: [NOTICE](NOTICE),
 [docs/legal.md](docs/legal.md).

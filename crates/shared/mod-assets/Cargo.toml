@@ -1,0 +1,16 @@
+[package]
+name = "mod-assets"
+description = "Mod asset pack format: pack manifest, byte codec, sha256 and verification against assets.lock"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license = "MIT"
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "shared"
+
+[dependencies]
+mod-manifest.workspace = true
+thiserror.workspace = true
