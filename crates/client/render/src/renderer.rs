@@ -4528,6 +4528,8 @@ impl Renderer {
                                 Some(t) => copy_shifts(t.width, &view_proj),
                                 None => vec![0.0],
                             },
+                            near: self.cam_hints.near,
+                            focus: self.cam_hints.terrain_focus,
                         },
                         decals: !self.layers.is_disabled(crate::frame::SystemId::Decal),
                         bake_gpu_ms: self.timer.gpu_ms(PassId::TerrainBake),
