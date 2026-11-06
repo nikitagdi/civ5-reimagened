@@ -5,6 +5,7 @@ pub mod anim;
 pub mod blend;
 mod camera;
 pub mod camera_params;
+pub mod cutout;
 mod decal;
 pub mod entities;
 pub mod frame;

@@ -45,6 +45,9 @@ struct CachedArrayVaryings {
 
 @fragment
 fn terrain_render_cached_diffuse_array_ps(in: CachedArrayVaryings) -> @location(0) vec4<f32> {
+    if (cutout_hit_orig(in.v2)) {
+        discard;
+    }
     cell_page_layers = in.layers;
     var b: CachedPsIn;
     b.v0 = in.v0;
@@ -56,6 +59,9 @@ fn terrain_render_cached_diffuse_array_ps(in: CachedArrayVaryings) -> @location(
 
 @fragment
 fn terrain_render_cached_diffuse_and_spec_array_ps(in: CachedArrayVaryings) -> @location(0) vec4<f32> {
+    if (cutout_hit_orig(in.v2)) {
+        discard;
+    }
     cell_page_layers = in.layers;
     var b: CachedPsIn;
     b.v0 = in.v0;

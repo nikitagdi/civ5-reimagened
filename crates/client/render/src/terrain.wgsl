@@ -54,6 +54,35 @@ struct Material {
 @group(3) @binding(1) var layers: texture_2d_array<f32>;
 @group(3) @binding(2) var layer_sampler: sampler;
 
+// The cutout mask of the mod (client-hooks, D13): the same text as `shaders/common/cutout.wgsl`.
+struct CutoutParams {
+    // x: 1 when a mask is set. y, z: columns and rows of the mask. w: the block row of mask row 0.
+    grid: vec4<f32>,
+    // x: 1 when the map wraps along X.
+    flags: vec4<f32>,
+}
+@group(3) @binding(3) var CutoutMask: texture_2d<f32>;
+@group(3) @binding(4) var<uniform> cutout: CutoutParams;
+
+// The point (x, z) of our basis lies over a cut column.
+fn cutout_hit(x: f32, z: f32) -> bool {
+    if (cutout.grid.x == 0.0) {
+        return false;
+    }
+    let cols = i32(cutout.grid.y);
+    let rows = i32(cutout.grid.z);
+    let bx = i32(floor(x * 0.25));
+    let row = i32(floor(z * 0.25)) - i32(cutout.grid.w);
+    var col = bx;
+    if (cutout.flags.x != 0.0) {
+        col = ((bx % cols) + cols) % cols;
+    }
+    if (col < 0 || col >= cols || row < 0 || row >= rows) {
+        return false;
+    }
+    return textureLoad(CutoutMask, vec2<i32>(col, row), 0).x > 0.0;
+}
+
 struct VsIn {
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
@@ -83,6 +112,10 @@ fn vs_main(v: VsIn) -> VsOut {
 
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
+    // Over a column cut by the mod there is no ground.
+    if (cutout_hit(in.world_pos.x, in.world_pos.z)) {
+        discard;
+    }
     let width = max(u32(globals.params.y), 1u);
     let state = textureLoad(fog_tex, vec2<i32>(i32(in.cell % width), i32(in.cell / width)), 0).r;
 

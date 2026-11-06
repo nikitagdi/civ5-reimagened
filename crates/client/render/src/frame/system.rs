@@ -332,6 +332,8 @@ pub struct WorldServices {
     pub anim: AnimService,
     /// The constants of the frame for systems outside the engine (client-hooks R3).
     pub frame: FrameShared,
+    /// The cutout mask of the terrain and its binding (client-hooks D13).
+    pub cutout: crate::cutout::CutoutShared,
     /// The GPU half of the bones `anim` bakes (render-core 4.12); made at the first `prepare`, when
     /// the device is there.
     bones: Option<BoneTexture>,
@@ -346,6 +348,7 @@ impl Default for WorldServices {
         Self {
             anim,
             frame: FrameShared::default(),
+            cutout: Default::default(),
             bones: None,
         }
     }

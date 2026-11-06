@@ -111,6 +111,10 @@ fn m1_fow_mask(state: u32) -> vec4<f32> {
 
 @fragment
 fn terrain_m1_ps(in: M1VertexOut) -> @location(0) vec4<f32> {
+    // Over a column cut by the mod (`cutout.wgsl`) there is no ground.
+    if (cutout_hit(in.ours_xz.x, in.ours_xz.y)) {
+        discard;
+    }
     let width = max(textureDimensions(m1_fog_tex).x, 1u);
     let state = textureLoad(
         m1_fog_tex,

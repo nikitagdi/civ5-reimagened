@@ -358,6 +358,65 @@ impl TerrainM1 {
 mod tests {
     use super::*;
 
+    /// The pipeline of M1 is made over B1's layouts with the cutout mask in the material group (the
+    /// device validates the layouts against the shader).
+    #[test]
+    fn the_m1_pipeline_takes_the_cutout_bindings_of_the_material_group() {
+        use crate::terrain_pipeline::{TerrainPipeline, TerrainTargets};
+        let Some(gpu) = crate::gpu_test::gpu(
+            "the_m1_pipeline_takes_the_cutout_bindings_of_the_material_group",
+            wgpu::Backends::PRIMARY,
+            wgpu::Features::empty(),
+        ) else {
+            return;
+        };
+        let device = &gpu.device;
+        let uniform = |binding, visibility| wgpu::BindGroupLayoutEntry {
+            binding,
+            visibility,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        };
+        let layout = |entries: &[wgpu::BindGroupLayoutEntry]| {
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: None,
+                entries,
+            })
+        };
+        let globals = layout(&[uniform(0, wgpu::ShaderStages::VERTEX_FRAGMENT)]);
+        let object = layout(&[uniform(0, wgpu::ShaderStages::VERTEX_FRAGMENT)]);
+        let fog = layout(&[wgpu::BindGroupLayoutEntry {
+            binding: 0,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Texture {
+                sample_type: wgpu::TextureSampleType::Uint,
+                view_dimension: wgpu::TextureViewDimension::D2,
+                multisampled: false,
+            },
+            count: None,
+        }]);
+        let target = wgpu::TextureFormat::Rgba8Unorm;
+        let depth = wgpu::TextureFormat::Depth24PlusStencil8;
+        let terrain = TerrainPipeline::new(
+            device,
+            &globals,
+            &object,
+            &fog,
+            TerrainTargets {
+                view_format: target,
+                depth_format: depth,
+                samples: 1,
+            },
+        );
+        let mut m1 = TerrainM1::new(device, target, depth, 1);
+        assert!(m1.make_pipeline(device, [&object, &fog, terrain.material_layout()]));
+        assert!(m1.pipeline().is_some());
+    }
+
     #[test]
     fn the_styles_of_b1_are_the_styles_of_the_light_files() {
         // B1's order is Generic, America, Asia, Africa, Europe; the files' is alphabetical.

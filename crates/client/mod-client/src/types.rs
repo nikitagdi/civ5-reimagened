@@ -167,13 +167,16 @@ pub enum PackState {
     Failed(String),
 }
 
-/// Columns of the terrain mask a mod writes (D13): a rectangle of the column grid.
+/// Columns of the terrain mask a mod writes (D13): a rectangle of the column grid, the same fields as
+/// `render::cutout::CutoutRegion`. `x0` is a block column (it wraps at `width * 16`), `z0` the block row
+/// of the first row (negative on a map), one byte per column, row by row, above 0 is cut.
 ///
-/// TO-BE-WIRED (T28): the column grid and the byte layout (one R8 texel per column) are fixed by the render hook.
+/// TO-BE-WIRED (T36): `ClientCtx::set_cutout_mask` calls `Renderer::set_cutout_mask` with the render's
+/// type of the same shape.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CutoutRegion {
     pub x0: i32,
-    pub y0: i32,
+    pub z0: i32,
     pub width: u32,
     pub height: u32,
 }
