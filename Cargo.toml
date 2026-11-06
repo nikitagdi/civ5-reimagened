@@ -13,6 +13,7 @@ members = [
     "crates/shared/build-support",
     "crates/shared/asset-format",
     "crates/shared/mod-manifest",
+    "crates/shared/mod-api",
     "crates/shared/loc",
     "crates/client/platform",
     "crates/client/replica",
@@ -65,6 +66,7 @@ recording = { path = "crates/server/recording" }
 build-support = { path = "crates/shared/build-support" }
 asset-format = { path = "crates/shared/asset-format" }
 mod-manifest = { path = "crates/shared/mod-manifest" }
+mod-api = { path = "crates/shared/mod-api" }
 loc = { path = "crates/shared/loc" }
 granny = { path = "tools/granny" }
 platform = { path = "crates/client/platform" }

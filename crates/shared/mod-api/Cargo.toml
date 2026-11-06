@@ -1,0 +1,16 @@
+[package]
+name = "mod-api"
+description = "Server-side mod API: ServerMod trait, ServerCtx facade, capabilities, limits, WorldFacts and test doubles"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license = "MIT"
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "shared"
+
+[dependencies]
+mod-manifest.workspace = true
+thiserror.workspace = true

@@ -4,7 +4,7 @@ Copyright (c) 2026 The civ5-reimagened authors
 The program is licensed under the GNU Affero General Public License v3.0 or later (LICENSE), with the
 additional permission in LICENSE-EXCEPTION.md. The crates tools/asset-pipeline, tools/shader-re
 and the shared crates they build on (crates/shared/asset-format, crates/shared/sqlite-sys,
-crates/shared/build-support, crates/shared/mod-manifest) are licensed under the MIT license (LICENSE-MIT). tools/granny is licensed
+crates/shared/build-support, crates/shared/mod-manifest, crates/shared/mod-api) are licensed under the MIT license (LICENSE-MIT). tools/granny is licensed
 MIT AND Apache-2.0 AND BSL-1.0: our code is MIT, two files port third-party code (below). See the `license`
 field of each Cargo.toml.
 
