@@ -157,7 +157,9 @@ fn content_hash(dir: &Path, stage_root: &Path, id: &str) -> Result<mod_manifest:
     Ok(h?)
 }
 
-fn copy_without(from: &Path, to: &Path, root: bool) -> Result<()> {
+/// Copies a mod directory the way the server hashes it: without [`NOT_CONTENT`] at the root and without names that
+/// start with `.`. An installed mod must be copied like this, or its hash differs from the one in `mods.lock`.
+pub fn copy_without(from: &Path, to: &Path, root: bool) -> Result<()> {
     std::fs::create_dir_all(to)?;
     for item in std::fs::read_dir(from)? {
         let item = item?;
@@ -412,7 +414,7 @@ pub fn write_lock_file(p: &Prepared) -> Result<PathBuf> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use std::sync::atomic::{AtomicU32, Ordering};
 

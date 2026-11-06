@@ -18,6 +18,9 @@ crate-type = ["cdylib", "rlib"]
 # The replica self-test (`cargo xtask web-selftest`, page `replica-selftest.html`): links the replica (and so the
 # gamecore) into the module and exports `replica_selftest`. The replica itself is always linked (WO-6, the original UI).
 replica-selftest = []
+# The generated dist client package (`cargo xtask mods build --target client`) defines the module start itself and
+# calls `start_with` with the hooks of its mods: `start` is then not the wasm-bindgen start function.
+external-start = []
 
 [dependencies]
 assets.workspace = true

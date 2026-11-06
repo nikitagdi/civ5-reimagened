@@ -60,8 +60,15 @@ pub fn threaded() -> bool {
     cfg!(target_feature = "atomics")
 }
 
-#[wasm_bindgen(start)]
+/// The module start. A generated dist package (`cargo xtask mods build --target client`, feature `external-start`)
+/// has its own start function that calls [`start_with`] with the hooks of its mods.
+#[cfg_attr(not(feature = "external-start"), wasm_bindgen(start))]
 pub fn start() {
+    start_with(client_app::mod_hooks::ModHooks::new());
+}
+
+/// [`start`] with the hooks of the client halves of mods (an empty set is the public client).
+pub fn start_with(hooks: client_app::mod_hooks::ModHooks) {
     // In the threaded build a web worker instantiates the module too: the app starts on the page only.
     #[cfg(target_feature = "atomics")]
     if web_sys::window().is_none() {
@@ -231,7 +238,7 @@ pub fn start() {
         page::wall_offset_ms(),
     );
     client_app::set_wall_offset_source(page::wall_offset_ms);
-    if let Err(e) = client_app::run(config, services) {
+    if let Err(e) = client_app::run_with(config, services, hooks) {
         tracing::error!("client failed to start: {e}");
     }
 }

@@ -103,6 +103,7 @@ mod tests {
         DistMod {
             id: id.into(),
             version: "0.1.0".into(),
+            version_parts: (0, 1, 0),
             dir: PathBuf::from("/m").join(id),
             server: server.map(|(n, e)| CrateRef {
                 name: n.into(),
@@ -110,6 +111,8 @@ mod tests {
                 entry: e.into(),
             }),
             client: None,
+            caps: Vec::new(),
+            content_hash: [0; 32],
         }
     }
 
