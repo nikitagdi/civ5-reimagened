@@ -81,6 +81,7 @@ pub mod m2_highlights;
 pub mod map_camera;
 pub mod map_labels;
 pub mod minimap_image;
+pub mod mod_hooks;
 pub mod net;
 pub mod net_ui;
 pub mod original_ui;
@@ -115,7 +116,7 @@ pub use platform::{Clock, Transport};
 use render::BackendPref;
 use winit::window::{Window, WindowAttributes};
 
-pub use app::run;
+pub use app::{run, run_with};
 pub use render;
 
 /// Re-exported for `app-*` window extensions.
