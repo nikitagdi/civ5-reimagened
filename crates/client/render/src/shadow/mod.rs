@@ -880,6 +880,45 @@ mod tests {
         assert_eq!(s.r.shadow().shadow_vp(), Mat4::IDENTITY);
     }
 
+    /// The terrain is a receiver, not a caster: the shadow map holds models only, so columns the
+    /// mod cut out of the terrain (client-hooks D13) make no shadow and take none from the map. With
+    /// the cut over the foot of the pillar the map is the one without the cut, and with nothing to
+    /// cast it stays clear.
+    #[test]
+    fn cut_columns_cast_no_shadow_and_change_none() {
+        use crate::cutout::CutoutRegion;
+        let Some(mut s) = setup("cut_columns_cast_no_shadow_and_change_none") else {
+            return;
+        };
+        s.level(3);
+        let grid = s.r.cutout_grid().expect("the map is set");
+        // The hex (3, 2): x 224, z -110.9; a region of 12 x 12 columns around it.
+        let (bx, bz) = crate::cutout::CutoutGrid::column_of(224.0, -110.85);
+        let region = CutoutRegion {
+            x0: bx - 6,
+            z0: bz - 6,
+            width: 12,
+            height: 12,
+        };
+        assert!(grid.texel_of(region.x0, region.z0).is_some());
+
+        s.pillar(false);
+        s.r.set_cutout_mask(region, &[255; 144]).unwrap();
+        let empty = grey(&s.frame());
+        assert!(
+            empty.iter().all(|&v| v == 0),
+            "a cut makes no shadow by itself"
+        );
+
+        s.pillar(true);
+        s.r.clear_cutout_mask();
+        let plain = grey(&s.frame());
+        assert!(plain.iter().any(|&v| v > 100), "the pillar shades");
+        s.r.set_cutout_mask(region, &[255; 144]).unwrap();
+        let cut = grey(&s.frame());
+        assert!(plain == cut, "the cut does not change the shadow map");
+    }
+
     #[test]
     fn the_frame_has_the_matrix_of_the_light() {
         let Some(mut s) = setup("the_frame_has_the_matrix_of_the_light") else {
