@@ -27,7 +27,6 @@ pub enum Mode {
     /// `mods check`: the server package plus the graph package that holds the client halves.
     Check,
     /// `mods build --target server`: the server package only.
-    #[allow(dead_code)] // mods build (T40)
     Server,
 }
 
@@ -50,7 +49,6 @@ pub struct DistMod {
 
 #[derive(Debug)]
 pub struct Dist {
-    #[allow(dead_code)] // mods build (T40)
     pub dir: PathBuf,
     pub manifest: PathBuf,
     /// The mods of the set, in load order.

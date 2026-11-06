@@ -3,6 +3,7 @@
 //! `mods check --mods <file>` resolves the list and writes `mods.lock`; `mods build --mods <file> --target server`
 //! assembles `target/dist/` and builds it. The public build (no `--mods`) is not touched by any of this.
 
+pub mod build;
 pub mod check;
 pub mod dist;
 pub mod gen_server;
@@ -15,8 +16,13 @@ use anyhow::{Context, Result, anyhow, bail};
 pub fn cmd_mods(root: &Path, args: &[String]) -> Result<()> {
     match args.first().map(String::as_str) {
         Some("check") => check::cmd_check(root, &args[1..]),
-        Some(other) => bail!("unknown `mods` subcommand `{other}`; use `mods check --mods <file>`"),
-        None => bail!("usage: cargo xtask mods check --mods <file>"),
+        Some("build") => build::cmd_build(root, &args[1..]),
+        Some(other) => {
+            bail!("unknown `mods` subcommand `{other}`; use `mods check|build --mods <file>`")
+        }
+        None => {
+            bail!("usage: cargo xtask mods check|build --mods <file> [--target server] [--release]")
+        }
     }
 }
 

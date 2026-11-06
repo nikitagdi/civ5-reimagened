@@ -4,6 +4,7 @@ pub mod auth;
 pub mod clock;
 pub mod config;
 pub mod cookie;
+pub mod entry;
 pub mod game;
 pub mod game_host;
 pub mod http;
