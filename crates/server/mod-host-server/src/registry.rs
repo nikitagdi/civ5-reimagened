@@ -70,6 +70,7 @@ impl HostRegistry {
         store: &ModStore,
         set: &ModSet,
     ) -> Result<GameMods, InstantiateError> {
+        store.check_frozen(set)?;
         let mut slots = Vec::with_capacity(set.len());
         for rm in set.mods() {
             let installed = store
@@ -80,12 +81,6 @@ impl HostRegistry {
                     id: rm.id.clone(),
                     version: rm.version,
                 })?;
-            if installed.content_hash != rm.content_hash {
-                return Err(InstantiateError::Changed {
-                    id: rm.id.clone(),
-                    version: rm.version,
-                });
-            }
             let manifest = &installed.manifest;
             if !manifest.has_part(Part::ServerRs) {
                 slots.push(None);

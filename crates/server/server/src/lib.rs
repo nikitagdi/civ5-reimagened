@@ -40,6 +40,8 @@ pub struct ServerConfig {
     pub cross_origin_isolation: bool,
     /// Asset dir; unset → 404.
     pub assets_root: Option<PathBuf>,
+    /// Installed mods (`<dir>/<id>/mod.toml`). `None`: no mods, every game is a game without mods.
+    pub mods_dir: Option<PathBuf>,
     /// A logged-in session with no frame from the client (pong included) for this long is lost
     /// (20 s).
     pub idle_timeout: Duration,
@@ -121,6 +123,7 @@ impl Default for ServerConfig {
             // Threads by default (B3 render-mt, the user's decision of 2026-10-29).
             cross_origin_isolation: true,
             assets_root: None,
+            mods_dir: None,
             idle_timeout: Duration::from_secs(20),
             ping_interval: Duration::from_secs(5),
             limits: session::limits::LimitsConfig::default(),
@@ -160,6 +163,7 @@ impl ServerConfig {
             web_root: c.web_root.clone(),
             cross_origin_isolation: c.cross_origin_isolation,
             assets_root: c.assets_root.clone(),
+            mods_dir: c.mods_dir.clone(),
             state_dir: Some(c.state_dir.clone()),
             max_sessions: c.max_sessions,
             max_games: c.max_games,
@@ -211,6 +215,8 @@ pub struct Shared {
     pub exit: tokio::sync::Notify,
     /// Send queues of the logged-in sessions.
     pub sessions: session::Sessions,
+    /// The mods installed on this server, scanned at start (T13).
+    pub mod_store: Arc<mod_host_server::ModStore>,
     choices: Mutex<Arc<LobbyChoices>>,
 }
 
@@ -236,6 +242,17 @@ impl Shared {
             config.netcheck_max_per_second,
         ));
         let gate = session::limits::Gate::new(config.limits.clone());
+        let mod_store = Arc::new(match &config.mods_dir {
+            Some(dir) => {
+                let store = mod_host_server::ModStore::scan(dir);
+                for p in store.problems() {
+                    tracing::warn!(dir = %p.dir, "a mod is skipped: {}", p.message);
+                }
+                tracing::info!(mods = store.installed().len(), "installed mods scanned");
+                store
+            }
+            None => mod_host_server::ModStore::empty(),
+        });
         Ok(Arc::new(Self {
             supervisor: config.supervisor.clone().map(supervisor::Supervisor::new),
             games: Arc::new(game::Games::with_ids(Arc::clone(&ids))),
@@ -246,6 +263,7 @@ impl Shared {
             exit: tokio::sync::Notify::new(),
             gate,
             sessions: session::Sessions::default(),
+            mod_store,
             choices: Mutex::new(Arc::new(LobbyChoices::default())),
             config,
             identity,
@@ -346,7 +364,8 @@ impl Shared {
     }
 
     /// Replaces the pick lists (the `Describe` answer).
-    pub fn set_choices(&self, choices: LobbyChoices) {
+    pub fn set_choices(&self, mut choices: LobbyChoices) {
+        choices.mods = self.mod_store.lobby_views();
         *self.choices.lock().unwrap_or_else(PoisonError::into_inner) = Arc::new(choices);
     }
 }

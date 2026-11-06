@@ -165,6 +165,7 @@ fn a_live_save_is_recorded_for_a_few_turns() {
                 }),
                 kicked: Default::default(),
                 created_ms: None,
+                mods_lock: None,
             },
             Arc::new(LobbyChoices::default()),
         )

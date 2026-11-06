@@ -3248,6 +3248,7 @@ dependencies = [
  "game-host",
  "gamecore",
  "getrandom 0.3.4",
+ "mod-host-server",
  "protocol",
  "recording",
  "serde",

@@ -10,14 +10,16 @@ use std::path::{Path, PathBuf};
 
 use mod_api::MOD_API_VERSION;
 use mod_manifest::{
-    ClientPolicy, ContentHash, Installed, Manifest, ModId, ModSet, ModsetHash, Pick, ResolveError,
-    SyncClass, VersionReq, Warning, resolve,
+    ClientPolicy, ContentHash, Installed, LockError, Manifest, ModId, ModSet, ModsetHash, Pick,
+    ResolveError, SyncClass, VersionReq, Warning, parse_lock, resolve, write_lock,
 };
 use protocol::{
     InstalledModView, MAX_MOD_PROBLEM_CHARS, MAX_MODS, ModPick, ModProblem, ModSetView, ModSync,
     ModView, xxh64,
 };
 use thiserror::Error;
+
+use crate::registry::InstantiateError;
 
 /// The manifest file name inside a mod directory.
 pub const MANIFEST_FILE: &str = "mod.toml";
@@ -66,6 +68,26 @@ pub struct FrozenSet {
 }
 
 impl FrozenSet {
+    /// The picks that reproduce this set exactly: every mod of the set (dependencies included), in load order,
+    /// pinned to its version (`=1.2.3`). A game stores these in `GameSettings.mods` after the freeze, so the
+    /// settings in `meta.json`, `SETG` and the recording header name the resolved versions.
+    pub fn exact_picks(&self) -> Vec<ModPick> {
+        self.set
+            .mods()
+            .iter()
+            .map(|m| ModPick {
+                id: m.id.as_str().to_string(),
+                req: format!("={}", m.version),
+            })
+            .collect()
+    }
+
+    /// The `mods.lock` text of the set: versions, load order, content hashes and the set hash. This is what a
+    /// game keeps on disk (`meta.json`, the `MODS` section of a save) and checks again when it comes back.
+    pub fn lock_text(&self) -> String {
+        write_lock(&self.set)
+    }
+
     /// The wire view of the set, as the server's own plan (every mod is `available`).
     pub fn view(&self) -> ModSetView {
         set_view(&self.set)
@@ -207,6 +229,47 @@ impl ModStore {
             .collect()
     }
 
+    /// Whether every mod of a frozen `set` is installed here with the same version and content hash.
+    pub fn check_frozen(&self, set: &ModSet) -> Result<(), InstantiateError> {
+        for rm in set.mods() {
+            let installed = self
+                .installed
+                .iter()
+                .find(|i| i.manifest.id == rm.id && i.manifest.version == rm.version)
+                .ok_or_else(|| InstantiateError::NotInstalled {
+                    id: rm.id.clone(),
+                    version: rm.version,
+                })?;
+            if installed.content_hash != rm.content_hash {
+                return Err(InstantiateError::Changed {
+                    id: rm.id.clone(),
+                    version: rm.version,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    /// A stored game's mods back: parses the stored `mods.lock` text and checks it against the installed mods.
+    /// `lock` is `None` for a game without mods; if its settings still list mods, that is an inconsistency
+    /// (`NoLock`). `picks_in_settings` is `GameSettings.mods.len()`.
+    pub fn restore_set(
+        &self,
+        lock: Option<&str>,
+        picks_in_settings: usize,
+    ) -> Result<ModSet, RestoreError> {
+        let Some(text) = lock else {
+            return if picks_in_settings == 0 {
+                Ok(ModSet::default())
+            } else {
+                Err(RestoreError::NoLock)
+            };
+        };
+        let set = parse_lock(text).map_err(|e: LockError| RestoreError::BadLock(e.to_string()))?;
+        self.check_frozen(&set)?;
+        Ok(set)
+    }
+
     /// Resolves the host's picks against the installed mods and freezes the result. An empty pick list gives the
     /// empty set (a game without mods).
     pub fn freeze(&self, picks: &[ModPick]) -> Result<FrozenSet, FreezeError> {
@@ -239,6 +302,17 @@ impl ModStore {
             warnings: res.warnings.iter().map(Warning::to_string).collect(),
         })
     }
+}
+
+/// Why a stored game cannot get its mods back (S4). Reads as a sentence for the player.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum RestoreError {
+    #[error("the stored mod set is damaged: {0}")]
+    BadLock(String),
+    #[error("{0}")]
+    Mod(#[from] InstantiateError),
+    #[error("the game uses mods, but no frozen mod set was stored for it")]
+    NoLock,
 }
 
 /// The wire view of a set (`GameMsg::Mods`), with `available = true` for every mod.

@@ -25,6 +25,6 @@ pub use instance::{
 pub use limits::{MAX_STRIKES, STRIKE_WINDOW_MS, Strikes};
 pub use registry::{HostRegistry, InstantiateError};
 pub use store::{
-    FreezeError, FrozenSet, MANIFEST_FILE, ModStore, ScanProblem, hash_mod_dir, modset_hash64,
-    set_view,
+    FreezeError, FrozenSet, MANIFEST_FILE, ModStore, RestoreError, ScanProblem, hash_mod_dir,
+    modset_hash64, set_view,
 };

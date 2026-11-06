@@ -6,6 +6,7 @@
 pub mod actor;
 pub mod chat;
 pub mod gamelog;
+pub mod mods;
 pub mod orders;
 pub mod recording;
 pub mod replica;

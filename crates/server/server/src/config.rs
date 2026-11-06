@@ -253,6 +253,8 @@ pub struct Config {
     /// the single-threaded build only when the client cannot run them); `false` / `--no-cross-origin-isolation`: off.
     pub cross_origin_isolation: bool,
     pub assets_root: Option<PathBuf>,
+    /// Where the installed mods live (`<mods_dir>/<id>/mod.toml`). `None`: no mods are installed.
+    pub mods_dir: Option<PathBuf>,
     pub core: CoreKind,
     pub gamedata_dir: Option<PathBuf>,
     pub max_games: u32,
@@ -289,6 +291,7 @@ impl Default for Config {
             web_root: None,
             cross_origin_isolation: true,
             assets_root: None,
+            mods_dir: None,
             core: CoreKind::platform_default(),
             gamedata_dir: None,
             max_games: 4,

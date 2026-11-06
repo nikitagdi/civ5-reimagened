@@ -236,3 +236,73 @@ fn lobby_views_describe_installed_mods() {
     assert_eq!(v[0].title, "hello title");
     assert!(v[0].client_required);
 }
+
+#[test]
+fn exact_picks_reproduce_the_set_and_the_lock_checks_out() {
+    let t = Tmp::new();
+    install(&t, "base", "1.2.0", "");
+    install(
+        &t,
+        "addon",
+        "0.3.0",
+        "[deps]
+base = \"^1\"",
+    );
+    let s = ModStore::scan(&t.0);
+    let f = s.freeze(&[pick("addon", "^0.3")]).unwrap();
+    let exact = f.exact_picks();
+    assert_eq!(exact, [pick("base", "=1.2.0"), pick("addon", "=0.3.0")]);
+    // Freezing the exact picks gives the same set, hash and lock text.
+    let again = s.freeze(&exact).unwrap();
+    assert_eq!(again.set, f.set);
+    assert_eq!(again.lock_text(), f.lock_text());
+
+    // The lock restores the set while the installed mods are unchanged.
+    let back = s.restore_set(Some(&f.lock_text()), exact.len()).unwrap();
+    assert_eq!(back, f.set);
+}
+
+#[test]
+fn restore_refuses_a_missing_or_changed_mod_with_a_sentence() {
+    let t = Tmp::new();
+    install(&t, "base", "1.2.0", "");
+    let f = ModStore::scan(&t.0).freeze(&[pick("base", "*")]).unwrap();
+    let lock = f.lock_text();
+
+    // Missing: the mod directory is gone.
+    fs::remove_dir_all(t.0.join("base")).unwrap();
+    let e = ModStore::scan(&t.0)
+        .restore_set(Some(&lock), 1)
+        .unwrap_err();
+    assert!(
+        e.to_string().contains("`base` 1.2.0 is not installed"),
+        "{e}"
+    );
+
+    // Changed: same version, other content.
+    install(&t, "base", "1.2.0", "");
+    t.write("base/extra.txt", "edited");
+    let e = ModStore::scan(&t.0)
+        .restore_set(Some(&lock), 1)
+        .unwrap_err();
+    assert!(e.to_string().contains("changed since the game"), "{e}");
+
+    // Another version only: not installed.
+    install(&t, "base", "1.3.0", "");
+    fs::remove_file(t.0.join("base/extra.txt")).unwrap();
+    let e = ModStore::scan(&t.0)
+        .restore_set(Some(&lock), 1)
+        .unwrap_err();
+    assert!(matches!(e, RestoreError::Mod(_)), "{e}");
+}
+
+#[test]
+fn restore_without_a_lock_is_a_game_without_mods() {
+    let s = ModStore::empty();
+    assert!(s.restore_set(None, 0).unwrap().is_empty());
+    assert_eq!(s.restore_set(None, 2), Err(RestoreError::NoLock));
+    assert!(matches!(
+        s.restore_set(Some("not a lock"), 1),
+        Err(RestoreError::BadLock(_))
+    ));
+}

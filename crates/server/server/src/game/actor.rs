@@ -84,6 +84,8 @@ pub struct GameInit {
     pub kicked: BTreeMap<PlayerId, String>,
     /// When the game was made (Unix ms), if it is not new.
     pub created_ms: Option<u64>,
+    /// The frozen mod set (`mods.lock` text) of a game with mods; `None` for a game without.
+    pub mods_lock: Option<String>,
 }
 
 /// The save a game continues: the file as the worker's `Start::Load` names it (absolute when it
@@ -287,6 +289,7 @@ pub fn spawn(env: GameEnv, init: GameInit) -> GameHandle {
         load,
         kicked,
         created_ms,
+        mods_lock,
     } = init;
     let log = match &env.state_dir {
         Some(dir) => gamelog::GameLog::open(
@@ -381,6 +384,7 @@ pub fn spawn(env: GameEnv, init: GameInit) -> GameHandle {
         faulted: false,
         seed,
         created_ms: created_ms.unwrap_or(wall_now),
+        mods_lock,
         kicked_seed: kicked,
         stopping: None,
         idle_since: None,
@@ -435,6 +439,8 @@ struct GameActor {
     give_ups: BTreeMap<PlayerId, String>,
     seed: u64,
     created_ms: u64,
+    /// The frozen mod set of the game (T15), written to `meta.json`.
+    mods_lock: Option<String>,
     boot_at: std::time::Instant,
     /// When the worker last failed (the restore time is measured from here).
     restart_at: Option<std::time::Instant>,
@@ -1337,6 +1343,7 @@ impl GameActor {
             created_ms: self.created_ms,
             finished_ms: (status == MetaStatus::Finished).then(|| self.env.wall.unix_ms()),
             turn: self.turn.as_ref().map_or(0, |t| t.turn),
+            mods_lock: self.mods_lock.clone(),
         }
     }
 
