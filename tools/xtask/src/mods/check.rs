@@ -136,10 +136,15 @@ pub fn load_mod(dir: &Path, stage_root: &Path) -> Result<LoadedMod> {
     })
 }
 
-/// The hash the server computes for the installed directory. A build directory at the root of the mod (`target`,
-/// a mod that has its own Cargo workspace) is not part of the mod: it is left out through a staged copy.
+/// Names at the root of a mod directory that are not part of the mod: a build directory (a mod with its own Cargo
+/// workspace) and the list file and lock of a distribution that sit next to the mod (the example `hello` list is in
+/// the mod directory; the lock changes with the hash, so it cannot be part of it).
+const NOT_CONTENT: &[&str] = &["target", "mods.toml", "mods.lock"];
+
+/// The hash the server computes for the installed directory (without [`NOT_CONTENT`], through a staged copy when one
+/// of them is there).
 fn content_hash(dir: &Path, stage_root: &Path, id: &str) -> Result<mod_manifest::ContentHash> {
-    if !dir.join("target").exists() {
+    if !NOT_CONTENT.iter().any(|n| dir.join(n).exists()) {
         return Ok(mod_host_server::hash_mod_dir(dir)?);
     }
     let stage = stage_root.join("stage").join(id);
@@ -158,7 +163,7 @@ fn copy_without(from: &Path, to: &Path, root: bool) -> Result<()> {
         let item = item?;
         let name = item.file_name();
         let n = name.to_string_lossy();
-        if n.starts_with('.') || (root && n == "target") {
+        if n.starts_with('.') || (root && NOT_CONTENT.contains(&&*n)) {
             continue;
         }
         let ty = item.file_type()?;
@@ -370,7 +375,7 @@ pub fn cmd_check(root: &Path, args: &[String]) -> Result<()> {
     let prepared = prepare(&list, &work)?;
     report(&prepared);
     write_lock_file(&prepared)?;
-    Ok(())
+    super::dist::graph_step(root, &prepared)
 }
 
 pub fn report(p: &Prepared) {
@@ -612,6 +617,19 @@ mod tests {
         s.file("aa/mod.toml", &bad);
         let e = err(&s);
         assert!(e.contains("is not a function of crate `aa-server`"), "{e}");
+    }
+
+    #[test]
+    fn the_list_and_the_lock_next_to_a_mod_are_not_part_of_its_hash() {
+        let s = Scratch::new();
+        s.file("m/mods.toml", "[[mod]]\npath = \".\"\n");
+        s.file("m/mod.toml", &manifest("aa", "1.0.0", "", "MIT"));
+        let prep_m = || prepare(&s.0.join("m/mods.toml"), &s.0.join("work")).unwrap();
+        let p = prep_m();
+        let h = p.resolution.set.mods()[0].content_hash;
+        write_lock_file(&p).unwrap();
+        assert!(s.0.join("m/mods.lock").exists());
+        assert_eq!(prep_m().resolution.set.mods()[0].content_hash, h);
     }
 
     #[test]

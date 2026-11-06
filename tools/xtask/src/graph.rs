@@ -189,6 +189,25 @@ pub struct DepsConfig {
     pub r2: R2,
     pub r5: R5,
     pub r10: R10,
+    pub r11: R11,
+}
+
+/// R11 (mods): the workspace crates a mod's halves may depend on directly, besides the mod's own shared crates.
+/// Dev-dependencies are exempt (plan decision 8), as for every rule.
+#[derive(Debug, Clone, Deserialize)]
+pub struct R11 {
+    pub server_allowed: Vec<String>,
+    pub client_allowed: Vec<String>,
+}
+
+/// The crates of one mod in a dist graph: its halves (named by `rust.server.crate` and `rust.client.crate`) and the
+/// other crates that live in the mod's directory (its shared crates).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ModCrates {
+    pub id: String,
+    pub server: Option<String>,
+    pub client: Option<String>,
+    pub shared: BTreeSet<String>,
 }
 
 /// R10 (the client holds a replica, never the rules). `forbidden` crates are unreachable from the client builds;
@@ -719,6 +738,78 @@ pub fn r10_reach(g: &Graph, cfg: &DepsConfig) -> Vec<Violation> {
     out
 }
 
+/// R11: the halves of a mod. The server half is a `server` layer crate that depends directly only on the crates of
+/// `r11.server_allowed` (`mod-api`, `mod-manifest`) and the mod's own shared crates; the client half is a `client`
+/// layer crate that depends only on `r11.client_allowed` (`mod-client`) and the mod's own shared crates; the mod's
+/// shared crates are `shared` layer crates. `normal` and `build` edges count, `dev` edges do not. Third-party crates
+/// are not restricted here (R1–R10 cover them on the whole graph).
+pub fn r11(g: &Graph, cfg: &DepsConfig, mods: &[ModCrates]) -> Vec<Violation> {
+    let mut out = Vec::new();
+    for m in mods {
+        let halves = [
+            ("server", Layer::Server, &m.server, &cfg.r11.server_allowed),
+            ("client", Layer::Client, &m.client, &cfg.r11.client_allowed),
+        ];
+        for (half, want, name, allowed) in halves {
+            let Some(name) = name else { continue };
+            let Some(layer) = g.layer(name) else {
+                out.push(viol(
+                    "R11",
+                    format!(
+                        "the {half} half `{name}` of mod `{}` is not a workspace crate with a layer \
+                         (`[package.metadata.civ5] layer = \"{want}\"`)",
+                        m.id
+                    ),
+                ));
+                continue;
+            };
+            if layer != want {
+                out.push(viol(
+                    "R11",
+                    format!(
+                        "the {half} half `{name}` of mod `{}` is in layer {layer}; it must be {want}",
+                        m.id
+                    ),
+                ));
+            }
+            for d in g.direct(name, true) {
+                if g.layer(d).is_none() || m.shared.contains(d) || allowed.iter().any(|a| a == d) {
+                    continue;
+                }
+                let own: Vec<&str> = m.shared.iter().map(String::as_str).collect();
+                out.push(viol(
+                    "R11",
+                    format!(
+                        "the {half} half `{name}` of mod `{}` depends on `{d}`: {name} → {d}; \
+                         it may depend only on {} and its own shared crates ({})",
+                        m.id,
+                        allowed.join(", "),
+                        if own.is_empty() {
+                            "none".to_owned()
+                        } else {
+                            own.join(", ")
+                        }
+                    ),
+                ));
+            }
+        }
+        for s in &m.shared {
+            match g.layer(s) {
+                Some(Layer::Shared) => {}
+                Some(l) => out.push(viol(
+                    "R11",
+                    format!(
+                        "the shared crate `{s}` of mod `{}` is in layer {l}; it must be shared",
+                        m.id
+                    ),
+                )),
+                None => {}
+            }
+        }
+    }
+    out
+}
+
 /// Stores each identical violation once, with every graph label it was found in.
 pub fn merge_violations(
     found: &mut Vec<(Violation, Vec<String>)>,
@@ -807,7 +898,168 @@ mod tests {
                     },
                 ],
             },
+            r11: R11 {
+                server_allowed: vec!["mod-api".into(), "mod-manifest".into()],
+                client_allowed: vec!["mod-client".into()],
+            },
         }
+    }
+
+    /// The clean graph plus mod `hello` (halves `hello-server`, `hello-client`, shared `hello-shared`) and the mod
+    /// API crates, as a dist graph has them.
+    fn with_mod() -> (Graph, Vec<ModCrates>) {
+        use EdgeKind::Normal as N;
+        let mut g = clean();
+        for (n, l) in [
+            ("mod-manifest", Layer::Shared),
+            ("mod-api", Layer::Shared),
+            ("mod-client", Layer::Client),
+            ("hello-shared", Layer::Shared),
+            ("hello-server", Layer::Server),
+            ("hello-client", Layer::Client),
+        ] {
+            g.add(n, Some(l));
+        }
+        g.edge("mod-api", "mod-manifest", N);
+        g.edge("mod-client", "mod-api", N);
+        g.edge("mod-client", "render", N);
+        g.edge("hello-server", "mod-api", N);
+        g.edge("hello-server", "mod-manifest", N);
+        g.edge("hello-server", "hello-shared", N);
+        g.edge("hello-server", "serde", N);
+        g.edge("hello-client", "mod-client", N);
+        g.edge("hello-client", "hello-shared", N);
+        let mods = vec![ModCrates {
+            id: "hello".into(),
+            server: Some("hello-server".into()),
+            client: Some("hello-client".into()),
+            shared: BTreeSet::from(["hello-shared".to_string()]),
+        }];
+        (g, mods)
+    }
+
+    #[test]
+    fn r11_a_clean_mod_passes_every_rule() {
+        let (g, mods) = with_mod();
+        assert!(r11(&g, &cfg(), &mods).is_empty());
+        let v = check_all(&g, &cfg());
+        assert!(v.is_empty(), "{v:?}");
+    }
+
+    #[test]
+    fn r11_server_half_may_not_reach_for_the_engine() {
+        for bad in [
+            "render",
+            "game-host",
+            "gamecore",
+            "protocol",
+            "client-core",
+            "mod-client",
+        ] {
+            let (mut g, mods) = with_mod();
+            g.edge("hello-server", bad, EdgeKind::Normal);
+            let v = r11(&g, &cfg(), &mods);
+            assert_eq!(rules(&v), ["R11"], "{bad}: {v:?}");
+            assert!(
+                v[0].message.contains(&format!("hello-server → {bad}")),
+                "{}",
+                v[0].message
+            );
+        }
+    }
+
+    #[test]
+    fn r11_build_dependencies_count_but_dev_dependencies_do_not() {
+        let (mut g, mods) = with_mod();
+        g.edge("hello-server", "hexgrid", EdgeKind::Dev);
+        g.add("hexgrid", Some(Layer::Shared));
+        g.edge("hello-server", "render", EdgeKind::Dev);
+        assert!(r11(&g, &cfg(), &mods).is_empty());
+        g.edge("hello-server", "build-support", EdgeKind::Build);
+        assert_eq!(rules(&r11(&g, &cfg(), &mods)), ["R11"]);
+    }
+
+    #[test]
+    fn r11_client_half_only_reaches_mod_client_and_its_shared() {
+        for bad in [
+            "render",
+            "mod-api",
+            "mod-manifest",
+            "client-core",
+            "hello-server",
+        ] {
+            let (mut g, mods) = with_mod();
+            g.edge("hello-client", bad, EdgeKind::Normal);
+            let v = r11(&g, &cfg(), &mods);
+            assert!(
+                v.iter()
+                    .any(|x| x.message.contains(&format!("hello-client → {bad}"))),
+                "{bad}: {v:?}"
+            );
+        }
+        let (mut g, mods) = with_mod();
+        g.edge("hello-client", "render", EdgeKind::Dev);
+        assert!(r11(&g, &cfg(), &mods).is_empty());
+    }
+
+    #[test]
+    fn r11_a_half_may_not_use_another_mods_shared_crate() {
+        let (mut g, mods) = with_mod();
+        g.add("other-shared", Some(Layer::Shared));
+        g.edge("hello-server", "other-shared", EdgeKind::Normal);
+        let v = r11(&g, &cfg(), &mods);
+        assert_eq!(rules(&v), ["R11"]);
+        assert!(v[0].message.contains("hello-server → other-shared"));
+    }
+
+    #[test]
+    fn r11_layers_of_the_mod_crates_are_checked() {
+        let (mut g, mods) = with_mod();
+        g.add("hello-server", Some(Layer::Shared));
+        g.add("hello-client", Some(Layer::Server));
+        g.add("hello-shared", Some(Layer::Client));
+        let v = r11(&g, &cfg(), &mods);
+        let text: Vec<&str> = v.iter().map(|x| x.message.as_str()).collect();
+        assert!(
+            text.iter().any(|m| m
+                .contains("`hello-server` of mod `hello` is in layer shared; it must be server")),
+            "{text:?}"
+        );
+        assert!(
+            text.iter().any(|m| m
+                .contains("`hello-client` of mod `hello` is in layer server; it must be client")),
+            "{text:?}"
+        );
+        assert!(
+            text.iter().any(
+                |m| m.contains("shared crate `hello-shared` of mod `hello` is in layer client")
+            ),
+            "{text:?}"
+        );
+    }
+
+    #[test]
+    fn r11_a_half_missing_from_the_graph_is_reported() {
+        let (mut g, mods) = with_mod();
+        g.nodes.remove("hello-client");
+        let v = r11(&g, &cfg(), &mods);
+        assert!(v.iter().any(|x| {
+            x.message
+                .contains("`hello-client` of mod `hello` is not a workspace crate")
+        }));
+    }
+
+    #[test]
+    fn dist_graph_also_passes_r1_to_r10() {
+        // A server half that smuggles web-sys in through its shared crate is caught by R1 (direct) and R4 (layer).
+        let (mut g, _) = with_mod();
+        g.edge("hello-shared", "web-sys", EdgeKind::Normal);
+        let v = check_all(&g, &cfg());
+        assert!(rules(&v).contains(&"R1"), "{v:?}");
+        // The server half itself using tokio is fine (server layer); a client half using it is R7.
+        let (mut g, _) = with_mod();
+        g.edge("hello-client", "tokio", EdgeKind::Normal);
+        assert!(rules(&check_all(&g, &cfg())).contains(&"R7"));
     }
 
     fn clean() -> Graph {

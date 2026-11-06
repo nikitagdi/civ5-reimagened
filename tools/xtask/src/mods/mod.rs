@@ -4,6 +4,8 @@
 //! assembles `target/dist/` and builds it. The public build (no `--mods`) is not touched by any of this.
 
 pub mod check;
+pub mod dist;
+pub mod gen_server;
 pub mod local;
 
 use std::path::{Path, PathBuf};
