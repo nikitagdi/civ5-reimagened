@@ -81,7 +81,8 @@ impl Group {
             SystemId::Overlay | SystemId::Arrows | SystemId::Trade => Group::Overlays,
             SystemId::FowClassic | SystemId::FluidFow | SystemId::DistanceFog => Group::Fog,
             SystemId::Particle => Group::Effects,
-            SystemId::Minimap | SystemId::Shadows => Group::Other,
+            // The geometry of mods has no group of its own: it shows under `other`.
+            SystemId::Minimap | SystemId::Shadows | SystemId::Mod(_) => Group::Other,
         }
     }
 

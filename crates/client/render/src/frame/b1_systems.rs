@@ -1600,6 +1600,74 @@ mod tests {
         assert_eq!(small.size, (512, 512));
     }
 
+    /// Client-hooks R1 to R3: a mod's render system is prepared and recorded in the main pass, sees the frame's
+    /// constants, and a system that draws nothing changes no pixel.
+    #[test]
+    fn a_mod_system_joins_the_main_pass_and_an_inert_one_changes_no_pixel() {
+        use crate::frame::{
+            DrawContext, FrameSource, InitContext, MainSlot, PassSlot, PrepareContext,
+            RenderSystem, SystemId,
+        };
+        use crate::gpu_test::block_on;
+        use crate::renderer::BackendPref;
+        use std::cell::Cell;
+        use std::rc::Rc;
+
+        #[derive(Default)]
+        struct Seen {
+            prepared: Cell<u32>,
+            recorded: Cell<u32>,
+            frame_group: Cell<bool>,
+            time_finite: Cell<bool>,
+        }
+        struct Inert(Rc<Seen>);
+        impl RenderSystem for Inert {
+            fn id(&self) -> SystemId {
+                SystemId::Mod(1)
+            }
+            fn passes(&self) -> &'static [PassSlot] {
+                &[PassSlot::Main(MainSlot::Mod)]
+            }
+            fn init(&mut self, _cx: &mut InitContext<'_>) {}
+            fn prepare(&mut self, cx: &mut PrepareContext<'_>) {
+                self.0.prepared.set(self.0.prepared.get() + 1);
+                // None here: B1's ground has no sampler; the native terrain's is `Some` once a map is set.
+                let _ = cx.terrain();
+            }
+            fn record(&self, _slot: PassSlot, cx: &mut DrawContext<'_, '_>) {
+                self.0.recorded.set(self.0.recorded.get() + 1);
+                let frame = &cx.services().frame;
+                self.0.frame_group.set(frame.bind_group().is_some());
+                self.0.time_finite.set(frame.time().is_finite());
+            }
+        }
+
+        let Ok(r) = block_on(Renderer::new_headless(SIZE, BackendPref::Auto)) else {
+            eprintln!("SKIP a_mod_system_joins_the_main_pass: no adapter");
+            return;
+        };
+        let mut r = fill_world(r);
+        let (_, camera) = cameras().into_iter().find(|(n, _)| *n == "wide").unwrap();
+        let ui = UiDrawList::default();
+        let scene = baseline_scene();
+        let read = |r: &mut Renderer| {
+            let readback = r.read_frame(FrameSource::World);
+            r.render(&scene, &camera, &ui, None).unwrap();
+            readback.wait().unwrap()
+        };
+        let before = read(&mut r);
+        let seen = Rc::new(Seen::default());
+        r.add_mod_system(Box::new(Inert(Rc::clone(&seen)))).unwrap();
+        assert!(r.mod_gpu().samples >= 1);
+        let after = read(&mut r);
+        assert!(
+            before == after,
+            "a mod system that draws nothing changes no pixel"
+        );
+        assert!(seen.prepared.get() >= 1 && seen.recorded.get() >= 1);
+        assert!(seen.frame_group.get() && seen.time_finite.get());
+    }
+
     /// A renderer without a window (R0.17): the same world twice gives the same bytes, the frame
     /// with the UI is the frame of the world here, `FixedCamera` with the matrices of a camera
     /// draws what the camera draws, and the class mask has land and water where they are.

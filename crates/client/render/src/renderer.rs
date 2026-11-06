@@ -497,6 +497,8 @@ pub struct Renderer {
     /// The same for the reflection pass, with the matrix of the reflection camera (group 0 of the
     /// objects and the buildings drawn into `ReflectionColor`).
     reflection_globals: Buf,
+    /// Device, layouts and formats for the render systems of mods (client-hooks R1 to R3).
+    mod_gpu: crate::frame::ModGpu,
     /// Subsystems switched off; `plan` leaves them out.
     layers: LayerSwitches,
     /// The quality keys in force. `samples` follows them at start-up only.
@@ -1022,6 +1024,29 @@ impl Renderer {
             Cluster::Other,
         );
 
+        // What a mod's render system needs to build its pipeline and to read the frame (client-hooks R3).
+        let frame_layout = crate::frame::FrameShared::make_layout(&device);
+        world
+            .services
+            .frame
+            .bind(device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("mod frame globals"),
+                layout: &frame_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: frame_globals.as_entire_binding(),
+                }],
+            }));
+        let mod_gpu = crate::frame::ModGpu {
+            device: device.clone(),
+            queue: queue.clone(),
+            view_layout: globals_layout.clone(),
+            frame_layout,
+            color_format: WORLD_FORMAT,
+            depth_format: DEPTH_FORMAT,
+            samples,
+        };
+
         Self {
             surface,
             config,
@@ -1104,6 +1129,7 @@ impl Renderer {
             debug_shadow: false,
             frame_globals,
             reflection_globals,
+            mod_gpu,
             layers: LayerSwitches::new(),
             settings,
             timer,
@@ -1979,6 +2005,22 @@ impl Renderer {
     /// Turn numbers on the shown path, for the UI (like [`Self::entity_labels`]).
     pub fn path_labels(&self) -> &[WorldLabel] {
         self.world.movement_path.labels()
+    }
+
+    /// What a render system of a mod builds its pipeline from: device, queue, the layouts of group 0 and of
+    /// `FrameGlobals`, the formats and the sample count of the main pass.
+    pub fn mod_gpu(&self) -> &crate::frame::ModGpu {
+        &self.mod_gpu
+    }
+
+    /// Registers a render system of a mod (`SystemId::Mod(_)`, client-hooks R1). It is initialised at once and
+    /// joins the frame in its slots, after the engine's systems. Without any, the frame is the engine's own.
+    pub fn add_mod_system(
+        &mut self,
+        system: Box<dyn RenderSystem>,
+    ) -> Result<(), crate::frame::ModSystemError> {
+        self.world
+            .register_mod(system, &self.device, &mut self.targets)
     }
 
     /// The subsystems of the world, for the inputs that have no facade of their own.
@@ -3765,7 +3807,7 @@ impl Renderer {
     /// (`golden`). B1 draws synchronously, so only the stubs and the services count.
     pub fn settled(&self) -> bool {
         self.world.services.pending_work() == 0
-            && settled(&self.world.list(), &|id| !self.layers.is_disabled(id))
+            && settled(&self.world.list_all(), &|id| !self.layers.is_disabled(id))
             && !self.forest_draws_stale()
             && !self.heights_stale()
     }
@@ -3808,7 +3850,7 @@ impl Renderer {
         if self.heights_stale() {
             out.push("landmarks and cities placed on an older terrain".into());
         }
-        for s in self.world.list() {
+        for s in self.world.list_all() {
             if !self.layers.is_disabled(s.id()) && s.pending_work() > 0 {
                 out.push(format!("{:?}: {}", s.id(), s.pending_work()));
             }
@@ -4340,6 +4382,10 @@ impl Renderer {
             )
         });
         self.upload_uniform(&self.frame_globals, 0, &frame_globals);
+        // The same constants for the render systems of mods (client-hooks R3).
+        let mut shared = frame_globals;
+        self.constant_overrides.apply(&mut shared);
+        self.world.services.frame.set_globals(shared);
         let world_drawn = self.world_drawn();
         // The reflection pass (RC-12): the camera along `m_vReflectDir` and the frame constants
         // with its matrix. No target at `ReflectionLevel` 0, so no camera and no pass.
@@ -4886,7 +4932,7 @@ impl Renderer {
         let mut systems: Vec<&dyn RenderSystem> = adapters.list().to_vec();
         systems.extend(
             self.world
-                .list()
+                .list_all()
                 .into_iter()
                 .filter(|s| adapters.get(s.id()).is_none()),
         );
@@ -5168,7 +5214,8 @@ impl Renderer {
                                 shift,
                                 &mut stats,
                                 &self.world.services,
-                            );
+                            )
+                            .with_terrain(self.world.terrain.sampler());
                             sys.record(slot, &mut cx);
                         }
                         let n = stats.triangles - at;
@@ -5200,7 +5247,8 @@ impl Renderer {
                                 shift,
                                 &mut stats,
                                 &self.world.services,
-                            );
+                            )
+                            .with_terrain(self.world.terrain.sampler());
                             sys.record(slot, &mut cx);
                             // The units of `assets-b2` after what B1 draws in the slot.
                             if units_native && system == SystemId::Unit {
@@ -5531,6 +5579,7 @@ fn step_label(step: &Step) -> &'static str {
             SystemId::YieldIcons => "prepare.yieldicons",
             SystemId::DistanceFog => "prepare.distancefog",
             SystemId::Shadows => "prepare.shadows",
+            SystemId::Mod(_) => "prepare.mod",
         },
         Step::Offscreen { system, .. } => match system {
             SystemId::Terrain => "offscreen.terrain",
@@ -5554,6 +5603,7 @@ fn step_label(step: &Step) -> &'static str {
             SystemId::YieldIcons => "offscreen.yieldicons",
             SystemId::DistanceFog => "offscreen.distancefog",
             SystemId::Shadows => "offscreen.shadows",
+            SystemId::Mod(_) => "offscreen.mod",
         },
         Step::Record { system, .. } => match system {
             SystemId::Terrain => "record.terrain",
@@ -5577,6 +5627,7 @@ fn step_label(step: &Step) -> &'static str {
             SystemId::YieldIcons => "record.yieldicons",
             SystemId::DistanceFog => "record.distancefog",
             SystemId::Shadows => "record.shadows",
+            SystemId::Mod(_) => "record.mod",
         },
         Step::BeginPass(_) | Step::EndPass(_) => "step.pass_edge",
         Step::Core(_) => "step.core",
