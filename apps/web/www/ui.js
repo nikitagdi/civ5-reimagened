@@ -667,7 +667,7 @@
           "div",
           { class: "cols" },
           h("div", { class: "players-col" }, playersSection(v, dis)),
-          h("div", { class: "settings-col" }, mapSection(st, dis), gameSection(st, dis), victorySection(st, dis), optionsSection(st, dis), advancedSection(st, dis)),
+          h("div", { class: "settings-col" }, mapSection(st, dis), gameSection(st, dis), victorySection(st, dis), optionsSection(st, dis), modsSection(v, dis), advancedSection(st, dis)),
         ),
       ),
       bottomBar(v, mine),
@@ -1088,6 +1088,55 @@
         );
       }),
       fold("fold-more", "More options", group("Hidden")),
+    ]);
+  }
+
+  // T44: the mods of the server. The host ticks the ones to play with; the server resolves the set (dependencies,
+  // versions) and the plan below shows the result, or the reasons it cannot be loaded. Nothing installed and
+  // nothing picked: no section, the room looks as it always did.
+  function modsSection(v, dis) {
+    const m = v.mods;
+    if (!m || (!m.installed.length && !m.plan.length && !m.problems.length)) return null;
+    const row = (r) =>
+      h(
+        "label",
+        { class: "check", "data-k": "mod-" + r.id },
+        h("input", { type: "checkbox", checked: r.picked, disabled: dis, "aria-label": r.title, onchange: (e) => edit({ Mod: { id: r.id, on: e.target.checked } }) }),
+        h(
+          "span",
+          { class: "txt" },
+          h("span", { class: "name" }, r.title, h("span", { class: "tag" }, r.class || "?")),
+          h("div", { class: "sub" }, "Version " + r.version + (r.optional ? "" : ", required for players")),
+          r.optional ? h("span", { class: "tag soft" }, "optional for players") : null,
+          r.missing ? h("div", { class: "err" }, "Not installed on this server.") : null,
+        ),
+      );
+    return details("mods", "section frame mods", "Mods", true, [
+      m.installed.length ? h("div", { class: "checks" }, m.installed.map(row)) : null,
+      m.problems.length
+        ? h("div", { class: "mod-problems", role: "alert" }, h("div", { class: "sub" }, "These mods cannot be loaded, so the game cannot start:"), m.problems.map((t) => h("div", { class: "err" }, t)))
+        : null,
+      m.plan.length
+        ? h(
+            "div",
+            { class: "mod-plan" },
+            h("div", { class: "sub" }, "The game loads, in this order:"),
+            h(
+              "ol",
+              null,
+              m.plan.map((p) =>
+                h(
+                  "li",
+                  { "data-k": "plan-" + p.id },
+                  p.id + " " + p.version,
+                  p.added ? h("span", { class: "tag" }, "added by a dependency") : null,
+                  p.optional ? h("span", { class: "tag soft" }, "optional for players") : null,
+                  p.pack ? h("span", { class: "tag soft" }, "downloads assets") : null,
+                ),
+              ),
+            ),
+          )
+        : null,
     ]);
   }
 

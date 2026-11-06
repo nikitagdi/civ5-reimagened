@@ -91,6 +91,11 @@ pub enum RoomEdit {
         key: String,
         on: bool,
     },
+    /// A mod of the server on or off in the room's set (`id` of [`ModRow`]).
+    Mod {
+        id: String,
+        on: bool,
+    },
 }
 
 /// A decision the AI makes for the human (SIMP-002): "Advanced".
@@ -151,6 +156,51 @@ pub struct MapOptionRow {
     pub value: i32,
     pub values: Vec<(i32, String)>,
     pub read_only: bool,
+}
+
+/// An installed mod the host can pick (T44).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct ModRow {
+    pub id: String,
+    pub title: String,
+    pub version: String,
+    /// "Gameplay" / "Cosmetic" / "Client".
+    pub class: String,
+    pub picked: bool,
+    /// Players can join without it (cosmetic only).
+    pub optional: bool,
+    /// Picked but not installed on the server: the host can only take it off.
+    pub missing: bool,
+}
+
+/// One mod of the resolved load plan.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct PlanRow {
+    pub id: String,
+    pub version: String,
+    pub class: String,
+    pub optional: bool,
+    /// Pulled in by a dependency, not picked by the host.
+    pub added: bool,
+    /// Players download an asset pack for it.
+    pub pack: bool,
+}
+
+/// The mods of the room: what the server has, what the host picked, the resolved plan or why there is none.
+/// Empty (nothing installed, nothing picked) means the room shows no mods section at all.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct ModsView {
+    pub installed: Vec<ModRow>,
+    /// In load order.
+    pub plan: Vec<PlanRow>,
+    /// The server's reasons the set cannot be loaded; the game does not start while there are any.
+    pub problems: Vec<String>,
+}
+
+impl ModsView {
+    pub fn shown(&self) -> bool {
+        !(self.installed.is_empty() && self.plan.is_empty() && self.problems.is_empty())
+    }
 }
 
 /// The settings with the lists to pick from.
@@ -233,6 +283,8 @@ pub struct RoomView {
     pub error: Option<String>,
     /// The saves [Load save...] offers.
     pub saves: Vec<SaveRow>,
+    /// The mods of the room (T44).
+    pub mods: ModsView,
 }
 
 /// What the picker window chooses for.
@@ -689,11 +741,57 @@ fn settings(
             }
         });
 
+    mods_section(ui, &view.mods, editable, actions);
+
     ui.add_space(6.0);
     ui.weak(
         "The AI makes research, policy and similar choices for you; AI offers are declined \
          (SIMP-002, SIMP-003).",
     );
+}
+
+/// "Mods": the installed ones with check boxes (the host), the resolved plan, the server's reasons it fails.
+fn mods_section(ui: &mut egui::Ui, m: &ModsView, editable: bool, actions: &mut Vec<UiAction>) {
+    if !m.shown() {
+        return;
+    }
+    ui.add_space(4.0);
+    ui.strong("Mods");
+    for r in &m.installed {
+        let mut on = r.picked;
+        let mut label = format!("{} {} ({})", r.title, r.version, r.class);
+        if r.optional {
+            label.push_str(" - optional for players");
+        }
+        if r.missing {
+            label.push_str(" - not installed on the server");
+        }
+        if ui
+            .add_enabled(editable, egui::Checkbox::new(&mut on, label))
+            .changed()
+        {
+            actions.push(UiAction::RoomEdit(RoomEdit::Mod {
+                id: r.id.clone(),
+                on,
+            }));
+        }
+    }
+    if !m.plan.is_empty() {
+        ui.weak("Load order:");
+        for (i, p) in m.plan.iter().enumerate() {
+            let mut line = format!("{}. {} {}", i + 1, p.id, p.version);
+            if p.added {
+                line.push_str(" - added by a dependency");
+            }
+            if p.optional {
+                line.push_str(" - optional for players");
+            }
+            ui.label(line);
+        }
+    }
+    for p in &m.problems {
+        ui.colored_label(ui.visuals().error_fg_color, p);
+    }
 }
 
 /// "off" for no turn limit, else the number.

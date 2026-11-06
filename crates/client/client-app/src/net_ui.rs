@@ -12,8 +12,9 @@ use interim_ui::screens::loading::LoadingView;
 use interim_ui::screens::login::{ErrorButton, LoginView};
 use interim_ui::screens::notice::{NoticeButton, NoticeView};
 use interim_ui::screens::room::{
-    AutoRow, Choice, CivTipRow, MapOptionRow, OptionGroup, OptionRow, RoomEdit, RoomView,
-    SettingsView, SlotKind, SlotRow, SlotWho, TimerChoice, TurnModeChoice, VictoryRow,
+    AutoRow, Choice, CivTipRow, MapOptionRow, ModRow, ModsView, OptionGroup, OptionRow, PlanRow,
+    RoomEdit, RoomView, SettingsView, SlotKind, SlotRow, SlotWho, TimerChoice, TurnModeChoice,
+    VictoryRow,
 };
 use interim_ui::screens::rooms::{
     GameRow, LobbyListView, MySeat, OnlineRow, RoomRow, SaveRow, SeatRow,
@@ -182,6 +183,16 @@ pub fn apply_edit(s: &mut GameSettings, edit: &RoomEdit, choices: &LobbyChoices)
         RoomEdit::AutoChoice { key, on } => {
             if let Some(f) = auto_field(&mut s.auto_choices, key) {
                 *f = *on;
+            }
+        }
+        // The server resolves the set (dependencies, versions); the room only keeps the host's picks.
+        RoomEdit::Mod { id, on } => {
+            s.mods.retain(|m| &m.id != id);
+            if *on {
+                s.mods.push(protocol::ModPick {
+                    id: id.clone(),
+                    req: "*".to_owned(),
+                });
             }
         }
     }
@@ -461,6 +472,8 @@ pub fn reject_text(reason: &RejectReason) -> Option<(&'static str, Option<ErrorB
 /// The server writes the problems in full sentences; at most `MOD_PROBLEM_LINES` are shown.
 pub fn mod_mismatch_text(problems: &[protocol::ModProblem]) -> String {
     const MOD_PROBLEM_LINES: usize = 6;
+    // The server's lines read "mod `x` 1.2.0 is required to play this game, your client does not have it" (or
+    // names the client's other version): the mod and the version the game needs.
     let mut text = String::from("This game needs mods your client does not have.");
     for p in problems.iter().take(MOD_PROBLEM_LINES) {
         text.push('\n');
@@ -473,6 +486,24 @@ pub fn mod_mismatch_text(problems: &[protocol::ModProblem]) -> String {
         ));
     }
     text
+}
+
+/// T45: the mods of a game this client takes no part in (the server marked them `available: false` for it).
+/// They are optional (a client without a required one was refused), so this is a small note, not an error.
+pub fn skipped_mods_note(set: &protocol::ModSetView) -> Option<String> {
+    let names: Vec<String> = set
+        .mods
+        .iter()
+        .filter(|m| !m.available)
+        .map(|m| format!("{} {}", m.id, m.version))
+        .collect();
+    if names.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "Optional mods this client does not have are skipped: {}.",
+        names.join(", ")
+    ))
 }
 
 /// SIMPLIFIED(SIMP-uic-62): the sign-in is our own account page (the web page shows this view).
@@ -655,6 +686,10 @@ pub fn online_rows(state: &LobbyState, me: &str) -> Vec<OnlineRow> {
 
 /// "Waiting for: Anna, Bob" / "Need at least two civilizations" / ...: why [Start game] is off (LU-D4).
 pub fn why_not_start(room: &RoomState) -> Option<String> {
+    // The server checks the mods first; so does the room.
+    if matches!(room.mod_plan, protocol::ModPlan::Err(_)) {
+        return Some("The chosen mods cannot be loaded (see Mods)".to_owned());
+    }
     let waiting: Vec<&str> = room
         .slots
         .iter()
@@ -681,6 +716,76 @@ pub fn why_not_start(room: &RoomState) -> Option<String> {
         return Some("Close or fill the open slots".to_owned());
     }
     None
+}
+
+fn sync_name(s: protocol::ModSync) -> &'static str {
+    match s {
+        protocol::ModSync::Gameplay => "Gameplay",
+        protocol::ModSync::Cosmetic => "Cosmetic",
+        protocol::ModSync::Client => "Client",
+    }
+}
+
+/// The mods block of the room (T44): the installed mods with the host's picks, the plan, the problems.
+pub fn mods_view(room: &RoomState, choices: &LobbyChoices) -> ModsView {
+    let picks = &room.settings.mods;
+    let picked = |id: &str| picks.iter().any(|p| p.id == id);
+    let mut installed: Vec<ModRow> = choices
+        .mods
+        .iter()
+        .map(|m| ModRow {
+            id: m.id.clone(),
+            title: if m.title.is_empty() {
+                m.id.clone()
+            } else {
+                m.title.clone()
+            },
+            version: m.version.clone(),
+            class: sync_name(m.sync).to_owned(),
+            picked: picked(&m.id),
+            optional: !m.client_required,
+            missing: false,
+        })
+        .collect();
+    // A pick the server does not have (a saved room): shown so the host can take it off.
+    for p in picks {
+        if !choices.mods.iter().any(|m| m.id == p.id) {
+            installed.push(ModRow {
+                id: p.id.clone(),
+                title: p.id.clone(),
+                version: p.req.clone(),
+                class: String::new(),
+                picked: true,
+                optional: false,
+                missing: true,
+            });
+        }
+    }
+    let (plan, problems) = match &room.mod_plan {
+        protocol::ModPlan::Ok(list) => {
+            let mut list: Vec<&protocol::ModView> = list.iter().collect();
+            list.sort_by_key(|m| m.load_idx);
+            (
+                list.into_iter()
+                    .map(|m| PlanRow {
+                        id: m.id.clone(),
+                        version: m.version.clone(),
+                        class: sync_name(m.sync).to_owned(),
+                        optional: !m.client_required,
+                        added: !picked(&m.id),
+                        pack: m.pack.is_some(),
+                    })
+                    .collect(),
+                Vec::new(),
+            )
+        }
+        protocol::ModPlan::Err(list) => (Vec::new(), list.iter().map(|p| p.text.clone()).collect()),
+    };
+    ModsView {
+        installed,
+        plan,
+        problems,
+    }
 }
 
 /// The room window. `room_note` is the line over it (the new host), `error` the server's last refusal.
@@ -751,6 +856,7 @@ pub fn room_view(
         note: note.map(str::to_owned),
         error: error.map(str::to_owned),
         saves: save_rows(state),
+        mods: mods_view(room, choices),
     }
 }
 
@@ -854,6 +960,8 @@ pub struct NetUi {
     /// (`RoomParams::manual_choices`; the original UI, live report 2026-10-30: research and policies were
     /// chosen by the core and END TURN went on).
     manual_choices: bool,
+    /// T45: the quiet note of optional mods this client lacks, shown on the loading screen.
+    skipped_mods: Option<String>,
 }
 
 impl NetUi {
@@ -892,7 +1000,11 @@ impl NetUi {
                 };
                 self.room_note = Some((text, now_ms));
             }
-            ClientEvent::Detached(_) => self.joining = None,
+            ClientEvent::Detached(_) => {
+                self.joining = None;
+                self.skipped_mods = None;
+            }
+            ClientEvent::ModSet(set) => self.skipped_mods = skipped_mods_note(set),
             ClientEvent::LoggedIn => self.password_typed = false,
             _ => {}
         }
@@ -1058,7 +1170,10 @@ impl NetUi {
         let since = self.stage.as_ref().map_or(now_ms, |(_, at)| *at);
         LoadingView {
             stage,
-            detail: core.reconnect_status().map(|r| reconnect_text(&r)),
+            detail: core
+                .reconnect_status()
+                .map(|r| reconnect_text(&r))
+                .or_else(|| self.skipped_mods.clone()),
             step,
             steps: LOADING_STEPS,
             elapsed_s: now_ms.saturating_sub(since) as f32 / 1000.0,
@@ -1935,6 +2050,127 @@ Building: Baths"
         assert_eq!(
             login_view("a", "s", Some(&none)).error.as_deref(),
             Some("The game needs mods this client does not have.")
+        );
+    }
+
+    fn modv(id: &str, load_idx: u16, client_required: bool, available: bool) -> protocol::ModView {
+        protocol::ModView {
+            id: id.into(),
+            version: "1.0.0".into(),
+            load_idx,
+            sync: protocol::ModSync::Gameplay,
+            client_required,
+            available,
+            pack: None,
+        }
+    }
+
+    fn installed(id: &str, client_required: bool) -> protocol::InstalledModView {
+        protocol::InstalledModView {
+            id: id.into(),
+            version: "1.0.0".into(),
+            title: format!("Title of {id}"),
+            sync: protocol::ModSync::Cosmetic,
+            client_required,
+        }
+    }
+
+    #[test]
+    fn the_room_lists_installed_mods_the_plan_and_the_problems() {
+        let mut c = choices();
+        let mut room = room_state(vec![human("alice", true)]);
+        // Nothing installed, nothing picked: no section.
+        assert!(!mods_view(&room, &c).shown());
+        c.mods = vec![installed("base", true), installed("extra", false)];
+        let v = mods_view(&room, &c);
+        assert!(v.shown() && v.installed.len() == 2 && v.plan.is_empty());
+        assert!(!v.installed[0].picked && v.installed[1].optional);
+        // `extra` picked; the plan adds `base` first, by dependency.
+        room.settings.mods = vec![protocol::ModPick {
+            id: "extra".into(),
+            req: "*".into(),
+        }];
+        room.mod_plan = protocol::ModPlan::Ok(vec![
+            modv("extra", 1, false, true),
+            modv("base", 0, true, true),
+        ]);
+        let v = mods_view(&room, &c);
+        assert!(v.installed[1].picked);
+        let ids: Vec<_> = v
+            .plan
+            .iter()
+            .map(|p| (p.id.as_str(), p.added, p.optional))
+            .collect();
+        assert_eq!(ids, [("base", true, false), ("extra", false, true)]);
+        assert!(v.problems.is_empty());
+        // A pick the server lacks is listed so the host can take it off; the plan failed.
+        room.settings.mods.push(protocol::ModPick {
+            id: "gone".into(),
+            req: "^2".into(),
+        });
+        room.mod_plan = protocol::ModPlan::Err(vec![protocol::ModProblem {
+            text: "mod `gone` is not installed".into(),
+        }]);
+        let v = mods_view(&room, &c);
+        assert!(v.installed.last().is_some_and(|r| r.missing && r.picked));
+        assert!(v.plan.is_empty());
+        assert_eq!(v.problems, ["mod `gone` is not installed"]);
+        // The start is off with the reason.
+        assert!(why_not_start(&room).unwrap().contains("mods"));
+    }
+
+    #[test]
+    fn ticking_a_mod_edits_only_the_picks() {
+        let c = choices();
+        let mut s = settings();
+        let before = s.clone();
+        apply_edit(
+            &mut s,
+            &RoomEdit::Mod {
+                id: "a".into(),
+                on: true,
+            },
+            &c,
+        );
+        apply_edit(
+            &mut s,
+            &RoomEdit::Mod {
+                id: "a".into(),
+                on: true,
+            },
+            &c,
+        );
+        assert_eq!(s.mods.len(), 1);
+        assert_eq!(s.mods[0].req, "*");
+        apply_edit(
+            &mut s,
+            &RoomEdit::Mod {
+                id: "a".into(),
+                on: false,
+            },
+            &c,
+        );
+        assert_eq!(s, before);
+    }
+
+    #[test]
+    fn an_optional_mod_the_client_lacks_is_a_quiet_note() {
+        let set = |mods| protocol::ModSetView {
+            modset_hash: 1,
+            mods,
+        };
+        assert_eq!(
+            skipped_mods_note(&set(vec![modv("a", 0, true, true)])),
+            None
+        );
+        assert_eq!(skipped_mods_note(&set(vec![])), None);
+        let note = skipped_mods_note(&set(vec![
+            modv("a", 0, true, true),
+            modv("b", 1, false, false),
+        ]));
+        assert_eq!(
+            note.as_deref(),
+            Some("Optional mods this client does not have are skipped: b 1.0.0.")
         );
     }
 
