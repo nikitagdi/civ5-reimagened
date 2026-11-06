@@ -69,6 +69,7 @@ pub fn player_of(b: &Body) -> Option<i8> {
         Body::Resync(r) => Some(r.player),
         Body::BatchMeta(m) => Some(m.player),
         Body::OrderSpan(o) => Some(o.player),
+        Body::Mod(m) => m.player,
         Body::Report(r) => r.player,
         _ => None,
     }
@@ -179,6 +180,22 @@ pub fn body_text(b: &Body) -> String {
             m.player, m.seq, m.bytes, m.tags
         ),
         Body::OrderSpan(o) => format!("{} seat {} order {}: {} us", o.stage, o.player, o.id, o.us),
+        Body::Mod(m) if m.c2s => format!(
+            "mod {} ch {} from seat {:?}: {} bytes{}",
+            m.mod_idx,
+            m.ch,
+            m.player,
+            m.payload.len(),
+            if m.taken { "" } else { " DROPPED" }
+        ),
+        Body::Mod(m) => format!(
+            "mod {} ch {} to seats {:?} (caused by {:?}): {} bytes",
+            m.mod_idx,
+            m.ch,
+            m.to,
+            m.player,
+            m.payload.len()
+        ),
         Body::Trace(t) => match protocol::Postcard.decode::<turntrace::TurnTrace>(&t.bytes) {
             Ok(tr) => format!(
                 "trace of the end of turn {}: {} records",

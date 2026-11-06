@@ -19,6 +19,7 @@ use tokio::sync::{mpsc, oneshot};
 
 use super::chat;
 use super::gamelog;
+use super::modhost::{Delivery, ModHost, UnknownFacts};
 use super::orders::{OrderBook, Verdict};
 use super::recording::{KeyframeArgs, Recorder};
 use super::replica::{ReplicaBlobs, ReplicaChain, resync_index};
@@ -68,6 +69,11 @@ pub struct GameEnv {
     pub replica: Arc<ReplicaBlobs>,
     /// The recording of every game (`[recording]`).
     pub recording: crate::config::Recording,
+    /// The installed mods and the code of the server halves (T17): the game's frozen set is instantiated from them.
+    pub mod_store: Arc<mod_host_server::ModStore>,
+    pub mod_registry: Arc<mod_host_server::HostRegistry>,
+    /// What the sessions have built in (`ModHello`).
+    pub mod_hellos: Arc<super::modhost::ModHellos>,
 }
 
 /// A new game.
@@ -167,6 +173,8 @@ pub enum ClientGameMsg {
         at_jseq: u64,
         reason: GcResyncReason,
     },
+    /// `Mod` (v13): a message of a mod's client half.
+    Mod(protocol::ModC2S),
 }
 
 /// Administrator actions (`/admin/games/{id}/...`).
@@ -200,6 +208,11 @@ pub enum ActorMsg {
     },
     /// The queue of a session overflowed or closed (from the seat pipeline).
     SessionLost {
+        player: PlayerId,
+        session: u64,
+    },
+    /// A seat of a game with mods got a `Fresh` stream (from the seat pipeline): the mods send it their snapshot.
+    FreshAttached {
         player: PlayerId,
         session: u64,
     },
@@ -291,6 +304,24 @@ pub fn spawn(env: GameEnv, init: GameInit) -> GameHandle {
         created_ms,
         mods_lock,
     } = init;
+    let mods = match ModHost::build(
+        id,
+        Arc::clone(&env.mod_store),
+        Arc::clone(&env.mod_registry),
+        mods_lock.as_deref(),
+    ) {
+        Ok(m) => m,
+        Err(why) => {
+            // The lobby and the restore check this before the game starts; here it is a race (the mods changed on
+            // disk meanwhile). The game runs without its mods rather than not at all.
+            tracing::error!(game = id, %why, "the mods of the game cannot be set up, it runs without them");
+            ModHost::empty(
+                id,
+                Arc::clone(&env.mod_store),
+                Arc::clone(&env.mod_registry),
+            )
+        }
+    };
     let log = match &env.state_dir {
         Some(dir) => gamelog::GameLog::open(
             dir.join("logs").join(format!("game-{id}.jsonl")),
@@ -385,6 +416,8 @@ pub fn spawn(env: GameEnv, init: GameInit) -> GameHandle {
         seed,
         created_ms: created_ms.unwrap_or(wall_now),
         mods_lock,
+        mods,
+        mod_turn: None,
         kicked_seed: kicked,
         stopping: None,
         idle_since: None,
@@ -441,6 +474,10 @@ struct GameActor {
     created_ms: u64,
     /// The frozen mod set of the game (T15), written to `meta.json`.
     mods_lock: Option<String>,
+    /// The mods of the game (T17-T19): the frozen set, the server halves, the block the worker saves.
+    mods: ModHost,
+    /// The turn the mods were last told about.
+    mod_turn: Option<i32>,
     boot_at: std::time::Instant,
     /// When the worker last failed (the restore time is measured from here).
     restart_at: Option<std::time::Instant>,
@@ -476,6 +513,18 @@ struct GameActor {
     rec_turn: std::cell::Cell<i32>,
     /// The last `Turn` the recording holds, to write a change only.
     rec_last_turn: Option<(i32, String, Vec<i8>)>,
+}
+
+/// Tells a connection why it cannot play (`Reject(ModMismatch)`), then ends its session once that is written.
+fn refuse_mods(out: &Outbox, problems: Vec<protocol::ModProblem>) {
+    let msg = ServerMsg::Reject(protocol::RejectReason::ModMismatch(problems));
+    match wire::Encoder::default().frame_msg(&msg) {
+        Ok(frame) => {
+            let _ = out.push(frame);
+        }
+        Err(e) => tracing::error!(error = %e, "cannot encode a Reject"),
+    }
+    let _ = out.close_after_flush();
 }
 
 fn nick_eq(a: &str, b: &str) -> bool {
@@ -1621,6 +1670,7 @@ impl GameActor {
         let StartedInfo {
             ready,
             catalog,
+            mods: loaded_mods,
             restart,
             pid,
         } = info;
@@ -1668,6 +1718,9 @@ impl GameActor {
         }
         self.core_build = ready.build_id.clone();
         self.map = (ready.width, ready.height);
+        // The server halves of the mods start from the state of the save this worker loaded (a worker that restarts
+        // from an older save rewinds them with it); a new game starts them fresh.
+        self.start_mods(loaded_mods);
         if !self.ready {
             self.create_seats(&ready.seats);
             self.ready = true;
@@ -1709,6 +1762,10 @@ impl GameActor {
                 seats,
             });
             self.write_meta(MetaStatus::Running);
+        }
+        // After a restart the mods may have been rewound: every seat that is there gets their snapshot again.
+        if restart.is_some() {
+            self.resend_mod_snapshots();
         }
         // After a restart: the first `Full` of each seat follows as a keyframe in the same stream;
         // the player is told what the restart cost (AC-N1.5).
@@ -2005,6 +2062,7 @@ impl GameActor {
                         });
                         self.system_line("The game is over".to_owned());
                     }
+                    self.note_mod_turn(info.turn);
                     self.last_info = Some(info);
                     turn_changed |= self.refresh_turn();
                 }
@@ -2049,6 +2107,8 @@ impl GameActor {
                 WorkerMsg::Ready(_)
                 | WorkerMsg::Catalog { .. }
                 | WorkerMsg::Choices(_)
+                // Read by the supervisor before `Ready` (`StartedInfo.mods`); never mid-game.
+                | WorkerMsg::ModsLoaded(_)
                 | WorkerMsg::Heartbeat { .. } => {}
             }
         }
@@ -2380,6 +2440,7 @@ impl GameActor {
             ActorMsg::WantFull { player, basis } => {
                 let _ = self.sup.send(ToWorker::WantFull { player, basis });
             }
+            ActorMsg::FreshAttached { player, session } => self.mod_snapshot(player, session),
             ActorMsg::Client {
                 player,
                 session,
@@ -2463,6 +2524,41 @@ impl GameActor {
             );
             return;
         }
+        // A game with mods compares what the client has built in with its frozen set (D5, T17).
+        let mut mods_view = None;
+        if self.mods.has_set() {
+            let hello = self.env.mod_hellos.get(session);
+            match self.mods.admit(hello.as_deref()) {
+                Ok(a) => {
+                    self.mods.seat_admitted(player, a.unavailable);
+                    mods_view = Some(a.view);
+                }
+                Err(problems) => {
+                    tracing::info!(
+                        game = id,
+                        player,
+                        session,
+                        "a client lacks a required mod: {problems:?}"
+                    );
+                    self.info.log.event(
+                        "mod_mismatch",
+                        serde_json::json!({"player": player, "session": session, "problems": problems.len()}),
+                    );
+                    self.info.rec.seat(
+                        player,
+                        "mod_mismatch",
+                        Some(&nick),
+                        problems
+                            .iter()
+                            .map(|p| p.text.as_str())
+                            .collect::<Vec<_>>()
+                            .join("; "),
+                    );
+                    refuse_mods(&out, problems);
+                    return;
+                }
+            }
+        }
         // The old connection of the seat (a second tab) loses its hold.
         if let Some(old) = seat.link.take() {
             *old.lock()
@@ -2514,6 +2610,7 @@ impl GameActor {
                 claim,
                 catalog,
                 last_cmd_id,
+                mods: mods_view,
             }));
         }
     }
@@ -2570,6 +2667,18 @@ impl GameActor {
             .any(|s| matches!(&s.control, SeatControl::Human { nick: n } if nick_eq(n, &nick)))
         {
             return refuse(self, "you sit in this game already");
+        }
+        if self.mods.has_set() {
+            let hello = self.env.mod_hellos.get(session);
+            if let Err(problems) = self.mods.admit(hello.as_deref()) {
+                let why = problems
+                    .iter()
+                    .map(|p| p.text.as_str())
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                refuse_mods(&out, problems);
+                return refuse(self, &why);
+            }
         }
         let pipe = seat::spawn(
             self.id,
@@ -2847,6 +2956,7 @@ impl GameActor {
             ClientGameMsg::Query { id, q } => self.on_query(player, session, id, q),
             ClientGameMsg::GameCtl(ctl) => self.on_game_ctl(player, session, ctl),
             ClientGameMsg::GcNet(bytes) => self.on_gc_net(player, bytes),
+            ClientGameMsg::Mod(m) => self.on_mod(player, session, &m),
             ClientGameMsg::GcResync {
                 epoch,
                 have_raw_hash,
@@ -2858,6 +2968,168 @@ impl GameActor {
                     pipe.send(SeatInput::NeedKeyframe { session, reason });
                 }
             }
+        }
+    }
+
+    // ------------------------------------------------------------ mods (T18, T19)
+
+    fn mod_facts(&self) -> UnknownFacts {
+        UnknownFacts {
+            map: self.map,
+            turn: self.turn.as_ref().map_or(0, |t| t.turn),
+        }
+    }
+
+    /// The human seats (they have a pipeline), in order: the audiences of the mods.
+    fn humans(&self) -> Vec<PlayerId> {
+        self.seats
+            .iter()
+            .filter(|(_, s)| s.pipe.is_some())
+            .map(|(p, _)| *p)
+            .collect()
+    }
+
+    /// (Re)starts the server halves from `saved` and hands the worker the block its saves carry.
+    fn start_mods(&mut self, saved: Option<protocol::ModsSection>) {
+        self.mod_turn = None;
+        if !self.mods.has_set() {
+            return;
+        }
+        let (facts, now) = (self.mod_facts(), self.env.clock.now_ms());
+        self.mods.start(&facts, now, saved);
+        self.flush_mods();
+    }
+
+    /// The block of the mods goes to the worker whenever it changed (it writes `MODS` into every save, T19). A game
+    /// without a mod set never sends one.
+    fn flush_mods(&mut self) {
+        if !self.mods.has_set() {
+            return;
+        }
+        let (facts, now) = (self.mod_facts(), self.env.clock.now_ms());
+        if let Some(sec) = self.mods.persist(&facts, now)
+            && self.sup.send(ToWorker::Mods(sec.clone())).is_ok()
+        {
+            self.mods.sent(sec);
+        }
+    }
+
+    /// A message of a client to a mod: host limits, the mod, then its answers to the seats (D7).
+    fn on_mod(&mut self, player: PlayerId, session: u64, m: &protocol::ModC2S) {
+        // A game without mods takes no mod messages: dropped as before the mod system.
+        if !self.mods.has_set() {
+            return;
+        }
+        let (facts, now) = (self.mod_facts(), self.env.clock.now_ms());
+        let humans = self.humans();
+        let d = self.mods.on_client(&facts, now, player, m, &humans);
+        if self.info.rec.is_on() {
+            self.info
+                .rec
+                .put(recording::Body::Mod(recording::format::ModRec {
+                    mod_idx: m.mod_idx,
+                    ch: m.ch,
+                    c2s: true,
+                    player: Some(player),
+                    to: Vec::new(),
+                    taken: d.dropped.is_none(),
+                    payload: m.payload.clone(),
+                }));
+        }
+        if d.dropped.is_some() {
+            tracing::debug!(game = self.id, player, dropped = ?d.dropped, "a mod message was dropped");
+        }
+        let disconnect = d.disconnect;
+        self.deliver_mods(d);
+        self.flush_mods();
+        if disconnect {
+            tracing::warn!(
+                game = self.id,
+                player,
+                "a seat keeps breaking the mod limits, disconnected"
+            );
+            self.info.rec.seat(
+                player,
+                "mod_strikes",
+                None,
+                format!("session {session}, disconnected"),
+            );
+            if let Some(pipe) = self.seats.get(&player).and_then(|s| s.pipe.as_ref()) {
+                pipe.send(SeatInput::Disconnect { session });
+            }
+        }
+    }
+
+    /// The answers of the mods go into the batches of the seats, in order; the recording gets them once.
+    fn deliver_mods(&self, d: Delivery) {
+        if self.info.rec.is_on() {
+            for (o, to) in d.outputs.iter().zip(&d.targets) {
+                let w = o.to_wire();
+                self.info
+                    .rec
+                    .put(recording::Body::Mod(recording::format::ModRec {
+                        mod_idx: o.mod_idx,
+                        ch: o.ch,
+                        c2s: false,
+                        player: w.from,
+                        to: to.clone(),
+                        taken: true,
+                        payload: w.payload,
+                    }));
+            }
+        }
+        for (p, msgs) in d.by_seat {
+            self.step(
+                p,
+                Parts {
+                    mods: msgs,
+                    ..Parts::default()
+                },
+            );
+        }
+    }
+
+    /// A seat got a `Fresh` stream: the mods send it their state (the pattern of the chat history, D8).
+    fn mod_snapshot(&mut self, player: PlayerId, session: u64) {
+        if !self.mods.has_code()
+            || self
+                .seats
+                .get(&player)
+                .is_none_or(|s| s.session != Some(session))
+        {
+            return;
+        }
+        let (facts, now) = (self.mod_facts(), self.env.clock.now_ms());
+        let humans = self.humans();
+        let d = self.mods.on_attach(&facts, now, player, &humans);
+        self.deliver_mods(d);
+        self.flush_mods();
+    }
+
+    /// After a worker restart: the mods may have been rewound with the save, so every seat that is attached gets the
+    /// snapshot again (a client takes it as the new state).
+    fn resend_mod_snapshots(&mut self) {
+        if !self.mods.has_code() {
+            return;
+        }
+        let online: Vec<(PlayerId, u64)> = self
+            .seats
+            .iter()
+            .filter(|(_, s)| s.pipe.is_some() && matches!(s.conn, Conn::Online))
+            .filter_map(|(p, s)| s.session.map(|x| (*p, x)))
+            .collect();
+        for (p, session) in online {
+            self.mod_snapshot(p, session);
+        }
+    }
+
+    /// A new turn began (not the first one seen, not a repeat).
+    fn note_mod_turn(&mut self, turn: i32) {
+        let prev = self.mod_turn.replace(turn);
+        if prev.is_some_and(|p| p != turn) && self.mods.has_code() {
+            let (facts, now) = (self.mod_facts(), self.env.clock.now_ms());
+            self.mods.on_turn(&facts, now, turn);
+            self.flush_mods();
         }
     }
 

@@ -108,6 +108,8 @@ pub enum Body {
     Save(SaveRec),
     /// Tag 14: how long the gateway had an order (sent to the worker until its final answer).
     OrderSpan(OrderSpanRec),
+    /// Tag 15: a message of a mod, in either direction (protocol v13). A reader that does not know it skips it.
+    Mod(ModRec),
 }
 
 impl Body {
@@ -129,6 +131,7 @@ impl Body {
             Body::Report(_) => 12,
             Body::Save(_) => 13,
             Body::OrderSpan(_) => 14,
+            Body::Mod(_) => 15,
         }
     }
 
@@ -166,6 +169,7 @@ pub fn tag_name(tag: u8) -> &'static str {
         12 => "report",
         13 => "save",
         14 => "orderspan",
+        15 => "mod",
         _ => "unknown",
     }
 }
@@ -356,6 +360,23 @@ pub struct OrderSpanRec {
     pub id: u32,
     pub stage: String,
     pub us: u64,
+}
+
+/// A message of a mod (`ClientMsg::Mod` as the game took it, or what the server half sent: `GameMsg::Mod`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModRec {
+    /// Position in the game's load order.
+    pub mod_idx: u16,
+    pub ch: u8,
+    /// `true`: a client sent it to the server half; `false`: the server half sent it to the clients.
+    pub c2s: bool,
+    /// Client to server: the sender. Server to client: the seat that caused it (`from` of the message), if any.
+    pub player: Option<i8>,
+    /// Server to client: the seats it was sent to (empty: nobody has the mod).
+    pub to: Vec<i8>,
+    /// Client to server: it reached the mod (`false`: the host limits dropped it).
+    pub taken: bool,
+    pub payload: Vec<u8>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -615,6 +636,15 @@ mod tests {
                 turn: 4,
                 bytes: vec![9],
             }),
+            Body::Mod(ModRec {
+                mod_idx: 1,
+                ch: 2,
+                c2s: false,
+                player: Some(0),
+                to: vec![0, 1],
+                taken: true,
+                payload: vec![7; 5],
+            }),
         ];
         for b in bodies {
             let e = entry(b);
@@ -636,6 +666,33 @@ mod tests {
             }
         }
         assert!(matches!(decode_next(&[]), Next::End));
+    }
+
+    /// Tag 15 is the mod record, appended after the 15 of the first format: the tags before it did not move, and a
+    /// reader that has no `Mod` variant reaches the records behind it by the length in front.
+    #[test]
+    fn the_mod_record_is_tag_15_and_older_tags_stay() {
+        let m = Body::Mod(ModRec {
+            mod_idx: 0,
+            ch: 0,
+            c2s: true,
+            player: None,
+            to: vec![],
+            taken: false,
+            payload: vec![],
+        });
+        assert_eq!((m.tag(), m.name()), (15, "mod"));
+        assert_eq!(
+            Body::OrderSpan(OrderSpanRec {
+                player: 0,
+                id: 0,
+                stage: String::new(),
+                us: 0
+            })
+            .tag(),
+            14
+        );
+        assert_eq!(tag_name(16), "unknown");
     }
 
     #[test]
