@@ -1293,3 +1293,197 @@ fn the_settings_of_a_started_room_are_the_hosts_last_room() {
     assert!(srv.shared.prefs.get("bob").last_room.is_none());
     bob.until("Attached", |m| matches!(m, ServerMsg::Attached(_)));
 }
+
+/// Installs mods under a scratch directory: (id, extra manifest lines). All are 1.0.0, API ^1, with an assets part.
+fn install_mods(name: &str, mods: &[(&str, &str, &str)]) -> std::path::PathBuf {
+    let root = temp_dir(name);
+    for (id, sync, extra) in mods {
+        std::fs::create_dir_all(root.join(id)).unwrap();
+        std::fs::write(
+            root.join(id).join("mod.toml"),
+            format!(
+                "[mod]\nid=\"{id}\"\nname=\"{id} title\"\nversion=\"1.0.0\"\napi=\"^1\"\nlicense=\"MIT\"\nsync=\"{sync}\"\nparts=[\"assets\"]\n{extra}\n"
+            ),
+        )
+        .unwrap();
+    }
+    root
+}
+
+fn pick(id: &str, req: &str) -> protocol::ModPick {
+    protocol::ModPick {
+        id: id.into(),
+        req: req.into(),
+    }
+}
+
+fn plan_ids(p: &protocol::ModPlan) -> Vec<(String, bool)> {
+    match p {
+        protocol::ModPlan::Ok(v) => v
+            .iter()
+            .map(|m| (m.id.clone(), m.client_required))
+            .collect(),
+        protocol::ModPlan::Err(e) => panic!("expected a plan, got problems: {e:?}"),
+    }
+}
+
+fn plan_problems(p: &protocol::ModPlan) -> String {
+    match p {
+        protocol::ModPlan::Err(e) => e
+            .iter()
+            .map(|p| p.text.clone())
+            .collect::<Vec<_>>()
+            .join("\n"),
+        protocol::ModPlan::Ok(v) => panic!("expected problems, got a plan: {v:?}"),
+    }
+}
+
+/// T43: the installed mods come with the login, the host's picks are resolved into `RoomState.mod_plan` (dependencies
+/// added, the optional-for-players mods flagged, the pack hash included) and every change of picks refreshes it.
+#[test]
+fn the_room_plan_follows_the_hosts_picks_and_adds_dependencies() {
+    let mods = install_mods(
+        "lobby-mods-plan",
+        &[
+            ("base", "gameplay", ""),
+            (
+                "extra",
+                "cosmetic",
+                "client=\"optional\"\n[deps]\nbase=\"^1\"",
+            ),
+        ],
+    );
+    // A pack next to `extra`: its hash reaches the plan.
+    let pack = mod_assets::Pack::build(
+        "extra".parse().unwrap(),
+        vec![],
+        vec![mod_assets::NewFile {
+            id: "data/x".into(),
+            kind: mod_assets::AssetKind::Raw,
+            bytes: b"x".to_vec(),
+        }],
+    )
+    .unwrap();
+    std::fs::write(mods.join("extra/extra.pack"), pack.to_bytes()).unwrap();
+    let dir = mods.clone();
+    let srv = start_with("lobby-mods-plan-srv", "echo", move |c| {
+        c.mods_dir = Some(dir);
+    });
+    let mut a = Client::login(&srv, "alice");
+    let first = a.until("the choices", |m| matches!(m, ServerMsg::Choices(_)));
+    let ServerMsg::Choices(choices) = first else {
+        unreachable!()
+    };
+    let listed: Vec<_> = choices.mods.iter().map(|m| m.id.as_str()).collect();
+    assert_eq!(listed, ["base", "extra"]);
+    assert!(!choices.mods[1].client_required);
+    a.state("the lobby", |_| true);
+
+    // A room without picks: the empty plan.
+    a.lobby(LobbyCmd::CreateRoom {
+        settings: settings("plain"),
+    });
+    let room = a.room("the room", |_| true);
+    assert_eq!(room.mod_plan, protocol::ModPlan::default());
+
+    // `extra` alone pulls `base` in, in load order; only `extra` is optional for players.
+    let mut s = room.settings.clone();
+    s.mods = vec![pick("extra", "^1")];
+    a.lobby(LobbyCmd::Settings(s.clone()));
+    let room = a.room("the plan", |r| r.mod_plan != protocol::ModPlan::default());
+    assert_eq!(
+        plan_ids(&room.mod_plan),
+        [("base".to_string(), true), ("extra".to_string(), false)]
+    );
+    let protocol::ModPlan::Ok(views) = &room.mod_plan else {
+        unreachable!()
+    };
+    assert_eq!(views[0].version, "1.0.0");
+    assert_eq!(views[0].pack, None);
+    assert_eq!(
+        views[1].pack.as_deref(),
+        Some(pack.hash().to_string().as_str())
+    );
+    assert_eq!(room.settings.mods, s.mods, "the picks stay the host's");
+
+    // A guest sees the same plan.
+    let mut b = Client::login(&srv, "bob");
+    b.state("the lobby", |s| s.rooms.len() == 1);
+    b.lobby(LobbyCmd::JoinRoom { room: room.id });
+    let seen = b.room("in", |r| {
+        r.slots.iter().any(|s| is_human(&s.occupant, "bob"))
+    });
+    assert_eq!(seen.mod_plan, room.mod_plan);
+
+    // Dropping the picks gives the empty plan back.
+    s.mods = vec![];
+    a.lobby(LobbyCmd::Settings(s));
+    let room = a.room("empty again", |r| {
+        r.mod_plan == protocol::ModPlan::default()
+    });
+    assert!(room.settings.mods.is_empty());
+    let _ = std::fs::remove_dir_all(mods);
+}
+
+/// T43: a plan with problems is shown with the dependency chain and the start is refused until the picks are fixed.
+#[test]
+fn a_room_with_unresolvable_picks_shows_the_chain_and_cannot_start() {
+    let mods = install_mods(
+        "lobby-mods-err",
+        &[
+            ("base", "gameplay", ""),
+            ("needy", "gameplay", "[deps]\nbase=\"^2\""),
+        ],
+    );
+    let dir = mods.clone();
+    let srv = start_with("lobby-mods-err-srv", "echo", move |c| {
+        c.mods_dir = Some(dir);
+    });
+    let mut a = Client::login(&srv, "alice");
+    a.state("the lobby", |_| true);
+    // Picks are accepted into the room even when they cannot be resolved: the host sees why.
+    let mut s = settings("broken");
+    s.mods = vec![pick("ghost", "*")];
+    a.lobby(LobbyCmd::CreateRoom { settings: s });
+    let room = a.room("the room", |_| true);
+    assert!(plan_problems(&room.mod_plan).contains("ghost"));
+    a.lobby(LobbyCmd::Start);
+    let e = a.error();
+    assert!(
+        e.contains("mods cannot be loaded") && e.contains("ghost"),
+        "{e}"
+    );
+
+    // The chain names who wanted what.
+    let mut s = room.settings.clone();
+    s.mods = vec![pick("needy", "*")];
+    a.lobby(LobbyCmd::Settings(s.clone()));
+    let room = a.room("the chain", |r| {
+        matches!(&r.mod_plan, protocol::ModPlan::Err(e) if e.iter().any(|p| p.text.contains("needy")))
+    });
+    let text = plan_problems(&room.mod_plan);
+    assert!(text.contains("base"), "{text}");
+    a.lobby(LobbyCmd::Start);
+    assert!(a.error().contains("mods cannot be loaded"));
+
+    // A bad pick (not a version requirement) is a problem as well, and too many picks are refused outright.
+    s.mods = vec![pick("base", "not a version")];
+    a.lobby(LobbyCmd::Settings(s.clone()));
+    a.room("bad req", |r| {
+        matches!(r.mod_plan, protocol::ModPlan::Err(_))
+    });
+    s.mods = (0..=protocol::MAX_MODS)
+        .map(|i| pick(&format!("m{i}"), "*"))
+        .collect();
+    a.lobby(LobbyCmd::Settings(s.clone()));
+    assert!(a.error().contains("at most"));
+
+    // Fixed picks: the plan is a plan again and the start gets past the mods (it then fails on the open slot).
+    s.mods = vec![pick("base", "^1")];
+    a.lobby(LobbyCmd::Settings(s));
+    let room = a.room("fixed", |r| matches!(r.mod_plan, protocol::ModPlan::Ok(_)));
+    assert_eq!(plan_ids(&room.mod_plan), [("base".to_string(), true)]);
+    a.lobby(LobbyCmd::Start);
+    assert!(a.error().contains("open slots"));
+    let _ = std::fs::remove_dir_all(mods);
+}

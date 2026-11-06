@@ -2110,6 +2110,7 @@ name = "mod-host-server"
 version = "0.1.0"
 dependencies = [
  "mod-api",
+ "mod-assets",
  "mod-manifest",
  "protocol",
  "thiserror 2.0.21",
@@ -3289,6 +3290,7 @@ dependencies = [
  "hello-server",
  "hello-shared",
  "mod-api",
+ "mod-assets",
  "mod-client",
  "mod-host-server",
  "mod-manifest",

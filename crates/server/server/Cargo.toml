@@ -64,3 +64,5 @@ mod-client.workspace = true
 mod-host-server.workspace = true
 hello-server = { path = "../../../examples/mods/hello/hello-server" }
 hello-shared = { path = "../../../examples/mods/hello/hello-shared" }
+# Builds a mod asset pack for the `/mods/{hash}` test.
+mod-assets.workspace = true

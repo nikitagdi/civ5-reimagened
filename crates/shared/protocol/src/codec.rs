@@ -1300,6 +1300,7 @@ mod tests {
                 sync: ModSync::Gameplay,
                 client_required: true,
                 available: false,
+                pack: Some("ab".repeat(32)),
             }],
         };
         let client = vec![

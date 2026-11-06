@@ -19,6 +19,7 @@ use protocol::{
 };
 use thiserror::Error;
 
+use crate::assets::{PackInfo, scan_pack};
 use crate::registry::InstantiateError;
 
 /// The manifest file name inside a mod directory.
@@ -50,6 +51,7 @@ pub struct ScanProblem {
 struct Entry {
     id: ModId,
     dir: PathBuf,
+    pack: Option<PackInfo>,
 }
 
 /// The mods installed on this server, as found by [`ModStore::scan`].
@@ -180,10 +182,11 @@ impl ModStore {
         dirs.sort();
         for (name, path) in dirs {
             match load_mod(&name, &path) {
-                Ok(installed) => {
+                Ok((installed, pack)) => {
                     store.entries.push(Entry {
                         id: installed.manifest.id.clone(),
                         dir: path,
+                        pack,
                     });
                     store.installed.push(installed);
                 }
@@ -209,6 +212,28 @@ impl ModStore {
             .iter()
             .find(|e| &e.id == id)
             .map(|e| e.dir.as_path())
+    }
+
+    /// The asset pack of an installed mod, if it has one (`<id>/<id>.pack`, found at scan time).
+    pub fn pack_of(&self, id: &ModId) -> Option<&PackInfo> {
+        self.entries
+            .iter()
+            .find(|e| &e.id == id)
+            .and_then(|e| e.pack.as_ref())
+    }
+
+    /// The pack with this SHA-256 (64 hex digits, any case), for `GET /mods/{hash}`. Unknown: `None`.
+    pub fn pack_by_hash(&self, hex: &str) -> Option<&PackInfo> {
+        let hex = hex.to_ascii_lowercase();
+        self.entries
+            .iter()
+            .filter_map(|e| e.pack.as_ref())
+            .find(|p| p.hex() == hex)
+    }
+
+    /// The wire view of a set with the mods' pack hashes filled in (`ModView.pack`).
+    pub fn set_view(&self, set: &ModSet) -> ModSetView {
+        set_view_with(set, |id| self.pack_of(id).map(PackInfo::hex))
     }
 
     /// The lobby's list of installed mods (`LobbyChoices.mods`).
@@ -315,8 +340,14 @@ pub enum RestoreError {
     NoLock,
 }
 
-/// The wire view of a set (`GameMsg::Mods`), with `available = true` for every mod.
+/// The wire view of a set (`GameMsg::Mods`), with `available = true` for every mod and no pack hashes.
+/// [`ModStore::set_view`] fills the packs in.
 pub fn set_view(set: &ModSet) -> ModSetView {
+    set_view_with(set, |_| None)
+}
+
+/// [`set_view`] with `pack` asking for the pack hash (hex) of a mod.
+pub fn set_view_with(set: &ModSet, pack: impl Fn(&ModId) -> Option<String>) -> ModSetView {
     ModSetView {
         modset_hash: modset_hash64(&set.modset_hash()),
         mods: set
@@ -329,6 +360,7 @@ pub fn set_view(set: &ModSet) -> ModSetView {
                 sync: sync_to_wire(m.sync),
                 client_required: m.client == ClientPolicy::Required,
                 available: true,
+                pack: pack(&m.id),
             })
             .collect(),
     }
@@ -349,7 +381,7 @@ fn sync_to_wire(s: SyncClass) -> ModSync {
     }
 }
 
-fn load_mod(dir_name: &str, dir: &Path) -> Result<Installed, String> {
+fn load_mod(dir_name: &str, dir: &Path) -> Result<(Installed, Option<PackInfo>), String> {
     let manifest_path = dir.join(MANIFEST_FILE);
     let meta = fs::metadata(&manifest_path).map_err(|e| match e.kind() {
         io::ErrorKind::NotFound => format!("no {MANIFEST_FILE}"),
@@ -371,10 +403,14 @@ fn load_mod(dir_name: &str, dir: &Path) -> Result<Installed, String> {
         ));
     }
     let content_hash = hash_mod_dir(dir).map_err(|e| format!("cannot hash the content: {e}"))?;
-    Ok(Installed {
-        manifest,
-        content_hash,
-    })
+    let pack = scan_pack(dir, &manifest.id)?;
+    Ok((
+        Installed {
+            manifest,
+            content_hash,
+        },
+        pack,
+    ))
 }
 
 fn digest(bytes: &[u8]) -> [u8; 32] {

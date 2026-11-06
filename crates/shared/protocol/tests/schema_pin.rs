@@ -1681,6 +1681,7 @@ fn mod_view() -> ModView {
         sync: ModSync::Cosmetic,
         client_required: false,
         available: true,
+        pack: Some("0f".repeat(32)),
     }
 }
 
@@ -1716,6 +1717,7 @@ fn mod_samples(p: &mut Pins) {
                 sync: ModSync::Client,
                 client_required: true,
                 available: false,
+                pack: None,
             },
         ],
     };

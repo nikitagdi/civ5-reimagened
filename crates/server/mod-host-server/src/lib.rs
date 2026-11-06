@@ -11,6 +11,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod assets;
 pub mod facts;
 pub mod instance;
 pub mod limits;
@@ -20,6 +21,7 @@ pub mod store;
 #[cfg(test)]
 mod tests;
 
+pub use assets::{MAX_PACK_BYTES, PackInfo, pack_file_name, read_pack, scan_pack};
 pub use facts::{Applied, WorldTable};
 pub use instance::{
     CallEnv, ClientOutcome, DropReason, GameMods, LogLine, ModInstance, ModOutput, ModStatus,
@@ -29,5 +31,5 @@ pub use limits::{MAX_STRIKES, STRIKE_WINDOW_MS, Strikes};
 pub use registry::{HostRegistry, InstantiateError};
 pub use store::{
     FreezeError, FrozenSet, MANIFEST_FILE, ModStore, RestoreError, ScanProblem, hash_mod_dir,
-    modset_hash64, set_view,
+    modset_hash64, set_view, set_view_with,
 };

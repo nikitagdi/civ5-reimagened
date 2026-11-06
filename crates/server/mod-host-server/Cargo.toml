@@ -13,6 +13,7 @@ layer = "server"
 
 [dependencies]
 mod-manifest.workspace = true
+mod-assets.workspace = true
 mod-api.workspace = true
 protocol.workspace = true
 thiserror.workspace = true
