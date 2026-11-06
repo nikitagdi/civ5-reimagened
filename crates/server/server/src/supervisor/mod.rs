@@ -59,6 +59,8 @@ pub struct Started {
     pub ready: WorkerReady,
     /// The catalog the worker sent before `Ready`: `(hash, body)`.
     pub catalog: Option<(u64, Vec<u8>)>,
+    /// The `MODS` section of the save the worker loaded (`WorkerMsg::ModsLoaded`, before `Ready`).
+    pub mods: Option<protocol::ModsSection>,
     /// Messages that came in the same frame after `Ready`: the caller handles them first.
     pub early: Vec<WorkerMsg>,
 }
@@ -84,6 +86,7 @@ pub async fn start_worker(
     proc.send(ToWorker::Init(init))
         .map_err(|_| StartError::Closed)?;
     let mut catalog = None;
+    let mut mods = None;
     loop {
         let event = next_event(&mut proc, silence).await?;
         let WorkerEvent::Frame(frame) = event else {
@@ -103,11 +106,13 @@ pub async fn start_worker(
                 WorkerMsg::Catalog { hash, bytes } => {
                     catalog = Some(normalize_catalog(hash, bytes)?);
                 }
+                WorkerMsg::ModsLoaded(m) => mods = Some(m),
                 WorkerMsg::Ready(ready) => {
                     return Ok(Started {
                         proc,
                         ready,
                         catalog,
+                        mods,
                         early: msgs.collect(),
                     });
                 }
@@ -411,6 +416,8 @@ pub enum GameEvent {
 pub struct StartedInfo {
     pub ready: WorkerReady,
     pub catalog: Option<(u64, Vec<u8>)>,
+    /// The `MODS` section of the save this worker loaded; `None`: a new game, or a save without mods.
+    pub mods: Option<protocol::ModsSection>,
     /// Set when this worker replaces one that failed.
     pub restart: Option<RestartInfo>,
     /// The process id of the worker.
@@ -804,6 +811,7 @@ impl GameTask {
             mut proc,
             ready,
             catalog,
+            mods,
             early,
         } = started;
         self.ever_ready = true;
@@ -832,6 +840,7 @@ impl GameTask {
         let started_ev = GameEvent::Started(StartedInfo {
             ready,
             catalog,
+            mods,
             restart: info,
             pid: proc.pid(),
         });

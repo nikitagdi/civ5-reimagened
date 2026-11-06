@@ -378,8 +378,8 @@ impl<C: Core> Worker<C> {
                 journals,
                 cmds,
                 city_memo,
-                // T15 fills this from the game's frozen mod set.
-                mods: None,
+                // The gateway's mod host keeps it current (`ToWorker::Mods`); a game without mods has none.
+                mods: self.mods.clone(),
             },
             ring: self.cfg.autosave.ring,
         })

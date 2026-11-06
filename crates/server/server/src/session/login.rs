@@ -63,14 +63,23 @@ pub(super) async fn handshake(
     };
     conn.send(&welcome).await?;
 
-    let data = match conn.recv().await {
-        Incoming::Frame(data) => data,
-        Incoming::End(reason) => return Err(reason),
-    };
-    let login = match decode(&data) {
-        Ok(ClientMsg::Login(login)) => login,
-        Ok(_) => return Err("expected Login"),
-        Err(reason) => return Err(reason),
+    // `ModHello` (v13) may come before `Login`: the login can attach the session to a running game at once, and that
+    // game compares what the client has with its mods. Any number of them; the last one counts.
+    let login = loop {
+        let data = match conn.recv().await {
+            Incoming::Frame(data) => data,
+            Incoming::End(reason) => return Err(reason),
+        };
+        match decode(&data) {
+            Ok(ClientMsg::Login(login)) => break login,
+            Ok(ClientMsg::ModHello { api, built_in }) => {
+                if !conn.take_mod_hello(api, built_in) {
+                    return Err("bad ModHello");
+                }
+            }
+            Ok(_) => return Err("expected Login"),
+            Err(reason) => return Err(reason),
+        }
     };
 
     conn.resume = login.resume;

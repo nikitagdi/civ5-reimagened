@@ -759,6 +759,97 @@ fn several_kicks_after_a_load_wait_for_the_ai_between_them() {
     assert!(r.w.view_hash(0).is_none() && r.w.view_hash(1).is_none());
 }
 
+fn mods_block(count: u8) -> protocol::ModsSection {
+    protocol::ModsSection {
+        lock: "mods.lock text".into(),
+        states: vec![protocol::ModState {
+            id: "hello".into(),
+            state: vec![count],
+        }],
+    }
+}
+
+/// IPC v8: the gateway's mods block is the `MODS` section of every save from then on; a game that never gets one
+/// writes none (byte for byte the saves of before the mod system).
+#[test]
+fn the_mods_block_of_the_gateway_goes_into_every_save_and_a_game_without_mods_has_none() {
+    let mut h = H::game(2, 1);
+    h.send(ToWorker::SaveNow {
+        reason: SaveReason::Admin,
+    });
+    assert_eq!(h.jobs.last().unwrap().sections.mods, None);
+    assert_eq!(
+        saves::decode(&h.written(h.jobs.last().unwrap(), 1))
+            .unwrap()
+            .mods,
+        None
+    );
+
+    h.send(ToWorker::Mods(mods_block(1)));
+    h.send(ToWorker::SaveNow {
+        reason: SaveReason::Admin,
+    });
+    let job = h.jobs.last().unwrap().clone();
+    assert_eq!(job.sections.mods, Some(mods_block(1)));
+    let back = saves::decode(&h.written(&job, 2)).unwrap();
+    assert_eq!(back.mods, Some(mods_block(1)));
+
+    // A newer block replaces the older one for the next save.
+    h.send(ToWorker::Mods(mods_block(2)));
+    h.send(ToWorker::SaveNow {
+        reason: SaveReason::Admin,
+    });
+    assert_eq!(h.jobs.last().unwrap().sections.mods, Some(mods_block(2)));
+
+    // A block over the bounds of the section is dropped, not written (it would make every save fail).
+    let mut huge = mods_block(3);
+    huge.lock = "x".repeat(protocol::MAX_MODS_LOCK + 1);
+    h.send(ToWorker::Mods(huge));
+    h.send(ToWorker::SaveNow {
+        reason: SaveReason::Admin,
+    });
+    assert_eq!(h.jobs.last().unwrap().sections.mods, Some(mods_block(2)));
+}
+
+/// A worker that loads a save with a `MODS` section tells the gateway before `Ready`, and keeps writing it.
+#[test]
+fn a_load_announces_the_mods_section_before_ready_and_keeps_it() {
+    let mut h = H::game(2, 1);
+    h.send(ToWorker::Mods(mods_block(5)));
+    h.send(ToWorker::SaveNow {
+        reason: SaveReason::Admin,
+    });
+    let job = h.jobs.last().unwrap().clone();
+    let mut r = restarted(&h, &job, slots(2, 1));
+    let kinds: Vec<&str> = r
+        .msgs()
+        .filter_map(|m| match m {
+            WorkerMsg::Catalog { .. } => Some("catalog"),
+            WorkerMsg::ModsLoaded(_) => Some("mods"),
+            WorkerMsg::Ready(_) => Some("ready"),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(kinds, ["catalog", "mods", "ready"]);
+    assert!(
+        r.msgs()
+            .any(|m| matches!(m, WorkerMsg::ModsLoaded(s) if *s == mods_block(5)))
+    );
+    r.send(ToWorker::SaveNow {
+        reason: SaveReason::Admin,
+    });
+    assert_eq!(r.jobs.last().unwrap().sections.mods, Some(mods_block(5)));
+
+    // A save without the section announces nothing.
+    let mut plain = H::game(2, 1);
+    plain.send(ToWorker::SaveNow {
+        reason: SaveReason::Admin,
+    });
+    let job = plain.jobs.last().unwrap().clone();
+    let r = restarted(&plain, &job, slots(2, 1));
+    assert!(!r.msgs().any(|m| matches!(m, WorkerMsg::ModsLoaded(_))));
+}
+
 #[test]
 fn a_load_waits_for_a_safe_point_before_it_hands_a_slot_over() {
     let mut h = H::game(2, 1);

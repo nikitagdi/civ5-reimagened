@@ -11,8 +11,8 @@ use std::sync::Arc;
 use protocol::{
     AttachMode, Attached, BasisClaim, BasisState, CatalogRef, ChatLine, CmdId, CommandResult,
     ContextMsg, GameBatch, GameId, GameMsg, GcBase, JournalEntry, Keyframe, KeyframeReason,
-    MapBasis, PlayerId, Resume, SeatView, ServerMsg, TurnState, UndoLog, ViewDelta, ViewHash,
-    ViewUpdate, WorldView, apply, check, check_pair,
+    MapBasis, ModS2C, ModSetView, PlayerId, Resume, SeatView, ServerMsg, TurnState, UndoLog,
+    ViewDelta, ViewHash, ViewUpdate, WorldView, apply, check, check_pair,
 };
 use protocol::{Codec, Postcard};
 use wire::Encoder;
@@ -123,6 +123,8 @@ pub struct Parts {
     pub chat: Vec<ChatLine>,
     /// Replica stream messages (`GcBase`, `GcJournal`, `GcTurn`), in order.
     pub gc: Vec<GameMsg>,
+    /// Messages of the server halves of mods (`GameMsg::Mod`), in order.
+    pub mods: Vec<ModS2C>,
 }
 
 impl Parts {
@@ -145,6 +147,7 @@ impl Parts {
             ("seats", self.seats.is_some()),
             ("chat", !self.chat.is_empty()),
             ("gc", !self.gc.is_empty()),
+            ("mod", !self.mods.is_empty()),
         ] {
             if present {
                 k.push(name);
@@ -163,6 +166,7 @@ impl Parts {
             && self.seats.is_none()
             && self.chat.is_empty()
             && self.gc.is_empty()
+            && self.mods.is_empty()
     }
 
     /// A rough guess of the body size in bytes, to choose between the task and the blocking pool.
@@ -188,6 +192,11 @@ impl Parts {
             + self.contexts.len() * 500
             + self.chat.len() * 100
             + self.gc.len() * 200
+            + self
+                .mods
+                .iter()
+                .map(|m| m.payload.len() + 16)
+                .sum::<usize>()
     }
 }
 
@@ -285,6 +294,8 @@ pub struct SeatStream {
     since_recount: u32,
     /// The replica stream as far as this seat has been told.
     gc: GcSeat,
+    /// The mod set of the game as this seat sees it: the first message of every `Fresh` stream (`None`: no mods).
+    mods_view: Option<ModSetView>,
 }
 
 /// What a `Fresh` attach needs of the replica stream: the base of the chain and the batches after it.
@@ -402,7 +413,13 @@ impl SeatStream {
             kf_raw: None,
             since_recount: 0,
             gc: GcSeat::default(),
+            mods_view: None,
         }
+    }
+
+    /// The mod set the next `Fresh` attach starts with (`GameMsg::Mods`); `None` for a game without mods.
+    pub fn set_mods(&mut self, view: Option<ModSetView>) {
+        self.mods_view = view;
     }
 
     pub fn player(&self) -> PlayerId {
@@ -641,6 +658,7 @@ impl SeatStream {
             seats,
             chat,
             gc,
+            mods,
         } = parts;
         if let Some(b) = basis {
             match BasisState::new(b) {
@@ -686,7 +704,7 @@ impl SeatStream {
             }
         }
         out.frame = self.build(
-            view_out, false, results, journal, contexts, turn, seats, chat, gc,
+            view_out, false, results, journal, contexts, turn, seats, chat, gc, mods,
         );
         self.publish();
         out
@@ -706,6 +724,7 @@ impl SeatStream {
         seats: Option<Vec<SeatView>>,
         chat: Vec<ChatLine>,
         gc: Vec<GameMsg>,
+        mods: Vec<ModS2C>,
     ) -> Option<Vec<u8>> {
         let seq = self.seq + 1;
         let mut msgs: Vec<GameMsg> = Vec::new();
@@ -790,6 +809,7 @@ impl SeatStream {
             self.gc.note(&m);
             msgs.push(m);
         }
+        msgs.extend(mods.into_iter().map(GameMsg::Mod));
         if msgs.is_empty() {
             return None;
         }
@@ -925,6 +945,7 @@ impl SeatStream {
             None,
             Vec::new(),
             Vec::new(),
+            Vec::new(),
         );
         self.publish();
         out
@@ -986,6 +1007,10 @@ impl SeatStream {
         let seq = 1;
         let bh = mat.basis.hash();
         let mut msgs = Vec::new();
+        // The mod set comes first: the client builds its mods before anything of the game reaches them.
+        if let Some(v) = &self.mods_view {
+            msgs.push(GameMsg::Mods(v.clone()));
+        }
         let mut with_basis = false;
         if claim.is_some_and(|c| c.game == self.game && c.hash == bh) {
             stats::bump(&self.stats.basis_skipped);

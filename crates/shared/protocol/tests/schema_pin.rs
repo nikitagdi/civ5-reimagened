@@ -1755,4 +1755,20 @@ fn mod_samples(p: &mut Pins) {
         "ServerMsg::Reject(ModMismatch)",
         &ServerMsg::Reject(RejectReason::ModMismatch(vec![problem()])),
     );
+    // IPC v8: the mods block between the gateway and the worker.
+    let section = ModsSection {
+        lock: "mods.lock text".into(),
+        states: vec![
+            ModState {
+                id: "example-mod".into(),
+                state: vec![1, 2, 3],
+            },
+            ModState {
+                id: "other".into(),
+                state: Vec::new(),
+            },
+        ],
+    };
+    p.add("ToWorker::Mods", &ToWorker::Mods(section.clone()));
+    p.add("WorkerMsg::ModsLoaded", &WorkerMsg::ModsLoaded(section));
 }

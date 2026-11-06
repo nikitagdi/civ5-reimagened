@@ -32,6 +32,9 @@
 //! `ignore_force=1` (`ForceEndTurn` changes nothing), `over=T` (the game is over from turn T). `claim=refuse|ignore`: a `Claim` is refused or
 //! never answered. `kick=refuse|ignore [ignore=N]`: a `Kick` is refused, or the first N are not answered. A `Claim` of an AI slot gives it a seat with `Basis`, `Full` and `SeatDone`.
 //!
+//! The mods block (IPC v8): `ToWorker::Mods` is kept and written as the `MODS` section of every save; a loaded save
+//! that has one is announced with `ModsLoaded` before `Ready`.
+//!
 //! `replica=1` (every mode that plays) makes the mock a server of the replica stream (protocol v4) with made-up
 //! bodies: a `ReplicaBlob` and `ReplicaBase` (epoch 77, `jseq` 0) with the first views, a `ReplicaJournal` batch
 //! `J<n>` for every `Cmd` but `EndTurn`, a `ReplicaTurn` (a new body, and with `patch=1` a patch body) for an
@@ -65,6 +68,8 @@ const CATALOG: &[u8] = b"mock catalog";
 static GAME: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 static SETTINGS: Mutex<Option<GameSettings>> = Mutex::new(None);
 static SLOTS: Mutex<Vec<SlotSetup>> = Mutex::new(Vec::new());
+/// The mods block of the game (`ToWorker::Mods`, or the `MODS` section of the loaded save): every save carries it.
+static MODS: Mutex<Option<protocol::ModsSection>> = Mutex::new(None);
 
 type Out = Arc<Mutex<io::Stdout>>;
 
@@ -513,11 +518,15 @@ fn main() -> ExitCode {
     if let Start::New(setup) = &init.start {
         *SETTINGS.lock().unwrap() = Some(setup.settings.clone());
     }
+    let mut loaded_mods = None;
     if let Start::Load { file, .. } = &init.start
         && let Ok(bytes) = std::fs::read(file)
         && let Ok(info) = game_host::saves::read_header(&bytes)
     {
         *SETTINGS.lock().unwrap() = Some(info.settings);
+        if let Ok(save) = game_host::saves::decode(&bytes) {
+            loaded_mods = save.mods;
+        }
     }
     let slots = match &init.start {
         Start::New(setup) => setup.slots.clone(),
@@ -556,10 +565,13 @@ fn main() -> ExitCode {
     };
 
     *SLOTS.lock().unwrap() = slots.clone();
-    send(
-        &out,
-        vec![catalog(), WorkerMsg::Ready(ready(slots.clone(), base_turn))],
-    );
+    let mut head = vec![catalog()];
+    if let Some(m) = loaded_mods {
+        *MODS.lock().unwrap() = Some(m.clone());
+        head.push(WorkerMsg::ModsLoaded(m));
+    }
+    head.push(WorkerMsg::Ready(ready(slots.clone(), base_turn)));
+    send(&out, head);
     if opts.mode == "hang" && armed(&opts) {
         hang();
     }
@@ -759,6 +771,7 @@ fn main() -> ExitCode {
                     }
                 }
             }
+            ToWorker::Mods(m) => *MODS.lock().unwrap() = Some(m),
             ToWorker::SaveNow { .. } => {
                 seq += 1;
                 send(&out, vec![saved(&seats, seq)]);
@@ -844,7 +857,7 @@ fn saved(seats: &BTreeMap<i8, Seat>, seq: u64) -> WorkerMsg {
             journals: vec![],
             cmds: vec![],
             city_memo: vec![],
-            mods: None,
+            mods: MODS.lock().unwrap().clone(),
         };
         let bytes = game_host::saves::encode(&header, b"mock core", &sections);
         let _ = std::fs::create_dir_all("ring");

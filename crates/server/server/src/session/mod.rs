@@ -128,6 +128,16 @@ impl Conn {
         }
     }
 
+    /// Keeps a `ModHello` for the games the session attaches to. `false`: it is over the protocol's bounds.
+    fn take_mod_hello(&self, api: (u16, u16, u16), built_in: Vec<protocol::BuiltMod>) -> bool {
+        let hello = crate::game::modhost::ClientMods { api, built_in };
+        if !hello.within_limits() {
+            return false;
+        }
+        self.shared.mod_hellos.set(self.id, hello);
+        true
+    }
+
     /// Login is done: the idle rules and the WS ping start now.
     fn logged_in(&mut self) {
         self.login_deadline = None;
@@ -204,10 +214,14 @@ impl Conn {
                 },
                 item = self.outbox_rx.recv() => {
                     // `self.outbox` keeps the queue open, so `None` does not happen.
-                    if let Some(frame) = item
-                        && let Err(reason) = self.send_raw(frame).await
-                    {
-                        return Incoming::End(reason);
+                    if let Some(frame) = item {
+                        if frame.is_empty() {
+                            // The game refused this session (`Reject` is written): nothing more to say.
+                            return Incoming::End("refused by the game");
+                        }
+                        if let Err(reason) = self.send_raw(frame).await {
+                            return Incoming::End(reason);
+                        }
                     }
                 }
             }
@@ -307,6 +321,7 @@ pub async fn run(
     .await;
 
     shared.sessions.remove(id);
+    shared.mod_hellos.remove(id);
     if reason == "closed by client" {
         Metrics::bump(&shared.metrics.sessions_closed_clean_total);
     }
@@ -507,10 +522,15 @@ async fn drive(
                     }
                 }
             }
-            // v13: mods have no handler yet (they come with the mod host): dropped with a line in the log.
-            Ok(m @ (ClientMsg::ModHello { .. } | ClientMsg::Mod(_))) => {
-                tracing::debug!(kind = m.kind(), "mod message dropped: no mod host yet");
+            // v13: what the client has built in. It is read when the session attaches to a game, so it should come
+            // before `Login`; a later one is kept for the next attach or join.
+            Ok(ClientMsg::ModHello { api, built_in }) => {
+                if !conn.take_mod_hello(api, built_in) {
+                    return "bad ModHello";
+                }
             }
+            // v13: a message of a mod's client half; the game checks and routes it (a game without mods drops it).
+            Ok(ClientMsg::Mod(m)) => game_msg(link, conn.id, ClientGameMsg::Mod(m), size),
             Ok(ClientMsg::Hello { .. }) => return "repeated Hello",
             Ok(ClientMsg::Login(_)) => return "repeated Login",
             Ok(other) => {

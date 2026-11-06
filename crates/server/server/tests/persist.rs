@@ -1018,7 +1018,8 @@ fn leave_seat_in_a_sleeping_game_updates_its_stored_seats() {
 
 // ---------------------------------------------------------------- mods (T15, S4)
 
-/// Installs a data-only mod `hello` 1.0.0 under `<dir>/mods`.
+/// Installs a client-only mod `hello` 1.0.0 under `<dir>/mods`: no server half, and clients need not have it (this
+/// harness's clients send no `ModHello`; `mods_host.rs` plays with mods that clients must have).
 fn install_mod(dir: &Path, id: &str) -> PathBuf {
     let root = dir.join("mods");
     std::fs::create_dir_all(root.join(id)).unwrap();
@@ -1031,8 +1032,8 @@ name=\"{id}\"
 version=\"1.0.0\"
 api=\"^1\"
 license=\"MIT\"
-sync=\"gameplay\"
-parts=[\"data\"]
+sync=\"client\"
+parts=[\"assets\"]
 "
         ),
     )
