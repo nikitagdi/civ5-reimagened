@@ -71,6 +71,9 @@ git-ignored. The deploy builds `cargo xtask dist`, syncs the changed blobs of `-
 runs a smoke test and keeps the last 3 image tags. `--rollback` starts the previous tag. A deploy that would
 change the gamecore build while games run stops unless `--allow-core-change`. `--tls internal` makes a
 self-signed site for a bare IP address. The registration code is never printed or put on a command line.
+The smoke test (`cargo xtask nettest --scenario deploy-smoke`) runs a bot and a browser against the new
+server, so it needs Node.js 22+ and `npm ci` in `tools/playtest` on the machine you deploy from; without
+them pass `--skip-smoke`.
 
 ## Option 2: Docker Compose by hand
 

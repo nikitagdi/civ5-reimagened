@@ -65,7 +65,7 @@ The pipeline reads every official layer it finds (base game, expansions, the DLC
 | C++ compiler | MSVC on Windows; clang 22 or 18 with libc++ on Linux | native builds |
 | WSL2, Ubuntu 24.04 | distro name in `CIV5_WSL_DISTRO` (default `Ubuntu-24.04`) | Windows: gamecore and real server |
 | Docker with Compose | | hosting |
-| Node.js 22+, Playwright | `npm ci` in `tools/playtest` | playtests and benchmarks only |
+| Node.js 22+, Playwright | `npm ci` in `tools/playtest` | playtests, benchmarks and the smoke test of `cargo xtask deploy` |
 
 ```sh
 rustup toolchain install stable --component rust-src --target wasm32-unknown-unknown
