@@ -58,3 +58,5 @@ flate2.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 # WebSocket client for integration tests.
 tungstenite.workspace = true
+# Builds a mod asset pack for the `/mods/{hash}` test.
+mod-assets.workspace = true

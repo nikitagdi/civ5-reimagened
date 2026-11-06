@@ -739,3 +739,75 @@ fn admin_listener_refuses_non_loopback() {
         assert!(server::serve_admin(l, shared).await.is_err());
     });
 }
+
+/// T32: `GET /mods/{hash}` serves the pack of an installed mod by the SHA-256 of the file, immutable, and nothing else.
+#[test]
+fn mod_pack_is_served_by_hash() {
+    let mods = temp_dir("mods");
+    let dir = mods.join("hello");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("mod.toml"),
+        "[mod]\nid=\"hello\"\nname=\"Hello\"\nversion=\"1.0.0\"\napi=\"^1\"\nlicense=\"MIT\"\nsync=\"gameplay\"\nparts=[\"data\"]\n",
+    )
+    .unwrap();
+    let pack = mod_assets::Pack::build(
+        "hello".parse().unwrap(),
+        vec![],
+        vec![mod_assets::NewFile {
+            id: "data/blob".into(),
+            kind: mod_assets::AssetKind::Raw,
+            bytes: b"payload".to_vec(),
+        }],
+    )
+    .unwrap();
+    let bytes = pack.to_bytes();
+    std::fs::write(dir.join("hello.pack"), &bytes).unwrap();
+    // Something outside the store that traversal must not reach.
+    std::fs::write(mods.join("secret.txt"), b"secret").unwrap();
+    let hash = pack.hash().to_string();
+
+    let srv = TestServer::start(ServerConfig {
+        mods_dir: Some(mods),
+        ..ServerConfig::default()
+    });
+    let (status, head, body) = http_get(srv.addr, &format!("/mods/{hash}"));
+    assert_eq!(status, 200);
+    assert!(
+        head.contains("cache-control: public, max-age=31536000, immutable"),
+        "{head}"
+    );
+    assert_eq!(
+        header_value(&head, "content-type"),
+        Some("application/octet-stream")
+    );
+    assert_eq!(body, bytes);
+    // The client's own check passes on what was served.
+    mod_assets::Pack::parse_expecting(&body, &pack.hash()).unwrap();
+
+    for path in [
+        format!("/mods/{}", "0".repeat(64)),
+        "/mods/hello".to_string(),
+        "/mods/hello.pack".to_string(),
+        "/mods/..".to_string(),
+        "/mods/../secret.txt".to_string(),
+        "/mods/..%2fsecret.txt".to_string(),
+        format!("/mods/{}x", &hash[..63]),
+        format!("/mods/{}0", hash),
+        "/mods/".to_string(),
+    ] {
+        let (status, head, _) = http_get(srv.addr, &path);
+        assert_eq!(status, 404, "{path}");
+        assert!(!head.contains("immutable"), "{path}");
+    }
+}
+
+/// A server without mods answers 404 on the route (no mods directory at all).
+#[test]
+fn mod_pack_route_without_mods_is_404() {
+    let srv = TestServer::start(ServerConfig::default());
+    assert_eq!(
+        http_get(srv.addr, &format!("/mods/{}", "ab".repeat(32))).0,
+        404
+    );
+}

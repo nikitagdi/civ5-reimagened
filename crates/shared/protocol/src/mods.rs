@@ -108,6 +108,9 @@ pub struct ModView {
     pub client_required: bool,
     /// For the receiving client: it has this mod (always true for a server-side plan).
     pub available: bool,
+    /// SHA-256 (64 lowercase hex digits) of the mod's asset pack, if it has one; the client fetches it from
+    /// `GET /mods/{pack}` and verifies it (`mod-assets`). Appended in v13 (T32).
+    pub pack: Option<String>,
 }
 
 /// `GameMsg::Mods`: the frozen set of a game, the first message of every `Fresh` stream.

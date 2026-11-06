@@ -1,4 +1,4 @@
-//! HTTP routes of the gateway: `/ws`, `/healthz`, `/catalog/{hash}`, `/replica/{hash}`, `/netcheck/ws`,
+//! HTTP routes of the gateway: `/ws`, `/healthz`, `/catalog/{hash}`, `/replica/{hash}`, `/mods/{hash}` (mod asset packs, [`mods`]), `/netcheck/ws`,
 //! `/api/auth/{info,register,login,adopt,logout}` (accounts, [`auth`]), `POST /client-report` (the web client's crash report, logged), `POST /client-report/v2` (the full report with
 //! the client's logs, stored under `state_dir/reports/`), the web client and the assets. The admin API is a separate listener ([`admin`]).
 
@@ -6,6 +6,7 @@ pub mod admin;
 pub mod auth;
 pub mod catalog;
 pub mod client_report;
+pub mod mods;
 pub mod netcheck;
 pub mod replica;
 pub mod reports;
@@ -61,6 +62,7 @@ pub fn router(shared: Arc<Shared>) -> Router {
         )
         .route("/catalog/{hash}", get(catalog::get))
         .route("/replica/{hash}", get(replica::get))
+        .route("/mods/{hash}", get(mods::get))
         .route("/netcheck/ws", get(netcheck::ws))
         .route("/assets/manifest", get(static_files::manifest_pointer))
         .route("/assets/{hash}", get(static_files::asset))

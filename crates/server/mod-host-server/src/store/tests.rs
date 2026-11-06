@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use super::*;
+use crate::assets::read_pack;
 
 /// A scratch directory removed on drop.
 struct Tmp(PathBuf);
@@ -305,4 +306,75 @@ fn restore_without_a_lock_is_a_game_without_mods() {
         s.restore_set(Some("not a lock"), 1),
         Err(RestoreError::BadLock(_))
     ));
+}
+
+fn pack_bytes(id: &str, payload: &[u8]) -> Vec<u8> {
+    mod_assets::Pack::build(
+        ModId::new(id).unwrap(),
+        vec![],
+        vec![mod_assets::NewFile {
+            id: "data/blob".into(),
+            kind: mod_assets::AssetKind::Raw,
+            bytes: payload.to_vec(),
+        }],
+    )
+    .unwrap()
+    .to_bytes()
+}
+
+#[test]
+fn pack_next_to_the_manifest_is_found_by_hash_and_enters_the_view() {
+    let t = Tmp::new();
+    install(&t, "hello", "0.1.0", "");
+    install(&t, "plain", "0.1.0", "");
+    let bytes = pack_bytes("hello", b"abc");
+    fs::write(t.0.join("hello/hello.pack"), &bytes).unwrap();
+    let s = ModStore::scan(&t.0);
+    assert!(s.problems().is_empty(), "{:?}", s.problems());
+    let want = mod_assets::Sha256::of(&bytes).to_string();
+    let info = s.pack_by_hash(&want).expect("pack");
+    assert_eq!(info.size, bytes.len() as u64);
+    assert_eq!(read_pack(info).unwrap(), bytes);
+    assert!(s.pack_by_hash(&want.to_uppercase()).is_some());
+    assert!(s.pack_by_hash(&"0".repeat(64)).is_none());
+    assert!(s.pack_of(&ModId::new("plain").unwrap()).is_none());
+
+    let frozen = s.freeze(&[pick("hello", "*"), pick("plain", "*")]).unwrap();
+    let view = s.set_view(&frozen.set);
+    let by_id = |id: &str| view.mods.iter().find(|m| m.id == id).unwrap();
+    assert_eq!(by_id("hello").pack.as_deref(), Some(want.as_str()));
+    assert_eq!(by_id("plain").pack, None);
+    // The store-less view carries no packs.
+    assert!(set_view(&frozen.set).mods.iter().all(|m| m.pack.is_none()));
+}
+
+#[test]
+fn unusable_pack_files_drop_the_mod_with_a_reason() {
+    let t = Tmp::new();
+    install(&t, "bad", "0.1.0", "");
+    fs::write(t.0.join("bad/bad.pack"), b"not a pack").unwrap();
+    install(&t, "dir", "0.1.0", "");
+    fs::create_dir_all(t.0.join("dir/dir.pack")).unwrap();
+    install(&t, "good", "0.1.0", "");
+    let s = ModStore::scan(&t.0);
+    let ids: Vec<_> = s
+        .installed()
+        .iter()
+        .map(|i| i.manifest.id.as_str())
+        .collect();
+    assert_eq!(ids, ["good"]);
+    assert_eq!(s.problems().len(), 2);
+    assert!(s.problems()[0].message.contains("not an asset pack"));
+    assert!(s.problems()[1].message.contains("not a regular file"));
+}
+
+#[test]
+fn a_pack_changed_after_the_scan_is_not_served() {
+    let t = Tmp::new();
+    install(&t, "hello", "0.1.0", "");
+    fs::write(t.0.join("hello/hello.pack"), pack_bytes("hello", b"abc")).unwrap();
+    let s = ModStore::scan(&t.0);
+    let info = s.pack_of(&ModId::new("hello").unwrap()).unwrap().clone();
+    fs::write(t.0.join("hello/hello.pack"), pack_bytes("hello", b"longer")).unwrap();
+    assert!(read_pack(&info).is_err());
 }
