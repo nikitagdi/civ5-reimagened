@@ -1,11 +1,13 @@
 //! `cargo xtask mods ...`: the distribution of the operator's mods (spec: `SPEC-dist-assembly.md`).
 //!
-//! `mods check --mods <file>` resolves the list and writes `mods.lock`; `mods build --mods <file> --target server`
-//! assembles `target/dist/` and builds it. The public build (no `--mods`) is not touched by any of this.
+//! `mods check --mods <file>` resolves the list and writes `mods.lock`; `mods build --mods <file> --target server|client|all`
+//! assembles `target/dist/` and builds it; `dev --mods <file>` runs the result. The public build (no `--mods`) is not touched by any of this.
 
 pub mod build;
 pub mod check;
+pub mod dev;
 pub mod dist;
+pub mod gen_client;
 pub mod gen_server;
 pub mod local;
 
@@ -21,7 +23,9 @@ pub fn cmd_mods(root: &Path, args: &[String]) -> Result<()> {
             bail!("unknown `mods` subcommand `{other}`; use `mods check|build --mods <file>`")
         }
         None => {
-            bail!("usage: cargo xtask mods check|build --mods <file> [--target server] [--release]")
+            bail!(
+                "usage: cargo xtask mods check|build --mods <file> [--target server|client|web|desktop|all] [--release] [--single]"
+            )
         }
     }
 }

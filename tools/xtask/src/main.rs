@@ -184,11 +184,39 @@ fn profile_dir(release: bool) -> &'static str {
     if release { "release" } else { "debug" }
 }
 
+/// Which package the wasm build compiles and where cargo puts the result: the public `app-web` of the root workspace,
+/// or the generated `dist-client-web` of `target/dist/client` (`cargo xtask mods build --target client`). Both give
+/// `app_web.wasm`, so the page (`bootstrap.js`) and the bindgen step are the same.
+#[derive(Clone)]
+struct WebPkg {
+    /// `--manifest-path` of the workspace; `None`: the root one.
+    manifest: Option<PathBuf>,
+    package: String,
+    /// Target directory of the single-threaded build.
+    target: PathBuf,
+    /// Target directory of the threaded build.
+    mt_target: PathBuf,
+}
+
+fn public_web_pkg(root: &Path) -> Result<WebPkg> {
+    let target = target_dir(root)?;
+    Ok(WebPkg {
+        manifest: None,
+        package: WEB_CRATE.into(),
+        mt_target: target.join("wasm-mt"),
+        target,
+    })
+}
+
 fn raw_wasm_path(root: &Path, release: bool) -> Result<PathBuf> {
-    Ok(target_dir(root)?
+    Ok(raw_wasm_of(&public_web_pkg(root)?.target, release))
+}
+
+fn raw_wasm_of(target: &Path, release: bool) -> PathBuf {
+    target
         .join(WASM_TARGET)
         .join(profile_dir(release))
-        .join(format!("{WEB_OUT_NAME}.wasm")))
+        .join(format!("{WEB_OUT_NAME}.wasm"))
 }
 
 fn cargo_build_wasm(root: &Path, release: bool) -> Result<()> {
@@ -196,8 +224,15 @@ fn cargo_build_wasm(root: &Path, release: bool) -> Result<()> {
 }
 
 fn cargo_build_wasm_with(root: &Path, release: bool, features: &[&str]) -> Result<()> {
+    cargo_build_wasm_pkg(root, release, features, &public_web_pkg(root)?)
+}
+
+fn cargo_build_wasm_pkg(root: &Path, release: bool, features: &[&str], pkg: &WebPkg) -> Result<()> {
     let mut c = cargo();
-    c.args(["build", "--target", WASM_TARGET, "-p", WEB_CRATE]);
+    c.args(["build", "--target", WASM_TARGET, "-p", &pkg.package]);
+    if let Some(m) = &pkg.manifest {
+        c.arg("--manifest-path").arg(m);
+    }
     if !features.is_empty() {
         c.arg("--features").arg(features.join(","));
     }
@@ -217,7 +252,16 @@ fn mt_toolchain() -> String {
 /// The threaded build of the client (`<target>/wasm-mt`): std rebuilt with atomics (`-Z build-std`
 /// through `RUSTC_BOOTSTRAP=1` on a stable compiler), a shared memory of at most 4 GiB.
 fn cargo_build_wasm_mt(root: &Path, release: bool, features: &[&str]) -> Result<PathBuf> {
-    let target = target_dir(root)?.join("wasm-mt");
+    cargo_build_wasm_mt_pkg(root, release, features, &public_web_pkg(root)?)
+}
+
+fn cargo_build_wasm_mt_pkg(
+    root: &Path,
+    release: bool,
+    features: &[&str],
+    pkg: &WebPkg,
+) -> Result<PathBuf> {
+    let target = pkg.mt_target.clone();
     // The rustup proxy, not `$CARGO`: the toolchain is the one with `rust-src`.
     let mut c = Command::new("cargo");
     c.env("RUSTUP_TOOLCHAIN", mt_toolchain())
@@ -235,8 +279,11 @@ fn cargo_build_wasm_mt(root: &Path, release: bool, features: &[&str]) -> Result<
              -C link-arg=--export=__wasm_init_tls -C link-arg=--export=__tls_size \
              -C link-arg=--export=__tls_align -C link-arg=--export=__tls_base",
         )
-        .args(["build", "--target", WASM_TARGET, "-p", WEB_CRATE])
+        .args(["build", "--target", WASM_TARGET, "-p", &pkg.package])
         .args(["-Z", "build-std=std,panic_abort"]);
+    if let Some(m) = &pkg.manifest {
+        c.arg("--manifest-path").arg(m);
+    }
     if !features.is_empty() {
         c.arg("--features").arg(features.join(","));
     }
@@ -247,10 +294,7 @@ fn cargo_build_wasm_mt(root: &Path, release: bool, features: &[&str]) -> Result<
         "the threaded wasm build failed: it needs the `rust-src` component of the toolchain \
          (CIV5_MT_TOOLCHAIN, default `stable`)",
     )?;
-    Ok(target
-        .join(WASM_TARGET)
-        .join(profile_dir(release))
-        .join(format!("{WEB_OUT_NAME}.wasm")))
+    Ok(raw_wasm_of(&target, release))
 }
 
 /// `wasm-bindgen` of `wasm` into `pkg`, and `wasm-opt` in a release. (No brain check: the client holds the replica core.)
@@ -337,12 +381,18 @@ fn optimise_wasm(root: &Path, bg: &Path) -> Result<()> {
 /// page takes it when it is cross-origin isolated (`bootstrap.js`).
 fn build_web_threads(root: &Path, release: bool) -> Result<PathBuf> {
     let web = build_web(root, release)?;
+    build_web_threads_into(root, release, &web, &public_web_pkg(root)?)?;
+    Ok(web)
+}
+
+/// The threaded build of `pkg` into `<web>/pkg-mt`.
+fn build_web_threads_into(root: &Path, release: bool, web: &Path, pkg: &WebPkg) -> Result<()> {
     // The replica links the game core: the threaded link needs its archive built with atomics
     // (`wasm-mt/`, GAMECORE_LIB_DIR_wasm32_threads); a failed link is an error, not a build without threads.
-    let wasm = cargo_build_wasm_mt(root, release, &[])?;
+    let wasm = cargo_build_wasm_mt_pkg(root, release, &[], pkg)?;
     bindgen_pkg(root, &wasm, &web.join("pkg-mt"), release)?;
     println!("web bundle (threads in pkg-mt): {}", web.display());
-    Ok(web)
+    Ok(())
 }
 
 /// Returns the bundle directory (`<target>/web`).
@@ -352,20 +402,32 @@ fn build_web(root: &Path, release: bool) -> Result<PathBuf> {
 
 /// The web bundle with `features` of `app-web`, in `<target>/<dir>`.
 fn build_web_with(root: &Path, release: bool, features: &[&str], dir: &str) -> Result<PathBuf> {
+    let web = target_dir(root)?.join(dir);
+    build_web_pkg(root, release, features, &web, &public_web_pkg(root)?)?;
+    Ok(web)
+}
+
+/// The web bundle of `wp` in `web`: wasm, bindgen, glue patch, the page files of `apps/web/www`, wasm-opt in a release.
+fn build_web_pkg(
+    root: &Path,
+    release: bool,
+    features: &[&str],
+    web: &Path,
+    wp: &WebPkg,
+) -> Result<()> {
     if let Some(problem) = bindgen_cli_problem(root)? {
         bail!("{problem}");
     }
-    cargo_build_wasm_with(root, release, features)?;
-    let web = target_dir(root)?.join(dir);
+    cargo_build_wasm_pkg(root, release, features, wp)?;
     let pkg = web.join("pkg");
-    let wasm = raw_wasm_path(root, release)?;
+    let wasm = raw_wasm_of(&wp.target, release);
     let mut c = Command::new("wasm-bindgen");
     c.args(["--target", "web", "--out-name", WEB_OUT_NAME, "--out-dir"])
         .arg(&pkg)
         .arg(&wasm);
     run(root, c)?;
     patch_glue(&pkg)?;
-    copy_dir(&root.join("apps/web/www"), &web)?;
+    copy_dir(&root.join("apps/web/www"), web)?;
     // A bundle built without threads has no threaded build: an old one would load with new glue.
     let _ = std::fs::remove_dir_all(web.join("pkg-mt"));
 
@@ -382,7 +444,29 @@ fn build_web_with(root: &Path, release: bool, features: &[&str], dir: &str) -> R
         );
     }
     println!("web bundle: {}", web.display());
-    Ok(web)
+    Ok(())
+}
+
+/// The web bundle of the generated `dist-client-web` (`target/dist/client`, `cargo xtask mods build --target client`) in
+/// `bundle`, with `pkg-mt` beside `pkg` when `threads`: the public pipeline over another package.
+fn build_dist_web(
+    root: &Path,
+    release: bool,
+    threads: bool,
+    client_dir: &Path,
+    bundle: &Path,
+) -> Result<()> {
+    let wp = WebPkg {
+        manifest: Some(client_dir.join("Cargo.toml")),
+        package: "dist-client-web".into(),
+        target: client_dir.join("target"),
+        mt_target: client_dir.join("target-mt"),
+    };
+    build_web_pkg(root, release, &[], bundle, &wp)?;
+    if threads {
+        build_web_threads_into(root, release, bundle, &wp)?;
+    }
+    Ok(())
 }
 
 /// `web-selftest [--release] [--fixture <dir>] [--scenario tiny|small|late-huge|all]`: builds the web bundle with the
@@ -824,8 +908,23 @@ fn cmd_dev(root: &Path, extra: &[String]) -> Result<()> {
         .filter(|a| *a != "--wsl" && *a != "--dev")
         .cloned()
         .collect();
+    // `--mods <file>` (and `--mod-packs <dir>`): the dist of that list instead of the public server and client.
+    let (mods_list, mod_packs, extra) = mods::dev::take_args(&extra)?;
     let extra = &extra[..];
-    let web = build_web(root, false)?;
+    if mods_list.is_some() && wsl {
+        bail!("dev --mods does not run with --wsl yet: the dist is built for this machine");
+    }
+    if mods_list.is_some() && has_flag(extra, "--config") {
+        bail!("dev --mods writes the server config itself; `--config` cannot be combined with it");
+    }
+    let dist = match &mods_list {
+        Some(list) => Some(mods::dev::prepare_dev(root, list, mod_packs.as_deref())?),
+        None => None,
+    };
+    let web = match &dist {
+        Some(d) => d.web.clone(),
+        None => build_web(root, false)?,
+    };
     // Server flags: `--dev` (the `dev` password, `target/dev-state`, the test world), `--core
     // fixture|real` (real with `--wsl`), `--state-dir`, `--listen`, `--web-root`, `--assets-root`.
     let mut flags: Vec<String> = vec!["--dev".into()];
@@ -874,7 +973,16 @@ fn cmd_dev(root: &Path, extra: &[String]) -> Result<()> {
     };
     if !wsl {
         let mut c = cargo();
-        c.args(["run", "-p", "server", "--bin", "civ5-server", "--"]);
+        match &dist {
+            Some(d) => {
+                c.arg("run").arg("--manifest-path").arg(&d.manifest);
+                c.args(["-p", "dist-server", "--bin", "civ5-server", "--"]);
+                c.arg("--config").arg(&d.config);
+            }
+            None => {
+                c.args(["run", "-p", "server", "--bin", "civ5-server", "--"]);
+            }
+        }
         c.args(&flags);
         c.arg("--web-root").arg(&web);
         if let Some(dir) = assets_dir {

@@ -33,6 +33,8 @@ and the fixture test world are enough for most client, protocol and tooling work
 | `deps` | the crate dependency rules alone (`tools/xtask/deps.toml`) |
 | `test [cargo test args]` | `cargo test --workspace` unless you pick packages with `-p` |
 | `dev [--wsl] [--core fixture\|real] [--assets <dir>] [--gamedata-dir <dir>] [--state-dir <dir>] [--listen <addr>]` | builds the web client and runs `civ5-server --dev` on 127.0.0.1:8080; fixture core unless `--wsl` |
+| `dev --mods <file> [--mod-packs <dir>] [dev flags]` | `dev` over the operator's mod list: checks the list, builds the dist server and web client (`target/dist`), installs the mods into `target/dist/installed` (a pack at `<mod>/<id>.pack`, or `<dir>/<id>.pack` with `--mod-packs`) and runs the dist server on it; not with `--wsl` |
+| `mods check\|build --mods <file> [--target server\|client\|web\|desktop\|all] [--release] [--single]` | the distribution of a mod list: `mods.lock`, graph rules, then `target/dist` (server, `web/` bundle, `client/target/<profile>/app-desktop`) |
 | `run-desktop -- <args>` | the native client (`apps/desktop`); it links the stub core |
 | `assets [--game <dir>] [--out <dir>] [--set <name>] [--db <dir>]` | one asset-pipeline set; for several sets call the pipeline directly (see [install.md](install.md)) |
 | `gamecore [--out <dir>] [--target linux\|wasm\|wasm-mt\|all] [--pgo]` | builds the real gamecore archives from the fork into `target/gamecore/<target>` |

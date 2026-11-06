@@ -1,0 +1,16 @@
+# Test fixture of `cargo xtask mods build --target client`: a mod with only a client half that does nothing.
+
+[mod]
+id      = "fixture-client"
+name    = "Fixture client"
+version = "0.3.1"
+api     = "^1"
+license = "MIT"
+authors = ["The civ5-reimagened authors"]
+sync    = "cosmetic"
+client  = "optional"
+parts   = ["client-rs"]
+
+[rust]
+client = { crate = "fixture-client", entry = "fixture_client::register" }
+caps   = ["camera", "input.claim"]
