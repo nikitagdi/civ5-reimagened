@@ -908,8 +908,23 @@ fn cmd_dev(root: &Path, extra: &[String]) -> Result<()> {
         .filter(|a| *a != "--wsl" && *a != "--dev")
         .cloned()
         .collect();
+    // `--mods <file>` (and `--mod-packs <dir>`): the dist of that list instead of the public server and client.
+    let (mods_list, mod_packs, extra) = mods::dev::take_args(&extra)?;
     let extra = &extra[..];
-    let web = build_web(root, false)?;
+    if mods_list.is_some() && wsl {
+        bail!("dev --mods does not run with --wsl yet: the dist is built for this machine");
+    }
+    if mods_list.is_some() && has_flag(extra, "--config") {
+        bail!("dev --mods writes the server config itself; `--config` cannot be combined with it");
+    }
+    let dist = match &mods_list {
+        Some(list) => Some(mods::dev::prepare_dev(root, list, mod_packs.as_deref())?),
+        None => None,
+    };
+    let web = match &dist {
+        Some(d) => d.web.clone(),
+        None => build_web(root, false)?,
+    };
     // Server flags: `--dev` (the `dev` password, `target/dev-state`, the test world), `--core
     // fixture|real` (real with `--wsl`), `--state-dir`, `--listen`, `--web-root`, `--assets-root`.
     let mut flags: Vec<String> = vec!["--dev".into()];
@@ -958,7 +973,16 @@ fn cmd_dev(root: &Path, extra: &[String]) -> Result<()> {
     };
     if !wsl {
         let mut c = cargo();
-        c.args(["run", "-p", "server", "--bin", "civ5-server", "--"]);
+        match &dist {
+            Some(d) => {
+                c.arg("run").arg("--manifest-path").arg(&d.manifest);
+                c.args(["-p", "dist-server", "--bin", "civ5-server", "--"]);
+                c.arg("--config").arg(&d.config);
+            }
+            None => {
+                c.args(["run", "-p", "server", "--bin", "civ5-server", "--"]);
+            }
+        }
         c.args(&flags);
         c.arg("--web-root").arg(&web);
         if let Some(dir) = assets_dir {

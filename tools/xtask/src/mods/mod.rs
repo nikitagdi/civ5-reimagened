@@ -5,9 +5,10 @@
 
 pub mod build;
 pub mod check;
+pub mod dev;
 pub mod dist;
-pub mod gen_server;
 pub mod gen_client;
+pub mod gen_server;
 pub mod local;
 
 use std::path::{Path, PathBuf};
