@@ -154,6 +154,12 @@ impl CellGrid {
         (index as i32 % self.cells_x, index as i32 / self.cells_x)
     }
 
+    /// The index of the cell the texel `t` is in, clamped to the map.
+    pub fn index_of_texel(&self, t: Vec2) -> usize {
+        let (cx, cy) = self.cell_of_texel(t.x, t.y);
+        self.index(cx, cy)
+    }
+
     /// The box of cell `(cx, cy)`: 64 texels apart, 65 wide, less at the end of the map. On a map that
     /// wraps along X the last column is one texel wider: its east edge is the texel `tex_w`, which is
     /// the texel 0 of the next copy, so it shares that edge with the first column as two cells inside
@@ -252,6 +258,41 @@ impl CellBounds {
         let longest = pairs
             .iter()
             .map(|&(a, b)| (project(a) - project(b)).length() * 0.5)
+            .fold(0.0f32, f32::max);
+        longest * screen_width * 0.5
+    }
+
+    /// [`Self::max_width_px`] for an eye that can stand in or beside the box (client-hooks T27b): each diagonal
+    /// is cut at the clip depth `w = near` before it is projected. A corner behind the eye has a negative `w`;
+    /// divided by it the corner lands mirrored on the screen and the cell under the camera comes out small
+    /// (a blurred page under the feet). The cut end is as close as the camera sees, so a box that holds the
+    /// eye is as wide as the screen allows and gets the largest page. A diagonal wholly behind the plane
+    /// counts for nothing. With all corners in front the result is the one of `max_width_px`.
+    pub fn max_width_px_clipped(&self, view_proj: &Mat4, screen_width: f32, near: f32) -> f32 {
+        let (lo, hi) = (self.min, self.max);
+        let pairs = [
+            (Vec3::new(hi.x, hi.y, hi.z), Vec3::new(lo.x, lo.y, lo.z)),
+            (Vec3::new(hi.x, hi.y, lo.z), Vec3::new(lo.x, lo.y, hi.z)),
+            (Vec3::new(hi.x, lo.y, lo.z), Vec3::new(lo.x, hi.y, hi.z)),
+            (Vec3::new(hi.x, lo.y, hi.z), Vec3::new(lo.x, hi.y, lo.z)),
+        ];
+        let near = near.max(1e-4);
+        let longest = pairs
+            .iter()
+            .filter_map(|&(a, b)| {
+                let (mut ca, mut cb) = (*view_proj * a.extend(1.0), *view_proj * b.extend(1.0));
+                let (da, db) = (ca.w - near, cb.w - near);
+                if da < 0.0 && db < 0.0 {
+                    return None;
+                }
+                if da < 0.0 {
+                    ca += (cb - ca) * (da / (da - db));
+                } else if db < 0.0 {
+                    cb += (ca - cb) * (db / (db - da));
+                }
+                let project = |c: Vec4| Vec2::new(c.x / c.w, c.y / c.w);
+                Some((project(ca) - project(cb)).length() * 0.5)
+            })
             .fold(0.0f32, f32::max);
         longest * screen_width * 0.5
     }
@@ -1288,6 +1329,8 @@ mod tests {
         assert_eq!((g.index(2, 1), g.cell_xy(g.index(2, 1))), (6, (2, 1)));
         assert_eq!(g.cell_of_texel(130.0, 70.0), (2, 1));
         assert_eq!(g.cell_of_texel(-5.0, 9000.0), (0, 2));
+        assert_eq!(g.index_of_texel(Vec2::new(130.0, 70.0)), g.index(2, 1));
+        assert_eq!(g.index_of_texel(Vec2::new(-5.0, 9000.0)), g.index(0, 2));
     }
 
     #[test]
@@ -1703,6 +1746,41 @@ mod tests {
         // Half a radius behind the plane: the sphere still touches it, visible.
         planes[0] = Vec4::new(1.0, 0.0, 0.0, -c.x - bounds.radius * 0.5);
         assert!(bounds.is_visible(&planes).0);
+    }
+
+    /// A cell box `[x, x + 65] x [y, y + 65] x [0, 255]` of the original's basis (Z up) and the view of an eye at
+    /// `eye` looking along +Y with the planes of a person's camera.
+    fn low_view(x: f32, y: f32, eye: Vec3) -> (CellBounds, Mat4) {
+        let (min, max) = (Vec3::new(x, y, 0.0), Vec3::new(x + 65.0, y + 65.0, 255.0));
+        let b = CellBounds {
+            min,
+            max,
+            center: (min + max) * 0.5,
+            radius: 0.5 * (max - min).length(),
+        };
+        let view = glam::camera::rh::view::look_at_mat4(eye, eye + Vec3::Y, Vec3::Z);
+        let proj = glam::camera::rh::proj::directx::perspective(1.3, 16.0 / 9.0, 0.5, 3000.0);
+        (b, proj * view)
+    }
+
+    #[test]
+    fn a_cell_box_that_holds_the_eye_gets_the_largest_page() {
+        let (b, vp) = low_view(0.0, 0.0, Vec3::new(30.0, 30.0, 6.5));
+        let w = b.max_width_px_clipped(&vp, 1920.0, 0.5);
+        assert_eq!(page_size_for_width(w, 64), 512, "{w}");
+        // The cell ahead, the eye outside its box: every corner is in front, the cut changes nothing.
+        let (b, vp) = low_view(0.0, 40.0, Vec3::new(30.0, 0.0, 6.5));
+        assert_eq!(
+            b.max_width_px_clipped(&vp, 1920.0, 0.5),
+            b.max_width_px(&vp, 1920.0)
+        );
+        assert_eq!(
+            page_size_for_width(b.max_width_px_clipped(&vp, 1920.0, 0.5), 64),
+            512
+        );
+        // The cell wholly behind the eye is nothing on the screen.
+        let (b, vp) = low_view(0.0, -200.0, Vec3::new(30.0, 0.0, 6.5));
+        assert_eq!(b.max_width_px_clipped(&vp, 1920.0, 0.5), 0.0);
     }
 
     #[test]

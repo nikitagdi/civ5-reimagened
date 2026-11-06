@@ -19,7 +19,7 @@
 pub mod camera;
 
 pub use camera::{
-    D3dMatrix, LIGHT_DISTANCE, ShadowCamera, ShadowQuality, ShadowSize, look_at_rh,
+    D3dMatrix, LIGHT_DISTANCE, ShadowCamera, ShadowQuality, ShadowSize, fixed_rect, look_at_rh,
     ortho_off_center_rh, raw_size, screen_pixel_size, visible_rect,
 };
 

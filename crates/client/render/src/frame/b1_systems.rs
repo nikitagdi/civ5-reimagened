@@ -1668,6 +1668,63 @@ mod tests {
         assert!(seen.frame_group.get() && seen.time_finite.get());
     }
 
+    /// A camera of a mod (client-hooks C2): the frame draws, the fluid fog is off while the camera holds the
+    /// screen and the switches the player set are as they were when the strategic camera is back, and the
+    /// strategic frame after it is the frame before it.
+    #[test]
+    fn a_mod_camera_hides_the_fog_clouds_and_gives_the_frame_back() {
+        use crate::camera::{CameraView, FirstPerson, ModCamera, ModCameraView};
+        use crate::frame::{FrameSource, SystemId};
+        use crate::gpu_test::block_on;
+        use crate::renderer::BackendPref;
+
+        let Ok(r) = block_on(Renderer::new_headless(SIZE, BackendPref::Auto)) else {
+            eprintln!(
+                "SKIP a_mod_camera_hides_the_fog_clouds_and_gives_the_frame_back: no adapter"
+            );
+            return;
+        };
+        let mut r = fill_world(r);
+        let (_, camera) = cameras().into_iter().find(|(n, _)| *n == "wide").unwrap();
+        let ui = UiDrawList::default();
+        let scene = baseline_scene();
+        let read = |r: &mut Renderer, cam: &dyn CameraView| {
+            let readback = r.read_frame(FrameSource::World);
+            r.render(&scene, cam, &ui, None).unwrap();
+            readback.wait().unwrap()
+        };
+        let (mut player, _) = LayerSwitches::from_names("Decal");
+        r.set_layers(player.clone());
+        let before = read(&mut r, &camera);
+        assert!(!r.layers().is_disabled(SystemId::FluidFow));
+
+        let mut fp = FirstPerson::new(glam::Vec3::new(200.0, 12.0, -150.0));
+        fp.yaw = 0.7;
+        let low: &dyn ModCamera = &fp;
+        let shown = read(&mut r, &ModCameraView(low));
+        assert!(shown.bytes.iter().any(|&b| b != 0), "a frame was drawn");
+        assert!(r.layers().is_disabled(SystemId::FluidFow));
+        assert!(
+            r.layers().is_disabled(SystemId::Decal),
+            "the player's switch stays"
+        );
+        // The player changes a switch while the camera holds the screen: it is the base from then on.
+        player.disable("Waves").ok();
+        r.set_layers(player.clone());
+        assert!(r.layers().is_disabled(SystemId::FluidFow));
+        let again = read(&mut r, &camera);
+        assert!(!r.layers().is_disabled(SystemId::FluidFow));
+        assert_eq!(*r.layers(), player);
+        let (mut want, _) = LayerSwitches::from_names("Decal");
+        want.disable("Waves").ok();
+        assert_eq!(*r.layers(), want);
+        // The frame of the strategic camera does not depend on the visit of the other one.
+        r.set_layers(LayerSwitches::from_names("Decal").0);
+        let after = read(&mut r, &camera);
+        assert!(before == after, "the strategic frame is the one it was");
+        let _ = again;
+    }
+
     /// A renderer without a window (R0.17): the same world twice gives the same bytes, the frame
     /// with the UI is the frame of the world here, `FixedCamera` with the matrices of a camera
     /// draws what the camera draws, and the class mask has land and water where they are.

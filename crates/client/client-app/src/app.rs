@@ -276,7 +276,14 @@ impl Question {
 
 /// Native blocks until the window closes; web returns at once.
 pub fn run(config: AppConfig, services: Services) -> Result<(), AppError> {
-    run_with(config, services, ModHooks::new())
+    // Debug: `CIV5_FP_CAM` brings the first-person camera on F4 (client-hooks C2). Not set: no hook.
+    #[allow(unused_mut)]
+    let mut hooks = ModHooks::new();
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(hook) = crate::fp_debug::FirstPersonDebug::from_env() {
+        hooks.register(Box::new(hook));
+    }
+    run_with(config, services, hooks)
 }
 
 /// [`run`] with the hooks of the client's mods (client-hooks). Empty hooks: the app of `run`.
@@ -1758,6 +1765,27 @@ impl App {
                     .is_some_and(|w| w.fullscreen().is_some());
                 self.map_controller.set_edge_scroll(fullscreen);
                 self.map_controller.update(dt, &mut self.game_camera);
+                // The hooks of mods move their camera (client-hooks C2). No hooks: nothing happens.
+                if !self.hooks.is_empty() {
+                    let info = crate::mod_hooks::FrameInfo {
+                        dt,
+                        now_ms: now,
+                        focus: self.game_camera.focus(),
+                        terrain: renderer.terrain_system().sampler(),
+                    };
+                    if let (Some(want), Some(w)) = (self.hooks.frame(&info), self.window.as_ref()) {
+                        if want {
+                            self.pointer.request(w);
+                        } else {
+                            self.pointer.release(w);
+                        }
+                    }
+                }
+                // The virtual focus: while a mod holds the camera the strategic one stays where the mod is, so the
+                // labels, the minimap, the picking, the sound of the map and the original UI look at its place.
+                if let Some(cam) = self.hooks.camera() {
+                    self.game_camera.center_on(cam.terrain_focus());
+                }
             }
             self.ui.clear();
             let _slow_ui = scope("app.ui");
@@ -1993,11 +2021,26 @@ impl App {
                 }
             }
             drop(_slow_ui);
+            let mod_camera = self
+                .hooks
+                .camera()
+                .filter(|_| !self.showcase_mode)
+                .map(render::ModCameraView);
             let camera: &dyn CameraView = if self.showcase_mode {
                 &self.camera
+            } else if let Some(view) = &mod_camera {
+                view
             } else {
                 &self.game_camera
             };
+            // Where the world sound listens: the strategic camera's focus, or the mod camera's listener.
+            let listener = self.hooks.camera().map_or(
+                (self.game_camera.focus(), self.game_camera.height()),
+                |c| {
+                    let at = c.listener_pos();
+                    (glam::Vec2::new(at.x, at.z), at.y)
+                },
+            );
             renderer.set_animation_time((now - self.start_ms) as f32 / 1000.0);
             let _slow109 = scope("app.render");
             if let Some(original) = self.original_ui.as_mut() {
@@ -2015,8 +2058,7 @@ impl App {
             let world_on = playing && !self.loading_cursor && !self.showcase_mode;
             // The units near the camera and their clips, for their sounds (re-b15 ITEM 4).
             let figures = if world_on {
-                renderer
-                    .sounding_figures(self.game_camera.focus(), crate::ui_sound::UNIT_HEAR_RADIUS)
+                renderer.sounding_figures(listener.0, crate::ui_sound::UNIT_HEAR_RADIUS)
             } else {
                 Vec::new()
             };
@@ -2025,8 +2067,8 @@ impl App {
                 .flatten()
                 .map(|(snapshot, _)| crate::world_sound::WorldInput {
                     snapshot,
-                    focus: self.game_camera.focus(),
-                    height: self.game_camera.height(),
+                    focus: listener.0,
+                    height: listener.1,
                     figures: &figures,
                 });
             // The music: the main menu loop in the lobby, the game's music once its loading screen is gone.

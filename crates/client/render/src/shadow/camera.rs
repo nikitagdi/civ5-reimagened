@@ -168,10 +168,17 @@ pub fn visible_rect(
         }
     }
     if min.x > max.x {
-        let c = ours_to_orig.transform_point3(eye).truncate();
-        min = c - Vec2::splat(fallback);
-        max = c + Vec2::splat(fallback);
+        return fixed_rect(eye, ours_to_orig, fallback);
     }
+    (min.extend(0.0), max.extend(0.0))
+}
+
+/// The square of side `2 * half` around the eye in the original's basis: the rectangle of a camera that
+/// asks for a fixed range (client-hooks C2, a low eye whose frustum cuts only a strip out of the ground), and
+/// the fallback of [`visible_rect`] when no edge reaches the ground.
+pub fn fixed_rect(eye: Vec3, ours_to_orig: &Mat4, half: f32) -> (Vec3, Vec3) {
+    let c = ours_to_orig.transform_point3(eye).truncate();
+    let (min, max) = (c - Vec2::splat(half), c + Vec2::splat(half));
     (min.extend(0.0), max.extend(0.0))
 }
 
@@ -504,5 +511,27 @@ mod tests {
         let sky = glam::camera::rh::view::look_at_mat4(eye, eye + Vec3::Y, Vec3::Z);
         let (tl, br) = visible_rect(&(proj * sky), eye, &b, 50.0);
         assert_eq!((br - tl).x, 100.0);
+    }
+
+    #[test]
+    fn a_fixed_range_is_a_square_around_the_eye_whatever_the_view_cuts() {
+        let b = crate::frame::basis_rotation();
+        let eye = Vec3::new(40.0, 6.5, -25.0);
+        let (tl, br) = fixed_rect(eye, &b, 300.0);
+        let c = b.transform_point3(eye).truncate();
+        assert_eq!((tl.truncate(), br.truncate()), (c - 300.0, c + 300.0));
+        // The same square is the fallback of the view that sees no ground.
+        let proj = glam::camera::rh::proj::directx::perspective(1.3, 1.5, 0.5, 3000.0);
+        let high = Vec3::new(40.0, 600.0, -25.0);
+        let sky = glam::camera::rh::view::look_at_mat4(high, high + Vec3::Y, Vec3::Z);
+        assert_eq!(
+            visible_rect(&(proj * sky), high, &b, 300.0),
+            fixed_rect(high, &b, 300.0)
+        );
+        // A level look from 6.5 up cuts a long strip, not a square: that is what the range replaces.
+        let level = glam::camera::rh::view::look_at_mat4(eye, eye - Vec3::Z, Vec3::Y);
+        let (lo, hi) = visible_rect(&(proj * level), eye, &b, 300.0);
+        let (w, h) = ((hi - lo).x, (hi - lo).y);
+        assert!(w < 40.0 || h < 40.0 || (w - h).abs() > 1.0, "{lo} {hi}");
     }
 }

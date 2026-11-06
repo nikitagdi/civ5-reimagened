@@ -126,6 +126,12 @@ pub struct LiveView {
     pub screen_width: f32,
     /// X shifts of the copies of the map in our basis, the middle one first.
     pub shifts: Vec<f32>,
+    /// A camera that can stand in the boxes of the cells (client-hooks T27b): its near plane. The width of a
+    /// cell on the screen is then measured on its box cut at that plane, and the pages under the eye get
+    /// their full size. `None` for the strategic camera: the widths are the original's.
+    pub near: Option<f32>,
+    /// The point (our X and Z) the pages stream around instead of the middle of the screen.
+    pub focus: Option<Vec2>,
 }
 
 /// What a frame brings in.
@@ -771,7 +777,6 @@ impl LiveMap {
         view: &LiveView,
         prev: Option<Mat4>,
     ) -> (Vec<CellView>, Vec<DrawCell>) {
-        let _ = map;
         let _ = gpu;
         if !self.cull.is_current(view, self.cull_epoch, self.ahead) {
             let (cells, ready) = (&self.cells, &self.ready);
@@ -849,18 +854,25 @@ impl LiveMap {
             Vec2::ZERO
         };
         self.ahead = ahead;
-        // The cell nearest the middle of the screen.
-        self.focus = self
-            .cull
-            .best
-            .iter()
-            .min_by(|a, b| {
-                a.at.length()
-                    .total_cmp(&b.at.length())
-                    .then(a.cell.cmp(&b.cell))
-            })
-            .map(|b| b.cell as usize)
-            .or(self.focus);
+        // The cell nearest the middle of the screen, or the one a camera of a mod names (a low eye looks at the
+        // horizon, and the middle of its screen is the farthest cell in view).
+        self.focus = match view.focus {
+            Some(at) => Some(
+                self.grid
+                    .index_of_texel(map.sampler.frame().world_to_tex(at)),
+            ),
+            None => self
+                .cull
+                .best
+                .iter()
+                .min_by(|a, b| {
+                    a.at.length()
+                        .total_cmp(&b.at.length())
+                        .then(a.cell.cmp(&b.cell))
+                })
+                .map(|b| b.cell as usize)
+                .or(self.focus),
+        };
         let mut visible: Vec<CellView> = Vec::with_capacity(self.cull.best.len());
         visible.extend(self.cull.best.iter().map(|b| CellView {
             cell: b.cell as usize,
@@ -1511,6 +1523,7 @@ mod cull {
         view_proj: [f32; 16],
         shifts: Vec<f32>,
         screen_width: f32,
+        near: Option<f32>,
         epoch: u64,
         /// How far the ring reaches ahead of the camera (clip units, quantised): see [`Self::rebuild`].
         ahead: Vec2,
@@ -1536,6 +1549,7 @@ mod cull {
                 view_proj: [0.0; 16],
                 shifts: Vec::new(),
                 screen_width: 0.0,
+                near: None,
                 epoch: 0,
                 ahead: Vec2::ZERO,
                 in_view: Vec::new(),
@@ -1558,6 +1572,7 @@ mod cull {
                 && self.epoch == epoch
                 && self.ahead == Self::quantise(ahead)
                 && self.screen_width == view.screen_width
+                && self.near == view.near
                 && self.shifts == view.shifts
                 && self.view_proj == view.view_proj_orig.to_cols_array()
         }
@@ -1661,7 +1676,10 @@ mod cull {
                             }
                             continue;
                         }
-                        let width = b.max_width_px(&m, view.screen_width);
+                        let width = match view.near {
+                            Some(near) => b.max_width_px_clipped(&m, view.screen_width, near),
+                            None => b.max_width_px(&m, view.screen_width),
+                        };
                         let at = clip(&m, b.center).unwrap_or(Vec2::ZERO);
                         if *f & F_BEST == 0 {
                             *f |= F_BEST;
@@ -1693,6 +1711,7 @@ mod cull {
             self.valid = true;
             self.epoch = epoch;
             self.screen_width = view.screen_width;
+            self.near = view.near;
             self.shifts.clear();
             self.shifts.extend_from_slice(&view.shifts);
             self.view_proj = view.view_proj_orig.to_cols_array();
@@ -1772,7 +1791,10 @@ mod cull {
                                 }
                                 continue;
                             }
-                            let width = b.max_width_px(&m, view.screen_width);
+                            let width = match view.near {
+                                Some(near) => b.max_width_px_clipped(&m, view.screen_width, near),
+                                None => b.max_width_px(&m, view.screen_width),
+                            };
                             let at = clip(&m, b.center).unwrap_or(Vec2::ZERO);
                             let e = best.entry(i).or_insert((0.0, at));
                             if width > e.0 {
@@ -1859,6 +1881,8 @@ mod cull {
                 eye_orig: eye,
                 screen_width: 1920.0,
                 shifts,
+                near: None,
+                focus: None,
             }
         }
 
@@ -1925,6 +1949,39 @@ mod cull {
                 assert!(cached.ring.iter().all(|r| far.contains(&r.cell)));
                 assert!(ahead.is_current(v, 7, Vec2::new(0.55, 0.05)));
             }
+        }
+
+        #[test]
+        fn a_low_eye_gets_full_pages_for_the_cells_it_stands_in_and_beside() {
+            let blocks = Blocks::build(CX * CY, CX, bounds_of);
+            // A drawn cell in the middle of the map, and an eye 6.5 up inside its box, looking along +Y.
+            let home = (0..CX * CY)
+                .find(|&i| i % CX == 20 && i / CX > 8 && kind_of(i) == Kind::Drawn)
+                .expect("a drawn cell");
+            let min = bounds_of(home).min;
+            let eye = Vec3::new(min.x + 30.0, min.y + 30.0, 6.5);
+            let mut v = view(eye, eye + Vec3::Y * 100.0, 1.3, vec![0.0]);
+            v.near = Some(10.0);
+            let mut cull = Cull::new(CX * CY);
+            cull.rebuild(&blocks, bounds_of, kind_of, &v, 1, Vec2::ZERO);
+            let want = brute(&v);
+            assert_eq!(cull.in_view, want.in_view);
+            assert_eq!(cull.best, want.best);
+            let at_home = cull
+                .best
+                .iter()
+                .find(|b| b.cell as usize == home)
+                .expect("the cell under the eye is in view");
+            assert!(
+                crate::world::terrain::cells::page_size_for_width(at_home.width, 64) == 512,
+                "{}",
+                at_home.width
+            );
+            // The cull of another near plane is another cull.
+            let mut other = v.clone();
+            other.near = None;
+            assert!(!cull.is_current(&other, 1, Vec2::ZERO));
+            assert!(cull.is_current(&v, 1, Vec2::ZERO));
         }
 
         #[test]
