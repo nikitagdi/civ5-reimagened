@@ -15,7 +15,7 @@ use protocol::{CityKey, UnitKey};
 use crate::change::{ChangeAcc, ViewChange};
 use crate::contexts::Contexts;
 use crate::lobby_model::{HostChange, HostWatch};
-use crate::{ClientStats, ReplicaMsg};
+use crate::{ClientEvent, ClientStats, ReplicaMsg};
 
 /// Lines kept of the journal and of the chat; older ones are dropped.
 const JOURNAL_CAP: usize = 2_000;
@@ -103,6 +103,8 @@ pub(crate) struct Stream {
     /// Replica messages of the batch being applied, in the order they came; `ClientCore` takes them after
     /// the batch is accepted (a broken batch is not taken, so its replica messages must not leak).
     replica: Vec<ReplicaMsg>,
+    /// The mod messages of the batch being applied (same rule as `replica`).
+    mods: Vec<ClientEvent>,
 }
 
 impl Stream {
@@ -123,7 +125,13 @@ impl Stream {
             contexts: Contexts::new(),
             breaks: Vec::new(),
             replica: Vec::new(),
+            mods: Vec::new(),
         }
+    }
+
+    /// The mod messages of the last batch, in order (empty after a broken batch).
+    pub fn take_mods(&mut self) -> Vec<ClientEvent> {
+        std::mem::take(&mut self.mods)
     }
 
     /// The replica messages of the last batch, in order (empty after a broken batch).
@@ -370,8 +378,12 @@ impl Stream {
                 GameMsg::GcTurn(t) => self.replica.push(ReplicaMsg::Turn(t)),
                 // The answers to orders are taken by the orders module, after the view.
                 GameMsg::Results(_) => {}
-                // v13: the mod host is not in this client yet.
-                GameMsg::Mods(_) | GameMsg::Mod(_) => {}
+                // v13: the set of the game and the messages of its mods, for the mod layer, in the order they came.
+                GameMsg::Mods(v) => self.mods.push(ClientEvent::ModSet(v)),
+                GameMsg::Mod(m) if m.within_limits() => self.mods.push(ClientEvent::ModMsg(m)),
+                GameMsg::Mod(m) => {
+                    tracing::warn!(?m, "mod message over the payload limit, dropped");
+                }
             }
         }
         if staged.is_some() {
@@ -379,6 +391,7 @@ impl Stream {
         }
         if fx.iter().any(|e| matches!(e, Effect::Break(_))) {
             self.replica.clear();
+            self.mods.clear();
             return fx;
         }
         self.revision += 1;

@@ -66,6 +66,17 @@ pub trait ModHook {
     /// to move a camera of the mod and hand it over with `HookCtl::set_camera`. A pointer lock asked here
     /// is carried out, but on the web a lock needs the gesture of an input event: ask it from `claim_input`.
     fn frame(&mut self, _info: &FrameInfo<'_>, _ctl: &mut HookCtl) {}
+
+    /// The mods this hook carries put themselves into the config of the network core (`ModHello`, T35). Called once,
+    /// before the core is made.
+    fn configure_net(&self, _cfg: &mut client_core::NetConfig) {}
+
+    /// An event of the network core: the set of the game (`ModSet`), a message of a mod's server half (`ModMsg`),
+    /// `Attached` and `Detached`. Hooks that carry no mods ignore it.
+    fn on_net_event(&mut self, _ev: &client_core::ClientEvent, _ctl: &mut HookCtl) {}
+
+    /// Sends what the mods queued since the last call (`ClientMsg::Mod`). Called every frame while a game runs.
+    fn flush_net(&mut self, _core: &mut client_core::ClientCore) {}
 }
 
 /// What the app does after the hooks saw an event.
@@ -136,6 +147,33 @@ impl ModHooks {
             }
         }
         claim
+    }
+
+    /// Lets the mods put themselves into the config of the network core (`ModHello`).
+    pub fn configure_net(&self, cfg: &mut client_core::NetConfig) {
+        for h in &self.hooks {
+            h.configure_net(cfg);
+        }
+    }
+
+    /// Gives an event of the network core to every hook, in order. Returns the pointer lock they asked last.
+    pub fn net_event(&mut self, ev: &client_core::ClientEvent) -> Option<bool> {
+        let mut lock = None;
+        for i in 0..self.hooks.len() {
+            let mut ctl = HookCtl::default();
+            self.hooks[i].on_net_event(ev, &mut ctl);
+            if let Some(on) = self.absorb(ctl) {
+                lock = Some(on);
+            }
+        }
+        lock
+    }
+
+    /// Lets every hook send what its mods queued.
+    pub fn flush_net(&mut self, core: &mut client_core::ClientCore) {
+        for h in &mut self.hooks {
+            h.flush_net(core);
+        }
     }
 
     /// Lets every hook see the frame, in order. Returns the pointer lock they asked last, if any.

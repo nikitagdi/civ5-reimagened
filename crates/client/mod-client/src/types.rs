@@ -14,10 +14,8 @@ pub struct ModInfo {
     pub caps: mod_api::Caps,
 }
 
-/// What `ClientMod::attach` is told about the game it joined.
-///
-/// TO-BE-WIRED (T35): built from the protocol's `ModSetView` when the lobby/handshake delivers it; until then it
-/// carries only the facts a mod needs from it.
+/// What `ClientMod::attach` is told about the game it joined. Built from the protocol's `ModSetView` by
+/// `ClientRegistry::instantiate_set` (T35); it carries only the facts a mod needs from it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttachInfo {
     /// The mod's own entry.
@@ -185,4 +183,38 @@ impl CutoutRegion {
     pub fn byte_len(&self) -> usize {
         self.width as usize * self.height as usize
     }
+}
+
+/// What this binary knows about a mod it contains, declared next to its registration: the version and the
+/// capabilities of its manifest (the wire carries neither the capabilities nor a client's code identity) and the
+/// hash of the build. The host that assembles the client fills it in from `mod.toml` (`ClientRegistry::set_build`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModBuild {
+    pub version: Version,
+    pub caps: mod_api::Caps,
+    /// Hash of the code identity of the build (16 bytes of the manifest crate's digest); sent in `ModHello`.
+    pub code_hash: [u8; 16],
+}
+
+impl Default for ModBuild {
+    /// A mod registered with no declared build: version 0.0.0, no capabilities, no hash. A server never has such a
+    /// version, so it is never attached to a game; it exists for tests of the registry.
+    fn default() -> Self {
+        Self {
+            version: Version::new(0, 0, 0),
+            caps: mod_api::Caps::none(),
+            code_hash: [0; 16],
+        }
+    }
+}
+
+/// One mod of a game's frozen set as the server announced it (`GameMsg::Mods`), as plain values.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetEntry {
+    pub id: String,
+    pub version: String,
+    /// Position in the game's load order: the `mod_idx` of `ClientMsg::Mod` and `GameMsg::Mod`.
+    pub load_idx: u16,
+    /// The server found the mod in this client's `ModHello` with the version of the set.
+    pub available: bool,
 }

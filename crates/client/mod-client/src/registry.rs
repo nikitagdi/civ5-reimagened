@@ -9,7 +9,7 @@ use platform::InputEvent;
 
 use crate::client_mod::{ClientMod, ModRenderSystem};
 use crate::ctx::{ClientHost, Guarded};
-use crate::types::{AttachInfo, Claim, FrameOut, ModInfo};
+use crate::types::{AttachInfo, Claim, FrameOut, ModBuild, ModInfo, SetEntry};
 
 type Factory = Box<dyn Fn() -> Box<dyn ClientMod>>;
 
@@ -19,6 +19,7 @@ type Factory = Box<dyn Fn() -> Box<dyn ClientMod>>;
 #[derive(Default)]
 pub struct ClientRegistry {
     factories: BTreeMap<ModId, Factory>,
+    builds: BTreeMap<ModId, ModBuild>,
     problems: Vec<RegistryError>,
 }
 
@@ -46,6 +47,37 @@ impl ClientRegistry {
         self
     }
 
+    /// [`add`](Self::add) with the build facts of the mod at once.
+    pub fn add_built<F>(&mut self, id: &str, build: ModBuild, factory: F) -> &mut Self
+    where
+        F: Fn() -> Box<dyn ClientMod> + 'static,
+    {
+        self.add(id, factory);
+        self.set_build(id, build)
+    }
+
+    /// Declares the version, capabilities and code hash of a registered mod (taken from its `mod.toml` by the host
+    /// that assembles the client). An unknown id is ignored: `add` has already recorded why it did not register.
+    pub fn set_build(&mut self, id: &str, build: ModBuild) -> &mut Self {
+        if let Ok(id) = ModId::new(id)
+            && self.factories.contains_key(&id)
+        {
+            self.builds.insert(id, build);
+        }
+        self
+    }
+
+    /// What is known of a registered mod's build (the default for one that declared none).
+    pub fn build(&self, id: &ModId) -> Option<ModBuild> {
+        self.factories
+            .contains_key(id)
+            .then(|| self.builds.get(id).cloned().unwrap_or_default())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.factories.is_empty()
+    }
+
     /// A fresh instance of the mod, if registered.
     pub fn create(&self, id: &ModId) -> Option<Box<dyn ClientMod>> {
         self.factories.get(id).map(|f| f())
@@ -69,6 +101,37 @@ impl ClientRegistry {
             match self.create(&info.id) {
                 Some(m) => d.push(info.clone(), m, set.to_vec()),
                 None => missing.push(info.id.clone()),
+            }
+        }
+        (d, missing)
+    }
+}
+
+impl ClientRegistry {
+    /// Builds the dispatcher for the set a server announced. A mod joins it when the server marks it `available`
+    /// and this binary contains it; its capabilities are the ones its build declares. The mods keep the load order
+    /// and the `load_idx` the server gave them (the index of every message). The second value lists the mods of the
+    /// set that stay out (not available, or not in this binary), in load order: the server has already refused a
+    /// client that lacks a required one, so these are optional mods.
+    pub fn instantiate_set(&self, set: &[SetEntry]) -> (ModDispatcher, Vec<ModId>) {
+        let mut present = Vec::new();
+        let mut missing = Vec::new();
+        for e in set {
+            let Ok(id) = ModId::new(&e.id) else { continue };
+            match self.build(&id) {
+                Some(build) if e.available => present.push(ModInfo {
+                    mod_idx: e.load_idx,
+                    version: e.version.parse().unwrap_or(build.version),
+                    caps: build.caps,
+                    id,
+                }),
+                _ => missing.push(id),
+            }
+        }
+        let mut d = ModDispatcher::new();
+        for info in &present {
+            if let Some(m) = self.create(&info.id) {
+                d.push(info.clone(), m, present.clone());
             }
         }
         (d, missing)

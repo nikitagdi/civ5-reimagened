@@ -6,7 +6,7 @@
 //! (D11). It needs no window or GPU, so a mod's behaviour is testable with [`testing::MockClientCtx`].
 //!
 //! Some hook types do not exist in the engine yet; this crate carries marked stand-ins (`CameraOverride`,
-//! `ModRenderSystem`, `CutoutRegion`, `AttachInfo`) that the wiring tasks T35/T36 replace or connect.
+//! `ModRenderSystem`, `CutoutRegion`) that the wiring task T36 replaces or connects.
 //!
 //! ```
 //! use mod_api::{Cap, Caps, Version};
@@ -57,6 +57,6 @@ pub use ctx::{
 pub use kv::{KV_KEY_MAX, KV_VALUE_MAX, NamespacedKv};
 pub use registry::{ClientRegistry, ModDispatcher};
 pub use types::{
-    AttachInfo, CameraOverride, Claim, CutoutRegion, FrameOut, HotkeySpec, ModInfo, PackState,
-    PlayOpts, PlayerInfo, PlotView, ScreenInfo,
+    AttachInfo, CameraOverride, Claim, CutoutRegion, FrameOut, HotkeySpec, ModBuild, ModInfo,
+    PackState, PlayOpts, PlayerInfo, PlotView, ScreenInfo, SetEntry,
 };

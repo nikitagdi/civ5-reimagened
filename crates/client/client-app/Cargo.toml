@@ -13,6 +13,9 @@ layer = "client"
 
 [dependencies]
 client-core.workspace = true
+# The client halves of mods (T35): the hook that drives the dispatcher.
+mod-client.workspace = true
+mod-api.workspace = true
 render.workspace = true
 interim-ui.workspace = true
 ui-client.workspace = true

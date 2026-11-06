@@ -58,3 +58,9 @@ flate2.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 # WebSocket client for integration tests.
 tungstenite.workspace = true
+# T35: headless clients (the client core and the mod dispatcher) against this server, with the public example mod.
+client-core.workspace = true
+mod-client.workspace = true
+mod-host-server.workspace = true
+hello-server = { path = "../../../examples/mods/hello/hello-server" }
+hello-shared = { path = "../../../examples/mods/hello/hello-shared" }

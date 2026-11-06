@@ -40,6 +40,8 @@ pub struct World {
     pub rng: Rng,
     pub w: u16,
     pub h: u16,
+    /// v13: the mod set the first batch of every fresh stream carries (`GameMsg::Mods`).
+    pub mods: Option<protocol::ModSetView>,
 }
 
 impl World {
@@ -67,6 +69,7 @@ impl World {
             rng,
             w,
             h,
+            mods: None,
         }
     }
 
@@ -103,6 +106,9 @@ impl World {
     /// A batch with the keyframe, and `MapBasis` before it when the client does not hold the basis.
     pub fn keyframe(&mut self, with_basis: bool) -> ServerMsg {
         let mut msgs = Vec::new();
+        if let Some(v) = &self.mods {
+            msgs.push(GameMsg::Mods(v.clone()));
+        }
         if with_basis {
             msgs.push(GameMsg::MapBasis(self.map_basis()));
         }
