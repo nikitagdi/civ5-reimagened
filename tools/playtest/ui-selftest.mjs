@@ -328,6 +328,47 @@ await page.mouse.move(5, 5);
 await frame();
 check("the tip hides when the mouse leaves", await page.evaluate(() => document.querySelector(".civtip-float").hidden));
 
+// T44: the room without mods has no mods section; with them the host ticks, everyone reads the plan or the errors.
+check("no mods: no mods section", await page.evaluate(() => !document.querySelector('[data-k="mods"]')));
+const modsRoom = (over, host) => ({
+  ...ROOM,
+  me_host: host,
+  mods: {
+    installed: [
+      { id: "extra", title: "Extra", version: "1.0.0", class: "Cosmetic", picked: true, optional: true, missing: false },
+      { id: "base", title: "Base", version: "2.0.0", class: "Gameplay", picked: false, optional: false, missing: false },
+    ],
+    plan: [],
+    problems: [],
+    ...over,
+  },
+});
+await render(
+  "room",
+  modsRoom({ plan: [{ id: "base", version: "2.0.0", class: "Gameplay", optional: false, added: true, pack: false }, { id: "extra", version: "1.0.0", class: "Cosmetic", optional: true, added: false, pack: true }] }, true),
+);
+await frame();
+const planned = await page.evaluate(() => {
+  const s = document.querySelector('[data-k="mods"]');
+  return {
+    boxes: s ? [...s.querySelectorAll('input[type="checkbox"]')].map((c) => [c.checked, c.disabled]) : null,
+    optional: s ? s.querySelectorAll(".check .tag.soft").length : -1,
+    plan: s ? [...s.querySelectorAll(".mod-plan li")].map((li) => li.textContent) : null,
+  };
+});
+check("the host sees a check box per installed mod", JSON.stringify(planned.boxes) === "[[true,false],[false,false]]", planned);
+check("an optional mod is marked", planned.optional === 1, planned);
+check("the plan lists the mods in order with the dependency marked", planned.plan && planned.plan[0].startsWith("base 2.0.0") && planned.plan[0].includes("added by a dependency") && planned.plan[1].includes("optional for players"), planned);
+if (shots) await page.screenshot({ path: path.join(shots, "selftest-room-mods-plan.png") });
+await render("room", modsRoom({ problems: ["mod `gone` is not installed"] }, false));
+await frame();
+const failedPlan = await page.evaluate(() => {
+  const s = document.querySelector('[data-k="mods"]');
+  return { boxes: s ? [...s.querySelectorAll('input[type="checkbox"]')].map((c) => c.disabled) : null, errs: s ? [...s.querySelectorAll(".mod-problems .err")].map((e) => e.textContent) : null, plan: s ? s.querySelectorAll(".mod-plan").length : -1 };
+});
+check("a guest sees the mods without active boxes and the red problems", failedPlan.boxes && failedPlan.boxes.every((d) => d) && failedPlan.errs.join() === "mod `gone` is not installed" && failedPlan.plan === 0, failedPlan);
+if (shots) await page.screenshot({ path: path.join(shots, "selftest-room-mods-error.png") });
+
 // The lobby: saves per game, newest first; the online panel.
 await render("lobby", LOBBY);
 await page.click('[data-k="tab-saves"]');

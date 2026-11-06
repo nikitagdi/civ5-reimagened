@@ -483,3 +483,13 @@ details.civinfo > summary { cursor: pointer; color: var(--text-2); font-size: 14
 @media (prefers-reduced-motion: reduce) {
   #civ5-ui * { transition: none !important; }
 }
+
+/* T44: the mods of the room */
+.tag.soft { color: var(--text-2); }
+.mod-problems { margin-top: 8px; }
+.mod-plan { margin-top: 12px; }
+.mod-plan ol { margin: 4px 0 0; padding-left: 22px; }
+.mod-plan li { padding: 3px 0; overflow-wrap: anywhere; }
+.check .txt > .tag.soft { display: inline-block; margin: 4px 0 0; }
+/* T45: a refusal for missing mods has one line per mod */
+#civ5-ui #auth-app-error { white-space: pre-line; }
