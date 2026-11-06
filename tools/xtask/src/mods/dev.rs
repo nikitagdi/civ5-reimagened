@@ -143,9 +143,7 @@ mod tests {
 
     #[test]
     fn the_config_names_the_installed_mods() {
-        let t: toml::Table = server_config(Path::new("dist\\installed"))
-            .parse()
-            .unwrap();
+        let t: toml::Table = server_config(Path::new("dist\\installed")).parse().unwrap();
         assert_eq!(t["mods_dir"].as_str(), Some("dist/installed"));
     }
 
