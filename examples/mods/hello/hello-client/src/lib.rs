@@ -4,7 +4,8 @@
 //! - **HUD** shows the last echo (who said it, what, the running count) and how many times this player has
 //!   said hello. What it shows survives a restart: the count comes back from the server (`State` when the game
 //!   attaches), the player's own tally and the last echo from the mod's `kv` namespace.
-//! - **Cube** `HelloCube` is a render system in `MainSlot::Mod`, standing on one hex.
+//! - **Cube** `HelloCube` is a render system in `MainSlot::Mod`, standing on a plot the local player owns (the camera
+//!   cannot leave the explored map, so a fixed hex would mostly be out of sight; `HEX` is used until the game says who we are).
 //!
 //! The whole mod is registered by one function, [`register`]. It depends on `mod-client` and `hello-shared` only (R11);
 //! everything it draws with comes through `mod_client::gpu`.
@@ -21,7 +22,7 @@ use mod_client::{
     UiDrawList,
 };
 
-pub use cube::{COLOR, HEX, HelloCube, SHADER, SIDE};
+pub use cube::{COLOR, HEX, HelloCube, Home, SHADER, SIDE};
 
 /// The id of the hotkey.
 pub const HOTKEY_SAY: &str = "say";
@@ -55,9 +56,18 @@ pub struct HelloClient {
     last: Option<LastEcho>,
     /// The text of the last echo of an earlier session, from `kv`.
     earlier: Option<String>,
+    /// Where the cube stands: a plot of the local player (the camera cannot leave the explored map).
+    home: Home,
+    /// The world revision `home` was chosen for.
+    home_rev: Option<u64>,
 }
 
 impl HelloClient {
+    /// Where the cube stands.
+    pub fn home(&self) -> &Home {
+        &self.home
+    }
+
     pub fn said(&self) -> u32 {
         self.said
     }
@@ -68,6 +78,23 @@ impl HelloClient {
 
     pub fn last(&self) -> Option<&LastEcho> {
         self.last.as_ref()
+    }
+
+    /// Puts the cube on the first plot the local player owns; re-reads when the world changes.
+    fn track_home(&mut self, cx: &mut dyn ClientCtx) {
+        let Ok(w) = cx.world() else { return };
+        let Some(me) = w.me() else { return };
+        let rev = w.revision();
+        if self.home_rev == Some(rev) {
+            return;
+        }
+        self.home_rev = Some(rev);
+        let spot = (0..w.map().plot_count())
+            .find(|p| w.plot_owner(*p) == Some(me))
+            .map(|p| w.plot_xy(p));
+        if spot.is_some() {
+            self.home.set(spot);
+        }
     }
 
     /// The lines of the HUD, top to bottom. `nick` names a player id.
@@ -140,6 +167,7 @@ impl ClientMod for HelloClient {
     }
 
     fn hud(&mut self, cx: &mut dyn ClientCtx, list: &mut UiDrawList) {
+        self.track_home(cx);
         let nick = |id: i8| {
             cx.world()
                 .ok()
@@ -168,7 +196,7 @@ impl ClientMod for HelloClient {
 
     fn render_systems(&mut self, cx: &mut dyn ClientCtx) -> Vec<Box<dyn ModRenderSystem>> {
         match cx.gpu() {
-            Ok(gpu) => vec![Box::new(HelloCube::new(gpu))],
+            Ok(gpu) => vec![Box::new(HelloCube::at(gpu, self.home.clone()))],
             Err(e) => {
                 cx.log(LogLevel::Warn, &format!("no cube: {e}"));
                 Vec::new()

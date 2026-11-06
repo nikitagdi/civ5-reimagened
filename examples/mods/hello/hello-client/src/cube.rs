@@ -5,13 +5,50 @@
 //! main pass, its formats and sample count); the cube's own data is one uniform buffer in group 1. It reads the
 //! ground height from the terrain sampler the renderer gives `prepare`.
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use mod_client::gpu::wgpu;
 use mod_client::gpu::{
     DrawContext, InitContext, MainSlot, ModGpu, PassSlot, PrepareContext, RenderSystem, SystemId,
 };
 
-/// The hex the cube stands on.
+/// The hex the cube stands on until the mod knows where the local player lives (see [`Home`]).
 pub const HEX: (i32, i32) = (4, 4);
+
+/// Where the cube should stand, shared between the mod (which reads the world) and the render system (which has no
+/// world view). The camera of the game cannot leave the explored part of the map, so a fixed hex would usually be out
+/// of sight; the mod puts the cube on a plot the local player owns.
+#[derive(Debug, Clone)]
+pub struct Home(Arc<AtomicU32>);
+
+const NO_HOME: u32 = u32::MAX;
+
+impl Default for Home {
+    fn default() -> Self {
+        Self(Arc::new(AtomicU32::new(NO_HOME)))
+    }
+}
+
+impl Home {
+    pub fn set(&self, hex: Option<(i16, i16)>) {
+        let v = hex.map_or(NO_HOME, |(x, y)| {
+            u32::from(x as u16) << 16 | u32::from(y as u16)
+        });
+        self.0.store(v, Ordering::Relaxed);
+    }
+
+    /// The chosen hex, or [`HEX`] while none is chosen.
+    pub fn get(&self) -> (i32, i32) {
+        match self.0.load(Ordering::Relaxed) {
+            NO_HOME => HEX,
+            v => (
+                i32::from((v >> 16) as u16 as i16),
+                i32::from(v as u16 as i16),
+            ),
+        }
+    }
+}
 /// Its side, in world units (a hex is about 64 wide).
 pub const SIDE: f32 = 24.0;
 /// Its colour.
@@ -28,10 +65,16 @@ pub struct HelloCube {
     uniform: wgpu::Buffer,
     /// The ground is known and the uniform holds its place: the cube is drawn.
     visible: bool,
+    home: Home,
 }
 
 impl HelloCube {
     pub fn new(gpu: &ModGpu) -> Self {
+        Self::at(gpu, Home::default())
+    }
+
+    /// A cube that stands where `home` says.
+    pub fn at(gpu: &ModGpu, home: Home) -> Self {
         let device = &gpu.device;
         let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("hello cube"),
@@ -113,6 +156,7 @@ impl HelloCube {
             group,
             uniform,
             visible: false,
+            home,
         }
     }
 
@@ -136,7 +180,8 @@ impl RenderSystem for HelloCube {
 
     fn prepare(&mut self, cx: &mut PrepareContext<'_>) {
         // No map yet: nothing to stand on.
-        let Some(ground) = cx.terrain().map(|t| t.hex_location(HEX.0, HEX.1)) else {
+        let (hx, hy) = self.home.get();
+        let Some(ground) = cx.terrain().map(|t| t.hex_location(hx, hy)) else {
             self.visible = false;
             return;
         };
