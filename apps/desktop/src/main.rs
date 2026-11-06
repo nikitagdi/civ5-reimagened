@@ -286,6 +286,7 @@ fn main() -> anyhow::Result<()> {
         audio: None,
         // The native client draws the sign-in, lobby and room with egui.
         ui_bridge: None,
+        pointer_lock_probe: None,
     };
     client_app::run(config, services).context("client exited with an error")?;
     Ok(())

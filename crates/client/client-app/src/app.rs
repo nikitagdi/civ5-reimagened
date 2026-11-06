@@ -16,7 +16,7 @@ use interim_ui::screens::{self, Screens, UiAction};
 use protocol::{GameId, WorldView};
 use render::{Camera, CameraView, GameCamera, RenderError, Renderer, Scene};
 use winit::application::ApplicationHandler;
-use winit::event::WindowEvent;
+use winit::event::{DeviceEvent, DeviceId, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
 
@@ -30,6 +30,7 @@ use crate::input::InputTranslator;
 use crate::map_camera::MapCameraController;
 use crate::map_labels::LabelCamera;
 use crate::minimap_image::{self, MinimapBuilder};
+use crate::mod_hooks::ModHooks;
 use crate::net::{NetClient, NetHandle, stored_nick};
 use crate::net_ui::{NetEffect, NetUi, phase_name};
 use crate::picking::Picker;
@@ -275,8 +276,13 @@ impl Question {
 
 /// Native blocks until the window closes; web returns at once.
 pub fn run(config: AppConfig, services: Services) -> Result<(), AppError> {
+    run_with(config, services, ModHooks::new())
+}
+
+/// [`run`] with the hooks of the client's mods (client-hooks). Empty hooks: the app of `run`.
+pub fn run_with(config: AppConfig, services: Services, hooks: ModHooks) -> Result<(), AppError> {
     let event_loop = EventLoop::new()?;
-    let app = App::new(config, services);
+    let app = App::new(config, services, hooks);
     tracing::info!("client started");
     #[cfg(target_arch = "wasm32")]
     {
@@ -343,6 +349,10 @@ struct App {
     ui_press: crate::ui_press::UiPress,
     /// Three fingers held: toggles the performance panel.
     hud_hold: crate::touch_hud::HudHold,
+    /// The pointer lock of the window (client-hooks); idle until something asks for it.
+    pointer: crate::pointer::PointerService,
+    /// The hooks of the client's mods: they see the input first (empty: nothing changes).
+    hooks: ModHooks,
     /// `?showcase=1` only: orbit camera and the Warrior.
     showcase_mode: bool,
     camera: Camera,
@@ -429,7 +439,7 @@ enum GoldenState {
 }
 
 impl App {
-    fn new(config: AppConfig, services: Services) -> Self {
+    fn new(config: AppConfig, services: Services, hooks: ModHooks) -> Self {
         let Services {
             transport,
             http,
@@ -451,6 +461,7 @@ impl App {
             group_stats_sink,
             audio,
             ui_bridge,
+            pointer_lock_probe,
         } = services;
         let hud_on = config.hud;
         let (config_original_ui, config_ui_volume) = (config.original_ui, config.ui_volume);
@@ -587,6 +598,8 @@ impl App {
             long_press: crate::touch_press::LongPress::new(),
             ui_press: crate::ui_press::UiPress::default(),
             hud_hold: crate::touch_hud::HudHold::new(),
+            pointer: crate::pointer::PointerService::new(pointer_lock_probe),
+            hooks,
             camera: Camera::default(),
             controller: CameraController::new(1, 1),
             game_camera: GameCamera::default(),
@@ -1878,6 +1891,9 @@ impl App {
                         if m2_on && matches!(phase, ClientPhase::Playing) && terrain_ready {
                             // AC-S4: the game screen of the original UI has no egui panel of the game.
                             original_game_screen(&mut views);
+                            if self.hooks.ui_suppressed() {
+                                suppress_game_screens(&mut views);
+                            }
                         }
                         // The page draws sign-in, lobby and room (web): egui skips them, the page's clicks
                         // join the actions of this frame.
@@ -1929,7 +1945,9 @@ impl App {
                     }
                 }
             }
-            if let (Some(c), Some(w)) = (&self.cursors, &self.window) {
+            // A locked pointer has no cursor to show: the animated game cursor would bring it back.
+            if let (Some(c), Some(w), false) = (&self.cursors, &self.window, self.pointer.engaged())
+            {
                 // The globe while the game loads and while the server runs the turn, else the arrow.
                 let busy =
                     self.loading_cursor || self.m2.as_ref().is_some_and(|m| m.turn_processing());
@@ -1944,7 +1962,12 @@ impl App {
                     self.cursor_shown = Some(pick);
                 }
             }
-            if let (Some(m2), Some(w)) = (self.m2.as_mut(), self.window.as_ref()) {
+            // The original UI is not run while a mod owns the screen (client-hooks C3).
+            if let (Some(m2), Some(w), false) = (
+                self.m2.as_mut(),
+                self.window.as_ref(),
+                self.hooks.ui_suppressed(),
+            ) {
                 let handle = match &self.net {
                     Link::Net(n) => Some(n.handle.clone()),
                     Link::NetFailed(_) => None,
@@ -2295,6 +2318,12 @@ fn original_game_screen(views: &mut Screens) {
     };
 }
 
+/// What stays of the egui screens of the game while a mod owns the screen: the performance panel (F3) only.
+fn suppress_game_screens(views: &mut Screens) {
+    views.conn = None;
+    views.settings = None;
+}
+
 fn attach_minimap(views: &mut Screens, view: Option<MinimapView>) {
     if let Some(j) = views.journal.as_mut() {
         j.above_minimap = view.is_some();
@@ -2456,6 +2485,11 @@ impl ApplicationHandler for App {
             self.long_press.set_scale(w.scale_factor());
             self.hud_hold.set_scale(w.scale_factor());
         }
+        if matches!(event, WindowEvent::Focused(false))
+            && let Some(w) = &self.window
+        {
+            self.pointer.focus_lost(w);
+        }
         for ev in self.input.translate(&event) {
             self.hud_hold.observe(&ev, self.clock.now_ms());
             for ev in self.long_press.filter(ev, self.clock.now_ms()) {
@@ -2477,6 +2511,15 @@ impl ApplicationHandler for App {
         }
     }
 
+    fn device_event(&mut self, _event_loop: &ActiveEventLoop, _id: DeviceId, event: DeviceEvent) {
+        // The relative motion of the mouse, only while the pointer lock is engaged (never otherwise).
+        if let DeviceEvent::MouseMotion { delta: (dx, dy) } = event
+            && let Some(ev) = self.pointer.motion(dx, dy)
+        {
+            self.on_input(ev);
+        }
+    }
+
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         // The cursors of the asset set, once they have arrived (custom cursors are made on the event loop).
         if let Some(set) = self.pending_cursors.take() {
@@ -2491,6 +2534,12 @@ impl ApplicationHandler for App {
         }
         // A key press held for its modifiers goes out at the end of the batch.
         if let Some(ev) = self.input.flush() {
+            self.on_input(ev);
+        }
+        // The pointer lock: the browser may have ended it (Esc); a change reaches the input as an event.
+        if let Some(w) = &self.window
+            && let Some(ev) = self.pointer.poll(w)
+        {
             self.on_input(ev);
         }
         // A finger held still presses the right button; the lift releases it (touch_press.rs).
@@ -2567,10 +2616,9 @@ impl App {
             .is_some_and(|original| original.handle_input(ev))
     }
 
-    /// One input event: egui first; what it does not consume goes to the map or the showcase.
-    fn on_input(&mut self, ev: platform::InputEvent) {
-        // A press is a user gesture: the browser lets the sound output start (U-D7).
-        let press = match &ev {
+    /// A press is a user gesture: the browser lets the sound output start (U-D7).
+    fn note_gesture(&mut self, ev: &platform::InputEvent) {
+        let press = match ev {
             platform::InputEvent::Pointer(p) => p.phase == platform::PointerPhase::Down,
             platform::InputEvent::Key(k) => k.pressed,
             _ => false,
@@ -2578,6 +2626,33 @@ impl App {
         if press && let Some(snd) = self.ui_sound.as_mut() {
             snd.gesture(self.clock.now_ms());
         }
+    }
+
+    /// Takes or gives back the pointer as a hook asked (`HookCtl::request_pointer_lock`).
+    fn apply_pointer_request(&mut self, want: Option<bool>) {
+        let (Some(want), Some(w)) = (want, self.window.as_ref()) else {
+            return;
+        };
+        if want {
+            let status = self.pointer.request(w);
+            tracing::info!(?status, "pointer lock requested");
+        } else {
+            self.pointer.release(w);
+        }
+    }
+
+    /// One input event: egui first; what it does not consume goes to the map or the showcase.
+    fn on_input(&mut self, ev: platform::InputEvent) {
+        // The hooks of mods see the event first (client-hooks I1); a taken event goes no further. No hooks: no-op.
+        if !self.hooks.is_empty() {
+            let claim = self.hooks.claim_input(&ev);
+            self.apply_pointer_request(claim.pointer_lock);
+            if claim.taken {
+                self.note_gesture(&ev);
+                return;
+            }
+        }
+        self.note_gesture(&ev);
         // F3: the performance panel.
         if let platform::InputEvent::Key(k) = &ev
             && k.pressed
@@ -2588,7 +2663,8 @@ impl App {
             return;
         }
         if self.m2.is_some() && !self.showcase_mode {
-            if self.interim.handle_input(&ev) {
+            // A mod that owns the screen (client-hooks C3) has hidden the original UI: it gets no input either.
+            if self.interim.handle_input(&ev) && !self.hooks.ui_suppressed() {
                 self.m2_input(ev);
             }
             return;

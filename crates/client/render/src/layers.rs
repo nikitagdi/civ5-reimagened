@@ -107,7 +107,7 @@ impl LayerSwitches {
         self.names.insert(canonical);
         let systems = systems_named(canonical);
         for id in &systems {
-            self.disabled.insert(index(*id));
+            self.disabled.extend(index(*id));
         }
         if systems.is_empty() {
             debug_assert!(NOT_IN_B2.contains(&canonical));
@@ -121,7 +121,9 @@ impl LayerSwitches {
         if let Some(canonical) = canonical_name(name) {
             self.names.remove(canonical);
             for id in systems_named(canonical) {
-                self.disabled.remove(&index(id));
+                if let Some(i) = index(id) {
+                    self.disabled.remove(&i);
+                }
             }
         }
     }
@@ -182,7 +184,8 @@ impl LayerSwitches {
     }
 
     pub fn is_disabled(&self, id: SystemId) -> bool {
-        self.disabled.contains(&index(id))
+        // The systems of mods have no switch: they are in the plan if they are registered.
+        index(id).is_some_and(|i| self.disabled.contains(&i))
     }
 
     /// The switched-off names, canonical spelling, sorted.
@@ -195,11 +198,9 @@ impl LayerSwitches {
     }
 }
 
-fn index(id: SystemId) -> usize {
-    SystemId::ALL
-        .iter()
-        .position(|&s| s == id)
-        .expect("every SystemId is in ALL")
+/// The place of an engine subsystem in [`SystemId::ALL`]; a mod's system (`SystemId::Mod`) has none.
+fn index(id: SystemId) -> Option<usize> {
+    SystemId::ALL.iter().position(|&s| s == id)
 }
 
 #[cfg(test)]

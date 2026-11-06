@@ -88,6 +88,9 @@ pub enum MainSlot {
     Landmark,
     UnitZFail,
     Unit,
+    /// The opaque geometry of mods (client-hooks R2): after the units, before the particles. Depth test
+    /// `LessEqual`, depth write on.
+    Mod,
     Particle,
     FowClassic,
     FluidFow,
@@ -95,7 +98,7 @@ pub enum MainSlot {
 }
 
 impl MainSlot {
-    pub const ORDER: [MainSlot; 12] = [
+    pub const ORDER: [MainSlot; 13] = [
         MainSlot::Terrain,
         MainSlot::Waves,
         MainSlot::City,
@@ -104,6 +107,7 @@ impl MainSlot {
         MainSlot::Landmark,
         MainSlot::UnitZFail,
         MainSlot::Unit,
+        MainSlot::Mod,
         MainSlot::Particle,
         MainSlot::FowClassic,
         MainSlot::FluidFow,
@@ -298,6 +302,7 @@ mod tests {
                 Landmark,
                 UnitZFail,
                 Unit,
+                Mod,
                 Particle,
                 FowClassic,
                 FluidFow,

@@ -114,12 +114,14 @@ try {
         b: m.parseCursor("url(blob:http://x/abc) 17 15, auto"),
         c: m.parseCursor("pointer"),
         zone: [m.inEdgeZone(500, 300, 1000, 700), m.inEdgeZone(500, 690, 1000, 700), m.inEdgeZone(500, 640, 1000, 700), m.inEdgeZone(5, 300, 1000, 700), m.inEdgeZone(995, 300, 1000, 700)],
+        lock: [m.pointerLocked({ pointerLockElement: {} }), m.pointerLocked({ pointerLockElement: null }), m.pointerLocked(null)],
       };
     });
     check(parsed.a?.url === "blob:http://x/abc" && parsed.a.x === 4 && parsed.a.y === 2, "parses a quoted cursor url and hot spot", JSON.stringify(parsed.a));
     check(parsed.b?.url === "blob:http://x/abc" && parsed.b.x === 17 && parsed.b.y === 15, "parses an unquoted one", JSON.stringify(parsed.b));
     check(parsed.c === null, "a keyword cursor is not a picture");
     check(JSON.stringify(parsed.zone) === "[false,true,false,true,true]", "the edge zone", JSON.stringify(parsed.zone));
+    check(JSON.stringify(parsed.lock) === "[true,false,false]", "a pointer lock hides the soft cursor", JSON.stringify(parsed.lock));
 
     // winit sets the cursor on the canvas; make one with a real picture.
     const png = (await (await page.request.get(`${base}/icons/icon-192.png`)).body()).toString("base64");

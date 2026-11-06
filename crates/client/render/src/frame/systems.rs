@@ -7,6 +7,7 @@
 use glam::Mat4;
 
 use super::graph::PassId;
+use super::open::ModSystemError;
 use super::system::{
     EncoderContext, InitContext, PrepareContext, RenderSystem, SystemId, WorldServices,
 };
@@ -46,6 +47,9 @@ pub struct WorldSystems {
     pub yield_icons: YieldIcons,
     pub distance_fog: DistanceFog,
     pub shadows: Shadows,
+    /// The render systems of mods (client-hooks R1), in the order they were registered. They follow the
+    /// engine's systems inside a slot. Empty: the frame is what it was.
+    mods: Vec<Box<dyn RenderSystem>>,
 }
 
 impl WorldSystems {
@@ -75,6 +79,7 @@ impl WorldSystems {
             yield_icons,
             distance_fog,
             shadows,
+            mods: _,
         } = self;
         (
             services,
@@ -113,8 +118,46 @@ impl WorldSystems {
     pub fn get(&self, id: SystemId) -> &dyn RenderSystem {
         self.list()
             .into_iter()
+            .chain(self.mods.iter().map(|m| &**m))
             .find(|s| s.id() == id)
-            .expect("every SystemId has a field in WorldSystems")
+            .expect("every SystemId has a field in WorldSystems or is a registered mod")
+    }
+
+    /// Registers a mod's render system and runs its `init` (the device exists by now). The id must be
+    /// `SystemId::Mod(_)` and new.
+    pub fn register_mod(
+        &mut self,
+        mut system: Box<dyn RenderSystem>,
+        device: &wgpu::Device,
+        targets: &mut TargetPool,
+    ) -> Result<(), ModSystemError> {
+        self.check_mod_id(system.id())?;
+        system.init(&mut InitContext { device, targets });
+        self.mods.push(system);
+        Ok(())
+    }
+
+    fn check_mod_id(&self, id: SystemId) -> Result<(), ModSystemError> {
+        if !matches!(id, SystemId::Mod(_)) {
+            return Err(ModSystemError::NotModId);
+        }
+        if self.mods.iter().any(|m| m.id() == id) {
+            return Err(ModSystemError::Duplicate);
+        }
+        Ok(())
+    }
+
+    /// The mods' systems, in registration order.
+    pub fn mods(&self) -> impl Iterator<Item = &dyn RenderSystem> {
+        self.mods.iter().map(|m| &**m)
+    }
+
+    /// The engine's systems in field order, then the mods' in registration order: the list the frame
+    /// plan and `settled` take. Without mods it is [`WorldSystems::list`].
+    pub fn list_all(&self) -> Vec<&dyn RenderSystem> {
+        let mut all: Vec<&dyn RenderSystem> = self.list().to_vec();
+        all.extend(self.mods());
+        all
     }
 
     /// Hands B1's pipelines to the subsystems that still draw with them (once, after the device
@@ -152,7 +195,7 @@ impl WorldSystems {
 
     /// The counters of the subsystems that are on, for `?stats=1`.
     pub fn counters(&self, enabled: &dyn Fn(SystemId) -> bool) -> Vec<(&'static str, u64)> {
-        self.list()
+        self.list_all()
             .into_iter()
             .filter(|s| enabled(s.id()))
             .flat_map(|s| s.counters())
@@ -175,7 +218,17 @@ impl WorldSystems {
         settings: &RenderSettings,
         changed: &KeySet,
     ) -> Vec<SystemId> {
-        notify_readers(self.list_mut(), device, targets, settings, changed)
+        let mut called = notify_readers(self.list_mut(), device, targets, settings, changed);
+        called.extend(notify_readers(
+            self.mods
+                .iter_mut()
+                .map(|m| -> &mut dyn RenderSystem { &mut **m }),
+            device,
+            targets,
+            settings,
+            changed,
+        ));
+        called
     }
 
     /// `RenderSystem::prepare` of the subsystem `id`.
@@ -193,6 +246,21 @@ impl WorldSystems {
                 .cell_geometry()
                 .is_some_and(|g| g.copies().iter().any(|&shift| g.cells(shift) > 0));
             self.overlay.set_terrain_cells(drawn);
+        }
+        if matches!(id, SystemId::Mod(_)) {
+            let Self {
+                services,
+                terrain,
+                mods,
+                ..
+            } = self;
+            if let Some(system) = mods.iter_mut().find(|m| m.id() == id) {
+                system.prepare(
+                    &mut PrepareContext::new(device, queue, services, world_frame)
+                        .with_terrain(terrain.sampler()),
+                );
+            }
+            return;
         }
         let (services, systems) = self.split_mut();
         if let Some(system) = systems.into_iter().find(|s| s.id() == id) {
@@ -233,6 +301,16 @@ impl WorldSystems {
             let mut cx = EncoderContext::new(device, queue, encoder, targets, stats, services)
                 .with_timestamps(timestamps);
             overlay.encode_screen_overlay(&mut cx, geometry.as_ref(), Some(&*trade));
+            return had && cx.timestamps().is_none();
+        }
+        if matches!(id, SystemId::Mod(_)) {
+            let Self { services, mods, .. } = self;
+            let Some(system) = mods.iter_mut().find(|m| m.id() == id) else {
+                return false;
+            };
+            let mut cx = EncoderContext::new(device, queue, encoder, targets, stats, services)
+                .with_timestamps(timestamps);
+            system.record_offscreen(pass, &mut cx);
             return had && cx.timestamps().is_none();
         }
         let (services, systems) = self.split_mut();
@@ -365,6 +443,147 @@ mod tests {
         // Again with the same settings: the stages are replaced, not doubled.
         wire_build_stages(&mut terrain, &settings);
         assert_eq!(terrain.build().stage_ids().len(), 6);
+    }
+
+    /// A mod's system that draws into the slots it is given, and does nothing.
+    struct ModSpy {
+        id: SystemId,
+        slots: &'static [PassSlot],
+    }
+
+    impl RenderSystem for ModSpy {
+        fn id(&self) -> SystemId {
+            self.id
+        }
+        fn passes(&self) -> &'static [PassSlot] {
+            self.slots
+        }
+        fn init(&mut self, _cx: &mut InitContext<'_>) {}
+        fn prepare(&mut self, _cx: &mut PrepareContext<'_>) {}
+        fn record(&self, _slot: PassSlot, _cx: &mut crate::frame::DrawContext<'_, '_>) {}
+    }
+
+    impl WorldSystems {
+        /// `register_mod` without a device: the id check and the list only.
+        fn push_mod_for_test(
+            &mut self,
+            system: Box<dyn RenderSystem>,
+        ) -> Result<(), ModSystemError> {
+            self.check_mod_id(system.id())?;
+            self.mods.push(system);
+            Ok(())
+        }
+    }
+
+    fn plan_of(ws: &WorldSystems) -> crate::frame::FramePlan {
+        crate::frame::plan(&ws.list_all(), &|_| true)
+    }
+
+    /// Client-hooks R1: with no mod registered the list and the frame plan are the engine's own.
+    #[test]
+    fn an_empty_mod_list_leaves_the_systems_and_the_plan_as_they_were() {
+        let ws = WorldSystems::default();
+        let ids: Vec<SystemId> = ws.list_all().iter().map(|s| s.id()).collect();
+        assert_eq!(ids, SystemId::ALL);
+        assert_eq!(ws.mods().count(), 0);
+        assert_eq!(plan_of(&ws), crate::frame::plan(&ws.list(), &|_| true));
+    }
+
+    /// Client-hooks R2: a mod's system is prepared after the engine's, and records in `MainSlot::Mod`, after
+    /// the units and before the particles; the engine's steps keep their order.
+    #[test]
+    fn a_mod_system_takes_the_mod_slot_between_the_units_and_the_particles() {
+        use crate::frame::Step;
+        let engine = plan_of(&WorldSystems::default());
+        let mut ws = WorldSystems::default();
+        let id = SystemId::Mod(7);
+        ws.push_mod_for_test(Box::new(ModSpy {
+            id,
+            slots: &[PassSlot::Main(MainSlot::Mod)],
+        }))
+        .unwrap();
+        let with = plan_of(&ws);
+        let without_mod: Vec<_> = with
+            .steps
+            .iter()
+            .copied()
+            .filter(
+                |st| !matches!(st, Step::Prepare(i) | Step::Record { system: i, .. } if *i == id),
+            )
+            .collect();
+        assert_eq!(
+            without_mod, engine.steps,
+            "the engine's steps are untouched"
+        );
+        let at = |want: Step| with.steps.iter().position(|s| *s == want).unwrap();
+        let record = at(Step::Record {
+            pass: PassId::Main,
+            slot: PassSlot::Main(MainSlot::Mod),
+            system: id,
+        });
+        let last_unit = with
+            .steps
+            .iter()
+            .rposition(|s| {
+                matches!(
+                    s,
+                    Step::Record {
+                        slot: PassSlot::Main(MainSlot::Unit),
+                        ..
+                    }
+                )
+            })
+            .unwrap();
+        let first_particle = with
+            .steps
+            .iter()
+            .position(|s| {
+                matches!(
+                    s,
+                    Step::Record {
+                        slot: PassSlot::Main(MainSlot::Particle),
+                        ..
+                    }
+                )
+            })
+            .unwrap();
+        assert!(last_unit < record && record < first_particle);
+        assert!(at(Step::Prepare(id)) > at(Step::Prepare(SystemId::Shadows)));
+    }
+
+    #[test]
+    fn only_new_mod_ids_are_accepted() {
+        let mut ws = WorldSystems::default();
+        let spy = |id| Box::new(ModSpy { id, slots: &[] }) as Box<dyn RenderSystem>;
+        assert_eq!(
+            ws.push_mod_for_test(spy(SystemId::Unit)),
+            Err(ModSystemError::NotModId)
+        );
+        assert_eq!(ws.push_mod_for_test(spy(SystemId::Mod(1))), Ok(()));
+        assert_eq!(
+            ws.push_mod_for_test(spy(SystemId::Mod(1))),
+            Err(ModSystemError::Duplicate)
+        );
+        assert_eq!(ws.push_mod_for_test(spy(SystemId::Mod(2))), Ok(()));
+        let ids: Vec<_> = ws.mods().map(|m| m.id()).collect();
+        assert_eq!(
+            ids,
+            [SystemId::Mod(1), SystemId::Mod(2)],
+            "registration order"
+        );
+        assert_eq!(ws.get(SystemId::Mod(2)).id(), SystemId::Mod(2));
+    }
+
+    #[test]
+    fn mod_systems_have_no_switch_and_no_group_of_their_own() {
+        let mut layers = crate::layers::LayerSwitches::new();
+        layers.disable("Unit").ok();
+        assert!(!layers.is_disabled(SystemId::Mod(1)));
+        assert_eq!(SystemId::Mod(1).disable_name(), None);
+        assert_eq!(
+            crate::perf::Group::of(SystemId::Mod(1)),
+            crate::perf::Group::Other
+        );
     }
 
     #[test]

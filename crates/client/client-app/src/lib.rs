@@ -81,6 +81,7 @@ pub mod m2_highlights;
 pub mod map_camera;
 pub mod map_labels;
 pub mod minimap_image;
+pub mod mod_hooks;
 pub mod net;
 pub mod net_ui;
 pub mod original_ui;
@@ -88,6 +89,7 @@ pub mod perf_report;
 pub mod picking;
 pub mod play;
 pub mod plot_tooltip;
+pub mod pointer;
 mod production;
 pub mod settings_store;
 mod showcase;
@@ -114,7 +116,7 @@ pub use platform::{Clock, Transport};
 use render::BackendPref;
 use winit::window::{Window, WindowAttributes};
 
-pub use app::run;
+pub use app::{run, run_with};
 pub use render;
 
 /// Re-exported for `app-*` window extensions.
@@ -257,6 +259,9 @@ pub struct Services {
     pub audio: Option<Box<dyn platform::AudioOutput>>,
     /// The web page's own sign-in, lobby and room screens (DOM). None: egui draws them (native, ?egui=1).
     pub ui_bridge: Option<Box<dyn platform::UiBridge>>,
+    /// What the page says about the pointer lock (web: `document.pointerLockElement`). `None` (desktop): the lock
+    /// ends only when the app lets it go or the window loses the focus.
+    pub pointer_lock_probe: Option<Box<dyn platform::PointerLockProbe>>,
 }
 
 /// `(group, [(name, value)])`.

@@ -91,7 +91,9 @@ impl InputBridge {
                     | InputEvent::Text(_)
                     | InputEvent::Resized(_)
                     | InputEvent::ScaleFactor(_)
-                    | InputEvent::Focused(_) => true,
+                    | InputEvent::Focused(_)
+                    | InputEvent::PointerDelta { .. }
+                    | InputEvent::PointerLockChanged(_) => true,
                 }
             }
         }
@@ -174,7 +176,10 @@ impl InputBridge {
                 self.focused = *f;
                 self.events.push(Event::WindowFocused(*f));
             }
-            InputEvent::Resized(_) => {}
+            // Relative motion and lock changes are for the game, not for egui.
+            InputEvent::Resized(_)
+            | InputEvent::PointerDelta { .. }
+            | InputEvent::PointerLockChanged(_) => {}
         }
     }
 

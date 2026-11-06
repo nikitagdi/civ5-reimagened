@@ -6,12 +6,14 @@
 use glam::Mat4;
 
 use super::graph::{MainSlot, PassId};
+use super::open::FrameShared;
 use super::targets::TargetPool;
 use crate::renderer::FrameStats;
 use crate::settings::{KeySet, RenderSettings};
 use crate::skin::BoneTexture;
+use crate::world::terrain::TerrainSampler;
 
-/// Subsystems of table 4.2.
+/// Subsystems of table 4.2, and the render systems of mods.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SystemId {
     Terrain,
@@ -35,10 +37,14 @@ pub enum SystemId {
     YieldIcons,
     DistanceFog,
     Shadows,
+    /// A render system of a mod (client-hooks R1), numbered by the registry of mods. Not in
+    /// [`SystemId::ALL`]: those are the engine's own.
+    Mod(u16),
 }
 
 impl SystemId {
-    /// Every subsystem, in the order of `WorldSystems`.
+    /// Every subsystem of the engine, in the order of `WorldSystems`. The systems of mods follow them
+    /// (`WorldSystems::mods`).
     pub const ALL: [SystemId; 21] = [
         SystemId::Terrain,
         SystemId::Decal,
@@ -84,7 +90,8 @@ impl SystemId {
             SystemId::Minimap => "Minimap",
             SystemId::YieldIcons => "YieldIcons",
             SystemId::DistanceFog => "DistanceFog",
-            SystemId::Shadows => return None,
+            // Neither has a `[DisableSystems]` name; a mod is switched off by not registering it.
+            SystemId::Shadows | SystemId::Mod(_) => return None,
         })
     }
 }
@@ -109,6 +116,7 @@ pub struct PrepareContext<'a> {
     pub queue: &'a wgpu::Queue,
     services: &'a WorldServices,
     world_frame: &'a mut Option<Mat4>,
+    terrain: Option<&'a TerrainSampler>,
 }
 
 impl<'a> PrepareContext<'a> {
@@ -123,7 +131,19 @@ impl<'a> PrepareContext<'a> {
             queue,
             services,
             world_frame,
+            terrain: None,
         }
+    }
+
+    /// The ground's sampler comes with the context (client-hooks R3).
+    pub fn with_terrain(mut self, terrain: Option<&'a TerrainSampler>) -> Self {
+        self.terrain = terrain;
+        self
+    }
+
+    /// Heights, `hex_at` and `height_revision` of the ground; `None` until a map is set.
+    pub fn terrain(&self) -> Option<&TerrainSampler> {
+        self.terrain
     }
 
     pub fn services(&self) -> &WorldServices {
@@ -147,6 +167,7 @@ pub struct DrawContext<'a, 'p> {
     pub copy_shift: f32,
     pub stats: &'a mut FrameStats,
     services: &'a WorldServices,
+    terrain: Option<&'a TerrainSampler>,
 }
 
 impl<'a, 'p> DrawContext<'a, 'p> {
@@ -165,7 +186,19 @@ impl<'a, 'p> DrawContext<'a, 'p> {
             copy_shift,
             stats,
             services,
+            terrain: None,
         }
+    }
+
+    /// The ground's sampler comes with the context (client-hooks R3).
+    pub fn with_terrain(mut self, terrain: Option<&'a TerrainSampler>) -> Self {
+        self.terrain = terrain;
+        self
+    }
+
+    /// Heights, `hex_at` and `height_revision` of the ground; `None` until a map is set.
+    pub fn terrain(&self) -> Option<&TerrainSampler> {
+        self.terrain
     }
 
     pub fn services(&self) -> &WorldServices {
@@ -297,6 +330,8 @@ pub use crate::anim::AnimService;
 /// `Prepare` pass, before the subsystems'.
 pub struct WorldServices {
     pub anim: AnimService,
+    /// The constants of the frame for systems outside the engine (client-hooks R3).
+    pub frame: FrameShared,
     /// The GPU half of the bones `anim` bakes (render-core 4.12); made at the first `prepare`, when
     /// the device is there.
     bones: Option<BoneTexture>,
@@ -308,7 +343,11 @@ impl Default for WorldServices {
     fn default() -> Self {
         let mut anim = AnimService::default();
         anim.set_gpu_clock(true);
-        Self { anim, bones: None }
+        Self {
+            anim,
+            frame: FrameShared::default(),
+            bones: None,
+        }
     }
 }
 

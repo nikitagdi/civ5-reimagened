@@ -7,6 +7,7 @@
 pub(crate) mod b1_systems;
 pub mod graph;
 pub mod mask;
+pub mod open;
 pub mod present;
 pub mod readback;
 pub mod system;
@@ -16,6 +17,7 @@ pub mod timing;
 pub mod views;
 
 pub use graph::{FramePlan, MainSlot, PassId, PassMode, Step, plan, settled};
+pub use open::{FrameShared, ModGpu, ModSystemError};
 pub use present::Present;
 pub use readback::{FrameSource, Image, Readback, ReadbackError};
 pub use system::{

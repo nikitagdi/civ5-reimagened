@@ -23,6 +23,11 @@ export function inEdgeZone(x, y, w, h) {
   return x < EDGE_PX || y < EDGE_PX || x > w - EDGE_PX || y > h - EDGE_BOTTOM_PX;
 }
 
+/** Whether the page holds a pointer lock (a mod's first-person mode): the cursor is hidden by the browser then. */
+export function pointerLocked(doc) {
+  return !!(doc && doc.pointerLockElement);
+}
+
 /** The picture and hot spot of a CSS cursor value `url(blob:...) 4 2, auto`; null for a keyword cursor. */
 export function parseCursor(value) {
   const m = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]*))\s*\)\s*(\d+)?\s*(\d+)?/.exec(String(value ?? ""));
@@ -94,6 +99,11 @@ function start() {
 
   const move = (e) => {
     if (e.pointerType === "touch") return;
+    // Locked: there is no cursor to draw, and the pointer's position does not move.
+    if (pointerLocked(document)) {
+      leave();
+      return;
+    }
     at = { x: e.clientX, y: e.clientY };
     if (inEdgeZone(at.x, at.y, window.innerWidth, window.innerHeight)) {
       enter();
@@ -107,6 +117,10 @@ function start() {
   // The pointer left the page: there is no cursor to draw.
   document.documentElement.addEventListener("pointerleave", leave);
   window.addEventListener("blur", leave);
+  // The lock begins: the soft cursor goes at once, not at the next pointer move.
+  document.addEventListener("pointerlockchange", () => {
+    if (pointerLocked(document)) leave();
+  });
   window.__civ5CursorEdge = { active: () => on, element: el };
 }
 
