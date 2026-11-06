@@ -95,7 +95,8 @@ wasi-sdk 33, MSVC, WSL2 with clang 18): [docs/install.md](docs/install.md).
    cargo xtask dev --wsl --gamecore-lib target/gamecore --gamedata-dir ../assets-out/gamedata --assets ../assets-out/b2
    ```
 
-6. Open <http://127.0.0.1:8080/> in Chrome. In this dev mode the registration code is `dev`.
+6. Open <http://127.0.0.1:8080/> in Chrome and create an account (Create account tab) with the invitation
+   code `dev`; this code works in dev mode only.
 
 `cargo xtask dev` without `--wsl` and without the gamecore runs a fixture test world, which needs neither
 the fork nor WSL. Details and troubleshooting: [docs/install.md](docs/install.md).

@@ -160,3 +160,13 @@ v3CameraWorld
 
 # ShaderSet values the spec lists for the world (AB 3.1) that no named file spells out
 UnitShader_Skinned
+
+# Names the unit models ask for that no named file spells out; they are shader identifiers of the
+# game's binaries (shader-re catalog). Listed here so that an asset build without the catalog
+# resolves the same names as one with it (the work boat's shader set fails the build otherwise).
+UnitShader_SkinnedAlpha
+AlphaValuesR
+AlphaValuesS
+BoneMatrices
+TeamColorS
+f3CameraWorld

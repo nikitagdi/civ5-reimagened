@@ -833,7 +833,7 @@ pub const SIMP_ROWS: &[SimpRow] = &[
     },
     SimpRow {
         id: "SIMP-exe-858",
-        what: "Registration on a public server (deploy/compose.public.yaml) needs an invitation code, the shared server password CIV5_PASSWORD (\"Код приглашения\" field, shown when /api/auth/info says registration is \"code\"), instead of open registration; the code is no login password, and the deploy takes it from CIV5_PASSWORD or stdin and writes it only into civ5.env on the host",
+        what: "Registration on a public server (deploy/compose.public.yaml) needs an invitation code, the shared server password CIV5_PASSWORD (\"Invitation code\" field, shown when /api/auth/info says registration is \"code\"), instead of open registration; the code is no login password, and the deploy takes it from CIV5_PASSWORD or stdin and writes it only into civ5.env on the host",
         place: "deploy/compose.public.yaml, server/src/auth.rs, tools/xtask/src/deploy.rs",
     },
     SimpRow {

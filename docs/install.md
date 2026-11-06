@@ -145,8 +145,10 @@ Output: content-addressed blobs (named by their sha256) and a `manifest` pointer
 outside the repository. Sizes measured on our machine: the input install layers are about 4.0 GB (base) +
 1.2 GB (Gods & Kings) + 1.3 GB (Brave New World) + DLC; a full output folder took 3.8 GB on disk (18,299
 blobs); a browser downloads about 400 MB of it on first start (184.5 MB over the wire with brotli, measured
-for an earlier pack). `report` fails when the pack is over its 600 MB budget. We have not measured how long a
-full pipeline run takes.
+for an earlier pack). `report` fails when the pack is over its 600 MB budget. Both checks fail on the current
+full pack, ours included, and the game runs with it anyway: `verify` lists 415 UI textures whose compression
+failed (a BC device gets them uncompressed), and `report` counts about 1.5 GB for one device. On our machine
+(i7-14700KF) `build` took about 8 minutes from an empty output folder.
 
 ## Run it
 
@@ -155,8 +157,9 @@ cargo xtask gamecore --target all     # Windows: runs in WSL; Linux: drop --targ
 cargo xtask dev --wsl --gamecore-lib target/gamecore --gamedata-dir ../assets-out/gamedata --assets ../assets-out/b2
 ```
 
-Open <http://127.0.0.1:8080/>. Dev mode stores state in `target/dev-state`, creates an account at a new nick's
-first login and uses the registration code `dev`. URL options: `?nick=alice&autostart=1` starts a game at
+Open <http://127.0.0.1:8080/>. Dev mode stores state in `target/dev-state`; create an account on the Create
+account tab with the invitation code `dev` (bots and tests that log in over the WebSocket get their account at
+the first login instead). URL options: `?nick=alice&autostart=1` starts a game at
 once; `?gfx=webgl2` forces WebGL2; `?preset=low|medium|high`; `&hud=1` shows the performance panel (F3).
 Without `--wsl` and `--gamecore-lib`, `cargo xtask dev` runs the fixture test world.
 

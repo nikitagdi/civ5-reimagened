@@ -142,4 +142,3 @@ the same asset sets:
 - The original game's DLL and our core computing the same turn without animations (headless host).
 - Bandwidth of the current replica protocol.
 - Frame rate on integrated GPUs, phones and tablets; any browser other than desktop Chrome.
-- How long a full asset pipeline run takes.

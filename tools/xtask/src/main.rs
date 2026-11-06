@@ -917,8 +917,9 @@ fn cmd_dev(root: &Path, extra: &[String]) -> Result<()> {
         script.push(' ');
         script.push_str(&sh_quote(f));
     }
-    // Paths in the flags handed over by the caller are Windows paths; the state dir and the like are
-    // translated when they are absolute Windows paths.
+    // Paths in the flags handed over by the caller are Windows paths, absolute or relative to the
+    // repository; they are made absolute and translated (a relative path would be read from the
+    // worker's own directory in WSL). A path that starts with `/` is taken as a Linux path.
     let mut args = passthrough.iter().peekable();
     let mut paths = vec![("--web-root", web.clone())];
     if let Some(dir) = assets_dir {
@@ -938,11 +939,11 @@ fn cmd_dev(root: &Path, extra: &[String]) -> Result<()> {
         );
         script.push_str(&sh_quote(a));
         if is_path_flag && let Some(v) = args.next() {
-            let p = PathBuf::from(v);
-            let v = if p.is_absolute() && !v.starts_with('/') {
-                to_wsl(&p)?
-            } else {
+            let v = if v.starts_with('/') {
                 v.clone()
+            } else {
+                let p = root.join(v);
+                to_wsl(&std::fs::canonicalize(&p).unwrap_or(p))?
             };
             script.push(' ');
             script.push_str(&sh_quote(&v));
