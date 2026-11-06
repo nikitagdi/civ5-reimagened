@@ -514,7 +514,7 @@ fn cutout_masks_are_size_checked() {
     let mut g = Guarded::new(&mut host, &caps);
     let region = CutoutRegion {
         x0: 10,
-        y0: -4,
+        z0: -4,
         width: 3,
         height: 2,
     };

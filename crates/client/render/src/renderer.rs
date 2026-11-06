@@ -401,6 +401,8 @@ pub struct Renderer {
     /// Seconds since the start: scrolling of the clouds and the waves.
     anim_time: f32,
     terrain_material: TerrainMaterial,
+    /// The revision of the cutout mask the material group was made over.
+    cutout_revision: u64,
     /// The snapshot last given to [`Renderer::set_terrain`], for the feature layers.
     snapshot: Option<TerrainSnapshot>,
     decal_pipeline: DecalPipeline,
@@ -925,7 +927,14 @@ impl Renderer {
                 samples,
             },
         );
-        let terrain_material = terrain_pipeline.flat_material(&device, &queue);
+        // The cutout mask of the terrain (client-hooks D13) is made before the first material, which carries it.
+        let mut cutout = crate::cutout::CutoutShared::default();
+        cutout.init(&device, &queue);
+        let terrain_material = terrain_pipeline.flat_material(
+            &device,
+            &queue,
+            &cutout.refs().expect("the cutout mask was just made"),
+        );
         let terrain_m1 = TerrainM1::new(&device, WORLD_FORMAT, DEPTH_FORMAT, samples);
         let water = WaterPipeline::new(
             &device,
@@ -979,6 +988,8 @@ impl Renderer {
         let timer = GpuTimer::new(&device, &queue);
         tracing::info!(gpu_pass_times = timer.available(), "renderer: pass timing");
         let mut world = WorldSystems::default();
+        let cutout_revision = cutout.revision();
+        world.services.cutout = cutout;
         world.terrain.set_settings(&settings);
         world
             .water
@@ -1082,6 +1093,7 @@ impl Renderer {
             water,
             anim_time: 0.0,
             terrain_material,
+            cutout_revision,
             snapshot: None,
             decal_pipeline,
             statics,
@@ -1276,10 +1288,54 @@ impl Renderer {
         self.world.terrain.set_fog(&fog);
         self.snapshot = Some(snapshot.clone());
         self.snapshot_gen += 1;
+        // The column grid of the cutout mask follows the map (the mask stays while the grid does).
+        self.world
+            .services
+            .cutout
+            .set_map(snapshot.width(), snapshot.height(), snapshot.wrap_x());
+        self.rebind_cutout();
         self.rebuild_features();
         // New ground (heights, fog): every object is placed again.
         self.invalidate_objects();
         self.rebuild_entities();
+    }
+
+    /// The column grid of the cutout mask, `None` before the first map. Columns are 4 units, 16 to the
+    /// width of a hex; see [`crate::cutout`].
+    pub fn cutout_grid(&self) -> Option<crate::cutout::CutoutGrid> {
+        self.world.services.cutout.grid()
+    }
+
+    /// Writes the bytes of `region` into the cutout mask (client-hooks D13): one byte per column, row by
+    /// row, above 0 the terrain over the column is not drawn. The first call makes the mask (all 0
+    /// elsewhere); a later one changes the columns of its region and nothing else. No bake is redone.
+    pub fn set_cutout_mask(
+        &mut self,
+        region: crate::cutout::CutoutRegion,
+        bytes: &[u8],
+    ) -> Result<(), crate::cutout::CutoutError> {
+        self.world.services.cutout.set_mask(region, bytes)?;
+        self.rebind_cutout();
+        Ok(())
+    }
+
+    /// Removes the cutout mask: the terrain is drawn whole, byte for byte as without the hook.
+    pub fn clear_cutout_mask(&mut self) {
+        self.world.services.cutout.clear();
+        self.rebind_cutout();
+    }
+
+    /// The material group of B1's ground (and M1's) is made again when the mask's texture changed.
+    fn rebind_cutout(&mut self) {
+        let cutout = &self.world.services.cutout;
+        if self.cutout_revision == cutout.revision() {
+            return;
+        }
+        self.cutout_revision = cutout.revision();
+        if let Some(refs) = cutout.refs() {
+            self.terrain_pipeline
+                .rebind_cutout(&self.device, &mut self.terrain_material, &refs);
+        }
     }
 
     /// A new basis of the map (`MapBasis`, or what B1's snapshot knows of it): the terrain
@@ -3012,9 +3068,18 @@ impl Renderer {
         plan: &LayerPlan,
         blobs: &HashMap<LogicalId, TextureBlob>,
     ) -> usize {
-        let (material, error) =
-            self.terrain_pipeline
-                .textured_material(&self.device, &self.queue, plan, blobs);
+        let (material, error) = self.terrain_pipeline.textured_material(
+            &self.device,
+            &self.queue,
+            plan,
+            blobs,
+            &self
+                .world
+                .services
+                .cutout
+                .refs()
+                .expect("made with the renderer"),
+        );
         if let Some(e) = error
             && !plan.layers.is_empty()
         {
@@ -3024,6 +3089,7 @@ impl Renderer {
             tracing::warn!(id = id.as_str(), "terrain texture left out: {why}");
         }
         self.terrain_material = material;
+        self.cutout_revision = self.world.services.cutout.revision();
         self.terrain_material.layers
     }
 

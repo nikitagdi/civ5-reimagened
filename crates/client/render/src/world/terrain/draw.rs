@@ -760,6 +760,11 @@ impl CellDrawer {
             ],
         });
 
+        // Group 3: the cutout mask of the mod (client-hooks D13); the group is the world services'.
+        let cutout_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("terrain cell cutout"),
+            entries: &crate::cutout::layout_entries(),
+        });
         let module = catalog()
             .iter()
             .find(|m| m.name == "terrain_cell")
@@ -767,7 +772,12 @@ impl CellDrawer {
         let shader = create_module(device, "terrain cell", &module.source());
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("terrain cell"),
-            bind_group_layouts: &[Some(&layout0), Some(&layout1), Some(&layout2)],
+            bind_group_layouts: &[
+                Some(&layout0),
+                Some(&layout1),
+                Some(&layout2),
+                Some(&cutout_layout),
+            ],
             immediate_size: 0,
         });
         let attributes = wgpu::vertex_attr_array![
@@ -813,7 +823,12 @@ impl CellDrawer {
             batched.then(|| create_module(device, "terrain cell array", &array_module.source()));
         let array_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("terrain cell array"),
-            bind_group_layouts: &[Some(&layout0), Some(&layout1_array), Some(&layout2)],
+            bind_group_layouts: &[
+                Some(&layout0),
+                Some(&layout1_array),
+                Some(&layout2),
+                Some(&cutout_layout),
+            ],
             immediate_size: 0,
         });
         let make_with = |label: &str,
@@ -864,10 +879,10 @@ impl CellDrawer {
                 entry,
             )
         };
-        let pipeline = make("terrain cell", "terrain_render_cached_diffuse_ps");
+        let pipeline = make("terrain cell", "terrain_cell_diffuse_ps");
         let spec_pipeline = make(
             "terrain cell with highlight",
-            "terrain_render_cached_diffuse_and_spec_ps",
+            "terrain_cell_diffuse_and_spec_ps",
         );
         let make_array = |label: &str, entry: &str| {
             array_shader.as_ref().map(|s| {
@@ -1508,6 +1523,9 @@ impl CellDrawer {
         if batches.is_empty() {
             return;
         }
+        let Some(cutout) = cx.services().cutout.bind_group().cloned() else {
+            return;
+        };
         let pass = &mut *cx.pass;
         // What the last run set stays set: runs of one lattice size share the vertex and index
         // buffers, neighbours of a tile share the tile group and its slot, runs of one page (array)
@@ -1539,6 +1557,7 @@ impl CellDrawer {
                 state.reset();
                 tile_slot = None;
                 state.pipeline(pass, pipeline);
+                state.group(pass, 3, &cutout);
                 art = usize::MAX;
             }
             if b.art != art {
@@ -1591,6 +1610,26 @@ impl CellDrawer {
 mod tests {
     use super::*;
     use crate::hexgrid::cell_center;
+
+    /// The pipelines of the cells are made with the cutout group at 3 (the device validates the
+    /// layouts against the shader), batched or not.
+    #[test]
+    fn the_cell_pipelines_take_the_cutout_group() {
+        let Some(gpu) = crate::gpu_test::gpu(
+            "the_cell_pipelines_take_the_cutout_group",
+            wgpu::Backends::PRIMARY,
+            wgpu::Features::empty(),
+        ) else {
+            return;
+        };
+        let cfg = LiveConfig {
+            target: wgpu::TextureFormat::Rgba8Unorm,
+            depth: wgpu::TextureFormat::Depth24PlusStencil8,
+            samples: 4,
+            float_targets: true,
+        };
+        let _ = CellDrawer::new(&gpu.device, &cfg);
+    }
 
     #[test]
     fn the_constants_have_the_size_of_their_wgsl_structs() {

@@ -14,6 +14,7 @@ use asset_format::{LogicalId, TextureBlob};
 use bytemuck::{Pod, Zeroable};
 
 use crate::blend::srgb_to_linear;
+use crate::cutout::{self, CutoutRefs};
 use crate::terrain::fog::FOG_UNREVEALED_RGB;
 use crate::terrain::texture_array::{LayerPlan, SLOT_COUNT, TerrainGpuVertex};
 use crate::texture;
@@ -59,6 +60,9 @@ impl MaterialUniform {
 /// Texture array, slot table and the bind group over them.
 pub(crate) struct TerrainMaterial {
     pub bind_group: wgpu::BindGroup,
+    /// What the group is made of besides the cutout mask, to make it again when the mask's view changes.
+    array_view: wgpu::TextureView,
+    uniform: crate::perf::Buf,
     /// Array layers (0 for the flat-colour material).
     pub layers: usize,
 }
@@ -115,6 +119,9 @@ impl TerrainPipeline {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
+                // The cutout mask of the mod (client-hooks, D13), bindings 3 and 4.
+                cutout::layout_entries()[0],
+                cutout::layout_entries()[1],
             ],
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -194,7 +201,12 @@ impl TerrainPipeline {
     }
 
     /// Flat colours for every slot.
-    pub fn flat_material(&self, device: &wgpu::Device, queue: &wgpu::Queue) -> TerrainMaterial {
+    pub fn flat_material(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        cutout: &CutoutRefs<'_>,
+    ) -> TerrainMaterial {
         let white = TextureBlob {
             format: asset_format::TextureFormat::Rgba8,
             dim: asset_format::TexDim::D2,
@@ -207,7 +219,7 @@ impl TerrainPipeline {
         // A one-layer RGBA8 array always uploads.
         let texture = texture::upload_array(device, queue, &[&white], (1, 1), 1, "terrain flat")
             .expect("1x1 RGBA8 array");
-        self.material(device, texture, &LayerPlan::fallback())
+        self.material(device, texture, &LayerPlan::fallback(), cutout)
     }
 
     /// The array of `plan`'s layers (taken from `blobs`) and its slot table. If the device cannot
@@ -218,6 +230,7 @@ impl TerrainPipeline {
         queue: &wgpu::Queue,
         plan: &LayerPlan,
         blobs: &HashMap<LogicalId, TextureBlob>,
+        cutout: &CutoutRefs<'_>,
     ) -> (TerrainMaterial, Option<String>) {
         let layers: Option<Vec<&TextureBlob>> =
             plan.layers.iter().map(|id| blobs.get(id)).collect();
@@ -229,15 +242,21 @@ impl TerrainPipeline {
         };
         match result {
             Ok(t) => {
-                let mut m = self.material(device, t, plan);
+                let mut m = self.material(device, t, plan, cutout);
                 m.layers = plan.layers.len();
                 (m, None)
             }
-            Err(e) => (self.flat_material(device, queue), Some(e)),
+            Err(e) => (self.flat_material(device, queue, cutout), Some(e)),
         }
     }
 
-    fn material(&self, device: &wgpu::Device, texture: Tex, plan: &LayerPlan) -> TerrainMaterial {
+    fn material(
+        &self,
+        device: &wgpu::Device,
+        texture: Tex,
+        plan: &LayerPlan,
+        cutout: &CutoutRefs<'_>,
+    ) -> TerrainMaterial {
         let uniform = device.buf_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("terrain material"),
@@ -250,7 +269,22 @@ impl TerrainPipeline {
             dimension: Some(wgpu::TextureViewDimension::D2Array),
             ..Default::default()
         });
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        TerrainMaterial {
+            bind_group: self.group(device, &view, &uniform, cutout),
+            array_view: view,
+            uniform,
+            layers: 0,
+        }
+    }
+
+    fn group(
+        &self,
+        device: &wgpu::Device,
+        array: &wgpu::TextureView,
+        uniform: &wgpu::Buffer,
+        cutout: &CutoutRefs<'_>,
+    ) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("terrain material"),
             layout: &self.material_layout,
             entries: &[
@@ -260,18 +294,32 @@ impl TerrainPipeline {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&view),
+                    resource: wgpu::BindingResource::TextureView(array),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
                     resource: wgpu::BindingResource::Sampler(&self.sampler),
                 },
+                wgpu::BindGroupEntry {
+                    binding: cutout::MASK_BINDING,
+                    resource: wgpu::BindingResource::TextureView(cutout.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: cutout::PARAMS_BINDING,
+                    resource: cutout.params.as_entire_binding(),
+                },
             ],
-        });
-        TerrainMaterial {
-            bind_group,
-            layers: 0,
-        }
+        })
+    }
+
+    /// Makes the group of `material` again over the current view of the cutout mask.
+    pub fn rebind_cutout(
+        &self,
+        device: &wgpu::Device,
+        material: &mut TerrainMaterial,
+        cutout: &CutoutRefs<'_>,
+    ) {
+        material.bind_group = self.group(device, &material.array_view, &material.uniform, cutout);
     }
 }
 

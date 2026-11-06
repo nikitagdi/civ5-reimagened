@@ -283,6 +283,7 @@ const TERRAIN_M1: ModuleDesc = ModuleDesc {
         part!("common/sm3.wgsl"),
         part!("common/gamma.wgsl"),
         part!("terrain/common.wgsl"),
+        part!("common/cutout.wgsl"),
         part!("terrain/m1_forward.wgsl"),
     ],
     entries: &[
@@ -495,6 +496,8 @@ const TERRAIN_CELL_ARRAY: ModuleDesc = ModuleDesc {
         part!("terrain/cell_vs.wgsl"),
         part!("terrain/page_array.wgsl"),
         part!("terrain/screen_ps.wgsl"),
+        part!("common/cutout.wgsl"),
+        part!("terrain/cell_cutout.wgsl"),
         part!("terrain/cell_array.wgsl"),
     ],
     // The entries of the parts it shares with `TERRAIN_CELL` are in the text too (unused here; they
@@ -503,6 +506,8 @@ const TERRAIN_CELL_ARRAY: ModuleDesc = ModuleDesc {
         entry("terrain_shader_vs", Stage::Vertex),
         entry("terrain_render_cached_diffuse_ps", Stage::Fragment),
         entry("terrain_render_cached_diffuse_and_spec_ps", Stage::Fragment),
+        entry("terrain_cell_diffuse_ps", Stage::Fragment),
+        entry("terrain_cell_diffuse_and_spec_ps", Stage::Fragment),
         entry("terrain_shader_vs_array", Stage::Vertex),
         entry("terrain_render_cached_diffuse_array_ps", Stage::Fragment),
         entry(
@@ -524,6 +529,8 @@ const TERRAIN_CELL: ModuleDesc = ModuleDesc {
         part!("terrain/cell_vs.wgsl"),
         part!("terrain/page_2d.wgsl"),
         part!("terrain/screen_ps.wgsl"),
+        part!("common/cutout.wgsl"),
+        part!("terrain/cell_cutout.wgsl"),
     ],
     entries: &[
         EntryDesc {
@@ -536,6 +543,9 @@ const TERRAIN_CELL: ModuleDesc = ModuleDesc {
         },
         entry("terrain_render_cached_diffuse_ps", Stage::Fragment),
         entry("terrain_render_cached_diffuse_and_spec_ps", Stage::Fragment),
+        // The pixel entries the pipeline uses: the two above after the test of the cutout mask.
+        entry("terrain_cell_diffuse_ps", Stage::Fragment),
+        entry("terrain_cell_diffuse_and_spec_ps", Stage::Fragment),
     ],
 };
 
