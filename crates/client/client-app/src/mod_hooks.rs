@@ -6,12 +6,17 @@
 //! state changes, and the app behaves as it did without this module.
 
 use platform::InputEvent;
+use render::ModCamera;
+use render::world::terrain::TerrainSampler;
 
-/// What a hook asks of the app while it handles an event. Requests are values; the app carries them out.
-#[derive(Debug, Default)]
+/// What a hook asks of the app while it handles an event or a frame. Requests are values; the app carries
+/// them out.
+#[derive(Default)]
 pub struct HookCtl {
     pointer_lock: Option<bool>,
     suppress_ui: Option<bool>,
+    /// `Some(None)`: the hook gives the camera back; `None`: it did not ask.
+    camera: Option<Option<Box<dyn ModCamera>>>,
 }
 
 impl HookCtl {
@@ -26,6 +31,26 @@ impl HookCtl {
     pub fn suppress_original_ui(&mut self, on: bool) {
         self.suppress_ui = Some(on);
     }
+
+    /// Takes the screen's camera (C2, `Some`) or gives it back to the strategic one (`None`). The camera stays
+    /// until a hook gives it back, so a hook that moves it every frame sets a new one every frame (it is a small
+    /// value). While one is set the app moves the strategic camera to its `terrain_focus` every frame, so the
+    /// labels, the minimap, the picking and the world sound keep looking at the place the mod is.
+    pub fn set_camera(&mut self, camera: Option<Box<dyn ModCamera>>) {
+        self.camera = Some(camera);
+    }
+}
+
+/// What a hook sees of the frame, as values.
+pub struct FrameInfo<'a> {
+    /// Seconds since the last frame.
+    pub dt: f32,
+    /// The clock of the app, milliseconds.
+    pub now_ms: u64,
+    /// Where the strategic camera looks (our X and Z): a camera of a mod starts there.
+    pub focus: glam::Vec2,
+    /// The heights of the map, once there is one: where the ground is under an eye.
+    pub terrain: Option<&'a TerrainSampler>,
 }
 
 /// The client side of a mod, as far as the input goes. More hooks (frame, camera) join it with the
@@ -36,6 +61,11 @@ pub trait ModHook {
     ///
     /// Keys: read `KeyEvent::code` (the physical key, `KeyW`), not `key`, so the layout and Shift do not matter.
     fn claim_input(&mut self, event: &InputEvent, ctl: &mut HookCtl) -> bool;
+
+    /// Called once a frame, before the camera is chosen (nothing is called with no hook registered). The place
+    /// to move a camera of the mod and hand it over with `HookCtl::set_camera`. A pointer lock asked here
+    /// is carried out, but on the web a lock needs the gesture of an input event: ask it from `claim_input`.
+    fn frame(&mut self, _info: &FrameInfo<'_>, _ctl: &mut HookCtl) {}
 }
 
 /// What the app does after the hooks saw an event.
@@ -52,6 +82,8 @@ pub struct Claim {
 pub struct ModHooks {
     hooks: Vec<Box<dyn ModHook>>,
     ui_suppressed: bool,
+    /// The camera a hook holds in place of the strategic one (C2); `None`: the strategic camera.
+    camera: Option<Box<dyn ModCamera>>,
 }
 
 impl ModHooks {
@@ -73,17 +105,30 @@ impl ModHooks {
         self.ui_suppressed
     }
 
+    /// The camera of a mod (C2): the app shows it in place of the strategic one while it is `Some`.
+    pub fn camera(&self) -> Option<&dyn ModCamera> {
+        self.camera.as_deref()
+    }
+
+    /// Takes in what a hook asked; the pointer lock is left to the caller.
+    fn absorb(&mut self, ctl: HookCtl) -> Option<bool> {
+        if let Some(on) = ctl.suppress_ui {
+            self.ui_suppressed = on;
+        }
+        if let Some(camera) = ctl.camera {
+            self.camera = camera;
+        }
+        ctl.pointer_lock
+    }
+
     /// Asks the hooks about `event`, in order, up to the first that takes it.
     pub fn claim_input(&mut self, event: &InputEvent) -> Claim {
         let mut claim = Claim::default();
-        for hook in &mut self.hooks {
+        for i in 0..self.hooks.len() {
             let mut ctl = HookCtl::default();
-            let taken = hook.claim_input(event, &mut ctl);
-            if let Some(on) = ctl.suppress_ui {
-                self.ui_suppressed = on;
-            }
-            if ctl.pointer_lock.is_some() {
-                claim.pointer_lock = ctl.pointer_lock;
+            let taken = self.hooks[i].claim_input(event, &mut ctl);
+            if let Some(on) = self.absorb(ctl) {
+                claim.pointer_lock = Some(on);
             }
             if taken {
                 claim.taken = true;
@@ -91,6 +136,19 @@ impl ModHooks {
             }
         }
         claim
+    }
+
+    /// Lets every hook see the frame, in order. Returns the pointer lock they asked last, if any.
+    pub fn frame(&mut self, info: &FrameInfo<'_>) -> Option<bool> {
+        let mut lock = None;
+        for i in 0..self.hooks.len() {
+            let mut ctl = HookCtl::default();
+            self.hooks[i].frame(info, &mut ctl);
+            if let Some(on) = self.absorb(ctl) {
+                lock = Some(on);
+            }
+        }
+        lock
     }
 }
 
@@ -212,6 +270,75 @@ mod tests {
         let lost = hooks.claim_input(&InputEvent::PointerLockChanged(false));
         assert!(!lost.taken);
         assert!(!hooks.ui_suppressed());
+    }
+
+    /// Holds a first-person camera from the first click, lets it go on Escape, moves it on every frame.
+    struct Looker {
+        at: f32,
+    }
+
+    impl ModHook for Looker {
+        fn claim_input(&mut self, event: &InputEvent, ctl: &mut HookCtl) -> bool {
+            match event {
+                InputEvent::Pointer(p) if p.phase == PointerPhase::Down => {
+                    ctl.set_camera(Some(Box::new(render::FirstPerson::new(glam::Vec3::new(
+                        self.at, 6.5, 0.0,
+                    )))));
+                    true
+                }
+                InputEvent::Key(k) if k.code.as_deref() == Some("Escape") => {
+                    ctl.set_camera(None);
+                    true
+                }
+                _ => false,
+            }
+        }
+
+        fn frame(&mut self, info: &FrameInfo<'_>, ctl: &mut HookCtl) {
+            if info.dt > 0.0 {
+                self.at += 10.0 * info.dt;
+                let mut cam = render::FirstPerson::new(glam::Vec3::new(self.at, 6.5, 0.0));
+                cam.far = 2000.0;
+                ctl.set_camera(Some(Box::new(cam)));
+            }
+        }
+    }
+
+    fn info(dt: f32) -> FrameInfo<'static> {
+        FrameInfo {
+            dt,
+            now_ms: 0,
+            focus: glam::Vec2::ZERO,
+            terrain: None,
+        }
+    }
+
+    #[test]
+    fn a_hook_holds_the_camera_until_it_gives_it_back() {
+        let mut hooks = ModHooks::new();
+        assert!(hooks.camera().is_none());
+        // No hooks: a frame asks for nothing and changes nothing.
+        assert_eq!(hooks.frame(&info(0.016)), None);
+        assert!(hooks.camera().is_none());
+        hooks.register(Box::new(Looker { at: 1.0 }));
+        // Registering a hook does not take the screen; the camera is the hook's to ask for.
+        assert_eq!(hooks.frame(&info(0.0)), None);
+        assert!(hooks.camera().is_none());
+        hooks.claim_input(&events().remove(0));
+        let cam = hooks.camera().expect("the click took the camera");
+        assert_eq!(cam.eye().x, 1.0);
+        assert_eq!(cam.far(), 3000.0);
+        // Each frame the hook hands over the camera moved on; the focus follows it.
+        hooks.frame(&info(0.5));
+        let cam = hooks.camera().expect("held");
+        assert_eq!(cam.eye().x, 6.0);
+        assert_eq!(cam.far(), 2000.0);
+        assert_eq!(cam.terrain_focus(), glam::Vec2::new(6.0, 0.0));
+        assert_eq!(cam.hints().terrain_focus, Some(cam.terrain_focus()));
+        // Esc gives the strategic camera back.
+        let esc = hooks.claim_input(&key("Escape", Key::Named(NamedKey::Escape)));
+        assert!(esc.taken);
+        assert!(hooks.camera().is_none());
     }
 
     #[test]

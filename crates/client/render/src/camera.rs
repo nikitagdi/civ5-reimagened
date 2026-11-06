@@ -1,6 +1,6 @@
 //! Orbit camera (showcase only; the game uses `GameCamera`). World: right-handed, Y up, map in XZ.
 
-use glam::{Mat4, Vec3};
+use glam::{Mat4, Vec2, Vec3};
 
 /// What the renderer needs from a camera: the eye and the clip-space transform.
 pub trait CameraView {
@@ -12,6 +12,190 @@ pub trait CameraView {
     /// `projection * view`; an implementation may compute it faster.
     fn view_proj(&self, aspect: f32) -> Mat4 {
         self.projection(aspect) * self.view()
+    }
+    /// What the camera asks of the rest of the frame besides the matrices (client-hooks C2). The game's own
+    /// cameras ask for nothing: the default is all `None`, and the frame is the one it always was.
+    fn hints(&self) -> CameraHints {
+        CameraHints::default()
+    }
+}
+
+/// What a camera of a mod asks of the frame (client-hooks C2, T27). `None` / `false` is "as for the strategic
+/// camera"; the renderer reads a field only when the camera set it.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct CameraHints {
+    /// The near plane of the projection. `Some` marks a camera that can stand inside the boxes of the terrain
+    /// cells: their page size is then measured on the box cut at this plane (T27b).
+    pub near: Option<f32>,
+    /// Half side of the square (in the original's units, around the eye) that the shadow map and the
+    /// reflection map cover instead of the rectangle the view frustum cuts out of the ground.
+    pub shadow_range: Option<f32>,
+    /// The distance from the eye past which objects are drawn the cheap way (`FarLOD`).
+    pub far_lod_distance: Option<f32>,
+    /// The XZ point the terrain streams and picks its pages around, instead of the middle of the screen.
+    pub terrain_focus: Option<Vec2>,
+    /// The fluid fog of war (its clouds) is not drawn: seen edge-on from a low eye it is a flat strip.
+    pub hide_fow_clouds: bool,
+}
+
+/// A camera a mod holds in place of the strategic one (client-hooks C2). Besides the matrices (`CameraView`) it
+/// states its planes and what the rest of the frame needs for a low eye. `app` shows it through
+/// [`ModCameraView`]; while it is set the strategic camera is moved to [`Self::terrain_focus`] every frame, so the
+/// labels, the minimap, the picking and the world sound keep looking at the place the mod is.
+pub trait ModCamera: CameraView {
+    fn near(&self) -> f32;
+    fn far(&self) -> f32;
+    /// Vertical field of view in radians.
+    fn fov_y(&self) -> f32;
+    /// Half side of the shadow rectangle, original units. Default: the 256 of the strategic fallback.
+    fn shadow_range(&self) -> f32 {
+        DEFAULT_SHADOW_RANGE
+    }
+    /// Distance of the far LOD. Default: the 1400 of the game.
+    fn far_lod_distance(&self) -> f32 {
+        crate::world::far_lod::FAR_LOD_DISTANCE
+    }
+    /// The XZ point of the terrain stream and of the virtual focus of the strategic camera.
+    fn terrain_focus(&self) -> Vec2;
+    /// Where the world sound listens. Default: the eye.
+    fn listener_pos(&self) -> Vec3 {
+        self.eye()
+    }
+    /// Whether the fluid fog of war is left out of the frame. Default: yes.
+    fn hide_fow_clouds(&self) -> bool {
+        true
+    }
+}
+
+/// Half side of the shadow rectangle when the view cuts none out (`renderer.rs`).
+pub const DEFAULT_SHADOW_RANGE: f32 = 256.0;
+
+/// A [`ModCamera`] as a `CameraView`: the matrices of the mod's camera and the hints made of its other fields.
+pub struct ModCameraView<'a>(pub &'a dyn ModCamera);
+
+impl CameraView for ModCameraView<'_> {
+    fn eye(&self) -> Vec3 {
+        self.0.eye()
+    }
+
+    fn view(&self) -> Mat4 {
+        self.0.view()
+    }
+
+    fn projection(&self, aspect: f32) -> Mat4 {
+        self.0.projection(aspect)
+    }
+
+    fn view_proj(&self, aspect: f32) -> Mat4 {
+        self.0.view_proj(aspect)
+    }
+
+    fn hints(&self) -> CameraHints {
+        CameraHints {
+            near: Some(self.0.near()),
+            shadow_range: Some(self.0.shadow_range()),
+            far_lod_distance: Some(self.0.far_lod_distance()),
+            terrain_focus: Some(self.0.terrain_focus()),
+            hide_fow_clouds: self.0.hide_fow_clouds(),
+        }
+    }
+}
+
+/// A free first-person camera: the eye, a yaw (0 looks along -Z, growing to +X) and a pitch, with the planes of
+/// a camera at the height of a person (near 0.5, far 3000, 75 degrees). The stand-in `CameraOverride` of
+/// `mod-client` maps onto it. Its terrain focus is the point under the eye.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FirstPerson {
+    pub eye: Vec3,
+    pub yaw: f32,
+    pub pitch: f32,
+    pub near: f32,
+    pub far: f32,
+    pub fov_y: f32,
+    pub shadow_range: f32,
+    pub far_lod_distance: f32,
+    pub hide_fow_clouds: bool,
+}
+
+impl FirstPerson {
+    /// The largest pitch: just short of straight up or down, so `look_at` stays valid.
+    pub const MAX_PITCH: f32 = 1.4;
+
+    pub fn new(eye: Vec3) -> Self {
+        Self {
+            eye,
+            yaw: 0.0,
+            pitch: 0.0,
+            near: 0.5,
+            far: 3000.0,
+            fov_y: 75f32.to_radians(),
+            shadow_range: DEFAULT_SHADOW_RANGE,
+            far_lod_distance: crate::world::far_lod::FAR_LOD_DISTANCE,
+            hide_fow_clouds: true,
+        }
+    }
+
+    /// The direction of the view.
+    pub fn direction(&self) -> Vec3 {
+        let pitch = self.pitch.clamp(-Self::MAX_PITCH, Self::MAX_PITCH);
+        Vec3::new(
+            self.yaw.sin() * pitch.cos(),
+            pitch.sin(),
+            -self.yaw.cos() * pitch.cos(),
+        )
+    }
+}
+
+impl CameraView for FirstPerson {
+    fn eye(&self) -> Vec3 {
+        self.eye
+    }
+
+    fn view(&self) -> Mat4 {
+        glam::camera::rh::view::look_at_mat4(self.eye, self.eye + self.direction(), Vec3::Y)
+    }
+
+    fn projection(&self, aspect: f32) -> Mat4 {
+        glam::camera::rh::proj::directx::perspective(
+            self.fov_y,
+            aspect.max(1e-3),
+            self.near,
+            self.far,
+        )
+    }
+
+    fn hints(&self) -> CameraHints {
+        ModCameraView(self).hints()
+    }
+}
+
+impl ModCamera for FirstPerson {
+    fn near(&self) -> f32 {
+        self.near
+    }
+
+    fn far(&self) -> f32 {
+        self.far
+    }
+
+    fn fov_y(&self) -> f32 {
+        self.fov_y
+    }
+
+    fn shadow_range(&self) -> f32 {
+        self.shadow_range
+    }
+
+    fn far_lod_distance(&self) -> f32 {
+        self.far_lod_distance
+    }
+
+    fn terrain_focus(&self) -> Vec2 {
+        Vec2::new(self.eye.x, self.eye.z)
+    }
+
+    fn hide_fow_clouds(&self) -> bool {
+        self.hide_fow_clouds
     }
 }
 
@@ -292,6 +476,52 @@ mod tests {
             "the aspect is the capture's"
         );
         assert_eq!(cam.eye(), c.eye());
+    }
+
+    #[test]
+    fn the_cameras_of_the_game_ask_nothing_of_the_frame() {
+        let none = CameraHints::default();
+        assert_eq!(Camera::default().hints(), none);
+        assert_eq!(crate::GameCamera::default().hints(), none);
+        let c = Camera::default();
+        let fixed = FixedCamera {
+            view: c.view(),
+            proj: c.projection(1.0),
+            eye: c.eye(),
+        };
+        assert_eq!(fixed.hints(), none);
+        assert!(!none.hide_fow_clouds);
+    }
+
+    #[test]
+    fn a_first_person_camera_states_its_planes_and_what_the_frame_needs() {
+        let mut cam = FirstPerson::new(Vec3::new(10.0, 18.5, -4.0));
+        cam.shadow_range = 600.0;
+        cam.far_lod_distance = 900.0;
+        let hints = cam.hints();
+        assert_eq!(hints.near, Some(0.5));
+        assert_eq!(hints.shadow_range, Some(600.0));
+        assert_eq!(hints.far_lod_distance, Some(900.0));
+        assert_eq!(hints.terrain_focus, Some(glam::Vec2::new(10.0, -4.0)));
+        assert!(hints.hide_fow_clouds);
+        // The view wrapper gives the same matrices and hints as the camera itself.
+        let as_mod: &dyn ModCamera = &cam;
+        let wrapped = ModCameraView(as_mod);
+        assert_eq!(wrapped.hints(), hints);
+        assert_eq!(wrapped.view_proj(1.5), cam.view_proj(1.5));
+        assert_eq!((as_mod.near(), as_mod.far()), (0.5, 3000.0));
+        assert!((as_mod.fov_y() - 75f32.to_radians()).abs() < 1e-6);
+        assert_eq!(as_mod.listener_pos(), cam.eye);
+        // Yaw 0 looks along -Z, a quarter turn along +X; the pitch is held short of straight up.
+        assert!((cam.direction() - -Vec3::Z).length() < 1e-6);
+        cam.yaw = std::f32::consts::FRAC_PI_2;
+        assert!((cam.direction() - Vec3::X).length() < 1e-6);
+        cam.pitch = 9.0;
+        assert!(cam.direction().y < 1.0 && cam.direction().y > 0.9);
+        // A point in front of the eye lands inside the clip volume.
+        let c = FirstPerson::new(Vec3::new(0.0, 6.5, 0.0));
+        let clip = c.view_proj(1.5) * Vec3::new(0.0, 6.5, -50.0).extend(1.0);
+        assert!(clip.w > 0.0 && clip.x.abs() < clip.w && clip.z > 0.0 && clip.z < clip.w);
     }
 
     #[test]

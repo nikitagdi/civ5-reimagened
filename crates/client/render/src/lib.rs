@@ -42,7 +42,9 @@ mod water_pipeline;
 pub mod world;
 pub mod wrap;
 
-pub use camera::{Camera, CameraView, FixedCamera};
+pub use camera::{
+    Camera, CameraHints, CameraView, FirstPerson, FixedCamera, ModCamera, ModCameraView,
+};
 pub use frame::{FrameSource, Image, PassStat, Readback, ReadbackError, pass_name};
 pub use game_camera::{GameCamera, MapBounds, Ray, pixels_to_ndc};
 pub use layers::{LayerSwitches, LayerWarning};

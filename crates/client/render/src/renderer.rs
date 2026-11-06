@@ -12,7 +12,7 @@ use glam::{Mat4, Vec2, Vec3, Vec4};
 use asset_format::{LogicalId, ModelBlob, PlatformProfile, Skeleton, TextureBlob};
 
 use crate::blend::{BlendPipeline, BlendTargets};
-use crate::camera::CameraView;
+use crate::camera::{CameraHints, CameraView};
 use crate::decal::DecalPipeline;
 use crate::entities::lines::LineMesh;
 use crate::entities::marker::{CITY_MARKER, UNIT_MARKER, pillar};
@@ -40,7 +40,7 @@ use crate::overlay::{MinimapInfo, Overlay, OverlayTarget, OverlayTextures, run_o
 use crate::scene::{self, Mesh, Scene, SceneVertex};
 use crate::settings::RenderSettings;
 use crate::shaders::{ConstantOverrides, UniformBlock};
-use crate::shadow::{ShadowCamera, ShadowMap, visible_rect};
+use crate::shadow::{ShadowCamera, ShadowMap, fixed_rect, visible_rect};
 use crate::static_model::{
     BatchSet, Look, StaticInstance, StaticModelId, StaticRenderer, StaticTargets, Variants,
 };
@@ -501,6 +501,11 @@ pub struct Renderer {
     mod_gpu: crate::frame::ModGpu,
     /// Subsystems switched off; `plan` leaves them out.
     layers: LayerSwitches,
+    /// While the camera of a mod hides the fluid fog of war (`CameraHints::hide_fow_clouds`): the switches as
+    /// they were set, `layers` being those and the fog off. `None` for the strategic camera.
+    layers_base: Option<LayerSwitches>,
+    /// What the camera of this frame asks besides its matrices; default (nothing asked) for the strategic one.
+    cam_hints: CameraHints,
     /// The quality keys in force. `samples` follows them at start-up only.
     settings: RenderSettings,
     /// GPU time of the passes (timestamp queries), when the device has them.
@@ -1131,6 +1136,8 @@ impl Renderer {
             reflection_globals,
             mod_gpu,
             layers: LayerSwitches::new(),
+            layers_base: None,
+            cam_hints: CameraHints::default(),
             settings,
             timer,
             cpu_clock: crate::frame::timing::default_clock(),
@@ -2743,7 +2750,9 @@ impl Renderer {
             .map_or(0.6, |e| e.alpha);
         // `FarLOD`: the distance in the original's basis (`ours_to_orig` may scale).
         let far_lod = self.far_lod().then(|| {
-            crate::world::far_lod::FAR_LOD_DISTANCE
+            self.cam_hints
+                .far_lod_distance
+                .unwrap_or(crate::world::far_lod::FAR_LOD_DISTANCE)
                 * ours_to_orig.transform_vector3(glam::Vec3::X).length()
         });
         let scene = self.scene_size();
@@ -3487,8 +3496,7 @@ impl Renderer {
         ours_to_orig: &Mat4,
     ) -> Option<crate::reflection::ReflectionCamera> {
         self.targets.get(crate::frame::REFLECTION_COLOR)?;
-        let (top_left, bottom_right) =
-            visible_rect(&camera.view_proj(aspect), camera.eye(), ours_to_orig, 256.0);
+        let (top_left, bottom_right) = view_rect(camera, aspect, ours_to_orig, 256.0);
         Some(crate::reflection::ReflectionCamera::standard(
             top_left,
             bottom_right,
@@ -3565,12 +3573,7 @@ impl Renderer {
         // The camera of the pass is the camera the water reads the target through; the matrix is
         // the same one even when there is no target (black reflection).
         let reflect_vp = {
-            let (top_left, bottom_right) = visible_rect(
-                &camera.view_proj(aspect),
-                camera.eye(),
-                &ours_to_orig,
-                256.0,
-            );
+            let (top_left, bottom_right) = view_rect(camera, aspect, &ours_to_orig, 256.0);
             crate::reflection::ReflectionCamera::standard(top_left, bottom_right).view_proj()
         };
         let time = self.shader_time();
@@ -3796,11 +3799,44 @@ impl Renderer {
     /// Switches subsystems off or on for the next frames; `render-core` leaves the switched-off
     /// ones out of the plan, so their `prepare` and `record` are not called.
     pub fn set_layers(&mut self, layers: LayerSwitches) {
+        // A camera that hides the fog of war holds the switches as set and applies its own over them.
+        let layers = match self.layers_base.as_mut() {
+            Some(base) => {
+                if layers == *base {
+                    return;
+                }
+                *base = layers.clone();
+                Self::without_fow_clouds(layers)
+            }
+            None => layers,
+        };
         if layers == self.layers {
             return;
         }
         tracing::info!(off = ?layers.names().collect::<Vec<_>>(), "layer switches changed");
         self.layers = layers;
+    }
+
+    fn without_fow_clouds(mut layers: LayerSwitches) -> LayerSwitches {
+        // The fluid fog is a system of the plan, so `disable` finds it; a refusal would leave things as they were.
+        layers.disable("FluidFOW").ok();
+        layers
+    }
+
+    /// Takes in what the camera of this frame asks (client-hooks C2): the hints for the passes, the fluid fog
+    /// off while the camera hides it and back on when it stops. The strategic camera asks nothing: no change.
+    fn apply_camera_hints(&mut self, hints: CameraHints) {
+        self.cam_hints = hints;
+        match (hints.hide_fow_clouds, self.layers_base.is_some()) {
+            (true, false) => {
+                self.layers_base = Some(self.layers.clone());
+                self.layers = Self::without_fow_clouds(self.layers.clone());
+            }
+            (false, true) => {
+                self.layers = self.layers_base.take().unwrap_or_default();
+            }
+            _ => {}
+        }
     }
 
     /// True when no subsystem has baking or loading left, so a captured frame is final
@@ -4295,6 +4331,7 @@ impl Renderer {
         ui: &UiDrawList,
         overlay: Option<&mut dyn Overlay>,
     ) -> wgpu::CommandBuffer {
+        self.apply_camera_hints(camera.hints());
         // The build of a new basis goes on a few milliseconds a frame (when the terrain builds in pieces).
         if self.world.terrain.building() {
             let _s = crate::perf::slow::scope("terrain.build_job");
@@ -4339,12 +4376,7 @@ impl Renderer {
             ((self.boot_required || self.debug_shadow) && self.world_drawn() && shadow_level > 0)
                 .then(|| {
                     // re: SetupShadowFrameGlobals: the light looks at the middle of the visible rectangle.
-                    let (top_left, bottom_right) = visible_rect(
-                        &camera.view_proj(aspect),
-                        camera.eye(),
-                        &ours_to_orig,
-                        256.0,
-                    );
+                    let (top_left, bottom_right) = view_rect(camera, aspect, &ours_to_orig, 256.0);
                     let light = ShadowCamera::new(
                         top_left,
                         bottom_right,
@@ -4659,7 +4691,12 @@ impl Renderer {
             );
             // `FarLOD`: what is far casts no shadow and is not in the reflection.
             let cull = if self.far_lod() {
-                cull.with_far(camera.eye(), crate::world::far_lod::FAR_LOD_DISTANCE)
+                cull.with_far(
+                    camera.eye(),
+                    self.cam_hints
+                        .far_lod_distance
+                        .unwrap_or(crate::world::far_lod::FAR_LOD_DISTANCE),
+                )
             } else {
                 cull
             };
@@ -5513,6 +5550,26 @@ impl Renderer {
 }
 
 /// The minimap target, its size and generation; `None` while it does not exist or `Minimap` is off.
+/// The rectangle of the original's ground the shadow and reflection maps cover: what the view frustum cuts
+/// out of it (`fallback`, the half side of a square around the eye, when it cuts none), or for a camera that
+/// asks for a range (`CameraHints::shadow_range`) the square of that half side around the eye.
+fn view_rect(
+    camera: &dyn CameraView,
+    aspect: f32,
+    ours_to_orig: &Mat4,
+    fallback: f32,
+) -> (Vec3, Vec3) {
+    match camera.hints().shadow_range {
+        Some(half) => fixed_rect(camera.eye(), ours_to_orig, half),
+        None => visible_rect(
+            &camera.view_proj(aspect),
+            camera.eye(),
+            ours_to_orig,
+            fallback,
+        ),
+    }
+}
+
 fn minimap_of<'a>(
     layers: &LayerSwitches,
     targets: &'a crate::frame::TargetPool,
