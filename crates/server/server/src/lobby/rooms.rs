@@ -2,8 +2,8 @@
 //! lobby actor owns the rooms and says who may do what.
 
 use protocol::{
-    CivPick, GameSettings, GameSetup, GameStatus, LobbyChoices, Occupant, RoomId, RoomSlot,
-    RoomState, RoomSummary, SlotControl, SlotOccupant, SlotSetup, WorldSizeChoice,
+    CivPick, GameSettings, GameSetup, GameStatus, LobbyChoices, ModPlan, Occupant, RoomId,
+    RoomSlot, RoomState, RoomSummary, SlotControl, SlotOccupant, SlotSetup, WorldSizeChoice,
 };
 
 use super::saves::{SaveEntry, SaveRef, room_slots};
@@ -35,6 +35,9 @@ pub struct Room {
     /// The save the room was made from (`LoadSave`): settings, civilizations and the set of players
     /// are the save's and cannot change.
     pub from_save: Option<SaveRef>,
+    /// The mods of `settings.mods` resolved against the installed ones (T43). Refreshed whenever the picks change;
+    /// while it is an `Err` the game cannot start.
+    pub mod_plan: ModPlan,
 }
 
 fn open_slot(index: u8, default_players: u8) -> RoomSlot {
@@ -69,6 +72,7 @@ impl Room {
             slots,
             status: GameStatus::Lobby,
             from_save: None,
+            mod_plan: ModPlan::default(),
         }
     }
 
@@ -109,7 +113,13 @@ impl Room {
             slots,
             status: GameStatus::Lobby,
             from_save: Some(SaveRef::of(entry)),
+            mod_plan: ModPlan::default(),
         })
+    }
+
+    /// Resolves the room's mod picks against the installed mods again (the picks or the room changed).
+    pub fn refresh_plan(&mut self, store: &mod_host_server::ModStore) {
+        self.mod_plan = crate::game::mods::plan(store, &self.settings.mods);
     }
 
     pub fn is_host(&self, nick: &str) -> bool {
@@ -374,6 +384,10 @@ impl Room {
         if !self.is_host(nick) {
             return Err("only the host can start the game".to_owned());
         }
+        if let ModPlan::Err(problems) = &self.mod_plan {
+            let text: Vec<&str> = problems.iter().map(|p| p.text.as_str()).collect();
+            return Err(format!("the mods cannot be loaded: {}", text.join("; ")));
+        }
         validate::settings(&self.settings, choices)?;
         if self
             .slots
@@ -427,7 +441,7 @@ impl Room {
             settings: self.settings.clone(),
             slots: self.slots.clone(),
             from_save: self.from_save.as_ref().map(|f| f.id.clone()),
-            mod_plan: protocol::ModPlan::default(),
+            mod_plan: self.mod_plan.clone(),
         }
     }
 

@@ -74,6 +74,7 @@ pub fn settings(s: &GameSettings, choices: &LobbyChoices) -> Result<(), String> 
     }
     game_options(s, choices)?;
     map_options(s, choices)?;
+    mod_picks(s)?;
     match &s.timer {
         TimerMode::Off => {}
         TimerMode::Original { row } => listed(&choices.timers, "turn timer", row)?,
@@ -82,6 +83,20 @@ pub fn settings(s: &GameSettings, choices: &LobbyChoices) -> Result<(), String> 
                 return Err("a fixed timer is 10 to 3600 seconds".to_owned());
             }
         }
+    }
+    Ok(())
+}
+
+/// The size bounds of the host's mod picks. Whether the mods exist and fit together is the room's `mod_plan`.
+fn mod_picks(s: &GameSettings) -> Result<(), String> {
+    if s.mods.len() > protocol::MAX_MODS {
+        return Err(format!("at most {} mods", protocol::MAX_MODS));
+    }
+    if s.mods.iter().any(|p| {
+        p.id.chars().count() > protocol::MAX_MOD_ID_CHARS
+            || p.req.chars().count() > protocol::MAX_MOD_VERSION_CHARS
+    }) {
+        return Err("a mod id or version requirement is too long".to_owned());
     }
     Ok(())
 }

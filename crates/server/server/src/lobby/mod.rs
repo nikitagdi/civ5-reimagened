@@ -752,8 +752,12 @@ impl LobbyActor {
             LobbyCmd::LeaveRoom => self.leave_room(shared, nick),
             LobbyCmd::Settings(s) => {
                 let choices = shared.choices();
-                self.my_room(&k)
-                    .and_then(|r| r.set_settings(nick, s, &choices))
+                let store = Arc::clone(&shared.mod_store);
+                self.my_room(&k).and_then(|r| {
+                    r.set_settings(nick, s, &choices)?;
+                    r.refresh_plan(&store);
+                    Ok(())
+                })
             }
             LobbyCmd::Slot {
                 index,
@@ -834,7 +838,8 @@ impl LobbyActor {
         }
         let size = validate::world_size(&choices, &settings.world_size)
             .ok_or_else(|| "unknown world size".to_owned())?;
-        let room = Room::new(shared.ids.next_room(), nick, settings, size);
+        let mut room = Room::new(shared.ids.next_room(), nick, settings, size);
+        room.refresh_plan(&shared.mod_store);
         self.places.insert(key(nick), Place::Room(room.id));
         shared.identity.reserve(nick);
         self.rooms.insert(room.id, room);
@@ -1030,7 +1035,8 @@ impl LobbyActor {
             .and_then(|_| self.saves.loadable(save, build.as_deref()))
             .ok_or_else(|| "no such save".to_owned())?;
         let id = shared.ids.next_room();
-        let room = Room::from_save(id, nick, entry, &choices)?;
+        let mut room = Room::from_save(id, nick, entry, &choices)?;
+        room.refresh_plan(&shared.mod_store);
         self.places.insert(key(nick), Place::Room(id));
         shared.identity.reserve(nick);
         self.rooms.insert(id, room);

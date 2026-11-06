@@ -2,7 +2,7 @@
 //! set. A game without picks is untouched (same settings, no lock), so nothing about it changes.
 
 use mod_host_server::ModStore;
-use protocol::GameSetup;
+use protocol::{GameSetup, ModPick, ModPlan};
 
 /// Freezes `setup.settings.mods` against the installed mods. On success the settings list the resolved mods
 /// pinned to their versions (dependencies included, in load order) and the `mods.lock` text is returned; it goes
@@ -23,6 +23,20 @@ pub fn freeze(store: &ModStore, setup: &mut GameSetup) -> Result<Option<String>,
     }
     setup.settings.mods = frozen.exact_picks();
     Ok(Some(frozen.lock_text()))
+}
+
+/// The plan of a room (T43): the picks of the host resolved against the installed mods. `Ok` lists every mod of
+/// the set in load order (dependencies the host did not pick are added, `client_required: false` marks the mods
+/// players may lack, `pack` the asset pack to fetch); `Err` carries the sentence with the dependency chain. No
+/// picks: the empty plan, as before mods existed.
+pub fn plan(store: &ModStore, picks: &[ModPick]) -> ModPlan {
+    if picks.is_empty() {
+        return ModPlan::default();
+    }
+    match store.freeze(picks) {
+        Ok(frozen) => ModPlan::Ok(store.set_view(&frozen.set).mods),
+        Err(e) => ModPlan::Err(e.problems()),
+    }
 }
 
 #[cfg(test)]
