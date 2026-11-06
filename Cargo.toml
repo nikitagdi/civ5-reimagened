@@ -19,6 +19,7 @@ members = [
     "crates/client/platform",
     "crates/client/replica",
     "crates/client/client-core",
+    "crates/client/mod-client",
     "crates/client/assets",
     "crates/client/audio",
     "crates/client/draw-list",
@@ -72,6 +73,7 @@ mod-assets = { path = "crates/shared/mod-assets" }
 loc = { path = "crates/shared/loc" }
 granny = { path = "tools/granny" }
 platform = { path = "crates/client/platform" }
+mod-client = { path = "crates/client/mod-client" }
 client-core = { path = "crates/client/client-core" }
 replica = { path = "crates/client/replica" }
 assets = { path = "crates/client/assets" }

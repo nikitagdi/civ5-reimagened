@@ -1,0 +1,22 @@
+[package]
+name = "mod-client"
+description = "Client-side mod API: ClientMod trait, ClientCtx facade, registry and headless dispatcher"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "client"
+
+[dependencies]
+mod-api.workspace = true
+mod-manifest.workspace = true
+platform.workspace = true
+draw-list.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+glam.workspace = true
