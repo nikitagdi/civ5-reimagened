@@ -2557,7 +2557,7 @@ mod gpu_tests {
         let rebaked = live.rebakes() - rebakes_before;
         assert!(rebaked >= 1, "the pages under the decal were baked again");
         assert!(
-            rebaked < baked_before as u64,
+            rebaked < baked_before,
             "not every page was baked again: {rebaked} of {baked_before}"
         );
         // Taking it away bakes the same pages again.
