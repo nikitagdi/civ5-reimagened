@@ -1668,9 +1668,9 @@ mod tests {
         assert!(seen.frame_group.get() && seen.time_finite.get());
     }
 
-    /// A camera of a mod (client-hooks C2): the frame draws, the fluid fog is off while the camera holds the
-    /// screen and the switches the player set are as they were when the strategic camera is back, and the
-    /// strategic frame after it is the frame before it.
+    /// A camera of a mod (client-hooks C2): the frame draws, the clouds of the fluid fog are hidden while the
+    /// camera holds the screen but its mask is still drawn (for the camera's own view), the switches the player
+    /// sets are the player's, and the strategic frame after it is the frame before it.
     #[test]
     fn a_mod_camera_hides_the_fog_clouds_and_gives_the_frame_back() {
         use crate::camera::{CameraView, FirstPerson, ModCamera, ModCameraView};
@@ -1695,24 +1695,37 @@ mod tests {
         };
         let (mut player, _) = LayerSwitches::from_names("Decal");
         r.set_layers(player.clone());
+        assert!(r.set_fog_clouds(&cloud_textures()));
         let before = read(&mut r, &camera);
         assert!(!r.layers().is_disabled(SystemId::FluidFow));
+        assert!(!r.world().fluid_fow.clouds_hidden());
+        assert!(r.world().fluid_fow.cloud_counters().draws > 0, "the clouds");
+        let rebuilds = r.world().fluid_fow.puff_stats().mask_rebuilds;
 
         let mut fp = FirstPerson::new(glam::Vec3::new(200.0, 12.0, -150.0));
         fp.yaw = 0.7;
         let low: &dyn ModCamera = &fp;
         let shown = read(&mut r, &ModCameraView(low));
         assert!(shown.bytes.iter().any(|&b| b != 0), "a frame was drawn");
-        assert!(r.layers().is_disabled(SystemId::FluidFow));
+        // The clouds are hidden; the fluid fog stays in the plan and draws its mask for the new view (the
+        // ground, the water and the objects read it).
+        assert!(r.world().fluid_fow.clouds_hidden());
+        assert!(!r.layers().is_disabled(SystemId::FluidFow));
+        assert_eq!(r.world().fluid_fow.cloud_counters().draws, 0, "no clouds");
+        assert!(
+            r.world().fluid_fow.puff_stats().mask_rebuilds > rebuilds,
+            "the mask was made for the camera's view"
+        );
         assert!(
             r.layers().is_disabled(SystemId::Decal),
             "the player's switch stays"
         );
-        // The player changes a switch while the camera holds the screen: it is the base from then on.
+        // The player changes a switch while the camera holds the screen: it is the player's.
         player.disable("Waves").ok();
         r.set_layers(player.clone());
-        assert!(r.layers().is_disabled(SystemId::FluidFow));
+        assert_eq!(*r.layers(), player);
         let again = read(&mut r, &camera);
+        assert!(!r.world().fluid_fow.clouds_hidden());
         assert!(!r.layers().is_disabled(SystemId::FluidFow));
         assert_eq!(*r.layers(), player);
         let (mut want, _) = LayerSwitches::from_names("Decal");

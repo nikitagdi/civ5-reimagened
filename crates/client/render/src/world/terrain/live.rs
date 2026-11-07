@@ -2079,6 +2079,21 @@ mod gpu_tests {
             wrap: bool,
             size: (u32, u32),
         ) -> Option<Self> {
+            Self::with_map(name, decals, textures, wrap, size, (7, 5), &|_, _| {
+                Fog::Visible
+            })
+        }
+
+        /// [`Self::with_wrap`] on a map of `map` hexes, the fog of hex `(x, y)` from `fog`.
+        fn with_map(
+            name: &str,
+            decals: Vec<DecalDef>,
+            textures: Vec<(LogicalId, TextureBlob)>,
+            wrap: bool,
+            size: (u32, u32),
+            map: (u32, u32),
+            fog: &dyn Fn(u32, u32) -> Fog,
+        ) -> Option<Self> {
             let gpu = gpu(name, wgpu::Backends::PRIMARY, wgpu::Features::empty())?;
             let format = wgpu::TextureFormat::Rgba8Unorm;
             let mut r = Renderer::offscreen(&gpu, size, format, 1);
@@ -2108,10 +2123,10 @@ mod gpu_tests {
             for (id, blob) in textures {
                 r.add_terrain_def_texture(id, blob);
             }
-            let (w, h) = (7u32, 5u32);
+            let (w, h) = map;
             let cells = (0..w * h)
-                .map(|_| TerrainCell {
-                    fog: Fog::Visible,
+                .map(|i| TerrainCell {
+                    fog: fog(i % w, i / w),
                     ..TerrainCell::default()
                 })
                 .collect();
@@ -2152,10 +2167,16 @@ mod gpu_tests {
         }
 
         fn frame(&mut self) {
+            let camera = self.camera;
+            self.frame_as(&camera);
+        }
+
+        /// A frame seen through another camera (a camera of a mod).
+        fn frame_as(&mut self, camera: &dyn crate::camera::CameraView) {
             let commands = self.r.encode_frame(
                 &self.view,
                 &Scene::test(0.0),
-                &self.camera,
+                camera,
                 &UiDrawList::default(),
                 None,
             );
@@ -2316,6 +2337,146 @@ mod gpu_tests {
             .filter(|(a, b)| a != b)
             .count();
         assert_eq!(differ, 0, "pixels that differ between the two draws");
+    }
+
+    /// A first-person camera of a mod (client-hooks T27) 6.5 above the seen ground of a duel-sized map
+    /// with the fluid fog on: at every pitch from 60 degrees down to 20 up, once the frames have settled, every
+    /// open cell in view is drawn from a baked page, and the ground at the feet (the lower fifth of the
+    /// screen, all of it seen hexes) shows its page, not the base of the fog clouds. The camera hides the
+    /// clouds (`hide_fow_clouds`); the mask must still be drawn for its view. The camera used to switch the
+    /// whole fluid fog off: the cells read a mask of an older view through the projection of this one, the
+    /// flat grey-white ground of 2026-11-07, which changed with the pitch alone. The same holds when the
+    /// player switches the fluid fog off: the cells then read B1's fog, not the old mask.
+    #[test]
+    fn a_low_first_person_eye_sees_the_pages_of_the_ground_at_every_pitch() {
+        use crate::camera::FirstPerson;
+        let size = (480, 270);
+        let map = (40u32, 24u32);
+        let (hx, hy) = (20i32, 12i32);
+        // Seen within 3 hexes of the eye, never seen past that (the clouds' cells).
+        let fog = move |x: u32, y: u32| {
+            if (x as i32 - hx).abs() <= 3 && (y as i32 - hy).abs() <= 3 {
+                Fog::Visible
+            } else {
+                Fog::Unrevealed
+            }
+        };
+        let Some(mut live) =
+            Live::with_map("terrain low eye", vec![], vec![], true, size, map, &fog)
+        else {
+            return;
+        };
+        // The fluid fog with its clouds, as in the game: the cells read its mask and its base layer.
+        let clouds: std::collections::HashMap<_, _> = crate::terrain::fog::CLOUD_LAYERS
+            .iter()
+            .map(|l| {
+                let n = 8usize;
+                let data = (0..n * n).flat_map(|_| [235u8, 238, 245, 200]).collect();
+                (
+                    LogicalId::new(l.texture),
+                    TextureBlob {
+                        format: TextureFormat::Rgba8,
+                        dim: asset_format::TexDim::D2,
+                        srgb: false,
+                        width: n as u32,
+                        height: n as u32,
+                        depth: 1,
+                        mips: vec![data],
+                    },
+                )
+            })
+            .collect();
+        assert!(live.r.set_fog_clouds(&clouds));
+        live.camera = GameCamera::new(cell_center(hx, hy));
+        live.camera.set_level(16.0);
+        live.work_off();
+        live.settle();
+        let (_, _, heights) = live.r.plot_center_heights().expect("heights");
+        let at = cell_center(hx, hy);
+        let ground = heights[(hy as u32 * map.0 + hx as u32) as usize];
+        let mut cam = FirstPerson::new(glam::Vec3::new(at.x, ground + 6.5, at.y));
+        cam.yaw = 0.6;
+        let mut bad = Vec::new();
+        for deg in [-60i32, -45, -35, -25, -15, -5, 0, 10, 20] {
+            cam.pitch = (deg as f32).to_radians();
+            // A frame of the strategic camera (its fog mask), then the camera of the mod takes the screen,
+            // as when the player switches to it.
+            live.frame();
+            for _ in 0..240 {
+                live.frame_as(&cam);
+                if live.jobs_left() == 0 && live.r.terrain_system().live_stats().unpaged == 0 {
+                    break;
+                }
+            }
+            for _ in 0..3 {
+                live.frame_as(&cam);
+            }
+            dump(&live, &format!("low_eye_{deg}"));
+            let s = live.r.terrain_system().live_stats();
+            // The lower fifth of the screen: the ground within 80 units of the eye at every pitch, all of
+            // it seen hexes (they reach 190 units), below the horizon even at 20 degrees up.
+            let feet = |live: &Live| {
+                let px = read_texture(&live.gpu, &live.target, 0, 0, size, 4);
+                px[(size.0 * (size.1 * 4 / 5) * 4) as usize..].to_vec()
+            };
+            let hidden = feet(&live);
+            assert_eq!(
+                live.r.world().fluid_fow.cloud_counters().draws,
+                0,
+                "the camera hides the clouds"
+            );
+            // The same view with the fluid fog drawn (its mask made for this view): no cloud is over a
+            // seen hex, so the ground at the feet is the same picture.
+            let mut shown = cam;
+            shown.hide_fow_clouds = false;
+            for _ in 0..3 {
+                live.frame_as(&shown);
+            }
+            dump(&live, &format!("low_eye_{deg}_fow"));
+            let want = feet(&live);
+            let differ = hidden
+                .chunks_exact(4)
+                .zip(want.chunks_exact(4))
+                .filter(|(a, b)| a.iter().zip(*b).any(|(x, y)| x.abs_diff(*y) > 4))
+                .count();
+            eprintln!(
+                "pitch {deg:>4}: visible {} unpaged {} drawn {} px at the feet unlike the fog's own view \
+                 {differ} of {}",
+                s.visible,
+                s.unpaged,
+                s.drawn,
+                hidden.len() / 4
+            );
+            if s.unpaged > 0 || s.visible == 0 || differ > 0 {
+                bad.push((deg, s.visible, s.unpaged, differ));
+            }
+            // The player switches the fluid fog off (the mask is not drawn): the ground at the feet is
+            // still its pages, through B1's fog (whose soft edges are not the mask's, so the picture is
+            // not the same to the pixel): no pixel is the base of the clouds (235, 238, 245).
+            let player = live.r.layers().clone();
+            let (off, _) = crate::LayerSwitches::from_names("FluidFOW");
+            live.frame();
+            live.r.set_layers(off);
+            for _ in 0..3 {
+                live.frame_as(&cam);
+            }
+            dump(&live, &format!("low_eye_{deg}_off"));
+            let switched = feet(&live);
+            live.r.set_layers(player);
+            let clouded = switched
+                .chunks_exact(4)
+                .filter(|p| p[..3].iter().all(|&c| c > 180))
+                .count();
+            if clouded > 0 {
+                bad.push((deg, s.visible, s.unpaged, clouded));
+            }
+        }
+        assert!(
+            bad.is_empty(),
+            "pitches whose ground is not its pages (deg, cells in view, cells without a page, pixels at the \
+             feet unlike the view with the fog drawn, or of the clouds' colour with the fog switched off): \
+             {bad:?}"
+        );
     }
 
     /// Writes the picture as a PPM into `CIV5_DUMP_DIR` when it is set (the before/after crops).

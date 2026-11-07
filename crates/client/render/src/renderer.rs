@@ -503,9 +503,6 @@ pub struct Renderer {
     mod_gpu: crate::frame::ModGpu,
     /// Subsystems switched off; `plan` leaves them out.
     layers: LayerSwitches,
-    /// While the camera of a mod hides the fluid fog of war (`CameraHints::hide_fow_clouds`): the switches as
-    /// they were set, `layers` being those and the fog off. `None` for the strategic camera.
-    layers_base: Option<LayerSwitches>,
     /// What the camera of this frame asks besides its matrices; default (nothing asked) for the strategic one.
     cam_hints: CameraHints,
     /// The quality keys in force. `samples` follows them at start-up only.
@@ -1148,7 +1145,6 @@ impl Renderer {
             reflection_globals,
             mod_gpu,
             layers: LayerSwitches::new(),
-            layers_base: None,
             cam_hints: CameraHints::default(),
             settings,
             timer,
@@ -3625,8 +3621,11 @@ impl Renderer {
                 self.targets
                     .get(crate::frame::REFLECTION_COLOR)
                     .map(|t| t.view.clone()),
-                self.targets
-                    .get(crate::frame::FOW_MASK)
+                // The fog's mask while the fluid fog is in the plan (it draws it for this view); switched
+                // off, the target holds the mask of an older view: the water is drawn as seen instead.
+                (!self.layers.is_disabled(SystemId::FluidFow))
+                    .then(|| self.targets.get(crate::frame::FOW_MASK))
+                    .flatten()
                     .map(|t| t.view.clone()),
                 // The map of the overlay (the grid, the borders): its rectangle is the mask's
                 // (`MaskView::of` is `MapView` of the camera), the one `OverlayProjection` of the
@@ -3865,17 +3864,6 @@ impl Renderer {
     /// Switches subsystems off or on for the next frames; `render-core` leaves the switched-off
     /// ones out of the plan, so their `prepare` and `record` are not called.
     pub fn set_layers(&mut self, layers: LayerSwitches) {
-        // A camera that hides the fog of war holds the switches as set and applies its own over them.
-        let layers = match self.layers_base.as_mut() {
-            Some(base) => {
-                if layers == *base {
-                    return;
-                }
-                *base = layers.clone();
-                Self::without_fow_clouds(layers)
-            }
-            None => layers,
-        };
         if layers == self.layers {
             return;
         }
@@ -3883,26 +3871,15 @@ impl Renderer {
         self.layers = layers;
     }
 
-    fn without_fow_clouds(mut layers: LayerSwitches) -> LayerSwitches {
-        // The fluid fog is a system of the plan, so `disable` finds it; a refusal would leave things as they were.
-        layers.disable("FluidFOW").ok();
-        layers
-    }
-
-    /// Takes in what the camera of this frame asks (client-hooks C2): the hints for the passes, the fluid fog
-    /// off while the camera hides it and back on when it stops. The strategic camera asks nothing: no change.
+    /// Takes in what the camera of this frame asks (client-hooks C2): the hints for the passes, and the clouds
+    /// of the fluid fog hidden while the camera asks it and drawn again when it stops (the fog's mask is drawn
+    /// all the while: [`crate::world::fow::FluidFow::set_clouds_hidden`]). The strategic camera asks nothing:
+    /// no change.
     fn apply_camera_hints(&mut self, hints: CameraHints) {
         self.cam_hints = hints;
-        match (hints.hide_fow_clouds, self.layers_base.is_some()) {
-            (true, false) => {
-                self.layers_base = Some(self.layers.clone());
-                self.layers = Self::without_fow_clouds(self.layers.clone());
-            }
-            (false, true) => {
-                self.layers = self.layers_base.take().unwrap_or_default();
-            }
-            _ => {}
-        }
+        self.world
+            .fluid_fow
+            .set_clouds_hidden(hints.hide_fow_clouds);
     }
 
     /// True when no subsystem has baking or loading left, so a captured frame is final
@@ -4535,12 +4512,18 @@ impl Renderer {
                     let view_proj = camera.view_proj(aspect);
                     let eye = camera.eye();
                     // The fluid fog's mask (drawn this frame from the same view) and its lowest
-                    // cloud layer, as the original's cells read them.
+                    // cloud layer, as the original's cells read them. Only while the fluid fog is in the
+                    // plan: switched off (`[DisableSystems] FluidFOW`, the player's switch) it does not
+                    // draw the mask, and the target holds the mask of an older view, which the cells would
+                    // read through this view's rectangle (the seen ground the flat colour of the clouds,
+                    // 2026-11-07). The cells read B1's fog then, as the units do. A mod's camera that
+                    // hides the clouds keeps the mask drawn (`FluidFow::set_clouds_hidden`).
                     let fow = match (
                         self.targets.get(crate::frame::FOW_MASK),
                         self.world.fluid_fow.base_view(),
+                        self.layers.is_disabled(SystemId::FluidFow),
                     ) {
-                        (Some(mask), Some(base)) => {
+                        (Some(mask), Some(base), false) => {
                             let world_width = self
                                 .world
                                 .terrain

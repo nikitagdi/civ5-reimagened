@@ -314,6 +314,9 @@ pub struct FluidFow {
     mask_key: Option<MaskKey>,
     unrevealed_any: bool,
     mask_rebuilds: u64,
+    /// The clouds and the puffs are not drawn (`CameraHints::hide_fow_clouds` of a mod's camera); the mask
+    /// still is, for the current view.
+    clouds_hidden: bool,
 }
 
 /// What the instances of the mask depend on.
@@ -358,6 +361,7 @@ impl Default for FluidFow {
             mask_key: None,
             unrevealed_any: false,
             mask_rebuilds: 0,
+            clouds_hidden: false,
         }
     }
 }
@@ -472,6 +476,19 @@ impl FluidFow {
         self.level = fow_level;
     }
 
+    /// The clouds and the puffs are left out of the frame (a low camera of a mod sees them edge-on, a flat
+    /// strip) while the mask goes on being drawn for the current view: the ground, the water, the objects
+    /// and the overlay read it. Switching the whole system off left them a mask of an older view, read
+    /// through the rectangle of this one, and the seen ground went the flat colour of the clouds
+    /// (client-hooks C2, 2026-11-07).
+    pub fn set_clouds_hidden(&mut self, hidden: bool) {
+        self.clouds_hidden = hidden;
+    }
+
+    pub fn clouds_hidden(&self) -> bool {
+        self.clouds_hidden
+    }
+
     /// The clouds are drawn at this level.
     pub fn clouds_active(&self) -> bool {
         fluid_level(self.level) >= 1
@@ -583,7 +600,8 @@ impl RenderSystem for FluidFow {
             self.mask_key = Some(key);
             self.mask_rebuilds += 1;
         }
-        let (tiles, culled) = if fluid_level(self.level) >= 1 {
+        // Hidden clouds: no tile is planned (as at level 0); the mask above is made all the same.
+        let (tiles, culled) = if fluid_level(self.level) >= 1 && !self.clouds_hidden {
             visible_tiles(&view, &to_orig, self.cull.as_ref())
         } else {
             (Vec::new(), 0)
@@ -612,7 +630,10 @@ impl RenderSystem for FluidFow {
             };
             // No unrevealed hex in the mask rectangle: no puff can be seen, so none is simulated
             // or built (the fluid waits where it is until the fog is back).
-            if puffs_possible(fluid_level(self.level) >= 1, self.unrevealed_any) {
+            if puffs_possible(
+                fluid_level(self.level) >= 1 && !self.clouds_hidden,
+                self.unrevealed_any,
+            ) {
                 puffs.upload(cx.queue, Some(&frame));
             } else {
                 puffs.skip();
@@ -623,6 +644,7 @@ impl RenderSystem for FluidFow {
     fn record(&self, slot: PassSlot, cx: &mut DrawContext<'_, '_>) {
         if slot != PassSlot::Main(MainSlot::FluidFow)
             || !self.clouds_active()
+            || self.clouds_hidden
             || self.drawn.replace(self.frame) == self.frame
         {
             return;
@@ -659,7 +681,8 @@ impl RenderSystem for FluidFow {
     fn record_mask(&self, slot: PassSlot, cx: &mut MaskContext<'_, '_>) {
         // `FOG_BIT` where the clouds show. The pass has one byte per pixel and no blend: the bit
         // replaces the class of what lies under the clouds.
-        if slot != PassSlot::Main(MainSlot::FluidFow) || !self.clouds_active() {
+        if slot != PassSlot::Main(MainSlot::FluidFow) || !self.clouds_active() || self.clouds_hidden
+        {
             return;
         }
         if let Some(clouds) = &self.clouds {
