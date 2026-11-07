@@ -2839,6 +2839,16 @@ impl Renderer {
             overlay_alpha,
             reflect_vp_orig,
             far_lod,
+            // A low eye (a mod's first-person camera): the trees smaller, none around the eye. The
+            // clearance in the original's basis, as the distance of `FarLOD`.
+            near: self
+                .cam_hints
+                .objects
+                .filter(|o| !o.is_identity())
+                .map(|o| crate::world::forest::draw::TreesNearEye {
+                    scale: o.scale,
+                    clearance: o.clearance * ours_to_orig.transform_vector3(glam::Vec3::X).length(),
+                }),
         };
         let _s = crate::perf::slow::scope("forest.gpu_frame");
         gpu.frame(&self.device, &self.queue, &frame)
@@ -4751,6 +4761,16 @@ impl Renderer {
             } else {
                 cull
             };
+            // A low eye (a mod's first-person camera): the objects smaller about where they stand, and
+            // none that comes up to the eye in the view.
+            let cull = match self.cam_hints.objects.filter(|o| !o.is_identity()) {
+                Some(o) => cull.with_near(crate::world::unit::cull::NearEye {
+                    eye: camera.eye(),
+                    scale: o.scale,
+                    clearance: o.clearance,
+                }),
+                None => cull,
+            };
             for draw in [
                 self.world.unit.b2_draw(),
                 self.world.landmark.b2_draw(),
@@ -5001,8 +5021,14 @@ impl Renderer {
                 (Some(d), Some(m)) => Some((d, m)),
                 _ => None,
             },
-            // The models of the roads take the lines' place (WOB6).
-            lines: if landmarks_native && self.world.landmark.routes_native() {
+            // The models of the roads take the lines' place (WOB6). B1's lines lie on B1's heights (12 the
+            // land, 25 a hill top, plus 1), not on the native ground the frame draws and a mod's eye stands on:
+            // from above that is lost in the view, but to a low eye (a mod's camera, `CameraHints::near`) a
+            // line over a hill hangs in the sky as a flat brown band (2026-11-07). Such a camera does not
+            // draw them.
+            lines: if (landmarks_native && self.world.landmark.routes_native())
+                || self.cam_hints.near.is_some()
+            {
                 None
             } else {
                 self.decor.lines.as_ref()

@@ -87,5 +87,5 @@ pub mod gpu {
     };
     pub use render::glam;
     pub use render::wgpu;
-    pub use render::{CameraHints, CameraView, FirstPerson, ModCamera};
+    pub use render::{CameraHints, CameraView, FirstPerson, ModCamera, ObjectsNearEye};
 }

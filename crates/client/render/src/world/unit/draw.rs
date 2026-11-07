@@ -2183,7 +2183,11 @@ fn stage_copy(
             continue;
         }
         let slot = &mut fill[usize::from(m)];
-        let mut o = *item;
+        // A low eye draws the instance smaller about its origin (the sphere of the masks was the scaled one).
+        let mut o = match &cull.near {
+            Some(near) => near.scaled(item),
+            None => *item,
+        };
         o.world[0][3] += shift;
         slots[*slot] = o;
         *slot += 1;
@@ -2536,6 +2540,17 @@ mod tests {
             c.set_level(10.0);
             c
         };
+        frames_as(w, r, size, frames, &camera)
+    }
+
+    /// Draws `frames` frames through `camera` and gives the last one.
+    fn frames_as(
+        w: &World,
+        r: &mut Renderer,
+        size: (u32, u32),
+        frames: usize,
+        camera: &dyn crate::camera::CameraView,
+    ) -> Vec<u8> {
         let target = w.gpu.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("unit target"),
             size: wgpu::Extent3d {
@@ -2556,7 +2571,7 @@ mod tests {
             let commands = r.encode_frame(
                 &view,
                 &Scene::test(i as f32 / 30.0),
-                &camera,
+                camera,
                 &UiDrawList::default(),
                 None,
             );
@@ -2809,6 +2824,76 @@ mod tests {
             (1, 0, 1),
             "no z-fail flag; the unit family always casts a shadow"
         );
+    }
+
+    /// A first-person camera of a mod (client-hooks C2), the eye 6.5 above the ground, in front of a figure 40
+    /// tall: at the map's scale (`objects: None`) the figure fills the view when the eye walks up to it. With
+    /// [`ObjectsNearEye::FIRST_PERSON`](crate::camera::ObjectsNearEye) the figure seen from 80 away is about a
+    /// quarter of its pixels (half its size), and up close it is not drawn at all.
+    #[test]
+    fn a_low_eye_sees_a_figure_at_half_its_size_and_not_when_it_reaches_the_eye() {
+        use crate::camera::{FirstPerson, ObjectsNearEye};
+        let Some(gpu) = gpu(
+            "a_low_eye_sees_a_figure_at_half_its_size_and_not_when_it_reaches_the_eye",
+            wgpu::Backends::PRIMARY,
+            wgpu::Features::empty(),
+        ) else {
+            return;
+        };
+        let size = (128u32, 96u32);
+        let (w, mut r) = world(gpu, size, [0, 0, 255], Fog::Visible);
+        frames(&w, &mut r, size, 1);
+        let tex = LogicalId::new("tx:unit_base");
+        let (m, pack) = model(&tex, MaterialDesc::SKINNED);
+        let textures = [(tex, base_texture([255, 255, 255, 0]))].into();
+        r.add_unit_model_b2(
+            LogicalId::new("md:warrior"),
+            &m,
+            Some(pack),
+            None,
+            &textures,
+        );
+        frames(&w, &mut r, size, 4);
+        // The figure stands at the middle of its cell, facing south (+Z): the eye looks north at it.
+        let at = cell_center(3, 2);
+        let ground = r
+            .plot_center_heights()
+            .map_or(0.0, |(width, _, h)| h[(2 * width + 3) as usize]);
+        let blue = |px: &[u8]| {
+            px.chunks(4)
+                .filter(|p| p[2] > 100 && p[0] < 40 && p[1] < 40)
+                .count()
+        };
+        let mut look = |distance: f32, objects: Option<ObjectsNearEye>| {
+            let mut cam = FirstPerson::new(glam::Vec3::new(at.x, ground + 6.5, at.y + distance));
+            cam.objects = objects;
+            blue(&frames_as(&w, &mut r, size, 3, &cam))
+        };
+        let all = (size.0 * size.1) as usize;
+        let far_map = look(80.0, None);
+        let far_fp = look(80.0, Some(ObjectsNearEye::FIRST_PERSON));
+        let near_map = look(8.0, None);
+        let near_fp = look(8.0, Some(ObjectsNearEye::FIRST_PERSON));
+        eprintln!(
+            "figure px: 80 away {far_map} / {far_fp}, 8 away {near_map} / {near_fp} of {all}"
+        );
+        assert!(
+            far_map > 100,
+            "the figure is seen from 80 away ({far_map} px)"
+        );
+        // Half the size: a quarter of the pixels, give or take the edges.
+        assert!(
+            far_fp > 0 && far_fp * 3 < far_map && far_fp * 6 > far_map,
+            "half the size: {far_fp} of {far_map} px"
+        );
+        assert!(
+            near_map * 2 > all,
+            "at the map's scale it fills the view ({near_map} of {all})"
+        );
+        assert_eq!(near_fp, 0, "nothing at the eye");
+        // The strategic camera after it draws the figure as before.
+        let again = frames(&w, &mut r, size, 2);
+        assert!(blue(&again) > 0);
     }
 
     /// The class mask has the unit class where the figure stands.
@@ -3536,6 +3621,47 @@ mod culling_tests {
                 assert_ne!(s.passes(i, 0.0, &cull) & cull::MAIN, 0, "{x} {z}");
             }
         }
+    }
+
+    /// A low eye (a mod's first-person camera): the arena holds the instances scaled about their origin, in
+    /// every pass, and the one at the eye is in the shadow ranges but not in the view's.
+    #[test]
+    fn a_low_eye_stages_the_instances_scaled_and_leaves_the_one_at_the_eye_out_of_the_view() {
+        let items = grid(5, 20.0);
+        let near = cull::NearEye {
+            eye: Vec3::new(40.0, 2.0, 40.0),
+            scale: 0.5,
+            clearance: 2.0,
+        };
+        let cull = CullSet::new(None, None, None).with_near(near);
+        let s = sphere();
+        let mut staged = Vec::new();
+        let mut masks = Vec::new();
+        let out = stage_copy(&mut staged, &mut masks, &items, 0.0, &s, &cull);
+        assert_eq!(drawn(&out.ranges[0]), 24, "all but the one at the eye");
+        assert_eq!(drawn(&out.ranges[1]), 25, "every shadow");
+        let in_range = |ranges: &[Range<u32>], at: (f32, f32)| {
+            ranges
+                .iter()
+                .flat_map(|r| staged[r.start as usize..r.end as usize].iter())
+                .any(|i| (i.world[0][3], i.world[2][3]) == at)
+        };
+        assert!(!in_range(&out.ranges[0], (40.0, 40.0)));
+        assert!(in_range(&out.ranges[1], (40.0, 40.0)));
+        assert!(in_range(&out.ranges[0], (60.0, 40.0)));
+        // Every staged matrix is the scaled one: the origin where it was, the axes half as long.
+        for i in &staged {
+            assert_eq!(
+                [i.world[0][0], i.world[1][1], i.world[2][2]],
+                [0.5, 0.5, 0.5]
+            );
+        }
+        // Without it, the instances as they are.
+        let plain = CullSet::new(None, None, None);
+        let mut staged2 = Vec::new();
+        let out = stage_copy(&mut staged2, &mut masks, &items, 0.0, &s, &plain);
+        assert_eq!(drawn(&out.ranges[0]), 25);
+        assert_eq!(staged2, items);
     }
 
     /// The groups of a pass are few ranges, a copy of the map moved by a shift is staged by its

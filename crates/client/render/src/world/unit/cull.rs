@@ -11,6 +11,9 @@
 //!   is outside the rectangle in the light's own x and y cannot land in the map; no depth is tested
 //!   (the near and far of the light are 30 000 units), so the shadow that falls into the view from
 //!   a caster out of it is kept: the caster is in the rectangle when its shadow is.
+//!
+//! A low eye (a mod's first-person camera, [`crate::camera::ObjectsNearEye`]) adds [`NearEye`]: every
+//! instance is drawn smaller about its origin, and one whose sphere comes near the eye leaves the main view.
 
 use glam::{Mat4, Vec3, Vec4};
 
@@ -118,6 +121,37 @@ pub struct CullSet {
     /// The far-view LOD (`FarLOD`, [`crate::world::far_lod`]): the eye and the distance beyond
     /// which an instance leaves the shadow map and the reflection. `None` keeps them.
     pub far: Option<(Vec3, f32)>,
+    /// A low eye: the instances are scaled about their origin and the ones at the eye leave the main
+    /// view. `None`: the strategic frame, every instance as it is.
+    pub near: Option<NearEye>,
+}
+
+/// The objects around a low eye ([`crate::camera::ObjectsNearEye`], in our basis).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct NearEye {
+    pub eye: Vec3,
+    /// Every instance is drawn `scale` times its size about its origin (the translation of its matrix).
+    pub scale: f32,
+    /// An instance whose sphere (scaled) comes nearer `eye` than this is not in the main view.
+    pub clearance: f32,
+}
+
+impl NearEye {
+    /// The instance drawn `scale` times its size about its origin: `M * S(scale)`.
+    pub fn scaled(&self, item: &ObjectInstance) -> ObjectInstance {
+        let mut o = *item;
+        for row in &mut o.world {
+            for v in &mut row[..3] {
+                *v *= self.scale;
+            }
+        }
+        o
+    }
+
+    /// Whether a sphere (already scaled) comes nearer the eye than the clearance.
+    fn at_eye(&self, centre: Vec3, radius: f32) -> bool {
+        centre.distance(self.eye) - radius < self.clearance
+    }
 }
 
 impl CullSet {
@@ -128,6 +162,15 @@ impl CullSet {
             shadow: shadow.as_ref().map(Planes::sides),
             reflection: reflection.as_ref().map(Planes::sides),
             far: None,
+            near: None,
+        }
+    }
+
+    /// The same volumes, for a low eye: see [`NearEye`].
+    pub fn with_near(self, near: NearEye) -> Self {
+        Self {
+            near: Some(near),
+            ..self
         }
     }
 
@@ -146,6 +189,7 @@ impl CullSet {
             && self.shadow.is_none()
             && self.reflection.is_none()
             && self.far.is_none()
+            && self.near.is_none()
     }
 }
 
@@ -156,6 +200,9 @@ fn is_far(far: Option<(Vec3, f32)>, centre: Vec3, radius: f32) -> bool {
 
 /// The bits a far instance loses.
 const FAR_DROPS: u8 = SHADOW | REFLECTION;
+
+/// The bits an instance at a low eye loses: the view (its shadow and its reflection stay).
+const NEAR_DROPS: u8 = MAIN;
 
 /// The passes an instance is in: bits of the mask.
 pub const MAIN: u8 = 1;
@@ -170,6 +217,21 @@ pub struct ModelSphere {
 }
 
 impl ModelSphere {
+    /// The centre and the radius of the sphere of `item` moved by `shift` in X; with a low eye, of the instance
+    /// scaled about its origin (`near`).
+    fn place(&self, item: &ObjectInstance, shift: f32, near: Option<&NearEye>) -> (Vec3, f32) {
+        let c = item.transform_point(self.centre.to_array());
+        let radius = self.radius * item_scale(item);
+        match near {
+            None => (Vec3::new(c[0] + shift, c[1], c[2]), radius),
+            Some(n) => {
+                let o = Vec3::new(item.world[0][3], item.world[1][3], item.world[2][3]);
+                let c = o + (Vec3::from(c) - o) * n.scale;
+                (Vec3::new(c.x + shift, c.y, c.z), radius * n.scale.abs())
+            }
+        }
+    }
+
     /// An infinite sphere keeps the instance in every pass.
     pub const ALL: ModelSphere = ModelSphere {
         centre: Vec3::ZERO,
@@ -200,9 +262,7 @@ impl ModelSphere {
         if self.radius.is_infinite() {
             return MAIN | SHADOW | REFLECTION;
         }
-        let c = item.transform_point(self.centre.to_array());
-        let centre = Vec3::new(c[0] + shift, c[1], c[2]);
-        let radius = self.radius * item_scale(item);
+        let (centre, radius) = self.place(item, shift, cull.near.as_ref());
         let mut m = 0;
         if cull.main.is_none_or(|p| p.sees(centre, radius)) {
             m |= MAIN;
@@ -216,6 +276,9 @@ impl ModelSphere {
         }
         if is_far(cull.far, centre, radius) {
             m &= !FAR_DROPS;
+        }
+        if cull.near.is_some_and(|n| n.at_eye(centre, radius)) {
+            m &= !NEAR_DROPS;
         }
         m
     }
@@ -234,13 +297,40 @@ impl ModelSphere {
     ) {
         self.volume_masks_into(items, shift, cull, out);
         if let Some(far) = cull.far {
-            self.drop_far(items, shift, far, out);
+            self.drop_far(items, shift, far, cull.near.as_ref(), out);
+        }
+        if let Some(near) = &cull.near {
+            self.drop_near(items, shift, near, out);
+        }
+    }
+
+    /// A low eye on the masks of `items`: the instances whose sphere comes near it leave the main view. Only the
+    /// items in the view are tested (a low eye's neighbourhood is a few of them).
+    fn drop_near(&self, items: &[ObjectInstance], shift: f32, near: &NearEye, out: &mut [u8]) {
+        if self.radius.is_infinite() {
+            return;
+        }
+        for (item, m) in items.iter().zip(out.iter_mut()) {
+            if *m & NEAR_DROPS == 0 {
+                continue;
+            }
+            let (centre, radius) = self.place(item, shift, Some(near));
+            if near.at_eye(centre, radius) {
+                *m &= !NEAR_DROPS;
+            }
         }
     }
 
     /// The far-view LOD on the masks of `items`: the far ones lose their shadow and reflection.
     /// Boxes of [`CHUNK`] items wholly near (or wholly far) settle without a test of their own.
-    fn drop_far(&self, items: &[ObjectInstance], shift: f32, far: (Vec3, f32), out: &mut [u8]) {
+    fn drop_far(
+        &self,
+        items: &[ObjectInstance],
+        shift: f32,
+        far: (Vec3, f32),
+        near: Option<&NearEye>,
+        out: &mut [u8],
+    ) {
         if self.radius.is_infinite() {
             return;
         }
@@ -255,9 +345,7 @@ impl ModelSphere {
             let (mut lo, mut hi) = (Vec3::splat(f32::MAX), Vec3::splat(f32::MIN));
             let (mut rmax, mut sane) = (0.0f32, true);
             for (k, item) in chunk.iter().enumerate() {
-                let c = item.transform_point(self.centre.to_array());
-                centres[k] = Vec3::new(c[0] + shift, c[1], c[2]);
-                radii[k] = self.radius * item_scale(item);
+                (centres[k], radii[k]) = self.place(item, shift, near);
                 lo = lo.min(centres[k]);
                 hi = hi.max(centres[k]);
                 rmax = rmax.max(radii[k]);
@@ -328,9 +416,7 @@ impl ModelSphere {
             let (mut lo, mut hi) = (Vec3::splat(f32::MAX), Vec3::splat(f32::MIN));
             let (mut rmax, mut sane) = (0.0f32, true);
             for (k, item) in chunk.iter().enumerate() {
-                let c = item.transform_point(self.centre.to_array());
-                let centre = Vec3::new(c[0] + shift, c[1], c[2]);
-                let radius = self.radius * item_scale(item);
+                let (centre, radius) = self.place(item, shift, cull.near.as_ref());
                 centres[k] = centre;
                 radii[k] = radius;
                 // Huge or odd values: the boxes lose their meaning, test the items one by one.
@@ -619,6 +705,17 @@ mod tests {
             } else {
                 cull
             };
+            // A low eye in some rounds (with and without the far LOD): scaled instances, the ones at the eye
+            // out of the view.
+            let cull = if round % 3 == 1 {
+                cull.with_near(NearEye {
+                    eye: Vec3::new(rng.range(-30.0, 30.0), 3.0, rng.range(-30.0, 30.0)),
+                    scale: rng.range(0.2, 1.5),
+                    clearance: rng.range(0.0, 20.0),
+                })
+            } else {
+                cull
+            };
             for bounds in [
                 [-1.0, 0.0, -1.0, 1.0, 2.0, 1.0],
                 [0.0; 6],
@@ -725,6 +822,68 @@ mod tests {
                 "cull masks, 14000 items {label} ({seen} in main): per-item {t_old:.0} us, batched {t_new:.0} us"
             );
         }
+    }
+
+    /// A low eye (a mod's first-person camera): an instance is scaled about its origin, the point it stands on;
+    /// one whose scaled sphere comes nearer the eye than the clearance leaves the main view and keeps its
+    /// shadow and reflection; a big one that would reach the eye at the map's scale stays at half of it.
+    #[test]
+    fn a_low_eye_scales_the_instances_about_their_origin_and_leaves_out_the_ones_at_it() {
+        let near = NearEye {
+            eye: Vec3::new(0.0, 2.0, 0.0),
+            scale: 0.5,
+            clearance: 2.0,
+        };
+        // The scaled matrix: the origin stays, every other point comes half the way to it.
+        let item = item_at(30.0, 4.0, -10.0, 3.0);
+        let s = near.scaled(&item);
+        assert_eq!(s.transform_point([0.0; 3]), [30.0, 4.0, -10.0]);
+        assert_eq!(s.transform_point([2.0, 4.0, 0.0]), [33.0, 10.0, -10.0]);
+        assert_eq!(s.color, item.color);
+
+        let cull = CullSet::new(None, None, None).with_near(near);
+        assert!(!cull.is_off());
+        // A box 2 wide and 2 tall: sphere radius about 2.2 at scale 1.
+        let sphere = ModelSphere::of_box([-1.0, 0.0, -1.0, 1.0, 2.0, 1.0], false);
+        let all = MAIN | SHADOW | REFLECTION;
+        // At the eye's feet: out of the view, its shadow and reflection stay.
+        assert_eq!(
+            sphere.passes(&item_at(0.5, 0.0, 0.5, 1.0), 0.0, &cull),
+            SHADOW | REFLECTION
+        );
+        // Ten units off: in.
+        assert_eq!(
+            sphere.passes(&item_at(10.0, 0.0, 0.0, 1.0), 0.0, &cull),
+            all
+        );
+        // A figure 4 times the size 9 off: its sphere (about 8.6) reaches the eye's clearance at the map's
+        // scale; scaled by a half (4.3, its centre half as high) it does not.
+        let big = item_at(9.0, 0.0, 0.0, 4.0);
+        assert_eq!(sphere.passes(&big, 0.0, &cull), all);
+        let unscaled = CullSet::new(None, None, None).with_near(NearEye { scale: 1.0, ..near });
+        assert_eq!(sphere.passes(&big, 0.0, &unscaled), SHADOW | REFLECTION);
+        // A copy of the map: the shift moves the instance away from the eye.
+        assert_eq!(
+            sphere.passes(&item_at(0.5, 0.0, 0.5, 1.0), 100.0, &cull) & MAIN,
+            MAIN
+        );
+        // The batched masks agree.
+        let items: Vec<ObjectInstance> = (0..100)
+            .map(|k| item_at(k as f32 * 0.25 - 12.0, 0.0, 0.0, 1.0 + (k % 5) as f32))
+            .collect();
+        let mut out = Vec::new();
+        sphere.masks_into(&items, 0.0, &cull, &mut out);
+        for (i, item) in items.iter().enumerate() {
+            assert_eq!(out[i], sphere.passes(item, 0.0, &cull), "item {i}");
+        }
+        assert!(out.contains(&(SHADOW | REFLECTION)));
+        assert!(out.contains(&all));
+        // No near eye: the strategic masks, every instance as it is.
+        let plain = CullSet::new(None, None, None);
+        assert_eq!(
+            sphere.passes(&item_at(0.5, 0.0, 0.5, 1.0), 0.0, &plain),
+            all
+        );
     }
 
     #[test]

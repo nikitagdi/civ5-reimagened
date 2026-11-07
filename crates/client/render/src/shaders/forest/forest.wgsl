@@ -26,6 +26,12 @@ struct ForestVsConsts {
     OverlayProjection: mat4x4<f32>,
     g_FOWBaseScale: vec4<f32>,
     treeLocation: array<vec4<f32>, 90>,
+    // Not of the original: a low eye (a mod's first-person camera, `ObjectsNearEye`). `g_NearEye` is the
+    // eye relative to this copy of the map (xyz) and the clearance (w; 0 leaves every tree in);
+    // `g_ObjectView.x` the scale of the trees about their foot (1: the map's), `.y` the largest reach of a
+    // tree across at scale 1.
+    g_NearEye: vec4<f32>,
+    g_ObjectView: vec4<f32>,
 }
 @group(0) @binding(11) var<uniform> forest_vs_consts: ForestVsConsts;
 
@@ -309,6 +315,28 @@ fn forest_ss_reflect_ps_body(inp: ForestSsReflectPsIn) -> ForestPsOut {
 
 // ---- entries ----
 
+// The location of a tree as a low eye sees it: its scale times `g_ObjectView.x`. The strategic frame
+// (scale 1) takes the location as it is.
+fn forest_near_location(loc: vec4<f32>) -> vec4<f32> {
+    var l = loc;
+    let s = forest_vs_consts.g_ObjectView.x;
+    if (s != 1.0) {
+        l.w = loc.w * s;
+    }
+    return l;
+}
+
+// True when the crown of the tree at `loc` (already scaled) comes nearer the low eye than the clearance,
+// across: the tree is folded away, so the eye never stands inside its leaf cards.
+fn forest_near_hidden(loc: vec4<f32>) -> bool {
+    let n = forest_vs_consts.g_NearEye;
+    if (n.w <= 0.0) {
+        return false;
+    }
+    let crown = forest_vs_consts.g_ObjectView.y * abs(loc.w);
+    return distance(loc.xy, n.xy) < n.w + crown;
+}
+
 // The instance of a tree: its position and scale in the original's basis (the family fills
 // them from `StaticInstance`) and the variant (mesh) of the model it shows. One draw runs every
 // variant for each tree, in the back-to-front order of the trees (draw.rs).
@@ -343,12 +371,14 @@ struct ForestVertexOut {
 @vertex
 fn forest_vs(v: ForestVertexIn) -> ForestVertexOut {
     var out: ForestVertexOut;
-    if (v.variant != v.tree_variant) {
-        // Another variant than the tree's: the triangle folds to one point behind the near plane.
+    let loc = forest_near_location(v.tree_location);
+    if (v.variant != v.tree_variant || forest_near_hidden(loc)) {
+        // Another variant than the tree's (or a tree at a low eye): the triangle folds to one point
+        // behind the near plane.
         out.clip = vec4<f32>(0.0, 0.0, -1.0, 1.0);
         return out;
     }
-    let r = forest_vs_core(v.position, forest_texcoord(v.uv), v.tree_location);
+    let r = forest_vs_core(v.position, forest_texcoord(v.uv), loc);
     out.clip = r.o0;
     out.v0 = r.o1;
     out.v1 = r.o2;

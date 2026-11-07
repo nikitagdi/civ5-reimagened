@@ -34,9 +34,10 @@ fn forest_vs_pulled(v: ForestPulledIn) -> ForestVertexOut {
     var out: ForestVertexOut;
     let stride = pulled_indices[0];
     let i = pulled_indices[1u + v.tree_variant * stride + v.vertex];
-    if (i == PAD) {
-        // The padding folds to one point behind the near plane, as another variant does in
-        // `forest_vs`.
+    let loc = forest_near_location(v.tree_location);
+    if (i == PAD || forest_near_hidden(loc)) {
+        // The padding (or a tree at a low eye) folds to one point behind the near plane, as another
+        // variant does in `forest_vs`.
         out.clip = vec4<f32>(0.0, 0.0, -1.0, 1.0);
         return out;
     }
@@ -44,7 +45,7 @@ fn forest_vs_pulled(v: ForestPulledIn) -> ForestVertexOut {
     let r = forest_vs_core(
         vec3<f32>(p.px, p.py, p.pz),
         forest_texcoord(vec2<f32>(p.u, p.v)),
-        v.tree_location,
+        loc,
     );
     out.clip = r.o0;
     out.v0 = r.o1;

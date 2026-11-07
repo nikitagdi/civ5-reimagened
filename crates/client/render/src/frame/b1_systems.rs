@@ -1738,6 +1738,190 @@ mod tests {
         let _ = again;
     }
 
+    /// The brown band in the sky of a first-person camera (2026-11-07): B1's road lines (`ROAD_COLOR`, flat, unlit)
+    /// lie on B1's heights (a hill top 25, plus 1), not on the native heights (`plot_center_heights`, what a mod's
+    /// eye stands on). Seen from above that is lost in the picture; to a low eye on a hill under the road the line
+    /// hangs overhead (3088 of 19200 px here before). A camera of a mod (`CameraHints::near`) does not draw them;
+    /// the strategic camera still does.
+    #[test]
+    fn a_low_eye_sees_no_road_line_of_b1_overhead() {
+        use crate::camera::FirstPerson;
+        use crate::entities::roads::ROAD_COLOR;
+        use crate::lighting::tests::{boot_blobs_with, settings};
+        use crate::world::terrain::TerrainBasis;
+        let Some(gpu) = gpu(
+            "a_low_eye_sees_no_road_line_of_b1_overhead",
+            wgpu::Backends::PRIMARY,
+            wgpu::Features::empty(),
+        ) else {
+            return;
+        };
+        let size = (160u32, 120u32);
+        let mut r = Renderer::offscreen(&gpu, size, F::Rgba8Unorm, 1);
+        r.set_boot_required(true);
+        for (file, b) in boot_blobs_with(&[], &|_, _| [200, 200, 200, 255]) {
+            r.add_lighting_texture(&file, &b).unwrap();
+        }
+        r.set_world_settings(settings());
+        let cells: Vec<TerrainCell> = (0..24)
+            .map(|i| TerrainCell {
+                relief: if i == 2 * 6 + 3 || i == 2 * 6 + 4 {
+                    Relief::Hill
+                } else {
+                    Relief::Flat
+                },
+                kind: TerrainKind::Plains,
+                fog: Fog::Visible,
+                ..TerrainCell::default()
+            })
+            .collect();
+        let snapshot = TerrainSnapshot::new(6, 4, false, cells).unwrap();
+        r.set_terrain(&snapshot, &TerrainMesh::build(&snapshot));
+        r.set_terrain_basis(TerrainBasis::from_snapshot(&snapshot, 1).unwrap());
+        // A road over the two hills.
+        let road = |x| PlotDecor {
+            x,
+            y: 2,
+            route: Some(RouteKind::Road),
+            ..PlotDecor::default()
+        };
+        r.set_entities(EntitySnapshot {
+            plots: vec![road(3), road(4)],
+            ..EntitySnapshot::default()
+        });
+        let target = gpu.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("road target"),
+            size: wgpu::Extent3d {
+                width: size.0,
+                height: size.1,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: F::Rgba8Unorm,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let view = target.create_view(&wgpu::TextureViewDescriptor::default());
+        let draw = |r: &mut Renderer, camera: &dyn crate::camera::CameraView| {
+            for i in 0..6 {
+                let commands = r.encode_frame(
+                    &view,
+                    &Scene::test(i as f32 / 30.0),
+                    camera,
+                    &UiDrawList::default(),
+                    None,
+                );
+                gpu.queue.submit([commands]);
+                r.frame_submitted();
+            }
+            read_texture(&gpu, &target, 0, 0, size, 4)
+        };
+        let road_px = |px: &[u8]| {
+            px.chunks(4)
+                .filter(|p| (0..3).all(|k| p[k].abs_diff(ROAD_COLOR[k]) <= 6))
+                .count()
+        };
+        let strategic = {
+            let mut c = GameCamera::new(cell_center(3, 2));
+            c.set_level(10.0);
+            c
+        };
+        let from_above = road_px(&draw(&mut r, &strategic));
+        // The eye on the native hill under the line from the middle of (3, 2) east, looking up along it.
+        let at = cell_center(3, 2);
+        let ground = r
+            .plot_center_heights()
+            .map_or(0.0, |(width, _, h)| h[(2 * width + 3) as usize]);
+        let b1_line =
+            crate::terrain::terrain_height_at(&snapshot, at) + crate::entities::lines::LIFT;
+        let mut cam = FirstPerson::new(Vec3::new(at.x + 4.0, ground + 6.5, at.y));
+        cam.yaw = std::f32::consts::FRAC_PI_2;
+        cam.pitch = 0.9;
+        cam.sky_color = Some([0.0, 0.0, 1.0]);
+        let overhead = road_px(&draw(&mut r, &cam));
+        let again = road_px(&draw(&mut r, &strategic));
+        eprintln!(
+            "road px: from above {from_above}, first person {overhead}, above again {again}; native ground {ground}, \
+             B1 line {b1_line}"
+        );
+        assert!(
+            from_above > 20,
+            "the strategic camera draws the lines ({from_above} px)"
+        );
+        assert!(
+            b1_line > ground + 6.5,
+            "the B1 line ({b1_line}) is over the eye ({})",
+            ground + 6.5
+        );
+        assert_eq!(overhead, 0, "no road line in the sky of the low eye");
+        assert_eq!(again, from_above, "the strategic frame draws them again");
+    }
+
+    /// The water under a camera of a mod that hides the fog clouds (client-hooks C2): it reads the fog's mask the
+    /// fluid fog draws for this camera's view (the `FowMask` target of the frame), and none at all when the player
+    /// switches the fluid fog off (the target then holds the mask of an older view, which the surface would read
+    /// through this view's rectangle). The strategic camera after it reads the mask again.
+    #[test]
+    fn under_a_mod_camera_the_water_reads_the_current_fog_mask_or_none() {
+        use crate::camera::{FirstPerson, ModCamera, ModCameraView};
+        use crate::frame::{FOW_MASK, FrameSource};
+        use crate::gpu_test::block_on;
+        use crate::renderer::BackendPref;
+
+        let Ok(r) = block_on(Renderer::new_headless(SIZE, BackendPref::Auto)) else {
+            eprintln!(
+                "SKIP under_a_mod_camera_the_water_reads_the_current_fog_mask_or_none: no adapter"
+            );
+            return;
+        };
+        let mut r = fill_world(r);
+        let (_, camera) = cameras().into_iter().find(|(n, _)| *n == "wide").unwrap();
+        let ui = UiDrawList::default();
+        let scene = baseline_scene();
+        // Two frames: the water takes the views of the targets as they are when it is fed, and the pool makes a
+        // target in the first frame that asks for it.
+        let draw = |r: &mut Renderer, cam: &dyn crate::camera::CameraView| {
+            for _ in 0..2 {
+                let readback = r.read_frame(FrameSource::World);
+                r.render(&scene, cam, &ui, None).unwrap();
+                readback.wait().unwrap();
+            }
+        };
+        let mask_of_frame = |r: &Renderer| r.target(FOW_MASK).map(|t| t.view.clone());
+        let mut fp = FirstPerson::new(glam::Vec3::new(200.0, 12.0, -150.0));
+        fp.yaw = 0.7;
+        assert!(fp.hide_fow_clouds);
+        let low: &dyn ModCamera = &fp;
+
+        draw(&mut r, &ModCameraView(low));
+        assert!(r.world().fluid_fow.clouds_hidden());
+        let read = r.world().water.fow_mask_input().cloned();
+        assert!(
+            read.is_some(),
+            "the water reads a mask under the mod camera"
+        );
+        assert_eq!(read, mask_of_frame(&r), "the mask of this frame");
+
+        // The player switches the fluid fog off: no mask is drawn, and the water reads none.
+        let (off, _) = LayerSwitches::from_names("FluidFOW");
+        r.set_layers(off);
+        draw(&mut r, &ModCameraView(low));
+        assert_eq!(
+            r.world().water.fow_mask_input(),
+            None,
+            "FluidFOW off: no mask"
+        );
+
+        // Back on, and the strategic camera: the mask again.
+        r.set_layers(LayerSwitches::new());
+        draw(&mut r, &camera);
+        assert!(!r.world().fluid_fow.clouds_hidden());
+        assert_eq!(r.world().water.fow_mask_input().cloned(), mask_of_frame(&r));
+        assert!(r.world().water.fow_mask_input().is_some());
+    }
+
     /// A renderer without a window (R0.17): the same world twice gives the same bytes, the frame
     /// with the UI is the frame of the world here, `FixedCamera` with the matrices of a camera
     /// draws what the camera draws, and the class mask has land and water where they are.

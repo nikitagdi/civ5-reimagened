@@ -43,9 +43,9 @@ use crate::static_model::{StaticVertex, Variants, build_geometry};
 use crate::texture::{UploadOptions, upload_blob};
 use crate::world::terrain::draw::frustum_planes;
 
-/// Bytes of the constants of the vertex stage: two matrices, `g_FOWBaseScale` and the
-/// `treeLocation[90]` that the instance buffer replaces.
-const VS_BYTES: u64 = 64 * 2 + 16 + 16 * 90;
+/// Bytes of the constants of the vertex stage: two matrices, `g_FOWBaseScale`, the
+/// `treeLocation[90]` that the instance buffer replaces, and the two registers of a low eye.
+const VS_BYTES: u64 = 64 * 2 + 16 + 16 * 90 + 16 * 2;
 /// Distance between the constants of two copies of the map (a dynamic offset).
 const VS_STRIDE: u64 = 2048;
 /// Copies of a wrapping map a frame draws at most.
@@ -60,6 +60,26 @@ struct VsConsts {
     overlay_projection: [[f32; 4]; 4],
     fow_base_scale: [f32; 4],
     tree_location: [[f32; 4]; 90],
+    /// `g_NearEye`: the eye relative to this copy of the map (xyz, the original's basis) and the
+    /// clearance (w); a w of 0 leaves every tree in.
+    near_eye: [f32; 4],
+    /// `g_ObjectView`: the scale of the trees about their foot (x; 1 is the map's), the largest reach of a
+    /// tree across at scale 1 (y).
+    object_view: [f32; 4],
+}
+
+/// The constants of a frame with no low eye: every tree as it is.
+const NO_NEAR_EYE: ([f32; 4], [f32; 4]) = ([0.0; 4], [1.0, 0.0, 0.0, 0.0]);
+
+/// The trees around a low eye (a mod's first-person camera, [`crate::camera::ObjectsNearEye`]), in the
+/// original's basis.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TreesNearEye {
+    /// The trees are drawn this many times their size about their foot.
+    pub scale: f32,
+    /// A tree whose crown (its reach across, scaled, around the trunk) comes nearer the eye than this,
+    /// across, is not drawn in the view (its reflection stays).
+    pub clearance: f32,
 }
 
 #[repr(C)]
@@ -273,6 +293,8 @@ pub struct ForestFrame<'a> {
     /// The far-view LOD (`FarLOD`): a block whose box is wholly farther than this from `eye_orig`
     /// (the original's basis) draws its trees as the far mesh of the model. `None`: off.
     pub far_lod: Option<f32>,
+    /// A low eye: the trees smaller, none at the eye. `None`: the strategic frame.
+    pub near: Option<TreesNearEye>,
 }
 
 pub struct ForestDraw {
@@ -1054,17 +1076,38 @@ impl ForestDraw {
             self.shifts.push(0.0);
         }
         self.far = f.far_lod.map(|d| (f.eye_orig, d));
+        // The widest tree of the models drawn, at scale 1: the crown a low eye keeps clear of.
+        let reach = self
+            .sets
+            .values()
+            .filter_map(|set| self.models.get(&set.model))
+            .fold(0.0f32, |r, m| r.max(m.reach.0));
+        let near_regs = |shift: f32| match f.near {
+            Some(n) => (
+                [
+                    f.eye_orig.x - shift,
+                    f.eye_orig.y,
+                    f.eye_orig.z,
+                    n.clearance,
+                ],
+                [n.scale, reach, 0.0, 0.0],
+            ),
+            None => NO_NEAR_EYE,
+        };
         self.planes.clear();
         self.planes.resize(COPIES * 2, [Vec4::ZERO; 6]);
         for (i, &shift) in self.shifts.iter().enumerate() {
             // A copy of the map lies `shift` east: the trees move with it.
             let vp = f.view_proj_orig * Mat4::from_translation(Vec3::X * shift);
             self.planes[i] = frustum_planes(&vp);
+            let (near_eye, object_view) = near_regs(shift);
             let vs = VsConsts {
                 mtx_view_proj: row_major(vp),
                 overlay_projection: row_major(f.overlay_projection),
                 fow_base_scale: f.fow_base_scale,
                 tree_location: [[0.0; 4]; 90],
+                near_eye,
+                object_view,
             };
             queue.write_buffer(&self.vs, i as u64 * VS_STRIDE, bytemuck::bytes_of(&vs));
         }
@@ -1074,11 +1117,16 @@ impl ForestDraw {
             for (i, &shift) in self.shifts.iter().enumerate() {
                 let vp = reflect_vp * Mat4::from_translation(Vec3::X * shift);
                 self.planes[COPIES + i] = frustum_planes(&vp);
+                // The reflection keeps the trees at the eye (the eye is not the reflection camera's).
+                let (mut near_eye, object_view) = near_regs(shift);
+                near_eye[3] = 0.0;
                 let vs = VsConsts {
                     mtx_view_proj: row_major(vp),
                     overlay_projection: row_major(f.overlay_projection),
                     fow_base_scale: f.fow_base_scale,
                     tree_location: [[0.0; 4]; 90],
+                    near_eye,
+                    object_view,
                 };
                 queue.write_buffer(
                     &self.vs,
@@ -1527,22 +1575,19 @@ mod tests {
             }
         }
 
-        /// WOB3: the trees of a forest cell go through `ForestShader` once the fog mask, the light
-        /// tables and the art are in: the subsystem says it is native, draws every tree of the
-        /// cell, and no pipeline fails validation.
-        #[test]
-        fn a_forest_cell_is_drawn_through_the_forest_shader() {
-            let Some(gpu) = gpu(
-                "a_forest_cell_is_drawn_through_the_forest_shader",
-                wgpu::Backends::PRIMARY,
-                wgpu::Features::empty(),
-            ) else {
-                return;
-            };
-            let size = (128u32, 128u32);
-            let mut r = Renderer::offscreen(&gpu, size, wgpu::TextureFormat::Rgba8Unorm, 1);
+        fn cell(feat: FeatureKind) -> TerrainCell {
+            TerrainCell {
+                fog: Fog::Visible,
+                feat,
+                ..TerrainCell::default()
+            }
+        }
+
+        /// A renderer over a map of 6 x 4 with a forest on cell (3, 2) and its art: the tree of
+        /// [`tree`], the table of the terrain red (the ground reads it too; the trees go through it).
+        fn forest_world(gpu: &crate::gpu_test::Gpu, size: (u32, u32)) -> Renderer {
+            let mut r = Renderer::offscreen(gpu, size, wgpu::TextureFormat::Rgba8Unorm, 1);
             r.set_boot_required(true);
-            // The table of the terrain is red (the ground reads it too); the trees go through it.
             let colour = |file: &str, _: usize| {
                 if file.starts_with("terrain_") && file.ends_with("_colorkey.tga") {
                     [255, 0, 0, 255]
@@ -1554,11 +1599,6 @@ mod tests {
                 r.add_lighting_texture(&file, &b).unwrap();
             }
             r.set_world_settings(settings());
-            let cell = |feat| TerrainCell {
-                fog: Fog::Visible,
-                feat,
-                ..TerrainCell::default()
-            };
             let cells: Vec<TerrainCell> = (0..24)
                 .map(|i| {
                     cell(if i == 2 * 6 + 3 {
@@ -1588,6 +1628,23 @@ mod tests {
             ]
             .into();
             r.set_feature_art(FeatureArtSet::from_table(&table), &models, &textures);
+            r
+        }
+
+        /// WOB3: the trees of a forest cell go through `ForestShader` once the fog mask, the light
+        /// tables and the art are in: the subsystem says it is native, draws every tree of the
+        /// cell, and no pipeline fails validation.
+        #[test]
+        fn a_forest_cell_is_drawn_through_the_forest_shader() {
+            let Some(gpu) = gpu(
+                "a_forest_cell_is_drawn_through_the_forest_shader",
+                wgpu::Backends::PRIMARY,
+                wgpu::Features::empty(),
+            ) else {
+                return;
+            };
+            let size = (128u32, 128u32);
+            let mut r = forest_world(&gpu, size);
             let camera = {
                 let mut c = GameCamera::new(cell_center(3, 2));
                 c.set_level(10.0);
@@ -1681,6 +1738,137 @@ mod tests {
                 .filter(|(a, b)| a != b)
                 .count();
             assert!(differing > 200, "the trees changed {differing} pixels");
+        }
+
+        /// A first-person camera of a mod (client-hooks C2) in a forest cell, looking up against a blue sky
+        /// (no ground in the view). The eye 6.5 above the ground: a clearance that holds the whole cell
+        /// leaves only the sky, [`ObjectsNearEye::FIRST_PERSON`] takes the trees around the eye, and the
+        /// identity (scale 1, no clearance) is the frame without it, to the byte. The eye 22 above the
+        /// ground, over the crowns at half their size (15) and under them at the map's (30): at half the
+        /// size no tree reaches above it.
+        #[test]
+        fn a_low_eye_sees_the_trees_smaller_and_none_around_it() {
+            use crate::camera::{FirstPerson, ObjectsNearEye};
+            let Some(gpu) = gpu(
+                "a_low_eye_sees_the_trees_smaller_and_none_around_it",
+                wgpu::Backends::PRIMARY,
+                wgpu::Features::empty(),
+            ) else {
+                return;
+            };
+            let size = (128u32, 96u32);
+            let mut r = forest_world(&gpu, size);
+            let target = gpu.device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("forest target"),
+                size: wgpu::Extent3d {
+                    width: size.0,
+                    height: size.1,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+                view_formats: &[],
+            });
+            let view = target.create_view(&wgpu::TextureViewDescriptor::default());
+            let draw = |r: &mut Renderer, camera: &dyn crate::camera::CameraView| {
+                for _ in 0..6 {
+                    let commands = r.encode_frame(
+                        &view,
+                        &Scene::test(0.1),
+                        camera,
+                        &UiDrawList::default(),
+                        None,
+                    );
+                    gpu.queue.submit([commands]);
+                    r.frame_submitted();
+                }
+                read_texture(&gpu, &target, 0, 0, size, 4)
+            };
+            let strategic = {
+                let mut c = GameCamera::new(cell_center(3, 2));
+                c.set_level(10.0);
+                c
+            };
+            draw(&mut r, &strategic);
+            assert!(
+                r.world().forest.is_native(),
+                "the trees take the native path"
+            );
+            let at = cell_center(3, 2);
+            let ground = r
+                .plot_center_heights()
+                .map_or(0.0, |(width, _, h)| h[(2 * width + 3) as usize]);
+            let mut cam = FirstPerson::new(Vec3::new(at.x + 6.0, ground + 6.5, at.y + 4.0));
+            cam.yaw = 0.4;
+            cam.pitch = 1.2;
+            cam.sky_color = Some([0.0, 0.0, 1.0]);
+            let frame = |r: &mut Renderer, cam: FirstPerson, objects: Option<ObjectsNearEye>| {
+                draw(r, &FirstPerson { objects, ..cam })
+            };
+            cam.eye.y = ground + 22.0;
+            cam.pitch = 0.7;
+            let high_map = frame(&mut r, cam, None);
+            let high_half = frame(
+                &mut r,
+                cam,
+                Some(ObjectsNearEye {
+                    scale: 0.5,
+                    clearance: 0.0,
+                }),
+            );
+            cam.eye.y = ground + 6.5;
+            cam.pitch = 1.2;
+            let map = frame(&mut r, cam, None);
+            let identity = frame(
+                &mut r,
+                cam,
+                Some(ObjectsNearEye {
+                    scale: 1.0,
+                    clearance: 0.0,
+                }),
+            );
+            let cleared = frame(
+                &mut r,
+                cam,
+                Some(ObjectsNearEye {
+                    scale: 1.0,
+                    clearance: 500.0,
+                }),
+            );
+            let first_person = frame(&mut r, cam, Some(ObjectsNearEye::FIRST_PERSON));
+            // The tree pixels: those that are not the sky.
+            let sky = [cleared[0], cleared[1], cleared[2]];
+            let trees = |px: &[u8]| {
+                px.chunks(4)
+                    .filter(|p| p[..3].iter().zip(sky).any(|(x, y)| x.abs_diff(y) > 2))
+                    .count()
+            };
+            let (n_map, n_cleared, n_fp) = (trees(&map), trees(&cleared), trees(&first_person));
+            let (n_high_map, n_high_half) = (trees(&high_map), trees(&high_half));
+            eprintln!(
+                "tree px of {}: low eye: map {n_map}, cleared {n_cleared}, first person {n_fp}; \
+                 high eye: map {n_high_map}, half {n_high_half}",
+                size.0 * size.1
+            );
+            assert!(identity == map, "the identity is the frame without it");
+            assert!(
+                sky[2] > 200 && sky[0] < 40,
+                "the corner is the sky: {sky:?}"
+            );
+            assert!(n_map > 2000, "the crowns fill the view ({n_map} px)");
+            assert_eq!(n_cleared, 0, "no tree inside the clearance");
+            assert!(
+                n_fp * 2 < n_map,
+                "the first person's clearance takes the nearest: {n_fp} of {n_map}"
+            );
+            assert!(
+                n_high_map > 500,
+                "the crowns over the eye ({n_high_map} px)"
+            );
+            assert_eq!(n_high_half, 0, "at half the size no crown reaches the eye");
         }
     }
 

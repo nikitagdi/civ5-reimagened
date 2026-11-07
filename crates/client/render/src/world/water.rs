@@ -381,6 +381,12 @@ impl Water {
         self.inputs_revision += 1;
     }
 
+    /// The fog of war's mask the surface reads (`set_maps`); `None`: everything visible.
+    #[cfg(test)]
+    pub(crate) fn fow_mask_input(&self) -> Option<&wgpu::TextureView> {
+        self.inputs.fow.as_ref()
+    }
+
     /// The maps other subsystems make: the reflection target, the fog of war's mask, the overlay
     /// maps and the sun's shadow map. `None` stands for black, everything visible, transparent
     /// and no shadow. The views are the pool's; a frame that gives the same ones changes nothing.

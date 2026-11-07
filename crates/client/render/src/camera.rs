@@ -39,6 +39,40 @@ pub struct CameraHints {
     /// The colour (linear RGB, 0..1) the frame is cleared to, which is what shows where nothing is drawn: the sky of a
     /// horizontal view. `None`: the game's grey.
     pub sky_color: Option<[f64; 3]>,
+    /// How the objects of the world (units, cities, landmarks, resources, improvements, trees) are drawn around
+    /// a low eye. `None`: at the map's scale, wherever the eye is (the strategic frame).
+    pub objects: Option<ObjectsNearEye>,
+}
+
+/// The objects of the world as a low eye (a first-person camera) sees them (client-hooks C2). The strategic
+/// models are made for a view from far above: at their map scale they stand many times the height of a person,
+/// and an eye that walks up to one ends up inside it (a deer that fills the screen, the leaf cards of a forest
+/// around the eye). Lengths are world units of our basis (a hex is 64 wide; a block of 1 m is 4).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ObjectsNearEye {
+    /// Every object is drawn this many times its size about its ground anchor (the origin of its model, the point
+    /// it stands on), in every pass (its shadow too). The layout of a plot stays: a city keeps its streets, a herd
+    /// its spread, each piece is smaller. `1.0`: the map's scale.
+    pub scale: f32,
+    /// An object whose bounds (after `scale`) come nearer the eye than this is not drawn in the view (its shadow
+    /// and its reflection stay), so nothing is cut open by the near plane or fills the screen. For a unit, city or
+    /// landmark the bounds are its culling sphere; for a tree, the horizontal reach of its crown around the trunk.
+    /// `0.0`: nothing is left out.
+    pub clearance: f32,
+}
+
+impl ObjectsNearEye {
+    /// [`FirstPerson`]'s: half the map's scale (a deer about a block long, a unit about a person's height, the
+    /// buildings of a city a few blocks), and a clearance of half a block.
+    pub const FIRST_PERSON: Self = Self {
+        scale: 0.5,
+        clearance: 2.0,
+    };
+
+    /// True when it changes nothing (map scale, no clearance): the frame of a camera without it.
+    pub fn is_identity(&self) -> bool {
+        self.scale == 1.0 && self.clearance <= 0.0
+    }
 }
 
 /// A camera a mod holds in place of the strategic one (client-hooks C2). Besides the matrices (`CameraView`) it
@@ -70,6 +104,11 @@ pub trait ModCamera: CameraView {
     }
     /// The colour the frame is cleared to (the sky). Default: the game's grey.
     fn sky_color(&self) -> Option<[f64; 3]> {
+        None
+    }
+    /// How the objects are drawn around the eye. Default: as the strategic camera draws them (`None`); a camera
+    /// at the height of a person wants [`ObjectsNearEye::FIRST_PERSON`] or its own values.
+    fn objects_near_eye(&self) -> Option<ObjectsNearEye> {
         None
     }
 }
@@ -105,13 +144,15 @@ impl CameraView for ModCameraView<'_> {
             terrain_focus: Some(self.0.terrain_focus()),
             hide_fow_clouds: self.0.hide_fow_clouds(),
             sky_color: self.0.sky_color(),
+            objects: self.0.objects_near_eye(),
         }
     }
 }
 
 /// A free first-person camera: the eye, a yaw (0 looks along -Z, growing to +X) and a pitch, with the planes of
 /// a camera at the height of a person (near 0.5, far 3000, 75 degrees). The stand-in `CameraOverride` of
-/// `mod-client` maps onto it. Its terrain focus is the point under the eye.
+/// `mod-client` maps onto it. Its terrain focus is the point under the eye. The objects of the world are drawn at
+/// [`ObjectsNearEye::FIRST_PERSON`]; set `objects` to change that (`None`: the map's scale, nothing left out).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FirstPerson {
     pub eye: Vec3,
@@ -125,6 +166,8 @@ pub struct FirstPerson {
     pub hide_fow_clouds: bool,
     /// The sky: the clear colour of the frame. `None`: the game's grey.
     pub sky_color: Option<[f64; 3]>,
+    /// The objects around the eye: [`ObjectsNearEye::FIRST_PERSON`] by default.
+    pub objects: Option<ObjectsNearEye>,
 }
 
 impl FirstPerson {
@@ -143,6 +186,7 @@ impl FirstPerson {
             far_lod_distance: crate::world::far_lod::FAR_LOD_DISTANCE,
             hide_fow_clouds: true,
             sky_color: None,
+            objects: Some(ObjectsNearEye::FIRST_PERSON),
         }
     }
 
@@ -211,6 +255,10 @@ impl ModCamera for FirstPerson {
 
     fn sky_color(&self) -> Option<[f64; 3]> {
         self.sky_color
+    }
+
+    fn objects_near_eye(&self) -> Option<ObjectsNearEye> {
+        self.objects
     }
 }
 
@@ -506,6 +554,7 @@ mod tests {
         };
         assert_eq!(fixed.hints(), none);
         assert!(!none.hide_fow_clouds);
+        assert_eq!(none.objects, None, "the objects at the map's scale");
     }
 
     #[test]
@@ -519,6 +568,40 @@ mod tests {
         assert_eq!(hints.far_lod_distance, Some(900.0));
         assert_eq!(hints.terrain_focus, Some(glam::Vec2::new(10.0, -4.0)));
         assert!(hints.hide_fow_clouds);
+        assert_eq!(hints.objects, Some(ObjectsNearEye::FIRST_PERSON));
+        assert!(!ObjectsNearEye::FIRST_PERSON.is_identity());
+        // A camera of a mod that states nothing of the objects leaves them as the strategic camera draws them.
+        struct Bare(FirstPerson);
+        impl CameraView for Bare {
+            fn eye(&self) -> Vec3 {
+                self.0.eye()
+            }
+            fn view(&self) -> Mat4 {
+                self.0.view()
+            }
+            fn projection(&self, aspect: f32) -> Mat4 {
+                self.0.projection(aspect)
+            }
+        }
+        impl ModCamera for Bare {
+            fn near(&self) -> f32 {
+                0.5
+            }
+            fn far(&self) -> f32 {
+                3000.0
+            }
+            fn fov_y(&self) -> f32 {
+                1.0
+            }
+            fn terrain_focus(&self) -> glam::Vec2 {
+                glam::Vec2::ZERO
+            }
+        }
+        let bare = Bare(cam);
+        assert_eq!(ModCameraView(&bare).hints().objects, None);
+        let mut off = cam;
+        off.objects = None;
+        assert_eq!(off.hints().objects, None);
         // The view wrapper gives the same matrices and hints as the camera itself.
         let as_mod: &dyn ModCamera = &cam;
         let wrapped = ModCameraView(as_mod);
