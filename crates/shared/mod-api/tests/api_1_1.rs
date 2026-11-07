@@ -274,7 +274,7 @@ fn a_mod_sees_the_other_bodies_and_its_hits_are_collected() {
             hit(1, 7)
         )]
     );
-    assert_eq!(h.host.hits, d.hits, "the host keeps all of them too");
+    assert_eq!(h.hits(), d.hits, "the host keeps all of them too");
 }
 
 #[test]
@@ -331,4 +331,20 @@ fn the_hit_queue_by_itself() {
     let (hits, warn) = q.finish();
     assert!(hits.is_empty() && warn.is_some());
     assert_eq!(HitQueue::new().finish(), (Vec::new(), None));
+}
+
+/// The 1.0 way to build the mock host (a struct literal, as the conformance harness does) still compiles.
+#[test]
+fn the_mock_host_keeps_its_1_0_fields() {
+    let mut h = MockCtx {
+        caps: Caps::all(),
+        host: mod_api::testing::MockHost {
+            facts: MockFacts::new(2, 2),
+            limiter: mod_api::Limiter::new(&[chan()], 64),
+            now_ms: 7,
+            logs: Vec::new(),
+        },
+    };
+    assert_eq!(h.cx().now_ms(), 7);
+    assert!(h.host.facts.bodies().published.is_empty());
 }

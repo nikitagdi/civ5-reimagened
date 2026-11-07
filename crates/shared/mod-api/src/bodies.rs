@@ -133,7 +133,7 @@ pub fn prepare_bodies(mut bodies: Vec<Body>, owner: &ModId) -> (Vec<Body>, Optio
 
 /// The hits one call queued (host side of `ServerCtx::hit`): at most [`MAX_HITS_PER_CALL`], none while a hit is being
 /// delivered (`nested`). What was refused is counted for one warning per call.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct HitQueue {
     hits: Vec<(BodyRef, Hit)>,
     nested: bool,
