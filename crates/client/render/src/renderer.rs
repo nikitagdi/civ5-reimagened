@@ -60,7 +60,7 @@ use crate::world::fow::{FOG_HIDDEN_FACTOR, FogInput};
 use crate::world::objects::input::{EntityChanges, ObjectStat};
 use crate::world::overlay::OwnersInput;
 use crate::world::path::PathInput;
-use crate::world::terrain::{PlotBasis, TerrainBasis, TerrainM1, partition_by_class};
+use crate::world::terrain::{GroundShare, PlotBasis, TerrainBasis, TerrainM1, partition_by_class};
 
 /// Web `Auto` tries WebGPU, then WebGL2.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -405,6 +405,11 @@ pub struct Renderer {
     cutout_revision: u64,
     /// The snapshot last given to [`Renderer::set_terrain`], for the feature layers.
     snapshot: Option<TerrainSnapshot>,
+    /// The hexes a mod lets the player draw the ground of without revealing them (mod API 1.2).
+    ground_share: GroundShare,
+    /// The fog as the caller gave it (`set_fog`, or the snapshot's): the minimap gets it as it is, the ground with
+    /// the share.
+    raw_fog: Option<FogInput>,
     decal_pipeline: DecalPipeline,
     statics: StaticRenderer,
     features: Option<FeatureGpu>,
@@ -1092,6 +1097,8 @@ impl Renderer {
             terrain_material,
             cutout_revision,
             snapshot: None,
+            ground_share: GroundShare::default(),
+            raw_fog: None,
             decal_pipeline,
             statics,
             features: None,
@@ -1279,8 +1286,10 @@ impl Renderer {
             },
         });
         self.set_ground_overlays(snapshot);
-        // The fog of the cells goes to the terrain subsystem too: it picks the cells to build.
-        let fog: Vec<_> = snapshot.cells().iter().map(|c| c.fog).collect();
+        // The fog of the cells goes to the terrain subsystem too: it picks the cells to build. A hex a mod shares is
+        // built and drawn like fogged revealed land (mod API 1.2).
+        let mut fog: Vec<_> = snapshot.cells().iter().map(|c| c.fog).collect();
+        self.ground_share.ground_fog(&mut fog);
         self.world.terrain.set_fog(&fog);
         self.snapshot = Some(snapshot.clone());
         self.snapshot_gen += 1;
@@ -2024,11 +2033,70 @@ impl Renderer {
         self.share_fog_state();
     }
 
-    /// The fog to both fogs: the fluid one and the classic one (`FOWLevel` 0).
+    /// The fog to both fogs: the fluid one and the classic one (`FOWLevel` 0). They cover the ground, so they get it
+    /// with the hexes a mod shares revealed and not seen; the minimap tells the player what was revealed and gets the
+    /// fog as it is.
     fn feed_fog(&mut self, fog: FogInput) {
         self.world.minimap.set_fog(&fog);
-        self.world.fow_classic.set_fog(Some(fog.clone()));
-        self.world.fluid_fow.set_fog(fog);
+        self.raw_fog = Some(fog.clone());
+        let ground = self.ground_share.ground_input(fog);
+        self.world.fow_classic.set_fog(Some(ground.clone()));
+        self.world.fluid_fow.set_fog(ground);
+    }
+
+    /// The hexes a mod lets the player draw the ground of although the player has not revealed them (mod API 1.2,
+    /// `GameMsg::TerrainShare`), with their basis records: the terrain builds and draws them like fogged revealed
+    /// land (relief, ground, water, the trees of their features), so a first-person camera there stands on the
+    /// relief every client sees. The minimap, the snapshot (units, cities, improvements, routes, resources) and the
+    /// camera bounds keep the real fog. A shared hex that is unrevealed takes the record when the basis differs (a
+    /// basis made from a snapshot that knew nothing of it); with the game's `MapBasis` they are the same. The same
+    /// share again does nothing; an empty one ends it.
+    pub fn set_ground_share(&mut self, records: Vec<(u32, PlotBasis)>) {
+        let share = GroundShare::new(records);
+        if share == self.ground_share {
+            return;
+        }
+        self.ground_share = share;
+        // The records of the unrevealed shared hexes the basis does not have.
+        let unrevealed = |i: u32| {
+            self.snapshot
+                .as_ref()
+                .and_then(|s| s.cells().get(i as usize))
+                .is_none_or(|c| c.fog == crate::terrain::Fog::Unrevealed)
+        };
+        let patch: Vec<(u32, PlotBasis)> = match self.world.terrain.basis() {
+            Some(b) => self
+                .ground_share
+                .records()
+                .iter()
+                .filter(|(i, r)| unrevealed(*i) && b.plots.get(*i as usize).is_some_and(|p| p != r))
+                .copied()
+                .collect(),
+            None => Vec::new(),
+        };
+        if !patch.is_empty() {
+            self.world.terrain.patch_basis(&patch);
+        }
+        if let Some(s) = self.snapshot.as_ref() {
+            let mut fog: Vec<_> = s.cells().iter().map(|c| c.fog).collect();
+            self.ground_share.ground_fog(&mut fog);
+            self.world.terrain.set_fog(&fog);
+        }
+        if let Some(raw) = self.raw_fog.clone() {
+            self.feed_fog(raw);
+            self.share_fog_state();
+        }
+    }
+
+    /// The hexes of the ground share in force (`set_ground_share`).
+    pub fn ground_share(&self) -> &GroundShare {
+        &self.ground_share
+    }
+
+    /// The fog as the caller gave it, before the ground share (what the minimap has).
+    #[cfg(test)]
+    pub(crate) fn fog_as_given(&self) -> Option<&FogInput> {
+        self.raw_fog.as_ref()
     }
 
     /// The owner of every cell and the colour of every owner (`Overlay`: the borders). The same
@@ -3184,6 +3252,8 @@ impl Renderer {
     /// sets them up again from nothing.
     pub fn clear_world(&mut self) {
         self.clear_terrain();
+        self.ground_share = GroundShare::default();
+        self.raw_fog = None;
         self.world.terrain.unload();
         self.world.unit.clear();
         self.world.city.clear();

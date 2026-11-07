@@ -41,6 +41,7 @@ pub mod pick;
 pub mod sampler;
 pub mod settings_map;
 pub mod shadow_pass;
+pub mod share;
 pub mod stencil;
 
 use std::collections::VecDeque;
@@ -67,6 +68,7 @@ pub use live::{LiveInputs, LiveStats, LiveView};
 pub use m1::{ClassRanges, TerrainM1, env_class, partition_by_class};
 pub use sampler::{TerrainFrame, TerrainSampler};
 pub use settings_map::TerrainSettings;
+pub use share::GroundShare;
 pub use stencil::TerrainStencil;
 
 use crate::frame::{

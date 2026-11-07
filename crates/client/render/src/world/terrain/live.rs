@@ -2469,6 +2469,134 @@ mod gpu_tests {
         );
     }
 
+    /// Mod API 1.2, the ground share: a first-person camera of a mod stands in hexes the player never revealed (an
+    /// arena in another player's land). Without the share their cells are not built, the heights there are the empty
+    /// field's and the ground at the feet is not drawn; once the hexes are shared their cells are built from the basis
+    /// (the hill under the eye has its height), drawn from baked pages, and the ground at the feet is drawn. The fog
+    /// the minimap gets stays as it was: the hexes are still unrevealed there.
+    #[test]
+    fn a_first_person_eye_over_shared_unrevealed_hexes_sees_the_ground() {
+        use crate::camera::FirstPerson;
+        use crate::terrain::Relief;
+        let size = (480, 270);
+        let map = (40u32, 24u32);
+        let (hx, hy) = (20i32, 12i32);
+        // Only the far west was ever seen: the eye stands in hexes the player has not revealed.
+        let fog = |x: u32, _y: u32| {
+            if x < 4 { Fog::Visible } else { Fog::Unrevealed }
+        };
+        let Some(mut live) = Live::with_map("terrain share", vec![], vec![], true, size, map, &fog)
+        else {
+            return;
+        };
+        // Hills around the eye, so a height there is the basis's and not the empty field's.
+        let mut basis =
+            TerrainBasis::uniform(map.0 as u16, map.1 as u16, true, 1, PlotBasis::default());
+        let near = |i: usize| {
+            let (x, y) = ((i as u32 % map.0) as i32, (i as u32 / map.0) as i32);
+            (x - hx).abs() <= 3 && (y - hy).abs() <= 3
+        };
+        for (i, p) in basis.plots.iter_mut().enumerate() {
+            if near(i) {
+                p.relief = Relief::Hill;
+            }
+        }
+        let shared: Vec<(u32, PlotBasis)> = basis
+            .plots
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| near(*i))
+            .map(|(i, p)| (i as u32, *p))
+            .collect();
+        live.r.set_terrain_basis(basis);
+        live.camera = GameCamera::new(cell_center(2, hy));
+        live.camera.set_level(16.0);
+        live.work_off();
+        live.settle();
+        let at = cell_center(hx, hy);
+        let mut cam = FirstPerson::new(glam::Vec3::new(at.x, 40.0, at.y));
+        cam.yaw = 0.6;
+        cam.pitch = (-25f32).to_radians();
+        let feet = |live: &Live| {
+            let px = read_texture(&live.gpu, &live.target, 0, 0, size, 4);
+            px[(size.0 * (size.1 * 4 / 5) * 4) as usize..].to_vec()
+        };
+        let settle_as = |live: &mut Live, cam: &FirstPerson| {
+            for _ in 0..240 {
+                live.frame_as(cam);
+                if live.jobs_left() == 0
+                    && live.r.terrain_system().pending_work() == 0
+                    && live.r.terrain_system().live_stats().unpaged == 0
+                {
+                    break;
+                }
+            }
+            for _ in 0..3 {
+                live.frame_as(cam);
+            }
+        };
+        // Not shared: the cells under the eye are not built and nothing is drawn at the feet.
+        settle_as(&mut live, &cam);
+        dump(&live, "share_before");
+        assert!(
+            !live.r.terrain_system().cell_done(hx, hy),
+            "an unrevealed cell is not built"
+        );
+        let before = feet(&live);
+        let first = before[..4].to_vec();
+        let flat_before = before.chunks_exact(4).filter(|p| *p == &first[..]).count();
+        let (_, _, heights) = live.r.plot_center_heights().expect("heights");
+        let unbuilt = heights[(hy as u32 * map.0 + hx as u32) as usize];
+
+        live.r.set_ground_share(shared.clone());
+        assert_eq!(live.r.ground_share().len(), shared.len());
+        settle_as(&mut live, &cam);
+        dump(&live, "share_after");
+        assert!(
+            live.r.terrain_system().cell_done(hx, hy),
+            "the shared cell is built"
+        );
+        let s = live.r.terrain_system().live_stats();
+        assert!(s.visible > 0 && s.unpaged == 0, "{s:?}");
+        let (_, _, heights) = live.r.plot_center_heights().expect("heights");
+        let ground = heights[(hy as u32 * map.0 + hx as u32) as usize];
+        assert!(
+            ground > unbuilt + 1.0,
+            "the hill under the eye has its height: {ground} (unbuilt {unbuilt})"
+        );
+        // The ground at the feet is drawn: the picture is no longer the one colour it was.
+        let after = feet(&live);
+        let flat_after = after.chunks_exact(4).filter(|p| *p == &first[..]).count();
+        eprintln!(
+            "px at the feet of the background colour: before {flat_before}, after {flat_after} of {}",
+            after.len() / 4
+        );
+        assert!(
+            flat_before * 10 > before.len() / 4 * 9,
+            "before: nothing drawn at the feet"
+        );
+        assert!(
+            flat_after * 10 < after.len() / 4,
+            "after: the ground is drawn at the feet"
+        );
+        // The ground's fog has the hexes fogged; the fog as given (the minimap's) still has them unrevealed.
+        let i = (hy as u32 * map.0 + hx as u32) as usize;
+        assert_eq!(
+            live.r.world().fluid_fow.fog().map(|f| f.cells[i]),
+            Some(Fog::Hidden)
+        );
+        assert_eq!(
+            live.r.fog_as_given().map(|f| f.cells[i]),
+            Some(Fog::Unrevealed)
+        );
+        // The share ends: the ground's fog is the real one again.
+        live.r.set_ground_share(Vec::new());
+        assert_eq!(
+            live.r.world().fluid_fow.fog().map(|f| f.cells[i]),
+            Some(Fog::Unrevealed)
+        );
+    }
+
     /// T27c: a first-person camera of a mod that takes over from the strategic one and walks up to a hex
     /// draws the cells at its feet from the largest page. The cells were in view all along, at a smaller
     /// width, and kept the 256 pages they got then (the ground at the feet a blur, the page magnified tens
