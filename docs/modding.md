@@ -81,6 +81,7 @@ softly and the mod keeps running:
 | `render.pipeline` | A render system in the mod slot of the frame |
 | `camera`, `terrain.cutout` | A camera override, a mask that cuts holes in the terrain |
 | `world.bodies` | Publishing hit boxes, seeing those of the other mods and dealing hits to them (server, API 1.1) |
+| `world.share_terrain` | Letting a seat draw the ground of hexes it has not revealed (server, API 1.2, cosmetic) |
 | `kv` | A small per-mod key-value store in the browser |
 | `audio`, `assets` | Sounds, the mod's asset pack |
 
@@ -109,7 +110,7 @@ The server half implements `ServerMod`: `start(saved)`, `on_client`, `on_attach`
 reconnecting seat), `on_turn`, `persist`, and optionally `is_dirty` and `mark_saved`. It returns the messages to
 send and the host delivers them. A panic in a mod disables it for that game; the game goes on.
 
-The mod API is at version 1.1. What 1.1 added (every new method has a default, so a 1.0 mod builds unchanged):
+The mod API is at version 1.2. What 1.1 added (every new method has a default, so a 1.0 mod builds unchanged):
 
 - **Clock and tick.** `ServerCtx::now_ms()` is the host's monotonic clock in milliseconds. With `tick_hz` in
   `[rust]` the game actor calls `ServerMod::on_tick(cx, now_ms)` that many times a second, serialised with the other
@@ -130,6 +131,22 @@ The mod API is at version 1.1. What 1.1 added (every new method has a default, s
 The mock hosts follow: `MockCtx::tick`, `detach` and `hit` drive the new calls, `set_other_bodies` sets the bodies of
 the other mods, `published_bodies` and `hits` read back what the mod did; `MockClientCtx::control_holder` plays
 another mod in its mode.
+
+What 1.2 added (a 1.1 mod builds unchanged):
+
+- **Terrain share** (`world.share_terrain`, cosmetic). A seat's client draws the ground only of the hexes the seat
+  has revealed; elsewhere there is no relief to stand on. `ServerCtx::share_terrain(seat, &plots)` lets that seat draw
+  the ground of those plots although it has not revealed them (an arena in another player's land), and
+  `ServerCtx::unshare_terrain(seat)` ends this mod's share for the seat. The host sends the seat, and only that seat,
+  the fog-free basis records of the plots that are new to it (terrain, relief, continent art, lake and coast flags,
+  rivers, relief features such as marsh or a natural wonder): the same records every client builds its relief from,
+  so the relief is the same on every client. No owner, unit, city, improvement, route or resource goes with them.
+  The client draws the plots like fogged revealed land (relief, ground, water, the trees of a forest or jungle);
+  they stay unrevealed for the game: the strategic map, the minimap, the tooltips and the orders see nothing new.
+  At most 256 plots a call into the mod; duplicates, plots off the map and plots the mod already shared to the seat
+  are not sent again. A seat that lacks the mod gets nothing. The share lasts until the unshare, until the seat's
+  client goes away (`on_detach`; share again in the next `on_attach`, which starts from nothing) or the game ends.
+  The mock host lists what it would have sent (`MockCtx::terrain_shares`) and what a seat holds (`MockCtx::shared`).
 
 ## Distribution workflow
 
