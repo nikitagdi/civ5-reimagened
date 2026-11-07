@@ -109,6 +109,9 @@ pub struct CacheCounters {
     pub spec_restored: u64,
     /// Base pages baked in the background, for cells out of view (`terrain.background.paged_total`).
     pub background_baked: u64,
+    /// Near pages of cells in view swapped for a page of the size their width now asks for
+    /// ([`TerrainCache::resize_near`]).
+    pub resized: u64,
 }
 
 fn size_slot(size: u32) -> usize {
@@ -143,6 +146,9 @@ pub struct CacheEntry {
     /// bakes it again is done (the job writes the page whole in one frame, before the draw reads it).
     pub cache_stale: bool,
     pub near_stale: bool,
+    /// The near page of the size the cell had before it was resized in view, and its highlight page
+    /// ([`TerrainCache::resize_near`]): drawn until the job of the new one is done, then given back.
+    near_old: Option<(PageId, Option<PageId>)>,
     /// A job for each page is out and not reported.
     cache_out: bool,
     near_out: bool,
@@ -158,6 +164,22 @@ impl CacheEntry {
 
     pub fn has_pending(&self) -> bool {
         self.cache_out || self.near_out
+    }
+
+    /// The page the cell is drawn from and its highlight page: the near page once it is baked, the near
+    /// page of the old size while the new one bakes, else the cache page once it is baked (its highlight
+    /// page once that is baked too).
+    pub fn drawn_page(&self) -> Option<(PageId, Option<PageId>)> {
+        if self.near_ready {
+            self.near_page.map(|p| (p, self.near_spec))
+        } else if let Some(old) = self.near_old {
+            Some(old)
+        } else if self.cache_ready {
+            self.cache_page
+                .map(|p| (p, self.cache_spec.filter(|_| self.cache_spec_ready)))
+        } else {
+            None
+        }
     }
 }
 
@@ -750,6 +772,70 @@ impl TerrainCache {
         }
     }
 
+    /// A cell in view whose baked near page is not of the size its width asks for now gets one of that
+    /// size when its pool has a page free (no page is taken from another cell for it). The old page is
+    /// drawn until the new one is baked, then goes back to its pool. A cell that now asks for no more
+    /// than the cache page gives its near page back and is drawn from the cache page. Without this a
+    /// cell kept the page it got when it came into view for as long as it stayed in view: walked up to
+    /// by a low eye (a camera of a mod) or zoomed in on, it was drawn from a page of a far cell, the
+    /// ground at the feet a page of 256 or 128 magnified tens of times. Returns whether the cell was
+    /// resized (a job made, or the near page given back).
+    // re: Terrain::LaunchJobs (Terrain.cpp:1027-1035): a cell of status 5 whose `m_uPageSize` is not
+    // `m_uMipSizeNeeded` goes back to the build when `CachePageAvailable(m_uMipSizeNeeded)`; its next
+    // `RequestUncompressedTextures` (TerrainCell.cpp:1512-1576) takes a page of the new size
+    pub fn resize_near(&mut self, cell: usize, width_px: f32) -> bool {
+        let Some((want, _)) = self.resize_wanted(cell, width_px) else {
+            return false;
+        };
+        if want <= self.cache_size {
+            self.demote(cell);
+            self.counters.resized += 1;
+            return true;
+        }
+        let Some(page) = self.pools.pool_mut(want).and_then(|p| p.get()) else {
+            return false;
+        };
+        let spec = self.spec_page_for(cell, page);
+        let e = &mut self.entries[cell];
+        e.near_old = e.near_page.take().map(|p| (p, e.near_spec.take()));
+        e.near_page = Some(page);
+        e.near_spec = spec;
+        e.near_ready = false;
+        e.near_stale = false;
+        self.counters.resized += 1;
+        self.push_job(cell, PageKind::Near, page);
+        true
+    }
+
+    /// The size a cell of this width would be resized to by [`Self::resize_near`] now, and whether that
+    /// is bigger than its page: `None` when its near page is of that size, not baked yet, has a job out,
+    /// or the pool of that size has no page free (`CachePageAvailable`).
+    fn resize_wanted(&self, cell: usize, width_px: f32) -> Option<(u32, bool)> {
+        let want = self.page_size(width_px);
+        let e = &self.entries[cell];
+        let have = e.near_page?;
+        if have.size == want || !e.near_ready || e.has_pending() || e.near_old.is_some() {
+            return None;
+        }
+        let ok = if want <= self.cache_size {
+            e.cache_ready && !e.cache_stale
+        } else {
+            self.pools.page_available(want)
+        };
+        ok.then_some((want, want > have.size))
+    }
+
+    /// The near page of the old size the cell was drawn from while the new one baked goes back to its
+    /// pool.
+    fn release_near_old(&mut self, cell: usize) {
+        if let Some((p, s)) = self.entries[cell].near_old.take() {
+            self.pools.release(p);
+            if let Some(s) = s {
+                self.pools.release(s);
+            }
+        }
+    }
+
     /// A near page of `size` or, when that pool has none to give (none free, none out of view to take
     /// back), of the next smaller size that has one; never of the size of the cache pages, which would
     /// be the cache page again and only take a page of the base layer.
@@ -818,7 +904,8 @@ impl TerrainCache {
         // the camera came back (AC-T3). A page of the base layer is taken back only when a request finds
         // its pool empty (`page_for`).
         let mut spent = 0;
-        for v in order {
+        let mut resized = false;
+        for v in &order {
             if spent >= budget {
                 break;
             }
@@ -826,8 +913,12 @@ impl TerrainCache {
             let before = self.jobs.len();
             let mut ok =
                 self.entries[cell].cache_page.is_some() || self.request_cache_texture(cell);
-            if ok && !v.ring && self.entries[cell].near_page.is_none() {
-                ok = self.request_uncompressed_textures(cell, v.width_px);
+            if ok && !v.ring {
+                if self.entries[cell].near_page.is_none() {
+                    ok = self.request_uncompressed_textures(cell, v.width_px);
+                } else {
+                    resized |= self.resize_near(cell, v.width_px);
+                }
             }
             // Drawn from its cache page: the highlight of the cache page, if it gave it away.
             if ok && self.entries[cell].near_page.is_none() {
@@ -836,6 +927,26 @@ impl TerrainCache {
             if self.jobs.len() != before {
                 spent += 1;
             }
+        }
+        // One page made bigger a frame past the budget, for the widest cell that wants one. The cells
+        // with nothing to draw come first in the order, the ring around the view among them, and while
+        // the camera moves the ring always has some: the budget went to them and a cell at the feet of a
+        // walking low eye kept its small page (T27c). A page made smaller only saves memory: it waits for
+        // the budget.
+        // re: Terrain::LaunchJobs (Terrain.cpp:1027-1081) resizes within the launch budget only; it has
+        // no ring
+        if !resized
+            && let Some((cell, width)) = order
+                .iter()
+                .filter(|v| !v.ring)
+                .filter(|v| {
+                    self.resize_wanted(v.cell, v.width_px)
+                        .is_some_and(|(_, grows)| grows)
+                })
+                .max_by(|a, b| a.width_px.total_cmp(&b.width_px).then(b.cell.cmp(&a.cell)))
+                .map(|v| (v.cell, v.width_px))
+        {
+            self.resize_near(cell, width);
         }
         self.sort_jobs();
     }
@@ -935,6 +1046,13 @@ impl TerrainCache {
                 if e.near_page == Some(job.page) {
                     e.near_ready = true;
                     e.near_stale = false;
+                    // The page of the old size was drawn until now.
+                    if let Some((p, s)) = e.near_old.take() {
+                        self.pools.release(p);
+                        if let Some(s) = s {
+                            self.pools.release(s);
+                        }
+                    }
                 }
                 again
             }
@@ -988,6 +1106,7 @@ impl TerrainCache {
     /// The near page goes back to the pool and the cell is drawn from its cache page
     /// ("demote": the cell is far now).
     pub fn demote(&mut self, cell: usize) {
+        self.release_near_old(cell);
         let e = &mut self.entries[cell];
         if let Some(p) = e.near_page.take() {
             self.pools.release(p);
@@ -1698,5 +1817,110 @@ mod tests {
         assert_eq!(cache.pools().available(512), 1);
         cache.set_settings(&settings([8, 3, 2, 1]));
         assert_eq!(cache.pools().available(64), 8);
+    }
+
+    /// T27c: a cell that stays in view while its width grows (walked up to by a low eye, zoomed in on)
+    /// gets the page its width now asks for; the old page is drawn until the new one is baked, then goes
+    /// back to its pool. A cell that shrinks below the cache page gives its near page back.
+    #[test]
+    fn a_cell_in_view_gets_the_page_of_its_new_width() {
+        let cs = cells(1);
+        let mut cache = TerrainCache::new(1, &settings([8, 8, 8, 8]), 64, true);
+        settle(&mut cache, &cs, &view(&[200.0]));
+        let small = cache.entry(0).near_page.expect("a near page");
+        assert_eq!(small.size, 256);
+        // Nearer: one job for a 512 page; the 256 page is drawn meanwhile.
+        cache.launch_jobs(&cs, &view(&[3000.0]), 8);
+        let jobs: Vec<BakeJob> = cache.jobs().copied().collect();
+        assert_eq!(jobs.len(), 1, "{jobs:?}");
+        assert_eq!((jobs[0].kind, jobs[0].page.size), (PageKind::Near, 512));
+        assert_eq!(cache.entry(0).drawn_page().map(|(p, _)| p), Some(small));
+        assert_eq!(
+            cache.pools().available(256),
+            7,
+            "the old page is still held"
+        );
+        drain(&mut cache);
+        let big = cache.entry(0).drawn_page().map(|(p, _)| p).expect("drawn");
+        assert_eq!(big.size, 512);
+        assert_eq!(cache.pools().available(256), 8, "the old page went back");
+        assert_eq!(cache.counters().resized, 1);
+        // The same width again: nothing to do.
+        cache.launch_jobs(&cs, &view(&[3000.0]), 8);
+        assert_eq!(cache.jobs().count(), 0);
+        // Far: the near page goes back and the cache page is drawn.
+        cache.launch_jobs(&cs, &view(&[10.0]), 8);
+        assert!(cache.entry(0).near_page.is_none());
+        assert_eq!(cache.entry(0).drawn_page().map(|(p, _)| p.size), Some(64));
+        assert_eq!(cache.pools().available(512), 8);
+    }
+
+    /// No page is taken from another cell for a resize: with the pool of 512 out, the cell keeps its 256
+    /// page. And a cell that leaves the view while its new page bakes gives back both pages.
+    #[test]
+    fn a_resize_waits_for_a_free_page_and_a_cell_that_leaves_gives_both_back() {
+        let cs = cells(3);
+        let mut cache = TerrainCache::new(3, &settings([8, 8, 8, 2]), 64, true);
+        // Cell 0 holds 512 pages: the pool of 512 has one left, and `CachePageAvailable` wants two.
+        settle(&mut cache, &cs, &view(&[3000.0, 200.0, 10.0]));
+        assert_eq!(cache.entry(1).near_page.map(|p| p.size), Some(256));
+        cache.launch_jobs(&cs, &view(&[3000.0, 3000.0, 10.0]), 8);
+        assert_eq!(cache.jobs().count(), 0, "no page free for the resize");
+        assert_eq!(cache.entry(1).near_page.map(|p| p.size), Some(256));
+        // Cell 0 out of view and its pages taken back: cell 1 gets its 512.
+        cache.demote(0);
+        cache.launch_jobs(&cs, &view(&[10.0, 3000.0, 10.0]), 8);
+        assert_eq!(cache.jobs().count(), 1);
+        // It leaves before the job is baked: the job is dropped, both pages go back.
+        let view2 = vec![CellView {
+            cell: 2,
+            width_px: 10.0,
+            dist: 0.0,
+            ring: false,
+        }];
+        cache.launch_jobs(&cs, &view2, 8);
+        assert!(cache.entry(1).near_page.is_none());
+        assert_eq!(cache.pools().available(256), 8);
+        assert_eq!(cache.pools().available(512), 2);
+        assert_eq!(cache.entry(1).drawn_page().map(|(p, _)| p.size), Some(64));
+    }
+
+    /// The cells with nothing to draw take the budget first (the ring of a moving view always has some),
+    /// yet the widest cell in view that wants a bigger page gets one each frame.
+    #[test]
+    fn a_page_grows_each_frame_even_when_the_holes_take_the_budget() {
+        let cs = cells(6);
+        let mut cache = TerrainCache::new(6, &settings([16, 8, 8, 8]), 64, true);
+        for _ in 0..4 {
+            cache.launch_jobs(&cs, &view(&[200.0, 200.0]), 8);
+            drain(&mut cache);
+        }
+        assert_eq!(cache.entry(1).near_page.map(|p| p.size), Some(256));
+        // Two cells in view grow; four ring cells without a page take the budget of one.
+        let mut v = view(&[3000.0, 1000.0]);
+        v.extend((2..6).map(|cell| CellView {
+            cell,
+            width_px: 0.0,
+            dist: 10.0,
+            ring: true,
+        }));
+        cache.launch_jobs(&cs, &v, 1);
+        let near: Vec<usize> = cache
+            .jobs()
+            .filter(|j| j.kind == PageKind::Near)
+            .map(|j| j.cell)
+            .collect();
+        assert_eq!(near, [0], "the widest grows first");
+        assert_eq!(
+            cache.jobs().filter(|j| j.kind == PageKind::Cache).count(),
+            1
+        );
+        drain(&mut cache);
+        cache.launch_jobs(&cs, &v, 1);
+        assert!(
+            cache
+                .jobs()
+                .any(|j| j.kind == PageKind::Near && j.cell == 1)
+        );
     }
 }

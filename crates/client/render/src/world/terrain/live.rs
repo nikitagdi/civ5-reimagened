@@ -824,19 +824,9 @@ impl LiveMap {
         let mut draws: Vec<DrawCell> = Vec::with_capacity(self.cull.in_view.len());
         for v in &self.cull.in_view {
             let i = v.cell as usize;
-            let entry = self.cache.entry(i);
             // The page and its highlight page (baked in the same job, so ready with it; a highlight
             // page the cache page got back is drawn once its job is done).
-            let page = if entry.near_ready {
-                entry.near_page.map(|p| (p, entry.near_spec))
-            } else if entry.cache_ready {
-                entry
-                    .cache_page
-                    .map(|p| (p, entry.cache_spec.filter(|_| entry.cache_spec_ready)))
-            } else {
-                None
-            };
-            if let Some((page, spec)) = page {
+            if let Some((page, spec)) = self.cache.entry(i).drawn_page() {
                 let cell = self.cells.cell(i);
                 draws.push(DrawCell {
                     copy: v.copy as usize,
@@ -2477,6 +2467,88 @@ mod gpu_tests {
              feet unlike the view with the fog drawn, or of the clouds' colour with the fog switched off): \
              {bad:?}"
         );
+    }
+
+    /// T27c: a first-person camera of a mod that takes over from the strategic one and walks up to a hex
+    /// draws the cells at its feet from the largest page. The cells were in view all along, at a smaller
+    /// width, and kept the 256 pages they got then (the ground at the feet a blur, the page magnified tens
+    /// of times); they get the page of their new width once the frames have settled.
+    #[test]
+    fn a_low_eye_walking_up_to_a_hex_draws_the_ground_at_its_feet_from_the_largest_page() {
+        use crate::camera::FirstPerson;
+        use crate::world::terrain::cells::page_size_for_width;
+        let size = (480, 270);
+        let map = (40u32, 24u32);
+        let (hx, hy) = (20i32, 12i32);
+        let Some(mut live) =
+            Live::with_map("terrain walk", vec![], vec![], true, size, map, &|_, _| {
+                Fog::Visible
+            })
+        else {
+            return;
+        };
+        live.camera = GameCamera::new(cell_center(hx, hy));
+        live.camera.set_level(16.0);
+        live.work_off();
+        live.settle();
+        let (_, _, heights) = live.r.plot_center_heights().expect("heights");
+        let at = cell_center(hx, hy);
+        let ground = heights[(hy as u32 * map.0 + hx as u32) as usize];
+        // The widest cells in view: (cell, the page their width asks for, the size of the page drawn).
+        let widest = |live: &Live| {
+            let l = live.r.terrain_system().live().expect("the live map");
+            let mut best: Vec<_> = l.cull.best.iter().collect();
+            best.sort_by(|a, b| b.width.total_cmp(&a.width).then(a.cell.cmp(&b.cell)));
+            best.iter()
+                .take(4)
+                .map(|b| {
+                    let want = page_size_for_width(b.width, 64).min(l.cache.max_page());
+                    let drawn = l.cache.entry(b.cell as usize).drawn_page();
+                    (b.cell, want, drawn.map_or(0, |(p, _)| p.size))
+                })
+                .collect::<Vec<_>>()
+        };
+        let mut cam = FirstPerson::new(glam::Vec3::new(at.x, ground + 6.5, at.y));
+        cam.yaw = 0.6;
+        cam.pitch = (-15f32).to_radians();
+        let dir = glam::Vec2::new(cam.yaw.sin(), -cam.yaw.cos());
+        let mut bad = Vec::new();
+        for step in 0..=4 {
+            let p = at - dir * (200.0 - 50.0 * step as f32);
+            cam.eye = glam::Vec3::new(p.x, ground + 6.5, p.y);
+            let mut cells = Vec::new();
+            for _ in 0..600 {
+                live.frame_as(&cam);
+                cells = widest(&live);
+                if live.jobs_left() == 0
+                    && live.r.terrain_system().live_stats().unpaged == 0
+                    && cells.iter().all(|&(_, want, drawn)| want == drawn)
+                {
+                    break;
+                }
+            }
+            eprintln!("step {step}: (cell, wanted, drawn) {cells:?}");
+            assert!(
+                cells.iter().all(|&(_, want, _)| want == 512),
+                "the cells at the feet ask for the largest page: {cells:?}"
+            );
+            if cells.iter().any(|&(_, want, drawn)| want != drawn) {
+                bad.push((step, cells));
+            }
+        }
+        assert!(
+            bad.is_empty(),
+            "cells at the feet drawn from a smaller page than they ask for: {bad:?}"
+        );
+        let resized = live
+            .r
+            .terrain_system()
+            .live()
+            .unwrap()
+            .cache
+            .counters()
+            .resized;
+        assert!(resized > 0, "{resized}");
     }
 
     /// Writes the picture as a PPM into `CIV5_DUMP_DIR` when it is set (the before/after crops).
