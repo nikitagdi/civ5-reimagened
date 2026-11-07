@@ -162,6 +162,12 @@ pub fn visible_rect(
             if t <= 0.0 {
                 continue;
             }
+            // Past the far plane nothing is drawn: an edge that meets the plane beyond it is bounded by its far
+            // end. A strategic camera always meets the ground first. A low eye's edge just under the horizon
+            // meets it thousands of times farther: the rectangle was millions of units wide, the overlay map
+            // and the fog mask stretched over it (the ground went white with the pitch), and the grid of the
+            // overlay walked its cells until a vector overflowed (first-person crash, 2026-11-07).
+            let t = t.min(1.0);
             let p = ours_to_orig.transform_point3(eye + dir * t);
             min = min.min(p.truncate());
             max = max.max(p.truncate());
@@ -533,5 +539,30 @@ mod tests {
         let (lo, hi) = visible_rect(&(proj * level), eye, &b, 300.0);
         let (w, h) = ((hi - lo).x, (hi - lo).y);
         assert!(w < 40.0 || h < 40.0 || (w - h).abs() > 1.0, "{lo} {hi}");
+    }
+
+    #[test]
+    fn a_low_eye_near_the_horizon_sees_no_farther_than_its_far_plane() {
+        let b = crate::frame::basis_rotation();
+        let far = 3000.0;
+        let proj =
+            glam::camera::rh::proj::directx::perspective(75f32.to_radians(), 16.0 / 9.0, 0.5, far);
+        let eye = Vec3::new(40.0, 6.5, -25.0);
+        let c = b.transform_point3(eye).truncate();
+        // Pitches around the horizon, where an edge meets the ground (or the plane above it) almost parallel.
+        for deg in [
+            -60.0f32, -40.0, -37.6, -37.5, -37.4, -20.0, -1.0, 0.0, 0.5, 1.0, 20.0, 37.4, 37.6,
+            60.0,
+        ] {
+            let pitch = deg.to_radians();
+            let dir = Vec3::new(0.0, pitch.sin(), -pitch.cos());
+            let view = glam::camera::rh::view::look_at_mat4(eye, eye + dir, Vec3::Y);
+            let (lo, hi) = visible_rect(&(proj * view), eye, &b, 300.0);
+            for p in [lo.truncate(), hi.truncate()] {
+                assert!(p.is_finite(), "pitch {deg}: {lo} {hi}");
+                // The far corners lie within far / cos(half the diagonal field) of the eye: well under 2 far.
+                assert!((p - c).length() < 2.0 * far, "pitch {deg}: {lo} {hi}");
+            }
+        }
     }
 }
