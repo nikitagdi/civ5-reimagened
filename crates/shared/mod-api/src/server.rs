@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use mod_manifest::ModId;
 use thiserror::Error;
 
+use crate::bodies::{Body, BodyRef, Hit};
 use crate::caps::{Cap, CapDenied, Caps};
 use crate::facts::WorldFacts;
 use crate::ids::{ChannelId, Seat};
@@ -62,12 +63,30 @@ pub enum LogLevel {
 }
 
 /// What the host provides for one mod call. Implemented by the server host and by the test double.
+///
+/// The methods added in API 1.1 have defaults (no clock, no bodies), so an older implementation still builds.
 pub trait HostServices {
     fn facts(&self) -> &dyn WorldFacts;
     /// Spends `cost` tokens of the seat's mod-chosen bucket on `ch` (see `Limiter::allow`).
     fn allow(&mut self, seat: Seat, ch: ChannelId, cost: u32) -> bool;
     /// Writes a line to the server log, tagged with the mod id by the host.
     fn log(&mut self, level: LogLevel, msg: &str);
+    /// The host's monotonic millisecond clock at the moment of the call.
+    fn now_ms(&self) -> u64 {
+        0
+    }
+    /// The bodies of the other mods of the game, as they were when the call began.
+    fn bodies(&self) -> &[Body] {
+        &[]
+    }
+    /// Replaces the calling mod's bodies (the host fills the owner and applies the limits, see [`prepare_bodies`]).
+    ///
+    /// [`prepare_bodies`]: crate::prepare_bodies
+    fn set_bodies(&mut self, _bodies: Vec<Body>) {}
+    /// Queues a hit; the host delivers it to the owner after the call (see [`HitQueue`]).
+    ///
+    /// [`HitQueue`]: crate::HitQueue
+    fn hit(&mut self, _target: BodyRef, _hit: Hit) {}
 }
 
 /// The facade a server mod talks to the host through. Created by the host per call.
@@ -99,9 +118,45 @@ impl<'a> ServerCtx<'a> {
     pub fn has(&self, cap: Cap) -> bool {
         self.caps.has(cap)
     }
+
+    /// The host's monotonic clock in milliseconds (the clock of the token buckets; the `now_ms` of `on_tick`).
+    pub fn now_ms(&self) -> u64 {
+        self.host.now_ms()
+    }
+
+    /// The bodies the **other** mods of this game published, as they were when this call began. Needs
+    /// `world.bodies`.
+    pub fn bodies(&self) -> Result<&[Body], CapDenied> {
+        self.caps.require(Cap::WorldBodies)?;
+        Ok(self.host.bodies())
+    }
+
+    /// Replaces this mod's bodies. The host sets [`Body::owner`] and keeps at most [`MAX_BODIES`] bodies of
+    /// [`MAX_BOXES_PER_BODY`] boxes (the rest is cut off with a warning in the log). The other mods see the new list
+    /// from their next call on. Needs `world.bodies`.
+    ///
+    /// [`MAX_BODIES`]: crate::MAX_BODIES
+    /// [`MAX_BOXES_PER_BODY`]: crate::MAX_BOXES_PER_BODY
+    pub fn set_bodies(&mut self, bodies: Vec<Body>) -> Result<(), CapDenied> {
+        self.caps.require(Cap::WorldBodies)?;
+        self.host.set_bodies(bodies);
+        Ok(())
+    }
+
+    /// Queues a hit on a body of the game. After this call returns, the host delivers each queued hit, in order, to
+    /// the owner's [`ServerMod::on_hit`]. At most [`MAX_HITS_PER_CALL`] per call; a hit queued inside `on_hit`, on an
+    /// unknown body or for a mod that is off is dropped with a line in the log. Needs `world.bodies`.
+    ///
+    /// [`MAX_HITS_PER_CALL`]: crate::MAX_HITS_PER_CALL
+    pub fn hit(&mut self, target: BodyRef, hit: Hit) -> Result<(), CapDenied> {
+        self.caps.require(Cap::WorldBodies)?;
+        self.host.hit(target, hit);
+        Ok(())
+    }
 }
 
-/// The server half of a mod. One instance per game.
+/// The server half of a mod. One instance per game. Every call (including `on_tick` and `on_hit`) runs serialised on
+/// the game actor under `catch_unwind`, and what it returns goes through the same capability and size filter.
 pub trait ServerMod: Send {
     /// A new game (`saved` is `None`) or a loaded one (the bytes the last `persist` returned).
     fn start(&mut self, cx: &mut ServerCtx<'_>, saved: Option<&[u8]>);
@@ -121,6 +176,31 @@ pub trait ServerMod: Send {
 
     /// A new turn began.
     fn on_turn(&mut self, _cx: &mut ServerCtx<'_>, _turn: i32) {}
+
+    /// The game actor's tick, `[rust] tick_hz` times a second (never when it is 0 or absent). `now_ms` is the
+    /// host's monotonic clock (also `cx.now_ms()`). A late tick is not repeated: after a stall the next one comes
+    /// one period later. There is no sender: `Audience::Sender` reaches nobody. API 1.1.
+    fn on_tick(&mut self, _cx: &mut ServerCtx<'_>, _now_ms: u64) -> Vec<Outgoing> {
+        Vec::new()
+    }
+
+    /// The client of a seat went away (connection lost, left, or kicked). It may come back: then `on_attach` comes
+    /// again. `Audience::Sender` reaches nobody. API 1.1.
+    fn on_detach(&mut self, _cx: &mut ServerCtx<'_>, _seat: Seat) -> Vec<Outgoing> {
+        Vec::new()
+    }
+
+    /// A hit another mod (or this one) queued with [`ServerCtx::hit`] on this mod's body `target_id`. Hits queued
+    /// here are dropped (one level deep). `Audience::Sender` reaches nobody. API 1.1, cap `world.bodies`.
+    fn on_hit(
+        &mut self,
+        _cx: &mut ServerCtx<'_>,
+        _from_mod: &ModId,
+        _target_id: u32,
+        _hit: &Hit,
+    ) -> Vec<Outgoing> {
+        Vec::new()
+    }
 
     /// The state for the save (`MODS` section), at most `state_max` bytes.
     fn persist(&self) -> Vec<u8>;

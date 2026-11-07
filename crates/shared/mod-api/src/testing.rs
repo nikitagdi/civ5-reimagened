@@ -1,8 +1,9 @@
 //! Test doubles for mod unit tests: [`MockFacts`] (a settable map) and [`MockCtx`] (a host stand-in that applies the
-//! same checks the real host does: channel, size, rate, capabilities).
+//! same checks the real host does: channel, size, rate, capabilities, and the limits on bodies and hits).
 
-use mod_manifest::Channel;
+use mod_manifest::{Channel, ModId};
 
+use crate::bodies::{Body, BodyRef, Hit, HitQueue, prepare_bodies};
 use crate::caps::Caps;
 use crate::facts::{MapShape, Owner, PlotClass, PlotIdx, WorldFacts};
 use crate::ids::{ChannelId, PlayerId, Seat};
@@ -100,12 +101,22 @@ impl WorldFacts for MockFacts {
     }
 }
 
-/// The [`HostServices`] of [`MockCtx`]: public fields so tests can set the clock and read the log.
+/// The [`HostServices`] of [`MockCtx`]: public fields so tests can set the clock, the other mods' bodies, and read
+/// the log, the published bodies and the queued hits.
 pub struct MockHost {
     pub facts: MockFacts,
     pub limiter: Limiter,
     pub now_ms: u64,
     pub logs: Vec<(LogLevel, String)>,
+    /// The id of the mod under test (the owner of the bodies it publishes). `mock` unless set.
+    pub mod_id: ModId,
+    /// The bodies of the other mods, what `ServerCtx::bodies` returns. Set by the test.
+    pub others: Vec<Body>,
+    /// What the mod published last with `ServerCtx::set_bodies`, after the host's limits (owner set, cut to size).
+    pub bodies: Vec<Body>,
+    /// Every hit the mod queued, in order, over all calls (a [`Delivery`] also has the hits of its own call).
+    pub hits: Vec<(BodyRef, Hit)>,
+    queue: HitQueue,
 }
 
 impl HostServices for MockHost {
@@ -118,9 +129,25 @@ impl HostServices for MockHost {
     fn log(&mut self, level: LogLevel, msg: &str) {
         self.logs.push((level, msg.to_string()));
     }
+    fn now_ms(&self) -> u64 {
+        self.now_ms
+    }
+    fn bodies(&self) -> &[Body] {
+        &self.others
+    }
+    fn set_bodies(&mut self, bodies: Vec<Body>) {
+        let (bodies, warn) = prepare_bodies(bodies, &self.mod_id);
+        self.bodies = bodies;
+        if let Some(w) = warn {
+            self.logs.push((LogLevel::Warn, w));
+        }
+    }
+    fn hit(&mut self, target: BodyRef, hit: Hit) {
+        self.queue.push(target, hit);
+    }
 }
 
-/// What the mock host delivered for one client message.
+/// What the mock host delivered for one call.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Delivery {
     /// The host refused the message before the mod saw it.
@@ -128,6 +155,8 @@ pub struct Delivery {
     /// Messages that passed the capability and size checks.
     pub sent: Vec<Outgoing>,
     pub dropped: Vec<Dropped>,
+    /// The hits the call queued (the real host hands each to the owner's `on_hit`; the mock only collects them).
+    pub hits: Vec<(BodyRef, Hit)>,
 }
 
 /// A host stand-in: owns the facts, the clock, the limiter and the log, and hands out a [`ServerCtx`].
@@ -150,8 +179,19 @@ impl MockCtx {
                 limiter: Limiter::new(channels, 1024 * 1024),
                 now_ms: 0,
                 logs: Vec::new(),
+                mod_id: ModId::new("mock").unwrap_or_else(|_| unreachable!("a valid id")),
+                others: Vec::new(),
+                bodies: Vec::new(),
+                hits: Vec::new(),
+                queue: HitQueue::new(),
             },
         }
+    }
+
+    /// The id the mod under test has (the owner of its bodies).
+    pub fn with_mod_id(mut self, id: &str) -> Self {
+        self.host.mod_id = ModId::new(id).unwrap_or_else(|e| panic!("mod id `{id}`: {e}"));
+        self
     }
 
     pub fn cx(&mut self) -> ServerCtx<'_> {
@@ -166,9 +206,21 @@ impl MockCtx {
         &mut self.host.facts
     }
 
-    /// Calls `start` with the saved bytes.
+    /// The bodies the other mods of the game have (what `ServerCtx::bodies` returns). The owners stay as given.
+    pub fn set_other_bodies(&mut self, bodies: Vec<Body>) {
+        self.host.others = bodies;
+    }
+
+    /// What the mod published with `ServerCtx::set_bodies`, after the host's limits.
+    pub fn published_bodies(&self) -> &[Body] {
+        &self.host.bodies
+    }
+
+    /// Calls `start` with the saved bytes. Hits it queues land in [`MockHost::hits`].
     pub fn start(&mut self, m: &mut dyn ServerMod, saved: Option<&[u8]>) {
+        self.host.queue = HitQueue::new();
         m.start(&mut ServerCtx::new(&self.caps, &mut self.host), saved);
+        let _ = self.take_queue();
     }
 
     /// Delivers a client message the way the host does: limits first, then the mod, then the output filter.
@@ -193,6 +245,7 @@ impl MockCtx {
                 ..Delivery::default()
             };
         }
+        self.host.queue = HitQueue::new();
         let out = m.on_client(
             &mut ServerCtx::new(&self.caps, &mut self.host),
             from,
@@ -204,11 +257,57 @@ impl MockCtx {
 
     /// Calls `on_attach` and filters the output.
     pub fn attach(&mut self, m: &mut dyn ServerMod, seat: Seat) -> Delivery {
+        self.host.queue = HitQueue::new();
         let out = m.on_attach(&mut ServerCtx::new(&self.caps, &mut self.host), seat);
         self.finish(out)
     }
 
+    /// Calls `on_detach` (the seat's client went away) and filters the output.
+    pub fn detach(&mut self, m: &mut dyn ServerMod, seat: Seat) -> Delivery {
+        self.host.queue = HitQueue::new();
+        let out = m.on_detach(&mut ServerCtx::new(&self.caps, &mut self.host), seat);
+        self.finish(out)
+    }
+
+    /// One tick of the game actor at the current clock ([`advance_ms`](Self::advance_ms) moves it).
+    pub fn tick(&mut self, m: &mut dyn ServerMod) -> Delivery {
+        self.host.queue = HitQueue::new();
+        let now = self.host.now_ms;
+        let out = m.on_tick(&mut ServerCtx::new(&self.caps, &mut self.host), now);
+        self.finish(out)
+    }
+
+    /// Delivers a hit of mod `from_mod` on the mod's body `target_id`, as the host does after the hitting call.
+    /// Hits queued inside are dropped with a warning (one level deep), as by the host.
+    pub fn hit(
+        &mut self,
+        m: &mut dyn ServerMod,
+        from_mod: &str,
+        target_id: u32,
+        hit: &Hit,
+    ) -> Delivery {
+        let from = ModId::new(from_mod).unwrap_or_else(|e| panic!("mod id `{from_mod}`: {e}"));
+        self.host.queue = HitQueue::nested();
+        let out = m.on_hit(
+            &mut ServerCtx::new(&self.caps, &mut self.host),
+            &from,
+            target_id,
+            hit,
+        );
+        self.finish(out)
+    }
+
+    fn take_queue(&mut self) -> Vec<(BodyRef, Hit)> {
+        let (hits, warn) = std::mem::take(&mut self.host.queue).finish();
+        if let Some(w) = warn {
+            self.log_line(LogLevel::Warn, w);
+        }
+        self.host.hits.extend(hits.iter().cloned());
+        hits
+    }
+
     fn finish(&mut self, out: Vec<Outgoing>) -> Delivery {
+        let hits = self.take_queue();
         let f = self.host.limiter.filter_outgoing(&self.caps, out);
         for d in &f.dropped {
             self.log_line(
@@ -220,6 +319,7 @@ impl MockCtx {
             refused: None,
             sent: f.kept,
             dropped: f.dropped,
+            hits,
         }
     }
 

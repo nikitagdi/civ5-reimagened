@@ -30,10 +30,12 @@ pub enum Cap {
     Assets,
     /// Cut columns out of the terrain mesh.
     TerrainCutout,
+    /// Publish hit bodies, read the other mods' bodies and deal hits to them (server, API 1.1).
+    WorldBodies,
 }
 
 impl Cap {
-    pub const ALL: [Cap; 10] = [
+    pub const ALL: [Cap; 11] = [
         Cap::NetChannel,
         Cap::WorldRead,
         Cap::InputClaim,
@@ -44,6 +46,7 @@ impl Cap {
         Cap::Audio,
         Cap::Assets,
         Cap::TerrainCutout,
+        Cap::WorldBodies,
     ];
 
     /// The name used in `mod.toml`.
@@ -59,6 +62,7 @@ impl Cap {
             Cap::Audio => "audio",
             Cap::Assets => "assets",
             Cap::TerrainCutout => "terrain.cutout",
+            Cap::WorldBodies => "world.bodies",
         }
     }
 

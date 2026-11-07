@@ -170,7 +170,8 @@ fn a_client_with_mods_says_so_between_hello_and_login() {
     let Some((_, ClientMsg::ModHello { api, built_in })) = n.srv.log.get(1) else {
         panic!("no ModHello");
     };
-    assert_eq!(*api, (1, 0, 0));
+    let v = mod_api::MOD_API_VERSION;
+    assert_eq!(*api, (v.major as u16, v.minor as u16, v.patch as u16));
     let ids: Vec<_> = built_in
         .iter()
         .map(|b| (b.id.as_str(), b.version.as_str(), b.code_hash))

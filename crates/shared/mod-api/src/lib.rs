@@ -64,6 +64,7 @@
 
 #![forbid(unsafe_code)]
 
+mod bodies;
 mod caps;
 mod facts;
 mod ids;
@@ -71,6 +72,10 @@ mod limits;
 mod server;
 pub mod testing;
 
+pub use bodies::{
+    Body, BodyRef, Hit, HitBox, HitKind, HitQueue, HitZone, MAX_BODIES, MAX_BOXES_PER_BODY,
+    MAX_HITS_PER_CALL, prepare_bodies,
+};
 pub use caps::{Cap, CapDenied, Caps, CapsError};
 pub use facts::{MapShape, Owner, PlotClass, PlotIdx, WorldFacts};
 pub use ids::{ChannelId, MOD_API_VERSION, ModId, PlayerId, Seat, Version};
