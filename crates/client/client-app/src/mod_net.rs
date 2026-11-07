@@ -259,6 +259,7 @@ impl ModHook for ClientModsHook {
             return;
         };
         let out = {
+            let _s = mod_client::perf::scope("mod.frame");
             let mut host = HostView::new(&mut self.st, env_of(info));
             d.frame(&mut host, info.dt)
         };
@@ -306,6 +307,7 @@ impl ModHook for ClientModsHook {
             return;
         };
         {
+            let _s = mod_client::perf::scope("mod.hud");
             let mut host = HostView::new(&mut self.st, env_of(info));
             d.hud(&mut host, list);
         }

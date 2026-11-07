@@ -59,7 +59,14 @@ pub trait ModTerrain {
     /// Bilinear height at world `(x, z)`.
     fn height(&self, x: f32, z: f32) -> Option<f32>;
     /// Height of the nearest texel (what the renderer draws).
+    ///
+    /// Both heights are of the drawn surface, which is never below the sea level (water cells and low ground are
+    /// drawn at the sea): standing a person on `height + 6.5` stays above the ground everywhere.
     fn height_nearest(&self, x: f32, z: f32) -> Option<f32>;
+    /// The sea level in world units: the lowest ground the renderer draws.
+    fn sea_level(&self) -> f32 {
+        0.0
+    }
     /// Grows whenever heights change (streaming, edits); caches keyed on it stay correct.
     fn height_revision(&self) -> u64;
     /// The hex under world `(x, z)`.

@@ -134,8 +134,9 @@ impl ModWorld for ReplicaWorld<'_> {
 pub struct TerrainView<'a>(pub &'a TerrainSampler);
 
 impl ModTerrain for TerrainView<'_> {
-    /// Bilinear between the four texels around the point (texel centres at half integers). Outside the field the
-    /// sampler answers 0 for a texel, so the edge fades to 0; mods stay on the map.
+    /// Bilinear between the four texels around the point (texel centres at half integers), never below the sea level
+    /// (the ground is drawn at the sea there). Outside the field the sampler answers 0 for a texel, so the edge fades
+    /// to 0; mods stay on the map.
     fn height(&self, x: f32, z: f32) -> Option<f32> {
         let t = self.0.frame().world_to_tex(Vec2::new(x, z)) - Vec2::splat(0.5);
         let (i, j) = (t.x.floor(), t.y.floor());
@@ -144,11 +145,15 @@ impl ModTerrain for TerrainView<'_> {
         let h = |u, v| self.0.texel_height(u, v);
         let top = h(i, j) * (1.0 - fx) + h(i + 1, j) * fx;
         let bottom = h(i, j + 1) * (1.0 - fx) + h(i + 1, j + 1) * fx;
-        Some(top * (1.0 - fy) + bottom * fy)
+        Some((top * (1.0 - fy) + bottom * fy).max(self.0.sea_level()))
     }
 
     fn height_nearest(&self, x: f32, z: f32) -> Option<f32> {
-        Some(self.0.world_height(Vec2::new(x, z)))
+        Some(self.0.surface_height(Vec2::new(x, z)))
+    }
+
+    fn sea_level(&self) -> f32 {
+        self.0.sea_level()
     }
 
     fn height_revision(&self) -> u64 {
@@ -476,18 +481,21 @@ impl RenderSystem for ModSystem {
 
     fn prepare(&mut self, cx: &mut PrepareContext<'_>) {
         if self.alive.get() {
+            let _s = mod_client::perf::scope("mod.render.prepare");
             self.inner.prepare(cx);
         }
     }
 
     fn record(&self, slot: PassSlot, cx: &mut DrawContext<'_, '_>) {
         if self.alive.get() {
+            let _s = mod_client::perf::scope("mod.render.record");
             self.inner.record(slot, cx);
         }
     }
 
     fn record_offscreen(&mut self, pass: PassId, cx: &mut EncoderContext<'_>) {
         if self.alive.get() {
+            let _s = mod_client::perf::scope("mod.render.offscreen");
             self.inner.record_offscreen(pass, cx);
         }
     }
@@ -731,6 +739,20 @@ mod tests {
         // The map wraps along X in the wrapped fixture and plot_at agrees with the shape.
         assert_eq!(w.plot_at(0, 0), shape.index(0, 0));
         assert_eq!(w.plot_at(-1, -1), shape.index(-1, -1));
+    }
+
+    #[test]
+    fn the_ground_a_mod_stands_on_is_never_below_the_sea_where_it_is_drawn() {
+        // A map of the test world has texels at 0, below the sea level: the renderer draws the ground at the sea there,
+        // and a person placed on the raw height would stand under the terrain (a grey screen).
+        let sampler = TerrainSampler::new(render::world::terrain::TerrainFrame::new(16, 10, true));
+        let t = TerrainView(&sampler);
+        let sea = t.sea_level();
+        assert!(sea > 0.0);
+        for (x, z) in [(10.0, 10.0), (200.0, -50.0), (-30.5, 7.25)] {
+            assert_eq!(t.height_nearest(x, z), Some(sea));
+            assert_eq!(t.height(x, z), Some(sea));
+        }
     }
 
     fn cut(w: u32, h: u32, x0: i32, z0: i32) -> CutoutRegion {

@@ -8,6 +8,7 @@
 use std::collections::HashSet;
 
 use glam::{Vec2, Vec3};
+use mod_client::ModTerrain;
 use platform::InputEvent;
 use render::FirstPerson;
 
@@ -15,6 +16,9 @@ use crate::mod_hooks::{FrameInfo, HookCtl, ModHook};
 
 /// The environment variable that registers the hook.
 pub const ENV: &str = "CIV5_FP_CAM";
+
+/// A sky for the horizontal view (the clear colour).
+const SKY: [f64; 3] = [0.45, 0.62, 0.85];
 
 /// The height of the eye above the ground, in world units (a person: 6.5).
 const EYE_HEIGHT: f32 = 6.5;
@@ -29,6 +33,7 @@ pub struct FirstPersonDebug {
     eye_h: f32,
     ground: f32,
     held: HashSet<String>,
+    n: u32,
 }
 
 impl FirstPersonDebug {
@@ -53,6 +58,7 @@ impl FirstPersonDebug {
             eye_h: EYE_HEIGHT,
             ground: 0.0,
             held: HashSet::new(),
+            n: 0,
         };
         if let [x, z, yaw, pitch] = nums[..] {
             hook.on = true;
@@ -118,6 +124,7 @@ impl FirstPersonDebug {
         let mut cam = FirstPerson::new(Vec3::new(self.pos.x, self.ground + self.eye_h, self.pos.y));
         cam.yaw = self.yaw;
         cam.pitch = self.pitch;
+        cam.sky_color = Some(SKY);
         cam
     }
 }
@@ -161,7 +168,21 @@ impl ModHook for FirstPersonDebug {
         }
         self.step(info.dt);
         if let Some(terrain) = info.terrain {
-            self.ground = terrain.surface_height(self.pos);
+            self.ground = crate::mod_host::TerrainView(terrain)
+                .height_nearest(self.pos.x, self.pos.y)
+                .unwrap_or(0.0);
+            self.n += 1;
+            if self.n % 120 == 1 {
+                let tv = crate::mod_host::TerrainView(terrain);
+                use mod_client::ModTerrain;
+                tracing::info!(
+                    "FPDBG raw={:?} bil={:?} surf={} sea={}",
+                    tv.height_nearest(self.pos.x, self.pos.y),
+                    tv.height(self.pos.x, self.pos.y),
+                    self.ground,
+                    terrain.sea_level()
+                );
+            }
         }
         ctl.set_camera(Some(Box::new(self.camera())));
     }

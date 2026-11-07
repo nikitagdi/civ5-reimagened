@@ -1,4 +1,4 @@
-//! wasm entry (`app-web`): reads `?nick=`, `&gfx=` (`webgl2` and/or `Key:value` graphics keys), `&preset=low|medium|high`, `&disable=FOW,FluidFOW`, `&debug=shadow`, `&manifest=<hash>`, `&demo=skinned`, `&autostart=1` (skip the lobby: after the login the quick start script runs; `&size=`, `&ai=`, `&civ=`, `&seed=`, `&mode=hybrid|simultaneous` say what game), `&ui=interim` (the interim egui game panels instead of the original UI, which is the default), `&test=1` (test hooks, `testhooks.rs`), `&golden=<url of a scene folder>&capture=<name>` (one frame of a `golden` scene, with `&test=1`), dev-only `&server=`.
+//! wasm entry (`app-web`): reads `?nick=`, `&gfx=` (`webgl2` and/or `Key:value` graphics keys), `&preset=low|medium|high`, `&disable=FOW,FluidFOW`, `&debug=shadow`, `&manifest=<hash>`, `&demo=skinned`, `&autostart=1` (skip the lobby: after the login the quick start script runs; `&size=`, `&ai=`, `&civ=`, `&seed=`, `&mode=hybrid|simultaneous` say what game), `&ui=interim` (the interim egui game panels instead of the original UI, which is the default), `&fpcam=1` (the debug first-person camera on F4), `&test=1` (test hooks, `testhooks.rs`), `&golden=<url of a scene folder>&capture=<name>` (one frame of a `golden` scene, with `&test=1`), dev-only `&server=`.
 //! Start-up timings (and the time to map, AC-1.3) go to `window.__civ5stats.timing` / `.timeToMapMs`.
 
 #![cfg(target_arch = "wasm32")]
@@ -68,7 +68,7 @@ pub fn start() {
 }
 
 /// [`start`] with the hooks of the client halves of mods (an empty set is the public client).
-pub fn start_with(hooks: client_app::mod_hooks::ModHooks) {
+pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
     // In the threaded build a web worker instantiates the module too: the app starts on the page only.
     #[cfg(target_feature = "atomics")]
     if web_sys::window().is_none() {
@@ -238,6 +238,13 @@ pub fn start_with(hooks: client_app::mod_hooks::ModHooks) {
         page::wall_offset_ms(),
     );
     client_app::set_wall_offset_source(page::wall_offset_ms);
+    // `&fpcam=1` (or `&fpcam=x,z,yaw,pitch`, angles in degrees, to start in the view): the debug first-person camera
+    // on F4, the web twin of the native `CIV5_FP_CAM` (see `client_app::fp_debug`).
+    if let Some(v) = page::query_param("fpcam") {
+        hooks.register(Box::new(
+            client_app::fp_debug::FirstPersonDebug::from_value(&v),
+        ));
+    }
     if let Err(e) = client_app::run_with(config, services, hooks) {
         tracing::error!("client failed to start: {e}");
     }

@@ -5171,7 +5171,7 @@ impl Renderer {
                     }
                 }
                 Step::BeginPass(PassId::Main) => {
-                    let [r, g, b] = scene.clear_color;
+                    let [r, g, b] = self.cam_hints.sky_color.unwrap_or(scene.clear_color);
                     let span = self.timer.reserve(PassId::Main);
                     // With MSAA the pass draws into `SceneMsaa` and resolves into `Scene` when
                     // it ends; with one sample it draws into `Scene` itself.

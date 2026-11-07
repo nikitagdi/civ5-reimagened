@@ -36,6 +36,9 @@ pub struct CameraHints {
     pub terrain_focus: Option<Vec2>,
     /// The fluid fog of war (its clouds) is not drawn: seen edge-on from a low eye it is a flat strip.
     pub hide_fow_clouds: bool,
+    /// The colour (linear RGB, 0..1) the frame is cleared to, which is what shows where nothing is drawn: the sky of a
+    /// horizontal view. `None`: the game's grey.
+    pub sky_color: Option<[f64; 3]>,
 }
 
 /// A camera a mod holds in place of the strategic one (client-hooks C2). Besides the matrices (`CameraView`) it
@@ -64,6 +67,10 @@ pub trait ModCamera: CameraView {
     /// Whether the fluid fog of war is left out of the frame. Default: yes.
     fn hide_fow_clouds(&self) -> bool {
         true
+    }
+    /// The colour the frame is cleared to (the sky). Default: the game's grey.
+    fn sky_color(&self) -> Option<[f64; 3]> {
+        None
     }
 }
 
@@ -97,6 +104,7 @@ impl CameraView for ModCameraView<'_> {
             far_lod_distance: Some(self.0.far_lod_distance()),
             terrain_focus: Some(self.0.terrain_focus()),
             hide_fow_clouds: self.0.hide_fow_clouds(),
+            sky_color: self.0.sky_color(),
         }
     }
 }
@@ -115,6 +123,8 @@ pub struct FirstPerson {
     pub shadow_range: f32,
     pub far_lod_distance: f32,
     pub hide_fow_clouds: bool,
+    /// The sky: the clear colour of the frame. `None`: the game's grey.
+    pub sky_color: Option<[f64; 3]>,
 }
 
 impl FirstPerson {
@@ -132,6 +142,7 @@ impl FirstPerson {
             shadow_range: DEFAULT_SHADOW_RANGE,
             far_lod_distance: crate::world::far_lod::FAR_LOD_DISTANCE,
             hide_fow_clouds: true,
+            sky_color: None,
         }
     }
 
@@ -196,6 +207,10 @@ impl ModCamera for FirstPerson {
 
     fn hide_fow_clouds(&self) -> bool {
         self.hide_fow_clouds
+    }
+
+    fn sky_color(&self) -> Option<[f64; 3]> {
+        self.sky_color
     }
 }
 

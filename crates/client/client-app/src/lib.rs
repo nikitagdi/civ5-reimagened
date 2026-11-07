@@ -10,8 +10,7 @@ mod client_data;
 mod cursor;
 mod dom_ui;
 mod entity_assets;
-#[cfg(not(target_arch = "wasm32"))]
-mod fp_debug;
+pub mod fp_debug;
 mod fx_assets;
 pub mod golden;
 pub mod hud;
