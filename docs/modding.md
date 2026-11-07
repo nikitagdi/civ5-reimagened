@@ -51,6 +51,7 @@ server    = { crate = "hello-server", entry = "hello_server::register" }
 client    = { crate = "hello-client", entry = "hello_client::register" }
 caps      = ["net.channel", "world.read", "input.claim", "hud", "kv", "render.pipeline"]
 state_max = 16             # bytes the server half may put in the save (default 1 MiB, max 64 MiB)
+tick_hz   = 0              # calls of the server half's on_tick a second, 1 to 30; 0 (the default) never
 
 [[channels]]               # one table per network channel between the two halves
 id      = 0                # 0 to 255
@@ -79,6 +80,7 @@ softly and the mod keeps running:
 | `hud` | A draw list on top of the game UI |
 | `render.pipeline` | A render system in the mod slot of the frame |
 | `camera`, `terrain.cutout` | A camera override, a mask that cuts holes in the terrain |
+| `world.bodies` | Publishing hit boxes, seeing those of the other mods and dealing hits to them (server, API 1.1) |
 | `kv` | A small per-mod key-value store in the browser |
 | `audio`, `assets` | Sounds, the mod's asset pack |
 
@@ -106,6 +108,28 @@ pub fn register(r: &mut ServerRegistry) {
 The server half implements `ServerMod`: `start(saved)`, `on_client`, `on_attach` (the replay for a joining or
 reconnecting seat), `on_turn`, `persist`, and optionally `is_dirty` and `mark_saved`. It returns the messages to
 send and the host delivers them. A panic in a mod disables it for that game; the game goes on.
+
+The mod API is at version 1.1. What 1.1 added (every new method has a default, so a 1.0 mod builds unchanged):
+
+- **Clock and tick.** `ServerCtx::now_ms()` is the host's monotonic clock in milliseconds. With `tick_hz` in
+  `[rust]` the game actor calls `ServerMod::on_tick(cx, now_ms)` that many times a second, serialised with the other
+  calls; a late tick is not repeated. The answers of a tick have no sender.
+- **A seat goes.** `ServerMod::on_detach(cx, seat)` when a seat's client disconnects, leaves or is kicked. It may
+  come back: then `on_attach` comes again.
+- **Bodies and hits** (`world.bodies`). `ServerCtx::set_bodies(Vec<Body>)` replaces the mod's hit boxes (at most 64
+  bodies of 16 boxes; the host fills `Body::owner`). `ServerCtx::bodies()` returns the bodies of the other mods of the
+  game. `ServerCtx::hit(BodyRef, Hit)` queues a hit; after the call the host hands each one to the owner's
+  `ServerMod::on_hit(cx, from_mod, target_id, &hit)`. At most 256 hits a call; hits queued inside `on_hit`, on an
+  unknown body, or on a mod that is off are dropped with a line in the log. Coordinates are world units, the frame
+  of the client camera.
+- **One mode at a time on the client.** `ClientCtx::acquire_control()` takes the camera and the input for the mod's
+  mode until `release_control()`. While another mod holds them it fails with `CtxError::Busy { holder }`, whose text
+  asks the player to leave that mode first; `control_holder()` tells who holds them. While a mod holds them only its
+  camera override counts and only it gets input events (hotkeys still reach every mod).
+
+The mock hosts follow: `MockCtx::tick`, `detach` and `hit` drive the new calls, `set_other_bodies` sets the bodies of
+the other mods, `published_bodies` and `hits` read back what the mod did; `MockClientCtx::control_holder` plays
+another mod in its mode.
 
 ## Distribution workflow
 
