@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use mod_api::{LogLevel, Seat, WorldFacts};
 use mod_host_server::{
     CallEnv, ClientOutcome, DropReason, GameMods, HostRegistry, LogLine, ModOutput, ModStatus,
-    ModStore, set_view,
+    ModStore,
 };
 use mod_manifest::{ModId, ModSet, write_lock};
 use protocol::{
@@ -197,7 +197,7 @@ impl ModHost {
             .map_err(|e| e.to_string())?;
         Ok(Self {
             game,
-            plan: set_view(&set),
+            plan: store.set_view(&set),
             mods,
             lock: write_lock(&set),
             set,
@@ -445,8 +445,8 @@ mod tests {
     use super::*;
 
     /// A mod with one channel (64 bytes in, 256 out, 50/s) and a server part.
-    fn manifest(id: &str, sync: &str, client: &str) -> Installed {
-        let src = format!(
+    fn manifest_text(id: &str, sync: &str, client: &str) -> String {
+        format!(
             r#"
 [mod]
 id = "{id}"
@@ -471,7 +471,11 @@ s2c_max = 256
 rate = "50/s"
 burst = 20
 "#
-        );
+        )
+    }
+
+    fn manifest(id: &str, sync: &str, client: &str) -> Installed {
+        let src = manifest_text(id, sync, client);
         Installed {
             manifest: Manifest::parse(&src).unwrap_or_else(|e| panic!("{e}\n{src}")),
             content_hash: ContentHash([3; 32]),
@@ -588,6 +592,37 @@ burst = 20
             .find(|m| m.id == id)
             .unwrap()
             .load_idx
+    }
+
+    #[test]
+    fn the_plan_carries_the_pack_hash_of_a_mod_with_a_pack() {
+        let dir = std::env::temp_dir().join(format!("c5-modhost-pack-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("hello")).unwrap();
+        std::fs::write(dir.join("hello/mod.toml"), manifest_text("hello", "gameplay", "")).unwrap();
+        let bytes = mod_assets::Pack::build(
+            mod_manifest::ModId::new("hello").unwrap(),
+            vec![],
+            vec![mod_assets::NewFile {
+                id: "data/blob".into(),
+                kind: mod_assets::AssetKind::Raw,
+                bytes: b"abc".to_vec(),
+            }],
+        )
+        .unwrap()
+        .to_bytes();
+        std::fs::write(dir.join("hello/hello.pack"), &bytes).unwrap();
+        let store = Arc::new(ModStore::scan(&dir));
+        assert!(store.problems().is_empty(), "{:?}", store.problems());
+        let lock = lock_of(&store, &["hello"]);
+        let h = ModHost::build(1, store, registry(), Some(&lock)).unwrap();
+        let want = mod_assets::Sha256::of(&bytes).to_string();
+        let plan = h.plan().unwrap();
+        assert_eq!(plan.mods[0].pack.as_deref(), Some(want.as_str()));
+        // What `admit` hands a client (the `GameMsg::Mods` of its stream) carries it too.
+        let a = h.admit(Some(&hello(&[("hello", "1.2.0")]))).unwrap();
+        assert_eq!(a.view.mods[0].pack.as_deref(), Some(want.as_str()));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
