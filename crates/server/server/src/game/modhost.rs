@@ -5,6 +5,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex, PoisonError};
 
+use super::stream::TerrainSharePart;
 use mod_api::{LogLevel, Seat, WorldFacts};
 use mod_host_server::{
     CallEnv, ClientOutcome, DropReason, GameMods, HostRegistry, LogLine, ModOutput, ModStatus,
@@ -135,6 +136,8 @@ pub struct Delivery {
     pub dropped: Option<DropReason>,
     /// The seat has repeated violations: disconnect it.
     pub disconnect: bool,
+    /// The terrain shares of the mods (API 1.2) by seat, in the order made; the seat stream adds the basis records.
+    pub terrain: BTreeMap<PlayerId, Vec<TerrainSharePart>>,
 }
 
 /// The mods of one running game: the frozen set, the server instances, who lacks which optional mod, and the block
@@ -316,6 +319,7 @@ impl ModHost {
             targets,
             dropped,
             disconnect,
+            terrain: self.route_shares(humans),
         }
     }
 
@@ -334,6 +338,7 @@ impl ModHost {
             by_seat,
             outputs,
             targets,
+            terrain: self.route_shares(humans),
             ..Delivery::default()
         }
     }
@@ -387,6 +392,7 @@ impl ModHost {
             by_seat,
             outputs,
             targets,
+            terrain: self.route_shares(humans),
             ..Delivery::default()
         }
     }
@@ -464,6 +470,29 @@ impl ModHost {
             targets.push(got);
         }
         (by_seat, targets)
+    }
+
+    /// The terrain shares the mods made in the call (API 1.2), by seat. Like the messages, a seat that is not a human
+    /// with a pipeline, or that lacks the mod, gets nothing of it.
+    fn route_shares(&mut self, humans: &[PlayerId]) -> BTreeMap<PlayerId, Vec<TerrainSharePart>> {
+        let mut by_seat: BTreeMap<PlayerId, Vec<TerrainSharePart>> = BTreeMap::new();
+        for (mod_idx, s) in self.mods.take_terrain_shares() {
+            let seat = s.seat.player();
+            if !humans.contains(&seat)
+                || self
+                    .unavailable
+                    .get(&seat)
+                    .is_some_and(|u| u.contains(&mod_idx))
+            {
+                continue;
+            }
+            by_seat.entry(seat).or_default().push(TerrainSharePart {
+                mod_idx,
+                reset: s.reset,
+                plots: s.plots,
+            });
+        }
+        by_seat
     }
 
     /// The log lines of the mods (and of the host for them) into the server log, tagged with the mod.
@@ -573,11 +602,53 @@ burst = 20
         }
     }
 
+    fn share_manifest(id: &str) -> Installed {
+        let src = manifest_text(id, "cosmetic", "client = \"optional\"").replace(
+            "caps = [\"net.channel\"]",
+            "caps = [\"net.channel\", \"world.share_terrain\"]",
+        );
+        Installed {
+            manifest: Manifest::parse(&src).unwrap_or_else(|e| panic!("{e}\n{src}")),
+            content_hash: ContentHash([3; 32]),
+        }
+    }
+
+    /// API 1.2: `mine` shares plots 1, 2 to the sender, `seat2` shares plot 3 to seat 2, `end` unshares the sender.
+    struct Arena;
+
+    impl ServerMod for Arena {
+        fn start(&mut self, _cx: &mut ServerCtx<'_>, _saved: Option<&[u8]>) {}
+        fn on_client(
+            &mut self,
+            cx: &mut ServerCtx<'_>,
+            from: Seat,
+            _ch: u8,
+            p: &[u8],
+        ) -> Vec<Outgoing> {
+            let r = match p {
+                b"mine" => cx.share_terrain(from, &[1, 2, 2]),
+                b"seat2" => cx.share_terrain(Seat(2), &[3]),
+                b"end" => cx.unshare_terrain(from),
+                _ => Ok(()),
+            };
+            assert!(r.is_ok());
+            Vec::new()
+        }
+        fn on_attach(&mut self, cx: &mut ServerCtx<'_>, seat: Seat) -> Vec<Outgoing> {
+            cx.share_terrain(seat, &[7]).unwrap();
+            Vec::new()
+        }
+        fn persist(&self) -> Vec<u8> {
+            Vec::new()
+        }
+    }
+
     fn registry() -> Arc<HostRegistry> {
         let mut r = HostRegistry::new();
         r.register(|r| {
             r.add("hello", || Box::new(Echo::default()));
             r.add("flair", || Box::new(Echo::default()));
+            r.add("arena", || Box::new(Arena));
         });
         Arc::new(r)
     }
@@ -588,6 +659,8 @@ burst = 20
             manifest("hello", "gameplay", ""),
             // `flair`: cosmetic and optional for clients.
             manifest("flair", "cosmetic", "client = \"optional\""),
+            // `arena`: cosmetic, optional, shares terrain (API 1.2).
+            share_manifest("arena"),
         ]))
     }
 
@@ -843,6 +916,38 @@ burst = 20
         h.start(&facts, 0, Some(foreign));
         let d = h.on_attach(&facts, 0, 1, &[0, 1]);
         assert_eq!(d.by_seat[&1][0].payload, 0u32.to_le_bytes());
+    }
+
+    #[test]
+    fn a_terrain_share_goes_to_its_seat_only_and_not_to_a_seat_without_the_mod() {
+        let mut h = host(&["hello", "arena"]);
+        let facts = MockFacts::new(4, 4);
+        h.start(&facts, 0, None);
+        let arena = idx(&h, "arena");
+        let parts = |d: &Delivery| -> Vec<(PlayerId, u16, bool, Vec<u32>)> {
+            d.terrain
+                .iter()
+                .flat_map(|(p, v)| v.iter().map(|s| (*p, s.mod_idx, s.reset, s.plots.clone())))
+                .collect()
+        };
+        let d = h.on_client(&facts, 0, 0, &c2s(arena, b"mine"), &[0, 1, 2]);
+        assert_eq!(parts(&d), [(0, arena, false, vec![1, 2])]);
+        assert!(d.by_seat.is_empty(), "no mod message came of it");
+        // Again: nothing new.
+        let d = h.on_client(&facts, 0, 0, &c2s(arena, b"mine"), &[0, 1, 2]);
+        assert!(d.terrain.is_empty());
+        // A share to a seat that lacks the mod, or that is not a human with a pipeline, goes nowhere.
+        h.seat_admitted(2, BTreeSet::from([arena]));
+        let d = h.on_client(&facts, 0, 0, &c2s(arena, b"seat2"), &[0, 1, 2]);
+        assert!(d.terrain.is_empty());
+        h.seat_admitted(2, BTreeSet::new());
+        let d = h.on_client(&facts, 0, 0, &c2s(arena, b"seat2"), &[0, 1]);
+        assert!(d.terrain.is_empty(), "seat 2 is not playing");
+        // The attach of a seat shares to it; the unshare is a reset.
+        let d = h.on_attach(&facts, 0, 1, &[0, 1]);
+        assert_eq!(parts(&d), [(1, arena, false, vec![7])]);
+        let d = h.on_client(&facts, 0, 0, &c2s(arena, b"end"), &[0, 1]);
+        assert_eq!(parts(&d), [(0, arena, true, vec![])]);
     }
 
     #[test]

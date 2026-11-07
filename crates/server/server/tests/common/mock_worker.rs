@@ -39,7 +39,8 @@
 //! player 0's, plot 2 player 5's, nobody else's) when `owners=1`; with it the first `Basis` is a typed one (plot 3
 //! water, 4 lake, 5 hills, 6 mountain, the rest land). Every `Cmd` of a seat then flips the owner of plot 9 between
 //! nobody and player 1 and sends the `Delta` in the frame of the order, ahead of its `Results`. `gap=N`: the N-th
-//! `Delta` names a wrong base revision. `want_log=PATH`: a line per `WantOwners`.
+//! `Delta` names a wrong base revision. `want_log=PATH`: a line per `WantOwners`. `map=1`: the views carry the 8x4
+//! map of that typed basis, and every `Basis` is the typed one (a basis and a keyframe pair up: the terrain share).
 //!
 //! `replica=1` (every mode that plays) makes the mock a server of the replica stream (protocol v4) with made-up
 //! bodies: a `ReplicaBlob` and `ReplicaBase` (epoch 77, `jseq` 0) with the first views, a `ReplicaJournal` batch
@@ -133,6 +134,17 @@ fn typed_basis() -> MapBasis {
     };
     m.basis_hash = protocol::basis_hash_of(&m);
     m
+}
+
+/// The view's map of `map=1`: the 8x4 plots of [`typed_basis`], so that a basis and a keyframe pair up.
+fn typed_map() -> protocol::MapView {
+    protocol::MapView {
+        width: 8,
+        height: 4,
+        plots: vec![protocol::PlotView::default(); 32],
+        terrain_seed: 1,
+        ..Default::default()
+    }
 }
 
 /// The made-up owners of `owners=1`.
@@ -229,6 +241,15 @@ fn choices() -> LobbyChoices {
         options: vec![],
         ..LobbyChoices::default()
     }
+}
+
+/// [`view`] with the 8x4 map of `map=1` (the one [`typed_basis`] describes).
+fn view_of(opts: &Opts, player: i8, turn: i32) -> WorldView {
+    let mut v = view(player, turn);
+    if opts.num("map", 0) == 1 {
+        v.map = typed_map();
+    }
+    v
 }
 
 fn view(player: i8, turn: i32) -> WorldView {
@@ -662,7 +683,7 @@ fn main() -> ExitCode {
         .map(|p| {
             let seat = Seat {
                 rev: 1,
-                view: view(*p, 1),
+                view: view_of(&opts, *p, 1),
                 last_cmd: None,
             };
             (*p, seat)
@@ -671,7 +692,15 @@ fn main() -> ExitCode {
     let mut replica = (opts.num("replica", 0) == 1).then(|| Replica::new(&opts));
     let mut mock_owners = (opts.num("owners", 0) == 1).then(|| MockOwners::new(&opts));
     let basis_of = |opts: &Opts| {
-        if opts.num("owners", 0) == 1 {
+        if opts.num("owners", 0) == 1 || opts.num("map", 0) == 1 {
+            typed_basis()
+        } else {
+            mock_basis()
+        }
+    };
+    // The basis that goes with a later `Full`: the one of the view's map (`map=1`), else the empty one.
+    let full_basis = |opts: &Opts| {
+        if opts.num("map", 0) == 1 {
             typed_basis()
         } else {
             mock_basis()
@@ -774,7 +803,7 @@ fn main() -> ExitCode {
                     if basis {
                         msgs.push(WorkerMsg::Basis {
                             players: vec![player],
-                            basis: mock_basis(),
+                            basis: full_basis(&opts),
                         });
                     }
                     msgs.push(full(player, seat));
@@ -799,12 +828,12 @@ fn main() -> ExitCode {
                         if error.is_none() {
                             let seat = Seat {
                                 rev: 1,
-                                view: view(player, 1),
+                                view: view_of(&opts, player, 1),
                                 last_cmd: None,
                             };
                             msgs.push(WorkerMsg::Basis {
                                 players: vec![player],
-                                basis: mock_basis(),
+                                basis: full_basis(&opts),
                             });
                             msgs.push(full(player, &seat));
                             seats.insert(player, seat);

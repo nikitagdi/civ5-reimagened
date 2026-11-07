@@ -9,6 +9,10 @@
 //! they were when it began. The hits a call queued are handed, in order, to the owners' `on_hit` right after it
 //! returns, one level deep.
 //!
+//! API 1.2 adds the cosmetic terrain share (`world.share_terrain`): the requests of a call are applied after it returns
+//! to the mod's [`TerrainShares`] (what each seat was given), and what is new for a seat waits in the instance until the
+//! host takes it ([`GameMods::take_terrain_shares`]). A seat whose client goes away, or that attaches again, is forgotten.
+//!
 //! Isolation needs `panic = "unwind"`. See [`PANIC_ISOLATION`].
 
 use std::any::Any;
@@ -16,7 +20,8 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use mod_api::{
     Audience, Body, BodyRef, Cap, Caps, ChannelId, Hit, HitQueue, HostServices, Limiter, LogLevel,
-    Outgoing, Seat, ServerCtx, ServerMod, Verdict, WorldFacts, prepare_bodies,
+    Outgoing, PlotIdx, Seat, ServerCtx, ServerMod, ShareOut, ShareQueue, TerrainShares, Verdict,
+    WorldFacts, prepare_bodies,
 };
 use mod_manifest::ModId;
 use protocol::ModS2C;
@@ -105,6 +110,7 @@ struct CallHost<'a> {
     others: &'a [Body],
     new_bodies: &'a mut Option<Vec<Body>>,
     queue: &'a mut HitQueue,
+    shares: &'a mut ShareQueue,
 }
 
 impl HostServices for CallHost<'_> {
@@ -128,6 +134,12 @@ impl HostServices for CallHost<'_> {
     }
     fn hit(&mut self, target: BodyRef, hit: Hit) {
         self.queue.push(target, hit);
+    }
+    fn share_terrain(&mut self, seat: Seat, plots: &[PlotIdx]) {
+        self.shares.share(seat, plots);
+    }
+    fn unshare_terrain(&mut self, seat: Seat) {
+        self.shares.unshare(seat);
     }
 }
 
@@ -185,6 +197,10 @@ pub struct ModInstance {
     others_gen: u64,
     /// `bodies` changed in the last call.
     bodies_changed: bool,
+    /// What the mod shared of the terrain to each seat (`world.share_terrain`).
+    shares: TerrainShares,
+    /// The shares the host has not taken yet, in order.
+    share_out: Vec<ShareOut>,
 }
 
 fn panic_text(p: &(dyn Any + Send)) -> String {
@@ -230,6 +246,8 @@ impl ModInstance {
             others: Vec::new(),
             others_gen: u64::MAX,
             bodies_changed: false,
+            shares: TerrainShares::new(),
+            share_out: Vec::new(),
         }
     }
 
@@ -272,6 +290,7 @@ impl ModInstance {
             Hits::Nested => HitQueue::nested(),
         };
         let mut new_bodies = None;
+        let mut shares = ShareQueue::new();
         let mut host = CallHost {
             facts: env.facts,
             limiter: &mut self.limiter,
@@ -280,6 +299,7 @@ impl ModInstance {
             others: &self.others,
             new_bodies: &mut new_bodies,
             queue: &mut queue,
+            shares: &mut shares,
         };
         let mut cx = ServerCtx::new(&self.caps, &mut host);
         let module = self.module.as_mut();
@@ -296,6 +316,15 @@ impl ModInstance {
                 let (queued, warn) = queue.finish();
                 if let Some(w) = warn {
                     self.logs.push((LogLevel::Warn, w));
+                }
+                let (ops, warn) = shares.finish();
+                if let Some(w) = warn {
+                    self.logs.push((LogLevel::Warn, w));
+                }
+                if !ops.is_empty() {
+                    let plot_count = env.facts.map().plot_count();
+                    let out = self.shares.apply(ops, plot_count);
+                    self.share_out.extend(out);
                 }
                 Some((r, queued))
             }
@@ -601,8 +630,10 @@ impl GameMods {
         }
     }
 
-    /// A seat attached (Fresh attach or reconnect): the snapshot pages of every mod, in load order.
+    /// A seat attached (Fresh attach or reconnect): the snapshot pages of every mod, in load order. The seat's fresh
+    /// stream holds no terrain share: what the mods shared to it is forgotten first, so a share made here goes whole.
     pub fn on_attach(&mut self, env: CallEnv<'_>, seat: Seat) -> Vec<ModOutput> {
+        self.forget_shares(seat);
         let mut all = Vec::new();
         for i in 0..self.slots.len() {
             all.extend(self.call_out(i, env, "on_attach", None, |m, cx| m.on_attach(cx, seat)));
@@ -610,13 +641,42 @@ impl GameMods {
         all
     }
 
-    /// The client of a seat went away (connection lost, left, kicked): every mod, in load order.
+    /// The client of a seat went away (connection lost, left, kicked): every mod, in load order. Then what the mods
+    /// shared of the terrain to the seat is forgotten (nothing goes to a seat that is away).
     pub fn on_detach(&mut self, env: CallEnv<'_>, seat: Seat) -> Vec<ModOutput> {
         let mut all = Vec::new();
         for i in 0..self.slots.len() {
             all.extend(self.call_out(i, env, "on_detach", None, |m, cx| m.on_detach(cx, seat)));
         }
+        self.forget_shares(seat);
         all
+    }
+
+    /// Every mod forgets what it shared of the terrain to the seat; the shares not taken yet for it are dropped.
+    fn forget_shares(&mut self, seat: Seat) {
+        for m in self.slots.iter_mut().flatten() {
+            m.shares.forget_seat(seat);
+            m.share_out.retain(|s| s.seat != seat);
+        }
+    }
+
+    /// Takes the terrain shares the mods made since the last call (`world.share_terrain`, API 1.2): `(load index,
+    /// share)`, in load order and, per mod, in the order made. The host sends each to its seat.
+    pub fn take_terrain_shares(&mut self) -> Vec<(u16, ShareOut)> {
+        let mut out = Vec::new();
+        for m in self.slots.iter_mut().flatten() {
+            let idx = m.load_idx;
+            out.extend(m.share_out.drain(..).map(|s| (idx, s)));
+        }
+        out
+    }
+
+    /// The plots the mod at `mod_idx` shares to the seat now, ascending (tests, logs).
+    pub fn shared_terrain(&self, mod_idx: u16, seat: Seat) -> Vec<PlotIdx> {
+        self.slots
+            .get(usize::from(mod_idx))
+            .and_then(Option::as_ref)
+            .map_or_else(Vec::new, |m| m.shares.shared(seat).collect())
     }
 
     /// A new turn began. `on_turn` returns nothing, but the hits it queued are delivered: their answers come back.
@@ -686,6 +746,7 @@ impl GameMods {
 
     /// The seat left the game: its buckets and violation count go.
     pub fn forget_seat(&mut self, seat: Seat) {
+        self.forget_shares(seat);
         self.strikes.forget(seat);
         for m in self.slots.iter_mut().flatten() {
             m.limiter.forget_seat(seat);

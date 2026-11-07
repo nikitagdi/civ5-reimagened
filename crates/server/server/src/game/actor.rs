@@ -3171,14 +3171,16 @@ impl GameActor {
                     }));
             }
         }
+        // One batch per seat: its mod messages, then the terrain shares made in the same call (API 1.2).
+        let mut by_seat: BTreeMap<PlayerId, Parts> = BTreeMap::new();
         for (p, msgs) in d.by_seat {
-            self.step(
-                p,
-                Parts {
-                    mods: msgs,
-                    ..Parts::default()
-                },
-            );
+            by_seat.entry(p).or_default().mods = msgs;
+        }
+        for (p, shares) in d.terrain {
+            by_seat.entry(p).or_default().terrain = shares;
+        }
+        for (p, parts) in by_seat {
+            self.step(p, parts);
         }
     }
 

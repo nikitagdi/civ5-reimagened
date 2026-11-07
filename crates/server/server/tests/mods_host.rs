@@ -152,6 +152,29 @@ impl ServerMod for Ticker {
     }
 }
 
+/// API 1.2: `mine` shares plots 3, 4, 5 (water, a lake, a hill of the `map=1` map; and 4 again) to the sender, `end` unshares the sender; each answers `[A]` to
+/// the sender after the call, so a test knows the batch with the share has been sent.
+struct Arena;
+
+impl ServerMod for Arena {
+    fn start(&mut self, _cx: &mut ServerCtx<'_>, _saved: Option<&[u8]>) {}
+    fn on_client(&mut self, cx: &mut ServerCtx<'_>, from: Seat, ch: u8, p: &[u8]) -> Vec<Outgoing> {
+        let r = match p {
+            b"mine" => cx.share_terrain(from, &[3, 4, 5, 4]),
+            b"end" => cx.unshare_terrain(from),
+            _ => Ok(()),
+        };
+        assert!(r.is_ok(), "{r:?}");
+        vec![Outgoing::to_sender(ch, vec![b'A'])]
+    }
+    fn on_attach(&mut self, _cx: &mut ServerCtx<'_>, _seat: Seat) -> Vec<Outgoing> {
+        Vec::new()
+    }
+    fn persist(&self) -> Vec<u8> {
+        Vec::new()
+    }
+}
+
 fn registry() -> Arc<HostRegistry> {
     let mut r = HostRegistry::new();
     r.register(|r| {
@@ -160,6 +183,7 @@ fn registry() -> Arc<HostRegistry> {
         r.add("probe", || Box::new(Probe));
         r.add("blind", || Box::new(Probe));
         r.add("ticker", || Box::new(Ticker));
+        r.add("arena", || Box::new(Arena));
     });
     Arc::new(r)
 }
@@ -1199,6 +1223,79 @@ fn a_ticking_mod_broadcasts_on_the_host_clock_and_hears_a_seat_go() {
     drop(bob);
     alice.next_mod("bob's seat went", |m| m.payload == [b'D', 1]);
     drop(clock);
+    srv.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---------------------------------------------------------------- API 1.2: the terrain share
+
+fn shares(c: &Client) -> Vec<protocol::TerrainShare> {
+    c.batches
+        .iter()
+        .flatten()
+        .filter_map(|m| match m {
+            GameMsg::TerrainShare(s) => Some(s.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn basis(c: &Client) -> protocol::MapBasis {
+    c.batches
+        .iter()
+        .flatten()
+        .find_map(|m| match m {
+            GameMsg::MapBasis(b) => Some(b.clone()),
+            _ => None,
+        })
+        .expect("a map basis")
+}
+
+/// A mod shares terrain to one seat: that seat's stream gets one `TerrainShare` with the records of its map basis for
+/// the new plots only, the other seat gets nothing; an unshare is a reset to that seat.
+#[test]
+fn a_terrain_share_goes_to_its_seat_only_with_the_records_of_the_basis() {
+    let dir = temp_dir("mh-share");
+    let mods = install_caps(
+        &dir,
+        "arena",
+        "cosmetic",
+        "client = \"optional\"",
+        r#""net.channel", "world.share_terrain""#,
+    );
+    // `map=1`: the mock worker's map (8 x 4) and basis have water, a lake and a hill.
+    let srv = boot_mode(&dir, Some(&mods), "echo turns=1 map=1", |_| {});
+    let both: &[(&str, &str)] = &[("arena", "1.0.0")];
+    let (mut alice, mut bob) = start_game(&srv, &["arena"], Some(both), Some(both));
+    alice.attached();
+    bob.attached();
+    alice.await_mods();
+    bob.await_mods();
+    alice.mod_msg(0, b"mine");
+    alice.next_mod("the answer", |m| m.payload == b"A");
+    // Again: nothing new, no second share.
+    alice.mod_msg(0, b"mine");
+    alice.next_mod("the second answer", |m| m.payload == b"A");
+    let got = shares(&alice);
+    assert_eq!(got.len(), 1, "{got:?}");
+    let b = basis(&alice);
+    let want: Vec<(u32, protocol::PlotBasisView)> = [3u32, 4, 5]
+        .iter()
+        .map(|&i| (i, b.plots[i as usize].clone()))
+        .collect();
+    assert_eq!(want[2].1.plot_type, protocol::PlotType::Hill);
+    assert_eq!((got[0].mod_idx, got[0].reset), (0, false));
+    assert_eq!(got[0].plots, want);
+    // Bob hears an answer of his own after alice's share went out: nothing of it reached him.
+    bob.mod_msg(0, b"hi");
+    bob.next_mod("his answer", |m| m.payload == b"A");
+    assert!(shares(&bob).is_empty(), "{:?}", shares(&bob));
+    // The unshare: a reset with no plots, to alice.
+    alice.mod_msg(0, b"end");
+    alice.next_mod("the third answer", |m| m.payload == b"A");
+    let got = shares(&alice);
+    assert_eq!(got.len(), 2, "{got:?}");
+    assert!(got[1].reset && got[1].plots.is_empty());
     srv.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }

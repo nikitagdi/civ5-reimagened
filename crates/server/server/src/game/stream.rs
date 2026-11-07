@@ -11,8 +11,9 @@ use std::sync::Arc;
 use protocol::{
     AttachMode, Attached, BasisClaim, BasisState, CatalogRef, ChatLine, CmdId, CommandResult,
     ContextMsg, GameBatch, GameId, GameMsg, GcBase, JournalEntry, Keyframe, KeyframeReason,
-    MapBasis, ModS2C, ModSetView, PlayerId, Resume, SeatView, ServerMsg, TurnState, UndoLog,
-    ViewDelta, ViewHash, ViewUpdate, WorldView, apply, check, check_pair,
+    MAX_TERRAIN_SHARE_PLOTS, MapBasis, ModS2C, ModSetView, PlayerId, Resume, SeatView, ServerMsg,
+    TerrainShare, TurnState, UndoLog, ViewDelta, ViewHash, ViewUpdate, WorldView, apply, check,
+    check_pair,
 };
 use protocol::{Codec, Postcard};
 use wire::Encoder;
@@ -125,6 +126,17 @@ pub struct Parts {
     pub gc: Vec<GameMsg>,
     /// Messages of the server halves of mods (`GameMsg::Mod`), in order.
     pub mods: Vec<ModS2C>,
+    /// Terrain shares of the mods (API 1.2), in order: they go out as `GameMsg::TerrainShare` with the records of
+    /// the seat's map basis.
+    pub terrain: Vec<TerrainSharePart>,
+}
+
+/// One terrain share of a mod for one seat as the host made it: plot indexes, no records yet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TerrainSharePart {
+    pub mod_idx: u16,
+    pub reset: bool,
+    pub plots: Vec<u32>,
 }
 
 impl Parts {
@@ -148,6 +160,7 @@ impl Parts {
             ("chat", !self.chat.is_empty()),
             ("gc", !self.gc.is_empty()),
             ("mod", !self.mods.is_empty()),
+            ("terrain_share", !self.terrain.is_empty()),
         ] {
             if present {
                 k.push(name);
@@ -167,6 +180,7 @@ impl Parts {
             && self.chat.is_empty()
             && self.gc.is_empty()
             && self.mods.is_empty()
+            && self.terrain.is_empty()
     }
 
     /// A rough guess of the body size in bytes, to choose between the task and the blocking pool.
@@ -659,6 +673,7 @@ impl SeatStream {
             chat,
             gc,
             mods,
+            terrain,
         } = parts;
         if let Some(b) = basis {
             match BasisState::new(b) {
@@ -703,11 +718,48 @@ impl SeatStream {
                 }
             }
         }
+        let terrain = self.terrain_shares(terrain);
         out.frame = self.build(
-            view_out, false, results, journal, contexts, turn, seats, chat, gc, mods,
+            view_out, false, results, journal, contexts, turn, seats, chat, gc, mods, terrain,
         );
         self.publish();
         out
+    }
+
+    /// The records of the shared plots, from the map basis the seat has (the materialized one, else the one staged for
+    /// the next `Full`): the fog-free basis records, the encoding of `MapBasis::plots`. A plot past the basis is
+    /// dropped; with no basis at all the share is dropped with a warning (the client has no map to draw it on
+    /// either; the mod shares again in the next `on_attach`).
+    fn terrain_shares(&self, parts: Vec<TerrainSharePart>) -> Vec<TerrainShare> {
+        if parts.is_empty() {
+            return Vec::new();
+        }
+        let basis = self
+            .mat
+            .as_ref()
+            .map(|m| m.basis.map())
+            .or_else(|| self.staged_basis.as_ref().map(BasisState::map));
+        let Some(basis) = basis else {
+            tracing::warn!(
+                seat = self.player,
+                "a terrain share before the map basis, dropped"
+            );
+            return Vec::new();
+        };
+        parts
+            .into_iter()
+            .map(|p| TerrainShare {
+                mod_idx: p.mod_idx,
+                reset: p.reset,
+                plots: p
+                    .plots
+                    .into_iter()
+                    .filter_map(|i| basis.plots.get(i as usize).map(|b| (i, b.clone())))
+                    .take(MAX_TERRAIN_SHARE_PLOTS)
+                    .collect(),
+            })
+            .filter(|s| s.reset || !s.plots.is_empty())
+            .collect()
     }
 
     /// The batch of one step. `forced_basis`: the `MapBasis` goes before the keyframe whatever
@@ -725,6 +777,7 @@ impl SeatStream {
         chat: Vec<ChatLine>,
         gc: Vec<GameMsg>,
         mods: Vec<ModS2C>,
+        terrain: Vec<TerrainShare>,
     ) -> Option<Vec<u8>> {
         let seq = self.seq + 1;
         let mut msgs: Vec<GameMsg> = Vec::new();
@@ -810,6 +863,7 @@ impl SeatStream {
             msgs.push(m);
         }
         msgs.extend(mods.into_iter().map(GameMsg::Mod));
+        msgs.extend(terrain.into_iter().map(GameMsg::TerrainShare));
         if msgs.is_empty() {
             return None;
         }
@@ -943,6 +997,7 @@ impl SeatStream {
             Vec::new(),
             None,
             None,
+            Vec::new(),
             Vec::new(),
             Vec::new(),
             Vec::new(),

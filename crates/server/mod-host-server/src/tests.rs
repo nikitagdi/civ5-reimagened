@@ -313,6 +313,39 @@ impl ServerMod for Steve {
     }
 }
 
+/// API 1.2, the terrain share: on attach shares plots 9 and 10 to the seat; payloads `share` (9, 10, 17, 18, 9 and
+/// 999, off the map, to the sender), `other` (plots 1 and 2 to seat 5), `end` (unshares the sender), `big` (300 plots),
+/// `boom` (shares, then panics). Answers the error of a call without the capability.
+struct Terra;
+
+impl ServerMod for Terra {
+    fn start(&mut self, _cx: &mut ServerCtx<'_>, _saved: Option<&[u8]>) {}
+    fn on_client(&mut self, cx: &mut ServerCtx<'_>, from: Seat, ch: u8, p: &[u8]) -> Vec<Outgoing> {
+        let r = match p {
+            b"share" => cx.share_terrain(from, &[9, 10, 17, 18, 9, 999]),
+            b"other" => cx.share_terrain(Seat(5), &[1, 2]),
+            b"end" => cx.unshare_terrain(from),
+            b"big" => cx.share_terrain(from, &(0..300).map(|i| i % 64).collect::<Vec<_>>()),
+            b"boom" => {
+                let _ = cx.share_terrain(from, &[3]);
+                panic!("scripted failure after a share");
+            }
+            _ => Ok(()),
+        };
+        match r {
+            Ok(()) => Vec::new(),
+            Err(e) => vec![Outgoing::to_sender(ch, e.to_string().into_bytes())],
+        }
+    }
+    fn on_attach(&mut self, cx: &mut ServerCtx<'_>, seat: Seat) -> Vec<Outgoing> {
+        let _ = cx.share_terrain(seat, &[9, 10]);
+        Vec::new()
+    }
+    fn persist(&self) -> Vec<u8> {
+        Vec::new()
+    }
+}
+
 struct Rig {
     reg: HostRegistry,
     store: ModStore,
@@ -340,6 +373,8 @@ impl Rig {
             r.add("steve", || Box::new(Steve::default()));
             r.add("nocap", || Box::new(Gun::default()));
             r.add("slow", || Box::new(Gun::default()));
+            r.add("terra", || Box::new(Terra));
+            r.add("bare", || Box::new(Terra));
         });
         assert!(reg.problems().is_empty());
         let bodies = ", \"world.bodies\"";
@@ -352,6 +387,8 @@ impl Rig {
             server_manifest("steve", bodies, ""),
             server_manifest("nocap", "", ""),
             server_manifest_rust("slow", bodies, "", "tick_hz = 3"),
+            server_manifest("terra", ", \"world.share_terrain\"", ""),
+            server_manifest("bare", "", ""),
         ]);
         Rig {
             reg,
@@ -945,4 +982,127 @@ mod api_1_1 {
             "{logs:?}"
         );
     }
+}
+
+// ------------------------------------------------------------------ API 1.2: the terrain share
+
+fn plots_of(shares: &[(u16, mod_api::ShareOut)]) -> Vec<(u16, i8, bool, Vec<u32>)> {
+    shares
+        .iter()
+        .map(|(i, s)| (*i, s.seat.0, s.reset, s.plots.clone()))
+        .collect()
+}
+
+#[test]
+fn a_share_goes_to_its_seat_once_without_duplicates_or_plots_off_the_map() {
+    let mut rig = Rig::new();
+    let mut g = rig.game(&["echo", "terra"]);
+    g.start(rig.env(), &[]);
+    let terra = 1u16;
+    // The attach of seat 1 shares 9 and 10 to it.
+    g.on_attach(rig.env(), Seat(1));
+    assert_eq!(
+        plots_of(&g.take_terrain_shares()),
+        [(terra, 1, false, vec![9, 10])]
+    );
+    assert!(g.take_terrain_shares().is_empty(), "taken once");
+    // Only the new plots go, once each, none off the 8 x 8 map.
+    rig.now_ms += 1000;
+    g.on_client(rig.env(), Seat(1), terra, 0, b"share");
+    assert_eq!(
+        plots_of(&g.take_terrain_shares()),
+        [(terra, 1, false, vec![17, 18])]
+    );
+    rig.now_ms += 1000;
+    g.on_client(rig.env(), Seat(1), terra, 0, b"share");
+    assert!(g.take_terrain_shares().is_empty(), "nothing new");
+    assert_eq!(g.shared_terrain(terra, Seat(1)), [9, 10, 17, 18]);
+    // A share names its seat; another seat's share is its own.
+    rig.now_ms += 1000;
+    g.on_client(rig.env(), Seat(1), terra, 0, b"other");
+    assert_eq!(
+        plots_of(&g.take_terrain_shares()),
+        [(terra, 5, false, vec![1, 2])]
+    );
+    assert_eq!(g.shared_terrain(terra, Seat(1)), [9, 10, 17, 18]);
+    // Unshare: a reset for the sender only.
+    rig.now_ms += 1000;
+    g.on_client(rig.env(), Seat(1), terra, 0, b"end");
+    assert_eq!(
+        plots_of(&g.take_terrain_shares()),
+        [(terra, 1, true, vec![])]
+    );
+    assert!(g.shared_terrain(terra, Seat(1)).is_empty());
+    assert_eq!(g.shared_terrain(terra, Seat(5)), [1, 2]);
+    // Ordinary messages are unchanged by it.
+    rig.now_ms += 1000;
+    let r = g.on_client(rig.env(), Seat(1), 0, 0, b"hi");
+    assert_eq!(r.outputs.len(), 2);
+    assert!(g.take_terrain_shares().is_empty());
+}
+
+#[test]
+fn a_share_needs_the_capability_and_a_call_shares_at_most_the_limit() {
+    let mut rig = Rig::new();
+    let mut g = rig.game(&["bare", "terra"]);
+    g.start(rig.env(), &[]);
+    let (bare, terra) = (0u16, 1u16);
+    rig.now_ms += 1000;
+    let r = g.on_client(rig.env(), Seat(1), bare, 0, b"share");
+    assert!(
+        String::from_utf8_lossy(&r.outputs[0].payload).contains("world.share_terrain"),
+        "{:?}",
+        r.outputs
+    );
+    // The attach of the mod without the capability shared nothing either.
+    g.on_attach(rig.env(), Seat(2));
+    let all = plots_of(&g.take_terrain_shares());
+    assert!(all.iter().all(|(i, ..)| *i == terra), "{all:?}");
+    // 300 plots in one call: the first 256 are taken (64 distinct ones on this map), the rest is logged.
+    let _ = g.take_logs();
+    rig.now_ms += 1000;
+    g.on_client(rig.env(), Seat(3), terra, 0, b"big");
+    let s = g.take_terrain_shares();
+    assert_eq!(s.len(), 1);
+    assert_eq!(s[0].1.plots.len(), 64);
+    let logs = g.take_logs();
+    assert!(
+        logs.iter()
+            .any(|l| l.level == LogLevel::Warn && l.msg.contains("44 plots over 256")),
+        "{logs:?}"
+    );
+}
+
+#[test]
+fn a_detach_forgets_the_share_and_a_panic_sends_none_of_its_call() {
+    let mut rig = Rig::new();
+    let mut g = rig.game(&["terra"]);
+    g.start(rig.env(), &[]);
+    g.on_attach(rig.env(), Seat(1));
+    rig.now_ms += 1000;
+    g.on_client(rig.env(), Seat(1), 0, 0, b"share");
+    // Not taken yet when the seat goes: dropped with what the host remembers.
+    g.on_detach(rig.env(), Seat(1));
+    assert!(g.take_terrain_shares().is_empty());
+    assert!(g.shared_terrain(0, Seat(1)).is_empty());
+    // It comes back: the attach shares whole again.
+    g.on_attach(rig.env(), Seat(1));
+    assert_eq!(
+        plots_of(&g.take_terrain_shares()),
+        [(0, 1, false, vec![9, 10])]
+    );
+    // A fresh attach without a detach starts over too (the client's fresh stream has no share).
+    g.on_attach(rig.env(), Seat(1));
+    assert_eq!(
+        plots_of(&g.take_terrain_shares()),
+        [(0, 1, false, vec![9, 10])]
+    );
+    // A panic: the share of that call is not sent, the mod is off.
+    rig.now_ms += 1000;
+    g.on_client(rig.env(), Seat(1), 0, 0, b"boom");
+    assert!(g.take_terrain_shares().is_empty());
+    assert!(matches!(g.statuses()[0].1, ModStatus::Disabled { .. }));
+    // The seat leaves the game: forgotten.
+    g.forget_seat(Seat(1));
+    assert!(g.shared_terrain(0, Seat(1)).is_empty());
 }
