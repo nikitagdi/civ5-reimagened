@@ -32,10 +32,12 @@ pub enum Cap {
     TerrainCutout,
     /// Publish hit bodies, read the other mods' bodies and deal hits to them (server, API 1.1).
     WorldBodies,
+    /// Let a seat draw the ground of plots it has not revealed (server, API 1.2, cosmetic).
+    WorldShareTerrain,
 }
 
 impl Cap {
-    pub const ALL: [Cap; 11] = [
+    pub const ALL: [Cap; 12] = [
         Cap::NetChannel,
         Cap::WorldRead,
         Cap::InputClaim,
@@ -47,6 +49,7 @@ impl Cap {
         Cap::Assets,
         Cap::TerrainCutout,
         Cap::WorldBodies,
+        Cap::WorldShareTerrain,
     ];
 
     /// The name used in `mod.toml`.
@@ -63,6 +66,7 @@ impl Cap {
             Cap::Assets => "assets",
             Cap::TerrainCutout => "terrain.cutout",
             Cap::WorldBodies => "world.bodies",
+            Cap::WorldShareTerrain => "world.share_terrain",
         }
     }
 

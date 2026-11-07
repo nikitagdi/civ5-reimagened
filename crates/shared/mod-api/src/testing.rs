@@ -4,6 +4,9 @@
 //! API 1.1: [`MockCtx::tick`], [`MockCtx::detach`] and [`MockCtx::hit`] drive the new calls; the bodies and hits of
 //! the mock world ([`MockBodies`]) live in [`MockFacts`], so `MockHost` and `MockCtx` keep their 1.0 fields and a test
 //! that builds them with a struct literal still compiles.
+//!
+//! API 1.2: the terrain share ([`MockShares`], also in [`MockFacts`]): [`MockCtx::terrain_shares`] lists what the
+//! host would have sent, [`MockCtx::shared`] what a seat holds.
 
 use mod_manifest::{Channel, ModId};
 
@@ -13,6 +16,7 @@ use crate::facts::{MapShape, Owner, PlotClass, PlotIdx, WorldFacts};
 use crate::ids::{ChannelId, PlayerId, Seat};
 use crate::limits::{Dropped, Limiter, Verdict};
 use crate::server::{HostServices, LogLevel, Outgoing, ServerCtx, ServerMod};
+use crate::terrain::{ShareOut, ShareQueue, TerrainShares};
 
 /// The bodies of the mock world (API 1.1): the other mods' bodies the test sets, what the mod under test published,
 /// and the hits it queued.
@@ -41,7 +45,18 @@ impl Default for MockBodies {
     }
 }
 
-/// A map with settable owners and classes. Every plot starts as unowned `Land`. Also holds the [`MockBodies`].
+/// The terrain share of the mock world (API 1.2): the requests of the call under way, what each seat was given, and
+/// every message the host would have sent, in order.
+#[derive(Debug, Clone, Default)]
+pub struct MockShares {
+    queue: ShareQueue,
+    shares: TerrainShares,
+    /// Every share the host would have sent, over all calls, in order.
+    pub sent: Vec<ShareOut>,
+}
+
+/// A map with settable owners and classes. Every plot starts as unowned `Land`. Also holds the [`MockBodies`] and
+/// the [`MockShares`].
 #[derive(Debug, Clone)]
 pub struct MockFacts {
     shape: MapShape,
@@ -50,6 +65,7 @@ pub struct MockFacts {
     classes: Vec<PlotClass>,
     seats: Vec<(Seat, PlayerId)>,
     bodies: MockBodies,
+    shares: MockShares,
 }
 
 impl MockFacts {
@@ -68,6 +84,7 @@ impl MockFacts {
             classes: vec![PlotClass::Land; n],
             seats: Vec::new(),
             bodies: MockBodies::default(),
+            shares: MockShares::default(),
         }
     }
 
@@ -116,6 +133,11 @@ impl MockFacts {
 
     pub fn bodies_mut(&mut self) -> &mut MockBodies {
         &mut self.bodies
+    }
+
+    /// The terrain share of the mock world.
+    pub fn shares(&self) -> &MockShares {
+        &self.shares
     }
 }
 
@@ -178,6 +200,12 @@ impl HostServices for MockHost {
     }
     fn hit(&mut self, target: BodyRef, hit: Hit) {
         self.facts.bodies.queue.push(target, hit);
+    }
+    fn share_terrain(&mut self, seat: Seat, plots: &[PlotIdx]) {
+        self.facts.shares.queue.share(seat, plots);
+    }
+    fn unshare_terrain(&mut self, seat: Seat) {
+        self.facts.shares.queue.unshare(seat);
     }
 }
 
@@ -251,11 +279,22 @@ impl MockCtx {
         &self.host.facts.bodies.hits
     }
 
+    /// Every terrain share the host would have sent so far (after its limits and dedupe), in order.
+    pub fn terrain_shares(&self) -> &[ShareOut] {
+        &self.host.facts.shares.sent
+    }
+
+    /// The plots the mod shares to the seat now, ascending.
+    pub fn shared(&self, seat: Seat) -> Vec<PlotIdx> {
+        self.host.facts.shares.shares.shared(seat).collect()
+    }
+
     /// Calls `start` with the saved bytes. Hits it queues land in [`hits`](Self::hits).
     pub fn start(&mut self, m: &mut dyn ServerMod, saved: Option<&[u8]>) {
         self.host.facts.bodies.queue = HitQueue::new();
         m.start(&mut ServerCtx::new(&self.caps, &mut self.host), saved);
         let _ = self.take_queue();
+        self.take_shares();
     }
 
     /// Delivers a client message the way the host does: limits first, then the mod, then the output filter.
@@ -293,6 +332,8 @@ impl MockCtx {
     /// Calls `on_attach` and filters the output.
     pub fn attach(&mut self, m: &mut dyn ServerMod, seat: Seat) -> Delivery {
         self.host.facts.bodies.queue = HitQueue::new();
+        // A fresh stream starts with no share: the host forgets what the seat was given.
+        self.host.facts.shares.shares.forget_seat(seat);
         let out = m.on_attach(&mut ServerCtx::new(&self.caps, &mut self.host), seat);
         self.finish(out)
     }
@@ -301,7 +342,10 @@ impl MockCtx {
     pub fn detach(&mut self, m: &mut dyn ServerMod, seat: Seat) -> Delivery {
         self.host.facts.bodies.queue = HitQueue::new();
         let out = m.on_detach(&mut ServerCtx::new(&self.caps, &mut self.host), seat);
-        self.finish(out)
+        let d = self.finish(out);
+        // The host forgets what the seat was given: its client went away.
+        self.host.facts.shares.shares.forget_seat(seat);
+        d
     }
 
     /// One tick of the game actor at the current clock ([`advance_ms`](Self::advance_ms) moves it).
@@ -342,8 +386,21 @@ impl MockCtx {
         hits
     }
 
+    /// Applies the share requests of the call (the host does it after the call returns).
+    fn take_shares(&mut self) {
+        let plot_count = self.host.facts.shape.plot_count();
+        let s = &mut self.host.facts.shares;
+        let (ops, warn) = std::mem::take(&mut s.queue).finish();
+        let out = s.shares.apply(ops, plot_count);
+        s.sent.extend(out);
+        if let Some(w) = warn {
+            self.log_line(LogLevel::Warn, w);
+        }
+    }
+
     fn finish(&mut self, out: Vec<Outgoing>) -> Delivery {
         let hits = self.take_queue();
+        self.take_shares();
         let f = self.host.limiter.filter_outgoing(&self.caps, out);
         for d in &f.dropped {
             self.log_line(

@@ -11,7 +11,7 @@ use thiserror::Error;
 
 use crate::bodies::{Body, BodyRef, Hit};
 use crate::caps::{Cap, CapDenied, Caps};
-use crate::facts::WorldFacts;
+use crate::facts::{PlotIdx, WorldFacts};
 use crate::ids::{ChannelId, Seat};
 
 /// Who receives an [`Outgoing`] message.
@@ -64,7 +64,8 @@ pub enum LogLevel {
 
 /// What the host provides for one mod call. Implemented by the server host and by the test double.
 ///
-/// The methods added in API 1.1 have defaults (no clock, no bodies), so an older implementation still builds.
+/// The methods added in API 1.1 and 1.2 have defaults (no clock, no bodies, no terrain share), so an older
+/// implementation still builds.
 pub trait HostServices {
     fn facts(&self) -> &dyn WorldFacts;
     /// Spends `cost` tokens of the seat's mod-chosen bucket on `ch` (see `Limiter::allow`).
@@ -87,6 +88,12 @@ pub trait HostServices {
     ///
     /// [`HitQueue`]: crate::HitQueue
     fn hit(&mut self, _target: BodyRef, _hit: Hit) {}
+    /// Queues a terrain share for the seat; the host applies it after the call (see [`ShareQueue`], API 1.2).
+    ///
+    /// [`ShareQueue`]: crate::ShareQueue
+    fn share_terrain(&mut self, _seat: Seat, _plots: &[PlotIdx]) {}
+    /// Queues the end of this mod's terrain share for the seat (API 1.2).
+    fn unshare_terrain(&mut self, _seat: Seat) {}
 }
 
 /// The facade a server mod talks to the host through. Created by the host per call.
@@ -151,6 +158,35 @@ impl<'a> ServerCtx<'a> {
     pub fn hit(&mut self, target: BodyRef, hit: Hit) -> Result<(), CapDenied> {
         self.caps.require(Cap::WorldBodies)?;
         self.host.hit(target, hit);
+        Ok(())
+    }
+
+    /// Lets `seat` draw the ground of `plots` although it has not revealed them (an arena in another player's land): a
+    /// first-person camera there stands on the relief every client sees. Cosmetic: the host sends the seat the
+    /// fog-free basis records of the plots (relief, terrain, rivers, lakes, relief features), never an owner, a unit,
+    /// a city, an improvement, a route or a resource, and the plots stay unrevealed to the game (strategic map,
+    /// minimap, tooltips). The client draws them like fogged revealed land.
+    ///
+    /// After this call returns the host sends only what is new: duplicates, plots off the map and plots this mod
+    /// already shared to the seat are dropped. At most [`MAX_SHARE_PLOTS_PER_CALL`] plots per call into the mod (all
+    /// its `share_terrain` calls together), the rest is dropped with a warning in the log. A seat that does not have
+    /// this mod gets nothing. The share lasts until [`unshare_terrain`](Self::unshare_terrain), until the seat's
+    /// client goes away (`on_detach`: share again in the next `on_attach`) or the game ends. Needs
+    /// `world.share_terrain`. API 1.2.
+    ///
+    /// [`MAX_SHARE_PLOTS_PER_CALL`]: crate::MAX_SHARE_PLOTS_PER_CALL
+    pub fn share_terrain(&mut self, seat: Seat, plots: &[PlotIdx]) -> Result<(), CapDenied> {
+        self.caps.require(Cap::WorldShareTerrain)?;
+        self.host.share_terrain(seat, plots);
+        Ok(())
+    }
+
+    /// Ends this mod's terrain share for `seat` (the other mods' shares stay): the seat's client stops drawing the
+    /// plots it has not revealed. Nothing is sent when the mod shared nothing to the seat. Needs
+    /// `world.share_terrain`. API 1.2.
+    pub fn unshare_terrain(&mut self, seat: Seat) -> Result<(), CapDenied> {
+        self.caps.require(Cap::WorldShareTerrain)?;
+        self.host.unshare_terrain(seat);
         Ok(())
     }
 }

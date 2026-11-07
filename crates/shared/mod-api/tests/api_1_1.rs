@@ -151,8 +151,9 @@ impl ServerMod for Old {
 }
 
 #[test]
-fn the_api_is_1_1_and_admitted_by_caret_one() {
-    assert_eq!(MOD_API_VERSION, Version::new(1, 1, 0));
+fn the_api_is_at_least_1_1_and_admitted_by_caret_one() {
+    assert!(MOD_API_VERSION >= Version::new(1, 1, 0));
+    assert_eq!(MOD_API_VERSION.major, 1);
     assert!(
         "^1".parse::<mod_manifest::VersionReq>()
             .unwrap()

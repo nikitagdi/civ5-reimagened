@@ -70,6 +70,7 @@ mod facts;
 mod ids;
 mod limits;
 mod server;
+mod terrain;
 pub mod testing;
 
 pub use bodies::{
@@ -83,3 +84,4 @@ pub use limits::{Dropped, Filtered, Limiter, Verdict};
 pub use server::{
     Audience, HostServices, LogLevel, Outgoing, RegistryError, ServerCtx, ServerMod, ServerRegistry,
 };
+pub use terrain::{MAX_SHARE_PLOTS_PER_CALL, ShareOp, ShareOut, ShareQueue, TerrainShares};

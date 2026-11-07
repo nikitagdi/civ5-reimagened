@@ -7,7 +7,10 @@ pub use mod_manifest::{ModId, Version};
 ///
 /// 1.1: `ServerMod::{on_tick, on_detach, on_hit}`, `ServerCtx::{now_ms, bodies, set_bodies, hit}`, the
 /// `world.bodies` capability, `[rust] tick_hz`; on the client, one holder of the camera and of the input at a time.
-pub const MOD_API_VERSION: Version = Version::new(1, 1, 0);
+///
+/// 1.2: `ServerCtx::{share_terrain, unshare_terrain}` and the `world.share_terrain` capability: the cosmetic share of
+/// the ground of plots a seat has not revealed.
+pub const MOD_API_VERSION: Version = Version::new(1, 2, 0);
 
 /// A game player id, the same value the server actor and the protocol use (`protocol::PlayerId`).
 pub type PlayerId = i8;
