@@ -364,6 +364,10 @@ struct App {
     hooks: ModHooks,
     /// The HUD textures of mods that are on the GPU (kept, to put them back when the cache evicts one).
     mod_textures: Vec<(draw_list::TextureId, render::UiTextureData)>,
+    /// The pose of the strategic camera for the mods: kept as it was while a mod holds the camera.
+    strategic_pose: Option<mod_client::StrategicCamera>,
+    /// The plot under the cursor in the strategic view, for the mods.
+    mod_hover: Option<(i32, i32)>,
     /// `?showcase=1` only: orbit camera and the Warrior.
     showcase_mode: bool,
     camera: Camera,
@@ -622,6 +626,8 @@ impl App {
             pointer: crate::pointer::PointerService::new(pointer_lock_probe),
             hooks,
             mod_textures: Vec::new(),
+            strategic_pose: None,
+            mod_hover: None,
             camera: Camera::default(),
             controller: CameraController::new(1, 1),
             game_camera: GameCamera::default(),
@@ -1798,11 +1804,37 @@ impl App {
                         (s.width, s.height, w.scale_factor() as f32)
                     });
                     let focus = self.game_camera.focus();
-                    let hooks = &mut self.hooks;
-                    let lock =
-                        with_mod_info(&self.net, renderer, (dt, now, focus), screen, |info| {
-                            hooks.frame(info)
+                    if self.hooks.camera().is_none() {
+                        let cam = &self.game_camera;
+                        let aspect = screen.0 as f32 / screen.1.max(1) as f32;
+                        let f = cam.focus();
+                        self.strategic_pose = Some(mod_client::StrategicCamera {
+                            eye: cam.eye().to_array(),
+                            look_at: [f.x, render::camera_params::FOCUS_HEIGHT, f.y],
+                            yaw: 0.0,
+                            pitch: cam.pitch(),
+                            fov_y: cam.fov_y(aspect),
                         });
+                        self.mod_hover = match self.map_controller.cursor() {
+                            Some(at) if !self.map_controller.is_dragging() => {
+                                let ray = self.map_controller.ray_at(at, &self.game_camera);
+                                self.picker.pick(&self.bridge, &ray).map(|p| p.cell)
+                            }
+                            _ => None,
+                        };
+                    } else {
+                        self.mod_hover = None;
+                    }
+                    let hooks = &mut self.hooks;
+                    let view = (self.mod_hover, self.strategic_pose);
+                    let lock = with_mod_info(
+                        &self.net,
+                        renderer,
+                        (dt, now, focus),
+                        screen,
+                        view,
+                        |info| hooks.frame(info),
+                    );
                     if let (Some(want), Some(w)) = (lock, self.window.as_ref()) {
                         if want {
                             self.pointer.request(w);
@@ -2072,9 +2104,17 @@ impl App {
                 });
                 let focus = self.game_camera.focus();
                 let (hooks, ui) = (&mut self.hooks, &mut self.ui);
-                with_mod_info(&self.net, renderer, (dt, now, focus), screen, |info| {
-                    hooks.hud(info, ui);
-                });
+                let view = (self.mod_hover, self.strategic_pose);
+                with_mod_info(
+                    &self.net,
+                    renderer,
+                    (dt, now, focus),
+                    screen,
+                    view,
+                    |info| {
+                        hooks.hud(info, ui);
+                    },
+                );
                 let req = self.hooks.take_requests();
                 apply_mod_requests(
                     renderer,
@@ -2872,6 +2912,7 @@ fn with_mod_info<R>(
     renderer: &Renderer,
     (dt, now_ms, focus): (f32, u64, glam::Vec2),
     screen: (u32, u32, f32),
+    (hover, strategic): (Option<(i32, i32)>, Option<mod_client::StrategicCamera>),
     f: impl FnOnce(&crate::mod_hooks::FrameInfo<'_>) -> R,
 ) -> R {
     fn build<'a>(
@@ -2879,6 +2920,7 @@ fn with_mod_info<R>(
         world: Option<&'a dyn mod_client::ModWorld>,
         (dt, now_ms, focus): (f32, u64, glam::Vec2),
         screen: (u32, u32, f32),
+        (hover, strategic): (Option<(i32, i32)>, Option<mod_client::StrategicCamera>),
     ) -> crate::mod_hooks::FrameInfo<'a> {
         crate::mod_hooks::FrameInfo {
             dt,
@@ -2889,6 +2931,8 @@ fn with_mod_info<R>(
             cutout_grid: renderer.cutout_grid(),
             gpu: Some(renderer.mod_gpu()),
             screen,
+            hover,
+            strategic,
         }
     }
     let time = (dt, now_ms, focus);
@@ -2899,9 +2943,15 @@ fn with_mod_info<R>(
             Some(match core.shown() {
                 Some(view) => {
                     let world = crate::mod_host::ReplicaWorld::new(view, core.revision());
-                    run(&build(renderer, Some(&world), time, screen))
+                    run(&build(
+                        renderer,
+                        Some(&world),
+                        time,
+                        screen,
+                        (hover, strategic),
+                    ))
                 }
-                None => run(&build(renderer, None, time, screen)),
+                None => run(&build(renderer, None, time, screen, (hover, strategic))),
             })
         }),
         _ => None,
@@ -2909,7 +2959,13 @@ fn with_mod_info<R>(
     match seen.flatten() {
         Some(r) => r,
         // No game, or the core was in use: the mods see no world this frame.
-        None => (f.take().expect("not consumed"))(&build(renderer, None, time, screen)),
+        None => (f.take().expect("not consumed"))(&build(
+            renderer,
+            None,
+            time,
+            screen,
+            (hover, strategic),
+        )),
     }
 }
 

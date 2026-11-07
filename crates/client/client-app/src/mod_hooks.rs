@@ -128,6 +128,10 @@ pub struct FrameInfo<'a> {
     pub gpu: Option<&'a ModGpu>,
     /// The window in physical pixels and its scale factor.
     pub screen: (u32, u32, f32),
+    /// The plot `(x, y)` under the cursor in the strategic view; `None` while a mod holds the camera.
+    pub hover: Option<(i32, i32)>,
+    /// The pose of the strategic camera (frozen at the moment a mod took the camera, while it holds it).
+    pub strategic: Option<mod_client::StrategicCamera>,
 }
 
 impl Default for FrameInfo<'_> {
@@ -141,6 +145,8 @@ impl Default for FrameInfo<'_> {
             cutout_grid: None,
             gpu: None,
             screen: (0, 0, 1.0),
+            hover: None,
+            strategic: None,
         }
     }
 }

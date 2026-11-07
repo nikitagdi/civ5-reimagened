@@ -576,6 +576,9 @@ pub struct Env<'a> {
     pub terrain: Option<TerrainView<'a>>,
     pub gpu: Option<&'a ModGpu>,
     pub screen: Option<ScreenInfo>,
+    /// The plot under the cursor in the strategic view.
+    pub hover: Option<(i32, i32)>,
+    pub strategic: Option<mod_client::StrategicCamera>,
 }
 
 /// The host for one call: the state, what the call can see, and which mod it speaks for.
@@ -674,6 +677,18 @@ impl ClientCtx for HostView<'_> {
 
     fn gpu(&self) -> Result<&ModGpu, CtxError> {
         self.env.gpu.ok_or(CtxError::Unavailable("gpu"))
+    }
+
+    fn hover_plot(&self) -> Result<Option<PlotIdx>, CtxError> {
+        let world = self.env.world.ok_or(CtxError::Unavailable("world"))?;
+        Ok(self.env.hover.and_then(|(x, y)| {
+            let (x, y) = (i16::try_from(x).ok()?, i16::try_from(y).ok()?);
+            world.plot_at(x, y)
+        }))
+    }
+
+    fn strategic_camera(&self) -> Option<mod_client::StrategicCamera> {
+        self.env.strategic
     }
 
     fn request_pointer_lock(&mut self, lock: bool) -> Result<(), CtxError> {

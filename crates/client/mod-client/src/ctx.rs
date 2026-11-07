@@ -12,7 +12,9 @@ use thiserror::Error;
 use render::cutout::{CutoutGrid, CutoutRegion};
 use render::frame::ModGpu;
 
-use crate::types::{HotkeySpec, PackState, PlayOpts, PlayerInfo, PlotView, ScreenInfo};
+use crate::types::{
+    HotkeySpec, PackState, PlayOpts, PlayerInfo, PlotView, ScreenInfo, StrategicCamera,
+};
 
 /// Why a context call failed.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -144,6 +146,17 @@ pub trait ClientCtx {
     fn gpu(&self) -> Result<&ModGpu, CtxError> {
         Err(CtxError::Unavailable("gpu"))
     }
+    /// The plot under the cursor in the strategic view (what the game itself would pick), by plot index. `None` when
+    /// the cursor is over no plot, while a mod holds the camera (the strategic picking follows the mod's place then),
+    /// or outside `frame` and `hud`. Needs `world.read`.
+    fn hover_plot(&self) -> Result<Option<PlotIdx>, CtxError> {
+        Ok(None)
+    }
+    /// The strategic camera's pose of this frame. While a mod holds the camera it is the pose the player had when the
+    /// mod took it (the game camera is only moved to the mod's terrain focus); `None` outside `frame` and `hud`.
+    fn strategic_camera(&self) -> Option<StrategicCamera> {
+        None
+    }
     /// Captures or releases the pointer. Browsers grant the lock only inside a user gesture, so call it from
     /// `claim_input`. Needs `input.claim`.
     fn request_pointer_lock(&mut self, lock: bool) -> Result<(), CtxError>;
@@ -236,6 +249,15 @@ impl ClientCtx for Guarded<'_> {
     fn gpu(&self) -> Result<&ModGpu, CtxError> {
         self.caps.require(Cap::RenderPipeline)?;
         self.inner.gpu()
+    }
+
+    fn hover_plot(&self) -> Result<Option<PlotIdx>, CtxError> {
+        self.caps.require(Cap::WorldRead)?;
+        self.inner.hover_plot()
+    }
+
+    fn strategic_camera(&self) -> Option<StrategicCamera> {
+        self.inner.strategic_camera()
     }
 
     fn request_pointer_lock(&mut self, lock: bool) -> Result<(), CtxError> {

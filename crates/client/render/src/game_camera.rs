@@ -307,6 +307,16 @@ impl GameCamera {
         self.clamp_focus();
     }
 
+    /// The pitch of the view: negative, looking down (the sign of `FirstPerson::pitch`).
+    pub fn pitch(&self) -> f32 {
+        -p::PITCH
+    }
+
+    /// Vertical field of view for a viewport `aspect` (width / height), radians.
+    pub fn fov_y(&self, aspect: f32) -> f32 {
+        p::fov_y_for_aspect(aspect.max(1e-3))
+    }
+
     pub fn eye(&self) -> Vec3 {
         let h = self.height();
         Vec3::new(

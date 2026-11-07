@@ -13,7 +13,9 @@ use crate::ctx::{
     ClientCtx, ClientHost, CtxError, CutoutMask, Hotkeys, HudTextures, ModAssets, ModAudio, ModKv,
     ModTerrain, ModWorld,
 };
-use crate::types::{HotkeySpec, PackState, PlayOpts, PlayerInfo, PlotView, ScreenInfo};
+use crate::types::{
+    HotkeySpec, PackState, PlayOpts, PlayerInfo, PlotView, ScreenInfo, StrategicCamera,
+};
 
 /// A message `send` recorded.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -336,6 +338,10 @@ pub struct MockClientCtx {
     pub hud: MockHud,
     pub cutout: MockCutout,
     pub screen: ScreenInfo,
+    /// The plot `hover_plot` answers.
+    pub hover: Option<PlotIdx>,
+    /// The pose `strategic_camera` answers.
+    pub strategic: Option<StrategicCamera>,
     /// Every pointer-lock request, in order.
     pub pointer_lock_requests: Vec<bool>,
 }
@@ -362,6 +368,8 @@ impl MockClientCtx {
                 height: 720,
                 scale: 1.0,
             },
+            hover: None,
+            strategic: None,
             pointer_lock_requests: Vec::new(),
         }
     }
@@ -460,8 +468,44 @@ impl ClientCtx for MockClientCtx {
         self.screen
     }
 
+    fn hover_plot(&self) -> Result<Option<PlotIdx>, CtxError> {
+        Ok(self.hover)
+    }
+
+    fn strategic_camera(&self) -> Option<StrategicCamera> {
+        self.strategic
+    }
+
     fn request_pointer_lock(&mut self, lock: bool) -> Result<(), CtxError> {
         self.pointer_lock_requests.push(lock);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use mod_api::Caps;
+
+    use super::*;
+    use crate::ctx::Guarded;
+
+    #[test]
+    fn hover_plot_and_the_strategic_pose_reach_a_mod_and_hover_needs_world_read() {
+        let mut host = MockClientCtx::new();
+        host.hover = Some(9);
+        host.strategic = Some(StrategicCamera {
+            eye: [1.0, 2.0, 3.0],
+            look_at: [1.0, 0.0, 0.0],
+            yaw: 0.0,
+            pitch: -0.5,
+            fov_y: 1.0,
+        });
+        let none = Caps::none();
+        let g = Guarded::new(&mut host, &none);
+        assert!(g.hover_plot().is_err());
+        assert!(g.strategic_camera().is_some());
+        let caps = Caps::of(&[Cap::WorldRead]);
+        let g = Guarded::new(&mut host, &caps);
+        assert_eq!(g.hover_plot(), Ok(Some(9)));
     }
 }

@@ -48,6 +48,8 @@ fn env_of<'a>(info: &FrameInfo<'a>) -> Env<'a> {
             height: info.screen.1,
             scale: info.screen.2,
         }),
+        hover: info.hover,
+        strategic: info.strategic,
     }
 }
 

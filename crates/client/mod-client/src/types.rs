@@ -94,6 +94,21 @@ impl PlotView {
     };
 }
 
+/// The pose of the strategic (game) camera, in world units, for a mod that starts from the real view (a descent
+/// animation) or wants to know where the player looks. `yaw` and `pitch` use the convention of
+/// [`FirstPerson`](crate::gpu::FirstPerson): yaw 0 looks along -Z and grows to +X; pitch is positive looking up, so a
+/// strategic view has a negative pitch.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StrategicCamera {
+    pub eye: [f32; 3],
+    /// The point on the ground in the middle of the screen.
+    pub look_at: [f32; 3],
+    pub yaw: f32,
+    pub pitch: f32,
+    /// Vertical field of view, radians, for the current window.
+    pub fov_y: f32,
+}
+
 /// Window size in physical pixels and the scale factor.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ScreenInfo {

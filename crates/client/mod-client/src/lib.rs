@@ -56,17 +56,27 @@ pub use ctx::{
     ClientCtx, ClientHost, CtxError, CutoutMask, Guarded, Hotkeys, HudTextures, ModAssets,
     ModAudio, ModKv, ModTerrain, ModWorld,
 };
-pub use draw_list::{TextureId, UiDrawList};
+pub use draw_list::{TextureId, UiBlend, UiDrawList, UiVertex};
 pub use hotkeys::{HotkeyTable, KeyUse, game_key};
 pub use kv::{KV_KEY_MAX, KV_VALUE_MAX, NamespacedKv};
-pub use mod_api::{LogLevel, PlayerId};
-pub use platform::InputEvent;
+pub use mod_api::{LogLevel, MapShape, PlayerId, PlotClass, PlotIdx};
+pub use platform::{
+    InputEvent, Key, KeyEvent, Modifiers, MouseButton, NamedKey, PhysicalPosition, PhysicalSize,
+    PointerEvent, PointerId, PointerKind, PointerPhase, WheelDelta, WheelEvent,
+};
 pub use registry::{ClientRegistry, ModDispatcher};
 pub use render::cutout::{CutoutGrid, CutoutRegion};
 pub use types::{
     AttachInfo, Claim, FrameOut, HotkeySpec, ModBuild, ModInfo, PackState, PlayOpts, PlayerInfo,
-    PlotView, ScreenInfo, SetEntry,
+    PlotView, ScreenInfo, SetEntry, StrategicCamera,
 };
+
+/// Labeled timing of a mod's own work, for the engine's slow-frame log and the performance panel. Hold the guard
+/// for the block to time: `let _s = mod_client::perf::scope("mod.<id>.mesh");`. Name the scopes `mod.<id>.<what>` so
+/// they read apart from the engine's. Costs a flag check when profiling is off.
+pub mod perf {
+    pub use render::perf::slow::{Scope, scope};
+}
 
 /// The engine types behind the hooks, for mods that draw or move the camera. A mod does not name the `render` or
 /// `wgpu` crates: R11 lets it depend on `mod-client` only.

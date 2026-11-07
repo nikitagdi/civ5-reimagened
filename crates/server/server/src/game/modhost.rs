@@ -599,7 +599,11 @@ burst = 20
         let dir = std::env::temp_dir().join(format!("c5-modhost-pack-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("hello")).unwrap();
-        std::fs::write(dir.join("hello/mod.toml"), manifest_text("hello", "gameplay", "")).unwrap();
+        std::fs::write(
+            dir.join("hello/mod.toml"),
+            manifest_text("hello", "gameplay", ""),
+        )
+        .unwrap();
         let bytes = mod_assets::Pack::build(
             mod_manifest::ModId::new("hello").unwrap(),
             vec![],
