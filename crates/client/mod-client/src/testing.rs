@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 
 use draw_list::TextureId;
 use mod_api::{Cap, ChannelId, LogLevel, MapShape, PlayerId, PlotClass, PlotIdx};
+use mod_manifest::ModId;
 use render::cutout::{CutoutGrid, CutoutRegion};
 
 use crate::ctx::{
@@ -344,6 +345,12 @@ pub struct MockClientCtx {
     pub strategic: Option<StrategicCamera>,
     /// Every pointer-lock request, in order.
     pub pointer_lock_requests: Vec<bool>,
+    /// Who holds the camera and the input (API 1.1). Set it to another id to play a second mod in its mode:
+    /// `acquire_control` then fails with `CtxError::Busy` (used when the mock is a mod's context; inside a dispatcher
+    /// the dispatcher arbitrates).
+    pub control_holder: Option<ModId>,
+    /// The id the mock answers for the mod under test when it acquires (`mock` unless set).
+    pub control_id: ModId,
 }
 
 impl MockClientCtx {
@@ -371,6 +378,8 @@ impl MockClientCtx {
             hover: None,
             strategic: None,
             pointer_lock_requests: Vec::new(),
+            control_holder: None,
+            control_id: ModId::new("mock").unwrap_or_else(|_| unreachable!("a valid id")),
         }
     }
 
@@ -477,8 +486,36 @@ impl ClientCtx for MockClientCtx {
     }
 
     fn request_pointer_lock(&mut self, lock: bool) -> Result<(), CtxError> {
+        if lock
+            && let Some(h) = self
+                .control_holder
+                .as_ref()
+                .filter(|h| **h != self.control_id)
+        {
+            return Err(CtxError::Busy { holder: h.clone() });
+        }
         self.pointer_lock_requests.push(lock);
         Ok(())
+    }
+
+    fn acquire_control(&mut self) -> Result<(), CtxError> {
+        match &self.control_holder {
+            Some(h) if *h != self.control_id => Err(CtxError::Busy { holder: h.clone() }),
+            _ => {
+                self.control_holder = Some(self.control_id.clone());
+                Ok(())
+            }
+        }
+    }
+
+    fn release_control(&mut self) {
+        if self.control_holder.as_ref() == Some(&self.control_id) {
+            self.control_holder = None;
+        }
+    }
+
+    fn control_holder(&self) -> Option<ModId> {
+        self.control_holder.clone()
     }
 }
 

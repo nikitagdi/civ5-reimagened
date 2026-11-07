@@ -6,7 +6,7 @@
 
 use draw_list::TextureId;
 use mod_api::{Cap, CapDenied, Caps, ChannelId, LogLevel, MapShape, PlayerId, PlotIdx};
-use mod_manifest::CHANNEL_PAYLOAD_CEILING;
+use mod_manifest::{CHANNEL_PAYLOAD_CEILING, ModId};
 use thiserror::Error;
 
 use render::cutout::{CutoutGrid, CutoutRegion};
@@ -28,6 +28,39 @@ pub enum CtxError {
     Unavailable(&'static str),
     #[error("{0}")]
     Rejected(String),
+    /// Another mod holds the camera and the input (API 1.1): a mod shows the player something like "leave the mode
+    /// of `holder` first".
+    #[error("the camera and the input are held by mod `{holder}`: leave its mode first")]
+    Busy { holder: ModId },
+}
+
+/// Who holds the camera and the input, kept by the dispatcher (API 1.1). One mod at a time: the one that called
+/// `acquire_control` (the lease), or else the 1.0 mod whose camera override the last frame used.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct Control {
+    pub(crate) lease: Option<(u16, ModId)>,
+    pub(crate) implicit: Option<(u16, ModId)>,
+}
+
+impl Control {
+    pub(crate) fn holder(&self) -> Option<&(u16, ModId)> {
+        self.lease.as_ref().or(self.implicit.as_ref())
+    }
+
+    /// The holder, if it is not mod `me`.
+    fn other(&self, me: u16) -> Option<&ModId> {
+        self.holder().filter(|(i, _)| *i != me).map(|(_, id)| id)
+    }
+
+    /// Forgets mod `me` as a holder (it released, was detached or switched off).
+    pub(crate) fn forget(&mut self, me: u16) {
+        if self.lease.as_ref().is_some_and(|(i, _)| *i == me) {
+            self.lease = None;
+        }
+        if self.implicit.as_ref().is_some_and(|(i, _)| *i == me) {
+            self.implicit = None;
+        }
+    }
 }
 
 /// Read access to the replica of the game (W1). Fog-aware: only what the player has seen.
@@ -165,8 +198,28 @@ pub trait ClientCtx {
         None
     }
     /// Captures or releases the pointer. Browsers grant the lock only inside a user gesture, so call it from
-    /// `claim_input`. Needs `input.claim`.
+    /// `claim_input`. Needs `input.claim`. Taking the lock while another mod holds the camera and the input fails
+    /// with `CtxError::Busy`.
     fn request_pointer_lock(&mut self, lock: bool) -> Result<(), CtxError>;
+
+    /// Takes the camera and the input for this mod's own mode (first person, captured pointer) until
+    /// [`release_control`](Self::release_control) or detach (API 1.1). One mod holds them at a time: while another
+    /// mod does (it acquired them, or a 1.0 mod's camera override was used in the last frame) this fails with
+    /// `CtxError::Busy { holder }`, to be shown to the player. While a mod holds them, only its camera override and
+    /// `suppress_ui` are used and only it is offered input events (hotkeys still reach every mod). Calling it again
+    /// while holding is fine. Needs `camera` or `input.claim`.
+    fn acquire_control(&mut self) -> Result<(), CtxError> {
+        Ok(())
+    }
+
+    /// Gives the camera and the input back (nothing happens if this mod does not hold them).
+    fn release_control(&mut self) {}
+
+    /// The mod that holds the camera and the input right now, if any (it may be this one: compare with
+    /// `AttachInfo::this.id`). A mod can tell the player that another mode is active before trying.
+    fn control_holder(&self) -> Option<ModId> {
+        None
+    }
 }
 
 /// What the dispatcher is given by the app: a context bound to a mod (the host knows which mod index a `send` is
@@ -175,15 +228,55 @@ pub trait ClientHost {
     fn ctx(&mut self, mod_idx: u16) -> &mut dyn ClientCtx;
 }
 
-/// A context with the mod's capability set enforced, wrapping the host's context for that mod.
+/// A context with the mod's capability set enforced, wrapping the host's context for that mod. Inside the dispatcher
+/// it also arbitrates the camera and the input between mods; built with [`Guarded::new`] (a mod tested alone) the
+/// control calls go to the wrapped context.
 pub struct Guarded<'a> {
     inner: &'a mut dyn ClientCtx,
     caps: &'a Caps,
+    control: Option<Arbiter<'a>>,
+}
+
+struct Arbiter<'a> {
+    control: &'a mut Control,
+    me: u16,
+    id: &'a ModId,
 }
 
 impl<'a> Guarded<'a> {
     pub fn new(inner: &'a mut dyn ClientCtx, caps: &'a Caps) -> Self {
-        Self { inner, caps }
+        Self {
+            inner,
+            caps,
+            control: None,
+        }
+    }
+
+    /// The dispatcher's context for mod `me`: the shared [`Control`] decides who holds the camera and the input.
+    pub(crate) fn arbitrated(
+        inner: &'a mut dyn ClientCtx,
+        caps: &'a Caps,
+        control: &'a mut Control,
+        me: u16,
+        id: &'a ModId,
+    ) -> Self {
+        Self {
+            inner,
+            caps,
+            control: Some(Arbiter { control, me, id }),
+        }
+    }
+
+    fn busy(&self) -> Result<(), CtxError> {
+        match &self.control {
+            Some(a) => match a.control.other(a.me) {
+                Some(holder) => Err(CtxError::Busy {
+                    holder: holder.clone(),
+                }),
+                None => Ok(()),
+            },
+            None => Ok(()),
+        }
     }
 }
 
@@ -269,6 +362,37 @@ impl ClientCtx for Guarded<'_> {
 
     fn request_pointer_lock(&mut self, lock: bool) -> Result<(), CtxError> {
         self.caps.require(Cap::InputClaim)?;
+        if lock {
+            self.busy()?;
+        }
         self.inner.request_pointer_lock(lock)
+    }
+
+    fn acquire_control(&mut self) -> Result<(), CtxError> {
+        if !self.caps.has(Cap::Camera) {
+            self.caps.require(Cap::InputClaim)?;
+        }
+        self.busy()?;
+        match &mut self.control {
+            Some(a) => {
+                a.control.lease = Some((a.me, a.id.clone()));
+                Ok(())
+            }
+            None => self.inner.acquire_control(),
+        }
+    }
+
+    fn release_control(&mut self) {
+        match &mut self.control {
+            Some(a) => a.control.forget(a.me),
+            None => self.inner.release_control(),
+        }
+    }
+
+    fn control_holder(&self) -> Option<ModId> {
+        match &self.control {
+            Some(a) => a.control.holder().map(|(_, id)| id.clone()),
+            None => self.inner.control_holder(),
+        }
     }
 }

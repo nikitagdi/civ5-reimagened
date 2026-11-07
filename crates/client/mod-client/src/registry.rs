@@ -8,7 +8,7 @@ use mod_manifest::ModId;
 use platform::InputEvent;
 
 use crate::client_mod::{ClientMod, ModRenderSystem};
-use crate::ctx::{ClientHost, Guarded};
+use crate::ctx::{ClientHost, Control, Guarded};
 use crate::types::{AttachInfo, Claim, FrameOut, ModBuild, ModInfo, SetEntry};
 
 type Factory = Box<dyn Fn() -> Box<dyn ClientMod>>;
@@ -145,13 +145,31 @@ struct Slot {
     enabled: bool,
     /// Capabilities a mod used in a result without holding them; each is logged once.
     warned: BTreeSet<Cap>,
+    /// The holder of the camera this mod was told about (its override lost to it); logged once per holder.
+    warned_busy: Option<u16>,
 }
 
 /// Runs the client mods in load order against a host. No wgpu, no windowing: everything the host provides comes in
 /// as a `&mut dyn ClientHost`. With no mods every method is a no-op (D11).
+///
+/// It also keeps who holds the camera and the input (API 1.1, `ClientCtx::acquire_control`): one mod at a time.
 #[derive(Default)]
 pub struct ModDispatcher {
     slots: Vec<Slot>,
+    control: Control,
+}
+
+/// The checked context of one slot; the dispatcher's [`Control`] arbitrates the camera and the input.
+macro_rules! guarded {
+    ($host:expr, $s:expr, $control:expr) => {
+        Guarded::arbitrated(
+            $host.ctx($s.info.mod_idx),
+            &$s.info.caps,
+            $control,
+            $s.info.mod_idx,
+            &$s.info.id,
+        )
+    };
 }
 
 impl ModDispatcher {
@@ -167,6 +185,7 @@ impl ModDispatcher {
             m,
             enabled: true,
             warned: BTreeSet::new(),
+            warned_busy: None,
         });
     }
 
@@ -189,12 +208,22 @@ impl ModDispatcher {
             .any(|s| s.info.mod_idx == mod_idx && s.enabled)
     }
 
+    /// The mod that holds the camera and the input (API 1.1): the one that acquired them, or the one whose camera
+    /// override the last frame used. `None`: the game has them.
+    pub fn control_holder(&self) -> Option<(u16, &ModId)> {
+        self.control.holder().map(|(i, id)| (*i, id))
+    }
+
     /// Switches a mod off or on without detaching it (no further calls reach it). Returns false for an unknown
-    /// index. Use `detach_one` first when the mod holds state in the host (pointer lock, cutouts).
+    /// index. Use `detach_one` first when the mod holds state in the host (pointer lock, cutouts). A mod switched
+    /// off gives up the camera and the input.
     pub fn set_enabled(&mut self, mod_idx: u16, enabled: bool) -> bool {
         match self.slots.iter_mut().find(|s| s.info.mod_idx == mod_idx) {
             Some(s) => {
                 s.enabled = enabled;
+                if !enabled {
+                    self.control.forget(mod_idx);
+                }
                 true
             }
             None => false,
@@ -208,29 +237,31 @@ impl ModDispatcher {
                 this: s.info.clone(),
                 set: s.set.clone(),
             };
-            let mut g = Guarded::new(host.ctx(s.info.mod_idx), &s.info.caps);
+            let mut g = guarded!(host, s, &mut self.control);
             s.m.attach(&mut g, &info);
         }
     }
 
-    /// `detach` for every enabled mod, in reverse load order.
+    /// `detach` for every enabled mod, in reverse load order. Nobody holds the camera and the input after it.
     pub fn detach(&mut self, host: &mut dyn ClientHost) {
         for s in self.slots.iter_mut().rev().filter(|s| s.enabled) {
-            let mut g = Guarded::new(host.ctx(s.info.mod_idx), &s.info.caps);
+            let mut g = guarded!(host, s, &mut self.control);
             s.m.detach(&mut g);
         }
+        self.control = Control::default();
     }
 
-    /// Detaches one mod and switches it off.
+    /// Detaches one mod and switches it off (it gives up the camera and the input).
     pub fn detach_one(&mut self, host: &mut dyn ClientHost, mod_idx: u16) {
         if let Some(s) = self
             .slots
             .iter_mut()
             .find(|s| s.info.mod_idx == mod_idx && s.enabled)
         {
-            let mut g = Guarded::new(host.ctx(s.info.mod_idx), &s.info.caps);
+            let mut g = guarded!(host, s, &mut self.control);
             s.m.detach(&mut g);
             s.enabled = false;
+            self.control.forget(mod_idx);
         }
     }
 
@@ -254,12 +285,13 @@ impl ModDispatcher {
         if !s.info.caps.has(Cap::NetChannel) {
             return false;
         }
-        let mut g = Guarded::new(host.ctx(mod_idx), &s.info.caps);
+        let mut g = guarded!(host, s, &mut self.control);
         s.m.on_msg(&mut g, ch, from, payload);
         true
     }
 
-    /// A registered hotkey fired. Returns whether a mod saw it.
+    /// A registered hotkey fired. Returns whether a mod saw it. Hotkeys reach a mod even while another one holds
+    /// the input, so it can try `acquire_control` and tell the player why it cannot.
     pub fn on_hotkey(&mut self, host: &mut dyn ClientHost, mod_idx: u16, id: &str) -> bool {
         let Some(s) = self
             .slots
@@ -268,20 +300,22 @@ impl ModDispatcher {
         else {
             return false;
         };
-        let mut g = Guarded::new(host.ctx(mod_idx), &s.info.caps);
+        let mut g = guarded!(host, s, &mut self.control);
         s.m.on_hotkey(&mut g, id);
         true
     }
 
     /// Offers the event to the mods that hold `input.claim`, in load order; the first `Consume` wins and the later
-    /// mods do not see the event.
+    /// mods do not see the event. While a mod holds the input through `acquire_control`, only that mod is offered
+    /// events.
     pub fn claim_input(&mut self, host: &mut dyn ClientHost, ev: &InputEvent) -> Claim {
-        for s in self
-            .slots
-            .iter_mut()
-            .filter(|s| s.enabled && s.info.caps.has(Cap::InputClaim))
-        {
-            let mut g = Guarded::new(host.ctx(s.info.mod_idx), &s.info.caps);
+        let lease = self.control.lease.as_ref().map(|(i, _)| *i);
+        for s in self.slots.iter_mut().filter(|s| {
+            s.enabled
+                && s.info.caps.has(Cap::InputClaim)
+                && lease.is_none_or(|l| l == s.info.mod_idx)
+        }) {
+            let mut g = guarded!(host, s, &mut self.control);
             if s.m.claim_input(&mut g, ev) == Claim::Consume {
                 return Claim::Consume;
             }
@@ -292,29 +326,63 @@ impl ModDispatcher {
     /// Runs `frame` of every enabled mod and merges the results: the first camera override (from a mod holding
     /// `camera`) wins, `suppress_ui` is the OR over mods holding `input.claim`. A mod that returns something it has
     /// no capability for is logged once and the part is dropped.
+    ///
+    /// While a mod holds the camera and the input (`acquire_control`, as it stands after every mod's `frame`), only
+    /// its camera override and `suppress_ui` count; another mod's are dropped with one line in the log. Without a
+    /// lease, the mod whose camera won holds them until a frame where it returns none.
     pub fn frame(&mut self, host: &mut dyn ClientHost, dt: f32) -> FrameOut {
-        let mut out = FrameOut::default();
+        // (mod_idx, camera, suppress_ui) of every mod, with the capability checks applied.
+        let mut parts = Vec::with_capacity(self.slots.len());
         for s in self.slots.iter_mut().filter(|s| s.enabled) {
             let idx = s.info.mod_idx;
             let r = {
-                let mut g = Guarded::new(host.ctx(idx), &s.info.caps);
+                let mut g = guarded!(host, s, &mut self.control);
                 s.m.frame(&mut g, dt)
             };
-            if let Some(cam) = r.camera {
-                if s.info.caps.has(Cap::Camera) {
-                    out.camera.get_or_insert(cam);
-                } else {
+            let camera = match r.camera {
+                Some(_) if !s.info.caps.has(Cap::Camera) => {
                     warn_once(s, host, Cap::Camera, "returned a camera override");
+                    None
                 }
-            }
-            if r.suppress_ui {
-                if s.info.caps.has(Cap::InputClaim) {
-                    out.suppress_ui = true;
-                } else {
+                c => c,
+            };
+            let suppress = r.suppress_ui && {
+                let ok = s.info.caps.has(Cap::InputClaim);
+                if !ok {
                     warn_once(s, host, Cap::InputClaim, "asked to suppress the game UI");
                 }
-            }
+                ok
+            };
+            parts.push((idx, camera, suppress));
         }
+        let lease = self.control.lease.clone();
+        let mut out = FrameOut::default();
+        let mut used = None;
+        for (idx, camera, suppress) in parts {
+            if let Some((holder, holder_id)) = &lease
+                && *holder != idx
+            {
+                if camera.is_some() || suppress {
+                    self.warn_busy(host, idx, *holder, holder_id);
+                }
+                continue;
+            }
+            if let Some(cam) = camera
+                && out.camera.is_none()
+            {
+                out.camera = Some(cam);
+                used = Some(idx);
+            }
+            out.suppress_ui |= suppress;
+        }
+        self.control.implicit = match (&lease, used) {
+            (None, Some(idx)) => self
+                .slots
+                .iter()
+                .find(|s| s.info.mod_idx == idx)
+                .map(|s| (idx, s.info.id.clone())),
+            _ => None,
+        };
         out
     }
 
@@ -325,7 +393,7 @@ impl ModDispatcher {
             .iter_mut()
             .filter(|s| s.enabled && s.info.caps.has(Cap::Hud))
         {
-            let mut g = Guarded::new(host.ctx(s.info.mod_idx), &s.info.caps);
+            let mut g = guarded!(host, s, &mut self.control);
             s.m.hud(&mut g, list);
         }
     }
@@ -341,10 +409,29 @@ impl ModDispatcher {
             if !s.info.caps.has(Cap::RenderPipeline) {
                 continue;
             }
-            let mut g = Guarded::new(host.ctx(idx), &s.info.caps);
+            let mut g = guarded!(host, s, &mut self.control);
             out.extend(s.m.render_systems(&mut g).into_iter().map(|r| (idx, r)));
         }
         out
+    }
+
+    /// Mod `idx` returned a camera or `suppress_ui` while `holder` holds them: one line per holder.
+    fn warn_busy(&mut self, host: &mut dyn ClientHost, idx: u16, holder: u16, holder_id: &ModId) {
+        let Some(s) = self.slots.iter_mut().find(|s| s.info.mod_idx == idx) else {
+            return;
+        };
+        if s.warned_busy == Some(holder) {
+            return;
+        }
+        s.warned_busy = Some(holder);
+        host.ctx(idx).log(
+            LogLevel::Warn,
+            &format!(
+                "mod `{}` returned a camera or suppress_ui while mod `{holder_id}` holds the camera and the input; \
+                 ignored",
+                s.info.id
+            ),
+        );
     }
 }
 
