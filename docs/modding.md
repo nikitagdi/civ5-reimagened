@@ -121,7 +121,12 @@ path = "examples/mods/hello"
 cargo xtask mods check --mods mods.toml          # parse, licenses, resolve, rules R1-R11 on the dist graph, writes mods.lock
 cargo xtask mods build --mods mods.toml          # server (default); --target client|web|desktop|all, --release
 cargo xtask dev --mods mods.toml                 # builds the dist server and web client, installs the mods, runs
+cargo xtask deploy --target <t> --mods mods.toml # release image of the dist; the mods baked in at /srv/civ5/mods
 ```
+
+`dist` and `deploy` take `--mods <file>` and `--mod-packs <dir>` as `dev` does: the Linux release server and the
+release web client are the dist ones, the mods go to `mods/` of the dist directory (the image copies it to
+`/srv/civ5/mods`) and the `server.toml` of the image gets `mods_dir` pointing there.
 
 `mods check` also accepts a git source (`git` with `rev`). It generates a separate workspace under `target/dist`,
 so the public sources stay untouched; the build is reproducible from the list and `mods.lock`. In the dist build

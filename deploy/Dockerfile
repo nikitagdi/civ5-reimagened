@@ -7,6 +7,8 @@ RUN apt-get update \
 COPY civ5-server /usr/local/bin/civ5-server
 COPY web /srv/civ5/web
 COPY server.toml /etc/civ5/
+# The mods of a dist built with --mods (`mods_dir` in its server.toml); empty otherwise.
+COPY mods /srv/civ5/mods
 # uid 1000 (user `ubuntu` of the base image) owns /srv/civ5 on the host; the worker never runs as root.
 USER 1000:1000
 EXPOSE 8080

@@ -15,6 +15,8 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 
+use crate::mods::dist::Mode;
+
 use crate::{
     GAMECORE_ENV, build_web_threads, cargo, cmd_gamecore, copy_dir, run, sh_quote, target_dir,
     windows_to_wsl_path,
@@ -68,21 +70,78 @@ fn dist_dir(root: &Path, build: &str) -> Result<PathBuf> {
     Ok(target_dir(root)?.join("dist").join(format!("civ5-{build}")))
 }
 
-/// `cargo xtask dist [--skip-gamecore] [--pgo]`: `target/dist/civ5-<build>/` with the Linux release server, the
-/// release web bundle (with `/netcheck/`), the container configs and the Dockerfile (the image build
-/// context). On Windows the server is built inside WSL (the gamecore is a Linux library).
+/// The mods a dist is built with (`--mods <file> [--mod-packs <dir>]`).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DistMods {
+    /// The operator's mod list (`mods.local.toml`).
+    pub list: PathBuf,
+    /// `<dir>/<id>.pack` copied over the pack of a mod (an assets-out directory).
+    pub packs: Option<PathBuf>,
+}
+
+/// Where the image keeps the installed mods (`mods_dir` of the server config of a dist with mods).
+const IMAGE_MODS_DIR: &str = "/srv/civ5/mods";
+
+/// `cargo xtask dist [--skip-gamecore] [--pgo] [--mods <file> [--mod-packs <dir>]]`: `target/dist/civ5-<build>/` with
+/// the Linux release server, the release web bundle (with `/netcheck/`), the container configs and the Dockerfile
+/// (the image build context). On Windows the server is built inside WSL (the gamecore is a Linux library). With
+/// `--mods` the server and the web client are the ones of the mod dist (`cargo xtask mods build`), and the mods are
+/// installed into `mods/` of the dist (the image's `/srv/civ5/mods`).
 pub fn cmd_dist(root: &Path, args: &[String]) -> Result<PathBuf> {
-    for a in args {
-        if a != "--skip-gamecore" && a != "--pgo" {
-            bail!("dist: unknown argument {a:?} (allowed: --skip-gamecore, --pgo)");
+    let mut skip_gamecore = false;
+    let mut pgo = false;
+    let mut list = None;
+    let mut packs = None;
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        let (name, inline) = match a.split_once('=') {
+            Some((n, v)) => (n, Some(v.to_string())),
+            None => (a.as_str(), None),
+        };
+        let mut value = || -> Result<PathBuf> {
+            Ok(PathBuf::from(match &inline {
+                Some(v) => v.clone(),
+                None => it
+                    .next()
+                    .cloned()
+                    .with_context(|| format!("dist: {name} requires a value"))?,
+            }))
+        };
+        match name {
+            "--skip-gamecore" => skip_gamecore = true,
+            "--pgo" => pgo = true,
+            "--mods" => list = Some(value()?),
+            "--mod-packs" => packs = Some(value()?),
+            _ => bail!(
+                "dist: unknown argument {a:?} (allowed: --skip-gamecore, --pgo, --mods <file>, --mod-packs <dir>)"
+            ),
         }
     }
-    let skip_gamecore = args.iter().any(|a| a == "--skip-gamecore");
-    let pgo = args.iter().any(|a| a == "--pgo");
+    let mods = dist_mods_opt(list, packs)?;
     let build = build_id(root)?;
     let out = dist_dir(root, &build)?;
-    build_dist_into(root, &out, &build, skip_gamecore, pgo)?;
+    build_dist_into(root, &out, &build, skip_gamecore, pgo, mods.as_ref())?;
     Ok(out)
+}
+
+fn dist_mods_opt(list: Option<PathBuf>, packs: Option<PathBuf>) -> Result<Option<DistMods>> {
+    match (list, packs) {
+        (Some(list), packs) => Ok(Some(DistMods { list, packs })),
+        (None, Some(_)) => bail!("--mod-packs needs --mods <file>"),
+        (None, None) => Ok(None),
+    }
+}
+
+/// The server config of the dist: `deploy/server.toml`, with `mods_dir` first when the dist has mods (a key after the
+/// first table would land in that table).
+fn dist_server_toml(common: &str, mods: bool) -> String {
+    if mods {
+        format!(
+            "# The mods of this dist (`cargo xtask dist --mods`), baked into the image.\nmods_dir = \"{IMAGE_MODS_DIR}\"\n{common}"
+        )
+    } else {
+        common.to_string()
+    }
 }
 
 /// `pgo`: the Linux server core is built profile-guided (`cargo xtask gamecore --pgo`); the build id is the same.
@@ -92,6 +151,7 @@ fn build_dist_into(
     build: &str,
     skip_gamecore: bool,
     pgo: bool,
+    mods: Option<&DistMods>,
 ) -> Result<()> {
     let target = target_dir(root)?;
     // Linux gamecore: either given by --gamecore-lib, or built (WSL on Windows) into target/gamecore/linux.
@@ -121,7 +181,25 @@ fn build_dist_into(
             p
         }
     };
-    let server = build_linux_server(root, &target, &linux_lib)?;
+    // With mods: the mod dist (checked, locked, graph rules R1-R11), and its server package for WSL.
+    let mod_dist = match mods {
+        Some(m) => {
+            let (prepared, dist) = crate::mods::build::assemble(root, &m.list, Mode::All)?;
+            let server_dist = if cfg!(windows) {
+                crate::mods::dist::generate_wsl(root, &prepared)?
+            } else {
+                crate::mods::dist::generate(root, &prepared, Mode::Server)?
+            };
+            Some((prepared, dist, server_dist))
+        }
+        None => None,
+    };
+    let server = match &mod_dist {
+        Some((_, _, sd)) => {
+            build_linux_server_in(root, &sd.dir.join("target"), &linux_lib, Some(&sd.manifest))?
+        }
+        None => build_linux_server(root, &target, &linux_lib)?,
+    };
     // The web bundle needs the wasm gamecore archives (GAMECORE_LIB_DIR_wasm32, _threads): --gamecore-lib, the
     // process env, or built here into target/gamecore/wasm and wasm-mt. Without them the replica links the stub,
     // which reads no snapshot of the real server (the 2026-10-30 deploy: the original UI never came up).
@@ -153,7 +231,10 @@ fn build_dist_into(
     }
     // The threaded build (`pkg-mt`) is the main one, the single-threaded `pkg` the fallback of a client that
     // cannot run threads (`bootstrap.js`); the user, 2026-10-29: threads by default.
-    let web = build_web_threads(root, true)?;
+    let web = match &mod_dist {
+        Some((_, dist, _)) => crate::mods::build::build_web(root, dist, true, true)?,
+        None => build_web_threads(root, true)?,
+    };
 
     if out.exists() {
         std::fs::remove_dir_all(out).with_context(|| format!("clearing {}", out.display()))?;
@@ -164,9 +245,21 @@ fn build_dist_into(
     copy_dir(&web, &out.join("web"))?;
     let deploy = root.join("deploy");
     copy_dir(&deploy.join("web/netcheck"), &out.join("web/netcheck"))?;
-    for f in ["Dockerfile", "server.toml"] {
-        std::fs::copy(deploy.join(f), out.join(f))
-            .with_context(|| format!("copying deploy/{f}"))?;
+    std::fs::copy(deploy.join("Dockerfile"), out.join("Dockerfile"))
+        .context("copying deploy/Dockerfile")?;
+    let common = std::fs::read_to_string(deploy.join("server.toml"))
+        .context("reading deploy/server.toml")?;
+    std::fs::write(
+        out.join("server.toml"),
+        dist_server_toml(&common, mod_dist.is_some()),
+    )?;
+    // `mods/` is always there (the Dockerfile copies it); empty without --mods.
+    let mods_out = out.join("mods");
+    match (&mod_dist, mods) {
+        (Some((prepared, _, _)), Some(m)) => {
+            crate::mods::dev::install_mods(prepared, &mods_out, m.packs.as_deref())?
+        }
+        _ => std::fs::create_dir_all(&mods_out)?,
     }
     std::fs::write(
         out.join("dist.json"),
@@ -178,13 +271,41 @@ fn build_dist_into(
 
 /// `cargo build --release -p server --target x86_64-unknown-linux-gnu`; the path of the binary.
 fn build_linux_server(root: &Path, target: &Path, linux_lib: &Path) -> Result<PathBuf> {
-    let wsl_target = target.join("wsl");
+    let build_target = if cfg!(windows) {
+        target.join("wsl")
+    } else {
+        target.to_path_buf()
+    };
+    build_linux_server_in(root, &build_target, linux_lib, None)
+}
+
+/// The Linux release server built into the cargo target directory `build_target`: the public package `server`, or
+/// with `manifest` the package `dist-server` of a mod dist (on Windows the dist's WSL variant, Linux paths inside).
+fn build_linux_server_in(
+    root: &Path,
+    build_target: &Path,
+    linux_lib: &Path,
+    manifest: Option<&Path>,
+) -> Result<PathBuf> {
+    let package = if manifest.is_some() {
+        "dist-server"
+    } else {
+        "server"
+    };
+    std::fs::create_dir_all(build_target)?;
     if cfg!(windows) {
         let to_wsl = |p: &Path| windows_to_wsl_path(&p.to_string_lossy());
         let lib = std::fs::canonicalize(linux_lib)?;
+        let manifest_arg = match manifest {
+            Some(m) => format!(
+                " --manifest-path {}",
+                sh_quote(&to_wsl(&std::fs::canonicalize(m)?)?)
+            ),
+            None => String::new(),
+        };
         let script = format!(
-            "export CARGO_TARGET_DIR={} && export GAMECORE_LIB_DIR_x86_64={} && cd {} && cargo build --release -p server --bin civ5-server --target {LINUX_TARGET}",
-            sh_quote(&to_wsl(&wsl_target)?),
+            "export CARGO_TARGET_DIR={} && export GAMECORE_LIB_DIR_x86_64={} && cd {} && cargo build --release{manifest_arg} -p {package} --bin civ5-server --target {LINUX_TARGET}",
+            sh_quote(&to_wsl(&std::fs::canonicalize(build_target)?)?),
             sh_quote(&to_wsl(&lib)?),
             sh_quote(&to_wsl(&std::fs::canonicalize(root)?)?),
         );
@@ -192,23 +313,25 @@ fn build_linux_server(root: &Path, target: &Path, linux_lib: &Path) -> Result<Pa
         c.args(["-d", &crate::wsl_distro(), "--", "bash", "-lc"])
             .arg(script);
         run(root, c)?;
-        Ok(wsl_target.join(LINUX_TARGET).join("release/civ5-server"))
     } else {
         let mut c = cargo();
+        c.arg("build").arg("--release");
+        if let Some(m) = manifest {
+            c.arg("--manifest-path").arg(m);
+        }
         c.args([
-            "build",
-            "--release",
             "-p",
-            "server",
+            package,
             "--bin",
             "civ5-server",
             "--target",
             LINUX_TARGET,
         ]);
-        c.env("GAMECORE_LIB_DIR_x86_64", linux_lib);
+        c.env("GAMECORE_LIB_DIR_x86_64", linux_lib)
+            .env("CARGO_TARGET_DIR", build_target);
         run(root, c)?;
-        Ok(target.join(LINUX_TARGET).join("release/civ5-server"))
     }
+    Ok(build_target.join(LINUX_TARGET).join("release/civ5-server"))
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -249,6 +372,10 @@ pub struct Opts {
     pub tls_internal: bool,
     pub assets: Option<PathBuf>,
     pub gamedata: Option<PathBuf>,
+    /// `--mods <file>`: the dist is built with these mods (see [`cmd_dist`]).
+    pub mods: Option<PathBuf>,
+    /// `--mod-packs <dir>`: packs copied over the mods' own (needs `--mods`).
+    pub mod_packs: Option<PathBuf>,
 }
 
 fn parse_opts(args: &[String]) -> Result<Opts> {
@@ -285,10 +412,15 @@ fn parse_opts(args: &[String]) -> Result<Opts> {
             "--skip-dist" => o.skip_dist = true,
             "--skip-smoke" => o.skip_smoke = true,
             "--pgo" => o.pgo = true,
+            "--mods" => o.mods = Some(PathBuf::from(value(&mut it)?)),
+            "--mod-packs" => o.mod_packs = Some(PathBuf::from(value(&mut it)?)),
             _ => bail!(
-                "deploy: unknown argument {a:?} (allowed: --target <file.toml|name>, --dry-run, --rollback, --allow-core-change, --assets <dir>, --gamedata <dir>, --tls internal, --skip-dist, --skip-smoke, --pgo)"
+                "deploy: unknown argument {a:?} (allowed: --target <file.toml|name>, --dry-run, --rollback, --allow-core-change, --assets <dir>, --gamedata <dir>, --tls internal, --skip-dist, --skip-smoke, --pgo, --mods <file>, --mod-packs <dir>)"
             ),
         }
+    }
+    if o.mod_packs.is_some() && o.mods.is_none() {
+        bail!("deploy: --mod-packs needs --mods <file>");
     }
     if o.target.trim().is_empty() {
         bail!(
@@ -572,13 +704,26 @@ fn plan(cx: &Ctx) -> Vec<Step> {
             "build target/dist/civ5-{}/ (gamecore linux, server release, web release)",
             cx.build
         ),
-        actions: vec![if o.skip_dist {
-            Action::Note("--skip-dist: the existing dist directory is used".into())
-        } else if o.pgo {
-            Action::DistPgo
-        } else {
-            Action::Dist
-        }],
+        actions: {
+            let mut a = vec![if o.skip_dist {
+                Action::Note("--skip-dist: the existing dist directory is used".into())
+            } else if o.pgo {
+                Action::DistPgo
+            } else {
+                Action::Dist
+            }];
+            if let (Some(list), false) = (&o.mods, o.skip_dist) {
+                a.push(Action::Note(format!(
+                    "with the mods of {}{}: the mod dist server and web client, the mods in the image at {IMAGE_MODS_DIR}",
+                    list.display(),
+                    o.mod_packs
+                        .as_ref()
+                        .map(|p| format!(" (packs from {})", p.display()))
+                        .unwrap_or_default()
+                )));
+            }
+            a
+        },
     });
     let mut s3 = vec![Action::EnsureEnv];
     let assets = o.assets.clone().or_else(|| default_dir(cx.root, "b2"));
@@ -745,8 +890,17 @@ fn exec(cx: &Ctx, a: &Action, st: &mut State) -> Result<()> {
     let root = cx.root;
     match a {
         Action::Note(s) => println!("note: {s}"),
-        Action::Dist => build_dist_into(root, &cx.dist, &cx.build, false, false)?,
-        Action::DistPgo => build_dist_into(root, &cx.dist, &cx.build, false, true)?,
+        Action::Dist | Action::DistPgo => {
+            let mods = dist_mods_opt(cx.opts.mods.clone(), cx.opts.mod_packs.clone())?;
+            build_dist_into(
+                root,
+                &cx.dist,
+                &cx.build,
+                false,
+                matches!(a, Action::DistPgo),
+                mods.as_ref(),
+            )?
+        }
         Action::Run(c) => c.run(root)?,
         Action::Up(c) => with_password(cx, c.clone())?.run(root)?,
         Action::GcLocal { dir } => {
@@ -1383,6 +1537,37 @@ mod tests {
         assert!(parse_opts(&s(&["--dry-run"])).is_err());
         assert!(parse_opts(&s(&["--target", "mine", "--bogus"])).is_err());
         assert!(parse_opts(&s(&["--target", "mine", "--tls", "acme"])).is_err());
+    }
+
+    #[test]
+    fn mods_go_into_the_dist_and_its_server_config() {
+        let o = parse_opts(&s(&[
+            "--target",
+            "mine",
+            "--mods",
+            "m.toml",
+            "--mod-packs=p",
+        ]))
+        .unwrap();
+        assert_eq!(o.mods, Some(PathBuf::from("m.toml")));
+        assert_eq!(o.mod_packs, Some(PathBuf::from("p")));
+        assert!(parse_opts(&s(&["--target", "mine", "--mod-packs", "p"])).is_err());
+        let shown: Vec<String> = plan(&cx("mine", filled(), &o))
+            .iter()
+            .flat_map(|st| st.actions.iter().map(describe))
+            .collect();
+        assert!(
+            shown
+                .iter()
+                .any(|d| d.contains("m.toml") && d.contains(IMAGE_MODS_DIR))
+        );
+
+        // `mods_dir` is a top-level key even though the common config ends with tables.
+        let common = "listen = \"0.0.0.0:8080\"\n[worker]\naudit_fog = false\n";
+        let t: toml::Table = dist_server_toml(common, true).parse().unwrap();
+        assert_eq!(t["mods_dir"].as_str(), Some(IMAGE_MODS_DIR));
+        assert!(t["worker"].get("mods_dir").is_none());
+        assert_eq!(dist_server_toml(common, false), common);
     }
 
     #[test]
