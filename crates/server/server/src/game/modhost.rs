@@ -338,10 +338,57 @@ impl ModHost {
         }
     }
 
-    /// A new turn began.
-    pub fn on_turn(&mut self, facts: &dyn WorldFacts, now_ms: u64, turn: i32) {
-        self.mods.on_turn(CallEnv { facts, now_ms }, turn);
+    /// A new turn began. `on_turn` itself answers nothing; what comes back are the answers to the hits it dealt.
+    pub fn on_turn(
+        &mut self,
+        facts: &dyn WorldFacts,
+        now_ms: u64,
+        turn: i32,
+        humans: &[PlayerId],
+    ) -> Delivery {
+        let outputs = self.mods.on_turn(CallEnv { facts, now_ms }, turn);
+        self.delivery(outputs, humans)
+    }
+
+    /// The client of a seat went away (lost, left, kicked): every mod hears it (API 1.1). `humans` should no longer
+    /// hold the seat.
+    pub fn on_detach(
+        &mut self,
+        facts: &dyn WorldFacts,
+        now_ms: u64,
+        seat: PlayerId,
+        humans: &[PlayerId],
+    ) -> Delivery {
+        let outputs = self.mods.on_detach(CallEnv { facts, now_ms }, Seat(seat));
+        self.delivery(outputs, humans)
+    }
+
+    /// When the actor should call [`on_tick`](Self::on_tick) next (host clock); `None`: no mod ticks.
+    pub fn next_tick_ms(&self) -> Option<u64> {
+        self.mods.next_tick_ms()
+    }
+
+    /// The tick of the mods that are due at `now_ms` (`[rust] tick_hz`, API 1.1).
+    pub fn on_tick(
+        &mut self,
+        facts: &dyn WorldFacts,
+        now_ms: u64,
+        humans: &[PlayerId],
+    ) -> Delivery {
+        let outputs = self.mods.on_tick(CallEnv { facts, now_ms });
+        self.delivery(outputs, humans)
+    }
+
+    /// Outputs with no sender, logs out, audiences expanded.
+    fn delivery(&mut self, outputs: Vec<ModOutput>, humans: &[PlayerId]) -> Delivery {
         self.log_out();
+        let (by_seat, targets) = self.route(&outputs, None, humans);
+        Delivery {
+            by_seat,
+            outputs,
+            targets,
+            ..Delivery::default()
+        }
     }
 
     /// The block the saves should carry now, if it differs from the one the worker has. `None`: nothing to send (a

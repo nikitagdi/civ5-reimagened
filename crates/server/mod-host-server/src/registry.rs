@@ -100,6 +100,7 @@ impl HostRegistry {
                 caps,
                 Limiter::from_manifest(manifest),
                 module,
+                manifest.rust.tick_hz,
             )));
         }
         Ok(GameMods::new(slots))

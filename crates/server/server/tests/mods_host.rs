@@ -128,6 +128,30 @@ impl ServerMod for Probe {
     }
 }
 
+/// API 1.1: every tick says `[T, now_ms as 8 LE bytes]` to all; a seat whose client goes says `[D, seat]`.
+struct Ticker;
+
+impl ServerMod for Ticker {
+    fn start(&mut self, _cx: &mut ServerCtx<'_>, _saved: Option<&[u8]>) {}
+    fn on_client(&mut self, _: &mut ServerCtx<'_>, _: Seat, _: u8, _: &[u8]) -> Vec<Outgoing> {
+        Vec::new()
+    }
+    fn on_attach(&mut self, _cx: &mut ServerCtx<'_>, _seat: Seat) -> Vec<Outgoing> {
+        Vec::new()
+    }
+    fn on_tick(&mut self, _cx: &mut ServerCtx<'_>, now_ms: u64) -> Vec<Outgoing> {
+        let mut p = vec![b'T'];
+        p.extend_from_slice(&now_ms.to_le_bytes());
+        vec![Outgoing::to_all(0, p)]
+    }
+    fn on_detach(&mut self, _cx: &mut ServerCtx<'_>, seat: Seat) -> Vec<Outgoing> {
+        vec![Outgoing::to_all(0, vec![b'D', seat.0 as u8])]
+    }
+    fn persist(&self) -> Vec<u8> {
+        Vec::new()
+    }
+}
+
 fn registry() -> Arc<HostRegistry> {
     let mut r = HostRegistry::new();
     r.register(|r| {
@@ -135,6 +159,7 @@ fn registry() -> Arc<HostRegistry> {
         r.add("flair", || Box::new(Echo::default()));
         r.add("probe", || Box::new(Probe));
         r.add("blind", || Box::new(Probe));
+        r.add("ticker", || Box::new(Ticker));
     });
     Arc::new(r)
 }
@@ -145,6 +170,18 @@ fn install(dir: &Path, id: &str, sync: &str, client: &str) -> PathBuf {
 }
 
 fn install_caps(dir: &Path, id: &str, sync: &str, client: &str, caps: &str) -> PathBuf {
+    install_rust(dir, id, sync, client, caps, "")
+}
+
+/// [install_caps] with more keys in `[rust]` (such as `tick_hz`).
+fn install_rust(
+    dir: &Path,
+    id: &str,
+    sync: &str,
+    client: &str,
+    caps: &str,
+    rust_extra: &str,
+) -> PathBuf {
     let root = dir.join("mods");
     std::fs::create_dir_all(root.join(id)).unwrap();
     std::fs::write(
@@ -164,6 +201,7 @@ parts = ["server-rs"]
 server = {{ crate = "{id}-server", entry = "{id}_server::register" }}
 caps = [{caps}]
 state_max = 64
+{rust_extra}
 
 [[channels]]
 id = 0
@@ -1083,6 +1121,84 @@ fn the_worker_is_asked_for_owners_only_when_a_mod_reads_the_world() {
     });
     alice.until("a pong", |m| matches!(m, ServerMsg::Pong { seq: 1, .. }));
     assert!(!log.exists(), "the worker was never asked");
+    srv.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---------------------------------------------------------------- API 1.1: the tick and the detach
+
+const TICKER: &[(&str, &str)] = &[("ticker", "1.0.0")];
+
+/// Moves the test clock 20 ms every 10 ms of real time while it lives (the tick runs on the host clock).
+struct RunningClock {
+    stop: Arc<std::sync::atomic::AtomicBool>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+impl RunningClock {
+    fn start(clock: Arc<TestClock>) -> Self {
+        let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let s = stop.clone();
+        let thread = std::thread::spawn(move || {
+            while !s.load(std::sync::atomic::Ordering::Relaxed) {
+                clock.advance(20);
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        });
+        Self {
+            stop,
+            thread: Some(thread),
+        }
+    }
+}
+
+impl Drop for RunningClock {
+    fn drop(&mut self) {
+        self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        if let Some(t) = self.thread.take() {
+            let _ = t.join();
+        }
+    }
+}
+
+fn tick_ms(m: &ModS2C) -> u64 {
+    u64::from_le_bytes(m.payload[1..9].try_into().unwrap())
+}
+
+/// API 1.1: a mod with `tick_hz` is ticked by the game actor on the host clock and its answers reach every seat; a
+/// seat whose connection goes is announced to the mod (`on_detach`), whose answer reaches the others.
+#[test]
+fn a_ticking_mod_broadcasts_on_the_host_clock_and_hears_a_seat_go() {
+    let dir = temp_dir("mh-tick");
+    let mods = install_rust(
+        &dir,
+        "ticker",
+        "cosmetic",
+        "client = \"optional\"",
+        r#""net.channel""#,
+        "tick_hz = 10",
+    );
+    let srv = boot(&dir, Some(&mods), |_| {});
+    let (mut alice, mut bob) = start_game(&srv, &["ticker"], Some(TICKER), Some(TICKER));
+    alice.attached();
+    bob.attached();
+    let clock = RunningClock::start(srv.clock.clone());
+    let is_tick = |m: &ModS2C| m.payload.len() == 9 && m.payload[0] == b'T';
+    let t1 = alice.next_mod("a tick", is_tick);
+    let t2 = alice.next_mod("another tick", is_tick);
+    assert_eq!((t1.mod_idx, t1.from), (0, None));
+    // 10 Hz: at least 100 ms of the host clock between two ticks.
+    assert!(
+        tick_ms(&t2) >= tick_ms(&t1) + 100,
+        "{} {}",
+        tick_ms(&t1),
+        tick_ms(&t2)
+    );
+    bob.next_mod("bob hears the ticks too", is_tick);
+    // Bob's connection goes: the mod hears it and tells the others.
+    drop(bob);
+    alice.next_mod("bob's seat went", |m| m.payload == [b'D', 1]);
+    drop(clock);
     srv.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }

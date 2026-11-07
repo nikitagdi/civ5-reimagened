@@ -119,6 +119,8 @@ pub struct JoinRequest {
 const CLAIM_WAIT_MS: u64 = 20_000;
 /// How often the actor looks at its clocks while something waits on them.
 const TICK: Duration = Duration::from_millis(100);
+/// The mods' tick sends their state to the worker at most this often.
+const MOD_TICK_FLUSH_MS: u64 = 1_000;
 /// How long a lost connection stays hidden from the other seats (no flicker on a reload).
 const SHOW_LOST_MS: u64 = 3_000;
 /// How long the worker may take for a `Kick` before it is asked again.
@@ -419,6 +421,7 @@ pub fn spawn(env: GameEnv, init: GameInit) -> GameHandle {
         mods_lock,
         mods,
         mod_turn: None,
+        mod_tick_flushed_ms: 0,
         world: WorldTable::new(),
         world_on: false,
         kicked_seed: kicked,
@@ -481,6 +484,8 @@ struct GameActor {
     mods: ModHost,
     /// The turn the mods were last told about.
     mod_turn: Option<i32>,
+    /// When the mods' tick last sent their state to the worker.
+    mod_tick_flushed_ms: u64,
     /// The whole-truth facts the mods read (T22): shape, turn, owners, terrain classes. Fed by the worker's frames.
     world: WorldTable,
     /// Some mod reads the world: the worker was asked for the table of owners. A game without such a mod never is.
@@ -571,6 +576,8 @@ impl GameActor {
         let mut tick = tokio::time::interval(TICK);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
+            // The tick of the mods (`[rust] tick_hz`): a fresh deadline each turn of the loop.
+            let mod_tick = self.mod_tick_in();
             tokio::select! {
                 ev = self.events.recv() => match ev {
                     Some(ev) => {
@@ -586,6 +593,7 @@ impl GameActor {
                     None => break,
                 },
                 _ = tick.tick(), if self.needs_tick() => self.on_tick(),
+                () = tokio::time::sleep(mod_tick.unwrap_or_default()), if mod_tick.is_some() => self.mod_tick(),
             }
         }
         self.finish();
@@ -946,7 +954,9 @@ impl GameActor {
         let game = self.id;
         let lobby = self.env.lobby.clone();
         let mut told = false;
+        let mut was_attached = false;
         if let Some(seat) = self.seats.get_mut(&player) {
+            was_attached = seat.session.is_some();
             seat.control = SeatControl::Ai {
                 kicked: Some(nick.clone()),
             };
@@ -980,6 +990,9 @@ impl GameActor {
             });
         }
         self.forget_queries(player, None);
+        if was_attached {
+            self.mod_detach(player);
+        }
         self.sync_seats();
         self.write_meta(MetaStatus::Running);
         let text = match &pending.by {
@@ -1127,6 +1140,7 @@ impl GameActor {
             });
         }
         self.forget_queries(player, Some(session));
+        self.mod_detach(player);
         self.info.log.event(
             "detach",
             serde_json::json!({"player": player, "session": session, "why": "left"}),
@@ -2900,6 +2914,7 @@ impl GameActor {
             format!("session {session}, connection lost"),
         );
         self.forget_queries(player, Some(session));
+        self.mod_detach(player);
         // Hidden from the others for a few seconds (`broadcast_seats`); the clock of its group
         // stands now.
         self.broadcast_seats();
@@ -3207,8 +3222,50 @@ impl GameActor {
         let prev = self.mod_turn.replace(turn);
         if prev.is_some_and(|p| p != turn) && self.mods.has_code() {
             self.refresh_world();
+            let humans = self.humans();
             let (facts, now) = (&self.world, self.env.clock.now_ms());
-            self.mods.on_turn(facts, now, turn);
+            let d = self.mods.on_turn(facts, now, turn, &humans);
+            self.deliver_mods(d);
+            self.flush_mods();
+        }
+    }
+
+    /// The client of a seat went away (connection lost, left, kicked): the mods hear it (API 1.1). Their answers go
+    /// to the other seats.
+    fn mod_detach(&mut self, player: PlayerId) {
+        if !self.mods.has_code() {
+            return;
+        }
+        self.refresh_world();
+        let mut humans = self.humans();
+        humans.retain(|p| *p != player);
+        let (facts, now) = (&self.world, self.env.clock.now_ms());
+        let d = self.mods.on_detach(facts, now, player, &humans);
+        self.deliver_mods(d);
+        self.flush_mods();
+    }
+
+    /// How long until a mod's tick is due (`None`: no mod ticks, or the game is not running yet).
+    fn mod_tick_in(&self) -> Option<Duration> {
+        if !self.ready {
+            return None;
+        }
+        let due = self.mods.next_tick_ms()?;
+        Some(Duration::from_millis(
+            due.saturating_sub(self.env.clock.now_ms()),
+        ))
+    }
+
+    /// The mods whose tick is due (`[rust] tick_hz`). Their state goes to the worker at most once a second from here
+    /// (each message, attach and turn flushes it anyway).
+    fn mod_tick(&mut self) {
+        self.refresh_world();
+        let humans = self.humans();
+        let (facts, now) = (&self.world, self.env.clock.now_ms());
+        let d = self.mods.on_tick(facts, now, &humans);
+        self.deliver_mods(d);
+        if now.saturating_sub(self.mod_tick_flushed_ms) >= MOD_TICK_FLUSH_MS {
+            self.mod_tick_flushed_ms = now;
             self.flush_mods();
         }
     }

@@ -16,6 +16,16 @@ fn id(s: &str) -> ModId {
 
 /// A cosmetic server mod: one channel `0` (64 bytes in, 256 out, 10/s, burst 3).
 fn server_manifest(mod_id: &str, extra_caps: &str, extra_toml: &str) -> Installed {
+    server_manifest_rust(mod_id, extra_caps, extra_toml, "")
+}
+
+/// [`server_manifest`] with more keys in `[rust]` (such as `tick_hz`).
+fn server_manifest_rust(
+    mod_id: &str,
+    extra_caps: &str,
+    extra_toml: &str,
+    rust_extra: &str,
+) -> Installed {
     let src = format!(
         r#"
 [mod]
@@ -33,6 +43,7 @@ parts = ["server-rs"]
 server = {{ crate = "{mod_id}-server", entry = "{mod_id}_server::register" }}
 caps = ["net.channel"{extra_caps}]
 state_max = 16
+{rust_extra}
 
 [[channels]]
 id = 0
@@ -147,6 +158,161 @@ impl ServerMod for Scripted {
     }
 }
 
+/// API 1.1, the shooting side: ticks (20 Hz), sees the other bodies, deals hits. Payloads: `shoot` (5 damage on every
+/// body it sees, answers `[S, count]`), `ghost` (hits on bodies that do not exist), `spam` (300 hits), `kill` (99
+/// damage on the first body), `pub` (publishes 70 bodies of 20 boxes), `tickboom` (the next tick panics).
+#[derive(Default)]
+struct Gun {
+    boom: bool,
+}
+
+fn one_box() -> mod_api::HitBox {
+    mod_api::HitBox::new([0.0; 3], [1.0; 3], mod_api::HitZone::Head)
+}
+
+fn gun_hit(from: Seat, damage: u16) -> mod_api::Hit {
+    mod_api::Hit {
+        from,
+        damage,
+        zone: mod_api::HitZone::Head,
+        kind: mod_api::HitKind::Bullet,
+    }
+}
+
+impl ServerMod for Gun {
+    fn start(&mut self, _cx: &mut ServerCtx<'_>, _saved: Option<&[u8]>) {}
+    fn on_client(&mut self, cx: &mut ServerCtx<'_>, from: Seat, ch: u8, p: &[u8]) -> Vec<Outgoing> {
+        use mod_api::{Body, BodyRef};
+        let targets: Vec<BodyRef> = match cx.bodies() {
+            Ok(b) => b.iter().map(Body::target).collect(),
+            Err(e) => return vec![Outgoing::to_sender(ch, e.to_string().into_bytes())],
+        };
+        match p {
+            b"shoot" => {
+                for t in &targets {
+                    cx.hit(t.clone(), gun_hit(from, 5)).unwrap();
+                }
+                vec![Outgoing::to_sender(ch, vec![b'S', targets.len() as u8])]
+            }
+            b"ghost" => {
+                for (owner, id) in [("nobody", 1), ("steve", 999), ("echo", 0)] {
+                    let owner = ModId::new(owner).unwrap();
+                    cx.hit(BodyRef { owner, id }, gun_hit(from, 1)).unwrap();
+                }
+                Vec::new()
+            }
+            b"spam" => {
+                for _ in 0..300 {
+                    cx.hit(targets[0].clone(), gun_hit(from, 1)).unwrap();
+                }
+                Vec::new()
+            }
+            b"kill" => {
+                cx.hit(targets[0].clone(), gun_hit(from, 99)).unwrap();
+                Vec::new()
+            }
+            b"pub" => {
+                let many = (0..70)
+                    .map(|i| Body::new(from, i, vec![one_box(); 20]))
+                    .collect();
+                cx.set_bodies(many).unwrap();
+                Vec::new()
+            }
+            b"tickboom" => {
+                self.boom = true;
+                Vec::new()
+            }
+            _ => Vec::new(),
+        }
+    }
+    fn on_attach(&mut self, _cx: &mut ServerCtx<'_>, _seat: Seat) -> Vec<Outgoing> {
+        Vec::new()
+    }
+    fn on_turn(&mut self, cx: &mut ServerCtx<'_>, _turn: i32) {
+        let targets: Vec<_> = cx
+            .bodies()
+            .map(|b| b.iter().map(mod_api::Body::target).collect())
+            .unwrap_or_default();
+        for t in targets {
+            cx.hit(t, gun_hit(Seat(0), 3)).unwrap();
+        }
+    }
+    fn on_tick(&mut self, cx: &mut ServerCtx<'_>, now_ms: u64) -> Vec<Outgoing> {
+        assert!(!self.boom, "tick failure");
+        assert_eq!(cx.now_ms(), now_ms);
+        let mut p = vec![b'T'];
+        p.extend_from_slice(&now_ms.to_le_bytes());
+        vec![Outgoing::to_all(0, p)]
+    }
+    fn on_detach(&mut self, _cx: &mut ServerCtx<'_>, seat: Seat) -> Vec<Outgoing> {
+        vec![Outgoing::to_all(0, vec![b'D', seat.0 as u8])]
+    }
+    fn persist(&self) -> Vec<u8> {
+        Vec::new()
+    }
+}
+
+/// API 1.1, the target side: one body per attached seat (id 100 + seat), gone on detach. A hit is answered with
+/// `[h, target, damage, len(from_mod)]` and hits back (which the host drops); 99 damage panics.
+#[derive(Default)]
+struct Steve {
+    seats: Vec<Seat>,
+}
+
+impl Steve {
+    fn publish(&self, cx: &mut ServerCtx<'_>) {
+        let bodies = self
+            .seats
+            .iter()
+            .map(|s| mod_api::Body::new(*s, 100 + s.0 as u32, vec![one_box()]))
+            .collect();
+        cx.set_bodies(bodies).unwrap();
+    }
+}
+
+impl ServerMod for Steve {
+    fn start(&mut self, _cx: &mut ServerCtx<'_>, _saved: Option<&[u8]>) {}
+    fn on_client(&mut self, _: &mut ServerCtx<'_>, _: Seat, _: u8, _: &[u8]) -> Vec<Outgoing> {
+        Vec::new()
+    }
+    fn on_attach(&mut self, cx: &mut ServerCtx<'_>, seat: Seat) -> Vec<Outgoing> {
+        self.seats.push(seat);
+        self.publish(cx);
+        Vec::new()
+    }
+    fn on_detach(&mut self, cx: &mut ServerCtx<'_>, seat: Seat) -> Vec<Outgoing> {
+        self.seats.retain(|s| *s != seat);
+        self.publish(cx);
+        Vec::new()
+    }
+    fn on_hit(
+        &mut self,
+        cx: &mut ServerCtx<'_>,
+        from_mod: &ModId,
+        target_id: u32,
+        hit: &mod_api::Hit,
+    ) -> Vec<Outgoing> {
+        assert!(hit.damage != 99, "fatal hit");
+        let back = mod_api::BodyRef {
+            owner: from_mod.clone(),
+            id: 0,
+        };
+        cx.hit(back, *hit).unwrap();
+        vec![Outgoing::to_all(
+            0,
+            vec![
+                b'h',
+                target_id as u8,
+                hit.damage as u8,
+                from_mod.as_str().len() as u8,
+            ],
+        )]
+    }
+    fn persist(&self) -> Vec<u8> {
+        Vec::new()
+    }
+}
+
 struct Rig {
     reg: HostRegistry,
     store: ModStore,
@@ -170,13 +336,22 @@ impl Rig {
             });
             r.add("script", || Box::new(Scripted));
             r.add("plain", || Box::new(Scripted));
+            r.add("gun", || Box::new(Gun::default()));
+            r.add("steve", || Box::new(Steve::default()));
+            r.add("nocap", || Box::new(Gun::default()));
+            r.add("slow", || Box::new(Gun::default()));
         });
         assert!(reg.problems().is_empty());
+        let bodies = ", \"world.bodies\"";
         let store = ModStore::from_installed(vec![
             server_manifest("echo", "", ""),
             server_manifest("script", ", \"world.read\"", "[order]\nafter = [\"echo\"]"),
             server_manifest("plain", "", ""),
             client_only_manifest("looks"),
+            server_manifest_rust("gun", bodies, "", "tick_hz = 20"),
+            server_manifest("steve", bodies, ""),
+            server_manifest("nocap", "", ""),
+            server_manifest_rust("slow", bodies, "", "tick_hz = 3"),
         ]);
         Rig {
             reg,
@@ -512,4 +687,262 @@ mod panics {
 fn isolation_flag_matches_the_build_abort() {
     // Under `panic = "abort"` a mod panic would end the process: the flag lets the host say so at start-up.
     const { assert!(!PANIC_ISOLATION) };
+}
+
+// ---------------------------------------------------------------- API 1.1: tick, detach, bodies, hits
+
+mod api_1_1 {
+    use mod_api::{MAX_BODIES, MAX_BOXES_PER_BODY, MAX_HITS_PER_CALL};
+
+    use super::*;
+
+    fn payloads(out: &[ModOutput]) -> Vec<Vec<u8>> {
+        out.iter().map(|o| o.payload.clone()).collect()
+    }
+
+    fn tick_payload(now: u64) -> Vec<u8> {
+        let mut p = vec![b'T'];
+        p.extend_from_slice(&now.to_le_bytes());
+        p
+    }
+
+    fn logs_of(g: &mut GameMods, mod_id: &str) -> Vec<String> {
+        g.take_logs()
+            .into_iter()
+            .filter(|l| l.mod_id == id(mod_id))
+            .map(|l| l.msg)
+            .collect()
+    }
+
+    #[test]
+    fn the_tick_follows_tick_hz_on_the_host_clock_and_skips_what_it_missed() {
+        let mut rig = Rig::new();
+        let mut g = rig.game(&["gun", "slow", "echo"]);
+        assert_eq!(g.next_tick_ms(), None, "nothing is scheduled before start");
+        rig.now_ms = 1000;
+        g.start(rig.env(), &[]);
+        // gun is 20 Hz (every 50 ms), slow 3 Hz (333, 666, 1000 ms after the start); echo does not tick.
+        assert_eq!(g.next_tick_ms(), Some(1050));
+        rig.now_ms = 1049;
+        assert!(g.on_tick(rig.env()).is_empty(), "not due yet");
+        rig.now_ms = 1050;
+        let out = g.on_tick(rig.env());
+        assert_eq!(payloads(&out), [tick_payload(1050)]);
+        assert_eq!(
+            (out[0].mod_idx, out[0].from),
+            (1, None),
+            "gun is index 1 (echo, gun, slow)"
+        );
+        assert_eq!(out[0].to, Audience::All);
+        assert_eq!(g.next_tick_ms(), Some(1100));
+        // A stall: one tick, not ten, and the schedule starts again from now.
+        rig.now_ms = 1340;
+        let out = g.on_tick(rig.env());
+        assert_eq!(out.len(), 2, "gun and slow (due at 1333) once each");
+        assert_eq!(out[0].payload, tick_payload(1340));
+        assert_eq!(out[1].mod_idx, 2);
+        assert_eq!(g.next_tick_ms(), Some(1390));
+        // slow keeps its own beat: 1000 + 666.
+        rig.now_ms = 1390;
+        assert_eq!(g.on_tick(rig.env()).len(), 1);
+        rig.now_ms = 1666;
+        let out = g.on_tick(rig.env());
+        assert_eq!(out.iter().filter(|o| o.mod_idx == 2).count(), 1);
+    }
+
+    #[test]
+    fn a_game_without_ticking_mods_never_wakes() {
+        let rig = Rig::new();
+        let mut g = rig.game(&["echo", "steve"]);
+        g.start(rig.env(), &[]);
+        assert_eq!(g.next_tick_ms(), None);
+        assert!(g.on_tick(rig.env()).is_empty());
+    }
+
+    #[test]
+    fn detach_reaches_every_mod_in_load_order() {
+        let rig = Rig::new();
+        let mut g = rig.game(&["steve", "gun", "echo"]);
+        g.start(rig.env(), &[]);
+        g.on_attach(rig.env(), Seat(1));
+        assert_eq!(g.bodies()[2].1.len(), 1, "steve has the body of seat 1");
+        let out = g.on_detach(rig.env(), Seat(1));
+        assert_eq!(payloads(&out), [vec![b'D', 1]]);
+        assert_eq!(out[0].from, None);
+        assert!(g.bodies()[2].1.is_empty(), "steve took the body away");
+    }
+
+    #[test]
+    fn a_mod_sees_the_other_bodies_and_its_hits_reach_the_owner() {
+        let rig = Rig::new();
+        let mut g = rig.game(&["gun", "steve"]);
+        g.start(rig.env(), &[]);
+        g.on_attach(rig.env(), Seat(1));
+        g.on_attach(rig.env(), Seat(2));
+        let steve = &g.bodies()[1];
+        assert_eq!(steve.0, id("steve"));
+        assert!(steve.1.iter().all(|b| b.owner == id("steve")));
+        let r = g.on_client(rig.env(), Seat(0), 0, 0, b"shoot");
+        // The shooter's answer first, then the owner's answers to the hits, in order and without a sender.
+        assert_eq!(
+            payloads(&r.outputs),
+            [vec![b'S', 2], vec![b'h', 101, 5, 3], vec![b'h', 102, 5, 3]]
+        );
+        assert_eq!(r.outputs[0].from, Some(Seat(0)));
+        assert!(
+            r.outputs[1..]
+                .iter()
+                .all(|o| o.mod_idx == 1 && o.from.is_none())
+        );
+        // Steve's hit back from inside on_hit was dropped, once per call, with a line.
+        let logs = logs_of(&mut g, "steve");
+        assert_eq!(
+            logs.iter().filter(|m| m.contains("inside on_hit")).count(),
+            2,
+            "{logs:?}"
+        );
+        // A mod does not see its own bodies; the others see a change from their next call on.
+        g.on_client(rig.env(), Seat(0), 0, 0, b"pub");
+        assert_eq!(g.bodies()[0].1.len(), MAX_BODIES);
+        let r = g.on_client(rig.env(), Seat(0), 0, 0, b"shoot");
+        assert_eq!(r.outputs[0].payload, [b'S', 2]);
+        g.on_detach(rig.env(), Seat(1));
+        // (Another seat: seat 0 has used up its burst of 3.)
+        let r = g.on_client(rig.env(), Seat(5), 0, 0, b"shoot");
+        assert_eq!(r.outputs[0].payload, [b'S', 1]);
+    }
+
+    #[test]
+    fn published_bodies_are_cut_to_the_limits_with_a_warning() {
+        let rig = Rig::new();
+        let mut g = rig.game(&["gun"]);
+        g.start(rig.env(), &[]);
+        g.on_client(rig.env(), Seat(3), 0, 0, b"pub");
+        let b = g.bodies()[0].1;
+        assert_eq!(b.len(), MAX_BODIES);
+        assert!(
+            b.iter()
+                .all(|b| b.boxes.len() == MAX_BOXES_PER_BODY && b.owner == id("gun"))
+        );
+        let logs = logs_of(&mut g, "gun");
+        assert!(logs.iter().any(|m| m.contains("cut off")), "{logs:?}");
+    }
+
+    #[test]
+    fn hits_on_unknown_owners_or_bodies_are_dropped_with_a_line() {
+        let rig = Rig::new();
+        let mut g = rig.game(&["gun", "steve", "echo"]);
+        g.start(rig.env(), &[]);
+        g.on_attach(rig.env(), Seat(1));
+        let r = g.on_client(rig.env(), Seat(0), 1, 0, b"ghost");
+        assert!(r.outputs.is_empty());
+        let logs = logs_of(&mut g, "gun");
+        assert_eq!(logs.len(), 3, "{logs:?}");
+        assert!(logs[0].contains("`nobody`") && logs[0].contains("no such mod"));
+        assert!(logs[1].contains("`steve`") && logs[1].contains("no such body"));
+        assert!(logs[2].contains("`echo`") && logs[2].contains("no such body"));
+    }
+
+    #[test]
+    fn at_most_256_hits_a_call() {
+        let rig = Rig::new();
+        let mut g = rig.game(&["gun", "steve"]);
+        g.start(rig.env(), &[]);
+        g.on_attach(rig.env(), Seat(1));
+        let r = g.on_client(rig.env(), Seat(0), 0, 0, b"spam");
+        assert_eq!(r.outputs.len(), MAX_HITS_PER_CALL);
+        let logs = logs_of(&mut g, "gun");
+        assert!(
+            logs.iter().any(|m| m.contains("44 hits over 256")),
+            "{logs:?}"
+        );
+    }
+
+    #[test]
+    fn without_world_bodies_a_mod_neither_sees_nor_hits() {
+        let rig = Rig::new();
+        let mut g = rig.game(&["nocap", "steve"]);
+        g.start(rig.env(), &[]);
+        g.on_attach(rig.env(), Seat(1));
+        let r = g.on_client(rig.env(), Seat(0), 0, 0, b"shoot");
+        assert_eq!(r.outputs.len(), 1);
+        let text = String::from_utf8(r.outputs[0].payload.clone()).unwrap();
+        assert!(text.contains("world.bodies"), "{text}");
+    }
+
+    #[test]
+    fn hits_queued_in_on_turn_are_delivered() {
+        let rig = Rig::new();
+        let mut g = rig.game(&["gun", "steve"]);
+        g.start(rig.env(), &[]);
+        g.on_attach(rig.env(), Seat(4));
+        let out = g.on_turn(rig.env(), 2);
+        assert_eq!(payloads(&out), [vec![b'h', 104, 3, 3]]);
+    }
+
+    #[test]
+    fn tick_answers_go_through_the_output_filter() {
+        let mut rig = Rig::new();
+        let mut g = rig.game(&["gun"]);
+        g.start(rig.env(), &[]);
+        rig.now_ms = 50;
+        // `T` + 8 bytes is well under s2c_max 256: kept. (The filter itself is the one on_client uses.)
+        assert_eq!(g.on_tick(rig.env()).len(), 1);
+        assert!(g.take_logs().is_empty());
+    }
+
+    #[cfg(panic = "unwind")]
+    #[test]
+    fn a_panic_in_on_tick_or_on_hit_switches_only_that_mod_off() {
+        let mut rig = Rig::new();
+        let mut g = rig.game(&["gun", "steve"]);
+        g.start(rig.env(), &[]);
+        g.on_attach(rig.env(), Seat(1));
+        // on_hit panics: steve is off, its bodies are gone, later hits on it are dropped.
+        let r = g.on_client(rig.env(), Seat(0), 0, 0, b"kill");
+        assert!(r.outputs.is_empty());
+        assert!(matches!(g.statuses()[1].1, ModStatus::Disabled { .. }));
+        assert!(g.bodies()[1].1.is_empty());
+        let r = g.on_client(rig.env(), Seat(0), 0, 0, b"shoot");
+        assert_eq!(
+            r.outputs[0].payload,
+            [b'S', 0],
+            "the bodies of a mod that is off are gone"
+        );
+        // on_tick panics: gun is off and nothing ticks any more.
+        g.on_client(rig.env(), Seat(0), 0, 0, b"tickboom");
+        rig.now_ms = 50;
+        assert!(g.on_tick(rig.env()).is_empty());
+        assert!(matches!(g.statuses()[0].1, ModStatus::Disabled { .. }));
+        assert_eq!(g.next_tick_ms(), None);
+        let logs: Vec<_> = g.take_logs().into_iter().map(|l| l.msg).collect();
+        assert!(
+            logs.iter().any(|m| m.contains("panicked in on_hit")),
+            "{logs:?}"
+        );
+        assert!(
+            logs.iter().any(|m| m.contains("panicked in on_tick")),
+            "{logs:?}"
+        );
+    }
+
+    #[cfg(panic = "unwind")]
+    #[test]
+    fn a_hit_on_a_mod_that_is_off_is_dropped_as_such() {
+        let rig = Rig::new();
+        let mut g = rig.game(&["gun", "steve"]);
+        g.start(rig.env(), &[]);
+        g.on_attach(rig.env(), Seat(1));
+        // A fatal hit switches steve off; `ghost` then aims at steve again (body 999): the mod is off.
+        g.on_client(rig.env(), Seat(0), 0, 0, b"kill");
+        let _ = g.take_logs();
+        let r = g.on_client(rig.env(), Seat(0), 0, 0, b"ghost");
+        assert!(r.outputs.is_empty());
+        let logs = logs_of(&mut g, "gun");
+        assert!(
+            logs.iter()
+                .any(|m| m.contains("`steve`") && m.contains("off")),
+            "{logs:?}"
+        );
+    }
 }
