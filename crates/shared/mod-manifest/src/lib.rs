@@ -19,7 +19,7 @@ pub use lock::{LOCK_VERSION, parse_lock, write_lock};
 pub use manifest::{
     CAP_NET_CHANNEL, CHANNEL_PAYLOAD_CEILING, Channel, ClientPolicy, Content, CoreSection,
     DEFAULT_C2S_MAX, DEFAULT_RATE_PER_S, DEFAULT_S2C_MAX, DEFAULT_STATE_MAX, LuaUiEntry, Manifest,
-    ModId, Order, Part, RustEntry, RustSection, STATE_MAX_CEILING, SyncClass,
+    ModId, Order, Part, RustEntry, RustSection, STATE_MAX_CEILING, SyncClass, TICK_HZ_MAX,
 };
 pub use modset::{ContentHash, ModSet, ModsetHash, ResolvedMod};
 pub use resolve::{Installed, Pick, Resolution, STEP_LIMIT, Warning, resolve};

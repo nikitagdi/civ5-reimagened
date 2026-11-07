@@ -22,6 +22,8 @@ pub const DEFAULT_STATE_MAX: u64 = 1024 * 1024;
 pub const DEFAULT_C2S_MAX: u32 = 4096;
 pub const DEFAULT_S2C_MAX: u32 = 16 * 1024;
 pub const DEFAULT_RATE_PER_S: u32 = 30;
+/// Highest `[rust] tick_hz`: the game actor calls a server half's `on_tick` at most this often.
+pub const TICK_HZ_MAX: u32 = 30;
 /// The capability that gives a mod its network channels.
 pub const CAP_NET_CHANNEL: &str = "net.channel";
 
@@ -193,13 +195,15 @@ pub struct RustEntry {
     pub entry: String,
 }
 
-/// `[rust]`. `state_max` caps the server half's `persist()` and the Fresh replay.
+/// `[rust]`. `state_max` caps the server half's `persist()` and the Fresh replay. `tick_hz` is how often the game
+/// actor calls the server half's `on_tick`: `1..=TICK_HZ_MAX` times a second, `0` (the default) never.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RustSection {
     pub server: Option<RustEntry>,
     pub client: Option<RustEntry>,
     pub caps: BTreeSet<String>,
     pub state_max: u64,
+    pub tick_hz: u32,
 }
 
 impl Default for RustSection {
@@ -209,6 +213,7 @@ impl Default for RustSection {
             client: None,
             caps: BTreeSet::new(),
             state_max: DEFAULT_STATE_MAX,
+            tick_hz: 0,
         }
     }
 }
@@ -404,6 +409,12 @@ impl Manifest {
             return bad(
                 "rust.caps",
                 "capabilities need a `server-rs` or `client-rs` part".to_string(),
+            );
+        }
+        if self.rust.tick_hz > 0 && !self.has_part(Part::ServerRs) {
+            return bad(
+                "rust.tick_hz",
+                "only a mod with a `server-rs` part has a server tick".to_string(),
             );
         }
         if state_max_given && !self.has_part(Part::ServerRs) {
@@ -776,6 +787,9 @@ fn parse_rust(t: Option<Tbl<'_>>) -> Res<(RustSection, bool)> {
         None => (DEFAULT_STATE_MAX, false),
         Some(v) => (parse_size(v, &state_max_path, STATE_MAX_CEILING)?, true),
     };
+    let tick_hz = t
+        .int_opt("tick_hz", 0, i64::from(TICK_HZ_MAX))?
+        .map_or(0, |n| u32::try_from(n).unwrap_or(0));
     t.finish()?;
     Ok((
         RustSection {
@@ -783,6 +797,7 @@ fn parse_rust(t: Option<Tbl<'_>>) -> Res<(RustSection, bool)> {
             client,
             caps,
             state_max,
+            tick_hz,
         },
         given,
     ))

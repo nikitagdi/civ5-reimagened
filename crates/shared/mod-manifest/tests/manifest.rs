@@ -525,6 +525,32 @@ fn state_max_belongs_to_rust() {
 }
 
 #[test]
+fn tick_hz_is_0_to_30_and_needs_a_server_half() {
+    // Absent: never ticks.
+    let m = Manifest::parse(&with("state_max = \"4MiB\"", "state_max = 512")).unwrap();
+    assert_eq!(m.rust.tick_hz, 0);
+    for hz in [0u32, 1, 20, 30] {
+        let m = Manifest::parse(&with(
+            "state_max = \"4MiB\"",
+            &format!("state_max = 512\ntick_hz = {hz}"),
+        ))
+        .unwrap();
+        assert_eq!(m.rust.tick_hz, hz);
+    }
+    for bad in ["31", "-1", "\"20\"", "2.5"] {
+        assert_path(
+            &with("state_max = \"4MiB\"", &format!("tick_hz = {bad}")),
+            "rust.tick_hz",
+        );
+    }
+    let client_only = "[mod]\nid=\"ab\"\nname=\"A\"\nversion=\"1.0.0\"\napi=\"*\"\nlicense=\"MIT\"\nsync=\"client\"\nparts=[\"client-rs\"]\n[rust]\ntick_hz=10\nclient={crate=\"a-client\",entry=\"a_client::register\"}\n";
+    assert_path(client_only, "rust.tick_hz");
+    // 0 on a client-only mod is the default written out: fine.
+    let zero = client_only.replace("tick_hz=10", "tick_hz=0");
+    assert_eq!(Manifest::parse(&zero).unwrap().rust.tick_hz, 0);
+}
+
+#[test]
 fn rust_section_matches_parts() {
     assert_path(
         &with(
