@@ -2168,7 +2168,11 @@ mod gpu_tests {
             for _ in 0..120 {
                 self.frame();
                 let s = self.r.terrain_system().live_stats();
-                if s.baked > 0 && s.drawn > 0 && self.r.terrain_system().pending_work() == 0 {
+                if s.baked > 0
+                    && s.drawn > 0
+                    && self.r.terrain_system().pending_work() == 0
+                    && self.jobs_left() == 0
+                {
                     break;
                 }
             }
@@ -2181,12 +2185,33 @@ mod gpu_tests {
         fn work_off(&mut self) {
             self.frame();
             for _ in 0..120 {
-                if self.r.terrain_system().pending_work() == 0 {
+                if self.r.terrain_system().pending_work() == 0 && self.jobs_left() == 0 {
                     break;
                 }
                 self.frame();
             }
             self.frame();
+        }
+
+        /// Pages baked again after a change (`rebaked`), not counting first bakes or the background
+        /// ones that the wall-clock credit of the frame makes (`LiveStats::baked` counts those too).
+        fn rebakes(&self) -> u64 {
+            self.r
+                .terrain_system()
+                .live()
+                .expect("the live map")
+                .cache
+                .counters()
+                .rebaked
+        }
+
+        /// Bake jobs still queued. The frame bakes against a CPU time bound (a loaded machine bakes
+        /// fewer pages a frame), so "baked > 0" alone does not mean the cell under test has its page.
+        fn jobs_left(&self) -> usize {
+            self.r
+                .terrain_system()
+                .live()
+                .map_or(0, |l| l.cache.jobs().count())
         }
 
         fn pixel(&self, x: u32, y: u32) -> [u8; 3] {
@@ -2505,6 +2530,7 @@ mod gpu_tests {
         };
         live.settle();
         let baked_before = live.r.terrain_system().live_stats().baked;
+        let rebakes_before = live.rebakes();
         // A red patch over the middle hex, 60 units a side.
         let c = cell_center(3, 2);
         let corners = [(-30.0, -30.0), (30.0, -30.0), (30.0, 30.0), (-30.0, 30.0)];
@@ -2528,17 +2554,17 @@ mod gpu_tests {
             )
             .expect("a decal");
         live.work_off();
-        let rebaked = live.r.terrain_system().live_stats().baked - baked_before;
+        let rebaked = live.rebakes() - rebakes_before;
         assert!(rebaked >= 1, "the pages under the decal were baked again");
         assert!(
-            rebaked < baked_before,
+            rebaked < baked_before as u64,
             "not every page was baked again: {rebaked} of {baked_before}"
         );
         // Taking it away bakes the same pages again.
-        let baked_mid = live.r.terrain_system().live_stats().baked;
+        let rebakes_mid = live.rebakes();
         assert!(live.r.terrain_decals_mut().destroy(handle));
         live.work_off();
-        let again = live.r.terrain_system().live_stats().baked - baked_mid;
+        let again = live.rebakes() - rebakes_mid;
         assert_eq!(again, rebaked, "the pages under the decal were baked again");
         assert_eq!(live.r.terrain_system().decals().len(), 0);
     }
@@ -2583,15 +2609,7 @@ mod gpu_tests {
         };
         give(&mut live, 30.0);
         live.work_off();
-        let rebakes = |live: &Live| {
-            live.r
-                .terrain_system()
-                .live()
-                .expect("the live map")
-                .cache
-                .counters()
-                .rebaked
-        };
+        let rebakes = |live: &Live| live.rebakes();
         let before = rebakes(&live);
         assert!(before > 0, "the first farm bakes the pages under it again");
         // The turn ends and the farm comes again, the same.
