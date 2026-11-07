@@ -115,6 +115,8 @@ struct NetLink {
     bridge_catalog: Option<u64>,
     /// The game and the `revision` the bridge has synced; the controller was told of.
     bridge_rev: Option<(GameId, u64)>,
+    /// The catalog and the revision of the mods' terrain share (mod API 1.2) the renderer was given.
+    share_rev: Option<(u64, u64)>,
     world_rev: Option<(GameId, u64)>,
     /// The camera went to the first unit of this game.
     centered: Option<GameId>,
@@ -547,6 +549,7 @@ impl App {
                         game: None,
                         bridge_catalog: None,
                         bridge_rev: None,
+                        share_rev: None,
                         world_up: false,
                         clear_world: false,
                         world_rev: None,
@@ -1676,6 +1679,7 @@ impl App {
                     self.bridge = crate::bridge::WorldBridge::new();
                     n.bridge_catalog = None;
                     n.bridge_rev = None;
+                    n.share_rev = None;
                     n.world_rev = None;
                     n.centered = None;
                     // Another game attached over this one: it keeps its id; leaving for the lobby forgets it.
@@ -1705,6 +1709,7 @@ impl App {
                     let handle = n.handle.clone();
                     let (bridge, camera) = (&mut self.bridge, &mut self.game_camera);
                     let (bridge_catalog, bridge_rev) = (&mut n.bridge_catalog, &mut n.bridge_rev);
+                    let share_rev = &mut n.share_rev;
                     let world_up = &mut n.world_up;
                     let _slow108 = scope("app.bridge_sync_flush");
                     handle.with(|core| {
@@ -1729,6 +1734,14 @@ impl App {
                                 *world_up = true;
                                 renderer.note_turn(view.turn);
                             }
+                        }
+                        // The hexes the mods let this seat draw without revealing them (mod API 1.2): the ground of
+                        // the renderer only, never the view (the minimap, the tooltips and the UI see the view).
+                        let share = core.terrain_share();
+                        let key = Some((hash, share.rev()));
+                        if *share_rev != key && core.shown().is_some() {
+                            *share_rev = key;
+                            renderer.set_ground_share(bridge.ground_share(share));
                         }
                     });
                     drop(_slow108);

@@ -207,6 +207,19 @@ impl WorldBridge {
         self.terrain.mesh_builds()
     }
 
+    /// The records of the mods' terrain share (mod API 1.2) as the renderer's basis records, by the names of the
+    /// catalog: what `Renderer::set_ground_share` takes.
+    pub fn ground_share(
+        &self,
+        share: &client_core::SharedTerrain,
+    ) -> Vec<(u32, render::world::terrain::PlotBasis)> {
+        share
+            .plots()
+            .into_iter()
+            .map(|(i, p)| (i, self.terrain.plot_basis(p)))
+            .collect()
+    }
+
     /// The terrain feed, for tests and tools.
     pub fn terrain_feed(&self) -> &TerrainFeed {
         &self.terrain

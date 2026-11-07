@@ -360,6 +360,11 @@ impl TerrainFeed {
         }
     }
 
+    /// A record of the map basis as the render's, by the catalog this feed has (the terrain share of the mods).
+    pub fn plot_basis(&self, p: &PlotBasisView) -> PlotBasis {
+        plot_basis(p, &self.terrains)
+    }
+
     /// The current snapshot and its mesh, to hand to `Renderer::set_terrain`.
     pub fn terrain(&self) -> Option<(&TerrainSnapshot, &TerrainMesh)> {
         self.terrain.as_ref().map(|(s, m)| (s, m))
@@ -949,6 +954,60 @@ mod tests {
             basis.plots[0].flags = PlotFlags(PlotFlags::NATURAL_WONDER);
         }
         basis
+    }
+
+    /// Mod API 1.2: the mods' terrain share reaches the renderer as the records of the basis (the same conversion as
+    /// the `MapBasis`), and nothing of it goes into the view's feeds: the fog the fog feed hands over (the minimap's,
+    /// the camera bounds') still has the shared plots unrevealed, and the snapshot's cells too.
+    #[test]
+    fn a_terrain_share_is_the_basis_records_and_leaves_the_fog_of_the_view() {
+        use crate::bridge::{FogFeed, WorldBridge};
+        let (world, catalog) = fixture_world();
+        let basis = map_basis_of(&world, None);
+        let dark: Vec<u32> = world
+            .map
+            .plots
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| !p.flags.contains(PlotFlags::REVEALED))
+            .map(|(i, _)| i as u32)
+            .take(3)
+            .collect();
+        assert_eq!(dark.len(), 3, "the fixture has unrevealed plots");
+        let mut share = client_core::SharedTerrain::default();
+        share.apply(protocol::TerrainShare {
+            mod_idx: 0,
+            reset: false,
+            plots: dark
+                .iter()
+                .map(|&i| (i, basis.plots[i as usize].clone()))
+                .collect(),
+        });
+        let mut bridge = WorldBridge::new();
+        bridge.set_catalog(&catalog);
+        let mut camera = render::GameCamera::default();
+        bridge.sync(&world, Some(&basis), &ViewChange::all(), &mut camera);
+        let records = bridge.ground_share(&share);
+        let whole = terrain_basis(&basis, &TerrainTable::from_catalog(&catalog)).unwrap();
+        let want: Vec<(u32, PlotBasis)> =
+            dark.iter().map(|&i| (i, whole.plots[i as usize])).collect();
+        assert_eq!(records, want);
+        // The view's fog and cells do not know of it.
+        let mut fog = FogFeed::default();
+        fog.apply(
+            &world,
+            &ViewChange::all(),
+            &mut FeedCx {
+                basis: Some(&basis),
+                camera: &mut camera,
+            },
+        );
+        let cells = &fog.pending().expect("a fog").cells;
+        let (snapshot, _) = bridge.terrain().expect("a snapshot");
+        for &i in &dark {
+            assert_eq!(cells[i as usize], Fog::Unrevealed);
+            assert_eq!(snapshot.cells()[i as usize].fog, Fog::Unrevealed);
+        }
     }
 
     #[test]
