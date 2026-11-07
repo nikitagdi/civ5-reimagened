@@ -884,6 +884,15 @@ pub fn cmd_deploy(root: &Path, args: &[String]) -> Result<()> {
 struct State {
     /// Tag chosen by `RollbackPick`.
     tag: Option<String>,
+    /// `SyncGamedata` swapped `<dir>/gamedata` for a new directory: the running container still has the old one
+    /// bind-mounted (a mount follows the directory, not the path), so `Up` recreates it.
+    gamedata_swapped: bool,
+}
+
+/// `compose up` that recreates the container even when the image is the same (after a game data swap).
+fn force_recreate(mut c: Cmd) -> Cmd {
+    c.argv.push("--force-recreate".into());
+    c
 }
 
 fn exec(cx: &Ctx, a: &Action, st: &mut State) -> Result<()> {
@@ -902,7 +911,15 @@ fn exec(cx: &Ctx, a: &Action, st: &mut State) -> Result<()> {
             )?
         }
         Action::Run(c) => c.run(root)?,
-        Action::Up(c) => with_password(cx, c.clone())?.run(root)?,
+        Action::Up(c) => {
+            let c = if st.gamedata_swapped {
+                println!("note: the game data changed: the container is recreated");
+                force_recreate(c.clone())
+            } else {
+                c.clone()
+            };
+            with_password(cx, c)?.run(root)?
+        }
         Action::GcLocal { dir } => {
             let mut c = cargo();
             c.args([
@@ -919,7 +936,7 @@ fn exec(cx: &Ctx, a: &Action, st: &mut State) -> Result<()> {
         }
         Action::EnsureEnv => ensure_env(cx)?,
         Action::SyncAssets { local } => sync_assets(cx, local)?,
-        Action::SyncGamedata { local } => sync_gamedata(cx, local)?,
+        Action::SyncGamedata { local } => st.gamedata_swapped = sync_gamedata(cx, local)?,
         Action::Preflight => preflight(cx)?,
         Action::WaitHealthy => wait_healthy(cx)?,
         Action::Caddy => caddy(cx)?,
@@ -1121,7 +1138,8 @@ fn blob_diff(local: &BTreeSet<String>, remote: &BTreeSet<String>) -> (Vec<String
     (up, rm)
 }
 
-fn sync_gamedata(cx: &Ctx, local: &Path) -> Result<()> {
+/// Whether `<dir>/gamedata` was replaced (false: the host's lock is the same).
+fn sync_gamedata(cx: &Ctx, local: &Path) -> Result<bool> {
     let lock = std::fs::read_to_string(local.join("gamedata.lock")).with_context(|| {
         format!(
             "{} has no gamedata.lock (not an export-gamedata output)",
@@ -1138,7 +1156,7 @@ fn sync_gamedata(cx: &Ctx, local: &Path) -> Result<()> {
         .unwrap_or_default();
     if remote_lock == lock {
         println!("gamedata: unchanged (gamedata.lock is the same)");
-        return Ok(());
+        return Ok(false);
     }
     let new = sh_quote(&format!("{dir}/gamedata.new"));
     let cur = sh_quote(&format!("{dir}/gamedata"));
@@ -1155,7 +1173,8 @@ fn sync_gamedata(cx: &Ctx, local: &Path) -> Result<()> {
     let swap = format!(
         "rm -rf {old} && {{ [ ! -d {cur} ] || mv {cur} {old}; }} && mv {new} {cur} && rm -rf {old}"
     );
-    cx.ssh(&swap).run(cx.root)
+    cx.ssh(&swap).run(cx.root)?;
+    Ok(true)
 }
 
 fn list_files(base: &Path, dir: &Path, out: &mut Vec<String>) -> Result<()> {
@@ -1537,6 +1556,22 @@ mod tests {
         assert!(parse_opts(&s(&["--dry-run"])).is_err());
         assert!(parse_opts(&s(&["--target", "mine", "--bogus"])).is_err());
         assert!(parse_opts(&s(&["--target", "mine", "--tls", "acme"])).is_err());
+    }
+
+    #[test]
+    fn a_game_data_swap_recreates_the_container() {
+        let up = Cmd::new(&["docker", "compose", "up", "-d", "--build"]);
+        assert_eq!(
+            force_recreate(up).argv,
+            [
+                "docker",
+                "compose",
+                "up",
+                "-d",
+                "--build",
+                "--force-recreate"
+            ]
+        );
     }
 
     #[test]
