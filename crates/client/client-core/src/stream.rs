@@ -15,6 +15,7 @@ use protocol::{CityKey, UnitKey};
 use crate::change::{ChangeAcc, ViewChange};
 use crate::contexts::Contexts;
 use crate::lobby_model::{HostChange, HostWatch};
+use crate::terrain_share::SharedTerrain;
 use crate::{ClientEvent, ClientStats, ReplicaMsg};
 
 /// Lines kept of the journal and of the chat; older ones are dropped.
@@ -105,6 +106,9 @@ pub(crate) struct Stream {
     replica: Vec<ReplicaMsg>,
     /// The mod messages of the batch being applied (same rule as `replica`).
     mods: Vec<ClientEvent>,
+    /// The terrain shares of the batch being applied (same rule), and the plots shared so far (mod API 1.2).
+    terrain_in: Vec<protocol::TerrainShare>,
+    terrain: SharedTerrain,
 }
 
 impl Stream {
@@ -126,6 +130,8 @@ impl Stream {
             breaks: Vec::new(),
             replica: Vec::new(),
             mods: Vec::new(),
+            terrain_in: Vec::new(),
+            terrain: SharedTerrain::default(),
         }
     }
 
@@ -155,6 +161,11 @@ impl Stream {
 
     pub fn basis_hash(&self) -> Option<u64> {
         self.basis.as_ref().map(BasisState::hash)
+    }
+
+    /// The plots the mods let this seat draw without revealing them (mod API 1.2); not part of the view.
+    pub fn terrain_share(&self) -> &SharedTerrain {
+        &self.terrain
     }
 
     pub fn view_seq(&self) -> u64 {
@@ -252,6 +263,7 @@ impl Stream {
         self.chat.clear();
         self.journal.clear();
         self.contexts.clear();
+        self.terrain.clear();
         self.change.all();
     }
 
@@ -384,6 +396,15 @@ impl Stream {
                 GameMsg::Mod(m) => {
                     tracing::warn!(?m, "mod message over the payload limit, dropped");
                 }
+                // v14: the cosmetic terrain share of the mods, beside the view (never in it).
+                GameMsg::TerrainShare(t) if t.within_limits() => self.terrain_in.push(t),
+                GameMsg::TerrainShare(t) => {
+                    tracing::warn!(
+                        mod_idx = t.mod_idx,
+                        plots = t.plots.len(),
+                        "terrain share over the limit, dropped"
+                    );
+                }
             }
         }
         if staged.is_some() {
@@ -392,7 +413,11 @@ impl Stream {
         if fx.iter().any(|e| matches!(e, Effect::Break(_))) {
             self.replica.clear();
             self.mods.clear();
+            self.terrain_in.clear();
             return fx;
+        }
+        for t in std::mem::take(&mut self.terrain_in) {
+            self.terrain.apply(t);
         }
         self.revision += 1;
         fx

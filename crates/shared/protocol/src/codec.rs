@@ -414,8 +414,8 @@ mod tests {
     }
 
     #[test]
-    fn protocol_version_is_13() {
-        assert_eq!(PROTOCOL_VERSION, 13);
+    fn protocol_version_is_14() {
+        assert_eq!(PROTOCOL_VERSION, 14);
     }
 
     /// New ClientMsg variants keep tags 2..=5 (after Hello = 0, Ping = 1).
@@ -1359,6 +1359,48 @@ mod tests {
         assert!(Postcard.encode(&big).unwrap().len() < 64 * 1024);
         // A payload is not dumped into the log.
         assert!(!format!("{big:?}").contains("[0, 0"));
+    }
+
+    // ------------------------------------------------------------ v14: the terrain share of the mods
+
+    #[test]
+    fn tag_stability_v14_terrain_share() {
+        assert_eq!(
+            tag(&GameMsg::TerrainShare(TerrainShare {
+                mod_idx: 2,
+                reset: true,
+                plots: vec![],
+            })),
+            [15, 2, 1, 0]
+        );
+    }
+
+    #[test]
+    fn a_full_terrain_share_round_trips_and_fits_a_frame() {
+        let record = PlotBasisView {
+            plot_type: PlotType::Hill,
+            terrain: 3,
+            continent_art: 2,
+            feature: -1,
+            flags: PlotFlags(PlotFlags::IS_COASTAL),
+            rivers: 0b10_0101,
+            river_flow: [1, -1, 4],
+        };
+        let share = TerrainShare {
+            mod_idx: u16::MAX,
+            reset: false,
+            plots: (0..MAX_TERRAIN_SHARE_PLOTS as u32)
+                .map(|i| (i * 977, record.clone()))
+                .collect(),
+        };
+        assert!(share.within_limits());
+        let m = GameMsg::TerrainShare(share.clone());
+        rt(&Postcard, &m);
+        rt(&Json, &m);
+        assert!(Postcard.encode(&m).unwrap().len() < 16 * 1024);
+        let mut over = share;
+        over.plots.push((1, record));
+        assert!(!over.within_limits());
     }
 
     /// v12 bytes of `GameSettings` (frozen from the v12 build) still load: `SETG`, recording headers.

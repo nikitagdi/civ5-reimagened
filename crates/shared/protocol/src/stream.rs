@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::context::ContextMsg;
-use crate::mods::{ModS2C, ModSetView};
+use crate::mods::{ModS2C, ModSetView, TerrainShare};
 use crate::replica::{GcBase, GcJournal, GcTurn};
 use crate::view::ViewDiff;
 use crate::world::{Command, JournalEntry, MapBasis, PlayerId, TeamId, WorldView};
@@ -18,7 +18,8 @@ pub struct GameBatch {
 }
 
 /// Messages inside a batch. Order inside a batch: `MapBasis`, the view message (`Keyframe` or `Diff`, at
-/// most one), `Results`, `Journal`, `Context`, `TurnState`, `Seats`, `Chat`.
+/// most one), `Results`, `Journal`, `Context`, `TurnState`, `Seats`, `Chat` (then the replica, `Mod` and
+/// `TerrainShare` messages).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GameMsg {
     /// Tag 0, gateway: the whole view of the seat, without the map basis.
@@ -52,6 +53,8 @@ pub enum GameMsg {
     Mods(ModSetView),
     /// Tag 14 (v13), gateway: a message of a mod's server part.
     Mod(ModS2C),
+    /// Tag 15 (v14), gateway: plots whose ground a mod lets this seat draw (mod API 1.2). Not a view message.
+    TerrainShare(TerrainShare),
 }
 
 /// One `setTurnActive` of a civilization that is not a human, as the server's core did it in the AI phase: the original

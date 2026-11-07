@@ -16,6 +16,7 @@ mod overlay;
 mod session;
 mod stats;
 mod stream;
+mod terrain_share;
 
 use std::collections::{HashSet, VecDeque};
 
@@ -39,6 +40,7 @@ pub use protocol::{GcBase, GcBlobRef, GcJournal, GcPatchRef, GcResyncReason, GcT
 pub use session::{AttachInfo, NoticeKind};
 pub use stats::{ClientStats, NeedKeyframeCounts};
 pub use stream::{BreakWhy, ChatEntry};
+pub use terrain_share::SharedTerrain;
 /// The format of the catalog body, for the shell that fetches it.
 pub use wire::catalog as catalog_format;
 
@@ -786,6 +788,12 @@ impl ClientCore {
 
     pub fn basis_hash(&self) -> Option<u64> {
         self.stream.basis_hash()
+    }
+
+    /// The plots the mods let this seat draw although it has not revealed them (mod API 1.2): the renderer's ground
+    /// only, never the view (no reveal, no strategic map, no minimap, no tooltip). Empty after a fresh stream.
+    pub fn terrain_share(&self) -> &SharedTerrain {
+        self.stream.terrain_share()
     }
 
     /// `seq` of the batch with the last view message.

@@ -116,6 +116,7 @@ fn kinds(b: &GameBatch) -> Vec<&'static str> {
             GameMsg::GcTurn(_) => "GcTurn",
             GameMsg::Mods(_) => "Mods",
             GameMsg::Mod(_) => "Mod",
+            GameMsg::TerrainShare(_) => "TerrainShare",
             GameMsg::AiTurn(_) => "AiTurn",
         })
         .collect()

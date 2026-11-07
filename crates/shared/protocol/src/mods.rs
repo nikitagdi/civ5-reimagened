@@ -6,7 +6,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::world::PlayerId;
+use crate::world::{PlayerId, PlotBasisView};
 
 /// Largest payload of one mod message, either direction. Below the 64 KiB gateway frame with room for the envelope.
 pub const MOD_PAYLOAD_MAX: usize = 56 * 1024;
@@ -93,6 +93,33 @@ impl ModC2S {
 impl ModS2C {
     pub fn within_limits(&self) -> bool {
         self.payload.len() <= MOD_PAYLOAD_MAX
+    }
+}
+
+/// Most plots one [`TerrainShare`] carries (the host's limit per call of a mod, mod API 1.2).
+pub const MAX_TERRAIN_SHARE_PLOTS: usize = 256;
+
+/// `GameMsg::TerrainShare` (v14, mod API 1.2): a server half of a mod lets the seat draw the ground of these plots
+/// although the seat has not revealed them (an arena in another player's land). Cosmetic only: the client draws
+/// their relief and ground like fogged revealed land and keeps them out of the game's view (no reveal, no strategic
+/// map, no minimap, no tooltip). Not part of any state, the view hash or the replica.
+///
+/// The records are the fog-free basis records of those plots, the same encoding as `MapBasis::plots` and
+/// `ViewDiff::basis`: nothing a seat learns from them is game-relevant beyond the look of the ground (no owner, no
+/// improvement, route, resource, unit or city).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TerrainShare {
+    /// The mod whose share this is (`ModView.load_idx`). The client keeps the shares of each mod apart.
+    pub mod_idx: u16,
+    /// The mod's earlier share to this seat is dropped first (`unshare_terrain`, or the host forgot the seat).
+    pub reset: bool,
+    /// `(index, record)`: new plots, index `y * width + x`, at most [`MAX_TERRAIN_SHARE_PLOTS`].
+    pub plots: Vec<(u32, PlotBasisView)>,
+}
+
+impl TerrainShare {
+    pub fn within_limits(&self) -> bool {
+        self.plots.len() <= MAX_TERRAIN_SHARE_PLOTS
     }
 }
 

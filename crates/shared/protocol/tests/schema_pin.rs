@@ -1457,7 +1457,27 @@ fn samples() -> Pins {
     replica_samples(&mut p);
     account_samples(&mut p);
     mod_samples(&mut p);
+    terrain_share_samples(&mut p);
     p
+}
+
+/// v14 additions: the terrain share of the mods (mod API 1.2).
+fn terrain_share_samples(p: &mut Pins) {
+    let share = TerrainShare {
+        mod_idx: 3,
+        reset: false,
+        plots: vec![(17, basis_plot()), (18, PlotBasisView::default())],
+    };
+    p.add("TerrainShare", &share);
+    p.add("GameMsg::TerrainShare", &GameMsg::TerrainShare(share));
+    p.add(
+        "GameMsg::TerrainShare(reset)",
+        &GameMsg::TerrainShare(TerrainShare {
+            mod_idx: 0,
+            reset: true,
+            plots: Vec::new(),
+        }),
+    );
 }
 
 /// v12 additions: the account store.

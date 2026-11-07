@@ -119,6 +119,7 @@ fn kind_of(m: &GameMsg) -> &'static str {
         GameMsg::AiTurn(_) => "AiTurn",
         GameMsg::Mods(_) => "Mods",
         GameMsg::Mod(_) => "Mod",
+        GameMsg::TerrainShare(_) => "TerrainShare",
     }
 }
 
@@ -137,7 +138,8 @@ fn rank(m: &GameMsg) -> u8 {
         GameMsg::GcBase(_) | GameMsg::GcJournal(_) | GameMsg::GcTurn(_) => 8,
         GameMsg::AiTurn(_) => 8,
         // v13: the mod set opens a `Fresh` stream; mod messages come after everything else.
-        GameMsg::Mod(_) => 9,
+        // v14: the terrain share of the mods goes last, after their messages.
+        GameMsg::Mod(_) | GameMsg::TerrainShare(_) => 9,
     }
 }
 
@@ -756,7 +758,7 @@ impl Session {
             GameMsg::GcBase(_) | GameMsg::GcJournal(_) | GameMsg::GcTurn(_) => {}
             // Nor is the AI progress.
             GameMsg::AiTurn(_) => {}
-            GameMsg::Mods(_) | GameMsg::Mod(_) => {}
+            GameMsg::Mods(_) | GameMsg::Mod(_) | GameMsg::TerrainShare(_) => {}
         }
     }
 
