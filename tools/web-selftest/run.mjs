@@ -7,6 +7,8 @@
 // `--mode ui2-getters`: instead of the replica script, joins the first snapshot of each scenario and times every
 // `GameRead` method of the real core in wasm (median and maximum of one call, in microseconds); prints the table
 // and writes it as JSON to `--out <file>` when given. Exits 0 when every scenario produced a table.
+// `--mode ui2-r17`: the replica-untouched test of the UI v2 source and actions (`replica_r17`) on the first snapshot
+// of each scenario; prints the report (and writes it to `--out <file>`); exits 0 when every scenario passed.
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
@@ -23,10 +25,20 @@ const fixture = path.resolve(take("--fixture", "target/fixture"));
 const withMt = args.includes("--mt") ? (args.splice(args.indexOf("--mt"), 1), true) : false; // also run every scenario in pkg-mt
 const mode = take("--mode", "replica");
 const outFile = take("--out", "");
-const seatArg = take("--seat", ""); // `--mode ui2-getters`: join as this seat instead of the script's
+const seatArg = take("--seat", ""); // `--mode ui2-getters|ui2-r17`: join as this seat instead of the script's
 const scenarios = take("--scenarios", "tiny").split(",").filter(Boolean);
 const root = path.resolve(args[0] ?? "target/web-selftest");
-if (!existsSync(path.join(root, mode === "ui2-getters" ? "pkg/app_web.js" : "replica-selftest.html"))) {
+// The modes that run one exported function on the joined fixture, from a page served here.
+const PAGES = {
+  "ui2-getters": { page: "ui2-getters", fn: "replica_getters", prefix: "ui2_getters:" },
+  "ui2-r17": { page: "ui2-r17", fn: "replica_r17", prefix: "ui2_r17:" },
+};
+const paged = PAGES[mode];
+if (mode !== "replica" && !paged) {
+  console.error(`unknown --mode ${mode} (replica, ${Object.keys(PAGES).join(", ")})`);
+  process.exit(2);
+}
+if (!existsSync(path.join(root, paged ? "pkg/app_web.js" : "replica-selftest.html"))) {
   console.error(`no replica-selftest.html in ${root}; run cargo xtask web-selftest`);
   process.exit(2);
 }
@@ -65,9 +77,10 @@ function resolveFile(urlPath) {
   if (!file.startsWith(base)) return null;
   return existsSync(file) && statSync(file).isFile() ? file : null;
 }
-// The page of `--mode ui2-getters` (served from here, there is no file for it in the bundle).
-const GETTERS_PAGE = [
-  '<!doctype html><meta charset="utf-8"><title>ui2 getters</title><pre id="out">ui2_getters: running</pre>',
+// The page of `--mode ui2-getters` and `ui2-r17` (served from here, there is no file for it in the bundle): it
+// loads the fixture and calls `fn(scenario, files, seat)`, which returns the report as JSON.
+const pageOf = ({ fn, prefix }) => [
+  `<!doctype html><meta charset="utf-8"><title>${fn}</title><pre id="out">${prefix} running</pre>`,
   '<script type="module">',
   'const params = new URLSearchParams(location.search);',
   'const pkg = params.get("mt") === "1" ? "./pkg-mt" : "./pkg";',
@@ -84,11 +97,11 @@ const GETTERS_PAGE = [
   '    if (!r.ok) throw new Error(n + ": HTTP " + r.status);',
   '    files[n] = new Uint8Array(await r.arrayBuffer());',
   '  }));',
-  '  const report = JSON.parse(m.replica_getters(dir.split("/").pop(), files, Number(params.get("seat") ?? -1)));',
+  `  const report = JSON.parse(m.${fn}(dir.split("/").pop(), files, Number(params.get("seat") ?? -1)));`,
   '  report.isolated = self.crossOriginIsolated === true;',
-  '  line = "ui2_getters: " + (report.ok ? "PASS " : "FAIL ") + JSON.stringify(report);',
+  `  line = "${prefix} " + (report.ok ? "PASS " : "FAIL ") + JSON.stringify(report);`,
   '} catch (e) {',
-  '  line = "ui2_getters: FAIL " + JSON.stringify({ ok: false, error: String(e && e.stack ? e.stack : e) });',
+  `  line = "${prefix} FAIL " + JSON.stringify({ ok: false, error: String(e && e.stack ? e.stack : e) });`,
   '}',
   'document.getElementById("out").textContent = line;',
   'console.log(line);',
@@ -96,13 +109,13 @@ const GETTERS_PAGE = [
 ].join("\n");
 const server = createServer((req, res) => {
   const reqPath = new URL(req.url, "http://x").pathname;
-  if (reqPath === "/ui2-getters.html") {
+  if (paged && reqPath === `/${paged.page}.html`) {
     res.writeHead(200, {
       "content-type": "text/html",
       "cross-origin-opener-policy": "same-origin",
       "cross-origin-embedder-policy": "require-corp",
     });
-    res.end(GETTERS_PAGE);
+    res.end(pageOf(paged));
     return;
   }
   const file = resolveFile(reqPath);
@@ -128,8 +141,10 @@ const browser = await chromium.launch({
 });
 let failed = false;
 const getters = mode === "ui2-getters";
-const prefix = getters ? "ui2_getters:" : "replica_load:";
+const r17 = mode === "ui2-r17";
+const prefix = paged ? paged.prefix : "replica_load:";
 const gettersOut = [];
+const r17Out = [];
 const runs = scenarios.flatMap((s) => (withMt ? [[s, false], [s, true]] : [[s, false]]));
 for (const [scenario, mt] of runs) {
   const label = mt ? `${scenario}/mt` : scenario;
@@ -141,7 +156,7 @@ for (const [scenario, mt] of runs) {
   });
   page.on("pageerror", (e) => console.log(`[pageerror] ${e.message}`));
   const start = Date.now();
-  await page.goto(`http://127.0.0.1:${port}/${getters ? "ui2-getters" : "replica-selftest"}.html?fixture=fixture/${scenario}${mt ? "&mt=1" : ""}${seatArg ? `&seat=${seatArg}` : ""}`);
+  await page.goto(`http://127.0.0.1:${port}/${paged ? paged.page : "replica-selftest"}.html?fixture=fixture/${scenario}${mt ? "&mt=1" : ""}${seatArg ? `&seat=${seatArg}` : ""}`);
   let report = null;
   while (Date.now() - start < timeoutMs) {
     report = lines.find((l) => l.startsWith(prefix));
@@ -177,14 +192,21 @@ for (const [scenario, mt] of runs) {
     }
     continue;
   }
+  if (r17) {
+    const body = JSON.parse(report.slice(report.indexOf("{")));
+    r17Out.push({ label, ...body });
+    console.log(`[${label}] ${report}`);
+    if (!body.ok) failed = true;
+    continue;
+  }
   console.log(`[${label}] ${report}`);
   if (!report.startsWith("replica_load: PASS")) failed = true;
 }
 await browser.close();
 server.close();
-if (getters && outFile) {
+if ((getters || r17) && outFile) {
   const { writeFileSync } = await import("node:fs");
-  writeFileSync(outFile, JSON.stringify(gettersOut, null, 1));
+  writeFileSync(outFile, JSON.stringify(getters ? gettersOut : r17Out, null, 1));
 }
 console.log(failed ? "RESULT: FAIL" : "RESULT: PASS");
 process.exit(failed ? 1 : 0);
