@@ -36,6 +36,8 @@ mod parse;
 pub use check::{Analysis, Scope, Ty, Var, analyze, check_template, typecheck};
 pub use eval::{EvalHost, Value, eval, fmt_fixed, fmt_float, render, truthy};
 #[cfg(feature = "profile")]
+pub(crate) use parse::find_close;
+#[cfg(feature = "profile")]
 pub use parse::{parse, parse_template};
 
 /// Error codes of the expression language; the texts are in `profile.toml` (`error.<code>`).

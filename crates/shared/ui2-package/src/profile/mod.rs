@@ -3,8 +3,11 @@
 //! The schema types (`SchemaView`, `TypeSig`) and the id enums (`PropId`, `Tag`) are always
 //! available; the profile tables and parsers need feature `profile`.
 
+pub mod action;
 #[cfg(feature = "profile")]
 pub mod apply;
+#[cfg(feature = "profile")]
+pub mod attrs;
 pub mod expr;
 mod ids;
 #[cfg(feature = "profile")]

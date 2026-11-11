@@ -10,7 +10,10 @@ use ui2_package::profile::expr::{
     self, EvalHost, Expr, Scope, Template, TplSeg, Value, check_template, codes, eval, fmt_float,
     render, typecheck,
 };
-use ui2_package::profile::{Profile, SchemaView, TypeSig};
+use ui2_package::profile::{Profile, TypeSig};
+
+mod common;
+use common::{MapView, parse_type};
 
 #[derive(Deserialize)]
 struct VarDef {
@@ -46,75 +49,6 @@ struct File {
 
 fn file() -> File {
     serde_json::from_str(include_str!("../profile/expr-vectors.json")).expect("vectors parse")
-}
-
-/// `int`, `list<struct a.b[]>`, `enum(a|b)`, `key<city>`, `struct p?` as `TypeSig`.
-fn parse_type(s: &str) -> TypeSig {
-    if let Some(inner) = s.strip_suffix('?') {
-        return TypeSig::Opt(Box::new(parse_type(inner)));
-    }
-    match s {
-        "bool" => TypeSig::Bool,
-        "int" => TypeSig::Int,
-        "float" => TypeSig::Float,
-        "str" => TypeSig::Str,
-        "text" => TypeSig::Text,
-        "color" => TypeSig::Color,
-        "asset" => TypeSig::Asset,
-        _ => {
-            if let Some(name) = s.strip_prefix("struct ") {
-                TypeSig::Struct(name.to_string())
-            } else if let Some(kind) = s.strip_prefix("key<").and_then(|r| r.strip_suffix('>')) {
-                TypeSig::Key(kind.to_string())
-            } else if let Some(list) = s.strip_prefix("list<").and_then(|r| r.strip_suffix('>')) {
-                TypeSig::List(Box::new(parse_type(list)))
-            } else if let Some(values) = s.strip_prefix("enum(").and_then(|r| r.strip_suffix(')')) {
-                TypeSig::Enum(values.split('|').map(str::to_string).collect())
-            } else {
-                panic!("unknown type {s:?}")
-            }
-        }
-    }
-}
-
-/// A schema made of the flat type map of the vector file.
-struct MapView(BTreeMap<String, TypeSig>);
-
-impl SchemaView for MapView {
-    fn root(&self, name: &str) -> Option<TypeSig> {
-        let prefix = format!("{name}.");
-        self.0
-            .keys()
-            .any(|k| k.starts_with(&prefix))
-            .then(|| TypeSig::Struct(name.to_string()))
-    }
-
-    fn field(&self, of: &TypeSig, name: &str) -> Option<TypeSig> {
-        let of = match of {
-            TypeSig::Opt(inner) => inner.as_ref(),
-            other => other,
-        };
-        let TypeSig::Struct(path) = of else {
-            return None;
-        };
-        self.0.get(&format!("{path}.{name}")).cloned()
-    }
-
-    fn list_key(&self, _list: &TypeSig) -> Option<&str> {
-        None
-    }
-
-    fn intent(&self, _name: &str) -> Option<Vec<(String, TypeSig)>> {
-        None
-    }
-
-    fn js_writable(&self, _path: &str) -> bool {
-        false
-    }
-
-    fn version(&self) -> (u16, u16) {
-        (1, 0)
-    }
 }
 
 struct TestHost<'a> {
@@ -210,12 +144,7 @@ struct Setup {
 }
 
 fn setup(f: &File) -> Setup {
-    let view = MapView(
-        f.types
-            .iter()
-            .map(|(k, v)| (k.clone(), parse_type(v)))
-            .collect(),
-    );
+    let view = MapView::from_types(&f.types);
     let mut scope = Scope::new();
     for (name, v) in &f.vars {
         scope = scope.with_var(name, parse_type(&v.ty), v.origin.clone());
