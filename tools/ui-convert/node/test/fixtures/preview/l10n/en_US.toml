@@ -2,3 +2,5 @@
 "t.count" = "{1} {1: plural 1?thing; other?things;}"
 "t.who" = "{1} has {2}"
 "t.group" = "{1: number \"#,###\"}"
+"key.KeyB" = "Б"
+"key.Ctrl" = "Ctl"

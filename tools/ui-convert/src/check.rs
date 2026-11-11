@@ -592,6 +592,18 @@ fn registry(cx: &mut Ctx, skin_page: bool) {
                 .insert(ident.clone());
             first.entry(format!("hotkey {key}")).or_insert(ix);
         }
+        if a.hotkey_label
+            && !std::iter::once(ix)
+                .chain(dom.ancestors(ix))
+                .any(|x| dom.elems[x].attr("data-hotkey").is_some())
+        {
+            cx.err_at(
+                ix,
+                attrs::codes::HOTKEY,
+                "data-hotkey-label",
+                "a hotkey label names the key of data-hotkey on its element or an ancestor; there is none",
+            );
+        }
         if let Some(t) = &a.tooltip
             && !tooltips.contains(t)
         {
@@ -668,9 +680,12 @@ fn texts(cx: &mut Ctx) {
             if is_neutral(&t.text) {
                 continue;
             }
+            // A hotkey label's text in the markup stands in for the key's name, as a bound text does.
             let bound = std::iter::once(ix).chain(dom.ancestors(ix)).any(|a| {
                 let x = dom.elems[a];
-                x.attr("data-l10n").is_some() || x.attr("data-bind-value").is_some()
+                x.attr("data-l10n").is_some()
+                    || x.attr("data-bind-value").is_some()
+                    || x.attr("data-hotkey-label").is_some()
             });
             if !bound {
                 let shown: String = t.text.trim().chars().take(40).collect();

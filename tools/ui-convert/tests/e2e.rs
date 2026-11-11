@@ -40,7 +40,7 @@ fn bad_mockups() {
         .filter(|p| p.join("expect.txt").is_file())
         .collect();
     dirs.sort();
-    assert_eq!(dirs.len(), 42, "the whole set of bad mockups is present");
+    assert_eq!(dirs.len(), 43, "the whole set of bad mockups is present");
     let mut failures = Vec::new();
     for dir in dirs {
         let out = ui2_convert::build::build(&dir, false);
@@ -882,4 +882,54 @@ fn a_static_disabled_button_is_recorded() {
         })
         .collect();
     assert_eq!(disabled, [&Expr::Bool(true)]);
+}
+
+/// A hotkey label (`data-hotkey-label` inside a node with `data-hotkey`) is written with its binding and one
+/// empty text leaf for the runtime to fill with the key's name; the mockup's text is not kept.
+#[test]
+fn a_hotkey_label_gets_a_text_leaf_for_the_key_name() {
+    if !chrome() {
+        return;
+    }
+    use ui2_package::{BindKind, NodeKind, TextSrc};
+    let dir = picture_skin(
+        "e2e-hotkey-label",
+        ".b {\n  display: flex;\n  appearance: none;\n  border: 0;\n  padding: 0;\n  background: none;\n  font: inherit;\n  color: inherit;\n  width: 8px;\n  height: 8px;\n}\n",
+    );
+    let html = std::fs::read_to_string(dir.join("index.html")).expect("index.html");
+    std::fs::write(
+        dir.join("index.html"),
+        html.replace(
+            "<div class=\"tile\"></div>",
+            "<button class=\"b\" data-hotkey=\"KeyF\" data-on-click=\"intent turn.primary()\"><span data-hotkey-label>F</span></button>",
+        ),
+    )
+    .expect("index.html");
+    let out = ui2_convert::build::build(&dir, true);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(out.run.errors.is_empty(), "{:?}", out.run.errors);
+    let bytes = out.written.expect("package").bytes;
+    let pkg = ui2_package::Package::read(std::sync::Arc::from(bytes.as_slice())).expect("read");
+    let labels: Vec<_> = pkg
+        .bindings()
+        .items
+        .iter()
+        .filter(|i| i.kind == BindKind::HotkeyLabel)
+        .collect();
+    assert_eq!(labels.len(), 1);
+    let nodes = &pkg.template(labels[0].tpl).expect("template").nodes;
+    let at = labels[0].node as usize;
+    assert_eq!(nodes[at].subtree, 2, "the label holds one text leaf");
+    match &nodes[at + 1].kind {
+        NodeKind::Text(TextSrc::Static(s)) => assert_eq!(pkg.str(*s), Some("")),
+        other => panic!("{other:?}"),
+    }
+    // The hotkey sits on the label's parent, the button.
+    let hk = pkg.hotkeys();
+    assert_eq!(hk.len(), 1);
+    assert_eq!(pkg.str(hk[0].code), Some("KeyF"));
+    assert_eq!(
+        (hk[0].node.0, hk[0].node.1 + 1),
+        (labels[0].tpl, labels[0].node)
+    );
 }

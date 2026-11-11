@@ -629,6 +629,19 @@ fn extension_attributes_are_checked() {
         expect(Tag::Button, &[("data-hotkey", bad)], codes::HOTKEY);
     }
     expect(Tag::Span, &[("data-hotkey-label", "x")], codes::HOTKEY);
+    // A hotkey label's text is the key's name: no other source of text, no child elements.
+    for other in [("data-l10n", "act.fortify"), ("data-bind-value", "{{ a }}")] {
+        expect(
+            Tag::Span,
+            &[("data-hotkey-label", ""), other],
+            codes::TEXT_SOURCE,
+        );
+    }
+    let parent = AttrCtx {
+        has_children: true,
+        ..AttrCtx::default()
+    };
+    assert!(fails(Tag::Span, &[("data-hotkey-label", "")], &parent).contains(&codes::TEXT_SOURCE));
     let in_for = AttrCtx {
         in_for: true,
         ..AttrCtx::default()

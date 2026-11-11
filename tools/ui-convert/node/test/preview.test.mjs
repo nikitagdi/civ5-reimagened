@@ -201,6 +201,8 @@ test("fixture: nested includes, loops, sort, filter, keys, toggles, styles, l10n
     assert.equal(await text(page, "#who"), "Ann has 12");
     assert.equal(await text(page, "#when"), "4 things"); // a model text {k, a}
     assert.equal(await page.evaluate(() => !!document.querySelector("#empty")), false, "an empty for has no instance in layout mode");
+    // hotkey labels: the key of the nearest data-hotkey, the texts' `key.<name>` first, as the runtime names it
+    assert.deepEqual(await texts(page, "#hkf, #hkb, #hkd"), ["F", "Ctl+Shift+Б", "Delete"]);
 
     // the numbering rule, spelled out (see the header of preview.js); the dev element is not a node
     const nums = await page.evaluate(() => Object.fromEntries(["#outer", "#inner", "#deep", "#list", "#list > li", "#list > li > b", "#list i", "#on", "#off", "#bar", "#ico", "#cnt", "#who", "#when", "#dev", "#dev span"]
@@ -227,6 +229,7 @@ test("fixture: modes", async () => {
     assert.equal(await ex.evaluate(() => document.querySelector("#empty").getAttribute("data-ui2-inst")), "0");
     assert.equal(await text(ex, "#empty span"), "");
     assert.equal(await ex.evaluate(() => window.__ui2preview.mode), "extract");
+    assert.deepEqual(await texts(ex, "#hkf, #hkb, #hkd"), ["F", "Ctl+Shift+Б", "Delete"], "the converter reads the labels too");
 
     // templates: includes and numbers only, the mockup text stays, nothing is instantiated
     const tp = (await openPage(ctx, fixture, "index.html?ui2mode=templates")).page;
@@ -301,6 +304,9 @@ test("fixture: problems become error entries and never throw", async () => {
     assert.equal(byCode("PV-008").length, 1, "division by zero");
     assert.equal(byCode("PV-008")[0].level, "warn");
     assert.equal(byCode("PV-006").length, 1, "a transform that is not previewed");
+    assert.equal(byCode("E7-013").length, 1, "a hotkey label without a hotkey");
+    assert.equal(byCode("E7-013")[0].attr, "data-hotkey-label");
+    assert.equal(await text(page, "#nohk"), "");
     // the page still rendered what it could
     assert.equal(await text(page, "#bad"), "kept");
     assert.equal(await text(page, "#nokey"), "no.such");

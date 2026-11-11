@@ -238,6 +238,17 @@ test("TOML subset reads the skin's tables", () => {
   assert.deepEqual(t.errors.map((e) => e.line), [5, 6]);
 });
 
+test("hotkey labels: the runtime's default names, modifiers first, the skin's texts win", () => {
+  const cases = [["KeyF", "F"], ["KeyZ", "Z"], ["Digit7", "7"], ["Delete", "Delete"], ["F5", "F5"],
+    ["ArrowUp", "ArrowUp"], ["KeyAB", "KeyAB"], ["Numpad1", "Numpad1"], ["Enter", "Enter"]];
+  for (const [code, name] of cases) assert.equal(core.defaultKeyName(code), name, code);
+  const plain = (_k, fallback) => fallback;
+  assert.equal(core.hotkeyLabel("KeyF", plain), "F");
+  assert.equal(core.hotkeyLabel("Ctrl+Alt+Shift+Digit1", plain), "Ctrl+Alt+Shift+1");
+  const named = (k, fallback) => ({ KeyB: "Б", Shift: "Umschalt" })[k] ?? fallback;
+  assert.equal(core.hotkeyLabel("Shift+KeyB", named), "Umschalt+Б");
+});
+
 test("skin state: [state] of skin.toml as nested defaults, and the sample's state over them", () => {
   const real = fs.readFileSync(fileURLToPath(new URL("../../../../skins/engraved/skin.toml", HERE)), "utf8");
   const engraved = core.parseSkinState(real);

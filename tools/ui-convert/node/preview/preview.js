@@ -8,7 +8,8 @@
 //   2. Every element below <body> is numbered: data-ui2-node="<tpl>:<idx>" (see "Numbering").
 //   3. The sample (sample/<state>.json) and the texts (l10n/<lang>.toml) are loaded and the bindings are
 //      evaluated: data-bind-value, -if, -for (+ -key, -sort, -sort-desc, -filter), -class-toggle,
-//      -style-<prop>, -src, -disabled, data-l10n and data-l10n-args. Elements created by a `for` carry
+//      -style-<prop>, -src, -disabled, data-l10n, data-l10n-args and data-hotkey-label (the name of the key
+//      of the nearest data-hotkey, `key.<code>` of the texts or the runtime's default). Elements created by a `for` carry
 //      data-ui2-inst="<key>/<key>" (the keys of the enclosing loops, outermost first). `state.*` reads the
 //      skin's defaults (`skin.toml [state]`, written in front of this script by the server as
 //      window.__ui2skin = { toml }) with the sample's `state` written over them, as the runtime mounts them.
@@ -75,7 +76,7 @@
   const E = {
     SYNTAX: "E4-001", UNKNOWN_FUNC: "E4-002", ARGC: "E4-003", ONE_EXPR: "E4-020", FOR: "E4-021",
     CLASS_TOGGLE: "E4-024", TEXT_SOURCE: "E4-036", IF_FOR: "E4-037", INCLUDE: "E1-027", UNCLOSED: "E4-013",
-    NOT_LIST: "E4-009", DUP_ATTR: "E1-026",
+    NOT_LIST: "E4-009", DUP_ATTR: "E1-026", HOTKEY: "E7-013",
   };
   const PV = {
     INCLUDE_FAILED: "PV-001", INCLUDE_CYCLE: "PV-002", LOAD_FAILED: "PV-003", MODE: "PV-004",
@@ -860,6 +861,27 @@
   }
 
   /**
+   * The name a key shows when the skin has no text `key.<code>`: the letter of KeyA..KeyZ, the digit of
+   * Digit0..Digit9, otherwise the code itself (the runtime's rule).
+   */
+  function defaultKeyName(code) {
+    const m = /^(?:Key|Digit)(.)$/u.exec(code);
+    return m ? m[1] : code;
+  }
+
+  /**
+   * The text of a hotkey label for a `data-hotkey` value (`Ctrl+Shift+KeyB`): the modifiers, then the key,
+   * joined by `+`. `name(key, fallback)` gives the skin's text `key.<key>` or the fallback.
+   */
+  function hotkeyLabel(hotkey, name) {
+    const parts = String(hotkey).split("+");
+    const code = parts.pop();
+    let out = "";
+    for (const m of ["Ctrl", "Alt", "Shift"]) if (parts.includes(m)) out += name(m, m) + "+";
+    return out + name(code, defaultKeyName(code));
+  }
+
+  /**
    * The skin state of `skin.toml`: the `[state]` table (and `[state.<group>]` tables) with booleans,
    * integers, floats (Flt, as parseJson reads a number with a fraction), strings and inline tables. A dotted
    * key, bare or quoted, is a path of groups, as the converter flattens it. Returns { state, errors } with
@@ -1083,7 +1105,8 @@
     parseExpr, parseTemplate, evalExpr, renderTemplate, renderValue, truthy, fmtFixed, fmtFloat, groupInt,
     parseJson, fromJson, isPlainObject,
     splitTop, parseSingleExpr, parseForHead, parseClassToggle, parseL10nArgs, parseBindings,
-    planFor, keyLabel, escKey, parseToml, parseSkinState, mergeState, locRender, codePointCompare,
+    planFor, keyLabel, escKey, parseToml, parseSkinState, mergeState, defaultKeyName, hotkeyLabel, locRender,
+    codePointCompare,
   };
 
   // ------------------------------------------------------------------------------------------------
@@ -1369,7 +1392,17 @@
         if (c.localName === "button" || c.localName === "input") c.toggleAttribute("disabled", off);
         else if (off) c.setAttribute("aria-disabled", "true");
       }
-      if (p.value) c.textContent = evText(p.value, scope);
+      if (el.hasAttribute("data-hotkey-label")) {
+        // The name of the key of the nearest data-hotkey (this element or an ancestor), as the runtime shows it.
+        const owner = el.closest("[data-hotkey]");
+        if (owner) {
+          const name = (k, fallback) => Object.prototype.hasOwnProperty.call(l10n, "key." + k) ? locText("key." + k, []) : fallback;
+          c.textContent = hotkeyLabel(owner.getAttribute("data-hotkey"), name);
+        } else {
+          report(E.HOTKEY, "error", el, "data-hotkey-label", "no data-hotkey on the element or an ancestor");
+          c.textContent = "";
+        }
+      } else if (p.value) c.textContent = evText(p.value, scope);
       else if (p.l10n !== null) {
         const args = (p.l10nArgs || []).map((a) => ev(a, scope));
         currentEl = el;
