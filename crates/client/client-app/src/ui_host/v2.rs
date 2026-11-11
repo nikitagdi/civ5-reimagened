@@ -1,31 +1,29 @@
-//! Temporary wiring of UI v2 into the app (`?ui=v2`, `?ui=v2:<skin>`), for the first slice only.
+//! UI v2 as a frontend of the UI host (`?ui=v2`, `?ui=v2:<skin>`).
 //!
-//! The classic original UI keeps running as before (its replica pumps, it consumes the core's events), but while a
-//! skin runs its draw list goes to a scratch list nobody submits and it gets no input. UI v2 reads the replica
-//! through temporary getters of the classic layer; once the game session owns the replica and the frontends switch
-//! through one interface, this module is replaced.
+//! While it loads, the classic UI stays on the screen: the host asks [`V2Frontend`] to prepare every frame and
+//! switches when the skin is up and a game is being played. From then on UI v2 is the only game UI that gets frames
+//! and input; the classic one sleeps. UI v2 reads the replica and the localizer of the game session.
 //!
-//! The network reaches UI v2 the same temporary way: the app hands each of the core's events to
-//! [`V2Host::net_event`] (kept, as the actions module's events, until the next UI v2 frame) and lends the network
-//! handle to [`V2Host::frame`], which runs the UI v2 frame inside one borrow of the core ([`NetSink`]). Camera
-//! requests of the frame go to the classic layer's look-at, which the app carries out on its next frame.
+//! The network: the host hands each of the core's events to [`V2Frontend`] (kept, as the actions module's events,
+//! until its next frame), and its frame runs inside one borrow of the core ([`NetSink`]). A camera request of the
+//! frame moves the camera.
 //!
-//! Input: while a skin runs every window event the app's chain leaves for the game UI goes to [`V2Host::input`]
-//! first. What the skin takes stops there; what it passes to the world goes to the camera and the picker, and a
-//! click the picker turns into a plot comes back as [`V2Host::map_click`] (`map.click` for the actions module)
-//! instead of the classic UI's click handling; a press on the skin's minimap moves the camera there. The cursor the
-//! last frame reported is shown with the game's cursors ([`cursor_row`]).
+//! Input: every window event the app's chain leaves for the game UI goes to the skin first. What the skin takes
+//! stops there; what it passes to the world goes to the mods' unclaimed input, the camera and the picker, and a
+//! click the picker turns into a plot becomes `map.click` for the actions module; a press on the skin's minimap
+//! moves the camera there. The cursor the last frame reported is shown with the game's cursors ([`cursor_row`]).
 //!
 //! Loading: the index `ui2/skins.json` and the chosen package are fetched relative to the page. Any failure (no
 //! index, a bad index, a package that is missing, damaged, of another hash, or that does not build, or scripts that
 //! fail while loading) is a warning and a fallback: the default skin if another one failed, else the classic UI.
 //! Never a panic, never a retry loop.
 //!
-//! Scripts: the platform hands its script workers over with [`set_script_host`] before `run` (the web page's
-//! workers); without one a skin's scripts do not run (`NullScriptHost`) and the skin works on its markup.
-
+//! Scripts: the platform's script workers come with the frontend (`Services::ui2`, the web page's workers);
+//! without them a skin's scripts do not run (`NullScriptHost`) and the skin works on its markup.
 use std::cell::RefCell;
 use std::rc::Rc;
+
+use super::{FrameCx, Frontend, InputCx, PrepareCx, Readiness, UiKind, UiSoundSource};
 use std::sync::Arc;
 
 use client_core::ClientEvent;
@@ -34,12 +32,14 @@ use platform::{
     HttpClient, HttpError, HttpOp, HttpResponse, InputEvent, NullScriptHost, ScriptHost,
 };
 use protocol::GameId;
+use render::Renderer;
 use ui2_host::{
     ActionEvent, Cursor, Env, Fallback, HostClock, InputOutcome, MapButton, NetSink, ReplicaView,
     Services, SkinRegistry, V2Frame, V2FrameReport, V2Init, V2Ui,
 };
 
 use crate::net::NetHandle;
+use crate::session::GameSession;
 
 /// The skin index of the web build, relative to the page.
 pub const INDEX_PATH: &str = "ui2/skins.json";
@@ -125,35 +125,69 @@ pub fn parse_ui_param(value: Option<&str>) -> Option<V2Choice> {
 /// Makes the script host for a skin; each skin that loads gets a new one.
 pub type ScriptHostFactory = Rc<dyn Fn() -> Box<dyn ScriptHost>>;
 
-thread_local! {
-    static CHOICE: RefCell<Option<V2Choice>> = const { RefCell::new(None) };
-    static SCRIPTS: RefCell<Option<ScriptHostFactory>> = const { RefCell::new(None) };
+/// What UI v2 needs of the platform (`Services::ui2`).
+pub struct Ui2Platform {
+    /// The script workers of each skin that loads; `None`: skins run their markup only.
+    pub scripts: Option<ScriptHostFactory>,
+    /// Reference images (`?ui2bg=<rrggbb>`): a solid background under the skin and its scene frozen at time 0.
+    pub background: Option<[u8; 3]>,
 }
 
-/// The platform's script workers for UI v2 skins, set before `run` (the web page's). Without it skins run their
-/// markup only.
-pub fn set_script_host(factory: ScriptHostFactory) {
-    SCRIPTS.with(|s| *s.borrow_mut() = Some(factory));
-}
-
-/// The factory set by [`set_script_host`], taken once by the app.
-fn take_script_host() -> Option<ScriptHostFactory> {
-    SCRIPTS.with(|s| s.borrow_mut().take())
-}
-
-/// The page's `?ui=` value, set before `run`: a UI v2 choice makes the app load a skin over the classic layer. Any
-/// other value changes nothing.
-pub fn set_ui_param(value: Option<&str>) {
-    let choice = parse_ui_param(value);
-    if let Some(c) = &choice {
-        tracing::info!(skin = ?c.skin, "UI v2 requested");
+/// `?ui2bg=<rrggbb>` (an optional `#`): the colour, or `None` for anything else.
+pub fn parse_background(value: &str) -> Option<[u8; 3]> {
+    let hex = value.trim().trim_start_matches('#');
+    if hex.len() != 6 || !hex.is_ascii() {
+        return None;
     }
-    CHOICE.with(|c| *c.borrow_mut() = choice);
+    let byte = |i: usize| u8::from_str_radix(&hex[i..i + 2], 16).ok();
+    Some([byte(0)?, byte(2)?, byte(4)?])
 }
 
-/// The choice set by [`set_ui_param`], taken once by the app.
-pub(crate) fn take_choice() -> Option<V2Choice> {
-    CHOICE.with(|c| c.borrow_mut().take())
+/// Where a map anchor's object is in the world: a city's banner or a unit's flag as the renderer hangs them, or
+/// the centre of a plot on the relief. `None`: not on the map (not seen, gone).
+fn anchor_point(
+    kind: ui2_host::AnchorKind,
+    key: &ui2_host::ModelValue,
+    labels: &[render::entities::WorldLabel],
+    terrain: Option<&render::terrain::TerrainSnapshot>,
+) -> Option<render::glam::Vec3> {
+    use render::entities::LabelData;
+    use ui2_host::{AnchorKind, ModelValue};
+    // The id of a city or a unit is the low 32 bits of its key.
+    let id = || match key {
+        ModelValue::Key(k) => Some(k.0 as u32 as i32),
+        ModelValue::I32(v) => Some(*v),
+        ModelValue::U32(v) => Some(*v as i32),
+        _ => None,
+    };
+    match kind {
+        AnchorKind::Plot => {
+            let ModelValue::Struct(xy) = key else {
+                return None;
+            };
+            let (Some(ModelValue::I32(x)), Some(ModelValue::I32(y))) = (xy.first(), xy.get(1))
+            else {
+                return None;
+            };
+            let c = render::hexgrid::cell_center(*x, *y);
+            let h = terrain.map_or(0.0, |t| render::terrain::terrain_height_at(t, c));
+            Some(render::glam::Vec3::new(c.x, h, c.y))
+        }
+        AnchorKind::City => {
+            let id = id()?;
+            labels.iter().find_map(|l| match &l.data {
+                LabelData::CityBanner(b) if b.city == id => Some(l.position),
+                _ => None,
+            })
+        }
+        AnchorKind::Unit => {
+            let id = id()?;
+            labels.iter().find_map(|l| match &l.data {
+                LabelData::UnitFlag(f) if f.unit == id => Some(l.position),
+                _ => None,
+            })
+        }
+    }
 }
 
 /// What the playtest hooks (`?test=1`) read of UI v2 after each of its frames: the loading stage and, while a
@@ -249,7 +283,7 @@ pub enum V2State {
 }
 
 /// UI v2 over the classic layer: the loading, the fallback, the frame.
-pub struct V2Host {
+pub struct V2Frontend {
     http: Rc<dyn HttpClient>,
     choice: V2Choice,
     registry: SkinRegistry,
@@ -260,8 +294,6 @@ pub struct V2Host {
     load_ms: Option<f64>,
     /// The localizer handed to the running skin.
     loc: Option<Rc<loc::Localizer>>,
-    /// Where the classic layer draws while a skin runs: cleared every frame, never submitted.
-    scratch: UiDrawList,
     /// The network's events for the actions module since the last UI v2 frame, and the game they belong to.
     events: Vec<ActionEvent>,
     game: Option<GameId>,
@@ -271,15 +303,25 @@ pub struct V2Host {
     cursor: Cursor,
     /// The script workers of each skin that loads; `None`: scripts do not run.
     scripts: Option<ScriptHostFactory>,
+    /// A game is up (its replica live while it is played); UI v2 runs no frame before.
+    game_up: bool,
+    /// `?ui2bg=`: reference images (see [`Ui2Platform::background`]).
+    background: Option<[u8; 3]>,
 }
 
-impl V2Host {
+impl V2Frontend {
     /// Starts fetching the index.
-    pub fn new(choice: V2Choice, http: Rc<dyn HttpClient>, clock: HostClock) -> V2Host {
+    /// `scripts`: the platform's script workers for each skin that loads (`None`: skins run their markup only).
+    pub fn new(
+        choice: V2Choice,
+        http: Rc<dyn HttpClient>,
+        clock: HostClock,
+        scripts: Option<ScriptHostFactory>,
+    ) -> V2Frontend {
         let started_ms = clock();
         tracing::info!(url = INDEX_PATH, "UI v2: fetching the skin index");
         let op = http.get(INDEX_PATH);
-        V2Host {
+        V2Frontend {
             http,
             choice,
             registry: SkinRegistry::default(),
@@ -288,18 +330,32 @@ impl V2Host {
             started_ms,
             load_ms: None,
             loc: None,
-            scratch: UiDrawList::new(),
             events: Vec::new(),
             game: None,
             mods: None,
             cursor: Cursor::Auto,
-            scripts: take_script_host(),
+            scripts,
+            game_up: false,
+            background: None,
+        }
+    }
+
+    /// Reference images: every skin that loads gets a solid background and a frozen scene.
+    pub fn set_background(&mut self, background: Option<[u8; 3]>) {
+        self.background = background;
+    }
+
+    /// The game was left: the next frame waits for the next game and rebuilds the model from it.
+    pub fn new_game(&mut self) {
+        self.game_up = false;
+        if let Some(ui) = self.ui_mut() {
+            ui.reset_source();
         }
     }
 
     /// One window event, before the world sees it: `None` while no skin runs (the classic UI's path stays as it
     /// is), else who takes it. `now_ms` is the app's clock.
-    pub fn input(&mut self, ev: &InputEvent, now_ms: f64) -> Option<InputOutcome> {
+    pub fn route_input(&mut self, ev: &InputEvent, now_ms: f64) -> Option<InputOutcome> {
         self.ui_mut().map(|ui| ui.handle_input(ev, now_ms))
     }
 
@@ -352,18 +408,9 @@ impl V2Host {
         }
     }
 
-    /// A skin runs: the classic layer neither draws nor gets input.
+    /// A skin runs.
     pub fn running(&self) -> bool {
         matches!(self.stage, Stage::Running(_))
-    }
-
-    /// While a skin runs: an empty list for the classic layer to draw into, which is never submitted.
-    pub fn classic_sink(&mut self) -> Option<&mut UiDrawList> {
-        if !self.running() {
-            return None;
-        }
-        self.scratch.clear();
-        Some(&mut self.scratch)
     }
 
     /// The running UI v2.
@@ -473,6 +520,8 @@ impl V2Host {
                     "UI v2: skin is up; the classic UI stops drawing"
                 );
                 self.load_ms = Some(ms);
+                let mut ui = ui;
+                ui.set_golden(self.background);
                 Stage::Running(Box::new(ui))
             }
             Err(why) => self.fall_back(&id, &why),
@@ -496,36 +545,30 @@ impl V2Host {
     ///
     /// The network handle is borrowed for the UI v2 frame only, in the app's frame: never inside a call into page
     /// script (the frame, the timer and the page events never run inside one another).
-    pub(crate) fn frame(
+    /// `look`: where a camera request of the frame sends the camera, set when there is one.
+    pub(crate) fn run(
         &mut self,
-        m2: &mut crate::m2::M2Ui,
+        session: &GameSession,
+        steps: &[replica::ReplicaStep],
         net: Option<&NetHandle>,
         env: Env,
         now_ms: f64,
+        look: &mut Option<(i32, i32)>,
     ) -> Option<&mut V2Ui> {
         self.poll(env);
-        if probe_on() && !self.running() {
-            let state = match self.stage {
-                Stage::Classic => "classic",
-                _ => "loading",
-            };
-            PROBE.with(|p| {
-                if let Some(p) = p.borrow_mut().as_mut() {
-                    p.state = state;
-                }
-            });
-        }
-        if !self.running() || m2.layer().is_none() {
+        self.probe_stage();
+        // The game is up once the replica is live in a game being played; it stays up until the game is left.
+        self.note_game(Some(session), playing(net));
+        if !self.running() || !self.game_up {
             return None;
         }
-        // TEMP(T51): the replica and the localizer come from the classic layer.
-        let loc = m2.v2_localizer();
+        // The replica and the localizer are the game session's.
+        let loc = session.localizer();
         let new_loc = match (&loc, &self.loc) {
             (Some(a), Some(b)) => !Rc::ptr_eq(a, b),
             (a, b) => a.is_some() != b.is_some(),
         };
-        let replica = m2.v2_replica();
-        let steps = m2.v2_take_steps();
+        let replica = session.replica();
         let load_ms = self.load_ms.take();
         let Stage::Running(ui) = &mut self.stage else {
             return None;
@@ -542,10 +585,10 @@ impl V2Host {
             Some(Err(_)) => return self.ui_mut(),
             None => None,
         };
-        let steps: &[replica::ReplicaStep] = if held.is_some() { &steps } else { &[] };
+        let steps: &[replica::ReplicaStep] = if held.is_some() { steps } else { &[] };
         let events = std::mem::take(&mut self.events);
         let mods = self.mods.take();
-        let (report, look) = match net {
+        let (report, look_at) = match net {
             Some(h) => h.with(|core| {
                 let mut sink = NetSink::new(core);
                 let report = ui.frame(V2Frame {
@@ -570,9 +613,9 @@ impl V2Host {
                 (report, None)
             }
         };
-        // TEMP(T51): the camera goes where the classic UI's `UI.LookAt` would send it.
-        if let Some((x, y)) = look {
-            m2.v2_look_at(x, y);
+        // The camera eases to a plot the frame asked for, as the classic UI's `UI.LookAt` does.
+        if look_at.is_some() {
+            *look = look_at;
         }
         self.cursor = report.cursor;
         publish(&report, load_ms);
@@ -605,6 +648,182 @@ impl V2Host {
     }
 }
 
+impl V2Frontend {
+    /// The probe's loading stage while no skin runs.
+    fn probe_stage(&self) {
+        if probe_on() && !self.running() {
+            let state = match self.stage {
+                Stage::Classic => "classic",
+                _ => "loading",
+            };
+            PROBE.with(|p| {
+                if let Some(p) = p.borrow_mut().as_mut() {
+                    p.state = state;
+                }
+            });
+        }
+    }
+
+    /// The game is up once the replica is live in a game being played.
+    fn note_game(&mut self, session: Option<&GameSession>, playing: bool) {
+        if session.is_some_and(GameSession::live) && playing {
+            self.game_up = true;
+        }
+    }
+}
+
+/// The client core is in a game being played.
+pub(crate) fn playing(net: Option<&NetHandle>) -> bool {
+    net.is_some_and(|n| {
+        matches!(
+            n.with_client(|c| c.phase()),
+            client_core::ClientPhase::Playing
+        )
+    })
+}
+
+fn env_of(size: (u32, u32), dpr: f32) -> Env {
+    Env {
+        viewport_px: size,
+        dpr,
+        ..Env::default()
+    }
+}
+
+impl Frontend for V2Frontend {
+    fn kind(&self) -> UiKind {
+        UiKind::V2
+    }
+
+    fn needs_replica(&self) -> bool {
+        true
+    }
+
+    /// Ready once the skin is up and a game is being played (the classic UI stays on the screen until then);
+    /// failed when no skin can be used.
+    fn prepare(&mut self, cx: &mut PrepareCx<'_>) -> Readiness {
+        self.poll(env_of(cx.size, cx.dpr));
+        self.probe_stage();
+        self.note_game(cx.session, cx.playing);
+        match &self.stage {
+            Stage::Classic => Readiness::Failed("no UI v2 skin can be used".into()),
+            Stage::Running(_) if self.game_up => Readiness::Ready,
+            _ => Readiness::Loading { progress: None },
+        }
+    }
+
+    fn activate(&mut self, _cx: &mut PrepareCx<'_>) {
+        tracing::info!("UI v2 takes the screen; the classic UI sleeps");
+    }
+
+    fn deactivate(&mut self, _cx: &mut PrepareCx<'_>) {
+        self.cursor = Cursor::Auto;
+    }
+
+    /// The skin's frame; its scene goes to the renderer (`prepare_ui2`), the app's draw list gets nothing.
+    fn frame(&mut self, cx: &mut FrameCx<'_>, _out: &mut UiDrawList) {
+        let env = env_of(cx.size, cx.dpr);
+        let mut look = None;
+        if let Some(ui) = self.run(
+            cx.session,
+            &cx.step.steps,
+            cx.net,
+            env,
+            cx.now_ms,
+            &mut look,
+        ) {
+            // The map anchors follow their objects through the camera, as the classic UI's banners do.
+            if ui.anchor_count() > 0 {
+                let renderer: &Renderer = cx.renderer;
+                let (w, h) = cx.size;
+                let view_proj = cx.camera.view_proj(w as f32 / h.max(1) as f32);
+                let eye = cx.camera.eye();
+                let viewport = render::glam::Vec2::new(w as f32, h as f32);
+                let terrain = renderer.terrain_snapshot();
+                let wrap = terrain
+                    .filter(|t| t.wrap_x())
+                    .map(|t| render::hexgrid::HEX_WIDTH * t.width() as f32);
+                let labels = renderer.entity_labels();
+                ui.place_anchors(|kind, key| {
+                    let world = anchor_point(kind, key, labels, terrain)?;
+                    let s = render::entities::project_wrapped_label(
+                        world, wrap, &view_proj, viewport, eye, terrain,
+                    );
+                    s.visible.then_some((s.pos, 1.0))
+                });
+            }
+            cx.renderer.prepare_ui2(ui.scene_mut());
+        }
+        if let Some((x, y)) = look {
+            cx.camera.look_at(render::hexgrid::cell_center(x, y));
+        }
+    }
+
+    fn input(&mut self, cx: &mut InputCx<'_>, ev: InputEvent) {
+        let Some(outcome) = self.route_input(&ev, cx.now_ms) else {
+            return;
+        };
+        match outcome {
+            InputOutcome::Consumed => {}
+            // A press on the skin's minimap moves the camera like the classic minimap panel.
+            InputOutcome::MinimapClick { u, v } => {
+                if let Some(at) = cx
+                    .renderer
+                    .and_then(|r| r.minimap_to_world(minimap_share(u), minimap_share(v)))
+                {
+                    cx.camera.center_on(at);
+                }
+            }
+            // The rest goes to the mods' unclaimed input, then the camera; a click the picker turns into a plot is
+            // the skin's `map.click`.
+            InputOutcome::PassToWorld => {
+                if !cx.hooks.is_empty() {
+                    let claim = cx.hooks.unclaimed_input(&ev);
+                    if claim.pointer_lock.is_some() {
+                        cx.pointer_lock = claim.pointer_lock;
+                    }
+                    if claim.taken {
+                        return;
+                    }
+                }
+                cx.map_controller.handle(&ev, cx.camera);
+                let clicks = [
+                    (cx.map_controller.take_click(), MapButton::Left),
+                    (cx.map_controller.take_right_click(), MapButton::Right),
+                ];
+                for (at, button) in clicks {
+                    let Some(at) = at else { continue };
+                    let ray = cx.map_controller.ray_at(at, cx.camera);
+                    if let Some(p) = cx.picker.pick(cx.bridge, &ray) {
+                        self.map_click(p.cell, button);
+                    }
+                }
+            }
+        }
+    }
+
+    fn net_event(&mut self, ev: &ClientEvent) {
+        V2Frontend::net_event(self, ev);
+    }
+
+    fn new_game(&mut self) {
+        V2Frontend::new_game(self);
+    }
+
+    fn cursor_row(&self) -> Option<i32> {
+        V2Frontend::cursor_row(self)
+    }
+
+    fn failure(&self) -> Option<String> {
+        matches!(self.stage, Stage::Classic).then(|| "no UI v2 skin can be used".to_owned())
+    }
+
+    fn sounds(&self) -> Option<&dyn UiSoundSource> {
+        // SIMPLIFIED(SIMP-265): UI v2 plays no interface sounds (button clicks, the original's screen sounds); the
+        // world's sounds and the music go on.
+        None
+    }
+}
 /// The counters of a frame go to `__civ5stats.counters`; the renderer adds its own `ui2.*` (draws per layer,
 /// instances, uploads) after `prepare_ui2`, so the report's instance count is left to it.
 fn publish(report: &V2FrameReport, load_ms: Option<f64>) {
@@ -738,20 +957,6 @@ mod tests {
         assert_eq!(ids, ["a", "b"]);
     }
 
-    #[test]
-    fn the_choice_is_taken_once() {
-        set_ui_param(Some("interim"));
-        assert_eq!(take_choice(), None);
-        set_ui_param(Some("v2:engraved"));
-        assert_eq!(
-            take_choice(),
-            Some(V2Choice {
-                skin: Some("engraved".into())
-            })
-        );
-        assert_eq!(take_choice(), None);
-    }
-
     /// Answers by URL; a URL without an answer is a 404. Every answer is ready at once.
     #[derive(Default)]
     struct FakeHttp {
@@ -842,21 +1047,30 @@ mod tests {
         kit.finish().expect("package")
     }
 
-    fn host(http: FakeHttp, choice: Option<&str>) -> (V2Host, Rc<FakeHttp>) {
+    fn host(http: FakeHttp, choice: Option<&str>) -> (V2Frontend, Rc<FakeHttp>) {
+        host_with(http, choice, None)
+    }
+
+    fn host_with(
+        http: FakeHttp,
+        choice: Option<&str>,
+        scripts: Option<ScriptHostFactory>,
+    ) -> (V2Frontend, Rc<FakeHttp>) {
         let http = Rc::new(http);
         let shared: Rc<dyn HttpClient> = http.clone();
-        let host = V2Host::new(
+        let host = V2Frontend::new(
             V2Choice {
                 skin: choice.map(str::to_owned),
             },
             shared,
             clock(),
+            scripts,
         );
         (host, http)
     }
 
     /// Polls until the loading settles (each poll answers one request).
-    fn settle(h: &mut V2Host) -> V2State {
+    fn settle(h: &mut V2Frontend) -> V2State {
         for _ in 0..8 {
             h.poll(Env::default());
         }
@@ -868,7 +1082,7 @@ mod tests {
         let (mut h, http) = host(FakeHttp::default(), Some("engraved"));
         assert_eq!(h.state(), V2State::FetchingIndex);
         assert_eq!(settle(&mut h), V2State::Classic);
-        assert!(!h.running() && h.classic_sink().is_none() && h.ui_mut().is_none());
+        assert!(!h.running() && h.ui_mut().is_none());
         assert_eq!(
             *http.asked.borrow(),
             [INDEX_PATH],
@@ -960,7 +1174,6 @@ mod tests {
         );
         assert_eq!(settle(&mut h), V2State::Running("kit".into()));
         assert!(h.load_ms.is_some_and(|ms| ms > 0.0));
-        assert!(h.classic_sink().is_some_and(|l| l.is_empty()));
         let ui = h.ui_mut().expect("running");
         let r = ui.frame(V2Frame {
             replica: None,
@@ -1063,15 +1276,23 @@ mod tests {
     }
 
     /// A host whose skin runs `pkg`.
-    fn running(pkg: &Arc<ui2_package::Package>) -> V2Host {
+    fn running(pkg: &Arc<ui2_package::Package>) -> V2Frontend {
+        running_with(pkg, None)
+    }
+
+    fn running_with(
+        pkg: &Arc<ui2_package::Package>,
+        scripts: Option<ScriptHostFactory>,
+    ) -> V2Frontend {
         let full = ui2_host::hash_hex(&pkg.hash());
         let idx = index(&[entry("kit", &full, true)]);
         let file = format!("ui2/kit-{}.ui2", &full[..16]);
-        let (mut h, _) = host(
+        let (mut h, _) = host_with(
             FakeHttp::default()
                 .ok(INDEX_PATH, idx)
                 .ok(&file, pkg.bytes().to_vec()),
             None,
+            scripts,
         );
         let env = Env {
             viewport_px: (1280, 720),
@@ -1084,7 +1305,7 @@ mod tests {
         h
     }
 
-    fn frame(h: &mut V2Host) -> V2FrameReport {
+    fn frame(h: &mut V2Frontend) -> V2FrameReport {
         let r = h.ui_mut().expect("running").frame(V2Frame {
             replica: None,
             steps: &[],
@@ -1116,10 +1337,10 @@ mod tests {
     fn without_a_running_skin_input_takes_the_classic_path() {
         let (mut h, _) = host(FakeHttp::default(), None);
         let ev = press(platform::PointerPhase::Down, 50.0, 30.0);
-        assert_eq!(h.input(&ev, 1.0), None, "still loading");
+        assert_eq!(h.route_input(&ev, 1.0), None, "still loading");
         settle(&mut h);
         assert_eq!(h.state(), V2State::Classic);
-        assert_eq!(h.input(&ev, 2.0), None, "the classic UI");
+        assert_eq!(h.route_input(&ev, 2.0), None, "the classic UI");
         assert_eq!(h.cursor_row(), None);
         // A click the world took is dropped: no skin to tell.
         h.map_click((3, 4), MapButton::Left);
@@ -1133,7 +1354,7 @@ mod tests {
         // On the button: the skin's; its intent runs in the next frame.
         for (phase, t) in [(Move, 1.0), (Down, 2.0), (Up, 3.0)] {
             assert_eq!(
-                h.input(&press(phase, 50.0, 30.0), t),
+                h.route_input(&press(phase, 50.0, 30.0), t),
                 Some(InputOutcome::Consumed)
             );
         }
@@ -1152,7 +1373,7 @@ mod tests {
         // Off the panels: the world's (the camera and the picker); the picked plot comes back as `map.click`.
         for (phase, t) in [(Move, 4.0), (Down, 5.0), (Up, 6.0)] {
             assert_eq!(
-                h.input(&press(phase, 640.0, 400.0), t),
+                h.route_input(&press(phase, 640.0, 400.0), t),
                 Some(InputOutcome::PassToWorld)
             );
         }
@@ -1188,8 +1409,10 @@ mod tests {
     fn scripts_that_fail_to_load_fall_back_like_any_load_failure() {
         let workers = ui2_script::testing::MockScriptHost::new();
         let w = workers.clone();
-        set_script_host(Rc::new(move || Box::new(w.clone()) as Box<dyn ScriptHost>));
-        let mut h = running(&scripted_package());
+        let mut h = running_with(
+            &scripted_package(),
+            Some(Rc::new(move || Box::new(w.clone()) as Box<dyn ScriptHost>)),
+        );
         let worker = workers.live()[0];
         workers.reply(
             worker,
@@ -1200,16 +1423,78 @@ mod tests {
         assert!(!h.after_frame(&r));
         assert_eq!(h.state(), V2State::Classic, "the only skin is broken");
         assert!(workers.live().is_empty(), "its worker is gone");
-        assert!(h.classic_sink().is_none());
     }
 
     #[test]
     fn without_a_script_host_a_skin_with_scripts_runs_on_markup() {
-        // No `set_script_host` on this thread: the null host refuses workers.
+        // No script workers: the null host refuses them.
         let mut h = running(&scripted_package());
         let r = frame(&mut h);
         assert_eq!((&r.scripts, r.fatal.is_some()), (&None, false));
         assert!(h.after_frame(&r));
+    }
+
+    #[test]
+    fn the_reference_background_is_a_hex_colour() {
+        assert_eq!(parse_background("1a2b3c"), Some([0x1a, 0x2b, 0x3c]));
+        assert_eq!(parse_background("#FFFFFF"), Some([255, 255, 255]));
+        for bad in ["", "fff", "12345g", "1234567", "ééé"] {
+            assert_eq!(parse_background(bad), None, "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn anchors_find_plots_cities_and_units_on_the_map() {
+        use render::entities::{CityBanner, LabelData, UnitFlag, WorldLabel};
+        use render::glam::Vec3;
+        use ui2_host::{AnchorKind, ModelValue};
+        let at = Vec3::new(1.0, 2.0, 3.0);
+        let labels = vec![
+            WorldLabel {
+                cell: (4, 5),
+                position: at,
+                data: LabelData::CityBanner(CityBanner {
+                    city: 7,
+                    owner: 0,
+                    name: "Rome".into(),
+                    population: 1,
+                    capital: true,
+                    hp: 0,
+                    max_hp: 0,
+                }),
+            },
+            WorldLabel {
+                cell: (6, 5),
+                position: at * 2.0,
+                data: LabelData::UnitFlag(UnitFlag {
+                    unit: 9,
+                    owner: 0,
+                    type_name: "UNIT_WARRIOR".into(),
+                    hp: 1,
+                    max_hp: 1,
+                    needs_orders: false,
+                    civilian: false,
+                }),
+            },
+        ];
+        let key = |k: u64| ModelValue::Key(ui2_host::ModelKey(k));
+        assert_eq!(
+            anchor_point(AnchorKind::City, &key(7), &labels, None),
+            Some(at)
+        );
+        assert_eq!(anchor_point(AnchorKind::City, &key(8), &labels, None), None);
+        // The id is the low 32 bits of the key.
+        assert_eq!(
+            anchor_point(AnchorKind::Unit, &key((3 << 32) | 9), &labels, None),
+            Some(at * 2.0)
+        );
+        let plot = ModelValue::Struct(vec![ModelValue::I32(2), ModelValue::I32(3)]);
+        let c = render::hexgrid::cell_center(2, 3);
+        assert_eq!(
+            anchor_point(AnchorKind::Plot, &plot, &labels, None),
+            Some(Vec3::new(c.x, 0.0, c.y))
+        );
+        assert_eq!(anchor_point(AnchorKind::Plot, &key(1), &labels, None), None);
     }
 
     #[test]

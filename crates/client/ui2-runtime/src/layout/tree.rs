@@ -22,7 +22,7 @@ use ui2_package::{StyleId, Styles};
 use ui2_text::{Lines, TextMeasure};
 
 use crate::arena::{Arena, HIDDEN_STYLE, LayoutSlot, NodeClass, NodeId, PLACEHOLDER_STYLE};
-use crate::text::Ifc;
+use crate::text::{AnonItem, Ifc};
 
 /// The taffy style of each style record, plus the built-in styles of service nodes, placeholders and text
 /// leaves that are their own inline root (anonymous blocks).
@@ -103,6 +103,65 @@ struct View<'a> {
     changed: Vec<NodeId>,
 }
 
+/// Where Chrome puts the anonymous flex item that wraps the text of a flex container: its size is the
+/// text's (stretched across in a column), its place follows `justify-content` on the main axis and
+/// `align-items` on the cross axis.
+fn anon_item(style: &Style, content: Size<f32>, lines: &Lines) -> AnonItem {
+    use taffy::{AlignItems, FlexDirection, JustifyContent};
+    let row = matches!(
+        style.flex_direction,
+        FlexDirection::Row | FlexDirection::RowReverse
+    );
+    let reversed = matches!(
+        style.flex_direction,
+        FlexDirection::RowReverse | FlexDirection::ColumnReverse
+    );
+    let iw = lines.width.min(content.width);
+    let ih = lines.height;
+    let jc = style.justify_content;
+    let main = |free: f32| {
+        if jc == JustifyContent::CENTER
+            || jc == JustifyContent::SPACE_AROUND
+            || jc == JustifyContent::SPACE_EVENLY
+        {
+            free / 2.0
+        } else if jc == JustifyContent::END {
+            free
+        } else if jc == JustifyContent::START {
+            0.0
+        } else if (jc == JustifyContent::FLEX_END) != reversed {
+            free
+        } else {
+            0.0
+        }
+    };
+    let ai = style.align_items;
+    let cross = |free: f32| {
+        if ai == AlignItems::CENTER {
+            free / 2.0
+        } else if ai == AlignItems::END || ai == AlignItems::FLEX_END {
+            free
+        } else {
+            0.0
+        }
+    };
+    let stretched = ai == AlignItems::NORMAL || ai == AlignItems::STRETCH;
+    if row {
+        AnonItem {
+            x: main(content.width - iw),
+            y: cross(content.height - ih),
+            w: iw,
+        }
+    } else {
+        let w = if stretched { content.width } else { iw };
+        AnonItem {
+            x: cross(content.width - w),
+            y: main(content.height - ih),
+            w,
+        }
+    }
+}
+
 fn to_taffy(id: &NodeId) -> taffy::NodeId {
     id.taffy()
 }
@@ -168,6 +227,7 @@ impl View<'_> {
                 size
             },
         );
+        let mut item = None;
         if ifc.is_some() {
             let inset = style
                 .padding
@@ -175,9 +235,27 @@ impl View<'_> {
                 + style
                     .border
                     .resolve_or_zero(inputs.parent_size.width, |_, _| 0.0);
+            let only_text = self.arena.at(idx).is_some_and(|n| {
+                n.children().iter().all(|&c| {
+                    self.arena
+                        .get(c)
+                        .is_some_and(|c| c.class() == NodeClass::Text)
+                })
+            });
+            if style.display == Display::Flex
+                && only_text
+                && let Some((lines, _)) = kept.borrow().as_ref()
+            {
+                let content = Size {
+                    width: (output.size.width - inset.left - inset.right).max(0.0),
+                    height: (output.size.height - inset.top - inset.bottom).max(0.0),
+                };
+                item = Some(anon_item(style, content, lines));
+            }
+            let dy = item.map_or(0.0, |a: AnonItem| a.y);
             let (first, last) = baselines.get();
-            output.baselines.first = first.map(|b| b + inset.top);
-            output.baselines.last = last.map(|b| b + inset.top);
+            output.baselines.first = first.map(|b| b + inset.top + dy);
+            output.baselines.last = last.map(|b| b + inset.top + dy);
         }
         if inputs.run_mode == RunMode::PerformLayout
             && let Some((lines, width)) = kept.into_inner()
@@ -185,6 +263,7 @@ impl View<'_> {
         {
             ifc.lines = lines;
             ifc.width = width;
+            ifc.item = item;
         }
         output
     }

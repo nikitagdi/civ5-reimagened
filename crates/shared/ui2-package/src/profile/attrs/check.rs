@@ -144,6 +144,10 @@ impl C<'_> {
                 self.analyze("data-bind-filter", e, &inner);
             }
         }
+        // Under a condition the paths it proves not null are not nullable (on this node and its children).
+        if let Some(c) = &attrs.cond {
+            inner = inner.narrowed_by(c);
+        }
         self.scope = inner.clone();
         let inner = &inner;
 
@@ -464,6 +468,16 @@ impl C<'_> {
                 continue;
             };
             let before = self.errs.len();
+            // A key argument may be a key that can be null (read through an optional record): the intent's
+            // route drops an intent whose key is missing, so the markup needs no guard for it. A plain `null`
+            // stays an error.
+            let optional;
+            let ptype = if matches!(ptype, TypeSig::Key(_)) && !an.ty.alts.is_empty() {
+                optional = TypeSig::Opt(Box::new(ptype.clone()));
+                &optional
+            } else {
+                ptype
+            };
             self.assignment(&an.ty, ptype, value);
             if self.errs.len() > before {
                 ok = false;

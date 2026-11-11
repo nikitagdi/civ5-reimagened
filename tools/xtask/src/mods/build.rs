@@ -134,6 +134,20 @@ pub fn build_web(root: &Path, dist: &dist::Dist, release: bool, threads: bool) -
     Ok(bundle)
 }
 
+/// The UI v2 panels of the mods: one fragment package per mod with `[ui]` and `ui2/mods-ui.json`, into the web
+/// bundle (the client looks a mod of its set up there by id and version). `CIV5_SKIP_UI2=1` writes the index
+/// without them. The native client has no UI v2 and gets nothing.
+//
+// SIMPLIFIED(SIMP-270): mod UI fragments ship only with the client build (`mods-ui.json` in the web bundle); the game
+// server does not hand them out and does not check that a client has the same fragment as the other players.
+pub fn build_mod_panels(root: &Path, prepared: &check::Prepared, bundle: &Path) -> Result<PathBuf> {
+    if super::ui::sections_count(prepared) == 0 || crate::ui::web::skipped() {
+        return super::ui::build_fragments(prepared, bundle, None);
+    }
+    let mut convert = |job: &super::ui::FragmentJob| super::ui::run_converter(root, job);
+    super::ui::build_fragments(prepared, bundle, Some(&mut convert))
+}
+
 /// `cargo build` of the native dist client.
 pub fn build_desktop(root: &Path, dist: &dist::Dist, release: bool) -> Result<PathBuf> {
     let mut cmd = crate::cargo();
@@ -158,15 +172,14 @@ pub fn cmd_build(root: &Path, args: &[String]) -> Result<()> {
     let release = args.iter().any(|a| a == "--release");
     // Threads by default as in the public build (`pkg-mt` beside `pkg`); `--single` builds `pkg` only.
     let threads = !args.iter().any(|a| a == "--single");
-    let (_, dist) = assemble(root, &list, target.mode())?;
+    let (prepared, dist) = assemble(root, &list, target.mode())?;
     if target.server() {
         println!("built {}", build_server(root, &dist, release)?.display());
     }
     if target.web() {
-        println!(
-            "built {}",
-            build_web(root, &dist, release, threads)?.display()
-        );
+        let bundle = build_web(root, &dist, release, threads)?;
+        build_mod_panels(root, &prepared, &bundle)?;
+        println!("built {}", bundle.display());
     }
     if target.desktop() {
         println!("built {}", build_desktop(root, &dist, release)?.display());

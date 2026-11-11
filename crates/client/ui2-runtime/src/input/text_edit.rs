@@ -143,7 +143,10 @@ impl Runtime {
             .bindings_of(tmpl.0, tmpl.1)
             .iter()
             .find_map(|b| match b.kind {
-                BindKind::Model(p) => self.pkg.str(p).map(|s| Arc::from(format!("state.{s}"))),
+                BindKind::Model(p) => self
+                    .pkg
+                    .str(p)
+                    .map(|s| Arc::from(self.pkg.state_path(tmpl.0, s))),
                 _ => None,
             })
     }

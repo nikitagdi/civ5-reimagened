@@ -5,16 +5,19 @@
 //! waiting orders), so the new skin's first frame reads the current values. The replica and the network are not
 //! owned here: the application lends them to each [`V2Ui::frame`] (see [`crate::frame`] for its order).
 
+use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use platform::ScriptHost;
 use ui2_actions::{MemorySettings, UiActions};
 use ui2_draw::Scene;
+use ui2_draw::{Color, Vec2};
 use ui2_model::wire::{ScriptCtxId, WireIntent};
-use ui2_model::{ModelStore, Schema};
+use ui2_model::{ModelStore, Schema, Value};
 use ui2_package::Package;
-use ui2_runtime::{Env, LoadError, NodeClass, Runtime, Services};
+use ui2_package::profile::action::AnchorKind;
+use ui2_runtime::{AnchorId, AnchorScreen, Env, LoadError, NodeClass, Runtime, Services};
 use ui2_script::{ScriptStats, ScriptStatus};
 use ui2_source::UiSource;
 use ui2_text::TextEngine;
@@ -124,6 +127,8 @@ pub struct V2Ui {
     pub(crate) scripts: Option<Scripts>,
     load: LoadStats,
     pub(crate) frames: u64,
+    /// The map anchors of the document and the object each follows (kind and key), as the runtime reported them.
+    pub(crate) anchors: BTreeMap<AnchorId, (AnchorKind, Value)>,
 }
 
 impl V2Ui {
@@ -171,6 +176,7 @@ impl V2Ui {
             scripts,
             load,
             frames: 0,
+            anchors: BTreeMap::new(),
         })
     }
 
@@ -269,6 +275,50 @@ impl V2Ui {
     /// Frames run since the skin was loaded.
     pub fn frames(&self) -> u64 {
         self.frames
+    }
+
+    /// The number of map anchors the document has.
+    pub fn anchor_count(&self) -> usize {
+        self.anchors.len()
+    }
+
+    /// Places the map anchors after a frame, before the scene goes to the renderer: `project` gives the screen
+    /// point (device px) and the scale of an anchor's object (`city`, `unit`: its key; `plot`: `{x, y}`), `None`
+    /// when it is not on the screen (then nothing of the anchor is drawn or hit).
+    pub fn place_anchors(&mut self, project: impl Fn(AnchorKind, &Value) -> Option<(Vec2, f32)>) {
+        if self.anchors.is_empty() {
+            return;
+        }
+        let placed: Vec<AnchorScreen> = self
+            .anchors
+            .iter()
+            .map(|(&id, (kind, key))| match project(*kind, key) {
+                Some((pos, scale)) => AnchorScreen {
+                    id,
+                    pos,
+                    scale,
+                    visible: true,
+                },
+                None => AnchorScreen {
+                    id,
+                    pos: Vec2::ZERO,
+                    scale: 1.0,
+                    visible: false,
+                },
+            })
+            .collect();
+        let Skin { runtime, scene, .. } = &mut self.skin;
+        runtime.set_anchor_screen(&placed, scene);
+    }
+
+    /// Reference images (`?ui2bg=`): a solid background under the skin and the scene frozen at time 0, so a frame
+    /// is the same each time. `None` leaves the scene as it is.
+    pub fn set_golden(&mut self, background: Option<[u8; 3]>) {
+        if let Some([r, g, b]) = background {
+            let scene = &mut self.skin.scene;
+            scene.set_background(Some(Color::rgba(r, g, b, 255)));
+            scene.freeze(Some(0.0));
+        }
     }
 
     /// The strings of the document's text leaves in document order (for tests and the playtest hooks).

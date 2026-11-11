@@ -14,6 +14,7 @@
 
 pub mod build;
 pub mod catalog;
+pub mod cost;
 pub mod pending;
 pub mod session;
 pub mod static_source;
@@ -30,10 +31,12 @@ use replica::{
 use ui2_model::r#gen::{Meta, Turn, Ui};
 use ui2_model::{Key, ModelWriter, Root, Schema};
 
+pub use crate::cost::DEFAULT_FRAME_BUDGET;
 pub use crate::session::SessionRead;
 pub use crate::static_source::StaticSource;
 
 use crate::catalog::Catalog;
+use crate::cost::{ReadKind, UNLIMITED};
 use crate::trigger::{Roots, Seen, SessionSeen, UiSeen};
 
 /// The replica as one frame of the source sees it: its change signals and, while it can be read, its reader.
@@ -99,19 +102,12 @@ pub struct SourceStats {
     pub getter_calls: u32,
     /// Time spent, µs. Always 0 here: the library has no clock (wasm); the host times the call.
     pub spent_us: u32,
-    /// Roots that wait for a later frame (the replica cannot be read yet, or the frame's read budget is spent).
+    /// The cost units of the reads made ([`cost`]: about µs of the browser build); what the frame budget counts.
+    pub spent_units: u32,
+    /// Roots that wait for a later frame (the replica cannot be read yet, the frame's budget is spent, or the
+    /// production window still fills its comparison).
     pub deferred: u32,
 }
-
-/// Reads of the core one frame may start roots with. A root is never split: the root that crosses the budget is
-/// finished, the roots after it wait for the next frame, and the first root of a frame is always built.
-///
-/// Calibrated on the biggest game we have (measured natively and in wasm, `tests/getters_cost.rs`): the cheap reads
-/// (top bar, players, units, cities, notifications, the selected unit's actions) cost 5 to 400 us each, so the
-/// roots of a steady-state frame take about 8 reads and well under 1.5 ms. The reads of the production window are
-/// the expensive ones (`city_builds` costs 2 ms or more per city), so that root must not share a frame with the
-/// others: a budget of 8 pushes it, and anything after the eighth read, to the next frame.
-pub const DEFAULT_READ_BUDGET: u32 = 8;
 
 /// The replica adapter: rebuilds the game-data roots on change triggers.
 pub struct UiSource {
@@ -127,13 +123,13 @@ pub struct UiSource {
     meta: Option<Meta>,
     /// The last `turn` written: the timer patch starts from it.
     turn: Option<Turn>,
-    /// Read once per core; `None` until a rebuild needs it (or after a failed read).
-    catalog: Option<Catalog>,
+    /// Read once per core, table by table over the first frames that read the game.
+    catalog: Catalog,
     /// The game reads of the current replica state.
     cache: Cache,
     /// The UI v2 queries the core does not serve: not asked again until [`UiSource::reset`].
     missing: Missing,
-    /// Reads per frame, see [`DEFAULT_READ_BUDGET`].
+    /// Cost units per frame, see [`UiSource::set_read_budget`].
     budget: u32,
     /// The dismissed notifications as of the last frame.
     dismissed: BTreeSet<Key>,
@@ -143,6 +139,9 @@ pub struct UiSource {
     ui: UiSeen,
     /// The turn each chat line came in.
     chat: build::chat::ChatLog,
+    /// The open production window waited for a frame of its own while other roots were built: it goes first in
+    /// the next frame, so a stream of journal batches cannot starve it.
+    production_waits: bool,
 }
 
 /// The UI v2 queries a core answered `ReadError::Unsupported` to (the stub, a core older than the queries). Their
@@ -159,7 +158,10 @@ pub(crate) struct Missing {
 impl UiSource {
     #[must_use]
     pub fn new(schema: &'static Schema) -> UiSource {
-        UiSource::blank(Arc::from(schema.version().to_string()), DEFAULT_READ_BUDGET)
+        UiSource::blank(
+            Arc::from(schema.version().to_string()),
+            DEFAULT_FRAME_BUDGET,
+        )
     }
 
     fn blank(schema_text: Arc<str>, budget: u32) -> UiSource {
@@ -170,7 +172,7 @@ impl UiSource {
             pending: Roots::NONE,
             meta: None,
             turn: None,
-            catalog: None,
+            catalog: Catalog::default(),
             cache: Cache::default(),
             missing: Missing::default(),
             budget,
@@ -178,12 +180,29 @@ impl UiSource {
             note_ids: None,
             ui: UiSeen::default(),
             chat: build::chat::ChatLog::default(),
+            production_waits: false,
         }
     }
 
-    /// Reads of the core a frame may start roots with (at least one root is built per frame).
-    pub fn set_read_budget(&mut self, reads: u32) {
-        self.budget = reads;
+    /// The frame budget, in cost units ([`cost`]: one unit is about one µs of reads in the browser build; the
+    /// default is [`DEFAULT_FRAME_BUDGET`], 1.5 ms); `u32::MAX` is no limit. Each read of the game costs its
+    /// weight from the [`cost`] table, a read answered from the cache costs nothing.
+    ///
+    /// The rules of a frame:
+    /// - roots are built in the queue order and written whole; a root whose next read does not fit in what is
+    ///   left of the budget is not written, waits for the next frame and stops this one (what it read so far is
+    ///   kept, so the next frame does not read it again);
+    /// - the first piece of work of a frame that reads the game (a root, or a catalog table) always gets all its
+    ///   reads, so every frame makes progress: a frame spends more than the budget only when that first piece
+    ///   alone costs more;
+    /// - the catalog (about 1.9 ms in all) is read table by table over the first frames, the tables that fit;
+    ///   a root that names things from a table not read yet waits for it, the other roots go on;
+    /// - an open production window is built only when nothing was read before it in the frame (its city's
+    ///   options alone cost more than the default budget), and the frame after it waited it goes first; it reads the options of at
+    ///   most one city per frame while the budget is limited, so its comparison across the seat's cities fills
+    ///   over frames, the window's own city first, the root rewritten whole as each city arrives.
+    pub fn set_read_budget(&mut self, units: u32) {
+        self.budget = units;
     }
 
     /// The ids of the notifications the core has (those it did not dismiss itself), as of the last `notes`
@@ -198,6 +217,46 @@ impl UiSource {
     /// asks the UI v2 queries again. The read budget stays.
     pub fn reset(&mut self) {
         *self = UiSource::blank(self.schema_text.clone(), self.budget);
+    }
+
+    /// Takes the core's slow first calls out of the frames. The first call of some reads after a core loads a
+    /// game costs far more than the frame budget assumes (the core fills its own caches: the top bar about 11 ms,
+    /// the game record 1.4 ms, a unit's actions 1.6 ms, a city's options 4.6 ms). This makes one call of each of
+    /// those (for the seat's first unit and first city, if any) and reads the catalog tables not read yet, with
+    /// no budget, and keeps only the catalog: the frames then start from warm caches and a ready catalog.
+    ///
+    /// For the host: call it once when a game is joined or loaded (the replica live, after
+    /// [`reset`](Self::reset) for a new game), at a moment that may take a few ms more, such as the load
+    /// screen; it is never called from [`frame`](Self::frame). It reads only; skipping it changes nothing but the
+    /// cost of the first frames. The stats count its reads and their cost units (the table's medians, not the
+    /// real cold time).
+    pub fn warm_up(&mut self, read: &mut dyn GameRead) -> SourceStats {
+        // What it reads of the game is not kept: the next frame's signals decide whether the game changed.
+        let mut cache = Cache::default();
+        let mut read = CountingRead::new(read, &mut cache, self.missing, UNLIMITED);
+        read.begin(true);
+        let seat = read.seat();
+        let _ = read.game_info();
+        let _ = read.top_bar();
+        if let Ok(units) = read.units()
+            && let Some(u) = units.iter().find(|u| u.owner.cast_unsigned() == seat)
+        {
+            let _ = read.unit_actions(u.id);
+        }
+        if let Ok(cities) = read.cities()
+            && let Some(c) = cities.iter().find(|c| c.owner.cast_unsigned() == seat)
+        {
+            let _ = read.city_builds(c.id);
+        }
+        if !self.catalog.complete() {
+            self.catalog.load(&mut read);
+        }
+        self.missing = read.missing;
+        SourceStats {
+            getter_calls: read.meter.calls,
+            spent_units: read.meter.spent,
+            ..SourceStats::default()
+        }
     }
 
     /// One frame: rebuild what the signals ask for, write it, report the cost. `ui` is the UI's own root (owned by
@@ -243,6 +302,7 @@ impl UiSource {
             if !changed.is_empty() {
                 // The game changed: what was read of it is stale.
                 self.cache = Cache::default();
+                self.catalog.retry_failed();
             }
             self.pending = self.pending.union(changed);
             self.seen = Some(now);
@@ -280,51 +340,83 @@ impl UiSource {
             return stats;
         };
 
-        let mut read = CountingRead::new(read, &mut self.cache, self.missing);
-        // The roots of this source show catalog names (eras, technologies, resources, policy branches).
-        if self.catalog.is_none() {
-            match Catalog::load(&mut read) {
-                Ok(c) => self.catalog = Some(c),
-                Err(e) => tracing::debug!(target: "ui2_source", "catalog: {e}"),
-            }
+        let mut read = CountingRead::new(read, &mut self.cache, self.missing, self.budget);
+        // The roots of this source show catalog names; the tables are read over the first frames, and a root
+        // waits for the tables it needs.
+        if !self.catalog.complete() {
+            self.catalog.load(&mut read);
         }
-        let empty = Catalog::default();
-        let catalog = self.catalog.as_ref().unwrap_or(&empty);
+        let catalog = &self.catalog;
         let cx = build::Cx {
             session,
             now_ms,
             catalog,
         };
 
-        let mut built = false;
-        for root in Roots::QUEUE {
-            if !self.pending.contains(root) {
+        // Roots in the queue order. A root is built against the budget and written only when none of its reads
+        // was refused; a refused root stays pending and ends the frame (its admitted reads are kept in the cache).
+        // The first piece of work of a frame that reads gets all its reads. An open production window reads the
+        // options of a city (more than a frame's budget): it is built only when nothing was read before it in the
+        // frame, and goes first in the frame after it had to wait.
+        let window = ui.windows.production.open;
+        let order: &[Roots] = if self.production_waits
+            && self.pending.contains(Roots::PRODUCTION)
+            && catalog.ready(catalog::tables_of(Roots::PRODUCTION))
+        {
+            &[Roots::PRODUCTION]
+        } else {
+            &Roots::QUEUE
+        };
+        let mut sweeping = false;
+        for &root in order {
+            if !self.pending.contains(root) || !catalog.ready(catalog::tables_of(root)) {
+                // Not asked for, or its names are not loaded yet.
                 continue;
             }
-            if built && read.calls >= self.budget {
+            if root == Roots::PRODUCTION
+                && window
+                && !read.nothing_read()
+                && self.budget != UNLIMITED
+            {
+                self.production_waits = true;
                 break;
             }
-            self.pending = self.pending.without(root);
-            built = true;
+            read.begin(read.nothing_read());
             if root == Roots::TOP {
-                write_built(w, build::top::top(&mut read, catalog), &mut stats);
+                let r = build::top::top(&mut read, catalog);
+                if let Some(r) = read.settle(r) {
+                    write_built(w, r, &mut stats);
+                }
             } else if root == Roots::RESEARCH {
-                write_built(w, build::top::research(&mut read, catalog), &mut stats);
+                let r = build::top::research(&mut read, catalog);
+                if let Some(r) = read.settle(r) {
+                    write_built(w, r, &mut stats);
+                }
             } else if root == Roots::GAME {
-                write_built(w, build::game::game(&mut read, &cx), &mut stats);
+                let r = build::game::game(&mut read, &cx);
+                if let Some(r) = read.settle(r) {
+                    write_built(w, r, &mut stats);
+                }
             } else if root == Roots::TURN {
-                match build::turn::turn(&mut read, &cx) {
-                    Ok(t) => {
+                let r = build::turn::turn(&mut read, &cx);
+                match read.settle(r) {
+                    Some(Ok(t)) => {
                         self.turn = Some(t.clone());
                         write(w, t, &mut stats);
                     }
-                    Err(e) => not_built(Turn::NAME, &e),
+                    Some(Err(e)) => not_built(Turn::NAME, &e),
+                    None => {}
                 }
             } else if root == Roots::PLAYERS {
-                write_built(w, build::players::players(&mut read), &mut stats);
+                let r = build::players::players(&mut read);
+                if let Some(r) = read.settle(r) {
+                    write_built(w, r, &mut stats);
+                }
             } else if root == Roots::UNIT {
                 let r = build::unit::unit(&mut read, catalog, ui.selection.unit, &ui.pending);
-                write_built(w, r, &mut stats);
+                if let Some(r) = read.settle(r) {
+                    write_built(w, r, &mut stats);
+                }
             } else if root == Roots::PRODUCTION {
                 let r = build::production::production(
                     &mut read,
@@ -333,19 +425,42 @@ impl UiSource {
                     ui.production.focus,
                     &ui.pending,
                 );
-                write_built(w, r, &mut stats);
+                self.production_waits = false;
+                if let Some(r) = read.settle(r) {
+                    let r = r.map(|(root, complete)| {
+                        sweeping = !complete;
+                        root
+                    });
+                    write_built(w, r, &mut stats);
+                }
             } else if root == Roots::NOTES {
-                let r = build::notes::notes(&mut read, dismissed).map(|(rows, ids)| {
-                    self.note_ids = Some(ids);
-                    rows
-                });
-                write_built(w, r, &mut stats);
+                let r = build::notes::notes(&mut read, dismissed);
+                if let Some(r) = read.settle(r) {
+                    let r = r.map(|(rows, ids)| {
+                        self.note_ids = Some(ids);
+                        rows
+                    });
+                    write_built(w, r, &mut stats);
+                }
             } else if root == Roots::MAP {
-                write_built(w, build::map::map(&mut read, catalog), &mut stats);
+                let r = build::map::map(&mut read, catalog);
+                if let Some(r) = read.settle(r) {
+                    write_built(w, r, &mut stats);
+                }
             }
+            if read.refused() {
+                break;
+            }
+            self.pending = self.pending.without(root);
+        }
+        if sweeping {
+            // The comparison still misses cities: the next frame reads one more. Only this source's own state
+            // keeps it going; its writes to the model trigger nothing.
+            self.pending = self.pending.union(Roots::PRODUCTION);
         }
         stats.deferred = self.pending.len();
-        stats.getter_calls = read.calls;
+        stats.getter_calls = read.meter.calls;
+        stats.spent_units = read.meter.spent;
         self.missing = read.missing;
         self.cache.forget_errors();
         stats
@@ -441,14 +556,15 @@ impl Cache {
     }
 }
 
-/// One read through the cache: the core is asked only when the slot is empty.
+/// One read through the cache: the core is asked only when the slot is empty and the meter admits the call.
 fn cached<T>(
     slot: &mut Slot<T>,
-    calls: &mut u32,
+    meter: &mut Meter,
+    kind: ReadKind,
     f: impl FnOnce() -> Result<T, ReadError>,
 ) -> Result<Arc<T>, ReadError> {
     if slot.is_none() {
-        *calls += 1;
+        meter.admit(kind)?;
         *slot = Some(f().map(Arc::new));
     }
     match slot {
@@ -458,28 +574,123 @@ fn cached<T>(
     }
 }
 
-/// The reader of one frame: counts the core's reads and keeps them in the [`Cache`].
+/// The answer of a read the frame budget refused. Never kept in the cache and never written: the root that got it
+/// is dropped by [`CountingRead::settle`] and built again on a later frame.
+fn over_budget() -> ReadError {
+    ReadError::Core("the frame budget is spent".into())
+}
+
+/// The frame's count of core calls and their cost against the budget.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Meter {
+    calls: u32,
+    /// Cost units spent in this frame.
+    spent: u32,
+    /// Cost units the frame may spend; [`UNLIMITED`]: no limit.
+    budget: u32,
+    /// Every read of the current piece of work is made, whatever the budget (the first root of a frame).
+    grace: bool,
+    /// A read of the current piece of work was refused: its result must not be written.
+    refused: bool,
+    /// Calls of `city_builds` in this frame.
+    builds: u32,
+}
+
+impl Meter {
+    fn new(budget: u32) -> Meter {
+        Meter {
+            calls: 0,
+            spent: 0,
+            budget,
+            grace: false,
+            refused: false,
+            builds: 0,
+        }
+    }
+
+    /// `kind` fits in what is left of the budget (grace not counted).
+    fn affords(&self, kind: ReadKind) -> bool {
+        self.budget == UNLIMITED || self.spent.saturating_add(kind.cost()) <= self.budget
+    }
+
+    /// Admits one call of the core and counts it, or refuses it: after one refusal the rest of the current piece
+    /// of work is refused too.
+    fn admit(&mut self, kind: ReadKind) -> Result<(), ReadError> {
+        if self.refused || !(self.grace || self.affords(kind)) {
+            self.refused = true;
+            return Err(over_budget());
+        }
+        self.spent = self.spent.saturating_add(kind.cost());
+        self.calls += 1;
+        if kind == ReadKind::CityBuilds {
+            self.builds += 1;
+        }
+        Ok(())
+    }
+}
+
+/// The reader of one frame: counts the core's reads and their cost ([`Meter`]), keeps them in the [`Cache`], and
+/// refuses the reads that do not fit in the frame budget.
 pub(crate) struct CountingRead<'a, 'r> {
     read: &'a mut (dyn GameRead + 'r),
     cache: &'a mut Cache,
-    calls: u32,
+    meter: Meter,
     /// The UI v2 queries known to be missing; the frame hands back what it learned.
     missing: Missing,
 }
 
 impl<'a, 'r> CountingRead<'a, 'r> {
-    fn new(read: &'a mut (dyn GameRead + 'r), cache: &'a mut Cache, missing: Missing) -> Self {
+    fn new(
+        read: &'a mut (dyn GameRead + 'r),
+        cache: &'a mut Cache,
+        missing: Missing,
+        budget: u32,
+    ) -> Self {
         CountingRead {
             read,
             cache,
-            calls: 0,
+            meter: Meter::new(budget),
             missing,
         }
+    }
+
+    /// Starts a piece of work (a root, a catalog table): `grace` admits all its reads.
+    fn begin(&mut self, grace: bool) {
+        self.meter.grace = grace;
+        self.meter.refused = false;
+    }
+
+    /// No call of the core was made in this frame yet.
+    fn nothing_read(&self) -> bool {
+        self.meter.calls == 0
+    }
+
+    /// A read of the current piece of work was refused.
+    fn refused(&self) -> bool {
+        self.meter.refused
+    }
+
+    /// The result of the current piece of work, unless one of its reads was refused (a builder may have taken the
+    /// refusal for a missing value: such a result is incomplete and must not reach the model).
+    fn settle<T>(&self, r: T) -> Option<T> {
+        (!self.meter.refused).then_some(r)
+    }
+
+    /// The options of `city` were read since the game last changed (reading them again costs nothing).
+    pub(crate) fn builds_known(&self, city: i32) -> bool {
+        matches!(self.cache.builds.get(&city), Some(Some(_)))
+    }
+
+    /// One more city's options may be read in this frame: none was read yet, or the budget still has room for
+    /// them. At the default budget that is one city a frame.
+    pub(crate) fn may_read_builds(&self) -> bool {
+        self.meter.builds == 0 || self.meter.affords(ReadKind::CityBuilds)
     }
 
     /// One UI v2 read: not made when the core is known not to serve it; an `Unsupported` answer is remembered.
     fn ui2<T>(
         &mut self,
+        kind: ReadKind,
         flag: fn(&mut Missing) -> &mut bool,
         name: &'static str,
         f: impl FnOnce(&mut (dyn GameRead + 'r)) -> Result<T, ReadError>,
@@ -487,7 +698,7 @@ impl<'a, 'r> CountingRead<'a, 'r> {
         if *flag(&mut self.missing) {
             return Err(ReadError::Unsupported);
         }
-        self.calls += 1;
+        self.meter.admit(kind)?;
         let r = f(&mut *self.read);
         if matches!(r, Err(ReadError::Unsupported)) {
             *flag(&mut self.missing) = true;
@@ -497,11 +708,12 @@ impl<'a, 'r> CountingRead<'a, 'r> {
     }
 
     pub(crate) fn techs(&mut self) -> Result<Vec<TechState>, ReadError> {
-        self.ui2(|m| &mut m.techs, "techs", |r| r.techs())
+        self.ui2(ReadKind::Techs, |m| &mut m.techs, "techs", |r| r.techs())
     }
 
     pub(crate) fn player_resources(&mut self) -> Result<Vec<PlayerResource>, ReadError> {
         self.ui2(
+            ReadKind::PlayerResources,
             |m| &mut m.resources,
             "player_resources",
             |r| r.player_resources(),
@@ -510,6 +722,7 @@ impl<'a, 'r> CountingRead<'a, 'r> {
 
     pub(crate) fn policy_branches(&mut self) -> Result<Vec<PolicyBranchState>, ReadError> {
         self.ui2(
+            ReadKind::PolicyBranches,
             |m| &mut m.branches,
             "policy_branches",
             |r| r.policy_branches(),
@@ -522,40 +735,70 @@ impl<'a, 'r> CountingRead<'a, 'r> {
 
     pub(crate) fn game_info(&mut self) -> Result<Arc<GameInfo>, ReadError> {
         let read = &mut *self.read;
-        cached(&mut self.cache.info, &mut self.calls, || read.game_info())
+        cached(
+            &mut self.cache.info,
+            &mut self.meter,
+            ReadKind::GameInfo,
+            || read.game_info(),
+        )
     }
 
     pub(crate) fn top_bar(&mut self) -> Result<Arc<TopBar>, ReadError> {
         let read = &mut *self.read;
-        cached(&mut self.cache.top, &mut self.calls, || read.top_bar())
+        cached(
+            &mut self.cache.top,
+            &mut self.meter,
+            ReadKind::TopBar,
+            || read.top_bar(),
+        )
     }
 
     pub(crate) fn players(&mut self) -> Result<Arc<Vec<Player>>, ReadError> {
         let read = &mut *self.read;
-        cached(&mut self.cache.players, &mut self.calls, || read.players())
+        cached(
+            &mut self.cache.players,
+            &mut self.meter,
+            ReadKind::Players,
+            || read.players(),
+        )
     }
 
     pub(crate) fn units(&mut self) -> Result<Arc<Vec<Unit>>, ReadError> {
         let read = &mut *self.read;
-        cached(&mut self.cache.units, &mut self.calls, || read.units())
+        cached(
+            &mut self.cache.units,
+            &mut self.meter,
+            ReadKind::Units,
+            || read.units(),
+        )
     }
 
     pub(crate) fn cities(&mut self) -> Result<Arc<Vec<City>>, ReadError> {
         let read = &mut *self.read;
-        cached(&mut self.cache.cities, &mut self.calls, || read.cities())
+        cached(
+            &mut self.cache.cities,
+            &mut self.meter,
+            ReadKind::Cities,
+            || read.cities(),
+        )
     }
 
     pub(crate) fn notifications(&mut self) -> Result<Arc<Vec<Notification>>, ReadError> {
         let read = &mut *self.read;
-        cached(&mut self.cache.notes, &mut self.calls, || {
-            read.notifications()
-        })
+        cached(
+            &mut self.cache.notes,
+            &mut self.meter,
+            ReadKind::Notifications,
+            || read.notifications(),
+        )
     }
 
     pub(crate) fn unit_actions(&mut self, unit: i32) -> Result<Arc<Vec<UnitAction>>, ReadError> {
         let read = &mut *self.read;
         let slot = self.cache.actions.entry(unit).or_default();
-        cached(slot, &mut self.calls, || read.unit_actions(unit))
+        cached(slot, &mut self.meter, ReadKind::UnitActions, || {
+            read.unit_actions(unit)
+        })
     }
 
     /// `Q_UNIT_PROMOTIONS`, a UI v2 query: kept like the others, and not asked again once unsupported.
@@ -565,7 +808,9 @@ impl<'a, 'r> CountingRead<'a, 'r> {
         }
         let read = &mut *self.read;
         let slot = self.cache.promotions.entry(unit).or_default();
-        let r = cached(slot, &mut self.calls, || read.unit_promotions(unit));
+        let r = cached(slot, &mut self.meter, ReadKind::UnitPromotions, || {
+            read.unit_promotions(unit)
+        });
         if matches!(r, Err(ReadError::Unsupported)) {
             self.missing.promotions = true;
         }
@@ -575,7 +820,9 @@ impl<'a, 'r> CountingRead<'a, 'r> {
     pub(crate) fn city_builds(&mut self, city: i32) -> Result<Arc<Vec<CityBuild>>, ReadError> {
         let read = &mut *self.read;
         let slot = self.cache.builds.entry(city).or_default();
-        cached(slot, &mut self.calls, || read.city_builds(city))
+        cached(slot, &mut self.meter, ReadKind::CityBuilds, || {
+            read.city_builds(city)
+        })
     }
 
     /// `Q_CITY_QUEUE`, a UI v2 query: kept like the others, and not asked again once unsupported.
@@ -585,7 +832,9 @@ impl<'a, 'r> CountingRead<'a, 'r> {
         }
         let read = &mut *self.read;
         let slot = self.cache.queues.entry(city).or_default();
-        let r = cached(slot, &mut self.calls, || read.city_queue(city));
+        let r = cached(slot, &mut self.meter, ReadKind::CityQueue, || {
+            read.city_queue(city)
+        });
         if matches!(r, Err(ReadError::Unsupported)) {
             self.missing.queue = true;
         }
@@ -593,7 +842,7 @@ impl<'a, 'r> CountingRead<'a, 'r> {
     }
 
     pub(crate) fn catalog(&mut self, t: CatalogTable) -> Result<Vec<CatalogEntry>, ReadError> {
-        self.calls += 1;
+        self.meter.admit(ReadKind::Catalog(t))?;
         self.read.catalog(t)
     }
 }

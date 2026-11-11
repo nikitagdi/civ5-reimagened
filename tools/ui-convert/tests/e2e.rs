@@ -25,8 +25,11 @@ fn crate_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf()
 }
 
+/// Every bad mockup through the whole pipeline (`check` = both build passes, pictures, the package budget): it
+/// gives exactly the codes of its `expect.txt` at their places, and its stored scan (`ir.json`, read by
+/// `tests/bad.rs` without a browser) is the one this run made.
 #[test]
-fn bad_mockup_scans_are_current() {
+fn bad_mockups() {
     if !chrome() {
         return;
     }
@@ -37,17 +40,47 @@ fn bad_mockup_scans_are_current() {
         .filter(|p| p.join("expect.txt").is_file())
         .collect();
     dirs.sort();
+    assert_eq!(dirs.len(), 41, "the whole set of bad mockups is present");
+    let mut failures = Vec::new();
     for dir in dirs {
-        let run = check_skin(&dir, Input::Chrome);
-        let fresh = run.dump().expect("the scan ran");
+        let out = ui2_convert::build::build(&dir, false);
+        let run = &out.run;
+        let mut got: Vec<String> = run
+            .errors
+            .iter()
+            .map(|e| match e.place.file.as_str() {
+                "" => format!("{} (skin)", e.code),
+                f => format!("{} {f}:{}", e.code, e.place.line),
+            })
+            .collect();
+        got.sort();
+        let text = std::fs::read_to_string(dir.join("expect.txt")).expect("expect.txt");
+        let mut want: Vec<String> = text
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .map(str::to_string)
+            .collect();
+        want.sort();
+        let name = dir.file_name().map(|n| n.to_string_lossy().to_string());
+        if got != want {
+            failures.push(format!(
+                "{name:?}: got {got:?}, expected {want:?}\n{}",
+                run.errors
+                    .iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ));
+        }
         let stored = std::fs::read_to_string(dir.join("ir.json")).expect("ir.json");
-        assert_eq!(
-            fresh,
-            stored,
-            "{}: the stored ir.json is stale; regenerate it with `ui2-convert check <dir> --dump-ir <dir>/ir.json`",
-            dir.display()
-        );
+        if run.dump().as_deref() != Some(stored.as_str()) {
+            failures.push(format!(
+                "{name:?}: the stored ir.json is stale; regenerate it with `ui2-convert check <dir> --dump-ir <dir>/ir.json`"
+            ));
+        }
     }
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
 }
 
 #[test]
@@ -130,6 +163,154 @@ fn engraved_builds_and_the_package_is_deterministic() {
     let pkg = ui2_package::Package::read(std::sync::Arc::from(a.bytes.as_slice())).expect("read");
     assert_eq!(pkg.fonts().len(), 3);
     pictures_are_atlas_pages(&pkg, &a.bytes);
+}
+
+/// The cases of the text probe (`tests/fixtures/text-probe`): the `data-part` names under `probe.`. Each sits at
+/// its own top inside the probe box, so a difference in one case does not move the others.
+const PROBE_CASES: &[&str] = &[
+    "ellipsis",
+    "ellipsis-narrow",
+    "hhea",
+    "hhea-48",
+    "typo",
+    "typo-48",
+    "span-weight",
+    "span-kern",
+    "flex-text",
+    "flex-text-tall",
+];
+
+/// Cases that do not match Chromium yet, with why. They are measured and printed, not asserted.
+const PROBE_KNOWN: &[(&str, &str)] = &[
+    (
+        "hhea",
+        "a face without USE_TYPO_METRICS: the runtime takes hhea, Chromium on Windows the OS/2 win metrics",
+    ),
+    ("hhea-48", "as hhea"),
+];
+
+/// The probe fonts (`make_fonts.py`) under the target folder, which `skin.toml` names relative to the
+/// repository. `None` (with the reason printed) when the target folder is outside the repository.
+fn probe_fonts() -> Option<()> {
+    let repo = ui2_convert::fonts::repo_root();
+    let out = ui2_convert::build::target_dir()
+        .join("ui2")
+        .join("text-probe-fonts");
+    let canon = |p: &Path| std::fs::canonicalize(p).ok();
+    std::fs::create_dir_all(&out).expect("mkdir");
+    match (canon(&out), canon(&repo)) {
+        (Some(o), Some(r)) if o == r.join("target").join("ui2").join("text-probe-fonts") => {}
+        _ => {
+            eprintln!("skipped: the probe fonts must be under target/ui2 of the repository");
+            return None;
+        }
+    }
+    let python = std::env::var("CIV5_PYTHON").unwrap_or_else(|_| "python".to_string());
+    let status = std::process::Command::new(python)
+        .arg("-E")
+        .arg(
+            crate_dir()
+                .join("tests")
+                .join("fixtures")
+                .join("text-probe")
+                .join("make_fonts.py"),
+        )
+        .arg(repo.join("third_party/fonts/fira-sans/FiraSans-Regular.ttf"))
+        .arg(&out)
+        .status()
+        .expect("python starts");
+    assert!(status.success(), "make_fonts.py failed");
+    Some(())
+}
+
+/// Text cases outside the text spike, against Chromium through `verify`: the ellipsis cut, faces whose hhea and
+/// typo metrics differ (with and without USE_TYPO_METRICS), a span of another weight inside a word, kerning
+/// across a span, text directly in a flex container. The matching cases stay within 0.5 px at every reference
+/// viewport; `font-feature-settings` (outside the profile) is E2-010 where it is written.
+#[test]
+fn text_probe() {
+    if !chrome() || probe_fonts().is_none() {
+        return;
+    }
+    let dir = crate_dir()
+        .join("tests")
+        .join("fixtures")
+        .join("text-probe");
+    let out = match ui2_convert::verify::verify(&dir, "probe") {
+        Ok(o) => o,
+        Err(e) => panic!(
+            "{}",
+            e.iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>()
+                .join("\n")
+        ),
+    };
+    let report = &out.report;
+    assert!(
+        report.runtime_errors.is_empty(),
+        "{:?}",
+        report.runtime_errors
+    );
+    let mut worst: std::collections::BTreeMap<&str, f64> = std::collections::BTreeMap::new();
+    for v in &report.viewports {
+        assert!(v.mismatch.is_none(), "{:?}", v.mismatch);
+        for r in &v.rows {
+            // The layers and the probe box hold no case of their own.
+            let Some(case) = r.part.strip_prefix("probe.") else {
+                continue;
+            };
+            let w = worst.entry(case).or_insert(0.0);
+            *w = w.max(r.delta);
+        }
+    }
+    let mut off = Vec::new();
+    for (case, d) in &worst {
+        let known = PROBE_KNOWN.iter().find(|(c, _)| c == case);
+        println!(
+            "text probe {case}: worst {d:.3} px{}",
+            known.map_or(String::new(), |(_, why)| format!(" (known: {why})"))
+        );
+        if known.is_none() && *d > ui2_convert::verify::TOLERANCE {
+            off.push(format!("{case}: {d:.3} px"));
+        }
+    }
+    assert_eq!(
+        worst
+            .keys()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>(),
+        PROBE_CASES.iter().copied().collect(),
+        "{worst:?}"
+    );
+    assert!(off.is_empty(), "{off:?}\n{}", report.lines().join("\n"));
+
+    // `font-feature-settings` is not a property of the profile: an error at the declaration.
+    let copy = std::env::temp_dir().join(format!("ui2-e2e-text-probe-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&copy);
+    copy_dir(&dir, &copy);
+    let css = copy.join("css").join("a.css");
+    let text = std::fs::read_to_string(&css).expect("a.css");
+    // After the file's last line: an empty line, the selector, the declaration.
+    let line = text.lines().count() + 3;
+    std::fs::write(
+        &css,
+        format!("{text}\n.c1 {{\n  font-feature-settings: \"smcp\";\n}}\n"),
+    )
+    .expect("a.css");
+    let run = check_skin(&copy, Input::Chrome);
+    let _ = std::fs::remove_dir_all(&copy);
+    let got: Vec<String> = run
+        .errors
+        .iter()
+        .map(|e| format!("{} {}:{} {}", e.code, e.place.file, e.place.line, e.prop))
+        .collect();
+    assert_eq!(
+        got,
+        [format!("E2-010 css/a.css:{line} font-feature-settings")],
+        "{:?}",
+        run.errors
+    );
 }
 
 /// One HTTP GET on the loopback server: status, headers (names lower case) and body.
@@ -222,6 +403,7 @@ fn watch_cycle() {
     let (mut w, first) = Watcher::start(&skin, &opts).expect("the watch starts");
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         assert!(first.built, "{:?}", first.errors);
+        println!("first cycle: {} ms, stages {:?}", first.ms, first.stages);
         assert_eq!(first.rev, 1);
         let base = w.url().to_string();
         let get = |what: &str| http_get(&base, &format!("/pkg/engraved.{what}"));
@@ -260,7 +442,10 @@ fn watch_cycle() {
         )
         .expect("edit");
         let (c, took) = next(&mut w, t);
-        println!("css edit: {took:?} (cycle {} ms)", c.ms);
+        println!(
+            "css edit: {took:?} (cycle {} ms, stages {:?})",
+            c.ms, c.stages
+        );
         assert!(c.built, "{:?}", c.errors);
         assert_eq!((c.change, c.rev), (Change::Full, 2));
         assert!(took <= Duration::from_secs(3), "{took:?}");
@@ -652,4 +837,43 @@ fn pictures_are_atlas_pages(pkg: &ui2_package::Package, bytes: &[u8]) {
         covered > 30 && covered < 16 * 16,
         "{covered} pixels covered"
     );
+}
+
+/// A static `disabled` on a button is a disabled binding that is always true: the package records it, so the
+/// runtime draws the button disabled from the first frame.
+#[test]
+fn a_static_disabled_button_is_recorded() {
+    if !chrome() {
+        return;
+    }
+    use ui2_package::BindKind;
+    use ui2_package::profile::expr::Expr;
+    let dir = picture_skin(
+        "e2e-disabled",
+        ".b {\n  display: flex;\n  appearance: none;\n  border: 0;\n  padding: 0;\n  background: none;\n  font: inherit;\n  color: inherit;\n  width: 8px;\n  height: 8px;\n}\n",
+    );
+    let html = std::fs::read_to_string(dir.join("index.html")).expect("index.html");
+    std::fs::write(
+        dir.join("index.html"),
+        html.replace(
+            "<div class=\"tile\"></div>",
+            "<button class=\"b\" disabled></button>",
+        ),
+    )
+    .expect("index.html");
+    let out = ui2_convert::build::build(&dir, true);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(out.run.errors.is_empty(), "{:?}", out.run.errors);
+    let bytes = out.written.expect("package").bytes;
+    let pkg = ui2_package::Package::read(std::sync::Arc::from(bytes.as_slice())).expect("read");
+    let b = pkg.bindings();
+    let disabled: Vec<&Expr> = b
+        .items
+        .iter()
+        .filter_map(|i| match i.kind {
+            BindKind::Disabled(e) => b.exprs.get(e.index()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(disabled, [&Expr::Bool(true)]);
 }

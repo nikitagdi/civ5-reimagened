@@ -49,6 +49,8 @@ pub mod codes {
     pub const PAINT: &str = "E2-012";
     /// The page background is not transparent.
     pub const PAGE_BG: &str = "E2-013";
+    /// A scroll container without `scrollbar-width: none`.
+    pub const SCROLLBAR: &str = "E2-014";
 
     /// An at-rule outside the profile.
     pub const AT_RULE: &str = "E3-001";
@@ -88,6 +90,10 @@ pub mod codes {
     pub const FONT_LOAD: &str = "E5-004";
     /// A picture of the skin that cannot be rasterized.
     pub const IMAGE: &str = "E5-005";
+    /// A text character that no font of the skin has.
+    pub const GLYPH: &str = "E5-006";
+    /// A game asset without a width and a height from CSS.
+    pub const ASSET_SIZE: &str = "E5-007";
 
     /// A package budget is exceeded.
     pub const BUDGET: &str = "E8-001";
@@ -146,6 +152,7 @@ pub mod codes {
         STORE,
         PAINT,
         PAGE_BG,
+        SCROLLBAR,
         AT_RULE,
         SELECTOR,
         DYN_CLASS,
@@ -164,6 +171,8 @@ pub mod codes {
         FONT_FILE,
         FONT_LOAD,
         IMAGE,
+        GLYPH,
+        ASSET_SIZE,
         BUDGET,
         UNTRANSLATED,
         L10N_MISSING,

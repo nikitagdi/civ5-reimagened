@@ -8,10 +8,11 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use mod_api::MOD_API_VERSION;
+use mod_api::{MOD_API_VERSION, check_ui_points};
 use mod_manifest::{
     ClientPolicy, ContentHash, Installed, LockError, Manifest, ModId, ModSet, ModsetHash, Pick,
-    ResolveError, SyncClass, VersionReq, Warning, parse_lock, resolve, write_lock,
+    ResolveError, SyncClass, UiConflict, UiSection, VersionReq, Warning, parse_lock, resolve,
+    ui_conflicts, write_lock,
 };
 use protocol::{
     InstalledModView, MAX_MOD_PROBLEM_CHARS, MAX_MODS, ModPick, ModProblem, ModSetView, ModSync,
@@ -295,6 +296,34 @@ impl ModStore {
         Ok(set)
     }
 
+    /// The UI points two mods of `set` both replace (mod API 1.3), in load order. A set without `[ui]` mods has none.
+    /// The resolver does not see these: the set is valid, but the lobby must not start it.
+    pub fn ui_conflicts(&self, set: &ModSet) -> Vec<UiConflict> {
+        let sections: Vec<(&ModId, &UiSection)> = set
+            .mods()
+            .iter()
+            .filter_map(|rm| {
+                self.installed
+                    .iter()
+                    .find(|i| i.manifest.id == rm.id && i.manifest.version == rm.version)
+                    .and_then(|i| i.manifest.ui.as_ref())
+                    .map(|ui| (&rm.id, ui))
+            })
+            .collect();
+        ui_conflicts(&sections)
+    }
+
+    /// [`ui_conflicts`](Self::ui_conflicts) as the wire's problems (`ModPlan::Err`), each cut to
+    /// `MAX_MOD_PROBLEM_CHARS` characters.
+    pub fn ui_problems(&self, set: &ModSet) -> Vec<ModProblem> {
+        self.ui_conflicts(set)
+            .iter()
+            .map(|c| ModProblem {
+                text: clamp_chars(&c.to_string(), MAX_MOD_PROBLEM_CHARS),
+            })
+            .collect()
+    }
+
     /// Resolves the host's picks against the installed mods and freezes the result. An empty pick list gives the
     /// empty set (a game without mods).
     pub fn freeze(&self, picks: &[ModPick]) -> Result<FrozenSet, FreezeError> {
@@ -396,6 +425,10 @@ fn load_mod(dir_name: &str, dir: &Path) -> Result<(Installed, Option<PackInfo>),
     let text = fs::read_to_string(&manifest_path)
         .map_err(|e| format!("cannot read {MANIFEST_FILE}: {e}"))?;
     let manifest = Manifest::parse(&text).map_err(|e| e.to_string())?;
+    if let Some(ui) = &manifest.ui {
+        // The panels name points of the catalogue this server's API version has.
+        check_ui_points(ui).map_err(|e| e.to_string())?;
+    }
     if manifest.id.as_str() != dir_name {
         return Err(format!(
             "directory name does not match the mod id `{}`",

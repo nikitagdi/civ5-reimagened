@@ -220,7 +220,20 @@ pub fn check(skin: &Skin, ir: &Ir, skin_dir: &Path) -> (Statics, Vec<ConvError>)
         errs: Vec::new(),
         out: Statics::default(),
     };
+    // A blocked request for a link, script or picture the markup names is the same problem as that
+    // element's E1-003 (reported at the element): the request is not reported again.
+    let named: BTreeSet<&str> = dom
+        .elems
+        .iter()
+        .filter(|e| matches!(e.tag.as_str(), "link" | "script" | "img"))
+        .flat_map(|e| [e.attr("href"), e.attr("src")])
+        .flatten()
+        .filter(|u| external(u))
+        .collect();
     for e in &ir.errors {
+        if e.code == codes::NET && e.url.as_deref().is_some_and(|u| named.contains(u)) {
+            continue;
+        }
         let why = match &e.url {
             Some(url) => format!("{}: {url}", e.message),
             None => e.message.clone(),

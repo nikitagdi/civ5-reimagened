@@ -10,6 +10,7 @@ pub mod dist;
 pub mod gen_client;
 pub mod gen_server;
 pub mod local;
+pub mod ui;
 
 use std::path::{Path, PathBuf};
 

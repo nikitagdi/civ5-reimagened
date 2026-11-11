@@ -1,0 +1,109 @@
+@font-face {
+  font-family: "Fira Sans";
+  font-weight: 400;
+  src: url("../fonts/FiraSans-Regular.ttf");
+}
+
+@font-face {
+  font-family: "Fira Sans";
+  font-weight: 500;
+  src: url("../fonts/FiraSans-Medium.ttf");
+}
+
+@font-face {
+  font-family: "Probe Hhea";
+  font-weight: 400;
+  src: url("../fonts/ProbeHhea.ttf");
+}
+
+@font-face {
+  font-family: "Probe Typo";
+  font-weight: 400;
+  src: url("../fonts/ProbeTypo.ttf");
+}
+
+body {
+  font-family: "Fira Sans";
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Every case sits at its own top, so a difference in one case does not move the others. */
+.probe {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  display: flex;
+  width: 600px;
+  height: 560px;
+}
+
+.row,
+.key {
+  position: absolute;
+  left: 0;
+}
+
+.c1 { top: 0; }
+.c2 { top: 40px; }
+.c3 { top: 80px; }
+.c4 { top: 120px; }
+.c5 { top: 220px; }
+.c6 { top: 260px; }
+.c7 { top: 340px; }
+.c8 { top: 380px; }
+.c9 { top: 440px; }
+.c10 { top: 480px; }
+
+.ell {
+  width: 157px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.narrow {
+  width: 61.5px;
+  font-size: 13px;
+}
+
+.hhea {
+  font-family: "Probe Hhea";
+}
+
+.typo {
+  font-family: "Probe Typo";
+}
+
+.big {
+  font-size: 48px;
+}
+
+.m {
+  font-weight: 500;
+}
+
+.kern {
+  font-size: 28px;
+}
+
+.key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--ink);
+  font-size: 12px;
+}
+
+.tall {
+  height: 31px;
+  font-size: 14px;
+}

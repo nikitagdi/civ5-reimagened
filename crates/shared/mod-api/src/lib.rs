@@ -72,6 +72,7 @@ mod limits;
 mod server;
 mod terrain;
 pub mod testing;
+mod ui_points;
 
 pub use bodies::{
     Body, BodyRef, Hit, HitBox, HitKind, HitQueue, HitZone, MAX_BODIES, MAX_BOXES_PER_BODY,
@@ -85,3 +86,4 @@ pub use server::{
     Audience, HostServices, LogLevel, Outgoing, RegistryError, ServerCtx, ServerMod, ServerRegistry,
 };
 pub use terrain::{MAX_SHARE_PLOTS_PER_CALL, ShareOp, ShareOut, ShareQueue, TerrainShares};
+pub use ui_points::{MODS_POINT, PointKind, UI_CATALOG, UiCatalog, UiPoint, check_ui_points};

@@ -31,9 +31,7 @@ use std::sync::Arc;
 use ui2_model::{FrameDelta, Key, ModelStore, Op, Scalar as MScalar, Type, Value as MValue};
 use ui2_package::profile::action::{Action, AnchorKind, ControlKind};
 use ui2_package::profile::expr::{Expr, Value, eval, render, truthy};
-use ui2_package::{
-    BindKind, ExprId, ImageSrc, NodeKind, NodeRef, Package, PropId, StrId, TextSrc, TplId,
-};
+use ui2_package::{BindKind, ExprId, ImageSrc, NodeKind, NodeRef, PropId, StrId, TextSrc, TplId};
 
 use crate::anchor::AnchorUpdate;
 use crate::arena::{Arena, Dirty, NodeClass, NodeId, StateBits};
@@ -117,7 +115,12 @@ fn action_reads(a: &Action) -> bool {
 }
 
 /// The step `action` of the event binding `bind` of a template node.
-pub(crate) fn action_of(pkg: &Package, tmpl: NodeRef, bind: u16, action: u16) -> Option<&Action> {
+pub(crate) fn action_of(
+    pkg: &crate::Pkg,
+    tmpl: NodeRef,
+    bind: u16,
+    action: u16,
+) -> Option<&Action> {
     match &pkg.bindings_of(tmpl.0, tmpl.1).get(usize::from(bind))?.kind {
         BindKind::Event { actions, .. } => actions.get(usize::from(action)),
         _ => None,
@@ -161,16 +164,18 @@ pub(crate) fn to_model(v: &Value, ty: Option<&Type>) -> MValue {
     }
 }
 
-/// The segments of a control's model path (`data-bind-model` keeps the path below `state.`).
-pub(crate) fn model_segs(pkg: &Package, path: StrId) -> Vec<String> {
-    let mut segs = vec!["state".to_string()];
-    segs.extend(pkg.str(path).unwrap_or("").split('.').map(str::to_string));
-    segs
+/// The segments of a control's model path (`data-bind-model` keeps the path below the state root of the
+/// template's owner: `state.` for the skin, `modstate.<id>.` for a mod).
+pub(crate) fn model_segs(pkg: &crate::Pkg, tmpl: NodeRef, path: StrId) -> Vec<String> {
+    pkg.state_path(tmpl.0, pkg.str(path).unwrap_or(""))
+        .split('.')
+        .map(str::to_string)
+        .collect()
 }
 
 /// Whether a control is checked with its model at `v` (the value and its text): a checkbox or a toggle whose
 /// value is true, a radio whose `data-value` is the value. Other nodes are never checked.
-fn checked(pkg: &Package, tmpl: NodeRef, v: &[MValue]) -> bool {
+fn checked(pkg: &crate::Pkg, tmpl: NodeRef, v: &[MValue]) -> bool {
     let control = pkg
         .bindings_of(tmpl.0, tmpl.1)
         .iter()
@@ -258,14 +263,14 @@ pub(crate) struct Binder {
 
 /// What the pass reads besides the arena.
 pub(crate) struct Ctx<'a> {
-    pub pkg: &'a Package,
+    pub pkg: &'a crate::Pkg,
     pub index: &'a StyleIndex,
     pub store: &'a ModelStore,
     pub env: &'a StyleEnv,
 }
 
 /// The text leaf a text row writes: the node itself, or the first text leaf among an element's children.
-fn text_target(arena: &Arena, id: NodeId) -> Option<NodeId> {
+pub(crate) fn text_target(arena: &Arena, id: NodeId) -> Option<NodeId> {
     let n = arena.get(id)?;
     if n.class() == NodeClass::Text {
         return Some(id);
@@ -363,7 +368,7 @@ impl Binder {
 
     /// Makes sure the paths are resolved against the store's schema. A new schema (another store) frees every
     /// row and queues every node for new rows.
-    fn ensure_plan(&mut self, arena: &mut Arena, pkg: &Package, store: &ModelStore) {
+    fn ensure_plan(&mut self, arena: &mut Arena, pkg: &crate::Pkg, store: &ModelStore) {
         let schema = store.schema();
         if self
             .plan
@@ -413,7 +418,7 @@ impl Binder {
     pub fn apply_delta(
         &mut self,
         arena: &mut Arena,
-        pkg: &Package,
+        pkg: &crate::Pkg,
         d: &FrameDelta,
         store: &ModelStore,
     ) {
@@ -494,7 +499,12 @@ impl Binder {
     }
 
     /// The binding kinds of a node.
-    fn kinds_of(pkg: &Package, arena: &Arena, errors: &mut ErrorSink, id: NodeId) -> Vec<RowKind> {
+    fn kinds_of(
+        pkg: &crate::Pkg,
+        arena: &Arena,
+        errors: &mut ErrorSink,
+        id: NodeId,
+    ) -> Vec<RowKind> {
         let Some(node) = arena.get(id) else {
             return Vec::new();
         };
@@ -561,9 +571,9 @@ impl Binder {
     }
 
     /// Adds the reads of a row of a node.
-    fn reads_of(pkg: &Package, tmpl: NodeRef, kind: &RowKind, reads: &mut Reads<'_>) {
+    fn reads_of(pkg: &crate::Pkg, tmpl: NodeRef, kind: &RowKind, reads: &mut Reads<'_>) {
         if let RowKind::Model(p) = kind {
-            reads.path(&model_segs(pkg, *p));
+            reads.path(&model_segs(pkg, tmpl, *p));
             return;
         }
         if let RowKind::Action { bind, action } = kind {
@@ -588,7 +598,7 @@ impl Binder {
     }
 
     /// The expressions a row evaluates (list rows: see [`list`]).
-    fn exprs_of<'a>(pkg: &'a Package, kind: &RowKind) -> Vec<&'a Expr> {
+    fn exprs_of<'a>(pkg: &'a crate::Pkg, kind: &RowKind) -> Vec<&'a Expr> {
         let tpl_exprs = |t: TplId| {
             pkg.tpl(t)
                 .unwrap_or(&[])
@@ -617,7 +627,7 @@ impl Binder {
     /// Reports the paths of a row that name nothing.
     fn report_missing(
         arena: &Arena,
-        pkg: &Package,
+        pkg: &crate::Pkg,
         errors: &mut ErrorSink,
         id: NodeId,
         missing: &[String],
@@ -851,7 +861,7 @@ impl Binder {
                 })
             }
             RowKind::Model(p) => {
-                let segs = model_segs(pkg, *p);
+                let segs = tmpl.map(|t| model_segs(pkg, t, *p)).unwrap_or_default();
                 let raw = host.raw_path(&segs);
                 let seen = ui2_package::profile::expr::EvalHost::path(&mut host, &segs);
                 // A state path the store does not carry reads the package's default.
@@ -1036,7 +1046,7 @@ impl Binder {
 }
 
 /// Writes a text leaf's string and queues it for shaping when it changed.
-fn set_text(arena: &mut Arena, leaf: NodeId, s: &Arc<str>) {
+pub(crate) fn set_text(arena: &mut Arena, leaf: NodeId, s: &Arc<str>) {
     let Some(n) = arena.get_mut(leaf) else {
         return;
     };

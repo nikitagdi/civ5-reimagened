@@ -1,0 +1,6 @@
+.m-uifixture-echo {
+  display: flex;
+  gap: 4px;
+  color: var(--ui-text);
+  font-family: ui-sans;
+}

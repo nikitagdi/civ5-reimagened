@@ -3923,6 +3923,7 @@ dependencies = [
  "postcard",
  "serde",
  "serde_json",
+ "skrifa",
  "toml",
  "ui2-draw",
  "ui2-host",

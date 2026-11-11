@@ -48,7 +48,7 @@ struct Anim {
 
 /// What reading a record needs.
 pub(crate) struct AnimCtx<'a> {
-    pub pkg: &'a ui2_package::Package,
+    pub pkg: &'a crate::Pkg,
     pub index: &'a StyleIndex,
     pub theme: u16,
 }

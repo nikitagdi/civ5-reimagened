@@ -71,6 +71,7 @@ export function createSession() {
       need(Number.isInteger(port) && port >= 0 && port < 65536, "open: port must be an integer 0..65535");
       for (const k of ["fonts_dir", "profile", "pkg_dir"]) need(req[k] == null || typeof req[k] === "string", `open: ${k} must be a string`);
       need(req.preview == null || typeof req.preview === "boolean", "open: preview must be a boolean");
+      need(req.list_keys == null || (typeof req.list_keys === "object" && !Array.isArray(req.list_keys)), "open: list_keys must be an object");
       const root = path.resolve(req.skin_dir);
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) throw new ProtocolError("E9-004", `skin directory not found: ${req.skin_dir}`);
       if (!fs.existsSync(path.join(root, entry)) || !fs.statSync(path.join(root, entry)).isFile()) throw new ProtocolError("E9-004", `entry file not found: ${entry}`);
@@ -83,6 +84,7 @@ export function createSession() {
         preview,
         fontsDir: req.fonts_dir ? path.resolve(req.fonts_dir) : null,
         pkgDir: req.pkg_dir ? path.resolve(req.pkg_dir) : null,
+        listKeys: req.list_keys ?? null,
       });
       let browser;
       try {
@@ -112,7 +114,10 @@ export function createSession() {
     /** Answers the converter's style plan (see extract.mjs) on the page of the last scan. */
     async extract(req = {}) {
       need(st, "extract: no open session");
-      return extractPage({ page: st.page, server: st.server, entry: st.entry, req, state: st.state || "" });
+      const out = await extractPage({ page: st.page, server: st.server, entry: st.entry, req, state: st.state || "" });
+      // Computed `url()` values carry the server's port, which changes per run: the answer names the server as
+      // port 0, so stored answers stay the same (the converter maps such URLs back to skin paths).
+      return JSON.parse(JSON.stringify(out).replaceAll(`${st.server.url}/`, "http://127.0.0.1:0/"));
     },
 
     /** Chrome's rectangle dump of the page in layout mode (see rects.mjs). */

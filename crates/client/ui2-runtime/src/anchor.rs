@@ -73,7 +73,7 @@ impl Anchors {
     pub fn sync(
         &mut self,
         arena: &mut Arena,
-        pkg: &ui2_package::Package,
+        pkg: &crate::Pkg,
         scene: &mut Scene,
         updates: Vec<AnchorUpdate>,
         errors: &mut ErrorSink,

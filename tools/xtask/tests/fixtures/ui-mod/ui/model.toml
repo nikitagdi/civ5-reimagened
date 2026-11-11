@@ -1,0 +1,9 @@
+# The fields mods.uifixture.* of the fixture.
+
+[type.Echo]
+seq = "i32"
+text = "str"
+
+[root]
+count = "i32"
+echoes = { list = "Echo", key = "seq" }

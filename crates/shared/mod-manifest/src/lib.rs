@@ -13,6 +13,7 @@ mod modset;
 mod reader;
 mod resolve;
 mod semver;
+mod ui;
 
 pub use error::{ConflictError, LockError, ManifestError, ModSetError, ResolveError, SemverError};
 pub use lock::{LOCK_VERSION, parse_lock, write_lock};
@@ -24,3 +25,7 @@ pub use manifest::{
 pub use modset::{ContentHash, ModSet, ModsetHash, ResolvedMod};
 pub use resolve::{Installed, Pick, Resolution, STEP_LIMIT, Warning, resolve};
 pub use semver::{MAX_COMPONENT, Version, VersionReq};
+pub use ui::{
+    UI_PANELS_MAX, UI_READS_MAX, UI_SCRIPTS_MAX, UiConflict, UiFallback, UiMode, UiPanel,
+    UiSection, ui_conflicts,
+};

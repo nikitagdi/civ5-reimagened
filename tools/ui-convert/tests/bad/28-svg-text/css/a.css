@@ -1,0 +1,15 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.panel {
+  display: flex;
+  pointer-events: auto;
+}
+
+.pic {
+  width: 10px;
+  height: 10px;
+}
