@@ -187,6 +187,11 @@ pub trait ModHook {
     /// Called once by the app at its start with what only the app has (`HookEnv`).
     fn bind(&mut self, _env: &HookEnv) {}
 
+    /// Called once by the app at its start with the store of the mods' UI v2 fields, which UI v2 reads (mod API
+    /// 1.3, `ClientCtx::ui_model`); the intents of the mods' panels come back through it. Hooks that carry no mods
+    /// ignore it.
+    fn bind_ui(&mut self, _ui: &crate::mod_host::ModUiLink) {}
+
     /// A reason the game cannot be played with the mods this hook carries (a required mod lacks its pack), once. The
     /// app shows it and leaves the game.
     fn take_problem(&mut self) -> Option<String> {
@@ -288,6 +293,13 @@ impl ModHooks {
     pub fn bind(&mut self, env: &HookEnv) {
         for h in &mut self.hooks {
             h.bind(env);
+        }
+    }
+
+    /// Hands the store of the mods' UI v2 fields to the hooks (once, at the start of the app).
+    pub fn bind_ui(&mut self, ui: &crate::mod_host::ModUiLink) {
+        for h in &mut self.hooks {
+            h.bind_ui(ui);
         }
     }
 

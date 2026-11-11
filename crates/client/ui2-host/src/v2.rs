@@ -133,6 +133,8 @@ pub struct V2Ui {
     pub(crate) anchors: BTreeMap<AnchorId, (AnchorKind, Value)>,
     /// The platform's text input for the focused text field (`None`: fields take no typing).
     pub(crate) text_bridge: Option<Box<dyn TextInputBridge>>,
+    /// The mods' side: their model writes, intents and panels (outlives a skin, like the model).
+    pub(crate) mods: crate::mods::Mods,
 }
 
 impl V2Ui {
@@ -182,6 +184,7 @@ impl V2Ui {
             frames: 0,
             anchors: BTreeMap::new(),
             text_bridge: None,
+            mods: crate::mods::Mods::default(),
         })
     }
 

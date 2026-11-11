@@ -19,6 +19,7 @@
 pub mod error;
 pub mod frame;
 pub mod input;
+pub mod mods;
 pub mod registry;
 mod scripts;
 pub mod sink;
@@ -27,6 +28,7 @@ pub mod v2;
 pub use error::{LoadFailure, SkinLoadError};
 pub use frame::{V2Frame, V2FrameReport};
 pub use input::{MAP_CLICK, map_click};
+pub use mods::{ModModelCheck, ModValue, ModWrite};
 pub use registry::{
     ApiVersion, Fallback, RegistryError, SCRIPT_API, SkinEntry, SkinRegistry, hash_hex,
 };
@@ -37,8 +39,10 @@ pub use ui2_actions::ActionEvent;
 pub use ui2_model::generated::MouseButton as MapButton;
 /// The game's screens a skin may open (or ask the host for).
 pub use ui2_model::wire::ScreenId;
+/// The intents on the wire, and those of the mods' panels and scripts for their Rust halves.
+pub use ui2_model::wire::{ModIdx, ModIntent, Origin, WireIntent};
 /// What a map anchor follows, and the model values that name its object.
-pub use ui2_model::{Key as ModelKey, Value as ModelValue};
+pub use ui2_model::{Key as ModelKey, Text as ModelText, Value as ModelValue};
 pub use ui2_package::profile::action::AnchorKind;
 pub use ui2_package::style::Cursor;
 pub use ui2_runtime::{Env, InputOutcome, Services};

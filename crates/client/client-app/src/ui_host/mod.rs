@@ -9,6 +9,7 @@
 
 pub mod classic;
 pub mod v2;
+mod v2_mods;
 
 use std::rc::Rc;
 

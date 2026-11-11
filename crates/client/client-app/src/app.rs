@@ -501,6 +501,9 @@ impl App {
             server_url: config.server_url.clone(),
             kv: Rc::clone(&shared_kv),
         });
+        // The mods' UI v2 fields (mod API 1.3): written by the mods through their hook, read by UI v2.
+        let mod_ui: crate::mod_host::ModUiLink = Rc::default();
+        hooks.bind_ui(&mod_ui);
         // The graphics choices stay on the device: a store of their own, else the page's (not through the account).
         let device_kv: Rc<dyn platform::KeyValueStore> = match device_store {
             Some(store) => Rc::from(store),
@@ -615,6 +618,7 @@ impl App {
             );
             v2.set_background(p.background);
             v2.set_text_input(p.text_input);
+            v2.set_mod_ui(Rc::clone(&mod_ui));
             ui_host.register(Box::new(v2));
             ui_host.set_cold_wake(p.classic_cold);
         }

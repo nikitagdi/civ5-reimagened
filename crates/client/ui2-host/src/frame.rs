@@ -6,10 +6,10 @@
 //!    loading ends the frame's report as [`V2FrameReport::fatal`]), then `Runtime::drain_output`;
 //! 3. the state writes of the markup, then of the scripts → `UiActions::state_ops`; the scripts' settings writes
 //!    → `UiActions::settings_set`; the intents of the markup, of the scripts and of the host (map clicks) →
-//!    `UiActions::apply`, orders leaving through the frame's [`HostNet`] sink; mod intents are taken (no
-//!    dispatcher consumes them yet);
-//! 4. the source writes its roots from the replica, the session, and the actions module's `ui` root and
-//!    dismissed notes → `UiActions::reconcile` → `ModelStore::take_frame`;
+//!    `UiActions::apply`, orders leaving through the frame's [`HostNet`] sink; the mod intents it accepted are kept
+//!    for the application ([`V2Ui::take_mod_intents`](crate::V2Ui::take_mod_intents));
+//! 4. the writes of the mods' Rust halves (`Owner::Mod`, [`crate::mods`]), then the source writes its roots from
+//!    the replica, the session, and the actions module's `ui` root and dismissed notes → `UiActions::reconcile` → `ModelStore::take_frame`;
 //! 5. `Runtime::apply_delta` → the scripts' island commands (`Runtime::apply_island`; a refused one is logged and
 //!    reported with the frame's errors) → the panels of mods whose scripts were switched off show their
 //!    placeholder (`Runtime::set_panel_failed`) → `Runtime::frame` → the text bridge (the frame's request for the
@@ -82,7 +82,7 @@ pub struct V2FrameReport {
     pub intents: u32,
     /// Intents and state writes refused for their form (a mistake of the skin; each is logged).
     pub refused: u32,
-    /// Output dropped because nothing consumes it yet (script events without scripts, intents for mods).
+    /// Output dropped because nothing consumes it (script events without scripts).
     pub dropped_output: u32,
     /// The skin's scripts after the frame; `None` when none run.
     pub scripts: Option<ScriptStats>,
@@ -172,6 +172,7 @@ impl V2Ui {
             self.actions.on_event(ev, now_ms);
         }
         if let Some(ids) = mods {
+            self.mods.table.clone_from(&ids);
             self.actions.set_mods(ids);
         }
 
@@ -199,6 +200,8 @@ impl V2Ui {
             refused += 1;
         }
         let mut intents: Vec<WireIntent> = out.intents;
+        // A mod panel's `mods.<id>.*` intents carry the mod's origin.
+        self.mods.tag_markup(&mut intents);
         if let Some(js) = js.as_mut() {
             let skin = pkg.manifest().id.as_str();
             refused += scripts::apply_writes(js, &mut self.actions, &mut self.store, skin).refused;
@@ -210,14 +213,16 @@ impl V2Ui {
             .apply(&mut intents, &mut self.store, net.sink(), now_ms);
         // The actions module logs each form error once; the list only needs emptying.
         refused += self.actions.take_form_errors().len() as u32;
-        let mod_intents = self.actions.take_mod_intents();
+        self.mods.keep_intents(self.actions.take_mod_intents());
         let script_events = out.script_events;
-        let mut dropped_output = mod_intents.len();
+        let mut dropped_output = 0;
         if self.scripts.is_none() {
             dropped_output += script_events.len();
         }
 
-        // 4. The source, then the actions module judges its state by what the source wrote, then the delta.
+        // 4. The mods' Rust halves' writes, the source, then the actions module judges its state by what the source
+        //    wrote, then the delta.
+        refused += self.mods.apply_writes(&mut self.store);
         let t_source = now();
         let source = {
             let mut w = self.store.writer(Owner::Source);
@@ -255,7 +260,7 @@ impl V2Ui {
             switch_off_mod_panels(runtime, &js.failed);
         }
         if dropped_output > 0 {
-            tracing::debug!(target: "ui2_host", dropped_output, "script events or mod intents have no consumer yet");
+            tracing::debug!(target: "ui2_host", dropped_output, "script events have no consumer");
         }
         let mut out = runtime.frame(frame_ms, &self.store, text, scene);
         // The text bridge: what the runtime asked of the focused field, then what the player typed since.

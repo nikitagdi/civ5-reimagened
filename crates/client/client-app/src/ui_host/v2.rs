@@ -441,6 +441,8 @@ pub struct V2Frontend {
     off_reason: Option<String>,
     /// UI v2 has the screen (between `activate` and `deactivate`).
     on_screen: bool,
+    /// The mods' UI fields and intents (`mod_host::ModUiStore`).
+    mod_ui: super::v2_mods::V2Mods,
 }
 
 impl V2Frontend {
@@ -476,7 +478,13 @@ impl V2Frontend {
             lost: None,
             off_reason: None,
             on_screen: false,
+            mod_ui: super::v2_mods::V2Mods::default(),
         }
+    }
+
+    /// The store of the mods' UI fields the app shares with the hook of the mods (mod API 1.3).
+    pub fn set_mod_ui(&mut self, link: crate::mod_host::ModUiLink) {
+        self.mod_ui.set_link(link);
     }
 
     /// Reference images: every skin that loads gets a solid background and a frozen scene.
@@ -847,6 +855,7 @@ impl V2Frontend {
         let steps: &[replica::ReplicaStep] = if held.is_some() { steps } else { &[] };
         let events = std::mem::take(&mut self.events);
         let mods = self.mods.take();
+        self.mod_ui.before_frame(ui);
         let (report, look_at) = match net {
             Some(h) => h.with(|core| {
                 let mut sink = NetSink::new(core);
@@ -893,6 +902,7 @@ impl V2Frontend {
                 );
             }
         }
+        self.mod_ui.after_frame(ui);
         // The camera eases to a plot the frame asked for, as the classic UI's `UI.LookAt` does.
         if look_at.is_some() {
             *look = look_at;
@@ -1017,6 +1027,7 @@ impl Frontend for V2Frontend {
     fn deactivate(&mut self, _cx: &mut PrepareCx<'_>) {
         self.on_screen = false;
         self.cursor = Cursor::Auto;
+        self.mod_ui.sleep();
         // A focused text field of the skin lets the platform's input go while UI v2 sleeps.
         if let Some(ui) = self.ui_mut() {
             ui.release_text_input();
