@@ -26,7 +26,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use ui2_model::Key;
-use ui2_package::{Package, TemplateId};
+use ui2_package::style::{ColorV, StyleRecord};
+use ui2_package::{Package, StrId, TemplateId};
 
 pub use arena::{
     Arena, Dirty, HIDDEN_STYLE, Instance, LayoutSlot, Node, NodeClass, NodeId, PLACEHOLDER_STYLE,
@@ -35,7 +36,8 @@ pub use arena::{
 pub use error::{ErrorCode, ErrorSink, NodePath, UiError};
 use instantiate::Spawn;
 pub use instantiate::{MAX_INSTANCE_NODES, Source};
-use style::StyleEnv;
+use style::select::EnvChange;
+pub use style::{Scale, StyleEnv, StyleIndex};
 
 /// The environment of the UI: window size, pixel density, UI scale and theme.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -101,6 +103,10 @@ pub struct Runtime {
     pkg: Arc<Package>,
     env: Env,
     style_env: StyleEnv,
+    style_index: StyleIndex,
+    env_change: EnvChange,
+    /// The node under the pointer and its ancestors (they all have `HOVER`).
+    hover: Vec<NodeId>,
     svc: Services,
     arena: Arena,
     errors: ErrorSink,
@@ -114,15 +120,21 @@ impl Runtime {
                 "the package has no document template".into(),
             ));
         }
+        let (style_env, env_ok) = StyleEnv::of(pkg.styles(), &env);
         let mut rt = Runtime {
+            style_index: StyleIndex::new(pkg.styles()),
             pkg,
             env,
-            style_env: StyleEnv::default(),
+            style_env,
+            env_change: EnvChange::default(),
+            hover: Vec::new(),
             svc,
             arena: Arena::new(),
             errors: ErrorSink::new(),
         };
-        rt.style_env = rt.style_env_for(env);
+        if !env_ok {
+            rt.report_bad_env(env);
+        }
         let roots = rt.instantiate(TemplateId(0), None);
         let all_placeholders = roots.iter().all(|&r| {
             rt.arena
@@ -137,13 +149,78 @@ impl Runtime {
         Ok(rt)
     }
 
-    fn style_env_for(&self, env: Env) -> StyleEnv {
-        let (w, h) = env.viewport_px;
-        let k = env.dpr * env.ui_scale;
-        let k = if k.is_finite() && k > 0.0 { k } else { 1.0 };
-        StyleEnv {
-            cell: self.pkg.styles().cell([w as f32 / k, h as f32 / k]),
+    fn report_bad_env(&mut self, env: Env) {
+        self.errors.report(UiError::global(
+            ErrorCode::BadEnv,
+            format!(
+                "ui_scale {} and dpr {} must be finite and positive; 1 is used instead",
+                env.ui_scale, env.dpr
+            ),
+        ));
+    }
+
+    /// Changes the environment. Nothing is recomputed here; the next frame reselects the nodes whose set
+    /// varies by viewport cell (when the cell changed), repaints nodes with theme tokens (when the theme
+    /// changed), lays the roots out again (when the logical viewport changed) and repaints every chunk (when
+    /// the device scale changed).
+    pub fn set_env(&mut self, env: Env) {
+        let (new, ok) = StyleEnv::of(self.pkg.styles(), &env);
+        if !ok {
+            self.report_bad_env(env);
         }
+        let old = self.style_env;
+        self.env_change.cell |= new.cell != old.cell;
+        self.env_change.theme |= new.theme != old.theme;
+        self.env_change.viewport |= new.scale.viewport_css != old.scale.viewport_css;
+        self.env_change.k |= new.scale.k != old.scale.k;
+        self.env = env;
+        self.style_env = new;
+    }
+
+    /// The style environment: viewport cell, theme and scale.
+    pub fn style_env(&self) -> StyleEnv {
+        self.style_env
+    }
+
+    /// The selected style record of a node.
+    pub fn style(&self, id: NodeId) -> Option<&StyleRecord> {
+        let node = self.arena.get(id)?;
+        Some(self.style_index.record(self.pkg.styles(), node.style()))
+    }
+
+    /// A record color under the current theme.
+    pub fn color(&self, c: ColorV) -> [u8; 4] {
+        style::tokens::resolve(self.pkg.tokens(), self.style_env.theme, c)
+    }
+
+    /// Sets or clears interaction states on a node (`HOVER` is better set with [`set_hover`](Self::set_hover),
+    /// which handles the ancestor chain). Nodes whose conditions test those states restyle in the next frame.
+    pub fn set_state(&mut self, id: NodeId, bits: StateBits, on: bool) {
+        style::select::set_state(&mut self.arena, id, bits, on);
+    }
+
+    /// Moves the pointer to a node (or off the UI): as in CSS, the node and all its ancestors are hovered.
+    /// Only nodes that some condition tests for hover restyle.
+    pub fn set_hover(&mut self, target: Option<NodeId>) {
+        let mut chain = Vec::new();
+        let mut at = target.filter(|&t| self.arena.contains(t));
+        while let Some(id) = at {
+            chain.push(id);
+            at = self.arena.get(id).and_then(|n| n.parent());
+        }
+        let old = std::mem::take(&mut self.hover);
+        for &id in old.iter().filter(|id| !chain.contains(id)) {
+            style::select::set_state(&mut self.arena, id, StateBits::HOVER, false);
+        }
+        for &id in &chain {
+            style::select::set_state(&mut self.arena, id, StateBits::HOVER, true);
+        }
+        self.hover = chain;
+    }
+
+    /// Switches a run-time class on a node (`class-toggle` bindings, script islands).
+    pub fn set_class(&mut self, id: NodeId, class: StrId, on: bool) {
+        style::select::set_class(&mut self.arena, id, class, on);
     }
 
     /// The package.
@@ -232,7 +309,17 @@ impl Runtime {
     /// Runs the passes that exist so far and returns the frame's counters. A frame without changes only checks
     /// the queues.
     pub fn update(&mut self) -> FrameStats {
+        let change = std::mem::take(&mut self.env_change);
+        let styles = style::select::pass(
+            &mut self.arena,
+            self.pkg.styles(),
+            &self.style_index,
+            &self.style_env,
+            change,
+        );
         FrameStats {
+            restyled: styles.restyled,
+            visited: styles.visited,
             nodes: self.arena.len() as u32,
             ..FrameStats::default()
         }

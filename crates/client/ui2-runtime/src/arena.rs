@@ -15,7 +15,7 @@ use std::ops::{BitAnd, BitOr, BitOrAssign, Not};
 
 use ui2_draw::ChunkId;
 use ui2_model::Key;
-use ui2_package::{NodeRef, StrId, StyleId, StyleSetId};
+use ui2_package::{CondKind, NodeRef, StrId, StyleId, StyleSetId};
 
 /// The style of service nodes (`for`, `if`): no box, `display: none` for layout.
 pub const HIDDEN_STYLE: StyleId = StyleId(u32::MAX);
@@ -173,6 +173,15 @@ impl NodeClass {
     }
 }
 
+/// A node whose style depends on a condition tested on another node (its *subject*).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Dep {
+    /// The dependent node.
+    pub node: NodeId,
+    /// What the condition tests.
+    pub kind: CondKind,
+}
+
 /// One instance of a `for` or `if` body: its key and its top-level nodes (siblings after the service node).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Instance {
@@ -221,8 +230,12 @@ pub struct Node {
     pub(crate) style: StyleId,
     pub(crate) cond_mask: u8,
     pub(crate) state: StateBits,
+    /// Kinds of conditions that some node tests on this one (`style::select` sensitivity bits).
+    pub(crate) sensitive: u8,
     /// Classes switched on at run time (sorted).
     pub(crate) classes: Vec<StrId>,
+    /// Nodes whose style depends on a condition tested on this node (itself included).
+    pub(crate) deps: Vec<Dep>,
     pub(crate) dirty: Dirty,
     /// Service nodes: the instances of the body.
     pub(crate) instances: Vec<Instance>,
@@ -244,7 +257,9 @@ impl Node {
             style: HIDDEN_STYLE,
             cond_mask: 0,
             state: StateBits::NONE,
+            sensitive: 0,
             classes: Vec::new(),
+            deps: Vec::new(),
             dirty: Dirty::NONE,
             instances: Vec::new(),
             layout: LayoutSlot::default(),
