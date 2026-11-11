@@ -255,6 +255,9 @@ pub struct Node {
     /// Scroll containers: how far the content is scrolled, CSS px (right and down are positive). Layout does
     /// not depend on it; painting and hit-testing shift the children by it.
     pub(crate) scroll: [f32; 2],
+    /// The top-level node of an `if` body whose condition is false: out of its parent's children, its
+    /// bindings asleep, skipped by layout and paint until the condition holds again.
+    pub(crate) detached: bool,
 }
 
 impl Node {
@@ -282,7 +285,13 @@ impl Node {
             binds: 0..0,
             over: None,
             scroll: [0.0, 0.0],
+            detached: false,
         }
+    }
+
+    /// Whether the node is the top of an `if` body taken out of the tree (its condition is false).
+    pub fn detached(&self) -> bool {
+        self.detached
     }
 
     /// The scroll offset of a scroll container, CSS px (zero for other nodes).
@@ -541,6 +550,42 @@ impl Arena {
             let at = at.min(list.len());
             list.insert(at, child);
         }
+    }
+
+    /// Puts `nodes`, in this order, right after `anchor` among its siblings (taking them out of wherever they
+    /// are among those siblings first). Returns whether the sibling list changed.
+    pub(crate) fn place_after(&mut self, anchor: NodeId, nodes: &[NodeId]) -> bool {
+        let Some(parent) = self.get(anchor).map(|n| n.parent) else {
+            return false;
+        };
+        let Some(list) = self.siblings_mut(parent) else {
+            return false;
+        };
+        let before = list.clone();
+        list.retain(|c| !nodes.contains(c));
+        let at = list
+            .iter()
+            .position(|c| *c == anchor)
+            .map_or(list.len(), |p| p + 1);
+        list.splice(at..at, nodes.iter().copied());
+        let changed = *list != before;
+        if changed {
+            self.bump_revision();
+        }
+        changed
+    }
+
+    /// Takes nodes out of their parent's children (they stay alive).
+    pub(crate) fn unlink(&mut self, parent: Option<NodeId>, nodes: &[NodeId]) {
+        if let Some(list) = self.siblings_mut(parent) {
+            list.retain(|c| !nodes.contains(c));
+        }
+        self.bump_revision();
+    }
+
+    /// Drops a chunk from the scene in the next paint pass (its root left the tree but lives on).
+    pub(crate) fn hide_chunk(&mut self, chunk: ChunkId) {
+        self.removed_chunks.push(chunk);
     }
 
     /// The `up`-th ancestor (0 is the node itself).

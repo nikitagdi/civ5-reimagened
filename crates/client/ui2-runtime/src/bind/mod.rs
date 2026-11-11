@@ -4,23 +4,28 @@
 //! of its template node (`data-bind-value`, `data-l10n`, `data-bind-class-toggle`, `data-bind-style-*`,
 //! `data-bind-disabled`), and one per step of `data-on-*` that reads something (the arguments of `intent`
 //! and `call`, the value of `set`, the path of `toggle`): those rows only keep their values, which input
-//! reads when the event happens. A row knows what it reads (the [`deps::Slot`]s of its expressions) and is
-//! registered in the dependency [`deps::Index`] under each of them.
+//! reads when the event happens. A `for` node has one row for its list, an `if` node one for its condition;
+//! a sorted or filtered list also has one row per model item for its sort key and filter (see [`list`]).
+//! A row knows what it reads (the [`deps::Slot`]s of its expressions, with the list keys of each read) and
+//! is registered in the dependency [`deps::Index`] under each of them.
 //!
 //! Work is driven by two queues. New nodes are queued for the BIND pass by instantiation; the pass makes their
 //! rows and evaluates them once. A frame delta ([`Binder::apply_delta`]) queues exactly the rows reading a
 //! changed field (a struct, list or root change is the range of fields inside it, narrowed by list keys); the
-//! next pass evaluates each queued row once. A row whose result did not change has no effect; otherwise:
-//! a text writes its leaf and queues it for shaping, a class or the disabled state goes through style
-//! selection, a style property becomes an override of the node's record (layout or paint, by what changed).
+//! next pass evaluates each queued row once, structural rows (lists, conditions) first. A row whose result
+//! did not change has no effect; otherwise: a text writes its leaf and queues it for shaping, a class or the
+//! disabled state goes through style selection, a style property becomes an override of the node's record
+//! (layout or paint, by what changed), a list or condition makes, moves or removes instances.
 //!
-//! The rows of `for` items carry the keys of their instance; list bindings (`for`, `if`, sorting) build on
-//! this and are not here yet.
+//! Loop variables: the expressions of a `for` body name the item (and the index) by the variable of the
+//! loop; the rows of an instance read them through the instance's key ([`eval::Var`]).
 
 pub(crate) mod deps;
 pub(crate) mod eval;
+pub(crate) mod list;
 pub(crate) mod style;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use ui2_model::{FrameDelta, Key, ModelStore, Op, Scalar as MScalar, Type, Value as MValue};
@@ -32,9 +37,10 @@ use crate::arena::{Arena, Dirty, NodeClass, NodeId, StateBits};
 use crate::error::{ErrorCode, ErrorSink, UiError};
 use crate::instantiate;
 use crate::loc::SkinLoc;
-use crate::style::{self as styles, OverValue, StyleIndex};
+use crate::style::{self as styles, OverValue, StyleEnv, StyleIndex};
 use deps::{Index, Plan, Slot};
-use eval::Host;
+use eval::{Host, Resolved, Var, resolve_path};
+use list::ForState;
 
 /// What a row does.
 #[derive(Debug, Clone, PartialEq)]
@@ -54,6 +60,19 @@ pub(crate) enum RowKind {
     /// bindings, `action` the step's index in it. Evaluated like any row (when what it reads changes) and
     /// kept: an event reads the values as the player saw them, without the model at hand.
     Action { bind: u16, action: u16 },
+    /// The items of a `for` node (its list, and whether the sort is descending).
+    List,
+    /// The condition of an `if` node.
+    Cond(ExprId),
+    /// The sort key and the filter of one item of a sorted or filtered `for` (the row's `item`).
+    Item,
+}
+
+impl RowKind {
+    /// Rows that make, move or remove nodes: evaluated before the others of a batch.
+    fn structural(&self) -> bool {
+        matches!(self, RowKind::List | RowKind::Cond(_) | RowKind::Item)
+    }
 }
 
 /// The last result of a row (a new result equal to it has no effect).
@@ -63,6 +82,8 @@ enum Out {
     Bool(bool),
     Style(Option<OverValue>),
     Values(Vec<MValue>),
+    /// Structural rows apply their result themselves.
+    Done,
 }
 
 /// Whether a markup action reads anything (and so needs a row).
@@ -122,26 +143,35 @@ pub(crate) fn to_model(v: &Value, ty: Option<&Type>) -> MValue {
 /// The value of an action argument: a bare model path gives the field as the model holds it (a key, an enum,
 /// a whole struct such as a plot); anything else is evaluated and converted to the expected type.
 fn arg_value(host: &mut Host<'_>, e: &Expr, ty: Option<&Type>) -> MValue {
-    if let Expr::Path(segs) = e
-        && let Slot::Field(f) = host.plan.lookup(&segs.join("."))
-    {
-        return host.raw(f);
+    if let Expr::Path(segs) = e {
+        let mut buf = String::new();
+        if let Resolved::Path(_) = resolve_path(host.vars, segs, &mut buf)
+            && let Slot::Field(_) = host.plan.lookup(&buf)
+        {
+            return host.raw_path(segs);
+        }
     }
     to_model(&eval(e, host), ty)
 }
 
 #[derive(Debug)]
 struct Row {
-    /// The node the binding belongs to.
+    /// The node the binding belongs to (the `for` node for list and item rows).
     node: NodeId,
     kind: RowKind,
-    /// What the row reads.
-    deps: Vec<Slot>,
-    /// The list keys of the node's instances, outermost first.
-    keys: Vec<Key>,
+    /// What the row reads, with the list keys of each read.
+    deps: Vec<(Slot, Vec<Key>)>,
+    /// The item of an item row.
+    item: Option<Key>,
     /// The result depends on the language.
     localized: bool,
+    /// The row reads a loop index (it is evaluated again when its instance moves).
+    reads_index: bool,
     queued: bool,
+    /// The node is in a detached `if` body: the row is not evaluated.
+    asleep: bool,
+    /// Something the row reads changed while it was asleep.
+    stale: bool,
     last: Option<Out>,
 }
 
@@ -163,6 +193,12 @@ pub(crate) struct Binder {
     /// Free row ranges by length: `free[n]` holds the starts of free ranges of `n` rows.
     free: Vec<Vec<u32>>,
     queue: Vec<u32>,
+    /// The state of each `for` node.
+    lists: HashMap<NodeId, ForState>,
+    /// `for` nodes whose instances must follow their shown items.
+    dirty_lists: Vec<NodeId>,
+    /// A virtual list may show other items: a scroll, a layout or a change of its items.
+    windows_dirty: bool,
     /// Localization.
     pub loc: SkinLoc,
 }
@@ -172,20 +208,7 @@ pub(crate) struct Ctx<'a> {
     pub pkg: &'a Package,
     pub index: &'a StyleIndex,
     pub store: &'a ModelStore,
-}
-
-/// The keys of the `for` instances above a node, outermost first.
-fn instance_keys(arena: &Arena, id: NodeId) -> Vec<Key> {
-    let mut keys = Vec::new();
-    let mut at = Some(id);
-    while let Some(n) = at.and_then(|i| arena.get(i)) {
-        if let Some(k) = n.key() {
-            keys.push(k);
-        }
-        at = n.parent();
-    }
-    keys.reverse();
-    keys
+    pub env: &'a StyleEnv,
 }
 
 /// The text leaf a text row writes: the node itself, or the first text leaf among an element's children.
@@ -200,6 +223,54 @@ fn text_target(arena: &Arena, id: NodeId) -> Option<NodeId> {
         .find(|&c| arena.get(c).is_some_and(|c| c.class() == NodeClass::Text))
 }
 
+/// The paths an expression reads once loop variables are replaced, with the keys of each read.
+pub(crate) struct Reads<'a> {
+    pub plan: &'a mut Plan,
+    pub store: &'a ModelStore,
+    pub vars: &'a [Var],
+    pub out: Vec<(Slot, Vec<Key>)>,
+    pub reads_index: bool,
+    /// Paths that name nothing.
+    pub missing: Vec<String>,
+}
+
+impl Reads<'_> {
+    /// Adds the reads of one path.
+    pub fn path(&mut self, segs: &[String]) {
+        let mut buf = String::new();
+        match resolve_path(self.vars, segs, &mut buf) {
+            Resolved::Path(keys) => {
+                let slot = self.plan.slot(&buf, self.store);
+                let depth = match slot {
+                    Slot::Field(f) => self
+                        .plan
+                        .entry(f)
+                        .map_or(0, |(_, e)| e.path.matches("[]").count()),
+                    _ => 0,
+                };
+                if slot == Slot::Missing && !self.missing.contains(&buf) {
+                    self.missing.push(buf);
+                }
+                let keys = keys[..depth.min(keys.len())].to_vec();
+                if !self.out.iter().any(|(s, k)| *s == slot && *k == keys) {
+                    self.out.push((slot, keys));
+                }
+            }
+            Resolved::Index(_) => self.reads_index = true,
+            Resolved::Null => {}
+        }
+    }
+
+    /// Adds the reads of an expression.
+    pub fn expr(&mut self, e: &Expr) {
+        let mut paths: Vec<Vec<String>> = Vec::new();
+        e.for_each_path(&mut |segs| paths.push(segs.to_vec()));
+        for p in paths {
+            self.path(&p);
+        }
+    }
+}
+
 impl Binder {
     /// No rows yet; paths are resolved when the first model store is seen.
     pub fn new(loc: SkinLoc) -> Self {
@@ -209,7 +280,29 @@ impl Binder {
             rows: Vec::new(),
             free: Vec::new(),
             queue: Vec::new(),
+            lists: HashMap::new(),
+            dirty_lists: Vec::new(),
+            windows_dirty: false,
             loc,
+        }
+    }
+
+    /// Forgets every row and queues every node for new rows (paths resolve differently now).
+    fn rebind_all(&mut self, arena: &mut Arena) {
+        self.rows.clear();
+        self.free.clear();
+        self.queue.clear();
+        self.lists.clear();
+        self.dirty_lists.clear();
+        if let Some(plan) = self.plan.as_ref() {
+            self.index = Index::new(plan);
+        }
+        let ids: Vec<NodeId> = arena.ids().collect();
+        for id in ids {
+            if let Some(n) = arena.get_mut(id) {
+                n.binds = 0..0;
+            }
+            arena.mark(id, Dirty::BIND);
         }
     }
 
@@ -229,16 +322,7 @@ impl Binder {
         self.index = Index::new(&plan);
         self.plan = Some(plan);
         if had_rows {
-            self.rows.clear();
-            self.free.clear();
-            self.queue.clear();
-            let ids: Vec<NodeId> = arena.ids().collect();
-            for id in ids {
-                if let Some(n) = arena.get_mut(id) {
-                    n.binds = 0..0;
-                }
-                arena.mark(id, Dirty::BIND);
-            }
+            self.rebind_all(arena);
         }
     }
 
@@ -251,6 +335,25 @@ impl Binder {
         }
     }
 
+    /// Queues the rows that read a field in `range` under `keys`.
+    fn queue_readers(&mut self, range: std::ops::Range<u32>, keys: &[Key]) {
+        for r in self.index.readers_of_fields(range.clone()) {
+            let covered = self
+                .rows
+                .get(r as usize)
+                .and_then(Option::as_ref)
+                .is_some_and(|row| {
+                    row.deps.iter().any(|(s, k)| match s {
+                        Slot::Field(f) => range.contains(&f.0) && deps::keys_cover(keys, k),
+                        _ => false,
+                    })
+                });
+            if covered {
+                Self::enqueue(&mut self.rows, &mut self.queue, r);
+            }
+        }
+    }
+
     /// Queues the rows that read what a frame delta changed. Nothing is evaluated here.
     pub fn apply_delta(
         &mut self,
@@ -260,27 +363,42 @@ impl Binder {
         store: &ModelStore,
     ) {
         self.ensure_plan(arena, pkg, store);
-        let Some(plan) = self.plan.as_ref() else {
-            return;
-        };
         for op in &d.ops {
+            let Some(plan) = self.plan.as_mut() else {
+                return;
+            };
             let (field, keys): (_, &[Key]) = match op {
                 Op::Set { field, keys, .. } => (*field, keys),
+                // The other elements of the list do not change: only what reads the list itself (the list
+                // rows, `len()`); the rows of a new element are new, those of a removed one go.
                 Op::Insert { list, keys, .. }
                 | Op::Remove { list, keys, .. }
-                | Op::Move { list, keys, .. } => (*list, keys),
-                Op::Reset { root, .. } => (plan.schema.root(*root).field, &[]),
-            };
-            for r in self.index.readers_of_fields(plan.subtree(field)) {
-                let covered = self
-                    .rows
-                    .get(r as usize)
-                    .and_then(Option::as_ref)
-                    .is_some_and(|row| deps::keys_cover(keys, &row.keys));
-                if covered {
-                    Self::enqueue(&mut self.rows, &mut self.queue, r);
+                | Op::Move { list, keys, .. } => {
+                    self.queue_readers(list.0..list.0 + 1, keys);
+                    continue;
                 }
-            }
+                Op::Reset { root, .. } => match plan.schema.roots().get(usize::from(root.0)) {
+                    Some(r) => (r.field, &[]),
+                    None => {
+                        // A fragment of the store (`state`, a mod) was mounted or mounted again.
+                        if plan.refresh(store) {
+                            self.rebind_all(arena);
+                            return;
+                        }
+                        let fields: Vec<u32> = plan.mounted_fields().collect();
+                        for f in fields {
+                            let range = self
+                                .plan
+                                .as_ref()
+                                .map_or(f..f + 1, |p| p.subtree(ui2_model::FieldId(f)));
+                            self.queue_readers(range, &[]);
+                        }
+                        continue;
+                    }
+                },
+            };
+            let range = plan.subtree(field);
+            self.queue_readers(range, keys);
         }
     }
 
@@ -300,7 +418,7 @@ impl Binder {
         let len = (range.end - range.start) as usize;
         for r in range.clone() {
             if let Some(row) = self.rows.get_mut(r as usize).and_then(Option::take) {
-                for s in row.deps {
+                for (s, _) in row.deps {
                     self.index.remove(s, r);
                 }
             }
@@ -333,8 +451,8 @@ impl Binder {
                     key: *key,
                     args: args.clone(),
                 }),
-                // Lists and conditions are built by the list bindings, not by rows.
-                NodeKind::For { .. } | NodeKind::If { .. } => return kinds,
+                NodeKind::For { .. } => return vec![RowKind::List],
+                NodeKind::If { cond, .. } => return vec![RowKind::Cond(*cond)],
                 _ => {}
             }
         }
@@ -378,28 +496,31 @@ impl Binder {
         kinds
     }
 
-    /// The paths a row reads.
-    fn paths_of(pkg: &Package, tmpl: NodeRef, kind: &RowKind, out: &mut Vec<String>) {
+    /// Adds the reads of a row of a node.
+    fn reads_of(pkg: &Package, tmpl: NodeRef, kind: &RowKind, reads: &mut Reads<'_>) {
         if let RowKind::Action { bind, action } = kind {
             match action_of(pkg, tmpl, *bind, *action) {
                 Some(Action::Intent { args, .. } | Action::Call { args, .. }) => {
                     for a in args {
-                        deps::paths_of(&a.value, out);
+                        reads.expr(&a.value);
                     }
                 }
-                Some(Action::Set { value, .. }) => deps::paths_of(value, out),
-                Some(Action::Toggle { path }) => out.push(path.clone()),
+                Some(Action::Set { value, .. }) => reads.expr(value),
+                Some(Action::Toggle { path }) => {
+                    let segs: Vec<String> = path.split('.').map(str::to_string).collect();
+                    reads.path(&segs);
+                }
                 Some(Action::Stop) | None => {}
             }
             return;
         }
         for e in Self::exprs_of(pkg, kind) {
-            deps::paths_of(e, out);
+            reads.expr(e);
         }
     }
 
-    /// The expressions a row evaluates.
-    fn exprs_of<'a>(pkg: &'a Package, kind: &RowKind) -> Vec<&'a ui2_package::profile::expr::Expr> {
+    /// The expressions a row evaluates (list rows: see [`list`]).
+    fn exprs_of<'a>(pkg: &'a Package, kind: &RowKind) -> Vec<&'a Expr> {
         let tpl_exprs = |t: TplId| {
             pkg.tpl(t)
                 .unwrap_or(&[])
@@ -413,16 +534,49 @@ impl Binder {
         match kind {
             RowKind::Text(t) | RowKind::Style { tpl: t, .. } => tpl_exprs(*t),
             RowKind::L10n { args, .. } => args.iter().filter_map(|e| pkg.expr(*e)).collect(),
-            RowKind::Class { cond: e, .. } | RowKind::Disabled(e) => {
+            RowKind::Class { cond: e, .. } | RowKind::Disabled(e) | RowKind::Cond(e) => {
                 pkg.expr(*e).into_iter().collect()
             }
-            // Read through `paths_of`: the expressions live in the binding's actions.
-            RowKind::Action { .. } => Vec::new(),
+            // Read through `reads_of` (actions) or the list's state (lists, items).
+            RowKind::Action { .. } | RowKind::List | RowKind::Item => Vec::new(),
+        }
+    }
+
+    /// Reports the paths of a row that name nothing.
+    fn report_missing(
+        arena: &Arena,
+        pkg: &Package,
+        errors: &mut ErrorSink,
+        id: NodeId,
+        missing: &[String],
+    ) {
+        for p in missing {
+            let path = instantiate::node_path(arena, pkg, id);
+            errors.report(UiError::at(
+                &path,
+                ErrorCode::Bind,
+                format!("the model has no path {p}"),
+            ));
+        }
+    }
+
+    /// Puts a new row in place: registers its reads and queues it (a row in a sleeping subtree is stale).
+    fn place_row(&mut self, r: u32, mut row: Row) {
+        for (s, _) in &row.deps {
+            self.index.add(*s, r);
+        }
+        if row.asleep {
+            row.stale = true;
+            self.rows[r as usize] = Some(row);
+        } else {
+            self.rows[r as usize] = Some(row);
+            Self::enqueue(&mut self.rows, &mut self.queue, r);
         }
     }
 
     /// Makes the rows of a node and queues them.
-    fn make_rows(&mut self, arena: &mut Arena, pkg: &Package, errors: &mut ErrorSink, id: NodeId) {
+    fn make_rows(&mut self, arena: &mut Arena, cx: &Ctx<'_>, errors: &mut ErrorSink, id: NodeId) {
+        let pkg = cx.pkg;
         if arena.get(id).is_none_or(|n| !n.binds.is_empty()) {
             return;
         }
@@ -430,101 +584,164 @@ impl Binder {
         if kinds.is_empty() {
             return;
         }
-        let keys = instance_keys(arena, id);
-        let tmpl = arena.get(id).map(|n| n.tmpl());
+        if kinds == [RowKind::List] {
+            self.make_list(arena, cx, errors, id);
+        }
+        let vars = list::scope_of(arena, &self.lists, id);
+        let asleep = list::in_detached(arena, id);
+        let Some(tmpl) = arena.get(id).map(|n| n.tmpl()) else {
+            return;
+        };
         let count = kinds.len() as u32;
         let start = self.alloc(kinds.len());
         for (i, kind) in kinds.into_iter().enumerate() {
             let r = start + i as u32;
-            let mut paths = Vec::new();
             let mut localized = matches!(kind, RowKind::L10n { .. });
             for e in Self::exprs_of(pkg, &kind) {
                 localized |= deps::calls_loc(e);
             }
-            if let Some(tmpl) = tmpl {
-                Self::paths_of(pkg, tmpl, &kind, &mut paths);
+            let Some(plan) = self.plan.as_mut() else {
+                return;
+            };
+            let mut reads = Reads {
+                plan,
+                store: cx.store,
+                vars: &vars,
+                out: Vec::new(),
+                reads_index: false,
+                missing: Vec::new(),
+            };
+            if kind == RowKind::List {
+                if let Some(st) = self.lists.get(&id) {
+                    st.list_reads(pkg, &mut reads);
+                }
+            } else {
+                Self::reads_of(pkg, tmpl, &kind, &mut reads);
             }
-            let mut slots: Vec<Slot> = Vec::new();
-            if let Some(plan) = self.plan.as_mut() {
-                for p in &paths {
-                    let s = plan.slot(p);
-                    if s == Slot::Missing {
-                        let path = instantiate::node_path(arena, pkg, id);
-                        errors.report(UiError::at(
-                            &path,
-                            ErrorCode::Bind,
-                            format!("the model has no path {p}"),
-                        ));
-                    }
-                    if let Slot::Field(f) = s {
-                        localized |= plan.is_text(f);
-                    }
-                    if !slots.contains(&s) {
-                        slots.push(s);
-                    }
+            let (deps, reads_index, missing) = (reads.out, reads.reads_index, reads.missing);
+            for (s, _) in &deps {
+                if let Slot::Field(f) = s {
+                    localized |= self.plan.as_ref().is_some_and(|p| p.is_text(*f));
                 }
             }
-            for &s in &slots {
-                self.index.add(s, r);
-            }
-            self.rows[r as usize] = Some(Row {
-                node: id,
-                kind,
-                deps: slots,
-                keys: keys.clone(),
-                localized,
-                queued: false,
-                last: None,
-            });
-            Self::enqueue(&mut self.rows, &mut self.queue, r);
+            Self::report_missing(arena, pkg, errors, id, &missing);
+            self.place_row(
+                r,
+                Row {
+                    node: id,
+                    kind,
+                    deps,
+                    item: None,
+                    localized,
+                    reads_index,
+                    queued: false,
+                    asleep,
+                    stale: false,
+                    last: None,
+                },
+            );
         }
         if let Some(n) = arena.get_mut(id) {
             n.binds = start..start + count;
         }
     }
 
+    /// Frees the rows of removed nodes and the state of removed lists.
+    fn collect_removed(&mut self, arena: &mut Arena) {
+        if !arena.has_removed_binds() {
+            return;
+        }
+        for range in arena.take_removed_binds() {
+            self.free_rows(range);
+        }
+        let dead: Vec<NodeId> = self
+            .lists
+            .keys()
+            .copied()
+            .filter(|&id| !arena.contains(id))
+            .collect();
+        for id in dead {
+            if let Some(st) = self.lists.remove(&id) {
+                for r in st.item_rows() {
+                    self.free_rows(r..r + 1);
+                }
+            }
+        }
+    }
+
     /// The binding pass: frees the rows of removed nodes, makes the rows of new nodes, evaluates the queued
-    /// rows and applies what changed. An idle frame checks three counters.
+    /// rows and applies what changed; lists and conditions make nodes whose rows are made and evaluated in
+    /// the same pass. An idle frame checks three counters.
     pub fn pass(&mut self, arena: &mut Arena, cx: &Ctx<'_>, errors: &mut ErrorSink) -> PassStats {
         let mut stats = PassStats::default();
         self.ensure_plan(arena, cx.pkg, cx.store);
-        if arena.has_removed_binds() {
-            for range in arena.take_removed_binds() {
-                self.free_rows(range);
+        // Each round makes the rows of new nodes and evaluates the queue; lists and conditions may make new
+        // nodes for the next round. The depth of nested lists bounds the rounds.
+        for _ in 0..64 {
+            self.collect_removed(arena);
+            if arena.pending(Dirty::BIND) > 0 {
+                for id in arena.take_dirty(Dirty::BIND) {
+                    stats.visited += 1;
+                    self.make_rows(arena, cx, errors, id);
+                }
             }
-        }
-        if arena.pending(Dirty::BIND) > 0 {
-            for id in arena.take_dirty(Dirty::BIND) {
+            if self.queue.is_empty() && self.dirty_lists.is_empty() {
+                break;
+            }
+            let mut queue = std::mem::take(&mut self.queue);
+            // Structural rows first: they may remove nodes whose other rows are queued too.
+            queue.sort_by_key(|&r| {
+                self.rows
+                    .get(r as usize)
+                    .and_then(Option::as_ref)
+                    .is_none_or(|row| !row.kind.structural())
+            });
+            for r in queue {
                 stats.visited += 1;
-                self.make_rows(arena, cx.pkg, errors, id);
+                let Some(mut row) = self.rows.get_mut(r as usize).and_then(Option::take) else {
+                    continue;
+                };
+                row.queued = false;
+                if row.asleep {
+                    row.stale = true;
+                } else if arena.contains(row.node) {
+                    stats.evaluated += 1;
+                    self.evaluate(arena, cx, errors, &mut row);
+                }
+                if let Some(slot) = self.rows.get_mut(r as usize)
+                    && slot.is_none()
+                {
+                    *slot = Some(row);
+                }
             }
-        }
-        if self.queue.is_empty() {
-            return stats;
-        }
-        let queue = std::mem::take(&mut self.queue);
-        for r in queue {
-            stats.visited += 1;
-            let Some(mut row) = self.rows.get_mut(r as usize).and_then(Option::take) else {
-                continue;
-            };
-            row.queued = false;
-            if arena.contains(row.node) {
-                stats.evaluated += 1;
-                self.evaluate(arena, cx, errors, &mut row);
-            }
-            self.rows[r as usize] = Some(row);
+            self.sync_lists(arena, cx, errors);
         }
         stats
     }
 
-    fn evaluate(&self, arena: &mut Arena, cx: &Ctx<'_>, errors: &mut ErrorSink, row: &mut Row) {
+    fn evaluate(&mut self, arena: &mut Arena, cx: &Ctx<'_>, errors: &mut ErrorSink, row: &mut Row) {
+        match row.kind {
+            RowKind::List => {
+                self.eval_list(arena, cx, errors, row.node);
+                row.last = Some(Out::Done);
+                return;
+            }
+            RowKind::Item => {
+                if let Some(key) = row.item {
+                    self.eval_item(arena, cx, errors, row.node, key);
+                }
+                row.last = Some(Out::Done);
+                return;
+            }
+            _ => {}
+        }
         let Some(plan) = self.plan.as_ref() else {
             return;
         };
         let pkg = cx.pkg;
         let tmpl = arena.get(row.node).map(|n| n.tmpl());
-        let mut host = Host::new(pkg, plan, cx.store, &row.keys, &self.loc);
+        let vars = list::scope_of(arena, &self.lists, row.node);
+        let mut host = Host::new(pkg, plan, cx.store, &vars, &self.loc);
         let mut problem: Option<(ErrorCode, String)> = None;
         let out = match &row.kind {
             RowKind::Action { bind, action } => {
@@ -570,7 +787,7 @@ impl Binder {
                     }
                 }
             }
-            RowKind::Class { cond, .. } | RowKind::Disabled(cond) => {
+            RowKind::Class { cond, .. } | RowKind::Disabled(cond) | RowKind::Cond(cond) => {
                 Out::Bool(truthy(&host.expr(*cond)))
             }
             RowKind::Style { prop, tpl } => {
@@ -588,6 +805,7 @@ impl Binder {
                     }
                 }
             }
+            RowKind::List | RowKind::Item => Out::Done,
         };
         let warnings = std::mem::take(&mut host.warnings);
         drop(host);
@@ -626,6 +844,9 @@ impl Binder {
                 let bits =
                     styles::set_override(arena, pkg.styles(), cx.index, row.node, *prop, v.clone());
                 arena.mark(row.node, bits);
+            }
+            (RowKind::Cond(_), Out::Bool(on)) => {
+                self.set_cond(arena, cx, errors, row.node, *on);
             }
             _ => {}
         }

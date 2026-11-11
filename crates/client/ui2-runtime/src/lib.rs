@@ -11,13 +11,15 @@
 //! with taffy over the arena ([`layout`]), draw lists per chunk set on the `ui2-draw` scene, the frame
 //! ([`frame`]: [`Runtime::apply_delta`], [`Runtime::frame`], [`Runtime::drain_output`]), input
 //! ([`input`]: [`Runtime::handle_input`], hit-testing, interaction states, pointer capture, the wheel, modal
-//! screens) and rectangle dumps ([`debug`]). List bindings build on these.
+//! screens), list and condition bindings (`for` by key with sorting, filtering and virtual lists; `if` bodies
+//! that sleep while false) and rectangle dumps ([`debug`]).
 //!
 //! Zero-work rule: every pass is driven by the arena's dirty queues; a frame without changes checks a few
 //! counters and touches no node.
 
 #![forbid(unsafe_code)]
 
+mod anim;
 pub mod arena;
 mod bind;
 pub mod debug;
@@ -121,6 +123,10 @@ pub struct Runtime {
     input: input::InputState,
     /// Times the passes of a frame, when the host gives one.
     clock: Option<ui2_draw::Clock>,
+    /// Inline roots that fit their text to their box (`data-fit`).
+    fit_roots: Vec<NodeId>,
+    /// Running transitions.
+    anim: anim::Animator,
 }
 
 impl Runtime {
@@ -148,6 +154,8 @@ impl Runtime {
             errors: ErrorSink::new(),
             output: UiOutput::default(),
             clock: None,
+            fit_roots: Vec::new(),
+            anim: anim::Animator::default(),
         };
         if !env_ok {
             rt.report_bad_env(env);
@@ -359,6 +367,7 @@ impl Runtime {
             pkg: &self.pkg,
             index: &self.style_index,
             env: &self.style_env,
+            anim: &self.anim,
         };
         let layer = paint::emit::layer_of(&self.arena, &self.pkg, id);
         let (items, _) = paint::build(&self.arena, &cx, &mut self.errors, id);
