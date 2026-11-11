@@ -449,8 +449,29 @@ fn root_form(
     }
 }
 
-/// Parse and resolve a schema source.
-pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
+/// What a source declares: the whole model (`[model.*]`, `[intent.*]`) or a fragment of a skin or mod
+/// (`[root]`, plus its own `[type.*]` and `[enum]`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Mode {
+    Schema,
+    Fragment,
+}
+
+/// The name the single root of a fragment has until it is mounted.
+pub(crate) const FRAGMENT_ROOT: &str = "root";
+/// The struct name of the root of a fragment until it is mounted (not a legal type name, so no clash).
+const FRAGMENT_ROOT_STRUCT: &str = "#root";
+
+/// The struct name of the root `name`.
+fn root_struct_name(mode: Mode, name: &str) -> String {
+    match mode {
+        Mode::Schema => pascal(name),
+        Mode::Fragment => FRAGMENT_ROOT_STRUCT.to_string(),
+    }
+}
+
+/// Parse and resolve a schema or fragment source.
+pub(crate) fn parse_draft(src: &str, mode: Mode) -> Result<Draft, SchemaError> {
     let lines = LineIndex::new(src);
     let doc = DeTable::parse(src).map_err(|e| {
         let at = e.span().map_or(0, |r| r.start);
@@ -463,6 +484,7 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
     let mut type_tbl: Option<&DeTable<'_>> = None;
     let mut model_tbl: Option<&DeTable<'_>> = None;
     let mut intent_tbl: Option<&DeTable<'_>> = None;
+    let mut root_tbl: Option<(&DeTable<'_>, usize)> = None;
 
     for (k, v) in ordered(root) {
         let kpos = k.span().start;
@@ -491,19 +513,40 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
             }
             "enum" => enum_tbl = Some(table("enum")?),
             "type" => type_tbl = Some(table("type")?),
-            "model" => model_tbl = Some(table("model")?),
-            "intent" => intent_tbl = Some(table("intent")?),
-            other => {
+            "model" | "intent" if mode == Mode::Fragment => {
                 return Err(lines.err(
                     kpos,
                     format!(
-                        "unknown top-level key `{other}` (expected `version`, `enum`, `type`, `model`, `intent`)"
+                        "`{}` is not allowed in a fragment: declare the fields of the fragment under `[root]`",
+                        k.get_ref()
                     ),
+                ));
+            }
+            "model" => model_tbl = Some(table("model")?),
+            "intent" => intent_tbl = Some(table("intent")?),
+            "root" if mode == Mode::Fragment => root_tbl = Some((table("root")?, kpos)),
+            other => {
+                let expected = match mode {
+                    Mode::Schema => "`version`, `enum`, `type`, `model`, `intent`",
+                    Mode::Fragment => "`version`, `enum`, `type`, `root`",
+                };
+                return Err(lines.err(
+                    kpos,
+                    format!("unknown top-level key `{other}` (expected {expected})"),
                 ));
             }
         }
     }
-    let version = version.ok_or_else(|| lines.err(0, "missing `version = \"MAJOR.MINOR\"`"))?;
+    let version = match (version, mode) {
+        (Some(v), _) => v,
+        (None, Mode::Fragment) => Version { major: 1, minor: 0 },
+        (None, Mode::Schema) => {
+            return Err(lines.err(0, "missing `version = \"MAJOR.MINOR\"`"));
+        }
+    };
+    if mode == Mode::Fragment && root_tbl.is_none() {
+        return Err(lines.err(0, "a fragment needs a `[root]` table with its fields"));
+    }
 
     // Names first, so that definitions can refer to each other in any order.
     let mut enums: Vec<EnumDef> = Vec::new();
@@ -602,7 +645,8 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
             });
         }
     }
-    let mut root_names: Vec<(String, usize, RawRoot)> = Vec::new();
+    // The roots: every `[model.<name>]`, or the one `[root]` of a fragment.
+    let mut root_srcs: Vec<(String, usize, usize, &DeTable<'_>)> = Vec::new();
     if let Some(t) = model_tbl {
         for (k, v) in ordered(t) {
             let name = k.get_ref().to_string();
@@ -619,7 +663,7 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
                     format!("root `{name}` is reserved for the state and mod namespaces"),
                 ));
             }
-            if root_names.iter().any(|(n, ..)| *n == name) {
+            if root_srcs.iter().any(|(n, ..)| *n == name) {
                 return Err(lines.err(pos, format!("duplicate root `{name}`")));
             }
             let DeValue::Table(body) = v.get_ref() else {
@@ -628,28 +672,33 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
                     format!("root `{name}`: expected a table of fields"),
                 ));
             };
-            let (plain, directives) = split_directives(body);
-            let form = root_form(&lines, &name, t_pos(body), plain.is_empty(), &directives)?;
-            if let RawRoot::Struct { .. } = form {
-                let sname = pascal(&name);
-                if !taken.insert(sname.clone()) {
-                    return Err(lines.err(
-                        pos,
-                        format!(
-                            "root `{name}`: its struct name `{sname}` clashes with another type"
-                        ),
-                    ));
-                }
-                let fields = parse_body(&lines, &name, t_pos(body), &plain)?;
-                raws.push(RawStruct {
-                    name: sname,
-                    fields,
-                    pos,
-                    is_root: true,
-                });
-            }
-            root_names.push((name, pos, form));
+            root_srcs.push((name, pos, v.span().start, body));
         }
+    }
+    if let Some((body, pos)) = root_tbl {
+        root_srcs.push((FRAGMENT_ROOT.to_string(), pos, pos, body));
+    }
+    let mut root_names: Vec<(String, usize, RawRoot)> = Vec::new();
+    for (name, pos, _, body) in root_srcs {
+        let (plain, directives) = split_directives(body);
+        let form = root_form(&lines, &name, t_pos(body), plain.is_empty(), &directives)?;
+        if let RawRoot::Struct { .. } = form {
+            let sname = root_struct_name(mode, &name);
+            if !taken.insert(sname.clone()) {
+                return Err(lines.err(
+                    pos,
+                    format!("root `{name}`: its struct name `{sname}` clashes with another type"),
+                ));
+            }
+            let fields = parse_body(&lines, &name, t_pos(body), &plain)?;
+            raws.push(RawStruct {
+                name: sname,
+                fields,
+                pos,
+                is_root: true,
+            });
+        }
+        root_names.push((name, pos, form));
     }
 
     let mut type_ids: HashMap<String, TypeId> = HashMap::new();
@@ -782,7 +831,7 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
         roots.push(match form {
             RawRoot::Struct { optional } => (
                 name.clone(),
-                type_ids[&pascal(name)],
+                type_ids[&root_struct_name(mode, name)],
                 if *optional {
                     RootShape::Optional
                 } else {

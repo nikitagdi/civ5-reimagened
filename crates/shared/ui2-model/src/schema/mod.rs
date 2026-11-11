@@ -17,7 +17,47 @@ pub use types::{
 
 pub(crate) use parse::pascal;
 
-use parse::Draft;
+use parse::{Draft, FRAGMENT_ROOT, Mode};
+
+/// A parsed fragment of a skin or mod, not yet named: its root and its types get their names when it is
+/// mounted ([`FragmentDraft::schema_for_mount`]).
+#[derive(Clone, Debug)]
+pub(crate) struct FragmentDraft(Draft);
+
+impl FragmentDraft {
+    /// Parse a fragment source and check that it lays out.
+    pub(crate) fn parse(src: &str) -> Result<FragmentDraft, SchemaError> {
+        let draft = FragmentDraft(parse::parse_draft(src, Mode::Fragment)?);
+        draft.schema_for_mount("fragment", "fragment")?;
+        Ok(draft)
+    }
+
+    /// The schema of the fragment as mounted at `root_name` (`mods.hello`): the root has that name, so its
+    /// paths read `mods.hello.count`; every type and enum name gets `prefix.` in front (`hello.Counter`).
+    pub(crate) fn schema_for_mount(
+        &self,
+        root_name: &str,
+        prefix: &str,
+    ) -> Result<Schema, SchemaError> {
+        let mut d = self.0.clone();
+        for e in &mut d.enums {
+            e.name = format!("{prefix}.{}", e.name);
+        }
+        for t in &mut d.types {
+            t.name = if t.is_root {
+                root_name.to_string()
+            } else {
+                format!("{prefix}.{}", t.name)
+            };
+        }
+        for r in &mut d.roots {
+            if r.0 == FRAGMENT_ROOT {
+                r.0 = root_name.to_string();
+            }
+        }
+        Schema::build(d)
+    }
+}
 
 /// The v1 schema source, embedded in the crate.
 const V1_SOURCE: &str = include_str!("../../schema/ui-model.toml");
@@ -56,7 +96,7 @@ impl Schema {
     /// # Errors
     /// The first problem found, with its line and column.
     pub fn parse(src: &str) -> Result<Schema, SchemaError> {
-        let draft = parse::parse_draft(src)?;
+        let draft = parse::parse_draft(src, Mode::Schema)?;
         Schema::build(draft)
     }
 
@@ -317,8 +357,13 @@ impl Schema {
     }
 
     fn why_unknown(&self, path: &str) -> String {
-        let root = path.split(['.', '[']).next().unwrap_or("");
-        if self.root_by_name(root).is_none() {
+        // A root of a mounted fragment has a dotted name (`mods.hello`).
+        let is_root = |r: &Root| {
+            path.strip_prefix(r.name.as_str())
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with(['.', '[']))
+        };
+        if !self.roots.iter().any(is_root) {
+            let root = path.split(['.', '[']).next().unwrap_or("");
             return format!("unknown root `{root}`");
         }
         // The longest known prefix tells where it went wrong.
