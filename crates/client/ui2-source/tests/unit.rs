@@ -284,7 +284,10 @@ fn an_order_waiting_for_its_answer_marks_the_unit_without_reading() {
         })
         .unwrap();
     let stats = rig.frame(&mut f);
-    assert_eq!(stats.roots_built, 1);
+    assert_eq!(
+        stats.roots_built, 2,
+        "unit, and the closed production window"
+    );
     assert!(f.calls.is_empty());
     assert!(unit(&rig).is_some_and(|u| u.pending));
     let d = rig.delta().expect("a delta");

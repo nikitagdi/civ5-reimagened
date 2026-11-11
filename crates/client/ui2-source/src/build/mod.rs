@@ -5,6 +5,7 @@ pub mod game;
 pub mod map;
 pub mod notes;
 pub mod players;
+pub mod production;
 pub mod top;
 pub mod turn;
 pub mod unit;

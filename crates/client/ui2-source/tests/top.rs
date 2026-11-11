@@ -50,8 +50,8 @@ fn first_frame() -> Vec<&'static str> {
     v
 }
 /// Roots of the replica's game written by a full rebuild: top, research, game, turn, unit (none selected), notes,
-/// map, players.
-const GAME_ROOTS: u32 = 8;
+/// map, players, production (window closed).
+const GAME_ROOTS: u32 = 9;
 /// Roots of the session written on the first frame besides `meta`: chat.
 const SESSION_ROOTS: u32 = 1;
 
@@ -457,8 +457,8 @@ fn a_core_without_queries_leaves_the_roots_unwritten() {
     let stats = rig.frame(Some(view(State::Live, 1, 0, &mut f)), &[]);
     assert_eq!(
         stats.roots_built,
-        2 + SESSION_ROOTS,
-        "meta, chat and the unit root (nothing selected needs no read)"
+        3 + SESSION_ROOTS,
+        "meta, chat, unit and production (nothing selected, no window: no read)"
     );
     assert!(rig.store.get::<Top>().is_none());
     assert!(rig.store.get::<Game>().is_none());

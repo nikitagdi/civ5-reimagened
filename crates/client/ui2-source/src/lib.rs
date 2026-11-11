@@ -22,9 +22,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use replica::{
-    CatalogEntry, CatalogTable, City, GameInfo, GameRead, GameSide, Notification, Player,
-    PlayerResource, PolicyBranchState, ReadError, Replica, ReplicaStep, State, TechState, TopBar,
-    Unit, UnitAction,
+    CatalogEntry, CatalogTable, City, CityBuild, CityOrder, GameInfo, GameRead, GameSide,
+    Notification, Player, PlayerResource, PolicyBranchState, ReadError, Replica, ReplicaStep,
+    State, TechState, TopBar, Unit, UnitAction,
 };
 use ui2_model::r#gen::{Meta, Turn, Ui};
 use ui2_model::{Key, ModelWriter, Root, Schema};
@@ -143,6 +143,7 @@ pub(crate) struct Missing {
     resources: bool,
     branches: bool,
     promotions: bool,
+    queue: bool,
 }
 
 impl UiSource {
@@ -305,6 +306,15 @@ impl UiSource {
             } else if root == Roots::UNIT {
                 let r = build::unit::unit(&mut read, catalog, ui.selection.unit, &ui.pending);
                 write_built(w, r, &mut stats);
+            } else if root == Roots::PRODUCTION {
+                let r = build::production::production(
+                    &mut read,
+                    catalog,
+                    &ui.windows.production,
+                    ui.production.focus,
+                    &ui.pending,
+                );
+                write_built(w, r, &mut stats);
             } else if root == Roots::NOTES {
                 write_built(w, build::notes::notes(&mut read, dismissed), &mut stats);
             } else if root == Roots::MAP {
@@ -374,6 +384,10 @@ pub(crate) struct Cache {
     actions: BTreeMap<i32, Slot<Vec<UnitAction>>>,
     /// `Q_UNIT_PROMOTIONS` by unit id.
     promotions: BTreeMap<i32, Slot<Vec<i16>>>,
+    /// `Q_CITY_BUILDS` by city id.
+    builds: BTreeMap<i32, Slot<Vec<CityBuild>>>,
+    /// `Q_CITY_QUEUE` by city id.
+    queues: BTreeMap<i32, Slot<Vec<CityOrder>>>,
 }
 
 impl Cache {
@@ -391,6 +405,8 @@ impl Cache {
         clear(&mut self.notes);
         self.actions.retain(|_, s| matches!(s, Some(Ok(_))));
         self.promotions.retain(|_, s| matches!(s, Some(Ok(_))));
+        self.builds.retain(|_, s| matches!(s, Some(Ok(_))));
+        self.queues.retain(|_, s| matches!(s, Some(Ok(_))));
     }
 
     /// The game turn, if the game record was read since the game last changed.
@@ -529,6 +545,26 @@ impl<'a, 'r> CountingRead<'a, 'r> {
         let r = cached(slot, &mut self.calls, || read.unit_promotions(unit));
         if matches!(r, Err(ReadError::Unsupported)) {
             self.missing.promotions = true;
+        }
+        r
+    }
+
+    pub(crate) fn city_builds(&mut self, city: i32) -> Result<Arc<Vec<CityBuild>>, ReadError> {
+        let read = &mut *self.read;
+        let slot = self.cache.builds.entry(city).or_default();
+        cached(slot, &mut self.calls, || read.city_builds(city))
+    }
+
+    /// `Q_CITY_QUEUE`, a UI v2 query: kept like the others, and not asked again once unsupported.
+    pub(crate) fn city_queue(&mut self, city: i32) -> Result<Arc<Vec<CityOrder>>, ReadError> {
+        if self.missing.queue {
+            return Err(ReadError::Unsupported);
+        }
+        let read = &mut *self.read;
+        let slot = self.cache.queues.entry(city).or_default();
+        let r = cached(slot, &mut self.calls, || read.city_queue(city));
+        if matches!(r, Err(ReadError::Unsupported)) {
+            self.missing.queue = true;
         }
         r
     }

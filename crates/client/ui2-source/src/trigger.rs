@@ -7,7 +7,7 @@
 
 use protocol::{PlayerId, SeatView, TurnState};
 use replica::{ReplicaStep, State};
-use ui2_model::r#gen::{Pending, Timer, Ui};
+use ui2_model::r#gen::{Pending, Timer, Ui, WinCity};
 use ui2_model::{Key, KeyedList};
 
 use crate::session::{SessionRead, timer};
@@ -30,6 +30,7 @@ impl Roots {
     /// Built from the session only.
     pub const CHAT: Roots = Roots(1 << 8);
     pub const UNIT: Roots = Roots(1 << 9);
+    pub const PRODUCTION: Roots = Roots(1 << 10);
     /// Every root built from the replica's game: what a journal batch or a new snapshot rebuilds.
     pub const GAME_DATA: Roots = Roots(
         Self::GAME.0
@@ -39,13 +40,14 @@ impl Roots {
             | Self::TURN.0
             | Self::MAP.0
             | Self::NOTES.0
-            | Self::UNIT.0,
+            | Self::UNIT.0
+            | Self::PRODUCTION.0,
     );
     /// What a change of the session's turn state or seats rebuilds.
     pub const SESSION_TURN: Roots = Roots(Self::GAME.0 | Self::TURN.0);
 
     /// The roots that need the replica's game, in the order a frame builds them (the budget queue).
-    pub const QUEUE: [Roots; 8] = [
+    pub const QUEUE: [Roots; 9] = [
         Self::TOP,
         Self::RESEARCH,
         Self::GAME,
@@ -54,6 +56,7 @@ impl Roots {
         Self::NOTES,
         Self::MAP,
         Self::PLAYERS,
+        Self::PRODUCTION,
     ];
 
     #[must_use]
@@ -178,21 +181,34 @@ impl SessionSeen {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct UiSeen {
     pub unit: Option<Key>,
+    pub production: WinCity,
+    pub focus: Option<Key>,
     pub pending: KeyedList<Pending>,
 }
 
 impl UiSeen {
-    /// Compares the UI root with what was seen, remembers the new values and says what to rebuild: a new
-    /// selected unit, or a change of the orders waiting for an answer (`unit.pending`): `unit`.
+    /// Compares the UI root with what was seen, remembers the new values and says what to rebuild:
+    ///
+    /// - a new selected unit: `unit`;
+    /// - the production window opened, closed or shows another city, or another option is focused: `production`;
+    /// - the orders waiting for an answer changed (`unit.pending`, `Opt.pending`): `unit` and `production`.
     pub fn update(&mut self, ui: &Ui) -> Roots {
         let mut roots = Roots::NONE;
         if self.unit != ui.selection.unit {
             self.unit = ui.selection.unit;
             roots = roots.union(Roots::UNIT);
         }
+        if self.production != ui.windows.production {
+            self.production.clone_from(&ui.windows.production);
+            roots = roots.union(Roots::PRODUCTION);
+        }
+        if self.focus != ui.production.focus {
+            self.focus = ui.production.focus;
+            roots = roots.union(Roots::PRODUCTION);
+        }
         if self.pending != ui.pending {
             self.pending.clone_from(&ui.pending);
-            roots = roots.union(Roots::UNIT);
+            roots = roots.union(Roots::UNIT).union(Roots::PRODUCTION);
         }
         roots
     }
