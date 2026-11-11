@@ -1,5 +1,5 @@
 //! Non-cargo checks: `.wasm` imports, forbidden game files (S8), the gamecore ABI header copy and the
-//! gateway without a brain (GH-D2).
+//! gateway without a brain (GH-D2), the UI v2 crates that only read the replica (R17).
 
 use anyhow::{Result, bail};
 
@@ -156,6 +156,73 @@ pub fn brain_in_gateway<'a>(files: impl IntoIterator<Item = (&'a str, &'a str)>)
             }
             if let Some(t) = BRAIN_TOKENS.iter().find(|t| line.contains(**t)) {
                 found.push(format!("{norm}:{}: `{t}` outside src/worker/", i + 1));
+            }
+        }
+    }
+    found
+}
+
+/// The replica's entry points that move the game or the replica machine. The UI v2 crates read the replica and
+/// never call these: only the session that owns the replica feeds it the server's messages.
+const REPLICA_WRITERS: [&str; 5] = ["engine_mut", "post_net", "on_msg", "pump", "blob"];
+
+/// Whether a crate manifest has `replica` among its normal dependencies (a dev-dependency only reaches tests).
+pub fn depends_on_replica(manifest: &str) -> bool {
+    let mut normal = false;
+    for line in manifest.lines() {
+        let line = line.trim();
+        if line.starts_with('[') {
+            let section = line.trim_matches(|c| c == '[' || c == ']');
+            normal = section == "dependencies"
+                || (section.starts_with("target.") && section.ends_with(".dependencies"));
+            continue;
+        }
+        if normal {
+            let name = line.split(['=', '.', ' ']).next().unwrap_or("");
+            if name == "replica" {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// R17: lines of the library code of the UI v2 crates that call a writer of the replica
+/// (`Replica::{engine_mut, post_net, on_msg, pump, blob}`). `files` are `(path relative to the repository root,
+/// text)`; only `crates/{client,shared}/ui2-*/src/` of the crates named in `replica_crates` (the ones that depend
+/// on `replica`, see [`depends_on_replica`]) are looked at: a crate without that dependency cannot hold a replica,
+/// and the same method names elsewhere (a package's `blob`) are not the replica's. Tests are not looked at (they
+/// drive a replica on purpose). Comment lines do not count.
+pub fn replica_writes_in_ui2<'a>(
+    files: impl IntoIterator<Item = (&'a str, &'a str)>,
+    replica_crates: &[&str],
+) -> Vec<String> {
+    let mut found = Vec::new();
+    for (path, text) in files {
+        let norm = path.replace('\\', "/");
+        let mut parts = norm.split('/');
+        let (Some("crates"), Some("client" | "shared"), Some(krate), Some("src")) =
+            (parts.next(), parts.next(), parts.next(), parts.next())
+        else {
+            continue;
+        };
+        if !krate.starts_with("ui2-") || !replica_crates.contains(&krate) || !norm.ends_with(".rs")
+        {
+            continue;
+        }
+        for (i, line) in text.lines().enumerate() {
+            let code = line.trim_start();
+            if code.starts_with("//") {
+                continue;
+            }
+            let call = REPLICA_WRITERS
+                .iter()
+                .find(|m| code.contains(&format!(".{m}(")) || code.contains(&format!("::{m}(")));
+            if let Some(m) = call {
+                found.push(format!(
+                    "{norm}:{}: calls `{m}` of the replica (UI v2 must only read it)",
+                    i + 1
+                ));
             }
         }
     }
@@ -354,6 +421,63 @@ struct RealCoreX;
                 "crates/server/server/src/lib.rs:2: `RealCore` outside src/worker/",
             ]
         );
+    }
+
+    #[test]
+    fn a_replica_dependency_is_found_in_normal_sections_only() {
+        assert!(depends_on_replica(
+            "[package]\nname = \"ui2-source\"\n\n[dependencies]\nreplica.workspace = true\n"
+        ));
+        assert!(depends_on_replica(
+            "[target.'cfg(unix)'.dependencies]\nreplica = { path = \"../replica\" }\n"
+        ));
+        assert!(!depends_on_replica(
+            "[dependencies]\nreplica-tools = \"1\"\n\n[dev-dependencies]\nreplica.workspace = true\n"
+        ));
+        assert!(!depends_on_replica("[package]\nname = \"replica\"\n"));
+    }
+
+    #[test]
+    fn ui2_crates_do_not_call_the_writers_of_the_replica() {
+        let bad = "fn frame(r: &mut Replica) {
+    let _ = r.read();
+    r.pump(0);
+    r.on_msg(msg);
+    let e = r.engine_mut();
+    Replica::post_net(r, m);
+    r.blob(h, bytes);
+    // r.pump(0) in a comment is fine
+}
+";
+        let clean = "fn frame(r: &mut Replica) { let _ = r.read(); let d = r.digest(); }\n";
+        let package = "fn f(&self) { let b = self.blob(id); }\n";
+        let files = [
+            ("crates/client/ui2-source/src/lib.rs", bad),
+            ("crates/client/ui2-source/src/build/map.rs", clean),
+            // Tests drive a replica on purpose.
+            ("crates/client/ui2-source/tests/r17.rs", bad),
+            // No replica dependency: a package's own `blob`.
+            ("crates/shared/ui2-package/src/package.rs", package),
+            // Not a UI v2 crate.
+            ("crates/client/client-app/src/m2.rs", bad),
+        ];
+        let found = replica_writes_in_ui2(files, &["ui2-source", "ui2-host"]);
+        assert_eq!(
+            found,
+            [
+                "crates/client/ui2-source/src/lib.rs:3: calls `pump` of the replica (UI v2 must only read it)",
+                "crates/client/ui2-source/src/lib.rs:4: calls `on_msg` of the replica (UI v2 must only read it)",
+                "crates/client/ui2-source/src/lib.rs:5: calls `engine_mut` of the replica (UI v2 must only read it)",
+                "crates/client/ui2-source/src/lib.rs:6: calls `post_net` of the replica (UI v2 must only read it)",
+                "crates/client/ui2-source/src/lib.rs:7: calls `blob` of the replica (UI v2 must only read it)",
+            ]
+        );
+        // The same package code is caught once its crate can hold a replica.
+        let found = replica_writes_in_ui2(
+            [("crates/shared/ui2-package/src/package.rs", package)],
+            &["ui2-package"],
+        );
+        assert_eq!(found.len(), 1);
     }
 
     #[test]
