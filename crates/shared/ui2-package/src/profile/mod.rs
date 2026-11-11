@@ -14,7 +14,12 @@ mod ids;
 mod props;
 mod schema_view;
 #[cfg(feature = "profile")]
+pub mod select;
+#[cfg(feature = "profile")]
 pub mod values;
+
+#[cfg(feature = "profile")]
+pub use select::media;
 
 pub use ids::{PropId, Tag};
 #[cfg(feature = "profile")]
