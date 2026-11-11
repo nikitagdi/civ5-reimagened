@@ -1,0 +1,18 @@
+[package]
+name = "ui2-source"
+description = "UI v2 source: builds the view-model roots from the replica's game, read only, on change triggers"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "client"
+
+# The core is reached only through `replica`'s read facade (rule R10): no direct `gamecore` here.
+[dependencies]
+replica.workspace = true
+ui2-model.workspace = true
+tracing.workspace = true
