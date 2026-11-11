@@ -11,7 +11,6 @@ use std::rc::Rc;
 
 use ::loc::{Arg, LanguageInfo, Localizer, MapTable};
 use ui2_model::Text;
-use ui2_package::Package;
 use ui2_package::profile::expr::Value;
 
 /// A piece of a text with the game's markup taken out: its text (`[NEWLINE]` is a line feed) and the color
@@ -80,7 +79,7 @@ pub(crate) fn split_markup(s: &str) -> (Vec<Piece>, bool) {
 
 /// The color token of a markup color: `--ui-loc-<x>` (lower case, `_` as `-`), as a root token or a
 /// synonym; `None` when the skin has none (the text keeps its color).
-pub(crate) fn markup_color(pkg: &Package, tag: &str) -> Option<ui2_package::style::ColorV> {
+pub(crate) fn markup_color(pkg: &crate::Pkg, tag: &str) -> Option<ui2_package::style::ColorV> {
     let name = format!("--ui-loc-{}", tag.to_ascii_lowercase().replace('_', "-"));
     let id = pkg.str_id(&name)?;
     let tokens = pkg.tokens();
@@ -127,7 +126,7 @@ fn arg(v: &Value) -> Arg {
 
 impl SkinLoc {
     /// The localization of a package, in the language of the game's localizer when the skin has it.
-    pub fn new(pkg: &Package, game: Option<Rc<Localizer>>) -> Self {
+    pub fn new(pkg: &crate::Pkg, game: Option<Rc<Localizer>>) -> Self {
         let mut s = Self {
             game: None,
             own: Localizer::new(LanguageInfo::en_us(), Box::new(MapTable::new())),
@@ -138,7 +137,7 @@ impl SkinLoc {
     }
 
     /// Changes the game's localizer (and with it the language).
-    pub fn set_game(&mut self, pkg: &Package, game: Option<Rc<Localizer>>) {
+    pub fn set_game(&mut self, pkg: &crate::Pkg, game: Option<Rc<Localizer>>) {
         let want = game.as_ref().map(|l| l.current_language().type_.clone());
         self.lang = want
             .and_then(|w| pkg.languages().iter().position(|l| *l == w))
@@ -151,7 +150,7 @@ impl SkinLoc {
     }
 
     /// The template of a skin key: the current language, else the first one.
-    fn template<'a>(&self, pkg: &'a Package, key: &str) -> Option<&'a str> {
+    fn template<'a>(&self, pkg: &'a crate::Pkg, key: &str) -> Option<&'a str> {
         let langs = pkg.languages();
         langs
             .get(self.lang)
@@ -160,7 +159,7 @@ impl SkinLoc {
     }
 
     /// A skin text with its arguments; `Err` with the key itself when the skin has no such key.
-    pub fn skin_text(&self, pkg: &Package, key: &str, args: &[Value]) -> Result<String, String> {
+    pub fn skin_text(&self, pkg: &crate::Pkg, key: &str, args: &[Value]) -> Result<String, String> {
         match self.template(pkg, key) {
             Some(t) => {
                 let args: Vec<Arg> = args.iter().map(arg).collect();
@@ -172,7 +171,7 @@ impl SkinLoc {
 
     /// `loc(key, args...)` of an expression: a skin text, else a game text (a missing game key shows the
     /// key, as the game does).
-    pub fn call(&self, pkg: &Package, key: &str, args: &[Value]) -> String {
+    pub fn call(&self, pkg: &crate::Pkg, key: &str, args: &[Value]) -> String {
         if let Ok(s) = self.skin_text(pkg, key, args) {
             return s;
         }
@@ -184,7 +183,7 @@ impl SkinLoc {
     }
 
     /// The shown text of a model text.
-    pub fn model_text(&self, pkg: &Package, t: &Text) -> String {
+    pub fn model_text(&self, pkg: &crate::Pkg, t: &Text) -> String {
         match t {
             Text::Raw(s) => s.to_string(),
             Text::Key { key, args } => {

@@ -26,7 +26,7 @@ use ui2_text::{
     TextMeasure,
 };
 
-pub use ifc::{Fitted, Ifc, InlineBox, InlineRect, Run, Shown, VMetrics};
+pub use ifc::{AnonItem, Fitted, Ifc, InlineBox, InlineRect, Run, Shown, VMetrics};
 
 use crate::LoadError;
 use crate::arena::{Arena, Dirty, NodeClass, NodeId};
@@ -126,7 +126,7 @@ pub fn load_faces(pkg: &Package, engine: &mut TextEngine) -> Result<(), LoadErro
 
 /// What the text pass reads.
 pub(crate) struct TextCtx<'a> {
-    pub pkg: &'a Package,
+    pub pkg: &'a crate::Pkg,
     pub fonts: &'a FontBook,
     pub index: &'a StyleIndex,
 }
@@ -486,6 +486,7 @@ fn build(
         width: 0.0,
         fitted: None,
         fit_key: None,
+        item: old.as_ref().and_then(|o| o.item),
     };
     let layout = match &old {
         Some(o) if same_extent(o, &ifc) => {

@@ -12,8 +12,10 @@
 //! ([`frame`]: [`Runtime::apply_delta`], [`Runtime::frame`], [`Runtime::drain_output`]), input
 //! ([`input`]: [`Runtime::handle_input`], hit-testing, interaction states, pointer capture, the wheel, modal
 //! screens), list and condition bindings (`for` by key with sorting, filtering and virtual lists; `if` bodies
-//! that sleep while false), map anchors ([`anchor`]: [`Runtime::set_anchor_screen`]) and rectangle dumps
-//! ([`debug`]).
+//! that sleep while false), map anchors ([`anchor`]: [`Runtime::set_anchor_screen`]), rectangle dumps
+//! ([`debug`]), script islands ([`Runtime::apply_island`]), panels and their placeholders ([`panel`]:
+//! [`Runtime::set_panel_failed`]) and mod fragments in the skin's extension points
+//! ([`Runtime::mount_fragment`], linked into the document view [`Doc`]).
 //!
 //! Zero-work rule: every pass is driven by the arena's dirty queues; a frame without changes checks a few
 //! counters and touches no node.
@@ -25,13 +27,17 @@ mod anim;
 pub mod arena;
 mod bind;
 pub mod debug;
+pub mod doc;
 pub mod error;
 pub mod frame;
 pub mod input;
 pub mod instantiate;
+mod island;
 pub mod layout;
 mod loc;
+mod mount;
 mod paint;
+pub mod panel;
 mod stats;
 pub mod style;
 #[cfg(feature = "testkit")]
@@ -52,12 +58,14 @@ pub use arena::{
     StateBits,
 };
 pub use debug::ElementRect;
+pub use doc::Doc;
 pub use error::{ErrorCode, ErrorSink, NodePath, UiError};
 pub use frame::{FrameOutput, UiOutput};
 pub use input::{CARET_BLINK_MS, InputOutcome, PointerCapture};
 use instantiate::Spawn;
 pub use instantiate::{MAX_INSTANCE_NODES, Source};
 pub use layout::LayoutStyles;
+pub use panel::{MountMode, PanelId, PanelStatus};
 pub use platform::ui2::{TextInputRequest, TextInputState, TextSel};
 pub use stats::FrameStats;
 use style::select::EnvChange;
@@ -121,9 +129,12 @@ pub enum LoadError {
     Fatal(String),
 }
 
+/// The tables the passes read: the skin's package (and the mod fragments mounted into it).
+pub(crate) type Pkg = Doc;
+
 /// The runtime of one skin.
 pub struct Runtime {
-    pkg: Arc<Package>,
+    pkg: Arc<Doc>,
     env: Env,
     style_env: StyleEnv,
     style_index: StyleIndex,
@@ -150,6 +161,10 @@ pub struct Runtime {
     assets: Option<AssetResolver>,
     /// Map anchors.
     anchors: anchor::Anchors,
+    /// Where the keyed nodes of script islands are.
+    islands: island::IslandIndex,
+    /// The panels: the skin's top-level parts and the mounted mod fragments.
+    panels: panel::Panels,
 }
 
 impl Runtime {
@@ -165,9 +180,12 @@ impl Runtime {
             style_index: StyleIndex::new(pkg.styles()),
             layout_styles: LayoutStyles::from_styles(pkg.styles()),
             fonts: FontBook::new(&pkg),
-            binder: bind::Binder::new(loc::SkinLoc::new(&pkg, svc.loc.clone())),
             input: input::InputState::new(&pkg),
-            pkg,
+            binder: bind::Binder::new(loc::SkinLoc::new(
+                &Doc::new(Arc::clone(&pkg)),
+                svc.loc.clone(),
+            )),
+            pkg: Arc::new(Doc::new(pkg)),
             env,
             style_env,
             env_change: EnvChange::default(),
@@ -181,6 +199,8 @@ impl Runtime {
             anim: anim::Animator::default(),
             assets: None,
             anchors: anchor::Anchors::default(),
+            islands: island::IslandIndex::default(),
+            panels: panel::Panels::default(),
         };
         if !env_ok {
             rt.report_bad_env(env);
@@ -196,6 +216,7 @@ impl Runtime {
                 "the document template cannot be built".into(),
             ));
         }
+        rt.register_skin_panels();
         Ok(rt)
     }
 
@@ -277,8 +298,13 @@ impl Runtime {
         style::select::set_class(&mut self.arena, id, class, on);
     }
 
-    /// The package.
+    /// The skin's package.
     pub fn package(&self) -> &Arc<Package> {
+        self.pkg.skin()
+    }
+
+    /// The tables the runtime reads: the skin's, with the mounted mod fragments.
+    pub fn doc(&self) -> &Doc {
         &self.pkg
     }
 
@@ -328,6 +354,8 @@ impl Runtime {
                 at,
                 key: None,
                 owner: None,
+                nodes: None,
+                own_chunk: false,
             },
         )
     }

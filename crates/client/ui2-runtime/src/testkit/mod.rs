@@ -34,6 +34,9 @@ enum Extn {
     Screen(String),
     Hotkey(String, u8),
     Tooltip(TemplateId),
+    Island(String),
+    Key(String),
+    Slot(String),
 }
 
 impl TNode {
@@ -70,6 +73,25 @@ impl TNode {
     /// Shows a tooltip template while the node is hovered (`data-tooltip`).
     pub fn tooltip(mut self, template: TemplateId) -> Self {
         self.extn.push(Extn::Tooltip(template));
+        self
+    }
+
+    /// Makes the node the root of a script island (`data-ui2-island="<id>"`); its keyed descendants (and
+    /// itself) are found by [`key`](Self::key).
+    pub fn island(mut self, id: &str) -> Self {
+        self.extn.push(Extn::Island(id.to_string()));
+        self
+    }
+
+    /// Gives the node a key inside the island around it (`data-ui2-key="<key>"`).
+    pub fn key(mut self, key: &str) -> Self {
+        self.extn.push(Extn::Key(key.to_string()));
+        self
+    }
+
+    /// Makes the node an extension point for mod panels (`data-slot="<name>"`).
+    pub fn slot(mut self, name: &str) -> Self {
+        self.extn.push(Extn::Slot(name.to_string()));
         self
     }
 
@@ -286,16 +308,37 @@ impl Kit {
         for r in roots {
             r.flatten(&mut nodes, &mut binds, &mut extn);
         }
-        let tpl = self.b.template(Template { name, nodes });
+        let tpl = self.b.template(Template {
+            name,
+            nodes: nodes.clone(),
+        });
         for (node, kind) in binds {
             self.b.binding(Binding { tpl, node, kind });
         }
+        let keys: Vec<(u32, String)> = extn
+            .iter()
+            .filter_map(|(n, e)| match e {
+                Extn::Key(k) => Some((*n, k.clone())),
+                _ => None,
+            })
+            .collect();
         for (node, e) in extn {
             let at = NodeRef(tpl, node);
             match e {
                 Extn::Screen(id) => self.b.screen(&id, at),
                 Extn::Hotkey(code, mods) => self.b.hotkey(&code, mods, at),
                 Extn::Tooltip(t) => self.b.tooltip(at, t),
+                Extn::Slot(name) => self.b.slot(&name, at),
+                Extn::Island(id) => {
+                    let end = node + nodes[node as usize].subtree;
+                    let inside: Vec<(&str, u32)> = keys
+                        .iter()
+                        .filter(|(n, _)| (node..end).contains(n))
+                        .map(|(n, k)| (k.as_str(), *n))
+                        .collect();
+                    self.b.island(&id, at, &inside);
+                }
+                Extn::Key(_) => {}
             }
         }
         tpl
@@ -434,6 +477,19 @@ impl Kit {
     /// adding texts of the other languages.
     pub fn languages(&mut self, langs: &[&str]) {
         self.languages = langs.iter().map(|l| l.to_string()).collect();
+    }
+
+    /// Writes and reads a mod fragment: a package of kind `Fragment` with the mod's id, for the given
+    /// extension points.
+    pub fn finish_fragment(self, id: &str, slots: &[&str]) -> Result<Arc<Package>, PackageError> {
+        let mut manifest = Self::manifest();
+        manifest.kind = Kind::Fragment {
+            slots: slots.iter().map(|s| s.to_string()).collect(),
+        };
+        manifest.id = id.into();
+        manifest.languages = self.languages.clone();
+        let bytes = self.b.finish(manifest)?;
+        Package::read(Arc::from(bytes)).map(Arc::new)
     }
 
     /// Writes and reads the package.

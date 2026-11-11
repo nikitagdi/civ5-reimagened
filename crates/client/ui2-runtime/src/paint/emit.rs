@@ -31,7 +31,7 @@ use ui2_package::style::{
     BgBox, BgImage, BgRepeat, BgSize, BorderStyle, ColorV, GradDir, ImageRepeat, ImageWidth, Len,
     LenAuto, OutlineStyle, Overflow, Position, Repeat, Side, Stop, StyleRecord, TFn, Visibility,
 };
-use ui2_package::{ImageSrc, Layer, NodeKind, Package, PageFormat, StrId};
+use ui2_package::{ImageSrc, Layer, NodeKind, PageFormat, StrId};
 
 use crate::arena::{Arena, NodeClass, NodeId};
 use crate::error::{ErrorCode, ErrorSink, UiError};
@@ -43,7 +43,7 @@ use crate::{AssetResolver, ExtImage};
 
 /// What painting reads besides the arena.
 pub(crate) struct PaintCtx<'a> {
-    pub pkg: &'a Package,
+    pub pkg: &'a crate::Pkg,
     pub index: &'a StyleIndex,
     pub env: &'a StyleEnv,
     /// Running transitions: an animated node is painted with its current values.
@@ -104,7 +104,7 @@ pub(crate) struct Emitted {
 }
 
 /// The layer a chunk root paints into: the layer of its layer root (the HUD for a root outside layers).
-pub(crate) fn layer_of(arena: &Arena, pkg: &Package, root: NodeId) -> LayerId {
+pub(crate) fn layer_of(arena: &Arena, pkg: &crate::Pkg, root: NodeId) -> LayerId {
     let mut at = Some(root);
     while let Some(id) = at {
         let Some(n) = arena.get(id) else {
@@ -1445,7 +1445,7 @@ impl<'a> Emitter<'a> {
         let shown = ifc.shown();
         for line in &shown.lines.lines {
             let lx = ifc.line_x(line, cw);
-            let base = line.top + line.baseline;
+            let base = ifc.lines_y() + line.top + line.baseline;
             for seg in &line.segments {
                 let Some(run) = shown.run(seg.run) else {
                     continue;
@@ -1607,7 +1607,7 @@ fn layer_at<T: Copy>(list: &[T], layer: usize, default: T) -> T {
 /// A picture of the package by its path inside the skin (`IMGS` entries are looked up by the string-table
 /// id, then by the text of the path).
 pub(crate) fn find_picture(
-    pkg: &Package,
+    pkg: &crate::Pkg,
     path: StrId,
 ) -> Option<(ui2_package::ImgId, &ui2_package::Img)> {
     let imgs = &pkg.images().imgs;
@@ -1710,7 +1710,7 @@ fn contains(outer: Rect, inner: Rect) -> bool {
 /// format, in order, are the layers (`A8` pages for mask icons, `Rgba8` pages for color pictures); the
 /// sprite's 1 px margin is left out. The 2x sprite is used above a device scale of 1 when there is one.
 pub(crate) fn image_ref(
-    pkg: &Package,
+    pkg: &crate::Pkg,
     img: ui2_package::ImgId,
     k: f32,
     format: PageFormat,

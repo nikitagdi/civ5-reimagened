@@ -5,6 +5,8 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish = false
+# `benches/frame.rs` is a test target of ignored timings (no bench harness).
+autobenches = false
 license.workspace = true
 repository.workspace = true
 
@@ -37,3 +39,8 @@ serde_json.workspace = true
 ui2-runtime = { workspace = true, features = ["testkit"] }
 # `profile`: tests write binding expressions as text and parse them as the converter does.
 ui2-package = { workspace = true, features = ["write", "profile"] }
+
+# Timing of the runtime budgets (ignored tests: `cargo test -p ui2-runtime --release -- --ignored bench`).
+[[test]]
+name = "frame_bench"
+path = "benches/frame.rs"

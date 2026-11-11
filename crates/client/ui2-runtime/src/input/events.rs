@@ -20,7 +20,7 @@
 use std::sync::Arc;
 
 use ui2_model::Value as MValue;
-use ui2_model::wire::{Origin, ScriptCtxId, ScriptEvent, StateOp, WireIntent};
+use ui2_model::wire::{Origin, ScriptEvent, StateOp, WireIntent};
 use ui2_package::BindKind;
 use ui2_package::profile::action::{Action, Event};
 
@@ -118,7 +118,7 @@ impl Runtime {
                         };
                         let node_path = self.path(id).to_string();
                         self.output.script_events.push(ScriptEvent {
-                            ctx: ScriptCtxId::Skin,
+                            ctx: pkg.ctx_of(tmpl.0),
                             name: name.as_str().into(),
                             arg,
                             node_path: node_path.into(),
