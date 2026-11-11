@@ -4,11 +4,11 @@
 
 use ui2_draw::Scene;
 use ui2_model::{ModelStore, Schema};
-use ui2_package::Layer;
 use ui2_package::style::{
     ContentAlign, Display, FlexDirection, ItemsAlign, Len, LenAuto, LenNormal, StyleRecord,
     TextAlign,
 };
+use ui2_package::{Layer, NodeKind, Tag};
 use ui2_runtime::testkit::{Kit, TNode};
 use ui2_runtime::{ElementRect, Env, Runtime, Services, load_faces};
 use ui2_text::{FaceId, RunStyle, TextEngine};
@@ -28,6 +28,11 @@ fn fira() -> Vec<u8> {
 
 /// The rectangles of a 200 x 40 flex container holding only `Esc`, styled by `f`, and of its text.
 fn rects(f: impl Fn(&mut StyleRecord)) -> (ElementRect, ElementRect, TextEngine) {
+    rects_in(Tag::Div, f)
+}
+
+/// The same as `rects` for an element of another tag.
+fn rects_in(tag: Tag, f: impl Fn(&mut StyleRecord)) -> (ElementRect, ElementRect, TextEngine) {
     let mut kit = Kit::new();
     kit.font("Fira Sans", 400, false, &fira());
     let family = kit.str("Fira Sans");
@@ -47,7 +52,7 @@ fn rects(f: impl Fn(&mut StyleRecord)) -> (ElementRect, ElementRect, TextEngine)
         "doc",
         vec![
             TNode::layer(Layer::Hud, block).child(
-                TNode::el(keycap)
+                TNode::new(NodeKind::Box { tag }, keycap)
                     .part(part)
                     .child(TNode::text(text, keycap)),
             ),
@@ -259,6 +264,53 @@ fn flex_text_mixed_with_elements_makes_one_item_per_run() {
             );
         }
     }
+}
+
+/// A `button` that is not a flex container: Chrome centres its text down the content box anyway (and
+/// `text-align` across it). A `div` styled the same keeps its text at the top; a button whose text does
+/// not fit starts it at the top.
+#[test]
+fn button_text_is_centred_down_its_content_box() {
+    let style = |r: &mut StyleRecord| {
+        r.display = Display::Block;
+        r.text_align = TextAlign::Center;
+        r.padding_left = Len::px(6.0);
+        r.padding_right = Len::px(6.0);
+        r.padding_top = Len::px(2.0);
+        r.border_top_width = Len::px(1.0);
+        r.border_bottom_width = Len::px(1.0);
+        r.border_left_width = Len::px(1.0);
+        r.border_right_width = Len::px(1.0);
+    };
+    let (el, leaf, mut engine) = rects_in(Tag::Button, style);
+    let (content, lead, line, width) = text_metrics(&mut engine);
+    assert_eq!((el.w, el.h), (W + 14.0, H + 4.0));
+    // The content box: 1 px border and 2 px padding at the top, 40 px high.
+    let top = 3.0 + (H - line) / 2.0 + lead.floor();
+    assert!(close(leaf.y - el.y, top), "{} vs {top}", leaf.y - el.y);
+    assert!(close(leaf.h, content));
+    assert!(
+        close(leaf.x - el.x, 7.0 + (W - width) / 2.0),
+        "{}",
+        leaf.x - el.x
+    );
+
+    let (el, leaf, _) = rects_in(Tag::Div, style);
+    assert!(
+        close(leaf.y - el.y, 3.0 + lead.floor()),
+        "{}",
+        leaf.y - el.y
+    );
+
+    let (el, leaf, _) = rects_in(Tag::Button, |r| {
+        style(r);
+        r.height = LenAuto::Len(Len::px(8.0));
+    });
+    assert!(
+        close(leaf.y - el.y, 3.0 + lead.floor()),
+        "{}",
+        leaf.y - el.y
+    );
 }
 
 #[test]

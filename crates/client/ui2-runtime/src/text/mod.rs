@@ -489,6 +489,7 @@ fn build(
         fitted: None,
         fit_key: None,
         item: old.as_ref().and_then(|o| o.item),
+        button: false,
         memo: ifc::LineMemo::new(),
     };
     let layout = match &old {
@@ -500,6 +501,17 @@ fn build(
         }
         _ => true,
     };
+    ifc.button = class != NodeClass::Text
+        && arena.get(root).is_some_and(|n| {
+            instantiate::template_node(ctx.pkg, n.tmpl()).is_some_and(|t| {
+                matches!(
+                    t.kind,
+                    ui2_package::NodeKind::Box {
+                        tag: ui2_package::Tag::Button
+                    }
+                )
+            })
+        });
     let fits = ifc.fit.is_some();
     if let Some(n) = arena.get_mut(root) {
         n.ifc = Some(Box::new(ifc));
