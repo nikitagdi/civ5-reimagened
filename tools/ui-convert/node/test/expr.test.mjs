@@ -208,6 +208,22 @@ test("for: key, filter, sort, descending, ties", () => {
   assert.equal(core.escKey("a/b%c"), "a%2Fb%25c");
 });
 
+test("for: the schema's list key wins and is labelled as the runtime labels keys", () => {
+  const p = core.parseBindings([["data-bind-for", "r:{{x}}"], ["data-bind-key", "{{r.n}}"]]);
+  const ev = { item: () => null, outer: () => null };
+  const keys = (items, info) => core.planFor(items, p.forSpec, ev, (k) => k, info).map((r) => r.key);
+  // key<..>: "hi:lo" as written, or the 64-bit number split.
+  assert.deepEqual(keys([{ id: "0:5" }, { id: "3:12" }, { id: 4294967301 }], { field: "id", kind: "key" }), ["0:5", "3:12", "1:5"]);
+  // Integers: the 32-bit pattern (a negative i32 wraps); u32 as is; enums by variant index.
+  assert.deepEqual(keys([{ k: 7 }, { k: -1 }], { field: "k", kind: "int" }), ["0:7", "0:4294967295"]);
+  assert.deepEqual(keys([{ k: 7 }], { field: "k", kind: "uint" }), ["0:7"]);
+  assert.deepEqual(keys([{ k: "b" }, { k: "a" }], { field: "k", kind: "enum", variants: ["a", "b"] }), ["0:1", "0:0"]);
+  // Strings: FNV-1a 64 of the UTF-8 bytes (the empty string is the offset basis).
+  assert.deepEqual(keys([{ k: "" }, { k: "Iron ž" }], { field: "k", kind: "str" }), [`${0xcbf29ce4}:${0x84222325}`, "3776348156:2451886102"]);
+  // Without a schema key the markup's key is used.
+  assert.equal(core.keyLabel("x", { field: "k", kind: "int" }), null);
+});
+
 // --- TOML subset and the text engine subset ---
 
 test("TOML subset reads the skin's tables", () => {

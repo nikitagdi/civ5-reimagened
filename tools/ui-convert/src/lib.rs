@@ -143,6 +143,32 @@ pub struct Opts {
     pub fonts_dir: Option<PathBuf>,
 }
 
+/// The list keys of the model schema for the preview: schema path of every list (`top.resources`,
+/// `production.options[].requires`) -> `{field, kind, variants?}`, kind `key`, `int`, `uint`, `enum` or `str`.
+/// With it the preview labels loop instances by the schema's key, as the runtime does.
+pub fn list_keys() -> Value {
+    use ui2_model::schema::{Scalar, Type};
+    let schema = ui2_model::Schema::v1();
+    let mut out = serde_json::Map::new();
+    for p in schema.paths() {
+        let Type::List(l) = &p.ty else { continue };
+        let mut info = json!({ "field": l.key });
+        match l.key_ty.as_ref() {
+            Type::Key(_) => info["kind"] = json!("key"),
+            Type::Scalar(Scalar::I8 | Scalar::I16 | Scalar::I32) => info["kind"] = json!("int"),
+            Type::Scalar(Scalar::U32) => info["kind"] = json!("uint"),
+            Type::Scalar(Scalar::Str) => info["kind"] = json!("str"),
+            Type::Enum(id) => {
+                info["kind"] = json!("enum");
+                info["variants"] = json!(schema.enums()[id.0 as usize].variants);
+            }
+            _ => continue,
+        }
+        out.insert(p.path.clone(), info);
+    }
+    Value::Object(out)
+}
+
 /// Opens the skin in Chromium (the preview script on, fonts served from `opts.fonts_dir`). Returns the
 /// answer of `open`.
 pub fn open(node: &mut NodeClient, src: &Source, opts: &Opts) -> Result<Value, ConvError> {
@@ -150,7 +176,7 @@ pub fn open(node: &mut NodeClient, src: &Source, opts: &Opts) -> Result<Value, C
         .unwrap_or_else(|_| src.dir.clone())
         .to_string_lossy()
         .to_string();
-    let mut open = json!({ "skin_dir": dir, "entry": src.skin.skin.entry, "preview": true });
+    let mut open = json!({ "skin_dir": dir, "entry": src.skin.skin.entry, "preview": true, "list_keys": list_keys() });
     if let Some(f) = &opts.fonts_dir {
         let f = std::path::absolute(f).unwrap_or_else(|_| f.clone());
         open["fonts_dir"] = json!(f.to_string_lossy());
@@ -170,7 +196,7 @@ pub fn scan(
         .unwrap_or_else(|_| src.dir.clone())
         .to_string_lossy()
         .to_string();
-    let mut open = json!({ "skin_dir": dir, "entry": src.skin.skin.entry, "preview": true });
+    let mut open = json!({ "skin_dir": dir, "entry": src.skin.skin.entry, "preview": true, "list_keys": list_keys() });
     if let Some(f) = &opts.fonts_dir {
         let f = std::path::absolute(f).unwrap_or_else(|_| f.clone());
         open["fonts_dir"] = json!(f.to_string_lossy());
@@ -568,5 +594,21 @@ impl Run {
             ));
         }
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn list_keys_name_the_schema_key_of_every_list() {
+        let k = list_keys();
+        assert_eq!(k["top.resources"], json!({ "field": "id", "kind": "key" }));
+        assert_eq!(k["players"]["field"], "id");
+        assert!(
+            k.as_object()
+                .is_some_and(|m| m.keys().any(|p| p.contains("[].")))
+        );
     }
 }

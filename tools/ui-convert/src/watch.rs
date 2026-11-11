@@ -236,6 +236,7 @@ impl Watcher {
                     "skin_dir": abs(dir),
                     "entry": src.skin.skin.entry,
                     "preview": true,
+                    "list_keys": crate::list_keys(),
                     "port": opts.port,
                     "fonts_dir": abs(&fonts_dir),
                     "pkg_dir": abs(&pkg),

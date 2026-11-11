@@ -713,6 +713,40 @@
   /** Escapes a loop key for the `/`-joined instance path. */
   const escKey = (k) => String(k).replace(/%/g, "%25").replace(/\//g, "%2F");
 
+  /**
+   * The runtime's label of a list key (`ui2_model::Key` shown as `hi:lo`): a `key<..>` value is `"hi:lo"` or
+   * the 64-bit number; an integer key is its 32-bit pattern; an enum key its variant index; a string key the
+   * FNV-1a 64 hash of its UTF-8 bytes. `info` = { field, kind: key|int|uint|enum|str, variants? }. Null when
+   * the value does not fit the kind.
+   */
+  function keyLabel(v, info) {
+    const split = (n) => `${n >> 32n}:${n & 0xffffffffn}`;
+    switch (info.kind) {
+      case "key":
+        if (typeof v === "string") {
+          const m = /^(\d+):(\d+)$/.exec(v);
+          return m ? `${Number(m[1])}:${Number(m[2])}` : null;
+        }
+        return Number.isSafeInteger(v) && v >= 0 ? split(BigInt(v)) : null;
+      case "int":
+        return Number.isInteger(v) ? `0:${v >>> 0}` : null;
+      case "uint":
+        return Number.isInteger(v) && v >= 0 ? `0:${v}` : null;
+      case "enum": {
+        const i = (info.variants || []).indexOf(v);
+        return i >= 0 ? `0:${i}` : null;
+      }
+      case "str": {
+        if (typeof v !== "string") return null;
+        let h = 0xcbf29ce484222325n;
+        for (const b of new TextEncoder().encode(v)) h = BigInt.asUintN(64, (h ^ BigInt(b)) * 0x100000001b3n);
+        return split(h);
+      }
+      default:
+        return null;
+    }
+  }
+
   const sortRank = (v) => (isNum(v) ? 0 : typeof v === "string" ? 1 : 2);
 
   /**
@@ -720,10 +754,11 @@
    *   ev.item(expr, item, position) -> Value   an expression with the loop variables bound;
    *   ev.outer(expr) -> Value                  an expression outside the loop.
    * Filter first, then the stable sort (numbers, then strings by code point, null last; descending
-   * reverses numbers and strings only), then the key: data-bind-key, else the item's `id`, else its
-   * position. Returns [{ item, key }].
+   * reverses numbers and strings only), then the key: the list key of the model schema when the list is a
+   * model list (`keyInfo`, labelled as the runtime labels instance keys), else data-bind-key, else the item's
+   * `id`, else its position. Returns [{ item, key }].
    */
-  function planFor(items, spec, ev, locText) {
+  function planFor(items, spec, ev, locText, keyInfo) {
     let rows = items.map((item, i) => ({ item, i }));
     if (spec.filter) rows = rows.filter((r) => truthy(ev.item(spec.filter, r.item, r.i)));
     if (spec.sort) {
@@ -741,7 +776,9 @@
     }
     return rows.map((r, pos) => {
       let key;
-      if (spec.key) key = renderValue(ev.item(spec.key, r.item, pos));
+      const label = keyInfo && isPlainObject(r.item) ? keyLabel(r.item[keyInfo.field], keyInfo) : null;
+      if (label !== null) key = label;
+      else if (spec.key) key = renderValue(ev.item(spec.key, r.item, pos));
       else if (isPlainObject(r.item) && r.item.id !== undefined && r.item.id !== null) key = renderValue(fromJson(r.item.id, locText));
       else key = String(pos);
       return { item: r.item, key };
@@ -906,7 +943,7 @@
     parseExpr, parseTemplate, evalExpr, renderTemplate, renderValue, truthy, fmtFixed, fmtFloat, groupInt,
     parseJson, fromJson, isPlainObject,
     splitTop, parseSingleExpr, parseForHead, parseClassToggle, parseL10nArgs, parseBindings,
-    planFor, escKey, parseToml, locRender, codePointCompare,
+    planFor, keyLabel, escKey, parseToml, locRender, codePointCompare,
   };
 
   // ------------------------------------------------------------------------------------------------
@@ -1029,6 +1066,21 @@
       warn(message) { report(PV.WARN, "warn", currentEl, null, message); },
     };
 
+    // The list keys of the model schema (the converter's server puts them in front of this script).
+    const listKeys = typeof window !== "undefined" && window.__ui2keys ? window.__ui2keys : null;
+
+    /** The schema path of a list expression (`top.resources`, `production.options[].requires`), or null. */
+    function modelPathOf(expr, scope) {
+      if (!expr || expr.t !== "path") return null;
+      const segs = expr.segs;
+      const head = segs[0];
+      for (let s = scope; s; s = s.parent) {
+        if (s.item_name === head) return s.item_path ? s.item_path + "[]" + segs.slice(1).map((x) => "." + x).join("") : null;
+        if (s.index_name === head) return null;
+      }
+      return head === "state" || head === "modstate" ? null : segs.join(".");
+    }
+
     function walk(x, segs, from) {
       for (let i = from; i < segs.length; i++) {
         if (!isPlainObject(x) || !Object.prototype.hasOwnProperty.call(x, segs[i])) return null;
@@ -1116,12 +1168,14 @@
       let items = [];
       if (list instanceof Lst && list.items) items = list.items;
       else if (list !== null && !(list instanceof Lst)) report(E.NOT_LIST, "error", el, "data-bind-for", "the list expression is not a list");
-      const cur = { parent: scope, item_name: spec.item, index_name: spec.index, item: null, index: 0 };
+      const listPath = modelPathOf(spec.list, scope);
+      const keyInfo = listPath !== null && listKeys ? listKeys[listPath] || null : null;
+      const cur = { parent: scope, item_name: spec.item, index_name: spec.index, item: null, index: 0, item_path: listPath };
       const withItem = (item, i) => { cur.item = item; cur.index = i; return cur; };
       let plan = planFor(items, spec, {
         item: (expr, item, i) => { currentEl = el; return ev(expr, withItem(item, i)); },
         outer: (expr) => ev(expr, scope),
-      }, locText);
+      }, locText, keyInfo);
       if (extract()) {
         // SIMPLIFIED(SIMP-215): one instance per `for` in extract mode: the first item of the sample, or an empty record when the list has none
         plan = plan.length ? plan.slice(0, 1) : [{ item: {}, key: "0" }];
@@ -1131,7 +1185,7 @@
         if (seen.has(row.key)) report(PV.KEY_DUPLICATE, "error", el, "data-bind-key", "two items have the key " + JSON.stringify(row.key));
         seen.add(row.key);
         const path = (inst ? inst + "/" : "") + escKey(row.key);
-        const s = { parent: scope, item_name: spec.item, index_name: spec.index, item: row.item, index: pos };
+        const s = { parent: scope, item_name: spec.item, index_name: spec.index, item: row.item, index: pos, item_path: listPath };
         instantiate(el, p, out, s, path);
       });
     }
