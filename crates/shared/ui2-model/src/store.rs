@@ -256,6 +256,17 @@ impl ModelStore {
         self.mounts.iter().find(|m| m.ns == *ns).map(|m| m.schema)
     }
 
+    /// The store-wide ids of a mounted fragment: its root (as in `Reset`) and its first path slot (the root
+    /// itself; the fragment's own field `i` is store-wide `i` plus this). For consumers that decode deltas
+    /// without the store, such as a script worker.
+    #[must_use]
+    pub fn mount_ids(&self, ns: &Namespace) -> Option<(RootId, FieldId)> {
+        self.mounts
+            .iter()
+            .find(|m| m.ns == *ns)
+            .map(|m| (m.root, FieldId(m.field_base)))
+    }
+
     /// The value of a mounted fragment's root, including the writes of the current frame (unlike
     /// [`value`](Self::value), which shows the last frame): for carrying the state of a skin or mod over a
     /// remount. Its shape is that of [`mount_schema`](Self::mount_schema).
