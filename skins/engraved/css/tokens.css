@@ -1,0 +1,50 @@
+/* Engraved: colour tokens, the required --ui-* synonyms and the non-colour constants.
+   A theme replaces only the root colour tokens; everything else refers to them. */
+:root {
+  --lacquer-0: #141210;
+  --lacquer: #1b1815;
+  --lacquer-2: #26221d;
+  --lacquer-3: #302a24;
+  --engrave: #4d4032;
+  --engrave-hi: #6a5845;
+  --bone: #ebe2d2;
+  --bone-2: #b2a794;
+  --bone-3: #8a8072;
+  --brass: #c9a36a;
+  --brass-ink: #1b1815;
+  --civ-red: #6e1c18;
+  --civ-yellow: #e4c04e;
+
+  --y-food: #86b061;
+  --y-prod: #c78a52;
+  --y-gold: #dcc057;
+  --y-sci: #78a6d6;
+  --y-cult: #a98ccc;
+  --y-faith: #cfcbc1;
+  --y-happy: #b9c662;
+  --y-tour: #cc86b4;
+  --neg: #cf6f5c;
+
+  /* Synonyms for mods (the same names in every skin). */
+  --ui-surface: var(--lacquer);
+  --ui-surface-2: var(--lacquer-2);
+  --ui-line: var(--engrave);
+  --ui-text: var(--bone);
+  --ui-text-2: var(--bone-2);
+  --ui-text-3: var(--bone-3);
+  --ui-accent: var(--brass);
+  --ui-accent-ink: var(--brass-ink);
+  --ui-negative: var(--neg);
+  --ui-y-food: var(--y-food);
+  --ui-y-prod: var(--y-prod);
+  --ui-y-gold: var(--y-gold);
+  --ui-y-sci: var(--y-sci);
+  --ui-y-cult: var(--y-cult);
+  --ui-y-faith: var(--y-faith);
+  --ui-y-happy: var(--y-happy);
+  --ui-y-tour: var(--y-tour);
+
+  --sans: "Fira Sans", system-ui, sans-serif;
+  --serif: "Alegreya", Georgia, serif;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}

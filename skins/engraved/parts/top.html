@@ -1,0 +1,70 @@
+<header class="top" data-part="top">
+  <div class="grp research" data-part="top.research">
+    <div class="ring"><svg class="i"><use href="#i-sci"/></svg></div>
+    <div class="body">
+      <div class="line">
+        <span><span class="name" data-bind-value="{{research.current.name}}">Education</span>&nbsp;&nbsp;<span class="turns" data-l10n="top.turns" data-l10n-args="{{research.current.turns}}">3 turns</span></span>
+        <span class="next" data-bind-if="{{research.next != null}}" data-l10n="top.next" data-l10n-args="{{research.next.name}}">Astronomy next</span>
+      </div>
+      <div class="scale" data-part="top.research.scale">
+        <div class="fill" data-bind-style-width="{{research.current.fraction * 100}}%" style="width: 62%"></div>
+        <div class="ticks" data-bind-style-background-size="{{100 * (1 - research.current.fraction) / research.current.turns}}% 100%" style="background-size: 12.6667% 100%"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grp menus sep" data-part="top.menu" data-slot="hud.menu">
+    <button class="mbtn" data-part="top.menu.tech" data-hotkey="F6" data-on-click="intent screen.open(screen: 'tech_tree')"><svg class="i"><use href="#i-tech"/></svg></button>
+    <button class="mbtn" data-part="top.menu.policies" data-hotkey="F5" data-on-click="intent screen.open(screen: 'policies')"><svg class="i"><use href="#i-policy"/></svg></button>
+    <button class="mbtn" data-part="top.menu.religion" data-on-click="intent screen.open(screen: 'religion')"><svg class="i"><use href="#i-religion"/></svg></button>
+    <button class="mbtn" data-part="top.menu.diplomacy" data-on-click="intent screen.open(screen: 'diplomacy')"><svg class="i"><use href="#i-diplo"/></svg></button>
+    <button class="mbtn" data-part="top.menu.economy" data-on-click="intent screen.open(screen: 'overview')"><svg class="i"><use href="#i-econ"/></svg></button>
+    <button class="mbtn" data-part="top.menu.military" data-on-click="intent screen.open(screen: 'overview')"><svg class="i"><use href="#i-military"/></svg></button>
+    <button class="mbtn" data-part="top.menu.victory" data-on-click="intent screen.open(screen: 'overview')"><svg class="i"><use href="#i-victory"/></svg></button>
+    <button class="mbtn" data-part="top.menu.demographics" data-on-click="intent screen.open(screen: 'overview')"><svg class="i"><use href="#i-demo"/></svg></button>
+  </div>
+
+  <div class="spacer" data-part="top.extra" data-slot="hud.top.extra"></div>
+
+  <div class="grp yields" data-part="top.yields">
+    <div class="yield" data-part="top.yield.science">
+      <svg class="i c-sci"><use href="#i-sci"/></svg>
+      <span class="v" data-bind-value="{{fmt.signed(top.science_rate)}}">+48</span>
+    </div>
+    <div class="yield" data-part="top.yield.gold">
+      <svg class="i c-gold"><use href="#i-gold"/></svg>
+      <span class="v" data-bind-value="{{top.gold}}">312</span>
+      <span class="d" data-bind-class-toggle="neg:{{top.gold_rate < 0}}" data-bind-value="{{fmt.signed(top.gold_rate)}}">+21</span>
+    </div>
+    <div class="yield" data-part="top.yield.happiness">
+      <svg class="i c-happy"><use href="#i-happy"/></svg>
+      <span class="v" data-bind-value="{{top.happiness}}">7</span>
+      <span class="d muted" data-bind-value="{{top.golden_age.progress}}/{{top.golden_age.threshold}}">412/650</span>
+    </div>
+    <div class="yield" data-part="top.yield.culture">
+      <svg class="i c-cult"><use href="#i-cult"/></svg>
+      <span class="v" data-bind-value="{{fmt.signed(top.culture_rate)}}">+31</span>
+      <span class="d muted" data-bind-if="{{top.policy_turns != null}}" data-l10n="top.turns" data-l10n-args="{{top.policy_turns}}">6 turns</span>
+    </div>
+    <div class="yield" data-part="top.yield.faith">
+      <svg class="i c-faith"><use href="#i-faith"/></svg>
+      <span class="v" data-bind-value="{{top.faith}}">140</span>
+      <span class="d" data-bind-class-toggle="neg:{{top.faith_rate < 0}}" data-bind-value="{{fmt.signed(top.faith_rate)}}">+9</span>
+    </div>
+    <div class="yield" data-part="top.yield.tourism" data-bind-if="{{top.tourism != null}}">
+      <svg class="i c-tour"><use href="#i-tour"/></svg>
+      <span class="v" data-bind-value="{{top.tourism}}">4</span>
+    </div>
+  </div>
+
+  <div class="grp res sep" data-part="top.resources">
+    <div class="yield sec" data-bind-for="r:{{top.resources}}" data-bind-class-toggle="off:{{r.available <= 0}}">
+      <img class="rico" data-bind-src="{{r.icon}}">
+      <span class="v" data-bind-value="{{r.available}}">2</span>
+    </div>
+  </div>
+
+  <div class="grp menus menu-end sep" data-part="top.main-menu">
+    <button class="mbtn" data-part="top.main-menu.button" data-on-click="intent window.open(window: 'menu')"><svg class="i"><use href="#i-menu"/></svg></button>
+  </div>
+</header>

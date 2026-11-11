@@ -1,0 +1,28 @@
+# Engraved: the first skin. Source of the package; see docs for the layout.
+
+[skin]
+id = "engraved"
+version = "0.1.0"
+title = "skin.title"
+entry = "index.html"
+model = "1.0"
+api = "1.0"
+default = true
+
+[fonts]
+subset = ["latin", "latin-ext", "cyrillic"]
+sans = "Fira Sans"
+display = "Alegreya"
+
+# The name a stylesheet uses for a font file, and the file it stands for.
+[fonts.files]
+"fonts/FiraSans-Regular.ttf" = "third_party/fonts/fira-sans/FiraSans-Regular.ttf"
+"fonts/FiraSans-Medium.ttf" = "third_party/fonts/fira-sans/FiraSans-Medium.ttf"
+"fonts/Alegreya.ttf" = "third_party/fonts/alegreya/Alegreya[wght].ttf"
+
+# Skin state (state.*): none yet; the top strip is bound to the model only.
+[state]
+
+[verify]
+states = ["hud"]
+golden = [{ state = "hud", viewport = [1920, 1080], scale = 1.0 }]

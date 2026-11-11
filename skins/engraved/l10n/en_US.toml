@@ -1,0 +1,11 @@
+# Engraved: the texts of the skin. Arguments are written {1}, {2}, ... as in the game's own text engine.
+
+"skin.title" = "Engraved"
+
+# Top strip.
+"top.turns" = "{1_Num} {1_Num: plural 1?turn; other?turns;}"
+"top.next" = "{1} next"
+
+# Year line of the turn dial (the model gives the key and the year).
+"year.ad" = "{1} AD"
+"year.bc" = "{1} BC"

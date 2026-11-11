@@ -1,0 +1,205 @@
+/* Engraved: the top strip. */
+
+.top {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 48px;
+  display: flex;
+  align-items: stretch;
+  background-color: var(--lacquer);
+  box-shadow: inset 0 -1px 0 var(--engrave);
+  pointer-events: auto;
+}
+
+.top .grp {
+  display: flex;
+  align-items: center;
+}
+
+/* A hairline on the left edge of a group that has a neighbour on its left. */
+.top .sep {
+  box-shadow: inset 1px 0 0 var(--engrave);
+}
+
+.top .spacer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ---------- research ---------- */
+.research {
+  width: 368px;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.research .ring {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background-color: var(--lacquer-0);
+  box-shadow: inset 0 0 0 1px var(--engrave);
+  color: var(--y-sci);
+}
+
+.research .body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.research .line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  height: 18px;
+  line-height: 18px;
+}
+
+.research .name {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.research .turns {
+  font-size: 13px;
+  color: var(--bone-2);
+}
+
+.research .next {
+  font-size: 12px;
+  color: var(--bone-3);
+}
+
+/* The engraved scale: the fill is the progress, the ticks are turns (one tick per turn of the whole
+   research). The tick width is bound: it depends on the turns left and the fraction done. */
+.scale {
+  position: relative;
+  height: 4px;
+  background-color: var(--lacquer-3);
+}
+
+.scale .fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background-color: var(--y-sci);
+}
+
+.scale .ticks {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-image: linear-gradient(to right, transparent calc(100% - 1px), var(--lacquer) calc(100% - 1px));
+  background-repeat: repeat-x;
+}
+
+/* ---------- menu buttons ---------- */
+.menus {
+  gap: 4px;
+  padding: 0 12px;
+}
+
+.menus.menu-end {
+  padding: 0 6px;
+}
+
+.mbtn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bone-3);
+  border-radius: 6px;
+  transition: background-color 150ms var(--ease), color 150ms var(--ease);
+}
+
+.mbtn:hover {
+  background-color: var(--lacquer-2);
+  color: var(--bone);
+}
+
+.mbtn:focus-visible {
+  outline: 1px solid var(--brass);
+  outline-offset: -2px;
+}
+
+.mbtn svg.i {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---------- yields and resources ---------- */
+.yields {
+  gap: 28px;
+  padding: 0 20px;
+}
+
+.yield {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+/* The icon of a yield sits in the first line box of a 20px line, a little above the centre. */
+.yields .yield > svg.i {
+  margin-bottom: 5.3px;
+}
+
+.yield .v {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--bone);
+}
+
+.yield .d {
+  font-size: 13px;
+  color: var(--bone-2);
+}
+
+.yield .d.muted {
+  color: var(--bone-3);
+}
+
+.yield .d.neg {
+  color: var(--neg);
+}
+
+.res {
+  gap: 20px;
+  padding: 0 20px;
+}
+
+.res .yield .v {
+  font-size: 14px;
+}
+
+.res .rico {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.res .off {
+  color: var(--bone-3);
+}
+
+.res .off .v {
+  color: var(--bone-3);
+  font-weight: 400;
+}

@@ -1,0 +1,5 @@
+/* Only for opening the skin in a browser: a flat dark page stands in for the world. Not part of the package. */
+html,
+body {
+  background-color: #0f0e0c;
+}
