@@ -633,6 +633,10 @@ pub struct M2Ui {
     /// The last slow frame the first-frame line has seen.
     slow_seq: u64,
     frame_t0: f64,
+    /// TEMP(T51): what the replica's pump did in the last frame, and the game's localizer, for UI v2 to read until
+    /// the game session owns the replica.
+    v2_steps: Vec<ReplicaStep>,
+    v2_loc: Option<Rc<loc::Localizer>>,
 }
 
 impl M2Ui {
@@ -730,7 +734,24 @@ impl M2Ui {
             lua_error_seq: 0,
             slow_seq: 0,
             frame_t0: 0.0,
+            v2_steps: Vec::new(),
+            v2_loc: None,
         }
+    }
+
+    /// TEMP(T51): the replica, for UI v2 to read after this layer's frame (the game session will own it).
+    pub fn v2_replica(&self) -> Option<Rc<RefCell<Replica>>> {
+        self.replica.clone()
+    }
+
+    /// TEMP(T51): what the replica's pump did in the last frame, taken once.
+    pub fn v2_take_steps(&mut self) -> Vec<ReplicaStep> {
+        std::mem::take(&mut self.v2_steps)
+    }
+
+    /// TEMP(T51): the game's localizer, once the layer loaded it.
+    pub fn v2_localizer(&self) -> Option<Rc<loc::Localizer>> {
+        self.v2_loc.clone()
     }
 
     pub fn phase(&self) -> M2Phase {
@@ -1325,6 +1346,7 @@ impl M2Ui {
     /// Applies what is due; `true` when the replica is `Live`.
     fn pump_replica(&mut self, _now_ms: u64) -> bool {
         let _slow = render::perf::slow::scope("m2.pump_replica");
+        self.v2_steps.clear();
         let Some(rep) = self.replica.clone() else {
             return false;
         };
@@ -1334,6 +1356,7 @@ impl M2Ui {
         // A turn change is one step of seconds on a big game: the pump does at most one stage per frame.
         for _ in 0..16 {
             let step = r.pump(PUMP_BUDGET_MS);
+            self.v2_steps.push(step);
             if matches!(
                 step,
                 ReplicaStep::Loaded { .. } | ReplicaStep::TurnSwitched { .. }
@@ -1363,6 +1386,7 @@ impl M2Ui {
                 None
             }
         };
+        self.v2_loc.clone_from(&localizer);
         let cfg = ExeConfig {
             localizer: localizer.clone(),
             ..ExeConfig::default()

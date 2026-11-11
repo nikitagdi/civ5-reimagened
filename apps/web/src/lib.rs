@@ -232,6 +232,10 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
             .map(|(base_url, capture)| client_app::GoldenConfig { base_url, capture }),
     };
     client_app::set_m2_debug_lua(page::query_param("luadbg").filter(|c| !c.trim().is_empty()));
+    // `&ui=v2` or `&ui=v2:<skin>`: a UI v2 skin (`ui2/skins.json` and its package, fetched relative to the page) over
+    // the original UI, which keeps running but neither draws nor gets input. A skin that cannot load leaves the
+    // original UI as it is. Any other `&ui=` fetches nothing.
+    client_app::set_ui2_param(page::query_param("ui").as_deref());
     // `?trace=off|coarse|fine`: the turn timeline (remembered for the next visits).
     client_app::set_trace(
         page::remembered_param("trace", "civ5.trace").as_deref(),

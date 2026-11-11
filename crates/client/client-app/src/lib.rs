@@ -19,6 +19,13 @@ mod input;
 mod lobby_art;
 pub mod m2;
 pub mod timeline;
+/// The UI frontends: for now only the temporary UI v2 wiring over the classic layer.
+mod ui_host {
+    pub mod v2;
+}
+
+/// The page's `?ui=` value (web, before `run`): `v2` or `v2:<skin>` loads a UI v2 skin over the classic layer.
+pub use ui_host::v2::set_ui_param as set_ui2_param;
 
 thread_local! {
     static TRACE: std::cell::Cell<(timeline::Level, f64)> =
