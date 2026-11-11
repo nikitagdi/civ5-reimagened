@@ -15,12 +15,13 @@ pub mod sections;
 #[cfg(feature = "write")]
 mod write;
 
-pub use container::{FORMAT_MAJOR, FORMAT_MINOR, PackageHash, Tag};
+pub use container::{FORMAT_MAJOR, FORMAT_MINOR, PackageHash, SectionTag};
 pub use error::PackageError;
 pub use ids::{
     ARefId, ExprId, ImgId, NodeRef, StrId, StyleId, StyleSetId, TemplateId, TokenId, TplId,
 };
 pub use package::Package;
+pub use profile::{PropId, Tag};
 pub use sections::manifest::{FaceFamily, FontRoles, Kind, Manifest, Tool};
 #[cfg(feature = "write")]
 pub use write::PackageBuilder;

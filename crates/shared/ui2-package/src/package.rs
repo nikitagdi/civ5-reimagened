@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::container::{self, FLAG_REQUIRED, Layout, PackageHash, Tag};
+use crate::container::{self, FLAG_REQUIRED, Layout, PackageHash, SectionTag};
 use crate::error::PackageError;
 use crate::ids::StrId;
 use crate::sections::manifest::Manifest;
@@ -10,10 +10,10 @@ use crate::sections::strings::StringTable;
 
 /// Sections this reader understands. A section outside the list is skipped when the writer did
 /// not mark it "reader must understand", and refused otherwise.
-pub(crate) const KNOWN: &[Tag] = &[Tag::MANI, Tag::STRS];
+pub(crate) const KNOWN: &[SectionTag] = &[SectionTag::MANI, SectionTag::STRS];
 
 /// Sections every package carries.
-pub(crate) const PRESENT: &[Tag] = &[Tag::MANI, Tag::STRS];
+pub(crate) const PRESENT: &[SectionTag] = &[SectionTag::MANI, SectionTag::STRS];
 
 /// A package that passed the structural checks of `Package::read`.
 #[derive(Debug, Clone)]
@@ -47,10 +47,10 @@ impl Package {
                 .payload(&bytes, tag)
                 .ok_or(PackageError::Corrupt { at: Some(tag) })
         };
-        let manifest: Manifest = container::decode(Tag::MANI, payload(Tag::MANI)?)?;
-        manifest.validate(Tag::MANI)?;
-        let strings: StringTable = container::decode(Tag::STRS, payload(Tag::STRS)?)?;
-        strings.validate(Tag::STRS)?;
+        let manifest: Manifest = container::decode(SectionTag::MANI, payload(SectionTag::MANI)?)?;
+        manifest.validate(SectionTag::MANI)?;
+        let strings: StringTable = container::decode(SectionTag::STRS, payload(SectionTag::STRS)?)?;
+        strings.validate(SectionTag::STRS)?;
         Ok(Package {
             bytes,
             layout,

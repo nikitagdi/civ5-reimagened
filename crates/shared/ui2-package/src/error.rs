@@ -1,6 +1,6 @@
 //! The error type of reading and writing packages.
 
-use crate::container::Tag;
+use crate::container::SectionTag;
 
 /// Why a package could not be read, validated or written.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -16,13 +16,13 @@ pub enum PackageError {
     #[error("corrupt package{}", fmt_at(.at))]
     Corrupt {
         /// The section the damage was found in, `None` for the file as a whole.
-        at: Option<Tag>,
+        at: Option<SectionTag>,
     },
     /// The bytes decode, but a value is out of range or inconsistent.
     #[error("invalid section {at}: {what}")]
     Invalid {
         /// The section holding the bad value.
-        at: Tag,
+        at: SectionTag,
         /// What is wrong, for a log line.
         what: String,
     },
@@ -31,7 +31,7 @@ pub enum PackageError {
     Build(String),
 }
 
-fn fmt_at(at: &Option<Tag>) -> String {
+fn fmt_at(at: &Option<SectionTag>) -> String {
     match at {
         Some(tag) => format!(" (section {tag})"),
         None => String::new(),
@@ -39,7 +39,7 @@ fn fmt_at(at: &Option<Tag>) -> String {
 }
 
 impl PackageError {
-    pub(crate) fn invalid(at: Tag, what: impl Into<String>) -> Self {
+    pub(crate) fn invalid(at: SectionTag, what: impl Into<String>) -> Self {
         Self::Invalid {
             at,
             what: what.into(),

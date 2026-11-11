@@ -35,16 +35,16 @@ const ALIGN: usize = 8;
 
 /// A four-byte section tag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Tag(pub [u8; 4]);
+pub struct SectionTag(pub [u8; 4]);
 
-impl Tag {
+impl SectionTag {
     /// The manifest.
-    pub const MANI: Tag = Tag(*b"MANI");
+    pub const MANI: SectionTag = SectionTag(*b"MANI");
     /// The string table.
-    pub const STRS: Tag = Tag(*b"STRS");
+    pub const STRS: SectionTag = SectionTag(*b"STRS");
 }
 
-impl fmt::Display for Tag {
+impl fmt::Display for SectionTag {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for &b in &self.0 {
             let c = if b.is_ascii_graphic() { b as char } else { '?' };
@@ -58,7 +58,7 @@ impl fmt::Display for Tag {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SectionEntry {
     /// Which section.
-    pub tag: Tag,
+    pub tag: SectionTag,
     /// `FLAG_REQUIRED` or zero.
     pub flags: u32,
     /// Start of the payload from the start of the file.
@@ -93,7 +93,7 @@ pub(crate) struct Layout {
 
 impl Layout {
     /// The payload of `tag`, if the package has it.
-    pub fn payload<'a>(&self, bytes: &'a [u8], tag: Tag) -> Option<&'a [u8]> {
+    pub fn payload<'a>(&self, bytes: &'a [u8], tag: SectionTag) -> Option<&'a [u8]> {
         let e = self.entries.iter().find(|e| e.tag == tag)?;
         let start = e.offset as usize;
         bytes.get(start..start + e.len as usize)
@@ -142,7 +142,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Layout, PackageError> {
     let mut cursor = table_end;
     for i in 0..count {
         let at = HEADER_LEN + ENTRY_LEN * i;
-        let tag = Tag([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]]);
+        let tag = SectionTag([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]]);
         let entry = SectionEntry {
             tag,
             flags: u32_at(bytes, at + 4),
@@ -177,7 +177,10 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Layout, PackageError> {
 }
 
 /// Decodes a structural section: postcard, with no bytes left over.
-pub(crate) fn decode<T: DeserializeOwned>(tag: Tag, payload: &[u8]) -> Result<T, PackageError> {
+pub(crate) fn decode<T: DeserializeOwned>(
+    tag: SectionTag,
+    payload: &[u8],
+) -> Result<T, PackageError> {
     match postcard::take_from_bytes::<T>(payload) {
         Ok((value, [])) => Ok(value),
         _ => Err(PackageError::Corrupt { at: Some(tag) }),
@@ -187,7 +190,7 @@ pub(crate) fn decode<T: DeserializeOwned>(tag: Tag, payload: &[u8]) -> Result<T,
 /// One section ready to be laid out.
 #[cfg(feature = "write")]
 pub(crate) struct OutSection {
-    pub tag: Tag,
+    pub tag: SectionTag,
     pub required: bool,
     pub payload: Vec<u8>,
 }
@@ -242,7 +245,7 @@ mod tests {
 
     fn sec(tag: &[u8; 4], required: bool, payload: &[u8]) -> OutSection {
         OutSection {
-            tag: Tag(*tag),
+            tag: SectionTag(*tag),
             required,
             payload: payload.to_vec(),
         }
@@ -257,11 +260,14 @@ mod tests {
         .expect("assemble");
         let layout = parse(&bytes).expect("parse");
         assert_eq!(layout.entries.len(), 2);
-        assert_eq!(layout.entries[0].tag, Tag(*b"AAAA"));
+        assert_eq!(layout.entries[0].tag, SectionTag(*b"AAAA"));
         assert_eq!(layout.entries[0].offset, 48);
         assert_eq!(layout.entries[1].offset, 56);
         assert_eq!(layout.entries[1].flags, FLAG_REQUIRED);
-        assert_eq!(layout.payload(&bytes, Tag(*b"ZZZZ")), Some(&[7u8; 5][..]));
+        assert_eq!(
+            layout.payload(&bytes, SectionTag(*b"ZZZZ")),
+            Some(&[7u8; 5][..])
+        );
         assert_eq!(bytes.len() % 8, 0);
     }
 

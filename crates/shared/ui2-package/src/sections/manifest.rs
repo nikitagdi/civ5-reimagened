@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::container::Tag;
+use crate::container::SectionTag;
 use crate::error::PackageError;
 
 /// What the package is.
@@ -79,7 +79,7 @@ pub struct Manifest {
 
 impl Manifest {
     /// Checks what can be checked without the other sections.
-    pub(crate) fn validate(&self, at: Tag) -> Result<(), PackageError> {
+    pub(crate) fn validate(&self, at: SectionTag) -> Result<(), PackageError> {
         if !valid_id(&self.id) {
             return Err(PackageError::invalid(
                 at,

@@ -4,7 +4,7 @@
 //! tag, and no collection with an unspecified order takes part. Adding the same strings in another
 //! order gives the same bytes.
 
-use crate::container::{OutSection, Tag, assemble};
+use crate::container::{OutSection, SectionTag, assemble};
 use crate::error::PackageError;
 use crate::ids::StrId;
 use crate::sections::manifest::Manifest;
@@ -31,17 +31,17 @@ impl PackageBuilder {
 
     /// Writes the package. The manifest is checked first (id grammar, themes and languages).
     pub fn finish(self, manifest: Manifest) -> Result<Vec<u8>, PackageError> {
-        manifest.validate(Tag::MANI)?;
+        manifest.validate(SectionTag::MANI)?;
         let (strings, _remap) = self.pool.finish();
         let encode = |e: postcard::Error| PackageError::build(format!("encoding failed: {e}"));
         let sections = vec![
             OutSection {
-                tag: Tag::MANI,
+                tag: SectionTag::MANI,
                 required: true,
                 payload: postcard::to_allocvec(&manifest).map_err(encode)?,
             },
             OutSection {
-                tag: Tag::STRS,
+                tag: SectionTag::STRS,
                 required: true,
                 payload: postcard::to_allocvec(&strings).map_err(encode)?,
             },

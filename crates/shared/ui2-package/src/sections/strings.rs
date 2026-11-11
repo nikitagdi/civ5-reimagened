@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::container::Tag;
+use crate::container::SectionTag;
 use crate::error::PackageError;
 
 /// The section: identifiers, classes, keys and paths.
@@ -13,7 +13,7 @@ pub struct StringTable {
 }
 
 impl StringTable {
-    pub(crate) fn validate(&self, at: Tag) -> Result<(), PackageError> {
+    pub(crate) fn validate(&self, at: SectionTag) -> Result<(), PackageError> {
         if self.items.windows(2).any(|w| w[0] >= w[1]) {
             return Err(PackageError::invalid(
                 at,
