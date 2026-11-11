@@ -899,9 +899,10 @@ fn a_city_queue_push_the_server_refuses_comes_back_with_its_code_and_reason() {
     );
     assert_eq!(
         rollbacks(&n),
-        [(id, "Invalid order".to_string())],
-        "the journal line is the code's; the server's reason travels in the answer above"
+        [(id, reason.to_string())],
+        "the rollback text is the server's reason"
     );
+    assert_eq!(n.core.journal().last().unwrap().text, reason);
     assert_eq!(n.core.orders_in_flight(), 0);
     assert!(n.srv.book.applied.is_empty());
     assert_eq!(n.core.stats().orders_rejected, 1);
@@ -1034,4 +1035,21 @@ fn every_city_queue_order_that_takes_back_our_end_of_turn_says_by_order() {
         assert_eq!(end_turn_cancellations(&n), [true], "{cmd:?}");
         assert_eq!(n.core.stats().end_turn_cancelled_by_order, 1, "{cmd:?}");
     }
+}
+
+#[test]
+fn an_invalid_refusal_without_a_reason_gets_the_generic_text() {
+    let (mut n, _token) = in_game();
+    n.srv.book.forced.insert(
+        5,
+        CommandOutcome::Rejected {
+            code: RejectCode::Invalid,
+            reason: String::new(),
+        },
+    );
+    let turn = n.core.shown().unwrap().turn;
+    let id = n.core.order_at(queue_push(false), Some(turn)).unwrap();
+    n.settle();
+    assert_eq!(rollbacks(&n), [(id, "Invalid order".to_string())]);
+    assert_eq!(n.core.journal().last().unwrap().text, "Invalid order");
 }

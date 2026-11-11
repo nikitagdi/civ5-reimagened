@@ -216,7 +216,8 @@ pub(crate) fn rollback_text(outcome: &CommandOutcome) -> Option<String> {
                 "The game server is restarting, repeat the order".to_string()
             }
             RejectCode::TooMany => "Too many orders are waiting".to_string(),
-            RejectCode::Invalid => "Invalid order".to_string(),
+            RejectCode::Invalid if reason.trim().is_empty() => "Invalid order".to_string(),
+            RejectCode::Invalid => reason.clone(),
             RejectCode::NotSeated => "You no longer play this civilization".to_string(),
             RejectCode::Expired => {
                 "The result of the order is unknown after reconnecting; the view is up to date"
