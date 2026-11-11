@@ -187,11 +187,6 @@ const PROBE_KNOWN: &[(&str, &str)] = &[
         "a face without USE_TYPO_METRICS: the runtime takes hhea, Chromium on Windows the OS/2 win metrics",
     ),
     ("hhea-48", "as hhea"),
-    (
-        "flex-text",
-        "text directly in a flex container is not aligned by align-items in the runtime",
-    ),
-    ("flex-text-tall", "as flex-text"),
 ];
 
 /// The probe fonts (`make_fonts.py`) under the target folder, which `skin.toml` names relative to the
