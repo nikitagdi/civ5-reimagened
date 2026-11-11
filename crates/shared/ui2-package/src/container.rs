@@ -48,6 +48,14 @@ impl SectionTag {
     pub const STYL: SectionTag = SectionTag(*b"STYL");
     /// Color tokens and themes.
     pub const TOKN: SectionTag = SectionTag(*b"TOKN");
+    /// Font faces.
+    pub const FONT: SectionTag = SectionTag(*b"FONT");
+    /// Picture pages and sprites.
+    pub const IMGS: SectionTag = SectionTag(*b"IMGS");
+    /// Classic scripts.
+    pub const SCRP: SectionTag = SectionTag(*b"SCRP");
+    /// Game asset references.
+    pub const AREF: SectionTag = SectionTag(*b"AREF");
 }
 
 impl fmt::Display for SectionTag {
@@ -98,6 +106,13 @@ pub(crate) struct Layout {
 }
 
 impl Layout {
+    /// The payload of `tag` and its offset in the file, if the package has it.
+    pub fn payload_at<'a>(&self, bytes: &'a [u8], tag: SectionTag) -> Option<(&'a [u8], usize)> {
+        let e = self.entries.iter().find(|e| e.tag == tag)?;
+        let start = e.offset as usize;
+        Some((bytes.get(start..start + e.len as usize)?, start))
+    }
+
     /// The payload of `tag`, if the package has it.
     pub fn payload<'a>(&self, bytes: &'a [u8], tag: SectionTag) -> Option<&'a [u8]> {
         let e = self.entries.iter().find(|e| e.tag == tag)?;

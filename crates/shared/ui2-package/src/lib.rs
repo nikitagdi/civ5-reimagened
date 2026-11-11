@@ -26,6 +26,10 @@ pub use ids::{
 };
 pub use package::Package;
 pub use profile::{PropId, Tag};
+pub use sections::blobs::{
+    ARefs, BlobRef, BlobSection, Face, FontRole, Fonts, Images, Img, Page, PageFormat, Scripts,
+    Sprite,
+};
 pub use sections::manifest::{FaceFamily, FontRoles, Kind, Manifest, Tool};
 pub use sections::styles::{Bound, Cond, CondKind, MAX_CELLS, MAX_CONDS, StyleSet, Styles};
 pub use sections::templates::{

@@ -5,9 +5,10 @@ use std::sync::Arc;
 
 use ui2_package::style::{ColorV, Len, LenAuto, PropSel, Transition};
 use ui2_package::{
-    Bound, Cond, CondKind, FaceFamily, FontRoles, Kind, Layer, Manifest, Node, NodeKind, Package,
-    PackageBuilder, PackageError, PropId, StrId, StyleId, StyleRecord, StyleSet, StyleSetId, Tag,
-    Template, TemplateId, TextSrc, Theme, Tokens, Tool, node_flags, style,
+    BlobRef, BlobSection, Bound, Cond, CondKind, Face, FaceFamily, FontRoles, ImageSrc, Images,
+    Img, Kind, Layer, Manifest, Node, NodeKind, Package, PackageBuilder, PackageError, Page,
+    PageFormat, PropId, Sprite, StrId, StyleId, StyleRecord, StyleSet, StyleSetId, Tag, Template,
+    TemplateId, TextSrc, Theme, Tokens, Tool, node_flags, style,
 };
 
 fn manifest() -> Manifest {
@@ -642,4 +643,399 @@ fn css_values_round_trip_through_a_package() {
     assert_eq!(back.width, LenAuto::Len(Len::pct(50.0)));
     let families: Vec<_> = back.font_family.iter().map(|f| pkg.str(*f)).collect();
     assert_eq!(families, [Some("Alegreya Sans"), Some("serif")]);
+}
+
+// ---------------------------------------------------------------------------------------------
+// FONT, IMGS, SCRP, AREF
+
+fn pseudo_bytes(seed: u32, n: usize) -> Vec<u8> {
+    let mut x = seed;
+    (0..n)
+        .map(|i| {
+            x = x.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            if i % 7 < 4 {
+                (x >> 24) as u8
+            } else {
+                (i / 64) as u8
+            }
+        })
+        .collect()
+}
+
+fn compress(raw: &[u8]) -> Vec<u8> {
+    zstd::bulk::compress(raw, 19).expect("zstd")
+}
+
+fn face(b: &mut PackageBuilder, family: &str, weight: u16, raw: &[u8]) {
+    let family = b.str(family);
+    let face = Face {
+        family,
+        weight,
+        italic: false,
+        role: None,
+        ranges: vec![(0x20, 0x7e), (0x400, 0x4ff)],
+        blob: BlobRef::unplaced(BlobSection::Font, true),
+        blake3: *blake3::hash(raw).as_bytes(),
+    };
+    b.font(face, &compress(raw), raw.len() as u32);
+}
+
+fn page(format: PageFormat, scale: u8, size: [u16; 2], seed: u32) -> (Page, Vec<u8>) {
+    let raw = pseudo_bytes(
+        seed,
+        usize::from(size[0]) * usize::from(size[1]) * format.bytes_per_pixel() as usize,
+    );
+    let page = Page {
+        format,
+        scale,
+        size,
+        blob: BlobRef::unplaced(BlobSection::Imgs, true),
+        blake3: *blake3::hash(&raw).as_bytes(),
+    };
+    (page, raw)
+}
+
+fn add_page(b: &mut PackageBuilder, page: &Page, raw: &[u8]) -> u16 {
+    b.image_page(page.clone(), &compress(raw), raw.len() as u32)
+}
+
+fn rehash(bytes: &mut [u8]) {
+    let n = bytes.len() - 32;
+    let hash = blake3::hash(&bytes[..n]);
+    bytes[n..].copy_from_slice(hash.as_bytes());
+}
+
+fn find(haystack: &[u8], needle: &[u8]) -> usize {
+    haystack
+        .windows(needle.len())
+        .position(|w| w == needle)
+        .expect("bytes are in the file")
+}
+
+#[test]
+fn a_200_kb_font_round_trips_byte_for_byte() {
+    let raw = pseudo_bytes(1, 200_000);
+    let packed = compress(&raw);
+    assert!(packed.len() < raw.len());
+    let mut b = PackageBuilder::new();
+    face(&mut b, "Alegreya", 400, &raw);
+    let bytes = b.finish(manifest()).expect("finish");
+    let pkg = read(&bytes).expect("read");
+
+    let face = &pkg.fonts()[0];
+    assert_eq!(pkg.str(face.family), Some("Alegreya"));
+    assert_eq!(face.blob.raw_len, 200_000);
+    assert_eq!(&*pkg.font_data(face).expect("font"), &raw[..]);
+    assert_eq!(&*pkg.blob_owned(face.blob).expect("blob"), &raw[..]);
+    pkg.verify_blobs().expect("hashes");
+
+    // `blob` is a slice of the file: no copy.
+    let stored = pkg.blob(face.blob);
+    assert_eq!(stored, &packed[..]);
+    let (start, end) = (
+        stored.as_ptr() as usize,
+        stored.as_ptr() as usize + stored.len(),
+    );
+    let file = pkg.bytes();
+    assert!(start >= file.as_ptr() as usize && end <= file.as_ptr() as usize + file.len());
+}
+
+#[test]
+fn faces_are_sorted_whatever_the_insertion_order() {
+    let (a, b2, c) = (
+        pseudo_bytes(2, 3000),
+        pseudo_bytes(3, 4000),
+        pseudo_bytes(4, 5000),
+    );
+    let build = |order: [usize; 3]| {
+        let mut b = PackageBuilder::new();
+        for i in order {
+            match i {
+                0 => face(&mut b, "Zeta", 400, &a),
+                1 => face(&mut b, "Alegreya", 700, &b2),
+                _ => face(&mut b, "Alegreya", 400, &c),
+            }
+        }
+        b.finish(manifest()).expect("finish")
+    };
+    let x = build([0, 1, 2]);
+    assert_eq!(x, build([2, 0, 1]));
+    let pkg = read(&x).expect("read");
+    let order: Vec<_> = pkg
+        .fonts()
+        .iter()
+        .map(|f| (pkg.str(f.family).unwrap_or(""), f.weight))
+        .collect();
+    assert_eq!(order, [("Alegreya", 400), ("Alegreya", 700), ("Zeta", 400)]);
+    for f in pkg.fonts() {
+        pkg.font_data(f).expect("font");
+    }
+}
+
+#[test]
+fn a_damaged_zstd_frame_is_corrupt() {
+    let raw = pseudo_bytes(5, 20_000);
+    let packed = compress(&raw);
+    let mut b = PackageBuilder::new();
+    face(&mut b, "A", 400, &raw);
+    let mut bytes = b.finish(manifest()).expect("finish");
+    let at = find(&bytes, &packed[..32]);
+    bytes[at..at + 4].copy_from_slice(&[0, 0, 0, 0]); // the frame magic
+    rehash(&mut bytes);
+    let pkg = read(&bytes).expect("the structure is fine");
+    let face = &pkg.fonts()[0];
+    let font_tag = ui2_package::SectionTag::FONT;
+    assert_eq!(
+        pkg.blob_owned(face.blob).err(),
+        Some(PackageError::Corrupt { at: Some(font_tag) })
+    );
+    assert!(pkg.verify_blobs().is_err());
+
+    // A frame that decodes to other bytes fails the hash.
+    let mut b = PackageBuilder::new();
+    face_with_hash(&mut b, &raw, [7; 32]);
+    assert_eq!(
+        b.finish(manifest()).err(),
+        Some(PackageError::Corrupt { at: Some(font_tag) })
+    );
+}
+
+fn face_with_hash(b: &mut PackageBuilder, raw: &[u8], blake3: [u8; 32]) {
+    let family = b.str("A");
+    let face = Face {
+        family,
+        weight: 400,
+        italic: false,
+        role: None,
+        ranges: vec![],
+        blob: BlobRef::unplaced(BlobSection::Font, true),
+        blake3,
+    };
+    b.font(face, &compress(raw), raw.len() as u32);
+}
+
+#[test]
+fn a_wrong_declared_length_or_checksum_is_refused() {
+    let raw = pseudo_bytes(6, 10_000);
+    let family = |b: &mut PackageBuilder| b.str("A");
+    for raw_len in [9_999u32, 10_001, 0] {
+        let mut b = PackageBuilder::new();
+        let face = Face {
+            family: family(&mut b),
+            weight: 400,
+            italic: false,
+            role: None,
+            ranges: vec![],
+            blob: BlobRef::unplaced(BlobSection::Font, true),
+            blake3: *blake3::hash(&raw).as_bytes(),
+        };
+        b.font(face, &compress(&raw), raw_len);
+        assert!(b.finish(manifest()).is_err(), "raw_len {raw_len}");
+    }
+}
+
+fn page_and_images(b: &mut PackageBuilder, names: [&str; 2]) -> (Vec<u8>, Vec<u8>) {
+    let (rgba, rgba_raw) = page(PageFormat::Rgba8, 1, [64, 32], 10);
+    let (mask, mask_raw) = page(PageFormat::A8, 1, [32, 32], 11);
+    let (rgba2, rgba2_raw) = page(PageFormat::Rgba8, 2, [128, 64], 12);
+    let p0 = add_page(b, &rgba, &rgba_raw);
+    let p1 = add_page(b, &mask, &mask_raw);
+    let p2 = add_page(b, &rgba2, &rgba2_raw);
+    for name in names {
+        let path = b.str(name);
+        let is_mask = name.starts_with("icon");
+        b.image(Img {
+            path,
+            size: [16.0, 16.0],
+            mask: is_mask,
+            x1: Sprite {
+                page: if is_mask { p1 } else { p0 },
+                rect: [1, 1, 16, 16],
+            },
+            x2: if is_mask {
+                None
+            } else {
+                Some(Sprite {
+                    page: p2,
+                    rect: [2, 2, 32, 32],
+                })
+            },
+        });
+    }
+    (rgba_raw, mask_raw)
+}
+
+fn node_with_image(b: &mut PackageBuilder, img: ui2_package::ImgId, aref: ui2_package::ARefId) {
+    let record = b_record(b);
+    let set = b.style_set(StyleSet::plain(vec![record]));
+    let name = b.str("doc");
+    let leaf = |kind| (kind, 1, set, None, 0);
+    b.template(Template {
+        name,
+        nodes: nodes(&[
+            (NodeKind::Box { tag: Tag::Div }, 3, set, None, 0),
+            leaf(NodeKind::Image(ImageSrc::Icon { img, mask: true })),
+            leaf(NodeKind::Image(ImageSrc::Asset(aref))),
+        ]),
+    });
+}
+
+fn b_record(b: &mut PackageBuilder) -> StyleId {
+    b.style_record(StyleRecord::initial())
+}
+
+#[test]
+fn pictures_pages_and_sprites_round_trip() {
+    let mut b = PackageBuilder::new();
+    let (rgba_raw, mask_raw) = page_and_images(&mut b, ["icon/turn.svg", "panel.png"]);
+    let pkg = read(&b.finish(manifest()).expect("finish")).expect("read");
+    let images: &Images = pkg.images();
+    assert_eq!(images.pages.len(), 3);
+    assert_eq!(
+        &*pkg.page_data(&images.pages[0]).expect("page"),
+        &rgba_raw[..]
+    );
+    assert_eq!(
+        &*pkg.page_data(&images.pages[1]).expect("page"),
+        &mask_raw[..]
+    );
+    let paths: Vec<_> = images.imgs.iter().map(|i| pkg.str(i.path)).collect();
+    assert_eq!(paths, [Some("icon/turn.svg"), Some("panel.png")]);
+    assert!(images.imgs[0].mask && images.imgs[0].x2.is_none());
+    assert!(!images.imgs[1].mask && images.imgs[1].x2.is_some());
+    pkg.verify_blobs().expect("hashes");
+}
+
+#[test]
+fn picture_ids_follow_the_sorted_table_whatever_the_insertion_order() {
+    // Two builds add the pictures in opposite orders; the node refers to the same picture by name.
+    let build = |names: [&str; 2], pick: &str| {
+        let mut b = PackageBuilder::new();
+        page_and_images(&mut b, names);
+        let which = names.iter().position(|n| *n == pick).expect("picked") as u32;
+        let aref = b.asset_ref("portrait:chief");
+        node_with_image(&mut b, ui2_package::ImgId(which), aref);
+        b.finish(manifest()).expect("finish")
+    };
+    let x = build(["icon/turn.svg", "icon/end.svg"], "icon/turn.svg");
+    let y = build(["icon/end.svg", "icon/turn.svg"], "icon/turn.svg");
+    assert_eq!(x, y);
+    let pkg = read(&x).expect("read");
+    let doc = &pkg.templates()[0];
+    let NodeKind::Image(ImageSrc::Icon { img, .. }) = doc.nodes[1].kind else {
+        panic!("an icon");
+    };
+    let path = pkg.images().imgs[img.index()].path;
+    assert_eq!(pkg.str(path), Some("icon/turn.svg"));
+    let NodeKind::Image(ImageSrc::Asset(a)) = doc.nodes[2].kind else {
+        panic!("an asset image");
+    };
+    assert_eq!(pkg.asset_ref(a), Some("portrait:chief"));
+}
+
+#[test]
+fn asset_references_are_sorted_and_unique() {
+    let mut b = PackageBuilder::new();
+    let z = b.asset_ref("ui-tx:z");
+    let a = b.asset_ref("portrait:a");
+    assert_eq!(b.asset_ref("ui-tx:z"), z);
+    assert_ne!(z, a);
+    let pkg = read(&b.finish(manifest()).expect("finish")).expect("read");
+    assert_eq!(
+        pkg.asset_refs().collect::<Vec<_>>(),
+        ["portrait:a", "ui-tx:z"]
+    );
+}
+
+#[test]
+fn bad_pictures_are_refused() {
+    let one = |f: &dyn Fn(&mut Img, &mut Page)| {
+        let mut b = PackageBuilder::new();
+        let (mut p, raw) = page(PageFormat::Rgba8, 1, [64, 32], 10);
+        let mut img = Img {
+            path: b.str("a.png"),
+            size: [16.0, 16.0],
+            mask: false,
+            x1: Sprite {
+                page: 0,
+                rect: [1, 1, 16, 16],
+            },
+            x2: None,
+        };
+        f(&mut img, &mut p);
+        add_page(&mut b, &p, &raw);
+        b.image(img);
+        b.finish(manifest()).is_ok()
+    };
+    assert!(one(&|_, _| {}), "the baseline is fine");
+    assert!(
+        !one(&|i, _| i.x1.rect = [60, 1, 16, 16]),
+        "sprite outside the page"
+    );
+    assert!(!one(&|i, _| i.x1.page = 3), "page out of range");
+    assert!(!one(&|i, _| i.mask = true), "mask on an RGBA page");
+    assert!(!one(&|i, _| i.size = [f32::NAN, 1.0]), "NaN size");
+    assert!(
+        !one(&|i, _| i.x2 = Some(Sprite {
+            page: 0,
+            rect: [1, 1, 4, 4]
+        })),
+        "2x on a 1x page"
+    );
+    assert!(!one(&|_, p| p.size = [2048, 1]), "page larger than 1024");
+    assert!(!one(&|_, p| p.scale = 3), "scale 3");
+}
+
+#[test]
+fn image_nodes_must_point_at_existing_pictures_and_references() {
+    let mut b = PackageBuilder::new();
+    node_with_image(&mut b, ui2_package::ImgId(0), ui2_package::ARefId(0));
+    assert!(b.finish(manifest()).is_err());
+}
+
+#[test]
+fn scripts_keep_their_order_and_bytes() {
+    let mut b = PackageBuilder::new();
+    b.script("z.js", b"var z = 1;\n");
+    b.script("a.js", b"var a = 2;\n");
+    b.script_reads(&["top", "game", "top"]);
+    let bytes = b.finish(manifest()).expect("finish");
+    let pkg = read(&bytes).expect("read");
+    let scripts: Vec<_> = pkg.scripts().collect();
+    assert_eq!(
+        scripts,
+        [
+            ("z.js", &b"var z = 1;\n"[..]),
+            ("a.js", &b"var a = 2;\n"[..])
+        ]
+    );
+    assert_eq!(pkg.script_reads().collect::<Vec<_>>(), ["game", "top"]);
+    let (_, text) = scripts[0];
+    let (start, file) = (text.as_ptr() as usize, pkg.bytes());
+    assert!(
+        start >= file.as_ptr() as usize
+            && start + text.len() <= file.as_ptr() as usize + file.len()
+    );
+}
+
+#[test]
+fn a_package_with_every_section_is_deterministic() {
+    let build = || {
+        let mut b = top_strip(&[]);
+        face_for(&mut b);
+        page_and_images(&mut b, ["a.png", "icon/b.svg"]);
+        b.script("s.js", b"1");
+        b.script_reads(&["top"]);
+        b.asset_ref("portrait:x");
+        b.finish(manifest_two_themes()).expect("finish")
+    };
+    let first = build();
+    assert_eq!(first, build());
+    let pkg = read(&first).expect("read");
+    pkg.verify_blobs().expect("hashes");
+    assert_eq!(pkg.hash(), read(&build()).expect("again").hash());
+}
+
+fn face_for(b: &mut PackageBuilder) {
+    face(b, "Alegreya", 400, &pseudo_bytes(9, 8000));
 }

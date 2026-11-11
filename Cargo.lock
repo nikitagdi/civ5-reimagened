@@ -3889,10 +3889,13 @@ version = "0.1.0"
 dependencies = [
  "blake3",
  "postcard",
+ "ruzstd",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
  "toml",
+ "ui2-package",
+ "zstd",
 ]
 
 [[package]]

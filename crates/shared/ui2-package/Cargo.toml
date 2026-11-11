@@ -22,8 +22,14 @@ profile = ["dep:toml"]
 serde.workspace = true
 postcard.workspace = true
 blake3.workspace = true
+# Decompression only: the client never compresses (the converter does, with zstd).
+ruzstd.workspace = true
 thiserror.workspace = true
 toml = { workspace = true, optional = true }
 
 [dev-dependencies]
+# Tests only: compresses fonts and pages the way the converter does.
+zstd.workspace = true
 serde_json.workspace = true
+# Tests run with every feature, also under a plain `cargo test` and `cargo xtask test`.
+ui2-package = { workspace = true, features = ["write", "profile"] }
