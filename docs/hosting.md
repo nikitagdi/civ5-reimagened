@@ -97,6 +97,8 @@ cache headers. Any other proxy works if it:
 - forwards WebSocket upgrades on `/ws` and `/netcheck/ws`;
 - keeps `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp` and
   `Cross-Origin-Resource-Policy: same-origin` (without them browsers fall back to the single-threaded client);
+- sends `Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-eval'` with `/ui2/worker.js`
+  (the UI v2 script worker: no network for skin scripts), and no policy with the other files;
 - serves HTTPS: browsers enable cross-origin isolation and `Secure` cookies only on secure origins
   (`localhost` counts as one).
 

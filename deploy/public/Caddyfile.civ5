@@ -8,6 +8,10 @@ civ5.example.com {
 		Cross-Origin-Embedder-Policy require-corp
 		Cross-Origin-Resource-Policy same-origin
 	}
+	# The UI v2 script worker: no network, `eval` only for the skin files it is given (the game server sends the
+	# same header when it serves the web files itself). Other files keep no policy.
+	@ui2worker path /ui2/worker.js
+	header @ui2worker Content-Security-Policy "default-src 'none'; script-src 'self' 'unsafe-eval'"
 	@dyn path /ws /catalog/* /replica/* /netcheck/ws /healthz
 	handle @dyn {
 		reverse_proxy 127.0.0.1:8080
