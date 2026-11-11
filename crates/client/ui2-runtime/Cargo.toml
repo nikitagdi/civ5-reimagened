@@ -1,0 +1,35 @@
+[package]
+name = "ui2-runtime"
+description = "UI v2 runtime: node tree from skin templates, style selection, layout, bindings, input and paint lists"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "client"
+
+[features]
+default = []
+# In-memory skin packages for tests (this crate's, and the converter's and host's).
+testkit = ["ui2-package/write"]
+
+[dependencies]
+ui2-package.workspace = true
+ui2-model.workspace = true
+ui2-text.workspace = true
+ui2-draw.workspace = true
+loc.workspace = true
+platform.workspace = true
+# Box layout (flex, grid, block) over the node arena; rounding stays off, snapping happens at paint.
+taffy.workspace = true
+glam.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+# Tests run with the test kit, also under a plain `cargo test` and `cargo xtask test`.
+ui2-runtime = { workspace = true, features = ["testkit"] }
+ui2-package = { workspace = true, features = ["write"] }
