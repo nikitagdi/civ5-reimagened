@@ -14,9 +14,10 @@ use std::sync::Arc;
 
 use serde_json::Value;
 use ui2_package::style::{
-    BoxSizing, ContentAlign, Display, FlexDirection, FlexWrap, FontStyle, ItemsAlign, Len, LenAuto,
-    LenNone, LenNormal, LineHeight, NumericFeatures, Overflow, Position, SelfAlign, StyleRecord,
-    TextAlign, TextOverflow, TextWrapMode, WhiteSpaceCollapse,
+    BorderStyle, BoxSizing, ColorV, ContentAlign, Display, FlexDirection, FlexWrap, FontStyle,
+    ItemsAlign, Len, LenAuto, LenNone, LenNormal, LineHeight, NumericFeatures, Overflow, Position,
+    Radius, SelfAlign, Shadow, StyleRecord, TextAlign, TextOverflow, TextWrapMode, Visibility,
+    WhiteSpaceCollapse,
 };
 use ui2_package::{BindKind, Layer, NodeKind, Package, PropId, Tag};
 use ui2_runtime::testkit::{Kit, TNode};
@@ -199,7 +200,103 @@ fn record(kit: &mut Kit, s: &serde_json::Map<String, Value>) -> StyleRecord {
     r.white_space_collapse = kw(WhiteSpaceCollapse::from_keyword, &g("white-space-collapse"));
     r.text_wrap_mode = kw(TextWrapMode::from_keyword, &g("text-wrap-mode"));
     r.text_overflow = kw(TextOverflow::from_keyword, &g("text-overflow"));
+    // Paint.
+    r.color = ColorV::Lit(color(&g("color")));
+    r.background_color = ColorV::Lit(color(&g("background-color")));
+    r.opacity = num("opacity");
+    r.visibility = kw(Visibility::from_keyword, &g("visibility"));
+    for (side, style, col) in [
+        (0, "border-top-style", "border-top-color"),
+        (1, "border-right-style", "border-right-color"),
+        (2, "border-bottom-style", "border-bottom-color"),
+        (3, "border-left-style", "border-left-color"),
+    ] {
+        let st = kw(BorderStyle::from_keyword, &g(style));
+        let c = ColorV::Lit(color(&g(col)));
+        match side {
+            0 => (r.border_top_style, r.border_top_color) = (st, c),
+            1 => (r.border_right_style, r.border_right_color) = (st, c),
+            2 => (r.border_bottom_style, r.border_bottom_color) = (st, c),
+            _ => (r.border_left_style, r.border_left_color) = (st, c),
+        }
+    }
+    let radius = |k: &str| {
+        let v = g(k);
+        let mut parts = v.split_whitespace().map(len);
+        let h = parts.next().unwrap_or(Len::ZERO);
+        Radius {
+            h,
+            v: parts.next().unwrap_or(h),
+        }
+    };
+    r.border_top_left_radius = radius("border-top-left-radius");
+    r.border_top_right_radius = radius("border-top-right-radius");
+    r.border_bottom_right_radius = radius("border-bottom-right-radius");
+    r.border_bottom_left_radius = radius("border-bottom-left-radius");
+    r.box_shadow = shadows(&g("box-shadow"));
+    assert_eq!(g("transform"), "none", "the strip has no transforms");
     r
+}
+
+/// `rgb(r, g, b)` or `rgba(r, g, b, a)` as Chrome writes resolved colors.
+fn color(v: &str) -> [u8; 4] {
+    let inner = v
+        .strip_prefix("rgba(")
+        .or_else(|| v.strip_prefix("rgb("))
+        .and_then(|s| s.strip_suffix(')'))
+        .unwrap_or_else(|| panic!("color {v:?}"));
+    let p: Vec<f32> = inner
+        .split(',')
+        .map(|x| x.trim().parse().expect("color channel"))
+        .collect();
+    let a = p.get(3).copied().unwrap_or(1.0);
+    [
+        p[0] as u8,
+        p[1] as u8,
+        p[2] as u8,
+        (a * 255.0).round() as u8,
+    ]
+}
+
+/// `box-shadow` as Chrome writes it: `none`, or shadows `<color> <x> <y> <blur> <spread> [inset]` separated
+/// by commas outside the color's parentheses.
+fn shadows(v: &str) -> Vec<Shadow> {
+    if v == "none" {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    let mut depth = 0;
+    let mut start = 0;
+    let bytes = v.as_bytes();
+    let mut pieces = Vec::new();
+    for (i, &b) in bytes.iter().enumerate() {
+        match b {
+            b'(' => depth += 1,
+            b')' => depth -= 1,
+            b',' if depth == 0 => {
+                pieces.push(&v[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    pieces.push(&v[start..]);
+    for p in pieces {
+        let p = p.trim();
+        let close = p.find(')').expect("shadow color") + 1;
+        let c = color(&p[..close]);
+        let rest: Vec<&str> = p[close..].split_whitespace().collect();
+        let px = |i: usize| len(rest[i]).px;
+        out.push(Shadow {
+            inset: rest.contains(&"inset"),
+            x: px(0),
+            y: px(1),
+            blur: px(2),
+            spread: px(3),
+            color: ColorV::Lit(c),
+        });
+    }
+    out
 }
 
 fn repo_root() -> PathBuf {
@@ -352,11 +449,32 @@ pub fn package_with(fx: &Fixture, texts: Texts) -> Arc<Package> {
             children.entry(p.clone()).or_default().push(i);
         }
     }
+    // The icons of the skin's sprite (`svg` with `use`) become mask pictures of their CSS size.
+    let svgs: Vec<(String, [u16; 2])> = fx
+        .nodes
+        .iter()
+        .filter(|n| n.tag == "svg")
+        .map(|n| {
+            let s = n.style.as_ref().expect("svg style");
+            let px = |k: &str| len(&str_of(&s[k])).px as u16;
+            (n.node.clone(), [px("width"), px("height")])
+        })
+        .collect();
+    let named: Vec<(String, [u16; 2])> = svgs
+        .iter()
+        .map(|(node, size)| (format!("icons/{node}"), *size))
+        .collect();
+    let named: Vec<(&str, [u16; 2])> = named.iter().map(|(p, s)| (p.as_str(), *s)).collect();
+    let ids = kit.mask_icons(&named);
+    let icons: Vec<(String, ui2_package::ImgId)> =
+        svgs.into_iter().map(|(node, _)| node).zip(ids).collect();
+    #[allow(clippy::too_many_arguments)]
     fn build(
         kit: &mut Kit,
         fx: &Fixture,
         sets: &BTreeMap<String, ui2_package::StyleSetId>,
         children: &BTreeMap<String, Vec<usize>>,
+        icons: &[(String, ui2_package::ImgId)],
         bound: bool,
         i: usize,
     ) -> TNode {
@@ -391,8 +509,11 @@ pub fn package_with(fx: &Fixture, texts: Texts) -> Arc<Package> {
             "img" => Tag::Img,
             other => panic!("tag {other}"),
         };
+        let icon = icons.iter().find(|(node, _)| *node == n.node);
         let mut t = if n.parent.is_none() {
             TNode::new(NodeKind::Layer(Layer::Hud), set)
+        } else if let Some((_, img)) = icon {
+            TNode::icon(*img, set)
         } else {
             TNode::new(NodeKind::Box { tag }, set)
         };
@@ -415,12 +536,12 @@ pub fn package_with(fx: &Fixture, texts: Texts) -> Arc<Package> {
             }
         }
         for &c in children.get(&n.node).map_or(&[][..], |v| v.as_slice()) {
-            let child = build(kit, fx, sets, children, bound, c);
+            let child = build(kit, fx, sets, children, icons, bound, c);
             t = t.child(child);
         }
         t
     }
-    let root = build(&mut kit, fx, &sets, &children, bound, 0);
+    let root = build(&mut kit, fx, &sets, &children, &icons, bound, 0);
     kit.template("doc", vec![root]);
     kit.finish().expect("package")
 }

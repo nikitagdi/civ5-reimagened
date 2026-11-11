@@ -8,8 +8,8 @@
 //! Present state: the node arena ([`arena`]), instantiation from templates with node paths
 //! ([`instantiate`]), error reporting ([`error`]), style selection ([`style`]), scalar bindings with their
 //! dependency index and the skin's texts, text leaves and inline layout on `ui2-text` ([`text`]), box layout
-//! with taffy over the arena ([`layout`]) and rectangle dumps ([`debug`]). List bindings, input and painting
-//! build on these.
+//! with taffy over the arena ([`layout`]), draw lists per chunk set on the `ui2-draw` scene, and rectangle
+//! dumps ([`debug`]). List bindings and input build on these.
 //!
 //! Zero-work rule: every pass is driven by the arena's dirty queues; a frame without changes checks a few
 //! counters and touches no node.
@@ -23,6 +23,7 @@ pub mod error;
 pub mod instantiate;
 pub mod layout;
 mod loc;
+mod paint;
 pub mod style;
 #[cfg(feature = "testkit")]
 pub mod testkit;
@@ -31,6 +32,7 @@ pub mod text;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use ui2_draw::{ChunkId, ChunkItems, LayerId, Scene};
 use ui2_model::{FrameDelta, Key, ModelStore};
 use ui2_package::style::{ColorV, StyleRecord};
 use ui2_package::{Package, StrId, TemplateId};
@@ -346,9 +348,31 @@ impl Runtime {
         self.binder.len()
     }
 
-    /// Runs the passes that exist so far (bindings, styles, text, layout) and returns the frame's counters. A
-    /// frame without changes only checks the queues.
-    pub fn update(&mut self, m: &ModelStore, text: &mut dyn TextMeasure) -> FrameStats {
+    /// The draw list of a chunk as the paint pass builds it from the current state, with its layer (for tests
+    /// and tools; the pass itself sets chunks on the scene). `None` when no live node roots that chunk.
+    pub fn chunk_items(&mut self, chunk: ChunkId) -> Option<(LayerId, ChunkItems)> {
+        let id = self.arena.id_at(chunk.0 as usize)?;
+        if self.arena.get(id)?.chunk() != chunk {
+            return None;
+        }
+        let cx = paint::PaintCtx {
+            pkg: &self.pkg,
+            index: &self.style_index,
+            env: &self.style_env,
+        };
+        let layer = paint::emit::layer_of(&self.arena, &self.pkg, id);
+        let (items, _) = paint::build(&self.arena, &cx, &mut self.errors, id);
+        Some((layer, items))
+    }
+
+    /// Runs the passes that exist so far (bindings, styles, text, layout, paint) and returns the frame's
+    /// counters. A frame without changes only checks the queues and does not touch the scene.
+    pub fn update(
+        &mut self,
+        m: &ModelStore,
+        text: &mut dyn TextMeasure,
+        scene: &mut Scene,
+    ) -> FrameStats {
         let binds = self.binder.pass(
             &mut self.arena,
             &bind::Ctx {
@@ -378,14 +402,31 @@ impl Runtime {
             text,
             self.style_env.scale.viewport_css,
         );
+        if scene.scale() != self.style_env.scale.k {
+            scene.set_scale(self.style_env.scale.k);
+        }
+        let paint = paint::pass(
+            &mut self.arena,
+            &paint::PaintCtx {
+                pkg: &self.pkg,
+                index: &self.style_index,
+                env: &self.style_env,
+            },
+            scene,
+            &mut self.errors,
+        );
         FrameStats {
             restyled: styles.restyled,
             shaped_runs: texts.shaped,
             layout_runs: layout.runs,
             binds_evaluated: binds.evaluated,
-            visited: binds.visited + styles.visited + texts.visited + layout.visited,
+            chunks_rebuilt: paint.chunks,
+            visited: binds.visited
+                + styles.visited
+                + texts.visited
+                + layout.visited
+                + paint.visited,
             nodes: self.arena.len() as u32,
-            ..FrameStats::default()
         }
     }
 
