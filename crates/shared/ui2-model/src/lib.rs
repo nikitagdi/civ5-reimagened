@@ -6,9 +6,19 @@
 
 #![forbid(unsafe_code)]
 
+pub mod delta;
+pub mod diff;
+pub mod model;
 pub mod schema;
+pub mod state;
+pub mod value;
 
+pub use delta::{Cursor, FrameDelta, Keys, Op, Ops};
+pub use diff::{ListStep, diff_root, list_steps};
+pub use model::{Keyed, KeyedList, Model, Root};
 pub use schema::{
-    EnumDef, EnumId, FieldDef, FieldId, FieldRef, IntentDef, ListType, PathEntry, Root, RootId,
-    RootKind, Scalar, Schema, SchemaError, StructDef, Type, TypeId, Version,
+    EnumDef, EnumId, FieldDef, FieldId, FieldRef, IntentDef, ListType, PathEntry, Root as RootDef,
+    RootId, RootKind, Scalar, Schema, SchemaError, StructDef, Type, TypeId, Version,
 };
+pub use state::{ApplyError, ModelState};
+pub use value::{AssetRef, Key, Text, Value, ValueError, ValueRef, default_value, validate};
