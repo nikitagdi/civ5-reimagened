@@ -69,16 +69,23 @@ function dumpInPage() {
     if (cs.textOverflow !== "ellipsis" || cs.overflowX === "visible") return r;
     const pl = parseFloat(cs.paddingLeft) || 0;
     const pr = parseFloat(cs.paddingRight) || 0;
+    const bl = parseFloat(cs.borderLeftWidth) || 0;
+    const br = parseFloat(cs.borderRightWidth) || 0;
     const box = el.getBoundingClientRect();
-    const right = box.left + el.clientLeft + el.clientWidth - pr;
-    if (r.right <= right + 0.001) return r;
+    // The content box edges from the fractional border box (clientLeft/clientWidth are whole pixels; a skin
+    // hides scroll bars, so none takes space).
+    const right = box.right - br - pr;
+    // Boxes are laid out in layout units (1/64 px) while a Range measures the glyph advances in floats: a box
+    // sized to its text (a flex item at its max-content width) can be up to 1/64 px narrower than the Range,
+    // and Chrome draws that line uncut.
+    if (r.right <= right + 1 / 64 + 0.001) return r;
     const probe = document.createElement("span");
     probe.textContent = "…";
     probe.style.cssText = `position:absolute;left:0;top:0;white-space:pre;font:${cs.font};letter-spacing:${cs.letterSpacing};font-variant-numeric:${cs.fontVariantNumeric}`;
     document.body.appendChild(probe);
     const ell = probe.getBoundingClientRect().width;
     probe.remove();
-    const avail = right - Math.max(r.left, box.left + el.clientLeft + pl);
+    const avail = right - Math.max(r.left, box.left + bl + pl);
     const range = document.createRange();
     range.setStart(t, start);
     let fit = 0;

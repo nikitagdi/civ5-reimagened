@@ -86,7 +86,15 @@ fn layout_top_strip_fixture_matches_stored_chrome_dumps() {
     .expect("json");
     let sample = std::fs::read_to_string(crate_dir().join("../../skins/engraved/sample/hud.json"))
         .expect("sample");
-    let report = verify::compare(&package, &sample, "engraved", "hud", &dumps).expect("compare");
+    let report = verify::compare(
+        &package,
+        &sample,
+        &Default::default(),
+        "engraved",
+        "hud",
+        &dumps,
+    )
+    .expect("compare");
     for l in report.lines() {
         println!("{l}");
     }
