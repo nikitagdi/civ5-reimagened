@@ -9,8 +9,35 @@ Source = ["replica", "server"]
 Phase = ["starting", "ai", "humans", "game_over"]
 TurnMode = ["simultaneous", "hybrid"]
 Mood = ["content", "unhappy", "very_unhappy"]
+TurnUi = ["next_turn", "unit_needs_orders", "city_needs_production", "research_needed", "policy_needed", "other_blocker", "waiting_others", "ai_moving", "ended", "game_over"]
+# Domain and Activity follow the order of the core; `other` stands for a value this model does not know.
+Domain = ["sea", "air", "land", "immobile", "hover", "other"]
+Activity = ["awake", "hold", "sleep", "heal", "sentry", "intercept", "mission", "other"]
+# The first twelve are the unit commands of the core; the last three are shown but have no order yet.
+UnitActionKind = ["move", "range_attack", "found_city", "fortify", "sleep", "skip", "heal", "automate_build", "automate_explore", "cancel", "disband", "wake", "alert", "pillage", "upgrade"]
+NoteCat = ["growth", "great_people", "diplomacy", "military", "production", "research", "policy", "religion", "other"]
+ChatTo = ["all", "player"]
+ItemKind = ["unit", "building", "wonder", "project", "process"]
+MapMode = ["select", "move", "range_attack"]
+ProdTab = ["all", "units", "buildings", "wonders", "other"]
+TurnPending = ["none", "ending", "cancelling"]
+ToastKind = ["refused", "rejected", "lost"]
+# Why an intent was refused, here or by the server. The skin picks its own text for each.
+RefuseWhy = [
+  "unsupported", "no_screen", "no_unit", "action_unavailable", "not_your_city", "option_unavailable",
+  "cannot_buy", "bad_slot", "tech_unavailable", "cannot_end_turn", "cannot_cancel", "chat_empty",
+  "chat_too_long", "chat_rate", "no_connection", "no_game", "too_many", "turn_changed", "too_big",
+  "core", "turn_ended", "not_your_turn", "restarting", "invalid", "expired", "not_seated", "other",
+]
+# Windows are part of the skin and open over the map. Screens live outside it and are opened by the host.
+WindowId = ["production", "research", "menu", "chat", "notes_log"]
+ScreenId = ["tech_tree", "policies", "religion", "diplomacy", "overview", "notification_log", "economy", "military", "victory", "demographics", "chat"]
+MouseButton = ["left", "right"]
+PushAt = ["back", "front"]
+BuyWith = ["gold", "faith"]
 
 [type]
+Plot = { x = "i16", y = "i16" }
 EraRef = { id = "i16", name = "text" }
 GoldenAge = { active = "bool", turns = "i16", progress = "i32", threshold = "i32" }
 
@@ -37,6 +64,222 @@ turns = "i16?"
 progress = "i32"
 cost = "i32"
 fraction = "f32"
+
+[type.PlayerRow]
+id = "key<player>"
+leader = "str"
+civ = "str"
+nick = "str?"
+color = "color"
+color2 = "color"
+human = "bool"
+alive = "bool"
+met = "bool"
+at_war = "bool"
+me = "bool"
+
+[type.Blocker]
+kind = "i8"
+unit = "key<unit>?"
+city = "key<city>?"
+plot = "Plot?"
+
+[type.Timer]
+left_s = "i32"
+total_s = "i32"
+stopped = "bool"
+
+[type.Seat]
+player = "key<player>"
+name = "str"
+me = "bool"
+finished = "bool"
+may_act = "bool"
+online = "bool"
+
+[type.Promo]
+id = "i16"
+name = "text"
+icon = "asset"
+
+[type.UnitActionRow]
+kind = "UnitActionKind"
+enabled = "bool"
+reason = "str?"
+supported = "bool"
+
+[type.Act]
+shown = "bool"
+enabled = "bool"
+reason = "str?"
+
+# One `Act` per unit action, named after it: a button reads `unit.act.fortify.shown`.
+[type.UnitActs]
+_each = "UnitActionKind"
+_type = "Act"
+
+[type.BannerProd]
+item = "key<item>"
+name = "text"
+icon = "asset"
+turns = "i16?"
+fraction = "f32"
+
+[type.CityBanner]
+key = "key<city>"
+owner = "key<player>"
+color = "color"
+color2 = "color"
+name = "str"
+plot = "Plot"
+size = "i16"
+capital = "bool"
+mine = "bool"
+visible = "bool"
+puppet = "bool"
+razing = "bool"
+occupied = "bool"
+resistance = "bool"
+can_shoot = "bool"
+strength = "i16"
+hp_fraction = "f32"
+growth_turns = "i16?"
+production = "BannerProd?"
+
+[type.UnitFlag]
+key = "key<unit>"
+owner = "key<player>"
+color = "color"
+color2 = "color"
+plot = "Plot"
+icon = "asset"
+hp_fraction = "f32"
+domain = "Domain"
+mine = "bool"
+waiting = "bool"
+at_war = "bool"
+cargo = "bool"
+
+[type.Note]
+id = "key<note>"
+category = "NoteCat"
+message = "str"
+summary = "str"
+turn = "i16"
+plot = "Plot?"
+
+[type.ChatRow]
+seq = "key<chat>"
+from = "str"
+from_player = "key<player>?"
+to = "ChatTo"
+text = "str"
+turn = "i32"
+mine = "bool"
+
+[type.ProdNow]
+item = "key<item>"
+name = "text"
+kind = "ItemKind"
+stored = "i32"
+needed = "i32"
+turns = "i16?"
+fraction = "f32"
+
+[type.QueueRow]
+slot = "i32"
+item = "key<item>"
+name = "text"
+kind = "ItemKind"
+turns = "i16?"
+first = "bool"
+
+[type.Opt]
+item = "key<item>"
+order = "i32"
+name = "text"
+icon = "asset"
+turns = "i16?"
+cost = "i32"
+enabled = "bool"
+current = "bool"
+queued = "bool"
+locked_reason = "str?"
+effect = "text?"
+buy_gold = "i32?"
+buy_gold_ok = "bool"
+buy_faith = "i32?"
+buy_faith_ok = "bool"
+pending = "bool"
+
+[type.OptGroup]
+kind = "ItemKind"
+count = "i32"
+options = { list = "Opt", key = "item" }
+
+# `idx` is the position in the list: a requirement has no identity of its own, but every list needs a key.
+[type.Req]
+idx = "i32"
+name = "text"
+met = "bool"
+
+[type.CityTurns]
+city = "key<city>"
+name = "str"
+turns = "i16?"
+fraction = "f32"
+
+[type.Detail]
+item = "key<item>"
+name = "text"
+kind = "ItemKind"
+turns = "i16?"
+cost = "i32"
+help = "text?"
+maintenance = "i32?"
+requires = { list = "Req", key = "idx" }
+compare = { list = "CityTurns", key = "city" }
+short_gold = "i32?"
+
+[type.Selection]
+unit = "key<unit>?"
+city = "key<city>?"
+plot = "Plot?"
+
+[type.Win]
+open = "bool"
+
+[type.WinCity]
+open = "bool"
+city = "key<city>?"
+
+[type.Windows]
+production = "WinCity"
+research = "Win"
+menu = "Win"
+chat = "Win"
+notes_log = "Win"
+
+[type.UiProduction]
+tab = { type = "ProdTab", js = true }
+focus = { type = "key<item>?", js = true }
+hover = { type = "key<item>?", js = true }
+
+[type.UiChat]
+to = { type = "ChatTo", js = true }
+to_player = { type = "key<player>?", js = true }
+
+[type.Pending]
+seq = "i32"
+intent = "str"
+target = "str"
+since_ms = "u32"
+
+[type.Toast]
+seq = "i32"
+kind = "ToastKind"
+why = "RefuseWhy"
+detail = "str?"
 
 # Session and source state.
 [model.meta]
@@ -81,3 +324,184 @@ queue = { list = "Tech", key = "id" }
 options = { list = "Tech", key = "id" }
 known = "bool"
 blocked = "bool"
+
+# The players of the game, in seat order.
+[model.players]
+_list = "PlayerRow"
+_key = "id"
+
+# The turn button and the readiness of the players.
+[model.turn]
+state = "TurnUi"
+blocker = "Blocker?"
+units_waiting = "i32"
+finished = "bool"
+can_cancel = "bool"
+timer = "Timer?"
+ready = "i32"
+humans = "i32"
+seats = { list = "Seat", key = "player" }
+
+# The selected unit; absent while nothing is selected.
+[model.unit]
+_optional = true
+key = "key<unit>"
+name = "str"
+type_name = "text"
+portrait = "asset"
+level = "i16"
+xp = "i16"
+strength = "i16"
+ranged = "i16"
+range = "i16"
+moves = "f32"
+max_moves = "i16"
+hp = "i16"
+max_hp = "i16"
+hp_fraction = "f32"
+domain = "Domain"
+activity = "Activity"
+promotions = { list = "Promo", key = "id" }
+promotion_ready = "bool"
+actions = { list = "UnitActionRow", key = "kind" }
+act = "UnitActs"
+pending = "bool"
+
+# What the map shows: city banners and unit flags.
+[model.map]
+cities = { list = "CityBanner", key = "key" }
+units = { list = "UnitFlag", key = "key" }
+
+# Notifications, newest last.
+[model.notes]
+_list = "Note"
+_key = "id"
+
+# The most recent chat lines.
+[model.chat]
+_list = "ChatRow"
+_key = "seq"
+
+# The production window; absent while it is closed.
+[model.production]
+_optional = true
+city = "key<city>"
+name = "str"
+capital = "bool"
+size = "i16"
+rate = "i32"
+overflow = "i32?"
+gold = "i32"
+faith = "i32"
+current = "ProdNow?"
+queue_known = "bool"
+queue = { list = "QueueRow", key = "item" }
+groups = { list = "OptGroup", key = "kind" }
+detail = "Detail?"
+
+# Local state of the interface: selection, windows, tabs, waiting orders and errors. Written by the actions
+# module; the fields marked `js` can also be set from scripts and markup.
+[model.ui]
+selection = "Selection"
+map_mode = "MapMode"
+windows = "Windows"
+production = "UiProduction"
+chat = "UiChat"
+pending = { list = "Pending", key = "seq" }
+turn_pending = "TurnPending"
+errors = { list = "Toast", key = "seq" }
+
+# Intents: what the interface asks for, by name and with typed arguments.
+[intent."unit.select"]
+unit = "key<unit>"
+
+[intent."unit.select_next"]
+
+[intent."unit.deselect"]
+
+[intent."unit.action"]
+unit = "key<unit>"
+action = "UnitActionKind"
+
+[intent."unit.move"]
+unit = "key<unit>"
+plot = "Plot"
+
+[intent."unit.range_attack"]
+unit = "key<unit>"
+plot = "Plot"
+
+[intent."map.click"]
+plot = "Plot"
+button = "MouseButton"
+
+[intent."turn.primary"]
+
+[intent."turn.end"]
+force = "bool"
+
+[intent."turn.cancel"]
+
+[intent."production.choose"]
+city = "key<city>"
+item = "key<item>"
+
+[intent."production.replace"]
+city = "key<city>"
+item = "key<item>"
+
+[intent."production.push"]
+city = "key<city>"
+item = "key<item>"
+at = "PushAt"
+
+[intent."production.pop"]
+city = "key<city>"
+slot = "i32"
+
+[intent."production.move"]
+city = "key<city>"
+from = "i32"
+to = "i32"
+
+[intent."production.buy"]
+city = "key<city>"
+item = "key<item>"
+with = "BuyWith"
+
+[intent."research.choose"]
+tech = "key<tech>"
+queue = "bool"
+
+[intent."note.dismiss"]
+note = "key<note>"
+
+[intent."note.activate"]
+note = "key<note>"
+
+[intent."window.open"]
+window = "WindowId"
+city = "key<city>?"
+
+[intent."window.close"]
+window = "WindowId"
+
+[intent."window.toggle"]
+window = "WindowId"
+
+[intent."screen.open"]
+screen = "ScreenId"
+
+[intent."camera.to_plot"]
+plot = "Plot"
+
+[intent."camera.to_city"]
+city = "key<city>"
+
+[intent."camera.to_unit"]
+unit = "key<unit>"
+
+[intent."chat.send"]
+text = "str"
+to = "ChatTo"
+player = "key<player>?"

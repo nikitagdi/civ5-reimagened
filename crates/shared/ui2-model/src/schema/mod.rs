@@ -12,7 +12,7 @@ use thiserror::Error;
 
 pub use types::{
     EnumDef, EnumId, FieldDef, FieldId, FieldRef, IntentDef, ListType, MAX_LIST_DEPTH, PathEntry,
-    Root, RootId, RootKind, Scalar, StructDef, Type, TypeId, Version,
+    Root, RootId, RootKind, RootShape, Scalar, StructDef, Type, TypeId, Version,
 };
 
 pub(crate) use parse::pascal;
@@ -113,7 +113,7 @@ impl Schema {
         }
 
         // `js` fields exist only below the `ui` root.
-        for (name, tid) in &d.roots {
+        for (name, tid, _) in &d.roots {
             if name == "ui" {
                 continue;
             }
@@ -143,34 +143,43 @@ impl Schema {
         // The flat path table, in the same order the layout assumed.
         let mut roots = Vec::new();
         let mut paths: Vec<PathEntry> = Vec::new();
-        for (ri, (name, tid)) in d.roots.iter().enumerate() {
+        for (ri, (name, tid, shape)) in d.roots.iter().enumerate() {
             let id = FieldId(paths.len() as u32);
             let kind = if name == "ui" {
                 RootKind::Ui
             } else {
                 RootKind::Data
             };
-            roots.push(Root {
+            let root = Root {
                 name: name.clone(),
                 ty: *tid,
+                shape: shape.clone(),
                 field: id,
                 kind,
-            });
+            };
             paths.push(PathEntry {
                 path: name.clone(),
-                ty: Type::Struct(*tid),
+                ty: root.value_type(),
                 root: RootId(ri as u16),
                 steps: Vec::new(),
-                list_key: None,
+                list_key: match shape {
+                    RootShape::List(l) => Some(l.key.clone()),
+                    _ => None,
+                },
                 js: false,
                 end: 0,
             });
+            roots.push(root);
             let mut walker = Walker {
                 d: &d,
                 paths: &mut paths,
                 root: RootId(ri as u16),
             };
-            walker.walk(id, name, *tid, &[], 0)?;
+            match shape {
+                // The elements of a list root sit one list level down.
+                RootShape::List(_) => walker.walk(id, &format!("{name}[]"), *tid, &[], 1)?,
+                _ => walker.walk(id, name, *tid, &[], 0)?,
+            }
             let end = paths.len() as u32;
             paths[id.0 as usize].end = end;
         }
@@ -219,6 +228,15 @@ impl Schema {
     #[must_use]
     pub fn root(&self, id: RootId) -> &Root {
         &self.roots[usize::from(id.0)]
+    }
+
+    /// The type of the value of a whole root: its struct, an optional struct or a list.
+    ///
+    /// # Panics
+    /// If `id` is not from this schema.
+    #[must_use]
+    pub fn root_type(&self, id: RootId) -> Type {
+        self.root(id).value_type()
     }
 
     /// Find a root by name.

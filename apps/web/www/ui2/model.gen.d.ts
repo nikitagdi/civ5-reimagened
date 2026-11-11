@@ -9,6 +9,28 @@ export type Source = "replica" | "server";
 export type Phase = "starting" | "ai" | "humans" | "game_over";
 export type TurnMode = "simultaneous" | "hybrid";
 export type Mood = "content" | "unhappy" | "very_unhappy";
+export type TurnUi = "next_turn" | "unit_needs_orders" | "city_needs_production" | "research_needed" | "policy_needed" | "other_blocker" | "waiting_others" | "ai_moving" | "ended" | "game_over";
+export type Domain = "sea" | "air" | "land" | "immobile" | "hover" | "other";
+export type Activity = "awake" | "hold" | "sleep" | "heal" | "sentry" | "intercept" | "mission" | "other";
+export type UnitActionKind = "move" | "range_attack" | "found_city" | "fortify" | "sleep" | "skip" | "heal" | "automate_build" | "automate_explore" | "cancel" | "disband" | "wake" | "alert" | "pillage" | "upgrade";
+export type NoteCat = "growth" | "great_people" | "diplomacy" | "military" | "production" | "research" | "policy" | "religion" | "other";
+export type ChatTo = "all" | "player";
+export type ItemKind = "unit" | "building" | "wonder" | "project" | "process";
+export type MapMode = "select" | "move" | "range_attack";
+export type ProdTab = "all" | "units" | "buildings" | "wonders" | "other";
+export type TurnPending = "none" | "ending" | "cancelling";
+export type ToastKind = "refused" | "rejected" | "lost";
+export type RefuseWhy = "unsupported" | "no_screen" | "no_unit" | "action_unavailable" | "not_your_city" | "option_unavailable" | "cannot_buy" | "bad_slot" | "tech_unavailable" | "cannot_end_turn" | "cannot_cancel" | "chat_empty" | "chat_too_long" | "chat_rate" | "no_connection" | "no_game" | "too_many" | "turn_changed" | "too_big" | "core" | "turn_ended" | "not_your_turn" | "restarting" | "invalid" | "expired" | "not_seated" | "other";
+export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log";
+export type ScreenId = "tech_tree" | "policies" | "religion" | "diplomacy" | "overview" | "notification_log" | "economy" | "military" | "victory" | "demographics" | "chat";
+export type MouseButton = "left" | "right";
+export type PushAt = "back" | "front";
+export type BuyWith = "gold" | "faith";
+
+export interface Plot {
+  readonly x: number;
+  readonly y: number;
+}
 
 export interface EraRef {
   readonly id: number;
@@ -47,6 +69,261 @@ export interface Tech {
   readonly progress: number;
   readonly cost: number;
   readonly fraction: number;
+}
+
+export interface PlayerRow {
+  readonly id: Key;
+  readonly leader: string;
+  readonly civ: string;
+  readonly nick: string | null;
+  readonly color: number;
+  readonly color2: number;
+  readonly human: boolean;
+  readonly alive: boolean;
+  readonly met: boolean;
+  readonly at_war: boolean;
+  readonly me: boolean;
+}
+
+export interface Blocker {
+  readonly kind: number;
+  readonly unit: Key | null;
+  readonly city: Key | null;
+  readonly plot: Plot | null;
+}
+
+export interface Timer {
+  readonly left_s: number;
+  readonly total_s: number;
+  readonly stopped: boolean;
+}
+
+export interface Seat {
+  readonly player: Key;
+  readonly name: string;
+  readonly me: boolean;
+  readonly finished: boolean;
+  readonly may_act: boolean;
+  readonly online: boolean;
+}
+
+export interface Promo {
+  readonly id: number;
+  readonly name: Text;
+  readonly icon: string;
+}
+
+export interface UnitActionRow {
+  readonly kind: UnitActionKind;
+  readonly enabled: boolean;
+  readonly reason: string | null;
+  readonly supported: boolean;
+}
+
+export interface Act {
+  readonly shown: boolean;
+  readonly enabled: boolean;
+  readonly reason: string | null;
+}
+
+export interface UnitActs {
+  readonly move: Act;
+  readonly range_attack: Act;
+  readonly found_city: Act;
+  readonly fortify: Act;
+  readonly sleep: Act;
+  readonly skip: Act;
+  readonly heal: Act;
+  readonly automate_build: Act;
+  readonly automate_explore: Act;
+  readonly cancel: Act;
+  readonly disband: Act;
+  readonly wake: Act;
+  readonly alert: Act;
+  readonly pillage: Act;
+  readonly upgrade: Act;
+}
+
+export interface BannerProd {
+  readonly item: Key;
+  readonly name: Text;
+  readonly icon: string;
+  readonly turns: number | null;
+  readonly fraction: number;
+}
+
+export interface CityBanner {
+  readonly key: Key;
+  readonly owner: Key;
+  readonly color: number;
+  readonly color2: number;
+  readonly name: string;
+  readonly plot: Plot;
+  readonly size: number;
+  readonly capital: boolean;
+  readonly mine: boolean;
+  readonly visible: boolean;
+  readonly puppet: boolean;
+  readonly razing: boolean;
+  readonly occupied: boolean;
+  readonly resistance: boolean;
+  readonly can_shoot: boolean;
+  readonly strength: number;
+  readonly hp_fraction: number;
+  readonly growth_turns: number | null;
+  readonly production: BannerProd | null;
+}
+
+export interface UnitFlag {
+  readonly key: Key;
+  readonly owner: Key;
+  readonly color: number;
+  readonly color2: number;
+  readonly plot: Plot;
+  readonly icon: string;
+  readonly hp_fraction: number;
+  readonly domain: Domain;
+  readonly mine: boolean;
+  readonly waiting: boolean;
+  readonly at_war: boolean;
+  readonly cargo: boolean;
+}
+
+export interface Note {
+  readonly id: Key;
+  readonly category: NoteCat;
+  readonly message: string;
+  readonly summary: string;
+  readonly turn: number;
+  readonly plot: Plot | null;
+}
+
+export interface ChatRow {
+  readonly seq: Key;
+  readonly from: string;
+  readonly from_player: Key | null;
+  readonly to: ChatTo;
+  readonly text: string;
+  readonly turn: number;
+  readonly mine: boolean;
+}
+
+export interface ProdNow {
+  readonly item: Key;
+  readonly name: Text;
+  readonly kind: ItemKind;
+  readonly stored: number;
+  readonly needed: number;
+  readonly turns: number | null;
+  readonly fraction: number;
+}
+
+export interface QueueRow {
+  readonly slot: number;
+  readonly item: Key;
+  readonly name: Text;
+  readonly kind: ItemKind;
+  readonly turns: number | null;
+  readonly first: boolean;
+}
+
+export interface Opt {
+  readonly item: Key;
+  readonly order: number;
+  readonly name: Text;
+  readonly icon: string;
+  readonly turns: number | null;
+  readonly cost: number;
+  readonly enabled: boolean;
+  readonly current: boolean;
+  readonly queued: boolean;
+  readonly locked_reason: string | null;
+  readonly effect: Text | null;
+  readonly buy_gold: number | null;
+  readonly buy_gold_ok: boolean;
+  readonly buy_faith: number | null;
+  readonly buy_faith_ok: boolean;
+  readonly pending: boolean;
+}
+
+export interface OptGroup {
+  readonly kind: ItemKind;
+  readonly count: number;
+  readonly options: Opt[];
+}
+
+export interface Req {
+  readonly idx: number;
+  readonly name: Text;
+  readonly met: boolean;
+}
+
+export interface CityTurns {
+  readonly city: Key;
+  readonly name: string;
+  readonly turns: number | null;
+  readonly fraction: number;
+}
+
+export interface Detail {
+  readonly item: Key;
+  readonly name: Text;
+  readonly kind: ItemKind;
+  readonly turns: number | null;
+  readonly cost: number;
+  readonly help: Text | null;
+  readonly maintenance: number | null;
+  readonly requires: Req[];
+  readonly compare: CityTurns[];
+  readonly short_gold: number | null;
+}
+
+export interface Selection {
+  readonly unit: Key | null;
+  readonly city: Key | null;
+  readonly plot: Plot | null;
+}
+
+export interface Win {
+  readonly open: boolean;
+}
+
+export interface WinCity {
+  readonly open: boolean;
+  readonly city: Key | null;
+}
+
+export interface Windows {
+  readonly production: WinCity;
+  readonly research: Win;
+  readonly menu: Win;
+  readonly chat: Win;
+  readonly notes_log: Win;
+}
+
+export interface UiProduction {
+  readonly tab: ProdTab;
+  readonly focus: Key | null;
+  readonly hover: Key | null;
+}
+
+export interface UiChat {
+  readonly to: ChatTo;
+  readonly to_player: Key | null;
+}
+
+export interface Pending {
+  readonly seq: number;
+  readonly intent: string;
+  readonly target: string;
+  readonly since_ms: number;
+}
+
+export interface Toast {
+  readonly seq: number;
+  readonly kind: ToastKind;
+  readonly why: RefuseWhy;
+  readonly detail: string | null;
 }
 
 export interface Meta {
@@ -95,12 +372,88 @@ export interface Research {
   readonly blocked: boolean;
 }
 
+export interface Turn {
+  readonly state: TurnUi;
+  readonly blocker: Blocker | null;
+  readonly units_waiting: number;
+  readonly finished: boolean;
+  readonly can_cancel: boolean;
+  readonly timer: Timer | null;
+  readonly ready: number;
+  readonly humans: number;
+  readonly seats: Seat[];
+}
+
+export interface Unit {
+  readonly key: Key;
+  readonly name: string;
+  readonly type_name: Text;
+  readonly portrait: string;
+  readonly level: number;
+  readonly xp: number;
+  readonly strength: number;
+  readonly ranged: number;
+  readonly range: number;
+  readonly moves: number;
+  readonly max_moves: number;
+  readonly hp: number;
+  readonly max_hp: number;
+  readonly hp_fraction: number;
+  readonly domain: Domain;
+  readonly activity: Activity;
+  readonly promotions: Promo[];
+  readonly promotion_ready: boolean;
+  readonly actions: UnitActionRow[];
+  readonly act: UnitActs;
+  readonly pending: boolean;
+}
+
+export interface Map {
+  readonly cities: CityBanner[];
+  readonly units: UnitFlag[];
+}
+
+export interface Production {
+  readonly city: Key;
+  readonly name: string;
+  readonly capital: boolean;
+  readonly size: number;
+  readonly rate: number;
+  readonly overflow: number | null;
+  readonly gold: number;
+  readonly faith: number;
+  readonly current: ProdNow | null;
+  readonly queue_known: boolean;
+  readonly queue: QueueRow[];
+  readonly groups: OptGroup[];
+  readonly detail: Detail | null;
+}
+
+export interface Ui {
+  readonly selection: Selection;
+  readonly map_mode: MapMode;
+  readonly windows: Windows;
+  readonly production: UiProduction;
+  readonly chat: UiChat;
+  readonly pending: Pending[];
+  readonly turn_pending: TurnPending;
+  readonly errors: Toast[];
+}
+
 /** The model: one member per root. */
 export interface Model {
   readonly meta: Meta;
   readonly game: Game;
   readonly top: Top;
   readonly research: Research;
+  readonly players: PlayerRow[];
+  readonly turn: Turn;
+  readonly unit: Unit | null;
+  readonly map: Map;
+  readonly notes: Note[];
+  readonly chat: ChatRow[];
+  readonly production: Production | null;
+  readonly ui: Ui;
 }
 
 /** A decoded operation of a frame delta. Values follow the types above. */
@@ -118,7 +471,7 @@ export interface Delta {
 
 export const SCHEMA_VERSION: string;
 export const SCHEMA_HASH: string;
-export const ROOTS: [string, string][];
+export const ROOTS: [string, unknown][];
 export const ENUMS: Record<string, string[]>;
 export const TYPES: Record<string, [string, unknown][]>;
 export const PATHS: { path: string; type: unknown; key?: string; js?: true }[];

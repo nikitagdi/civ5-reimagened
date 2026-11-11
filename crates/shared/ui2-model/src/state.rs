@@ -4,7 +4,7 @@
 use thiserror::Error;
 
 use crate::delta::Op;
-use crate::schema::{FieldId, PathEntry, RootId, Schema, Type, TypeId};
+use crate::schema::{FieldId, PathEntry, Root as RootDef, RootId, RootShape, Schema, Type, TypeId};
 use crate::value::{Key, Value, ValueError, default_value, validate};
 
 /// A delta that does not fit the model.
@@ -46,7 +46,7 @@ impl ModelState {
         let roots = schema
             .roots()
             .iter()
-            .map(|r| default_value(schema, &Type::Struct(r.ty)))
+            .map(|r| default_value(schema, &r.value_type()))
             .collect();
         ModelState { schema, roots }
     }
@@ -128,11 +128,9 @@ impl ModelState {
                     .roots()
                     .get(usize::from(root.0))
                     .ok_or(ApplyError::UnknownRoot(root.0))?;
-                validate(schema, &Type::Struct(r.ty), value).map_err(|source| {
-                    ApplyError::Value {
-                        path: r.name.clone(),
-                        source,
-                    }
+                validate(schema, &r.value_type(), value).map_err(|source| ApplyError::Value {
+                    path: r.name.clone(),
+                    source,
                 })?;
                 self.roots[usize::from(root.0)] = value.clone();
                 Ok(())
@@ -143,6 +141,17 @@ impl ModelState {
                     path: e.path.clone(),
                     source,
                 })?;
+                if e.steps.is_empty() {
+                    // The whole root (an optional root appearing or going away).
+                    if !keys.is_empty() {
+                        return Err(ApplyError::Shape {
+                            path: e.path.clone(),
+                            msg: "too many keys for the path",
+                        });
+                    }
+                    self.roots[usize::from(e.root.0)] = value.clone();
+                    return Ok(());
+                }
                 let slot = self.slot_mut(e, keys)?;
                 *slot = value.clone();
                 Ok(())
@@ -245,9 +254,9 @@ impl ModelState {
 
     fn slot_mut(&mut self, e: &PathEntry, keys: &[Key]) -> Result<&mut Value, ApplyError> {
         let schema = self.schema;
-        let root_ty = schema.root(e.root).ty;
         let root = &mut self.roots[usize::from(e.root.0)];
-        slot_mut(schema, root, root_ty, &e.steps, keys).map_err(|w| Self::walk_err(e, w))
+        slot_mut(schema, root, schema.root(e.root), &e.steps, keys)
+            .map_err(|w| Self::walk_err(e, w))
     }
 
     fn list_mut(
@@ -255,7 +264,19 @@ impl ModelState {
         e: &PathEntry,
         keys: &[Key],
     ) -> Result<&mut Vec<(Key, Value)>, ApplyError> {
-        match self.slot_mut(e, keys)? {
+        // The list at the top of a list root is the root value itself.
+        let slot = if e.steps.is_empty() {
+            if !keys.is_empty() {
+                return Err(ApplyError::Shape {
+                    path: e.path.clone(),
+                    msg: "too many keys for the path",
+                });
+            }
+            &mut self.roots[usize::from(e.root.0)]
+        } else {
+            self.slot_mut(e, keys)?
+        };
+        match slot {
             Value::List(items) => Ok(items),
             _ => Err(ApplyError::Shape {
                 path: e.path.clone(),
@@ -273,14 +294,7 @@ impl ModelState {
         if e.steps.is_empty() {
             return keys.is_empty().then_some(root);
         }
-        slot_ref(
-            self.schema,
-            root,
-            self.schema.root(e.root).ty,
-            &e.steps,
-            keys,
-        )
-        .ok()
+        slot_ref(self.schema, root, self.schema.root(e.root), &e.steps, keys).ok()
     }
 
     /// The keys of a list, in list order.
@@ -319,13 +333,26 @@ fn next_type(schema: &Schema, ty: TypeId, step: u16) -> Option<&Type> {
 fn slot_mut<'a>(
     schema: &Schema,
     root: &'a mut Value,
-    root_ty: TypeId,
+    def: &RootDef,
     steps: &[u16],
     keys: &[Key],
 ) -> Result<&'a mut Value, Walk> {
     let mut cur: &'a mut Value = root;
-    let mut ty = root_ty;
+    let mut ty = def.ty;
     let mut ki = 0;
+    if matches!(def.shape, RootShape::List(_)) {
+        // The first key picks the element of the list root.
+        let key = *keys.first().ok_or(Walk::Shape("missing list key"))?;
+        ki = 1;
+        let Value::List(items) = cur else {
+            return Err(Walk::Shape("expected a list"));
+        };
+        cur = &mut items
+            .iter_mut()
+            .find(|(k, _)| *k == key)
+            .ok_or(Walk::NoElement(key))?
+            .1;
+    }
     for (si, &step) in steps.iter().enumerate() {
         let Value::Struct(fields) = cur else {
             return Err(Walk::Shape("expected a struct on the way"));
@@ -375,13 +402,25 @@ fn slot_mut<'a>(
 fn slot_ref<'a>(
     schema: &Schema,
     root: &'a Value,
-    root_ty: TypeId,
+    def: &RootDef,
     steps: &[u16],
     keys: &[Key],
 ) -> Result<&'a Value, Walk> {
     let mut cur: &'a Value = root;
-    let mut ty = root_ty;
+    let mut ty = def.ty;
     let mut ki = 0;
+    if matches!(def.shape, RootShape::List(_)) {
+        let key = *keys.first().ok_or(Walk::Shape("missing list key"))?;
+        ki = 1;
+        let Value::List(items) = cur else {
+            return Err(Walk::Shape("expected a list"));
+        };
+        cur = &items
+            .iter()
+            .find(|(k, _)| *k == key)
+            .ok_or(Walk::NoElement(key))?
+            .1;
+    }
     for (si, &step) in steps.iter().enumerate() {
         let Value::Struct(fields) = cur else {
             return Err(Walk::Shape("expected a struct on the way"));

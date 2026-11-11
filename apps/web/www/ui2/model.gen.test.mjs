@@ -68,3 +68,30 @@ test("a snapshot header for another schema is refused", () => {
   assert.throws(() => decodeUmd1('[1,[5,"0000000000000000"]]'), /schema mismatch/);
   assert.doesNotThrow(() => decodeUmd1(`[1,[5,"${SCHEMA_HASH}"]]`));
 });
+
+test("optional and list roots decode by their whole type", () => {
+  const root = (name) => ROOTS.findIndex((r) => r[0] === name);
+  const notes = root("notes");
+  const unit = root("unit");
+  const text = JSON.stringify([
+    2,
+    [4, notes, [["0:9", ["0:9", 4, "m", "s", 3, null]]]],
+    [4, unit, null],
+    [1, fieldId("notes"), [], 1, "0:10", ["0:10", 0, "n", "t", 4, [3, 5]]],
+    [0, fieldId("notes[].message"), ["0:9"], "changed"],
+    [0, fieldId("unit"), [], null],
+  ]);
+  const d = decodeUmd1(text);
+  assert.deepEqual(d.ops[0], {
+    op: "reset",
+    root: "notes",
+    value: [{ id: "0:9", category: "production", message: "m", summary: "s", turn: 3, plot: null }],
+  });
+  assert.deepEqual(d.ops[1], { op: "reset", root: "unit", value: null });
+  assert.deepEqual(d.ops[2].value, { id: "0:10", category: "growth", message: "n", summary: "t", turn: 4, plot: { x: 3, y: 5 } });
+  assert.equal(d.ops[3].path, "notes[].message");
+  assert.deepEqual(d.ops[3].keys, ["0:9"]);
+  assert.equal(d.ops[4].value, null);
+  assert.equal(ROOTS[unit][1][0], "opt");
+  assert.equal(ROOTS[notes][1][0], "list");
+});

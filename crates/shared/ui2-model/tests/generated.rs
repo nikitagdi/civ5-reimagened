@@ -4,14 +4,14 @@ mod common;
 
 use common::{Rng, gen_value, mutate};
 use ui2_model::generated as g;
-use ui2_model::{Model, Op, Root, Schema, Type, Value, diff_root, validate};
+use ui2_model::{Model, Op, Root, Schema, Value, diff_root, validate};
 
 fn check_root<R: Root + PartialEq + std::fmt::Debug>(schema: &'static Schema) {
     let rid = schema
         .root_by_name(R::NAME)
         .expect("root exists in the schema");
     let root = schema.root(rid);
-    let ty = Type::Struct(root.ty);
+    let ty = schema.root_type(rid);
 
     // The default struct is the default value of the schema.
     assert_eq!(
@@ -69,6 +69,14 @@ fn typed_diff_equals_dynamic_diff_for_every_root() {
     check_root::<g::Top>(s);
     check_root::<g::Game>(s);
     check_root::<g::Research>(s);
+    check_root::<ui2_model::KeyedList<g::PlayerRow>>(s);
+    check_root::<g::Turn>(s);
+    check_root::<Option<g::Unit>>(s);
+    check_root::<g::Map>(s);
+    check_root::<ui2_model::KeyedList<g::Note>>(s);
+    check_root::<ui2_model::KeyedList<g::ChatRow>>(s);
+    check_root::<Option<g::Production>>(s);
+    check_root::<g::Ui>(s);
 }
 
 #[test]

@@ -8,7 +8,8 @@ use toml::de::{DeString, DeTable, DeValue};
 
 use super::SchemaError;
 use super::types::{
-    EnumDef, EnumId, FieldDef, IntentDef, ListType, Scalar, StructDef, Type, TypeId, Version,
+    EnumDef, EnumId, FieldDef, IntentDef, ListType, RootShape, Scalar, StructDef, Type, TypeId,
+    Version,
 };
 
 /// Roots that belong to the dynamic namespaces (state, mods) and cannot be declared as data roots.
@@ -68,8 +69,8 @@ pub(crate) struct Draft {
     /// Named types first (file order), then the root structs.
     pub types: Vec<StructDef>,
     pub pos: Vec<StructPos>,
-    /// `(root name, struct)` in file order.
-    pub roots: Vec<(String, TypeId)>,
+    /// `(root name, struct or list element, shape)` in file order.
+    pub roots: Vec<(String, TypeId, RootShape)>,
     pub intents: Vec<IntentDef>,
     pub lines: LineIndex,
 }
@@ -98,6 +99,18 @@ struct RawStruct {
     fields: Vec<RawField>,
     pos: usize,
     is_root: bool,
+}
+
+/// What a `[model.<name>]` table declares.
+enum RawRoot {
+    /// A struct root (index into the raw structs), optional or not.
+    Struct { optional: bool },
+    /// A list root: element type name, key field, offset of the `_list` value.
+    List {
+        elem: String,
+        key: String,
+        pos: usize,
+    },
 }
 
 type Entry<'a, 'i> = (&'a Spanned<DeString<'i>>, &'a Spanned<DeValue<'i>>);
@@ -277,14 +290,24 @@ fn check_field_name(lines: &LineIndex, name: &str, pos: usize) -> Result<(), Sch
     Ok(())
 }
 
+/// The entries of a table split into plain fields and `_`-prefixed directives (`_optional`, `_list`, `_key`,
+/// `_each`, `_type`), both in file order.
+fn split_directives<'a, 'i>(t: &'a DeTable<'i>) -> (Vec<Entry<'a, 'i>>, Vec<Entry<'a, 'i>>) {
+    ordered(t).into_iter().partition(|(k, _)| {
+        let name: &str = k.get_ref().as_ref();
+        !name.starts_with('_')
+    })
+}
+
 /// A struct body: every entry is a field.
 fn parse_body(
     lines: &LineIndex,
     owner: &str,
-    t: &DeTable<'_>,
+    at: usize,
+    entries: &[Entry<'_, '_>],
 ) -> Result<Vec<RawField>, SchemaError> {
     let mut fields: Vec<RawField> = Vec::new();
-    for (k, v) in ordered(t) {
+    for (k, v) in entries.iter().copied() {
         let f = parse_field(lines, k, v)?;
         check_field_name(lines, &f.name, f.pos)?;
         if fields.iter().any(|g| g.name == f.name) {
@@ -293,13 +316,137 @@ fn parse_body(
         fields.push(f);
     }
     if fields.is_empty() {
-        return Err(lines.err(t_pos(t), format!("`{owner}` has no fields")));
+        return Err(lines.err(at, format!("`{owner}` has no fields")));
     }
     Ok(fields)
 }
 
 fn t_pos(t: &DeTable<'_>) -> usize {
     t.iter().map(|(k, _)| k.span().start).min().unwrap_or(0)
+}
+
+/// The fields of a struct declared as one field of the same type per variant of an enum:
+/// `_each = "Enum"` and `_type = "FieldType"`.
+fn each_fields(
+    lines: &LineIndex,
+    owner: &str,
+    enums: &[EnumDef],
+    directives: &[Entry<'_, '_>],
+) -> Result<Vec<RawField>, SchemaError> {
+    let mut each: Option<(&str, usize)> = None;
+    let mut ty: Option<(RawTy, usize)> = None;
+    for &(k, v) in directives {
+        let kpos = k.span().start;
+        let vpos = v.span().start;
+        match (k.get_ref().as_ref(), v.get_ref()) {
+            ("_each", DeValue::String(s)) => each = Some((s.as_ref(), vpos)),
+            ("_type", DeValue::String(s)) => {
+                ty = Some((parse_type_str(s).map_err(|m| lines.err(vpos, m))?, vpos));
+            }
+            ("_each" | "_type", other) => {
+                return Err(lines.err(
+                    vpos,
+                    format!(
+                        "type `{owner}`: `{}` must be a string, found {}",
+                        k.get_ref(),
+                        kind_name(other)
+                    ),
+                ));
+            }
+            (other, _) => {
+                return Err(lines.err(
+                    kpos,
+                    format!(
+                        "type `{owner}`: `{other}`: names starting with `_` are reserved for the directives `_each` and `_type`"
+                    ),
+                ));
+            }
+        }
+    }
+    let (Some((en, epos)), Some((raw, _))) = (each, ty) else {
+        let at = directives.first().map_or(0, |(k, _)| k.span().start);
+        return Err(lines.err(
+            at,
+            format!("type `{owner}`: `_each` and `_type` go together"),
+        ));
+    };
+    let Some(def) = enums.iter().find(|e| e.name == en) else {
+        return Err(lines.err(
+            epos,
+            format!("type `{owner}`: unknown enum `{en}` in `_each`"),
+        ));
+    };
+    Ok(def
+        .variants
+        .iter()
+        .map(|v| RawField {
+            name: v.clone(),
+            ty: raw.clone(),
+            js: false,
+            pos: epos,
+            vpos: epos,
+        })
+        .collect())
+}
+
+/// The directives of a root table: `_optional`, or `_list` with `_key`.
+fn root_form(
+    lines: &LineIndex,
+    name: &str,
+    at: usize,
+    plain_empty: bool,
+    directives: &[Entry<'_, '_>],
+) -> Result<RawRoot, SchemaError> {
+    let mut optional = false;
+    let mut elem: Option<(String, usize)> = None;
+    let mut key: Option<String> = None;
+    for &(k, v) in directives {
+        let kpos = k.span().start;
+        let vpos = v.span().start;
+        match (k.get_ref().as_ref(), v.get_ref()) {
+            ("_optional", DeValue::Boolean(b)) => optional = *b,
+            ("_list", DeValue::String(s)) => elem = Some((s.to_string(), vpos)),
+            ("_key", DeValue::String(s)) => key = Some(s.to_string()),
+            ("_optional" | "_list" | "_key", other) => {
+                return Err(lines.err(
+                    vpos,
+                    format!(
+                        "root `{name}`: `{}` has the wrong type ({})",
+                        k.get_ref(),
+                        kind_name(other)
+                    ),
+                ));
+            }
+            (other, _) => {
+                return Err(lines.err(
+                    kpos,
+                    format!(
+                        "root `{name}`: `{other}`: names starting with `_` are reserved for the directives `_optional`, `_list` and `_key`"
+                    ),
+                ));
+            }
+        }
+    }
+    match (elem, key) {
+        (Some((elem, pos)), Some(key)) => {
+            if optional {
+                return Err(lines.err(
+                    pos,
+                    format!("root `{name}`: a list root cannot be `_optional`"),
+                ));
+            }
+            if !plain_empty {
+                return Err(lines.err(pos, format!("root `{name}`: a list root has no fields")));
+            }
+            Ok(RawRoot::List { elem, key, pos })
+        }
+        (Some((_, pos)), None) => Err(lines.err(
+            pos,
+            format!("root `{name}`: a list root needs `_key = \"field\"`"),
+        )),
+        (None, Some(_)) => Err(lines.err(at, format!("root `{name}`: `_key` without `_list`"))),
+        (None, None) => Ok(RawRoot::Struct { optional }),
+    }
 }
 
 /// Parse and resolve a schema source.
@@ -435,7 +582,18 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
                     format!("type `{name}`: expected a table of fields"),
                 ));
             };
-            let fields = parse_body(&lines, &name, body)?;
+            let (plain, directives) = split_directives(body);
+            let fields = if directives.is_empty() {
+                parse_body(&lines, &name, t_pos(body), &plain)?
+            } else if plain.is_empty() {
+                each_fields(&lines, &name, &enums, &directives)?
+            } else {
+                let at = directives[0].0.span().start;
+                return Err(lines.err(
+                    at,
+                    format!("type `{name}`: directives and fields cannot be mixed"),
+                ));
+            };
             raws.push(RawStruct {
                 name,
                 fields,
@@ -444,7 +602,7 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
             });
         }
     }
-    let mut root_names: Vec<(String, usize)> = Vec::new();
+    let mut root_names: Vec<(String, usize, RawRoot)> = Vec::new();
     if let Some(t) = model_tbl {
         for (k, v) in ordered(t) {
             let name = k.get_ref().to_string();
@@ -461,7 +619,7 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
                     format!("root `{name}` is reserved for the state and mod namespaces"),
                 ));
             }
-            if root_names.iter().any(|(n, _)| *n == name) {
+            if root_names.iter().any(|(n, ..)| *n == name) {
                 return Err(lines.err(pos, format!("duplicate root `{name}`")));
             }
             let DeValue::Table(body) = v.get_ref() else {
@@ -470,21 +628,27 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
                     format!("root `{name}`: expected a table of fields"),
                 ));
             };
-            let sname = pascal(&name);
-            if !taken.insert(sname.clone()) {
-                return Err(lines.err(
+            let (plain, directives) = split_directives(body);
+            let form = root_form(&lines, &name, t_pos(body), plain.is_empty(), &directives)?;
+            if let RawRoot::Struct { .. } = form {
+                let sname = pascal(&name);
+                if !taken.insert(sname.clone()) {
+                    return Err(lines.err(
+                        pos,
+                        format!(
+                            "root `{name}`: its struct name `{sname}` clashes with another type"
+                        ),
+                    ));
+                }
+                let fields = parse_body(&lines, &name, t_pos(body), &plain)?;
+                raws.push(RawStruct {
+                    name: sname,
+                    fields,
                     pos,
-                    format!("root `{name}`: its struct name `{sname}` clashes with another type"),
-                ));
+                    is_root: true,
+                });
             }
-            let fields = parse_body(&lines, &name, body)?;
-            raws.push(RawStruct {
-                name: sname,
-                fields,
-                pos,
-                is_root: true,
-            });
-            root_names.push((name, pos));
+            root_names.push((name, pos, form));
         }
     }
 
@@ -523,69 +687,73 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
         go(&lines, &enum_ids, &type_ids, raw, pos)
     };
 
+    // A list of `elem` keyed by `key`; `what` names the field or root for the messages.
+    let resolve_list = |what: &str,
+                        elem: &str,
+                        key: &str,
+                        pos: usize|
+     -> Result<ListType, SchemaError> {
+        let Some(&elem_id) = type_ids.get(elem) else {
+            return Err(lines.err(pos, format!("{what}: unknown list element type `{elem}`")));
+        };
+        let es = &raws[elem_id.0 as usize];
+        if es.is_root {
+            return Err(lines.err(
+                pos,
+                format!("{what}: a root struct cannot be a list element"),
+            ));
+        }
+        let Some(ki) = es.fields.iter().position(|g| g.name == key) else {
+            return Err(lines.err(
+                pos,
+                format!("{what}: list key `{key}` is not a field of `{elem}`"),
+            ));
+        };
+        let kty = match &es.fields[ki].ty {
+            RawTy::List { .. } => {
+                return Err(lines.err(
+                    pos,
+                    format!("list key `{key}` of `{elem}` cannot be a list"),
+                ));
+            }
+            other => resolve_plain(other, es.fields[ki].vpos)?,
+        };
+        let ok = match &kty {
+            Type::Key(_) | Type::Enum(_) => true,
+            Type::Scalar(s) => matches!(
+                s,
+                Scalar::I8 | Scalar::I16 | Scalar::I32 | Scalar::U32 | Scalar::Str
+            ),
+            _ => false,
+        };
+        if !ok {
+            return Err(lines.err(
+                pos,
+                format!(
+                    "{what}: list key `{key}` of `{elem}` must be `key<...>`, an integer, an enum or `str` (not optional)"
+                ),
+            ));
+        }
+        Ok(ListType {
+            elem: elem_id,
+            key: key.to_string(),
+            key_index: ki,
+            key_ty: Box::new(kty),
+        })
+    };
+
     let mut types: Vec<StructDef> = Vec::new();
     let mut positions: Vec<StructPos> = Vec::new();
-    // Struct of each element type: key field name -> (first list that used it) for the consistency check.
     for r in &raws {
         let mut fields = Vec::new();
         for f in &r.fields {
             let ty = match &f.ty {
-                RawTy::List { elem, key } => {
-                    let Some(&elem_id) = type_ids.get(elem) else {
-                        return Err(lines.err(
-                            f.pos,
-                            format!("field `{}`: unknown list element type `{elem}`", f.name),
-                        ));
-                    };
-                    let es = &raws[elem_id.0 as usize];
-                    if es.is_root {
-                        return Err(lines.err(
-                            f.pos,
-                            format!("field `{}`: a root struct cannot be a list element", f.name),
-                        ));
-                    }
-                    let Some(ki) = es.fields.iter().position(|g| g.name == *key) else {
-                        return Err(lines.err(
-                            f.pos,
-                            format!(
-                                "field `{}`: list key `{key}` is not a field of `{elem}`",
-                                f.name
-                            ),
-                        ));
-                    };
-                    let kty = match &es.fields[ki].ty {
-                        RawTy::List { .. } => {
-                            return Err(lines.err(
-                                f.pos,
-                                format!("list key `{key}` of `{elem}` cannot be a list"),
-                            ));
-                        }
-                        other => resolve_plain(other, es.fields[ki].vpos)?,
-                    };
-                    let ok = match &kty {
-                        Type::Key(_) | Type::Enum(_) => true,
-                        Type::Scalar(s) => matches!(
-                            s,
-                            Scalar::I8 | Scalar::I16 | Scalar::I32 | Scalar::U32 | Scalar::Str
-                        ),
-                        _ => false,
-                    };
-                    if !ok {
-                        return Err(lines.err(
-                            f.pos,
-                            format!(
-                                "field `{}`: list key `{key}` of `{elem}` must be `key<...>`, an integer, an enum or `str` (not optional)",
-                                f.name
-                            ),
-                        ));
-                    }
-                    Type::List(ListType {
-                        elem: elem_id,
-                        key: key.clone(),
-                        key_index: ki,
-                        key_ty: Box::new(kty),
-                    })
-                }
+                RawTy::List { elem, key } => Type::List(resolve_list(
+                    &format!("field `{}`", f.name),
+                    elem,
+                    key,
+                    f.pos,
+                )?),
                 other => resolve_plain(other, f.vpos)?,
             };
             fields.push(FieldDef {
@@ -608,30 +776,60 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
         });
     }
 
+    // List roots.
+    let mut roots: Vec<(String, TypeId, RootShape)> = Vec::new();
+    for (name, _, form) in &root_names {
+        roots.push(match form {
+            RawRoot::Struct { optional } => (
+                name.clone(),
+                type_ids[&pascal(name)],
+                if *optional {
+                    RootShape::Optional
+                } else {
+                    RootShape::Struct
+                },
+            ),
+            RawRoot::List { elem, key, pos: p } => {
+                let l = resolve_list(&format!("root `{name}`"), elem, key, *p)?;
+                (name.clone(), l.elem, RootShape::List(l))
+            }
+        });
+    }
+
     // Element structs: one key field per struct (the generated code has one `Keyed` impl).
-    let mut key_of: HashMap<TypeId, (usize, usize)> = HashMap::new();
+    let mut key_of: HashMap<TypeId, usize> = HashMap::new();
+    let mut note_key = |l: &ListType, at: usize| -> Result<(), SchemaError> {
+        match key_of.get(&l.elem) {
+            Some(&ki) if ki != l.key_index => {
+                let es = &types[l.elem.0 as usize];
+                Err(lines.err(
+                    at,
+                    format!(
+                        "struct `{}` is a list element with different keys (`{}` and `{}`)",
+                        es.name, es.fields[ki].name, l.key
+                    ),
+                ))
+            }
+            _ => {
+                key_of.insert(l.elem, l.key_index);
+                Ok(())
+            }
+        }
+    };
     for (ti, td) in types.iter().enumerate() {
         for (fi, f) in td.fields.iter().enumerate() {
             if let Type::List(l) = &f.ty {
-                match key_of.get(&l.elem) {
-                    Some(&(ki, _)) if ki != l.key_index => {
-                        let es = &types[l.elem.0 as usize];
-                        return Err(lines.err(
-                            positions[ti].fields[fi],
-                            format!(
-                                "struct `{}` is a list element with different keys (`{}` and `{}`)",
-                                es.name, es.fields[ki].name, l.key
-                            ),
-                        ));
-                    }
-                    _ => {
-                        key_of.insert(l.elem, (l.key_index, ti));
-                    }
-                }
+                note_key(l, positions[ti].fields[fi])?;
             }
         }
     }
-    for (elem, (ki, _)) in key_of {
+    for ((_, tid, shape), (_, pos, _)) in roots.iter().zip(&root_names) {
+        if let RootShape::List(l) = shape {
+            debug_assert_eq!(l.elem, *tid);
+            note_key(l, *pos)?;
+        }
+    }
+    for (elem, ki) in key_of {
         types[elem.0 as usize].key_index = Some(ki);
     }
 
@@ -679,10 +877,15 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
                     ));
                 }
                 let ty = resolve_plain(&f.ty, f.vpos)?;
-                if ty.struct_id().is_some() {
+                if let Some(t) = ty.struct_id()
+                    && (types[t.0 as usize].is_root || holds_list(&types, t))
+                {
                     return Err(lines.err(
                         f.pos,
-                        format!("argument `{}`: structs are not allowed in intents", f.name),
+                        format!(
+                            "argument `{}`: structs in intents must be plain (no lists, not a root struct)",
+                            f.name
+                        ),
                     ));
                 }
                 args.push(FieldDef {
@@ -695,14 +898,6 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
         }
     }
 
-    let roots = root_names
-        .iter()
-        .map(|(n, _)| {
-            let tid = type_ids[&pascal(n)];
-            (n.clone(), tid)
-        })
-        .collect();
-
     Ok(Draft {
         version,
         enums,
@@ -712,6 +907,19 @@ pub(crate) fn parse_draft(src: &str) -> Result<Draft, SchemaError> {
         intents,
         lines,
     })
+}
+
+/// Whether a struct has a list field, directly or in a struct below it.
+fn holds_list(types: &[StructDef], t: TypeId) -> bool {
+    fn go(types: &[StructDef], t: TypeId, depth: u32) -> bool {
+        // A cycle is reported by the layout pass later; here it only has to end.
+        depth > 32
+            || types[t.0 as usize].fields.iter().any(|f| match &f.ty {
+                Type::List(_) => true,
+                other => other.struct_id().is_some_and(|c| go(types, c, depth + 1)),
+            })
+    }
+    go(types, t, 0)
 }
 
 fn check_type_name(

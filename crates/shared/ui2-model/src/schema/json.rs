@@ -7,8 +7,9 @@ use super::{Schema, Type};
 #[derive(Serialize)]
 struct RootRow<'a> {
     name: &'a str,
+    /// The type of the whole root: `Top`, `Unit?` (optional) or `list<Note>`.
     #[serde(rename = "type")]
-    ty: &'a str,
+    ty: String,
     field: u32,
     owner: &'static str,
 }
@@ -90,7 +91,7 @@ fn body(s: &Schema, with_hash: bool) -> String {
         .iter()
         .map(|r| RootRow {
             name: &r.name,
-            ty: &s.types[r.ty.0 as usize].name,
+            ty: s.type_name(&r.value_type()),
             field: r.field.0,
             owner: match r.kind {
                 super::RootKind::Data => "source",

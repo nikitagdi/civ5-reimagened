@@ -82,7 +82,7 @@ export function decodeUmd1(text) {
         break;
       }
       case 4:
-        ops.push({ op: "reset", root: ROOTS[o[1]][0], value: decodeValue(["struct", ROOTS[o[1]][1]], o[2]) });
+        ops.push({ op: "reset", root: ROOTS[o[1]][0], value: decodeValue(ROOTS[o[1]][1], o[2]) });
         break;
       case 5:
         if (o[1] !== SCHEMA_HASH) {
@@ -106,9 +106,9 @@ pub fn generate_js(s: &Schema) -> String {
         q(&s.version().to_string())
     );
     let _ = writeln!(out, "export const SCHEMA_HASH = \"{:016x}\";", s.hash());
-    out.push_str("\n/** Roots in schema order: `[name, struct type]`. The index is the root id of a `reset` op. */\nexport const ROOTS = [\n");
+    out.push_str("\n/** Roots in schema order: `[name, type descriptor of the whole root]`. The index is the root id of a `reset` op. */\nexport const ROOTS = [\n");
     for r in s.roots() {
-        let _ = writeln!(out, "  [{}, {}],", q(&r.name), q(&s.type_def(r.ty).name));
+        let _ = writeln!(out, "  [{}, {}],", q(&r.name), desc(s, &r.value_type()));
     }
     out.push_str(
         "];\n\n/** Enum variant names; a value is the index. */\nexport const ENUMS = {\n",
@@ -177,7 +177,7 @@ export interface Delta {
 
 export const SCHEMA_VERSION: string;
 export const SCHEMA_HASH: string;
-export const ROOTS: [string, string][];
+export const ROOTS: [string, unknown][];
 export const ENUMS: Record<string, string[]>;
 export const TYPES: Record<string, [string, unknown][]>;
 export const PATHS: { path: string; type: unknown; key?: string; js?: true }[];
@@ -204,7 +204,12 @@ pub fn generate_dts(s: &Schema) -> String {
     }
     out.push_str("/** The model: one member per root. */\nexport interface Model {\n");
     for r in s.roots() {
-        let _ = writeln!(out, "  readonly {}: {};", r.name, s.type_def(r.ty).name);
+        let _ = writeln!(
+            out,
+            "  readonly {}: {};",
+            r.name,
+            ts_type(s, &r.value_type())
+        );
     }
     out.push_str("}\n");
     out.push_str(DTS_FOOT);

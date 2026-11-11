@@ -86,50 +86,9 @@ pub struct IslandCmd {
     pub op: IslandOp,
 }
 
-macro_rules! name_enum {
-    ($(#[$m:meta])* $name:ident { $($var:ident => $s:literal),+ $(,)? }) => {
-        $(#[$m])*
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-        pub enum $name { $($var),+ }
+/// The windows of the skin (they open over the map and are bound to the `ui.windows` state). Generated from
+/// the schema; the names are the ones markup, samples and scripts use.
+pub use crate::generated::WindowId;
 
-        impl $name {
-            /// Every value, in declaration order.
-            pub const ALL: &'static [$name] = &[$($name::$var),+];
-
-            /// The name used in markup, samples and scripts.
-            #[must_use]
-            pub fn as_str(self) -> &'static str {
-                match self { $($name::$var => $s),+ }
-            }
-
-            /// Parse the name.
-            #[must_use]
-            pub fn from_name(s: &str) -> Option<$name> {
-                match s { $($s => Some($name::$var),)+ _ => None }
-            }
-        }
-    };
-}
-
-name_enum! {
-    /// The windows of the skin (they open over the map and are bound to the `ui.windows` state).
-    WindowId {
-        Production => "production",
-        Research => "research",
-        Menu => "menu",
-        Chat => "chat",
-        NotesLog => "notes_log",
-    }
-}
-
-name_enum! {
-    /// The screens that live outside the skin.
-    ScreenId {
-        TechTree => "tech_tree",
-        Policies => "policies",
-        Religion => "religion",
-        Diplomacy => "diplomacy",
-        Overview => "overview",
-        NotificationLog => "notification_log",
-    }
-}
+/// The screens that live outside the skin. Generated from the schema.
+pub use crate::generated::ScreenId;

@@ -1,6 +1,6 @@
 //! Schema parser: the reference schema, path resolution, layout, and the error texts.
 
-use ui2_model::{FieldId, RootKind, Scalar, Schema, SchemaError, Type};
+use ui2_model::{FieldId, RootKind, RootShape, Scalar, Schema, SchemaError, Type};
 
 const REFERENCE: &str = r#"
 version = "1.0"
@@ -277,10 +277,100 @@ fn error_bad_key_type_and_names() {
 
 #[test]
 fn error_intent_arguments() {
-    let e = parse_err(&with_header(
+    // A plain struct is fine as an argument; one that holds a list is not.
+    Schema::parse(&with_header(
         "[type.A]\nx = \"i32\"\n[intent.go]\na = \"A\"\n",
+    ))
+    .unwrap();
+    let e = parse_err(&with_header(
+        "[type.E]\nid = \"i32\"\n[type.A]\nxs = { list = \"E\", key = \"id\" }\n[intent.go]\na = \"A\"\n",
     ));
-    assert!(e.contains("structs are not allowed in intents"), "{e}");
+    assert!(e.contains("structs in intents must be plain"), "{e}");
+    let e = parse_err(&with_header(
+        "[type.E]\nid = \"i32\"\n[intent.go]\na = { list = \"E\", key = \"id\" }\n",
+    ));
+    assert!(e.contains("lists are not allowed in intents"), "{e}");
+}
+
+#[test]
+fn list_and_optional_roots_and_per_variant_structs() {
+    let s = Schema::parse(&with_header(
+        r#"[enum]
+Kind = ["a", "b"]
+[type.Row]
+id = "key<row>"
+n = "i32"
+[type.Cell]
+on = "bool"
+[type.Cells]
+_each = "Kind"
+_type = "Cell"
+[model.rows]
+_list = "Row"
+_key = "id"
+[model.one]
+_optional = true
+cells = "Cells"
+"#,
+    ))
+    .unwrap();
+    assert_eq!(s.type_name(&s.resolve("rows").unwrap().ty), "list<Row>");
+    assert_eq!(s.type_name(&s.resolve("one").unwrap().ty), "One?");
+    assert_eq!(s.resolve("rows[].n").unwrap().id, FieldId(1 + 1));
+    assert_eq!(
+        s.path(s.resolve("rows").unwrap().id).list_key.as_deref(),
+        Some("id")
+    );
+    assert!(s.resolve("one.cells.b.on").is_ok());
+    let cells: Vec<&str> = s
+        .types()
+        .iter()
+        .find(|t| t.name == "Cells")
+        .unwrap()
+        .fields
+        .iter()
+        .map(|f| f.name.as_str())
+        .collect();
+    assert_eq!(cells, ["a", "b"]);
+    assert!(matches!(
+        s.root(s.root_by_name("rows").unwrap()).shape,
+        RootShape::List(_)
+    ));
+
+    for (src, msg) in [
+        ("[model.x]\n_list = \"Row\"\n", "needs `_key"),
+        ("[model.x]\n_key = \"id\"\n", "`_key` without `_list`"),
+        (
+            "[model.x]\n_optional = true\n_list = \"Row\"\n_key = \"id\"\n",
+            "cannot be `_optional`",
+        ),
+        (
+            "[model.x]\n_list = \"Row\"\n_key = \"id\"\na = \"i32\"\n",
+            "has no fields",
+        ),
+        (
+            "[model.x]\n_list = \"Nope\"\n_key = \"id\"\n",
+            "unknown list element type",
+        ),
+        (
+            "[model.x]\n_list = \"Row\"\n_key = \"ok\"\n",
+            "must be `key<...>`",
+        ),
+        ("[model.x]\n_what = true\n", "starting with `_`"),
+    ] {
+        let e = parse_err(&with_header(&format!(
+            "[type.Row]\nid = \"key<row>\"\nn = \"i32\"\nok = \"bool\"\n{src}"
+        )));
+        assert!(e.contains(msg), "{src}: {e}");
+    }
+    let e = parse_err(&with_header(
+        "[enum]\nK = [\"a\"]\n[type.T]\n_each = \"K\"\n[model.x]\nn = \"T\"\n",
+    ));
+    assert!(e.contains("`_each` and `_type` go together"), "{e}");
+    let e = parse_err(&with_header(
+        "[enum]\nK = [\"a\"]\n[type.T]\n_each = \"Q\"\n_type = \"i32\"\n[model.x]\nn = \"T\"\n",
+    ));
+    assert!(e.contains("unknown enum `Q`"), "{e}");
 }
 
 #[test]

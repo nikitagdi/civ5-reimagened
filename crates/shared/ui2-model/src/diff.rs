@@ -111,7 +111,7 @@ fn lis_mask(seq: &[usize]) -> Vec<bool> {
 pub fn diff_root(schema: &Schema, root: RootId, old: &Value, new: &Value, out: &mut Ops) {
     let r = schema.root(root);
     let mut at = Cursor::at(r.field);
-    diff_node(schema, &Type::Struct(r.ty), &mut at, old, new, out);
+    diff_node(schema, &r.value_type(), &mut at, old, new, out);
 }
 
 fn set(at: &Cursor, new: &Value, out: &mut Ops) {
