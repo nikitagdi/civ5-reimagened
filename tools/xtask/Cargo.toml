@@ -20,3 +20,5 @@ anyhow.workspace = true
 mod-manifest.workspace = true
 mod-api.workspace = true
 mod-host-server.workspace = true
+# `ui gen-model`: the generators live in the model crate.
+ui2-model.workspace = true

@@ -3884,6 +3884,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ui2-model"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "toml",
+]
+
+[[package]]
 name = "ui2-text"
 version = "0.1.0"
 dependencies = [
@@ -4730,6 +4740,7 @@ dependencies = [
  "mod-manifest",
  "serde",
  "toml",
+ "ui2-model",
 ]
 
 [[package]]
