@@ -414,8 +414,8 @@ mod tests {
     }
 
     #[test]
-    fn protocol_version_is_14() {
-        assert_eq!(PROTOCOL_VERSION, 14);
+    fn protocol_version_is_15() {
+        assert_eq!(PROTOCOL_VERSION, 15);
     }
 
     /// New ClientMsg variants keep tags 2..=5 (after Hello = 0, Ping = 1).
@@ -1401,6 +1401,70 @@ mod tests {
         let mut over = share;
         over.plots.push((1, record));
         assert!(!over.within_limits());
+    }
+
+    // ------------------------------------------------------------ v15: typed queue and research orders
+
+    fn v15_commands() -> [Command; 5] {
+        [
+            Command::CityQueuePush {
+                city: 2,
+                order: 1,
+                item: 3,
+                front: true,
+            },
+            Command::CityQueuePop { city: 2, slot: 4 },
+            Command::CityQueueMove {
+                city: 2,
+                from: 1,
+                to: 0,
+            },
+            Command::CityReplaceHead {
+                city: 2,
+                order: 0,
+                item: -1,
+            },
+            Command::ResearchSet {
+                tech: 5,
+                queue: true,
+            },
+        ]
+    }
+
+    /// The new variants follow `AnswerPeace` (19) with tags 20..=24, inside both order envelopes.
+    #[test]
+    fn tag_stability_v15_commands() {
+        let cmd = |c| Postcard.encode(&ClientMsg::Command(c)).unwrap();
+        let [push, pop, mv, head, research] = v15_commands();
+        assert_eq!(cmd(push), [4, 20, 4, 1, 6, 1]);
+        assert_eq!(cmd(pop), [4, 21, 4, 4]);
+        assert_eq!(cmd(mv), [4, 22, 4, 1, 0]);
+        assert_eq!(cmd(head), [4, 23, 4, 0, 1]);
+        assert_eq!(cmd(research), [4, 24, 10, 1]);
+        let numbered = Postcard
+            .encode(&ClientMsg::Cmd(Cmd {
+                id: 1,
+                turn: 2,
+                cmd: research,
+            }))
+            .unwrap();
+        assert_eq!(numbered, [8, 1, 4, 24, 10, 1]);
+    }
+
+    #[test]
+    fn v15_commands_round_trip() {
+        for c in v15_commands() {
+            rt(&Postcard, &c);
+            rt(&Json, &c);
+            rt(
+                &Postcard,
+                &Cmd {
+                    id: 9,
+                    turn: 40,
+                    cmd: c,
+                },
+            );
+        }
     }
 
     /// v12 bytes of `GameSettings` (frozen from the v12 build) still load: `SETG`, recording headers.

@@ -338,6 +338,23 @@ fn version_mismatch_is_rejected_framed() {
     assert_closed(&mut ws);
 }
 
+/// A client one version behind (a v14 build against a v15 server: it cannot read or send the v15
+/// orders) is refused the same way, before any session exists.
+#[test]
+fn older_client_is_rejected_framed() {
+    let srv = TestServer::with_password();
+    let mut ws = connect(&srv);
+    send(&mut ws, &hello(PROTOCOL_VERSION - 1, "alice"));
+    assert_eq!(
+        recv(&mut ws),
+        ServerMsg::Reject(RejectReason::VersionMismatch {
+            server: PROTOCOL_VERSION
+        })
+    );
+    assert_closed(&mut ws);
+    assert_eq!(srv.shared.identity.live_count(), 0);
+}
+
 #[test]
 fn v2_client_gets_a_bare_postcard_v2_reject() {
     let srv = TestServer::with_password();

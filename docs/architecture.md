@@ -8,7 +8,7 @@ gamecore, linked through a narrow C ABI.
 
 | Path | Crates | Role |
 |---|---|---|
-| `crates/shared/` | `protocol`, `wire` | client-server messages (protocol version 12), WebSocket frames with zstd, IPC frames |
+| `crates/shared/` | `protocol`, `wire` | client-server messages (protocol version 15), WebSocket frames with zstd, IPC frames |
 | | `gamecore-sys`, `gamecore` | the C ABI (`gamecore_abi.h`), the C++ stub, and the safe Rust API over it |
 | | `game-host`, `turntrace` | I/O-free game host (messages in, effects out; the fixture test world); per-turn timelines |
 | | `lua-sys`, `sqlite-sys`, `loc` | vendored Lua 5.1 and SQLite; the game's text-key and localization engine |

@@ -1458,7 +1458,95 @@ fn samples() -> Pins {
     account_samples(&mut p);
     mod_samples(&mut p);
     terrain_share_samples(&mut p);
+    queue_research_samples(&mut p);
     p
+}
+
+/// v15 additions: typed build queue and research orders (tags 20..=24), bare and numbered.
+fn queue_research_samples(p: &mut Pins) {
+    let cmds = [
+        Command::CityQueuePush {
+            city: 2,
+            order: 1,
+            item: 3,
+            front: true,
+        },
+        Command::CityQueuePush {
+            city: 2,
+            order: 0,
+            item: 7,
+            front: false,
+        },
+        Command::CityQueuePop { city: 2, slot: 3 },
+        Command::CityQueueMove {
+            city: 2,
+            from: 3,
+            to: 1,
+        },
+        Command::CityReplaceHead {
+            city: 2,
+            order: 1,
+            item: 3,
+        },
+        Command::ResearchSet {
+            tech: 12,
+            queue: false,
+        },
+        Command::ResearchSet {
+            tech: 12,
+            queue: true,
+        },
+    ];
+    for c in &cmds {
+        p.add("Command(v15)", c);
+    }
+    for (i, c) in cmds.iter().enumerate() {
+        p.add(
+            "ClientMsg::Cmd(v15)",
+            &ClientMsg::Cmd(Cmd {
+                id: 100 + i as u32,
+                turn: 158,
+                cmd: *c,
+            }),
+        );
+    }
+}
+
+/// The v15 pin is the v14 pin plus the v15 samples: every sample that existed in v14 keeps its bytes.
+/// The one exception is `ClientMsg::Hello`, which carries `PROTOCOL_VERSION` itself; with the old
+/// number in it, it is the v14 record again.
+#[test]
+fn v14_samples_keep_their_bytes() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
+    let v14 = std::fs::read(dir.join("schema-v14.bin")).expect("schema-v14.bin");
+    let now = samples();
+    let mut at = 0usize;
+    for (i, name) in now.names.iter().enumerate() {
+        let Some(old) = record(&v14, i) else {
+            assert_eq!(at, v14.len(), "v14 pin has a partial record");
+            assert!(
+                name.ends_with("(v15)"),
+                "sample {i} ({name}) is new but not a v15 sample"
+            );
+            continue;
+        };
+        at += old.len();
+        let new = record(&now.blob, i).expect("own record");
+        if *name == "ClientMsg::Hello" {
+            let hello = Postcard
+                .encode(&ClientMsg::Hello {
+                    protocol: 14,
+                    build: "dev-1".into(),
+                    nick: "alice".into(),
+                })
+                .expect("encode");
+            assert_eq!(&old[4..], &hello[..], "v14 Hello");
+            assert_ne!(old, new, "Hello carries the new version");
+        } else {
+            assert_eq!(old, new, "sample {i} ({name}) changed its bytes");
+        }
+    }
+    assert_eq!(at, v14.len(), "v14 pin has samples this build lost");
 }
 
 /// v14 additions: the terrain share of the mods (mod API 1.2).
