@@ -12,6 +12,7 @@
 
 mod face;
 pub mod metrics;
+pub mod shape;
 
 use std::collections::HashMap;
 use std::fmt;
@@ -19,6 +20,11 @@ use std::sync::Arc;
 
 use face::Face;
 pub use metrics::LineMetrics;
+use shape::ShapeCache;
+pub use shape::{
+    NumericFigure, NumericSpacing, NumericVariant, RunStyle, SHAPE_CACHE_CAPACITY, ShapeCacheStats,
+    ShapedGlyph, ShapedRun,
+};
 
 /// Identifier of a loaded font face, chosen by the caller (for example an index into the skin's font table).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -44,6 +50,7 @@ pub enum TextError {
 /// The text engine: loaded faces plus the shaping cache. One instance serves layout and rasterization.
 pub struct TextEngine {
     faces: HashMap<FaceId, Face>,
+    cache: ShapeCache,
 }
 
 impl Default for TextEngine {
@@ -57,9 +64,16 @@ impl TextEngine {
     pub fn new() -> Self {
         Self {
             faces: HashMap::new(),
+            cache: ShapeCache::new(SHAPE_CACHE_CAPACITY),
         }
     }
 
+    /// An engine whose shaping cache holds at most `capacity` runs (the default is [`SHAPE_CACHE_CAPACITY`]).
+    pub fn with_shape_cache_capacity(capacity: usize) -> Self {
+        let mut e = Self::new();
+        e.cache = ShapeCache::new(capacity.max(1));
+        e
+    }
     /// Parses and registers a face under `id`, replacing any face already there. `bytes` is the (decompressed)
     /// TrueType/OpenType file.
     pub fn load_face(&mut self, id: FaceId, bytes: Arc<[u8]>) -> Result<(), TextError> {

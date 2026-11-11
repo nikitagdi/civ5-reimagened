@@ -1,7 +1,5 @@
 //! Font faces: parsed once, kept as bytes plus the cached shaper data.
 
-#![allow(dead_code)] // the shaping and raster paths that use the rest follow in the next commits
-
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -77,19 +75,16 @@ impl Face {
         FontRef::new(&self.bytes).ok()
     }
 
-    /// The `wght` value a face actually uses for a requested CSS weight: static faces ignore it.
-    pub fn effective_wght(&self, wght: f32) -> Option<f32> {
-        self.has_wght.then_some(wght)
-    }
-
-    /// Shaper instance for a variable face at `wght`, created on first use. `None` for static faces.
-    pub fn instance(&mut self, wght: f32) -> Option<&ShaperInstance> {
+    /// Creates the shaper instance of a variable face at `wght` if it does not exist yet.
+    pub fn ensure_instance(&mut self, wght: f32) {
         if !self.has_wght {
-            return None;
+            return;
         }
         let key = wght.to_bits();
-        if !self.instances.contains_key(&key) {
-            let font = FontRef::new(&self.bytes).ok()?;
+        if self.instances.contains_key(&key) {
+            return;
+        }
+        if let Ok(font) = FontRef::new(&self.bytes) {
             let inst = ShaperInstance::from_variations(
                 &font,
                 [Variation {
@@ -99,6 +94,10 @@ impl Face {
             );
             self.instances.insert(key, inst);
         }
-        self.instances.get(&key)
+    }
+
+    /// The shaper instance made by [`Face::ensure_instance`]; `None` for static faces.
+    pub fn instance(&self, wght: f32) -> Option<&ShaperInstance> {
+        self.instances.get(&wght.to_bits())
     }
 }
