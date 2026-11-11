@@ -104,10 +104,9 @@
   color: var(--bone);
 }
 
-/* The window is as tall as its list, up to its maximum; then the list scrolls. (A basis of 0 would collapse the
-   list in the runtime's layout: the window's height is not fixed.) */
+/* The window is as tall as its list, up to its maximum; then the list scrolls. */
 .rwin .rlist {
-  flex: 0 1 auto;
+  flex: 1;
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: none;

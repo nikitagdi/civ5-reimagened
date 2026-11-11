@@ -558,7 +558,13 @@ api = "1.0"
         // The first state is the one the converter scans with.
         assert_eq!(
             skin.verify.states,
-            ["hud", "production", "production-sorted", "research"]
+            [
+                "hud",
+                "hud-timer",
+                "production",
+                "production-sorted",
+                "research"
+            ]
         );
         assert_eq!(skin.verify.golden[0].viewport, [1920, 1080]);
     }

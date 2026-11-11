@@ -30,5 +30,5 @@ files = ["js/production.js"]
 reads = ["production"]
 
 [verify]
-states = ["hud", "production", "production-sorted", "research"]
+states = ["hud", "hud-timer", "production", "production-sorted", "research"]
 golden = [{ state = "hud", viewport = [1920, 1080], scale = 1.0 }]
