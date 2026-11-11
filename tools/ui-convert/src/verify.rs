@@ -12,9 +12,9 @@ use std::sync::Arc;
 
 use serde_json::{Value, json};
 use ui2_draw::Scene;
-use ui2_model::{Key, ModelStore, Sample, Schema};
-use ui2_package::{NodeKind, Package};
-use ui2_runtime::{Env, NodeClass, Runtime, Services, load_faces};
+use ui2_model::{ModelStore, Sample, Schema};
+use ui2_package::Package;
+use ui2_runtime::{Env, Runtime, Services, load_faces};
 use ui2_text::TextEngine;
 
 use crate::errors::{ConvError, Place, codes};
@@ -285,7 +285,9 @@ pub fn compare(
     load_faces(&pkg, &mut engine).map_err(|e| format!("fonts: {e:?}"))?;
     let sample =
         Sample::parse(Schema::v1(), sample).map_err(|e| format!("sample {state}: {e:?}"))?;
-    let first = dumps.first().ok_or("no Chrome dump")?;
+    if dumps.is_empty() {
+        return Err("no Chrome dump".to_string());
+    }
     let mut rt = Runtime::new(
         pkg.clone(),
         env(VIEWPORTS[0].0, VIEWPORTS[0].1),
@@ -297,7 +299,7 @@ pub fn compare(
         .apply(&mut store)
         .map_err(|e| format!("sample {state}: {e:?}"))?;
     let mut scene = Scene::new(1.0);
-    expand_bodies(&mut rt, &pkg, &rects_of(first)?);
+    // The runtime makes the `for` and `if` bodies itself from the model (keyed instances in model order).
     if let Some(d) = store.take_frame() {
         rt.apply_delta(&d, &store);
     }
@@ -399,53 +401,4 @@ fn describe(pkg: &Package, node: &str) -> (String, String) {
         }
     }
     (part, at)
-}
-
-/// The runtime does not instantiate `for` and `if` bodies from the model yet (list bindings come later), so the
-/// bodies Chrome shows for the sample are instantiated by hand: an `if` that Chrome drew, a `for` item per key of
-/// Chrome's dump, in Chrome's order. The runtime then binds them like any instance. Drop this function when the
-/// runtime does it itself.
-fn expand_bodies(rt: &mut Runtime, pkg: &Package, chrome: &[Rect]) {
-    let mut done = std::collections::BTreeSet::new();
-    loop {
-        let mut todo = Vec::new();
-        for id in rt.arena().preorder() {
-            let Some(n) = rt.node(id) else { continue };
-            if n.class() != NodeClass::Service || done.contains(&id) {
-                continue;
-            }
-            let r = n.tmpl();
-            let kind = &pkg.templates()[r.0.index()].nodes[r.1 as usize].kind;
-            let (body, list) = match kind {
-                NodeKind::For { tpl, .. } => (*tpl, true),
-                NodeKind::If { tpl, .. } => (*tpl, false),
-                _ => continue,
-            };
-            let root = format!("{}:0", body.0);
-            let keys: Vec<String> = chrome
-                .iter()
-                .filter(|c| c.node == root)
-                .map(|c| c.keys.clone())
-                .collect();
-            todo.push((id, list, keys));
-        }
-        if todo.is_empty() {
-            return;
-        }
-        for (id, list, keys) in todo {
-            done.insert(id);
-            for k in keys {
-                let key = if list {
-                    let last = k.rsplit('/').next().unwrap_or_default();
-                    match Key::parse_js(last) {
-                        Some(k) => Some(k),
-                        None => continue,
-                    }
-                } else {
-                    None
-                };
-                rt.instantiate_body(id, key);
-            }
-        }
-    }
 }

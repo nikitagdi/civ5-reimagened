@@ -74,6 +74,8 @@ impl Runtime {
         // The clock is lent to the stopwatch for the frame (the passes borrow the runtime).
         let clock = self.clock.take();
         let mut watch = Stopwatch::new(clock.as_deref());
+        // The model has taken the controls' writes of the last input.
+        self.input.controls.frame();
         let bctx = bind::Ctx {
             pkg: &self.pkg,
             index: &self.style_index,

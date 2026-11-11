@@ -10,17 +10,16 @@
 //! `data-bind-value` or `data-l10n` has exactly one leaf, bound. Anonymous boxes are not nodes: their text and
 //! elements are children of the container (the runtime groups text runs itself).
 //!
-//! Loop variables. A path that starts with the item variable of an enclosing loop over a model list
-//! (`r.available` in a loop over `top.resources`) is written as the model path of the item
-//! (`top.resources[].available`): the runtime reads it with the keys of the instance, so a binding inside a
-//! loop body depends on exactly the fields it reads. Index variables stay as they are.
+//! Loop variables. Expressions are written as the markup has them: a path that starts with the item variable
+//! of an enclosing loop (`r.available` in a loop over `top.resources`) stays a path of that variable. The
+//! runtime keeps the loop variables of every instance in scope and resolves such a path to the model path of
+//! the item with the instance's keys, so a binding inside a loop body depends on exactly the fields it reads.
 //!
 //! Strings, records and sets are re-interned in the builder in the order the compiled styles have them (first
 //! use); everything else follows document order. The package bytes are a pure function of the run.
 
 use std::collections::BTreeMap;
 
-use ui2_package::profile::action::{Action, Arg};
 use ui2_package::profile::attrs::NodeAttrs;
 use ui2_package::profile::expr::{Expr, TplSeg};
 use ui2_package::sections::blobs::{BlobRef, BlobSection};
@@ -140,64 +139,6 @@ pub fn section_sizes(bytes: &[u8]) -> Vec<(String, u32)> {
     out
 }
 
-/// A loop variable's model path, as segments (`top`, `resources[]`).
-type Vars = Vec<(String, Vec<String>)>;
-
-fn rewrite(e: &Expr, vars: &Vars) -> Expr {
-    match e {
-        Expr::Path(segs) => {
-            let Some(head) = segs.first() else {
-                return e.clone();
-            };
-            match vars.iter().rev().find(|(v, _)| v == head) {
-                Some((_, origin)) => {
-                    let mut out = origin.clone();
-                    out.extend(segs[1..].iter().cloned());
-                    Expr::Path(out)
-                }
-                None => e.clone(),
-            }
-        }
-        Expr::Unary(op, a) => Expr::Unary(*op, Box::new(rewrite(a, vars))),
-        Expr::Binary(op, a, b) => {
-            Expr::Binary(*op, Box::new(rewrite(a, vars)), Box::new(rewrite(b, vars)))
-        }
-        Expr::Cond(a, b, c) => Expr::Cond(
-            Box::new(rewrite(a, vars)),
-            Box::new(rewrite(b, vars)),
-            Box::new(rewrite(c, vars)),
-        ),
-        Expr::Call(f, args) => Expr::Call(*f, args.iter().map(|a| rewrite(a, vars)).collect()),
-        other => other.clone(),
-    }
-}
-
-fn rewrite_action(a: &Action, vars: &Vars) -> Action {
-    let args = |list: &[Arg]| {
-        list.iter()
-            .map(|x| Arg {
-                name: x.name.clone(),
-                value: rewrite(&x.value, vars),
-            })
-            .collect()
-    };
-    match a {
-        Action::Intent { name, args: a } => Action::Intent {
-            name: name.clone(),
-            args: args(a),
-        },
-        Action::Call { name, args: a } => Action::Call {
-            name: name.clone(),
-            args: args(a),
-        },
-        Action::Set { path, value } => Action::Set {
-            path: path.clone(),
-            value: rewrite(value, vars),
-        },
-        other => other.clone(),
-    }
-}
-
 struct Tb<'a> {
     inp: &'a Inputs<'a>,
     b: PackageBuilder,
@@ -205,15 +146,13 @@ struct Tb<'a> {
     numbers: BTreeMap<u32, (u32, u32)>,
     templates: BTreeMap<u32, (String, Vec<Node>, Vec<SrcLoc>)>,
     next_tpl: u32,
-    vars: Vars,
     files: Vec<String>,
     errs: Vec<ConvError>,
 }
 
 impl Tb<'_> {
     fn expr(&mut self, e: &Expr) -> ui2_package::ExprId {
-        let e = rewrite(e, &self.vars);
-        self.b.expr(e)
+        self.b.expr(e.clone())
     }
 
     fn tpl(&mut self, t: &ui2_package::profile::expr::Template) -> ui2_package::TplId {
@@ -344,39 +283,15 @@ impl Tb<'_> {
         }
         let attrs = self.attrs(e.id).cloned().unwrap_or_default();
         let loc = self.loc(e);
-        let mut pushed = false;
         let kind = if let Some(f) = &attrs.for_ {
             let list = self.expr(&f.list);
             let key = match &f.key {
-                Some(k) => {
-                    // The key is read per item: inside the item's scope.
-                    let origin = match rewrite(&f.list, &self.vars) {
-                        Expr::Path(mut segs) => {
-                            if let Some(last) = segs.last_mut() {
-                                last.push_str("[]");
-                            }
-                            Some(segs)
-                        }
-                        _ => None,
-                    };
-                    if let Some(o) = origin {
-                        self.vars.push((f.item.clone(), o));
-                        pushed = true;
-                    }
-                    self.expr(k)
-                }
+                Some(k) => self.expr(k),
                 None => {
                     self.err(e, "a loop without a key".into());
                     self.b.expr(Expr::Null)
                 }
             };
-            if !pushed && let Expr::Path(mut segs) = rewrite(&f.list, &self.vars) {
-                if let Some(last) = segs.last_mut() {
-                    last.push_str("[]");
-                }
-                self.vars.push((f.item.clone(), segs));
-                pushed = true;
-            }
             let item = self.b.str(&f.item);
             let index = f.index.as_ref().map(|i| self.b.str(i));
             let sort = f.sort.as_ref().map(|x| self.expr(x));
@@ -420,9 +335,6 @@ impl Tb<'_> {
             .clone()
             .unwrap_or_else(|| format!("{}:{}", e.tag, body));
         self.templates.insert(body, (name, bn, bl));
-        if pushed {
-            self.vars.pop();
-        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -560,11 +472,7 @@ impl Tb<'_> {
             bind(self, BindKind::Model(m));
         }
         for ev in &attrs.events {
-            let actions = ev
-                .actions
-                .iter()
-                .map(|a| rewrite_action(a, &self.vars))
-                .collect();
+            let actions = ev.actions.clone();
             bind(self, BindKind::Event { ev: ev.ev, actions });
         }
         if let Some((kind, id)) = &attrs.anchor {
@@ -743,7 +651,6 @@ pub fn write(inp: &Inputs) -> Result<Written, Vec<ConvError>> {
         numbers,
         templates: BTreeMap::new(),
         next_tpl: 1,
-        vars: Vec::new(),
         files: Vec::new(),
         errs: Vec::new(),
     };

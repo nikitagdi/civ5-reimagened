@@ -24,13 +24,15 @@
 //!
 //! What events ask for goes to the runtime's output ([`Runtime::drain_output`]): markup actions of
 //! `data-on-*` (`events`), the focus and Tab (`focus`), the keyboard with Enter, Space, Esc and
-//! `data-hotkey` (`hotkeys`), tooltips of `data-tooltip` (`tooltip`). Pointer events: `pointerdown` on the
+//! `data-hotkey` (`hotkeys`), tooltips of `data-tooltip` (`tooltip`), the `data-control` nodes (`controls`:
+//! a click, a key or a slider drag writes their model path). Pointer events: `pointerdown` on the
 //! pressed node; on release `pointerup` on the node under the pointer, then `click` (left button) or
 //! `contextmenu` (right) on the nearest node holding both the pressed and the released node, and `dblclick`
 //! after a second click on one node within [`DOUBLE_CLICK_MS`]; `pointerenter`/`pointerleave` as the hover
 //! chain changes. A left press moves the focus to the nearest focusable node at or above the pressed one, or
 //! takes it from the UI (also a press in the world).
 
+pub(crate) mod controls;
 mod events;
 mod focus;
 pub(crate) mod hit;
@@ -108,6 +110,8 @@ pub(crate) struct InputState {
     last_click: Option<(NodeId, f64)>,
     /// The tooltip on screen.
     pub tooltip: Option<tooltip::Tooltip>,
+    /// Controls: writes not in the model yet, the dragged slider.
+    pub controls: controls::Controls,
 }
 
 impl InputState {
@@ -245,7 +249,10 @@ impl Runtime {
         match p.phase {
             PointerPhase::Down => self.on_down(p, &hit, at),
             PointerPhase::Up | PointerPhase::Cancel => self.on_up(p, &hit, at, now_ms),
-            _ => self.captured_outcome(&hit, at),
+            _ => {
+                self.control_drag(at);
+                self.captured_outcome(&hit, at)
+            }
         }
     }
 
@@ -271,6 +278,9 @@ impl Runtime {
             self.set_active(Some(node));
         }
         self.pointer_down_on(node, p);
+        if bit == 1 && !self.disabled(node) {
+            self.control_press(node, at);
+        }
         if bit == 1 && self.is_minimap(node) {
             self.input.minimap_drag = true;
             return minimap_uv(hit.local, hit.size);
@@ -296,6 +306,7 @@ impl Runtime {
                 if !cancel && let Some(pressed) = pressed {
                     self.pointer_up_on(pressed, hit.node, p, now_ms);
                 }
+                self.control_release(cancel);
                 InputOutcome::Consumed
             }
             PointerCapture::World => InputOutcome::PassToWorld,
@@ -309,6 +320,7 @@ impl Runtime {
         self.input.capture = PointerCapture::None;
         self.input.minimap_drag = false;
         self.set_active(None);
+        self.control_release(true);
     }
 
     fn on_wheel(&mut self, w: &WheelEvent) -> InputOutcome {
@@ -420,6 +432,7 @@ impl Runtime {
     /// `pointerdown`.
     fn pointer_down_on(&mut self, node: NodeId, p: &PointerEvent) {
         if button_bit(p.button) == 1 {
+            self.control_press_begins();
             let focus = self.focus_target(node);
             self.set_focus(focus, false);
         }

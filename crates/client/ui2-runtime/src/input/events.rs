@@ -33,6 +33,10 @@ impl Runtime {
         if self.disabled(target) {
             return;
         }
+        // A click acts on the control it is in first (its state write comes before the handlers' steps).
+        if ev == Event::Click {
+            self.activate_control(target);
+        }
         let mut at = Some(target);
         while let Some(id) = at {
             if self.run_handlers(id, ev, hotkey) {
