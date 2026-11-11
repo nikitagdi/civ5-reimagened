@@ -1,4 +1,13 @@
 //! Checks that span sections: every index in range and the sections agreeing with the manifest.
+//!
+//! `Package::read` runs, in order: the container (magic, format major, size, hash, section table:
+//! count, order, alignment, extent, padding), the decoding of each section (no byte left over), then
+//! [`check`] with each section's own rules (sorted tables, subtree tiling, style limits, finite
+//! numbers, blob extents) and the references between sections: strings, templates, style sets and
+//! records, expressions, text templates, tokens, pictures, asset references and nodes. A body
+//! template of `for`/`if` must come after the template that uses it. Versions and model paths are
+//! compared with the client's afterwards (`Package::check_compat`, `Package::check_paths`), and the
+//! hashes of fonts and pages when the host calls `Package::verify_blobs`.
 
 use crate::container::SectionTag;
 use crate::error::PackageError;
