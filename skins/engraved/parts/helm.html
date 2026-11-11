@@ -26,9 +26,8 @@
     </div>
     <div class="rule"></div>
     <div class="ph"><span data-l10n="turn.ready">Ready</span><span data-l10n="turn.ready_of" data-l10n-args="{{turn.ready}}, {{turn.humans}}">3 of 4</span></div>
-    <!-- The key spells out the list's key, so the preview names the instances as the runtime does. -->
     <div class="seats" data-part="helm.seats">
-      <div class="player" data-bind-for="s:{{turn.seats}}" data-bind-key="{{s.player}}" data-bind-class-toggle="wait:{{!s.finished}}">
+      <div class="player" data-bind-for="s:{{turn.seats}}" data-bind-class-toggle="wait:{{!s.finished}}">
         <i class="notch"></i>
         <span class="nm" data-bind-value="{{s.name}}">Catherine</span>
         <span class="you" data-bind-if="{{s.me}}" data-l10n="turn.you">you</span>
@@ -47,7 +46,6 @@
     </div>
     <div class="cover"></div>
     <div class="scale"></div>
-    <div class="scale-maj"></div>
     <div class="scale-in"></div>
     <div class="hub"></div>
     <div class="lit" data-bind-if="{{turn.timer != null}}">

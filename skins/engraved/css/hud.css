@@ -580,8 +580,7 @@
 }
 
 /* One static button per order (the core says which are shown and enabled); rows wrap upwards. */
-.actions,
-.actions .acts {
+.actions {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -852,24 +851,16 @@
   background-color: var(--lacquer-0);
 }
 
-/* One gradient per node: the converter reads a list of background layers as one value of the properties the
-   profile does not keep. */
-.dial .scale,
-.dial .scale-maj {
+/* The scale: the long ticks every 45 degrees over the short ones every 9, two layers of one disc. */
+.dial .scale {
   left: 15px;
   top: 15px;
   width: 186px;
   height: 186px;
   border-radius: 93px;
-}
-
-.dial .scale {
-  background-image: repeating-conic-gradient(from -0.35deg, var(--engrave) 0deg 0.7deg, transparent 0.7deg 9deg);
-}
-
-.dial .scale-maj {
-  position: absolute;
-  background-image: repeating-conic-gradient(from -0.5deg, var(--engrave-hi) 0deg 1deg, transparent 1deg 45deg);
+  background-image:
+    repeating-conic-gradient(from -0.5deg, var(--engrave-hi) 0deg 1deg, transparent 1deg 45deg),
+    repeating-conic-gradient(from -0.35deg, var(--engrave) 0deg 0.7deg, transparent 0.7deg 9deg);
 }
 
 .dial .scale-in {

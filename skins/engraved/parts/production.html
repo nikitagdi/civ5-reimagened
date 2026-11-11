@@ -39,17 +39,13 @@
       </div>
       <div class="queue" data-part="production.queue">
         <div class="qh"><span data-l10n="prod.queue">Queue</span><span data-l10n="prod.turns_head">Turns</span></div>
-        <!-- Orders take the city's key from its map banner (`c`): a path through the optional production root is
-             nullable for the profile's type check, and an order needs a key. -->
         <div class="qlist" data-bind-if="{{production.queue_known}}">
-          <div class="qcity" data-bind-for="c:{{map.cities}}" data-bind-key="{{c.key}}" data-bind-filter="{{c.key == production.city}}">
-            <div class="qi" data-bind-for="q:{{production.queue}}" data-bind-key="{{q.item}}" data-bind-class-toggle="on:{{q.first}}">
-              <span class="n" data-bind-value="{{q.slot + 1}}">1</span>
-              <span class="nm" data-bind-value="{{q.name}}">Machu Picchu</span>
-              <span class="t" data-bind-value="{{q.turns}}">6</span>
-              <button class="qb" data-bind-disabled="{{q.slot == 0}}" data-on-click="intent production.move(city: c.key, from: q.slot, to: q.slot - 1)"><svg class="i"><use href="#i-upgrade"/></svg></button>
-              <button class="qb" data-on-click="intent production.pop(city: c.key, slot: q.slot)"><svg class="i"><use href="#i-close"/></svg></button>
-            </div>
+          <div class="qi" data-bind-for="q:{{production.queue}}" data-bind-class-toggle="on:{{q.first}}">
+            <span class="n" data-bind-value="{{q.slot + 1}}">1</span>
+            <span class="nm" data-bind-value="{{q.name}}">Machu Picchu</span>
+            <span class="t" data-bind-value="{{q.turns}}">6</span>
+            <button class="qb" data-bind-disabled="{{q.slot == 0}}" data-on-click="intent production.move(city: production.city, from: q.slot, to: q.slot - 1)"><svg class="i"><use href="#i-upgrade"/></svg></button>
+            <button class="qb" data-on-click="intent production.pop(city: production.city, slot: q.slot)"><svg class="i"><use href="#i-close"/></svg></button>
           </div>
         </div>
         <div class="qnone" data-bind-if="{{!production.queue_known}}" data-l10n="prod.queue_unknown">The queue is not known</div>
@@ -84,8 +80,7 @@
           <span class="c-buy" data-l10n="prod.col.buy">Buy</span>
         </div>
         <div class="lscroll">
-          <!-- The key spells out the runtime's key of an enum-keyed list, so the preview names the instances alike. -->
-          <div class="lgroup" data-bind-for="g:{{production.groups}}" data-bind-key="{{g.kind == 'unit' ? '0:0' : (g.kind == 'building' ? '0:1' : (g.kind == 'wonder' ? '0:2' : (g.kind == 'project' ? '0:3' : '0:4')))}}" data-bind-filter="{{ui.production.tab == 'all' || (ui.production.tab == 'units' && g.kind == 'unit') || (ui.production.tab == 'buildings' && g.kind == 'building') || (ui.production.tab == 'wonders' && g.kind == 'wonder') || (ui.production.tab == 'other' && (g.kind == 'project' || g.kind == 'process'))}}">
+          <div class="lgroup" data-bind-for="g:{{production.groups}}" data-bind-filter="{{ui.production.tab == 'all' || (ui.production.tab == 'units' && g.kind == 'unit') || (ui.production.tab == 'buildings' && g.kind == 'building') || (ui.production.tab == 'wonders' && g.kind == 'wonder') || (ui.production.tab == 'other' && (g.kind == 'project' || g.kind == 'process'))}}">
             <div class="lgrp">
               <svg class="i" data-bind-if="{{g.kind == 'unit'}}"><use href="#i-sword"/></svg>
               <svg class="i" data-bind-if="{{g.kind == 'building'}}"><use href="#i-build"/></svg>
@@ -100,7 +95,7 @@
               <span class="cnt" data-bind-value="{{g.count}}">9</span>
               <div class="rule"></div>
             </div>
-            <div class="lrow" data-bind-for="o:{{g.options}}" data-bind-key="{{o.item}}" data-bind-sort="{{state.prod.sort == 'turns' ? o.turns : o.order}}" data-bind-filter="{{!state.prod.hide_locked || o.enabled}}" data-bind-class-toggle="lock:{{!o.enabled}}; sel:{{ui.production.focus == o.item}}" data-on-pointerenter="set ui.production.hover = o.item" data-on-click="set ui.production.focus = o.item">
+            <div class="lrow" data-bind-for="o:{{g.options}}" data-bind-sort="{{state.prod.sort == 'turns' ? o.turns : o.order}}" data-bind-filter="{{!state.prod.hide_locked || o.enabled}}" data-bind-class-toggle="lock:{{!o.enabled}}; sel:{{ui.production.focus == o.item}}" data-on-pointerenter="set ui.production.hover = o.item" data-on-click="set ui.production.focus = o.item">
               <div class="c-ico"><img class="oi" data-bind-src="{{o.icon}}"></div>
               <div class="c-nm">
                 <span class="nm" data-bind-value="{{o.name}}">Settler</span>
@@ -162,7 +157,7 @@
               <span data-l10n="prod.maintenance">Maintenance</span>
               <div class="dv"><span data-bind-value="{{production.detail.maintenance}}">3</span><svg class="i c-gold"><use href="#i-gold"/></svg></div>
             </div>
-            <div class="df" data-bind-for="r:{{production.detail.requires}}" data-bind-key="{{r.idx}}">
+            <div class="df" data-bind-for="r:{{production.detail.requires}}">
               <span data-l10n="prod.requires" data-l10n-args="{{r.name}}">Requires Library</span>
               <div class="dv" data-bind-class-toggle="met:{{r.met}}">
                 <svg class="i" data-bind-if="{{r.met}}"><use href="#i-check"/></svg>
@@ -172,37 +167,35 @@
           </div>
           <div class="cmp" data-part="production.compare">
             <div class="ch" data-l10n="prod.compare">Turns to build in your cities</div>
-            <div class="cr" data-bind-for="c:{{production.detail.compare}}" data-bind-key="{{c.city}}" data-bind-class-toggle="self:{{c.city == production.city}}">
+            <div class="cr" data-bind-for="c:{{production.detail.compare}}" data-bind-class-toggle="self:{{c.city == production.city}}">
               <span class="cn" data-bind-value="{{c.name}}">Moscow</span>
               <div class="bar"><div class="fill" data-bind-style-width="{{c.fraction * 100}}%" style="width: 44%"></div></div>
               <span class="ct" data-bind-value="{{c.turns}}">7</span>
             </div>
           </div>
-          <!-- The orders: the city's key from its banner and the item's from the focused option (see the queue). A hotkey
-               cannot sit in a list, so Build now has no Enter yet. -->
+          <!-- The orders on the focused option: its row of the list gives the flags. A hotkey cannot sit in a list, so
+               Build now has no Enter yet. -->
           <div class="btns" data-part="production.orders">
-            <div class="bcity" data-bind-for="c:{{map.cities}}" data-bind-key="{{c.key}}" data-bind-filter="{{c.key == production.city}}">
-              <div class="bgrp" data-bind-for="g:{{production.groups}}" data-bind-key="{{g.kind == 'unit' ? '0:0' : (g.kind == 'building' ? '0:1' : (g.kind == 'wonder' ? '0:2' : (g.kind == 'project' ? '0:3' : '0:4')))}}">
-                <div class="bopt" data-bind-for="o:{{g.options}}" data-bind-key="{{o.item}}" data-bind-filter="{{o.item == ui.production.focus}}">
-                  <!-- Build now replaces what the city builds; a city that builds nothing gets the item chosen (the
-                       game has no head of the queue to replace then). -->
-                  <button class="btn primary" data-part="production.build-now" data-bind-if="{{production.current != null}}" data-bind-disabled="{{!o.enabled || o.current}}" data-on-click="intent production.replace(city: c.key, item: o.item)">
-                    <span data-l10n="prod.build_now">Build now</span>
-                  </button>
-                  <button class="btn primary" data-part="production.choose" data-bind-if="{{production.current == null}}" data-bind-disabled="{{!o.enabled}}" data-on-click="intent production.choose(city: c.key, item: o.item)">
-                    <span data-l10n="prod.build_now">Build now</span>
-                  </button>
-                  <button class="btn second" data-part="production.to-front" data-bind-disabled="{{!o.enabled}}" data-on-click="intent production.push(city: c.key, item: o.item, at: 'front')">
-                    <span data-l10n="prod.to_front">Move to front of queue</span>
-                  </button>
-                  <button class="btn second" data-part="production.to-back" data-bind-disabled="{{!o.enabled}}" data-on-click="intent production.push(city: c.key, item: o.item, at: 'back')">
-                    <span data-l10n="prod.to_back">Add to queue</span>
-                  </button>
-                  <button class="btn buy" data-part="production.buy" data-bind-disabled="{{!o.buy_gold_ok}}" data-on-click="intent production.buy(city: c.key, item: o.item, with: 'gold')">
-                    <span data-l10n="prod.buy">Buy</span>
-                    <div class="amt" data-bind-if="{{o.buy_gold != null}}"><span data-bind-value="{{o.buy_gold}}">560</span><svg class="i"><use href="#i-gold"/></svg></div>
-                  </button>
-                </div>
+            <div class="bgrp" data-bind-for="g:{{production.groups}}">
+              <div class="bopt" data-bind-for="o:{{g.options}}" data-bind-filter="{{o.item == ui.production.focus}}">
+                <!-- Build now replaces what the city builds; a city that builds nothing gets the item chosen (the
+                     game has no head of the queue to replace then). -->
+                <button class="btn primary" data-part="production.build-now" data-bind-if="{{production.current != null}}" data-bind-disabled="{{!o.enabled || o.current}}" data-on-click="intent production.replace(city: production.city, item: o.item)">
+                  <span data-l10n="prod.build_now">Build now</span>
+                </button>
+                <button class="btn primary" data-part="production.choose" data-bind-if="{{production.current == null}}" data-bind-disabled="{{!o.enabled}}" data-on-click="intent production.choose(city: production.city, item: o.item)">
+                  <span data-l10n="prod.build_now">Build now</span>
+                </button>
+                <button class="btn second" data-part="production.to-front" data-bind-disabled="{{!o.enabled}}" data-on-click="intent production.push(city: production.city, item: o.item, at: 'front')">
+                  <span data-l10n="prod.to_front">Move to front of queue</span>
+                </button>
+                <button class="btn second" data-part="production.to-back" data-bind-disabled="{{!o.enabled}}" data-on-click="intent production.push(city: production.city, item: o.item, at: 'back')">
+                  <span data-l10n="prod.to_back">Add to queue</span>
+                </button>
+                <button class="btn buy" data-part="production.buy" data-bind-disabled="{{!o.buy_gold_ok}}" data-on-click="intent production.buy(city: production.city, item: o.item, with: 'gold')">
+                  <span data-l10n="prod.buy">Buy</span>
+                  <div class="amt" data-bind-if="{{o.buy_gold != null}}"><span data-bind-value="{{o.buy_gold}}">560</span><svg class="i"><use href="#i-gold"/></svg></div>
+                </button>
               </div>
             </div>
             <div class="short" data-bind-if="{{production.detail.short_gold != null}}" data-l10n="prod.short" data-l10n-args="{{production.gold}}, {{production.detail.short_gold}}">You have 312 gold, 248 short</div>

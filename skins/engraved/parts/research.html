@@ -19,7 +19,7 @@
     <!-- The technologies the player can research, the fastest first. A click researches it now; a right click adds
          it to the research queue. -->
     <div class="rlist" data-part="research.list">
-      <div class="rrow" data-bind-for="t:{{research.options}}" data-bind-key="{{t.id}}" data-bind-sort="{{t.turns}}" data-bind-class-toggle="cur:{{research.current != null && research.current.id == t.id}}" data-on-click="intent research.choose(tech: t.id, queue: false); intent window.close(window: 'research')" data-on-contextmenu="intent research.choose(tech: t.id, queue: true)">
+      <div class="rrow" data-bind-for="t:{{research.options}}" data-bind-sort="{{t.turns}}" data-bind-class-toggle="cur:{{research.current != null && research.current.id == t.id}}" data-on-click="intent research.choose(tech: t.id, queue: false); intent window.close(window: 'research')" data-on-contextmenu="intent research.choose(tech: t.id, queue: true)">
         <img class="ti" data-bind-src="{{t.icon}}">
         <span class="nm" data-bind-value="{{t.name}}">Astronomy</span>
         <div class="bar"><div class="fill" data-bind-style-width="{{t.fraction * 100}}%" style="width: 0%"></div></div>

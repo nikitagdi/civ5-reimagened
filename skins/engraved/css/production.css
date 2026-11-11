@@ -197,8 +197,7 @@
   color: var(--bone-3);
 }
 
-.pwin .qlist,
-.pwin .qcity {
+.pwin .qlist {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -785,7 +784,6 @@
   gap: 8px;
 }
 
-.pwin .bcity,
 .pwin .bgrp {
   display: flex;
   flex-direction: column;
