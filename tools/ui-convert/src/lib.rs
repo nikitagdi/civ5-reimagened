@@ -33,10 +33,10 @@ pub mod node;
 pub mod numbering;
 pub mod plan;
 pub mod script;
-pub mod select;
 pub mod skin;
 pub mod styles;
 pub mod verify;
+pub mod watch;
 pub mod write;
 
 use std::collections::BTreeSet;
@@ -192,6 +192,38 @@ pub enum Input<'a> {
     Chrome,
     /// A dump written by an earlier run (`--dump-ir`); no browser is needed.
     Dump(&'a str),
+    /// A session that is already open on the skin (watch mode): the page is loaded again in it.
+    Session(&'a mut NodeClient, &'a Opened),
+}
+
+/// What `open` answered for a session that stays open.
+#[derive(Debug, Clone, Default)]
+pub struct Opened {
+    /// The Chromium version.
+    pub chrome: String,
+    /// Whether the preview script expands the page.
+    pub preview: bool,
+    /// The local server, `http://127.0.0.1:<port>/`.
+    pub base_url: String,
+}
+
+impl Opened {
+    /// From the answer of `open`.
+    pub fn from_answer(v: &Value) -> Opened {
+        let s = |k: &str| v.get(k).and_then(Value::as_str).unwrap_or_default();
+        Opened {
+            chrome: s("chrome").to_string(),
+            preview: v.get("preview") == Some(&Value::Bool(true)),
+            base_url: s("base_url").to_string(),
+        }
+    }
+}
+
+/// Scans the entry page again in an open session (files may have changed since the last scan).
+pub fn rescan(node: &mut NodeClient, src: &Source, opened: &Opened) -> Result<Scanned, ConvError> {
+    node.call("reload", json!({}))?;
+    let json = node.call("scan", json!({ "state": src.skin.scan_state() }))?;
+    Scanned::from_json(json, opened.preview)
 }
 
 /// One run of the pipeline: what each stage produced and every error found.
@@ -306,15 +338,24 @@ fn static_text(dom: &ir::Dom, statics: &Statics) -> Vec<String> {
     out
 }
 
-/// The properties the static pass already reported as written (E2 at a declaration).
+/// The properties the static pass already reported as written (E2 at a declaration, and pictures that are
+/// not files of the skin).
 fn statically_reported(errors: &[ConvError]) -> BTreeSet<String> {
-    errors
+    let mut out: BTreeSet<String> = errors
         .iter()
         .filter(|e| {
             e.code.starts_with("E2-") && !e.prop.is_empty() && e.place.file.ends_with(".css")
         })
         .map(|e| e.prop.clone())
-        .collect()
+        .collect();
+    out.extend(
+        errors
+            .iter()
+            .filter(|e| e.code == codes::RESOURCE)
+            .filter_map(|e| check::picture_longhand(&e.prop))
+            .map(str::to_string),
+    );
+    out
 }
 
 /// `check`: loads the manifest, scans the page (or reads a dump), runs the static checks, plans
@@ -334,7 +375,8 @@ pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
             return run;
         }
     };
-    let mut node = None;
+    let mut owned: Option<NodeClient> = None;
+    let mut borrowed: Option<&mut NodeClient> = None;
     let mut stored: Option<Dump> = None;
     let scanned = match input {
         Input::Dump(text) => read_dump(text).map(|d| {
@@ -348,11 +390,21 @@ pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
                     run.chrome = chrome;
                     s
                 });
-                node = Some(n);
+                owned = Some(n);
                 s
             }
             Err(e) => Err(e),
         },
+        Input::Session(n, opened) => {
+            run.chrome = opened.chrome.clone();
+            let s = rescan(n, &src, opened);
+            borrowed = Some(n);
+            s
+        }
+    };
+    let node: Option<&mut NodeClient> = match &mut owned {
+        Some(n) => Some(n),
+        None => borrowed,
     };
     match scanned {
         Ok(s) => run.scanned = Some(s),
@@ -376,7 +428,7 @@ pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
         let (p, errs) = plan::plan(&dom, &statics);
         run.errors.extend(errs);
         let request = p.request();
-        let answer = match (&mut node, &stored) {
+        let answer = match (node, &stored) {
             (Some(n), _) => n.call("extract", request).map(Some),
             (None, Some(d)) => match (&d.request, &d.result) {
                 (Some(req), Some(res)) if *req == request => Ok(Some(res.clone())),
@@ -427,7 +479,7 @@ pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
         run.texts = Some(texts);
         run.statics = Some(statics);
     }
-    if let Some(n) = node {
+    if let Some(n) = owned {
         n.close();
     }
     run.source = Some(src);

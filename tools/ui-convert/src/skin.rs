@@ -233,6 +233,101 @@ pub fn is_skin_path(p: &str) -> bool {
         && p.split('/').all(|s| !s.is_empty() && s != "." && s != "..")
 }
 
+/// Decodes `%XX` escapes of a URL path; `None` for a malformed escape or bytes that are not UTF-8.
+pub fn percent_decode(s: &str) -> Option<String> {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' {
+            let hex = s.get(i + 1..i + 3)?;
+            out.push(u8::from_str_radix(hex, 16).ok()?);
+            i += 3;
+        } else {
+            out.push(b[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
+/// The arguments of the `url()` functions of a CSS value as written, quotes removed.
+pub fn url_args(value: &str) -> Vec<String> {
+    let lower = value.to_ascii_lowercase();
+    let mut out = Vec::new();
+    let mut from = 0;
+    while let Some(at) = lower[from..].find("url(") {
+        let start = from + at + 4;
+        let rest = value[start..].trim_start();
+        let (arg, used) = match rest.chars().next() {
+            Some(q @ ('"' | '\'')) => match rest[1..].find(q) {
+                Some(end) => (rest[1..1 + end].to_string(), 1 + end + 1),
+                None => (rest[1..].to_string(), rest.len()),
+            },
+            _ => {
+                let end = rest.find(')').unwrap_or(rest.len());
+                (rest[..end].trim().to_string(), end)
+            }
+        };
+        out.push(arg);
+        from = value.len() - rest.len() + used;
+        if from >= value.len() {
+            break;
+        }
+    }
+    out
+}
+
+/// A picture URL as written in `file` (a path of the skin) resolved to a path of the skin. The error says why
+/// the URL is not one: another origin, an absolute path, or `..` above the skin folder.
+pub fn resolve_in_skin(file: &str, url: &str) -> Result<String, String> {
+    let lower = url.to_ascii_lowercase();
+    let scheme = url.split_once(':').is_some_and(|(s, _)| {
+        !s.is_empty()
+            && s.bytes()
+                .all(|c| c.is_ascii_alphanumeric() || b"+.-".contains(&c))
+    });
+    if scheme || lower.starts_with('/') || lower.starts_with('\\') {
+        return Err("is not a file of the skin".to_string());
+    }
+    let decoded = percent_decode(url).ok_or_else(|| "is not a valid URL path".to_string())?;
+    let mut parts: Vec<&str> = file.split('/').collect();
+    parts.pop();
+    for seg in decoded.split('/') {
+        match seg {
+            "" | "." => {}
+            ".." => {
+                if parts.pop().is_none() {
+                    return Err("leaves the skin folder".to_string());
+                }
+            }
+            s => parts.push(s),
+        }
+    }
+    let path = parts.join("/");
+    if is_skin_path(&path) {
+        Ok(path)
+    } else {
+        Err("is not a file of the skin".to_string())
+    }
+}
+
+/// The path of the skin a URL of the converter's local server names (Chrome writes every `url()` it
+/// computed as an absolute URL on that server): `http://127.0.0.1:<port>/<path>`. `None` for anything else
+/// (another origin, the server's own `__ui2/` files, a path outside the skin).
+pub fn server_path(url: &str) -> Option<String> {
+    let rest = url.strip_prefix("http://127.0.0.1:")?;
+    let (port, path) = rest.split_once('/')?;
+    if port.is_empty() || !port.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    if path.contains(['?', '#']) {
+        return None;
+    }
+    let path = percent_decode(path)?;
+    (is_skin_path(&path) && !path.starts_with("__ui2/")).then_some(path)
+}
+
 fn flatten_state(
     prefix: &str,
     table: &toml::Table,
@@ -409,6 +504,33 @@ title = "skin.title"
 model = "1.0"
 api = "1.0"
 "#;
+
+    #[test]
+    fn picture_urls_resolve_inside_the_skin() {
+        assert_eq!(
+            url_args("url(\"../images/a b.png\") , url(x.svg), URL( 'q.png' )"),
+            ["../images/a b.png", "x.svg", "q.png"]
+        );
+        assert_eq!(
+            resolve_in_skin("css/a.css", "../images/frame%20x.png").as_deref(),
+            Ok("images/frame x.png")
+        );
+        assert_eq!(
+            resolve_in_skin("index.html", "./images/a.png").as_deref(),
+            Ok("images/a.png")
+        );
+        assert!(resolve_in_skin("css/a.css", "../../a.png").is_err());
+        assert!(resolve_in_skin("css/a.css", "https://example.com/a.png").is_err());
+        assert!(resolve_in_skin("css/a.css", "/images/a.png").is_err());
+        assert_eq!(
+            server_path("http://127.0.0.1:53211/images/frame%20x.png").as_deref(),
+            Some("images/frame x.png")
+        );
+        assert_eq!(server_path("http://127.0.0.1:53211/__ui2/preview.js"), None);
+        assert_eq!(server_path("https://example.com/images/a.png"), None);
+        assert_eq!(server_path("http://localhost:80/a.png"), None);
+        assert_eq!(server_path("http://127.0.0.1:5/a.png?x=1"), None);
+    }
 
     #[test]
     fn engraved_skin_toml_parses() {

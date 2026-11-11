@@ -132,6 +132,473 @@ fn engraved_builds_and_the_package_is_deterministic() {
     pictures_are_atlas_pages(&pkg, &a.bytes);
 }
 
+/// One HTTP GET on the loopback server: status, headers (names lower case) and body.
+fn http_get(base: &str, path: &str) -> (u16, Vec<(String, String)>, Vec<u8>) {
+    use std::io::{Read, Write};
+    let port: u16 = base
+        .trim_end_matches('/')
+        .rsplit(':')
+        .next()
+        .and_then(|p| p.parse().ok())
+        .expect("a port in the server URL");
+    let mut s = std::net::TcpStream::connect(("127.0.0.1", port)).expect("connect");
+    write!(
+        s,
+        "GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n"
+    )
+    .expect("request");
+    let mut raw = Vec::new();
+    s.read_to_end(&mut raw).expect("response");
+    let split = raw
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .expect("a header block");
+    let head = String::from_utf8_lossy(&raw[..split]).to_string();
+    let mut body = raw[split + 4..].to_vec();
+    let mut lines = head.lines();
+    let status: u16 = lines
+        .next()
+        .and_then(|l| l.split(' ').nth(1))
+        .and_then(|c| c.parse().ok())
+        .expect("a status line");
+    let headers: Vec<(String, String)> = lines
+        .filter_map(|l| l.split_once(':'))
+        .map(|(k, v)| (k.trim().to_ascii_lowercase(), v.trim().to_string()))
+        .collect();
+    if headers
+        .iter()
+        .any(|(k, v)| k == "transfer-encoding" && v == "chunked")
+    {
+        let mut out = Vec::new();
+        let mut rest = &body[..];
+        loop {
+            let eol = rest
+                .windows(2)
+                .position(|w| w == b"\r\n")
+                .expect("chunk size");
+            let n = usize::from_str_radix(String::from_utf8_lossy(&rest[..eol]).trim(), 16)
+                .expect("hex chunk size");
+            if n == 0 {
+                break;
+            }
+            out.extend_from_slice(&rest[eol + 2..eol + 2 + n]);
+            rest = &rest[eol + 2 + n + 2..];
+        }
+        body = out;
+    }
+    (status, headers, body)
+}
+
+fn header<'a>(h: &'a [(String, String)], name: &str) -> Option<&'a str> {
+    h.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str())
+}
+
+/// Watch mode on a copy of the skin: the package server answers `.rev`, `.ui2` and `.errors.json` with the
+/// cross-origin headers; a CSS edit gives a new `.rev` within 3 s (no client); an error keeps the package and
+/// its `.rev`; a script edit builds without Chromium. The test stops the session (Node, Chromium, server).
+#[test]
+fn watch_cycle() {
+    if !chrome() {
+        return;
+    }
+    use std::time::{Duration, Instant};
+    use ui2_convert::watch::{Change, POLL, WatchOpts, Watcher};
+    let root = std::env::temp_dir().join(format!("ui2-e2e-watch-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let skin = root.join("engraved");
+    copy_dir(&engraved(), &skin);
+    std::fs::create_dir_all(skin.join("scripts")).expect("mkdir");
+    std::fs::write(skin.join("scripts").join("watch.js"), "// watch test\n").expect("script");
+    let toml = std::fs::read_to_string(skin.join("skin.toml")).expect("skin.toml");
+    std::fs::write(
+        skin.join("skin.toml"),
+        format!("{toml}\n[scripts]\nfiles = [\"scripts/watch.js\"]\n"),
+    )
+    .expect("skin.toml");
+    let opts = WatchOpts {
+        port: 0,
+        out: Some(root.join("out")),
+    };
+    let (mut w, first) = Watcher::start(&skin, &opts).expect("the watch starts");
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        assert!(first.built, "{:?}", first.errors);
+        assert_eq!(first.rev, 1);
+        let base = w.url().to_string();
+        let get = |what: &str| http_get(&base, &format!("/pkg/engraved.{what}"));
+        let (status, h, body) = get("rev");
+        assert_eq!((status, body.as_slice()), (200, &b"1"[..]));
+        assert_eq!(header(&h, "access-control-allow-origin"), Some("*"));
+        assert_eq!(
+            header(&h, "cross-origin-resource-policy"),
+            Some("cross-origin")
+        );
+        let (status, _, bytes) = get("ui2");
+        assert_eq!(status, 200);
+        let one = ui2_package::Package::read(std::sync::Arc::from(bytes.as_slice()))
+            .expect("the served package reads")
+            .hash();
+        assert_eq!(get("errors.json").2, b"[]\n");
+
+        // Waits for the cycle the last edit causes.
+        fn next(w: &mut Watcher, since: Instant) -> (ui2_convert::watch::Cycle, Duration) {
+            loop {
+                if let Some(c) = w.poll() {
+                    return (c, since.elapsed());
+                }
+                assert!(since.elapsed() < Duration::from_secs(30), "no cycle");
+                std::thread::sleep(POLL);
+            }
+        }
+        let css = skin.join("css").join("hud.css");
+        let original = std::fs::read_to_string(&css).expect("hud.css");
+
+        // A CSS edit: a new package within 3 s.
+        let t = Instant::now();
+        std::fs::write(
+            &css,
+            format!("{original}\n.top .spacer {{\n  min-width: 1px;\n}}\n"),
+        )
+        .expect("edit");
+        let (c, took) = next(&mut w, t);
+        println!("css edit: {took:?} (cycle {} ms)", c.ms);
+        assert!(c.built, "{:?}", c.errors);
+        assert_eq!((c.change, c.rev), (Change::Full, 2));
+        assert!(took <= Duration::from_secs(3), "{took:?}");
+        assert_eq!(get("rev").2, b"2");
+        let two = ui2_package::Package::read(std::sync::Arc::from(get("ui2").2.as_slice()))
+            .expect("reads")
+            .hash();
+        assert_ne!(one, two);
+
+        // An error: the package and its number stay, the errors are served.
+        let t = Instant::now();
+        std::fs::write(&css, format!("{original}\n.top {{\n  float: right;\n}}\n")).expect("edit");
+        let (c, _) = next(&mut w, t);
+        assert!(!c.built);
+        assert_eq!(c.rev, 2);
+        assert!(
+            c.errors.iter().any(|e| e.code == "E2-010"),
+            "{:?}",
+            c.errors
+        );
+        assert_eq!(get("rev").2, b"2");
+        let errors: serde_json::Value =
+            serde_json::from_slice(&get("errors.json").2).expect("errors.json");
+        assert_eq!(errors[0]["code"], "E2-010");
+        assert_eq!(get("ui2").2, bytes_of(&w, two));
+
+        // Fixed again, then a script edit: built without Chromium.
+        let t = Instant::now();
+        std::fs::write(&css, &original).expect("restore");
+        let (c, _) = next(&mut w, t);
+        assert!(c.built && c.rev == 3, "{:?}", c.errors);
+        let t = Instant::now();
+        std::fs::write(
+            skin.join("scripts").join("watch.js"),
+            "// watch test, edited\n",
+        )
+        .expect("script edit");
+        let (c, took) = next(&mut w, t);
+        println!("script edit: {took:?} (cycle {} ms)", c.ms);
+        assert!(c.built, "{:?}", c.errors);
+        assert_eq!((c.change, c.rev), (Change::Scripts, 4));
+        assert_eq!(get("rev").2, b"4");
+    }));
+    let pkg_dir = w.pkg_dir();
+    w.close();
+    let _ = std::fs::remove_dir_all(&root);
+    if let Err(e) = result {
+        std::panic::resume_unwind(e);
+    }
+    assert!(pkg_dir.starts_with(&root));
+}
+
+/// The package file the watch serves, when its hash is `hash`.
+fn bytes_of(w: &ui2_convert::watch::Watcher, hash: ui2_package::PackageHash) -> Vec<u8> {
+    let bytes = std::fs::read(w.pkg_dir().join(format!("{}.ui2", w.id()))).expect("package file");
+    let read = ui2_package::Package::read(std::sync::Arc::from(bytes.as_slice())).expect("reads");
+    assert_eq!(read.hash(), hash);
+    bytes
+}
+
+/// A PNG of `w x h` straight RGBA pixels (stored deflate blocks: enough for a test picture).
+fn png(w: u32, h: u32, rgba: &[u8]) -> Vec<u8> {
+    fn crc32(bytes: &[u8]) -> u32 {
+        let mut c = !0u32;
+        for &b in bytes {
+            c ^= u32::from(b);
+            for _ in 0..8 {
+                c = if c & 1 != 0 {
+                    0xEDB8_8320 ^ (c >> 1)
+                } else {
+                    c >> 1
+                };
+            }
+        }
+        !c
+    }
+    fn chunk(out: &mut Vec<u8>, tag: &[u8; 4], data: &[u8]) {
+        out.extend_from_slice(&(data.len() as u32).to_be_bytes());
+        let mut body = tag.to_vec();
+        body.extend_from_slice(data);
+        out.extend_from_slice(&body);
+        out.extend_from_slice(&crc32(&body).to_be_bytes());
+    }
+    let mut raw = Vec::new();
+    for row in rgba.chunks_exact((w * 4) as usize) {
+        raw.push(0u8); // filter: none
+        raw.extend_from_slice(row);
+    }
+    let (mut a, mut b) = (1u32, 0u32);
+    for &x in &raw {
+        a = (a + u32::from(x)) % 65521;
+        b = (b + a) % 65521;
+    }
+    let mut z = vec![0x78, 0x01];
+    let blocks: Vec<&[u8]> = raw.chunks(65535).collect();
+    for (i, blk) in blocks.iter().enumerate() {
+        z.push(u8::from(i + 1 == blocks.len()));
+        let n = blk.len() as u16;
+        z.extend_from_slice(&n.to_le_bytes());
+        z.extend_from_slice(&(!n).to_le_bytes());
+        z.extend_from_slice(blk);
+    }
+    z.extend_from_slice(&((b << 16) | a).to_be_bytes());
+    let mut out = b"\x89PNG\r\n\x1a\n".to_vec();
+    let mut ihdr = Vec::new();
+    ihdr.extend_from_slice(&w.to_be_bytes());
+    ihdr.extend_from_slice(&h.to_be_bytes());
+    ihdr.extend_from_slice(&[8, 6, 0, 0, 0]);
+    chunk(&mut out, b"IHDR", &ihdr);
+    chunk(&mut out, b"IDAT", &z);
+    chunk(&mut out, b"IEND", &[]);
+    out
+}
+
+/// The 2 x 2 test picture: half-transparent red, green, transparent blue, white.
+const DOT: [u8; 16] = [
+    255, 0, 0, 128, 0, 255, 0, 255, 0, 0, 255, 0, 255, 255, 255, 255,
+];
+
+/// A minimal skin with pictures named by `url()`, written into a fresh temporary folder. `css` is the
+/// stylesheet after the layer rule.
+fn picture_skin(name: &str, css: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("ui2-e2e-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let layout = crate_dir().join("tests").join("fixtures").join("layout");
+    for sub in ["css", "images", "l10n"] {
+        std::fs::create_dir_all(dir.join(sub)).expect("mkdir");
+    }
+    std::fs::write(
+        dir.join("skin.toml"),
+        format!(
+            "[skin]\nid = \"{name}\"\nversion = \"0.1.0\"\ntitle = \"skin.title\"\nmodel = \"1.0\"\napi = \"1.0\"\n"
+        ),
+    )
+    .expect("skin.toml");
+    std::fs::copy(
+        layout.join("css").join("tokens.css"),
+        dir.join("css").join("tokens.css"),
+    )
+    .expect("tokens");
+    std::fs::copy(
+        layout.join("l10n").join("en_US.toml"),
+        dir.join("l10n").join("en_US.toml"),
+    )
+    .expect("l10n");
+    std::fs::write(
+        dir.join("index.html"),
+        "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>Pictures</title>\n  <link rel=\"stylesheet\" href=\"css/tokens.css\">\n  <link rel=\"stylesheet\" href=\"css/a.css\">\n</head>\n<body>\n  <div class=\"layer\" data-layer=\"map\"></div>\n  <div class=\"layer\" data-layer=\"hud\">\n    <div data-slot=\"mods\"></div>\n    <div class=\"tile\"></div>\n    <div class=\"frame\"></div>\n    <div class=\"flag\"></div>\n  </div>\n  <div class=\"layer\" data-layer=\"window\"></div>\n  <div class=\"layer\" data-layer=\"tooltip\"></div>\n</body>\n</html>\n",
+    )
+    .expect("index.html");
+    std::fs::write(
+        dir.join("css").join("a.css"),
+        format!(
+            ".layer {{\n  position: absolute;\n  inset: 0;\n  pointer-events: none;\n}}\n{css}"
+        ),
+    )
+    .expect("a.css");
+    std::fs::write(dir.join("images").join("dot.png"), png(2, 2, &DOT)).expect("png");
+    std::fs::write(
+        dir.join("images").join("flag.svg"),
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"6\" height=\"4\"><rect width=\"6\" height=\"4\" fill=\"#0000ff\"/></svg>\n",
+    )
+    .expect("svg");
+    dir
+}
+
+const PICTURES_CSS: &str = ".tile {\n  width: 8px;\n  height: 8px;\n  background-image: url(\"../images/dot.png\");\n  background-size: 8px 8px;\n}\n.frame {\n  width: 12px;\n  height: 12px;\n  border-width: 2px;\n  border-style: solid;\n  border-color: transparent;\n  border-image-source: url(\"../images/dot.png\");\n  border-image-slice: 1;\n  border-image-width: 2px;\n}\n.flag {\n  width: 6px;\n  height: 4px;\n  background-image: url(../images/flag.svg);\n}\n";
+
+/// `url()` pictures become colored sprites of their natural size at scale 1 and 2 on premultiplied RGBA pages,
+/// named by their path in the skin; the style records hold that path.
+#[test]
+fn url_pictures_are_premultiplied_rgba_sprites() {
+    if !chrome() {
+        return;
+    }
+    use ui2_package::PageFormat;
+    use ui2_package::style::BgImage;
+    let dir = picture_skin("e2e-pictures", PICTURES_CSS);
+    let a = ui2_convert::build::build(&dir, true);
+    let b = ui2_convert::build::build(&dir, true);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(a.run.errors.is_empty(), "{:?}", a.run.errors);
+    let a = a.written.expect("package");
+    assert_eq!(a.bytes, b.written.expect("package").bytes, "deterministic");
+    let pkg = ui2_package::Package::read(std::sync::Arc::from(a.bytes.as_slice())).expect("read");
+    let images = pkg.images();
+    assert_eq!(
+        images
+            .pages
+            .iter()
+            .map(|p| (p.format, p.scale))
+            .collect::<Vec<_>>(),
+        [(PageFormat::Rgba8, 1), (PageFormat::Rgba8, 2)]
+    );
+    let img = |path: &str| {
+        images
+            .imgs
+            .iter()
+            .find(|i| pkg.str(i.path) == Some(path))
+            .unwrap_or_else(|| panic!("no picture {path}"))
+    };
+    let dot = img("images/dot.png");
+    assert_eq!(dot.size, [2.0, 2.0]);
+    assert!(!dot.mask);
+    assert_eq!(dot.x1.rect[2..], [4, 4]);
+    assert_eq!(dot.x2.expect("2x").rect[2..], [6, 6]);
+    assert_eq!(img("images/flag.svg").size, [6.0, 4.0]);
+    // Premultiplied: half-transparent red is (128, 0, 0, 128); transparent blue is all zero.
+    let page = &images.pages[usize::from(dot.x1.page)];
+    let px = pkg.blob_owned(page.blob).expect("page");
+    let w = usize::from(page.size[0]);
+    let [x, y, _, _] = dot.x1.rect.map(usize::from);
+    let at = |cx: usize, cy: usize| {
+        let i = ((y + 1 + cy) * w + x + 1 + cx) * 4;
+        [px[i], px[i + 1], px[i + 2], px[i + 3]]
+    };
+    assert_eq!(at(0, 0), [128, 0, 0, 128]);
+    assert_eq!(at(1, 0), [0, 255, 0, 255]);
+    assert_eq!(at(0, 1), [0, 0, 0, 0]);
+    assert_eq!(at(1, 1), [255, 255, 255, 255]);
+    // The records name the pictures by path.
+    let records = &pkg.styles().records;
+    let named = |f: &dyn Fn(&ui2_package::style::StyleRecord) -> Option<ui2_package::StrId>| {
+        records
+            .iter()
+            .filter_map(f)
+            .filter_map(|s| pkg.str(s))
+            .collect::<Vec<_>>()
+    };
+    let bg = named(&|r| match r.background_image.first() {
+        Some(BgImage::Url(s)) => Some(*s),
+        _ => None,
+    });
+    assert!(
+        bg.contains(&"images/dot.png") && bg.contains(&"images/flag.svg"),
+        "{bg:?}"
+    );
+    assert_eq!(named(&|r| r.border_image_source), ["images/dot.png"]);
+}
+
+/// A picture that is not a file of the skin is E1-003 at the declaration.
+#[test]
+fn url_pictures_outside_the_skin_are_errors_at_the_declaration() {
+    if !chrome() {
+        return;
+    }
+    let dir = picture_skin(
+        "e2e-bad-pictures",
+        ".tile {\n  width: 8px;\n  height: 8px;\n  background-image: url(\"../images/missing.png\");\n}\n.frame {\n  width: 8px;\n  height: 8px;\n  background-image: url(../../outside.png);\n}\n",
+    );
+    let run = check_skin(&dir, Input::Chrome);
+    let _ = std::fs::remove_dir_all(&dir);
+    let got: Vec<String> = run
+        .errors
+        .iter()
+        .filter(|e| e.code == "E1-003")
+        .map(|e| format!("{} {}:{} {}", e.code, e.place.file, e.place.line, e.prop))
+        .collect();
+    assert_eq!(
+        got,
+        [
+            "E1-003 css/a.css:9 background-image",
+            "E1-003 css/a.css:14 background-image"
+        ],
+        "{:?}",
+        run.errors
+    );
+}
+
+/// The shorthands `grid-template`, `grid-row`, `grid-column`, `grid-area` and `border-image` may be written;
+/// Chrome expands them into the profile's longhands.
+#[test]
+fn grid_and_border_image_shorthands_compile() {
+    if !chrome() {
+        return;
+    }
+    let dir = picture_skin(
+        "e2e-shorthands",
+        ".tile {\n  display: grid;\n  grid-template: 4px 4px / 4px 4px;\n  width: 8px;\n  height: 8px;\n}\n.frame {\n  width: 12px;\n  height: 12px;\n  grid-row: 1 / 2;\n  grid-column: 1;\n  border: 2px solid transparent;\n  border-image: url(\"../images/dot.png\") 1 / 2px stretch;\n}\n.flag {\n  width: 6px;\n  height: 4px;\n  grid-area: 2 / 1 / 3 / 3;\n}\n",
+    );
+    let run = check_skin(&dir, Input::Chrome);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(run.errors.is_empty(), "{:?}", run.errors);
+    let s = run.styles.as_ref().expect("styles");
+    assert!(
+        s.records
+            .iter()
+            .any(|r| r.grid_template_rows.len() == 2 && r.grid_template_columns.len() == 2)
+    );
+    assert!(s.records.iter().any(|r| {
+        r.border_image_source
+            .is_some_and(|p| s.strs.get(p) == "images/dot.png")
+    }));
+    use ui2_package::style::GridLine;
+    let lines = |r: &ui2_package::style::StyleRecord| {
+        [
+            r.grid_row_start,
+            r.grid_row_end,
+            r.grid_column_start,
+            r.grid_column_end,
+        ]
+    };
+    let all: Vec<[GridLine; 4]> = s.records.iter().map(lines).collect();
+    use GridLine::Line;
+    assert!(
+        all.contains(&[Line(2), Line(3), Line(1), Line(3)]),
+        "{all:?}"
+    );
+    assert!(
+        all.contains(&[Line(1), Line(2), Line(1), GridLine::Auto]),
+        "{all:?}"
+    );
+}
+
+/// A clip polygon that mixes px and % passes the parser in its reference boxes; at the element's own size it
+/// can be concave (E2-022 at the element).
+#[test]
+fn clip_polygons_are_convex_at_the_element_size() {
+    if !chrome() {
+        return;
+    }
+    let poly = "clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, calc(10px - 2%) 50%);";
+    let dir = picture_skin(
+        "e2e-clip",
+        &format!(
+            ".tile {{\n  width: 1000px;\n  height: 8px;\n  {poly}\n}}\n.frame {{\n  width: 12px;\n  height: 12px;\n  {poly}\n}}\n"
+        ),
+    );
+    let run = check_skin(&dir, Input::Chrome);
+    let _ = std::fs::remove_dir_all(&dir);
+    let got: Vec<String> = run
+        .errors
+        .iter()
+        .map(|e| format!("{} {}:{} {}", e.code, e.place.file, e.place.line, e.prop))
+        .collect();
+    assert_eq!(got, ["E2-022 index.html:14 clip-path"], "{:?}", run.errors);
+}
+
 /// The icons are mask sprites at scale 1 and 2 on A8 pages; no PNG, WebP or SVG file is inside.
 fn pictures_are_atlas_pages(pkg: &ui2_package::Package, bytes: &[u8]) {
     use ui2_package::PageFormat;

@@ -23,7 +23,6 @@ use ui2_package::{Bound, Cond, CondKind, StrId, StyleId, StyleSet, TokenId, Toke
 use crate::errors::{ConvError, Place, codes};
 use crate::ir::{AnonKind, Dom, Element, Ix, Node};
 use crate::plan::{CondK, Plan, PlanNode, token_capable};
-use crate::select::Pseudo;
 
 /// One overlay of values: `(property index, value)`.
 pub type Set = Vec<(usize, String)>;
@@ -61,6 +60,9 @@ pub struct NodeOut {
     pub vars: Vec<VarOut>,
     /// The beacon pass.
     pub beacon: BeaconOut,
+    /// The border box in CSS px (base state), for a node with a `clip-path` only.
+    #[serde(default)]
+    pub size: Option<[f32; 2]>,
 }
 
 /// One cell.
@@ -357,6 +359,22 @@ impl Cx<'_> {
                 },
                 None => v,
             };
+            let v = match skin_pictures(v) {
+                Ok(v) => v,
+                Err(url) => {
+                    self.errs.push(err_node(
+                        self.dom,
+                        ix,
+                        codes::RESOURCE,
+                        p.name(),
+                        format!(
+                            "`{}: {s}` computed by Chrome: `{url}` is not a file of the skin",
+                            p.name()
+                        ),
+                    ));
+                    continue;
+                }
+            };
             if let Some(k) = TRANSITIONS.iter().position(|&t| t == p) {
                 trans[k] = Some(v);
                 continue;
@@ -387,6 +405,24 @@ impl Cx<'_> {
             contents,
         }
     }
+}
+
+/// A value with every picture URL (Chrome's absolute URL on the local server) replaced by the path of the
+/// picture in the skin, the name the package's `IMGS` table gives it. `Err` carries a URL outside the skin.
+pub fn skin_pictures(v: Value) -> Result<Value, String> {
+    let local = |u: String| crate::skin::server_path(&u).ok_or(u);
+    Ok(match v {
+        Value::Url(u) => Value::Url(local(u)?),
+        Value::Images(list) => Value::Images(
+            list.into_iter()
+                .map(|l| match l {
+                    BgLayer::Url(u) => local(u).map(BgLayer::Url),
+                    g => Ok(g),
+                })
+                .collect::<Result<_, _>>()?,
+        ),
+        v => v,
+    })
 }
 
 fn describe_cond(c: &crate::plan::CondSpec) -> String {
@@ -483,6 +519,7 @@ pub fn compile(
             table.push(row);
         }
         consistency(&mut cx, pn, &table);
+        clip_at_size(&mut cx, pn, &plan.cells, &reads, &table);
         // Drop the conditions that change no record.
         let mut keep: Vec<usize> = Vec::new();
         for bit in 0..n {
@@ -499,11 +536,7 @@ pub fn compile(
         for &bit in &keep {
             let cs = &pn.conds[bit];
             let kind = match &cs.kind {
-                CondK::Pseudo(Pseudo::Hover) => CondKind::Hover,
-                CondK::Pseudo(Pseudo::Active) => CondKind::Active,
-                CondK::Pseudo(Pseudo::Focus) => CondKind::Focus,
-                CondK::Pseudo(Pseudo::FocusVisible) => CondKind::FocusVisible,
-                CondK::Pseudo(Pseudo::Disabled) => CondKind::Disabled,
+                CondK::Pseudo(p) => p.cond_kind(),
                 CondK::Class(k) => CondKind::Class(cx.strs.id(k)),
             };
             conds.push(Cond { up: cs.up, kind });
@@ -600,9 +633,12 @@ fn element_checks(cx: &mut Cx, plan: &Plan, pn: &PlanNode, reads: &[&NodeOut]) {
                 || name == "-webkit-appearance";
             let current = *value == color;
             // Chrome also lists a few shorthands and used values: the longhands are checked
-            // themselves, and the perspective origin matters only with a perspective.
-            let skipped = matches!(name.as_str(), "-webkit-locale" | "perspective-origin")
-                || crate::check::SHORTHANDS.iter().any(|(s, _)| s == name);
+            // themselves (`-webkit-border-image` mirrors the `border-image-*` longhands), and the
+            // perspective origin matters only with a perspective.
+            let skipped = matches!(
+                name.as_str(),
+                "-webkit-locale" | "perspective-origin" | "-webkit-border-image"
+            ) || crate::check::SHORTHANDS.iter().any(|(s, _)| s == name);
             if logical
                 || required
                 || current
@@ -704,6 +740,41 @@ fn consistency(cx: &mut Cx, pn: &PlanNode, table: &[Vec<Read>]) {
                 prop,
                 format!("changes with {list}"),
             ));
+        }
+    }
+}
+
+/// A clip polygon passed the value parser's convexity check in its reference boxes; one that mixes px and %
+/// can still turn concave at the size the node really has. Checked in every cell at the node's border box
+/// (E2-022), for every variant.
+fn clip_at_size(
+    cx: &mut Cx,
+    pn: &PlanNode,
+    cells: &[[u32; 2]],
+    reads: &[&NodeOut],
+    table: &[Vec<Read>],
+) {
+    for ((r, row), view) in reads.iter().zip(table).zip(cells) {
+        let Some(size) = r.size else { continue };
+        let bad = row.iter().find(|x| {
+            !x.record.clip_path.is_empty()
+                && !ui2_package::style::convex_at(&x.record.clip_path, size)
+        });
+        if bad.is_some() {
+            cx.errs.push(err_node(
+                cx.dom,
+                pn.ix,
+                ui2_package::profile::values::codes::CONCAVE,
+                PropId::ClipPath.name(),
+                format!(
+                    "the clip polygon is not convex at the element's size {} x {} px (viewport {} x {})",
+                    size[0],
+                    size[1],
+                    view[0],
+                    view[1]
+                ),
+            ));
+            return;
         }
     }
 }
@@ -821,4 +892,38 @@ fn box_tree(dom: &Dom, c: &Compiled, _plan: &Plan) -> Vec<BoxNode> {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn styles_picture_urls_become_skin_paths() {
+        let v = parse_value(
+            PropId::BackgroundImage,
+            "url(\"http://127.0.0.1:61234/images/frame.png\"), linear-gradient(rgb(0, 0, 0), rgb(255, 255, 255))",
+        )
+        .expect("parses");
+        let Ok(Value::Images(list)) = skin_pictures(v) else {
+            panic!("images")
+        };
+        assert!(matches!(&list[0], BgLayer::Url(p) if p == "images/frame.png"));
+        assert!(matches!(&list[1], BgLayer::Gradient(_)));
+        let v = parse_value(
+            PropId::BorderImageSource,
+            "url(\"http://127.0.0.1:61234/images/nine.png\")",
+        )
+        .expect("parses");
+        assert!(matches!(skin_pictures(v), Ok(Value::Url(p)) if p == "images/nine.png"));
+        let v = parse_value(
+            PropId::BorderImageSource,
+            "url(\"http://example.com/nine.png\")",
+        )
+        .expect("parses");
+        assert_eq!(
+            skin_pictures(v).err().as_deref(),
+            Some("http://example.com/nine.png")
+        );
+    }
 }

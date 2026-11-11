@@ -10,6 +10,10 @@
 //! - An inline `<svg>` without `<use>` with a non-empty box is a static picture (RGBA) of its own markup.
 //! - An `<img src>` of the skin is a picture (RGBA) of its CSS size; `name@2x.ext` next to the file is the
 //!   scale 2 source.
+//! - A picture a style names by `url()` (`background-image`, `border-image-source`) is a picture (RGBA) of
+//!   its natural size, named by its path in the skin (the string the style record holds); the runtime
+//!   scales it as the style says. `name@2x.ext` is again the scale 2 source; without one the file is drawn
+//!   at twice its natural size.
 //!
 //! The size is the element's CSS width and height in px (the same in every variant and cell); the device size
 //! is rounded up to whole pixels, so a sprite starts on the device pixel grid. RGBA pages hold premultiplied
@@ -18,11 +22,12 @@
 use std::collections::BTreeMap;
 
 use serde_json::{Value, json};
-use ui2_package::style::{ColorV, Len, LenAuto, Paint, StyleRecord};
+use ui2_package::style::{BgImage, ColorV, Len, LenAuto, Paint, StyleRecord};
 
 use crate::errors::{ConvError, codes};
 use crate::ir::{Dom, Element, Node};
 use crate::node::NodeClient;
+use crate::skin::is_skin_path;
 use crate::styles::Compiled;
 use crate::write::{Picture, Pictures};
 
@@ -313,10 +318,7 @@ fn wanted(dom: &Dom, c: &Compiled) -> (Vec<Want>, BTreeMap<u32, usize>, Vec<Conv
                 .file
                 .rsplit_once('/')
                 .map_or(src.to_string(), |(dir, _)| format!("{dir}/{src}"));
-            let x2 = match file.rsplit_once('.') {
-                Some((stem, ext)) => format!("{stem}@2x.{ext}"),
-                None => file.clone(),
-            };
+            let x2 = x2_name(&file);
             let path = format!("{file}@{}x{}", size[0], size[1]);
             add(
                 Want {
@@ -331,6 +333,32 @@ fn wanted(dom: &Dom, c: &Compiled) -> (Vec<Want>, BTreeMap<u32, usize>, Vec<Conv
         }
     }
     (wants, of, errs)
+}
+
+/// The scale 2 file next to a picture: `name@2x.ext`.
+fn x2_name(file: &str) -> String {
+    match file.rsplit_once('.') {
+        Some((stem, ext)) if !ext.contains('/') => format!("{stem}@2x.{ext}"),
+        _ => file.to_string(),
+    }
+}
+
+/// The pictures the style records name by path (`background-image` layers, `border-image-source`), each
+/// with the first element in document order whose style uses it.
+fn named(dom: &Dom, c: &Compiled) -> BTreeMap<String, u32> {
+    let mut out = BTreeMap::new();
+    for e in &dom.elems {
+        for r in records(c, e.id) {
+            let layers = r.background_image.iter().filter_map(|l| match l {
+                BgImage::Url(s) => Some(*s),
+                BgImage::Gradient(_) => None,
+            });
+            for s in layers.chain(r.border_image_source) {
+                out.entry(c.strs.get(s).to_string()).or_insert(e.id);
+            }
+        }
+    }
+    out
 }
 
 fn device(v: f32, k: f32) -> u32 {
@@ -383,7 +411,50 @@ pub fn pictures(
     dom: &Dom,
     c: &Compiled,
 ) -> Result<Pictures, Vec<ConvError>> {
+    pictures_cached(node, skin_dir, dom, c, &mut RasterCache::default())
+}
+
+/// Chromium's rasters by request: the key is the blake3 of the raster request of one picture and of the
+/// files it reads, so a picture is drawn again only when its markup, size or file changed (watch mode).
+#[derive(Debug, Default)]
+pub struct RasterCache(BTreeMap<[u8; 32], Value>);
+
+fn raster_key(skin_dir: &std::path::Path, item: &Value) -> [u8; 32] {
+    let mut h = blake3::Hasher::new();
+    h.update(item.to_string().as_bytes());
+    for k in ["src1", "src2"] {
+        if let Some(f) = item.get(k).and_then(Value::as_str) {
+            let bytes = std::fs::read(skin_dir.join(f)).unwrap_or_default();
+            h.update(&(bytes.len() as u64).to_le_bytes());
+            h.update(&bytes);
+        }
+    }
+    *h.finalize().as_bytes()
+}
+
+/// [`pictures`] with the rasters of earlier runs kept in `cache`.
+pub fn pictures_cached(
+    node: &mut NodeClient,
+    skin_dir: &std::path::Path,
+    dom: &Dom,
+    c: &Compiled,
+    cache: &mut RasterCache,
+) -> Result<Pictures, Vec<ConvError>> {
     let (wants, of, mut errs) = wanted(dom, c);
+    let elem = |id: u32| dom.by_id.get(&id).map(|&ix| dom.elems[ix]);
+    // Pictures named by path: drawn at their natural size, which Chromium reads from the file.
+    let mut natural: Vec<(String, u32)> = Vec::new();
+    for (path, id) in named(dom, c) {
+        if is_skin_path(&path) && skin_dir.join(&path).is_file() {
+            natural.push((path, id));
+            continue;
+        }
+        let why = format!("the picture `{path}` is not a file of the skin");
+        errs.push(match elem(id) {
+            Some(e) => ConvError::new(codes::RESOURCE, e.place(), why).element(e.describe()),
+            None => ConvError::new(codes::RESOURCE, crate::errors::Place::default(), why),
+        });
+    }
     let mut items = Vec::new();
     for w in &wants {
         let (w1, h1) = (device(w.size[0], 1.0), device(w.size[1], 1.0));
@@ -408,39 +479,114 @@ pub fn pictures(
         }
         items.push(item);
     }
+    for (path, _) in &natural {
+        let x2 = x2_name(path);
+        let has2 = x2 != *path && skin_dir.join(&x2).is_file();
+        items.push(json!({
+            "natural": true,
+            "src1": path,
+            "src2": if has2 { &x2 } else { path },
+        }));
+    }
     let mut rasters = Vec::new();
     if !items.is_empty() {
-        let answer = node
-            .call("raster", json!({ "items": items }))
-            .map_err(|e| vec![e])?;
-        let list = answer
-            .get("items")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        for (w, a) in wants.iter().zip(list.iter()) {
+        // Only the pictures whose request or files changed since the cache saw them go to Chromium.
+        let keys: Vec<[u8; 32]> = items.iter().map(|it| raster_key(skin_dir, it)).collect();
+        let todo: Vec<Value> = items
+            .iter()
+            .zip(&keys)
+            .filter(|(_, k)| !cache.0.contains_key(*k))
+            .map(|(it, _)| it.clone())
+            .collect();
+        if !todo.is_empty() {
+            let answer = node
+                .call("raster", json!({ "items": todo }))
+                .map_err(|e| vec![e])?;
+            let fresh = answer
+                .get("items")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            if fresh.len() != todo.len() {
+                return Err(vec![ConvError::new(
+                    codes::PROTOCOL,
+                    crate::errors::Place::default(),
+                    "raster: the answer has another number of items",
+                )]);
+            }
+            let mut fresh = fresh.into_iter();
+            for k in &keys {
+                if !cache.0.contains_key(k)
+                    && let Some(a) = fresh.next()
+                {
+                    cache.0.insert(*k, a);
+                }
+            }
+        }
+        let list: Vec<Value> = keys
+            .iter()
+            .map(|k| cache.0.get(k).cloned().unwrap_or(Value::Null))
+            .collect();
+        let size_of = |a: &Value, k: &str| {
+            a.get(k)
+                .and_then(Value::as_u64)
+                .and_then(|n| u32::try_from(n).ok())
+        };
+        let jobs = wants.iter().map(|w| (w.path.clone(), Some(w), None)).chain(
+            natural
+                .iter()
+                .map(|(path, id)| (path.clone(), None, Some(*id))),
+        );
+        for ((path, want, id), a) in jobs.zip(list.iter()) {
+            if let Some(why) = a.get("error").and_then(Value::as_str) {
+                let why = format!("the picture `{path}` does not draw in Chromium: {why}");
+                errs.push(match id.and_then(elem) {
+                    Some(e) => ConvError::new(codes::IMAGE, e.place(), why).element(e.describe()),
+                    None => ConvError::new(codes::IMAGE, crate::errors::Place::default(), why),
+                });
+                continue;
+            }
             let get = |k: &str| a.get(k).and_then(Value::as_str).and_then(b64);
-            let (w1, h1) = (device(w.size[0], 1.0), device(w.size[1], 1.0));
-            let (w2, h2) = (device(w.size[0], 2.0), device(w.size[1], 2.0));
+            let (size, mask, [w1, h1, w2, h2]) = match want {
+                Some(w) => (
+                    w.size,
+                    w.mask,
+                    [
+                        device(w.size[0], 1.0),
+                        device(w.size[1], 1.0),
+                        device(w.size[0], 2.0),
+                        device(w.size[1], 2.0),
+                    ],
+                ),
+                None => match (size_of(a, "w1"), size_of(a, "h1")) {
+                    (Some(w1), Some(h1)) => {
+                        ([w1 as f32, h1 as f32], false, [w1, h1, w1 * 2, h1 * 2])
+                    }
+                    // No size: reported below as a picture without pixels.
+                    _ => ([0.0, 0.0], false, [0, 0, 0, 0]),
+                },
+            };
             match (get("x1"), get("x2")) {
                 (Some(a1), Some(a2))
-                    if a1.len() == (w1 * h1 * 4) as usize && a2.len() == (w2 * h2 * 4) as usize =>
+                    if w1 > 0
+                        && a1.len() == (w1 * h1 * 4) as usize
+                        && a2.len() == (w2 * h2 * 4) as usize =>
                 {
                     rasters.push(Raster {
-                        path: w.path.clone(),
-                        size: w.size,
-                        mask: w.mask,
+                        path,
+                        size,
+                        mask,
                         scales: [(w1, h1, a1), (w2, h2, a2)],
                     });
                 }
                 _ => errs.push(ConvError::new(
                     codes::PROTOCOL,
                     crate::errors::Place::default(),
-                    format!("raster: no pixels for {}", w.path),
+                    format!("raster: no pixels for {path}"),
                 )),
             }
         }
-        if list.len() != wants.len() {
+        if list.len() != items.len() {
             errs.push(ConvError::new(
                 codes::PROTOCOL,
                 crate::errors::Place::default(),

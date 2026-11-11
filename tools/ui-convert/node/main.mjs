@@ -7,13 +7,16 @@
 // Requests are handled strictly one after another, in the order they arrive. Output is canonical
 // JSON (sorted keys). stdout carries protocol lines only; diagnostics go to stderr.
 //
-//   open   {skin_dir, entry?, profile?, port?, fonts_dir?, preview?}
+//   open   {skin_dir, entry?, profile?, port?, fonts_dir?, preview?, pkg_dir?}
 //                                                           -> {chrome, flags, base_url, preview}
 //          preview: inject node/preview/preview.js into every page (answered false when the
-//          script does not exist)
+//          script does not exist); pkg_dir: serve GET /pkg/<id>.{ui2,rev,errors.json} from that
+//          folder (watch mode, see server.mjs)
 //   scan   {state?, viewport?}                              -> the IR (see scan.mjs)
 //   extract {cells, props, beacon_props, extra, tokens, nodes} -> computed values (see extract.mjs)
-//   raster {items:[{svg1, svg2 | src1, src2, w1, h1, w2, h2}]} -> {items:[{x1, x2}]} (base64 RGBA, see raster.mjs)
+//   raster {items:[{svg1, svg2 | src1, src2, w1, h1, w2, h2 | natural}]}
+//                                                           -> {items:[{x1, x2, w1, h1, w2, h2} | {error}]}
+//          (base64 RGBA, see raster.mjs)
 //   rects  {state, viewport:[w,h], dsf?, skin?}             -> the rectangle dump of the layout page (rects.mjs)
 //   reload {}                                               -> {}
 //   close  {}                                               -> {}   (the process exits afterwards)
