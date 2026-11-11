@@ -1,0 +1,159 @@
+{
+  "model": {
+    "meta": {
+      "schema": "1.0",
+      "source": "replica",
+      "live": true,
+      "catching_up": false,
+      "connected": true
+    },
+    "game": {
+      "turn": 87,
+      "year": 1250,
+      "year_text": { "k": "year.ad", "a": ["1250"] },
+      "era": { "id": 3, "name": "Medieval era" },
+      "me": "0:0",
+      "phase": "humans",
+      "mode": "simultaneous",
+      "winner": null
+    },
+    "top": {
+      "science_rate": 48,
+      "gold": 312,
+      "gold_rate": 21,
+      "happiness": 7,
+      "mood": "content",
+      "golden_age": { "active": false, "turns": 0, "progress": 412, "threshold": 650 },
+      "culture": 214,
+      "culture_rate": 31,
+      "policy_cost": 400,
+      "policy_turns": 6,
+      "faith": 140,
+      "faith_rate": 9,
+      "tourism": 4,
+      "resources": [
+        { "id": "0:1", "name": "Horses", "icon": "icon:RESOURCE_ATLAS:1", "available": 2, "used": 0, "total": 2 },
+        { "id": "0:2", "name": "Iron", "icon": "icon:RESOURCE_ATLAS:2", "available": 4, "used": 0, "total": 4 },
+        { "id": "0:3", "name": "Coal", "icon": "icon:RESOURCE_ATLAS:3", "available": 0, "used": 3, "total": 3 }
+      ],
+      "policies": []
+    },
+    "research": {
+      "current": { "id": "0:41", "name": "Education", "icon": "icon:TECH_ATLAS:41", "turns": 3, "progress": 248, "cost": 400, "fraction": 0.62 },
+      "next": { "id": "0:42", "name": "Astronomy", "icon": "icon:TECH_ATLAS:42", "turns": null, "progress": 0, "cost": 520, "fraction": 0.0 },
+      "queue": [],
+      "options": [],
+      "known": true,
+      "blocked": false
+    },
+    "turn": {
+      "state": "city_needs_production",
+      "blocker": null,
+      "units_waiting": 0,
+      "finished": false,
+      "can_cancel": false,
+      "timer": null,
+      "ready": 0,
+      "humans": 1,
+      "seats": [
+        { "player": "0:0", "name": "Catherine", "me": true, "finished": false, "may_act": true, "online": true }
+      ]
+    },
+    "map": {
+      "cities": [
+        { "key": "0:1", "owner": "0:0", "name": "Moscow", "plot": { "x": 21, "y": 25 }, "size": 14, "capital": true, "mine": true, "visible": true, "strength": 31, "hp_fraction": 1.0, "growth_turns": 4 },
+        { "key": "0:2", "owner": "0:0", "name": "Novgorod", "plot": { "x": 14, "y": 22 }, "size": 8, "capital": false, "mine": true, "visible": true, "strength": 18, "hp_fraction": 1.0, "growth_turns": 9 },
+        { "key": "0:3", "owner": "0:0", "name": "Kazan", "plot": { "x": 27, "y": 19 }, "size": 5, "capital": false, "mine": true, "visible": true, "strength": 12, "hp_fraction": 1.0, "growth_turns": 6 }
+      ],
+      "units": []
+    },
+    "production": {
+      "city": "0:1",
+      "name": "Moscow",
+      "capital": true,
+      "size": 14,
+      "rate": 38,
+      "overflow": 12,
+      "gold": 312,
+      "faith": 140,
+      "current": { "item": "0:65636", "name": "Machu Picchu", "kind": "wonder", "stored": 180, "needed": 420, "turns": 6, "fraction": 0.429 },
+      "queue_known": true,
+      "queue": [
+        { "slot": 0, "item": "0:65636", "name": "Machu Picchu", "kind": "wonder", "turns": 6, "first": true },
+        { "slot": 1, "item": "0:65556", "name": "University", "kind": "building", "turns": 7, "first": false },
+        { "slot": 2, "item": "0:38", "name": "Longswordsman", "kind": "unit", "turns": 5, "first": false }
+      ],
+      "groups": [
+        {
+          "kind": "unit",
+          "count": 9,
+          "options": [
+            { "item": "0:1", "order": 0, "name": "Settler", "icon": "icon:UNIT_ATLAS_1:0", "turns": 4, "cost": 106, "enabled": true, "current": false, "queued": false, "locked_reason": null, "effect": "Founds a city; growth halts while built", "buy_gold": 315, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:2", "order": 1, "name": "Worker", "icon": "icon:UNIT_ATLAS_1:1", "turns": 2, "cost": 70, "enabled": true, "current": false, "queued": false, "locked_reason": null, "effect": "Builds tile improvements", "buy_gold": 120, "buy_gold_ok": true, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:30", "order": 2, "name": "Knight", "icon": "icon:UNIT_ATLAS_1:30", "turns": 5, "cost": 120, "enabled": true, "current": false, "queued": false, "locked_reason": null, "effect": "Strength 20, 4 moves", "buy_gold": 375, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:32", "order": 3, "name": "Crossbowman", "icon": "icon:UNIT_ATLAS_1:32", "turns": 4, "cost": 120, "enabled": true, "current": false, "queued": false, "locked_reason": null, "effect": "Ranged 18, range 2", "buy_gold": 325, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:35", "order": 4, "name": "Trebuchet", "icon": "icon:UNIT_ATLAS_1:35", "turns": 5, "cost": 120, "enabled": true, "current": false, "queued": false, "locked_reason": null, "effect": "Siege, ranged 20", "buy_gold": 375, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:38", "order": 5, "name": "Longswordsman", "icon": "icon:UNIT_ATLAS_1:38", "turns": 5, "cost": 120, "enabled": true, "current": false, "queued": true, "locked_reason": null, "effect": "Strength 21, uses 1 iron", "buy_gold": 375, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:40", "order": 6, "name": "Trireme", "icon": "icon:UNIT_ATLAS_1:40", "turns": 2, "cost": 56, "enabled": true, "current": false, "queued": false, "locked_reason": null, "effect": "Strength 10, coast only", "buy_gold": 125, "buy_gold_ok": true, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:60", "order": 7, "name": "Great Scientist", "icon": "icon:UNIT_ATLAS_2:3", "turns": null, "cost": 0, "enabled": false, "current": false, "queued": false, "locked_reason": "Faith purchase in the Industrial era", "effect": null, "buy_gold": null, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:62", "order": 8, "name": "Missionary", "icon": "icon:UNIT_ATLAS_2:5", "turns": 3, "cost": 100, "enabled": true, "current": false, "queued": false, "locked_reason": null, "effect": "Spreads your religion, 2 charges", "buy_gold": null, "buy_gold_ok": false, "buy_faith": 200, "buy_faith_ok": false, "pending": false }
+          ]
+        },
+        {
+          "kind": "building",
+          "count": 6,
+          "options": [
+            { "item": "0:65556", "order": 9, "name": "University", "icon": "icon:BW_ATLAS_1:20", "turns": 7, "cost": 240, "enabled": true, "current": false, "queued": true, "locked_reason": null, "effect": "+50% science", "buy_gold": 560, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:65561", "order": 10, "name": "Castle", "icon": "icon:BW_ATLAS_1:25", "turns": 5, "cost": 160, "enabled": true, "current": false, "queued": false, "locked_reason": null, "effect": "+7 city strength, +25 hit points", "buy_gold": 375, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:65570", "order": 11, "name": "Harbor", "icon": "icon:BW_ATLAS_1:34", "turns": 3, "cost": 120, "enabled": true, "current": false, "queued": false, "locked_reason": null, "effect": "+1 food on ocean tiles", "buy_gold": 245, "buy_gold_ok": true, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:65575", "order": 12, "name": "Bank", "icon": "icon:BW_ATLAS_1:39", "turns": null, "cost": 200, "enabled": false, "current": false, "queued": false, "locked_reason": "Needs Banking", "effect": null, "buy_gold": null, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:65580", "order": 13, "name": "Temple", "icon": "icon:BW_ATLAS_1:44", "turns": 3, "cost": 100, "enabled": true, "current": false, "queued": false, "locked_reason": null, "effect": "+2 faith", "buy_gold": 235, "buy_gold_ok": true, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:65585", "order": 14, "name": "Workshop", "icon": "icon:BW_ATLAS_1:49", "turns": 6, "cost": 200, "enabled": true, "current": false, "queued": false, "locked_reason": null, "effect": "+2 production, +10% production", "buy_gold": 465, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false }
+          ]
+        },
+        {
+          "kind": "wonder",
+          "count": 4,
+          "options": [
+            { "item": "0:65636", "order": 15, "name": "Machu Picchu", "icon": "icon:BW_ATLAS_2:10", "turns": 6, "cost": 420, "enabled": true, "current": true, "queued": true, "locked_reason": null, "effect": "+25% gold from city connections", "buy_gold": null, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:65640", "order": 16, "name": "Great Wall", "icon": "icon:BW_ATLAS_2:14", "turns": null, "cost": 300, "enabled": false, "current": false, "queued": false, "locked_reason": "Built by Harun al-Rashid", "effect": null, "buy_gold": null, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:65645", "order": 17, "name": "Hagia Sophia", "icon": "icon:BW_ATLAS_2:19", "turns": 9, "cost": 500, "enabled": true, "current": false, "queued": false, "locked_reason": null, "effect": "Free Great Prophet", "buy_gold": null, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:65650", "order": 18, "name": "Leaning Tower", "icon": "icon:BW_ATLAS_2:24", "turns": null, "cost": 600, "enabled": false, "current": false, "queued": false, "locked_reason": "Needs Physics", "effect": null, "buy_gold": null, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false }
+          ]
+        },
+        {
+          "kind": "process",
+          "count": 2,
+          "options": [
+            { "item": "0:196608", "order": 19, "name": "Wealth", "icon": "", "turns": null, "cost": 0, "enabled": true, "current": false, "queued": false, "locked_reason": null, "effect": "Turns production into gold", "buy_gold": null, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false },
+            { "item": "0:196609", "order": 20, "name": "Research", "icon": "", "turns": null, "cost": 0, "enabled": true, "current": false, "queued": false, "locked_reason": null, "effect": "Turns production into science", "buy_gold": null, "buy_gold_ok": false, "buy_faith": null, "buy_faith_ok": false, "pending": false }
+          ]
+        }
+      ],
+      "detail": {
+        "item": "0:65556",
+        "name": "University",
+        "kind": "building",
+        "turns": 7,
+        "cost": 240,
+        "help": "+50% science in this city, +2 science per jungle tile worked; 2 specialist slots (scientist).",
+        "maintenance": 3,
+        "requires": [],
+        "compare": [
+          { "city": "0:1", "name": "Moscow", "turns": 7, "fraction": 0.438 },
+          { "city": "0:2", "name": "Novgorod", "turns": 11, "fraction": 0.688 },
+          { "city": "0:3", "name": "Kazan", "turns": 16, "fraction": 1.0 }
+        ],
+        "short_gold": 248
+      }
+    }
+  },
+  "state": { "prod": { "sort": "turns", "hide_locked": true } },
+  "ui": {
+    "windows": {
+      "production": { "open": true, "city": "0:1" }
+    },
+    "production": { "tab": "all", "focus": "0:65556", "hover": "0:65556" }
+  },
+  "anchors": {}
+}

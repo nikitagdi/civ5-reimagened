@@ -54,6 +54,8 @@ const SCENARIOS = {
   "m3-woi-boot": () => import("./scenarios/m3-woi-boot.mjs"),
   // UI v2 over a live game (?ui=v2:engraved): --attach <url of a real-core server>.
   "ui2-host": () => import("./scenarios/ui2-host.mjs"),
+  // UI v2 orders through the skin (turn dial, production and research windows) and the server's answers: --attach.
+  "ui2-actions": () => import("./scenarios/ui2-actions.mjs"),
   "ui-sound": () => import("./scenarios/ui-sound.mjs"),
   "m3-city": () => import("./scenarios/m3-city.mjs"),
   "m4-diplo-trade": () => import("./scenarios/m4-diplo-trade.mjs"),

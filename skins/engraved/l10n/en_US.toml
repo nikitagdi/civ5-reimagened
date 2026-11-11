@@ -99,6 +99,14 @@
 "prod.buy" = "Buy"
 "prod.short" = "You have {1_Num} gold, {2_Num} short"
 "prod.pick" = "Point at an item to see what it does"
+"prod.hide_locked" = "Hide locked"
+"prod.pending" = "Waiting"
+
+# The research window.
+"research.title" = "Choose research"
+"research.now" = "Now"
+"research.none" = "Nothing can be researched now"
+"research.hint" = "Click: research now. Right click: add to the queue."
 
 # The helm: what the turn button does now, and who is ready.
 "turn.next" = "Next turn"

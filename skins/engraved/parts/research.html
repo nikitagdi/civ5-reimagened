@@ -1,0 +1,33 @@
+<div class="rscreen" data-part="research" data-screen="research" data-bind-if="{{ui.windows.research.open}}">
+  <section class="rwin" data-part="research.window">
+    <!-- Header: what is researched now, the close button (Esc closes the screen too). -->
+    <div class="hd" data-part="research.head">
+      <div class="ttl">
+        <span class="ring"><svg class="i"><use href="#i-sci"/></svg></span>
+        <span class="nm" data-l10n="research.title">Choose research</span>
+      </div>
+      <div class="close">
+        <span class="key"><span data-l10n="key.escape">Esc</span></span>
+        <button class="x" data-part="research.close" data-on-click="intent window.close(window: 'research')"><svg class="i"><use href="#i-close"/></svg></button>
+      </div>
+    </div>
+    <div class="now" data-bind-if="{{research.current != null}}">
+      <span class="k" data-l10n="research.now">Now</span>
+      <span class="v" data-bind-value="{{research.current.name}}">Education</span>
+      <span class="t" data-bind-if="{{research.current.turns != null}}" data-l10n="top.turns" data-l10n-args="{{research.current.turns}}">3 turns</span>
+    </div>
+    <!-- The technologies the player can research, the fastest first. A click researches it now; a right click adds
+         it to the research queue. -->
+    <div class="rlist" data-part="research.list">
+      <div class="rrow" data-bind-for="t:{{research.options}}" data-bind-key="{{t.id}}" data-bind-sort="{{t.turns}}" data-bind-class-toggle="cur:{{research.current != null && research.current.id == t.id}}" data-on-click="intent research.choose(tech: t.id, queue: false); intent window.close(window: 'research')" data-on-contextmenu="intent research.choose(tech: t.id, queue: true)">
+        <img class="ti" data-bind-src="{{t.icon}}">
+        <span class="nm" data-bind-value="{{t.name}}">Astronomy</span>
+        <div class="bar"><div class="fill" data-bind-style-width="{{t.fraction * 100}}%" style="width: 0%"></div></div>
+        <span class="tn" data-bind-if="{{t.turns != null}}" data-l10n="top.turns" data-l10n-args="{{t.turns}}">5 turns</span>
+        <span class="tn na" data-bind-if="{{t.turns == null}}">—</span>
+      </div>
+      <div class="none" data-bind-if="{{len(research.options) == 0}}" data-l10n="research.none">Nothing can be researched now</div>
+    </div>
+    <div class="foot" data-l10n="research.hint">Click: research now. Right click: add to the queue.</div>
+  </section>
+</div>

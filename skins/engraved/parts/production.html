@@ -65,12 +65,22 @@
           <button class="tab" data-bind-class-toggle="on:{{ui.production.tab == 'buildings'}}" data-on-click="set ui.production.tab = 'buildings'"><span data-l10n="prod.tab.buildings">Buildings</span></button>
           <button class="tab" data-bind-class-toggle="on:{{ui.production.tab == 'wonders'}}" data-on-click="set ui.production.tab = 'wonders'"><span data-l10n="prod.tab.wonders">Wonders</span></button>
           <button class="tab" data-bind-class-toggle="on:{{ui.production.tab == 'other'}}" data-on-click="set ui.production.tab = 'other'"><span data-l10n="prod.tab.other">Other</span></button>
+          <!-- The skin's own state: hide the options that cannot be built; the arrows (and the arrow keys) move the
+               focus through the list as it is shown (js/production.js). -->
+          <button class="tog" data-part="production.hide-locked" data-bind-class-toggle="on:{{state.prod.hide_locked}}" data-on-click="toggle state.prod.hide_locked">
+            <span class="box"><svg class="i"><use href="#i-check"/></svg></span>
+            <span data-l10n="prod.hide_locked">Hide locked</span>
+          </button>
+          <button class="step" data-part="production.up" data-hotkey="ArrowUp" data-on-click="call prod.step(-1)"><svg class="i"><use href="#i-upgrade"/></svg></button>
+          <button class="step down" data-part="production.down" data-hotkey="ArrowDown" data-on-click="call prod.step(1)"><svg class="i"><use href="#i-upgrade"/></svg></button>
         </div>
-        <div class="lhead">
+        <!-- The heads sort the list (state.prod.sort): Item in the game's order, Turns the fastest first (a second click goes back to the
+             game's order). Names are not a sort key: the profile sorts by numbers and plain strings, a name is a game text. -->
+        <div class="lhead" data-part="production.sort">
           <span class="c-ico"></span>
-          <span class="c-nm" data-l10n="prod.col.item">Item</span>
+          <button class="c-nm sort" data-bind-class-toggle="on:{{state.prod.sort == 'order'}}" data-on-click="set state.prod.sort = 'order'"><span data-l10n="prod.col.item">Item</span><svg class="i arrow"><use href="#i-upgrade"/></svg></button>
           <span class="c-ef" data-l10n="prod.col.effect">Effect</span>
-          <span class="c-tn" data-l10n="prod.col.turns">Turns</span>
+          <button class="c-tn sort" data-bind-class-toggle="on:{{state.prod.sort == 'turns'}}" data-on-click="set state.prod.sort = state.prod.sort == 'turns' ? 'order' : 'turns'"><svg class="i arrow"><use href="#i-upgrade"/></svg><span data-l10n="prod.col.turns">Turns</span></button>
           <span class="c-buy" data-l10n="prod.col.buy">Buy</span>
         </div>
         <div class="lscroll">
@@ -90,12 +100,13 @@
               <span class="cnt" data-bind-value="{{g.count}}">9</span>
               <div class="rule"></div>
             </div>
-            <div class="lrow" data-bind-for="o:{{g.options}}" data-bind-key="{{o.item}}" data-bind-class-toggle="lock:{{!o.enabled}}; sel:{{ui.production.focus == o.item}}" data-on-pointerenter="set ui.production.hover = o.item" data-on-click="set ui.production.focus = o.item">
+            <div class="lrow" data-bind-for="o:{{g.options}}" data-bind-key="{{o.item}}" data-bind-sort="{{state.prod.sort == 'turns' ? o.turns : o.order}}" data-bind-filter="{{!state.prod.hide_locked || o.enabled}}" data-bind-class-toggle="lock:{{!o.enabled}}; sel:{{ui.production.focus == o.item}}" data-on-pointerenter="set ui.production.hover = o.item" data-on-click="set ui.production.focus = o.item">
               <div class="c-ico"><img class="oi" data-bind-src="{{o.icon}}"></div>
               <div class="c-nm">
                 <span class="nm" data-bind-value="{{o.name}}">Settler</span>
                 <span class="badge" data-bind-if="{{o.current}}" data-l10n="prod.current">Current</span>
-                <span class="badge q" data-bind-if="{{o.queued && !o.current}}" data-l10n="prod.queued">Queued</span>
+                <span class="badge q" data-bind-if="{{o.queued && !o.current && !o.pending}}" data-l10n="prod.queued">Queued</span>
+                <span class="badge w" data-bind-if="{{o.pending}}" data-l10n="prod.pending">Waiting</span>
               </div>
               <div class="c-ef">
                 <svg class="i lk" data-bind-if="{{!o.enabled}}"><use href="#i-lock"/></svg>
@@ -173,7 +184,12 @@
             <div class="bcity" data-bind-for="c:{{map.cities}}" data-bind-key="{{c.key}}" data-bind-filter="{{c.key == production.city}}">
               <div class="bgrp" data-bind-for="g:{{production.groups}}" data-bind-key="{{g.kind == 'unit' ? '0:0' : (g.kind == 'building' ? '0:1' : (g.kind == 'wonder' ? '0:2' : (g.kind == 'project' ? '0:3' : '0:4')))}}">
                 <div class="bopt" data-bind-for="o:{{g.options}}" data-bind-key="{{o.item}}" data-bind-filter="{{o.item == ui.production.focus}}">
-                  <button class="btn primary" data-part="production.build-now" data-bind-disabled="{{!o.enabled || o.current}}" data-on-click="intent production.replace(city: c.key, item: o.item)">
+                  <!-- Build now replaces what the city builds; a city that builds nothing gets the item chosen (the
+                       game has no head of the queue to replace then). -->
+                  <button class="btn primary" data-part="production.build-now" data-bind-if="{{production.current != null}}" data-bind-disabled="{{!o.enabled || o.current}}" data-on-click="intent production.replace(city: c.key, item: o.item)">
+                    <span data-l10n="prod.build_now">Build now</span>
+                  </button>
+                  <button class="btn primary" data-part="production.choose" data-bind-if="{{production.current == null}}" data-bind-disabled="{{!o.enabled}}" data-on-click="intent production.choose(city: c.key, item: o.item)">
                     <span data-l10n="prod.build_now">Build now</span>
                   </button>
                   <button class="btn second" data-part="production.to-front" data-bind-disabled="{{!o.enabled}}" data-on-click="intent production.push(city: c.key, item: o.item, at: 'front')">

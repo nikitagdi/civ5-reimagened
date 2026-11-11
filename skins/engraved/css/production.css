@@ -312,6 +312,112 @@
   box-shadow: inset 0 0 0 1px var(--engrave);
 }
 
+/* Hide locked, and the arrows that move the focus: at the right end of the tab row. */
+.pwin .tog {
+  margin-left: auto;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--bone-3);
+  white-space: nowrap;
+  transition: background-color 150ms var(--ease), color 150ms var(--ease);
+}
+
+.pwin .tog:hover {
+  color: var(--bone);
+  background-color: var(--lacquer-2);
+}
+
+.pwin .tog .box {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  color: transparent;
+  box-shadow: inset 0 0 0 1px var(--engrave-hi);
+}
+
+.pwin .tog .box svg.i {
+  width: 10px;
+  height: 10px;
+}
+
+.pwin .tog.on {
+  color: var(--bone);
+}
+
+.pwin .tog.on .box {
+  color: var(--brass-ink);
+  background-color: var(--brass);
+  box-shadow: none;
+}
+
+.pwin .step {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--bone-3);
+  transition: background-color 150ms var(--ease), color 150ms var(--ease);
+}
+
+.pwin .step:hover {
+  color: var(--bone);
+  background-color: var(--lacquer-2);
+}
+
+.pwin .step svg.i {
+  width: 14px;
+  height: 14px;
+}
+
+.pwin .step.down svg.i {
+  transform: rotate(180deg);
+}
+
+/* Sortable column heads: the arrow shows on the active one. */
+.pwin .lhead .sort {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--bone-3);
+  transition: color 150ms var(--ease);
+}
+
+.pwin .lhead .sort:hover,
+.pwin .lhead .sort.on {
+  color: var(--bone);
+}
+
+.pwin .lhead .c-nm.sort {
+  justify-content: flex-start;
+}
+
+.pwin .lhead .c-tn.sort {
+  justify-content: flex-end;
+}
+
+.pwin .lhead .sort .arrow {
+  width: 10px;
+  height: 10px;
+  color: transparent;
+  transform: rotate(180deg);
+}
+
+.pwin .lhead .sort.on .arrow {
+  color: var(--brass);
+}
+
 .pwin .lhead,
 .pwin .lrow {
   display: flex;
@@ -451,6 +557,12 @@
 .pwin .badge.q {
   color: var(--bone-3);
   box-shadow: inset 0 0 0 1px var(--engrave);
+}
+
+/* An order for this option is on its way to the server. */
+.pwin .badge.w {
+  color: var(--bone-2);
+  box-shadow: inset 0 0 0 1px var(--engrave-hi);
 }
 
 .pwin .lrow .c-ef {

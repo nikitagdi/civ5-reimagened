@@ -94,6 +94,25 @@
   color: var(--bone-3);
 }
 
+/* Nothing is researched: the group asks for a choice (the research window). */
+.research .pick {
+  flex: 1;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--y-sci);
+  box-shadow: inset 0 0 0 1px var(--engrave);
+  transition: background-color 150ms var(--ease);
+}
+
+.research .pick:hover {
+  background-color: var(--lacquer-2);
+}
+
 /* The engraved scale: the fill is the progress, the ticks are turns (one tick per turn of the whole
    research). The tick width is bound: it depends on the turns left and the fraction done. */
 .scale {

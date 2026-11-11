@@ -11,6 +11,7 @@
         <div class="ticks" data-bind-style-background-size="{{100 * (1 - research.current.fraction) / research.current.turns}}% 100%" style="background-size: 12.6667% 100%"></div>
       </div>
     </div>
+    <button class="pick" data-part="top.research.pick" data-bind-if="{{research.current == null}}" data-on-click="intent window.open(window: 'research')"><span data-l10n="research.title">Choose research</span></button>
   </div>
 
   <div class="grp menus sep" data-part="top.menu" data-slot="hud.menu">

@@ -20,8 +20,14 @@ display = "Alegreya"
 "fonts/FiraSans-Medium.ttf" = "third_party/fonts/fira-sans/FiraSans-Medium.ttf"
 "fonts/Alegreya.ttf" = "third_party/fonts/alegreya/Alegreya[wght].ttf"
 
-# Skin state (state.*): none yet; the top strip is bound to the model only.
+# Skin state (state.*): how the production window sorts its options and whether it hides the locked ones.
 [state]
+prod = { sort = "order", hide_locked = false }
+
+# The production window's script: arrow keys move the focus; the sort is kept in the settings.
+[scripts]
+files = ["js/production.js"]
+reads = ["production"]
 
 [verify]
 states = ["hud"]
