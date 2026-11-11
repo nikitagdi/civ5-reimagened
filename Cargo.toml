@@ -34,6 +34,7 @@ members = [
     "crates/client/ui2-draw",
     "crates/client/ui2-source",
     "crates/client/ui2-runtime",
+    "crates/client/ui2-host",
     "crates/client/exe-api",
     "crates/client/render",
     "crates/client/interim-ui",
@@ -101,6 +102,7 @@ ui2-text = { path = "crates/client/ui2-text" }
 ui2-draw = { path = "crates/client/ui2-draw" }
 ui2-source = { path = "crates/client/ui2-source" }
 ui2-runtime = { path = "crates/client/ui2-runtime" }
+ui2-host = { path = "crates/client/ui2-host" }
 exe-api = { path = "crates/client/exe-api" }
 render = { path = "crates/client/render" }
 interim-ui = { path = "crates/client/interim-ui" }

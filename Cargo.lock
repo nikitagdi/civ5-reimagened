@@ -3920,6 +3920,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ui2-host"
+version = "0.1.0"
+dependencies = [
+ "loc",
+ "replica",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tracing",
+ "ui2-draw",
+ "ui2-model",
+ "ui2-package",
+ "ui2-runtime",
+ "ui2-source",
+ "ui2-text",
+]
+
+[[package]]
 name = "ui2-model"
 version = "0.1.0"
 dependencies = [
