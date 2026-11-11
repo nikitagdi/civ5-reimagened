@@ -1,9 +1,9 @@
 //! Runtime budgets, measured natively: a turn on the HUD and a window, an idle frame, a hover, 200 map
 //! anchors placed by the camera, and the heap of a late-game tree.
 //!
-//! Run with `cargo test -p ui2-runtime --release -- --ignored bench --nocapture --test-threads 1`. The
-//! budgets of a release build on a desktop machine are asserted (the turn against the 3 ms of the whole UI;
-//! its 1.5 ms runtime share is printed); a debug build only prints its numbers.
+//! Run with `cargo test -p ui2-runtime --release --test frame_bench -- --ignored --nocapture --test-threads 1`.
+//! The budgets of a release build on a desktop machine are asserted (the turn against its 1.5 ms runtime
+//! share of the UI's 3 ms); a debug build only prints its numbers.
 //! Rasterizing glyphs is not part of the runtime (it is the draw side's), so the scene is never resolved.
 
 #[path = "../tests/support/mod.rs"]
@@ -381,8 +381,7 @@ fn bench_turn_idle_and_hover() {
     let hover = median(hover);
     println!("hover: median {hover:.4} ms");
 
-    // The runtime's share of a turn is 1.5 ms; the whole UI's turn is 3 ms on average. This build is held to
-    // the second and reports the first.
+    // The runtime's share of a turn is 1.5 ms (the whole UI's turn is 3 ms on average).
     if turn > 1.5 {
         println!(
             "turn: OVER the runtime budget of 1.5 ms by {:.3} ms",
@@ -391,8 +390,8 @@ fn bench_turn_idle_and_hover() {
     }
     if RELEASE {
         assert!(
-            turn <= 3.0,
-            "turn {turn:.3} ms over the 3 ms of the whole UI"
+            turn <= 1.5,
+            "turn {turn:.3} ms over the runtime budget of 1.5 ms"
         );
         assert!(idle <= 0.02, "idle frame {idle:.4} ms over 0.02 ms");
         assert!(hover <= 0.15, "hover {hover:.4} ms over 0.15 ms");

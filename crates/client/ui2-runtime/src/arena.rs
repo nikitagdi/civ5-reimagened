@@ -258,6 +258,9 @@ pub struct Node {
     /// The top-level node of an `if` body whose condition is false: out of its parent's children, its
     /// bindings asleep, skipped by layout and paint until the condition holds again.
     pub(crate) detached: bool,
+    /// Made since the end of the last frame: its first style is not a change, so it starts no transition
+    /// (as in CSS, an element's first computed style has no before-change style).
+    pub(crate) fresh: bool,
 }
 
 impl Node {
@@ -286,6 +289,7 @@ impl Node {
             over: None,
             scroll: [0.0, 0.0],
             detached: false,
+            fresh: true,
         }
     }
 
@@ -407,6 +411,8 @@ pub struct Arena {
     queues: [Vec<NodeId>; Dirty::COUNT],
     removed_chunks: Vec<ChunkId>,
     removed_binds: Vec<Range<u32>>,
+    /// Nodes made since the end of the last frame (see [`Node::fresh`]).
+    fresh: Vec<NodeId>,
 }
 
 impl Arena {
@@ -524,23 +530,46 @@ impl Arena {
 
     pub(crate) fn alloc(&mut self, node: Node) -> NodeId {
         self.live += 1;
-        if let Some(index) = self.free.pop()
+        let fresh = node.fresh;
+        let id = if let Some(index) = self.free.pop()
             && let Some(slot) = self.slots.get_mut(index as usize)
         {
             slot.node = Some(node);
-            return NodeId {
+            NodeId {
                 index,
                 generation: slot.generation,
-            };
+            }
+        } else {
+            let index = self.slots.len() as u32;
+            self.slots.push(Slot {
+                generation: 0,
+                node: Some(node),
+            });
+            NodeId {
+                index,
+                generation: 0,
+            }
+        };
+        if fresh {
+            self.fresh.push(id);
         }
-        let index = self.slots.len() as u32;
-        self.slots.push(Slot {
-            generation: 0,
-            node: Some(node),
-        });
-        NodeId {
-            index,
-            generation: 0,
+        id
+    }
+
+    /// Whether a node was made since the end of the last frame.
+    pub(crate) fn is_fresh(&self, id: NodeId) -> bool {
+        self.get(id).is_some_and(|n| n.fresh)
+    }
+
+    /// Ends the first frame of the nodes made before it: from now on a change of their record is a change.
+    pub(crate) fn settle_fresh(&mut self) {
+        if self.fresh.is_empty() {
+            return;
+        }
+        for id in std::mem::take(&mut self.fresh) {
+            if let Some(n) = self.get_mut(id) {
+                n.fresh = false;
+            }
         }
     }
 

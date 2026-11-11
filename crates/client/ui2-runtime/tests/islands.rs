@@ -349,12 +349,25 @@ fn a_failed_panel_shows_a_placeholder_and_its_neighbours_live_on() {
     );
     let now = r.rt.panels();
     assert_eq!(now[0].failed.as_deref(), Some("scripts switched off"));
-    assert_eq!(now[0].nodes, 1);
+    assert_eq!(now[0].nodes, 2, "the placeholder and its name");
     let layer = r.rt.arena().roots()[0];
     let ph = r.rt.node(layer).expect("layer").children()[0];
     let n = r.rt.node(ph).expect("placeholder");
     assert_eq!(n.class(), NodeClass::Placeholder);
     assert_eq!(n.layout().unrounded.size.height, height);
+    // It shows the panel's name, drawn in its chunk.
+    let name = n.children()[0];
+    assert_eq!(r.rt.node(name).and_then(|t| t.text()), Some("status"));
+    let ifc = n.ifc().expect("the name is laid out");
+    assert_eq!(ifc.runs.len(), 1);
+    let (_, items) = r.rt.chunk_items(n.chunk()).expect("chunk");
+    assert!(
+        items
+            .items
+            .iter()
+            .any(|i| matches!(i, ui2_draw::Item::Glyphs(g) if g.glyphs.len() == "status".len())),
+        "the name's glyphs"
+    );
     // Islands of a failed panel are gone: their commands change nothing.
     r.cmd("time", IslandOp::Text(Value::Str(Arc::from("x"))));
     r.assert_idle(3);

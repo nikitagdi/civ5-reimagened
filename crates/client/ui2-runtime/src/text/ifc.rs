@@ -115,6 +115,52 @@ pub struct Ifc {
     /// (as Chrome makes one), placed by the container's alignment. `None` for other roots: the lines fill
     /// the content box.
     pub item: Option<AnonItem>,
+    /// Lines already broken at the widths layout asked for (see [`Ifc::lines_at`]). Valid as long as `runs`,
+    /// `ellipsis`, `boxes`, `strut` and `wrap` are the ones the root was built with: the text pass makes a new
+    /// `Ifc` whenever any of them changes.
+    pub(crate) memo: LineMemo,
+}
+
+/// Widths kept by [`LineMemo`] besides the unconstrained lines.
+const MEMO_WIDTHS: usize = 4;
+
+/// The lines of a root at the widths it was measured at during layout. taffy measures a leaf several times
+/// in one pass (min-content, max-content, the definite width of the final layout); breaking is the costly
+/// part of a measurement, so each distinct width is broken once.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct LineMemo {
+    cell: std::cell::RefCell<MemoInner>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct MemoInner {
+    /// The lines at an unconstrained width (only line feeds break). They are also the lines at any width at
+    /// least as wide as they are: greedy breaking breaks nothing there, and no line needs an ellipsis.
+    free: Option<Lines>,
+    /// Lines at other widths, by the bits of the width, most recent last.
+    at: Vec<(u32, Lines)>,
+    /// The shaped runs of the root in the form the line breaker takes (made on the first break).
+    shaped: Vec<ShapedRun>,
+}
+
+impl LineMemo {
+    /// An empty memo (a new or rebuilt root).
+    pub(crate) fn new() -> Self {
+        Self::default()
+    }
+}
+
+/// The extent of the lines of a root at one width, as layout measures it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct Extent {
+    /// Widest line.
+    pub width: f32,
+    /// Height of the line boxes.
+    pub height: f32,
+    /// First baseline from the top of the lines.
+    pub first: Option<f32>,
+    /// Last baseline from the top of the lines.
+    pub last: Option<f32>,
 }
 
 /// The anonymous flex item around the text of a flex container, relative to its content box.
@@ -251,12 +297,27 @@ impl Ifc {
             return Lines::default();
         }
         let shaped: Vec<ShapedRun> = runs.iter().map(|r| r.shaped.clone()).collect();
+        self.break_shaped(tm, &shaped, runs, ell, width)
+    }
+
+    /// [`Ifc::break_runs`] with the shaped runs of `runs` at hand.
+    fn break_shaped(
+        &self,
+        tm: &dyn TextMeasure,
+        shaped: &[ShapedRun],
+        runs: &[Run],
+        ell: Option<&Run>,
+        width: f32,
+    ) -> Lines {
+        if runs.is_empty() {
+            return Lines::default();
+        }
         let opts = BreakOptions {
             max_width: width,
             wrap: self.wrap,
             line_height: LineHeight::Px(0.0),
         };
-        let mut lines = tm.break_lines(&shaped, &opts);
+        let mut lines = tm.break_lines(shaped, &opts);
         if let Some(e) = ell {
             for line in &mut lines.lines {
                 if line.width > width + 1e-3 {
@@ -269,9 +330,53 @@ impl Ifc {
         lines
     }
 
-    /// Breaks the runs at a width and builds the line boxes.
+    /// Breaks the runs at a width and builds the line boxes. Widths already broken at since the root was
+    /// built are answered from the memo.
     pub fn lines_at(&self, tm: &dyn TextMeasure, width: f32) -> Lines {
-        self.break_runs(tm, &self.runs, self.ellipsis.as_ref(), width)
+        self.with_lines_at(tm, width, Lines::clone)
+    }
+
+    /// What a measurement at a width reports: the width and height of the lines and their first and last
+    /// baselines (without copying the lines out of the memo).
+    pub(crate) fn extent_at(&self, tm: &dyn TextMeasure, width: f32) -> Extent {
+        self.with_lines_at(tm, width, |l| Extent {
+            width: l.width,
+            height: l.height,
+            first: Ifc::first_baseline(l),
+            last: l.lines.last().map(|l| l.top + l.baseline),
+        })
+    }
+
+    /// Calls `f` with the lines at a width, broken once per distinct width (see [`LineMemo`]).
+    fn with_lines_at<R>(&self, tm: &dyn TextMeasure, width: f32, f: impl FnOnce(&Lines) -> R) -> R {
+        // Without wrapping only line feeds break, and without an ellipsis nothing depends on the width.
+        let width_free = !self.wrap && self.ellipsis.is_none();
+        {
+            let memo = self.memo.cell.borrow();
+            if let Some(free) = &memo.free
+                && (width_free || width >= free.width)
+            {
+                return f(free);
+            }
+            if let Some((_, lines)) = memo.at.iter().find(|(w, _)| *w == width.to_bits()) {
+                return f(lines);
+            }
+        }
+        let mut memo = self.memo.cell.borrow_mut();
+        if memo.shaped.len() != self.runs.len() {
+            memo.shaped = self.runs.iter().map(|r| r.shaped.clone()).collect();
+        }
+        let lines = self.break_shaped(tm, &memo.shaped, &self.runs, self.ellipsis.as_ref(), width);
+        let out = f(&lines);
+        if width == f32::INFINITY || width_free {
+            memo.free = Some(lines);
+        } else {
+            if memo.at.len() >= MEMO_WIDTHS {
+                memo.at.remove(0);
+            }
+            memo.at.push((width.to_bits(), lines));
+        }
+        out
     }
 
     /// What is shown: the fitted text when there is one.
@@ -371,6 +476,89 @@ pub struct InlineRect {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The memo answers every width exactly as breaking at that width does: wrapping or not, with an
+    /// ellipsis or not, at the widths layout asks for in any order (repeats, the unconstrained width, widths
+    /// above and below it, more distinct widths than are kept).
+    #[test]
+    fn memoized_lines_equal_lines_broken_at_each_width() {
+        use crate::arena::{Arena, Node, NodeClass};
+        use ui2_package::{NodeRef, TemplateId};
+        use ui2_text::{FaceId, RunStyle, TextEngine};
+
+        let bytes = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../../third_party/fonts/fira-sans/FiraSans-Regular.ttf"),
+        )
+        .expect("font");
+        let mut tm = TextEngine::new();
+        tm.load_face(FaceId(0), bytes.into()).expect("face");
+        let style = RunStyle::new(FaceId(0), 14.0);
+        let metrics = tm.metrics(FaceId(0), 14.0, 400.0).expect("metrics");
+        let vm = VMetrics {
+            metrics,
+            line_height: metrics.normal_line_height(),
+        };
+        let mut arena = Arena::new();
+        let node = arena.alloc(Node::new(NodeRef(TemplateId(0), 0), NodeClass::Text, None));
+        let run = |tm: &mut TextEngine, text: &str| Run {
+            node,
+            piece: 0,
+            color: None,
+            shaped: tm.shape(&style, text).expect("shape"),
+            vm,
+            boxes: Vec::new(),
+        };
+        let runs = vec![
+            run(&mut tm, "Production of the city"),
+            run(&mut tm, " goes on\nand on"),
+        ];
+        let ell = run(&mut tm, "\u{2026}");
+        let ifc = |wrap: bool, ellipsis: Option<Run>| Ifc {
+            runs: runs.clone(),
+            boxes: Vec::new(),
+            strut: vm,
+            wrap,
+            align: TextAlign::Start,
+            ellipsis,
+            fit: None,
+            font_size: 14.0,
+            lines: Lines::default(),
+            width: 0.0,
+            fitted: None,
+            fit_key: None,
+            item: None,
+            memo: LineMemo::new(),
+        };
+        let free = ifc(true, None).lines_at(&tm, f32::INFINITY);
+        let widths = [
+            f32::INFINITY,
+            free.width,
+            free.width + 0.5,
+            free.width - 0.5,
+            0.0,
+            60.0,
+            0.0,
+            60.0,
+            1000.0,
+            33.3,
+            90.0,
+            120.0,
+            15.0,
+            60.0,
+            f32::INFINITY,
+            free.width - 0.5,
+        ];
+        for (wrap, ellipsis) in [(true, None), (false, None), (false, Some(ell))] {
+            let ifc = ifc(wrap, ellipsis);
+            for w in widths {
+                let fresh = ifc.break_runs(&tm, &ifc.runs, ifc.ellipsis.as_ref(), w);
+                assert_eq!(ifc.lines_at(&tm, w), fresh, "wrap {wrap}, width {w}");
+                let e = ifc.extent_at(&tm, w);
+                assert_eq!((e.width, e.height), (fresh.width, fresh.height));
+            }
+        }
+    }
 
     #[test]
     fn half_leading_floors_the_top() {

@@ -58,6 +58,9 @@ pub(crate) struct AnimCtx<'a> {
 pub(crate) struct Animator {
     anims: Vec<Anim>,
     shown: HashMap<NodeId, StyleRecord>,
+    /// The time of the last tick, while no transition started since: a tick at the same time (a frozen
+    /// scene, a clock that stands still) has nothing new to paint.
+    painted_at: Option<f64>,
 }
 
 fn rgba(c: [u8; 4]) -> [f32; 4] {
@@ -244,6 +247,11 @@ impl Animator {
         self.anims.is_empty() && self.shown.is_empty()
     }
 
+    /// Records were selected again: the next tick builds the animated records anew even at the same time.
+    pub fn restyled(&mut self) {
+        self.painted_at = None;
+    }
+
     /// The record a node is painted with while it is animated.
     pub fn record(&self, id: NodeId) -> Option<&StyleRecord> {
         self.shown.get(&id)
@@ -283,6 +291,7 @@ impl Animator {
                 if from == to || t.dur_ms <= 0.0 {
                     continue;
                 }
+                self.painted_at = None;
                 self.anims.push(Anim {
                     node: id,
                     prop: t.prop,
@@ -304,6 +313,10 @@ impl Animator {
             return false;
         }
         self.anims.retain(|a| arena.contains(a.node));
+        if self.painted_at == Some(now) {
+            return !self.anims.is_empty();
+        }
+        self.painted_at = Some(now);
         let mut shown: HashMap<NodeId, StyleRecord> = HashMap::new();
         for a in &self.anims {
             let Some(node) = arena.get(a.node) else {

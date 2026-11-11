@@ -8,7 +8,11 @@
 
 use std::sync::Arc;
 
-use ui2_package::style::{BorderStyle, BoxSizing, ColorV, Display, Len, LenAuto, StyleRecord};
+use ui2_package::StrId;
+use ui2_package::style::{
+    BorderStyle, BoxSizing, ColorV, Display, Len, LenAuto, Overflow, StyleRecord, TextOverflow,
+    TextWrapMode,
+};
 
 use crate::arena::{Dirty, Node, NodeClass, NodeId, PLACEHOLDER_STYLE};
 use crate::error::{ErrorCode, UiError};
@@ -84,10 +88,15 @@ impl Panels {
 /// The smallest height of a placeholder whose panel never had a box.
 const PLACEHOLDER_MIN_PX: f32 = 20.0;
 
+/// The font size of the panel name a placeholder shows.
+const PLACEHOLDER_FONT_PX: f32 = 12.0;
+
 /// The record of a failed panel's placeholder: a translucent red box with a thin border, of the panel's last
-/// size.
-fn failed_record(size: taffy::Size<f32>) -> StyleRecord {
-    let mut r = StyleRecord::initial();
+/// size, that shows the panel's name on one line (cut with an ellipsis) in the package's first font family.
+/// The look is built in: a package carries style records only for the nodes of its templates, so a skin
+/// rule for placeholders has no record to take.
+fn failed_record(size: taffy::Size<f32>, family: Option<StrId>) -> StyleRecord {
+    let mut r = name_record(family);
     r.display = Display::Block;
     r.box_sizing = BoxSizing::BorderBox;
     if size.width > 0.0 {
@@ -109,6 +118,21 @@ fn failed_record(size: taffy::Size<f32>) -> StyleRecord {
     r.border_right_color = edge;
     r.border_bottom_color = edge;
     r.border_left_color = edge;
+    r.padding_left = Len::px(4.0);
+    r.padding_right = Len::px(4.0);
+    r.overflow_x = Overflow::Hidden;
+    r.overflow_y = Overflow::Hidden;
+    r.text_overflow = TextOverflow::Ellipsis;
+    r
+}
+
+/// The text style of a placeholder (its box's, and its name's).
+fn name_record(family: Option<StrId>) -> StyleRecord {
+    let mut r = StyleRecord::initial();
+    r.font_family = family.into_iter().collect();
+    r.font_size = Len::px(PLACEHOLDER_FONT_PX);
+    r.color = ColorV::Lit([240, 214, 204, 255]);
+    r.text_wrap_mode = TextWrapMode::Nowrap;
     r
 }
 
@@ -198,7 +222,7 @@ impl Runtime {
         let owner = p.owner.clone();
         let root = p.root.filter(|&r| self.arena.contains(r));
         if let Some(root) = root {
-            let placeholder = self.stub(root);
+            let placeholder = self.stub(root, &name);
             if let Some(p) = self.panels.get_mut(id) {
                 p.root = placeholder;
             }
@@ -213,8 +237,10 @@ impl Runtime {
         self.errors.report(e);
     }
 
-    /// Takes a subtree out and puts a placeholder of its last size at its place. Returns the placeholder.
-    fn stub(&mut self, root: NodeId) -> Option<NodeId> {
+    /// Takes a subtree out and puts a placeholder of its last size at its place, showing the panel's name
+    /// (when the package has a font to show it in). Returns the placeholder.
+    fn stub(&mut self, root: NodeId, name: &str) -> Option<NodeId> {
+        let family = self.pkg.skin().fonts().first().map(|f| f.family);
         let n = self.arena.get(root)?;
         let (parent, tmpl, size) = (n.parent(), n.tmpl(), n.layout().unrounded.size);
         let own_chunk = n.chunk == root.index();
@@ -226,12 +252,7 @@ impl Runtime {
         self.arena.remove(root);
         let mut node = Node::new(tmpl, NodeClass::Placeholder, parent);
         node.style = PLACEHOLDER_STYLE;
-        let record = failed_record(size);
-        node.over = Some(Box::new(Overrides {
-            props: Vec::new(),
-            taffy: layout::style::taffy_style(&record),
-            record,
-        }));
+        node.over = Some(Box::new(overrides(failed_record(size, family))));
         let ph = self.arena.alloc(node);
         let chunk = if own_chunk {
             ph.index()
@@ -243,10 +264,29 @@ impl Runtime {
         }
         self.arena.attach(parent, at, ph);
         self.arena.mark(ph, Dirty::LAYOUT | Dirty::PAINT);
+        if family.is_some() {
+            let mut text = Node::new(tmpl, NodeClass::Text, Some(ph));
+            text.style = PLACEHOLDER_STYLE;
+            text.text = Some(Arc::from(name));
+            text.over = Some(Box::new(overrides(name_record(family))));
+            text.chunk = chunk;
+            let t = self.arena.alloc(text);
+            self.arena.attach(Some(ph), 0, t);
+            self.arena.mark(t, Dirty::TEXT | Dirty::PAINT);
+        }
         if let Some(p) = parent {
             self.arena.mark(p, Dirty::LAYOUT | Dirty::PAINT);
         }
         self.arena.bump_revision();
         Some(ph)
+    }
+}
+
+/// Style properties that give a node its own record.
+fn overrides(record: StyleRecord) -> Overrides {
+    Overrides {
+        props: Vec::new(),
+        taffy: layout::style::taffy_style(&record),
+        record,
     }
 }
