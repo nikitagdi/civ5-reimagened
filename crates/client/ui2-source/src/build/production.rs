@@ -196,18 +196,25 @@ pub fn compare(per_city: &[(Key, Arc<str>, Option<i16>)]) -> KeyedList<CityTurns
     out
 }
 
-/// The production window's root. A closed window, no city, or a city that is not the seat's: `None`, with no
-/// read. Reads `Q_CITIES` and `Q_TOP_BAR` (kept), `Q_CITY_BUILDS` and `Q_CITY_QUEUE` of the city, and only with a
-/// focused option `Q_CITY_BUILDS` of every other city of the seat.
+/// The production window's root, and whether it is complete. A closed window, no city, or a city that is not the
+/// seat's: `None`, with no read. Reads `Q_CITIES` and `Q_TOP_BAR` (kept), `Q_CITY_BUILDS` and `Q_CITY_QUEUE` of
+/// the city, and only with a focused option `Q_CITY_BUILDS` of every other city of the seat.
+///
+/// The options of a city cost about 2 ms to read, more than a frame's budget, so the comparison fills over frames:
+/// a frame reads another city's options only while it has read no city's options yet or its budget still has
+/// room for them ([`CountingRead::may_read_builds`]). The root is whole each time (the window's own city first,
+/// the comparison with the cities read so far, the shares against the slowest of those); `false` says cities are
+/// still missing and the root must be built again on the next frame. What was read is kept until the game
+/// changes, so each rebuild reads only new cities.
 pub(crate) fn production(
     read: &mut CountingRead<'_, '_>,
     catalog: &Catalog,
     window: &WinCity,
     focus: Option<Key>,
     pending_rows: &[Pending],
-) -> Result<Option<Production>, ReadError> {
+) -> Result<(Option<Production>, bool), ReadError> {
     let Some(key) = window.city.filter(|_| window.open) else {
-        return Ok(None);
+        return Ok((None, true));
     };
     let seat = read.seat();
     let cities = read.cities()?;
@@ -215,7 +222,7 @@ pub(crate) fn production(
         .iter()
         .find(|c| c.owner.cast_unsigned() == seat && entity_key(c.owner, c.id) == key)
     else {
-        return Ok(None);
+        return Ok((None, true));
     };
     let top = read.top_bar()?;
     let purse = Purse {
@@ -232,6 +239,7 @@ pub(crate) fn production(
     let queued: Vec<Key> = queue.iter().map(|r| r.item).collect();
     let groups = groups(&builds, catalog, &purse, &queued, key, pending_rows);
 
+    let mut complete = true;
     let detail = match focus.and_then(|f| {
         builds
             .iter()
@@ -246,6 +254,11 @@ pub(crate) fn production(
                 .collect();
             mine.sort_by_key(|c| c.id);
             for c in mine {
+                if !read.builds_known(c.id) && !read.may_read_builds() {
+                    // A later frame reads it.
+                    complete = false;
+                    continue;
+                }
                 let other = read.city_builds(c.id)?;
                 if let Some(o) = other
                     .iter()
@@ -276,7 +289,7 @@ pub(crate) fn production(
         None => None,
     };
 
-    Ok(Some(Production {
+    let root = Production {
         city: key,
         name: Arc::from(city.name.as_str()),
         capital: city.flags.capital(),
@@ -290,7 +303,8 @@ pub(crate) fn production(
         queue,
         groups,
         detail,
-    }))
+    };
+    Ok((Some(root), complete))
 }
 
 #[cfg(test)]

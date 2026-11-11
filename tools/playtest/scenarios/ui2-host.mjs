@@ -5,7 +5,8 @@
 //
 // Start: `?ui=v2:engraved&test=1&autostart=1&stats=1`; once the skin runs, the top strip's texts (read through
 // `__civ5test.ui2()`, never from pixels) show the gold, the science rate, the turn and the year that `state()` reports,
-// at the start and again once the settler founded a city (a research is chosen too); `ui2.draws.hud` <= 5; no console errors. Then a page without `&ui=`: `ui2()` is null and no `ui2.*` pass ran
+// at the start (then a click on the map selects a unit: the unit panel shows its name and its Fortify button fortifies it
+// within 2 s) and again once the settler founded a city (a research is chosen too); `ui2.draws.hud` <= 5; no console errors. Then a page without `&ui=`: `ui2()` is null and no `ui2.*` pass ran
 // (`ui2.draws` absent or 0). Screenshot of the strip: <logs>/ui2-top.png.
 import { writeFileSync } from "node:fs";
 import { openPage, act, until, state, appUrl } from "../lib/browser.mjs";
@@ -65,6 +66,89 @@ async function enterGame(b, base, o, extra, prefix) {
       if (attempt >= 2) throw e;
     }
   }
+}
+
+/** The distinct parts of the texts, in document order. */
+function partsOf(probe, prefix) {
+  const out = [];
+  for (const t of probe?.texts ?? []) if (t.part?.startsWith(prefix) && !out.includes(t.part)) out.push(t.part);
+  return out;
+}
+
+/**
+ * The unit panel: a click on the map selects a unit of ours (the clicks walk out from the middle of the screen, where the
+ * camera starts, until the panel shows a unit that can fortify); the panel shows its name; its Fortify button fortifies it
+ * within 2 s (`state().units[].activity` changes). The button is clicked where the skin's layout puts it: the panel stands
+ * at the bottom left, the buttons are 56 px wide with 4 px gaps, 16 px in from the panel's edge.
+ */
+async function unitPanel(page, numbers, check, shot) {
+  const vp = page.viewportSize() ?? { width: 1600, height: 900 };
+  const cx = vp.width / 2;
+  const cy = vp.height / 2;
+  const spots = [];
+  for (let r = 0; r <= 6; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) === r) spots.push([cx + dx * 36, cy + dy * 30]);
+      }
+    }
+  }
+  let probe = null;
+  let at = null;
+  for (const [x, y] of spots) {
+    await page.mouse.click(x, y);
+    await sleep(250);
+    probe = await ui2(page);
+    if (partsOf(probe, "unit.act.").includes("unit.act.fortify")) {
+      at = [x, y];
+      break;
+    }
+  }
+  const name = partTexts(probe, "unit.title");
+  numbers.unitPanel = { clickedAt: at, title: name, acts: partsOf(probe, "unit.act.") };
+  const st = await state(page);
+  const mine = (st?.units ?? []).map((u) => u.name);
+  check("unit selected: the panel shows its name", at && name.length > 0 && name.some((t) => mine.includes(t)),
+    `title ${JSON.stringify(name)}, units ${JSON.stringify(mine)}`);
+  if (!at) return;
+  await shot("ui2-unit");
+  const unit = (st.units ?? []).find((u) => name.includes(u.name));
+  const before = unit?.activity;
+  // The buttons wrap in rows 488 px wide (56 px, 4 px gaps; Delete is 60 px with 8 px more on its left); the last row
+  // ends 16 px above the bottom of the screen, rows are 52 px high with 4 px between them.
+  const acts = partsOf(probe, "unit.act.");
+  const boxes = [];
+  let x = 0;
+  let row = 0;
+  for (const a of acts) {
+    const lead = a === "unit.act.disband" ? 8 : 0;
+    const w = a === "unit.act.disband" ? 60 : 56;
+    let at = x === 0 ? lead : x + 4 + lead;
+    if (x > 0 && at + w > 488) {
+      row += 1;
+      at = lead;
+    }
+    boxes.push({ a, row, x: at, w });
+    x = at + w;
+  }
+  const box = boxes.find((b) => b.a === "unit.act.fortify");
+  const rowTop = vp.height - 16 - 52 - (row - box.row) * 56;
+  const bx = 16 + box.x + box.w / 2;
+  const t0 = Date.now();
+  await page.mouse.click(bx, rowTop + 26);
+  let after = before;
+  let title = name;
+  while (Date.now() - t0 < 2000) {
+    const s = await state(page);
+    after = (s?.units ?? []).find((u) => u.id === unit?.id)?.activity;
+    if (after !== undefined && after !== before) break;
+    await sleep(100);
+  }
+  const ms = Date.now() - t0;
+  await sleep(500);
+  title = partTexts(await ui2(page), "unit.title");
+  numbers.unitPanel.fortify = { button: [bx, rowTop + 26], before, after, ms, title };
+  check("Fortify: the unit is fortified within 2 s", after !== undefined && after !== before && ms <= 2000, `activity ${before} -> ${after} in ${ms} ms, title ${JSON.stringify(title)}`);
 }
 
 export async function run(ctx) {
@@ -134,6 +218,7 @@ export async function run(ctx) {
       }
     };
     await compare("start");
+    await unitPanel(b.page, result.numbers, check, shot);
     // The settler founds a city through the original UI's Lua (which gets no input under UI v2). Ending the turn this way is
     // not possible yet: the server refuses END TURN while a unit waits for orders, and the Lua unit missions do not reach it.
     const ui = uiDriver(b);

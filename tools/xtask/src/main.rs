@@ -495,16 +495,19 @@ fn build_dist_web(
     Ok(())
 }
 
-/// `web-selftest [--release] [--fixture <dir>] [--scenario tiny|small|late-huge|all]`: builds the web bundle with the
+/// `web-selftest [--release] [--fixture <dir>] [--scenario tiny|small|late-huge|all|ui2-getters] [--seat <n>] [--out <file>]`: builds the web bundle with the
 /// replica self-test (feature `replica-selftest` of `app-web`; with `--gamecore-lib` the real wasm core) and runs
 /// the case `replica_load` in headless Chromium (`tools/web-selftest/run.mjs`): the scripted replica of the
 /// fixture (made by `cargo test -p replica --test real_replica` with `REPLICA_FIXTURE_OUT=<dir>` on Linux/WSL)
 /// joins on a snapshot, applies the journal, changes turns by snapshot and by patch, and its digest must equal the
-/// server's after each step. The report (the metrics of AC-G4 in the browser) is printed.
+/// server's after each step. The report (the metrics of AC-G4 in the browser) is printed. The scenario `ui2-getters`
+/// instead times every `GameRead` method of the real core on the late-huge fixture (`--seat` joins as that seat,
+/// `--out` writes the table as JSON).
 fn cmd_web_selftest(root: &Path, args: &[String]) -> Result<()> {
     let mut release = false;
     let mut fixture: Option<PathBuf> = None;
     let mut scenario = "tiny".to_owned();
+    let mut getters_args: Vec<String> = Vec::new();
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
@@ -513,15 +516,26 @@ fn cmd_web_selftest(root: &Path, args: &[String]) -> Result<()> {
                 fixture = Some(PathBuf::from(it.next().context("--fixture needs a dir")?));
             }
             "--scenario" => scenario = it.next().context("--scenario needs a name")?.clone(),
+            flag @ ("--seat" | "--out") => {
+                getters_args.push(flag.to_owned());
+                getters_args.push(
+                    it.next()
+                        .with_context(|| format!("{flag} needs a value"))?
+                        .clone(),
+                );
+            }
             bad => bail!(
-                "web-selftest: unknown argument {bad:?} (allowed: --release, --fixture <dir>, --scenario <name|all>)"
+                "web-selftest: unknown argument {bad:?} (allowed: --release, --fixture <dir>, --scenario <name|all|ui2-getters>, --seat <n>, --out <file>)"
             ),
         }
     }
     let fixture = fixture
         .or_else(|| std::env::var_os("REPLICA_FIXTURE_OUT").map(PathBuf::from))
         .context("web-selftest needs the fixture of the replica test: --fixture <dir> (or REPLICA_FIXTURE_OUT); make it with `cargo test -p replica --test real_replica` on Linux/WSL with REPLICA_FIXTURE_OUT=<dir>")?;
-    let scenarios: Vec<String> = if scenario == "all" {
+    let getters = scenario == "ui2-getters";
+    let scenarios: Vec<String> = if getters {
+        vec!["late-huge".to_owned()]
+    } else if scenario == "all" {
         ["tiny", "small", "late-huge"]
             .into_iter()
             .filter(|s| fixture.join(s).join("script.json").is_file())
@@ -559,6 +573,9 @@ fn cmd_web_selftest(root: &Path, args: &[String]) -> Result<()> {
         .arg(&fixture)
         .arg("--scenarios")
         .arg(scenarios.join(","));
+    if getters {
+        c.args(["--mode", "ui2-getters"]).args(&getters_args);
+    }
     if mt {
         c.arg("--mt");
     }

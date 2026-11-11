@@ -184,7 +184,7 @@ impl TextCtx<'_> {
         }
     }
 
-    fn vmetrics(
+    pub(crate) fn vmetrics(
         &self,
         tm: &dyn TextMeasure,
         r: &StyleRecord,
@@ -515,13 +515,15 @@ pub(crate) struct PassStats {
 }
 
 /// The text pass: rebuilds the inline layout of every root with a TEXT-dirty node and queues it for paint,
-/// and for layout only when its content takes another room.
+/// and for layout only when its content takes another room. Text fields in the queue go to `fields` (the
+/// input module shapes them).
 pub(crate) fn pass(
     ctx: &TextCtx<'_>,
     arena: &mut Arena,
     tm: &mut dyn TextMeasure,
     errors: &mut ErrorSink,
     fit_roots: &mut Vec<NodeId>,
+    fields: &mut Vec<NodeId>,
 ) -> PassStats {
     let mut stats = PassStats::default();
     if arena.pending(Dirty::TEXT) == 0 {
@@ -539,6 +541,12 @@ pub(crate) fn pass(
         }
         if n.ifc.is_some() {
             roots.push(id);
+        }
+        if instantiate::template_node(ctx.pkg, n.tmpl())
+            .is_some_and(|t| matches!(t.kind, ui2_package::NodeKind::Input { .. }))
+        {
+            fields.push(id);
+            continue;
         }
         // Text leaves below this element, through inline elements.
         let mut stack: Vec<NodeId> = n.children().to_vec();

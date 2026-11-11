@@ -190,7 +190,8 @@ pub(crate) fn instantiate<S: Source + ?Sized>(
         }
         style::attach(arena, src.styles(), env, id);
         let mut bits = Dirty::LAYOUT | Dirty::PAINT | Dirty::BIND;
-        if class == NodeClass::Text {
+        // Text leaves and text fields (their value or placeholder) are shaped.
+        if class == NodeClass::Text || matches!(t.kind, NodeKind::Input { .. }) {
             bits |= Dirty::TEXT;
         }
         arena.mark(id, bits);

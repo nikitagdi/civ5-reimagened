@@ -71,7 +71,7 @@ struct Rig {
 
 impl Rig {
     fn new() -> Rig {
-        let ui = V2Ui::new(
+        let mut ui = V2Ui::new(
             support::strip(),
             V2Init {
                 env: env(),
@@ -79,6 +79,8 @@ impl Rig {
             },
         )
         .expect("the skin loads");
+        // These tests look at one frame's model: every root is built in the first frame.
+        ui.set_read_budget(u32::MAX);
         Rig {
             ui,
             game: game(),

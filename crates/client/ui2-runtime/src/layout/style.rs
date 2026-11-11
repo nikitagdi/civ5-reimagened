@@ -4,17 +4,88 @@
 //! viewport or the UI scale. Not mapped, by design of the profile: `order` (the converter sorts children),
 //! `display: contents` (the converter flattens), `calc()` in layout properties (rejected by the converter;
 //! a length with both a px and a % part keeps the px part here).
-// The record has no grid template fields yet; grid containers lay out with implicit tracks only.
+//!
+//! Grid: the explicit tracks (`grid-template-*`, with `repeat(N, ...)`), the implicit ones
+//! (`grid-auto-*`), the flow and the four placements map one to one; named lines and areas are not in
+//! the profile. A single track breadth `b` is `minmax(b, b)` as in CSS, except `Nfr`, which is
+//! `minmax(auto, Nfr)`; an `fr` minimum (not valid CSS) is read as `auto`.
 
+use taffy::geometry::{Line, MinMax};
+use taffy::style::{
+    GridAutoFlow as TGridAutoFlow, GridPlacement, GridTemplateComponent, GridTemplateRepetition,
+    MaxTrackSizingFunction, MinTrackSizingFunction, RepetitionCount, TrackSizingFunction,
+};
 use taffy::{
     AlignContent, AlignItems, BoxSizing as TBoxSizing, Dimension, Display as TDisplay,
     FlexDirection as TFlexDirection, FlexWrap as TFlexWrap, LengthPercentage, LengthPercentageAuto,
     Overflow as TOverflow, Point, Position as TPosition, Rect, Size, Style,
 };
 use ui2_package::style::{
-    BoxSizing, ContentAlign, Display, FlexDirection, FlexWrap, ItemsAlign, Len, LenAuto, LenNone,
-    LenNormal, Overflow, Position, SelfAlign, StyleRecord,
+    AspectRatio, BoxSizing, ContentAlign, Display, FlexDirection, FlexWrap, GridAutoFlow, GridLine,
+    ItemsAlign, Len, LenAuto, LenNone, LenNormal, Overflow, Position, SelfAlign, StyleRecord,
+    Track, TrackBreadth, TrackSize,
 };
+
+/// Whether a length is a pure percentage (taffy gets a percent), else its px part is used.
+fn is_pct(l: Len) -> bool {
+    l.pct != 0.0 && l.px == 0.0
+}
+
+fn track_min(b: TrackBreadth) -> MinTrackSizingFunction {
+    match b {
+        TrackBreadth::Len(l) if is_pct(l) => MinTrackSizingFunction::percent(l.pct / 100.0),
+        TrackBreadth::Len(l) => MinTrackSizingFunction::length(l.px),
+        TrackBreadth::Fr(_) | TrackBreadth::Auto => MinTrackSizingFunction::auto(),
+        TrackBreadth::MinContent => MinTrackSizingFunction::min_content(),
+        TrackBreadth::MaxContent => MinTrackSizingFunction::max_content(),
+    }
+}
+
+fn track_max(b: TrackBreadth) -> MaxTrackSizingFunction {
+    match b {
+        TrackBreadth::Len(l) if is_pct(l) => MaxTrackSizingFunction::percent(l.pct / 100.0),
+        TrackBreadth::Len(l) => MaxTrackSizingFunction::length(l.px),
+        TrackBreadth::Fr(f) => MaxTrackSizingFunction::fr(f),
+        TrackBreadth::Auto => MaxTrackSizingFunction::auto(),
+        TrackBreadth::MinContent => MaxTrackSizingFunction::min_content(),
+        TrackBreadth::MaxContent => MaxTrackSizingFunction::max_content(),
+    }
+}
+
+fn track(t: TrackSize) -> TrackSizingFunction {
+    match t {
+        TrackSize::Breadth(b) => MinMax {
+            min: track_min(b),
+            max: track_max(b),
+        },
+        TrackSize::MinMax(a, b) => MinMax {
+            min: track_min(a),
+            max: track_max(b),
+        },
+    }
+}
+
+fn template(tracks: &[Track]) -> Vec<GridTemplateComponent<String>> {
+    tracks
+        .iter()
+        .map(|t| match t {
+            Track::Size(s) => GridTemplateComponent::Single(track(*s)),
+            Track::Repeat(n, v) => GridTemplateComponent::Repeat(GridTemplateRepetition {
+                count: RepetitionCount::Count(*n),
+                tracks: v.iter().copied().map(track).collect(),
+                line_names: Vec::new(),
+            }),
+        })
+        .collect()
+}
+
+fn placement(g: GridLine) -> GridPlacement<String> {
+    match g {
+        GridLine::Auto => GridPlacement::Auto,
+        GridLine::Line(i) => taffy::style_helpers::line(i),
+        GridLine::Span(n) => GridPlacement::Span(n),
+    }
+}
 
 fn lp(l: Len) -> LengthPercentage {
     if l.pct != 0.0 && l.px == 0.0 {
@@ -199,6 +270,31 @@ pub fn taffy_style(r: &StyleRecord) -> Style {
         flex_basis: dim(r.flex_basis),
         flex_grow: r.flex_grow,
         flex_shrink: r.flex_shrink,
+        aspect_ratio: match r.aspect_ratio {
+            AspectRatio::Auto => None,
+            AspectRatio::Ratio(w, h) if w > 0.0 && h > 0.0 => Some(w / h),
+            AspectRatio::Ratio(..) => None,
+        },
+        justify_items: items(r.justify_items),
+        justify_self: self_align(r.justify_self),
+        grid_template_columns: template(&r.grid_template_columns),
+        grid_template_rows: template(&r.grid_template_rows),
+        grid_auto_columns: r.grid_auto_columns.iter().copied().map(track).collect(),
+        grid_auto_rows: r.grid_auto_rows.iter().copied().map(track).collect(),
+        grid_auto_flow: match r.grid_auto_flow {
+            GridAutoFlow::Row => TGridAutoFlow::Row,
+            GridAutoFlow::Column => TGridAutoFlow::Column,
+            GridAutoFlow::RowDense => TGridAutoFlow::RowDense,
+            GridAutoFlow::ColumnDense => TGridAutoFlow::ColumnDense,
+        },
+        grid_row: Line {
+            start: placement(r.grid_row_start),
+            end: placement(r.grid_row_end),
+        },
+        grid_column: Line {
+            start: placement(r.grid_column_start),
+            end: placement(r.grid_column_end),
+        },
         ..Style::DEFAULT
     }
 }

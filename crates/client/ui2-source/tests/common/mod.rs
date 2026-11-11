@@ -492,9 +492,12 @@ pub struct Rig {
 
 impl Rig {
     pub fn new(session: FakeSession) -> Rig {
+        // The tests look at roots, not at frames: one frame builds everything unless a test sets a budget itself.
+        let mut src = UiSource::new(Schema::v1());
+        src.set_read_budget(u32::MAX);
         Rig {
             store: ModelStore::new(Schema::v1()),
-            src: UiSource::new(Schema::v1()),
+            src,
             session,
             ui: Ui::default(),
             dismissed: BTreeSet::new(),

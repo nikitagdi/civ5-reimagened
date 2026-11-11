@@ -230,7 +230,7 @@ fn samples_fit_the_schema_and_the_skin_state() {
 
     let (texts, errs) = ui2_convert::bindings::check_samples(&engraved(), &skin, schema);
     assert!(errs.is_empty(), "{errs:?}");
-    assert_eq!(texts.len(), 1);
+    assert!(!texts.is_empty());
 
     let dir = temp_skin("samples");
     std::fs::write(

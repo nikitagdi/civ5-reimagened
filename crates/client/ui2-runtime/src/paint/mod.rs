@@ -11,6 +11,7 @@
 //! What is not drawn (blurred inset shadows, text shadows, corners of different ellipses, borders of several
 //! colors, game pictures the host cannot name) is reported once per node and left out.
 
+pub(crate) mod clip_path;
 pub(crate) mod emit;
 pub(crate) mod stacking;
 

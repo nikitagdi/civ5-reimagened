@@ -6,9 +6,17 @@
 //! shaping. Colors resolve their theme tokens here and take the opacity of the node and its ancestors.
 //!
 //! An element paints, in this order: its outer box shadows (the last listed first), its background color
-//! (inside the `background-clip` box of the bottom layer), one box per `background-image` gradient layer
-//! (the bottom layer first), its inset shadows without blur (bands inside the padding box), its border, and
-//! its outline (a border-only box grown by the outline offset and width).
+//! (inside the `background-clip` box of the bottom layer), its `background-image` layers (the bottom layer
+//! first: a box per gradient layer, a picture per tile of a `url()` layer), its inset shadows without blur
+//! (bands inside the padding box), its border or, when it has one, its `border-image` (a 9-slice of a
+//! package picture over the border box), and its outline (a border-only box grown by the outline offset and
+//! width).
+//!
+//! Pictures of `url()` layers and `border-image-source` are found by their path in the skin among the
+//! package's pictures (`IMGS`), as sprites of its `Rgba8` pages.
+//!
+//! Clips: the overflow clips above an item are intersected into one rectangle; a `clip-path` polygon cuts its
+//! node (box, shadows, outline) and the whole subtree, in the same clip as the rectangle.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -16,18 +24,19 @@ use std::sync::Arc;
 use glam::{Affine2, Vec2};
 use ui2_draw::{
     Border, BoxItem, ChunkBuilder, ChunkItems, Clip, Color, EllipticBox, ExtTexture, Fill,
-    GlyphPos, Glyphs, Gradient, GradientStop, ImageItem, ImageRef, Item, LayerId, MaskItem, Radii,
-    Rect, ShadowItem, css_corner_angle, css_linear_line,
+    GlyphPos, Glyphs, Gradient, GradientStop, ImageItem, ImageRef, Item, LayerId, MaskItem,
+    NineSlice, Polygon, Radii, Rect, ShadowItem, css_corner_angle, css_linear_line,
 };
 use ui2_package::style::{
-    BgBox, BgImage, BgRepeat, BgSize, BorderStyle, ColorV, GradDir, Len, LenAuto, OutlineStyle,
-    Overflow, Position, Repeat, Side, Stop, StyleRecord, TFn, Visibility,
+    BgBox, BgImage, BgRepeat, BgSize, BorderStyle, ColorV, GradDir, ImageRepeat, ImageWidth, Len,
+    LenAuto, OutlineStyle, Overflow, Position, Repeat, Side, Stop, StyleRecord, TFn, Visibility,
 };
-use ui2_package::{ImageSrc, Layer, NodeKind, Package, PageFormat};
+use ui2_package::{ImageSrc, Layer, NodeKind, Package, PageFormat, StrId};
 
 use crate::arena::{Arena, NodeClass, NodeId};
 use crate::error::{ErrorCode, ErrorSink, UiError};
 use crate::instantiate;
+use crate::paint::clip_path::{self, ClipPath};
 use crate::paint::stacking;
 use crate::style::{StyleEnv, StyleIndex, node_record, tokens};
 use crate::{AssetResolver, ExtImage};
@@ -45,6 +54,8 @@ pub(crate) struct PaintCtx<'a> {
     pub assets: Option<&'a AssetResolver>,
     /// Map anchors: the slots their chunks are placed with.
     pub anchors: &'a crate::anchor::Anchors,
+    /// Text fields: what they show and the focused one's selection and caret.
+    pub fields: &'a crate::input::text_edit::Fields,
 }
 
 impl<'a> PaintCtx<'a> {
@@ -70,6 +81,8 @@ pub(crate) struct Inherit {
     xf: Affine2,
     /// The intersection of the overflow clips above.
     clip: Option<ClipRect>,
+    /// The `clip-path` polygon above, in chunk space.
+    poly: Option<Polygon>,
     /// The product of the opacities above.
     alpha: f32,
 }
@@ -78,6 +91,7 @@ impl Inherit {
     const ROOT: Inherit = Inherit {
         xf: Affine2::IDENTITY,
         clip: None,
+        poly: None,
         alpha: 1.0,
     };
 }
@@ -175,6 +189,13 @@ impl<'a> Emitter<'a> {
             ErrorCode::Paint,
             format!("{what} is not drawn yet"),
         ));
+    }
+
+    /// Reports a paint problem of a node (once per node and kind).
+    fn problem(&mut self, id: NodeId, msg: String) {
+        let path = instantiate::node_path(self.arena, self.cx.pkg, id);
+        self.errors
+            .report(UiError::at(&path, ErrorCode::Paint, msg));
     }
 
     /// The page position of a node's border box, CSS px.
@@ -275,13 +296,47 @@ impl<'a> Emitter<'a> {
         m * Affine2::from_translation(-origin)
     }
 
-    /// The state a node passes to its children: its transform, its opacity and its overflow clip.
+    /// The `clip-path` of a node in chunk space, `xf` being the node's item space to chunk space.
+    fn clip_path(&mut self, id: NodeId, r: &StyleRecord, xf: &Affine2) -> ClipPath {
+        if r.clip_path.is_empty() {
+            return ClipPath::None;
+        }
+        let b = self.border_box(id);
+        let k = self.k;
+        let map = |p: [f32; 2]| xf.transform_point2(Vec2::new(b.x + p[0] * k, b.y + p[1] * k));
+        match clip_path::resolve(&r.clip_path, [b.w / k, b.h / k], map) {
+            Ok(c) => c,
+            Err(what) => {
+                self.unsupported(id, what);
+                ClipPath::None
+            }
+        }
+    }
+
+    /// The polygon that cuts a node: the one above it, else its own.
+    fn merge_poly(&mut self, id: NodeId, above: Option<Polygon>, own: ClipPath) -> Option<Polygon> {
+        match (above, own) {
+            (Some(a), ClipPath::Poly(_)) => {
+                // SIMPLIFIED(SIMP-227): one polygon clip per item: under a clip-path a nested clip-path does not cut (the outer polygon does)
+                self.unsupported(id, "a clip-path inside another clip-path");
+                Some(a)
+            }
+            (Some(a), _) => Some(a),
+            (None, ClipPath::Poly(p)) => Some(p),
+            (None, _) => None,
+        }
+    }
+
+    /// The state a node passes to its children: its transform, its opacity, its overflow clip and its
+    /// `clip-path`.
     fn child_state(&mut self, id: NodeId, s: &Inherit) -> Inherit {
         let Some(r) = self.record(id) else {
             return *s;
         };
         let xf = s.xf * self.own_transform(id, r);
         let alpha = s.alpha * r.opacity;
+        let own = self.clip_path(id, r, &xf);
+        let poly = self.merge_poly(id, s.poly, own);
         let mut clip = s.clip;
         if r.overflow_x != Overflow::Visible || r.overflow_y != Overflow::Visible {
             let pad = self.padding_box(id);
@@ -303,7 +358,12 @@ impl<'a> Emitter<'a> {
                 None => self.unsupported(id, "an overflow clip under a rotation"),
             }
         }
-        Inherit { xf, clip, alpha }
+        Inherit {
+            xf,
+            clip,
+            poly,
+            alpha,
+        }
     }
 
     fn padding_box(&mut self, id: NodeId) -> Rect {
@@ -398,13 +458,15 @@ impl<'a> Emitter<'a> {
         self.out.push(item);
     }
 
+    /// The clip of an item: the overflow rectangle above and the `clip-path` polygon above, in one clip.
     fn clip_of(s: &Inherit) -> Option<Clip> {
-        s.clip.map(|c| {
-            if c.radius > 0.0 {
-                Clip::rounded(c.rect, c.radius)
-            } else {
-                Clip::rect(c.rect)
-            }
+        if s.clip.is_none() && s.poly.is_none() {
+            return None;
+        }
+        Some(Clip {
+            rect: s.clip.map(|c| c.rect),
+            radius: s.clip.map_or(0.0, |c| c.radius.max(0.0)),
+            polygon: s.poly,
         })
     }
 
@@ -643,6 +705,201 @@ impl<'a> Emitter<'a> {
         );
     }
 
+    /// A color picture of the package by its path in the skin, as a sprite of the `Rgba8` pages; reported
+    /// (once per node) and `None` when the package has no such picture or packed it as a mask.
+    fn picture(&mut self, id: NodeId, path: StrId, what: &str) -> Option<(ImageRef, [f32; 2])> {
+        let pkg = self.cx.pkg;
+        let Some((img, entry)) = find_picture(pkg, path) else {
+            let name = pkg.str(path).unwrap_or("?").to_string();
+            self.problem(id, format!("the package has no picture {name} for {what}"));
+            return None;
+        };
+        if entry.mask {
+            self.problem(
+                id,
+                format!("{what} is a mask icon in the package, not a color picture"),
+            );
+            return None;
+        }
+        match image_ref(pkg, img, self.k, PageFormat::Rgba8) {
+            Some(r) => Some((r, entry.size)),
+            None => {
+                self.problem(id, format!("{what} has no color page in the package"));
+                None
+            }
+        }
+    }
+
+    /// One `background-image: url()` layer: the picture at its size (`auto` is its own size, keeping the
+    /// ratio when one side is given), placed by the layer's position in its origin box, repeated over the
+    /// clip box when the layer repeats (one item per tile), cut to the clip box.
+    #[allow(clippy::too_many_arguments)]
+    fn paint_bg_picture(
+        &mut self,
+        id: NodeId,
+        r: &StyleRecord,
+        layer: usize,
+        path: StrId,
+        boxes: &Boxes,
+        alpha: f32,
+        xf: Affine2,
+        s: &Inherit,
+    ) {
+        let Some((image, natural)) = self.picture(id, path, "a background picture") else {
+            return;
+        };
+        let k = self.k;
+        let (nw, nh) = (natural[0] * k, natural[1] * k);
+        if !(nw > 0.0 && nh > 0.0) {
+            return;
+        }
+        let clip_kind = layer_at(&r.background_clip, layer, BgBox::BorderBox);
+        let origin_kind = layer_at(&r.background_origin, layer, BgBox::PaddingBox);
+        let (clip, clip_radii) = boxes.of(clip_kind);
+        let (area, _) = boxes.of(origin_kind);
+        let size = layer_at(
+            &r.background_size,
+            layer,
+            BgSize::Size(LenAuto::Auto, LenAuto::Auto),
+        );
+        let (tw, th) = match size {
+            BgSize::Cover => {
+                let f = (area.w / nw).max(area.h / nh);
+                (nw * f, nh * f)
+            }
+            BgSize::Contain => {
+                let f = (area.w / nw).min(area.h / nh);
+                (nw * f, nh * f)
+            }
+            BgSize::Size(w, h) => {
+                let len = |v: LenAuto, full: f32| match v {
+                    LenAuto::Auto => None,
+                    LenAuto::Len(l) => Some(self.bg_len(l, full)),
+                };
+                match (len(w, area.w), len(h, area.h)) {
+                    (None, None) => (nw, nh),
+                    (Some(w), None) => (w, w * nh / nw),
+                    (None, Some(h)) => (h * nw / nh, h),
+                    (Some(w), Some(h)) => (w, h),
+                }
+            }
+        };
+        if !(tw > 0.0 && th > 0.0 && clip.is_drawable()) {
+            return;
+        }
+        let px = layer_at(&r.background_position_x, layer, Len::ZERO);
+        let py = layer_at(&r.background_position_y, layer, Len::ZERO);
+        let tile = Vec2::new(
+            area.x + self.bg_len(px, area.w - tw),
+            area.y + self.bg_len(py, area.h - th),
+        );
+        let repeat = layer_at(&r.background_repeat, layer, BgRepeat::REPEAT);
+        let span = |rep: Repeat, t0: f32, size: f32, lo: f32, hi: f32| match rep {
+            Repeat::Repeat => (t0 - ((t0 - lo) / size).ceil() * size, hi),
+            Repeat::NoRepeat => (t0, t0 + size),
+        };
+        let (x0, x1) = span(repeat.x, tile.x, tw, clip.x, clip.x + clip.w);
+        let (y0, y1) = span(repeat.y, tile.y, th, clip.y, clip.y + clip.h);
+        let nx = ((x1 - x0) / tw - 0.01).ceil().max(1.0);
+        let ny = ((y1 - y0) / th - 0.01).ceil().max(1.0);
+        if nx * ny > MAX_TILES as f32 {
+            self.unsupported(
+                id,
+                &format!("a background picture repeated more than {MAX_TILES} times"),
+            );
+            return;
+        }
+        let tint = with_alpha([255, 255, 255, 255], alpha);
+        if tint.is_transparent() {
+            return;
+        }
+        let whole = Rect::new(x0, y0, nx * tw, ny * th);
+        let item_clip = if contains(clip, whole) && clip_radii == Radii::ZERO {
+            Self::clip_of(s)
+        } else {
+            let own = ClipRect {
+                rect: clip,
+                radius: clip_radii.tl,
+            };
+            self.clip_with(id, s, &xf, own)
+        };
+        for j in 0..ny as u32 {
+            for i in 0..nx as u32 {
+                let rect = Rect::new(x0 + i as f32 * tw, y0 + j as f32 * th, tw, th);
+                self.push(Item::Image(ImageItem {
+                    rect,
+                    image,
+                    tint,
+                    radii: Radii::ZERO,
+                    transform: Self::xf_of(xf),
+                    clip: item_clip,
+                    nine: None,
+                    external: None,
+                }));
+            }
+        }
+    }
+
+    /// The 9-slice of a node's `border-image` over its border box: the sprite and its cut, or `None` when the
+    /// node has no border image (or its picture is missing: the border is painted then, as in CSS).
+    fn border_image(
+        &mut self,
+        id: NodeId,
+        r: &StyleRecord,
+        boxes: &Boxes,
+    ) -> Option<(ImageRef, NineSlice)> {
+        let path = r.border_image_source?;
+        let (image, natural) = self.picture(id, path, "a border image")?;
+        let k = self.k;
+        let sl = &r.border_image_slice;
+        let cut = |l: Len, full: f32| {
+            let v = if full > 0.0 {
+                l.px / full + l.pct / 100.0
+            } else {
+                l.pct / 100.0
+            };
+            v.clamp(0.0, 1.0)
+        };
+        let src = [
+            cut(sl.edges[0], natural[1]),
+            cut(sl.edges[1], natural[0]),
+            cut(sl.edges[2], natural[1]),
+            cut(sl.edges[3], natural[0]),
+        ];
+        let sides = [
+            r.border_top_width,
+            r.border_right_width,
+            r.border_bottom_width,
+            r.border_left_width,
+        ];
+        let dst = [0, 1, 2, 3].map(|i| {
+            let w = match r.border_image_width[i] {
+                ImageWidth::Px(v) => v,
+                ImageWidth::Factor(f) => f * sides[i].px,
+            };
+            (w * k).max(0.0)
+        });
+        if r.border_image_repeat.x != ImageRepeat::Stretch
+            || r.border_image_repeat.y != ImageRepeat::Stretch
+        {
+            self.problem(
+                id,
+                "border-image-repeat other than stretch is drawn stretched".into(),
+            );
+        }
+        if !boxes.border.0.is_drawable() {
+            return None;
+        }
+        Some((
+            image,
+            NineSlice {
+                src,
+                dst,
+                fill: sl.fill,
+            },
+        ))
+    }
+
     /// The shadows, background, border and outline of an element.
     fn paint_box(&mut self, id: NodeId, s: &Inherit) {
         let Some(n) = self.arena.get(id) else {
@@ -659,6 +916,13 @@ impl<'a> Emitter<'a> {
         }
         let xf = s.xf * self.own_transform(id, r);
         let alpha = s.alpha * r.opacity;
+        // The node's own clip-path cuts its box too.
+        let own = self.clip_path(id, r, &xf);
+        if own == ClipPath::Empty {
+            return;
+        }
+        let poly = self.merge_poly(id, s.poly, own);
+        let s = &Inherit { poly, ..*s };
         let rect = Self::snap(self.border_box(id), &xf);
         if !rect.is_drawable() {
             return;
@@ -739,24 +1003,22 @@ impl<'a> Emitter<'a> {
         }
 
         let boxes = self.boxes(id, rect, &border, radii);
-        let gradients: Vec<&ui2_package::style::Gradient> = r
-            .background_image
-            .iter()
-            // Picture layers (`url()`) are not painted yet: only gradient layers are kept, so in a list that
-            // mixes both the per-layer size, position and clip of the later layers are read one layer early.
-            .filter_map(|b| match b {
-                BgImage::Gradient(g) => Some(g),
-                BgImage::Url(_) => None,
-            })
-            .collect();
-        // The color is painted inside the clip box of the bottom layer.
-        let layers = gradients.len().max(1);
+        // A border image is painted instead of the border (the border widths still make the boxes).
+        let nine = self.border_image(id, r, &boxes);
+        let edge = if nine.is_some() { Border::NONE } else { border };
+        // The color is painted inside the clip box of the bottom layer (the last listed). Every list of the
+        // background properties is indexed by the layer's place in `background-image`, gradients and pictures
+        // alike, repeating as CSS does when a list is shorter.
+        let layers = r.background_image.len().max(1);
         let color_clip = r
             .background_clip
             .get((layers - 1) % r.background_clip.len().max(1))
             .copied()
             .unwrap_or(BgBox::BorderBox);
-        let simple = gradients.is_empty() && insets.is_empty() && color_clip == BgBox::BorderBox;
+        let simple = r.background_image.is_empty()
+            && insets.is_empty()
+            && color_clip == BgBox::BorderBox
+            && nine.is_none();
         if simple {
             if !(fill.is_transparent() && border.is_none()) {
                 self.push_box(
@@ -789,8 +1051,15 @@ impl<'a> Emitter<'a> {
                 }
             }
             // The bottom layer is the last listed.
-            for (i, g) in gradients.iter().enumerate().rev() {
-                self.paint_gradient(id, r, i, g, &boxes, ratio, alpha, xf, s);
+            for (i, layer) in r.background_image.iter().enumerate().rev() {
+                match layer {
+                    BgImage::Gradient(g) => {
+                        self.paint_gradient(id, r, i, g, &boxes, ratio, alpha, xf, s)
+                    }
+                    BgImage::Url(path) => {
+                        self.paint_bg_picture(id, r, i, *path, &boxes, alpha, xf, s)
+                    }
+                }
             }
             // Inset shadows without blur are bands inside the padding box, between the background and the
             // border.
@@ -823,18 +1092,33 @@ impl<'a> Emitter<'a> {
                     ratio,
                 );
             }
-            if !border.is_none() {
+            if !edge.is_none() {
                 self.push_box(
                     BoxItem {
                         rect,
                         fill: Fill::None,
-                        border,
+                        border: edge,
                         radii,
                         transform,
                         clip,
                     },
                     ratio,
                 );
+            }
+            if let Some((image, nine)) = nine {
+                let tint = with_alpha([255, 255, 255, 255], alpha);
+                if !tint.is_transparent() {
+                    self.push(Item::Image(ImageItem {
+                        rect,
+                        image,
+                        tint,
+                        radii: Radii::ZERO,
+                        transform,
+                        clip,
+                        nine: Some(nine),
+                        external: None,
+                    }));
+                }
             }
         }
 
@@ -888,6 +1172,10 @@ impl<'a> Emitter<'a> {
         let Some(t) = instantiate::template_node(self.cx.pkg, n.tmpl()) else {
             return;
         };
+        if matches!(t.kind, NodeKind::Input { .. }) {
+            self.paint_field(id, &inner);
+            return;
+        }
         if let NodeKind::Image(src) = &t.kind {
             // A picture fills its own box: its overflow does not clip it, the clips above do.
             let src = src.clone();
@@ -1022,6 +1310,129 @@ impl<'a> Emitter<'a> {
         }));
     }
 
+    /// A solid rectangle of a text field (selection, composition underline, caret).
+    fn field_rect(&mut self, rect: Rect, color: Color, s: &Inherit, clip: Option<Clip>) {
+        if !rect.is_drawable() || color.is_transparent() {
+            return;
+        }
+        self.push(Item::Box(BoxItem {
+            rect,
+            fill: Fill::Solid(color),
+            border: Border::NONE,
+            radii: Radii::ZERO,
+            transform: Self::xf_of(s.xf),
+            clip,
+        }));
+    }
+
+    /// The content of a text field: its text on one line in the content box (centered vertically, scrolled
+    /// so that the caret is inside), the selection under it, the composition underlined, the caret.
+    fn paint_field(&mut self, id: NodeId, s: &Inherit) {
+        use crate::input::text_edit::{offset_x, scroll_for};
+        let fields = self.cx.fields;
+        let Some(view) = fields.view(id) else {
+            return;
+        };
+        let Some(r) = self.record(id) else {
+            return;
+        };
+        if r.visibility == Visibility::Hidden {
+            return;
+        }
+        let edit = fields.edit_of(id);
+        let k = self.k;
+        let content = self.content_box(id);
+        let pad = self.padding_box(id);
+        // The field's text never leaves its padding box.
+        let clip = self.clip_with(
+            id,
+            s,
+            &s.xf,
+            ClipRect {
+                rect: pad,
+                radius: 0.0,
+            },
+        );
+        let run = view.run.as_ref();
+        let text_run = if view.placeholder { None } else { run };
+        let (cw, ch) = (content.w / k, content.h / k);
+        let caret = edit.map_or(0, |e| e.sel.caret);
+        let caret_x = offset_x(text_run, caret);
+        let width = run.map_or(0.0, |r| r.width);
+        let scroll = if edit.is_some() {
+            scroll_for(caret_x, cw)
+        } else {
+            0.0
+        };
+        let free = (cw - width).max(0.0);
+        let align = match r.text_align {
+            ui2_package::style::TextAlign::Center => free / 2.0,
+            ui2_package::style::TextAlign::Right | ui2_package::style::TextAlign::End => free,
+            _ => 0.0,
+        };
+        let x0 = content.x + (align - scroll) * k;
+        let m = view.vm.metrics;
+        let base = content.y + ((ch - view.vm.line_height) / 2.0 + view.vm.above()) * k;
+        let (top, height) = (base - m.ascent * k, (m.ascent + m.descent) * k);
+        let color = self.color(r.color, s.alpha);
+        let x_of = |at: u32| x0 + offset_x(text_run, at) * k;
+        // The selection under the text.
+        if let Some(e) = edit
+            && !e.sel.is_empty()
+            && text_run.is_some()
+        {
+            let (a, b) = e.sel.range();
+            let sel = Color([color.0[0], color.0[1], color.0[2], color.0[3] / 3]);
+            let (xa, xb) = (x_of(a), x_of(b));
+            self.field_rect(Rect::new(xa, top, xb - xa, height), sel, s, clip);
+        }
+        if let Some(run) = run {
+            // The placeholder is drawn in the field's color at half opacity: `::placeholder` rules are not
+            // baked into the package.
+            let shown = if view.placeholder {
+                Color([color.0[0], color.0[1], color.0[2], color.0[3] / 2])
+            } else {
+                color
+            };
+            let glyphs: Vec<GlyphPos> = run
+                .glyphs
+                .iter()
+                .map(|g| GlyphPos {
+                    glyph: g.glyph_id,
+                    x: x0 + g.x * k,
+                    y: base + g.y * k,
+                })
+                .collect();
+            if !glyphs.is_empty() && !shown.is_transparent() {
+                let style = run.style;
+                self.push(Item::Glyphs(Glyphs {
+                    face: style.face,
+                    size_px: style.size * k,
+                    wght: style.wght,
+                    color: shown,
+                    glyphs,
+                    transform: Self::xf_of(s.xf),
+                    clip,
+                }));
+            }
+        }
+        let Some(e) = edit else {
+            return;
+        };
+        let line = k.floor().max(1.0);
+        // The text an input method composes is underlined.
+        if let Some((a, b)) = e.composing {
+            let (xa, xb) = (x_of(a), x_of(b));
+            let y = (base + m.descent.min(2.0) * k).round();
+            self.field_rect(Rect::new(xa, y, xb - xa, line), color, s, clip);
+        }
+        // The caret (`caret-color: auto`), while nothing is selected and the blink shows it.
+        if e.caret_on && e.sel.is_empty() {
+            let x = x_of(e.sel.caret).round();
+            self.field_rect(Rect::new(x, top, line, height), color, s, clip);
+        }
+    }
+
     fn paint_text(&mut self, id: NodeId, s: &Inherit) {
         let arena = self.arena;
         let Some(ifc) = arena.get(id).and_then(|n| n.ifc()) else {
@@ -1102,6 +1513,15 @@ impl<'a> Emitter<'a> {
         if hidden {
             return;
         }
+        // A clip-path that encloses nothing hides the node and its subtree.
+        if let Some(r) = self.record(id)
+            && !r.clip_path.is_empty()
+        {
+            let xf = s.xf * self.own_transform(id, r);
+            if self.clip_path(id, r, &xf) == ClipPath::Empty {
+                return;
+            }
+        }
         self.paint_box(id, s);
         let inner = self.child_state(id, s);
         let arena = self.arena;
@@ -1170,6 +1590,32 @@ impl Boxes {
             BgBox::ContentBox => self.content,
         }
     }
+}
+
+/// Most tiles one repeated background picture is drawn with.
+const MAX_TILES: u32 = 1024;
+
+/// The value of a per-layer background list for a layer: lists shorter than the layers repeat (CSS).
+fn layer_at<T: Copy>(list: &[T], layer: usize, default: T) -> T {
+    if list.is_empty() {
+        default
+    } else {
+        list[layer % list.len()]
+    }
+}
+
+/// A picture of the package by its path inside the skin (`IMGS` entries are looked up by the string-table
+/// id, then by the text of the path).
+pub(crate) fn find_picture(
+    pkg: &Package,
+    path: StrId,
+) -> Option<(ui2_package::ImgId, &ui2_package::Img)> {
+    let imgs = &pkg.images().imgs;
+    let at = imgs.iter().position(|i| i.path == path).or_else(|| {
+        let want = pkg.str(path)?;
+        imgs.iter().position(|i| pkg.str(i.path) == Some(want))
+    })?;
+    Some((ui2_package::ImgId(at as u32), &imgs[at]))
 }
 
 /// A rectangle shrunk by `[top, right, bottom, left]`.

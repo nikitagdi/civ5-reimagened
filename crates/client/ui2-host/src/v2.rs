@@ -191,6 +191,12 @@ impl V2Ui {
         self.skin.runtime.set_localizer(loc);
     }
 
+    /// How many core reads the source may start model roots with in one frame (the rest wait for the next
+    /// frame). Tests that look at one frame's model raise it.
+    pub fn set_read_budget(&mut self, reads: u32) {
+        self.source.set_read_budget(reads);
+    }
+
     /// A new game or a new core: the next frame rebuilds every root of the model from the replica.
     pub fn reset_source(&mut self) {
         self.source.reset();

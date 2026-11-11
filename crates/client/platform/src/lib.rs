@@ -14,6 +14,7 @@ mod store;
 mod task;
 mod time;
 mod transport;
+pub mod ui2;
 mod ui_bridge;
 
 pub use audio::{AudioOutError, AudioOutput, NullOutput, Pcm, SampleId, VoiceId, VoiceParams};
