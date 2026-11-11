@@ -4,6 +4,10 @@
 use gamecore::{Applied, HostServices, ReplicaGame};
 
 use crate::game_side::{NetMessage, PathNode, TradePath, UiEvent, UiOp};
+use crate::read::{
+    CatalogEntry, CatalogTable, City, CityBuild, GameInfo, GameRead, Notification, Player,
+    ReadError, TopBar, Unit, UnitAction,
+};
 
 /// What the state machine needs of the game.
 pub trait Engine {
@@ -62,6 +66,11 @@ pub trait Engine {
     fn trade_paths(&mut self, _viewer: i32) -> Result<Vec<TradePath>, String> {
         Err(NOT_THERE.into())
     }
+
+    /// The game, read only (the UI v2 source). `None`: this engine has no core to read (the fakes of the tests).
+    fn read(&mut self) -> Option<&mut dyn GameRead> {
+        None
+    }
 }
 
 fn player_u8(player: i32) -> Result<u8, String> {
@@ -77,6 +86,8 @@ pub struct CoreEngine {
     seat: u8,
     /// The core's UI events taken out ahead of a journal batch (in order, before the core's queue).
     events: Vec<UiEvent>,
+    /// The seat's team as the last `Q_GAME` of the seat said; forgotten on a load and a seat change.
+    team: Option<i32>,
 }
 
 impl CoreEngine {
@@ -88,6 +99,7 @@ impl CoreEngine {
             game,
             seat,
             events: Vec::new(),
+            team: None,
         })
     }
 
@@ -99,6 +111,7 @@ impl CoreEngine {
 
 impl Engine for CoreEngine {
     fn load(&mut self, snapshot: &[u8]) -> Result<(), String> {
+        self.team = None;
         self.game.resync(snapshot).map_err(|e| e.to_string())
     }
 
@@ -141,6 +154,7 @@ impl Engine for CoreEngine {
 
     fn set_seat(&mut self, seat: u8) {
         self.seat = seat;
+        self.team = None;
         self.game.set_seat(Some(seat));
     }
 
@@ -206,6 +220,74 @@ impl Engine for CoreEngine {
             .game()
             .trade_paths(viewer)
             .map_err(|e| e.to_string())
+    }
+
+    fn read(&mut self) -> Option<&mut dyn GameRead> {
+        Some(self)
+    }
+}
+
+impl CoreEngine {
+    /// The viewer team of the team-wide queries: the seat's team, from a `Q_GAME` of the seat when it is not
+    /// known yet (one extra query after a load; the UI source reads `game_info` first anyway).
+    fn viewer_team(&mut self) -> Result<i32, ReadError> {
+        match self.team {
+            Some(t) => Ok(t),
+            None => self.game_info().map(|i| i32::from(i.human_team)),
+        }
+    }
+}
+
+/// Only reads: every method is one `gc_query` of the core, none changes the game. `plots_dirty` is not here on
+/// purpose: reading it clears the set the renderer consumes.
+impl GameRead for CoreEngine {
+    fn seat(&self) -> u8 {
+        self.seat
+    }
+
+    fn team(&self) -> i32 {
+        self.team.unwrap_or(-1)
+    }
+
+    fn game_info(&mut self) -> Result<GameInfo, ReadError> {
+        let info = self.game.game().game_info_for(self.seat)?;
+        self.team = Some(i32::from(info.human_team));
+        Ok(info)
+    }
+
+    fn players(&mut self) -> Result<Vec<Player>, ReadError> {
+        let team = self.viewer_team()?;
+        Ok(self.game.game().players(team)?)
+    }
+
+    fn catalog(&mut self, table: CatalogTable) -> Result<Vec<CatalogEntry>, ReadError> {
+        Ok(self.game.game().catalog(table)?)
+    }
+
+    fn units(&mut self) -> Result<Vec<Unit>, ReadError> {
+        let team = self.viewer_team()?;
+        Ok(self.game.game().units(team)?)
+    }
+
+    fn unit_actions(&mut self, unit: i32) -> Result<Vec<UnitAction>, ReadError> {
+        Ok(self.game.game().unit_actions(self.seat, unit)?)
+    }
+
+    fn cities(&mut self) -> Result<Vec<City>, ReadError> {
+        let team = self.viewer_team()?;
+        Ok(self.game.game().cities(team)?)
+    }
+
+    fn city_builds(&mut self, city: i32) -> Result<Vec<CityBuild>, ReadError> {
+        Ok(self.game.game().city_builds(self.seat, city)?)
+    }
+
+    fn top_bar(&mut self) -> Result<TopBar, ReadError> {
+        Ok(self.game.game().top_bar(self.seat)?)
+    }
+
+    fn notifications(&mut self) -> Result<Vec<Notification>, ReadError> {
+        Ok(self.game.game().notifications(self.seat)?)
     }
 }
 

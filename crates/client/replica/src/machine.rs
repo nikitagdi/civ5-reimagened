@@ -27,6 +27,7 @@ use wire::replica::{BodyKind, decode_snapshot, encode_snapshot, parse_header};
 
 use crate::engine::{CoreEngine, Engine};
 use crate::game_side::{GameSide, NetMessage, PathNode, TradePath, UiEvent, UiOp};
+use crate::read::GameRead;
 use crate::{
     GcBase, GcBlobRef, GcJournal, GcPatchRef, GcResyncReason, GcTurn, ReplicaError, ReplicaMsg,
 };
@@ -414,6 +415,15 @@ impl Replica {
             return Err("nothing is loaded".into());
         }
         self.engine.digest()
+    }
+
+    /// The game, read only, for the UI v2 source: `Some` only while the replica follows the journal
+    /// ([`State::Live`]) and its engine has a core to read.
+    pub fn read(&mut self) -> Option<&mut dyn GameRead> {
+        if self.state != State::Live {
+            return None;
+        }
+        self.engine.read()
     }
 
     /// The engine, for tests and the registration of the Lua API.

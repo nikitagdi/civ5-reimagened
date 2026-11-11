@@ -3904,6 +3904,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ui2-source"
+version = "0.1.0"
+dependencies = [
+ "replica",
+ "tracing",
+ "ui2-model",
+]
+
+[[package]]
 name = "ui2-text"
 version = "0.1.0"
 dependencies = [
