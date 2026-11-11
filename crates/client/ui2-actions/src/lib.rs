@@ -172,6 +172,9 @@ impl UiActions {
             "unit.select" | "unit.select_next" | "unit.deselect" | "unit.action" | "unit.move"
             | "unit.range_attack" => route::unit::run(&mut ctx, intent),
             "map.click" => route::map::click(&mut ctx, intent),
+            "production.choose" | "production.replace" | "production.push" | "production.pop"
+            | "production.move" | "production.buy" => route::production::run(&mut ctx, intent),
+            "research.choose" => route::research::run(&mut ctx, intent),
             "turn.primary" | "turn.end" | "turn.cancel" | "screen.open" => {
                 route::turn::run(&mut ctx, intent);
             }

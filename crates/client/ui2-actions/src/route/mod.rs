@@ -3,6 +3,8 @@
 
 pub mod camera;
 pub mod map;
+pub mod production;
+pub mod research;
 pub mod turn;
 pub mod unit;
 pub mod window;
