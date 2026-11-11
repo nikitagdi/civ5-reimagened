@@ -34,6 +34,9 @@ fn skin_dir(arg: &str) -> Option<PathBuf> {
 }
 
 fn report(run: &Run) -> ExitCode {
+    for line in run.summary() {
+        println!("{line}");
+    }
     for e in &run.errors {
         eprintln!("{e}\n");
     }

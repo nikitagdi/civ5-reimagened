@@ -51,6 +51,22 @@ fn bad_mockup_scans_are_current() {
 }
 
 #[test]
+fn layout_fixture_is_current() {
+    if !chrome() {
+        return;
+    }
+    let fixtures = crate_dir().join("tests").join("fixtures");
+    let run = check_skin(&fixtures.join("layout"), Input::Chrome);
+    assert!(run.errors.is_empty(), "{:?}", run.errors);
+    let stored = std::fs::read_to_string(fixtures.join("layout.ir.json")).expect("fixture");
+    assert_eq!(
+        run.dump().expect("dump"),
+        stored,
+        "layout.ir.json is stale; see tests/fixtures/README.md"
+    );
+}
+
+#[test]
 fn engraved_checks_run_in_chrome() {
     if !chrome() {
         return;

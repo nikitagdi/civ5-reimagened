@@ -278,7 +278,7 @@ test("stdio protocol: open, scan, errors, close", async () => {
   m.send("this is not json");
   const bad = JSON.parse(await m.next());
   assert.deepEqual([bad.id, bad.ok, bad.error.code], [null, false, "E9-003"]);
-  m.send({ id: 3, cmd: "extract" });
+  m.send({ id: 3, cmd: "raster" });
   const planned = JSON.parse(await m.next());
   assert.deepEqual([planned.id, planned.ok, planned.error.code], [3, false, "E9-003"]);
   assert.match(planned.error.message, /not implemented/);

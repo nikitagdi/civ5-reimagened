@@ -12,14 +12,15 @@
 //          preview: inject node/preview/preview.js into every page (answered false when the
 //          script does not exist)
 //   scan   {state?, viewport?}                              -> the IR (see scan.mjs)
+//   extract {cells, props, beacon_props, extra, tokens, nodes} -> computed values (see extract.mjs)
 //   reload {}                                               -> {}
 //   close  {}                                               -> {}   (the process exits afterwards)
-// extract, raster, rects and shoot are part of the planned protocol and answer E9-003 for now.
+// raster, rects and shoot are part of the planned protocol and answer E9-003 for now.
 import readline from "node:readline";
 import { canonicalJson } from "./canonical.mjs";
 import { createSession, ProtocolError } from "./session.mjs";
 
-const PLANNED = new Set(["extract", "raster", "rects", "shoot"]);
+const PLANNED = new Set(["raster", "rects", "shoot"]);
 const session = createSession();
 let closing = false;
 
@@ -44,6 +45,7 @@ async function handle(line) {
     switch (req.cmd) {
       case "open": result = await session.open(req); break;
       case "scan": result = await session.scan(req); break;
+      case "extract": result = await session.extract(req); break;
       case "reload": result = await session.reload(); break;
       case "close": result = await session.close(); closing = true; break;
       default:

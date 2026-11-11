@@ -734,6 +734,19 @@ fn sheets(cx: &mut Ctx, ir: &Ir) {
         }
     }
     cx.out.media = media;
+    // The synonyms every skin defines for mods.
+    for (name, def) in Profile::v1().tokens() {
+        if def.required && !cx.out.root_vars.iter().any(|v| &v.name == name) {
+            cx.errs.push(
+                ConvError::new(
+                    codes::TOKEN_MISSING,
+                    Place::default(),
+                    format!("no `:root {{ {name}: var(--...) }}`"),
+                )
+                .prop(name.clone()),
+            );
+        }
+    }
 }
 
 fn items(cx: &mut Ctx, file: &str, list: &[CssItem], media: &[(Axis, Bound)]) {
@@ -907,7 +920,8 @@ fn declaration(cx: &mut Ctx, place: &Place, selector: &str, prop: &str, value: &
             v.as_str(),
             "inherit" | "initial" | "unset" | "revert" | "revert-layer"
         );
-        let blockified = id == PropId::Display && v.starts_with("inline-");
+        // `display: contents` is flattened by the converter (layout spike).
+        let blockified = id == PropId::Display && (v.starts_with("inline-") || v == "contents");
         if def.kind == ValueKind::Keyword
             && plain
             && !wide

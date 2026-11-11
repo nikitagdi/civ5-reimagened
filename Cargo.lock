@@ -3901,9 +3901,9 @@ name = "ui2-convert"
 version = "0.1.0"
 dependencies = [
  "loc",
+ "postcard",
  "serde",
  "serde_json",
- "thiserror 2.0.21",
  "toml",
  "ui2-model",
  "ui2-package",

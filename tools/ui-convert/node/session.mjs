@@ -14,6 +14,7 @@ import path from "node:path";
 import { launchChromium, chromiumFlags } from "./chromium.mjs";
 import { startServer, previewAvailable } from "./server.mjs";
 import { scanPage } from "./ir.mjs";
+import { extractPage } from "./extract.mjs";
 
 export class ProtocolError extends Error {
   constructor(code, message) {
@@ -87,6 +88,12 @@ export function createSession() {
       const viewport = req.viewport ?? [1920, 1080];
       need(Array.isArray(viewport) && viewport.length === 2 && viewport.every((n) => Number.isInteger(n) && n > 0), "scan: viewport must be [w, h]");
       return scanPage({ page: st.page, server: st.server, entry: st.entry, state, viewport, blocked: st.blocked });
+    },
+
+    /** Answers the converter's style plan (see extract.mjs). */
+    async extract(req = {}) {
+      need(st, "extract: no open session");
+      return extractPage({ page: st.page, server: st.server, entry: st.entry, req });
     },
 
     /** The next scan always loads the page again; this drops what the server cached (file changes). */

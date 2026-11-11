@@ -8,6 +8,7 @@
 //!
 //! ```text
 //! skin.toml ─► scan (Node) ─► IR ─► check: E1 E3 E5 E6 E7, the CSS as written (E2 E3)
+//!           ─► plan (conditions, cells, beacons) ─► extract (Node) ─► styles (E1 E2 E3 E7)
 //! ```
 //!
 //! Every stage runs on what the earlier ones produced, also when they found errors, so one run
@@ -22,10 +23,13 @@ pub mod check;
 pub mod errors;
 pub mod ir;
 pub mod node;
+pub mod plan;
 pub mod script;
 pub mod select;
 pub mod skin;
+pub mod styles;
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
@@ -34,7 +38,9 @@ use crate::check::Statics;
 use crate::errors::{ConvError, Place, codes};
 use crate::ir::Ir;
 use crate::node::NodeClient;
+use crate::plan::Plan;
 use crate::skin::Skin;
+use crate::styles::Compiled;
 
 /// Named character ranges a skin may keep in its font subsets (`[fonts] subset`).
 pub const SUBSETS: &[(&str, &[(u32, u32)])] = &[
@@ -153,20 +159,30 @@ pub struct Run {
     pub scanned: Option<Scanned>,
     /// The static pass.
     pub statics: Option<Statics>,
+    /// The style plan.
+    pub plan: Option<Plan>,
+    /// Chrome's answer to the plan, as Node wrote it (kept for the dump).
+    pub extracted_json: Option<Value>,
+    /// The compiled styles.
+    pub styles: Option<Compiled>,
     /// Every error, sorted once the run ends.
     pub errors: Vec<ConvError>,
 }
 
 impl Run {
-    /// The stored form of the run (`--dump-ir`): the IR and what later stages read from Chrome.
+    /// The stored form of the run (`--dump-ir`): the IR and Chrome's answers to the plan.
     pub fn dump(&self) -> Option<String> {
         let scanned = self.scanned.as_ref()?;
-        let v = json!({
+        let mut v = json!({
             "v": DUMP_VERSION,
             "preview": scanned.preview,
             "scan": scanned.json,
         });
-        let mut s = serde_json::to_string_pretty(&v).ok()?;
+        if let (Some(plan), Some(out)) = (&self.plan, &self.extracted_json) {
+            v["extract"] = json!({ "request": plan.request(), "result": out });
+        }
+        // Compact: a dump is data for the tests, not for reading (pretty printing triples it).
+        let mut s = serde_json::to_string(&v).ok()?;
         s.push('\n');
         Some(s)
     }
@@ -176,8 +192,10 @@ impl Run {
 pub struct Dump {
     /// The scan.
     pub scanned: Scanned,
-    /// The whole dump, for the later stages' parts.
-    pub json: Value,
+    /// The plan the dump was extracted for.
+    pub request: Option<Value>,
+    /// Chrome's answer.
+    pub result: Option<Value>,
 }
 
 /// Reads a dump written by [`Run::dump`].
@@ -198,9 +216,11 @@ pub fn read_dump(text: &str) -> Result<Dump, ConvError> {
     }
     let scan = json.get("scan").cloned().unwrap_or(Value::Null);
     let preview = json.get("preview") == Some(&Value::Bool(true));
+    let ex = json.get("extract");
     Ok(Dump {
         scanned: Scanned::from_json(scan, preview)?,
-        json,
+        request: ex.and_then(|e| e.get("request")).cloned(),
+        result: ex.and_then(|e| e.get("result")).cloned(),
     })
 }
 
@@ -214,7 +234,19 @@ fn unexpanded(ir: &Ir) -> bool {
     })
 }
 
-/// `check`: loads the manifest, scans the page (or reads a dump) and runs every check.
+/// The properties the static pass already reported as written (E2 at a declaration).
+fn statically_reported(errors: &[ConvError]) -> BTreeSet<String> {
+    errors
+        .iter()
+        .filter(|e| {
+            e.code.starts_with("E2-") && !e.prop.is_empty() && e.place.file.ends_with(".css")
+        })
+        .map(|e| e.prop.clone())
+        .collect()
+}
+
+/// `check`: loads the manifest, scans the page (or reads a dump), runs the static checks, plans
+/// and extracts the styles and compiles them.
 pub fn check_skin(dir: &Path, input: Input) -> Run {
     let mut run = Run::default();
     let src = match Source::load(dir) {
@@ -226,8 +258,13 @@ pub fn check_skin(dir: &Path, input: Input) -> Run {
         }
     };
     let mut node = None;
+    let mut stored: Option<Dump> = None;
     let scanned = match input {
-        Input::Dump(text) => read_dump(text).map(|d| d.scanned),
+        Input::Dump(text) => read_dump(text).map(|d| {
+            let s = d.scanned.clone();
+            stored = Some(d);
+            s
+        }),
         Input::Chrome => match NodeClient::start() {
             Ok(mut n) => {
                 let s = scan(&mut n, &src);
@@ -243,6 +280,7 @@ pub fn check_skin(dir: &Path, input: Input) -> Run {
     }
     if let Some(scanned) = &run.scanned {
         let (statics, errs) = check::check(&src.skin, &scanned.ir, &src.dir);
+        let reported = statically_reported(&errs);
         run.errors.extend(errs);
         if !scanned.preview && unexpanded(&scanned.ir) {
             run.errors.push(ConvError::new(
@@ -251,6 +289,43 @@ pub fn check_skin(dir: &Path, input: Input) -> Run {
                 "the page has includes or loop bindings that only the preview script expands; the checks saw the entry file as written",
             ));
         }
+        let dom = ir::Dom::new(&scanned.ir.dom);
+        let (p, errs) = plan::plan(&dom, &statics);
+        run.errors.extend(errs);
+        let request = p.request();
+        let answer = match (&mut node, &stored) {
+            (Some(n), _) => n.call("extract", request).map(Some),
+            (None, Some(d)) => match (&d.request, &d.result) {
+                (Some(req), Some(res)) if *req == request => Ok(Some(res.clone())),
+                (Some(_), Some(_)) => Err(ConvError::new(
+                    codes::PROTOCOL,
+                    Place::default(),
+                    "the stored extraction was made for another plan; dump the IR again",
+                )),
+                _ => Ok(None),
+            },
+            (None, None) => Ok(None),
+        };
+        match answer {
+            Ok(Some(json)) => {
+                match serde_json::from_value::<styles::Extracted>(json.clone()) {
+                    Ok(out) => {
+                        let (compiled, errs) = styles::compile(&dom, &p, &out, &reported);
+                        run.errors.extend(errs);
+                        run.styles = Some(compiled);
+                    }
+                    Err(e) => run.errors.push(ConvError::new(
+                        codes::PROTOCOL,
+                        Place::default(),
+                        format!("the extraction does not parse: {e}"),
+                    )),
+                }
+                run.extracted_json = Some(json);
+            }
+            Ok(None) => {}
+            Err(e) => run.errors.push(e),
+        }
+        run.plan = Some(p);
         run.statics = Some(statics);
     }
     if let Some(n) = node {
@@ -259,4 +334,41 @@ pub fn check_skin(dir: &Path, input: Input) -> Run {
     run.source = Some(src);
     errors::sort(&mut run.errors);
     run
+}
+impl Run {
+    /// One line per stage: what the plan asked and what the styles hold.
+    pub fn summary(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if let Some(p) = &self.plan {
+            let with = p.nodes.iter().filter(|n| !n.conds.is_empty()).count();
+            out.push(format!(
+                "plan: {} nodes ({} with conditions), {} cells, {} reads, {} token candidates, {} synonyms",
+                p.nodes.len(),
+                with,
+                p.cells.len(),
+                p.reads(),
+                p.tokens.len(),
+                p.aliases.len()
+            ));
+        }
+        if let Some(s) = &self.styles {
+            let varied = s
+                .node_set
+                .keys()
+                .filter(|&&id| s.variant_count(id) > 1)
+                .count();
+            let conds: usize = s.sets.iter().map(|x| x.conds.len()).sum();
+            out.push(format!(
+                "styles: {} elements, {} sets ({} conditions kept), {} records, {} elements with variants, {} root tokens, {} synonyms",
+                s.node_set.len(),
+                s.sets.len(),
+                conds,
+                s.records.len(),
+                varied,
+                s.tokens.roots.len(),
+                s.tokens.aliases.len()
+            ));
+        }
+        out
+    }
 }

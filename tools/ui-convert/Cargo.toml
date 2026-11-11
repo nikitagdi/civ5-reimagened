@@ -27,6 +27,7 @@ ui2-model.workspace = true
 # The text templates of the skin's l10n tables use the game's template syntax.
 loc.workspace = true
 serde.workspace = true
+# Byte keys for deduplicating records and sets (the package's own encoding).
+postcard.workspace = true
 serde_json.workspace = true
 toml.workspace = true
-thiserror.workspace = true
