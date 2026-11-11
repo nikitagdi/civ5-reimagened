@@ -13,7 +13,9 @@
 //          script does not exist)
 //   scan   {state?, viewport?}                              -> the IR (see scan.mjs)
 //   extract {cells, props, beacon_props, extra, tokens, nodes} -> computed values (see extract.mjs)
-//   raster {items:[{svg1, svg2 | src1, src2, w1, h1, w2, h2}]} -> {items:[{x1, x2}]} (base64 RGBA, see raster.mjs)
+//   raster {items:[{svg1, svg2 | src1, src2, w1, h1, w2, h2 | natural}]}
+//                                                           -> {items:[{x1, x2, w1, h1, w2, h2} | {error}]}
+//          (base64 RGBA, see raster.mjs)
 //   rects  {state, viewport:[w,h], dsf?, skin?}             -> the rectangle dump of the layout page (rects.mjs)
 //   reload {}                                               -> {}
 //   close  {}                                               -> {}   (the process exits afterwards)

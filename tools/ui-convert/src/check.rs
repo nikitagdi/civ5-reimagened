@@ -15,7 +15,7 @@ use ui2_package::sections::templates::Layer;
 use crate::errors::{ConvError, Place, codes};
 use crate::ir::{CssItem, Dom, Element, Ir, Ix, Node};
 use crate::select::{self, Axis, Selector};
-use crate::skin::{Skin, is_skin_path};
+use crate::skin::{Skin, is_skin_path, resolve_in_skin, url_args};
 
 /// One style rule of the skin's stylesheets, with its selectors parsed.
 #[derive(Debug, Clone)]
@@ -888,6 +888,37 @@ fn font_face(cx: &mut Ctx, place: &Place, decls: &[CssItem]) {
     }
 }
 
+/// The longhand under which a declaration that may hold a picture `url()` is reported:
+/// `background-image` or `border-image-source` (their shorthands map to them).
+pub fn picture_longhand(name: &str) -> Option<&'static str> {
+    match name {
+        "background" | "background-image" => Some("background-image"),
+        "border-image" | "border-image-source" => Some("border-image-source"),
+        _ => None,
+    }
+}
+
+/// The `url()` pictures of a declaration as written: each must name a file of the skin, resolved against the
+/// file the declaration is in (E1-003 at the declaration). `data:` URLs, queries and fragments are left to the
+/// value parser (E2-023 on the computed value).
+fn pictures_as_written(cx: &mut Ctx, place: &Place, subject: &str, name: &str, value: &str) {
+    for url in url_args(value) {
+        if url.to_ascii_lowercase().starts_with("data:") || url.contains(['?', '#']) {
+            continue;
+        }
+        let why = match resolve_in_skin(&place.file, &url) {
+            Ok(path) if cx.file_exists(&path) => continue,
+            Ok(path) => format!("`url({url})` names `{path}`, which does not exist"),
+            Err(why) => format!("`url({url})` {why}"),
+        };
+        cx.errs.push(
+            ConvError::new(codes::RESOURCE, place.clone(), why)
+                .element(subject.to_string())
+                .prop(name.to_string()),
+        );
+    }
+}
+
 fn declaration(cx: &mut Ctx, place: &Place, selector: &str, prop: &str, value: &str) {
     let name = prop.to_ascii_lowercase();
     let subject = format!("`{selector}`");
@@ -898,6 +929,9 @@ fn declaration(cx: &mut Ctx, place: &Place, selector: &str, prop: &str, value: &
                 .prop(name),
         );
         return;
+    }
+    if picture_longhand(&name).is_some() {
+        pictures_as_written(cx, place, &subject, &name, value);
     }
     if !name.starts_with("--")
         && let Some(unit) = viewport_unit(value)

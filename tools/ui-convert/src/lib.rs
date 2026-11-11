@@ -306,15 +306,24 @@ fn static_text(dom: &ir::Dom, statics: &Statics) -> Vec<String> {
     out
 }
 
-/// The properties the static pass already reported as written (E2 at a declaration).
+/// The properties the static pass already reported as written (E2 at a declaration, and pictures that are
+/// not files of the skin).
 fn statically_reported(errors: &[ConvError]) -> BTreeSet<String> {
-    errors
+    let mut out: BTreeSet<String> = errors
         .iter()
         .filter(|e| {
             e.code.starts_with("E2-") && !e.prop.is_empty() && e.place.file.ends_with(".css")
         })
         .map(|e| e.prop.clone())
-        .collect()
+        .collect();
+    out.extend(
+        errors
+            .iter()
+            .filter(|e| e.code == codes::RESOURCE)
+            .filter_map(|e| check::picture_longhand(&e.prop))
+            .map(str::to_string),
+    );
+    out
 }
 
 /// `check`: loads the manifest, scans the page (or reads a dump), runs the static checks, plans

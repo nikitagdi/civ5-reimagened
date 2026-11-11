@@ -357,6 +357,22 @@ impl Cx<'_> {
                 },
                 None => v,
             };
+            let v = match skin_pictures(v) {
+                Ok(v) => v,
+                Err(url) => {
+                    self.errs.push(err_node(
+                        self.dom,
+                        ix,
+                        codes::RESOURCE,
+                        p.name(),
+                        format!(
+                            "`{}: {s}` computed by Chrome: `{url}` is not a file of the skin",
+                            p.name()
+                        ),
+                    ));
+                    continue;
+                }
+            };
             if let Some(k) = TRANSITIONS.iter().position(|&t| t == p) {
                 trans[k] = Some(v);
                 continue;
@@ -387,6 +403,24 @@ impl Cx<'_> {
             contents,
         }
     }
+}
+
+/// A value with every picture URL (Chrome's absolute URL on the local server) replaced by the path of the
+/// picture in the skin, the name the package's `IMGS` table gives it. `Err` carries a URL outside the skin.
+pub fn skin_pictures(v: Value) -> Result<Value, String> {
+    let local = |u: String| crate::skin::server_path(&u).ok_or(u);
+    Ok(match v {
+        Value::Url(u) => Value::Url(local(u)?),
+        Value::Images(list) => Value::Images(
+            list.into_iter()
+                .map(|l| match l {
+                    BgLayer::Url(u) => local(u).map(BgLayer::Url),
+                    g => Ok(g),
+                })
+                .collect::<Result<_, _>>()?,
+        ),
+        v => v,
+    })
 }
 
 fn describe_cond(c: &crate::plan::CondSpec) -> String {
@@ -600,9 +634,12 @@ fn element_checks(cx: &mut Cx, plan: &Plan, pn: &PlanNode, reads: &[&NodeOut]) {
                 || name == "-webkit-appearance";
             let current = *value == color;
             // Chrome also lists a few shorthands and used values: the longhands are checked
-            // themselves, and the perspective origin matters only with a perspective.
-            let skipped = matches!(name.as_str(), "-webkit-locale" | "perspective-origin")
-                || crate::check::SHORTHANDS.iter().any(|(s, _)| s == name);
+            // themselves (`-webkit-border-image` mirrors the `border-image-*` longhands), and the
+            // perspective origin matters only with a perspective.
+            let skipped = matches!(
+                name.as_str(),
+                "-webkit-locale" | "perspective-origin" | "-webkit-border-image"
+            ) || crate::check::SHORTHANDS.iter().any(|(s, _)| s == name);
             if logical
                 || required
                 || current
@@ -821,4 +858,38 @@ fn box_tree(dom: &Dom, c: &Compiled, _plan: &Plan) -> Vec<BoxNode> {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn styles_picture_urls_become_skin_paths() {
+        let v = parse_value(
+            PropId::BackgroundImage,
+            "url(\"http://127.0.0.1:61234/images/frame.png\"), linear-gradient(rgb(0, 0, 0), rgb(255, 255, 255))",
+        )
+        .expect("parses");
+        let Ok(Value::Images(list)) = skin_pictures(v) else {
+            panic!("images")
+        };
+        assert!(matches!(&list[0], BgLayer::Url(p) if p == "images/frame.png"));
+        assert!(matches!(&list[1], BgLayer::Gradient(_)));
+        let v = parse_value(
+            PropId::BorderImageSource,
+            "url(\"http://127.0.0.1:61234/images/nine.png\")",
+        )
+        .expect("parses");
+        assert!(matches!(skin_pictures(v), Ok(Value::Url(p)) if p == "images/nine.png"));
+        let v = parse_value(
+            PropId::BorderImageSource,
+            "url(\"http://example.com/nine.png\")",
+        )
+        .expect("parses");
+        assert_eq!(
+            skin_pictures(v).err().as_deref(),
+            Some("http://example.com/nine.png")
+        );
+    }
 }

@@ -23,7 +23,7 @@ use std::collections::BTreeMap;
 use ui2_package::profile::attrs::NodeAttrs;
 use ui2_package::profile::expr::{Expr, TplSeg};
 use ui2_package::sections::blobs::{BlobRef, BlobSection};
-use ui2_package::style::{Overflow, StyleRecord};
+use ui2_package::style::{BgImage, Overflow, StyleRecord};
 use ui2_package::{
     BindKind, Binding, CondKind, Face, FaceFamily, FontRole, FontRoles, ImageSrc, Kind, Lit,
     Manifest, Node, NodeKind, NodeRef, PackageBuilder, Seg, SrcLoc, StyleSet, StyleSetId, Tag,
@@ -557,6 +557,15 @@ pub fn write(inp: &Inputs) -> Result<Written, Vec<ConvError>> {
             .iter()
             .map(|s| b.str(c.strs.get(*s)))
             .collect();
+        // Pictures by path: the path of an `IMGS` entry, in the builder's string table.
+        for layer in &mut r.background_image {
+            if let BgImage::Url(s) = layer {
+                *s = b.str(c.strs.get(*s));
+            }
+        }
+        if let Some(s) = r.border_image_source.as_mut() {
+            *s = b.str(c.strs.get(*s));
+        }
         record_ids.push(b.style_record(r));
     }
     let mut sets = Vec::new();

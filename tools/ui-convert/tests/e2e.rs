@@ -132,6 +132,215 @@ fn engraved_builds_and_the_package_is_deterministic() {
     pictures_are_atlas_pages(&pkg, &a.bytes);
 }
 
+/// A PNG of `w x h` straight RGBA pixels (stored deflate blocks: enough for a test picture).
+fn png(w: u32, h: u32, rgba: &[u8]) -> Vec<u8> {
+    fn crc32(bytes: &[u8]) -> u32 {
+        let mut c = !0u32;
+        for &b in bytes {
+            c ^= u32::from(b);
+            for _ in 0..8 {
+                c = if c & 1 != 0 {
+                    0xEDB8_8320 ^ (c >> 1)
+                } else {
+                    c >> 1
+                };
+            }
+        }
+        !c
+    }
+    fn chunk(out: &mut Vec<u8>, tag: &[u8; 4], data: &[u8]) {
+        out.extend_from_slice(&(data.len() as u32).to_be_bytes());
+        let mut body = tag.to_vec();
+        body.extend_from_slice(data);
+        out.extend_from_slice(&body);
+        out.extend_from_slice(&crc32(&body).to_be_bytes());
+    }
+    let mut raw = Vec::new();
+    for row in rgba.chunks_exact((w * 4) as usize) {
+        raw.push(0u8); // filter: none
+        raw.extend_from_slice(row);
+    }
+    let (mut a, mut b) = (1u32, 0u32);
+    for &x in &raw {
+        a = (a + u32::from(x)) % 65521;
+        b = (b + a) % 65521;
+    }
+    let mut z = vec![0x78, 0x01];
+    let blocks: Vec<&[u8]> = raw.chunks(65535).collect();
+    for (i, blk) in blocks.iter().enumerate() {
+        z.push(u8::from(i + 1 == blocks.len()));
+        let n = blk.len() as u16;
+        z.extend_from_slice(&n.to_le_bytes());
+        z.extend_from_slice(&(!n).to_le_bytes());
+        z.extend_from_slice(blk);
+    }
+    z.extend_from_slice(&((b << 16) | a).to_be_bytes());
+    let mut out = b"\x89PNG\r\n\x1a\n".to_vec();
+    let mut ihdr = Vec::new();
+    ihdr.extend_from_slice(&w.to_be_bytes());
+    ihdr.extend_from_slice(&h.to_be_bytes());
+    ihdr.extend_from_slice(&[8, 6, 0, 0, 0]);
+    chunk(&mut out, b"IHDR", &ihdr);
+    chunk(&mut out, b"IDAT", &z);
+    chunk(&mut out, b"IEND", &[]);
+    out
+}
+
+/// The 2 x 2 test picture: half-transparent red, green, transparent blue, white.
+const DOT: [u8; 16] = [
+    255, 0, 0, 128, 0, 255, 0, 255, 0, 0, 255, 0, 255, 255, 255, 255,
+];
+
+/// A minimal skin with pictures named by `url()`, written into a fresh temporary folder. `css` is the
+/// stylesheet after the layer rule.
+fn picture_skin(name: &str, css: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("ui2-e2e-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let layout = crate_dir().join("tests").join("fixtures").join("layout");
+    for sub in ["css", "images", "l10n"] {
+        std::fs::create_dir_all(dir.join(sub)).expect("mkdir");
+    }
+    std::fs::write(
+        dir.join("skin.toml"),
+        format!(
+            "[skin]\nid = \"{name}\"\nversion = \"0.1.0\"\ntitle = \"skin.title\"\nmodel = \"1.0\"\napi = \"1.0\"\n"
+        ),
+    )
+    .expect("skin.toml");
+    std::fs::copy(
+        layout.join("css").join("tokens.css"),
+        dir.join("css").join("tokens.css"),
+    )
+    .expect("tokens");
+    std::fs::copy(
+        layout.join("l10n").join("en_US.toml"),
+        dir.join("l10n").join("en_US.toml"),
+    )
+    .expect("l10n");
+    std::fs::write(
+        dir.join("index.html"),
+        "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <title>Pictures</title>\n  <link rel=\"stylesheet\" href=\"css/tokens.css\">\n  <link rel=\"stylesheet\" href=\"css/a.css\">\n</head>\n<body>\n  <div class=\"layer\" data-layer=\"map\"></div>\n  <div class=\"layer\" data-layer=\"hud\">\n    <div data-slot=\"mods\"></div>\n    <div class=\"tile\"></div>\n    <div class=\"frame\"></div>\n    <div class=\"flag\"></div>\n  </div>\n  <div class=\"layer\" data-layer=\"window\"></div>\n  <div class=\"layer\" data-layer=\"tooltip\"></div>\n</body>\n</html>\n",
+    )
+    .expect("index.html");
+    std::fs::write(
+        dir.join("css").join("a.css"),
+        format!(
+            ".layer {{\n  position: absolute;\n  inset: 0;\n  pointer-events: none;\n}}\n{css}"
+        ),
+    )
+    .expect("a.css");
+    std::fs::write(dir.join("images").join("dot.png"), png(2, 2, &DOT)).expect("png");
+    std::fs::write(
+        dir.join("images").join("flag.svg"),
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"6\" height=\"4\"><rect width=\"6\" height=\"4\" fill=\"#0000ff\"/></svg>\n",
+    )
+    .expect("svg");
+    dir
+}
+
+const PICTURES_CSS: &str = ".tile {\n  width: 8px;\n  height: 8px;\n  background-image: url(\"../images/dot.png\");\n  background-size: 8px 8px;\n}\n.frame {\n  width: 12px;\n  height: 12px;\n  border-width: 2px;\n  border-style: solid;\n  border-color: transparent;\n  border-image-source: url(\"../images/dot.png\");\n  border-image-slice: 1;\n  border-image-width: 2px;\n}\n.flag {\n  width: 6px;\n  height: 4px;\n  background-image: url(../images/flag.svg);\n}\n";
+
+/// `url()` pictures become colored sprites of their natural size at scale 1 and 2 on premultiplied RGBA pages,
+/// named by their path in the skin; the style records hold that path.
+#[test]
+fn url_pictures_are_premultiplied_rgba_sprites() {
+    if !chrome() {
+        return;
+    }
+    use ui2_package::PageFormat;
+    use ui2_package::style::BgImage;
+    let dir = picture_skin("e2e-pictures", PICTURES_CSS);
+    let a = ui2_convert::build::build(&dir, true);
+    let b = ui2_convert::build::build(&dir, true);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(a.run.errors.is_empty(), "{:?}", a.run.errors);
+    let a = a.written.expect("package");
+    assert_eq!(a.bytes, b.written.expect("package").bytes, "deterministic");
+    let pkg = ui2_package::Package::read(std::sync::Arc::from(a.bytes.as_slice())).expect("read");
+    let images = pkg.images();
+    assert_eq!(
+        images
+            .pages
+            .iter()
+            .map(|p| (p.format, p.scale))
+            .collect::<Vec<_>>(),
+        [(PageFormat::Rgba8, 1), (PageFormat::Rgba8, 2)]
+    );
+    let img = |path: &str| {
+        images
+            .imgs
+            .iter()
+            .find(|i| pkg.str(i.path) == Some(path))
+            .unwrap_or_else(|| panic!("no picture {path}"))
+    };
+    let dot = img("images/dot.png");
+    assert_eq!(dot.size, [2.0, 2.0]);
+    assert!(!dot.mask);
+    assert_eq!(dot.x1.rect[2..], [4, 4]);
+    assert_eq!(dot.x2.expect("2x").rect[2..], [6, 6]);
+    assert_eq!(img("images/flag.svg").size, [6.0, 4.0]);
+    // Premultiplied: half-transparent red is (128, 0, 0, 128); transparent blue is all zero.
+    let page = &images.pages[usize::from(dot.x1.page)];
+    let px = pkg.blob_owned(page.blob).expect("page");
+    let w = usize::from(page.size[0]);
+    let [x, y, _, _] = dot.x1.rect.map(usize::from);
+    let at = |cx: usize, cy: usize| {
+        let i = ((y + 1 + cy) * w + x + 1 + cx) * 4;
+        [px[i], px[i + 1], px[i + 2], px[i + 3]]
+    };
+    assert_eq!(at(0, 0), [128, 0, 0, 128]);
+    assert_eq!(at(1, 0), [0, 255, 0, 255]);
+    assert_eq!(at(0, 1), [0, 0, 0, 0]);
+    assert_eq!(at(1, 1), [255, 255, 255, 255]);
+    // The records name the pictures by path.
+    let records = &pkg.styles().records;
+    let named = |f: &dyn Fn(&ui2_package::style::StyleRecord) -> Option<ui2_package::StrId>| {
+        records
+            .iter()
+            .filter_map(f)
+            .filter_map(|s| pkg.str(s))
+            .collect::<Vec<_>>()
+    };
+    let bg = named(&|r| match r.background_image.first() {
+        Some(BgImage::Url(s)) => Some(*s),
+        _ => None,
+    });
+    assert!(
+        bg.contains(&"images/dot.png") && bg.contains(&"images/flag.svg"),
+        "{bg:?}"
+    );
+    assert_eq!(named(&|r| r.border_image_source), ["images/dot.png"]);
+}
+
+/// A picture that is not a file of the skin is E1-003 at the declaration.
+#[test]
+fn url_pictures_outside_the_skin_are_errors_at_the_declaration() {
+    if !chrome() {
+        return;
+    }
+    let dir = picture_skin(
+        "e2e-bad-pictures",
+        ".tile {\n  width: 8px;\n  height: 8px;\n  background-image: url(\"../images/missing.png\");\n}\n.frame {\n  width: 8px;\n  height: 8px;\n  background-image: url(../../outside.png);\n}\n",
+    );
+    let run = check_skin(&dir, Input::Chrome);
+    let _ = std::fs::remove_dir_all(&dir);
+    let got: Vec<String> = run
+        .errors
+        .iter()
+        .filter(|e| e.code == "E1-003")
+        .map(|e| format!("{} {}:{} {}", e.code, e.place.file, e.place.line, e.prop))
+        .collect();
+    assert_eq!(
+        got,
+        [
+            "E1-003 css/a.css:9 background-image",
+            "E1-003 css/a.css:14 background-image"
+        ],
+        "{:?}",
+        run.errors
+    );
+}
+
 /// The icons are mask sprites at scale 1 and 2 on A8 pages; no PNG, WebP or SVG file is inside.
 fn pictures_are_atlas_pages(pkg: &ui2_package::Package, bytes: &[u8]) {
     use ui2_package::PageFormat;
