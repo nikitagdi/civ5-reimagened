@@ -81,6 +81,7 @@ impl Runtime {
             style::select::set_state(&mut self.arena, i, StateBits::FOCUS_VISIBLE, keyboard);
             self.dispatch_here(i, Event::Focus);
         }
+        self.field_focus_changed(old, id);
     }
 
     /// The nodes Tab moves through, in document order: inside the top visible screen, or the whole document

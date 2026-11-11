@@ -54,6 +54,8 @@ pub(crate) struct PaintCtx<'a> {
     pub assets: Option<&'a AssetResolver>,
     /// Map anchors: the slots their chunks are placed with.
     pub anchors: &'a crate::anchor::Anchors,
+    /// Text fields: what they show and the focused one's selection and caret.
+    pub fields: &'a crate::input::text_edit::Fields,
 }
 
 impl<'a> PaintCtx<'a> {
@@ -1170,6 +1172,10 @@ impl<'a> Emitter<'a> {
         let Some(t) = instantiate::template_node(self.cx.pkg, n.tmpl()) else {
             return;
         };
+        if matches!(t.kind, NodeKind::Input { .. }) {
+            self.paint_field(id, &inner);
+            return;
+        }
         if let NodeKind::Image(src) = &t.kind {
             // A picture fills its own box: its overflow does not clip it, the clips above do.
             let src = src.clone();
@@ -1302,6 +1308,129 @@ impl<'a> Emitter<'a> {
             nine: None,
             external,
         }));
+    }
+
+    /// A solid rectangle of a text field (selection, composition underline, caret).
+    fn field_rect(&mut self, rect: Rect, color: Color, s: &Inherit, clip: Option<Clip>) {
+        if !rect.is_drawable() || color.is_transparent() {
+            return;
+        }
+        self.push(Item::Box(BoxItem {
+            rect,
+            fill: Fill::Solid(color),
+            border: Border::NONE,
+            radii: Radii::ZERO,
+            transform: Self::xf_of(s.xf),
+            clip,
+        }));
+    }
+
+    /// The content of a text field: its text on one line in the content box (centered vertically, scrolled
+    /// so that the caret is inside), the selection under it, the composition underlined, the caret.
+    fn paint_field(&mut self, id: NodeId, s: &Inherit) {
+        use crate::input::text_edit::{offset_x, scroll_for};
+        let fields = self.cx.fields;
+        let Some(view) = fields.view(id) else {
+            return;
+        };
+        let Some(r) = self.record(id) else {
+            return;
+        };
+        if r.visibility == Visibility::Hidden {
+            return;
+        }
+        let edit = fields.edit_of(id);
+        let k = self.k;
+        let content = self.content_box(id);
+        let pad = self.padding_box(id);
+        // The field's text never leaves its padding box.
+        let clip = self.clip_with(
+            id,
+            s,
+            &s.xf,
+            ClipRect {
+                rect: pad,
+                radius: 0.0,
+            },
+        );
+        let run = view.run.as_ref();
+        let text_run = if view.placeholder { None } else { run };
+        let (cw, ch) = (content.w / k, content.h / k);
+        let caret = edit.map_or(0, |e| e.sel.caret);
+        let caret_x = offset_x(text_run, caret);
+        let width = run.map_or(0.0, |r| r.width);
+        let scroll = if edit.is_some() {
+            scroll_for(caret_x, cw)
+        } else {
+            0.0
+        };
+        let free = (cw - width).max(0.0);
+        let align = match r.text_align {
+            ui2_package::style::TextAlign::Center => free / 2.0,
+            ui2_package::style::TextAlign::Right | ui2_package::style::TextAlign::End => free,
+            _ => 0.0,
+        };
+        let x0 = content.x + (align - scroll) * k;
+        let m = view.vm.metrics;
+        let base = content.y + ((ch - view.vm.line_height) / 2.0 + view.vm.above()) * k;
+        let (top, height) = (base - m.ascent * k, (m.ascent + m.descent) * k);
+        let color = self.color(r.color, s.alpha);
+        let x_of = |at: u32| x0 + offset_x(text_run, at) * k;
+        // The selection under the text.
+        if let Some(e) = edit
+            && !e.sel.is_empty()
+            && text_run.is_some()
+        {
+            let (a, b) = e.sel.range();
+            let sel = Color([color.0[0], color.0[1], color.0[2], color.0[3] / 3]);
+            let (xa, xb) = (x_of(a), x_of(b));
+            self.field_rect(Rect::new(xa, top, xb - xa, height), sel, s, clip);
+        }
+        if let Some(run) = run {
+            // The placeholder is drawn in the field's color at half opacity: `::placeholder` rules are not
+            // baked into the package.
+            let shown = if view.placeholder {
+                Color([color.0[0], color.0[1], color.0[2], color.0[3] / 2])
+            } else {
+                color
+            };
+            let glyphs: Vec<GlyphPos> = run
+                .glyphs
+                .iter()
+                .map(|g| GlyphPos {
+                    glyph: g.glyph_id,
+                    x: x0 + g.x * k,
+                    y: base + g.y * k,
+                })
+                .collect();
+            if !glyphs.is_empty() && !shown.is_transparent() {
+                let style = run.style;
+                self.push(Item::Glyphs(Glyphs {
+                    face: style.face,
+                    size_px: style.size * k,
+                    wght: style.wght,
+                    color: shown,
+                    glyphs,
+                    transform: Self::xf_of(s.xf),
+                    clip,
+                }));
+            }
+        }
+        let Some(e) = edit else {
+            return;
+        };
+        let line = k.floor().max(1.0);
+        // The text an input method composes is underlined.
+        if let Some((a, b)) = e.composing {
+            let (xa, xb) = (x_of(a), x_of(b));
+            let y = (base + m.descent.min(2.0) * k).round();
+            self.field_rect(Rect::new(xa, y, xb - xa, line), color, s, clip);
+        }
+        // The caret (`caret-color: auto`), while nothing is selected and the blink shows it.
+        if e.caret_on && e.sel.is_empty() {
+            let x = x_of(e.sel.caret).round();
+            self.field_rect(Rect::new(x, top, line, height), color, s, clip);
+        }
     }
 
     fn paint_text(&mut self, id: NodeId, s: &Inherit) {

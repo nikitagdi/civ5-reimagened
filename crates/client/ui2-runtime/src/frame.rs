@@ -54,6 +54,9 @@ impl UiOutput {
 pub struct FrameOutput {
     /// The pointer cursor the UI wants (`auto`: the world decides).
     pub cursor: Cursor,
+    /// What the host's text bridge must do (a text field took or lost the focus, or its text or caret was set
+    /// by the UI); see `Runtime::set_text_input`.
+    pub text_input: Option<platform::ui2::TextInputRequest>,
     /// Map anchors made, given another object, or removed (`Value::None`) during this frame and since the
     /// last one: the host projects the anchors it knows and calls
     /// [`Runtime::set_anchor_screen`](crate::Runtime::set_anchor_screen).
@@ -106,13 +109,18 @@ impl Runtime {
             fonts: &self.fonts,
             index: &self.style_index,
         };
+        let mut fields = Vec::new();
         let mut texts = text::pass(
             &ctx,
             &mut self.arena,
             text,
             &mut self.errors,
             &mut self.fit_roots,
+            &mut fields,
         );
+        let (shaped, visited) = self.field_pass(text, std::mem::take(&mut fields));
+        texts.shaped += shaped;
+        texts.visited += visited;
         let mut text_ms = watch.lap();
         let mut layout = layout::pass(
             &mut self.arena,
@@ -177,9 +185,13 @@ impl Runtime {
                 text,
                 &mut self.errors,
                 &mut self.fit_roots,
+                &mut fields,
             );
             texts.shaped += t.shaped;
             texts.visited += t.visited;
+            let (shaped, visited) = self.field_pass(text, std::mem::take(&mut fields));
+            texts.shaped += shaped;
+            texts.visited += visited;
             text_ms += watch.lap();
             let l = layout::pass(
                 &mut self.arena,
@@ -211,6 +223,8 @@ impl Runtime {
             self.anim.start(now_ms, &self.arena, &acx, restyled);
         }
         let animating = self.anim.tick(now_ms, &mut self.arena, &acx);
+        // The caret of the focused text field blinks on the frame clock (the frozen time of a frozen scene).
+        self.caret_tick(scene.frozen().unwrap_or(now_ms));
         if scene.scale() != self.style_env.scale.k {
             scene.set_scale(self.style_env.scale.k);
         }
@@ -228,6 +242,7 @@ impl Runtime {
                 srcs: self.binder.srcs(),
                 assets: self.assets.as_ref(),
                 anchors: &self.anchors,
+                fields: &self.input.fields,
             },
             scene,
             &mut self.errors,
@@ -237,6 +252,7 @@ impl Runtime {
         self.clock = clock;
         FrameOutput {
             cursor: self.cursor(),
+            text_input: self.input.fields.take_request(),
             anchor_changes: self.anchors.take_changes(),
             errors: self.errors.take(),
             animating,

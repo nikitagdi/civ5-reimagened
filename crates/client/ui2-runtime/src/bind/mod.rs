@@ -955,6 +955,13 @@ impl Binder {
             (RowKind::Model(_), Out::Values(v)) => {
                 let on = tmpl.is_some_and(|t| checked(pkg, t, v));
                 styles::select::set_state(arena, row.node, StateBits::CHECKED, on);
+                // A text field shows its value: its text is shaped again.
+                if tmpl
+                    .and_then(|t| instantiate::template_node(pkg, t))
+                    .is_some_and(|t| matches!(t.kind, ui2_package::NodeKind::Input { .. }))
+                {
+                    arena.mark(row.node, Dirty::TEXT);
+                }
             }
             _ => {}
         }
