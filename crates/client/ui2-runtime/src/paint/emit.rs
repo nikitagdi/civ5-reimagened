@@ -9,6 +9,9 @@
 //! (inside the `background-clip` box of the bottom layer), one box per `background-image` gradient layer
 //! (the bottom layer first), its inset shadows without blur (bands inside the padding box), its border, and
 //! its outline (a border-only box grown by the outline offset and width).
+//!
+//! Clips: the overflow clips above an item are intersected into one rectangle; a `clip-path` polygon cuts its
+//! node (box, shadows, outline) and the whole subtree, in the same clip as the rectangle.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -16,8 +19,8 @@ use std::sync::Arc;
 use glam::{Affine2, Vec2};
 use ui2_draw::{
     Border, BoxItem, ChunkBuilder, ChunkItems, Clip, Color, EllipticBox, ExtTexture, Fill,
-    GlyphPos, Glyphs, Gradient, GradientStop, ImageItem, ImageRef, Item, LayerId, MaskItem, Radii,
-    Rect, ShadowItem, css_corner_angle, css_linear_line,
+    GlyphPos, Glyphs, Gradient, GradientStop, ImageItem, ImageRef, Item, LayerId, MaskItem,
+    Polygon, Radii, Rect, ShadowItem, css_corner_angle, css_linear_line,
 };
 use ui2_package::style::{
     BgBox, BgImage, BgRepeat, BgSize, BorderStyle, ColorV, GradDir, Len, LenAuto, OutlineStyle,
@@ -28,6 +31,7 @@ use ui2_package::{ImageSrc, Layer, NodeKind, Package, PageFormat};
 use crate::arena::{Arena, NodeClass, NodeId};
 use crate::error::{ErrorCode, ErrorSink, UiError};
 use crate::instantiate;
+use crate::paint::clip_path::{self, ClipPath};
 use crate::paint::stacking;
 use crate::style::{StyleEnv, StyleIndex, node_record, tokens};
 use crate::{AssetResolver, ExtImage};
@@ -70,6 +74,8 @@ pub(crate) struct Inherit {
     xf: Affine2,
     /// The intersection of the overflow clips above.
     clip: Option<ClipRect>,
+    /// The `clip-path` polygon above, in chunk space.
+    poly: Option<Polygon>,
     /// The product of the opacities above.
     alpha: f32,
 }
@@ -78,6 +84,7 @@ impl Inherit {
     const ROOT: Inherit = Inherit {
         xf: Affine2::IDENTITY,
         clip: None,
+        poly: None,
         alpha: 1.0,
     };
 }
@@ -275,13 +282,47 @@ impl<'a> Emitter<'a> {
         m * Affine2::from_translation(-origin)
     }
 
-    /// The state a node passes to its children: its transform, its opacity and its overflow clip.
+    /// The `clip-path` of a node in chunk space, `xf` being the node's item space to chunk space.
+    fn clip_path(&mut self, id: NodeId, r: &StyleRecord, xf: &Affine2) -> ClipPath {
+        if r.clip_path.is_empty() {
+            return ClipPath::None;
+        }
+        let b = self.border_box(id);
+        let k = self.k;
+        let map = |p: [f32; 2]| xf.transform_point2(Vec2::new(b.x + p[0] * k, b.y + p[1] * k));
+        match clip_path::resolve(&r.clip_path, [b.w / k, b.h / k], map) {
+            Ok(c) => c,
+            Err(what) => {
+                self.unsupported(id, what);
+                ClipPath::None
+            }
+        }
+    }
+
+    /// The polygon that cuts a node: the one above it, else its own.
+    fn merge_poly(&mut self, id: NodeId, above: Option<Polygon>, own: ClipPath) -> Option<Polygon> {
+        match (above, own) {
+            (Some(a), ClipPath::Poly(_)) => {
+                // SIMPLIFIED(SIMP-227): one polygon clip per item: under a clip-path a nested clip-path does not cut (the outer polygon does)
+                self.unsupported(id, "a clip-path inside another clip-path");
+                Some(a)
+            }
+            (Some(a), _) => Some(a),
+            (None, ClipPath::Poly(p)) => Some(p),
+            (None, _) => None,
+        }
+    }
+
+    /// The state a node passes to its children: its transform, its opacity, its overflow clip and its
+    /// `clip-path`.
     fn child_state(&mut self, id: NodeId, s: &Inherit) -> Inherit {
         let Some(r) = self.record(id) else {
             return *s;
         };
         let xf = s.xf * self.own_transform(id, r);
         let alpha = s.alpha * r.opacity;
+        let own = self.clip_path(id, r, &xf);
+        let poly = self.merge_poly(id, s.poly, own);
         let mut clip = s.clip;
         if r.overflow_x != Overflow::Visible || r.overflow_y != Overflow::Visible {
             let pad = self.padding_box(id);
@@ -303,7 +344,12 @@ impl<'a> Emitter<'a> {
                 None => self.unsupported(id, "an overflow clip under a rotation"),
             }
         }
-        Inherit { xf, clip, alpha }
+        Inherit {
+            xf,
+            clip,
+            poly,
+            alpha,
+        }
     }
 
     fn padding_box(&mut self, id: NodeId) -> Rect {
@@ -398,13 +444,15 @@ impl<'a> Emitter<'a> {
         self.out.push(item);
     }
 
+    /// The clip of an item: the overflow rectangle above and the `clip-path` polygon above, in one clip.
     fn clip_of(s: &Inherit) -> Option<Clip> {
-        s.clip.map(|c| {
-            if c.radius > 0.0 {
-                Clip::rounded(c.rect, c.radius)
-            } else {
-                Clip::rect(c.rect)
-            }
+        if s.clip.is_none() && s.poly.is_none() {
+            return None;
+        }
+        Some(Clip {
+            rect: s.clip.map(|c| c.rect),
+            radius: s.clip.map_or(0.0, |c| c.radius.max(0.0)),
+            polygon: s.poly,
         })
     }
 
@@ -659,6 +707,13 @@ impl<'a> Emitter<'a> {
         }
         let xf = s.xf * self.own_transform(id, r);
         let alpha = s.alpha * r.opacity;
+        // The node's own clip-path cuts its box too.
+        let own = self.clip_path(id, r, &xf);
+        if own == ClipPath::Empty {
+            return;
+        }
+        let poly = self.merge_poly(id, s.poly, own);
+        let s = &Inherit { poly, ..*s };
         let rect = Self::snap(self.border_box(id), &xf);
         if !rect.is_drawable() {
             return;
@@ -1101,6 +1156,15 @@ impl<'a> Emitter<'a> {
                 .is_none_or(|r| r.display == ui2_package::style::Display::None);
         if hidden {
             return;
+        }
+        // A clip-path that encloses nothing hides the node and its subtree.
+        if let Some(r) = self.record(id)
+            && !r.clip_path.is_empty()
+        {
+            let xf = s.xf * self.own_transform(id, r);
+            if self.clip_path(id, r, &xf) == ClipPath::Empty {
+                return;
+            }
         }
         self.paint_box(id, s);
         let inner = self.child_state(id, s);

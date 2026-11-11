@@ -4,7 +4,8 @@
 //! layer the chunks (children of the layer root, in document order) are tested last first, and inside a chunk
 //! the boxes in reverse painting order: the same stacking walk the paint pass uses, so the box drawn on top is
 //! the one hit. A box is hit when the point lies in its border box after its transforms and the scroll offsets
-//! above it, and inside every overflow clip above it. `pointer-events: none` and `visibility: hidden` skip the
+//! above it, inside every overflow clip above it and inside the `clip-path` polygon at or above it (one: the
+//! outermost, as painting draws it). `pointer-events: none` and `visibility: hidden` skip the
 //! box but not its children; layer roots are never targets (a click on an empty part of a layer reaches the
 //! world). A map anchor's chunk is tested where the host placed it ([`crate::Runtime::set_anchor_screen`]),
 //! and skipped while it is not placed or not visible.
@@ -23,8 +24,10 @@ use ui2_package::{Layer, NodeKind, NodeRef, Package, node_flags};
 use crate::anchor::Anchors;
 use crate::arena::{Arena, NodeClass, NodeId};
 use crate::instantiate;
+use crate::paint::clip_path::{self, ClipPath};
 use crate::paint::stacking;
 use crate::style::{StyleIndex, node_record};
+use ui2_draw::Polygon;
 
 /// An axis-aligned rectangle in page space, by its edges.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -50,18 +53,20 @@ impl Edges {
     }
 }
 
-/// What a node passes down to its children: the transform from layout space to page space and the
-/// intersection of the overflow clips above.
+/// What a node passes down to its children: the transform from layout space to page space, the
+/// intersection of the overflow clips above and the `clip-path` polygon above (page space).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct HitState {
     xf: Affine2,
     clip: Option<Edges>,
+    poly: Option<Polygon>,
 }
 
 impl HitState {
     const ROOT: HitState = HitState {
         xf: Affine2::IDENTITY,
         clip: None,
+        poly: None,
     };
 }
 
@@ -263,12 +268,29 @@ impl<'a> Geo<'a> {
         }
     }
 
-    /// The state a node passes to its children: its transform and its overflow clip.
+    /// The `clip-path` of a node in page space (`xf`: the node's layout space to page space). A polygon the
+    /// paint pass cannot draw does not cut hits either.
+    fn clip_path(&mut self, id: NodeId, r: &StyleRecord, xf: &Affine2) -> ClipPath {
+        if r.clip_path.is_empty() {
+            return ClipPath::None;
+        }
+        let pos = self.abs(id);
+        let size = self.size(id);
+        let map = |p: [f32; 2]| xf.transform_point2(pos + Vec2::from(p));
+        clip_path::resolve(&r.clip_path, size.into(), map).unwrap_or(ClipPath::None)
+    }
+
+    /// The state a node passes to its children: its transform, its overflow clip and its clip-path.
     fn child_state(&mut self, id: NodeId, s: &HitState) -> HitState {
         let Some(r) = self.record(id) else {
             return *s;
         };
         let xf = s.xf * self.own_transform(id, r);
+        // The outer polygon wins, as in painting.
+        let poly = s.poly.or(match self.clip_path(id, r, &xf) {
+            ClipPath::Poly(p) => Some(p),
+            _ => None,
+        });
         let mut clip = s.clip;
         if r.overflow_x != Overflow::Visible || r.overflow_y != Overflow::Visible {
             let pad = self.padding_box(id);
@@ -298,7 +320,7 @@ impl<'a> Geo<'a> {
                 None => own,
             });
         }
-        HitState { xf, clip }
+        HitState { xf, clip, poly }
     }
 
     /// The boxes of a stacking context in painting order (what is painted last is last), with the state their
@@ -311,6 +333,15 @@ impl<'a> Geo<'a> {
             || self.record(id).is_none_or(|r| r.display == Display::None);
         if hidden {
             return;
+        }
+        // A clip-path that encloses nothing hides the node and its subtree.
+        if let Some(r) = self.record(id)
+            && !r.clip_path.is_empty()
+        {
+            let xf = s.xf * self.own_transform(id, r);
+            if self.clip_path(id, r, &xf) == ClipPath::Empty {
+                return;
+            }
         }
         out.push((id, s));
         let inner = self.child_state(id, &s);
@@ -375,8 +406,17 @@ impl<'a> Geo<'a> {
         if s.clip.is_some_and(|c| !c.contains(p)) {
             return None;
         }
+        if s.poly.is_some_and(|q| !clip_path::contains(&q, p)) {
+            return None;
+        }
         let r = self.record(id)?;
         let m = s.xf * self.own_transform(id, r);
+        if s.poly.is_none()
+            && let ClipPath::Poly(q) = self.clip_path(id, r, &m)
+            && !clip_path::contains(&q, p)
+        {
+            return None;
+        }
         if m.matrix2.determinant() == 0.0 {
             return None;
         }
@@ -391,7 +431,11 @@ impl<'a> Geo<'a> {
     fn hit_chunk(&mut self, root: NodeId, p: Vec2) -> Option<(NodeId, Vec2)> {
         // A placed anchor's chunk is where the host put it; an anchor deeper in a chunk is never placed.
         let start = match self.anchor_placement(root) {
-            Some(Some(xf)) => HitState { xf, clip: None },
+            Some(Some(xf)) => HitState {
+                xf,
+                clip: None,
+                poly: None,
+            },
             Some(None) => return None,
             None if self.under_anchor(root) => return None,
             None => HitState::ROOT,
