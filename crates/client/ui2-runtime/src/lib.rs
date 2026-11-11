@@ -6,8 +6,9 @@
 //! draw lists to the render side.
 //!
 //! Present state: the node arena ([`arena`]), instantiation from templates with node paths
-//! ([`instantiate`]), error reporting ([`error`]), style selection ([`style`]) and taffy's tree traits over the
-//! arena ([`layout`]). Text leaves, bindings, input and painting build on these.
+//! ([`instantiate`]), error reporting ([`error`]), style selection ([`style`]), text leaves and inline layout on
+//! `ui2-text` ([`text`]), box layout with taffy over the arena ([`layout`]) and rectangle dumps ([`debug`]).
+//! Bindings, input and painting build on these.
 //!
 //! Zero-work rule: every pass is driven by the arena's dirty queues; a frame without changes checks a few
 //! counters and touches no node.
@@ -15,12 +16,14 @@
 #![forbid(unsafe_code)]
 
 pub mod arena;
+pub mod debug;
 pub mod error;
 pub mod instantiate;
 pub mod layout;
 pub mod style;
 #[cfg(feature = "testkit")]
 pub mod testkit;
+pub mod text;
 
 use std::rc::Rc;
 use std::sync::Arc;
@@ -33,11 +36,15 @@ pub use arena::{
     Arena, Dirty, HIDDEN_STYLE, Instance, LayoutSlot, Node, NodeClass, NodeId, PLACEHOLDER_STYLE,
     StateBits,
 };
+pub use debug::ElementRect;
 pub use error::{ErrorCode, ErrorSink, NodePath, UiError};
 use instantiate::Spawn;
 pub use instantiate::{MAX_INSTANCE_NODES, Source};
+pub use layout::LayoutStyles;
 use style::select::EnvChange;
 pub use style::{Scale, StyleEnv, StyleIndex};
+pub use text::{FontBook, load_faces};
+pub use ui2_text::TextMeasure;
 
 /// The environment of the UI: window size, pixel density, UI scale and theme.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -110,6 +117,8 @@ pub struct Runtime {
     svc: Services,
     arena: Arena,
     errors: ErrorSink,
+    layout_styles: LayoutStyles,
+    fonts: FontBook,
 }
 
 impl Runtime {
@@ -123,6 +132,8 @@ impl Runtime {
         let (style_env, env_ok) = StyleEnv::of(pkg.styles(), &env);
         let mut rt = Runtime {
             style_index: StyleIndex::new(pkg.styles()),
+            layout_styles: LayoutStyles::from_styles(pkg.styles()),
+            fonts: FontBook::new(&pkg),
             pkg,
             env,
             style_env,
@@ -306,9 +317,9 @@ impl Runtime {
         self.errors.take()
     }
 
-    /// Runs the passes that exist so far and returns the frame's counters. A frame without changes only checks
-    /// the queues.
-    pub fn update(&mut self) -> FrameStats {
+    /// Runs the passes that exist so far (styles, text, layout) and returns the frame's counters. A frame
+    /// without changes only checks the queues.
+    pub fn update(&mut self, text: &mut dyn TextMeasure) -> FrameStats {
         let change = std::mem::take(&mut self.env_change);
         let styles = style::select::pass(
             &mut self.arena,
@@ -317,11 +328,38 @@ impl Runtime {
             &self.style_env,
             change,
         );
+        let ctx = text::TextCtx {
+            pkg: &self.pkg,
+            fonts: &self.fonts,
+            index: &self.style_index,
+        };
+        let texts = text::pass(&ctx, &mut self.arena, text, &mut self.errors);
+        let layout = layout::pass(
+            &mut self.arena,
+            &self.layout_styles,
+            text,
+            self.style_env.scale.viewport_css,
+        );
         FrameStats {
             restyled: styles.restyled,
-            visited: styles.visited,
+            shaped_runs: texts.shaped,
+            layout_runs: layout.runs,
+            visited: styles.visited + texts.visited + layout.visited,
             nodes: self.arena.len() as u32,
             ..FrameStats::default()
         }
+    }
+
+    /// The rectangles of the laid-out boxes and text leaves, in the converter's rectangle dump format: the
+    /// whole document, or the subtree of the first node with a `data-part` name (empty when there is none).
+    pub fn dump_rects(&self, part: Option<&str>) -> Vec<ElementRect> {
+        let under = match part {
+            Some(name) => match self.find_part(name) {
+                Some(id) => Some(id),
+                None => return Vec::new(),
+            },
+            None => None,
+        };
+        debug::dump(&self.arena, &*self.pkg, &self.style_index, under)
     }
 }

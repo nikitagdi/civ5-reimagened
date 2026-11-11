@@ -3936,9 +3936,11 @@ dependencies = [
 name = "ui2-runtime"
 version = "0.1.0"
 dependencies = [
+ "blake3",
  "glam",
  "loc",
  "platform",
+ "serde_json",
  "taffy",
  "thiserror 2.0.21",
  "tracing",

@@ -12,6 +12,9 @@
 //! what CSS conditions on ancestors (`up = k`) and layout expect.
 
 use std::ops::{BitAnd, BitOr, BitOrAssign, Not};
+use std::sync::Arc;
+
+use crate::text::Ifc;
 
 use ui2_draw::ChunkId;
 use ui2_model::Key;
@@ -240,6 +243,10 @@ pub struct Node {
     /// Service nodes: the instances of the body.
     pub(crate) instances: Vec<Instance>,
     pub(crate) layout: LayoutSlot,
+    /// Text leaves: the current string.
+    pub(crate) text: Option<Arc<str>>,
+    /// Inline formatting roots: shaped runs and lines (see [`crate::text`]).
+    pub(crate) ifc: Option<Box<Ifc>>,
     // Extension point (bindings): the range of this instance's rows in the binding table.
 }
 
@@ -263,7 +270,19 @@ impl Node {
             dirty: Dirty::NONE,
             instances: Vec::new(),
             layout: LayoutSlot::default(),
+            text: None,
+            ifc: None,
         }
+    }
+
+    /// The string of a text leaf.
+    pub fn text(&self) -> Option<&str> {
+        self.text.as_deref()
+    }
+
+    /// The inline layout of an inline formatting root.
+    pub fn ifc(&self) -> Option<&Ifc> {
+        self.ifc.as_deref()
     }
 
     /// The template node it was made from.

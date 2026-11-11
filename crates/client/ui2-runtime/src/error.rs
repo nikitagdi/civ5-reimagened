@@ -20,6 +20,8 @@ pub enum ErrorCode {
     BadNode,
     /// The environment had a value outside its range (replaced by a sane one).
     BadEnv,
+    /// No font face of the package matches a text's style, or the text cannot be shaped.
+    Font,
 }
 
 impl ErrorCode {
@@ -31,6 +33,7 @@ impl ErrorCode {
             ErrorCode::NodeLimit => "node-limit",
             ErrorCode::BadNode => "bad-node",
             ErrorCode::BadEnv => "bad-env",
+            ErrorCode::Font => "font",
         }
     }
 }

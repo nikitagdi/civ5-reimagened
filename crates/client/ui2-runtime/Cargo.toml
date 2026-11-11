@@ -14,7 +14,7 @@ layer = "client"
 [features]
 default = []
 # In-memory skin packages for tests (this crate's, and the converter's and host's).
-testkit = ["ui2-package/write"]
+testkit = ["ui2-package/write", "dep:blake3"]
 
 [dependencies]
 ui2-package.workspace = true
@@ -28,8 +28,11 @@ taffy.workspace = true
 glam.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+# Test kit only: the hash a package keeps for each font.
+blake3 = { workspace = true, optional = true }
 
 [dev-dependencies]
+serde_json.workspace = true
 # Tests run with the test kit, also under a plain `cargo test` and `cargo xtask test`.
 ui2-runtime = { workspace = true, features = ["testkit"] }
 ui2-package = { workspace = true, features = ["write"] }
