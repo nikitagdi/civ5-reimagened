@@ -10,18 +10,22 @@
 
 #![forbid(unsafe_code)]
 
+pub mod atlas;
 pub mod breaker;
 mod face;
 pub mod metrics;
+pub mod raster;
 pub mod shape;
 
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
+pub use atlas::{AtlasConfig, AtlasError, AtlasSlot, AtlasStats, DirtyRect, GlyphAtlas};
 pub use breaker::{BreakOptions, Ellipsized, Line, LineHeight, LineSegment, Lines, TextMeasure};
 use face::Face;
 pub use metrics::LineMetrics;
+pub use raster::{GAMMA, GlyphBitmap, GlyphKey, SUBPIXEL_STEPS, quantize_x};
 use shape::ShapeCache;
 pub use shape::{
     NumericFigure, NumericSpacing, NumericVariant, RunStyle, SHAPE_CACHE_CAPACITY, ShapeCacheStats,
@@ -53,6 +57,7 @@ pub enum TextError {
 pub struct TextEngine {
     faces: HashMap<FaceId, Face>,
     cache: ShapeCache,
+    gamma: [u8; 256],
 }
 
 impl Default for TextEngine {
@@ -67,6 +72,7 @@ impl TextEngine {
         Self {
             faces: HashMap::new(),
             cache: ShapeCache::new(SHAPE_CACHE_CAPACITY),
+            gamma: raster::gamma_lut(),
         }
     }
 
