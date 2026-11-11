@@ -49,8 +49,8 @@ impl Schema {
 
 impl SchemaView for Schema {
     fn root(&self, name: &str) -> Option<TypeSig> {
-        let root = self.root(self.root_by_name(name)?);
-        Some(TypeSig::Struct(self.type_def(root.ty).name.clone()))
+        // The whole root: its record, an optional record or a list.
+        Some(self.type_sig(&self.root_type(self.root_by_name(name)?)))
     }
 
     fn field(&self, of: &TypeSig, name: &str) -> Option<TypeSig> {

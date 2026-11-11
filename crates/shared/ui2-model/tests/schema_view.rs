@@ -239,12 +239,84 @@ fn every_path_of_the_generated_schema_has_the_type_the_json_gives_it() {
     );
     for root in json["roots"].as_array().expect("roots") {
         let name = root["name"].as_str().expect("name");
-        assert_eq!(
-            view.root(name),
-            Some(st(root["type"].as_str().expect("type"))),
-            "{name}"
-        );
+        let want = from_source(root["type"].as_str().expect("type"), &enums);
+        assert_eq!(view.root(name), Some(want), "{name}");
     }
+    let intents = json["intents"].as_array().expect("intents");
+    assert_eq!(intents.len(), 27);
+    for intent in intents {
+        let name = intent["name"].as_str().expect("name");
+        let want: Vec<(String, TypeSig)> = intent["args"]
+            .as_array()
+            .expect("args")
+            .iter()
+            .map(|a| {
+                (
+                    a["name"].as_str().expect("arg").to_string(),
+                    from_source(a["type"].as_str().expect("type"), &enums),
+                )
+            })
+            .collect();
+        assert_eq!(view.intent(name), Some(want), "{name}");
+    }
+}
+
+#[test]
+fn every_root_shape_types_an_expression() {
+    use ui2_package::profile::Tag;
+    use ui2_package::profile::attrs::{AttrCtx, RawAttrs, check, parse};
+    use ui2_package::profile::expr::{self, Scope};
+
+    let view: &dyn SchemaView = Schema::v1();
+    let ty = |src: &str| {
+        let e = expr::parse(src).expect("parse");
+        expr::typecheck(&e, &Scope::new(), view).map(|t| t.to_string())
+    };
+    // An optional root: reading through it is nullable.
+    assert_eq!(ty("unit.level").as_deref(), Ok("int?"));
+    assert_eq!(ty("unit == null").as_deref(), Ok("bool"));
+    // A list root.
+    assert_eq!(ty("len(players)").as_deref(), Ok("int"));
+    assert_eq!(ty("len(notes) > 0").as_deref(), Ok("bool"));
+    assert_eq!(ty("players").as_deref(), Ok("list<struct PlayerRow>"));
+    assert!(ty("players.id").is_err());
+    // A plain root.
+    assert_eq!(ty("top.gold + 1").as_deref(), Ok("int"));
+
+    let ctx = AttrCtx::default();
+    let scope = Scope::new().with_state("target", st("Plot"));
+    let run = |tag, attrs: &[(&str, &str)]| {
+        let mut a = parse(&RawAttrs::new(tag, attrs), &ctx).expect("parse");
+        check(&mut a, &scope, view, &ctx).map(|c| (a, c))
+    };
+    // A loop over a list root takes the key from the schema, and reads its element paths.
+    let (a, c) = run(
+        Tag::Li,
+        &[
+            ("data-bind-for", "p:{{ players }}"),
+            ("data-bind-value", "{{ p.leader }}"),
+        ],
+    )
+    .expect("for over a list root");
+    assert!(a.for_.expect("for").key.is_some());
+    let paths: Vec<_> = c.paths.iter().map(|(p, _)| p.as_str()).collect();
+    assert_eq!(paths, ["players", "players[].leader"]);
+    // Intents with a record argument and with an optional key.
+    run(
+        Tag::Button,
+        &[("data-on-click", "intent camera.to_plot(plot: state.target)")],
+    )
+    .map(|_| ())
+    .unwrap_or_else(|e| panic!("{e:?}"));
+    run(
+        Tag::Button,
+        &[(
+            "data-on-click",
+            "intent window.open(window: 'production', city: null)",
+        )],
+    )
+    .map(|_| ())
+    .unwrap_or_else(|e| panic!("{e:?}"));
 }
 
 fn manifest() -> Manifest {

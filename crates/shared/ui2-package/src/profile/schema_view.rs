@@ -102,7 +102,18 @@ pub trait SchemaView {
 pub fn resolve_path(view: &dyn SchemaView, path: &str) -> Option<TypeSig> {
     let mut segs = path.split('.');
     let root = segs.next()?;
+    let (root, root_elements) = match root.strip_suffix("[]") {
+        Some(name) => (name, true),
+        None => (root, false),
+    };
     let mut cur = view.root(root)?;
+    if root_elements {
+        // A list root: `players[].id` steps into its elements.
+        cur = match cur {
+            TypeSig::List(elem) => *elem,
+            _ => return None,
+        };
+    }
     for seg in segs {
         let (name, element) = match seg.strip_suffix("[]") {
             Some(name) => (name, true),
