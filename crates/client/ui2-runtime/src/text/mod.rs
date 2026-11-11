@@ -126,7 +126,7 @@ pub fn load_faces(pkg: &Package, engine: &mut TextEngine) -> Result<(), LoadErro
 
 /// What the text pass reads.
 pub(crate) struct TextCtx<'a> {
-    pub pkg: &'a Package,
+    pub pkg: &'a crate::Pkg,
     pub fonts: &'a FontBook,
     pub index: &'a StyleIndex,
 }

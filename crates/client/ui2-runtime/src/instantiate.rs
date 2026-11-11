@@ -84,7 +84,7 @@ pub(crate) fn template_node<S: Source + ?Sized>(src: &S, r: NodeRef) -> Option<&
 
 /// The chunk of a new node: a top-level node or a child of a layer root starts a chunk, others paint into
 /// their parent's.
-fn chunk_of(arena: &Arena, id: NodeId, parent: Option<NodeId>) -> u32 {
+pub(crate) fn chunk_of(arena: &Arena, id: NodeId, parent: Option<NodeId>) -> u32 {
     match parent.and_then(|p| arena.get(p)) {
         Some(p) if p.class != NodeClass::Layer => p.chunk,
         _ => id.index(),

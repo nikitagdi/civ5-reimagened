@@ -30,7 +30,7 @@ use std::collections::{HashMap, HashSet};
 use ui2_model::Key;
 use ui2_package::profile::expr::{Expr, Value, truthy};
 use ui2_package::style::{Display, Len, LenAuto, StyleRecord};
-use ui2_package::{ExprId, NodeKind, Package, TemplateId};
+use ui2_package::{ExprId, NodeKind, TemplateId};
 
 use super::deps::Slot;
 use super::eval::{Host, Resolved, Var, VarVal, resolve_path};
@@ -135,7 +135,7 @@ impl ForState {
     }
 
     /// The list row's reads: the list (with its keys) and the direction of the sort.
-    pub fn list_reads(&self, pkg: &Package, reads: &mut Reads<'_>) {
+    pub fn list_reads(&self, pkg: &crate::Pkg, reads: &mut Reads<'_>) {
         if self.list != Slot::Missing && !reads.out.iter().any(|(s, _)| *s == self.list) {
             reads.out.push((self.list, self.base_keys.clone()));
         }
@@ -268,7 +268,7 @@ fn subtree(arena: &Arena, roots: &[NodeId]) -> Vec<NodeId> {
 }
 
 /// The height a row of a virtual list takes: its record's fixed height and vertical margins, in px.
-fn row_height(pkg: &Package, cx: &Ctx<'_>, body: TemplateId) -> Option<f32> {
+fn row_height(pkg: &crate::Pkg, cx: &Ctx<'_>, body: TemplateId) -> Option<f32> {
     let template = pkg.templates().get(body.index())?;
     let root = template
         .nodes

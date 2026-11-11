@@ -19,7 +19,7 @@ use glam::{Affine2, Vec2};
 use ui2_package::style::{
     Display, Len, Overflow, PointerEvents, Position, StyleRecord, TFn, Visibility,
 };
-use ui2_package::{Layer, NodeKind, NodeRef, Package, node_flags};
+use ui2_package::{Layer, NodeKind, NodeRef, node_flags};
 
 use crate::anchor::Anchors;
 use crate::arena::{Arena, NodeClass, NodeId};
@@ -84,7 +84,7 @@ pub(crate) struct Hit {
 }
 
 /// The layer of a template node kind, when it is a layer root.
-pub(crate) fn layer_kind(pkg: &Package, arena: &Arena, id: NodeId) -> Option<Layer> {
+pub(crate) fn layer_kind(pkg: &crate::Pkg, arena: &Arena, id: NodeId) -> Option<Layer> {
     let n = arena.get(id)?;
     match instantiate::template_node(pkg, n.tmpl())?.kind {
         NodeKind::Layer(l) => Some(l),
@@ -95,7 +95,7 @@ pub(crate) fn layer_kind(pkg: &Package, arena: &Arena, id: NodeId) -> Option<Lay
 /// The layer roots of the document, in document order: top-level layer roots and layer roots that are
 /// children of a top-level node. A top-level node that is no layer and has no layer child paints into the HUD
 /// and is listed as a HUD root of itself (`(Hud, id, false)`); real layer roots are `(layer, id, true)`.
-pub(crate) fn layer_roots(pkg: &Package, arena: &Arena) -> Vec<(Layer, NodeId, bool)> {
+pub(crate) fn layer_roots(pkg: &crate::Pkg, arena: &Arena) -> Vec<(Layer, NodeId, bool)> {
     let mut out = Vec::new();
     for &r in arena.roots() {
         if let Some(l) = layer_kind(pkg, arena, r) {
@@ -134,7 +134,7 @@ fn resolve(l: Len, reference: f32) -> f32 {
 /// Page geometry of the nodes, computed on demand and cached for one query.
 pub(crate) struct Geo<'a> {
     pub arena: &'a Arena,
-    pub pkg: &'a Package,
+    pub pkg: &'a crate::Pkg,
     pub index: &'a StyleIndex,
     abs: HashMap<u32, Vec2>,
     /// Map anchors and the device scale, to place anchor chunks on the screen.
@@ -142,7 +142,7 @@ pub(crate) struct Geo<'a> {
 }
 
 impl<'a> Geo<'a> {
-    pub fn new(arena: &'a Arena, pkg: &'a Package, index: &'a StyleIndex) -> Self {
+    pub fn new(arena: &'a Arena, pkg: &'a crate::Pkg, index: &'a StyleIndex) -> Self {
         Self {
             arena,
             pkg,

@@ -29,6 +29,13 @@ pub enum ErrorCode {
     L10n,
     /// A paint property the runtime or the scene cannot draw yet (drawn without it).
     Paint,
+    /// A script command to an island that names no island or keyed node, addresses a bound node, or carries a
+    /// value the command cannot use (the command is ignored).
+    Island,
+    /// A panel was switched off (its script context failed, or the host stubbed it): it shows a placeholder.
+    PanelFailed,
+    /// A mod fragment cannot be mounted as asked, or part of it cannot be used with this skin.
+    Mount,
 }
 
 impl ErrorCode {
@@ -44,6 +51,9 @@ impl ErrorCode {
             ErrorCode::Bind => "bind",
             ErrorCode::L10n => "l10n",
             ErrorCode::Paint => "paint",
+            ErrorCode::Island => "island",
+            ErrorCode::PanelFailed => "panel-failed",
+            ErrorCode::Mount => "mount",
         }
     }
 }
@@ -146,6 +156,17 @@ impl ErrorSink {
         }
         tracing::warn!(target: "ui2", "{e}");
         self.fresh.push(e);
+        true
+    }
+
+    /// Like [`report`](Self::report), for an error the caller hands over itself (the return value of a call):
+    /// the first report of a `(path, code)` is logged and the call returns true; it is not queued for
+    /// [`take`](Self::take), so the host does not see it twice.
+    pub fn note(&mut self, e: &UiError) -> bool {
+        if !self.seen.insert((e.path.clone(), e.code)) {
+            return false;
+        }
+        tracing::warn!(target: "ui2", "{e}");
         true
     }
 

@@ -4,7 +4,7 @@
 //! (`translate`, `translateX`, `translateY`, `rotate`, `scale`, `scaleX`, `scaleY`) and background sizes.
 
 use ui2_package::style::{BgSize, ColorV, Len, LenAuto, TFn};
-use ui2_package::{Package, PropId, TokenId};
+use ui2_package::{PropId, TokenId};
 
 use crate::style::OverValue;
 
@@ -54,7 +54,7 @@ fn channel(s: &str) -> Option<u8> {
     Some(v.round().clamp(0.0, 255.0) as u8)
 }
 
-fn color(pkg: &Package, s: &str) -> Option<ColorV> {
+fn color(pkg: &crate::Pkg, s: &str) -> Option<ColorV> {
     let s = s.trim();
     if s == "transparent" {
         return Some(ColorV::Lit([0, 0, 0, 0]));
@@ -178,7 +178,7 @@ fn bg_size(s: &str) -> Option<Vec<BgSize>> {
 
 /// The value of a bindable property from the text a binding rendered; `None` when it does not parse (the
 /// property keeps its previous value).
-pub(crate) fn parse(pkg: &Package, prop: PropId, text: &str) -> Option<OverValue> {
+pub(crate) fn parse(pkg: &crate::Pkg, prop: PropId, text: &str) -> Option<OverValue> {
     let t = text.trim();
     match prop {
         PropId::Top
