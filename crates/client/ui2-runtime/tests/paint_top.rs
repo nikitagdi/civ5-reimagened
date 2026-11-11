@@ -53,8 +53,9 @@ fn strip(vp: [u32; 2], ui_scale: f32) -> (Strip, ui2_runtime::FrameStats) {
     };
     let d = frame_of(&mut s.store, &s.sample);
     s.rt.apply_delta(&d, &s.store);
-    let stats = s.rt.update(&s.store, &mut s.engine, &mut s.scene);
-    (s, stats)
+    let out = s.rt.frame(0.0, &s.store, &mut s.engine, &mut s.scene);
+    assert!(out.errors.is_empty(), "{:?}", out.errors);
+    (s, out.stats)
 }
 
 fn hex(c: ui2_draw::Color) -> String {
@@ -324,7 +325,7 @@ fn paint_stacking_clips_opacity_and_transforms() {
     let mut sample = support::sample_json();
     let d = frame_of(&mut store, &sample);
     rt.apply_delta(&d, &store);
-    rt.update(&store, &mut engine, &mut scene);
+    let errors = rt.frame(0.0, &store, &mut engine, &mut scene).errors;
     let panel = rt.find_part("panel").expect("panel");
     let chunk = rt.node(panel).expect("panel").chunk();
     let (_, items) = rt.chunk_items(chunk).expect("chunk");
@@ -370,17 +371,78 @@ fn paint_stacking_clips_opacity_and_transforms() {
     // The bound width (7 px from the sample) went through layout into the item.
     assert_eq!(boxes[3].rect.w, 14.0);
     // The blurred shadow is reported once, also after the chunk is built again.
-    let errors = rt.take_errors();
     assert_eq!(errors.len(), 1, "{errors:?}");
+    assert_eq!(errors[0].code, ui2_runtime::ErrorCode::Paint);
     sample["model"]["top"]["happiness"] = json!(9);
     let d = frame_of(&mut store, &sample);
     rt.apply_delta(&d, &store);
-    let st = rt.update(&store, &mut engine, &mut scene);
+    let out = rt.frame(0.0, &store, &mut engine, &mut scene);
+    let st = out.stats;
     assert_eq!(
         (st.binds_evaluated, st.layout_runs, st.chunks_rebuilt),
         (1, 1, 1)
     );
-    assert!(rt.take_errors().is_empty());
+    assert!(out.errors.is_empty());
+}
+
+/// A text leaf next to a block is its own inline root and is painted; a hidden chunk root paints nothing.
+#[test]
+fn paint_anonymous_text_and_hidden_roots() {
+    use ui2_package::Layer;
+    use ui2_package::style::{Display, Len, StyleRecord};
+    use ui2_runtime::testkit::{Kit, TNode};
+
+    let fira = std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../third_party/fonts/fira-sans/FiraSans-Regular.ttf"),
+    )
+    .expect("font");
+    let mut kit = Kit::new();
+    kit.font("Fira Sans", 400, false, &fira);
+    let mut rec = StyleRecord::initial();
+    rec.display = Display::Block;
+    rec.font_family = vec![kit.str("Fira Sans")];
+    rec.font_size = Len::px(14.0);
+    let mut hidden = rec.clone();
+    hidden.display = Display::None;
+    hidden.background_color = ui2_package::style::ColorV::Lit([255, 0, 0, 255]);
+    let (rec, hidden) = (kit.record(rec), kit.record(hidden));
+    let (set, hidden) = (kit.plain(rec), kit.plain(hidden));
+    let (a, b) = (kit.str("inner"), kit.str("outer"));
+    let (p, q) = (kit.str("panel"), kit.str("gone"));
+    kit.template(
+        "doc",
+        vec![TNode::layer(Layer::Hud, set).children([
+            TNode::el(set).part(p).children([
+                TNode::el(set).child(TNode::text(a, set)),
+                TNode::text(b, set),
+            ]),
+            TNode::el(hidden).part(q),
+        ])],
+    );
+    let pkg = kit.finish().expect("package");
+    let mut engine = TextEngine::new();
+    load_faces(&pkg, &mut engine).expect("fonts");
+    let mut rt = Runtime::new(pkg, env([800, 600], 1.0), Services::default()).expect("runtime");
+    let store = ModelStore::new(Schema::v1());
+    let mut scene = Scene::new(1.0);
+    rt.frame(0.0, &store, &mut engine, &mut scene);
+    let chunk_of = |rt: &Runtime, part: &str| {
+        let id = rt.find_part(part).expect("part");
+        rt.node(id).expect("node").chunk()
+    };
+    let panel = chunk_of(&rt, "panel");
+    let runs = rt
+        .chunk_items(panel)
+        .expect("chunk")
+        .1
+        .items
+        .iter()
+        .filter(|i| matches!(i, Item::Glyphs(_)))
+        .count();
+    assert_eq!(runs, 2, "the block's text and the anonymous one");
+    let gone = chunk_of(&rt, "gone");
+    assert!(rt.chunk_items(gone).expect("chunk").1.items.is_empty());
 }
 
 /// Test 7 of the runtime spec: once settled, frames without changes do not touch the scene.
@@ -394,7 +456,7 @@ fn paint_empty_frames_leave_the_scene_untouched() {
     let rev = s.scene.layer_revision(LayerId::Hud);
     let chunk_rev = s.scene.chunk_revision(chunk);
     for _ in 0..100 {
-        let st = s.rt.update(&s.store, &mut s.engine, &mut s.scene);
+        let st = s.rt.frame(0.0, &s.store, &mut s.engine, &mut s.scene).stats;
         assert_eq!(
             (
                 st.chunks_rebuilt,
@@ -414,13 +476,13 @@ fn paint_empty_frames_leave_the_scene_untouched() {
     s.sample["model"]["top"]["gold"] = json!(313);
     let d = frame_of(&mut s.store, &s.sample);
     s.rt.apply_delta(&d, &s.store);
-    let st = s.rt.update(&s.store, &mut s.engine, &mut s.scene);
+    let st = s.rt.frame(0.0, &s.store, &mut s.engine, &mut s.scene).stats;
     assert_eq!(st.chunks_rebuilt, 1);
     assert_eq!(s.scene.stats().chunks_encoded, 1);
 
     // Removing the strip removes its chunk from the scene.
     s.rt.remove(top);
-    let st = s.rt.update(&s.store, &mut s.engine, &mut s.scene);
+    let st = s.rt.frame(0.0, &s.store, &mut s.engine, &mut s.scene).stats;
     assert_eq!(
         st.chunks_rebuilt, 1,
         "the layer root, whose child went away"

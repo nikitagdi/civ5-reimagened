@@ -614,6 +614,16 @@ impl<'a> Emitter<'a> {
 
     /// Paints a stacking context: its box, then its descendants in phase order.
     fn paint_context(&mut self, id: NodeId, s: &Inherit) {
+        let hidden = self
+            .arena
+            .get(id)
+            .is_none_or(|n| n.class() == NodeClass::Service)
+            || self
+                .record(id)
+                .is_none_or(|r| r.display == ui2_package::style::Display::None);
+        if hidden {
+            return;
+        }
         self.paint_box(id, s);
         let inner = self.child_state(id, s);
         let arena = self.arena;

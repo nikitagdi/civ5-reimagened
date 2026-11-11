@@ -334,15 +334,15 @@ fn style_removed_dependents_are_forgotten() {
 #[test]
 fn style_bad_scale_is_replaced_and_reported_once() {
     let mut rt = settled(Env::default());
+    let mut errors = Vec::new();
     for _ in 0..10 {
         rt.set_env(Env {
             dpr: f32::NAN,
             ..Env::default()
         });
-        tick(&mut rt);
+        errors.extend(frame(&mut rt).errors);
     }
     assert_eq!(rt.style_env().scale.k, 1.0);
-    let errors = rt.take_errors();
     let bad_env = errors
         .iter()
         .filter(|e| e.code == ErrorCode::BadEnv)
@@ -351,8 +351,13 @@ fn style_bad_scale_is_replaced_and_reported_once() {
 }
 
 fn tick(rt: &mut Runtime) -> ui2_runtime::FrameStats {
+    frame(rt).stats
+}
+
+fn frame(rt: &mut Runtime) -> ui2_runtime::FrameOutput {
     let store = ui2_model::ModelStore::new(ui2_model::Schema::v1());
-    rt.update(
+    rt.frame(
+        0.0,
         &store,
         &mut ui2_text::TextEngine::new(),
         &mut ui2_draw::Scene::new(1.0),

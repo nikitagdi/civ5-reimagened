@@ -78,10 +78,11 @@ pub(crate) fn phases<'a, S: Clone>(
         let Some(n) = arena.get(id) else {
             continue;
         };
-        // Service nodes have no box; text leaves are painted by their inline formatting root; the children
-        // of a layer root are chunks of their own.
-        if n.class() == NodeClass::Service || n.class() == NodeClass::Text || Some(n.chunk) != chunk
-        {
+        // Service nodes have no box; text leaves are painted by their inline formatting root (a leaf that is
+        // its own root, next to blocks, paints its text in the flow); the children of a layer root are
+        // chunks of their own.
+        let inline_leaf = n.class() == NodeClass::Text && !content_root(id);
+        if n.class() == NodeClass::Service || inline_leaf || Some(n.chunk) != chunk {
             continue;
         }
         let Some(r) = record(id) else {

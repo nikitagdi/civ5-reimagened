@@ -78,12 +78,12 @@ fn bind_top_strip_shows_the_sample_and_reevaluates_only_readers() {
     // The whole sample: every binding is evaluated once.
     let d = frame_of(&mut store, &sample);
     rt.apply_delta(&d, &store);
-    let s = rt.update(&store, &mut engine, &mut scene);
+    let out = rt.frame(0.0, &store, &mut engine, &mut scene);
+    let s = out.stats;
     assert_eq!(rt.binding_rows(), 16, "13 texts, 2 class toggles, 1 width");
     assert_eq!(s.binds_evaluated, 16);
     assert_eq!(s.layout_runs, 1);
-    let errors = rt.take_errors();
-    assert!(errors.is_empty(), "{errors:?}");
+    assert!(out.errors.is_empty(), "{:?}", out.errors);
 
     // The texts are the sample texts of the mockup.
     let ours = texts(&rt);
@@ -106,7 +106,7 @@ fn bind_top_strip_shows_the_sample_and_reevaluates_only_readers() {
 
     // Idle: nothing is evaluated, shaped or laid out.
     for _ in 0..100 {
-        let s = rt.update(&store, &mut engine, &mut scene);
+        let s = rt.frame(0.0, &store, &mut engine, &mut scene).stats;
         assert_eq!(
             (
                 s.binds_evaluated,
@@ -124,7 +124,7 @@ fn bind_top_strip_shows_the_sample_and_reevaluates_only_readers() {
     let d = frame_of(&mut store, &sample);
     assert_eq!(d.ops.len(), 1);
     rt.apply_delta(&d, &store);
-    let s = rt.update(&store, &mut engine, &mut scene);
+    let s = rt.frame(0.0, &store, &mut engine, &mut scene).stats;
     assert_eq!(
         (s.binds_evaluated, s.shaped_runs, s.layout_runs, s.restyled),
         (1, 1, 0, 0)
@@ -135,7 +135,7 @@ fn bind_top_strip_shows_the_sample_and_reevaluates_only_readers() {
     sample["model"]["top"]["gold_rate"] = json!(-5);
     let d = frame_of(&mut store, &sample);
     rt.apply_delta(&d, &store);
-    let s = rt.update(&store, &mut engine, &mut scene);
+    let s = rt.frame(0.0, &store, &mut engine, &mut scene).stats;
     assert_eq!(s.binds_evaluated, 2);
     assert_eq!(s.shaped_runs, 1);
     assert_eq!(s.layout_runs, 1);
@@ -151,7 +151,7 @@ fn bind_top_strip_shows_the_sample_and_reevaluates_only_readers() {
     sample["model"]["research"]["current"]["fraction"] = json!(0.5);
     let d = frame_of(&mut store, &sample);
     rt.apply_delta(&d, &store);
-    let s = rt.update(&store, &mut engine, &mut scene);
+    let s = rt.frame(0.0, &store, &mut engine, &mut scene).stats;
     assert_eq!((s.binds_evaluated, s.shaped_runs), (1, 0));
     assert_eq!(s.layout_runs, 1);
     let (fill, scale) = (rect(&rt, "0:12"), rect(&rt, "0:11"));
@@ -251,7 +251,8 @@ fn bind_scalars_toggle_classes_states_and_styles() {
     let mut sample = support::sample_json();
     let d = frame_of(&mut store, &sample);
     rt.apply_delta(&d, &store);
-    let s = rt.update(&store, &mut engine, &mut scene);
+    let out = rt.frame(0.0, &store, &mut engine, &mut scene);
+    let s = out.stats;
     assert_eq!(rt.binding_rows(), 7);
     assert_eq!(s.binds_evaluated, 7);
     assert_eq!(text_of(&rt, "gold"), "Gold 312");
@@ -260,7 +261,7 @@ fn bind_scalars_toggle_classes_states_and_styles() {
     // A missing skin text shows its key; a missing path reads null. Each is reported once.
     assert_eq!(text_of(&rt, "absent"), "x.absent");
     assert_eq!(text_of(&rt, "broken"), "");
-    let mut errors = rt.take_errors();
+    let mut errors = out.errors;
     errors.sort_by_key(|e| e.path.clone());
     let codes: Vec<ErrorCode> = errors.iter().map(|e| e.code).collect();
     assert_eq!(codes, vec![ErrorCode::L10n, ErrorCode::Bind], "{errors:?}");
@@ -282,7 +283,7 @@ fn bind_scalars_toggle_classes_states_and_styles() {
     sample["model"]["top"]["gold_rate"] = json!(-3);
     let d = frame_of(&mut store, &sample);
     rt.apply_delta(&d, &store);
-    let s = rt.update(&store, &mut engine, &mut scene);
+    let s = rt.frame(0.0, &store, &mut engine, &mut scene).stats;
     assert_eq!((s.binds_evaluated, s.restyled), (2, 2));
     assert_eq!(s.layout_runs, 0, "a color does not move anything");
     let n = rt.node(gold).expect("gold");
@@ -296,7 +297,7 @@ fn bind_scalars_toggle_classes_states_and_styles() {
     sample["model"]["top"]["happiness"] = json!(12);
     let d = frame_of(&mut store, &sample);
     rt.apply_delta(&d, &store);
-    let s = rt.update(&store, &mut engine, &mut scene);
+    let s = rt.frame(0.0, &store, &mut engine, &mut scene).stats;
     assert_eq!((s.binds_evaluated, s.layout_runs), (1, 1));
     assert_eq!(rt.dump_rects(Some("bar"))[0].w, 12.0);
     assert_eq!(
@@ -308,10 +309,10 @@ fn bind_scalars_toggle_classes_states_and_styles() {
 
     // Errors are not reported again; idle frames evaluate nothing.
     for _ in 0..10 {
-        let s = rt.update(&store, &mut engine, &mut scene);
-        assert_eq!((s.binds_evaluated, s.visited), (0, 0));
+        let out = rt.frame(0.0, &store, &mut engine, &mut scene);
+        assert_eq!((out.stats.binds_evaluated, out.stats.visited), (0, 0));
+        assert!(out.errors.is_empty());
     }
-    assert!(rt.take_errors().is_empty());
 }
 
 #[test]
@@ -320,11 +321,10 @@ fn bind_a_new_localizer_reevaluates_the_localized_rows_only() {
     let mut store = ModelStore::new(Schema::v1());
     let d = frame_of(&mut store, &support::sample_json());
     rt.apply_delta(&d, &store);
-    rt.update(&store, &mut engine, &mut scene);
-    rt.take_errors();
+    rt.frame(0.0, &store, &mut engine, &mut scene);
     let game = loc::Localizer::new(loc::LanguageInfo::en_us(), Box::new(loc::MapTable::new()));
     rt.set_localizer(std::rc::Rc::new(game));
-    let s = rt.update(&store, &mut engine, &mut scene);
+    let s = rt.frame(0.0, &store, &mut engine, &mut scene).stats;
     // The two skin texts; the bound gold text, the toggles and the width do not depend on the language.
     assert_eq!(s.binds_evaluated, 2);
     assert_eq!(s.shaped_runs, 0, "the same texts");
@@ -338,14 +338,14 @@ fn bind_removed_nodes_free_their_rows() {
     let mut sample = support::sample_json();
     let d = frame_of(&mut store, &sample);
     rt.apply_delta(&d, &store);
-    rt.update(&store, &mut engine, &mut scene);
+    rt.frame(0.0, &store, &mut engine, &mut scene);
     let gold = rt.find_part("gold").expect("gold");
     rt.remove(gold);
     sample["model"]["top"]["gold"] = json!(1);
     sample["model"]["top"]["gold_rate"] = json!(-1);
     let d = frame_of(&mut store, &sample);
     rt.apply_delta(&d, &store);
-    let s = rt.update(&store, &mut engine, &mut scene);
+    let s = rt.frame(0.0, &store, &mut engine, &mut scene).stats;
     assert_eq!(rt.binding_rows(), 4);
     assert_eq!(s.binds_evaluated, 0, "the readers were removed");
 }

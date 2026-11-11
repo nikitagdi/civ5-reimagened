@@ -193,9 +193,11 @@ fn a_package_without_a_document_is_fatal() {
 
 fn tick(rt: &mut Runtime) -> ui2_runtime::FrameStats {
     let store = ui2_model::ModelStore::new(ui2_model::Schema::v1());
-    rt.update(
+    rt.frame(
+        0.0,
         &store,
         &mut ui2_text::TextEngine::new(),
         &mut ui2_draw::Scene::new(1.0),
     )
+    .stats
 }

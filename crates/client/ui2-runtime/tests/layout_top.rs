@@ -35,7 +35,7 @@ fn layout_top_strip_matches_chrome() {
     let mut failures = Vec::new();
     for (vp, chrome) in &fx.viewports {
         rt.set_env(env(*vp));
-        let stats = rt.update(&store, &mut engine, &mut scene);
+        let stats = rt.frame(0.0, &store, &mut engine, &mut scene).stats;
         assert_eq!(stats.layout_runs, 1, "{vp:?}");
         let ours = rt.dump_rects(None);
         let names = |v: Vec<String>| v.join(" ");
@@ -73,7 +73,7 @@ fn layout_top_strip_matches_chrome() {
 
     // Laid out: idle frames do no layout and shape nothing.
     for _ in 0..100 {
-        let s = rt.update(&store, &mut engine, &mut scene);
+        let s = rt.frame(0.0, &store, &mut engine, &mut scene).stats;
         assert_eq!(
             (s.layout_runs, s.shaped_runs, s.restyled, s.visited),
             (0, 0, 0, 0)
@@ -124,11 +124,14 @@ fn layout_text_wraps_unless_nowrap() {
     let mut engine = TextEngine::new();
     load_faces(&pkg, &mut engine).expect("fonts");
     let mut rt = Runtime::new(pkg, env([800, 600]), Services::default()).expect("runtime");
-    let stats = rt.update(
-        &ModelStore::new(Schema::v1()),
-        &mut engine,
-        &mut Scene::new(1.0),
-    );
+    let stats = rt
+        .frame(
+            0.0,
+            &ModelStore::new(Schema::v1()),
+            &mut engine,
+            &mut Scene::new(1.0),
+        )
+        .stats;
     assert_eq!(stats.shaped_runs, 2);
     let rect = |part: &str, i: usize| {
         let r = &rt.dump_rects(Some(part))[i];

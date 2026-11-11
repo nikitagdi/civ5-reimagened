@@ -8,7 +8,8 @@
 //! Present state: the node arena ([`arena`]), instantiation from templates with node paths
 //! ([`instantiate`]), error reporting ([`error`]), style selection ([`style`]), scalar bindings with their
 //! dependency index and the skin's texts, text leaves and inline layout on `ui2-text` ([`text`]), box layout
-//! with taffy over the arena ([`layout`]), draw lists per chunk set on the `ui2-draw` scene, and rectangle
+//! with taffy over the arena ([`layout`]), draw lists per chunk set on the `ui2-draw` scene, the frame
+//! ([`frame`]: [`Runtime::apply_delta`], [`Runtime::frame`], [`Runtime::drain_output`]) and rectangle
 //! dumps ([`debug`]). List bindings and input build on these.
 //!
 //! Zero-work rule: every pass is driven by the arena's dirty queues; a frame without changes checks a few
@@ -20,10 +21,12 @@ pub mod arena;
 mod bind;
 pub mod debug;
 pub mod error;
+pub mod frame;
 pub mod instantiate;
 pub mod layout;
 mod loc;
 mod paint;
+mod stats;
 pub mod style;
 #[cfg(feature = "testkit")]
 pub mod testkit;
@@ -32,7 +35,7 @@ pub mod text;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use ui2_draw::{ChunkId, ChunkItems, LayerId, Scene};
+use ui2_draw::{ChunkId, ChunkItems, LayerId};
 use ui2_model::{FrameDelta, Key, ModelStore};
 use ui2_package::style::{ColorV, StyleRecord};
 use ui2_package::{Package, StrId, TemplateId};
@@ -43,9 +46,11 @@ pub use arena::{
 };
 pub use debug::ElementRect;
 pub use error::{ErrorCode, ErrorSink, NodePath, UiError};
+pub use frame::{FrameOutput, UiOutput};
 use instantiate::Spawn;
 pub use instantiate::{MAX_INSTANCE_NODES, Source};
 pub use layout::LayoutStyles;
+pub use stats::FrameStats;
 use style::select::EnvChange;
 pub use style::{Scale, StyleEnv, StyleIndex};
 pub use text::{FontBook, load_faces};
@@ -92,25 +97,6 @@ pub enum LoadError {
     Fatal(String),
 }
 
-/// Work counters of one frame. A frame without changes has every counter at zero except `nodes`.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct FrameStats {
-    /// Nodes whose style record was selected again.
-    pub restyled: u32,
-    /// Layout runs (one per chunk root laid out).
-    pub layout_runs: u32,
-    /// Text runs shaped (cache misses included).
-    pub shaped_runs: u32,
-    /// Bindings evaluated.
-    pub binds_evaluated: u32,
-    /// Chunks whose draw list was rebuilt.
-    pub chunks_rebuilt: u32,
-    /// Live nodes.
-    pub nodes: u32,
-    /// Nodes any pass looked at (zero on an idle frame).
-    pub visited: u32,
-}
-
 /// The runtime of one skin.
 pub struct Runtime {
     pkg: Arc<Package>,
@@ -126,6 +112,10 @@ pub struct Runtime {
     layout_styles: LayoutStyles,
     fonts: FontBook,
     binder: bind::Binder,
+    /// What markup asked since the last [`drain_output`](Self::drain_output).
+    output: UiOutput,
+    /// Times the passes of a frame, when the host gives one.
+    clock: Option<ui2_draw::Clock>,
 }
 
 impl Runtime {
@@ -150,6 +140,8 @@ impl Runtime {
             svc,
             arena: Arena::new(),
             errors: ErrorSink::new(),
+            output: UiOutput::default(),
+            clock: None,
         };
         if !env_ok {
             rt.report_bad_env(env);
@@ -324,7 +316,9 @@ impl Runtime {
         self.arena.take_dirty(bit)
     }
 
-    /// Errors reported for the first time since the last call.
+    /// Errors reported for the first time since the last call or frame (a frame hands its new errors over in
+    /// [`FrameOutput::errors`]; this returns those reported between frames, by calls such as
+    /// [`instantiate`](Self::instantiate)).
     pub fn take_errors(&mut self) -> Vec<UiError> {
         self.errors.take()
     }
@@ -363,71 +357,6 @@ impl Runtime {
         let layer = paint::emit::layer_of(&self.arena, &self.pkg, id);
         let (items, _) = paint::build(&self.arena, &cx, &mut self.errors, id);
         Some((layer, items))
-    }
-
-    /// Runs the passes that exist so far (bindings, styles, text, layout, paint) and returns the frame's
-    /// counters. A frame without changes only checks the queues and does not touch the scene.
-    pub fn update(
-        &mut self,
-        m: &ModelStore,
-        text: &mut dyn TextMeasure,
-        scene: &mut Scene,
-    ) -> FrameStats {
-        let binds = self.binder.pass(
-            &mut self.arena,
-            &bind::Ctx {
-                pkg: &self.pkg,
-                index: &self.style_index,
-                store: m,
-            },
-            &mut self.errors,
-        );
-        let change = std::mem::take(&mut self.env_change);
-        let styles = style::select::pass(
-            &mut self.arena,
-            self.pkg.styles(),
-            &self.style_index,
-            &self.style_env,
-            change,
-        );
-        let ctx = text::TextCtx {
-            pkg: &self.pkg,
-            fonts: &self.fonts,
-            index: &self.style_index,
-        };
-        let texts = text::pass(&ctx, &mut self.arena, text, &mut self.errors);
-        let layout = layout::pass(
-            &mut self.arena,
-            &self.layout_styles,
-            text,
-            self.style_env.scale.viewport_css,
-        );
-        if scene.scale() != self.style_env.scale.k {
-            scene.set_scale(self.style_env.scale.k);
-        }
-        let paint = paint::pass(
-            &mut self.arena,
-            &paint::PaintCtx {
-                pkg: &self.pkg,
-                index: &self.style_index,
-                env: &self.style_env,
-            },
-            scene,
-            &mut self.errors,
-        );
-        FrameStats {
-            restyled: styles.restyled,
-            shaped_runs: texts.shaped,
-            layout_runs: layout.runs,
-            binds_evaluated: binds.evaluated,
-            chunks_rebuilt: paint.chunks,
-            visited: binds.visited
-                + styles.visited
-                + texts.visited
-                + layout.visited
-                + paint.visited,
-            nodes: self.arena.len() as u32,
-        }
     }
 
     /// The rectangles of the laid-out boxes and text leaves, in the converter's rectangle dump format: the
