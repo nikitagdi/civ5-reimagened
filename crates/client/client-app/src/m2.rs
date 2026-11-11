@@ -1,35 +1,30 @@
 //! M2 of the original UI (B4): EUI's `InGame` on the replica of a real networked game (the default; `?ui=interim` turns it off).
 //!
-//! `M2Ui` owns the pieces and runs them in a fixed order:
-//! network (replica messages, bodies) -> `Replica::pump` -> `ExeApi::dispatch` -> `UiLayer::frame`.
+//! The game session (`crate::session`) owns the replica, its game data, its network and the game's localizer; it
+//! runs first in the frame. `M2Ui` runs its own pieces after it, in a fixed order:
+//! chat and the UI's requests to the server -> `ExeApi::dispatch` -> `UiLayer::frame`.
 //!
-//! Boot: the `ui` set and the `gc:replica` game data are fetched through the asset loader; when the game data is in
-//! the core is made (`gc_create`, seconds on the main thread); the replica joins on the server's snapshot;
-//! when it is `Live` the UI core is made over the exe API, the game is bound (the DLL registers `Players`, `Game`,
-//! ... into the UI's Lua) and only then the root `InGame` loads, since EUI reads the game while its scripts load.
+//! Boot: the `ui` set is fetched through the asset loader (the session fetches the game data and makes the core);
+//! when the replica is `Live` the UI core is made over the exe API, the game is bound (the DLL registers `Players`,
+//! `Game`, ... into the UI's Lua) and only then the root `InGame` loads, since EUI reads the game while its scripts
+//! load.
 
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeSet;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 
-use assets::{AssetHandle, AssetLoader, AssetPoll, LogicalId};
+use assets::AssetLoader;
 use draw_list::UiDrawList;
 use exe_api::{ExeApi, ExeConfig, ExeHost, SavedGame, SeatInfo};
 use platform::{Clock, InputEvent, KeyValueStore};
-use replica::{
-    GameDataHost, GameFiles, Outgoing, Replica, ReplicaMsg, ReplicaStep, State as ReplicaState,
-};
-use ui_client::{
-    BootPlan, BootState, LayerConfig, LayerHooks, Projector, UiBoot, UiLayer, ui_profile,
-};
+use replica::Replica;
+use ui_client::{BootPlan, BootState, LayerConfig, LayerHooks, Projector, UiBoot, UiLayer};
 
 use crate::m2_highlights::{HexHighlights, TAPPED_EVENTS};
 use crate::net::NetHandle;
+use crate::session::{GameSession, SessionStep};
 use crate::timeline::{FrameInfo, Timeline};
 
-/// Frame budget for `Replica::pump` (ms).
-const PUMP_BUDGET_MS: u32 = 8;
 /// A replica that is not `Live` after this long is reported (ms).
 const JOIN_WARN_MS: u64 = 120_000;
 
@@ -362,162 +357,6 @@ impl ExeHost for M2Host {
     }
 }
 
-/// `Box<dyn Clock>` over the app's clock.
-struct SharedClock(Rc<dyn Clock>);
-
-impl Clock for SharedClock {
-    fn now_ms(&self) -> u64 {
-        self.0.now_ms()
-    }
-
-    fn now_ms_f64(&self) -> f64 {
-        self.0.now_ms_f64()
-    }
-}
-
-enum DataStage {
-    Table(AssetHandle),
-    Files {
-        queue: Vec<LogicalId>,
-        pending: Vec<(LogicalId, AssetHandle)>,
-        total: usize,
-        done: usize,
-    },
-    Ready,
-    Failed(String),
-}
-
-/// Fetches the `gc:replica` members (the group table, the index first, the databases, the Lua of the add-ins).
-struct DataBoot {
-    stage: Option<DataStage>,
-    files: Arc<Mutex<GameFiles>>,
-    have_index: bool,
-    /// The files of the core, filled when the index is in.
-    started_ms: Option<u64>,
-}
-
-impl DataBoot {
-    fn new() -> DataBoot {
-        DataBoot {
-            stage: None,
-            files: Arc::new(Mutex::new(GameFiles::default())),
-            have_index: false,
-            started_ms: None,
-        }
-    }
-
-    fn ready(&self) -> bool {
-        matches!(self.stage, Some(DataStage::Ready))
-    }
-
-    fn failed(&self) -> Option<&str> {
-        match &self.stage {
-            Some(DataStage::Failed(m)) => Some(m),
-            _ => None,
-        }
-    }
-
-    fn progress(&self) -> (usize, usize) {
-        match &self.stage {
-            Some(DataStage::Files { done, total, .. }) => (*done, *total),
-            Some(DataStage::Ready) => (1, 1),
-            _ => (0, 0),
-        }
-    }
-
-    fn update(&mut self, loader: &mut AssetLoader, now_ms: u64) {
-        let profile = ui_profile();
-        let stage = match self.stage.take() {
-            None => {
-                self.started_ms = Some(now_ms);
-                DataStage::Table(loader.request(LogicalId::new(assets::GROUP_TABLE_ID), &profile))
-            }
-            Some(s) => s,
-        };
-        self.stage = Some(match stage {
-            DataStage::Table(h) => match loader.poll(h) {
-                AssetPoll::Pending => DataStage::Table(h),
-                AssetPoll::Failed(e) => DataStage::Failed(format!("group table: {e}")),
-                AssetPoll::Ready(bytes) => match replica::group_members(&bytes) {
-                    Ok(ids) => {
-                        let queue: Vec<LogicalId> =
-                            ids.into_iter().rev().map(LogicalId::new).collect();
-                        let total = queue.len();
-                        DataStage::Files {
-                            queue,
-                            pending: Vec::new(),
-                            total,
-                            done: 0,
-                        }
-                    }
-                    Err(e) => DataStage::Failed(e.to_string()),
-                },
-            },
-            DataStage::Files {
-                mut queue,
-                mut pending,
-                total,
-                mut done,
-            } => {
-                let mut failed = None;
-                let files = Arc::clone(&self.files);
-                let have_index = &mut self.have_index;
-                // The index first: nothing else can be put before `GameFiles::from_index`.
-                pending.retain(|(id, h)| match loader.poll(*h) {
-                    AssetPoll::Pending => true,
-                    AssetPoll::Ready(bytes) => {
-                        done += 1;
-                        let Ok(mut g) = files.lock() else {
-                            return false;
-                        };
-                        if id.as_str() == replica::VFS_INDEX_ID {
-                            match GameFiles::from_index(bytes) {
-                                Ok(f) => {
-                                    *g = f;
-                                    *have_index = true;
-                                }
-                                Err(e) => {
-                                    failed.get_or_insert(format!("vfs-index: {e}"));
-                                }
-                            }
-                        } else {
-                            g.put(id.as_str(), bytes);
-                        }
-                        false
-                    }
-                    AssetPoll::Failed(e) => {
-                        failed.get_or_insert(format!("{}: {e}", id.as_str()));
-                        false
-                    }
-                });
-                if let Some(m) = failed {
-                    DataStage::Failed(m)
-                } else {
-                    // Until the index is in, only the index is in flight.
-                    let limit = if *have_index { 24 } else { 1 };
-                    while pending.len() < limit {
-                        let Some(id) = queue.pop() else { break };
-                        let h = loader.request(id.clone(), &profile);
-                        pending.push((id, h));
-                    }
-                    if pending.is_empty() && queue.is_empty() {
-                        tracing::info!(files = total, "the replica game data is loaded");
-                        DataStage::Ready
-                    } else {
-                        DataStage::Files {
-                            queue,
-                            pending,
-                            total,
-                            done,
-                        }
-                    }
-                }
-            }
-            s @ (DataStage::Ready | DataStage::Failed(_)) => s,
-        });
-    }
-}
-
 /// Where M2 is, for the loading text and the logs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum M2Phase {
@@ -541,9 +380,6 @@ pub struct M2Env<'a> {
     pub seat: SeatInfo,
     /// The AI civilizations the server started and ended in the last AI phase it ran (SIMP-exe-820, SIMP-exe-790).
     pub ai_turn: Option<exe_api::AiTurnLog>,
-    /// The game's seat of this client is known (the attach came): the replica's active player is that seat, so the
-    /// core is not made before.
-    pub seat_known: bool,
     /// `view_proj` of the game camera, for the projection of world anchors, and the scale of the UI.
     pub projection: Option<ProjectionInfo>,
 }
@@ -570,9 +406,8 @@ pub struct M2Ui {
     phase: M2Phase,
     failed: Option<String>,
     ui_boot: UiBoot,
-    data: DataBoot,
+    /// The session's replica, as of the last frame (the session owns it).
     replica: Option<Rc<RefCell<Replica>>>,
-    backlog: Vec<ReplicaMsg>,
     exe: Option<Rc<RefCell<ExeApi>>>,
     host: Rc<M2Host>,
     layer: Option<UiLayer>,
@@ -600,8 +435,6 @@ pub struct M2Ui {
     unresolved: BTreeSet<u64>,
     /// The zoom level before the city view took the camera.
     saved_level: Option<f32>,
-    blob_wanted: BTreeSet<u64>,
-    resync_flush: Vec<Outgoing>,
     /// Numbers of the `EndTurn` orders the UI's `sendTurnComplete` sent that have no final answer yet (the last few).
     end_turn_orders: Vec<protocol::CmdId>,
     /// Chat lines of the stream handed to the layer so far (`ClientCore::chat_total`), and the counters of the report.
@@ -623,8 +456,7 @@ pub struct M2Ui {
     /// Milliseconds from the first frame of M2 to the ui set being in the store (the boot fetches done), and to M2 running.
     ui_ready_ms: Option<u64>,
     up_ms: Option<u64>,
-    /// Time spent in `gc_create` and in the root load (ms), for the report.
-    pub create_ms: f64,
+    /// Time spent in the root load (ms), for the report.
     pub root_ms: f64,
     /// The per-turn timeline (`__civ5stats.turn`, the log ring's `span` lines).
     timeline: Timeline,
@@ -633,10 +465,6 @@ pub struct M2Ui {
     /// The last slow frame the first-frame line has seen.
     slow_seq: u64,
     frame_t0: f64,
-    /// TEMP(T51): what the replica's pump did in the last frame, and the game's localizer, for UI v2 to read until
-    /// the game session owns the replica.
-    v2_steps: Vec<ReplicaStep>,
-    v2_loc: Option<Rc<loc::Localizer>>,
 }
 
 impl M2Ui {
@@ -659,9 +487,7 @@ impl M2Ui {
             phase: M2Phase::Loading,
             failed: None,
             ui_boot: UiBoot::new(BootPlan::m2(contexts.clone())),
-            data: DataBoot::new(),
             replica: None,
-            backlog: Vec::new(),
             exe: None,
             host: Rc::new(M2Host {
                 kv,
@@ -711,8 +537,6 @@ impl M2Ui {
             stats: M2Stats::default(),
             unresolved: BTreeSet::new(),
             saved_level: None,
-            blob_wanted: BTreeSet::new(),
-            resync_flush: Vec::new(),
             end_turn_orders: Vec::new(),
             chat_seen: 0,
             chat_in: 0,
@@ -728,35 +552,12 @@ impl M2Ui {
             ring: None,
             ui_ready_ms: None,
             up_ms: None,
-            create_ms: 0.0,
             root_ms: 0.0,
             timeline,
             lua_error_seq: 0,
             slow_seq: 0,
             frame_t0: 0.0,
-            v2_steps: Vec::new(),
-            v2_loc: None,
         }
-    }
-
-    /// TEMP(T51): the replica, for UI v2 to read after this layer's frame (the game session will own it).
-    pub fn v2_replica(&self) -> Option<Rc<RefCell<Replica>>> {
-        self.replica.clone()
-    }
-
-    /// TEMP(T51): what the replica's pump did in the last frame, taken once.
-    pub fn v2_take_steps(&mut self) -> Vec<ReplicaStep> {
-        std::mem::take(&mut self.v2_steps)
-    }
-
-    /// TEMP(T51): the game's localizer, once the layer loaded it.
-    pub fn v2_localizer(&self) -> Option<Rc<loc::Localizer>> {
-        self.v2_loc.clone()
-    }
-
-    /// TEMP(T51): UI v2 asks the camera to go to a plot, as the layer's `UI.LookAt` does (carried out next frame).
-    pub fn v2_look_at(&self, x: i32, y: i32) {
-        self.host.look.set(Some((x, y)));
     }
 
     pub fn phase(&self) -> M2Phase {
@@ -1101,8 +902,15 @@ impl M2Ui {
         }
     }
 
-    /// One frame. Fills `out` and returns whether there is anything to draw.
-    pub fn begin_frame(&mut self, env: M2Env<'_>, out: &mut UiDrawList) -> bool {
+    /// One frame, after the game session's (`step` is what it did). Fills `out` and returns whether there is
+    /// anything to draw.
+    pub fn begin_frame(
+        &mut self,
+        env: M2Env<'_>,
+        session: &GameSession,
+        step: &SessionStep,
+        out: &mut UiDrawList,
+    ) -> bool {
         if self.timeline.enabled()
             && let Some(n) = env.net
         {
@@ -1110,12 +918,18 @@ impl M2Ui {
             self.timeline
                 .set_context(game.map_or(-1, i64::from), self.host.seat.borrow().local_id);
         }
-        let drawn = self.begin_frame_inner(env, out);
+        let drawn = self.begin_frame_inner(env, session, step, out);
         self.collect_timeline();
         drawn
     }
 
-    fn begin_frame_inner(&mut self, env: M2Env<'_>, out: &mut UiDrawList) -> bool {
+    fn begin_frame_inner(
+        &mut self,
+        env: M2Env<'_>,
+        session: &GameSession,
+        step: &SessionStep,
+        out: &mut UiDrawList,
+    ) -> bool {
         let M2Env {
             now_ms,
             loader,
@@ -1124,7 +938,6 @@ impl M2Ui {
             clock,
             seat,
             ai_turn,
-            seat_known,
             projection,
         } = env;
         if self.phase == M2Phase::Failed || size.0 == 0 || size.1 == 0 {
@@ -1157,14 +970,18 @@ impl M2Ui {
             }
             _ => {}
         }
-        self.data.update(loader, now_ms);
-        if let Some(m) = self.data.failed() {
+        // 2. what the game session could not do (the game data, the core) ends this UI too
+        if let Some(m) = session.failure() {
             let m = m.to_owned();
-            self.fail(format!("the game data: {m}"));
+            self.fail(m);
             return false;
         }
-        // 2. the network: replica messages and bodies in, the UI's messages out
-        self.network(net, now_ms);
+        self.replica = session.replica();
+        if self.replica.is_some() && self.phase == M2Phase::Loading {
+            self.phase = M2Phase::Joining;
+        }
+        // 3. the network: the UI's chat, kicks and menu requests out, chat in; the end of turn orders the session sent
+        self.network(net, step);
         if self.awaiting_game
             && net.is_some_and(|n| {
                 matches!(
@@ -1175,19 +992,17 @@ impl M2Ui {
         {
             self.awaiting_game = false;
         }
-        // 3. the core
-        if self.replica.is_none() && self.data.ready() && seat_known {
-            self.make_replica(clock);
-            if self.phase == M2Phase::Failed {
-                return false;
-            }
-        }
-        let live = self.pump_replica(now_ms);
+        let live = step.live;
         // 4. the UI layer, once the game is there
         if self.layer.is_none() {
             let store_ready = matches!(self.ui_boot.update(loader), BootState::Ready);
-            if live && store_ready && self.replica.is_some() && !self.awaiting_game {
-                self.make_layer(size);
+            if live
+                && store_ready
+                && self.replica.is_some()
+                && !self.awaiting_game
+                && session.text_settled()
+            {
+                self.make_layer(size, session.localizer());
                 if self.phase == M2Phase::Failed {
                     return false;
                 }
@@ -1200,7 +1015,7 @@ impl M2Ui {
                     tracing::warn!(
                         live,
                         store_ready,
-                        data = ?self.data.progress(),
+                        data = ?session.data_progress(),
                         "M2 is still not up after {} s",
                         JOIN_WARN_MS / 1000
                     );
@@ -1211,133 +1026,21 @@ impl M2Ui {
         self.run_layer(now_ms, size, out)
     }
 
-    fn make_replica(&mut self, clock: &Rc<dyn Clock>) {
-        let t0 = clock.now_ms_f64();
-        let host = GameDataHost::new(Arc::clone(&self.data.files));
-        match Replica::new(host, self.replica_seat()) {
-            Ok(mut r) => {
-                r.set_clock(Box::new(SharedClock(Rc::clone(clock))));
-                self.create_ms = clock.now_ms_f64() - t0;
-                tracing::info!(ms = self.create_ms, "replica core created");
-                self.replica = Some(Rc::new(RefCell::new(r)));
-                self.phase = M2Phase::Joining;
-            }
-            Err(e) => self.fail(format!("the replica core: {e}")),
-        }
-    }
-
-    /// The seat of this client's player in the game; the core takes it as the active player.
-    fn replica_seat(&self) -> u8 {
-        self.host.seat.borrow().local_id.clamp(0, 63) as u8
-    }
-
-    fn network(&mut self, net: Option<&NetHandle>, now_ms: u64) {
-        let _slow = render::perf::slow::scope("m2.network");
+    fn network(&mut self, net: Option<&NetHandle>, step: &SessionStep) {
         let Some(net) = net else { return };
-        let msgs = net.with_client(|c| c.take_replica_msgs());
-        if !msgs.is_empty() {
-            match self.replica.as_ref().map(|r| r.try_borrow_mut()) {
-                Some(Ok(mut r)) => {
-                    r.engine_mut().set_seat(self.replica_seat());
-                    for m in msgs {
-                        r.on_msg(m);
-                    }
-                }
-                // No replica yet, or it is busy: the messages wait (a dropped journal batch is a gap and a resync).
-                _ => self.backlog.extend(msgs),
-            }
-        }
         self.chat_and_kicks(net);
-        let Some(rep) = self.replica.clone() else {
-            return;
-        };
-        let Ok(mut r) = rep.try_borrow_mut() else {
-            return;
-        };
-        if !self.backlog.is_empty() {
-            for m in std::mem::take(&mut self.backlog) {
-                r.on_msg(m);
+        for &id in &step.end_turns {
+            if self.end_turn_orders.len() >= 8 {
+                self.end_turn_orders.remove(0);
             }
+            self.end_turn_orders.push(id);
         }
-        for b in r.wanted_blobs() {
-            self.blob_wanted.insert(b.hash);
-            net.with_client(|c| c.fetch_replica_blob(b.hash));
-        }
-        for (hash, body) in net.with_client(|c| c.poll_replica_blobs()) {
-            self.blob_wanted.remove(&hash);
-            match body {
-                Some(bytes) => r.blob(hash, bytes),
-                None => r.blob_failed(hash),
-            }
-        }
-        // The UI's messages go out; what cannot be sent now stays (AC-G2).
-        let mut out = std::mem::take(&mut self.resync_flush);
-        out.extend(r.take_outgoing());
-        let mut order_marks: Vec<protocol::CmdId> = Vec::new();
-        let turn_now = r.turn();
-        let mut stale_dropped = 0u32;
-        if !out.is_empty() {
-            let mut back = Vec::new();
-            for o in out {
-                let sent = net.with(|core| match &o {
-                    Outgoing::GcNet(bytes) => {
-                        match core.send_gc_net_at(bytes.clone(), turn_now) {
-                            Ok(()) => true,
-                            Err(client_core::OrderRefused::TurnChanged) => {
-                                // Given on a turn the server has left: it does nothing, it is not kept (B1).
-                                stale_dropped += 1;
-                                true
-                            }
-                            Err(_) => false,
-                        }
-                    }
-                    Outgoing::EndTurn => {
-                        match core
-                            .order_at(protocol::Command::EndTurn { force: false }, Some(turn_now))
-                        {
-                            Ok(id) => {
-                                if self.end_turn_orders.len() >= 8 {
-                                    self.end_turn_orders.remove(0);
-                                }
-                                self.end_turn_orders.push(id);
-                                order_marks.push(id);
-                                true
-                            }
-                            Err(_) => false,
-                        }
-                    }
-                    Outgoing::CancelEndTurn => core
-                        .order_at(protocol::Command::CancelEndTurn, Some(turn_now))
-                        .is_ok(),
-                    Outgoing::Resync {
-                        epoch,
-                        have_raw_hash,
-                        at_jseq,
-                        reason,
-                    } => core
-                        .send_gc_resync(*epoch, *have_raw_hash, *at_jseq, *reason)
-                        .is_ok(),
-                });
-                if !sent {
-                    back.push(o);
-                }
-            }
-            if !back.is_empty() {
-                r.unsend(back);
-            }
-        }
-        if stale_dropped > 0 {
-            tracing::info!(
-                target: "m2",
-                "{stale_dropped} UI message(s) given on turn {turn_now} dropped: the server is in a later turn"
-            );
-        }
-        if !order_marks.is_empty() && self.timeline.enabled() {
+        if !step.end_turns.is_empty() && self.timeline.enabled() {
             let at = self.clk.as_ref().map_or(0.0, |c| c.now_ms_f64());
-            for id in order_marks {
-                tracing::debug!(id, turn = turn_now, "cmd.send: END_TURN sent");
+            for &id in &step.end_turns {
+                tracing::debug!(id, turn = step.turn, "cmd.send: END_TURN sent");
                 self.timeline.record(
-                    turn_now,
+                    step.turn,
                     "c.order_sent",
                     at,
                     -1.0,
@@ -1345,37 +1048,9 @@ impl M2Ui {
                 );
             }
         }
-        let _ = now_ms;
     }
-
-    /// Applies what is due; `true` when the replica is `Live`.
-    fn pump_replica(&mut self, _now_ms: u64) -> bool {
-        let _slow = render::perf::slow::scope("m2.pump_replica");
-        self.v2_steps.clear();
-        let Some(rep) = self.replica.clone() else {
-            return false;
-        };
-        let Ok(mut r) = rep.try_borrow_mut() else {
-            return self.phase == M2Phase::Running;
-        };
-        // A turn change is one step of seconds on a big game: the pump does at most one stage per frame.
-        for _ in 0..16 {
-            let step = r.pump(PUMP_BUDGET_MS);
-            self.v2_steps.push(step);
-            if matches!(
-                step,
-                ReplicaStep::Loaded { .. } | ReplicaStep::TurnSwitched { .. }
-            ) {
-                tracing::info!(?step, "replica loaded a game");
-            }
-            if !matches!(step, ReplicaStep::Working) {
-                break;
-            }
-        }
-        r.state() == ReplicaState::Live
-    }
-
-    fn make_layer(&mut self, size: (u32, u32)) {
+    /// `localizer`: the game session's (the texts of `LayerConfig::m2().lang`); `None` when they did not load.
+    fn make_layer(&mut self, size: (u32, u32), localizer: Option<Rc<loc::Localizer>>) {
         let t0 = self.clk.as_ref().map_or(0.0, |c| c.now_ms_f64());
         let Some(store) = self.ui_boot.store() else {
             return;
@@ -1383,15 +1058,6 @@ impl M2Ui {
         let Some(rep) = self.replica.clone() else {
             return;
         };
-        let lang = LayerConfig::m2().lang;
-        let localizer = match ui_client::load_localizer(&store, &lang) {
-            Ok(l) => Some(l),
-            Err(e) => {
-                tracing::warn!("the texts for Locale are not loaded: {e}");
-                None
-            }
-        };
-        self.v2_loc.clone_from(&localizer);
         let cfg = ExeConfig {
             localizer: localizer.clone(),
             ..ExeConfig::default()
@@ -1609,7 +1275,7 @@ impl M2Ui {
     }
 
     /// `__civ5stats.{ui,replica,exe}`: refreshed about once a second.
-    pub fn stats(&mut self, now_ms: u64) -> Option<&M2Stats> {
+    pub fn stats(&mut self, now_ms: u64, session: &GameSession) -> Option<&M2Stats> {
         if now_ms.saturating_sub(self.last_stats_ms) < 1000 && !self.stats.groups.is_empty() {
             return None;
         }
@@ -1628,12 +1294,12 @@ impl M2Ui {
                         M2Phase::Failed => -1.0,
                     },
                 ),
-                n("create_ms", self.create_ms),
+                n("create_ms", session.create_ms()),
                 n("root_ms", self.root_ms),
                 n("ui_ready_ms", self.ui_ready_ms.map_or(-1.0, |v| v as f64)),
                 n("up_ms", self.up_ms.map_or(-1.0, |v| v as f64)),
-                n("data_done", self.data.progress().0 as f64),
-                n("data_total", self.data.progress().1 as f64),
+                n("data_done", session.data_progress().0 as f64),
+                n("data_total", session.data_progress().1 as f64),
                 n("chat_in", self.chat_in as f64),
                 n("chat_sent", self.chat_sent as f64),
                 n("kicks_sent", self.kicks_sent as f64),
@@ -1699,42 +1365,8 @@ impl M2Ui {
                 ],
             ));
         }
-        if let Some(r) = &self.replica
-            && let Ok(r) = r.try_borrow()
-        {
-            let s = r.stats();
-            groups.push((
-                "replica",
-                vec![
-                    n("applied", s.applied as f64),
-                    n("diverged", s.diverged as f64),
-                    n("resyncs", s.resyncs as f64),
-                    n("checks_skipped", s.checks_skipped as f64),
-                    n("checks_run", s.checks_run as f64),
-                    n("net_sent", s.net_sent as f64),
-                    n("net_rejected", s.net_rejected as f64),
-                    n("turn_reopened", s.turn_reopened as f64),
-                    n("loads", s.loads as f64),
-                    n("turn_switch_ms", s.turn_switch_ms),
-                    n("turn_wait_ms", s.turn_wait_ms),
-                    n("turn_patch", s.turn_patch as f64),
-                    n("turn_snapshot", s.turn_snapshot as f64),
-                    n("patch_fallbacks", s.patch_fallbacks as f64),
-                    n("last_body_bytes", s.last_body_bytes as f64),
-                    n("join_ms", s.join_ms),
-                    n("memory_mb", f64::from(s.memory_mb)),
-                    n("queued", f64::from(s.queued)),
-                    n(
-                        "live",
-                        if r.state() == ReplicaState::Live {
-                            1.0
-                        } else {
-                            0.0
-                        },
-                    ),
-                    n("turn", f64::from(r.turn())),
-                ],
-            ));
+        if let Some(v) = session.replica_stats() {
+            groups.push(("replica", v));
         }
         if let Some(e) = self.exe_stats() {
             let mut v = vec![
@@ -1840,9 +1472,6 @@ impl M2Ui {
     /// the next game is playing.
     pub fn new_game(&mut self) {
         self.left = false;
-        self.backlog.clear();
-        self.resync_flush.clear();
-        self.blob_wanted.clear();
         self.chat_seen = 0;
         self.host.exit_req.set(false);
         self.host.save_req.set(false);
@@ -1858,6 +1487,13 @@ impl M2Ui {
         if self.phase == M2Phase::Running {
             self.phase = M2Phase::Joining;
         }
+    }
+
+    /// The layer of this game is made again over the same replica once it is live (it missed the core's events
+    /// while it did not run): what it left for the app goes as for a new game, without waiting for another game.
+    pub fn restart_layer(&mut self) {
+        self.new_game();
+        self.awaiting_game = false;
     }
 
     /// Everything of the last game that lives outside the Lua layer and the replica: the highlights the Lua set, the

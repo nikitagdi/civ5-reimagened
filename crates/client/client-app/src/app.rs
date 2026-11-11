@@ -356,8 +356,6 @@ struct App {
     input: InputTranslator,
     /// The touch long press that is a right click.
     long_press: crate::touch_press::LongPress,
-    /// Whether the press the layers hold moved past the drag threshold (ui_press.rs).
-    ui_press: crate::ui_press::UiPress,
     /// Three fingers held: toggles the performance panel.
     hud_hold: crate::touch_hud::HudHold,
     /// The pointer lock of the window (client-hooks); idle until something asks for it.
@@ -398,10 +396,12 @@ struct App {
     ui: UiDrawList,
     /// The original UI (EUI), when `AppConfig::original_ui` is set; it fills `ui` each frame.
     original_ui: Option<crate::original_ui::OriginalUi>,
-    /// The original UI on the replica of a real game (M2), when `AppConfig::original_ui` is set.
-    m2: Option<crate::m2::M2Ui>,
-    /// TEMP(T51): `?ui=v2[:skin]`, a UI v2 skin over `m2` (which then neither draws nor gets input).
-    v2: Option<crate::ui_host::v2::V2Host>,
+    /// The game's interfaces (the classic original UI over the replica of a real game, when
+    /// `AppConfig::original_ui` is set): the one on the screen gets the frames and the input.
+    ui_host: crate::ui_host::UiHost,
+    /// The game session (the replica, its data and network, the game's localizer): there when a game UI reads the
+    /// replica (not with `?ui=interim`).
+    session: Option<crate::session::GameSession>,
     group_stats_sink: Option<crate::GroupStatsSink>,
     /// The page's own sign-in, lobby and room screens, when the platform has them (web).
     dom_ui: Option<crate::dom_ui::DomUi>,
@@ -481,6 +481,7 @@ impl App {
             audio,
             ui_bridge,
             pointer_lock_probe,
+            ui2,
         } = services;
         let hud_on = config.hud;
         let (config_original_ui, config_ui_volume) = (config.original_ui, config.ui_volume);
@@ -587,14 +588,33 @@ impl App {
         });
         let original_ui =
             (config.original_ui && config.original_ui_m1).then(crate::original_ui::OriginalUi::m1);
-        let m2 = (config.original_ui && !config.original_ui_m1 && matches!(net, Link::Net(_)))
-            .then(|| crate::m2::M2Ui::new(Rc::clone(&ui_kv), config_ui_volume));
-        let v2 = crate::ui_host::v2::take_choice()
-            .filter(|_| m2.is_some())
-            .map(|choice| {
-                let c = Rc::clone(&clock);
-                crate::ui_host::v2::V2Host::new(choice, v2_http, Rc::new(move || c.now_ms_f64()))
-            });
+        let mut ui_host = crate::ui_host::UiHost::new();
+        if config.original_ui && !config.original_ui_m1 && matches!(net, Link::Net(_)) {
+            // The classic UI: removing it is removing this registration and its modules.
+            ui_host.register(Box::new(crate::ui_host::classic::ClassicFrontend::new(
+                Rc::clone(&ui_kv),
+                config_ui_volume,
+            )));
+        }
+        let session = ui_host
+            .needs_replica()
+            .then(crate::session::GameSession::new);
+        // UI v2 (`?ui=v2[:skin]`, web): it loads while the classic UI is on the screen and takes it once ready.
+        if let (true, Some(crate::ui_host::UiChoice::V2 { skin }), Some(p)) =
+            (ui_host.has_game_ui(), &config.ui_choice, ui2)
+        {
+            tracing::info!(?skin, "UI v2 requested");
+            let c = Rc::clone(&clock);
+            let mut v2 = crate::ui_host::v2::V2Frontend::new(
+                crate::ui_host::v2::V2Choice { skin: skin.clone() },
+                v2_http,
+                Rc::new(move || c.now_ms_f64()),
+                p.scripts,
+            );
+            v2.set_background(p.background);
+            ui_host.register(Box::new(v2));
+            ui_host.request(crate::ui_host::UiKind::V2);
+        }
         let start_ms = clock.now_ms();
         let showcase_mode = config.showcase || config.demo_skinned;
         // The controls of a server session read `base` plus the layer (NC-D13).
@@ -633,7 +653,6 @@ impl App {
             icon_assets: IconAssets::new(),
             input: InputTranslator::default(),
             long_press: crate::touch_press::LongPress::new(),
-            ui_press: crate::ui_press::UiPress::default(),
             hud_hold: crate::touch_hud::HudHold::new(),
             pointer: crate::pointer::PointerService::new(pointer_lock_probe),
             hooks,
@@ -658,8 +677,8 @@ impl App {
             trade_paths_at: f32::NEG_INFINITY,
             ui: UiDrawList::new(),
             original_ui,
-            m2,
-            v2,
+            ui_host,
+            session,
             group_stats_sink,
             dom_ui: ui_bridge.map(crate::dom_ui::DomUi::new),
             lobby_art,
@@ -1363,30 +1382,9 @@ impl App {
                 self.apply_pointer_request(lock);
             }
             self.hud.on_game_event(&ev, now);
-            // TEMP(T51): the answers to UI v2's orders and the game's attach and detach, for its next frame.
-            if let Some(v2) = self.v2.as_mut() {
-                v2.net_event(&ev);
-            }
-            // The original UI's end of turn: a refusal brings the end-turn button back (live game 931).
-            if let Some(m2) = self.m2.as_mut() {
-                match &ev {
-                    ClientEvent::OrderAnswered { id, outcome } => {
-                        use protocol::{CommandOutcome as O, RejectCode};
-                        match outcome {
-                            O::Queued => {}
-                            // "Already ended": the turn is ended all the same.
-                            O::Applied
-                            | O::Rejected {
-                                code: RejectCode::TurnEnded,
-                                ..
-                            } => m2.on_order_done(*id, false),
-                            O::Rejected { .. } | O::Lost => m2.on_order_done(*id, true),
-                        }
-                    }
-                    ClientEvent::OrderRolledBack { id, .. } => m2.on_order_done(*id, true),
-                    _ => {}
-                }
-            }
+            // The game UIs follow their orders' fates (the classic UI's end of turn, live game 931; UI v2's waiting
+            // orders) and the game's attach and detach.
+            self.ui_host.net_event(&ev);
             match ev {
                 ClientEvent::Attached { game, .. } => {
                     // A reconnect keeps the selection; another game starts afresh.
@@ -1476,7 +1474,7 @@ impl App {
     /// The mouse is over a plot: the controller asks for the path of the selected unit there
     /// Not while the map is being dragged.
     fn hover_path(&mut self, now_ms: u64) {
-        if self.showcase_mode || !self.in_game() || self.m2.is_some() {
+        if self.showcase_mode || !self.in_game() || self.ui_host.has_game_ui() {
             return;
         }
         // Not through a panel or a window: only the map (and its flags) shows a path.
@@ -1536,9 +1534,7 @@ impl App {
     fn frame_body(&mut self) {
         use render::perf::slow::scope;
         let now = self.clock.now_ms();
-        if let Some(m2) = self.m2.as_mut() {
-            m2.frame_started(self.clock.now_ms_f64());
-        }
+        self.ui_host.frame_started(self.clock.now_ms_f64());
         if let Some(r) = self.renderer.as_mut() {
             r.mark_frame_start();
         }
@@ -1711,11 +1707,9 @@ impl App {
                     self.tooltip_cell = None;
                     self.trade_paths_at = f32::NEG_INFINITY;
                     // The original UI of that game goes too (kicked, defeated, "Leave game" of the interim screens).
-                    if let Some(m2) = self.m2.as_mut() {
-                        m2.new_game();
-                    }
-                    if let Some(ui) = self.v2.as_mut().and_then(|v| v.ui_mut()) {
-                        ui.reset_source();
+                    self.ui_host.new_game();
+                    if let Some(session) = self.session.as_mut() {
+                        session.new_game();
                     }
                 }
                 // The view of a server session reaches the bridge by its `ViewChange` (4.10): only what
@@ -1772,14 +1766,14 @@ impl App {
                         2.0
                     };
                     if t - self.trade_paths_at >= every
-                        && let Some((paths, ids)) = self.m2.as_ref().and_then(|m2| m2.trade_paths())
+                        && let Some((paths, ids)) = self.ui_host.trade_paths()
                     {
                         self.trade_paths_at = t;
                         self.bridge.set_trade_paths(paths, ids);
                         self.bridge.flush(renderer);
                     }
                     // SIMPLIFIED(SIMP-exe-921): the popup route of the trade visuals, from the exe API's events.
-                    let popup = self.m2.as_ref().and_then(|m2| m2.popup_route());
+                    let popup = self.ui_host.popup_route();
                     self.bridge.set_trade_popup(popup);
                     self.bridge.flush(renderer);
                 }
@@ -1803,13 +1797,14 @@ impl App {
                 // The cells go through the styles of `Highlights.xml` (the table of calls) once the
                 // styles are in; before that B1's outlines stay.
                 let styles = renderer.has_highlight_styles();
-                if let Some(m2) = self.m2.as_mut() {
-                    // The original UI owns the highlights (`Events.SerialEventHexHighlight`), the path (its path finder)
-                    // and the selection: the engine draws its ring under the head selected unit of the UI
-                    // (`UnitSelectionChanged`), not under the interim controller's selection, which the original UI never sets.
-                    shown.path = m2.movement_path();
-                    shown.selected = m2.selected_unit_plot();
-                    m2.note_ring(renderer.selection_ring());
+                if self.ui_host.has_game_ui() {
+                    // The game UI owns the highlights, the path and the selection ring.
+                    if let Some((path, selected)) =
+                        self.ui_host.selection(renderer.selection_ring())
+                    {
+                        shown.path = path;
+                        shown.selected = selected;
+                    }
                 } else if styles {
                     let ranged = matches!(self.play.mode(), crate::play::Mode::RangeAttack(_));
                     renderer.set_highlight_set(crate::play::highlight_calls::from_highlights(
@@ -1930,7 +1925,7 @@ impl App {
                             &self.unit_panel,
                             &mut self.hud,
                         );
-                        let m2_on = self.m2.is_some();
+                        let m2_on = self.ui_host.has_game_ui();
                         let (question, tooltip_cell, fps) =
                             (&self.question, self.tooltip_cell, self.fps);
                         let camera = &self.game_camera;
@@ -2083,28 +2078,18 @@ impl App {
             if let (Some(c), Some(w), false) = (&self.cursors, &self.window, self.pointer.engaged())
             {
                 // The globe while the game loads and while the server runs the turn, else the arrow.
-                let busy =
-                    self.loading_cursor || self.m2.as_ref().is_some_and(|m| m.turn_processing());
-                // TEMP(T51): a running UI v2 skin's cursor over its panels; `auto` keeps the layer's row.
-                let row = self
-                    .v2
-                    .as_ref()
-                    .and_then(|v| v.cursor_row())
-                    .unwrap_or_else(|| {
-                        self.m2
-                            .as_ref()
-                            .and_then(|m| m.layer())
-                            .map_or(0, |l| l.cursor())
-                    });
+                let busy = self.loading_cursor || self.ui_host.turn_processing();
+                // The game UI's cursor (the classic layer's row, a UI v2 skin's cursor over its panels).
+                let row = self.ui_host.cursor_row().unwrap_or(0);
                 let pick = crate::cursor::pick(c.timing(), row, busy, now);
                 if self.cursor_shown != Some(pick) {
                     w.set_cursor(c.get(pick).clone());
                     self.cursor_shown = Some(pick);
                 }
             }
-            // The original UI is not run while a mod owns the screen (client-hooks C3).
-            if let (Some(m2), Some(w), false) = (
-                self.m2.as_mut(),
+            // The game UI is not run while a mod owns the screen (client-hooks C3).
+            if let (true, Some(w), false) = (
+                self.ui_host.has_game_ui(),
                 self.window.as_ref(),
                 self.hooks.ui_suppressed(),
             ) {
@@ -2113,42 +2098,52 @@ impl App {
                     Link::NetFailed(_) => None,
                 };
                 let s = w.inner_size();
-                // TEMP(T51): while a UI v2 skin runs, the classic layer draws into a list nobody submits.
-                let ui = match self.v2.as_mut().and_then(|v| v.classic_sink()) {
-                    Some(scratch) => scratch,
-                    None => &mut self.ui,
-                };
-                m2_frame(
-                    m2,
-                    (s.width, s.height),
-                    handle.as_ref(),
-                    M2Parts {
-                        camera: &mut self.game_camera,
-                        assets: self.assets.as_mut(),
-                        clock: &self.clock,
-                        ui,
-                        renderer,
-                        sink: self.group_stats_sink.as_ref(),
-                    },
-                    now,
-                );
-                // TEMP(T51): UI v2 reads the replica the classic layer just pumped; its scene is drawn this frame.
-                if let Some(v2) = self.v2.as_mut() {
-                    let env = ui2_host::Env {
-                        viewport_px: (s.width, s.height),
-                        dpr: w.scale_factor() as f32,
-                        ..ui2_host::Env::default()
-                    };
-                    if let Some(ui) = v2.frame(m2, handle.as_ref(), env, self.clock.now_ms_f64()) {
-                        renderer.prepare_ui2(ui.scene_mut());
+                let seat = seat_info(handle.as_ref());
+                // The game session first: the replica's network and pump, the game's texts.
+                let step = match self.session.as_mut() {
+                    Some(session) if s.width > 0 && s.height > 0 => {
+                        session.frame(crate::session::SessionEnv {
+                            now_ms: now,
+                            loader: self.assets.as_mut().map(AssetsBoot::loader_mut),
+                            net: handle.as_ref(),
+                            clock: &self.clock,
+                            seat: seat.as_ref().map_or(0, |s| s.local_id),
+                            seat_known: seat.is_some(),
+                            drain_events: !self.ui_host.dispatches_core_events(),
+                        })
                     }
+                    _ => crate::session::SessionStep::default(),
+                };
+                // Exactly one game UI runs: a requested one that is ready takes the screen before this frame.
+                let playing = crate::ui_host::v2::playing(handle.as_ref());
+                self.ui_host.step(&mut crate::ui_host::PrepareCx {
+                    now_ms: self.clock.now_ms_f64(),
+                    size: (s.width, s.height),
+                    dpr: w.scale_factor() as f32,
+                    session: self.session.as_ref(),
+                    playing,
+                });
+                if let Some(session) = self.session.as_ref() {
+                    let mut cx = crate::ui_host::FrameCx {
+                        now,
+                        now_ms: self.clock.now_ms_f64(),
+                        size: (s.width, s.height),
+                        dpr: w.scale_factor() as f32,
+                        net: handle.as_ref(),
+                        seat,
+                        session,
+                        step: &step,
+                        camera: &mut self.game_camera,
+                        map_controller: &mut self.map_controller,
+                        loader: self.assets.as_mut().map(AssetsBoot::loader_mut),
+                        clock: &self.clock,
+                        renderer,
+                        stats: self.group_stats_sink.as_ref(),
+                    };
+                    self.ui_host.frame(&mut cx, &mut self.ui);
                 }
-                // The camera keys of `WorldView.lua` (SIMP-exe-560).
-                for k in m2.take_camera_keys() {
-                    self.map_controller.handle(&k, &mut self.game_camera);
-                }
-            }
-            // The HUD of the mods, after the game's own UI of the frame.
+                self.ui_host.publish();
+            } // The HUD of the mods, after the game's own UI of the frame.
             if !self.hooks.is_empty() {
                 let screen = self.window.as_ref().map_or((0, 0, 1.0), |w| {
                     let s = w.inner_size();
@@ -2236,7 +2231,7 @@ impl App {
             };
             ui_sound_frame(
                 self.ui_sound.as_mut(),
-                (self.m2.as_ref(), self.original_ui.as_ref()),
+                (&self.ui_host, self.original_ui.as_ref()),
                 world,
                 music_scene,
                 self.assets.as_mut(),
@@ -2258,28 +2253,8 @@ impl App {
             if let Some(original) = self.original_ui.as_mut() {
                 original.end_frame(renderer);
             }
-            if let Some(m2) = self.m2.as_mut() {
-                // The turn timeline's render settle (`c.render_settle`): the pages in view are all there.
-                let live = renderer.terrain_live_stats();
-                let pending = live.unbuilt + live.unpaged;
-                m2.frame_done(
-                    drawn && pending == 0 && live.ring_unbuilt == 0 && live.ring_unpaged == 0,
-                    pending,
-                );
-                let wanted = renderer.ui_textures_mut().take_wanted();
-                for tex in m2.resolve_textures(&wanted) {
-                    let data = render::UiTextureData {
-                        width: tex.width,
-                        height: tex.height,
-                        format: tex.format,
-                        mips: vec![tex.bytes],
-                        content: Some(tex.content),
-                    };
-                    if let Err(e) = renderer.ui_textures_mut().upload(tex.id, &data) {
-                        tracing::warn!(texture = tex.id.0, "ui texture upload: {e}");
-                    }
-                }
-            }
+            // The game UI's textures the frame asked for, and its frame timing.
+            self.ui_host.after_render(renderer, drawn);
             drop(_slow109);
             if drawn && !self.showcase_mode && self.bridge.terrain().is_some() {
                 let mut report = |name, what: &str| {
@@ -2648,7 +2623,10 @@ fn is_grid_toggle(ev: &platform::InputEvent) -> bool {
 
 /// What the UI layer sees of `ev` while the map is (`dragging`) or is not being dragged: the left-button release
 /// that ends a drag goes off-screen, so it clicks no control but still clears the layer's button state.
-fn ui_event_after_drag(ev: &platform::InputEvent, dragging: bool) -> platform::InputEvent {
+pub(crate) fn ui_event_after_drag(
+    ev: &platform::InputEvent,
+    dragging: bool,
+) -> platform::InputEvent {
     use platform::{InputEvent, MouseButton, PointerPhase};
     match ev {
         InputEvent::Pointer(p)
@@ -2665,7 +2643,7 @@ fn ui_event_after_drag(ev: &platform::InputEvent, dragging: bool) -> platform::I
 }
 
 /// A pointer release, cancel or leave: the end of a press, which the map must see even when the UI took it.
-fn ends_press(ev: &platform::InputEvent) -> bool {
+pub(crate) fn ends_press(ev: &platform::InputEvent) -> bool {
     use platform::PointerPhase as P;
     matches!(ev, platform::InputEvent::Pointer(p) if matches!(p.phase, P::Up | P::Cancel | P::Left))
 }
@@ -2755,120 +2733,23 @@ impl ApplicationHandler for App {
 }
 
 impl App {
-    /// The original UI sees what egui did not take; `true` when it used the event.
-    /// M2: egui first (sign-in, lobby, debug panel), then the original UI; what neither takes moves the camera.
-    fn m2_input(&mut self, ev: platform::InputEvent) {
-        use platform::InputEvent;
-        // TEMP(T51): while a UI v2 skin runs it gets the input first and the classic layer gets none.
+    /// The game UI sees what egui did not take: the active frontend's input; what it leaves moves the camera.
+    fn game_ui_input(&mut self, ev: platform::InputEvent) {
         let now = self.clock.now_ms_f64();
-        if let Some(outcome) = self.v2.as_mut().and_then(|v| v.input(&ev, now)) {
-            self.v2_input(ev, outcome);
-            return;
-        }
-        let at = match &ev {
-            InputEvent::Pointer(p) => Some(p.position),
-            InputEvent::Wheel(w) => Some(w.position),
-            _ => None,
+        let mut cx = crate::ui_host::InputCx {
+            now_ms: now,
+            camera: &mut self.game_camera,
+            map_controller: &mut self.map_controller,
+            picker: &mut self.picker,
+            bridge: &self.bridge,
+            hooks: &mut self.hooks,
+            renderer: self.renderer.as_ref(),
+            pointer_lock: None,
         };
-        if let Some(at) = at {
-            // `UI.GetMouseOverHex` and `SerialEventMouseOverHex` before the click reaches `WorldView.lua`.
-            let ray = self.map_controller.ray_at(at, &self.game_camera);
-            if let Some(p) = self.picker.pick(&self.bridge, &ray)
-                && let Some(m2) = self.m2.as_ref()
-            {
-                let (x, y) = p.cell;
-                m2.mouse_over_hex(x, y);
-            }
-        }
-        // A press that became a drag is not a click: its release must not reach a city banner or the world's
-        // button-up handler (the exe drops the click after `ProcessCameraDrag`). SIMPLIFIED(SIMP-uic-12).
-        // A press the layers took (a banner, the world's button-down) never reaches the map, so its own movement is
-        // followed too: any press past the drag threshold is a drag, whoever holds it.
-        self.ui_press.observe(&ev);
-        let press_moved = self.ui_press.moved(&ev);
-        let ui_ev = ui_event_after_drag(&ev, self.map_controller.is_dragging() || press_moved);
-        let taken = self.m2.as_mut().is_some_and(|m2| m2.handle_input(&ui_ev));
-        // The map keeps following a held button over UI controls (a banner), or the drag would stall there.
-        if taken
-            && matches!(&ev, platform::InputEvent::Pointer(p) if p.phase == platform::PointerPhase::Move)
-            && self.map_controller.is_pressed()
-        {
-            self.map_controller.handle(&ev, &mut self.game_camera);
-        }
-        // The camera events the keys fired at once (`WorldView.lua`'s arrows, SIMP-exe-560).
-        if let Some(m2) = self.m2.as_ref() {
-            for k in m2.take_camera_keys() {
-                self.map_controller.handle(&k, &mut self.game_camera);
-            }
-        }
-        // A key that neither the Lua UI nor the game's keys used is the mods' hotkey (client-hooks C4).
-        if !taken && !self.hooks.is_empty() {
-            let claim = self.hooks.unclaimed_input(&ev);
-            self.apply_pointer_request(claim.pointer_lock);
-            if claim.taken {
-                return;
-            }
-        }
-        if !taken {
-            self.map_controller.handle(&ev, &mut self.game_camera);
-        } else if ends_press(&ev) {
-            // WorldView.lua takes the button release (unit selection, orders) after the press went to the map:
-            // the drag still has to end, or the camera follows the cursor until the next press. The click is
-            // the UI's, not the map's.
-            self.map_controller.handle(&ev, &mut self.game_camera);
-            self.map_controller.take_click();
-            self.map_controller.take_right_click();
-        }
+        self.ui_host.input(&mut cx, ev);
+        let lock = cx.pointer_lock;
+        self.apply_pointer_request(lock);
     }
-
-    /// TEMP(T51): an event a running UI v2 skin looked at first. What it passed on goes to the mods' unclaimed
-    /// input, then the camera; a click the picker turns into a plot is the skin's `map.click`. A press on the skin's
-    /// minimap moves the camera like the classic minimap panel.
-    fn v2_input(&mut self, ev: platform::InputEvent, outcome: ui2_host::InputOutcome) {
-        match outcome {
-            ui2_host::InputOutcome::Consumed => {}
-            ui2_host::InputOutcome::MinimapClick { u, v } => {
-                let (u, v) = (
-                    crate::ui_host::v2::minimap_share(u),
-                    crate::ui_host::v2::minimap_share(v),
-                );
-                if let Some(at) = self
-                    .renderer
-                    .as_ref()
-                    .and_then(|r| r.minimap_to_world(u, v))
-                {
-                    self.game_camera.center_on(at);
-                }
-            }
-            ui2_host::InputOutcome::PassToWorld => {
-                if !self.hooks.is_empty() {
-                    let claim = self.hooks.unclaimed_input(&ev);
-                    self.apply_pointer_request(claim.pointer_lock);
-                    if claim.taken {
-                        return;
-                    }
-                }
-                self.map_controller.handle(&ev, &mut self.game_camera);
-                let clicks = [
-                    (self.map_controller.take_click(), ui2_host::MapButton::Left),
-                    (
-                        self.map_controller.take_right_click(),
-                        ui2_host::MapButton::Right,
-                    ),
-                ];
-                for (at, button) in clicks {
-                    let Some(at) = at else { continue };
-                    let ray = self.map_controller.ray_at(at, &self.game_camera);
-                    if let Some(p) = self.picker.pick(&self.bridge, &ray)
-                        && let Some(v2) = self.v2.as_mut()
-                    {
-                        v2.map_click(p.cell, button);
-                    }
-                }
-            }
-        }
-    }
-
     fn original_ui_takes(&mut self, ev: &platform::InputEvent) -> bool {
         self.original_ui
             .as_mut()
@@ -2921,11 +2802,11 @@ impl App {
             self.hud_on = !self.hud_on;
             return;
         }
-        if self.m2.is_some() && !self.showcase_mode {
+        if self.ui_host.has_game_ui() && !self.showcase_mode {
             // A mod that owns the screen (client-hooks C3) has hidden the original UI: it gets no input either.
             if self.interim.handle_input(&ev) {
                 if !self.hooks.ui_suppressed() {
-                    self.m2_input(ev);
+                    self.game_ui_input(ev);
                 } else if !self.hooks.is_empty() {
                     // The original UI is hidden: the keys it would have seen are the mods' to bind.
                     let claim = self.hooks.unclaimed_input(&ev);
@@ -3123,26 +3004,9 @@ fn apply_mod_requests(
     }
 }
 
-/// The parts of the app one M2 frame touches (the renderer is borrowed by the frame).
-struct M2Parts<'a> {
-    camera: &'a mut GameCamera,
-    assets: Option<&'a mut AssetsBoot>,
-    clock: &'a Rc<dyn platform::Clock>,
-    ui: &'a mut UiDrawList,
-    renderer: &'a mut Renderer,
-    sink: Option<&'a crate::GroupStatsSink>,
-}
-
-/// One frame of the M2 original UI: the replica, the exe API and the layer (frame order of the exe API),
-/// then what the layer asked of the world (camera, highlights).
-fn m2_frame(
-    m2: &mut crate::m2::M2Ui,
-    size: (u32, u32),
-    handle: Option<&NetHandle>,
-    p: M2Parts<'_>,
-    now: u64,
-) {
-    let seat = handle.and_then(|h| {
+/// This client's seat as the exe API tells it (`Matchmaking.*`), once the attach named it.
+fn seat_info(handle: Option<&NetHandle>) -> Option<exe_api::SeatInfo> {
+    handle.and_then(|h| {
         h.peek(|c| {
             c.attach_info().map(|a| {
                 // WO-C (K7): the host is the host seat of the game; SIMPLIFIED(SIMP-exe-135): every other online
@@ -3169,127 +3033,15 @@ fn m2_frame(
             })
         })
         .flatten()
-    });
-    let seat_known = seat.is_some();
-    let seat = seat.unwrap_or_default();
-    let ai_turn = handle.and_then(|h| {
-        h.peek(|c| {
-            c.ai_turn().map(|l| exe_api::AiTurnLog {
-                turn: l.turn,
-                events: l
-                    .events
-                    .iter()
-                    .map(|e| (i32::from(e.player), e.ended))
-                    .collect(),
-            })
-        })
-        .flatten()
-    });
-    let aspect = size.0 as f32 / size.1.max(1) as f32;
-    let projection = Some(crate::m2::ProjectionInfo {
-        view_proj: p.camera.view_proj(aspect),
-        ui_scale: ui::UiConfig::scale_for_height(size.1 as f32),
-        focus: p.camera.focus().to_array(),
-        level: p.camera.level(),
-    });
-    let env = crate::m2::M2Env {
-        now_ms: now,
-        loader: p.assets.map(AssetsBoot::loader_mut),
-        size,
-        net: handle,
-        clock: p.clock,
-        seat,
-        ai_turn,
-        seat_known,
-        projection,
-    };
-    // `GridToWorld` gives the relief's height as z (turn numbers of a path, yield and resource icons, flags).
-    let rev = p.renderer.ground_revision();
-    if rev != m2.plot_heights_revision() {
-        match p.renderer.plot_center_heights() {
-            Some((w, h, heights)) => m2.set_plot_heights(rev, w, h, heights),
-            None => m2.set_plot_heights(rev, 0, 0, Vec::new()),
-        }
-    }
-    let has_map = p.renderer.minimap_to_world(32_768, 32_768).is_some();
-    m2.set_minimap_size(
-        p.renderer.minimap_view().map_or((0, 0), |(_, i)| i.size),
-        has_map,
-    );
-    m2.set_texture_profile(&p.renderer.platform_profile());
-    m2.begin_frame(env, p.ui);
-    if let Some(on) = m2.take_grid() {
-        p.renderer.set_grid_visible(on);
-    }
-    m2.set_camera_moving(p.camera.is_following() || p.camera.is_gliding());
-    if let Some((x, y)) = m2.take_look_at() {
-        // Every `lookAt` of the exe sets a target the camera eases to (night answers 1b); the exe has
-        // no jump for CAMERALOOKAT_IMMEDIATE either, only StartupGame teleports.
-        // SIMPLIFIED(SIMP-exe-750): UI.LookAt's type argument is ignored: CITY_ZOOM_IN/OUT and SHRINE_ZOOM_IN
-        // (heights 500/700/800) keep the player's height, IMMEDIATE eases like NORMAL (as in the exe)
-        p.camera.look_at(render::hexgrid::cell_center(x, y));
-    }
-    // `Events.GameplayFX` (a notification of the seat with a plot, a ruin found among them, or a script): the
-    // "look here" effect of the exe's particle system.
-    // SIMPLIFIED(SIMP-132): the sounds of the effect (the VisEffect's AS2D_WORLD_RAY_OF_GOD, the EventEffect's
-    // AS2D_BUILD_UNIT) are not played; whether the exe plays them for this event is not traced.
-    for (x, y) in m2.take_gameplay_fx() {
-        p.renderer.particles_mut().look_at(x, y);
-    }
-    // Debug (the golden scenario): plot (x, y) at the screen fractions (px, py), at the zoom `level`.
-    if let Some((x, y, px, py, level)) = m2.take_camera_place() {
-        if level > 0.0 {
-            p.camera.set_level(level);
-        }
-        let target = render::hexgrid::cell_center(x, y);
-        p.camera.center_on(target);
-        let at = render::pixels_to_ndc(
-            px * size.0 as f32,
-            py * size.1 as f32,
-            size.0 as f32,
-            size.1 as f32,
-        );
-        let mid = render::glam::Vec2::ZERO;
-        if let (Some(a), Some(b)) = (
-            p.camera.ground_point(at, aspect),
-            p.camera.ground_point(mid, aspect),
-        ) {
-            p.camera
-                .center_on(target - render::glam::Vec2::new(a.x - b.x, a.z - b.z));
-        }
-    }
-    // K6: a click on the minimap panel moves the camera (the same way as the interim panel's).
-    if let Some((u, v)) = m2.take_minimap_click()
-        && let Some(at) = p.renderer.minimap_to_world(u, v)
-    {
-        p.camera.center_on(at);
-    }
-    // The city screen (K8): the camera takes the city view's zoom and gives the player's zoom back on leaving.
-    if let Some(up) = m2.take_city_view() {
-        m2.city_camera(up, p.camera);
-    }
-    if let Some(set) = m2.take_highlights() {
-        p.renderer.set_highlight_set(set);
-    }
-    if let Some((bridge, iron)) = m2.take_bridge() {
-        p.renderer.set_bridges(bridge, iron);
-    }
-    if let Some(sink) = p.sink
-        && let Some(stats) = m2.stats(now)
-    {
-        for (group, values) in &stats.groups {
-            sink(group, values);
-        }
-    }
+    })
 }
-
 /// The sounds of the original UI: the button events of the layer and the scripts the Lua asked for go to the engine;
 /// the counters go to `__civ5stats.audio` about four times a second. `scene` is where the player is, for the music.
 #[allow(clippy::too_many_arguments)]
 fn ui_sound_frame(
     snd: Option<&mut crate::ui_sound::UiSound>,
     uis: (
-        Option<&crate::m2::M2Ui>,
+        &crate::ui_host::UiHost,
         Option<&crate::original_ui::OriginalUi>,
     ),
     world: Option<crate::world_sound::WorldInput<'_>>,
@@ -3302,19 +3054,17 @@ fn ui_sound_frame(
     let Some(snd) = snd else {
         return;
     };
+    let game = uis.0.has_game_ui().then(|| uis.0.sounds());
     // WO-G (K20), re-b15 ITEM 8: each volume knob of the options menu is the gain of its own bus.
-    if let (Some(m2), _) = uis {
-        for (k, v) in m2.take_knobs() {
+    if let Some(Some(src)) = game {
+        for (k, v) in src.take_knobs() {
             snd.set_knob(&k, v);
         }
     }
-    let (buttons, scripts) = match uis {
-        (Some(m2), _) => (
-            m2.layer()
-                .map(|l| l.take_button_sounds())
-                .unwrap_or_default(),
-            m2.take_sound_scripts(),
-        ),
+    let (buttons, scripts) = match (game, uis.1) {
+        (Some(Some(src)), _) => (src.take_button_sounds(), src.take_sound_scripts()),
+        // A game UI without sounds of its own: the world and the music go on.
+        (Some(None), _) => (Vec::new(), Vec::new()),
         (None, Some(o)) => (
             o.layer()
                 .map(|l| l.take_button_sounds())
@@ -3328,15 +3078,13 @@ fn ui_sound_frame(
     };
     snd.world(now, loader, world.as_ref());
     snd.update(now, loader, buttons, scripts);
-    let (m2, _) = uis;
-    let events = m2
-        .map(crate::m2::M2Ui::take_music_events)
-        .unwrap_or_default();
+    let src = game.flatten();
+    let events = src.map(|s| s.take_music_events()).unwrap_or_default();
     snd.music(
         now,
         loader,
         scene,
-        &|| m2.and_then(crate::m2::M2Ui::music_state),
+        &|| src.and_then(|s| s.music_state()),
         events,
     );
     if now.saturating_sub(*last_stats_ms) >= 250
@@ -3348,7 +3096,6 @@ fn ui_sound_frame(
         sink("audio", &pairs);
     }
 }
-
 #[cfg(test)]
 mod original_game_screen_tests {
     use super::*;
