@@ -10,6 +10,7 @@ architecture if you want to change the code.
 | [hosting.md](hosting.md) | Server configuration, ports, Docker Compose, TLS reverse proxy, accounts and invite codes, admin API |
 | [architecture.md](architecture.md) | Crate layout, the server-authoritative model with a checked replica, the gamecore C ABI, asset pack, renderer |
 | [modding.md](modding.md) | What a mod is, `mod.toml`, the API crates, building a distribution with mods, the lobby flow, limits, the `hello` example |
+| [ui-skins.md](ui-skins.md) | UI skins as HTML and CSS: what the skin converter accepts, its commands, error codes and required tools |
 | [performance.md](performance.md) | How we measure, the numbers with their conditions and baselines, what is not measured yet |
 | [limitations.md](limitations.md) | Render gaps, features that do not exist, platform and browser status |
 | [legal.md](legal.md) | Asset policy, what the converter does, trademarks, licenses |

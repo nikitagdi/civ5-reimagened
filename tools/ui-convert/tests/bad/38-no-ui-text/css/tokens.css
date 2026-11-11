@@ -1,0 +1,19 @@
+:root {
+  --ink: #ebe2d2;
+  --ui-surface: var(--ink);
+  --ui-surface-2: var(--ink);
+  --ui-line: var(--ink);
+  --ui-text-2: var(--ink);
+  --ui-text-3: var(--ink);
+  --ui-accent: var(--ink);
+  --ui-accent-ink: var(--ink);
+  --ui-negative: var(--ink);
+  --ui-y-food: var(--ink);
+  --ui-y-prod: var(--ink);
+  --ui-y-gold: var(--ink);
+  --ui-y-sci: var(--ink);
+  --ui-y-cult: var(--ink);
+  --ui-y-faith: var(--ink);
+  --ui-y-happy: var(--ink);
+  --ui-y-tour: var(--ink);
+}

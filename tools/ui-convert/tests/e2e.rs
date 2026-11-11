@@ -25,8 +25,11 @@ fn crate_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf()
 }
 
+/// Every bad mockup through the whole pipeline (`check` = both build passes, pictures, the package budget): it
+/// gives exactly the codes of its `expect.txt` at their places, and its stored scan (`ir.json`, read by
+/// `tests/bad.rs` without a browser) is the one this run made.
 #[test]
-fn bad_mockup_scans_are_current() {
+fn bad_mockups() {
     if !chrome() {
         return;
     }
@@ -37,17 +40,47 @@ fn bad_mockup_scans_are_current() {
         .filter(|p| p.join("expect.txt").is_file())
         .collect();
     dirs.sort();
+    assert_eq!(dirs.len(), 41, "the whole set of bad mockups is present");
+    let mut failures = Vec::new();
     for dir in dirs {
-        let run = check_skin(&dir, Input::Chrome);
-        let fresh = run.dump().expect("the scan ran");
+        let out = ui2_convert::build::build(&dir, false);
+        let run = &out.run;
+        let mut got: Vec<String> = run
+            .errors
+            .iter()
+            .map(|e| match e.place.file.as_str() {
+                "" => format!("{} (skin)", e.code),
+                f => format!("{} {f}:{}", e.code, e.place.line),
+            })
+            .collect();
+        got.sort();
+        let text = std::fs::read_to_string(dir.join("expect.txt")).expect("expect.txt");
+        let mut want: Vec<String> = text
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .map(str::to_string)
+            .collect();
+        want.sort();
+        let name = dir.file_name().map(|n| n.to_string_lossy().to_string());
+        if got != want {
+            failures.push(format!(
+                "{name:?}: got {got:?}, expected {want:?}\n{}",
+                run.errors
+                    .iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ));
+        }
         let stored = std::fs::read_to_string(dir.join("ir.json")).expect("ir.json");
-        assert_eq!(
-            fresh,
-            stored,
-            "{}: the stored ir.json is stale; regenerate it with `ui2-convert check <dir> --dump-ir <dir>/ir.json`",
-            dir.display()
-        );
+        if run.dump().as_deref() != Some(stored.as_str()) {
+            failures.push(format!(
+                "{name:?}: the stored ir.json is stale; regenerate it with `ui2-convert check <dir> --dump-ir <dir>/ir.json`"
+            ));
+        }
     }
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
 }
 
 #[test]

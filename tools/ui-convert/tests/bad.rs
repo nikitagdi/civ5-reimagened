@@ -20,6 +20,15 @@ fn bad_dirs() -> Vec<PathBuf> {
     dirs
 }
 
+/// Whether the mockup's error is found only past the checks (rasterizing, writing): `# stage: build` in
+/// `expect.txt`. The stored scan then runs the checks without errors; `e2e.rs` builds it.
+fn build_stage(dir: &Path) -> bool {
+    std::fs::read_to_string(dir.join("expect.txt"))
+        .expect("expect.txt")
+        .lines()
+        .any(|l| l.trim().starts_with("# stage: build"))
+}
+
 fn expected(dir: &Path) -> Vec<String> {
     let text = std::fs::read_to_string(dir.join("expect.txt")).expect("expect.txt");
     let mut v: Vec<String> = text
@@ -36,7 +45,10 @@ fn got(run: &ui2_convert::Run) -> Vec<String> {
     let mut v: Vec<String> = run
         .errors
         .iter()
-        .map(|e| format!("{} {}:{}", e.code, e.place.file, e.place.line))
+        .map(|e| match e.place.file.as_str() {
+            "" => format!("{} (skin)", e.code),
+            f => format!("{} {f}:{}", e.code, e.place.line),
+        })
         .collect();
     v.sort();
     v
@@ -45,13 +57,18 @@ fn got(run: &ui2_convert::Run) -> Vec<String> {
 #[test]
 fn bad_mockups_give_the_expected_codes() {
     let dirs = bad_dirs();
-    assert!(dirs.len() >= 12, "the first twelve bad mockups are present");
+    assert_eq!(dirs.len(), 41, "the whole set of bad mockups is present");
     for dir in dirs {
         let ir = std::fs::read_to_string(dir.join("ir.json")).expect("ir.json");
         let run = check_skin(&dir, Input::Dump(&ir));
+        let want = if build_stage(&dir) {
+            Vec::new()
+        } else {
+            expected(&dir)
+        };
         assert_eq!(
             got(&run),
-            expected(&dir),
+            want,
             "{}:\n{}",
             dir.display(),
             run.errors

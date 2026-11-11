@@ -447,6 +447,8 @@ pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
                     Ok(out) => {
                         let (compiled, errs) = styles::compile(&dom, &p, &out, &reported);
                         run.errors.extend(errs);
+                        run.errors
+                            .extend(styles::asset_sizes(&dom, &statics, &compiled));
                         run.styles = Some(compiled);
                     }
                     Err(e) => run.errors.push(ConvError::new(
@@ -475,6 +477,8 @@ pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
             &static_text(&dom, &statics),
         );
         run.errors.extend(errs);
+        run.errors
+            .extend(fonts::missing_glyphs(&src.dir, &src.skin, &texts));
         run.bindings = Some(bound);
         run.texts = Some(texts);
         run.statics = Some(statics);

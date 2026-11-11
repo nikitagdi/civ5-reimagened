@@ -112,7 +112,10 @@ export function createSession() {
     /** Answers the converter's style plan (see extract.mjs) on the page of the last scan. */
     async extract(req = {}) {
       need(st, "extract: no open session");
-      return extractPage({ page: st.page, server: st.server, entry: st.entry, req, state: st.state || "" });
+      const out = await extractPage({ page: st.page, server: st.server, entry: st.entry, req, state: st.state || "" });
+      // Computed `url()` values carry the server's port, which changes per run: the answer names the server as
+      // port 0, so stored answers stay the same (the converter maps such URLs back to skin paths).
+      return JSON.parse(JSON.stringify(out).replaceAll(`${st.server.url}/`, "http://127.0.0.1:0/"));
     },
 
     /** Chrome's rectangle dump of the page in layout mode (see rects.mjs). */
