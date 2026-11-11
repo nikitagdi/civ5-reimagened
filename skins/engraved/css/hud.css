@@ -157,6 +157,24 @@
   height: 18px;
 }
 
+/* ---------- turn and year (until the turn dial shows them) ---------- */
+.date {
+  gap: 8px;
+  padding: 0 16px;
+  white-space: nowrap;
+}
+
+.date .v {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--bone);
+}
+
+.date .d {
+  font-size: 13px;
+  color: var(--bone-3);
+}
+
 /* ---------- yields and resources ---------- */
 .yields {
   gap: 28px;

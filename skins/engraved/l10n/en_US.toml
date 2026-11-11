@@ -5,6 +5,7 @@
 # Top strip.
 "top.turns" = "{1_Num} {1_Num: plural 1?turn; other?turns;}"
 "top.next" = "{1} next"
+"top.turn" = "Turn {1_Num}"
 
 # Year line of the turn dial (the model gives the key and the year).
 "year.ad" = "{1} AD"

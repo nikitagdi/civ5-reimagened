@@ -252,6 +252,16 @@ pub fn install() -> Option<Box<dyn TestPort>> {
     );
     set("waitTurn", &wait_turn);
 
+    // `ui2()`: UI v2 as of its last frame (null without `&ui=v2`).
+    if client_app::parse_ui2_param(platform_web::page::query_param("ui").as_deref()).is_some() {
+        client_app::enable_ui2_probe();
+    }
+    let ui2 = Closure::<dyn Fn() -> JsValue>::new(|| {
+        to_js(&client_app::ui2_probe().map_or(Value::Null, |p| ui2_json(&p)))
+    });
+    set("ui2", ui2.as_ref());
+    ui2.forget();
+
     let trap = Closure::<dyn Fn(String)>::new(test_trap);
     set("trap", trap.as_ref());
     trap.forget();
@@ -614,6 +624,29 @@ fn net_json(n: &TestNet) -> Value {
     })
 }
 
+/// `ui2()`: `{state, skin, loadMs, frames, texts: [{part, text}], counters: {"ui2.*": n}}`; the counters are the
+/// renderer's and the frame's, as `__civ5stats` has them.
+fn ui2_json(p: &client_app::V2Probe) -> Value {
+    let texts: Vec<Value> = p
+        .texts
+        .iter()
+        .map(|(part, text)| json!({ "part": part, "text": text }))
+        .collect();
+    let counters: serde_json::Map<String, Value> = client_app::render::perf::extra_counters()
+        .into_iter()
+        .filter(|(name, _)| name.starts_with("ui2."))
+        .map(|(name, v)| (name, json!(v)))
+        .collect();
+    json!({
+        "state": p.state,
+        "skin": p.skin,
+        "loadMs": p.load_ms,
+        "frames": p.frames,
+        "texts": texts,
+        "counters": counters,
+    })
+}
+
 fn state_json(s: &Shared) -> Value {
     let mut v = s.snapshot.as_ref().map_or_else(
         || json!({ "screen": "none", "turn": null, "status": null, "fatal": null }),
@@ -638,6 +671,7 @@ fn snapshot_json(s: &TestSnapshot) -> Value {
         },
         "turn": s.turn,
         "year": s.year,
+        "top": s.top.map(|(gold, gold_rate, science_rate)| json!({ "gold": gold, "goldRate": gold_rate, "scienceRate": science_rate })),
         "status": s.status,
         "blocker": s.blocker.as_ref().map(|(kind, target)| json!({ "kind": kind, "target": target })),
         "endTurn": s.end_turn,

@@ -135,6 +135,76 @@ pub(crate) fn take_choice() -> Option<V2Choice> {
     CHOICE.with(|c| c.borrow_mut().take())
 }
 
+/// What the playtest hooks (`?test=1`) read of UI v2 after each of its frames: the loading stage and, while a
+/// skin runs, the text leaves the document shows. Filled only once [`enable_probe`] was called.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct V2Probe {
+    /// "loading", "running" or "classic" (UI v2 is off for the session).
+    pub state: &'static str,
+    /// The running skin.
+    pub skin: Option<String>,
+    /// From the start of the loading to the skin's first frame, ms.
+    pub load_ms: Option<f64>,
+    /// UI v2 frames run with the game's layer up.
+    pub frames: u64,
+    /// The text leaves in document order: the `data-part` name of the nearest element that has one, and the
+    /// string.
+    pub texts: Vec<(Option<String>, String)>,
+}
+
+thread_local! {
+    static PROBE: RefCell<Option<V2Probe>> = const { RefCell::new(None) };
+}
+
+/// Starts filling the probe (the test hooks call it once, at install).
+pub fn enable_probe() {
+    PROBE.with(|p| {
+        p.borrow_mut().get_or_insert_with(|| V2Probe {
+            state: "loading",
+            ..V2Probe::default()
+        });
+    });
+}
+
+/// The probe as of the last UI v2 frame; `None` until [`enable_probe`] was called.
+pub fn probe() -> Option<V2Probe> {
+    PROBE.with(|p| p.borrow().clone())
+}
+
+fn probe_on() -> bool {
+    PROBE.with(|p| p.borrow().is_some())
+}
+
+/// The text leaves of `ui`'s document with the part each one is in.
+fn probe_texts(ui: &V2Ui) -> Vec<(Option<String>, String)> {
+    let pkg = ui.package();
+    let arena = ui.runtime().arena();
+    let part_of = |mut id| loop {
+        let node = arena.get(id)?;
+        let tmpl = node.tmpl();
+        let part = pkg
+            .templates()
+            .get(tmpl.0.index())
+            .and_then(|t| t.nodes.get(tmpl.1 as usize))
+            .and_then(|n| n.part)
+            .and_then(|s| pkg.str(s));
+        if let Some(name) = part {
+            return Some(name.to_owned());
+        }
+        id = node.parent()?;
+    };
+    arena
+        .preorder()
+        .into_iter()
+        .filter_map(|id| {
+            let n = arena.get(id)?;
+            // Only text leaves carry a string.
+            let text = n.text()?;
+            Some((part_of(id), text.to_owned()))
+        })
+        .collect()
+}
+
 /// Where the loading is.
 enum Stage {
     /// Waiting for the index.
@@ -405,6 +475,17 @@ impl V2Host {
         now_ms: f64,
     ) -> Option<&mut V2Ui> {
         self.poll(env);
+        if probe_on() && !self.running() {
+            let state = match self.stage {
+                Stage::Classic => "classic",
+                _ => "loading",
+            };
+            PROBE.with(|p| {
+                if let Some(p) = p.borrow_mut().as_mut() {
+                    p.state = state;
+                }
+            });
+        }
         if !self.running() || m2.layer().is_none() {
             return None;
         }
@@ -466,6 +547,18 @@ impl V2Host {
         }
         self.cursor = report.cursor;
         publish(&report, load_ms);
+        if probe_on() {
+            let texts = probe_texts(ui);
+            PROBE.with(|p| {
+                if let Some(p) = p.borrow_mut().as_mut() {
+                    p.state = "running";
+                    p.skin = Some(ui.skin_id().to_owned());
+                    p.load_ms = p.load_ms.or(load_ms);
+                    p.frames += 1;
+                    p.texts = texts;
+                }
+            });
+        }
         Some(ui)
     }
 }
@@ -838,6 +931,55 @@ mod tests {
         assert!(r.errors.is_empty(), "{:?}", r.errors);
         assert_eq!(ui.texts(), ["Hello"]);
         assert!(r.scene.raster_glyphs > 0);
+        // The probe names no part: the kit's text is in none.
+        assert_eq!(probe_texts(ui), [(None, "Hello".to_owned())]);
+    }
+
+    #[test]
+    fn the_probe_names_the_part_of_each_text() {
+        let font = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../../third_party/fonts/fira-sans/FiraSans-Regular.ttf"),
+        )
+        .expect("the font of the tests");
+        let mut kit = Kit::new();
+        kit.font("Fira Sans", 400, false, &font);
+        let mut cell = StyleRecord::initial();
+        cell.display = Display::Block;
+        cell.font_family = vec![kit.str("Fira Sans")];
+        cell.font_size = Len::px(14.0);
+        let cell = kit.record(cell);
+        let cell = kit.plain(cell);
+        let (gold, turn, top) = (kit.str("312"), kit.str("Turn 5"), kit.str("top.gold"));
+        kit.template(
+            "doc",
+            vec![
+                TNode::layer(Layer::Hud, cell)
+                    .child(
+                        TNode::el(cell)
+                            .part(top)
+                            .child(TNode::el(cell).child(TNode::text(gold, cell))),
+                    )
+                    .child(TNode::text(turn, cell)),
+            ],
+        );
+        let pkg = kit.finish().expect("package");
+        let mut ui = V2Ui::new(pkg, V2Init::default()).expect("ui");
+        ui.frame(V2Frame {
+            replica: None,
+            steps: &[],
+            net: None,
+            events: &[],
+            mods: None,
+            now_ms: 16.0,
+        });
+        assert_eq!(
+            probe_texts(&ui),
+            [
+                (Some("top.gold".to_owned()), "312".to_owned()),
+                (None, "Turn 5".to_owned())
+            ]
+        );
     }
 
     /// A package with the `menu` button (10, 10, 100 x 40; cursor pointer; a click toggles the menu window) on

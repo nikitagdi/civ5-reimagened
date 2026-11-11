@@ -1,7 +1,7 @@
 <header class="top" data-part="top">
   <div class="grp research" data-part="top.research">
     <div class="ring"><svg class="i"><use href="#i-sci"/></svg></div>
-    <div class="body">
+    <div class="body" data-bind-if="{{research.current != null}}">
       <div class="line">
         <span><span class="name" data-bind-value="{{research.current.name}}">Education</span>&nbsp;&nbsp;<span class="turns" data-l10n="top.turns" data-l10n-args="{{research.current.turns}}">3 turns</span></span>
         <span class="next" data-bind-if="{{research.next != null}}" data-l10n="top.next" data-l10n-args="{{research.next.name}}">Astronomy next</span>
@@ -62,6 +62,11 @@
       <img class="rico" data-bind-src="{{r.icon}}">
       <span class="v" data-bind-value="{{r.available}}">2</span>
     </div>
+  </div>
+
+  <div class="grp date sep" data-part="top.date">
+    <span class="v" data-l10n="top.turn" data-l10n-args="{{game.turn}}">Turn 87</span>
+    <span class="d muted" data-bind-value="{{game.year_text}}">1250 AD</span>
   </div>
 
   <div class="grp menus menu-end sep" data-part="top.main-menu">

@@ -1235,8 +1235,10 @@ fn take_gamecore_lib(args: &mut Vec<String>) -> Result<()> {
 /// Builds the web bundle (real gamecore) and the server, then runs `tools/playtest/run.mjs`
 /// report in `<target>/playtest/report.{json,md}`.
 fn cmd_playtest(root: &Path, args: &[String]) -> Result<()> {
-    const VALUED: [&str; 38] = [
+    const VALUED: [&str; 39] = [
         "--out",
+        // Any scenario: a running server (e.g. the real-core one of `tools/playtest/m2/server.ps1`) instead of a local one.
+        "--attach",
         "--scroll-s",
         // The `gallery` scenario: the asset report dir of the full-set test world (default: --assets).
         "--gallery",
@@ -1341,6 +1343,10 @@ fn cmd_playtest(root: &Path, args: &[String]) -> Result<()> {
     } else {
         build_web_threads(root, release)?
     };
+    // The UI v2 scenarios need the skins and `ui2/skins.json` in the bundle (the converter needs Python with fontTools).
+    if flag_value(args, "--scenario")?.is_some_and(|s| s.contains("ui2")) {
+        ui::web::build_skins(root, &web)?;
+    }
     let mut c = cargo();
     c.args(["build", "-p", "server"]);
     run(root, c)?;
