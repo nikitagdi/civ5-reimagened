@@ -196,6 +196,16 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
                 platform_web::stats::set_group(group, &v);
             }
         })),
+        // UI v2 (`&ui=v2[:skin]`): a skin's scripts run in the page's workers (`ui2/host.js`), looked up when a skin
+        // loads; without them the skin works on its markup alone.
+        ui2: Some(client_app::Ui2Platform {
+            scripts: Some(std::rc::Rc::new(
+                || match platform_web::WebScriptHost::detect() {
+                    Some(h) => Box::new(h) as Box<dyn platform::ScriptHost>,
+                    None => Box::new(platform::NullScriptHost),
+                },
+            )),
+        }),
     };
     let config = AppConfig {
         server_url,
@@ -224,6 +234,12 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
             .and_then(|v| v.trim().parse::<f32>().ok())
             .map_or(0.5, |v| (v / 100.0).clamp(0.0, 1.0)),
         original_ui_m1: page::query_param("ui").as_deref() == Some("m1"),
+        // `&ui=classic|v2|v2:<skin>|interim`: the game UI of this run (not remembered). A UI v2 skin
+        // (`ui2/skins.json` and its package, fetched relative to the page) takes the screen once it is up and a game
+        // is played; one that cannot load leaves the classic UI.
+        ui_choice: page::query_param("ui")
+            .as_deref()
+            .and_then(client_app::UiChoice::parse),
         touch_device: client_app::gfx_prefs::is_touch_platform(
             &page::user_agent(),
             page::max_touch_points(),
@@ -234,18 +250,6 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
             .map(|(base_url, capture)| client_app::GoldenConfig { base_url, capture }),
     };
     client_app::set_m2_debug_lua(page::query_param("luadbg").filter(|c| !c.trim().is_empty()));
-    // `&ui=v2` or `&ui=v2:<skin>`: a UI v2 skin (`ui2/skins.json` and its package, fetched relative to the page) over
-    // the original UI, which keeps running but neither draws nor gets input. A skin that cannot load leaves the
-    // original UI as it is. Any other `&ui=` fetches nothing.
-    client_app::set_ui2_param(page::query_param("ui").as_deref());
-    // A skin's scripts run in the page's workers (`ui2/host.js`), looked up when a skin loads; without them the
-    // skin works on its markup alone.
-    client_app::set_ui2_script_host(std::rc::Rc::new(
-        || match platform_web::WebScriptHost::detect() {
-            Some(h) => Box::new(h) as Box<dyn platform::ScriptHost>,
-            None => Box::new(platform::NullScriptHost),
-        },
-    ));
     // `?trace=off|coarse|fine`: the turn timeline (remembered for the next visits).
     client_app::set_trace(
         page::remembered_param("trace", "civ5.trace").as_deref(),

@@ -5,9 +5,6 @@
 //! the exe's hot keys, and what they leave moves the camera. Removing the classic UI is removing this module, the
 //! modules it wraps and its one registration in the app.
 
-// TEMP(T53): the switch between frontends is the next step; until then parts of the interface are unused.
-#![allow(dead_code)]
-
 use std::rc::Rc;
 
 use client_core::ClientEvent;
@@ -35,11 +32,6 @@ impl ClassicFrontend {
             ui_press: crate::ui_press::UiPress::default(),
             slept_with_layer: false,
         }
-    }
-
-    /// The M2 layer (tests and stats).
-    pub fn m2(&self) -> &M2Ui {
-        &self.m2
     }
 }
 

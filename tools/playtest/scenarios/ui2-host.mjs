@@ -5,12 +5,12 @@
 //
 // Start: `?ui=v2:engraved&test=1&autostart=1&stats=1`; once the skin runs, the top strip's texts (read through
 // `__civ5test.ui2()`, never from pixels) show the gold, the science rate, the turn and the year that `state()` reports,
-// at the start and again once the settler founded a city (a research is chosen too); `ui2.draws.hud` <= 5; no console errors. Then a page without `&ui=`: `ui2()` is null and no `ui2.*` pass ran
+// at the start and again once the settler founded a city (through the test port's orders); `ui2.draws.hud` <= 5; no console errors. Then a page without `&ui=`: `ui2()` is null and no `ui2.*` pass ran
 // (`ui2.draws` absent or 0). Screenshot of the strip: <logs>/ui2-top.png.
 import { writeFileSync } from "node:fs";
 import { openPage, act, until, state, appUrl } from "../lib/browser.mjs";
 import { DEV_PASSWORD } from "../lib/game.mjs";
-import { uiDriver } from "../lib/ui-driver.mjs";
+import { FOUND_CITY } from "../lib/policy.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** How long the game's layer may take to come up (a cold boot on a software renderer is slow). */
@@ -134,16 +134,15 @@ export async function run(ctx) {
       }
     };
     await compare("start");
-    // The settler founds a city through the original UI's Lua (which gets no input under UI v2). Ending the turn this way is
-    // not possible yet: the server refuses END TURN while a unit waits for orders, and the Lua unit missions do not reach it.
-    const ui = uiDriver(b);
-    const found = await ui.lua(`local p = Players[Game.GetActivePlayer()]
-local id = nil
-for i, a in pairs(GameInfoActions) do if a.Type == "MISSION_FOUND" then id = i end end
-for u in p:Units() do if id and u:IsFound() then UI.SelectUnit(u) Game.HandleAction(id) print(TAG .. "found " .. u:GetX() .. "," .. u:GetY()) break end end`).catch((e) => [`lua failed: ${e.message}`]);
-    result.numbers.found = found;
-    // A research, so the strip's research group has something to show (the page has `manual`: nothing is chosen for us).
-    result.numbers.research = await ui.lua(`Network.SendResearch(GameInfoTypes.TECH_POTTERY, 0, -1, false) print(TAG .. "research")`).catch((e) => [`lua failed: ${e.message}`]);
+    // The settler founds a city through the test port's orders (the server's command, whichever UI is on the screen):
+    // the classic UI sleeps under UI v2, so its Lua is not there to do it.
+    const settler = ((await state(b.page))?.units ?? []).find((u) => /settler/i.test(u.name));
+    if (settler) {
+      await act(b.page, { kind: "selectUnit", id: settler.id });
+      await until(b.page, (x) => x.selectedUnit === settler.id, 10000, "the settler selected");
+      await act(b.page, { kind: "unitAction", action: FOUND_CITY });
+    }
+    result.numbers.found = settler ? `found ${settler.x},${settler.y}` : "no settler";
     await sleep(3000);
     // The strip follows the game: with a city the rates are no longer 0.
     await until(b.page, (x) => (x.cities?.length ?? 0) > 0 && x.top && x.top.scienceRate !== 0, 30000, "the new city in state()");
@@ -157,6 +156,11 @@ for u in p:Units() do if id and u:IsFound() then UI.SelectUnit(u) Game.HandleAct
     result.numbers.loadMs = probe.loadMs;
     const hud = c["ui2.draws.hud"];
     check("ui2.draws.hud <= 5", typeof hud === "number" && hud > 0 && hud <= 5, `${hud}`);
+    // One game UI at a time: UI v2 is the active one and the sleeping classic UI gets no frames.
+    await sleep(1500);
+    const c2 = await counters(b.page);
+    check("one active UI: ui.active == 2 (UI v2)", c2["ui.active"] === 2, `${c2["ui.active"]}`);
+    check("the classic UI sleeps: ui.frames.classic does not grow", typeof c["ui.frames.classic"] === "number" && c2["ui.frames.classic"] === c["ui.frames.classic"] && c2["ui.frames.v2"] > c["ui.frames.v2"], `classic ${c["ui.frames.classic"]} -> ${c2["ui.frames.classic"]}, v2 ${c["ui.frames.v2"]} -> ${c2["ui.frames.v2"]}`);
     await shot("ui2-top");
   } catch (e) {
     error = e;
@@ -191,6 +195,7 @@ for u in p:Units() do if id and u:IsFound() then UI.SelectUnit(u) Game.HandleAct
       result.numbers.classic = { ui2: probe, draws, ui2Counters: Object.keys(k).filter((n) => n.startsWith("ui2.")) };
       check("classic: ui2() is null", probe === null, JSON.stringify(probe));
       check("classic: ui2.draws == 0", draws === 0, `${draws}`);
+      check("classic: ui.active == 1 (classic), no UI v2 frames", k["ui.active"] === 1 && (k["ui.frames.v2"] ?? 0) === 0, `active ${k["ui.active"]}, v2 frames ${k["ui.frames.v2"]}`);
     } catch (e) {
       error = e;
     }

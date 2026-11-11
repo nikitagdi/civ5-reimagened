@@ -23,11 +23,9 @@ pub mod timeline;
 /// The game's interfaces: the host, the classic UI and UI v2.
 mod ui_host;
 
-/// The page's `?ui=` value (web, before `run`): `v2` or `v2:<skin>` loads a UI v2 skin over the classic layer.
-pub use ui_host::v2::set_ui_param as set_ui2_param;
-pub use ui_host::v2::{
-    ScriptHostFactory as Ui2ScriptHostFactory, set_script_host as set_ui2_script_host,
-};
+/// The game UI chosen by the page (`?ui=`), and what UI v2 needs of the platform.
+pub use ui_host::UiChoice;
+pub use ui_host::v2::{ScriptHostFactory as Ui2ScriptHostFactory, Ui2Platform};
 /// The playtest hooks' view of UI v2 (`?test=1`).
 pub use ui_host::v2::{
     V2Probe, enable_probe as enable_ui2_probe, parse_ui_param as parse_ui2_param,
@@ -195,6 +193,9 @@ pub struct AppConfig {
     pub original_ui: bool,
     /// With `original_ui`: the M1 fixture (four EUI contexts on stubs) instead of M2 (`?ui=m1`).
     pub original_ui_m1: bool,
+    /// The game UI of this run (`?ui=`; not remembered): `V2` loads a skin that takes the screen once it is up.
+    /// `None`: the default (the classic UI).
+    pub ui_choice: Option<UiChoice>,
     /// Volume of the UI sounds, 0 to 1 (?volume= as a percent). SIMP-exe-190: not an OptionsManager option.
     pub ui_volume: f32,
     /// A phone or a tablet (`gfx_prefs::is_touch_platform`): the defaults of the render scale and the
@@ -280,6 +281,8 @@ pub struct Services {
     /// What the page says about the pointer lock (web: `document.pointerLockElement`). `None` (desktop): the lock
     /// ends only when the app lets it go or the window loses the focus.
     pub pointer_lock_probe: Option<Box<dyn platform::PointerLockProbe>>,
+    /// What UI v2 needs of the platform (web: the script workers). `None`: no UI v2 (native).
+    pub ui2: Option<Ui2Platform>,
 }
 
 /// `(group, [(name, value)])`.
