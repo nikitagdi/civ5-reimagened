@@ -66,6 +66,10 @@ impl ModelState {
         &self.roots[usize::from(id.0)]
     }
 
+    pub(crate) fn set_root(&mut self, id: RootId, value: Value) {
+        self.roots[usize::from(id.0)] = value;
+    }
+
     /// Apply the operations of a frame, all or nothing.
     ///
     /// # Errors

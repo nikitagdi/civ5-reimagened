@@ -14,8 +14,10 @@ pub mod generated;
 pub mod model;
 pub mod schema;
 pub mod state;
+pub mod store;
 mod umd1;
 pub mod value;
+pub mod watch;
 
 pub use delta::{Cursor, FrameDelta, Keys, Op, Ops};
 pub use diff::{ListStep, diff_root, list_steps};
@@ -27,4 +29,6 @@ pub use schema::{
     RootId, RootKind, Scalar, Schema, SchemaError, StructDef, Type, TypeId, Version,
 };
 pub use state::{ApplyError, ModelState};
+pub use store::{ModelStore, ModelWriter, Owner, StoreError};
 pub use value::{AssetRef, Key, Text, Value, ValueError, ValueRef, default_value, validate};
+pub use watch::WatchSet;
