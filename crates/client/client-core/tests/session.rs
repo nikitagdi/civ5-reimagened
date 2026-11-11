@@ -6,10 +6,11 @@ use client_core::{
     ClientCore, ClientEvent, ClientPhase, ConnState, DisconnectWhy, NetConfig, NoticeKind,
     OrderRefused, Sock, SocketCmd,
 };
+use common::world::World;
 use common::*;
 use protocol::{
-    AttachMode, ChatTo, ClientMsg, DetachReason, GameCtl, GameCtlReason, GameMsg, LobbyCmd,
-    RejectReason, ServerMsg, Token,
+    AttachMode, ChatTo, ClientMsg, Cmd, Codec, Command, CommandOutcome, DetachReason, GameCtl,
+    GameCtlReason, GameMsg, LobbyCmd, Postcard, RejectCode, RejectReason, ServerMsg, Token,
 };
 
 fn plan(game: u32, stream: u64) -> GamePlan {
@@ -755,4 +756,206 @@ fn sign_out_shows_the_login_window_even_on_an_open_server_and_a_new_login_works(
         ClientPhase::Lobby | ClientPhase::Playing | ClientPhase::Loading
     ));
     assert!(n.core.token().is_some());
+}
+
+// ---------------------------------------------------------------- a city queue order end to end (protocol v15)
+//
+// The new UI gives its orders through the same session as the classic one (`order_at`, stamped with the turn
+// the replica shows). These follow one `CityQueuePush` from the session onto the wire, into the gateway double
+// and back: applied, refused by the server's check with a reason, and lost by a restarted worker.
+
+/// Attached to game 7 with the view in; the server's last order number is 4.
+fn in_game() -> (Net, Token) {
+    let mut n = Net::start();
+    n.srv.world = Some(World::new(7, 11, 6, 5));
+    n.srv.plan = Some(plan(7, 3));
+    n.connect();
+    n.login();
+    let token = n.core.token().expect("token");
+    n.core.set_catalog(protocol::Catalog::default());
+    n.take_events();
+    (n, token)
+}
+
+fn queue_push(front: bool) -> Command {
+    Command::CityQueuePush {
+        city: 3,
+        order: 1,
+        item: 0,
+        front,
+    }
+}
+
+/// Every `Cmd` the server received, repeats included.
+fn cmds_received(n: &Net) -> Vec<Cmd> {
+    n.srv
+        .log
+        .iter()
+        .filter_map(|(_, m)| match m {
+            ClientMsg::Cmd(c) => Some(*c),
+            _ => None,
+        })
+        .collect()
+}
+
+fn answers(n: &Net) -> Vec<(u32, CommandOutcome)> {
+    n.events
+        .iter()
+        .filter_map(|e| match e {
+            ClientEvent::OrderAnswered { id, outcome } => Some((*id, outcome.clone())),
+            _ => None,
+        })
+        .collect()
+}
+
+fn rollbacks(n: &Net) -> Vec<(u32, String)> {
+    n.events
+        .iter()
+        .filter_map(|e| match e {
+            ClientEvent::OrderRolledBack { id, text } => Some((*id, text.clone())),
+            _ => None,
+        })
+        .collect()
+}
+
+fn deliver(n: &mut Net, token: Token, msgs: Vec<ServerMsg>) {
+    for m in msgs {
+        n.push(token, m);
+    }
+    n.settle();
+}
+
+#[test]
+fn a_city_queue_push_reaches_the_server_whole_and_its_applied_answer_ends_the_wait() {
+    // The wire tag of the new variant is part of the format: appended after `AnswerPeace` (19).
+    let bytes = Postcard.encode(&queue_push(true)).expect("encodes");
+    assert_eq!(bytes[0], 20);
+
+    let (mut n, token) = in_game();
+    n.srv.book.auto = false;
+    let turn = n.core.shown().expect("a view").turn;
+    let id = n
+        .core
+        .order_at(queue_push(true), Some(turn))
+        .expect("accepted");
+    assert_eq!(id, 5, "numbered after the server's last");
+    assert_eq!(n.core.orders_in_flight(), 1);
+    n.settle();
+    assert_eq!(
+        cmds_received(&n),
+        [Cmd {
+            id,
+            turn,
+            cmd: queue_push(true)
+        }],
+        "one Cmd, the variant and every field as given"
+    );
+    assert_eq!(n.srv.book.held.len(), 1, "the worker has it");
+    assert!(answers(&n).is_empty(), "the wait goes on until the answer");
+
+    // The worker is busy first: `Queued` is not an answer.
+    let q = n.srv.answer_order(id, CommandOutcome::Queued);
+    deliver(&mut n, token, q);
+    assert!(answers(&n).is_empty());
+    assert_eq!(n.core.orders_in_flight(), 1);
+
+    let a = n.srv.answer_order(id, CommandOutcome::Applied);
+    deliver(&mut n, token, a);
+    assert_eq!(answers(&n), [(id, CommandOutcome::Applied)]);
+    assert!(rollbacks(&n).is_empty(), "an applied order needs no text");
+    assert_eq!(n.core.orders_in_flight(), 0);
+    assert_eq!(n.srv.book.applied, [id]);
+    let s = n.core.stats();
+    assert_eq!(
+        (s.orders_sent, s.orders_applied, s.orders_queued),
+        (1, 1, 1)
+    );
+}
+
+#[test]
+fn a_city_queue_push_the_server_refuses_comes_back_with_its_code_and_reason() {
+    let (mut n, token) = in_game();
+    let reason = "The build queue is full";
+    n.srv.book.forced.insert(
+        5,
+        CommandOutcome::Rejected {
+            code: RejectCode::Invalid,
+            reason: reason.into(),
+        },
+    );
+    let turn = n.core.shown().unwrap().turn;
+    let id = n.core.order_at(queue_push(false), Some(turn)).unwrap();
+    n.settle();
+    assert_eq!(cmds_received(&n).len(), 1);
+    assert_eq!(
+        answers(&n),
+        [(
+            id,
+            CommandOutcome::Rejected {
+                code: RejectCode::Invalid,
+                reason: reason.into()
+            }
+        )]
+    );
+    assert_eq!(
+        rollbacks(&n),
+        [(id, "Invalid order".to_string())],
+        "the journal line is the code's; the server's reason travels in the answer above"
+    );
+    assert_eq!(n.core.orders_in_flight(), 0);
+    assert!(n.srv.book.applied.is_empty());
+    assert_eq!(n.core.stats().orders_rejected, 1);
+
+    // The refusal blocks nothing: the next order takes the next number and is applied.
+    let next = n.core.order_at(queue_push(true), Some(turn)).unwrap();
+    assert_eq!(next, id + 1);
+    n.settle();
+    assert_eq!(answers(&n)[1], (next, CommandOutcome::Applied));
+    let _ = token;
+}
+
+#[test]
+fn a_city_queue_push_lost_by_a_restarted_worker_is_repeated_once_and_rolled_back() {
+    let (mut n, token) = in_game();
+    n.srv.book.auto = false;
+    let turn = n.core.shown().unwrap().turn;
+    let id = n.core.order_at(queue_push(false), Some(turn)).unwrap();
+    n.settle();
+
+    // The gateway restarts before the answer: another stream, so the next attach is `Fresh` and the
+    // unanswered order goes out again with the same number and payload.
+    n.srv.plan.as_mut().unwrap().stream = 4;
+    n.server_drops(token, 1012);
+    n.advance(3_000);
+    assert!(n.has_event(|e| matches!(
+        e,
+        ClientEvent::Attached {
+            mode: AttachMode::Fresh,
+            ..
+        }
+    )));
+    assert_eq!(n.core.conn(), ConnState::Online);
+    let seen = cmds_received(&n);
+    assert_eq!(seen.len(), 2, "the order and its repeat");
+    assert_eq!(seen[0], seen[1]);
+    assert_eq!(seen[0].cmd, queue_push(false));
+    assert_eq!(n.core.orders_in_flight(), 1, "still waiting");
+    assert!(answers(&n).is_empty());
+    assert_eq!(n.core.stats().orders_resent, 1);
+
+    // The worker died with it: one `Lost`, one rollback with the text for the toast, nothing applied.
+    let token = n.core.token().unwrap();
+    let lost = n.srv.answer_order(id, CommandOutcome::Lost);
+    deliver(&mut n, token, lost);
+    assert_eq!(answers(&n), [(id, CommandOutcome::Lost)]);
+    assert_eq!(
+        rollbacks(&n),
+        [(
+            id,
+            "The server restarted before it applied the order".to_string()
+        )]
+    );
+    assert_eq!(n.core.orders_in_flight(), 0);
+    assert!(n.srv.book.applied.is_empty());
+    assert_eq!(n.core.stats().orders_lost, 1);
 }
