@@ -19,6 +19,9 @@ pub enum PassId {
     Main,
     Resolve,
     Present,
+    /// The UI v2 layers (`ui2_pass`): over the finished frame, under the original UI and egui. Runs only
+    /// in frames for which `Renderer::prepare_ui2` was called ([`PassId::on_demand`]).
+    Ui2,
     /// The original UI's draw list (`ui-render`), over the finished frame and under egui.
     UiGame,
     Ui,
@@ -40,8 +43,8 @@ pub enum PassMode {
 }
 
 impl PassId {
-    /// Table 4.1, rows 0 to 13 (`RenderGame` order).
-    pub const ORDER: [PassId; 14] = [
+    /// Table 4.1, rows 0 to 13 (`RenderGame` order), with the UI v2 pass after `Present`.
+    pub const ORDER: [PassId; 15] = [
         PassId::Prepare,
         PassId::Minimap,
         PassId::TerrainBake,
@@ -54,6 +57,7 @@ impl PassId {
         PassId::Main,
         PassId::Resolve,
         PassId::Present,
+        PassId::Ui2,
         PassId::UiGame,
         PassId::Ui,
     ];
@@ -70,8 +74,16 @@ impl PassId {
             PassId::ShadowMap | PassId::Reflection | PassId::Main | PassId::ClassMask => {
                 PassMode::CorePass
             }
-            PassId::Resolve | PassId::Present | PassId::UiGame | PassId::Ui => PassMode::Core,
+            PassId::Resolve | PassId::Present | PassId::Ui2 | PassId::UiGame | PassId::Ui => {
+                PassMode::Core
+            }
         }
+    }
+
+    /// A pass that runs only when something asked for it in the frame: it is skipped without any trace
+    /// otherwise, and its row of the pass table exists only in frames where it ran.
+    pub fn on_demand(self) -> bool {
+        self == PassId::Ui2
     }
 }
 
@@ -286,6 +298,7 @@ mod tests {
                 Main,
                 Resolve,
                 Present,
+                Ui2,
                 UiGame,
                 Ui
             ]
@@ -369,6 +382,7 @@ mod tests {
                 EndPass(PassId::Main),
                 Core(PassId::Resolve),
                 Core(PassId::Present),
+                Core(PassId::Ui2),
                 Core(PassId::UiGame),
                 Core(PassId::Ui),
             ]
@@ -386,6 +400,26 @@ mod tests {
         let step_at = |p: PassId| steps.iter().position(|s| *s == Step::Core(p)).unwrap();
         assert!(step_at(PassId::UiGame) < step_at(PassId::Ui));
         assert_eq!(PassId::UiGame.mode(), PassMode::Core);
+    }
+
+    #[test]
+    fn the_ui2_layers_come_after_the_frame_and_under_the_original_ui() {
+        let at = |p: PassId| PassId::ORDER.iter().position(|&q| q == p).unwrap();
+        assert!(at(PassId::Present) < at(PassId::Ui2));
+        assert!(at(PassId::Ui2) < at(PassId::UiGame));
+        assert!(at(PassId::UiGame) < at(PassId::Ui));
+        assert_eq!(PassId::Ui2.mode(), PassMode::Core);
+        let steps = plan(&[], &all).steps;
+        let step_at = |p: PassId| steps.iter().position(|s| *s == Step::Core(p)).unwrap();
+        assert!(step_at(PassId::Present) < step_at(PassId::Ui2));
+        assert!(step_at(PassId::Ui2) < step_at(PassId::UiGame));
+        assert!(PassId::Ui2.on_demand());
+        assert!(
+            PassId::ORDER
+                .iter()
+                .filter(|p| p.on_demand())
+                .eq([&PassId::Ui2])
+        );
     }
 
     #[test]
