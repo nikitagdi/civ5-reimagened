@@ -58,6 +58,9 @@ pub struct Skin {
     pub scripts: Scripts,
     /// `[verify]`.
     pub verify: Verify,
+    /// Set when the "skin" is the page the converter makes around the panels of a mod (fragment mode): the
+    /// mod's `[ui]`. `skin.toml` never sets it.
+    pub fragment: Option<crate::fragment::FragmentSpec>,
 }
 
 impl Skin {
@@ -488,6 +491,7 @@ impl Skin {
             themes,
             scripts: raw.scripts,
             verify: raw.verify,
+            fragment: None,
         })
     }
 }

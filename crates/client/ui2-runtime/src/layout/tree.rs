@@ -226,6 +226,7 @@ impl View<'_> {
         );
         let kept = kept.get();
         let mut item = None;
+        let button = ifc.is_some_and(|i| i.button);
         if ifc.is_some() {
             let inset = style
                 .padding
@@ -233,7 +234,21 @@ impl View<'_> {
                 + style
                     .border
                     .resolve_or_zero(inputs.parent_size.width, |_, _| 0.0);
-            if style.display == Display::Flex
+            let content = Size {
+                width: (output.size.width - inset.left - inset.right).max(0.0),
+                height: (output.size.height - inset.top - inset.bottom).max(0.0),
+            };
+            if button
+                && style.display == Display::Block
+                && let Some((extent, _)) = kept
+            {
+                // Chrome centres a button's content down its content box (to the top when it overflows).
+                item = Some(AnonItem {
+                    x: 0.0,
+                    y: ((content.height - extent.height) / 2.0).max(0.0),
+                    w: content.width,
+                });
+            } else if style.display == Display::Flex
                 && let Some((extent, _)) = kept
                 && self.arena.at(idx).is_some_and(|n| {
                     n.children().iter().all(|&c| {
@@ -243,10 +258,6 @@ impl View<'_> {
                     })
                 })
             {
-                let content = Size {
-                    width: (output.size.width - inset.left - inset.right).max(0.0),
-                    height: (output.size.height - inset.top - inset.bottom).max(0.0),
-                };
                 item = Some(anon_item(style, content, extent));
             }
             let dy = item.map_or(0.0, |a: AnonItem| a.y);

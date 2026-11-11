@@ -130,10 +130,19 @@ impl TextCtx<'_> {
         Some(crate::style::node_record(self.index, self.pkg.styles(), n))
     }
 
+    /// An element with `display: inline` that is not a flex or grid item: CSS blockifies the children of a
+    /// flex or grid container, so text beside such an element is not in a line with it but in its own
+    /// anonymous item (Chrome's computed records already say `block` for them; a record written by hand may
+    /// not).
     fn is_inline_element(&self, arena: &Arena, id: NodeId) -> bool {
-        arena
-            .get(id)
-            .is_some_and(|n| n.class() == NodeClass::Element)
+        let Some(n) = arena.get(id).filter(|n| n.class() == NodeClass::Element) else {
+            return false;
+        };
+        let item = n
+            .parent()
+            .and_then(|p| self.record(arena, p))
+            .is_some_and(|r| matches!(r.display, Display::Flex | Display::Grid));
+        !item
             && self
                 .record(arena, id)
                 .is_some_and(|r| r.display == Display::Inline)
@@ -480,6 +489,7 @@ fn build(
         fitted: None,
         fit_key: None,
         item: old.as_ref().and_then(|o| o.item),
+        button: false,
         memo: ifc::LineMemo::new(),
     };
     let layout = match &old {
@@ -491,6 +501,17 @@ fn build(
         }
         _ => true,
     };
+    ifc.button = class != NodeClass::Text
+        && arena.get(root).is_some_and(|n| {
+            instantiate::template_node(ctx.pkg, n.tmpl()).is_some_and(|t| {
+                matches!(
+                    t.kind,
+                    ui2_package::NodeKind::Box {
+                        tag: ui2_package::Tag::Button
+                    }
+                )
+            })
+        });
     let fits = ifc.fit.is_some();
     if let Some(n) = arena.get_mut(root) {
         n.ifc = Some(Box::new(ifc));

@@ -166,6 +166,8 @@ struct Tb<'a> {
     next_tpl: u32,
     files: Vec<String>,
     errs: Vec<ConvError>,
+    /// The part names the converter gives (a mod panel's root is named by its panel id), by IR id.
+    parts: BTreeMap<u32, String>,
 }
 
 impl Tb<'_> {
@@ -422,7 +424,11 @@ impl Tb<'_> {
                 }
             }
         };
-        let part = attrs.part.as_ref().map(|p| self.b.str(p));
+        let part_name = attrs
+            .part
+            .clone()
+            .or_else(|| self.parts.get(&e.id).cloned());
+        let part = part_name.as_ref().map(|p| self.b.str(p));
         let mut flags = 0u16;
         if matches!(tag, Some(Tag::Button | Tag::Input)) || e.attr("tabindex").is_some() {
             flags |= node_flags::FOCUSABLE;
@@ -450,7 +456,7 @@ impl Tb<'_> {
         if let Some(s) = &attrs.slot {
             self.b.slot(s, at);
         }
-        if let Some(p) = &attrs.part {
+        if let Some(p) = &part_name {
             self.b.part(p, at);
         }
         if let Some(s) = &attrs.screen {
@@ -666,6 +672,13 @@ pub fn write(inp: &Inputs) -> Result<Written, Vec<ConvError>> {
 
     // Templates.
     let numbers = numbering::number(inp.dom);
+    let parts = match &inp.skin.fragment {
+        Some(f) => crate::fragment::panel_roots(inp.dom, f)
+            .into_iter()
+            .map(|(ix, panel)| (inp.dom.elems[ix].id, panel))
+            .collect(),
+        None => BTreeMap::new(),
+    };
     let mut tb = Tb {
         inp,
         b,
@@ -675,6 +688,7 @@ pub fn write(inp: &Inputs) -> Result<Written, Vec<ConvError>> {
         next_tpl: 1,
         files: Vec::new(),
         errs: Vec::new(),
+        parts,
     };
     let mut doc = Vec::new();
     let mut locs = Vec::new();
@@ -706,8 +720,17 @@ pub fn write(inp: &Inputs) -> Result<Written, Vec<ConvError>> {
     let file_refs: Vec<&str> = files.iter().map(String::as_str).collect();
     b.source_map(&file_refs, places);
 
-    // Bindings: what the skin reads and sends, its state.
+    // Bindings: what the skin reads and sends, its state. A mod's own fields (`mods.<id>.*`) are not paths of the
+    // shared model: the client checks them when it mounts the mod's model fragment.
+    let own = inp
+        .skin
+        .fragment
+        .as_ref()
+        .map(|f| format!("mods.{}.", f.mod_id));
     for (p, t) in &inp.bound.paths {
+        if own.as_deref().is_some_and(|o| p.starts_with(o)) {
+            continue;
+        }
         b.used_path(p, t.clone());
     }
     for (i, a) in &inp.bound.intents {
@@ -784,8 +807,16 @@ pub fn write(inp: &Inputs) -> Result<Written, Vec<ConvError>> {
         return Err(errs);
     }
     let s = &inp.skin.skin;
+    // A fragment has no texts of its own; the reader still wants a language.
+    if languages.is_empty() {
+        languages.push("en_US".to_string());
+    }
+    let kind = match &inp.skin.fragment {
+        Some(f) => Kind::Fragment { slots: f.points() },
+        None => Kind::Skin,
+    };
     let manifest = Manifest {
-        kind: Kind::Skin,
+        kind,
         id: s.id.clone(),
         version: s.version.clone(),
         title_key: s.title.clone(),
@@ -823,8 +854,12 @@ pub fn write(inp: &Inputs) -> Result<Written, Vec<ConvError>> {
     })?;
     let hash = pkg.hash();
     let hex: String = hash.0.iter().map(|b| format!("{b:02x}")).collect();
+    let file_name = match &inp.skin.fragment {
+        Some(_) => format!("{}-{}-{}.ui2", s.id, s.version, hash.short()),
+        None => format!("{}-{}.ui2", s.id, hash.short()),
+    };
     Ok(Written {
-        file_name: format!("{}-{}.ui2", s.id, hash.short()),
+        file_name,
         hash: hex,
         sections: section_sizes(&bytes),
         bytes,

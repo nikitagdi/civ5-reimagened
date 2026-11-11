@@ -94,9 +94,15 @@ pub mod codes {
     pub const GLYPH: &str = "E5-006";
     /// A game asset without a width and a height from CSS.
     pub const ASSET_SIZE: &str = "E5-007";
+    /// A font face whose line metrics differ between platforms.
+    pub const FONT_METRICS: &str = "E5-008";
+    /// A font of a mod panel that is not a font role of the skin.
+    pub const MOD_FONT: &str = "E5-009";
 
     /// A package budget is exceeded.
     pub const BUDGET: &str = "E8-001";
+    /// A mod fragment's budget is exceeded.
+    pub const FRAGMENT_BUDGET: &str = "E8-002";
 
     /// Text that is not translated.
     pub const UNTRANSLATED: &str = "E6-001";
@@ -121,6 +127,10 @@ pub mod codes {
     pub const TOOLTIP_REF: &str = "E7-006";
     /// A layer root is not an absolute, full-size box without pointer events.
     pub const LAYER_ROOT: &str = "E7-007";
+    /// A mod panel outside the rules of a fragment (page shape, points, tokens).
+    pub const FRAGMENT: &str = "E7-008";
+    /// A class of a mod panel without the mod's prefix.
+    pub const MOD_CLASS: &str = "E7-009";
 
     /// A request outside the local server (raised by the Node side).
     pub const NET: &str = "E9-001";
@@ -173,7 +183,10 @@ pub mod codes {
         IMAGE,
         GLYPH,
         ASSET_SIZE,
+        FONT_METRICS,
+        MOD_FONT,
         BUDGET,
+        FRAGMENT_BUDGET,
         UNTRANSLATED,
         L10N_MISSING,
         L10N_FILE,
@@ -185,6 +198,8 @@ pub mod codes {
         PART_DUP,
         TOOLTIP_REF,
         LAYER_ROOT,
+        FRAGMENT,
+        MOD_CLASS,
         NET,
         NODE,
         PROTOCOL,

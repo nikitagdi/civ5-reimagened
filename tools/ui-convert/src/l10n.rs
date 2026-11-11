@@ -122,11 +122,13 @@ pub fn check(
     let mut errs = Vec::new();
     let mut texts = Texts::default();
     let dir = skin_dir.join("l10n");
+    // A mod fragment has no text tables (mod API 1.3): its text is written in the markup or bound.
+    let fragment = skin.fragment.is_some();
     let mut files: Vec<String> = std::fs::read_dir(&dir)
         .map(|rd| {
             rd.filter_map(|e| e.ok())
                 .map(|e| e.file_name().to_string_lossy().to_string())
-                .filter(|n| n.ends_with(".toml"))
+                .filter(|n| n.ends_with(".toml") && !fragment)
                 .collect()
         })
         .unwrap_or_default();
@@ -181,14 +183,18 @@ pub fn check(
     let mut reported = BTreeSet::new();
     for u in &bound.keys {
         if texts.langs.is_empty() {
-            errs.push(
-                ConvError::new(
-                    codes::L10N_MISSING,
-                    u.place.clone(),
-                    format!("`{}`: the skin has no l10n/<lang>.toml", u.key),
+            let why = if fragment {
+                format!(
+                    "`{}`: a mod panel has no text tables; write the text in the markup or bind it",
+                    u.key
                 )
-                .element(u.element.clone())
-                .prop(u.key.clone()),
+            } else {
+                format!("`{}`: the skin has no l10n/<lang>.toml", u.key)
+            };
+            errs.push(
+                ConvError::new(codes::L10N_MISSING, u.place.clone(), why)
+                    .element(u.element.clone())
+                    .prop(u.key.clone()),
             );
             continue;
         }

@@ -458,6 +458,94 @@ fn paint_anonymous_text_and_hidden_roots() {
     assert!(rt.chunk_items(gone).expect("chunk").1.items.is_empty());
 }
 
+/// A text shadow without blur is the text's glyphs again, moved by the offset and in the shadow's color, right
+/// under the text; a blurred one is reported and not drawn (the draw layer has no blurred glyphs).
+#[test]
+fn paint_text_shadows_without_blur() {
+    use ui2_package::Layer;
+    use ui2_package::style::{ColorV, Display, Len, Shadow, StyleRecord};
+    use ui2_runtime::testkit::{Kit, TNode};
+
+    let fira = std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../third_party/fonts/fira-sans/FiraSans-Regular.ttf"),
+    )
+    .expect("font");
+    let run = |blur: f32, k: f32| {
+        let mut kit = Kit::new();
+        kit.font("Fira Sans", 400, false, &fira);
+        let mut rec = StyleRecord::initial();
+        rec.display = Display::Block;
+        rec.font_family = vec![kit.str("Fira Sans")];
+        rec.font_size = Len::px(14.0);
+        rec.color = ColorV::Lit([255, 255, 255, 255]);
+        let mut shadowed = rec.clone();
+        shadowed.text_shadow = vec![Shadow {
+            inset: false,
+            x: 1.0,
+            y: 2.0,
+            blur,
+            spread: 0.0,
+            color: ColorV::Lit([0, 0, 0, 255]),
+        }];
+        let (rec, shadowed) = (kit.record(rec), kit.record(shadowed));
+        let (set, shadowed) = (kit.plain(rec), kit.plain(shadowed));
+        let (text, part) = (kit.str("Gold"), kit.str("label"));
+        kit.template(
+            "doc",
+            vec![
+                TNode::layer(Layer::Hud, set).child(
+                    TNode::el(shadowed)
+                        .part(part)
+                        .child(TNode::text(text, shadowed)),
+                ),
+            ],
+        );
+        let pkg = kit.finish().expect("package");
+        let mut engine = TextEngine::new();
+        load_faces(&pkg, &mut engine).expect("fonts");
+        let mut rt = Runtime::new(pkg, env([800, 600], k), Services::default()).expect("runtime");
+        let store = ModelStore::new(Schema::v1());
+        let mut scene = Scene::new(k);
+        let errors = rt.frame(0.0, &store, &mut engine, &mut scene).errors;
+        let id = rt.find_part("label").expect("part");
+        let chunk = rt.node(id).expect("node").chunk();
+        let runs: Vec<ui2_draw::Glyphs> = rt
+            .chunk_items(chunk)
+            .expect("chunk")
+            .1
+            .items
+            .iter()
+            .filter_map(|i| match i {
+                Item::Glyphs(g) => Some(g.clone()),
+                _ => None,
+            })
+            .collect();
+        (runs, errors)
+    };
+    for k in [1.0, 1.5] {
+        let (runs, errors) = run(0.0, k);
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(runs.len(), 2, "the shadow, then the text");
+        let (shadow, text) = (&runs[0], &runs[1]);
+        assert_eq!(shadow.color, ui2_draw::Color::rgba(0, 0, 0, 255));
+        assert_eq!(text.color, ui2_draw::Color::rgba(255, 255, 255, 255));
+        assert_eq!(shadow.glyphs.len(), text.glyphs.len());
+        for (s, t) in shadow.glyphs.iter().zip(&text.glyphs) {
+            assert_eq!(s.glyph, t.glyph);
+            assert!((s.x - t.x - 1.0 * k).abs() < 1e-3 && (s.y - t.y - 2.0 * k).abs() < 1e-3);
+        }
+    }
+    let (runs, errors) = run(3.0, 1.0);
+    assert_eq!(runs.len(), 1, "a blurred text shadow is not drawn");
+    assert!(
+        errors
+            .iter()
+            .any(|e| format!("{e:?}").contains("a blurred text shadow")),
+        "{errors:?}"
+    );
+}
+
 /// Test 7 of the runtime spec: once settled, frames without changes do not touch the scene.
 #[test]
 fn paint_empty_frames_leave_the_scene_untouched() {

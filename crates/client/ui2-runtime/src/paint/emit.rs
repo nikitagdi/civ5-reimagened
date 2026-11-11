@@ -10,7 +10,9 @@
 //! first: a box per gradient layer, a picture per tile of a `url()` layer), its inset shadows without blur
 //! (bands inside the padding box), its border or, when it has one, its `border-image` (a 9-slice of a
 //! package picture over the border box), and its outline (a border-only box grown by the outline offset and
-//! width).
+//! width). Text paints each piece's text shadows without blur (the glyphs again, moved, in the shadow's
+//! color) right under the piece. The draw layer has no blurred inner shadow and no blurred glyphs: blurred
+//! inset box shadows and blurred text shadows are reported and not drawn.
 //!
 //! Pictures of `url()` layers and `border-image-source` are found by their path in the skin among the
 //! package's pictures (`IMGS`), as sprites of its `Rgba8` pages.
@@ -978,8 +980,8 @@ impl<'a> Emitter<'a> {
         if r.box_shadow.iter().any(|sh| sh.inset && sh.blur != 0.0) {
             self.unsupported(id, "a blurred inset box shadow");
         }
-        if !r.text_shadow.is_empty() {
-            self.unsupported(id, "a text shadow");
+        if r.text_shadow.iter().any(|sh| sh.blur != 0.0) {
+            self.unsupported(id, "a blurred text shadow");
         }
         let clip = Self::clip_of(s);
         let transform = Self::xf_of(xf);
@@ -1485,15 +1487,36 @@ impl<'a> Emitter<'a> {
                     continue;
                 }
                 let style = run.shaped.style;
-                items.push(Item::Glyphs(Glyphs {
-                    face: style.face,
-                    size_px: style.size * k,
-                    wght: style.wght,
-                    color,
-                    glyphs,
-                    transform: Self::xf_of(s.xf),
-                    clip: Self::clip_of(s),
-                }));
+                let glyphs_of = |color: Color, glyphs: Vec<GlyphPos>| {
+                    Item::Glyphs(Glyphs {
+                        face: style.face,
+                        size_px: style.size * k,
+                        wght: style.wght,
+                        color,
+                        glyphs,
+                        transform: Self::xf_of(s.xf),
+                        clip: Self::clip_of(s),
+                    })
+                };
+                // Text shadows without blur: the glyphs again, moved and in the shadow's color, under the
+                // text (the first listed on top). Blurred ones are reported with the element's box.
+                for sh in r.text_shadow.iter().rev().filter(|sh| sh.blur == 0.0) {
+                    let color = self.color(sh.color, s.alpha);
+                    if color.is_transparent() {
+                        continue;
+                    }
+                    let (dx, dy) = (sh.x * k, sh.y * k);
+                    let moved = glyphs
+                        .iter()
+                        .map(|g| GlyphPos {
+                            x: g.x + dx,
+                            y: g.y + dy,
+                            ..*g
+                        })
+                        .collect();
+                    items.push(glyphs_of(color, moved));
+                }
+                items.push(glyphs_of(color, glyphs));
             }
         }
         for item in items {

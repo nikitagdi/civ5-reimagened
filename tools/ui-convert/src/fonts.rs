@@ -116,6 +116,98 @@ pub fn missing_glyphs(skin_dir: &Path, skin: &Skin, texts: &crate::l10n::Texts) 
     errs
 }
 
+/// The vertical metrics of a face as the three tables write them (font units).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VMetrics {
+    /// OS/2 `fsSelection` bit 7: the typo metrics are the line metrics.
+    pub use_typo: bool,
+    /// hhea ascender, descender, line gap.
+    pub hhea: [i32; 3],
+    /// OS/2 sTypoAscender, sTypoDescender, sTypoLineGap.
+    pub typo: [i32; 3],
+    /// OS/2 usWinAscent, usWinDescent (the descent positive below the baseline).
+    pub win: [i32; 2],
+}
+
+impl VMetrics {
+    /// The tables of a font file; `None` when it has no hhea or OS/2 table.
+    pub fn of(bytes: &[u8]) -> Option<VMetrics> {
+        use skrifa::raw::TableProvider;
+        use skrifa::raw::tables::os2::SelectionFlags;
+        let f = skrifa::FontRef::new(bytes).ok()?;
+        let os2 = f.os2().ok()?;
+        let hhea = f.hhea().ok()?;
+        Some(VMetrics {
+            use_typo: os2
+                .fs_selection()
+                .contains(SelectionFlags::USE_TYPO_METRICS),
+            hhea: [
+                hhea.ascender().to_i16().into(),
+                hhea.descender().to_i16().into(),
+                hhea.line_gap().to_i16().into(),
+            ],
+            typo: [
+                os2.s_typo_ascender().into(),
+                os2.s_typo_descender().into(),
+                os2.s_typo_line_gap().into(),
+            ],
+            win: [os2.us_win_ascent().into(), os2.us_win_descent().into()],
+        })
+    }
+
+    /// Whether every text stack takes the same line box from the face: the typo metrics are declared the line
+    /// metrics, or the three tables agree (the same ascent and descent, no line gap).
+    pub fn consistent(&self) -> bool {
+        let same = self.hhea == self.typo
+            && self.hhea[2] == 0
+            && self.win == [self.hhea[0], -self.hhea[1]];
+        self.use_typo || same
+    }
+}
+
+/// Every face of the skin must give one line box on every platform: Chromium on Windows takes the line height of
+/// a face without USE_TYPO_METRICS from the OS/2 win metrics, Chromium on Linux and the runtime from hhea, so such
+/// a face whose tables differ lays text out differently in the game and in the browser that baked it. A face
+/// needs the USE_TYPO_METRICS bit or equal hhea, typo and win metrics (E5-008 at its `@font-face`). A face whose
+/// file is missing is reported where the faces are subset (E5-003), not here.
+pub fn metrics(ir: &Ir, skin: &Skin) -> Vec<ConvError> {
+    let (decls, _) = faces(ir, skin);
+    let mut errs = Vec::new();
+    for d in decls {
+        let Ok(bytes) = std::fs::read(repo_root().join(&d.file)) else {
+            continue;
+        };
+        let Some(m) = VMetrics::of(&bytes) else {
+            continue;
+        };
+        if m.consistent() {
+            continue;
+        }
+        errs.push(
+            ConvError::new(
+                codes::FONT_METRICS,
+                d.place.clone(),
+                format!(
+                    "`{}` ({}): USE_TYPO_METRICS is off and the line metrics differ: hhea {}/{}/{}, OS/2 typo {}/{}/{}, OS/2 win {}/{}",
+                    d.family,
+                    d.path,
+                    m.hhea[0],
+                    m.hhea[1],
+                    m.hhea[2],
+                    m.typo[0],
+                    m.typo[1],
+                    m.typo[2],
+                    m.win[0],
+                    m.win[1]
+                ),
+            )
+            .element("`@font-face`")
+            .prop("src"),
+        );
+    }
+    errs
+}
+
 /// The repository root (the converter is a tool of this repository).
 pub fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..")
@@ -377,6 +469,55 @@ mod tests {
         );
         assert_eq!(resolve_url("url(https://x/a.ttf)", "css/a.css"), None);
         assert_eq!(resolve_url("url(../../a.ttf)", "css/a.css"), None);
+    }
+
+    /// The faces the skins ship: Fira Sans has equal tables, Alegreya's win ascent differs but its
+    /// USE_TYPO_METRICS bit is set.
+    #[test]
+    fn shipped_faces_have_consistent_line_metrics() {
+        for (file, use_typo, equal) in [
+            (
+                "third_party/fonts/fira-sans/FiraSans-Regular.ttf",
+                true,
+                true,
+            ),
+            (
+                "third_party/fonts/fira-sans/FiraSans-Medium.ttf",
+                true,
+                true,
+            ),
+            ("third_party/fonts/alegreya/Alegreya[wght].ttf", true, false),
+        ] {
+            let bytes = std::fs::read(repo_root().join(file)).expect("font");
+            let m = VMetrics::of(&bytes).expect("tables");
+            assert_eq!(m.use_typo, use_typo, "{file}");
+            let mut off = m;
+            off.use_typo = false;
+            assert_eq!(off.consistent(), equal, "{file}: {m:?}");
+            assert!(m.consistent(), "{file}");
+        }
+        let flat = VMetrics {
+            use_typo: false,
+            hhea: [900, -300, 0],
+            typo: [900, -300, 0],
+            win: [900, 300],
+        };
+        assert!(flat.consistent());
+        assert!(
+            !VMetrics {
+                win: [950, 300],
+                ..flat
+            }
+            .consistent()
+        );
+        assert!(
+            !VMetrics {
+                hhea: [900, -300, 60],
+                typo: [900, -300, 60],
+                ..flat
+            }
+            .consistent()
+        );
     }
 
     #[test]

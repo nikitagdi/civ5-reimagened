@@ -115,6 +115,9 @@ pub struct Ifc {
     /// (as Chrome makes one), placed by the container's alignment. `None` for other roots: the lines fill
     /// the content box.
     pub item: Option<AnonItem>,
+    /// The root is a `button`: as in Chrome, its lines are centred down its content box when it is not a
+    /// flex or grid container (the item spans the content box).
+    pub button: bool,
     /// Lines already broken at the widths layout asked for (see [`Ifc::lines_at`]). Valid as long as `runs`,
     /// `ellipsis`, `boxes`, `strut` and `wrap` are the ones the root was built with: the text pass makes a new
     /// `Ifc` whenever any of them changes.
@@ -528,6 +531,7 @@ mod tests {
             fitted: None,
             fit_key: None,
             item: None,
+            button: false,
             memo: LineMemo::new(),
         };
         let free = ifc(true, None).lines_at(&tm, f32::INFINITY);

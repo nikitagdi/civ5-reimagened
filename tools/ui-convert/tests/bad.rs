@@ -57,7 +57,7 @@ fn got(run: &ui2_convert::Run) -> Vec<String> {
 #[test]
 fn bad_mockups_give_the_expected_codes() {
     let dirs = bad_dirs();
-    assert_eq!(dirs.len(), 41, "the whole set of bad mockups is present");
+    assert_eq!(dirs.len(), 42, "the whole set of bad mockups is present");
     for dir in dirs {
         let ir = std::fs::read_to_string(dir.join("ir.json")).expect("ir.json");
         let run = check_skin(&dir, Input::Dump(&ir));
