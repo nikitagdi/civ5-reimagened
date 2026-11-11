@@ -34,7 +34,7 @@ use ui2_draw::{LayerChange, LayerId, Scene};
 use crate::perf::gpu_mem::{Buf, Cluster, DeviceTrack, Tex};
 use crate::ui_pass::{UiExternal, UiTarget, UiTextures};
 
-pub use gpu_atlas::{ImageArray, MIN_LAYERS, MaskArray, MaskSource};
+pub use gpu_atlas::{ImageArray, MIN_LAYERS, MaskArray, MaskSource, glyph_room};
 
 /// Smallest layer buffer; buffers grow by 1.5x from here.
 const MIN_BUFFER: u64 = 64 * 1024;
@@ -631,7 +631,7 @@ impl Ui2Pass {
             pages: pages.mask(),
             pages_changed,
             side: scene.mask_side(),
-            atlas: scene.glyph_atlas(),
+            glyphs: scene.glyphs(),
             dirty: &dirty,
         };
         let (mask_bytes, mask_remade) = self.mask.sync(device, queue, &src, full);
@@ -743,8 +743,9 @@ impl Ui2Pass {
             .sum()
     }
 
-    /// Writes a layer's instances when its revision changed: the changed ranges when the count stayed, the
-    /// whole layer otherwise. Returns the bytes written and whether anything was.
+    /// Writes a layer's instances when its revision changed: the changed ranges when the count stayed, the tail
+    /// from the first changed chunk when the count changed and the buffer has room, the whole layer otherwise.
+    /// Returns the bytes written and whether anything was.
     fn upload_layer(
         &mut self,
         device: &wgpu::Device,
@@ -757,8 +758,14 @@ impl Ui2Pass {
         let revision = scene.layer_revision(layer);
         let instances = scene.layer_instances(layer);
         let lb = &mut self.layers[layer.index()];
+        let fits = (instances.len() * INSTANCE_SIZE) as u64 <= lb.capacity && lb.buffer.is_some();
         let ranges = match change {
             LayerChange::Ranges(r) if !full && lb.len == instances.len() => Some(r),
+            // The instances before `start` are the ones the buffer holds: only the rest is written.
+            LayerChange::Tail(start) if !full && fits && start <= lb.len.min(instances.len()) => {
+                lb.len = instances.len();
+                Some(std::iter::once(start..instances.len()).collect())
+            }
             LayerChange::None if !full && lb.revision == revision => None,
             // A count change, a revision this buffer does not hold (another scene) or the first upload.
             _ => {

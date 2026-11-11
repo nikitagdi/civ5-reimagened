@@ -445,6 +445,145 @@ fn ui2_unchanged_frame_uploads_nothing_and_a_colour_change_patches_one_instance(
     );
 }
 
+/// Partial upload: a chunk whose instance count changes uploads the layer from that chunk on; a layer that
+/// outgrows its buffer is written whole into a bigger one.
+#[test]
+fn ui2_a_count_change_uploads_the_tail_and_growth_rewrites_the_layer() {
+    let Some(mut rig) = Rig::new(
+        "ui2_count_change_uploads_the_tail",
+        wgpu::Backends::PRIMARY,
+        (64, 32),
+    ) else {
+        return;
+    };
+    let mut scene = Scene::new(1.0);
+    let row = |n: usize, x0: f32, c: Color| {
+        chunk(
+            (0..n)
+                .map(|i| {
+                    Item::Box(BoxItem::solid(
+                        Rect::new(x0 + 8.0 * i as f32, 0.0, 6.0, 6.0),
+                        c,
+                    ))
+                })
+                .collect(),
+        )
+    };
+    scene.set_chunk(LayerId::Hud, ChunkId(1), row(2, 0.0, BLUE));
+    scene.set_chunk(LayerId::Hud, ChunkId(2), row(1, 32.0, RED));
+    let _ = rig.frame(&mut scene);
+    // Chunk 2 grows: instances 2.. are written, chunk 1's are not.
+    scene.set_chunk(LayerId::Hud, ChunkId(2), row(3, 32.0, GREEN));
+    let img = rig.frame(&mut scene);
+    let s = rig.pass.stats();
+    assert_eq!(
+        (s.upload_bytes, s.layers_uploaded),
+        ((3 * INSTANCE_SIZE) as u64, 1)
+    );
+    assert_eq!(rgb(&img, 64, 2, 2), [0, 0, 255]);
+    assert_eq!(rgb(&img, 64, 50, 2), [0, 255, 0]);
+    // Chunk 2 shrinks to one instance: that one is written, the draw is shorter.
+    scene.set_chunk(LayerId::Hud, ChunkId(2), row(1, 32.0, GREEN));
+    let img = rig.frame(&mut scene);
+    let s = rig.pass.stats();
+    assert_eq!((s.upload_bytes, s.instances), (INSTANCE_SIZE as u64, 3));
+    assert_eq!(rgb(&img, 64, 50, 2), [0, 0, 0]);
+    // A chunk appended past the buffer's 64 KiB: a bigger buffer, written whole.
+    let many = MIN_BUFFER as usize / INSTANCE_SIZE + 10;
+    scene.set_chunk(
+        LayerId::Hud,
+        ChunkId(3),
+        row(many, 0.0, Color::rgba(0, 0, 0, 255)),
+    );
+    scene.set_chunk(LayerId::Hud, ChunkId(4), row(1, 16.0, YELLOW));
+    let img = rig.frame(&mut scene);
+    let s = rig.pass.stats();
+    assert_eq!(s.upload_bytes, ((3 + many + 1) * INSTANCE_SIZE) as u64);
+    assert!(rig.pass.layers[LayerId::Hud.index()].capacity > MIN_BUFFER);
+    assert_eq!(rgb(&img, 64, 18, 2), [255, 255, 0]);
+}
+
+/// Glyph eviction on the GPU: small glyph pages, 400 strings of their own sizes through one chunk while a label
+/// stays; the pages are cleared again and again and only dirty rectangles are uploaded. The last frame is the
+/// same, pixel for pixel, as the same chunks drawn by a fresh pass from a fresh scene.
+#[test]
+fn ui2_glyph_eviction_keeps_the_gpu_pages_right() {
+    let size = (200, 60);
+    let Some(mut rig) = Rig::new(
+        "ui2_glyph_eviction_keeps_the_gpu_pages_right",
+        wgpu::Backends::PRIMARY,
+        size,
+    ) else {
+        return;
+    };
+    let mut text = engine();
+    let cfg = ui2_text::AtlasConfig {
+        page_size: 128,
+        max_pages: 4,
+        padding: 1,
+        shelf_quantum: 4,
+    };
+    let line = |text: &mut TextEngine, s: &str, px: f32, y: f32| {
+        let run = text.shape(&RunStyle::new(FIRA, px), s).expect("shape");
+        chunk(vec![Item::Glyphs(Glyphs::from_run(
+            &run, 1.0, 4.0, y, WHITE,
+        ))])
+    };
+    let label = line(&mut text, "Science +42", 14.0, 20.0);
+    let mut scene = Scene::with_atlas(1.0, cfg);
+    scene.set_chunk(LayerId::Hud, ChunkId(1), label.clone());
+    let mut layers = Vec::new();
+    for i in 0..400u32 {
+        let c = line(
+            &mut text,
+            &format!("Tile {i} yields {}", i % 9),
+            11.0 + i as f32 * 0.01,
+            45.0,
+        );
+        scene.set_chunk(LayerId::Window, ChunkId(2), c);
+        scene.resolve(&mut text, 1000.0);
+        let _ = rig.frame(&mut scene);
+        layers.push(rig.pass.mask.layers());
+    }
+    let last = line(&mut text, "Last words", 13.0, 45.0);
+    scene.set_chunk(LayerId::Window, ChunkId(2), last.clone());
+    scene.resolve(&mut text, 1000.0);
+    let evicting = rig.frame(&mut scene);
+    assert!(
+        scene.glyphs().evictions() > 5,
+        "{}",
+        scene.glyphs().evictions()
+    );
+    assert_eq!(scene.stats().atlas_full, 0);
+    // The array grew 2, then 4 layers (powers of two), and never past the store's limit.
+    assert_eq!(*layers.last().unwrap(), 4);
+    assert!(
+        layers.windows(2).filter(|w| w[0] != w[1]).count() <= 2,
+        "{layers:?}"
+    );
+
+    let Some(mut fresh_rig) = Rig::new(
+        "ui2_glyph_eviction_reference",
+        wgpu::Backends::PRIMARY,
+        size,
+    ) else {
+        return;
+    };
+    let mut fresh = Scene::new(1.0);
+    fresh.set_chunk(LayerId::Hud, ChunkId(1), label);
+    fresh.set_chunk(LayerId::Window, ChunkId(2), last);
+    fresh.resolve(&mut text, 1000.0);
+    let reference = fresh_rig.frame(&mut fresh);
+    assert!(
+        reference.chunks(4).any(|p| p[0] == 255),
+        "the reference has text"
+    );
+    assert!(
+        evicting == reference,
+        "the evicting scene draws what a fresh one draws"
+    );
+}
+
 #[test]
 fn ui2_layers_draw_map_hud_window_tooltip_one_call_each() {
     let Some(mut rig) = Rig::new(

@@ -50,6 +50,8 @@ pub struct Encoded {
     pub exts: Vec<u16>,
     /// Glyphs that were queued for rasterization (their instances are placeholders until then).
     pub unresolved: u32,
+    /// The glyph pages the instances sample (bit `i`: page `i` of the glyph store).
+    pub glyph_pages: u8,
 }
 
 /// Encodes a whole chunk.
@@ -393,6 +395,9 @@ fn encode_glyphs(g: &Glyphs, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Enc
                     (slot.y + slot.h) as f32 / page,
                 ];
                 i.atlas_layer = layer_base.saturating_add(slot.page as u8);
+                if slot.page < 8 {
+                    out.glyph_pages |= 1 << slot.page;
+                }
             }
             Lookup::Pending => out.unresolved += 1,
             Lookup::Ready(_) | Lookup::Unavailable => {}
