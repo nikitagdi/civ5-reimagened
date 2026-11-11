@@ -338,6 +338,7 @@ fn the_turn_button_counts_the_same_units_as_the_flags() {
 fn the_read_budget_defers_whole_roots_to_the_next_frames() {
     let mut f = game();
     let mut rig = Rig::new(session());
+    // One cost unit: less than any read.
     rig.src.set_read_budget(1);
     // The first frame reads the catalog and builds one root (the first of the queue: the top bar).
     let stats = rig.frame(&mut f);
