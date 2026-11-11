@@ -56,6 +56,8 @@ const SCENARIOS = {
   "ui2-host": () => import("./scenarios/ui2-host.mjs"),
   // UI v2 orders through the skin (turn dial, production and research windows) and the server's answers: --attach.
   "ui2-actions": () => import("./scenarios/ui2-actions.mjs"),
+  // UI v2 acceptance of the engraved skin's screens (two clients in one game): --attach.
+  "ui2-v1": () => import("./scenarios/ui2-v1.mjs"),
   "ui-sound": () => import("./scenarios/ui-sound.mjs"),
   "m3-city": () => import("./scenarios/m3-city.mjs"),
   "m4-diplo-trade": () => import("./scenarios/m4-diplo-trade.mjs"),

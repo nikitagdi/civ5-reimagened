@@ -77,6 +77,18 @@
       { "id": "0:13", "category": "diplomacy", "message": "Montezuma has denounced you.", "summary": "Montezuma denounced you", "turn": 87, "plot": null },
       { "id": "0:14", "category": "military", "message": "Barbarians have been spotted near Kazan.", "summary": "Barbarians spotted near Kazan", "turn": 87, "plot": { "x": 27, "y": 19 } }
     ],
+    "players": [
+      { "id": "0:0", "leader": "Catherine", "civ": "Russia", "nick": "Catherine", "color": 7216152, "color2": 14991438, "human": true, "alive": true, "met": true, "at_war": false, "me": true },
+      { "id": "0:1", "leader": "Harun al-Rashid", "civ": "Arabia", "nick": null, "color": 3170880, "color2": 9419919, "human": true, "alive": true, "met": true, "at_war": false, "me": false },
+      { "id": "0:2", "leader": "Montezuma", "civ": "Aztec", "nick": "Montezuma", "color": 10494768, "color2": 3191398, "human": true, "alive": true, "met": true, "at_war": false, "me": false },
+      { "id": "0:3", "leader": "Ramesses", "civ": "Egypt", "nick": "Ramesses", "color": 15132390, "color2": 5524517, "human": false, "alive": true, "met": true, "at_war": false, "me": false }
+    ],
+    "chat": [
+      { "seq": "0:1", "from": "Catherine", "from_player": "0:0", "to": "all", "text": "Good luck, all", "turn": 84, "mine": true },
+      { "seq": "0:2", "from": "Ramesses", "from_player": "0:3", "to": "all", "text": "The river is mine", "turn": 85, "mine": false },
+      { "seq": "0:3", "from": "Harun al-Rashid", "from_player": "0:1", "to": "player", "text": "Open borders for ten gold a turn? Our offer holds while all caravans wait by the wells", "turn": 86, "mine": false },
+      { "seq": "0:4", "from": "Montezuma", "from_player": "0:2", "to": "all", "text": "Done here, waiting on Ramesses", "turn": 87, "mine": false }
+    ],
     "unit": {
       "key": "0:7",
       "name": "Bogatyr",
@@ -119,7 +131,8 @@
   },
   "state": {},
   "ui": {
-    "selection": { "unit": "0:7", "city": null, "plot": { "x": 20, "y": 26 } }
+    "selection": { "unit": "0:7", "city": null, "plot": { "x": 20, "y": 26 } },
+    "chat": { "to": "all", "to_player": null }
   },
   "anchors": {}
 }

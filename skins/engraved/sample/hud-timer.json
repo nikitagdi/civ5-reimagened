@@ -119,6 +119,7 @@
   },
   "state": {},
   "ui": {
+    "chat": { "to": "all", "to_player": null },
     "selection": { "unit": "0:7", "city": null, "plot": { "x": 20, "y": 26 } }
   },
   "anchors": {}

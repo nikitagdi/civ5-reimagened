@@ -55,6 +55,12 @@
 "act.upgrade" = "Upgrade"
 "act.disband" = "Delete"
 
+# Chat.
+"chat.to_all" = "To all"
+"chat.to" = "To {1}"
+"chat.placeholder" = "Message"
+"chat.turn" = "T{1_Num}"
+
 # The production window.
 "prod.citizens" = "citizens"
 "prod.per_turn_long" = "production per turn"

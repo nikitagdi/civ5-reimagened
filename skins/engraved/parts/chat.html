@@ -1,0 +1,33 @@
+<div class="chat" data-part="chat">
+  <!-- Whom the next line goes to: everyone or one human player. Outside the plate, whose cut corners clip. -->
+  <div class="menu" data-part="chat.menu" data-bind-if="{{state.chat.pick}}">
+    <button class="opt" data-part="chat.menu.all" data-bind-class-toggle="on:{{ui.chat.to == 'all'}}" data-on-click="set ui.chat.to = 'all'; set state.chat.pick = false">
+      <span data-l10n="chat.to_all">To all</span>
+    </button>
+    <button class="opt" data-bind-for="p:{{players}}" data-bind-filter="{{p.human && !p.me && p.alive}}" data-bind-class-toggle="on:{{ui.chat.to == 'player' && ui.chat.to_player == p.id}}" data-on-click="set ui.chat.to = 'player'; set ui.chat.to_player = p.id; set state.chat.pick = false">
+      <span class="nm" data-bind-value="{{p.nick != null ? p.nick : p.leader}}">Harun al-Rashid</span>
+    </button>
+  </div>
+
+  <section class="box plate tltr" data-part="chat.box" data-slot="hud.chat">
+    <!-- The newest lines at the bottom; older ones leave at the top. -->
+    <div class="log" data-part="chat.log">
+      <div class="ln" data-bind-for="l:{{chat}}" data-bind-class-toggle="mine:{{l.mine}}; priv:{{l.to == 'player'}}">
+        <span class="from" data-bind-value="{{l.from}}">Montezuma</span>
+        <span class="tx" data-bind-value="{{l.text}}">Done here, waiting on Ramesses</span>
+        <span class="t" data-l10n="chat.turn" data-l10n-args="{{l.turn}}">T87</span>
+      </div>
+    </div>
+    <div class="input">
+      <button class="to" data-part="chat.to" data-on-click="set state.chat.pick = !state.chat.pick">
+        <svg class="i"><use href="#i-chat"/></svg>
+        <span data-bind-if="{{ui.chat.to == 'all'}}" data-l10n="chat.to_all">To all</span>
+        <span class="nm" data-bind-for="p:{{players}}" data-bind-filter="{{ui.chat.to == 'player' && ui.chat.to_player == p.id}}" data-l10n="chat.to" data-l10n-args="{{p.nick != null ? p.nick : p.leader}}">To Harun al-Rashid</span>
+      </button>
+      <div class="field" data-part="chat.field">
+        <input class="msg" type="text" data-bind-model="state.chat.draft" data-l10n-placeholder="chat.placeholder" data-on-submit="intent chat.send(text: state.chat.draft, to: ui.chat.to, player: ui.chat.to_player); set state.chat.draft = ''">
+        <span class="key" data-l10n="key.enter">Enter</span>
+      </div>
+    </div>
+  </section>
+</div>
