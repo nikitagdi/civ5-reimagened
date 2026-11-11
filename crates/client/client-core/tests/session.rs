@@ -899,9 +899,10 @@ fn a_city_queue_push_the_server_refuses_comes_back_with_its_code_and_reason() {
     );
     assert_eq!(
         rollbacks(&n),
-        [(id, "Invalid order".to_string())],
-        "the journal line is the code's; the server's reason travels in the answer above"
+        [(id, reason.to_string())],
+        "the rollback text is the server's reason"
     );
+    assert_eq!(n.core.journal().last().unwrap().text, reason);
     assert_eq!(n.core.orders_in_flight(), 0);
     assert!(n.srv.book.applied.is_empty());
     assert_eq!(n.core.stats().orders_rejected, 1);
@@ -958,4 +959,97 @@ fn a_city_queue_push_lost_by_a_restarted_worker_is_repeated_once_and_rolled_back
     assert_eq!(n.core.orders_in_flight(), 0);
     assert!(n.srv.book.applied.is_empty());
     assert_eq!(n.core.stats().orders_lost, 1);
+}
+
+// ---------------------------------------------------------------- our end of turn taken back by a queue order
+
+fn turn_state_of(turn: i32, finished: bool) -> protocol::TurnState {
+    protocol::TurnState {
+        turn,
+        phase: protocol::TurnPhase::Humans,
+        mode: protocol::TurnMode::Simultaneous,
+        seats: vec![protocol::SeatTurn {
+            player: 1,
+            finished,
+            may_act: true,
+            group: 0,
+        }],
+        timers: vec![],
+        paused: false,
+    }
+}
+
+fn end_turn_cancellations(n: &Net) -> Vec<bool> {
+    n.events
+        .iter()
+        .filter_map(|e| match e {
+            ClientEvent::EndTurnCancelled { by_order } => Some(*by_order),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn every_city_queue_order_that_takes_back_our_end_of_turn_says_by_order() {
+    let orders = [
+        queue_push(true),
+        Command::CityQueuePop { city: 3, slot: 1 },
+        Command::CityQueueMove {
+            city: 3,
+            from: 0,
+            to: 2,
+        },
+        Command::CityReplaceHead {
+            city: 3,
+            order: 1,
+            item: 0,
+        },
+    ];
+    for cmd in orders {
+        let (mut n, token) = in_game();
+        n.srv.book.auto = false;
+        let turn = n.core.shown().expect("a view").turn;
+        let m = n
+            .srv
+            .world
+            .as_mut()
+            .unwrap()
+            .push(vec![GameMsg::TurnState(turn_state_of(turn, true))]);
+        deliver(&mut n, token, vec![m]);
+        assert_eq!(n.core.my_finished(), Some(true), "{cmd:?}");
+        n.take_events();
+
+        let id = n.core.order_at(cmd, Some(turn)).expect("accepted");
+        n.settle();
+        // The answer and the turn state with the end of turn taken back arrive in one batch.
+        n.srv.book.held.retain(|h| h.id != id);
+        let m = n.srv.world.as_mut().unwrap().push(vec![
+            GameMsg::TurnState(turn_state_of(turn, false)),
+            GameMsg::Results(vec![protocol::CommandResult {
+                id,
+                outcome: CommandOutcome::Applied,
+            }]),
+        ]);
+        deliver(&mut n, token, vec![m]);
+        assert_eq!(n.core.my_finished(), Some(false), "{cmd:?}");
+        assert_eq!(end_turn_cancellations(&n), [true], "{cmd:?}");
+        assert_eq!(n.core.stats().end_turn_cancelled_by_order, 1, "{cmd:?}");
+    }
+}
+
+#[test]
+fn an_invalid_refusal_without_a_reason_gets_the_generic_text() {
+    let (mut n, _token) = in_game();
+    n.srv.book.forced.insert(
+        5,
+        CommandOutcome::Rejected {
+            code: RejectCode::Invalid,
+            reason: String::new(),
+        },
+    );
+    let turn = n.core.shown().unwrap().turn;
+    let id = n.core.order_at(queue_push(false), Some(turn)).unwrap();
+    n.settle();
+    assert_eq!(rollbacks(&n), [(id, "Invalid order".to_string())]);
+    assert_eq!(n.core.journal().last().unwrap().text, "Invalid order");
 }
