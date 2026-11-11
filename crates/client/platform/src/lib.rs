@@ -9,6 +9,7 @@ mod blob;
 mod http;
 mod input;
 mod pointer_lock;
+mod script;
 mod store;
 mod task;
 mod time;
@@ -25,6 +26,7 @@ pub use input::{
 pub use pointer_lock::{
     CursorGrab, GrabError, PointerLock, PointerLockMode, PointerLockProbe, PointerLockStatus,
 };
+pub use script::{NullScriptHost, ScriptHost, ScriptHostError, ScriptHostEvent, WorkerId};
 pub use store::{HostEvent, KeyValueStore, MemoryStore};
 pub use task::{Job, TaskPool};
 pub use time::Clock;

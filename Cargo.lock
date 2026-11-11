@@ -4009,6 +4009,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ui2-script"
+version = "0.1.0"
+dependencies = [
+ "platform",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "ui2-model",
+]
+
+[[package]]
 name = "ui2-source"
 version = "0.1.0"
 dependencies = [
