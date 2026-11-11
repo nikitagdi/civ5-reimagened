@@ -1,8 +1,9 @@
-//! The roots `top` (the top bar) and `research` (the current research).
+//! The roots `top` (the top bar) and `research` (the current research, the research queue and the choices).
 
-use replica::{ReadError, TopBarFlags};
-use ui2_model::r#gen::{GoldenAge, Mood, Research, Tech, Top};
-use ui2_model::{Key, KeyedList};
+use replica::TopBarFlags;
+use replica::{PlayerResource, PolicyBranchState, ReadError, ResourceUsage, TechState, TechStatus};
+use ui2_model::r#gen::{GoldenAge, Mood, PolicyBranch, Research, Resource, Tech, Top};
+use ui2_model::{Key, Keyed, KeyedList};
 
 use crate::CountingRead;
 use crate::build::fraction;
@@ -35,9 +36,69 @@ pub fn mood(flags: TopBarFlags) -> Mood {
     }
 }
 
-/// `top` from `Q_TOP_BAR`.
-pub(crate) fn top(read: &mut CountingRead<'_, '_>) -> Result<Top, ReadError> {
-    let t = read.top_bar()?;
+/// A keyed list from rows in display order; a row whose key came before is dropped (the core's ids are unique,
+/// so this never happens with a sound reply).
+fn keyed<T: Keyed>(rows: impl IntoIterator<Item = T>) -> KeyedList<T> {
+    let mut list = KeyedList::new();
+    for r in rows {
+        // A duplicate key is the only error: the first row with the key stays.
+        let _ = list.try_push(r);
+    }
+    list
+}
+
+/// The strategic resources of the top bar, by id, with their names and icons.
+#[must_use]
+pub fn strategic_resources(rows: &[PlayerResource], catalog: &Catalog) -> KeyedList<Resource> {
+    keyed(
+        rows.iter()
+            .filter(|r| r.usage == ResourceUsage::Strategic)
+            .map(|r| {
+                let item = catalog.resource(r.resource);
+                Resource {
+                    id: Key::from_i32(i32::from(r.resource)),
+                    name: item.name,
+                    icon: item.icon,
+                    available: r.available,
+                    used: r.used,
+                    total: r.total,
+                }
+            }),
+    )
+}
+
+/// The policy branches of the top bar, by id, with their names.
+#[must_use]
+pub fn policy_branches(rows: &[PolicyBranchState], catalog: &Catalog) -> KeyedList<PolicyBranch> {
+    let small = |v: u8| i8::try_from(v).unwrap_or(i8::MAX);
+    keyed(rows.iter().map(|b| PolicyBranch {
+        id: b.branch,
+        name: catalog.branch(b.branch).name,
+        unlocked: b.unlocked,
+        owned: small(b.owned),
+        total: small(b.total),
+    }))
+}
+
+/// A UI v2 read whose `Unsupported` (a core without the query) means "leave the field at its default".
+fn optional<T>(r: Result<T, ReadError>) -> Result<Option<T>, ReadError> {
+    match r {
+        Ok(v) => Ok(Some(v)),
+        Err(ReadError::Unsupported) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+/// `top` from `Q_TOP_BAR`, `Q_PLAYER_RESOURCES` (the strategic resources) and `Q_POLICY_BRANCHES`. A core without
+/// the two lists leaves them empty; a core without the tourism field leaves `tourism` unknown.
+pub(crate) fn top(read: &mut CountingRead<'_, '_>, catalog: &Catalog) -> Result<Top, ReadError> {
+    let t = read.top_bar()?.clone();
+    let resources = optional(read.player_resources())?
+        .map(|rows| strategic_resources(&rows, catalog))
+        .unwrap_or_default();
+    let policies = optional(read.policy_branches())?
+        .map(|rows| policy_branches(&rows, catalog))
+        .unwrap_or_default();
     Ok(Top {
         science_rate: t.science_per_turn,
         gold: t.gold,
@@ -56,15 +117,56 @@ pub(crate) fn top(read: &mut CountingRead<'_, '_>) -> Result<Top, ReadError> {
         policy_turns: policy_turns(t.culture, t.next_policy_cost, t.culture_per_turn),
         faith: t.faith,
         faith_rate: t.faith_per_turn,
-        // Tourism, the strategic resources and the policy branches need read queries the core does not serve
-        // yet; until then they stay at the schema's default (unknown, empty).
-        tourism: None,
-        resources: KeyedList::default(),
-        policies: KeyedList::default(),
+        tourism: t.tourism,
+        resources,
+        policies,
     })
 }
 
-/// `research` from `Q_TOP_BAR` (the current research) and `Q_GAME` (the research blocker).
+/// A technology row of the model.
+fn tech(t: &TechState, catalog: &Catalog) -> Tech {
+    let item = catalog.tech(t.tech);
+    Tech {
+        id: Key::from_i32(i32::from(t.tech)),
+        name: item.name,
+        icon: item.icon,
+        turns: t.turns,
+        progress: t.progress,
+        cost: t.cost,
+        fraction: fraction(t.progress, t.cost),
+    }
+}
+
+/// What `Q_TECHS` gives the research root: the next research (queue place 1), the queue behind the current
+/// research in order, and the technologies that can be researched now by turns (never last), then by id.
+#[must_use]
+pub fn research_lists(
+    techs: &[TechState],
+    catalog: &Catalog,
+) -> (Option<Tech>, KeyedList<Tech>, KeyedList<Tech>) {
+    let mut queued: Vec<&TechState> = techs
+        .iter()
+        .filter(|t| t.queue.is_some_and(|q| q >= 1))
+        .collect();
+    queued.sort_by_key(|t| (t.queue, t.tech));
+    let next = techs
+        .iter()
+        .find(|t| t.queue == Some(1))
+        .map(|t| tech(t, catalog));
+    let mut options: Vec<&TechState> = techs
+        .iter()
+        .filter(|t| t.status == TechStatus::CanResearch)
+        .collect();
+    options.sort_by_key(|t| (t.turns.is_none(), t.turns, t.tech));
+    (
+        next,
+        keyed(queued.into_iter().map(|t| tech(t, catalog))),
+        keyed(options.into_iter().map(|t| tech(t, catalog))),
+    )
+}
+
+/// `research` from `Q_TOP_BAR` (the current research), `Q_GAME` (the research blocker) and `Q_TECHS` (the next
+/// research, the queue, the choices). A core without `Q_TECHS` leaves those empty and `known = false`.
 pub(crate) fn research(
     read: &mut CountingRead<'_, '_>,
     catalog: &Catalog,
@@ -83,14 +185,16 @@ pub(crate) fn research(
             fraction: fraction(t.research_progress, t.research_cost),
         }
     });
+    let (known, (next, queue, options)) = match optional(read.techs())? {
+        Some(techs) => (true, research_lists(&techs, catalog)),
+        None => (false, (None, KeyedList::new(), KeyedList::new())),
+    };
     Ok(Research {
         current,
-        // The queue, the next research and the options need the core's technology query, which it does not
-        // serve yet: `known = false` says so to the skin.
-        next: None,
-        queue: KeyedList::default(),
-        options: KeyedList::default(),
-        known: false,
+        next,
+        queue,
+        options,
+        known,
         blocked,
     })
 }

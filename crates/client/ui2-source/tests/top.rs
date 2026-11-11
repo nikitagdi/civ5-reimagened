@@ -1,16 +1,67 @@
-//! The first-slice roots (`meta`, `game`, `top`, `research`) from a fake game, and the triggers: no change, no
-//! read and no write.
+//! The roots `meta`, `game`, `top`, `research` from a fake game, and the triggers: no change, no read and no
+//! write. The UI v2 queries fill tourism, the strategic resources, the policy branches and the research queue; a
+//! core without them leaves those at the schema's defaults.
 
 use replica::testing::{FakeRead, catalog_entry};
-use replica::{CatalogTable, GameStatus, Player, PlayerFlags, ReadError, ReplicaStep, State};
-use ui2_model::r#gen::{EraRef, Game, GoldenAge, Meta, Mood, Phase, Research, Tech, Top, TurnMode};
-use ui2_model::{AssetRef, Key, ModelStore, Owner, Schema, Text};
+use replica::{
+    CatalogTable, GameStatus, Player, PlayerFlags, PlayerResource, PolicyBranchState, ReadError,
+    ReplicaStep, ResourceUsage, State, TechState, TechStatus,
+};
+use ui2_model::r#gen::{
+    EraRef, Game, GoldenAge, Meta, Mood, Phase, PolicyBranch, Research, Resource, Tech, Top,
+    TurnMode,
+};
+use ui2_model::{AssetRef, Key, KeyedList, ModelStore, Owner, Schema, Text};
 use ui2_source::{ReplicaView, SourceFrame, SourceStats, UiSource};
 
 const MEDIEVAL: i16 = 2;
 const EDUCATION: i16 = 20;
+const ASTRONOMY: i16 = 21;
+const PHYSICS: i16 = 22;
+const CHIVALRY: i16 = 23;
+const GUILDS: i16 = 24;
+const STEEL: i16 = 25;
+const IRON: i16 = 3;
+const HORSES: i16 = 4;
+const WINE: i16 = 9;
+const TRADITION: i16 = 0;
+const LIBERTY: i16 = 1;
 
-/// The game of the mockup's top bar: turn 87, 1250 AD, Medieval, researching Education.
+/// The reads of a first frame: the catalog (four tables), the top bar with its two lists, the game record, the
+/// technologies. Shared records are read once a frame.
+const FIRST_FRAME: [&str; 9] = [
+    "catalog",
+    "catalog",
+    "catalog",
+    "catalog",
+    "top_bar",
+    "player_resources",
+    "policy_branches",
+    "game_info",
+    "techs",
+];
+/// The reads of a rebuild once the catalog is known.
+const REBUILD: [&str; 5] = [
+    "top_bar",
+    "player_resources",
+    "policy_branches",
+    "game_info",
+    "techs",
+];
+
+fn tech_row(tech: i16, status: TechStatus, queue: Option<u8>, turns: Option<i16>) -> TechState {
+    TechState {
+        tech,
+        status,
+        queue,
+        turns,
+        progress: if queue == Some(0) { 310 } else { 0 },
+        cost: 500,
+    }
+}
+
+/// The game of the mockup's top bar: turn 87, 1250 AD, Medieval, researching Education, Astronomy next, then
+/// Physics; Chivalry and Guilds could be started now, Steel is locked.
 fn mockup() -> FakeRead {
     let mut f = FakeRead::new(0, 0);
     f.info.turn = 87;
@@ -32,6 +83,36 @@ fn mockup() -> FakeRead {
     t.research_turns = 3;
     t.research_progress = 310;
     t.research_cost = 500;
+    t.tourism = Some(14);
+    use TechStatus::{CanResearch, Have, Locked};
+    f.techs = vec![
+        tech_row(1, Have, None, None),
+        tech_row(EDUCATION, CanResearch, Some(0), Some(3)),
+        tech_row(ASTRONOMY, Locked, Some(1), Some(10)),
+        tech_row(PHYSICS, Locked, Some(2), Some(11)),
+        tech_row(CHIVALRY, CanResearch, None, Some(9)),
+        tech_row(GUILDS, CanResearch, None, None),
+        tech_row(STEEL, Locked, None, Some(12)),
+    ];
+    let res = |resource, usage, available, used| PlayerResource {
+        resource,
+        usage,
+        available,
+        used,
+        total: available + used,
+    };
+    f.resources = vec![
+        res(IRON, ResourceUsage::Strategic, 2, 4),
+        res(HORSES, ResourceUsage::Strategic, 1, 0),
+        res(WINE, ResourceUsage::Luxury, 1, 1),
+    ];
+    let branch = |branch, unlocked, owned, total| PolicyBranchState {
+        branch,
+        unlocked,
+        owned,
+        total,
+    };
+    f.branches = vec![branch(TRADITION, true, 3, 5), branch(LIBERTY, false, 0, 5)];
     f.catalogs = vec![
         (
             CatalogTable::Eras,
@@ -45,16 +126,43 @@ fn mockup() -> FakeRead {
         ),
         (
             CatalogTable::Technologies,
-            vec![catalog_entry(
-                EDUCATION,
-                "TECH_EDUCATION",
-                "Education",
-                "TECH_ATLAS_1",
-                24,
-            )],
+            vec![
+                catalog_entry(EDUCATION, "TECH_EDUCATION", "Education", "TECH_ATLAS_1", 24),
+                catalog_entry(ASTRONOMY, "TECH_ASTRONOMY", "Astronomy", "TECH_ATLAS_1", 25),
+                catalog_entry(PHYSICS, "TECH_PHYSICS", "Physics", "TECH_ATLAS_1", 26),
+                catalog_entry(CHIVALRY, "TECH_CHIVALRY", "Chivalry", "TECH_ATLAS_1", 27),
+                catalog_entry(GUILDS, "TECH_GUILDS", "Guilds", "TECH_ATLAS_1", 28),
+            ],
+        ),
+        (
+            CatalogTable::Resources,
+            vec![
+                catalog_entry(IRON, "RESOURCE_IRON", "Iron", "RESOURCE_ATLAS", 5),
+                catalog_entry(HORSES, "RESOURCE_HORSE", "Horses", "RESOURCE_ATLAS", 4),
+                catalog_entry(WINE, "RESOURCE_WINE", "Wine", "RESOURCE_ATLAS", 9),
+            ],
+        ),
+        (
+            CatalogTable::PolicyBranches,
+            vec![
+                catalog_entry(TRADITION, "POLICY_BRANCH_TRADITION", "Tradition", "", -1),
+                catalog_entry(LIBERTY, "POLICY_BRANCH_LIBERTY", "Liberty", "", -1),
+            ],
         ),
     ];
     f
+}
+
+fn tech(id: i16, name: &str, icon: i16, turns: Option<i16>, progress: i32) -> Tech {
+    Tech {
+        id: Key::from_i32(i32::from(id)),
+        name: Text::raw(name),
+        icon: AssetRef::new(&format!("icon:TECH_ATLAS_1:{icon}")),
+        turns,
+        progress,
+        cost: 500,
+        fraction: if progress == 0 { 0.0 } else { 0.62 },
+    }
 }
 
 fn view<'a>(
@@ -112,9 +220,8 @@ fn the_mockup_top_bar() {
     );
     assert_eq!(stats.roots_built, 4, "meta, top, research, game");
     assert_eq!(stats.deferred, 0);
-    // The catalog (two tables), one top bar and one game record: shared records are read once a frame.
-    assert_eq!(f.calls, vec!["catalog", "catalog", "top_bar", "game_info"]);
-    assert_eq!(stats.getter_calls, 4);
+    assert_eq!(f.calls, FIRST_FRAME);
+    assert_eq!(stats.getter_calls, 9);
 
     let top = rig.store.get::<Top>().expect("top is written");
     assert_eq!(
@@ -137,31 +244,70 @@ fn the_mockup_top_bar() {
             policy_turns: Some(6),
             faith: 140,
             faith_rate: 9,
-            tourism: None,
-            resources: Default::default(),
-            policies: Default::default(),
-        }
+            tourism: Some(14),
+            resources: KeyedList::from_vec(vec![
+                Resource {
+                    id: Key::from_i32(i32::from(IRON)),
+                    name: Text::raw("Iron"),
+                    icon: AssetRef::new("icon:RESOURCE_ATLAS:5"),
+                    available: 2,
+                    used: 4,
+                    total: 6,
+                },
+                Resource {
+                    id: Key::from_i32(i32::from(HORSES)),
+                    name: Text::raw("Horses"),
+                    icon: AssetRef::new("icon:RESOURCE_ATLAS:4"),
+                    available: 1,
+                    used: 0,
+                    total: 1,
+                },
+            ])
+            .unwrap(),
+            policies: KeyedList::from_vec(vec![
+                PolicyBranch {
+                    id: TRADITION,
+                    name: Text::raw("Tradition"),
+                    unlocked: true,
+                    owned: 3,
+                    total: 5,
+                },
+                PolicyBranch {
+                    id: LIBERTY,
+                    name: Text::raw("Liberty"),
+                    unlocked: false,
+                    owned: 0,
+                    total: 5,
+                },
+            ])
+            .unwrap(),
+        },
+        "the luxury (Wine) is not on the top bar"
     );
 
     let research = rig.store.get::<Research>().expect("research is written");
     assert_eq!(
         research.current,
-        Some(Tech {
-            id: Key::from_i32(i32::from(EDUCATION)),
-            name: Text::raw("Education"),
-            icon: AssetRef::new("icon:TECH_ATLAS_1:24"),
-            turns: Some(3),
-            progress: 310,
-            cost: 500,
-            fraction: 0.62,
-        })
+        Some(tech(EDUCATION, "Education", 24, Some(3), 310))
     );
-    assert_eq!(research.next, None);
-    assert!(research.queue.is_empty() && research.options.is_empty());
-    assert!(
-        !research.known,
-        "the queue needs a query the core does not serve yet"
+    // Astronomy next, then Physics; the choices by turns, a technology without turns last.
+    assert_eq!(
+        research.next,
+        Some(tech(ASTRONOMY, "Astronomy", 25, Some(10), 0))
     );
+    assert_eq!(
+        research.queue.iter().cloned().collect::<Vec<_>>(),
+        vec![
+            tech(ASTRONOMY, "Astronomy", 25, Some(10), 0),
+            tech(PHYSICS, "Physics", 26, Some(11), 0),
+        ]
+    );
+    let options: Vec<Key> = research.options.keys().collect();
+    assert_eq!(
+        options,
+        [EDUCATION, CHIVALRY, GUILDS].map(|t| Key::from_i32(i32::from(t)))
+    );
+    assert!(research.known);
     assert!(!research.blocked);
 
     let game = rig.store.get::<Game>().expect("game is written");
@@ -220,7 +366,7 @@ fn an_applied_batch_rebuilds_without_the_catalog() {
         Some(view(State::Live, 1, 1, &mut f)),
         &[ReplicaStep::Applied { jseq: 1 }],
     );
-    assert_eq!(f.calls, vec!["top_bar", "game_info"]);
+    assert_eq!(f.calls, REBUILD);
     assert_eq!(stats.roots_built, 3);
     assert_eq!(rig.store.get::<Top>().map(|t| t.gold), Some(333));
     // Only the gold changed: the delta is one op.
@@ -230,7 +376,7 @@ fn an_applied_batch_rebuilds_without_the_catalog() {
     // The jseq alone (a frame that missed the step) is a trigger too.
     f.calls.clear();
     rig.frame(Some(view(State::Live, 1, 2, &mut f)), &[]);
-    assert_eq!(f.calls, vec!["top_bar", "game_info"]);
+    assert_eq!(f.calls, REBUILD);
 }
 
 #[test]
@@ -267,7 +413,7 @@ fn a_replica_that_cannot_be_read_defers_and_marks_meta() {
     // Live again with no new signal: the deferred roots are built once.
     f.top.gold = 400;
     let stats = rig.frame(Some(view(State::Live, 1, 4, &mut f)), &[]);
-    assert_eq!(f.calls, vec!["top_bar", "game_info"]);
+    assert_eq!(f.calls, REBUILD);
     assert_eq!(stats.deferred, 0);
     assert_eq!(rig.store.get::<Top>().map(|t| t.gold), Some(400));
     f.calls.clear();
@@ -336,7 +482,7 @@ fn reset_reads_everything_again() {
     rig.src.reset();
     let stats = rig.frame(Some(view(State::Live, 1, 0, &mut f)), &[]);
     assert_eq!(stats.roots_built, 4);
-    assert_eq!(f.calls, vec!["catalog", "catalog", "top_bar", "game_info"]);
+    assert_eq!(f.calls, FIRST_FRAME);
 }
 
 #[test]
@@ -347,7 +493,102 @@ fn a_new_generation_rebuilds_everything() {
     f.calls.clear();
     // A snapshot load restarts jseq numbering; the generation tells.
     rig.frame(Some(view(State::Live, 2, 5, &mut f)), &[]);
+    assert_eq!(f.calls, REBUILD);
+}
+
+#[test]
+fn a_core_without_the_ui2_queries_leaves_their_fields_empty_and_is_not_asked_again() {
+    let mut f = mockup();
+    f.ui2_error = Some(ReadError::Unsupported);
+    f.top.tourism = None;
+    let mut rig = Rig::new();
+    let stats = rig.frame(Some(view(State::Live, 1, 0, &mut f)), &[]);
+    assert_eq!(stats.roots_built, 4, "the roots are written all the same");
+    let top = rig.store.get::<Top>().expect("top");
+    assert_eq!((top.gold, top.tourism), (312, None));
+    assert!(top.resources.is_empty() && top.policies.is_empty());
+    let research = rig.store.get::<Research>().expect("research");
+    assert!(research.current.is_some(), "the top bar still names it");
+    assert_eq!(research.next, None);
+    assert!(research.queue.is_empty() && research.options.is_empty());
+    assert!(!research.known);
+
+    // The next batch does not ask the missing queries again.
+    f.calls.clear();
+    f.top.gold = 320;
+    rig.frame(Some(view(State::Live, 1, 1, &mut f)), &[]);
     assert_eq!(f.calls, vec!["top_bar", "game_info"]);
+    assert_eq!(rig.store.get::<Top>().map(|t| t.gold), Some(320));
+
+    // A new core (reset) is asked again; this one serves them.
+    f.ui2_error = None;
+    rig.src.reset();
+    f.calls.clear();
+    rig.frame(Some(view(State::Live, 1, 1, &mut f)), &[]);
+    assert_eq!(f.calls, FIRST_FRAME);
+    assert!(rig.store.get::<Research>().is_some_and(|r| r.known));
+    assert_eq!(rig.store.get::<Top>().map(|t| t.policies.len()), Some(2));
+}
+
+#[test]
+fn a_failing_ui2_query_keeps_the_last_root() {
+    let mut f = mockup();
+    let mut rig = Rig::new();
+    rig.frame(Some(view(State::Live, 1, 0, &mut f)), &[]);
+    rig.store.take_frame();
+    // The core fails (not "unsupported"): the root keeps its last value and is asked again on the next trigger.
+    f.ui2_error = Some(ReadError::Core("broken reply".into()));
+    f.top.gold = 999;
+    f.calls.clear();
+    let stats = rig.frame(Some(view(State::Live, 1, 1, &mut f)), &[]);
+    assert_eq!(stats.roots_built, 1, "game only");
+    assert_eq!(rig.store.get::<Top>().map(|t| t.gold), Some(312));
+    assert!(rig.store.get::<Research>().is_some_and(|r| r.known));
+    f.ui2_error = None;
+    f.calls.clear();
+    rig.frame(Some(view(State::Live, 1, 2, &mut f)), &[]);
+    assert_eq!(f.calls, REBUILD);
+    assert_eq!(rig.store.get::<Top>().map(|t| t.gold), Some(999));
+}
+
+#[test]
+fn the_research_queue_follows_a_batch() {
+    let mut f = mockup();
+    let mut rig = Rig::new();
+    rig.frame(Some(view(State::Live, 1, 0, &mut f)), &[]);
+    rig.store.take_frame();
+    // Education is done: Astronomy is researched, Physics next.
+    for t in &mut f.techs {
+        t.queue = match t.tech {
+            EDUCATION => {
+                t.status = TechStatus::Have;
+                t.turns = None;
+                None
+            }
+            ASTRONOMY => Some(0),
+            PHYSICS => Some(1),
+            _ => t.queue,
+        };
+    }
+    f.top.research_tech = Some(ASTRONOMY);
+    rig.frame(
+        Some(view(State::Live, 1, 1, &mut f)),
+        &[ReplicaStep::Applied { jseq: 1 }],
+    );
+    let r = rig.store.get::<Research>().expect("research");
+    assert_eq!(
+        r.current.as_ref().map(|t| t.id),
+        Some(Key::from_i32(i32::from(ASTRONOMY)))
+    );
+    assert_eq!(
+        r.next.as_ref().map(|t| t.id),
+        Some(Key::from_i32(i32::from(PHYSICS)))
+    );
+    assert_eq!(r.queue.len(), 1);
+    assert_eq!(
+        r.options.keys().collect::<Vec<_>>(),
+        [CHIVALRY, GUILDS].map(|t| Key::from_i32(i32::from(t)))
+    );
 }
 
 fn player(id: i8, team: i8) -> Player {
