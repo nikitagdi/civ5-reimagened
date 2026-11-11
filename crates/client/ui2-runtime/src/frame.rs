@@ -71,7 +71,9 @@ impl Runtime {
     ) -> FrameOutput {
         // Transitions are not implemented yet: nothing reads the clock.
         let _ = now_ms;
-        let mut watch = Stopwatch::new(self.clock.as_deref());
+        // The clock is lent to the stopwatch for the frame (the passes borrow the runtime).
+        let clock = self.clock.take();
+        let mut watch = Stopwatch::new(clock.as_deref());
         let binds = self.binder.pass(
             &mut self.arena,
             &bind::Ctx {
@@ -98,12 +100,23 @@ impl Runtime {
         };
         let texts = text::pass(&ctx, &mut self.arena, text, &mut self.errors);
         let text_ms = watch.lap();
-        let layout = layout::pass(
+        let mut layout = layout::pass(
             &mut self.arena,
             &self.layout_styles,
             text,
             self.style_env.scale.viewport_css,
         );
+        // A new tooltip is placed once its size is known, and laid out again where it goes.
+        if self.place_tooltip() {
+            let again = layout::pass(
+                &mut self.arena,
+                &self.layout_styles,
+                text,
+                self.style_env.scale.viewport_css,
+            );
+            layout.runs += again.runs;
+            layout.visited += again.visited;
+        }
         let layout_ms = watch.lap();
         if scene.scale() != self.style_env.scale.k {
             scene.set_scale(self.style_env.scale.k);
@@ -119,12 +132,14 @@ impl Runtime {
             &mut self.errors,
         );
         let paint_ms = watch.lap();
+        let cpu_ms = watch.total();
+        self.clock = clock;
         FrameOutput {
-            cursor: Cursor::Auto,
+            cursor: self.cursor(),
             errors: self.errors.take(),
             animating: false,
             stats: FrameStats {
-                cpu_ms: watch.total(),
+                cpu_ms,
                 style_ms,
                 layout_ms,
                 text_ms,
@@ -145,7 +160,8 @@ impl Runtime {
         }
     }
 
-    /// What markup asked since the last call (empty until input is handled: the host forwards nothing).
+    /// What markup asked since the last call: intents, state writes and script events of the input handled
+    /// since (empty when there was none: the host then forwards nothing).
     pub fn drain_output(&mut self) -> UiOutput {
         std::mem::take(&mut self.output)
     }

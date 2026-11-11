@@ -9,8 +9,9 @@
 //! ([`instantiate`]), error reporting ([`error`]), style selection ([`style`]), scalar bindings with their
 //! dependency index and the skin's texts, text leaves and inline layout on `ui2-text` ([`text`]), box layout
 //! with taffy over the arena ([`layout`]), draw lists per chunk set on the `ui2-draw` scene, the frame
-//! ([`frame`]: [`Runtime::apply_delta`], [`Runtime::frame`], [`Runtime::drain_output`]) and rectangle
-//! dumps ([`debug`]). List bindings and input build on these.
+//! ([`frame`]: [`Runtime::apply_delta`], [`Runtime::frame`], [`Runtime::drain_output`]), input
+//! ([`input`]: [`Runtime::handle_input`], hit-testing, interaction states, pointer capture, the wheel, modal
+//! screens) and rectangle dumps ([`debug`]). List bindings build on these.
 //!
 //! Zero-work rule: every pass is driven by the arena's dirty queues; a frame without changes checks a few
 //! counters and touches no node.
@@ -22,6 +23,7 @@ mod bind;
 pub mod debug;
 pub mod error;
 pub mod frame;
+pub mod input;
 pub mod instantiate;
 pub mod layout;
 mod loc;
@@ -47,6 +49,7 @@ pub use arena::{
 pub use debug::ElementRect;
 pub use error::{ErrorCode, ErrorSink, NodePath, UiError};
 pub use frame::{FrameOutput, UiOutput};
+pub use input::{InputOutcome, PointerCapture};
 use instantiate::Spawn;
 pub use instantiate::{MAX_INSTANCE_NODES, Source};
 pub use layout::LayoutStyles;
@@ -114,6 +117,8 @@ pub struct Runtime {
     binder: bind::Binder,
     /// What markup asked since the last [`drain_output`](Self::drain_output).
     output: UiOutput,
+    /// Pointer, focus and key state.
+    input: input::InputState,
     /// Times the passes of a frame, when the host gives one.
     clock: Option<ui2_draw::Clock>,
 }
@@ -132,6 +137,7 @@ impl Runtime {
             layout_styles: LayoutStyles::from_styles(pkg.styles()),
             fonts: FontBook::new(&pkg),
             binder: bind::Binder::new(loc::SkinLoc::new(&pkg, svc.loc.clone())),
+            input: input::InputState::new(&pkg),
             pkg,
             env,
             style_env,
