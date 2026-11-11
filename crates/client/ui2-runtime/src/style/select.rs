@@ -11,6 +11,7 @@
 //! 3. the style pass recomputes each queued node's mask (at most four conditions, each a walk of `up`
 //!    parents), takes `set.get(cell, mask)` and, when the record changed, sets the dirty bits of [`diff`].
 
+use ui2_package::style::StyleRecord;
 use ui2_package::{CondKind, StrId, StyleSet, Styles};
 
 use crate::arena::{Arena, Dep, Dirty, NodeClass, NodeId, StateBits};
@@ -115,12 +116,14 @@ pub(crate) fn attach(arena: &mut Arena, styles: &Styles, env: &StyleEnv, id: Nod
 }
 
 /// Selects a node's record again. Returns the passes the change needs (none when the record is the same).
+/// An element whose new record has transitions is added to `changed` with its old record.
 pub(crate) fn reselect(
     arena: &mut Arena,
     styles: &Styles,
     index: &StyleIndex,
     env: &StyleEnv,
     id: NodeId,
+    changed: &mut Vec<(NodeId, StyleRecord)>,
 ) -> Dirty {
     let Some(set) = arena
         .get(id)
@@ -139,14 +142,23 @@ pub(crate) fn reselect(
     if old == new {
         return Dirty::NONE;
     }
+    let element = node.class != NodeClass::Text;
     // Properties set by bindings stay on top of the new record.
     if let Some(over) = node.over.as_mut() {
         let rebuilt = Overrides::new(index.record(styles, new), std::mem::take(&mut over.props));
         let bits = diff(&over.record, &rebuilt.record);
+        let old_record = std::mem::replace(&mut over.record, rebuilt.record.clone());
         **over = rebuilt;
+        if element && !over.record.transitions.is_empty() {
+            changed.push((id, old_record));
+        }
         return bits;
     }
-    diff(index.record(styles, old), index.record(styles, new))
+    let (a, b) = (index.record(styles, old), index.record(styles, new));
+    if element && !b.transitions.is_empty() {
+        changed.push((id, a.clone()));
+    }
+    diff(a, b)
 }
 
 /// Queues for the style pass the dependents of `subject` whose condition kind `matches`. Stale dependents
@@ -238,6 +250,7 @@ pub(crate) fn pass(
     index: &StyleIndex,
     env: &StyleEnv,
     change: EnvChange,
+    changed: &mut Vec<(NodeId, StyleRecord)>,
 ) -> PassStats {
     let mut stats = PassStats::default();
     if change.any() {
@@ -269,7 +282,7 @@ pub(crate) fn pass(
     for id in arena.take_dirty(Dirty::STYLE) {
         stats.visited += 1;
         stats.restyled += 1;
-        let bits = reselect(arena, styles, index, env, id);
+        let bits = reselect(arena, styles, index, env, id, changed);
         arena.mark(id, bits);
     }
     stats

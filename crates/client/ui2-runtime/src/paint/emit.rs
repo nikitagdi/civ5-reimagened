@@ -28,6 +28,17 @@ pub(crate) struct PaintCtx<'a> {
     pub pkg: &'a Package,
     pub index: &'a StyleIndex,
     pub env: &'a StyleEnv,
+    /// Running transitions: an animated node is painted with its current values.
+    pub anim: &'a crate::anim::Animator,
+}
+
+impl<'a> PaintCtx<'a> {
+    /// The record a node is painted with: the animated one while a transition runs.
+    pub fn record(&self, id: NodeId, n: &'a crate::arena::Node) -> &'a StyleRecord {
+        self.anim
+            .record(id)
+            .unwrap_or_else(|| node_record(self.index, self.pkg.styles(), n))
+    }
 }
 
 /// A clip in chunk space: a rectangle with a corner radius.
@@ -120,7 +131,7 @@ impl<'a> Emitter<'a> {
 
     fn record(&self, id: NodeId) -> Option<&'a StyleRecord> {
         let n = self.arena.get(id)?;
-        Some(node_record(self.cx.index, self.cx.pkg.styles(), n))
+        Some(self.cx.record(id, n))
     }
 
     fn color(&self, c: ColorV, alpha: f32) -> Color {
@@ -635,11 +646,7 @@ impl<'a> Emitter<'a> {
         let inner = self.child_state(id, s);
         let arena = self.arena;
         let cx = self.cx;
-        let record = |n: NodeId| {
-            arena
-                .get(n)
-                .map(|node| node_record(cx.index, cx.pkg.styles(), node))
-        };
+        let record = |n: NodeId| arena.get(n).map(|node| cx.record(n, node));
         let content_root = |n: NodeId| arena.get(n).is_some_and(|node| node.ifc().is_some());
         let phases = stacking::phases(
             arena,

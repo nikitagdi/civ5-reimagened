@@ -19,6 +19,7 @@
 
 #![forbid(unsafe_code)]
 
+mod anim;
 pub mod arena;
 mod bind;
 pub mod debug;
@@ -124,6 +125,8 @@ pub struct Runtime {
     clock: Option<ui2_draw::Clock>,
     /// Inline roots that fit their text to their box (`data-fit`).
     fit_roots: Vec<NodeId>,
+    /// Running transitions.
+    anim: anim::Animator,
 }
 
 impl Runtime {
@@ -152,6 +155,7 @@ impl Runtime {
             output: UiOutput::default(),
             clock: None,
             fit_roots: Vec::new(),
+            anim: anim::Animator::default(),
         };
         if !env_ok {
             rt.report_bad_env(env);
@@ -363,6 +367,7 @@ impl Runtime {
             pkg: &self.pkg,
             index: &self.style_index,
             env: &self.style_env,
+            anim: &self.anim,
         };
         let layer = paint::emit::layer_of(&self.arena, &self.pkg, id);
         let (items, _) = paint::build(&self.arena, &cx, &mut self.errors, id);

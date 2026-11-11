@@ -10,8 +10,10 @@
 //! 2. styles: environment changes (viewport cell, theme, scale), then the queued nodes;
 //! 3. text: queued text leaves and inline roots are shaped again (unchanged runs are kept); a root whose
 //!    content takes another room is queued for layout, any other only for paint;
-//! 4. layout: the roots above queued nodes are laid out; boxes that moved are queued for paint;
-//! 5. paint: removed chunks leave the scene, chunks with a queued node are built and set on the scene (whose
+//! 4. layout: the roots above queued nodes are laid out; boxes that moved are queued for paint; virtual
+//!    lists move their windows, `data-fit` texts shrink to their boxes;
+//! 5. transitions: records that changed start them, running ones queue their chunks for paint;
+//! 6. paint: removed chunks leave the scene, chunks with a queued node are built and set on the scene (whose
 //!    device scale follows the environment).
 //!
 //! A frame without changes finds every queue empty: no evaluation, no shaping, no layout, no draw list, and
@@ -60,7 +62,7 @@ pub struct FrameOutput {
 
 impl Runtime {
     /// Runs one frame (see the [module docs](crate::frame) for the order of the passes) and hands the changed
-    /// draw lists to the scene. `now_ms` is the frame clock (it will drive transitions); `m` is the model store
+    /// draw lists to the scene. `now_ms` is the frame clock (it drives transitions); `m` is the model store
     /// the last [`apply_delta`](Self::apply_delta) came from.
     pub fn frame(
         &mut self,
@@ -69,8 +71,6 @@ impl Runtime {
         text: &mut dyn TextMeasure,
         scene: &mut Scene,
     ) -> FrameOutput {
-        // Transitions are not implemented yet: nothing reads the clock.
-        let _ = now_ms;
         // The clock is lent to the stopwatch for the frame (the passes borrow the runtime).
         let clock = self.clock.take();
         let mut watch = Stopwatch::new(clock.as_deref());
@@ -83,12 +83,14 @@ impl Runtime {
         let mut binds = self.binder.pass(&mut self.arena, &bctx, &mut self.errors);
         let mut bind_ms = watch.lap();
         let change = std::mem::take(&mut self.env_change);
+        let mut restyled = Vec::new();
         let mut styles = style::select::pass(
             &mut self.arena,
             self.pkg.styles(),
             &self.style_index,
             &self.style_env,
             change,
+            &mut restyled,
         );
         let mut style_ms = watch.lap();
         let ctx = text::TextCtx {
@@ -150,6 +152,8 @@ impl Runtime {
                 &self.style_index,
                 &self.style_env,
                 style::select::EnvChange::default(),
+                // Rows a virtual list hands to other items take their records without transitions.
+                &mut Vec::new(),
             );
             styles.restyled += s.restyled;
             styles.visited += s.visited;
@@ -189,6 +193,16 @@ impl Runtime {
             texts.visited += f.visited;
             text_ms += watch.lap();
         }
+        // Transitions: records that changed start them, running ones move to the frame time (paint only).
+        let acx = crate::anim::AnimCtx {
+            pkg: &self.pkg,
+            index: &self.style_index,
+            theme: self.style_env.theme,
+        };
+        if !restyled.is_empty() {
+            self.anim.start(now_ms, &self.arena, &acx, restyled);
+        }
+        let animating = self.anim.tick(now_ms, &mut self.arena, &acx);
         if scene.scale() != self.style_env.scale.k {
             scene.set_scale(self.style_env.scale.k);
         }
@@ -198,6 +212,7 @@ impl Runtime {
                 pkg: &self.pkg,
                 index: &self.style_index,
                 env: &self.style_env,
+                anim: &self.anim,
             },
             scene,
             &mut self.errors,
@@ -208,7 +223,7 @@ impl Runtime {
         FrameOutput {
             cursor: self.cursor(),
             errors: self.errors.take(),
-            animating: false,
+            animating,
             stats: FrameStats {
                 cpu_ms,
                 style_ms,
