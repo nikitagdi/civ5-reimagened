@@ -28,6 +28,8 @@ Third-party components in this repository
   Curve layouts 12-18 follow LSLib (MIT), no code copied. Details: third_party/NOTICE-granny.md.
 - FLIP error metric port (tools/golden/src/metrics/flip.rs): BSD-3-Clause, NVIDIA; see
   third_party/NOTICE-flip.md.
+- Alegreya and Fira Sans fonts (third_party/fonts): SIL Open Font License 1.1, texts next to the font files;
+  see third_party/NOTICE-ui-fonts.md.
 - egui default fonts (compiled in through the epaint_default_fonts crate): see third_party/NOTICE-egui-fonts.md.
 - Rust crates from crates.io (Cargo.lock): each under its own license (MIT / Apache-2.0 and compatible).
 
