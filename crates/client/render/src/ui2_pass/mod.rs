@@ -225,6 +225,8 @@ pub struct Ui2Pass {
     ops: Vec<DrawOp>,
     /// Nothing was uploaded yet: the first `prepare` writes everything the scene holds.
     fresh: bool,
+    /// The scene's solid background, as the clear value of the target.
+    clear: Option<wgpu::Color>,
     stats: Ui2Stats,
 }
 
@@ -466,6 +468,7 @@ impl Ui2Pass {
             layers: Default::default(),
             ops: Vec::new(),
             fresh: true,
+            clear: None,
             stats: Ui2Stats::default(),
         }
     }
@@ -584,9 +587,18 @@ impl Ui2Pass {
         self.stats
     }
 
-    /// True when `draw` has something to record; the pass is not opened otherwise.
+    /// True when `draw` has something to record or the frame is to be cleared; the pass is not opened otherwise.
     pub fn has_work(&self) -> bool {
-        !self.ops.is_empty()
+        !self.ops.is_empty() || self.clear.is_some()
+    }
+
+    /// How the pass opens its target: cleared with the scene's solid background (`Scene::set_background`, the
+    /// reference images of the UI alone), loaded otherwise (the UI over the frame).
+    pub fn load_op(&self) -> wgpu::LoadOp<wgpu::Color> {
+        match self.clear {
+            Some(c) => wgpu::LoadOp::Clear(c),
+            None => wgpu::LoadOp::Load,
+        }
     }
 
     /// Draw calls and triangles of the last `prepare`.
@@ -624,6 +636,9 @@ impl Ui2Pass {
             stats.upload_bytes += std::mem::size_of::<FrameUniform>() as u64;
         }
 
+        self.clear = scene
+            .background()
+            .map(|c| clear_color(c, target.format.is_srgb()));
         stats.table_bytes = self.upload_tables(queue, scene, full);
         stats.upload_bytes += stats.table_bytes;
 
@@ -825,6 +840,27 @@ impl Ui2Pass {
             pass.set_vertex_buffer(0, buffer.slice(bytes));
             pass.draw(0..QUAD_VERTICES, 0..op.range.end - op.range.start);
         }
+    }
+}
+
+/// The clear value that stores sRGB colour `c` in a target: the colour itself in a plain target, its linear
+/// value in an sRGB one (which encodes on store).
+fn clear_color(c: ui2_draw::Color, srgb_target: bool) -> wgpu::Color {
+    let ch = |v: u8| {
+        let x = f64::from(v) / 255.0;
+        if !srgb_target {
+            x
+        } else if x <= 0.04045 {
+            x / 12.92
+        } else {
+            ((x + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    wgpu::Color {
+        r: ch(c.0[0]),
+        g: ch(c.0[1]),
+        b: ch(c.0[2]),
+        a: 1.0,
     }
 }
 

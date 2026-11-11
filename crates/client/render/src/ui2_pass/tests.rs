@@ -272,7 +272,11 @@ impl Rig {
                         depth_slice: None,
                         resolve_target: None,
                         ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                            // Opaque black unless the scene has a solid background.
+                            load: match self.pass.load_op() {
+                                wgpu::LoadOp::Load => wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                                op => op,
+                            },
                             store: wgpu::StoreOp::Store,
                         },
                     })],
@@ -1702,8 +1706,12 @@ fn ui2_moving_200_banners_uploads_only_their_anchor_rows() {
 }
 
 fn headless(test: &str) -> Option<crate::Renderer> {
+    headless_sized(test, (64, 48))
+}
+
+fn headless_sized(test: &str, size: (u32, u32)) -> Option<crate::Renderer> {
     match block_on(crate::Renderer::new_headless(
-        (64, 48),
+        size,
         crate::renderer::BackendPref::Auto,
     )) {
         Ok(r) => Some(r),
@@ -1789,4 +1797,110 @@ fn ui2_in_a_headless_frame_runs_only_when_prepared_and_under_the_original_ui() {
     assert!(!has_ui2_counters(&stats));
     assert_eq!(stats.draws, draws_without);
     assert_eq!(after.pixel(10, 10), before.pixel(10, 10));
+}
+
+/// The solid background of the golden hooks: the pass clears the target with it (the frame under UI v2 is gone),
+/// also when the scene has nothing to draw; without it the pass loads the target again.
+#[test]
+fn ui2_solid_background_clears_under_the_layers() {
+    let Some(mut rig) = Rig::new("ui2_solid_background", wgpu::Backends::PRIMARY, (32, 16)) else {
+        return;
+    };
+    let mut scene = Scene::new(1.0);
+    scene.set_background(Some(Color::rgba(0x20, 0x20, 0x20, 0)));
+    assert_eq!(
+        scene.background(),
+        Some(Color::rgba(0x20, 0x20, 0x20, 255)),
+        "opaque"
+    );
+    let img = rig.frame(&mut scene);
+    assert!(
+        rig.pass.has_work(),
+        "an empty scene with a background still opens the pass"
+    );
+    assert_eq!(rig.pass.stats().draws, 0);
+    assert!(img.chunks(4).all(|p| p == [0x20, 0x20, 0x20, 255]));
+
+    scene.set_chunk(
+        LayerId::Hud,
+        ChunkId(1),
+        chunk(vec![Item::Box(BoxItem::solid(
+            Rect::new(0.0, 0.0, 8.0, 8.0),
+            RED,
+        ))]),
+    );
+    let img = rig.frame(&mut scene);
+    assert_eq!(rgb(&img, 32, 4, 4), [255, 0, 0]);
+    assert_eq!(rgb(&img, 32, 20, 4), [0x20, 0x20, 0x20]);
+
+    scene.set_background(None);
+    let img = rig.frame(&mut scene);
+    assert!(matches!(rig.pass.load_op(), wgpu::LoadOp::Load));
+    assert_eq!(rgb(&img, 32, 20, 4), [0, 0, 0]);
+    // Through an sRGB target the clear value is linear, so that the stored byte is the colour's.
+    let c = clear_color(Color::rgba(0x20, 0x80, 0xff, 255), true);
+    assert!(
+        (c.r - 0.0144).abs() < 1e-3 && (c.g - 0.2158).abs() < 1e-3 && c.b == 1.0,
+        "{c:?}"
+    );
+    assert_eq!(
+        clear_color(Color::rgba(0x80, 0, 0, 255), false).r,
+        128.0 / 255.0
+    );
+}
+
+/// The golden frame: a headless renderer, the HUD of the reference mockup, frozen, on the solid background of
+/// the golden scenario (`#202020`). `read_frame(WithUi)` returns it: the strip's lacquer at the top, its text,
+/// the background where the HUD leaves the screen free (the world under it is cleared), every glyph rasterized
+/// in the one frame although the budget is zero.
+#[test]
+fn ui2_headless_frame_with_ui_holds_the_frozen_hud_on_its_background() {
+    let size = (1920, 1080);
+    let Some(mut r) = headless_sized("ui2_headless_frame_with_ui_holds_the_hud", size) else {
+        return;
+    };
+    let mut text = engine();
+    let mut scene = Scene::new(1.0);
+    scene.freeze(Some(0.0));
+    scene.set_background(Some(Color::rgba(0x20, 0x20, 0x20, 255)));
+    let (images, pages) = testkit::icon_pages();
+    scene.set_pages(&images, pages).expect("pages");
+    for (layer, id, items) in testkit::hud_a(&mut text, FIRA, 1.0) {
+        scene.set_chunk(layer, id, items);
+    }
+    scene.resolve(&mut text, 0.0);
+    assert_eq!(
+        scene.stats().raster_deferred,
+        0,
+        "a frozen scene rasterizes all its text at once"
+    );
+    assert!(scene.stats().raster_glyphs > 100);
+    r.prepare_ui2(&mut scene);
+    let img = frame_with(&mut r, &UiDrawList::new());
+    let near = |p: &[u8], c: [u8; 3]| p[..3].iter().zip(c).all(|(a, b)| a.abs_diff(b) <= 2);
+    let lacquer: [u8; 3] = testkit::LACQUER.0[..3].try_into().unwrap();
+    assert!(
+        near(img.pixel(960, 2), lacquer),
+        "the top strip: {:?}",
+        img.pixel(960, 2)
+    );
+    assert!(
+        near(img.pixel(960, 540), [0x20; 3]),
+        "the background: {:?}",
+        img.pixel(960, 540)
+    );
+    assert!(
+        near(img.pixel(1200, 700), [0x20; 3]),
+        "the background: {:?}",
+        img.pixel(1200, 700)
+    );
+    // Text of the strip: light pixels on the lacquer.
+    let light = (0..40)
+        .flat_map(|y| (0..size.0).map(move |x| (x, y)))
+        .filter(|&(x, y)| img.pixel(x, y)[0] > 180)
+        .count();
+    assert!(light > 50, "the strip's labels: {light} light pixels");
+    let stats = r.last_frame_stats().clone();
+    let row = ui2_row(&stats).expect("the pass ran");
+    assert!(row.draws >= 1 && row.draws <= 30, "{row:?}");
 }

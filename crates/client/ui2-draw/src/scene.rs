@@ -19,7 +19,9 @@ use crate::instance::Ui2Instance;
 use crate::pages::{ExtSlots, Pages};
 use crate::stats::SceneStats;
 use crate::tables::{TableSegment, Tables};
-use crate::{AnchorSlot, AnchorXform, ChunkId, ChunkItems, DrawError, ExtTexture, Item, LayerId};
+use crate::{
+    AnchorSlot, AnchorXform, ChunkId, ChunkItems, Color, DrawError, ExtTexture, Item, LayerId,
+};
 
 /// Estimated cost of rasterizing one glyph in milliseconds, used to turn a time budget into a glyph count when the
 /// scene has no clock (about 1.5 ms for the 235 glyphs of the HUD in wasm).
@@ -134,6 +136,8 @@ pub struct Scene {
     clock: Option<Clock>,
     overflow: u32,
     frame: Frame,
+    frozen: Option<f64>,
+    background: Option<Color>,
 }
 
 impl Scene {
@@ -155,6 +159,8 @@ impl Scene {
             clock: None,
             overflow: 0,
             frame: Frame::default(),
+            frozen: None,
+            background: None,
         }
     }
 
@@ -165,6 +171,33 @@ impl Scene {
 
     pub(crate) fn now(&self) -> f64 {
         self.clock.as_ref().map_or(0.0, |c| c())
+    }
+
+    // ----- golden hooks -----
+
+    /// Freezes the scene at `t_ms` for reference images (`None` thaws it). A frozen scene is deterministic:
+    /// [`Scene::resolve`] rasterizes every queued glyph whatever the budget, so the frame shows all its text at
+    /// once, and [`Scene::frozen`] gives the time the runtime animates at (transitions stopped at their state at
+    /// `t_ms`, the text caret steady).
+    pub fn freeze(&mut self, t_ms: Option<f64>) {
+        self.frozen = t_ms.filter(|t| t.is_finite());
+    }
+
+    /// The time the scene is frozen at, if it is.
+    pub fn frozen(&self) -> Option<f64> {
+        self.frozen
+    }
+
+    /// A solid background under all layers (`None`: the world shows through). The pass clears the frame with it
+    /// before the map layer, so nothing drawn before UI v2 is visible: reference images of the UI alone. The
+    /// colour is drawn opaque.
+    pub fn set_background(&mut self, color: Option<Color>) {
+        self.background = color.map(|c| Color::rgba(c.0[0], c.0[1], c.0[2], 255));
+    }
+
+    /// The solid background, if one is set.
+    pub fn background(&self) -> Option<Color> {
+        self.background
     }
 
     /// The scale factor.
@@ -370,7 +403,11 @@ impl Scene {
     pub fn resolve(&mut self, text: &mut TextEngine, budget_ms: f32) {
         self.glyphs.begin_frame();
         self.reencode_stale();
-        let budget = f64::from(budget_ms);
+        let budget = if self.frozen.is_some() {
+            f64::INFINITY
+        } else {
+            f64::from(budget_ms)
+        };
         let t0 = self.now();
         let mut done_before = 0u32;
         let (mut placed, mut dropped) = (0u32, 0u32);

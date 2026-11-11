@@ -562,3 +562,38 @@ fn five_thousand_unique_strings_never_lose_visible_glyphs() {
         assert_visible(&s, &text, &mirror, *id, g, true);
     }
 }
+
+/// A frozen scene (reference images) shows all its text in one frame whatever the budget, and says the time it
+/// is frozen at; thawed, the budget counts again. The solid background is kept opaque.
+#[test]
+fn a_frozen_scene_rasterizes_everything_at_once() {
+    let mut text = engine();
+    let mut s = Scene::new(1.0);
+    s.set_clock(ticking(10.0));
+    assert_eq!(s.frozen(), None);
+    s.freeze(Some(1234.5));
+    assert_eq!(s.frozen(), Some(1234.5));
+    s.set_chunk(LayerId::Hud, ChunkId(1), many_glyphs(60));
+    s.resolve(&mut text, 0.0);
+    assert_eq!(s.stats().raster_glyphs, 60);
+    assert_eq!(s.stats().raster_deferred, 0);
+    assert_eq!(s.chunk_unresolved(ChunkId(1)), Some(0));
+
+    s.freeze(None);
+    s.freeze(Some(f64::NAN));
+    assert_eq!(s.frozen(), None, "a time that is not finite thaws");
+    s.reset_frame_stats();
+    s.set_chunk(LayerId::Hud, ChunkId(2), many_glyphs(70));
+    s.resolve(&mut text, 0.0);
+    assert_eq!(
+        s.stats().raster_glyphs,
+        1,
+        "thawed: one glyph for a zero budget"
+    );
+
+    assert_eq!(s.background(), None);
+    s.set_background(Some(Color::rgba(32, 32, 32, 7)));
+    assert_eq!(s.background(), Some(Color::rgba(32, 32, 32, 255)));
+    s.set_background(None);
+    assert_eq!(s.background(), None);
+}
