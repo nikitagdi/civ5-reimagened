@@ -3884,6 +3884,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ui2-draw"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "glam",
+ "thiserror 2.0.21",
+ "ui2-text",
+]
+
+[[package]]
 name = "ui2-model"
 version = "0.1.0"
 dependencies = [
