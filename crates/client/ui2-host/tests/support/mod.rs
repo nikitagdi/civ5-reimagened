@@ -123,6 +123,11 @@ pub fn scripted(files: &[(&str, &str)], reads: &[&str]) -> Arc<Package> {
 /// A skin `id` with a state of its own (`state.prod.sort`, default `sort`; `state.open`, default false), a part
 /// `sort` whose text is bound to `state.prod.sort`, and a script file when `script` is given (reading `top`).
 pub fn state_skin(id: &str, sort: &str, script: Option<&str>) -> Arc<Package> {
+    state_skin_with(id, sort, script.map(|s| (s, &["top"][..])))
+}
+
+/// [`state_skin`] whose script reads the model roots given with it.
+pub fn state_skin_with(id: &str, sort: &str, script: Option<(&str, &[&str])>) -> Arc<Package> {
     use ui2_package::Lit;
     let mut kit = Kit::new();
     kit.font("Fira Sans", 400, false, &fira());
@@ -134,17 +139,25 @@ pub fn state_skin(id: &str, sort: &str, script: Option<&str>) -> Arc<Package> {
     cell.font_size = Len::px(14.0);
     let cell = kit.record(cell);
     let cell = kit.plain(cell);
+    kit.used_path("game.turn", TypeSig::Int);
     let t = tpl(&mut kit, "by {{state.prod.sort}}");
     let p = kit.str("sort");
+    let turn = tpl(&mut kit, &format!("{id} turn {{{{game.turn}}}}"));
+    let tp = kit.str("turn");
     kit.template(
         "doc",
         vec![
             TNode::layer(Layer::Hud, cell)
-                .child(TNode::el(cell).part(p).child(TNode::bound_text(t, cell))),
+                .child(TNode::el(cell).part(p).child(TNode::bound_text(t, cell)))
+                .child(
+                    TNode::el(cell)
+                        .part(tp)
+                        .child(TNode::bound_text(turn, cell)),
+                ),
         ],
     );
-    if let Some(code) = script {
-        kit.script("js/main.js", code, &["top"]);
+    if let Some((code, reads)) = script {
+        kit.script("js/main.js", code, reads);
     }
     kit.finish_skin(id).expect("package")
 }

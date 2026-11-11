@@ -133,6 +133,10 @@ pub struct V2Ui {
     pub(crate) anchors: BTreeMap<AnchorId, (AnchorKind, Value)>,
     /// The platform's text input for the focused text field (`None`: fields take no typing).
     pub(crate) text_bridge: Option<Box<dyn TextInputBridge>>,
+    /// What the runtime borrows from the application; a new skin's runtime gets it too.
+    services: Services,
+    /// `?ui2bg=`: the reference background a new skin's scene gets too.
+    golden: Option<[u8; 3]>,
 }
 
 impl V2Ui {
@@ -184,7 +188,105 @@ impl V2Ui {
             frames: 0,
             anchors: BTreeMap::new(),
             text_bridge: None,
+            services: init.services,
+            golden: None,
         })
+    }
+
+    /// Changes the skin on the screen and keeps the rest of the UI: the model, the source, the actions module with
+    /// the UI's own state (the open windows are `ui.windows.*`, the same for every skin) and the text input. The
+    /// new skin's runtime, text engine and scene replace the old ones and start from a snapshot of the model; the
+    /// old skin's scripts stop and the new skin's start; the old skin's `state.*` is set aside (it comes back when
+    /// that skin is chosen again; for the same skin, see [`reload`](Self::reload)) and the new skin's is mounted.
+    /// `scripts`: makes the workers for a skin's scripts, as in [`V2Init::scripts`] (`None`: markup only).
+    ///
+    /// # Errors
+    /// The new skin cannot be used (package checks, fonts, tree, its scripts): the old skin runs on with its
+    /// state (its scripts start again when the new skin's failed to).
+    pub fn set_skin(
+        &mut self,
+        pkg: Arc<Package>,
+        scripts: Option<&dyn Fn() -> Box<dyn ScriptHost>>,
+    ) -> Result<LoadStats, SkinLoadError> {
+        let clock = self.clock.clone();
+        let now = || clock.as_ref().map_or(0.0, |c| c());
+        let t0 = now();
+        let id = pkg.manifest().id.clone();
+        check_package(&pkg).map_err(|f| SkinLoadError::new(id.as_str(), f))?;
+        let mut skin = Skin::build(
+            Arc::clone(&pkg),
+            self.skin.runtime.env(),
+            self.services.clone(),
+            self.clock.as_ref(),
+        )?;
+        // The old scripts go before the state they watch is remounted; the new ones start on the new state.
+        let old_scripts = self.scripts.take();
+        drop(old_scripts);
+        crate::state::mount(&pkg, &mut self.actions, &mut self.store);
+        let started = match scripts {
+            Some(make) => {
+                Scripts::start(make(), &pkg, &skin.runtime, &self.store, &mut self.actions)
+            }
+            None => Ok(None),
+        };
+        let new_scripts = match started {
+            Ok(s) => s,
+            Err(f) => {
+                // Back to the old skin as it was: its state comes back, its scripts start again on it.
+                let old = Arc::clone(&self.skin.pkg);
+                crate::state::mount(&old, &mut self.actions, &mut self.store);
+                self.scripts = match scripts {
+                    Some(make) => Scripts::start(
+                        make(),
+                        &old,
+                        &self.skin.runtime,
+                        &self.store,
+                        &mut self.actions,
+                    )
+                    .unwrap_or_else(|e| {
+                        tracing::warn!(target: "ui2_host", "the scripts of skin {} do not start again: {e}", old.manifest().id);
+                        None
+                    }),
+                    None => None,
+                };
+                return Err(SkinLoadError::new(id.as_str(), f));
+            }
+        };
+        // The new runtime has seen no frame: it takes every root of the model as it is.
+        skin.runtime
+            .apply_delta(&self.store.snapshot(), &self.store);
+        if let Some(b) = self.text_bridge.as_mut() {
+            b.request(&TextInputRequest::Blur);
+        }
+        self.skin = skin;
+        self.scripts = new_scripts;
+        self.anchors.clear();
+        self.frames = 0;
+        self.set_golden(self.golden);
+        self.load = LoadStats {
+            build_ms: (now() - t0) as f32,
+            fonts: pkg.fonts().len(),
+            nodes: self.skin.runtime.arena().len(),
+            image_pages: pkg.images().pages.len(),
+        };
+        Ok(self.load)
+    }
+
+    /// A new build of the running skin (hot reload): as [`set_skin`](Self::set_skin), and the skin's `state.*`
+    /// keeps every value whose path and type the new build still has. `Ok(false)`: the package is the one that
+    /// runs (same hash), nothing to do.
+    ///
+    /// # Errors
+    /// As [`set_skin`](Self::set_skin): the old build runs on.
+    pub fn reload(
+        &mut self,
+        pkg: Arc<Package>,
+        scripts: Option<&dyn Fn() -> Box<dyn ScriptHost>>,
+    ) -> Result<bool, SkinLoadError> {
+        if pkg.hash() == self.skin.pkg.hash() {
+            return Ok(false);
+        }
+        self.set_skin(pkg, scripts).map(|_| true)
     }
 
     /// Gives the UI the platform's text input (the host owns one per page and hands it to the running UI); the
@@ -230,6 +332,7 @@ impl V2Ui {
 
     /// Changes the game's localizer: texts that depend on the language are evaluated again next frame.
     pub fn set_localizer(&mut self, loc: Rc<loc::Localizer>) {
+        self.services.loc = Some(Rc::clone(&loc));
         self.skin.runtime.set_localizer(loc);
     }
 
@@ -268,6 +371,20 @@ impl V2Ui {
     /// The view model.
     pub fn store(&self) -> &ModelStore {
         &self.store
+    }
+
+    /// The skin's own state as the model has it now: each declared path (without `state.`) and its value
+    /// (playtest hooks, debugging). Paths that are not mounted are left out.
+    pub fn skin_state(&self) -> Vec<(String, Value)> {
+        self.skin
+            .pkg
+            .state_defaults()
+            .filter_map(|(path, _)| {
+                let f = self.store.resolve(&format!("state.{path}")).ok()?;
+                let v = self.store.value(f.id, &[])?.clone();
+                Some((path.to_string(), v))
+            })
+            .collect()
     }
 
     /// The actions module: the UI's own state (selection, windows, waiting orders, toasts, dismissed notes).
@@ -350,6 +467,7 @@ impl V2Ui {
     /// Reference images (`?ui2bg=`): a solid background under the skin and the scene frozen at time 0, so a frame
     /// is the same each time. `None` leaves the scene as it is.
     pub fn set_golden(&mut self, background: Option<[u8; 3]>) {
+        self.golden = background;
         if let Some([r, g, b]) = background {
             let scene = &mut self.skin.scene;
             scene.set_background(Some(Color::rgba(r, g, b, 255)));

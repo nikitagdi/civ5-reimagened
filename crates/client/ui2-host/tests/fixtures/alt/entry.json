@@ -1,0 +1,12 @@
+{
+  "api": "1.0",
+  "default": false,
+  "file": "alt-e42a4c61f608fd76.ui2",
+  "hash": "e42a4c61f608fd76a00e9f32f08588f0b3b1e12b306bf9184e12393f374ad1a3",
+  "id": "alt",
+  "themes": [
+    "dark",
+    "light"
+  ],
+  "title_key": "TXT_KEY_SKIN_ALT"
+}

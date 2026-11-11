@@ -16,6 +16,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod cache;
 pub mod error;
 pub mod frame;
 pub mod input;
@@ -25,6 +26,7 @@ pub mod sink;
 mod state;
 pub mod v2;
 
+pub use cache::{PACKAGE_CACHE, PackageCache};
 pub use error::{LoadFailure, SkinLoadError};
 pub use frame::{V2Frame, V2FrameReport};
 pub use input::{MAP_CLICK, map_click};
@@ -38,8 +40,12 @@ pub use ui2_actions::ActionEvent;
 pub use ui2_model::generated::MouseButton as MapButton;
 /// The game's screens a skin may open (or ask the host for).
 pub use ui2_model::wire::ScreenId;
+/// An intent from outside the skin's markup ([`V2Ui::push_intent`]) and where it came from.
+pub use ui2_model::wire::{Origin as IntentOrigin, WireIntent};
 /// What a map anchor follows, and the model values that name its object.
 pub use ui2_model::{Key as ModelKey, Value as ModelValue};
+/// A read skin package.
+pub use ui2_package::Package as SkinPackage;
 pub use ui2_package::profile::action::AnchorKind;
 pub use ui2_package::style::Cursor;
 pub use ui2_runtime::{Env, InputOutcome, Services};
