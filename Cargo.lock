@@ -3897,6 +3897,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ui2-convert"
+version = "0.1.0"
+dependencies = [
+ "loc",
+ "postcard",
+ "serde",
+ "serde_json",
+ "toml",
+ "ui2-model",
+ "ui2-package",
+]
+
+[[package]]
 name = "ui2-draw"
 version = "0.1.0"
 dependencies = [

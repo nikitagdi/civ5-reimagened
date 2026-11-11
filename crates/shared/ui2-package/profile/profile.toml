@@ -266,3 +266,50 @@ error.E7-015 = { what = "slot on a node with if or for", hint = "put data-slot o
 error.E7-016 = { what = "malformed tooltip reference", hint = "data-tooltip is the id of a <template data-layer=\"tooltip\">" }
 error.E7-017 = { what = "malformed data-fit", hint = "write data-fit=\"shrink\" and optionally data-fit-min=\"12px\"" }
 error.E7-018 = { what = "malformed script island", hint = "an island has an id; keys and classes are plain words" }
+
+# The converter's own rules (tools/ui-convert): E1-001.., E2-010.., E3 (all), E4-040.., E5-001..,
+# E6-001.., E7-001.., E9 (all).
+error.E1-001 = { what = "skin.toml is malformed", hint = "check the file against the skin.toml reference: [skin] id, version, title, entry, model, api; [fonts], [state], [themes], [scripts], [verify]" }
+error.E1-002 = { what = "element outside the profile", hint = "use the elements of the profile reference; links, tables, forms and media elements have no place in a skin" }
+error.E1-003 = { what = "resource outside the skin", hint = "refer to files inside the skin folder with a relative path; nothing is loaded from the network" }
+error.E1-004 = { what = "inline or module script", hint = "put the code into a classic script file listed in skin.toml [scripts] files" }
+error.E1-005 = { what = "id used twice", hint = "an id names one element; use a class for several" }
+error.E1-006 = { what = "the element lacks a computed value the profile requires", hint = "set the value the profile lists for this element (appearance: none for controls, list-style: none for lists)" }
+error.E1-007 = { what = "import or export in a skin script", hint = "skin scripts are classic scripts in the order of skin.toml [scripts] files; share code through globals of the script context" }
+error.E1-008 = { what = "browser API in a skin script", hint = "a skin script talks to the game only through the ui object; it has no document, window, network or storage" }
+error.E1-009 = { what = "included file not found", hint = "data-include names a file of the skin folder, relative to the skin root" }
+error.E2-010 = { what = "property outside the profile", hint = "remove the declaration or use a property of the profile reference; layout is block, flex, grid and absolute" }
+error.E2-011 = { what = "computed value cannot be stored", hint = "Chrome computed a value of another kind than the property's field holds; simplify the declaration" }
+error.E2-012 = { what = "icon paint on an element that is not an icon", hint = "fill and stroke style only svg icons" }
+error.E2-013 = { what = "page background is not transparent", hint = "the world is drawn under the UI; give html and body no background (the preview backdrop is not part of the skin)" }
+error.E3-001 = { what = "at-rule outside the profile", hint = "a skin may use @media (width and height) and @font-face only" }
+error.E3-002 = { what = "selector outside the profile", hint = "use tags, classes, ids, :root, the combinators space and >, and :hover :active :focus :focus-visible :disabled; give the element a class instead of a structural or sibling selector" }
+error.E3-003 = { what = "a toggled class is also written in the static class attribute", hint = "a class that data-bind-class-toggle switches must not be in class=\"...\" of the same element" }
+error.E3-004 = { what = "media query outside the profile", hint = "write @media with width and height in px: min-, max- or ranges joined by and, type all or screen" }
+error.E3-005 = { what = "more than four conditions on one node", hint = "a node can depend on at most four dynamic conditions (hover, focus, toggled classes of it and its ancestors); move a condition to a child or merge classes" }
+error.E3-006 = { what = "too many breakpoints", hint = "a skin has at most 8 media conditions and at most 16 viewport cells" }
+error.E3-007 = { what = "transitions differ between the variants of a node", hint = "declare transition on the base rule only; a state may change values, not transitions" }
+error.E3-008 = { what = "display: contents changes with a condition or a breakpoint", hint = "an element is either a box or not in every state; restructure the markup" }
+error.E3-009 = { what = "order changes with a condition or a breakpoint", hint = "the order of children is fixed when the skin is built; keep order the same in every state and cell" }
+error.E3-010 = { what = "CSS syntax error", hint = "fix the stylesheet so Chrome and the converter read the same rules" }
+error.E4-040 = { what = "sample does not fit the model schema", hint = "write the sample as the schema describes the roots; a field the schema does not have is an error" }
+error.E4-041 = { what = "sample state value is not in the skin state", hint = "declare the value in skin.toml [state] or remove it from the sample" }
+error.E4-042 = { what = "skin state value of an unsupported type", hint = "a state value is a bool, an integer, a float or a string" }
+error.E5-001 = { what = "SVG content outside the profile", hint = "an inline svg is a static picture: no text, script or foreignObject; write text as HTML" }
+error.E5-002 = { what = "icon reference outside the sprite", hint = "an icon is <use href=\"#id\"> of a symbol in the skin's sprite" }
+error.E6-001 = { what = "untranslated text", hint = "put the text into the skin's l10n tables and show it with data-l10n, or bind it with data-bind-value" }
+error.E6-002 = { what = "text key not found", hint = "add the key to l10n/<lang>.toml of every language of the skin" }
+error.E6-003 = { what = "malformed text table or template", hint = "an l10n file is TOML with \"key\" = \"template\"; a template uses {1}, {1_Num}, {1: plural ...} like the game's texts" }
+error.E6-004 = { what = "the template uses more arguments than the node passes", hint = "pass every {n} of the template in data-l10n-args" }
+error.E7-001 = { what = "the body does not hold the four layer roots", hint = "the children of body are the layer roots data-layer=map, hud, window and tooltip, in this order" }
+error.E7-002 = { what = "required extension point missing", hint = "add data-slot with this name on a flex or grid element of the skin" }
+error.E7-003 = { what = "required color token synonym missing", hint = "define the synonym on :root as var(--<root token>)" }
+error.E7-004 = { what = "the same hotkey twice in one layer", hint = "give each node of a layer its own key" }
+error.E7-005 = { what = "the same part name twice", hint = "a part name names one element of the skin" }
+error.E7-006 = { what = "tooltip template not found", hint = "data-tooltip is the id of a <template data-layer=\"tooltip\"> of the skin" }
+error.E7-007 = { what = "layer root is not a full-size box without pointer events", hint = "a layer root is position:absolute; inset:0; pointer-events:none, and its panels switch pointer events on" }
+error.E9-001 = { what = "request outside the local server", hint = "a skin loads nothing from the network or from other servers; refer to files inside the skin folder" }
+error.E9-002 = { what = "Node or Chromium failed", hint = "run npm ci in tools/playtest and tools/ui-convert/node; check that node is on PATH" }
+error.E9-003 = { what = "bad request on the converter protocol", hint = "a converter bug: the Node side refused a request" }
+error.E9-004 = { what = "skin folder or entry file not found", hint = "pass the skin id (skins/<id>) or a folder with skin.toml and the entry file" }
+error.E9-005 = { what = "preview script missing", hint = "includes and bindings are expanded by node/preview/preview.js; without it the page shows only the entry file" }

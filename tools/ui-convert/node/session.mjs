@@ -12,8 +12,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { launchChromium, chromiumFlags } from "./chromium.mjs";
-import { startServer } from "./server.mjs";
+import { startServer, previewAvailable } from "./server.mjs";
 import { scanPage } from "./ir.mjs";
+import { extractPage } from "./extract.mjs";
 
 export class ProtocolError extends Error {
   constructor(code, message) {
@@ -41,7 +42,9 @@ export function createSession() {
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) throw new ProtocolError("E9-004", `skin directory not found: ${req.skin_dir}`);
       if (!fs.existsSync(path.join(root, entry)) || !fs.statSync(path.join(root, entry)).isFile()) throw new ProtocolError("E9-004", `entry file not found: ${entry}`);
 
-      const server = await startServer({ root, port, fontsDir: req.fonts_dir ? path.resolve(req.fonts_dir) : null, preview: req.preview === true });
+      // The preview script is injected only when asked for and present.
+      const preview = req.preview === true && previewAvailable();
+      const server = await startServer({ root, port, preview, fontsDir: req.fonts_dir ? path.resolve(req.fonts_dir) : null });
       let browser;
       try {
         browser = await launchChromium();
@@ -75,7 +78,7 @@ export function createSession() {
       }
       const page = await context.newPage();
       st = { root, entry, server, browser, context, page, blocked };
-      return { chrome: browser.version(), flags: chromiumFlags(), base_url: `${server.url}/` };
+      return { chrome: browser.version(), flags: chromiumFlags(), base_url: `${server.url}/`, preview };
     },
 
     async scan(req = {}) {
@@ -85,6 +88,12 @@ export function createSession() {
       const viewport = req.viewport ?? [1920, 1080];
       need(Array.isArray(viewport) && viewport.length === 2 && viewport.every((n) => Number.isInteger(n) && n > 0), "scan: viewport must be [w, h]");
       return scanPage({ page: st.page, server: st.server, entry: st.entry, state, viewport, blocked: st.blocked });
+    },
+
+    /** Answers the converter's style plan (see extract.mjs). */
+    async extract(req = {}) {
+      need(st, "extract: no open session");
+      return extractPage({ page: st.page, server: st.server, entry: st.entry, req });
     },
 
     /** The next scan always loads the page again; this drops what the server cached (file changes). */

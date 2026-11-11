@@ -1,0 +1,33 @@
+[package]
+name = "ui2-convert"
+description = "UI v2 skin converter: HTML/CSS skin source, Chromium as the style compiler, checks against the UI profile"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "tool"
+
+[[bin]]
+name = "ui2-convert"
+path = "src/main.rs"
+
+[lib]
+name = "ui2_convert"
+path = "src/lib.rs"
+
+[dependencies]
+# The profile tables, value parsers, attribute and expression checkers, and the package builder.
+ui2-package = { workspace = true, features = ["write", "profile"] }
+# The model schema the bindings are typed against, and the sample parser.
+ui2-model.workspace = true
+# The text templates of the skin's l10n tables use the game's template syntax.
+loc.workspace = true
+serde.workspace = true
+# Byte keys for deduplicating records and sets (the package's own encoding).
+postcard.workspace = true
+serde_json.workspace = true
+toml.workspace = true

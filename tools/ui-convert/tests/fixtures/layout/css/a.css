@@ -1,0 +1,27 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.row {
+  display: flex;
+  gap: 4px;
+  color: var(--ink);
+}
+
+.wrap {
+  display: contents;
+}
+
+.first {
+  order: -1;
+  width: 10px;
+}
+
+.b,
+.c,
+.d {
+  width: 8px;
+  height: 8px;
+}
