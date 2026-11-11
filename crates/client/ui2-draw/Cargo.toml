@@ -18,3 +18,7 @@ thiserror.workspace = true
 ui2-text.workspace = true
 # The picture page table of a skin package (`Scene::set_pages`).
 ui2-package.workspace = true
+
+[features]
+# Ready-made scenes (`ui2_draw::testkit`) for the tests of this crate and of the GPU pass.
+testkit = []

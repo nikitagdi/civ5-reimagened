@@ -26,6 +26,8 @@ pub mod pages;
 mod scene;
 mod stats;
 pub mod tables;
+#[cfg(any(test, feature = "testkit"))]
+pub mod testkit;
 
 pub use glam::{Affine2, Vec2};
 

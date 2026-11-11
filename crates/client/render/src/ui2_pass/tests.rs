@@ -10,7 +10,7 @@ use glam::{Affine2, Vec2};
 use ui2_draw::instance::{ATTRIBUTES, INSTANCE_SIZE};
 use ui2_draw::{
     AnchorXform, Border, BoxItem, ChunkBuilder, ChunkId, Clip, Color, FaceId, Fill, Glyphs,
-    ImageItem, ImageRef, Item, LayerId, MaskItem, Radii, Rect, Scene,
+    ImageItem, ImageRef, Item, LayerId, MaskItem, Radii, Rect, Scene, testkit,
 };
 use ui2_text::{RunStyle, TextEngine};
 
@@ -635,6 +635,252 @@ fn ui2_draws_package_pictures_and_mask_icons() {
 #[test]
 fn ui2_draws_package_pictures_on_gl() {
     pictures_on("ui2_draws_package_pictures_on_gl", wgpu::Backends::GL);
+}
+
+/// Coverage (0..255) of the red channel at `(x, y)` over black.
+fn red(img: &[u8], w: u32, x: u32, y: u32) -> i32 {
+    i32::from(px(img, w, x, y)[0])
+}
+
+/// Asserts that `got` is within 2 levels of `want` (0..1 coverage).
+#[track_caller]
+fn near(got: i32, want: f32, what: &str) {
+    let want = (want * 255.0).round() as i32;
+    assert!((got - want).abs() <= 2, "{what}: {got}, want {want}");
+}
+
+/// Test 2 (boxes): per-corner radii, a fractional edge, 1 px and 2 px borders, a border-only box; every edge
+/// pixel against the analytic coverage.
+fn boxes_on(test: &str, backends: wgpu::Backends) {
+    let Some(mut rig) = Rig::new(test, backends, (160, 80)) else {
+        return;
+    };
+    let mut scene = Scene::new(1.0);
+    scene.set_chunk(
+        LayerId::Hud,
+        ChunkId(1),
+        chunk(vec![
+            // Per-corner radii: tl 0, tr 4, br 8, bl 16.
+            Item::Box(BoxItem {
+                radii: Radii {
+                    tl: 0.0,
+                    tr: 4.0,
+                    br: 8.0,
+                    bl: 16.0,
+                },
+                ..BoxItem::solid(Rect::new(4.0, 4.0, 40.0, 40.0), RED)
+            }),
+            // Left edge at 50.5 and right edge at 69.25: half and quarter covered pixels.
+            Item::Box(BoxItem::solid(Rect::new(50.5, 4.0, 18.75, 20.0), RED)),
+            // A key: border 1 px on three sides, 2 px at the bottom, white over a red fill.
+            Item::Box(BoxItem {
+                rect: Rect::new(80.0, 4.0, 30.0, 20.0),
+                fill: Fill::Solid(RED),
+                border: Border {
+                    top: 1.0,
+                    right: 1.0,
+                    bottom: 2.0,
+                    left: 1.0,
+                    color: WHITE,
+                },
+                ..BoxItem::default()
+            }),
+            // Border only, 2 px, rounded 6: the inside stays black.
+            Item::Box(BoxItem {
+                rect: Rect::new(120.0, 4.0, 30.0, 30.0),
+                border: Border::uniform(2.0, RED),
+                radii: Radii::uniform(6.0),
+                ..BoxItem::default()
+            }),
+        ]),
+    );
+    let img = rig.frame(&mut scene);
+    let w = rig.size.0;
+
+    // Per-corner radii: the square corner is fully covered, the others cut by their arcs.
+    assert_eq!(red(&img, w, 4, 4), 255, "square top left corner");
+    for (cx, cy, r, sx, sy) in [
+        (44.0 - 4.0, 4.0 + 4.0, 4.0, 1.0, -1.0),
+        (44.0 - 8.0, 44.0 - 8.0, 8.0, 1.0, 1.0),
+        (4.0 + 16.0, 44.0 - 16.0, 16.0, -1.0, 1.0),
+    ] {
+        // Pixels along the diagonal through the arc centre.
+        for i in 0..(r as i32 + 2) {
+            let (x, y) = (cx + sx * (i as f32 + 0.5), cy + sy * (i as f32 + 0.5));
+            if !(4.0..44.0).contains(&x) || !(4.0..44.0).contains(&y) {
+                continue;
+            }
+            let d = Vec2::new(x - cx, y - cy).length() - r;
+            near(
+                red(&img, w, x as u32, y as u32),
+                (0.5 - d).clamp(0.0, 1.0),
+                &format!("arc r {r} at ({x}, {y})"),
+            );
+        }
+    }
+    // Fractional edges.
+    near(red(&img, w, 50, 10), 0.5, "left edge at 50.5");
+    assert_eq!(red(&img, w, 51, 10), 255);
+    assert_eq!(red(&img, w, 68, 10), 255);
+    near(red(&img, w, 69, 10), 0.25, "right edge at 69.25");
+    assert_eq!(red(&img, w, 70, 10), 0);
+    // The key: 1 px white top, left and right, 2 px white bottom, red inside, black outside.
+    assert_eq!(rgb(&img, w, 95, 4), [255, 255, 255], "top border");
+    assert_eq!(
+        rgb(&img, w, 95, 5),
+        [255, 0, 0],
+        "fill under the top border"
+    );
+    assert_eq!(rgb(&img, w, 80, 14), [255, 255, 255], "left border");
+    assert_eq!(rgb(&img, w, 81, 14), [255, 0, 0]);
+    assert_eq!(rgb(&img, w, 109, 14), [255, 255, 255], "right border");
+    assert_eq!(
+        rgb(&img, w, 95, 21),
+        [255, 0, 0],
+        "fill above the bottom border"
+    );
+    assert_eq!(
+        rgb(&img, w, 95, 22),
+        [255, 255, 255],
+        "bottom border, first row"
+    );
+    assert_eq!(
+        rgb(&img, w, 95, 23),
+        [255, 255, 255],
+        "bottom border, second row"
+    );
+    assert_eq!(rgb(&img, w, 95, 24), [0, 0, 0], "below the key");
+    // Border only: the ring is 2 px, the inside is black.
+    assert_eq!(red(&img, w, 135, 4), 255);
+    assert_eq!(red(&img, w, 135, 5), 255);
+    assert_eq!(red(&img, w, 135, 6), 0);
+    assert_eq!(red(&img, w, 135, 19), 0, "border-only centre");
+    assert_eq!(red(&img, w, 120, 4), 0, "outside the rounded corner");
+}
+
+#[test]
+fn ui2_box_radii_borders_and_edges_match_the_analytic_coverage() {
+    boxes_on(
+        "ui2_box_radii_borders_and_edges_match_the_analytic_coverage",
+        wgpu::Backends::PRIMARY,
+    );
+}
+
+#[test]
+fn ui2_box_coverage_on_gl() {
+    boxes_on("ui2_box_coverage_on_gl", wgpu::Backends::GL);
+}
+
+/// Test 2 (masks): the icons of the testkit page drawn 1:1 reproduce the page's coverage exactly, in the paint
+/// colour; drawn 2x they keep it in the middle of a covered area.
+#[test]
+fn ui2_mask_icons_reproduce_the_page_coverage() {
+    let Some(mut rig) = Rig::new(
+        "ui2_mask_icons_reproduce_the_page_coverage",
+        wgpu::Backends::PRIMARY,
+        (96, 48),
+    ) else {
+        return;
+    };
+    let mut scene = Scene::new(1.0);
+    let (images, pages) = testkit::icon_pages();
+    scene.set_pages(&images, pages.clone()).expect("pages");
+    let mut items = Vec::new();
+    for n in 0..4u8 {
+        items.push(Item::Mask(MaskItem {
+            rect: Rect::new(f32::from(n) * 20.0, 0.0, 16.0, 16.0),
+            mask: testkit::icon(n),
+            color: YELLOW,
+            ..MaskItem::default()
+        }));
+    }
+    items.push(Item::Mask(MaskItem {
+        rect: Rect::new(0.0, 16.0, 32.0, 32.0),
+        mask: testkit::icon(1),
+        color: GREEN,
+        ..MaskItem::default()
+    }));
+    scene.set_chunk(LayerId::Hud, ChunkId(1), chunk(items));
+    let img = rig.frame(&mut scene);
+    let w = rig.size.0;
+    let side = usize::from(testkit::ICON_PAGE);
+    for n in 0..4u32 {
+        for y in 0..16u32 {
+            for x in 0..16u32 {
+                let want = pages[0][y as usize * side + (n * 16 + x) as usize];
+                let got = px(&img, w, n * 20 + x, y);
+                assert_eq!(
+                    [got[0], got[1], got[2]],
+                    [want, want, 0],
+                    "icon {n} ({x}, {y})"
+                );
+            }
+        }
+    }
+    // The square (10 x 10 in its cell) at 2x: 20 x 20 covered in the middle.
+    assert_eq!(rgb(&img, w, 16, 32), [0, 255, 0]);
+    assert_eq!(rgb(&img, w, 2, 18), [0, 0, 0]);
+    assert_eq!(rig.pass.stats().draws, 1);
+}
+
+/// Test 3 (draw call budget) and test 4 (an unchanged frame uploads nothing), on the HUD of the reference
+/// mockup and 200 city banners.
+#[test]
+fn ui2_hud_and_200_banners_stay_within_the_draw_budget_and_idle_frames_upload_nothing() {
+    let size = (1920, 1080);
+    let Some(mut rig) = Rig::new("ui2_hud_and_200_banners", wgpu::Backends::PRIMARY, size) else {
+        return;
+    };
+    let mut text = engine();
+    let mut scene = Scene::new(1.0);
+    testkit::load_hud_a(&mut scene, &mut text, FIRA);
+    let anchors = testkit::map_banners(
+        &mut scene,
+        &mut text,
+        FIRA,
+        200,
+        Vec2::new(size.0 as f32, size.1 as f32),
+    );
+    assert_eq!(anchors.len(), 200);
+    scene.resolve(&mut text, 1000.0);
+    assert_eq!(scene.stats().raster_deferred, 0);
+
+    let img = rig.frame(&mut scene);
+    let s = rig.pass.stats();
+    let (draws, _) = rig.pass.draw_totals();
+    assert!(draws <= 30, "{draws} draw calls");
+    assert!(draws <= 6, "{draws} draw calls, expected at most 6");
+    assert!(s.layer_draws[LayerId::Map.index()] <= 3, "{s:?}");
+    assert_eq!(s.ext_missing, 0);
+    assert!(s.instances > 1000, "{s:?}");
+    // Something of the HUD and of the banners is on screen: the strip's lacquer, a banner's brass tab.
+    assert_eq!(rgb(&img, size.0, 960, 2), testkit::LACQUER.0[..3]);
+    assert!(
+        img.chunks(4).any(|p| p[..3] == testkit::BRASS.0[..3]),
+        "a banner tab"
+    );
+
+    // Test 4: the same scene again uploads nothing and records the same draws.
+    let _ = rig.frame(&mut scene);
+    let idle = rig.pass.stats();
+    assert_eq!(
+        (idle.upload_bytes, idle.layers_uploaded),
+        (0, 0),
+        "{idle:?}"
+    );
+    assert_eq!(idle.draws, s.draws);
+    // Setting every chunk again with equal items changes nothing either.
+    for (layer, id, items) in testkit::hud_a(&mut text, FIRA, 1.0) {
+        scene.set_chunk(layer, id, items);
+    }
+    scene.resolve(&mut text, 1000.0);
+    let _ = rig.frame(&mut scene);
+    let again = rig.pass.stats();
+    assert_eq!(
+        (again.upload_bytes, again.layers_uploaded),
+        (0, 0),
+        "{again:?}"
+    );
 }
 
 fn headless(test: &str) -> Option<crate::Renderer> {
