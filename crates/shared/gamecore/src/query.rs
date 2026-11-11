@@ -7,9 +7,10 @@
 use gamecore_sys::ffi;
 
 use crate::play::{
-    Activity, BuildFlags, City, CityArt, CityBuild, CityFlags, Notification, OrderType, PathNode,
-    RangeTarget, RangeTargetFlags, ReachFlags, Reachable, TopBar, TopBarFlags, TradePath,
-    TradeRoute, TreeNode, Unit, UnitAction, UnitFlags,
+    Activity, BuildFlags, City, CityArt, CityBuild, CityFlags, CityOrder, Notification, OrderType,
+    PathNode, PlayerResource, PolicyBranchState, RangeTarget, RangeTargetFlags, ReachFlags,
+    Reachable, ResourceUsage, TechState, TechStatus, TopBar, TopBarFlags, TradePath, TradeRoute,
+    TreeNode, Unit, UnitAction, UnitFlags,
 };
 use crate::setup::GameType;
 use crate::slots::{HumanSlot, TurnFlags};
@@ -42,6 +43,8 @@ pub const UNIT_RECORD_SIZE: usize = 36;
 /// Size of a `Q_UNITS` record with the v2 fields `transport_id`, `build_type` and `facing`.
 pub const UNIT_V2_RECORD_SIZE: usize = 44;
 pub const UNIT_ACTION_RECORD_SIZE: usize = 8;
+/// Size of a `Q_UNIT_ACTIONS` record with the UI v2 field `cost`.
+pub const UNIT_ACTION_COST_RECORD_SIZE: usize = 12;
 pub const PATH_NODE_RECORD_SIZE: usize = 8;
 /// Size of a `Q_PATH` / `Q_REACHABLE` record with the v2 `flags`; a smaller one reads as no flags.
 pub const PATH_NODE_FLAGS_RECORD_SIZE: usize = 12;
@@ -54,8 +57,18 @@ pub const NOTIFICATION_RECORD_SIZE: usize = 32;
 pub const CITY_RECORD_SIZE: usize = 52;
 /// Size of a `Q_CITIES` record with the v2 field `founder`.
 pub const CITY_V2_RECORD_SIZE: usize = 56;
+/// Size of a `Q_CITIES` record with the UI v2 field `overflow`.
+pub const CITY_OVERFLOW_RECORD_SIZE: usize = 60;
 pub const TOP_BAR_RECORD_SIZE: usize = 60;
+/// Size of a `Q_TOP_BAR` record with the UI v2 field `tourism`.
+pub const TOP_BAR_TOURISM_RECORD_SIZE: usize = 64;
 pub const CITY_BUILD_RECORD_SIZE: usize = 24;
+/// UI v2 read-only queries.
+pub const CITY_ORDER_RECORD_SIZE: usize = 16;
+pub const TECH_RECORD_SIZE: usize = 16;
+pub const RESOURCE_RECORD_SIZE: usize = 16;
+pub const POLICY_BRANCH_RECORD_SIZE: usize = 8;
+pub const PROMOTION_RECORD_SIZE: usize = 4;
 pub const RANGE_TARGET_RECORD_SIZE: usize = 8;
 pub const CITY_ART_RECORD_SIZE: usize = 12;
 pub const TRADE_ROUTE_RECORD_SIZE: usize = 16;
@@ -613,12 +626,19 @@ pub fn parse_units(buf: &[u8]) -> Result<Vec<Unit>, QueryError> {
 pub fn parse_unit_actions(buf: &[u8]) -> Result<Vec<UnitAction>, QueryError> {
     let r = Reply::parse(buf, ffi::GC_Q_UNIT_ACTIONS as u16)?;
     r.require_record_size(UNIT_ACTION_RECORD_SIZE)?;
+    // `cost` is a UI v2 field: read only when the record has it.
+    let has_cost = r.record_size() >= UNIT_ACTION_COST_RECORD_SIZE;
     r.records()
         .map(|b| {
             Ok(UnitAction {
                 action: i16_at(b, 0),
                 enabled: b[2] != 0,
                 reason: r.opt_string(u32_at(b, 4))?,
+                cost: if has_cost {
+                    opt_i32(i32_at(b, 8))
+                } else {
+                    None
+                },
             })
         })
         .collect()
@@ -773,8 +793,9 @@ pub fn parse_notifications(buf: &[u8]) -> Result<Vec<Notification>, QueryError> 
 pub fn parse_cities(buf: &[u8]) -> Result<Vec<City>, QueryError> {
     let r = Reply::parse(buf, ffi::GC_Q_CITIES as u16)?;
     r.require_record_size(CITY_RECORD_SIZE)?;
-    // `founder` is a v2 field: read only when the record has it.
+    // `founder` is a v2 field, `overflow` a UI v2 field: read only when the record has them.
     let v2 = r.record_size() >= CITY_V2_RECORD_SIZE;
+    let has_overflow = r.record_size() >= CITY_OVERFLOW_RECORD_SIZE;
     r.records()
         .map(|b| {
             let mut yields = [0i16; 6];
@@ -799,6 +820,11 @@ pub fn parse_cities(buf: &[u8]) -> Result<Vec<City>, QueryError> {
                 production_needed: i32_at(b, 32),
                 yields,
                 founder: if v2 { opt_u8(b[52] as i8) } else { None },
+                overflow: if has_overflow {
+                    opt_i32(i32_at(b, 56))
+                } else {
+                    None
+                },
                 name: r.string_or_empty(u32_at(b, 48))?,
             })
         })
@@ -832,6 +858,8 @@ pub fn parse_top_bar(buf: &[u8]) -> Result<TopBar, QueryError> {
         flags: TopBarFlags(u16_at(b, 50)),
         golden_age_progress: i32_at(b, 52),
         golden_age_threshold: i32_at(b, 56),
+        // A UI v2 field: read only when the record has it.
+        tourism: (r.record_size() >= TOP_BAR_TOURISM_RECORD_SIZE).then(|| i32_at(b, 60)),
     })
 }
 
@@ -904,6 +932,73 @@ pub fn parse_trade_paths(buf: &[u8]) -> Result<Vec<TradePath>, QueryError> {
         }
     }
     Ok(out)
+}
+
+/// Decodes a `Q_CITY_QUEUE` reply: the city's order queue, head first.
+pub fn parse_city_queue(buf: &[u8]) -> Result<Vec<CityOrder>, QueryError> {
+    let r = Reply::parse(buf, ffi::GC_Q_CITY_QUEUE as u16)?;
+    r.require_record_size(CITY_ORDER_RECORD_SIZE)?;
+    Ok(r.records()
+        .map(|b| CityOrder {
+            slot: i32_at(b, 0),
+            order: OrderType::from_abi(b[4] as i8),
+            item: i16_at(b, 6),
+            turns: opt_i16(i16_at(b, 8)),
+            needed: i32_at(b, 12),
+        })
+        .collect())
+}
+
+/// Decodes a `Q_TECHS` reply: every technology of the game data, by id.
+pub fn parse_techs(buf: &[u8]) -> Result<Vec<TechState>, QueryError> {
+    let r = Reply::parse(buf, ffi::GC_Q_TECHS as u16)?;
+    r.require_record_size(TECH_RECORD_SIZE)?;
+    Ok(r.records()
+        .map(|b| TechState {
+            tech: i16_at(b, 0),
+            status: TechStatus::from_abi(b[2]),
+            queue: u8::try_from(b[3] as i8).ok(),
+            turns: opt_i16(i16_at(b, 4)),
+            progress: i32_at(b, 8),
+            cost: i32_at(b, 12),
+        })
+        .collect())
+}
+
+/// Decodes a `Q_PLAYER_RESOURCES` reply: the resources the player has or uses, by id.
+pub fn parse_player_resources(buf: &[u8]) -> Result<Vec<PlayerResource>, QueryError> {
+    let r = Reply::parse(buf, ffi::GC_Q_PLAYER_RESOURCES as u16)?;
+    r.require_record_size(RESOURCE_RECORD_SIZE)?;
+    Ok(r.records()
+        .map(|b| PlayerResource {
+            resource: i16_at(b, 0),
+            usage: ResourceUsage::from_abi(b[2]),
+            available: i32_at(b, 4),
+            used: i32_at(b, 8),
+            total: i32_at(b, 12),
+        })
+        .collect())
+}
+
+/// Decodes a `Q_POLICY_BRANCHES` reply: every policy branch, by id.
+pub fn parse_policy_branches(buf: &[u8]) -> Result<Vec<PolicyBranchState>, QueryError> {
+    let r = Reply::parse(buf, ffi::GC_Q_POLICY_BRANCHES as u16)?;
+    r.require_record_size(POLICY_BRANCH_RECORD_SIZE)?;
+    Ok(r.records()
+        .map(|b| PolicyBranchState {
+            branch: i16_at(b, 0),
+            unlocked: b[2] != 0,
+            owned: b[3],
+            total: b[4],
+        })
+        .collect())
+}
+
+/// Decodes a `Q_UNIT_PROMOTIONS` reply: the `PromotionTypes` the unit has, by id.
+pub fn parse_unit_promotions(buf: &[u8]) -> Result<Vec<i16>, QueryError> {
+    let r = Reply::parse(buf, ffi::GC_Q_UNIT_PROMOTIONS as u16)?;
+    r.require_record_size(PROMOTION_RECORD_SIZE)?;
+    Ok(r.records().map(|b| i16_at(b, 0)).collect())
 }
 
 #[cfg(test)]
@@ -1732,12 +1827,14 @@ mod tests {
                 UnitAction {
                     action: 3,
                     enabled: true,
-                    reason: None
+                    reason: None,
+                    cost: None
                 },
                 UnitAction {
                     action: 4,
                     enabled: false,
-                    reason: Some("Cannot fortify".into())
+                    reason: Some("Cannot fortify".into()),
+                    cost: None
                 }
             ]
         );
@@ -2733,5 +2830,318 @@ mod tests {
         );
         let grown = reply(21, 8, &[vec![5, 0, 0, 0, 9, 9, 9, 9]], b"");
         assert_eq!(parse_plots_dirty(&grown).unwrap(), vec![5]);
+    }
+
+    // ---- UI v2 read-only queries and appended fields ----
+
+    #[test]
+    fn appended_fields_are_read_only_when_the_record_has_them() {
+        // Q_UNIT_ACTIONS: cost (12-byte record); -1 = none.
+        let rows = reply(
+            8,
+            UNIT_ACTION_COST_RECORD_SIZE,
+            &[
+                [
+                    action_record(4, 1, ffi::GCQ_NO_STRING),
+                    (-1i32).to_le_bytes().to_vec(),
+                ]
+                .concat(),
+                [
+                    action_record(ffi::GC_UNIT_ROW_UPGRADE, 0, 0),
+                    145i32.to_le_bytes().to_vec(),
+                ]
+                .concat(),
+            ],
+            b"no gold\0",
+        );
+        let a = parse_unit_actions(&rows).unwrap();
+        assert_eq!((a[0].action, a[0].cost, a[0].row()), (4, None, None));
+        assert_eq!(
+            (a[1].row(), a[1].enabled, a[1].cost, a[1].reason.as_deref()),
+            (
+                Some(crate::UnitRow::Upgrade),
+                false,
+                Some(145),
+                Some("no gold")
+            )
+        );
+        // The v1 record has no cost.
+        let old = reply(
+            8,
+            UNIT_ACTION_RECORD_SIZE,
+            &[action_record(4, 1, ffi::GCQ_NO_STRING)],
+            b"",
+        );
+        assert_eq!(parse_unit_actions(&old).unwrap()[0].cost, None);
+
+        // Q_CITIES: overflow (60-byte record); -1 = not the viewer's city.
+        let city = |founder: u8, overflow: i32| {
+            [
+                city_record(0, ffi::GC_CITY_F_VISIBLE, 3, 0),
+                vec![founder, 0, 0, 0],
+                overflow.to_le_bytes().to_vec(),
+            ]
+            .concat()
+        };
+        let b = reply(
+            4,
+            CITY_OVERFLOW_RECORD_SIZE,
+            &[city(0, 17), city(1, 0), city(2, -1)],
+            b"Rome\0",
+        );
+        let c = parse_cities(&b).unwrap();
+        assert_eq!(
+            c.iter().map(|c| c.overflow).collect::<Vec<_>>(),
+            vec![Some(17), Some(0), None]
+        );
+        assert_eq!(c[1].founder, Some(1));
+        let v2 = reply(
+            4,
+            CITY_V2_RECORD_SIZE,
+            &[city(0, 17)[..56].to_vec()],
+            b"Rome\0",
+        );
+        assert_eq!(parse_cities(&v2).unwrap()[0].overflow, None);
+
+        // Q_TOP_BAR: tourism (64-byte record).
+        let b = reply(
+            6,
+            TOP_BAR_TOURISM_RECORD_SIZE,
+            &[[top_bar_record(), 23i32.to_le_bytes().to_vec()].concat()],
+            b"",
+        );
+        assert_eq!(parse_top_bar(&b).unwrap().tourism, Some(23));
+        let old = reply(6, TOP_BAR_RECORD_SIZE, &[top_bar_record()], b"");
+        assert_eq!(parse_top_bar(&old).unwrap().tourism, None);
+    }
+
+    fn city_order_record(slot: i32, order: i8, item: i16, turns: i16, needed: i32) -> Vec<u8> {
+        let mut r = Vec::new();
+        push_i32(&mut r, slot);
+        r.extend_from_slice(&[order as u8, 0]);
+        push_i16(&mut r, item);
+        push_i16(&mut r, turns);
+        r.extend_from_slice(&[0, 0]);
+        push_i32(&mut r, needed);
+        assert_eq!(r.len(), CITY_ORDER_RECORD_SIZE);
+        r
+    }
+
+    #[test]
+    fn city_queue_decodes() {
+        let b = reply(
+            23,
+            CITY_ORDER_RECORD_SIZE,
+            &[
+                city_order_record(0, 1, 40, 6, 312), // a wonder being built
+                city_order_record(1, 1, 12, 9, 160),
+                city_order_record(2, 0, 21, -1, 100), // no production: never
+                city_order_record(3, 4, 2, -1, 0),    // a process
+                city_order_record(4, 3, 1, 5, 40),    // a specialist order of the core
+            ],
+            b"",
+        );
+        let q = parse_city_queue(&b).unwrap();
+        assert_eq!(q.len(), 5);
+        assert_eq!(
+            q[0],
+            CityOrder {
+                slot: 0,
+                order: OrderType::Construct,
+                item: 40,
+                turns: Some(6),
+                needed: 312
+            }
+        );
+        assert_eq!((q[2].order, q[2].turns), (OrderType::Train, None));
+        assert_eq!((q[3].order, q[3].needed), (OrderType::Maintain, 0));
+        assert_eq!(q[4].order, OrderType::Other(3));
+        assert!(
+            parse_city_queue(&reply(23, CITY_ORDER_RECORD_SIZE, &[], b""))
+                .unwrap()
+                .is_empty()
+        );
+        assert_prefixes_fail(&b, parse_city_queue);
+        assert_eq!(
+            parse_city_queue(&reply(24, CITY_ORDER_RECORD_SIZE, &[], b"")),
+            Err(QueryError::WrongKind {
+                expected: 23,
+                got: 24
+            })
+        );
+        assert_eq!(
+            parse_city_queue(&reply(23, 12, &[vec![0; 12]], b"")),
+            Err(QueryError::RecordTooSmall { need: 16, got: 12 })
+        );
+        let grown = reply(
+            23,
+            CITY_ORDER_RECORD_SIZE + 4,
+            &[[city_order_record(0, 0, 7, 2, 40), vec![9; 4]].concat()],
+            b"",
+        );
+        assert_eq!(parse_city_queue(&grown).unwrap()[0].item, 7);
+    }
+
+    fn tech_record(
+        tech: i16,
+        status: u8,
+        queue: i8,
+        turns: i16,
+        progress: i32,
+        cost: i32,
+    ) -> Vec<u8> {
+        let mut r = Vec::new();
+        push_i16(&mut r, tech);
+        r.extend_from_slice(&[status, queue as u8]);
+        push_i16(&mut r, turns);
+        r.extend_from_slice(&[0, 0]);
+        push_i32(&mut r, progress);
+        push_i32(&mut r, cost);
+        assert_eq!(r.len(), TECH_RECORD_SIZE);
+        r
+    }
+
+    #[test]
+    fn techs_decode() {
+        let b = reply(
+            24,
+            TECH_RECORD_SIZE,
+            &[
+                tech_record(0, ffi::GC_TECH_HAVE, -1, -1, 35, 35),
+                tech_record(7, ffi::GC_TECH_CAN_RESEARCH, 0, 4, 120, 412),
+                tech_record(8, ffi::GC_TECH_LOCKED, 1, 9, 0, 650),
+                tech_record(9, 7, -1, -1, 0, 900),
+            ],
+            b"",
+        );
+        let t = parse_techs(&b).unwrap();
+        assert_eq!(
+            t[0],
+            TechState {
+                tech: 0,
+                status: TechStatus::Have,
+                queue: None,
+                turns: None,
+                progress: 35,
+                cost: 35
+            }
+        );
+        assert_eq!(
+            (
+                t[1].status,
+                t[1].queue,
+                t[1].turns,
+                t[1].progress,
+                t[1].cost
+            ),
+            (TechStatus::CanResearch, Some(0), Some(4), 120, 412)
+        );
+        assert_eq!((t[2].status, t[2].queue), (TechStatus::Locked, Some(1)));
+        assert_eq!(t[3].status, TechStatus::Other(7));
+        assert_prefixes_fail(&b, parse_techs);
+        assert_eq!(
+            parse_techs(&reply(24, 8, &[vec![0; 8]], b"")),
+            Err(QueryError::RecordTooSmall { need: 16, got: 8 })
+        );
+    }
+
+    fn resource_record(resource: i16, usage: u8, available: i32, used: i32, total: i32) -> Vec<u8> {
+        let mut r = Vec::new();
+        push_i16(&mut r, resource);
+        r.extend_from_slice(&[usage, 0]);
+        for v in [available, used, total] {
+            push_i32(&mut r, v);
+        }
+        assert_eq!(r.len(), RESOURCE_RECORD_SIZE);
+        r
+    }
+
+    #[test]
+    fn player_resources_decode() {
+        let b = reply(
+            25,
+            RESOURCE_RECORD_SIZE,
+            &[
+                resource_record(3, ffi::GC_RESOURCE_USAGE_STRATEGIC, 2, 4, 6),
+                resource_record(15, ffi::GC_RESOURCE_USAGE_LUXURY, 1, 0, 1),
+                resource_record(20, ffi::GC_RESOURCE_USAGE_BONUS, 3, 0, 3),
+                resource_record(4, ffi::GC_RESOURCE_USAGE_STRATEGIC, -2, 2, 0), // used more than it has
+                resource_record(30, 9, 0, 0, 1),
+            ],
+            b"",
+        );
+        let r = parse_player_resources(&b).unwrap();
+        assert_eq!(
+            r[0],
+            PlayerResource {
+                resource: 3,
+                usage: ResourceUsage::Strategic,
+                available: 2,
+                used: 4,
+                total: 6
+            }
+        );
+        assert_eq!(r[1].usage, ResourceUsage::Luxury);
+        assert_eq!(r[2].usage, ResourceUsage::Bonus);
+        assert_eq!((r[3].available, r[3].used, r[3].total), (-2, 2, 0));
+        assert_eq!(r[4].usage, ResourceUsage::Other(9));
+        assert_prefixes_fail(&b, parse_player_resources);
+        assert_eq!(
+            parse_player_resources(&reply(25, 8, &[vec![0; 8]], b"")),
+            Err(QueryError::RecordTooSmall { need: 16, got: 8 })
+        );
+    }
+
+    #[test]
+    fn policy_branches_decode() {
+        let rec = |branch: i16, unlocked: u8, owned: u8, total: u8| {
+            let mut r = Vec::new();
+            push_i16(&mut r, branch);
+            r.extend_from_slice(&[unlocked, owned, total, 0, 0, 0]);
+            assert_eq!(r.len(), POLICY_BRANCH_RECORD_SIZE);
+            r
+        };
+        let b = reply(
+            26,
+            POLICY_BRANCH_RECORD_SIZE,
+            &[rec(0, 1, 3, 5), rec(1, 0, 0, 5), rec(9, 1, 255, 255)],
+            b"",
+        );
+        let p = parse_policy_branches(&b).unwrap();
+        assert_eq!(
+            p[0],
+            PolicyBranchState {
+                branch: 0,
+                unlocked: true,
+                owned: 3,
+                total: 5
+            }
+        );
+        assert!(!p[1].unlocked);
+        assert_eq!((p[2].branch, p[2].owned, p[2].total), (9, 255, 255));
+        assert_prefixes_fail(&b, parse_policy_branches);
+        assert_eq!(
+            parse_policy_branches(&reply(26, 4, &[vec![0; 4]], b"")),
+            Err(QueryError::RecordTooSmall { need: 8, got: 4 })
+        );
+    }
+
+    #[test]
+    fn unit_promotions_decode() {
+        let rec = |p: i16| [p.to_le_bytes().to_vec(), vec![0, 0]].concat();
+        let b = reply(27, PROMOTION_RECORD_SIZE, &[rec(2), rec(17), rec(40)], b"");
+        assert_eq!(parse_unit_promotions(&b).unwrap(), vec![2, 17, 40]);
+        assert!(
+            parse_unit_promotions(&reply(27, PROMOTION_RECORD_SIZE, &[], b""))
+                .unwrap()
+                .is_empty()
+        );
+        assert_prefixes_fail(&b, parse_unit_promotions);
+        assert_eq!(
+            parse_unit_promotions(&reply(27, 2, &[vec![0; 2]], b"")),
+            Err(QueryError::RecordTooSmall { need: 4, got: 2 })
+        );
+        let grown = reply(27, 8, &[[rec(5), vec![1; 4]].concat()], b"");
+        assert_eq!(parse_unit_promotions(&grown).unwrap(), vec![5]);
     }
 }

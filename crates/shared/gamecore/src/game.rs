@@ -6,8 +6,9 @@ use gamecore_sys::{Command as RawCommand, GcError, ffi};
 use crate::command::{Command, CommandError, RawCommand as RawCmd};
 use crate::host::{HostAdapter, HostServices};
 use crate::play::{
-    Attacker, City, CityArt, CityBuild, Notification, PathNode, RangeShooter, RangeTarget,
-    Reachable, TopBar, TradePath, TradeRoute, TreeNode, Unit, UnitAction,
+    Attacker, City, CityArt, CityBuild, CityOrder, Notification, PathNode, PlayerResource,
+    PolicyBranchState, RangeShooter, RangeTarget, Reachable, TechState, TopBar, TradePath,
+    TradeRoute, TreeNode, Unit, UnitAction,
 };
 use crate::query::{self, QueryError};
 use crate::setup::Setup;
@@ -374,6 +375,27 @@ impl Game {
         Ok(query::parse_unit_actions(&buf)?)
     }
 
+    /// `Q_UNIT_ACTIONS` with the extra rows (UI v2): the unit commands, then the rows of
+    /// [`UnitRow`](crate::UnitRow) that apply to the unit (alert, pillage, upgrade with its price). A core
+    /// without the rows refuses the third argument (`GcError::InvalidArg`).
+    pub fn unit_actions_with_rows(
+        &mut self,
+        player: u8,
+        unit: i32,
+    ) -> Result<Vec<UnitAction>, GameError> {
+        let buf = self.raw_query(
+            ffi::GC_Q_UNIT_ACTIONS,
+            &[i32::from(player), unit, ffi::GC_UNIT_ACTIONS_ROWS_EXTRA],
+        )?;
+        Ok(query::parse_unit_actions(&buf)?)
+    }
+
+    /// `Q_UNIT_PROMOTIONS` (UI v2): the `PromotionTypes` the unit of `player` has, by id.
+    pub fn unit_promotions(&mut self, player: u8, unit: i32) -> Result<Vec<i16>, GameError> {
+        let buf = self.raw_query(ffi::GC_Q_UNIT_PROMOTIONS, &[i32::from(player), unit])?;
+        Ok(query::parse_unit_promotions(&buf)?)
+    }
+
     /// `Q_PATH`: the unit's path to `(x, y)` (the unit of `player`), first node = its plot. A target
     /// that cannot be reached is the one node of the target with `flags.unreachable()`; an empty path
     /// is a core without the v2 flags. A bad unit or an off-map target is an error.
@@ -454,6 +476,30 @@ impl Game {
     pub fn top_bar(&mut self, player: u8) -> Result<TopBar, GameError> {
         let buf = self.raw_query(ffi::GC_Q_TOP_BAR, &[i32::from(player)])?;
         Ok(query::parse_top_bar(&buf)?)
+    }
+
+    /// `Q_CITY_QUEUE` (UI v2): the order queue of the city of `player` (any living major civ), head first.
+    pub fn city_queue(&mut self, player: u8, city: i32) -> Result<Vec<CityOrder>, GameError> {
+        let buf = self.raw_query(ffi::GC_Q_CITY_QUEUE, &[i32::from(player), city])?;
+        Ok(query::parse_city_queue(&buf)?)
+    }
+
+    /// `Q_TECHS` (UI v2): every technology and its state for `player` (any living major civ), by id.
+    pub fn techs(&mut self, player: u8) -> Result<Vec<TechState>, GameError> {
+        let buf = self.raw_query(ffi::GC_Q_TECHS, &[i32::from(player)])?;
+        Ok(query::parse_techs(&buf)?)
+    }
+
+    /// `Q_PLAYER_RESOURCES` (UI v2): the resources `player` (any living major civ) has or uses, by id.
+    pub fn player_resources(&mut self, player: u8) -> Result<Vec<PlayerResource>, GameError> {
+        let buf = self.raw_query(ffi::GC_Q_PLAYER_RESOURCES, &[i32::from(player)])?;
+        Ok(query::parse_player_resources(&buf)?)
+    }
+
+    /// `Q_POLICY_BRANCHES` (UI v2): every policy branch and the progress of `player` (any living major civ) in it.
+    pub fn policy_branches(&mut self, player: u8) -> Result<Vec<PolicyBranchState>, GameError> {
+        let buf = self.raw_query(ffi::GC_Q_POLICY_BRANCHES, &[i32::from(player)])?;
+        Ok(query::parse_policy_branches(&buf)?)
     }
 
     /// Raw `GCQ1` reply of query `kind` (`ffi::GC_Q_*`), for queries without a typed method yet.

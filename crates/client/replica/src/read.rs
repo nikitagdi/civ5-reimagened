@@ -9,9 +9,10 @@
 //! not depend on `gamecore` (rule R10).
 
 pub use gamecore::{
-    Activity, BuildFlags, CatalogEntry, CatalogTable, City, CityBuild, CityFlags, GameInfo,
-    GameStatus, GameType, Notification, OrderType, Phase, Player, PlayerFlags, TopBar, TopBarFlags,
-    TurnMode, Unit, UnitAction, UnitFlags, UnsafeReason,
+    Activity, BuildFlags, CatalogEntry, CatalogTable, City, CityBuild, CityFlags, CityOrder,
+    GameInfo, GameStatus, GameType, Notification, OrderType, Phase, Player, PlayerFlags,
+    PlayerResource, PolicyBranchState, ResourceUsage, TechState, TechStatus, TopBar, TopBarFlags,
+    TurnMode, Unit, UnitAction, UnitFlags, UnitRow, UnsafeReason,
 };
 
 use gamecore::{GameError, GcError};
@@ -31,6 +32,12 @@ impl From<GameError> for ReadError {
     fn from(e: GameError) -> Self {
         match e {
             GameError::Core(GcError::NotImplemented) => ReadError::Unsupported,
+            // A core older than the query: it does not know the kind, or the catalog table.
+            GameError::Core(GcError::InvalidArg(m))
+                if m.contains("unknown query kind") || m.contains("table out of range") =>
+            {
+                ReadError::Unsupported
+            }
             other => ReadError::Core(other.to_string()),
         }
     }
@@ -50,7 +57,8 @@ pub trait GameRead {
     fn catalog(&mut self, table: CatalogTable) -> Result<Vec<CatalogEntry>, ReadError>;
     /// `Q_UNITS` the seat's team sees.
     fn units(&mut self) -> Result<Vec<Unit>, ReadError>;
-    /// `Q_UNIT_ACTIONS` of one of the seat's units.
+    /// `Q_UNIT_ACTIONS` of one of the seat's units: the unit commands, then the extra rows
+    /// ([`UnitAction::row`]: alert, pillage, upgrade) when the core has them.
     fn unit_actions(&mut self, unit: i32) -> Result<Vec<UnitAction>, ReadError>;
     /// `Q_CITIES` the seat's team sees.
     fn cities(&mut self) -> Result<Vec<City>, ReadError>;
@@ -60,6 +68,16 @@ pub trait GameRead {
     fn top_bar(&mut self) -> Result<TopBar, ReadError>;
     /// `Q_NOTIFICATIONS` of the seat.
     fn notifications(&mut self) -> Result<Vec<Notification>, ReadError>;
+    /// `Q_CITY_QUEUE` of one of the seat's cities, head first.
+    fn city_queue(&mut self, city: i32) -> Result<Vec<CityOrder>, ReadError>;
+    /// `Q_TECHS` of the seat: every technology, by id.
+    fn techs(&mut self) -> Result<Vec<TechState>, ReadError>;
+    /// `Q_PLAYER_RESOURCES` of the seat.
+    fn player_resources(&mut self) -> Result<Vec<PlayerResource>, ReadError>;
+    /// `Q_POLICY_BRANCHES` of the seat.
+    fn policy_branches(&mut self) -> Result<Vec<PolicyBranchState>, ReadError>;
+    /// `Q_UNIT_PROMOTIONS` of one of the seat's units: the `PromotionTypes` it has.
+    fn unit_promotions(&mut self, unit: i32) -> Result<Vec<i16>, ReadError>;
 }
 
 /// Test doubles of [`GameRead`].
@@ -67,12 +85,15 @@ pub mod testing {
     use std::collections::BTreeMap;
 
     use super::{
-        CatalogEntry, CatalogTable, City, CityBuild, GameInfo, GameRead, GameStatus, GameType,
-        Notification, Phase, Player, ReadError, TopBar, TopBarFlags, Unit, UnitAction,
+        CatalogEntry, CatalogTable, City, CityBuild, CityOrder, GameInfo, GameRead, GameStatus,
+        GameType, Notification, Phase, Player, PlayerResource, PolicyBranchState, ReadError,
+        TechState, TopBar, TopBarFlags, Unit, UnitAction,
     };
 
     /// A [`GameRead`] over plain data that records every call. `error`, when set, is the answer of every read
-    /// (the call is still recorded).
+    /// (the call is still recorded); `ui2_error`, when set, is the answer of the five reads of the UI v2 queries
+    /// (`city_queue`, `techs`, `player_resources`, `policy_branches`, `unit_promotions`), e.g.
+    /// `ReadError::Unsupported` for a core without them.
     #[derive(Debug, Clone)]
     pub struct FakeRead {
         pub seat: u8,
@@ -86,7 +107,15 @@ pub mod testing {
         pub builds: BTreeMap<i32, Vec<CityBuild>>,
         pub top: TopBar,
         pub notes: Vec<Notification>,
+        /// `city_queue` by city id.
+        pub queues: BTreeMap<i32, Vec<CityOrder>>,
+        pub techs: Vec<TechState>,
+        pub resources: Vec<PlayerResource>,
+        pub branches: Vec<PolicyBranchState>,
+        /// `unit_promotions` by unit id.
+        pub promotions: BTreeMap<i32, Vec<i16>>,
         pub error: Option<ReadError>,
+        pub ui2_error: Option<ReadError>,
         /// The name of every method called, in order (`seat` and `team` are not calls of the core).
         pub calls: Vec<&'static str>,
     }
@@ -107,7 +136,13 @@ pub mod testing {
                 builds: BTreeMap::new(),
                 top: top_bar(),
                 notes: Vec::new(),
+                queues: BTreeMap::new(),
+                techs: Vec::new(),
+                resources: Vec::new(),
+                branches: Vec::new(),
+                promotions: BTreeMap::new(),
                 error: None,
+                ui2_error: None,
                 calls: Vec::new(),
             }
         }
@@ -121,6 +156,15 @@ pub mod testing {
         fn call(&mut self, name: &'static str) -> Result<(), ReadError> {
             self.calls.push(name);
             match &self.error {
+                Some(e) => Err(e.clone()),
+                None => Ok(()),
+            }
+        }
+
+        /// A call of one of the UI v2 queries: `error` first, then `ui2_error`.
+        fn call_ui2(&mut self, name: &'static str) -> Result<(), ReadError> {
+            self.call(name)?;
+            match &self.ui2_error {
                 Some(e) => Err(e.clone()),
                 None => Ok(()),
             }
@@ -185,6 +229,31 @@ pub mod testing {
             self.call("notifications")?;
             Ok(self.notes.clone())
         }
+
+        fn city_queue(&mut self, city: i32) -> Result<Vec<CityOrder>, ReadError> {
+            self.call_ui2("city_queue")?;
+            Ok(self.queues.get(&city).cloned().unwrap_or_default())
+        }
+
+        fn techs(&mut self) -> Result<Vec<TechState>, ReadError> {
+            self.call_ui2("techs")?;
+            Ok(self.techs.clone())
+        }
+
+        fn player_resources(&mut self) -> Result<Vec<PlayerResource>, ReadError> {
+            self.call_ui2("player_resources")?;
+            Ok(self.resources.clone())
+        }
+
+        fn policy_branches(&mut self) -> Result<Vec<PolicyBranchState>, ReadError> {
+            self.call_ui2("policy_branches")?;
+            Ok(self.branches.clone())
+        }
+
+        fn unit_promotions(&mut self, unit: i32) -> Result<Vec<i16>, ReadError> {
+            self.call_ui2("unit_promotions")?;
+            Ok(self.promotions.get(&unit).cloned().unwrap_or_default())
+        }
     }
 
     /// A `Q_GAME` record of turn 0 with no blocker, the humans moving, nothing won.
@@ -244,6 +313,7 @@ pub mod testing {
             flags: TopBarFlags::default(),
             golden_age_progress: 0,
             golden_age_threshold: 0,
+            tourism: Some(0),
         }
     }
 

@@ -283,6 +283,30 @@ pub const GC_Q_COMBAT_PREVIEW: i32 = 20;
 pub const GC_Q_PLOTS_DIRTY: i32 = 21;
 /// B4 fix-path: the plots of the routes of Q_TRADE_ROUTES (`gcq_trade_plot`).
 pub const GC_Q_TRADE_PATHS: i32 = 22;
+// UI v2 read-only queries (append only, ABI v2).
+/// `{player, city}`: the city's order queue (`gcq_city_order`).
+pub const GC_Q_CITY_QUEUE: i32 = 23;
+/// `{player}`: every technology and its state for the player (`gcq_tech`).
+pub const GC_Q_TECHS: i32 = 24;
+/// `{player}`: the resources the player has or uses (`gcq_resource`).
+pub const GC_Q_PLAYER_RESOURCES: i32 = 25;
+/// `{player}`: every policy branch and the player's progress in it (`gcq_policy_branch`).
+pub const GC_Q_POLICY_BRANCHES: i32 = 26;
+/// `{player, unit}`: the promotions the unit has (`gcq_promotion`).
+pub const GC_Q_UNIT_PROMOTIONS: i32 = 27;
+
+// Q_UNIT_ACTIONS rows (UI v2): the optional third argument and the row kinds that are not commands.
+pub const GC_UNIT_ACTIONS_ROWS_EXTRA: i32 = 0x0001;
+pub const GC_UNIT_ROW_ALERT: i16 = 101;
+pub const GC_UNIT_ROW_PILLAGE: i16 = 102;
+pub const GC_UNIT_ROW_UPGRADE: i16 = 103;
+// Q_TECHS status, Q_PLAYER_RESOURCES usage (UI v2).
+pub const GC_TECH_HAVE: u8 = 0;
+pub const GC_TECH_CAN_RESEARCH: u8 = 1;
+pub const GC_TECH_LOCKED: u8 = 2;
+pub const GC_RESOURCE_USAGE_BONUS: u8 = 0;
+pub const GC_RESOURCE_USAGE_STRATEGIC: u8 = 1;
+pub const GC_RESOURCE_USAGE_LUXURY: u8 = 2;
 
 /// Opaque instance (`gc_instance`).
 #[repr(C)]
@@ -501,6 +525,9 @@ pub const GC_CATALOG_TABLE_COUNT_V3: i32 = 24;
 // v4 (b9 input-lobby): the civilization hover tip, records `gcq_catalog_ext`.
 pub const GC_CATALOG_CIV_INFO: i32 = 24;
 pub const GC_CATALOG_TABLE_COUNT_V4: i32 = 25;
+// v5 (UI v2): the policy branches, records `gcq_catalog` (id, type, name).
+pub const GC_CATALOG_POLICY_BRANCHES: i32 = 25;
+pub const GC_CATALOG_TABLE_COUNT_V5: i32 = 26;
 
 // Q_UNITS / Q_CITIES / Q_TOP_BAR / Q_CITY_BUILDS (G1a): flags, OrderTypes, YieldTypes.
 pub const GC_UNIT_F_CAN_MOVE: u16 = 0x0001;
@@ -668,7 +695,7 @@ pub struct gcq_unit {
     pub reserved1: u8,
 }
 
-/// Q_UNIT_ACTIONS record (8 bytes).
+/// Q_UNIT_ACTIONS record (12 bytes; v1: 8, UI v2 appends `cost`).
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct gcq_unit_action {
@@ -676,6 +703,7 @@ pub struct gcq_unit_action {
     pub enabled: u8,
     pub reserved: u8,
     pub reason: u32,
+    pub cost: i32,
 }
 
 /// Q_PATH / Q_REACHABLE record (12 bytes; v1: 8, the v2 fields start at `flags`).
@@ -800,7 +828,7 @@ pub struct gcq_range_target {
     pub reserved: u16,
 }
 
-/// Q_CITIES record (56 bytes; v1: 52, the v2 fields start at `founder`).
+/// Q_CITIES record (60 bytes; v1: 52, the v2 fields start at `founder`, UI v2 appends `overflow`).
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct gcq_city {
@@ -824,6 +852,7 @@ pub struct gcq_city {
     pub name: u32,
     pub founder: i8,
     pub reserved3: [u8; 3],
+    pub overflow: i32,
 }
 
 /// Q_CITY_ART record (12 bytes, v2).
@@ -862,7 +891,7 @@ pub struct gcq_trade_plot {
     pub y: i16,
 }
 
-/// Q_TOP_BAR record (60 bytes).
+/// Q_TOP_BAR record (64 bytes; v1: 60, UI v2 appends `tourism`).
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct gcq_top_bar {
@@ -884,6 +913,7 @@ pub struct gcq_top_bar {
     pub flags: u16,
     pub golden_age_progress: i32,
     pub golden_age_threshold: i32,
+    pub tourism: i32,
 }
 
 /// Q_CITY_BUILDS record (24 bytes).
@@ -916,6 +946,63 @@ pub struct gcq_notification {
     pub reserved: u8,
     pub message: u32,
     pub summary: u32,
+}
+
+/// Q_CITY_QUEUE record (16 bytes, UI v2): one entry of a city's order queue.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct gcq_city_order {
+    pub slot: i32,
+    pub order: i8,
+    pub reserved0: u8,
+    pub item: i16,
+    pub turns: i16,
+    pub reserved1: u16,
+    pub needed: i32,
+}
+
+/// Q_TECHS record (16 bytes, UI v2).
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct gcq_tech {
+    pub tech: i16,
+    pub status: u8,
+    pub queue: i8,
+    pub turns: i16,
+    pub reserved: u16,
+    pub progress: i32,
+    pub cost: i32,
+}
+
+/// Q_PLAYER_RESOURCES record (16 bytes, UI v2).
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct gcq_resource {
+    pub resource: i16,
+    pub usage: u8,
+    pub reserved: u8,
+    pub available: i32,
+    pub used: i32,
+    pub total: i32,
+}
+
+/// Q_POLICY_BRANCHES record (8 bytes, UI v2).
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct gcq_policy_branch {
+    pub branch: i16,
+    pub unlocked: u8,
+    pub owned: u8,
+    pub total: u8,
+    pub reserved: [u8; 3],
+}
+
+/// Q_UNIT_PROMOTIONS record (4 bytes, UI v2).
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct gcq_promotion {
+    pub promotion: i16,
+    pub reserved: u16,
 }
 
 /// `gc_ui_event`: one thing the engine told a replica's UI; every pointer is valid during the callback only.
@@ -1167,8 +1254,9 @@ mod tests {
         assert_eq!(offset_of!(gcq_unit, range), 24);
         assert_eq!(offset_of!(gcq_unit, experience), 28);
         assert_eq!(offset_of!(gcq_unit, name), 32);
-        assert_eq!(size_of::<gcq_unit_action>(), 8);
+        assert_eq!(size_of::<gcq_unit_action>(), 12);
         assert_eq!(offset_of!(gcq_unit_action, reason), 4);
+        assert_eq!(offset_of!(gcq_unit_action, cost), 8);
         assert_eq!(size_of::<gcq_path_node>(), 12);
         assert_eq!(offset_of!(gcq_path_node, flags), 8);
         assert_eq!(size_of::<gcq_catalog_timer>(), 24);
@@ -1202,8 +1290,9 @@ mod tests {
         assert_eq!(size_of::<gcq_plot_dirty>(), 4);
         assert_eq!(size_of::<gcq_range_target>(), 8);
         assert_eq!(offset_of!(gcq_range_target, flags), 4);
-        assert_eq!(size_of::<gcq_city>(), 56);
+        assert_eq!(size_of::<gcq_city>(), 60);
         assert_eq!(offset_of!(gcq_city, founder), 52);
+        assert_eq!(offset_of!(gcq_city, overflow), 56);
         assert_eq!(size_of::<gcq_city_art>(), 12);
         assert_eq!(offset_of!(gcq_city_art, building), 6);
         assert_eq!(size_of::<gcq_trade_route>(), 16);
@@ -1213,11 +1302,34 @@ mod tests {
         assert_eq!(offset_of!(gcq_city, production_stored), 28);
         assert_eq!(offset_of!(gcq_city, yields), 36);
         assert_eq!(offset_of!(gcq_city, name), 48);
-        assert_eq!(size_of::<gcq_top_bar>(), 60);
+        assert_eq!(size_of::<gcq_top_bar>(), 64);
         assert_eq!(offset_of!(gcq_top_bar, research_progress), 16);
         assert_eq!(offset_of!(gcq_top_bar, happiness), 36);
         assert_eq!(offset_of!(gcq_top_bar, era), 48);
         assert_eq!(offset_of!(gcq_top_bar, golden_age_threshold), 56);
+        assert_eq!(offset_of!(gcq_top_bar, tourism), 60);
+        // UI v2 read-only queries.
+        assert_eq!(size_of::<gcq_city_order>(), 16);
+        assert_eq!(offset_of!(gcq_city_order, order), 4);
+        assert_eq!(offset_of!(gcq_city_order, item), 6);
+        assert_eq!(offset_of!(gcq_city_order, turns), 8);
+        assert_eq!(offset_of!(gcq_city_order, needed), 12);
+        assert_eq!(size_of::<gcq_tech>(), 16);
+        assert_eq!(offset_of!(gcq_tech, status), 2);
+        assert_eq!(offset_of!(gcq_tech, queue), 3);
+        assert_eq!(offset_of!(gcq_tech, turns), 4);
+        assert_eq!(offset_of!(gcq_tech, progress), 8);
+        assert_eq!(offset_of!(gcq_tech, cost), 12);
+        assert_eq!(size_of::<gcq_resource>(), 16);
+        assert_eq!(offset_of!(gcq_resource, usage), 2);
+        assert_eq!(offset_of!(gcq_resource, available), 4);
+        assert_eq!(offset_of!(gcq_resource, used), 8);
+        assert_eq!(offset_of!(gcq_resource, total), 12);
+        assert_eq!(size_of::<gcq_policy_branch>(), 8);
+        assert_eq!(offset_of!(gcq_policy_branch, unlocked), 2);
+        assert_eq!(offset_of!(gcq_policy_branch, owned), 3);
+        assert_eq!(offset_of!(gcq_policy_branch, total), 4);
+        assert_eq!(size_of::<gcq_promotion>(), 4);
         assert_eq!(size_of::<gcq_city_build>(), 24);
         assert_eq!(offset_of!(gcq_city_build, production_cost), 8);
         assert_eq!(offset_of!(gcq_city_build, reason), 16);
@@ -1957,6 +2069,36 @@ mod tests {
                 "GC_CATALOG_TABLE_COUNT_V4",
                 GC_CATALOG_TABLE_COUNT_V4 as i64,
             ),
+            // UI v2 read-only queries
+            ("GC_Q_CITY_QUEUE", GC_Q_CITY_QUEUE as i64),
+            ("GC_Q_TECHS", GC_Q_TECHS as i64),
+            ("GC_Q_PLAYER_RESOURCES", GC_Q_PLAYER_RESOURCES as i64),
+            ("GC_Q_POLICY_BRANCHES", GC_Q_POLICY_BRANCHES as i64),
+            ("GC_Q_UNIT_PROMOTIONS", GC_Q_UNIT_PROMOTIONS as i64),
+            (
+                "GC_UNIT_ACTIONS_ROWS_EXTRA",
+                GC_UNIT_ACTIONS_ROWS_EXTRA as i64,
+            ),
+            ("GC_UNIT_ROW_ALERT", GC_UNIT_ROW_ALERT as i64),
+            ("GC_UNIT_ROW_PILLAGE", GC_UNIT_ROW_PILLAGE as i64),
+            ("GC_UNIT_ROW_UPGRADE", GC_UNIT_ROW_UPGRADE as i64),
+            (
+                "GC_CATALOG_POLICY_BRANCHES",
+                GC_CATALOG_POLICY_BRANCHES as i64,
+            ),
+            (
+                "GC_CATALOG_TABLE_COUNT_V5",
+                GC_CATALOG_TABLE_COUNT_V5 as i64,
+            ),
+            ("GC_TECH_HAVE", GC_TECH_HAVE as i64),
+            ("GC_TECH_CAN_RESEARCH", GC_TECH_CAN_RESEARCH as i64),
+            ("GC_TECH_LOCKED", GC_TECH_LOCKED as i64),
+            ("GC_RESOURCE_USAGE_BONUS", GC_RESOURCE_USAGE_BONUS as i64),
+            (
+                "GC_RESOURCE_USAGE_STRATEGIC",
+                GC_RESOURCE_USAGE_STRATEGIC as i64,
+            ),
+            ("GC_RESOURCE_USAGE_LUXURY", GC_RESOURCE_USAGE_LUXURY as i64),
         ];
         for (name, rust) in table {
             assert_eq!(define(name), *rust, "{name}");

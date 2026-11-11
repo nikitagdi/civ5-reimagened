@@ -623,7 +623,8 @@ extern "C" int32_t gc_apply_command(gc_instance* inst, const gc_command* cmd, gc
 extern "C" int32_t gc_query(gc_instance* inst, int32_t kind, const int32_t* args, uint32_t argc, gc_buf* out,
                             gc_error* err) {
     clear_err(err);
-    if (!inst || !out || (argc > 0 && !args) || kind < GC_Q_GAME || kind > GC_Q_PLOTS_DIRTY)
+    // Every kind the header declares (up to the read-only queries of the UI v2) is known; the stub serves none of them.
+    if (!inst || !out || (argc > 0 && !args) || kind < GC_Q_GAME || kind > GC_Q_UNIT_PROMOTIONS)
         return fail(err, GC_ERR_INVALID_ARG, "gc_query: bad argument or unknown query kind");
     if (!inst->started) return fail(err, GC_ERR_NOT_STARTED, "no game yet (gc_new_game not done)");
     return fail(err, GC_ERR_NOT_IMPLEMENTED, "gc_query is not implemented in the stub");

@@ -23,9 +23,11 @@ pub use gamecore_sys::GcError;
 pub use gamecore_sys::IMPLEMENTATION;
 pub use host::{HostServices, LogLevel};
 pub use play::{
-    Activity, Attacker, BuildFlags, City, CityArt, CityBuild, CityFlags, MOVE_DENOMINATOR,
-    Notification, OrderType, PathNode, RangeShooter, RangeTarget, RangeTargetFlags, ReachFlags,
-    Reachable, TopBar, TopBarFlags, TradePath, TradeRoute, TreeNode, Unit, UnitAction, UnitFlags,
+    Activity, Attacker, BuildFlags, City, CityArt, CityBuild, CityFlags, CityOrder,
+    MOVE_DENOMINATOR, Notification, OrderType, PathNode, PlayerResource, PolicyBranchState,
+    RangeShooter, RangeTarget, RangeTargetFlags, ReachFlags, Reachable, ResourceUsage, TechState,
+    TechStatus, TopBar, TopBarFlags, TradePath, TradeRoute, TreeNode, Unit, UnitAction, UnitFlags,
+    UnitRow,
 };
 pub use query::QueryError;
 pub use replica::{Applied, NetMessage, ReplicaGame, Role};
