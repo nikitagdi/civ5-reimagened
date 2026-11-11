@@ -8,6 +8,8 @@
 //!   application lends them per frame) and touches no GPU: the application gives [`V2Ui::scene_mut`] to the
 //!   renderer after each frame.
 //! - [`NetSink`]: the actions module's order sink over the network client, for one frame ([`HostNet`]).
+//! - [`input`]: window events between frames ([`V2Ui::handle_input`]) and clicks on the map
+//!   ([`V2Ui::click_map`]).
 //!
 //! Load failures are values ([`SkinLoadError`]), never panics, so the application can fall back.
 
@@ -15,15 +17,20 @@
 
 pub mod error;
 pub mod frame;
+pub mod input;
 pub mod registry;
 pub mod sink;
 pub mod v2;
 
 pub use error::{LoadFailure, SkinLoadError};
 pub use frame::{V2Frame, V2FrameReport};
+pub use input::{MAP_CLICK, map_click};
 pub use registry::{ApiVersion, Fallback, RegistryError, SkinEntry, SkinRegistry, hash_hex};
 pub use sink::{HostNet, NetSink, Offline, refused};
 pub use ui2_actions::ActionEvent;
-pub use ui2_runtime::{Env, Services};
+/// The mouse button of a `map.click` (the model's enum, not the platform's).
+pub use ui2_model::generated::MouseButton as MapButton;
+pub use ui2_package::style::Cursor;
+pub use ui2_runtime::{Env, InputOutcome, Services};
 pub use ui2_source::ReplicaView;
 pub use v2::{HostClock, LoadStats, RESOLVE_BUDGET_MS, V2Init, V2Ui};

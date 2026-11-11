@@ -2085,11 +2085,17 @@ impl App {
                 // The globe while the game loads and while the server runs the turn, else the arrow.
                 let busy =
                     self.loading_cursor || self.m2.as_ref().is_some_and(|m| m.turn_processing());
+                // TEMP(T51): a running UI v2 skin's cursor over its panels; `auto` keeps the layer's row.
                 let row = self
-                    .m2
+                    .v2
                     .as_ref()
-                    .and_then(|m| m.layer())
-                    .map_or(0, |l| l.cursor());
+                    .and_then(|v| v.cursor_row())
+                    .unwrap_or_else(|| {
+                        self.m2
+                            .as_ref()
+                            .and_then(|m| m.layer())
+                            .map_or(0, |l| l.cursor())
+                    });
                 let pick = crate::cursor::pick(c.timing(), row, busy, now);
                 if self.cursor_shown != Some(pick) {
                     w.set_cursor(c.get(pick).clone());
@@ -2753,14 +2759,18 @@ impl App {
     /// M2: egui first (sign-in, lobby, debug panel), then the original UI; what neither takes moves the camera.
     fn m2_input(&mut self, ev: platform::InputEvent) {
         use platform::InputEvent;
+        // TEMP(T51): while a UI v2 skin runs it gets the input first and the classic layer gets none.
+        let now = self.clock.now_ms_f64();
+        if let Some(outcome) = self.v2.as_mut().and_then(|v| v.input(&ev, now)) {
+            self.v2_input(ev, outcome);
+            return;
+        }
         let at = match &ev {
             InputEvent::Pointer(p) => Some(p.position),
             InputEvent::Wheel(w) => Some(w.position),
             _ => None,
         };
-        // TEMP(T51): while a UI v2 skin runs the classic layer gets no input.
-        let classic_input = !self.v2.as_ref().is_some_and(|v| v.running());
-        if let Some(at) = at.filter(|_| classic_input) {
+        if let Some(at) = at {
             // `UI.GetMouseOverHex` and `SerialEventMouseOverHex` before the click reaches `WorldView.lua`.
             let ray = self.map_controller.ray_at(at, &self.game_camera);
             if let Some(p) = self.picker.pick(&self.bridge, &ray)
@@ -2777,7 +2787,7 @@ impl App {
         self.ui_press.observe(&ev);
         let press_moved = self.ui_press.moved(&ev);
         let ui_ev = ui_event_after_drag(&ev, self.map_controller.is_dragging() || press_moved);
-        let taken = classic_input && self.m2.as_mut().is_some_and(|m2| m2.handle_input(&ui_ev));
+        let taken = self.m2.as_mut().is_some_and(|m2| m2.handle_input(&ui_ev));
         // The map keeps following a held button over UI controls (a banner), or the drag would stall there.
         if taken
             && matches!(&ev, platform::InputEvent::Pointer(p) if p.phase == platform::PointerPhase::Move)
@@ -2808,6 +2818,54 @@ impl App {
             self.map_controller.handle(&ev, &mut self.game_camera);
             self.map_controller.take_click();
             self.map_controller.take_right_click();
+        }
+    }
+
+    /// TEMP(T51): an event a running UI v2 skin looked at first. What it passed on goes to the mods' unclaimed
+    /// input, then the camera; a click the picker turns into a plot is the skin's `map.click`. A press on the skin's
+    /// minimap moves the camera like the classic minimap panel.
+    fn v2_input(&mut self, ev: platform::InputEvent, outcome: ui2_host::InputOutcome) {
+        match outcome {
+            ui2_host::InputOutcome::Consumed => {}
+            ui2_host::InputOutcome::MinimapClick { u, v } => {
+                let (u, v) = (
+                    crate::ui_host::v2::minimap_share(u),
+                    crate::ui_host::v2::minimap_share(v),
+                );
+                if let Some(at) = self
+                    .renderer
+                    .as_ref()
+                    .and_then(|r| r.minimap_to_world(u, v))
+                {
+                    self.game_camera.center_on(at);
+                }
+            }
+            ui2_host::InputOutcome::PassToWorld => {
+                if !self.hooks.is_empty() {
+                    let claim = self.hooks.unclaimed_input(&ev);
+                    self.apply_pointer_request(claim.pointer_lock);
+                    if claim.taken {
+                        return;
+                    }
+                }
+                self.map_controller.handle(&ev, &mut self.game_camera);
+                let clicks = [
+                    (self.map_controller.take_click(), ui2_host::MapButton::Left),
+                    (
+                        self.map_controller.take_right_click(),
+                        ui2_host::MapButton::Right,
+                    ),
+                ];
+                for (at, button) in clicks {
+                    let Some(at) = at else { continue };
+                    let ray = self.map_controller.ray_at(at, &self.game_camera);
+                    if let Some(p) = self.picker.pick(&self.bridge, &ray)
+                        && let Some(v2) = self.v2.as_mut()
+                    {
+                        v2.map_click(p.cell, button);
+                    }
+                }
+            }
         }
     }
 

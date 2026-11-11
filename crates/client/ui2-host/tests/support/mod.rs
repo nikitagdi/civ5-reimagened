@@ -8,11 +8,17 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use replica::testing::FakeRead;
+use replica::{Activity, Notification, Unit, UnitFlags};
+use ui2_actions::{OrderSink, RecordingSink};
+use ui2_host::HostNet;
 use ui2_package::profile::TypeSig;
 use ui2_package::profile::expr::{TplSeg, parse, parse_template};
 use ui2_package::style::{Display, Len, StyleRecord};
 use ui2_package::{Layer, Package};
 use ui2_runtime::testkit::{Kit, TNode, TplPiece};
+use ui2_source::SessionRead;
+use ui2_source::session::testing::FakeSession;
 
 /// The face of the strip.
 pub fn fira() -> Vec<u8> {
@@ -86,4 +92,73 @@ pub fn strip_kit(font: &[u8]) -> Kit {
 /// The strip package.
 pub fn strip() -> Arc<Package> {
     strip_kit(&fira()).finish().expect("package")
+}
+
+/// A network for the tests: orders are recorded and numbered, the session is plain data.
+#[derive(Default)]
+pub struct FakeNet {
+    pub sink: RecordingSink,
+    pub session: FakeSession,
+}
+
+impl HostNet for FakeNet {
+    fn sink(&mut self) -> &mut dyn OrderSink {
+        &mut self.sink
+    }
+
+    fn session(&self) -> &dyn SessionRead {
+        &self.session
+    }
+}
+
+/// A unit of seat 0 at `(x, 4)`.
+pub fn unit(id: i32, x: i16) -> Unit {
+    Unit {
+        id,
+        owner: 0,
+        unit_type: 1,
+        x,
+        y: 4,
+        hp: 100,
+        max_hp: 100,
+        moves_left: 120,
+        max_moves: 120,
+        strength: 8,
+        ranged: 0,
+        range: 0,
+        domain: 2,
+        activity: Activity::Awake,
+        level: 1,
+        experience: 0,
+        flags: UnitFlags::default(),
+        transport_id: None,
+        build_type: None,
+        facing: None,
+        name: format!("Warrior {id}"),
+    }
+}
+
+/// A notification without a plot.
+pub fn note(id: i32) -> Notification {
+    Notification {
+        id,
+        kind: 0,
+        x: -1,
+        y: -1,
+        data1: 0,
+        data2: 0,
+        turn: 87,
+        dismissed: false,
+        message: format!("note {id}"),
+        summary: format!("note {id}"),
+    }
+}
+
+/// Seat 0 at turn 87 with two units (at (10, 4) and (11, 4)) and two notifications.
+pub fn game() -> FakeRead {
+    let mut f = FakeRead::new(0, 0);
+    f.info.turn = 87;
+    f.units = vec![unit(1, 10), unit(2, 11)];
+    f.notes = vec![note(2), note(3)];
+    f
 }
