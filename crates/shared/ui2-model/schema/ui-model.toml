@@ -1,14 +1,18 @@
 version = "1.0"
 
+# The UI view model, schema 1.0. Source of the generated Rust types, the path table and the JS typings
+# (`cargo xtask ui gen-model`). A new field, root or enum value is a minor version; removing, renaming or
+# retyping anything is a major one.
+
 [enum]
 Source = ["replica", "server"]
+Phase = ["starting", "ai", "humans", "game_over"]
+TurnMode = ["simultaneous", "hybrid"]
+Mood = ["content", "unhappy", "very_unhappy"]
 
-[model.meta]
-schema = "str"
-source = "Source"
-live = "bool"
-catching_up = "bool"
-connected = "bool"
+[type]
+EraRef = { id = "i16", name = "text" }
+GoldenAge = { active = "bool", turns = "i16", progress = "i32", threshold = "i32" }
 
 [type.Resource]
 id = "key<item>"
@@ -18,8 +22,62 @@ available = "i32"
 used = "i32"
 total = "i32"
 
+[type.PolicyBranch]
+id = "i16"
+name = "text"
+unlocked = "bool"
+owned = "i8"
+total = "i8"
+
+[type.Tech]
+id = "key<tech>"
+name = "text"
+icon = "asset"
+turns = "i16?"
+progress = "i32"
+cost = "i32"
+fraction = "f32"
+
+# Session and source state.
+[model.meta]
+schema = "str"
+source = "Source"
+live = "bool"
+catching_up = "bool"
+connected = "bool"
+
+[model.game]
+turn = "i32"
+year = "i32"
+year_text = "text"
+era = "EraRef"
+me = "key<player>"
+phase = "Phase"
+mode = "TurnMode"
+winner = "key<player>?"
+
+# The top bar.
 [model.top]
+science_rate = "i32"
 gold = "i32"
 gold_rate = "i32"
+happiness = "i32"
+mood = "Mood"
+golden_age = "GoldenAge"
+culture = "i32"
+culture_rate = "i32"
+policy_cost = "i32"
+policy_turns = "i16?"
+faith = "i32"
+faith_rate = "i32"
 tourism = "i32?"
 resources = { list = "Resource", key = "id" }
+policies = { list = "PolicyBranch", key = "id" }
+
+[model.research]
+current = "Tech?"
+next = "Tech?"
+queue = { list = "Tech", key = "id" }
+options = { list = "Tech", key = "id" }
+known = "bool"
+blocked = "bool"

@@ -67,6 +67,8 @@ fn typed_diff_equals_dynamic_diff_for_every_root() {
     let s = Schema::v1();
     check_root::<g::Meta>(s);
     check_root::<g::Top>(s);
+    check_root::<g::Game>(s);
+    check_root::<g::Research>(s);
 }
 
 #[test]

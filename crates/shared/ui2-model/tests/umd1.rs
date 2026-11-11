@@ -24,6 +24,13 @@ fn reference_delta(s: &Schema) -> FrameDelta {
     let horses = Key::new(1, 4);
     let meta = s.root_by_name("meta").unwrap();
     let top = s.root_by_name("top").unwrap();
+    let Value::Struct(mut top_fields) =
+        ui2_model::default_value(s, &ui2_model::Type::Struct(s.root(top).ty))
+    else {
+        unreachable!()
+    };
+    top_fields[1] = Value::I32(100); // gold
+    let top_value = Value::Struct(top_fields);
     FrameDelta {
         revision: 7,
         ops: vec![
@@ -79,12 +86,7 @@ fn reference_delta(s: &Schema) -> FrameDelta {
             },
             Op::Reset {
                 root: RootId(top.0),
-                value: Value::Struct(vec![
-                    Value::I32(100),
-                    Value::I32(3),
-                    Value::I32(0),
-                    Value::List(vec![]),
-                ]),
+                value: top_value,
             },
         ],
     }

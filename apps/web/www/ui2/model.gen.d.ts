@@ -6,6 +6,21 @@ export type Key = string;
 export type Text = string | { k: string; a: string[] };
 
 export type Source = "replica" | "server";
+export type Phase = "starting" | "ai" | "humans" | "game_over";
+export type TurnMode = "simultaneous" | "hybrid";
+export type Mood = "content" | "unhappy" | "very_unhappy";
+
+export interface EraRef {
+  readonly id: number;
+  readonly name: Text;
+}
+
+export interface GoldenAge {
+  readonly active: boolean;
+  readonly turns: number;
+  readonly progress: number;
+  readonly threshold: number;
+}
 
 export interface Resource {
   readonly id: Key;
@@ -16,6 +31,24 @@ export interface Resource {
   readonly total: number;
 }
 
+export interface PolicyBranch {
+  readonly id: number;
+  readonly name: Text;
+  readonly unlocked: boolean;
+  readonly owned: number;
+  readonly total: number;
+}
+
+export interface Tech {
+  readonly id: Key;
+  readonly name: Text;
+  readonly icon: string;
+  readonly turns: number | null;
+  readonly progress: number;
+  readonly cost: number;
+  readonly fraction: number;
+}
+
 export interface Meta {
   readonly schema: string;
   readonly source: Source;
@@ -24,17 +57,50 @@ export interface Meta {
   readonly connected: boolean;
 }
 
+export interface Game {
+  readonly turn: number;
+  readonly year: number;
+  readonly year_text: Text;
+  readonly era: EraRef;
+  readonly me: Key;
+  readonly phase: Phase;
+  readonly mode: TurnMode;
+  readonly winner: Key | null;
+}
+
 export interface Top {
+  readonly science_rate: number;
   readonly gold: number;
   readonly gold_rate: number;
+  readonly happiness: number;
+  readonly mood: Mood;
+  readonly golden_age: GoldenAge;
+  readonly culture: number;
+  readonly culture_rate: number;
+  readonly policy_cost: number;
+  readonly policy_turns: number | null;
+  readonly faith: number;
+  readonly faith_rate: number;
   readonly tourism: number | null;
   readonly resources: Resource[];
+  readonly policies: PolicyBranch[];
+}
+
+export interface Research {
+  readonly current: Tech | null;
+  readonly next: Tech | null;
+  readonly queue: Tech[];
+  readonly options: Tech[];
+  readonly known: boolean;
+  readonly blocked: boolean;
 }
 
 /** The model: one member per root. */
 export interface Model {
   readonly meta: Meta;
+  readonly game: Game;
   readonly top: Top;
+  readonly research: Research;
 }
 
 /** A decoded operation of a frame delta. Values follow the types above. */

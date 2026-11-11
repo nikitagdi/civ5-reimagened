@@ -57,7 +57,11 @@ test("decodes the reference delta", () => {
   assert.equal(upd.value, 5);
   assert.deepEqual(move, { op: "move", field: fieldId("top.resources"), path: "top.resources", keys: [], key: "1:4", to: 0 });
   assert.equal(remove.key, "1:3");
-  assert.deepEqual(resetTop.value, { gold: 100, gold_rate: 3, tourism: 0, resources: [] });
+  assert.equal(resetTop.value.gold, 100);
+  assert.equal(resetTop.value.mood, "content");
+  assert.deepEqual(resetTop.value.golden_age, { active: false, turns: 0, progress: 0, threshold: 0 });
+  assert.equal(resetTop.value.tourism, null);
+  assert.deepEqual(resetTop.value.resources, []);
 });
 
 test("a snapshot header for another schema is refused", () => {
