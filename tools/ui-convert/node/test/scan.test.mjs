@@ -278,10 +278,22 @@ test("stdio protocol: open, scan, errors, close", async () => {
   m.send("this is not json");
   const bad = JSON.parse(await m.next());
   assert.deepEqual([bad.id, bad.ok, bad.error.code], [null, false, "E9-003"]);
-  m.send({ id: 3, cmd: "raster" });
+  m.send({ id: 3, cmd: "shoot" });
   const planned = JSON.parse(await m.next());
   assert.deepEqual([planned.id, planned.ok, planned.error.code], [3, false, "E9-003"]);
   assert.match(planned.error.message, /not implemented/);
+  // raster: an SVG at scale 1 and 2, straight RGBA, top half white and opaque, bottom half transparent.
+  const svg = (s) => `<svg xmlns="http://www.w3.org/2000/svg" width="${4 * s}" height="${4 * s}" viewBox="0 0 4 4"><rect width="4" height="2" fill="#fff"/></svg>`;
+  m.send({ id: 31, cmd: "raster", items: [{ svg1: svg(1), svg2: svg(2), w1: 4, h1: 4, w2: 8, h2: 8 }] });
+  const raster = JSON.parse(await m.next());
+  assert.equal(raster.ok, true, JSON.stringify(raster.error));
+  const x1 = Buffer.from(raster.result.items[0].x1, "base64");
+  const x2 = Buffer.from(raster.result.items[0].x2, "base64");
+  assert.deepEqual([x1.length, x2.length], [4 * 4 * 4, 8 * 8 * 4]);
+  assert.deepEqual([...x1.subarray(0, 4)], [255, 255, 255, 255]);
+  assert.deepEqual([...x1.subarray(x1.length - 4)], [0, 0, 0, 0]);
+  m.send({ id: 32, cmd: "raster", items: [{ w1: 4 }] });
+  assert.equal(JSON.parse(await m.next()).error.code, "E9-003");
   m.send({ id: 4, cmd: "frobnicate" });
   assert.match(JSON.parse(await m.next()).error.message, /unknown command/);
   m.send({ id: 5, cmd: "reload" });

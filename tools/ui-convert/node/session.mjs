@@ -15,6 +15,7 @@ import { launchChromium, chromiumFlags } from "./chromium.mjs";
 import { startServer, previewAvailable } from "./server.mjs";
 import { scanPage } from "./ir.mjs";
 import { extractPage } from "./extract.mjs";
+import { rasterItems } from "./raster.mjs";
 
 export class ProtocolError extends Error {
   constructor(code, message) {
@@ -24,6 +25,37 @@ export class ProtocolError extends Error {
 }
 
 const need = (cond, msg) => { if (!cond) throw new ProtocolError("E9-003", msg); };
+
+/**
+ * A browser context whose network is limited to the local server (everything else is aborted and recorded in
+ * `blocked`, E9-001).
+ */
+async function newGuardedContext(browser, server, blocked, viewport, dsf) {
+  const context = await browser.newContext({
+    viewport,
+    deviceScaleFactor: dsf,
+    serviceWorkers: "block",
+    acceptDownloads: false,
+  });
+  const ours = (url) => {
+    try { return new URL(url).origin === server.url; } catch { return false; }
+  };
+  await context.route("**/*", (route) => {
+    const url = route.request().url();
+    if (ours(url) || /^(data|blob|about):/i.test(url)) return route.continue();
+    blocked.add(url);
+    return route.abort("blockedbyclient");
+  });
+  if (context.routeWebSocket) {
+    await context.routeWebSocket(/.*/, (ws) => {
+      const url = ws.url();
+      if (ours(url.replace(/^ws/, "http"))) { ws.connectToServer(); return; }
+      blocked.add(url);
+      ws.close();
+    });
+  }
+  return context;
+}
 
 export function createSession() {
   let st = null;
@@ -53,31 +85,10 @@ export function createSession() {
         throw new ProtocolError("E9-002", `Chromium did not start: ${String(e && e.message).split("\n")[0]}`);
       }
       const blocked = new Set();
-      const context = await browser.newContext({
-        viewport: { width: 1920, height: 1080 },
-        deviceScaleFactor: 1,
-        serviceWorkers: "block",
-        acceptDownloads: false,
-      });
-      const ours = (url) => {
-        try { return new URL(url).origin === server.url; } catch { return false; }
-      };
-      await context.route("**/*", (route) => {
-        const url = route.request().url();
-        if (ours(url) || /^(data|blob|about):/i.test(url)) return route.continue();
-        blocked.add(url);
-        return route.abort("blockedbyclient");
-      });
-      if (context.routeWebSocket) {
-        await context.routeWebSocket(/.*/, (ws) => {
-          const url = ws.url();
-          if (ours(url.replace(/^ws/, "http"))) { ws.connectToServer(); return; }
-          blocked.add(url);
-          ws.close();
-        });
-      }
+      const guarded = (viewport, dsf) => newGuardedContext(browser, server, blocked, viewport, dsf);
+      const context = await guarded({ width: 1920, height: 1080 }, 1);
       const page = await context.newPage();
-      st = { root, entry, server, browser, context, page, blocked };
+      st = { root, entry, server, browser, context, page, blocked, guarded, skin: path.basename(root) };
       return { chrome: browser.version(), flags: chromiumFlags(), base_url: `${server.url}/`, preview };
     },
 
@@ -95,6 +106,12 @@ export function createSession() {
     async extract(req = {}) {
       need(st, "extract: no open session");
       return extractPage({ page: st.page, server: st.server, entry: st.entry, req, state: st.state || "" });
+    },
+
+    /** Rasterizes pictures at device scale 1 and 2 (see raster.mjs). */
+    async raster(req = {}) {
+      need(st, "raster: no open session");
+      return rasterItems({ context: st.context, server: st.server, req });
     },
 
     /** The next scan always loads the page again; this drops what the server cached (file changes). */

@@ -19,6 +19,8 @@
 // never on a hot path, so it is not boxed.
 #![allow(clippy::result_large_err)]
 
+pub mod assets;
+pub mod atlas;
 pub mod bindings;
 pub mod build;
 pub mod check;
@@ -137,6 +139,21 @@ pub struct Opts {
     /// A folder the preview server serves font files from first (the subsets, under the paths the
     /// stylesheets name).
     pub fonts_dir: Option<PathBuf>,
+}
+
+/// Opens the skin in Chromium (the preview script on, fonts served from `opts.fonts_dir`). Returns the
+/// answer of `open`.
+pub fn open(node: &mut NodeClient, src: &Source, opts: &Opts) -> Result<Value, ConvError> {
+    let dir = std::path::absolute(&src.dir)
+        .unwrap_or_else(|_| src.dir.clone())
+        .to_string_lossy()
+        .to_string();
+    let mut open = json!({ "skin_dir": dir, "entry": src.skin.skin.entry, "preview": true });
+    if let Some(f) = &opts.fonts_dir {
+        let f = std::path::absolute(f).unwrap_or_else(|_| f.clone());
+        open["fonts_dir"] = json!(f.to_string_lossy());
+    }
+    node.call("open", open)
 }
 
 /// Opens the skin in Chromium and scans the entry page. Returns the scan and the Chromium version.

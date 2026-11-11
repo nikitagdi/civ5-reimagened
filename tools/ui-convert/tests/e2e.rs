@@ -129,4 +129,60 @@ fn engraved_builds_and_the_package_is_deterministic() {
     // The package reads back.
     let pkg = ui2_package::Package::read(std::sync::Arc::from(a.bytes.as_slice())).expect("read");
     assert_eq!(pkg.fonts().len(), 3);
+    pictures_are_atlas_pages(&pkg, &a.bytes);
+}
+
+/// The icons are mask sprites at scale 1 and 2 on A8 pages; no PNG, WebP or SVG file is inside.
+fn pictures_are_atlas_pages(pkg: &ui2_package::Package, bytes: &[u8]) {
+    use ui2_package::PageFormat;
+    for magic in [&b"\x89PNG"[..], b"RIFF", b"<svg", b"<?xml"] {
+        assert!(
+            !bytes.windows(magic.len()).any(|w| w == magic),
+            "{:?} in the package",
+            String::from_utf8_lossy(magic)
+        );
+    }
+    let images = pkg.images();
+    assert!(images.pages.iter().all(|p| p.format == PageFormat::A8));
+    assert_eq!(
+        images.pages.iter().map(|p| p.scale).collect::<Vec<_>>(),
+        [1, 2]
+    );
+    // The science flask: 16 x 16 at scale 1 (the research ring and the science yield).
+    let sci = images
+        .imgs
+        .iter()
+        .find(|i| {
+            pkg.str(i.path)
+                .is_some_and(|p| p.starts_with("icons/i-sci@16x16"))
+        })
+        .expect("science icon");
+    assert!(sci.mask);
+    assert_eq!(sci.x1.rect[2..], [18, 18]);
+    assert_eq!(sci.x2.expect("2x").rect[2..], [34, 34]);
+    let page = &images.pages[usize::from(sci.x1.page)];
+    let px = pkg.blob_owned(page.blob).expect("page");
+    let w = usize::from(page.size[0]);
+    let [x, y, sw, sh] = sci.x1.rect.map(usize::from);
+    let mut art = String::new();
+    let mut covered = 0;
+    for row in y..y + sh {
+        for col in x..x + sw {
+            let a = px[row * w + col];
+            let edge = row == y || col == x || row == y + sh - 1 || col == x + sw - 1;
+            assert!(!edge || a == 0, "the margin is transparent");
+            covered += usize::from(a > 0);
+            art.push(match a {
+                0 => '.',
+                1..=127 => '+',
+                _ => '#',
+            });
+        }
+        art.push('\n');
+    }
+    println!("{art}");
+    assert!(
+        covered > 30 && covered < 16 * 16,
+        "{covered} pixels covered"
+    );
 }
