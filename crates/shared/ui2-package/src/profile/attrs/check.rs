@@ -82,6 +82,7 @@ fn assignable(ty: &Ty, param: &TypeSig) -> bool {
         (TypeSig::Bool, TypeSig::Bool) | (TypeSig::Color, TypeSig::Color) => true,
         (TypeSig::Str, TypeSig::Str | TypeSig::Text) | (TypeSig::Text, TypeSig::Text) => true,
         (TypeSig::Asset, TypeSig::Asset) => true,
+        (TypeSig::Struct(x), TypeSig::Struct(y)) => x == y,
         (TypeSig::Key(x), TypeSig::Key(y)) => x == y,
         (TypeSig::Enum(x), TypeSig::Enum(y)) => x.iter().all(|v| y.contains(v)),
         (TypeSig::Enum(_), TypeSig::Str) => true,

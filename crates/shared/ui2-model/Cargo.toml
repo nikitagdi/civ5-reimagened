@@ -21,4 +21,4 @@ ui2-package.workspace = true
 
 [dev-dependencies]
 # Tests build a package to check its paths against the real schema.
-ui2-package = { workspace = true, features = ["write"] }
+ui2-package = { workspace = true, features = ["write", "profile"] }
