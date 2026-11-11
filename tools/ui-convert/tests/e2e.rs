@@ -843,3 +843,42 @@ fn pictures_are_atlas_pages(pkg: &ui2_package::Package, bytes: &[u8]) {
         "{covered} pixels covered"
     );
 }
+
+/// A static `disabled` on a button is a disabled binding that is always true: the package records it, so the
+/// runtime draws the button disabled from the first frame.
+#[test]
+fn a_static_disabled_button_is_recorded() {
+    if !chrome() {
+        return;
+    }
+    use ui2_package::BindKind;
+    use ui2_package::profile::expr::Expr;
+    let dir = picture_skin(
+        "e2e-disabled",
+        ".b {\n  display: flex;\n  appearance: none;\n  border: 0;\n  padding: 0;\n  background: none;\n  font: inherit;\n  color: inherit;\n  width: 8px;\n  height: 8px;\n}\n",
+    );
+    let html = std::fs::read_to_string(dir.join("index.html")).expect("index.html");
+    std::fs::write(
+        dir.join("index.html"),
+        html.replace(
+            "<div class=\"tile\"></div>",
+            "<button class=\"b\" disabled></button>",
+        ),
+    )
+    .expect("index.html");
+    let out = ui2_convert::build::build(&dir, true);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(out.run.errors.is_empty(), "{:?}", out.run.errors);
+    let bytes = out.written.expect("package").bytes;
+    let pkg = ui2_package::Package::read(std::sync::Arc::from(bytes.as_slice())).expect("read");
+    let b = pkg.bindings();
+    let disabled: Vec<&Expr> = b
+        .items
+        .iter()
+        .filter_map(|i| match i.kind {
+            BindKind::Disabled(e) => b.exprs.get(e.index()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(disabled, [&Expr::Bool(true)]);
+}

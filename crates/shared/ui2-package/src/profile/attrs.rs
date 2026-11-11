@@ -850,7 +850,14 @@ impl Parser<'_> {
         let ok = match name {
             "id" | "class" | "style" | "hidden" | "tabindex" | "role" | "lang" => true,
             n if n.starts_with("aria-") => true,
-            "disabled" => self.only_on(name, &[Tag::Button, Tag::Input]),
+            "disabled" => {
+                let ok = self.only_on(name, &[Tag::Button, Tag::Input]);
+                // A static `disabled` is a binding that is always true (a `data-bind-disabled` wins).
+                if ok && self.out.disabled.is_none() {
+                    self.out.disabled = Some(Expr::Bool(true));
+                }
+                ok
+            }
             "type" => {
                 let limits = Profile::v1().element(tag).map(|d| d.types.clone());
                 match limits {
@@ -1351,7 +1358,11 @@ impl Parser<'_> {
                 || !self.out.class_toggle.is_empty()
                 || !self.out.style.is_empty()
                 || self.out.src.is_some()
-                || self.out.disabled.is_some()
+                || self
+                    .out
+                    .disabled
+                    .as_ref()
+                    .is_some_and(|d| *d != Expr::Bool(true))
                 || self.out.model.is_some()
                 || self.out.l10n.is_some();
             if binds {
