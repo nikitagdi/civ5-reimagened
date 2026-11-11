@@ -39,6 +39,10 @@ tracing.workspace = true
 # The UI v2 script supervisor over the page's workers (`ui2-selftest.html`).
 ui2-model.workspace = true
 ui2-script.workspace = true
+# The replica-untouched test of the UI v2 source and actions (`replica_r17`, feature `replica-selftest`); both are
+# in the client already through the UI v2 host.
+ui2-source.workspace = true
+ui2-actions.workspace = true
 
 [dependencies.web-sys]
 workspace = true

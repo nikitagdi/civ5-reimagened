@@ -20,3 +20,7 @@ protocol.workspace = true
 ui2-model.workspace = true
 tracing.workspace = true
 serde_json.workspace = true
+
+[dev-dependencies]
+# The replica-untouched test sends every intent through the actions module.
+ui2-actions.workspace = true

@@ -232,7 +232,13 @@ pub(crate) fn scope_of(arena: &Arena, lists: &HashMap<NodeId, ForState>, id: Nod
         if let (Some(owner), Some(key)) = (n.owner(), n.key())
             && let Some(st) = lists.get(&owner)
         {
-            let mut v = st.vars(key, st.position(key));
+            // The shown position is a search through the list: only an index variable needs it.
+            let index = if st.index.is_some() {
+                st.position(key)
+            } else {
+                -1
+            };
+            let mut v = st.vars(key, index);
             v.reverse();
             out.extend(v);
         }
@@ -240,6 +246,20 @@ pub(crate) fn scope_of(arena: &Arena, lists: &HashMap<NodeId, ForState>, id: Nod
     }
     out.reverse();
     out
+}
+
+/// The innermost top-level node of a `for` instance that `id` is in (itself included): nodes with the
+/// same one have the same loop variables. `None` outside lists.
+pub(crate) fn instance_top(arena: &Arena, id: NodeId) -> Option<NodeId> {
+    let mut at = Some(id);
+    while let Some(i) = at {
+        let n = arena.get(i)?;
+        if n.owner().is_some() && n.key().is_some() {
+            return Some(i);
+        }
+        at = n.parent();
+    }
+    None
 }
 
 /// Whether a node is inside a detached `if` body.

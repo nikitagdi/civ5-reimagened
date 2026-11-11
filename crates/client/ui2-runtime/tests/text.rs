@@ -284,6 +284,76 @@ fn text_a_language_switch_shapes_and_lays_out_the_skin_texts() {
     rig.idle();
 }
 
+/// An ellipsized text that is a shrinking flex item (`min-width: 0`): it is cut at the width the item
+/// shrank to, and its rectangle is the kept text plus the ellipsis, as Chrome reports it.
+#[test]
+fn text_ellipsis_in_a_shrinking_flex_item_is_cut_at_the_item_width() {
+    use ui2_package::style::LenNormal;
+    let mut kit = Kit::new();
+    kit.font("Fira Sans", 400, false, &font("FiraSans-Regular.ttf"));
+    let mut base = StyleRecord::initial();
+    base.display = Display::Block;
+    base.font_family = vec![kit.str("Fira Sans")];
+    base.font_size = Len::px(13.0);
+    let mut row = base.clone();
+    row.display = Display::Flex;
+    row.width = LenAuto::Len(Len::px(160.0));
+    row.column_gap = LenNormal::Len(Len::px(6.0));
+    row.padding_right = Len::px(12.0);
+    let mut item = base.clone();
+    item.min_width = LenAuto::Len(Len::px(0.0));
+    item.text_wrap_mode = TextWrapMode::Nowrap;
+    item.overflow_x = Overflow::Hidden;
+    item.overflow_y = Overflow::Hidden;
+    item.text_overflow = TextOverflow::Ellipsis;
+    let [base, row, item] = [base, row, item].map(|r| kit.record(r));
+    let [base, row, item] = [base, row, item].map(|r| kit.plain(r));
+    let (part, text) = (
+        kit.str("tx"),
+        kit.str("Production of the city goes on and on"),
+    );
+    kit.template(
+        "doc",
+        vec![TNode::layer(Layer::Hud, base).child(
+            TNode::el(row).child(TNode::el(item).part(part).child(TNode::text(text, item))),
+        )],
+    );
+    let pkg = kit.finish().expect("package");
+    let mut engine = TextEngine::new();
+    load_faces(&pkg, &mut engine).expect("fonts");
+    let rt = Runtime::new(pkg, env(), Services::default()).expect("runtime");
+    let mut rig = Rig {
+        rt,
+        engine,
+        scene: Scene::new(1.0),
+        store: ModelStore::new(Schema::v1()),
+    };
+    rig.frame();
+    let boxr = rect(&rig.rt, "tx", "");
+    let textr = rect(&rig.rt, "tx", "#0");
+    let ifc = rig
+        .rt
+        .node(rig.part("tx"))
+        .and_then(|n| n.ifc())
+        .expect("ifc");
+    assert_eq!(boxr[2], 160.0, "the item shrinks to the row's content box");
+    let line = &ifc.lines.lines[0];
+    assert_eq!(
+        line.segments.last().map(|s| s.run),
+        Some(ifc.runs.len()),
+        "cut"
+    );
+    assert!(line.width <= boxr[2], "{} > {}", line.width, boxr[2]);
+    // (Dumped rectangles are rounded to 1/1000 px.)
+    assert!(
+        (textr[2] - line.width).abs() < 1e-3,
+        "the rectangle is the kept text and the ellipsis: {} vs {}",
+        textr[2],
+        line.width
+    );
+    rig.idle();
+}
+
 #[test]
 fn text_ellipsis_cuts_and_fit_shrinks_one_line() {
     let mut rig = rig();

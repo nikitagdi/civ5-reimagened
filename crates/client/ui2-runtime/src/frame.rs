@@ -213,18 +213,27 @@ impl Runtime {
             texts.visited += f.visited;
             text_ms += watch.lap();
         }
-        // Transitions: records that changed start them, running ones move to the frame time (paint only).
+        // Transitions: records that changed start them, running ones move to the frame time (paint only). A
+        // frozen scene gives the time instead: transitions hold their state at it, the caret holds still.
+        let anim_ms = scene.frozen().unwrap_or(now_ms);
         let acx = crate::anim::AnimCtx {
             pkg: &self.pkg,
             index: &self.style_index,
             theme: self.style_env.theme,
         };
-        if !restyled.is_empty() {
-            self.anim.start(now_ms, &self.arena, &acx, restyled);
+        if styles.restyled > 0 {
+            self.anim.restyled();
         }
-        let animating = self.anim.tick(now_ms, &mut self.arena, &acx);
-        // The caret of the focused text field blinks on the frame clock (the frozen time of a frozen scene).
-        self.caret_tick(scene.frozen().unwrap_or(now_ms));
+        // Nodes in their first frame take their records without transitions.
+        restyled.retain(|(id, _)| !self.arena.is_fresh(*id));
+        if !restyled.is_empty() {
+            self.anim.start(anim_ms, &self.arena, &acx, restyled);
+        }
+        self.arena.settle_fresh();
+        // Nothing moves in a frozen scene: the host need not produce frames for the transitions.
+        let animating = self.anim.tick(anim_ms, &mut self.arena, &acx) && scene.frozen().is_none();
+        // The caret of the focused text field blinks on the same clock.
+        self.caret_tick(anim_ms);
         if scene.scale() != self.style_env.scale.k {
             scene.set_scale(self.style_env.scale.k);
         }

@@ -42,21 +42,16 @@ pub struct FontBook {
 }
 
 /// CSS font matching for weights: the face of `want` if there is one, else the nearest by the CSS rule.
-fn pick_weight(want: u16, have: &[u16]) -> Option<u16> {
-    if have.contains(&want) {
+fn pick_weight(want: u16, have: impl Iterator<Item = u16> + Clone) -> Option<u16> {
+    if have.clone().any(|w| w == want) {
         return Some(want);
     }
-    let below = || have.iter().copied().filter(|&w| w < want).max();
-    let above = |limit: u16| {
-        have.iter()
-            .copied()
-            .filter(|&w| w > want && w <= limit)
-            .min()
-    };
+    let below = || have.clone().filter(|&w| w < want).max();
+    let above = |limit: u16| have.clone().filter(|&w| w > want && w <= limit).min();
     match want {
         400..=500 => above(500)
             .or_else(below)
-            .or_else(|| have.iter().copied().filter(|&w| w > 500).min()),
+            .or_else(|| have.clone().filter(|&w| w > 500).min()),
         0..=399 => below().or_else(|| above(u16::MAX)),
         _ => above(u16::MAX).or_else(below),
     }
@@ -88,23 +83,21 @@ impl FontBook {
         italic: bool,
     ) -> Option<FaceId> {
         for family in families {
-            let of_family: Vec<usize> = (0..self.faces.len())
-                .filter(|&i| self.faces[i].0 == family)
-                .collect();
-            if of_family.is_empty() {
+            let (mut any, mut styled) = (false, false);
+            for f in self.faces.iter().filter(|f| f.0 == family) {
+                any = true;
+                styled |= f.2 == italic;
+            }
+            if !any {
                 continue;
             }
-            let styled: Vec<usize> = of_family
+            // The faces of the style asked for, or of the family when it has none of that style.
+            let pool = |f: &&(String, u16, bool)| f.0 == family && (!styled || f.2 == italic);
+            let w = pick_weight(weight, self.faces.iter().filter(pool).map(|f| f.1))?;
+            return self
+                .faces
                 .iter()
-                .copied()
-                .filter(|&i| self.faces[i].2 == italic)
-                .collect();
-            let pool = if styled.is_empty() { of_family } else { styled };
-            let weights: Vec<u16> = pool.iter().map(|&i| self.faces[i].1).collect();
-            let w = pick_weight(weight, &weights)?;
-            return pool
-                .into_iter()
-                .find(|&i| self.faces[i].1 == w)
+                .position(|f| pool(&f) && f.1 == w)
                 .map(|i| FaceId(i as u32));
         }
         None
@@ -189,11 +182,7 @@ impl TextCtx<'_> {
         tm: &dyn TextMeasure,
         r: &StyleRecord,
     ) -> Option<(FaceId, RunStyle, VMetrics)> {
-        let names: Vec<&str> = r
-            .font_family
-            .iter()
-            .filter_map(|&s| self.pkg.str(s))
-            .collect();
+        let names = r.font_family.iter().filter_map(|&s| self.pkg.str(s));
         let face = self
             .fonts
             .select(names, r.font_weight, r.font_style == FontStyle::Italic)?;
@@ -353,10 +342,17 @@ fn build(
         let path = instantiate::node_path(arena, ctx.pkg, id);
         errors.report(UiError::at(&path, code, msg));
     };
-    let Some(root_rec) = ctx.record(arena, root).cloned() else {
+    let Some(root_rec) = ctx.record(arena, root) else {
         return Built::default();
     };
-    let strut = match ctx.vmetrics(tm, &root_rec) {
+    // What the root's own record decides (read once: the record stays borrowed from the arena).
+    let wrap = root_rec.text_wrap_mode == TextWrapMode::Wrap;
+    // `text-overflow: ellipsis` cuts a single line that overflows a clipping box.
+    let ellipsize = root_rec.overflow_x != Overflow::Visible
+        && !wrap
+        && root_rec.text_overflow == TextOverflow::Ellipsis;
+    let (align, font_size) = (root_rec.text_align, root_rec.font_size.px);
+    let strut = match ctx.vmetrics(tm, root_rec) {
         Some((_, _, vm)) => vm,
         None => {
             report(
@@ -382,10 +378,10 @@ fn build(
             .get(node)
             .and_then(|n| n.text.clone())
             .unwrap_or_else(|| Arc::from(""));
-        let Some(rec) = ctx.record(arena, node).cloned() else {
+        let Some(rec) = ctx.record(arena, node) else {
             continue;
         };
-        let Some((_, style, vm)) = ctx.vmetrics(tm, &rec) else {
+        let Some((_, style, vm)) = ctx.vmetrics(tm, rec) else {
             report(
                 arena,
                 node,
@@ -439,11 +435,8 @@ fn build(
             }
         }
     }
-    let wrap = root_rec.text_wrap_mode == TextWrapMode::Wrap;
-    // `text-overflow: ellipsis` cuts a single line that overflows a clipping box.
-    let clips = root_rec.overflow_x != Overflow::Visible;
     let ellipsis = match runs.last() {
-        Some(last) if clips && !wrap && root_rec.text_overflow == TextOverflow::Ellipsis => {
+        Some(last) if ellipsize => {
             let kept = old
                 .as_ref()
                 .and_then(|o| o.ellipsis.as_ref())
@@ -478,15 +471,16 @@ fn build(
         boxes,
         strut,
         wrap,
-        align: root_rec.text_align,
+        align,
         ellipsis,
         fit: if class == NodeClass::Text { None } else { fit },
-        font_size: root_rec.font_size.px,
+        font_size,
         lines: Lines::default(),
         width: 0.0,
         fitted: None,
         fit_key: None,
         item: old.as_ref().and_then(|o| o.item),
+        memo: ifc::LineMemo::new(),
     };
     let layout = match &old {
         Some(o) if same_extent(o, &ifc) => {
@@ -610,10 +604,9 @@ pub(crate) fn fit_pass(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn weights_follow_css_matching() {
+        let pick_weight = |want: u16, have: &[u16]| super::pick_weight(want, have.iter().copied());
         assert_eq!(pick_weight(400, &[400, 500]), Some(400));
         assert_eq!(pick_weight(450, &[400, 500]), Some(500));
         assert_eq!(pick_weight(500, &[400, 700]), Some(400));

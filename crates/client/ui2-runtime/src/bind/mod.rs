@@ -259,6 +259,10 @@ pub(crate) struct Binder {
     srcs: HashMap<NodeId, Arc<str>>,
     /// Anchor bindings whose object changed since the frame took them.
     anchor_updates: Vec<AnchorUpdate>,
+    /// The loop variables of the last row evaluated, by the innermost list instance it is in (`None`:
+    /// outside lists). Rows of one instance follow each other in the queue and share them; the scope is
+    /// forgotten when a round starts and after a row that makes, moves or removes nodes.
+    scope: Option<(Option<NodeId>, Vec<Var>)>,
 }
 
 /// What the pass reads besides the arena.
@@ -344,6 +348,7 @@ impl Binder {
             loc,
             srcs: HashMap::new(),
             anchor_updates: Vec::new(),
+            scope: None,
         }
     }
 
@@ -763,6 +768,7 @@ impl Binder {
         // Each round makes the rows of new nodes and evaluates the queue; lists and conditions may make new
         // nodes for the next round. The depth of nested lists bounds the rounds.
         for _ in 0..64 {
+            self.scope = None;
             self.collect_removed(arena);
             if arena.pending(Dirty::BIND) > 0 {
                 for id in arena.take_dirty(Dirty::BIND) {
@@ -791,6 +797,9 @@ impl Binder {
                     row.stale = true;
                 } else if arena.contains(row.node) {
                     stats.evaluated += 1;
+                    if row.kind.structural() {
+                        self.scope = None;
+                    }
                     self.evaluate(arena, cx, errors, &mut row);
                 }
                 if let Some(slot) = self.rows.get_mut(r as usize)
@@ -820,13 +829,25 @@ impl Binder {
             }
             _ => {}
         }
+        if self.plan.is_none() {
+            return;
+        }
+        // The loop variables in scope: the same as the last row's when it is in the same list instance.
+        let top = list::instance_top(arena, row.node);
+        if self.scope.as_ref().is_none_or(|(t, _)| *t != top) {
+            let vars = match top {
+                Some(_) => list::scope_of(arena, &self.lists, row.node),
+                None => Vec::new(),
+            };
+            self.scope = Some((top, vars));
+        }
         let Some(plan) = self.plan.as_ref() else {
             return;
         };
+        let vars = self.scope.as_ref().map_or(&[][..], |(_, v)| v.as_slice());
         let pkg = cx.pkg;
         let tmpl = arena.get(row.node).map(|n| n.tmpl());
-        let vars = list::scope_of(arena, &self.lists, row.node);
-        let mut host = Host::new(pkg, plan, cx.store, &vars, &self.loc);
+        let mut host = Host::new(pkg, plan, cx.store, vars, &self.loc);
         let mut problem: Option<(ErrorCode, String)> = None;
         let out = match &row.kind {
             RowKind::Action { bind, action } => {

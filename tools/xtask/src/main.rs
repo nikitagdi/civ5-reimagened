@@ -502,7 +502,8 @@ fn build_dist_web(
 /// joins on a snapshot, applies the journal, changes turns by snapshot and by patch, and its digest must equal the
 /// server's after each step. The report (the metrics of AC-G4 in the browser) is printed. The scenario `ui2-getters`
 /// instead times every `GameRead` method of the real core on the late-huge fixture (`--seat` joins as that seat,
-/// `--out` writes the table as JSON).
+/// `--out` writes the table as JSON). The scenario `ui2-r17` runs the replica-untouched test of the UI v2 source
+/// and actions on the wasm core (the `small` fixture, else `tiny`; `--seat` as above).
 fn cmd_web_selftest(root: &Path, args: &[String]) -> Result<()> {
     let mut release = false;
     let mut fixture: Option<PathBuf> = None;
@@ -525,7 +526,7 @@ fn cmd_web_selftest(root: &Path, args: &[String]) -> Result<()> {
                 );
             }
             bad => bail!(
-                "web-selftest: unknown argument {bad:?} (allowed: --release, --fixture <dir>, --scenario <name|all|ui2-getters>, --seat <n>, --out <file>)"
+                "web-selftest: unknown argument {bad:?} (allowed: --release, --fixture <dir>, --scenario <name|all|ui2-getters|ui2-r17>, --seat <n>, --out <file>)"
             ),
         }
     }
@@ -533,8 +534,15 @@ fn cmd_web_selftest(root: &Path, args: &[String]) -> Result<()> {
         .or_else(|| std::env::var_os("REPLICA_FIXTURE_OUT").map(PathBuf::from))
         .context("web-selftest needs the fixture of the replica test: --fixture <dir> (or REPLICA_FIXTURE_OUT); make it with `cargo test -p replica --test real_replica` on Linux/WSL with REPLICA_FIXTURE_OUT=<dir>")?;
     let getters = scenario == "ui2-getters";
+    let r17 = scenario == "ui2-r17";
     let scenarios: Vec<String> = if getters {
         vec!["late-huge".to_owned()]
+    } else if r17 {
+        let s = ["small", "tiny"]
+            .into_iter()
+            .find(|s| fixture.join(s).join("script.json").is_file())
+            .unwrap_or("small");
+        vec![s.to_owned()]
     } else if scenario == "all" {
         ["tiny", "small", "late-huge"]
             .into_iter()
@@ -575,6 +583,8 @@ fn cmd_web_selftest(root: &Path, args: &[String]) -> Result<()> {
         .arg(scenarios.join(","));
     if getters {
         c.args(["--mode", "ui2-getters"]).args(&getters_args);
+    } else if r17 {
+        c.args(["--mode", "ui2-r17"]).args(&getters_args);
     }
     if mt {
         c.arg("--mt");
@@ -841,6 +851,58 @@ fn check_gateway_without_brain(root: &Path) -> Result<()> {
     Ok(())
 }
 
+/// R17: the library code of the UI v2 crates (`crates/{client,shared}/ui2-*/src`) calls no writer of the replica
+/// (`Replica::{engine_mut, post_net, on_msg, pump, blob}`); the crates without a `replica` dependency cannot.
+fn check_ui2_reads_replica_only(root: &Path) -> Result<()> {
+    fn walk(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+        for entry in std::fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
+            let path = entry?.path();
+            if path.is_dir() {
+                walk(&path, out)?;
+            } else if path.extension().is_some_and(|e| e == "rs") {
+                out.push(path);
+            }
+        }
+        Ok(())
+    }
+    let mut crates = Vec::new();
+    let mut paths = Vec::new();
+    for layer in ["crates/client", "crates/shared"] {
+        for entry in std::fs::read_dir(root.join(layer)).with_context(|| layer.to_string())? {
+            let dir = entry?.path();
+            let name = dir.file_name().map(|n| n.to_string_lossy().into_owned());
+            let Some(name) = name.filter(|n| n.starts_with("ui2-")) else {
+                continue;
+            };
+            let manifest = std::fs::read_to_string(dir.join("Cargo.toml")).unwrap_or_default();
+            if checks::depends_on_replica(&manifest) && dir.join("src").is_dir() {
+                walk(&dir.join("src"), &mut paths)?;
+                crates.push(name);
+            }
+        }
+    }
+    let mut texts = Vec::new();
+    for p in paths {
+        let rel = p
+            .strip_prefix(root)
+            .unwrap_or(&p)
+            .to_string_lossy()
+            .replace('\\', "/");
+        texts.push((
+            rel,
+            std::fs::read_to_string(&p).with_context(|| p.display().to_string())?,
+        ));
+    }
+    let names: Vec<&str> = crates.iter().map(String::as_str).collect();
+    let bad =
+        checks::replica_writes_in_ui2(texts.iter().map(|(p, t)| (p.as_str(), t.as_str())), &names);
+    if !bad.is_empty() {
+        bail!("UI v2 changes the replica (R17):\n  {}", bad.join("\n  "));
+    }
+    println!("UI v2 reads the replica only: ok ({})", names.join(", "));
+    Ok(())
+}
+
 fn cmd_check(root: &Path) -> Result<()> {
     let mut failures: Vec<String> = Vec::new();
     let mut step = |name: &str, r: Result<()>| match r {
@@ -903,6 +965,10 @@ fn cmd_check(root: &Path) -> Result<()> {
     step(
         "gateway without a brain (GH-D2)",
         check_gateway_without_brain(root),
+    );
+    step(
+        "UI v2 reads the replica only (R17)",
+        check_ui2_reads_replica_only(root),
     );
     step("gamecore ABI header", check_gc_header(root));
     step("wasm imports", check_wasm_imports(root));

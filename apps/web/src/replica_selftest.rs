@@ -266,3 +266,35 @@ pub fn replica_getters(scenario: &str, files: &Object, seat: i32) -> String {
         Err(e) => json!({"ok": false, "error": e}).to_string(),
     }
 }
+
+// ---------------------------------------------------------------- the replica stays untouched (`ui2-r17`)
+
+/// The steps of the native test `ui2-source/tests/r17_replica_untouched.rs`, the same file: the wasm core is a
+/// build of its own, so the rule is checked on it too.
+#[path = "../../../crates/client/ui2-source/tests/r17/scenario.rs"]
+mod r17;
+
+/// The replica-untouched test on the fixture (`scenario`, `files` as for [`replica_selftest`]; `seat` < 0: the
+/// script's seat): the replica's digest, batch count and last batch stay the same over full rebuilds of the UI v2
+/// model and every intent of the catalogue, and a control batch is seen. Returns
+/// `{"ok":true,"scenario":..,<the report>}` or `{"ok":false,"error":..}`.
+#[wasm_bindgen]
+pub fn replica_r17(scenario: &str, files: &Object, seat: i32) -> String {
+    set_core_clock();
+    let mut map: HashMap<String, Vec<u8>> = HashMap::new();
+    for entry in Object::entries(files).iter() {
+        let pair: Array = entry.unchecked_into();
+        if let (Some(name), bytes) = (pair.get(0).as_string(), pair.get(1)) {
+            map.insert(name, Uint8Array::new(&bytes).to_vec());
+        }
+    }
+    match r17::run(&map, u8::try_from(seat).ok()) {
+        Ok(report) => {
+            let mut body = report.to_json();
+            body["ok"] = json!(true);
+            body["scenario"] = json!(scenario);
+            body.to_string()
+        }
+        Err(e) => json!({"ok": false, "scenario": scenario, "error": e}).to_string(),
+    }
+}
