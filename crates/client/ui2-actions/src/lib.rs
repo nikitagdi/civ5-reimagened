@@ -13,12 +13,14 @@
 #![forbid(unsafe_code)]
 
 mod intent;
+mod pending;
 mod reconcile;
 pub mod route;
 mod settings;
 mod sink;
 mod state;
 mod ui;
+mod validate;
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
@@ -166,6 +168,12 @@ impl UiActions {
         match intent.name() {
             "window.open" | "window.close" | "window.toggle" => {
                 route::window::run(&mut ctx, intent);
+            }
+            "unit.select" | "unit.select_next" | "unit.deselect" | "unit.action" | "unit.move"
+            | "unit.range_attack" => route::unit::run(&mut ctx, intent),
+            "map.click" => route::map::click(&mut ctx, intent),
+            "camera.to_plot" | "camera.to_city" | "camera.to_unit" => {
+                route::camera::run(&mut ctx, intent);
             }
             other => {
                 // A catalogue entry without a route yet: the player is told it does nothing.
