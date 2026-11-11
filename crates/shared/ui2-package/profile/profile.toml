@@ -206,3 +206,23 @@ error.E2-005 = { what = "value out of range", hint = "keep the number inside the
 error.E2-006 = { what = "color form outside the profile", hint = "write the color as #hex, rgb(), rgba(), a color name or transparent; currentcolor and color functions are resolved by Chrome first" }
 error.E2-007 = { what = "calc() outside decoration properties", hint = "layout cannot use calc(); use flex, grid or a percentage" }
 error.E2-008 = { what = "list too long", hint = "shorten the list to the number the profile table allows" }
+
+# Numbering: one counter per family, in the order the codes were defined. Ranges that other
+# parts of the pipeline own are reserved here so new codes do not collide:
+#   E1-001..E1-019 document and element rules (converter), E1-020.. attribute names
+#   E4-001..E4-019 expressions and templates, E4-020.. attribute values and actions
+#   E6-001..E6-009 skin texts (converter), E6-010.. l10n attribute grammar
+#   E7-001..E7-009 required slots, tokens, layers (converter), E7-010.. attribute grammar
+error.E4-001 = { what = "syntax error in an expression", hint = "check the expression against the grammar: literals, paths, operators, calls, ?: and parentheses; comparisons cannot be chained" }
+error.E4-002 = { what = "unknown function", hint = "the functions are fmt.int fmt.signed fmt.fixed fmt.pct fmt.mmss loc len min max clamp round floor ceil abs" }
+error.E4-003 = { what = "wrong number of arguments", hint = "see the argument counts of the function in the profile reference" }
+error.E4-004 = { what = "unknown path", hint = "a path starts at a model root, a loop variable or state; check the name against the model schema" }
+error.E4-005 = { what = "arithmetic over something that is not a number", hint = "only int and float values can be added, multiplied or passed to numeric functions; write text with a {{ }} insert" }
+error.E4-006 = { what = "values of different types cannot be compared", hint = "compare numbers with numbers, strings with strings or enum values, keys of one kind; null can be compared with anything" }
+error.E4-007 = { what = "string is not a value of the enum", hint = "use one of the values the schema lists for this enum" }
+error.E4-008 = { what = "a bool, a list or a record cannot be written into text", hint = "use a condition (data-bind-if, class-toggle) or write a field of the record" }
+error.E4-009 = { what = "data-bind-for needs a list", hint = "loop over a path whose type is a list" }
+error.E4-010 = { what = "the loop variable name is taken", hint = "use a name that is not a model root, a keyword (state, mods, true, false, null) or an enclosing variable" }
+error.E4-011 = { what = "argument of the wrong type", hint = "see the argument types of the function in the profile reference" }
+error.E4-012 = { what = "a list has no fields", hint = "loop over the list with data-bind-for and read the field of the item" }
+error.E4-013 = { what = "an insert is not closed", hint = "every {{ needs a }}; a string inside the insert may contain }} only between its quotes" }

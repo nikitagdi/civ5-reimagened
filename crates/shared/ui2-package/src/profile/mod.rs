@@ -5,6 +5,7 @@
 
 #[cfg(feature = "profile")]
 pub mod apply;
+pub mod expr;
 mod ids;
 #[cfg(feature = "profile")]
 mod props;
@@ -18,6 +19,6 @@ pub use props::{
     ElementDef, ErrorDef, IgnoredDef, Profile, PropDef, SelectorDef, SlotDef, TableError, TokenDef,
     ValueKind,
 };
-pub use schema_view::{SchemaView, TypeSig};
+pub use schema_view::{SchemaView, TypeSig, resolve_path};
 #[cfg(feature = "profile")]
 pub use values::{Value, ValueError, parse_value};

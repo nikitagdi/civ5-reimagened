@@ -73,6 +73,33 @@ pub trait SchemaView {
     fn version(&self) -> (u16, u16);
 }
 
+/// The type the schema gives a model path written the way the package stores it
+/// (`top.units[].hp`: a `[]` after a list field steps into its elements). `None` when the path
+/// does not resolve.
+pub fn resolve_path(view: &dyn SchemaView, path: &str) -> Option<TypeSig> {
+    let mut segs = path.split('.');
+    let root = segs.next()?;
+    let mut cur = view.root(root)?;
+    for seg in segs {
+        let (name, element) = match seg.strip_suffix("[]") {
+            Some(name) => (name, true),
+            None => (seg, false),
+        };
+        let of = match &cur {
+            TypeSig::Opt(inner) => inner.as_ref(),
+            other => other,
+        };
+        cur = view.field(of, name)?;
+        if element {
+            cur = match cur {
+                TypeSig::List(elem) => *elem,
+                _ => return None,
+            };
+        }
+    }
+    Some(cur)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
