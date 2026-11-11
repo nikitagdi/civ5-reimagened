@@ -232,6 +232,9 @@ fn samples_fit_the_schema_and_the_skin_state() {
     assert!(errs.is_empty(), "{errs:?}");
     assert!(!texts.is_empty());
 
+    // The temporary skin has only a hud sample.
+    let mut skin = skin;
+    skin.verify.states = vec!["hud".to_string()];
     let dir = temp_skin("samples");
     std::fs::write(
         dir.join("sample/hud.json"),

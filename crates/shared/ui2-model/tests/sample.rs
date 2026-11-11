@@ -301,3 +301,45 @@ fn window_and_screen_ids_round_trip_their_names() {
     assert_eq!(ScreenId::TechTree.as_str(), "tech_tree");
     assert_eq!(ScreenId::from_name("production"), None);
 }
+
+#[test]
+fn sample_state_is_written_into_the_mounted_skin_state() {
+    use std::sync::Arc;
+    use ui2_model::{Fragment, Namespace, Owner};
+    let frag = Fragment::parse(
+        "[type.Prod]\nsort = \"str\"\nhide_locked = \"bool\"\npage = \"i32\"\n\n[root]\nprod = \"Prod\"\nzoom = \"f32\"\n",
+    )
+    .expect("fragment");
+    let sample =
+        parse(r#"{ "state": { "prod": { "sort": "turns", "hide_locked": true }, "zoom": 1.5 } }"#)
+            .expect("parses");
+
+    // Without a mounted state the sample's state has nowhere to go.
+    let mut store = ModelStore::new(Schema::v1());
+    assert!(sample.apply_state(&mut store).is_err());
+
+    store.mount(Namespace::State, &frag).expect("mounts");
+    // A default the skin declares, which the sample does not name.
+    store
+        .writer(Owner::Skin)
+        .set_value("state.prod.page", Value::I32(3))
+        .expect("default");
+    sample.apply_state(&mut store).expect("applies");
+    store.take_frame().expect("a frame");
+    let read = |p: &str| {
+        let f = store.resolve(p).expect("path");
+        store.value(f.id, &[]).cloned()
+    };
+    assert_eq!(
+        read("state.prod.sort"),
+        Some(Value::Str(Arc::from("turns")))
+    );
+    assert_eq!(read("state.prod.hide_locked"), Some(Value::Bool(true)));
+    assert_eq!(read("state.prod.page"), Some(Value::I32(3)));
+    assert_eq!(read("state.zoom"), Some(Value::F32(1.5)));
+
+    // A path or a type the state does not have.
+    let bad = parse(r#"{ "state": { "prod": { "sort": 2, "nope": 1 } } }"#).expect("parses");
+    let errs = bad.apply_state(&mut store).unwrap_err();
+    assert_eq!(errs.len(), 2, "{errs:?}");
+}

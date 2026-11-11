@@ -46,6 +46,19 @@
       "known": true,
       "blocked": false
     },
+    "turn": {
+      "state": "city_needs_production",
+      "blocker": null,
+      "units_waiting": 0,
+      "finished": false,
+      "can_cancel": false,
+      "timer": null,
+      "ready": 0,
+      "humans": 1,
+      "seats": [
+        { "player": "0:0", "name": "Catherine", "me": true, "finished": false, "may_act": true, "online": true }
+      ]
+    },
     "map": {
       "cities": [
         { "key": "0:1", "owner": "0:0", "name": "Moscow", "plot": { "x": 21, "y": 25 }, "size": 14, "capital": true, "mine": true, "visible": true, "strength": 31, "hp_fraction": 1.0, "growth_turns": 4 },

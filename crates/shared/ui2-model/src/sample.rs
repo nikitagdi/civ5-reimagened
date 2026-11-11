@@ -14,13 +14,14 @@
 //!
 //! `ui` is the `ui` root written like a struct (a missing field takes its default; an empty object writes
 //! nothing); it is applied as the actions module would. `state` is skin-defined and kept as it is, without a
-//! check. A root that is a list is an array, an optional root is an object or `null`.
+//! check, until [`Sample::apply_state`] writes it into a mounted skin state. A root that is a list is an array, an optional root is an object or `null`.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use serde_json::Value as Json;
 
+use crate::fragment::Namespace;
 use crate::generated;
 use crate::model::PutError;
 use crate::schema::{FieldDef, RootId, RootKind, Scalar, Schema, Type};
@@ -113,6 +114,32 @@ impl Sample {
         Ok(())
     }
 
+    /// Write the sample's `state` object into the skin state mounted at `state.*` ([`Namespace::State`]), as the
+    /// skin would: an object whose field is a struct is walked, every other value is converted to the type of
+    /// its field and set. Fields the sample does not name keep their values. Nothing happens when the sample
+    /// has no state; a sample with state and a store without a mounted skin state is an error.
+    ///
+    /// # Errors
+    /// Every value that has no field in the mounted state, does not fit its type, or is refused by the store.
+    pub fn apply_state(&self, store: &mut ModelStore) -> Result<(), Vec<String>> {
+        if self.state.is_empty() {
+            return Ok(());
+        }
+        let Some(schema) = store.mount_schema(&Namespace::State) else {
+            return Err(vec!["state: no skin state is mounted".to_string()]);
+        };
+        let mut sets = Vec::new();
+        let mut errs = Vec::new();
+        state_leaves(store, schema, "state", &self.state, &mut sets, &mut errs);
+        let mut w = store.writer(Owner::Skin);
+        for (path, v) in sets {
+            if let Err(e) = w.set_value(&path, v) {
+                errs.push(format!("{path}: {e}"));
+            }
+        }
+        if errs.is_empty() { Ok(()) } else { Err(errs) }
+    }
+
     /// The screen points of the anchors, in CSS pixels.
     #[must_use]
     pub fn anchors(&self) -> &BTreeMap<String, (f32, f32)> {
@@ -135,6 +162,41 @@ impl Sample {
     #[must_use]
     pub fn ui(&self) -> Option<&(RootId, Value)> {
         self.ui.as_ref()
+    }
+}
+
+/// The values a `state` object sets, by full path (`state.prod.sort`), in the types of the mounted state.
+fn state_leaves(
+    store: &ModelStore,
+    schema: &Schema,
+    prefix: &str,
+    obj: &BTreeMap<String, Json>,
+    out: &mut Vec<(String, Value)>,
+    errs: &mut Vec<String>,
+) {
+    for (k, j) in obj {
+        let path = format!("{prefix}.{k}");
+        let field = match store.resolve(&path) {
+            Ok(f) => f,
+            Err(e) => {
+                errs.push(format!("{path}: {e}"));
+                continue;
+            }
+        };
+        match (&field.ty, j) {
+            (Type::Struct(_), Json::Object(m)) => {
+                let m: BTreeMap<String, Json> =
+                    m.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+                state_leaves(store, schema, &path, &m, out, errs);
+            }
+            (ty, j) => {
+                let before = errs.len();
+                let v = convert(schema, ty, j, &path, errs);
+                if errs.len() == before {
+                    out.push((path, v));
+                }
+            }
+        }
     }
 }
 

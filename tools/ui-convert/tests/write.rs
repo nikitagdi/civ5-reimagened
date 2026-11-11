@@ -56,7 +56,7 @@ fn write_is_a_pure_function_of_the_run() {
     assert_eq!(
         tags,
         [
-            "BIND", "EXTN", "FONT", "L10N", "MANI", "SRCM", "STRS", "STYL", "TMPL", "TOKN"
+            "BIND", "EXTN", "FONT", "L10N", "MANI", "SCRP", "SRCM", "STRS", "STYL", "TMPL", "TOKN"
         ]
     );
 }

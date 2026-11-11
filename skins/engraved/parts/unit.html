@@ -54,55 +54,52 @@
   </div>
 
   <div class="actions" data-part="unit.actions" data-slot="hud.unit.actions">
-    <!-- The orders take the unit's key from its map flag: a path through the optional unit root is nullable for the
-         profile's type check, and an order needs a key. A hotkey cannot sit in a list, so the buttons have none yet. -->
-    <div class="acts" data-bind-for="u:{{map.units}}" data-bind-key="{{u.key}}" data-bind-filter="{{u.key == ui.selection.unit}}">
-    <button class="act" data-part="unit.act.move" data-bind-if="{{unit.act.move.shown}}" data-bind-disabled="{{!unit.act.move.enabled}}" data-on-click="intent unit.action(unit: u.key, action: 'move')">
+    <!-- One static button per order; the panel shows only while a unit is selected, so unit.key is set here. -->
+    <button class="act" data-part="unit.act.move" data-bind-if="{{unit.act.move.shown}}" data-bind-disabled="{{!unit.act.move.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'move')">
       <svg class="i"><use href="#i-move"/></svg><span class="lb" data-l10n="act.move">Move</span>
     </button>
-    <button class="act" data-part="unit.act.range-attack" data-bind-if="{{unit.act.range_attack.shown}}" data-bind-disabled="{{!unit.act.range_attack.enabled}}" data-on-click="intent unit.action(unit: u.key, action: 'range_attack')">
+    <button class="act" data-part="unit.act.range-attack" data-bind-if="{{unit.act.range_attack.shown}}" data-bind-disabled="{{!unit.act.range_attack.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'range_attack')">
       <svg class="i"><use href="#i-bow"/></svg><span class="lb" data-l10n="act.range_attack">Attack</span>
     </button>
-    <button class="act" data-part="unit.act.found-city" data-bind-if="{{unit.act.found_city.shown}}" data-bind-disabled="{{!unit.act.found_city.enabled}}" data-on-click="intent unit.action(unit: u.key, action: 'found_city')">
+    <button class="act" data-part="unit.act.found-city" data-hotkey="KeyB" data-bind-if="{{unit.act.found_city.shown}}" data-bind-disabled="{{!unit.act.found_city.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'found_city')">
       <svg class="i"><use href="#i-settler"/></svg><span class="lb" data-l10n="act.found_city">Found</span>
     </button>
-    <button class="act" data-part="unit.act.fortify" data-bind-if="{{unit.act.fortify.shown}}" data-bind-disabled="{{!unit.act.fortify.enabled}}" data-on-click="intent unit.action(unit: u.key, action: 'fortify')">
+    <button class="act" data-part="unit.act.fortify" data-hotkey="KeyF" data-bind-if="{{unit.act.fortify.shown}}" data-bind-disabled="{{!unit.act.fortify.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'fortify')">
       <svg class="i"><use href="#i-fortify"/></svg><span class="lb" data-l10n="act.fortify">Fortify</span>
     </button>
-    <button class="act" data-part="unit.act.sleep" data-bind-if="{{unit.act.sleep.shown}}" data-bind-disabled="{{!unit.act.sleep.enabled}}" data-on-click="intent unit.action(unit: u.key, action: 'sleep')">
+    <button class="act" data-part="unit.act.sleep" data-hotkey="KeyS" data-bind-if="{{unit.act.sleep.shown}}" data-bind-disabled="{{!unit.act.sleep.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'sleep')">
       <svg class="i"><use href="#i-sleep"/></svg><span class="lb" data-l10n="act.sleep">Sleep</span>
     </button>
-    <button class="act" data-part="unit.act.heal" data-bind-if="{{unit.act.heal.shown}}" data-bind-disabled="{{!unit.act.heal.enabled}}" data-on-click="intent unit.action(unit: u.key, action: 'heal')">
+    <button class="act" data-part="unit.act.heal" data-hotkey="KeyH" data-bind-if="{{unit.act.heal.shown}}" data-bind-disabled="{{!unit.act.heal.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'heal')">
       <svg class="i"><use href="#i-hp"/></svg><span class="lb" data-l10n="act.heal">Heal</span>
     </button>
-    <button class="act" data-part="unit.act.automate-build" data-bind-if="{{unit.act.automate_build.shown}}" data-bind-disabled="{{!unit.act.automate_build.enabled}}" data-on-click="intent unit.action(unit: u.key, action: 'automate_build')">
+    <button class="act" data-part="unit.act.automate-build" data-hotkey="KeyA" data-bind-if="{{unit.act.automate_build.shown}}" data-bind-disabled="{{!unit.act.automate_build.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'automate_build')">
       <svg class="i"><use href="#i-worker"/></svg><span class="lb" data-l10n="act.automate_build">Auto</span>
     </button>
-    <button class="act" data-part="unit.act.automate-explore" data-bind-if="{{unit.act.automate_explore.shown}}" data-bind-disabled="{{!unit.act.automate_explore.enabled}}" data-on-click="intent unit.action(unit: u.key, action: 'automate_explore')">
+    <button class="act" data-part="unit.act.automate-explore" data-bind-if="{{unit.act.automate_explore.shown}}" data-bind-disabled="{{!unit.act.automate_explore.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'automate_explore')">
       <svg class="i"><use href="#i-tour"/></svg><span class="lb" data-l10n="act.automate_explore">Explore</span>
     </button>
-    <button class="act" data-part="unit.act.skip" data-bind-if="{{unit.act.skip.shown}}" data-bind-disabled="{{!unit.act.skip.enabled}}" data-on-click="intent unit.action(unit: u.key, action: 'skip')">
+    <button class="act" data-part="unit.act.skip" data-bind-if="{{unit.act.skip.shown}}" data-bind-disabled="{{!unit.act.skip.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'skip')">
       <svg class="i"><use href="#i-moves"/></svg><span class="lb" data-l10n="act.skip">Skip</span>
     </button>
-    <button class="act" data-part="unit.act.wake" data-bind-if="{{unit.act.wake.shown}}" data-bind-disabled="{{!unit.act.wake.enabled}}" data-on-click="intent unit.action(unit: u.key, action: 'wake')">
+    <button class="act" data-part="unit.act.wake" data-bind-if="{{unit.act.wake.shown}}" data-bind-disabled="{{!unit.act.wake.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'wake')">
       <svg class="i"><use href="#i-alert"/></svg><span class="lb" data-l10n="act.wake">Wake</span>
     </button>
-    <button class="act" data-part="unit.act.cancel" data-bind-if="{{unit.act.cancel.shown}}" data-bind-disabled="{{!unit.act.cancel.enabled}}" data-on-click="intent unit.action(unit: u.key, action: 'cancel')">
+    <button class="act" data-part="unit.act.cancel" data-bind-if="{{unit.act.cancel.shown}}" data-bind-disabled="{{!unit.act.cancel.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'cancel')">
       <svg class="i"><use href="#i-close"/></svg><span class="lb" data-l10n="act.cancel">Cancel</span>
     </button>
     <!-- SIMPLIFIED(SIMP-250): alert, pillage and upgrade are shown as the core reports them but stay disabled: no order exists for them yet. -->
-    <button class="act" data-part="unit.act.alert"data-bind-if="{{unit.act.alert.shown}}" data-bind-disabled="{{true}}">
+    <button class="act" data-part="unit.act.alert" data-bind-if="{{unit.act.alert.shown}}" disabled>
       <svg class="i"><use href="#i-alert"/></svg><span class="lb" data-l10n="act.alert">Alert</span>
     </button>
-    <button class="act" data-part="unit.act.pillage" data-bind-if="{{unit.act.pillage.shown}}" data-bind-disabled="{{true}}">
+    <button class="act" data-part="unit.act.pillage" data-bind-if="{{unit.act.pillage.shown}}" disabled>
       <svg class="i"><use href="#i-pillage"/></svg><span class="lb" data-l10n="act.pillage">Pillage</span>
     </button>
-    <button class="act" data-part="unit.act.upgrade" data-bind-if="{{unit.act.upgrade.shown}}" data-bind-disabled="{{true}}">
+    <button class="act" data-part="unit.act.upgrade" data-bind-if="{{unit.act.upgrade.shown}}" disabled>
       <svg class="i"><use href="#i-upgrade"/></svg><span class="lb" data-l10n="act.upgrade">Upgrade</span>
     </button>
-    <button class="act gap danger" data-part="unit.act.disband" data-bind-if="{{unit.act.disband.shown}}" data-bind-disabled="{{!unit.act.disband.enabled}}" data-on-click="intent unit.action(unit: u.key, action: 'disband')">
+    <button class="act gap danger" data-part="unit.act.disband" data-hotkey="Delete" data-bind-if="{{unit.act.disband.shown}}" data-bind-disabled="{{!unit.act.disband.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'disband')">
       <svg class="i"><use href="#i-del"/></svg><span class="lb" data-l10n="act.disband">Delete</span>
     </button>
-    </div>
   </div>
 </section>
