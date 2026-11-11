@@ -5,7 +5,7 @@ use std::sync::Arc;
 use platform::{NullScriptHost, ScriptHostError, WorkerId};
 use serde_json::Value as Json;
 use ui2_model::generated::{Game, Top};
-use ui2_model::value::Key;
+use ui2_model::value::{Key, Text};
 use ui2_model::wire::{IslandOp, Origin, ScriptCtxId, ScriptEvent};
 use ui2_model::{Fragment, ModelStore, Namespace, Owner, Schema, Value};
 use ui2_script::testing::MockScriptHost;
@@ -796,4 +796,78 @@ fn garbage_from_a_worker_is_logged() {
     let out = sup.drain(0.0);
     assert!(out.log.iter().any(|(_, l)| l.level == LogLevel::Error));
     assert!(out.failed.is_empty());
+}
+
+#[test]
+fn scripts_write_their_state_and_the_js_fields_of_ui_only() {
+    let (mut sup, host, _store, w) = setup(&["top"]);
+    host.reply(
+        w,
+        r#"{"t":"out","n":1,"ack":null,"state":[
+            {"p":"state.sort","v":"a"},
+            {"p":"state","v":{"sort":"b","open":true,"share":0}},
+            {"p":"ui.production.tab","v":"wonders"},
+            {"p":"ui.production","v":null},
+            {"p":"top.gold","v":1},
+            {"p":"stateful","v":1}]}"#,
+    );
+    let out = sup.drain(0.0);
+    let paths: Vec<&str> = out.state_ops.iter().map(|(_, o)| &*o.path).collect();
+    assert_eq!(paths, ["state.sort", "state", "ui.production.tab"]);
+    let dropped: Vec<&str> = out
+        .log
+        .iter()
+        .filter(|(_, l)| l.level == LogLevel::Warn)
+        .map(|(_, l)| l.text.as_str())
+        .collect();
+    assert_eq!(dropped.len(), 3, "{dropped:?}");
+    assert!(dropped[0].contains("`ui.production` dropped: not a field of `ui`"));
+}
+
+#[test]
+fn island_commands_settings_and_limits() {
+    let (mut sup, host, _store, w) = setup(&["top"]);
+    let init = json(&host.take_posted()[0].1);
+    assert_eq!(
+        init["limits"],
+        json(r#"{"slow_ms":50,"log_per_s":20,"timer_min_ms":50}"#)
+    );
+    host.reply(
+        w,
+        r#"{"t":"out","n":1,"ack":null,"cmds":[
+            {"island":"clock","key":"t","op":"text","value":"12:00"},
+            {"island":"clock","key":"u","op":"text","value":{"loc":"TXT_KEY_TURN","args":["5"]}},
+            {"island":"clock","key":"t","op":"cls","name":"lit","on":false},
+            {"island":"clock","key":"t","op":"style","prop":"opacity","value":0.5},
+            {"island":"clock","key":"u","op":"show","on":true},
+            {"island":"","key":"u","op":"show","on":true}],
+          "settings":[{"key":"layout","value":{"a":[1,2]}},{"key":"vol","value":null}]}"#,
+    );
+    let out = sup.drain(0.0);
+    let ops: Vec<IslandOp> = out.island_cmds.iter().map(|(_, c)| c.op.clone()).collect();
+    assert_eq!(ops.len(), 5, "the one without an island is dropped");
+    assert_eq!(ops[0], IslandOp::Text(Value::Text(Text::raw("12:00"))));
+    assert_eq!(
+        ops[1],
+        IslandOp::Text(Value::Text(Text::key("TXT_KEY_TURN", &["5"])))
+    );
+    assert_eq!(ops[2], IslandOp::Cls(Arc::from("lit"), false));
+    assert_eq!(
+        ops[3],
+        IslandOp::Style(Arc::from("opacity"), Value::F32(0.5))
+    );
+    assert_eq!(ops[4], IslandOp::Show(true));
+    assert!(out.island_cmds.iter().all(|(_, c)| &*c.island == "clock"));
+    // Settings go to the actions module as the script wrote them.
+    assert_eq!(
+        out.settings,
+        vec![
+            (
+                ScriptCtxId::Skin,
+                "layout".to_string(),
+                Some(r#"{"a":[1,2]}"#.to_string())
+            ),
+            (ScriptCtxId::Skin, "vol".to_string(), None),
+        ]
+    );
 }

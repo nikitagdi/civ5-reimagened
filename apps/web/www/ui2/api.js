@@ -6,7 +6,9 @@
 //   __ui2api.API                          "1.0.0"
 //   __ui2api.createContext(init, port)    -> context; `init` is the `init` message of the supervisor (see the
 //                                            ui2-script crate, `proto.rs`); `port.post(obj)` sends a message to
-//                                            the main thread, `port.now()` is a clock in ms (optional)
+//                                            the main thread, `port.now()` is a clock in ms (optional),
+//                                            `port.timers` {set(fn, ms, repeat) -> handle, clear(handle, repeat)}
+//                                            replaces `setTimeout`/`setInterval` for `ui.timer` (optional)
 //   __ui2api.locate(error)                -> {file, line} of a skin file in the error's stack, or nulls
 //   __ui2api.setLineOffset(n)             lines the loader's wrapper adds before line 1 of a file
 //
@@ -320,6 +322,23 @@
     const events = new Map();
     let logSecond = -1;
     let logCount = 0;
+    // Settings as the actions module keeps them (`[key, JSON text]` in `init`): read here, written through `out`.
+    const settings = new Map();
+    for (const [k, v] of init.settings || []) {
+      try {
+        settings.set(k, JSON.parse(v));
+      } catch (_) {
+        settings.set(k, v);
+      }
+    }
+    // Timers: id -> {fn, repeat, handle, live, label}. The clock functions are taken now: the worker loader may
+    // remove globals later. `port.timers` replaces them (tests, the mockup shim).
+    const timers = new Map();
+    let timerId = 0;
+    const clock = port.timers || {
+      set: (fn, ms, repeat) => (repeat ? global.setInterval(fn, ms) : global.setTimeout(fn, ms)),
+      clear: (handle, repeat) => (repeat ? global.clearInterval(handle) : global.clearTimeout(handle)),
+    };
 
     function fresh() {
       return { state: [], intents: [], cmds: [], settings: [], log: [] };
@@ -509,6 +528,75 @@
           h.live = false;
         };
       },
+      island(id) {
+        if (typeof id !== "string" || !id) throw new TypeError("ui.island(id): the id of a data-ui2-island");
+        const cmd = (key, op, more) => {
+          if (typeof key !== "string" || !key) throw new TypeError("ui.island(" + id + "): the key of a data-ui2-key");
+          out.cmds.push(Object.assign({ island: id, key, op }, more));
+        };
+        const isl = {
+          // `s`: a string, or {loc, args} for a game text with its arguments.
+          text(key, s) {
+            const value =
+              s !== null && typeof s === "object" && "loc" in s
+                ? { loc: String(s.loc), args: (s.args || []).map((a) => String(a)) }
+                : s === null || s === undefined
+                  ? ""
+                  : String(s);
+            cmd(key, "text", { value });
+            return isl;
+          },
+          cls(key, name, on) {
+            if (typeof name !== "string" || !name) throw new TypeError("ui.island(" + id + ").cls: a class name");
+            cmd(key, "cls", { name, on: on === undefined ? true : !!on });
+            return isl;
+          },
+          style(key, prop, value) {
+            if (typeof prop !== "string" || !prop) throw new TypeError("ui.island(" + id + ").style: a property");
+            cmd(key, "style", { prop, value: value === undefined ? null : clone(value) });
+            return isl;
+          },
+          show(key, on) {
+            cmd(key, "show", { on: on === undefined ? true : !!on });
+            return isl;
+          },
+        };
+        return isl;
+      },
+      settings: {
+        // The value as last set (a copy), or null.
+        get(key) {
+          return settings.has(key) ? clone(settings.get(key)) : null;
+        },
+        // Any JSON value; null removes the key. The actions module keeps it and applies its limits.
+        set(key, value) {
+          if (typeof key !== "string" || !key) throw new TypeError("ui.settings.set(key, value): a key");
+          const v = clone(value);
+          if (v === null) settings.delete(key);
+          else settings.set(key, v);
+          out.settings.push({ key, value: v });
+        },
+        remove(key) {
+          ui.settings.set(key, null);
+        },
+      },
+      timer: {
+        // Call `fn` once after `ms` (at least the limit of `init`); returns an id for `cancel`.
+        after(ms, fn) {
+          return startTimer(ms, fn, false);
+        },
+        // Call `fn` every `ms` until cancelled.
+        every(ms, fn) {
+          return startTimer(ms, fn, true);
+        },
+        cancel(id) {
+          const t = timers.get(id);
+          if (!t) return;
+          t.live = false;
+          clock.clear(t.handle, t.repeat);
+          timers.delete(id);
+        },
+      },
       log: {
         info(...args) {
           scriptLog("info", args);
@@ -518,6 +606,28 @@
         },
       },
     };
+
+    // A timer's call is a handler call (an exception switches the timer off, a slow call is reported); what it
+    // wrote goes out at once, unacknowledged.
+    function startTimer(ms, fn, repeat) {
+      if (typeof fn !== "function") throw new TypeError("ui.timer: a function");
+      const wait = Math.max(Number(ms) || 0, limits.timer_min_ms);
+      const id = ++timerId;
+      const t = { fn, repeat, live: true, label: (repeat ? "timer.every(" : "timer.after(") + wait + ")" };
+      t.handle = clock.set(
+        () => {
+          if (!t.live) return;
+          const t0 = now();
+          call(t, () => t.fn());
+          if (!t.repeat || !t.live) ui.timer.cancel(id);
+          flush(null, t0);
+        },
+        wait,
+        repeat,
+      );
+      timers.set(id, t);
+      return id;
+    }
 
     function scriptLog(level, args) {
       const sec = Math.floor(now() / 1000);

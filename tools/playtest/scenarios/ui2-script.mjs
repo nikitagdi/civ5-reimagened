@@ -6,6 +6,7 @@
 // - isolation: the forbidden globals are gone in the worker; a handler that throws is switched off with one log
 //   line (also when it is called again) and the page goes on; a handler that hangs gets its worker killed after
 //   1000 ms and a new one starts from the model as it is, without stalling the page;
+// - a timer's writes, island commands and settings reach the supervisor without a frame to answer;
 // - the server sends `ui2/worker.js` with its policy (no network, `eval` for the skin files), the page without one.
 import { openPage } from "../lib/browser.mjs";
 
@@ -15,6 +16,7 @@ const MAIN = [
   "ui.on('ping', (a) => ui.state.set('sort', 'pong:' + a));",
   "ui.on('boom', () => { throw new Error('boom'); });",
   "ui.on('hang', () => { for (;;) {} });",
+  "ui.on('later', () => ui.timer.after(100, () => { ui.state.set('sort', 'timer'); ui.island('clock').text('t', 'x'); ui.settings.set('vol', 9); }));",
   "const gone = (n) => typeof self[n] === 'undefined' && typeof Object.getPrototypeOf(self)[n] === 'undefined';",
   "ui.state.set('open', ['fetch', 'XMLHttpRequest', 'WebSocket', 'importScripts', 'indexedDB', 'caches', 'postMessage'].every(gone));",
 ].join("\n");
@@ -94,7 +96,16 @@ export async function run(ctx) {
     result.numbers.longestFrameGapMs = Math.round(gap);
     check("the page does not stall while the worker hangs", gap < 250, `${Math.round(gap)} ms between frames`);
 
-    // ---- part 3: the policy of the worker
+    // ---- part 3: timers, islands, settings
+    await page.evaluate(() => window.__ui2self.event("later", null));
+    const timer = await waitFor(page, () => window.__ui2self.get("state.sort") === "timer", null, 3000, "the timer");
+    const extra = await page.evaluate(() => {
+      const a = window.__ui2self.answers.find((x) => x.settings.length);
+      return a ? { cmds: a.cmds, settings: a.settings } : null;
+    });
+    check("a timer's writes, island commands and settings come back", timer.ms >= 100 && extra && extra.cmds === 1 && JSON.stringify(extra.settings) === '[["vol","9"]]', JSON.stringify({ ms: timer.ms, extra }));
+
+    // ---- part 4: the policy of the worker
     const csp = await page.evaluate(async () => {
       const get = async (u) => (await fetch(u, { cache: "no-store" })).headers.get("content-security-policy");
       return { worker: await get("ui2/worker.js"), api: await get("ui2/api.js"), page: await get("ui2-selftest.html") };

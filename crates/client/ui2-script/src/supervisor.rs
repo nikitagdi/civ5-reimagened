@@ -15,6 +15,29 @@ use crate::{
     ScriptInit, ScriptOutput, ScriptStats, ScriptStatus, ctx_name,
 };
 
+/// Whether a script may write the state path `path` (as the worker sends it): its own state (`state`,
+/// `state.<path>`; a mod's lands in `modstate.<id>`), or a field of the `ui` root marked `js` in the schema.
+fn writable(schema: &Schema, path: &str) -> Result<(), String> {
+    let own = path
+        .strip_prefix("state")
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with(['.', '[']));
+    if own {
+        return Ok(());
+    }
+    if path.starts_with("ui.") {
+        return if schema.paths().iter().any(|e| e.js && e.path == path) {
+            Ok(())
+        } else {
+            Err(format!(
+                "state write `{path}` dropped: not a field of `ui` scripts may write"
+            ))
+        };
+    }
+    Err(format!(
+        "state write `{path}` dropped: scripts write their `state` and the `js` fields of `ui` only"
+    ))
+}
+
 /// What a busy context did not get yet: the frames since it got busy, merged into one.
 #[derive(Debug, Default)]
 struct Backlog {
@@ -526,6 +549,10 @@ impl ScriptSupervisor {
         c.applied = c.applied.max(o.n);
         let id = c.id.clone();
         for s in o.state {
+            if let Err(why) = writable(c.schema(), &s.p) {
+                out.log.push(c.line(LogLevel::Warn, why));
+                continue;
+            }
             let ty = proto::state_type(&c.parts, &c.bundle.state_ns, &s.p);
             let value = proto::json_to_value(&s.v, ty.as_ref().map(|(s, t)| (*s, t)));
             out.state_ops.push((
@@ -570,6 +597,16 @@ impl ScriptSupervisor {
             ));
         }
         for m in o.cmds {
+            if m.island.is_empty() || m.key.is_empty() {
+                out.log.push(c.line(
+                    LogLevel::Warn,
+                    format!(
+                        "island command `{}` dropped: it needs an island and a key",
+                        m.op
+                    ),
+                ));
+                continue;
+            }
             match m.to_cmd() {
                 Ok(cmd) => out.island_cmds.push((id.clone(), cmd)),
                 Err(e) => out.log.push(c.line(LogLevel::Warn, e)),
