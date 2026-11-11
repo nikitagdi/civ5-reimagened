@@ -241,12 +241,23 @@ pub fn check(skin: &Skin, ir: &Ir, skin_dir: &Path) -> (Statics, Vec<ConvError>)
         cx.errs
             .push(ConvError::new(&e.code, Place::file(&ir.entry), why));
     }
+    // A mod fragment is not a whole skin: no layers, no required slots and tokens, and its text may be written
+    // in the markup (a mod has no text tables). Its own rules are in `fragment.rs`.
+    let skin_page = skin.fragment.is_none();
     elements(&mut cx);
-    layers(&mut cx);
-    registry(&mut cx);
-    texts(&mut cx);
-    sheets(&mut cx, ir);
+    if skin_page {
+        layers(&mut cx);
+    }
+    registry(&mut cx, skin_page);
+    if skin_page {
+        texts(&mut cx);
+    }
+    sheets(&mut cx, ir, skin_page);
     scripts(&mut cx, skin);
+    if let Some(f) = &skin.fragment {
+        let errs = crate::fragment::static_checks(f, &dom, &cx.out, ir);
+        cx.errs.extend(errs);
+    }
     let Ctx { errs, out, .. } = cx;
     (out, errs)
 }
@@ -528,7 +539,7 @@ fn identity(e: &Element) -> String {
     e.mark.clone().unwrap_or_else(|| format!("#{}", e.id))
 }
 
-fn registry(cx: &mut Ctx) {
+fn registry(cx: &mut Ctx, skin_page: bool) {
     let dom = cx.dom;
     let mut ids: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut parts: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
@@ -632,7 +643,7 @@ fn registry(cx: &mut Ctx) {
         }
     }
     for (name, def) in Profile::v1().slots() {
-        if def.required && !slots.contains(name) {
+        if skin_page && def.required && !slots.contains(name) {
             cx.errs.push(
                 ConvError::new(
                     codes::SLOT_MISSING,
@@ -674,7 +685,7 @@ fn texts(cx: &mut Ctx) {
     }
 }
 
-fn sheets(cx: &mut Ctx, ir: &Ir) {
+fn sheets(cx: &mut Ctx, ir: &Ir, skin_page: bool) {
     let dom = cx.dom;
     for sheet in &ir.sheets {
         let Some(&ix) = dom.by_id.get(&sheet.node) else {
@@ -731,7 +742,7 @@ fn sheets(cx: &mut Ctx, ir: &Ir) {
     }
     // The synonyms every skin defines for mods.
     for (name, def) in Profile::v1().tokens() {
-        if def.required && !cx.out.root_vars.iter().any(|v| &v.name == name) {
+        if skin_page && def.required && !cx.out.root_vars.iter().any(|v| &v.name == name) {
             cx.errs.push(
                 ConvError::new(
                     codes::TOKEN_MISSING,

@@ -72,9 +72,13 @@ export function createSession() {
       for (const k of ["fonts_dir", "profile", "pkg_dir"]) need(req[k] == null || typeof req[k] === "string", `open: ${k} must be a string`);
       need(req.preview == null || typeof req.preview === "boolean", "open: preview must be a boolean");
       need(req.list_keys == null || (typeof req.list_keys === "object" && !Array.isArray(req.list_keys)), "open: list_keys must be an object");
+      const virtualFiles = req.virtual ?? {};
+      need(typeof virtualFiles === "object" && !Array.isArray(virtualFiles) && Object.entries(virtualFiles).every(([k, v]) =>
+        typeof v === "string" && k !== "" && !k.startsWith("/") && !k.includes("\\") && !k.split("/").includes("..")), "open: virtual maps relative paths to texts");
       const root = path.resolve(req.skin_dir);
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) throw new ProtocolError("E9-004", `skin directory not found: ${req.skin_dir}`);
-      if (!fs.existsSync(path.join(root, entry)) || !fs.statSync(path.join(root, entry)).isFile()) throw new ProtocolError("E9-004", `entry file not found: ${entry}`);
+      const entryFile = path.join(root, entry);
+      if (!Object.hasOwn(virtualFiles, entry) && (!fs.existsSync(entryFile) || !fs.statSync(entryFile).isFile())) throw new ProtocolError("E9-004", `entry file not found: ${entry}`);
 
       // The preview script is injected only when asked for and present.
       const preview = req.preview === true && previewAvailable();
@@ -85,6 +89,7 @@ export function createSession() {
         fontsDir: req.fonts_dir ? path.resolve(req.fonts_dir) : null,
         pkgDir: req.pkg_dir ? path.resolve(req.pkg_dir) : null,
         listKeys: req.list_keys ?? null,
+        virtualFiles,
       });
       let browser;
       try {

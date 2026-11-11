@@ -6,7 +6,11 @@
 //! ui2-convert verify <skin> [--state <name>]   (the runtime's layout against Chromium's)
 //! ui2-convert web    <web-dir>    (every skin of skins/ into <web-dir>/ui2/ with skins.json)
 //! ui2-convert watch  <skin> [--port <n>]   (the package server for hot reload, 127.0.0.1:8095)
+//! ui2-convert fragment <mod dir> --out <dir>   (the panels of a mod's [ui]: <id>-<version>-<hash16>.ui2)
 //! ```
+//!
+//! `fragment` prints one line `ui2-fragment <file> <blake3 hex>` on stdout when the package is written (what
+//! `cargo xtask mods build` reads); warnings and errors go to stderr.
 //!
 //! `<skin>` is a folder with `skin.toml` or the id of a folder under `skins/`. Errors go to
 //! stderr in the profile's format; the exit code is 0 without errors, 1 with errors and 2 for a
@@ -17,7 +21,37 @@ use std::process::ExitCode;
 
 use ui2_convert::{Input, Run, check_skin};
 
-const USAGE: &str = "usage: ui2-convert check <skin> [--dump-ir <file>] [--from-ir <file>]\n       ui2-convert build <skin>\n       ui2-convert verify <skin> [--state <name>]\n       ui2-convert web <web-dir>\n       ui2-convert watch <skin> [--port <n>]";
+const USAGE: &str = "usage: ui2-convert check <skin> [--dump-ir <file>] [--from-ir <file>]\n       ui2-convert build <skin>\n       ui2-convert verify <skin> [--state <name>]\n       ui2-convert web <web-dir>\n       ui2-convert watch <skin> [--port <n>]\n       ui2-convert fragment <mod dir> --out <dir>";
+
+/// `fragment <mod dir> --out <dir>`: the fragment package of a mod's panels.
+fn fragment(dir: &str, out: Option<&str>) -> ExitCode {
+    let Some(out) = out else {
+        eprintln!("fragment needs --out <dir>\n{USAGE}");
+        return ExitCode::from(2);
+    };
+    let o = ui2_convert::fragment::build(Path::new(dir), Path::new(out));
+    for w in &o.run.warnings {
+        eprintln!("warning: {w}");
+    }
+    for e in &o.run.errors {
+        eprintln!("{e}\n");
+    }
+    match &o.written {
+        Some(w) if o.run.errors.is_empty() => {
+            eprintln!(
+                "ui2-convert: fragment {} ({} bytes)",
+                w.file_name,
+                w.bytes.len()
+            );
+            println!("ui2-fragment {} {}", w.file_name, w.hash);
+            ExitCode::SUCCESS
+        }
+        _ => {
+            eprintln!("ui2-convert: {} error(s)", o.run.errors.len());
+            ExitCode::from(1)
+        }
+    }
+}
 
 /// The skin folder of an argument: an existing folder, or `skins/<id>` of the repository.
 fn skin_dir(arg: &str) -> Option<PathBuf> {
@@ -135,6 +169,7 @@ fn main() -> ExitCode {
     let mut dump_ir = None;
     let mut from_ir = None;
     let mut state = None;
+    let mut out = None;
     let mut port = ui2_convert::watch::DEFAULT_PORT;
     let mut it = args[1..].iter();
     while let Some(a) = it.next() {
@@ -142,6 +177,7 @@ fn main() -> ExitCode {
             "--dump-ir" => dump_ir = it.next().cloned(),
             "--from-ir" => from_ir = it.next().cloned(),
             "--state" => state = it.next().cloned(),
+            "--out" => out = it.next().cloned(),
             "--port" => match it.next().and_then(|p| p.parse().ok()) {
                 Some(p) => port = p,
                 None => {
@@ -162,6 +198,9 @@ fn main() -> ExitCode {
     };
     if cmd == "web" {
         return web(&skin);
+    }
+    if cmd == "fragment" {
+        return fragment(&skin, out.as_deref());
     }
     let Some(dir) = skin_dir(&skin) else {
         eprintln!(

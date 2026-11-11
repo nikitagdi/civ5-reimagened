@@ -165,10 +165,10 @@ function buildSheets(dom, server) {
       } else {
         const from = splitSrc(el.src);
         const rel = path.posix.normalize(path.posix.join(path.posix.dirname(from ? from.file : "index.html"), href.split(/[?#]/)[0]));
-        const full = rel.startsWith("..") ? null : server.resolveFile(rel);
+        const text = rel.startsWith("..") ? null : server.readText(rel);
         sheet.file = rel;
-        if (!full || !fs.existsSync(full)) sheet.missing = true;
-        else Object.assign(sheet, parseCss(fs.readFileSync(full, "utf8"), rel));
+        if (text === null) sheet.missing = true;
+        else Object.assign(sheet, parseCss(text, rel));
       }
       sheets.push(sheet);
     } else if (el.tag === "style") {

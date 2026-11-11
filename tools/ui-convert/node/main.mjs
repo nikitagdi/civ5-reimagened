@@ -7,11 +7,12 @@
 // Requests are handled strictly one after another, in the order they arrive. Output is canonical
 // JSON (sorted keys). stdout carries protocol lines only; diagnostics go to stderr.
 //
-//   open   {skin_dir, entry?, profile?, port?, fonts_dir?, preview?, pkg_dir?}
+//   open   {skin_dir, entry?, profile?, port?, fonts_dir?, preview?, pkg_dir?, virtual?}
 //                                                           -> {chrome, flags, base_url, preview}
 //          preview: inject node/preview/preview.js into every page (answered false when the
 //          script does not exist); pkg_dir: serve GET /pkg/<id>.{ui2,rev,errors.json} from that
-//          folder (watch mode, see server.mjs)
+//          folder (watch mode, see server.mjs); virtual: {<relative path>: <text>} served as files
+//          of the folder (the entry may be one: the page around the panels of a mod)
 //   scan   {state?, viewport?}                              -> the IR (see scan.mjs)
 //   extract {cells, props, beacon_props, extra, tokens, nodes} -> computed values (see extract.mjs)
 //   raster {items:[{svg1, svg2 | src1, src2, w1, h1, w2, h2 | natural}]}

@@ -26,6 +26,7 @@ pub mod build;
 pub mod check;
 pub mod errors;
 pub mod fonts;
+pub mod fragment;
 pub mod index;
 pub mod ir;
 pub mod l10n;
@@ -169,27 +170,9 @@ pub fn list_keys() -> Value {
     Value::Object(out)
 }
 
-/// Opens the skin in Chromium (the preview script on, fonts served from `opts.fonts_dir`). Returns the
-/// answer of `open`.
+/// Opens the skin in Chromium (the preview script on, fonts served from `opts.fonts_dir`; for a mod fragment the
+/// page around its panels is served as virtual files). Returns the answer of `open`.
 pub fn open(node: &mut NodeClient, src: &Source, opts: &Opts) -> Result<Value, ConvError> {
-    let dir = std::path::absolute(&src.dir)
-        .unwrap_or_else(|_| src.dir.clone())
-        .to_string_lossy()
-        .to_string();
-    let mut open = json!({ "skin_dir": dir, "entry": src.skin.skin.entry, "preview": true, "list_keys": list_keys() });
-    if let Some(f) = &opts.fonts_dir {
-        let f = std::path::absolute(f).unwrap_or_else(|_| f.clone());
-        open["fonts_dir"] = json!(f.to_string_lossy());
-    }
-    node.call("open", open)
-}
-
-/// Opens the skin in Chromium and scans the entry page. Returns the scan and the Chromium version.
-pub fn scan(
-    node: &mut NodeClient,
-    src: &Source,
-    opts: &Opts,
-) -> Result<(Scanned, String), ConvError> {
     // Node runs in its own folder: the skin folder goes over as an absolute path (it never reaches
     // an output).
     let dir = std::path::absolute(&src.dir)
@@ -201,7 +184,19 @@ pub fn scan(
         let f = std::path::absolute(f).unwrap_or_else(|_| f.clone());
         open["fonts_dir"] = json!(f.to_string_lossy());
     }
-    let opened = node.call("open", open)?;
+    if let Some(f) = &src.skin.fragment {
+        open["virtual"] = json!(f.virtual_files());
+    }
+    node.call("open", open)
+}
+
+/// Opens the skin in Chromium and scans the entry page. Returns the scan and the Chromium version.
+pub fn scan(
+    node: &mut NodeClient,
+    src: &Source,
+    opts: &Opts,
+) -> Result<(Scanned, String), ConvError> {
+    let opened = open(node, src, opts)?;
     let chrome = opened
         .get("chrome")
         .and_then(Value::as_str)
@@ -273,6 +268,8 @@ pub struct Run {
     pub texts: Option<l10n::Texts>,
     /// Every error, sorted once the run ends.
     pub errors: Vec<ConvError>,
+    /// What builds but will not show as written (a mod fragment's pictures and breakpoints in this runtime).
+    pub warnings: Vec<String>,
     /// The Chromium version of the run (empty for a dump).
     pub chrome: String,
     /// How long each stage took, in order: (stage, milliseconds). For the watch's cycle report.
@@ -410,16 +407,23 @@ pub fn check_skin(dir: &Path, input: Input) -> Run {
 
 /// `check` with options.
 pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
+    match Source::load(dir) {
+        Ok(src) => check_source(src, input, opts),
+        Err(e) => {
+            let mut run = Run {
+                errors: e,
+                ..Run::default()
+            };
+            errors::sort(&mut run.errors);
+            run
+        }
+    }
+}
+
+/// The checks of a loaded source: a skin folder, or the page the converter made around a mod's panels.
+pub fn check_source(src: Source, input: Input, opts: &Opts) -> Run {
     let mut run = Run::default();
     let mut sw = Stages::start();
-    let src = match Source::load(dir) {
-        Ok(s) => s,
-        Err(e) => {
-            run.errors = e;
-            errors::sort(&mut run.errors);
-            return run;
-        }
-    };
     let mut owned: Option<NodeClient> = None;
     let mut borrowed: Option<&mut NodeClient> = None;
     let mut stored: Option<Dump> = None;
@@ -493,10 +497,17 @@ pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
             Ok(Some(json)) => {
                 match serde_json::from_value::<styles::Extracted>(json.clone()) {
                     Ok(out) => {
-                        let (compiled, errs) = styles::compile(&dom, &p, &out, &reported);
+                        let fragment = src.skin.fragment.as_ref();
+                        let (compiled, errs) =
+                            styles::compile(&dom, &p, &out, &reported, fragment.is_some());
                         run.errors.extend(errs);
                         run.errors
                             .extend(styles::asset_sizes(&dom, &statics, &compiled));
+                        if let Some(f) = fragment {
+                            let (errs, warnings) = fragment::style_checks(f, &dom, &compiled);
+                            run.errors.extend(errs);
+                            run.warnings.extend(warnings);
+                        }
                         run.styles = Some(compiled);
                     }
                     Err(e) => run.errors.push(ConvError::new(
@@ -514,7 +525,22 @@ pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
         sw.mark(&mut run.stages, "styles");
 
         let schema = ui2_model::Schema::v1();
-        let (bound, errs) = bindings::check(&dom, &statics, &src.skin, schema);
+        // A mod's markup also reads its own fields `mods.<id>.*` (its `ui/model.toml`).
+        let mod_view = match &src.skin.fragment {
+            Some(f) => match fragment::ModView::new(&src.dir, f) {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    run.errors.push(e);
+                    None
+                }
+            },
+            None => None,
+        };
+        let view: &dyn ui2_package::profile::SchemaView = match &mod_view {
+            Some(v) => v,
+            None => schema,
+        };
+        let (bound, errs) = bindings::check(&dom, &statics, &src.skin, view);
         run.errors.extend(errs);
         let (samples, errs) = bindings::check_samples(&src.dir, &src.skin, schema);
         run.errors.extend(errs);

@@ -215,7 +215,9 @@ pub fn check(
             continue;
         };
         let mut attrs = parsed.clone();
-        let ctx = ctx_of(dom, ix);
+        let mut ctx = ctx_of(dom, ix);
+        // A mod's markup may send the intents `mods.<its id>.*`.
+        ctx.mod_id = skin.fragment.as_ref().map(|f| f.mod_id.clone());
         // A template's content starts a new scope (tooltips): only the skin state.
         let inner_base = if e.tag == "template" { &base } else { &scope };
         match attrs::check(&mut attrs, inner_base, view, &ctx) {
@@ -263,13 +265,15 @@ pub fn check(
             }
         }
     }
-    // The title of the skin is a text key too.
-    out.keys.push(KeyUse {
-        key: skin.skin.title.clone(),
-        place: Place::file("skin.toml"),
-        element: "[skin] title".to_string(),
-        args: Some(0),
-    });
+    // The title of the skin is a text key too (a mod fragment has none).
+    if skin.fragment.is_none() {
+        out.keys.push(KeyUse {
+            key: skin.skin.title.clone(),
+            place: Place::file("skin.toml"),
+            element: "[skin] title".to_string(),
+            args: Some(0),
+        });
+    }
     out.keys.sort();
     (out, errs)
 }

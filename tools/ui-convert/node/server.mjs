@@ -11,6 +11,9 @@
 // List keys: `listKeys` (model path of a list -> its key field and kind, from the converter) is prepended to the
 // preview script as `window.__ui2keys`, so the preview keys loop instances as the runtime does.
 //
+// Virtual files: `virtualFiles` (relative path -> text) are served as if they were files of the folder, before the
+// folder's own files; the converter's fragment mode puts the page around a mod's panels there.
+//
 // Packages (watch mode): when `pkgDir` is given, `GET /pkg/<id>.ui2`, `/pkg/<id>.rev` and
 // `/pkg/<id>.errors.json` are files of that folder (the converter writes them; `.rev` grows with every
 // package that built). These answers carry `Access-Control-Allow-Origin: *` and
@@ -106,10 +109,13 @@ export function pkgType(name) {
   return MIME[".json"];
 }
 
-export async function startServer({ root, port = 0, fontsDir = null, preview = false, pkgDir = null, listKeys = null }) {
+export async function startServer({ root, port = 0, fontsDir = null, preview = false, pkgDir = null, listKeys = null, virtualFiles = null }) {
   const rootDir = path.resolve(root);
   const log = new Map(); // url path -> status of the last response
   const htmlCache = new Map(); // relPath -> { mtimeMs, html, styles }
+  // Files the converter makes up (the page around the panels of a mod): relative path -> text. They are served
+  // before the folder's own files and are annotated like them.
+  const virtual = new Map(Object.entries(virtualFiles || {}));
 
   function resolveFile(rel) {
     // rel: URL path without the leading slash, already percent-decoded
@@ -118,7 +124,21 @@ export async function startServer({ root, port = 0, fontsDir = null, preview = f
     return inside ? full : null;
   }
 
+  /** The text of a file of the folder (a virtual file first), or null. */
+  function readText(rel) {
+    if (virtual.has(rel)) return virtual.get(rel);
+    const full = resolveFile(rel);
+    return full && fs.existsSync(full) && fs.statSync(full).isFile() ? fs.readFileSync(full, "utf8") : null;
+  }
+
   function loadHtml(rel, full) {
+    if (virtual.has(rel)) {
+      const hit = htmlCache.get(rel);
+      if (hit && hit.preview === preview) return hit;
+      const out = { ...annotateHtml(virtual.get(rel), rel, { preview }), mtimeMs: 0, preview };
+      htmlCache.set(rel, out);
+      return out;
+    }
     const st = fs.statSync(full);
     const hit = htmlCache.get(rel);
     if (hit && hit.mtimeMs === st.mtimeMs && hit.preview === preview) return hit;
@@ -173,6 +193,11 @@ export async function startServer({ root, port = 0, fontsDir = null, preview = f
         return done(200, keys + fs.readFileSync(PREVIEW_FILE, "utf8"), MIME[".js"]);
       }
       if (rel.startsWith("__ui2/")) return done(404, "not found");
+      if (virtual.has(rel)) {
+        const ext = path.extname(rel).toLowerCase();
+        if (ext === ".html") return done(200, loadHtml(rel, null).html, MIME[".html"]);
+        return done(200, virtual.get(rel), MIME[ext] || "text/plain; charset=utf-8");
+      }
       if (cors) {
         const name = rel.slice("pkg/".length);
         const type = pkgType(name);
@@ -212,8 +237,10 @@ export async function startServer({ root, port = 0, fontsDir = null, preview = f
     url: `http://127.0.0.1:${actualPort}`,
     root: rootDir,
     resolveFile,
+    readText,
     /** Inline <style> blocks of an HTML file (relative path), as annotated when it was served. */
     styleBlocks(rel) {
+      if (virtual.has(rel)) return loadHtml(rel, null).styles;
       const full = resolveFile(rel);
       return full && fs.existsSync(full) ? loadHtml(rel, full).styles : [];
     },
