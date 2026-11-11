@@ -6,6 +6,7 @@ mod exe_api_coverage;
 mod graph;
 mod meta;
 mod mods;
+mod ui;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -858,6 +859,7 @@ fn cmd_check(root: &Path) -> Result<()> {
         },
     );
     step("game files (S8)", check_game_files(root));
+    step("ui model generated files", ui::check_generated(root));
     step(
         "gateway without a brain (GH-D2)",
         check_gateway_without_brain(root),
@@ -1749,6 +1751,7 @@ fn main() -> Result<()> {
         "bench" => cmd_bench(&root, rest),
         "nettest" => cmd_nettest(&root, rest),
         "mods" => mods::cmd_mods(&root, rest),
+        "ui" => ui::cmd_ui(&root, rest),
         "dist" => deploy::cmd_dist(&root, rest).map(|_| ()),
         "deploy" => deploy::cmd_deploy(&root, rest),
         // Debug: list the import modules of an arbitrary .wasm.

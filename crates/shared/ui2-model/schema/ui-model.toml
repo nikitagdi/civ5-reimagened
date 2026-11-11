@@ -9,3 +9,17 @@ source = "Source"
 live = "bool"
 catching_up = "bool"
 connected = "bool"
+
+[type.Resource]
+id = "key<item>"
+name = "text"
+icon = "asset"
+available = "i32"
+used = "i32"
+total = "i32"
+
+[model.top]
+gold = "i32"
+gold_rate = "i32"
+tourism = "i32?"
+resources = { list = "Resource", key = "id" }

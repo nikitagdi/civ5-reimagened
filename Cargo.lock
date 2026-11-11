@@ -4728,6 +4728,7 @@ dependencies = [
  "mod-manifest",
  "serde",
  "toml",
+ "ui2-model",
 ]
 
 [[package]]

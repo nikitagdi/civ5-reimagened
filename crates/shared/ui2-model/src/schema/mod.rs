@@ -15,6 +15,8 @@ pub use types::{
     Root, RootId, RootKind, Scalar, StructDef, Type, TypeId, Version,
 };
 
+pub(crate) use parse::pascal;
+
 use parse::Draft;
 
 /// The v1 schema source, embedded in the crate.
