@@ -219,9 +219,12 @@ impl Runtime {
             index: &self.style_index,
             theme: self.style_env.theme,
         };
+        // Nodes in their first frame take their records without transitions.
+        restyled.retain(|(id, _)| !self.arena.is_fresh(*id));
         if !restyled.is_empty() {
             self.anim.start(now_ms, &self.arena, &acx, restyled);
         }
+        self.arena.settle_fresh();
         let animating = self.anim.tick(now_ms, &mut self.arena, &acx);
         // The caret of the focused text field blinks on the frame clock (the frozen time of a frozen scene).
         self.caret_tick(scene.frozen().unwrap_or(now_ms));

@@ -94,6 +94,83 @@ impl Rig {
     }
 }
 
+/// A button whose class binding holds from the start (a unit action that is not available, say) takes its
+/// class record in its first frame without a transition: an element's first style is not a change. Before,
+/// the record selected at creation counted as the old one, the transition ran from it, and with a clock that
+/// stands still (a frozen or paused frame clock) the node was painted again on every idle frame.
+#[test]
+fn a_class_bound_in_the_first_frame_starts_no_transition() {
+    use ui2_package::BindKind;
+    use ui2_package::profile::expr::parse;
+
+    let mut kit = Kit::new();
+    let mut base = StyleRecord::initial();
+    base.display = Display::Block;
+    let mut button = base.clone();
+    button.width = LenAuto::Len(Len::px(100.0));
+    button.height = LenAuto::Len(Len::px(20.0));
+    button.background_color = ColorV::Lit([20, 18, 16, 255]);
+    button.transitions = vec![Transition {
+        prop: PropId::BackgroundColor,
+        dur_ms: 150.0,
+        delay_ms: 0.0,
+        ease: [0.0, 0.0, 1.0, 1.0],
+    }];
+    let mut off = button.clone();
+    off.background_color = ColorV::Lit([0, 0, 0, 0]);
+    let (base, button, off) = (kit.record(base), kit.record(button), kit.record(off));
+    let layer = kit.plain(base);
+    let class = kit.str("off");
+    let set = kit.set(
+        vec![Cond {
+            up: 0,
+            kind: CondKind::Class(class),
+        }],
+        vec![button, off],
+    );
+    let cond = kit.expr(parse("1 > 0").expect("cond"));
+    let part = kit.str("button");
+    kit.template(
+        "doc",
+        vec![
+            TNode::layer(Layer::Hud, layer).child(
+                TNode::el(set)
+                    .part(part)
+                    .bind(BindKind::ClassToggle { class, cond }),
+            ),
+        ],
+    );
+    let pkg = kit.finish().expect("package");
+    let mut rt = Runtime::new(pkg, Env::default(), Services::default()).expect("runtime");
+    let (mut engine, mut scene) = (TextEngine::new(), Scene::new(1.0));
+    let store = ModelStore::new(Schema::v1());
+    let first = rt.frame(0.0, &store, &mut engine, &mut scene);
+    assert!(
+        first.stats.restyled > 0,
+        "the class is applied in the first frame"
+    );
+    assert!(!first.animating, "a first record does not transition");
+    let button = rt.find_part("button").expect("button");
+    let chunk = rt.node(button).expect("button").chunk();
+    let (_, items) = rt.chunk_items(chunk).expect("chunk");
+    assert!(
+        !items.items.iter().any(
+            |i| matches!(i, Item::Box(b) if matches!(b.fill, Fill::Solid(Color([20, 18, 16, 255]))))
+        ),
+        "the button shows its class record at once"
+    );
+    // The clock stands still: idle frames do nothing.
+    for _ in 0..10 {
+        let out = rt.frame(0.0, &store, &mut engine, &mut scene);
+        let s = out.stats;
+        assert!(!out.animating);
+        assert_eq!(
+            (s.restyled, s.layout_runs, s.chunks_rebuilt, s.visited),
+            (0, 0, 0, 0)
+        );
+    }
+}
+
 #[test]
 fn transitions_run_150_ms_without_layout_and_then_cost_nothing() {
     let mut rig = Rig::new();
