@@ -955,7 +955,11 @@ impl ClientCore {
         let city = match *cmd {
             Command::CitySetProduction { city, .. }
             | Command::CityPurchase { city, .. }
-            | Command::CityRangeAttack { city, .. } => city,
+            | Command::CityRangeAttack { city, .. }
+            | Command::CityQueuePush { city, .. }
+            | Command::CityQueuePop { city, .. }
+            | Command::CityQueueMove { city, .. }
+            | Command::CityReplaceHead { city, .. } => city,
             _ => return None,
         };
         view.cities
@@ -1225,6 +1229,10 @@ impl ClientCore {
                     Command::CitySetProduction { .. }
                         | Command::CityPurchase { .. }
                         | Command::CityRangeAttack { .. }
+                        | Command::CityQueuePush { .. }
+                        | Command::CityQueuePop { .. }
+                        | Command::CityQueueMove { .. }
+                        | Command::CityReplaceHead { .. }
                 );
             stats::push_ring(
                 &mut self.stats.order_ms_ring,
