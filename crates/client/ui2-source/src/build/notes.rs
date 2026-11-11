@@ -255,13 +255,24 @@ pub fn rows(notes: &[Notification], dismissed: &BTreeSet<Key>) -> KeyedList<Note
     out
 }
 
-/// `notes` from `Q_NOTIFICATIONS` and the locally dismissed set.
+/// The ids of the notifications the core still has (the ones it dismissed itself are gone for good): a local
+/// dismissal of any other note can be forgotten.
+#[must_use]
+pub fn live_ids(notes: &[Notification]) -> BTreeSet<Key> {
+    notes
+        .iter()
+        .filter(|n| !n.dismissed)
+        .map(|n| note_key(n.id))
+        .collect()
+}
+
+/// `notes` from `Q_NOTIFICATIONS` and the locally dismissed set, with the [`live_ids`] of the read.
 pub(crate) fn notes(
     read: &mut CountingRead<'_, '_>,
     dismissed: &BTreeSet<Key>,
-) -> Result<KeyedList<Note>, ReadError> {
+) -> Result<(KeyedList<Note>, BTreeSet<Key>), ReadError> {
     let notes = read.notifications()?;
-    Ok(rows(&notes, dismissed))
+    Ok((rows(&notes, dismissed), live_ids(&notes)))
 }
 
 #[cfg(test)]

@@ -1,23 +1,20 @@
-//! One running UI v2: the view model, its source, and the skin (runtime, text engine, scene).
+//! One running UI v2: the view model, its source, the actions module, and the skin (runtime, text engine, scene).
 //!
-//! The model store and the source outlive a skin: a later skin switch replaces only [`Skin`] and keeps the model,
-//! so the new skin's first frame reads the current values. The replica is not owned here: the game session lends
-//! a [`ReplicaView`] to each [`V2Ui::frame`].
-//!
-//! The frame runs the host's order, in the scope of the first slice (no scripts, actions, input or anchors yet):
-//! runtime output → source → model frame → runtime delta → runtime frame → glyph resolve. The application then
-//! hands [`V2Ui::scene_mut`] to the renderer.
+//! The model store, the source and the actions module outlive a skin: a later skin switch replaces only the skin's
+//! part (runtime, text engine, scene) and keeps the model and the UI's own state (selection, open windows,
+//! waiting orders), so the new skin's first frame reads the current values. The replica and the network are not
+//! owned here: the application lends them to each [`V2Ui::frame`] (see [`crate::frame`] for its order).
 
 use std::rc::Rc;
 use std::sync::Arc;
 
-use replica::ReplicaStep;
-use ui2_draw::{Scene, SceneStats};
-use ui2_model::{ModelStore, Owner, Schema};
+use ui2_actions::{MemorySettings, UiActions};
+use ui2_draw::Scene;
+use ui2_model::wire::WireIntent;
+use ui2_model::{ModelStore, Schema};
 use ui2_package::Package;
-use ui2_package::style::Cursor;
-use ui2_runtime::{Env, FrameStats, LoadError, NodeClass, Runtime, Services, UiError};
-use ui2_source::{ReplicaView, SourceFrame, SourceStats, UiSource};
+use ui2_runtime::{Env, LoadError, NodeClass, Runtime, Services};
+use ui2_source::UiSource;
 use ui2_text::TextEngine;
 
 use crate::error::{LoadFailure, SkinLoadError};
@@ -40,16 +37,6 @@ pub struct V2Init {
     pub clock: Option<HostClock>,
 }
 
-/// The input of one frame, made by the application after it pumped the game session.
-pub struct V2Frame<'a> {
-    /// The replica as the session lends it; `None` when there is none (lobby, no game yet).
-    pub replica: Option<ReplicaView<'a>>,
-    /// What the session's pump did this frame (the source's change signal).
-    pub steps: &'a [ReplicaStep],
-    /// The frame clock, ms.
-    pub now_ms: f64,
-}
-
 /// What loading the skin cost.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct LoadStats {
@@ -59,70 +46,16 @@ pub struct LoadStats {
     pub fonts: usize,
     /// Nodes of the document after instantiation.
     pub nodes: usize,
-    /// Picture pages of the package (not uploaded by this crate; see [`V2Ui::new`]).
+    /// Picture pages of the package handed to the scene.
     pub image_pages: usize,
 }
 
-/// What one frame did.
-#[derive(Debug, Clone, PartialEq)]
-pub struct V2FrameReport {
-    /// The source's work.
-    pub source: SourceStats,
-    /// Operations of the model frame handed to the runtime (0: no model frame).
-    pub delta_ops: u32,
-    /// The model revision after the frame.
-    pub model_revision: u64,
-    /// The runtime's work.
-    pub runtime: FrameStats,
-    /// The scene's counters (frame fields: this frame's runtime paint and glyph resolve).
-    pub scene: SceneStats,
-    /// The pointer cursor the UI wants.
-    pub cursor: Cursor,
-    /// Transitions are running: keep producing frames.
-    pub animating: bool,
-    /// Runtime errors reported for the first time in this frame (bindings, styles, fonts of a panel).
-    pub errors: Vec<UiError>,
-    /// Markup output dropped because nothing consumes it yet (intents, state writes, script events).
-    pub dropped_output: u32,
-    /// Source step, ms (0 without a clock).
-    pub source_ms: f32,
-    /// Glyph resolve step, ms (0 without a clock).
-    pub resolve_ms: f32,
-    /// The whole frame, ms (0 without a clock).
-    pub cpu_ms: f32,
-}
-
-impl V2FrameReport {
-    /// The report as named counters (`ui2.*`) for the application's stats overlay.
-    pub fn counters(&self) -> Vec<(&'static str, f64)> {
-        let r = &self.runtime;
-        vec![
-            ("ui2.cpu_ms", f64::from(self.cpu_ms)),
-            ("ui2.source_ms", f64::from(self.source_ms)),
-            ("ui2.runtime_ms", f64::from(r.cpu_ms)),
-            ("ui2.resolve_ms", f64::from(self.resolve_ms)),
-            ("ui2.source.roots", f64::from(self.source.roots_built)),
-            ("ui2.source.reads", f64::from(self.source.getter_calls)),
-            ("ui2.model.ops", f64::from(self.delta_ops)),
-            ("ui2.binds", f64::from(r.binds_evaluated)),
-            ("ui2.shaped", f64::from(r.shaped_runs)),
-            ("ui2.layout_runs", f64::from(r.layout_runs)),
-            ("ui2.chunks_rebuilt", f64::from(r.chunks_rebuilt)),
-            ("ui2.nodes", f64::from(r.nodes)),
-            ("ui2.instances", self.scene.instances as f64),
-            ("ui2.raster_glyphs", f64::from(self.scene.raster_glyphs)),
-            ("ui2.raster_deferred", f64::from(self.scene.raster_deferred)),
-            ("ui2.errors", self.errors.len() as f64),
-        ]
-    }
-}
-
 /// What belongs to one skin and is replaced when the skin changes.
-struct Skin {
-    pkg: Arc<Package>,
-    runtime: Runtime,
-    text: TextEngine,
-    scene: Scene,
+pub(crate) struct Skin {
+    pub(crate) pkg: Arc<Package>,
+    pub(crate) runtime: Runtime,
+    pub(crate) text: TextEngine,
+    pub(crate) scene: Scene,
 }
 
 impl Skin {
@@ -145,16 +78,17 @@ impl Skin {
             runtime.set_clock(Box::new(move || a()));
             scene.set_clock(Box::new(move || b()));
         }
-        if !pkg.images().pages.is_empty() {
-            // Picture pages go to the GPU with the scene's static mask pages, which the render side does not
-            // take yet: until then icons draw from an empty mask layer.
-            tracing::warn!(
-                target: "ui2_host",
-                skin = %id,
-                pages = pkg.images().pages.len(),
-                "picture pages are not uploaded yet; icons of this skin do not show"
-            );
-        }
+        // The package's picture pages: masks join the coverage layers, colour pages the image array.
+        let pages = pkg
+            .images()
+            .pages
+            .iter()
+            .map(|p| pkg.page_data(p))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| fail(LoadFailure::Package(e)))?;
+        scene
+            .set_pages(pkg.images(), pages)
+            .map_err(|e| fail(LoadFailure::Tree(e.to_string())))?;
         Ok(Skin {
             pkg,
             runtime,
@@ -172,15 +106,16 @@ fn fatal(e: LoadError) -> String {
 
 /// One running UI v2.
 pub struct V2Ui {
-    store: ModelStore,
-    source: UiSource,
-    skin: Skin,
-    clock: Option<HostClock>,
+    pub(crate) store: ModelStore,
+    pub(crate) source: UiSource,
+    /// The UI's own state and the way out for orders; lives as long as the model, across skins.
+    pub(crate) actions: UiActions,
+    /// Intents from outside the markup (map clicks), applied with the markup's in the next frame.
+    pub(crate) queued: Vec<WireIntent>,
+    pub(crate) skin: Skin,
+    pub(crate) clock: Option<HostClock>,
     load: LoadStats,
-    frames: u64,
-    no_session: ui2_source::session::testing::FakeSession,
-    ui_state: ui2_model::r#gen::Ui,
-    dismissed: std::collections::BTreeSet<ui2_model::Key>,
+    pub(crate) frames: u64,
 }
 
 impl V2Ui {
@@ -189,8 +124,7 @@ impl V2Ui {
     /// document tree, an empty scene, a model store and a source. Any failure is a [`SkinLoadError`] for the
     /// application's fallback.
     ///
-    /// The package's picture pages are not handed to the scene yet (the render side has no page upload); a
-    /// package with pages loads, logs a warning and draws its icons from an empty mask layer.
+    /// The package's picture pages go to the scene; the renderer uploads them with the scene.
     pub fn new(pkg: Arc<Package>, init: V2Init) -> Result<V2Ui, SkinLoadError> {
         let now = || init.clock.as_ref().map_or(0.0, |c| c());
         let t0 = now();
@@ -207,87 +141,21 @@ impl V2Ui {
             nodes: skin.runtime.arena().len(),
             image_pages: pkg.images().pages.len(),
         };
+        let mut store = ModelStore::new(Schema::v1());
+        // Skin settings stay in memory for the session until the device store is wired in.
+        let mut actions = UiActions::new(Schema::v1(), Box::new(MemorySettings::default()));
+        // The `ui` root exists before the first frame.
+        actions.publish(&mut store);
         Ok(V2Ui {
-            store: ModelStore::new(Schema::v1()),
+            store,
             source: UiSource::new(Schema::v1()),
+            actions,
+            queued: Vec::new(),
             skin,
             clock: init.clock,
             load,
-            no_session: Default::default(),
-            ui_state: Default::default(),
-            dismissed: Default::default(),
             frames: 0,
         })
-    }
-
-    /// Runs one frame. Afterwards the application hands [`scene_mut`](Self::scene_mut) to the renderer.
-    pub fn frame(&mut self, f: V2Frame<'_>) -> V2FrameReport {
-        let clock = self.clock.clone();
-        let now = || clock.as_ref().map_or(0.0, |c| c());
-        let t0 = now();
-        let Skin {
-            runtime,
-            text,
-            scene,
-            ..
-        } = &mut self.skin;
-        scene.reset_frame_stats();
-
-        // Nothing consumes markup output in this slice (no actions module, no scripts): drop it, counted.
-        let out = runtime.drain_output();
-        let dropped_output =
-            (out.intents.len() + out.state_writes.len() + out.script_events.len()) as u32;
-        if dropped_output > 0 {
-            tracing::debug!(target: "ui2_host", dropped_output, "markup output has no consumer yet");
-        }
-
-        let t_source = now();
-        let source = {
-            let mut w = self.store.writer(Owner::Source);
-            self.source.frame(
-                SourceFrame {
-                    replica: f.replica,
-                    steps: f.steps,
-                    // No session and no actions module in this slice: an offline session, default UI state.
-                    session: &self.no_session,
-                    dismissed: &self.dismissed,
-                    now_ms: f.now_ms.max(0.0) as u64,
-                },
-                &mut w,
-                &self.ui_state,
-            )
-        };
-        let source_ms = (now() - t_source) as f32;
-
-        let mut delta_ops = 0;
-        if let Some(d) = self.store.take_frame() {
-            delta_ops = d.ops.len() as u32;
-            runtime.apply_delta(&d, &self.store);
-        }
-        let out = runtime.frame(f.now_ms, &self.store, text, scene);
-        for e in &out.errors {
-            tracing::warn!(target: "ui2_host", "{e}");
-        }
-
-        let t_resolve = now();
-        scene.resolve(text, RESOLVE_BUDGET_MS);
-        let resolve_ms = (now() - t_resolve) as f32;
-        self.frames += 1;
-
-        V2FrameReport {
-            source,
-            delta_ops,
-            model_revision: self.store.revision(),
-            runtime: out.stats,
-            scene: scene.stats(),
-            cursor: out.cursor,
-            animating: out.animating,
-            errors: out.errors,
-            dropped_output,
-            source_ms,
-            resolve_ms,
-            cpu_ms: (now() - t0) as f32,
-        }
     }
 
     /// Changes the window size, pixel density, UI scale or theme; the next frame redoes what depends on it.
@@ -336,6 +204,17 @@ impl V2Ui {
     /// The view model.
     pub fn store(&self) -> &ModelStore {
         &self.store
+    }
+
+    /// The actions module: the UI's own state (selection, windows, waiting orders, toasts, dismissed notes).
+    pub fn actions(&self) -> &UiActions {
+        &self.actions
+    }
+
+    /// An intent from outside the skin's markup (a click on the map picked by the application, a test hook):
+    /// applied in the next frame, after the markup's own.
+    pub fn push_intent(&mut self, intent: WireIntent) {
+        self.queued.push(intent);
     }
 
     /// The running skin's package.

@@ -188,13 +188,22 @@ impl Rig {
     /// Tell the module what the network did, then give the host's frame its `reconcile`; the delta, if any.
     pub fn event(&mut self, ev: ui2_actions::ActionEvent) -> Option<Vec<Op>> {
         self.actions.on_event(&ev, self.now);
-        self.actions.reconcile(&mut self.store, self.now);
+        self.actions.reconcile(&mut self.store, None, self.now);
         self.store.take_frame().map(|f| f.ops)
     }
 
     /// The host's `reconcile` at `now` ms.
     pub fn reconcile(&mut self) -> Option<Vec<Op>> {
-        self.actions.reconcile(&mut self.store, self.now);
+        self.actions.reconcile(&mut self.store, None, self.now);
+        self.store.take_frame().map(|f| f.ops)
+    }
+
+    /// The host's `reconcile` with the ids of the notifications the core still has.
+    pub fn reconcile_notes(&mut self, core: &[u32]) -> Option<Vec<Op>> {
+        let core: std::collections::BTreeSet<Key> =
+            core.iter().copied().map(Key::from_u32).collect();
+        self.actions
+            .reconcile(&mut self.store, Some(&core), self.now);
         self.store.take_frame().map(|f| f.ops)
     }
 }

@@ -279,9 +279,18 @@ impl SkinRegistry {
     }
 }
 
-/// The checks of a package against this client that do not need an index: model paths and intents.
-// The version check against the client's profile, model and script API joins here once the package crate has it.
+/// The script API version this client offers to skins.
+const SCRIPT_API: (u16, u16) = (1, 0);
+
+/// The checks of a package against this client that do not need an index: versions (profile, model, script
+/// API), model paths and intents.
 pub fn check_package(pkg: &Package) -> Result<(), LoadFailure> {
+    pkg.check_compat(&ui2_package::Versions {
+        profile: ui2_package::PROFILE_VERSION,
+        model: ui2_model::r#gen::SCHEMA_VERSION,
+        api: SCRIPT_API,
+    })
+    .map_err(LoadFailure::Incompatible)?;
     pkg.check_paths(Schema::v1())
         .map_err(LoadFailure::Incompatible)
 }

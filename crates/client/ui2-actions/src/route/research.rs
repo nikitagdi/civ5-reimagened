@@ -2,6 +2,7 @@
 
 use protocol::Command;
 use ui2_model::generated::RefuseWhy;
+use ui2_model::target::tech_target;
 
 use crate::intent::Intent;
 use crate::route::Ctx;
@@ -27,7 +28,7 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
     ctx.send(
         Command::ResearchSet { tech: id, queue },
         "research.choose",
-        tech.to_js(),
+        tech_target(tech),
         None,
     );
 }

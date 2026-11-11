@@ -177,10 +177,35 @@ fn dismissing_a_note_is_local_and_remembered() {
     );
     assert!(rig.sent().is_empty());
     assert!(rig.toasts().is_empty());
+}
 
-    // The core forgets the note: so does the module.
-    rig.put(KeyedList::from_vec(vec![note(1, NoteCat::Growth, None)]).unwrap());
+#[test]
+fn a_dismissed_note_stays_dismissed_until_the_core_drops_it() {
+    let mut rig = Rig::new();
+    rig.put(
+        KeyedList::from_vec(vec![
+            note(1, NoteCat::Growth, None),
+            note(2, NoteCat::Growth, None),
+        ])
+        .unwrap(),
+    );
+    rig.one("note.dismiss", &[("note", nk(2))]);
+    // The source leaves the dismissed note out of `notes`, while the core still has it: frame after frame the
+    // dismissal holds and the note does not come back.
+    for _ in 0..3 {
+        rig.put(KeyedList::from_vec(vec![note(1, NoteCat::Growth, None)]).unwrap());
+        rig.reconcile_notes(&[1, 2]);
+        assert_eq!(
+            rig.actions.dismissed().iter().copied().collect::<Vec<_>>(),
+            vec![Key::from_u32(2)]
+        );
+        rig.now += 16;
+    }
+    // A frame without the core's ids judges nothing.
     rig.reconcile();
+    assert_eq!(rig.actions.dismissed().len(), 1);
+    // The core drops the note: so does the module.
+    rig.reconcile_notes(&[1]);
     assert!(rig.actions.dismissed().is_empty());
 }
 

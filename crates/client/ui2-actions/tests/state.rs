@@ -361,10 +361,10 @@ fn settings_are_written_at_most_once_a_second() {
         .settings_set(&skin_ns(), "a", Some("10"))
         .unwrap();
     assert_eq!(rig.device.writes(), 6);
-    rig.actions.reconcile(&mut rig.store, 21_000);
+    rig.actions.reconcile(&mut rig.store, None, 21_000);
     assert_eq!(rig.device.writes(), 7);
     // A write of the same value is not a change.
-    rig.actions.reconcile(&mut rig.store, 40_000);
+    rig.actions.reconcile(&mut rig.store, None, 40_000);
     rig.actions
         .settings_set(&skin_ns(), "a", Some("10"))
         .unwrap();
@@ -501,24 +501,24 @@ fn open_production(rig: &mut Rig, city: Key) {
 fn the_production_window_closes_when_the_city_is_lost() {
     let mut rig = Rig::new();
     put_map(&mut rig, vec![banner(3, true), banner(4, true)], vec![]);
-    rig.actions.reconcile(&mut rig.store, 0);
+    rig.actions.reconcile(&mut rig.store, None, 0);
     open_production(&mut rig, Key::new(0, 3));
     rig.frame();
     assert!(rig.ui().windows.production.open);
 
     // A new snapshot with the same cities: the window stays.
     put_map(&mut rig, vec![banner(4, true), banner(3, true)], vec![]);
-    rig.actions.reconcile(&mut rig.store, 1);
+    rig.actions.reconcile(&mut rig.store, None, 1);
     assert!(rig.ui().windows.production.open);
     assert_eq!(rig.ui().windows.production.city, Some(Key::new(0, 3)));
 
     // The city is taken: one change, the window closes.
     put_map(&mut rig, vec![banner(3, false), banner(4, true)], vec![]);
-    rig.actions.reconcile(&mut rig.store, 2);
+    rig.actions.reconcile(&mut rig.store, None, 2);
     assert!(!rig.ui().windows.production.open);
     assert_eq!(rig.ui().windows.production.city, None);
     rig.frame();
-    rig.actions.reconcile(&mut rig.store, 3);
+    rig.actions.reconcile(&mut rig.store, None, 3);
     assert!(rig.frame().is_empty(), "nothing more to reconcile");
 }
 
@@ -526,7 +526,7 @@ fn the_production_window_closes_when_the_city_is_lost() {
 fn a_focus_on_a_vanished_option_is_dropped() {
     let mut rig = Rig::new();
     put_production(&mut rig, &[5, 6]);
-    rig.actions.reconcile(&mut rig.store, 0);
+    rig.actions.reconcile(&mut rig.store, None, 0);
     rig.ops(
         StateNs::Skin,
         &[
@@ -534,11 +534,11 @@ fn a_focus_on_a_vanished_option_is_dropped() {
             op("ui.production.hover", s("0:6")),
         ],
     );
-    rig.actions.reconcile(&mut rig.store, 1);
+    rig.actions.reconcile(&mut rig.store, None, 1);
     assert_eq!(rig.ui().production.focus, Some(Key::new(0, 5)));
 
     put_production(&mut rig, &[6, 7]);
-    rig.actions.reconcile(&mut rig.store, 2);
+    rig.actions.reconcile(&mut rig.store, None, 2);
     assert_eq!(rig.ui().production.focus, None);
     assert_eq!(rig.ui().production.hover, Some(Key::new(0, 6)));
 
@@ -547,7 +547,7 @@ fn a_focus_on_a_vanished_option_is_dropped() {
         .writer(Owner::Source)
         .put(None::<Production>)
         .unwrap();
-    rig.actions.reconcile(&mut rig.store, 3);
+    rig.actions.reconcile(&mut rig.store, None, 3);
     assert_eq!(rig.ui().production.hover, None);
 }
 
@@ -555,7 +555,7 @@ fn a_focus_on_a_vanished_option_is_dropped() {
 fn roots_the_source_has_not_written_are_not_judged() {
     let mut rig = Rig::new();
     rig.ops(StateNs::Skin, &[op("ui.production.focus", s("0:5"))]);
-    rig.actions.reconcile(&mut rig.store, 0);
+    rig.actions.reconcile(&mut rig.store, None, 0);
     assert_eq!(rig.ui().production.focus, Some(Key::new(0, 5)));
 }
 
@@ -563,13 +563,13 @@ fn roots_the_source_has_not_written_are_not_judged() {
 fn the_ui_state_survives_a_new_snapshot() {
     let mut rig = Rig::new();
     put_map(&mut rig, vec![banner(3, true)], vec![flag(1)]);
-    rig.actions.reconcile(&mut rig.store, 0);
+    rig.actions.reconcile(&mut rig.store, None, 0);
     rig.ops(StateNs::Skin, &[op("ui.production.tab", s("wonders"))]);
     open_production(&mut rig, Key::new(0, 3));
     for t in 1..4 {
         // The source rebuilds the same model over and over (a resync, a turn change).
         put_map(&mut rig, vec![banner(3, true)], vec![flag(1)]);
-        rig.actions.reconcile(&mut rig.store, t);
+        rig.actions.reconcile(&mut rig.store, None, t);
     }
     assert_eq!(rig.ui().production.tab, ProdTab::Wonders);
     assert!(rig.ui().windows.production.open);

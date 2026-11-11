@@ -214,6 +214,33 @@ fn a_notification_dismissed_here_is_left_out_without_reading() {
     assert!(notes(&rig).get(Key::from_i32(5)).is_some());
 }
 
+#[test]
+fn the_core_notification_ids_include_the_ones_dismissed_here() {
+    let mut f = game();
+    let mut rig = Rig::new(session());
+    assert_eq!(rig.src.notification_ids(), None, "nothing read yet");
+    rig.start(&mut f);
+    let ids = |rig: &Rig| -> Vec<i32> {
+        let ids = rig.src.notification_ids().expect("the notes were read");
+        ids.iter().map(|k| i32::try_from(k.0).unwrap()).collect()
+    };
+    assert_eq!(ids(&rig), [2, 3, 4, 5, 6], "not the one the core dismissed");
+
+    // Dismissed here: out of `notes`, still among the core's ids.
+    rig.dismissed.insert(Key::from_i32(5));
+    rig.frame(&mut f);
+    assert!(notes(&rig).get(Key::from_i32(5)).is_none());
+    assert_eq!(ids(&rig), [2, 3, 4, 5, 6]);
+
+    // The core drops it: the ids follow with the batch.
+    f.notes.retain(|n| n.id != 5);
+    rig.batch(&mut f);
+    assert_eq!(ids(&rig), [2, 3, 4, 6]);
+
+    rig.src.reset();
+    assert_eq!(rig.src.notification_ids(), None);
+}
+
 fn line(from: i8, text: &str) -> ChatLine {
     ChatLine {
         from: ["anna", "bob", "carl", "dora"][usize::try_from(from).unwrap()].into(),

@@ -120,7 +120,10 @@ fn every_unit_action_is_one_command_stamped_with_the_turn() {
             .expect("a pending row")
             .clone();
         assert_eq!(&*row.intent, "unit.action");
-        assert_eq!(&*row.target, key(1).to_js());
+        assert_eq!(
+            &*row.target, "unit/0:1",
+            "the source looks up `unit_target`"
+        );
         assert!(rig.toasts().is_empty(), "{name}");
     }
 }

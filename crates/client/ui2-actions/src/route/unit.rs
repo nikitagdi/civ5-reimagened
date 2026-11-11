@@ -4,6 +4,7 @@
 use protocol::Command;
 use ui2_model::Key;
 use ui2_model::generated::{Map, MapMode, Plot, RefuseWhy, Selection, UnitActionKind};
+use ui2_model::target::unit_target;
 
 use crate::intent::Intent;
 use crate::route::{Ctx, camera};
@@ -132,7 +133,7 @@ fn action(ctx: &mut Ctx<'_>, unit: Key, kind: UnitActionKind) {
         UnitActionKind::Wake => Command::UnitWake { unit: id },
         UnitActionKind::Alert | UnitActionKind::Pillage | UnitActionKind::Upgrade => return,
     };
-    ctx.send(cmd, "unit.action", unit.to_js(), None);
+    ctx.send(cmd, "unit.action", unit_target(unit), None);
 }
 
 /// Order a unit to a plot: a move (a melee attack is the same order) or a ranged attack. The map mode goes
@@ -158,5 +159,5 @@ pub(crate) fn order_at(ctx: &mut Ctx<'_>, unit: Key, plot: (i16, i16), ranged: b
     } else {
         (Command::UnitMoveTo { unit: id, x, y }, "unit.move")
     };
-    ctx.send(cmd, name, unit.to_js(), None);
+    ctx.send(cmd, name, unit_target(unit), None);
 }

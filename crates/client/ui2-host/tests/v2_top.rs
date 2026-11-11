@@ -100,6 +100,9 @@ impl Rig {
         self.ui.frame(V2Frame {
             replica: Some(view),
             steps,
+            net: None,
+            events: &[],
+            mods: None,
             now_ms: self.now,
         })
     }
@@ -254,6 +257,9 @@ fn the_host_clock_times_the_load_and_the_frame() {
     let r = ui.frame(V2Frame {
         replica: None,
         steps: &[],
+        net: None,
+        events: &[],
+        mods: None,
         now_ms: 0.0,
     });
     assert!(r.cpu_ms > 0.0 && r.runtime.cpu_ms > 0.0);

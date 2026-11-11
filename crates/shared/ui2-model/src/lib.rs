@@ -18,6 +18,7 @@ pub mod schema;
 mod schema_view;
 pub mod state;
 pub mod store;
+pub mod target;
 mod umd1;
 pub mod value;
 pub mod watch;
