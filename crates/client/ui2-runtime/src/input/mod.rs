@@ -347,6 +347,8 @@ impl Runtime {
         if new != old {
             n.scroll = new;
             self.arena.mark(id, Dirty::PAINT);
+            // A virtual list in it may show other rows now.
+            self.binder.windows_changed();
         }
     }
 

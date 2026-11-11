@@ -35,10 +35,11 @@ pub(crate) struct PassStats {
     pub visited: u32,
 }
 
-/// The root of a chunk, if it is alive and still the root.
+/// The root of a chunk, if it is alive, still the root and in the tree (not a detached `if` body).
 fn chunk_root(arena: &Arena, chunk: u32) -> Option<NodeId> {
     let id = arena.id_at(chunk as usize)?;
-    (arena.get(id)?.chunk == chunk).then_some(id)
+    let n = arena.get(id)?;
+    (n.chunk == chunk && !n.detached).then_some(id)
 }
 
 /// The items of one chunk, built from the current state (also used by tests and tools).

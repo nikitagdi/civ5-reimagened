@@ -53,6 +53,11 @@ pub(crate) fn pass(
                 break;
             };
             stats.visited += 1;
+            // A detached `if` body is out of the tree: it is laid out when it comes back.
+            if node.detached {
+                node.layout.cache.clear();
+                break;
+            }
             node.layout.cache.clear();
             at = node.parent;
             if at.is_none() {

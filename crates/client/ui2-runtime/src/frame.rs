@@ -74,32 +74,30 @@ impl Runtime {
         // The clock is lent to the stopwatch for the frame (the passes borrow the runtime).
         let clock = self.clock.take();
         let mut watch = Stopwatch::new(clock.as_deref());
-        let binds = self.binder.pass(
-            &mut self.arena,
-            &bind::Ctx {
-                pkg: &self.pkg,
-                index: &self.style_index,
-                store: m,
-            },
-            &mut self.errors,
-        );
-        let bind_ms = watch.lap();
+        let bctx = bind::Ctx {
+            pkg: &self.pkg,
+            index: &self.style_index,
+            store: m,
+            env: &self.style_env,
+        };
+        let mut binds = self.binder.pass(&mut self.arena, &bctx, &mut self.errors);
+        let mut bind_ms = watch.lap();
         let change = std::mem::take(&mut self.env_change);
-        let styles = style::select::pass(
+        let mut styles = style::select::pass(
             &mut self.arena,
             self.pkg.styles(),
             &self.style_index,
             &self.style_env,
             change,
         );
-        let style_ms = watch.lap();
+        let mut style_ms = watch.lap();
         let ctx = text::TextCtx {
             pkg: &self.pkg,
             fonts: &self.fonts,
             index: &self.style_index,
         };
-        let texts = text::pass(&ctx, &mut self.arena, text, &mut self.errors);
-        let text_ms = watch.lap();
+        let mut texts = text::pass(&ctx, &mut self.arena, text, &mut self.errors);
+        let mut text_ms = watch.lap();
         let mut layout = layout::pass(
             &mut self.arena,
             &self.layout_styles,
@@ -117,7 +115,61 @@ impl Runtime {
             layout.runs += again.runs;
             layout.visited += again.visited;
         }
-        let layout_ms = watch.lap();
+        let mut layout_ms = watch.lap();
+        // Virtual lists show what their scroll containers show once these are laid out: rows that entered
+        // the window are bound, styled, shaped and laid out in the same frame.
+        if layout.runs > 0 {
+            self.binder.windows_changed();
+        }
+        for _ in 0..3 {
+            let bctx = bind::Ctx {
+                pkg: &self.pkg,
+                index: &self.style_index,
+                store: m,
+                env: &self.style_env,
+            };
+            if !self
+                .binder
+                .update_windows(&mut self.arena, &bctx, &mut self.errors)
+            {
+                break;
+            }
+            let b = self.binder.pass(&mut self.arena, &bctx, &mut self.errors);
+            binds.evaluated += b.evaluated;
+            binds.visited += b.visited;
+            bind_ms += watch.lap();
+            let s = style::select::pass(
+                &mut self.arena,
+                self.pkg.styles(),
+                &self.style_index,
+                &self.style_env,
+                style::select::EnvChange::default(),
+            );
+            styles.restyled += s.restyled;
+            styles.visited += s.visited;
+            style_ms += watch.lap();
+            let ctx = text::TextCtx {
+                pkg: &self.pkg,
+                fonts: &self.fonts,
+                index: &self.style_index,
+            };
+            let t = text::pass(&ctx, &mut self.arena, text, &mut self.errors);
+            texts.shaped += t.shaped;
+            texts.visited += t.visited;
+            text_ms += watch.lap();
+            let l = layout::pass(
+                &mut self.arena,
+                &self.layout_styles,
+                text,
+                self.style_env.scale.viewport_css,
+            );
+            layout.runs += l.runs;
+            layout.visited += l.visited;
+            layout_ms += watch.lap();
+            if l.runs > 0 {
+                self.binder.windows_changed();
+            }
+        }
         if scene.scale() != self.style_env.scale.k {
             scene.set_scale(self.style_env.scale.k);
         }

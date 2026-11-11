@@ -11,7 +11,8 @@
 //! with taffy over the arena ([`layout`]), draw lists per chunk set on the `ui2-draw` scene, the frame
 //! ([`frame`]: [`Runtime::apply_delta`], [`Runtime::frame`], [`Runtime::drain_output`]), input
 //! ([`input`]: [`Runtime::handle_input`], hit-testing, interaction states, pointer capture, the wheel, modal
-//! screens) and rectangle dumps ([`debug`]). List bindings build on these.
+//! screens), list and condition bindings (`for` by key with sorting, filtering and virtual lists; `if` bodies
+//! that sleep while false) and rectangle dumps ([`debug`]).
 //!
 //! Zero-work rule: every pass is driven by the arena's dirty queues; a frame without changes checks a few
 //! counters and touches no node.
