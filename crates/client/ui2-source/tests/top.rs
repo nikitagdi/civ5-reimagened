@@ -195,9 +195,12 @@ struct Rig {
 
 impl Rig {
     fn new() -> Rig {
+        // The tests look at roots, not at frames: one frame builds everything.
+        let mut src = UiSource::new(Schema::v1());
+        src.set_read_budget(u32::MAX);
         Rig {
             store: ModelStore::new(Schema::v1()),
-            src: UiSource::new(Schema::v1()),
+            src,
             session: FakeSession::default(),
             ui: Ui::default(),
         }

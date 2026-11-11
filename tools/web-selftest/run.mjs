@@ -1,9 +1,12 @@
 // Runs the replica self-test (case `replica_load`) in headless Chromium:
-//   node tools/web-selftest/run.mjs <bundle-dir> --fixture <dir> [--scenarios tiny,small] [--timeout-ms N]
+//   node tools/web-selftest/run.mjs <bundle-dir> --fixture <dir> [--scenarios tiny,small] [--timeout-ms N] [--mode ui2-getters [--seat N] [--out file]]
 // Serves the bundle (built with the feature `replica-selftest`) and the fixture dir (`/fixture/<scenario>/...`) on a
 // local port, opens replica-selftest.html?fixture=fixture/<scenario> per scenario, prints the console and the
 // report, and exits 0 only if every scenario says PASS. Needs Playwright (tools/playtest after `npm ci` there, else
 // global) and a Chromium (PLAYWRIGHT_BROWSERS_PATH, or CHROMIUM_PATH for an explicit executable).
+// `--mode ui2-getters`: instead of the replica script, joins the first snapshot of each scenario and times every
+// `GameRead` method of the real core in wasm (median and maximum of one call, in microseconds); prints the table
+// and writes it as JSON to `--out <file>` when given. Exits 0 when every scenario produced a table.
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
@@ -18,9 +21,12 @@ function take(flag, dflt) {
 const timeoutMs = Number(take("--timeout-ms", "300000"));
 const fixture = path.resolve(take("--fixture", "target/fixture"));
 const withMt = args.includes("--mt") ? (args.splice(args.indexOf("--mt"), 1), true) : false; // also run every scenario in pkg-mt
+const mode = take("--mode", "replica");
+const outFile = take("--out", "");
+const seatArg = take("--seat", ""); // `--mode ui2-getters`: join as this seat instead of the script's
 const scenarios = take("--scenarios", "tiny").split(",").filter(Boolean);
 const root = path.resolve(args[0] ?? "target/web-selftest");
-if (!existsSync(path.join(root, "replica-selftest.html"))) {
+if (!existsSync(path.join(root, mode === "ui2-getters" ? "pkg/app_web.js" : "replica-selftest.html"))) {
   console.error(`no replica-selftest.html in ${root}; run cargo xtask web-selftest`);
   process.exit(2);
 }
@@ -59,8 +65,47 @@ function resolveFile(urlPath) {
   if (!file.startsWith(base)) return null;
   return existsSync(file) && statSync(file).isFile() ? file : null;
 }
+// The page of `--mode ui2-getters` (served from here, there is no file for it in the bundle).
+const GETTERS_PAGE = [
+  '<!doctype html><meta charset="utf-8"><title>ui2 getters</title><pre id="out">ui2_getters: running</pre>',
+  '<script type="module">',
+  'const params = new URLSearchParams(location.search);',
+  'const pkg = params.get("mt") === "1" ? "./pkg-mt" : "./pkg";',
+  'const dir = params.get("fixture");',
+  'let line;',
+  'try {',
+  '  const m = await import(pkg + "/app_web.js");',
+  '  const wasm = await (await fetch(pkg + "/app_web_bg.wasm")).arrayBuffer();',
+  '  await m.default({ module_or_path: wasm });',
+  '  const names = await (await fetch(dir + "/list.json")).json();',
+  '  const files = {};',
+  '  await Promise.all(names.map(async (n) => {',
+  '    const r = await fetch(dir + "/" + n);',
+  '    if (!r.ok) throw new Error(n + ": HTTP " + r.status);',
+  '    files[n] = new Uint8Array(await r.arrayBuffer());',
+  '  }));',
+  '  const report = JSON.parse(m.replica_getters(dir.split("/").pop(), files, Number(params.get("seat") ?? -1)));',
+  '  report.isolated = self.crossOriginIsolated === true;',
+  '  line = "ui2_getters: " + (report.ok ? "PASS " : "FAIL ") + JSON.stringify(report);',
+  '} catch (e) {',
+  '  line = "ui2_getters: FAIL " + JSON.stringify({ ok: false, error: String(e && e.stack ? e.stack : e) });',
+  '}',
+  'document.getElementById("out").textContent = line;',
+  'console.log(line);',
+  '</script>',
+].join("\n");
 const server = createServer((req, res) => {
-  const file = resolveFile(new URL(req.url, "http://x").pathname);
+  const reqPath = new URL(req.url, "http://x").pathname;
+  if (reqPath === "/ui2-getters.html") {
+    res.writeHead(200, {
+      "content-type": "text/html",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-embedder-policy": "require-corp",
+    });
+    res.end(GETTERS_PAGE);
+    return;
+  }
+  const file = resolveFile(reqPath);
   if (!file) {
     res.writeHead(404).end();
     return;
@@ -82,6 +127,9 @@ const browser = await chromium.launch({
   args: ["--no-sandbox"],
 });
 let failed = false;
+const getters = mode === "ui2-getters";
+const prefix = getters ? "ui2_getters:" : "replica_load:";
+const gettersOut = [];
 const runs = scenarios.flatMap((s) => (withMt ? [[s, false], [s, true]] : [[s, false]]));
 for (const [scenario, mt] of runs) {
   const label = mt ? `${scenario}/mt` : scenario;
@@ -89,21 +137,44 @@ for (const [scenario, mt] of runs) {
   const lines = [];
   page.on("console", (m) => {
     lines.push(m.text());
-    if (!m.text().startsWith("replica_load:")) console.log(`[console.${m.type()}] ${m.text()}`);
+    if (!m.text().startsWith(prefix)) console.log(`[console.${m.type()}] ${m.text()}`);
   });
   page.on("pageerror", (e) => console.log(`[pageerror] ${e.message}`));
   const start = Date.now();
-  await page.goto(`http://127.0.0.1:${port}/replica-selftest.html?fixture=fixture/${scenario}${mt ? "&mt=1" : ""}`);
+  await page.goto(`http://127.0.0.1:${port}/${getters ? "ui2-getters" : "replica-selftest"}.html?fixture=fixture/${scenario}${mt ? "&mt=1" : ""}${seatArg ? `&seat=${seatArg}` : ""}`);
   let report = null;
   while (Date.now() - start < timeoutMs) {
-    report = lines.find((l) => l.startsWith("replica_load:"));
+    report = lines.find((l) => l.startsWith(prefix));
     if (report) break;
     await new Promise((r) => setTimeout(r, 100));
   }
   await page.close();
   if (!report) {
-    console.error(`FAIL ${label}: no replica_load report within the timeout`);
+    console.error(`FAIL ${label}: no ${prefix} report within the timeout`);
     failed = true;
+    continue;
+  }
+  if (getters) {
+    const body = JSON.parse(report.slice(report.indexOf("{")));
+    if (!body.ok) {
+      console.log(`[${label}] ${report}`);
+      failed = true;
+      continue;
+    }
+    gettersOut.push({ label, ...body });
+    console.log(`[${label}] game: ${JSON.stringify(body.counts)}, timer isolated: ${body.isolated}`);
+    console.log("method".padEnd(30), "calls  first_us median_us    max_us   mean_us  items");
+    for (const r of body.rows) {
+      console.log(
+        r.method.padEnd(30),
+        String(r.calls).padStart(5),
+        r.first_us.toFixed(1).padStart(9),
+        r.median_us.toFixed(1).padStart(9),
+        r.max_us.toFixed(1).padStart(9),
+        r.mean_us.toFixed(1).padStart(9),
+        String(r.items).padStart(6),
+      );
+    }
     continue;
   }
   console.log(`[${label}] ${report}`);
@@ -111,5 +182,9 @@ for (const [scenario, mt] of runs) {
 }
 await browser.close();
 server.close();
+if (getters && outFile) {
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(outFile, JSON.stringify(gettersOut, null, 1));
+}
 console.log(failed ? "RESULT: FAIL" : "RESULT: PASS");
 process.exit(failed ? 1 : 0);

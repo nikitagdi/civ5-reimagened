@@ -105,7 +105,13 @@ pub struct SourceStats {
 
 /// Reads of the core one frame may start roots with. A root is never split: the root that crosses the budget is
 /// finished, the roots after it wait for the next frame, and the first root of a frame is always built.
-pub const DEFAULT_READ_BUDGET: u32 = 64;
+///
+/// Calibrated on the biggest game we have (measured natively and in wasm, `tests/getters_cost.rs`): the cheap reads
+/// (top bar, players, units, cities, notifications, the selected unit's actions) cost 5 to 400 us each, so the
+/// roots of a steady-state frame take about 8 reads and well under 1.5 ms. The reads of the production window are
+/// the expensive ones (`city_builds` costs 2 ms or more per city), so that root must not share a frame with the
+/// others: a budget of 8 pushes it, and anything after the eighth read, to the next frame.
+pub const DEFAULT_READ_BUDGET: u32 = 8;
 
 /// The replica adapter: rebuilds the game-data roots on change triggers.
 pub struct UiSource {

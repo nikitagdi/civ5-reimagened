@@ -102,7 +102,7 @@ struct Rig {
 
 impl Rig {
     fn new() -> Rig {
-        let ui = V2Ui::new(
+        let mut ui = V2Ui::new(
             package(),
             V2Init {
                 env: Env {
@@ -113,6 +113,8 @@ impl Rig {
             },
         )
         .expect("the skin loads");
+        // These tests look at one frame's model: every root is built in the first frame.
+        ui.set_read_budget(u32::MAX);
         let mut net = FakeNet::default();
         net.session.connected = true;
         net.session.me = Some(0);
