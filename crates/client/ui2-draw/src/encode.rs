@@ -11,7 +11,8 @@ use glam::Affine2;
 use crate::glyphs::{GlyphStore, Lookup, glyph_key};
 use crate::instance::{
     FILL_CONIC, FILL_LINEAR, FILL_REPEAT, FILL_SOLID, FLAG_BORDER, FLAG_ELLIPSE, FLAG_EXT,
-    FLAG_FILL, FLAG_TILE, KIND_BOX, KIND_IMAGE, KIND_MASK, KIND_SHADOW, Ui2Instance, f16_bits,
+    FLAG_FILL, FLAG_INSET, FLAG_TILE, KIND_BOX, KIND_IMAGE, KIND_MASK, KIND_SHADOW, Ui2Instance,
+    f16_bits,
 };
 use crate::pages::{ExtSlots, Pages};
 use crate::tables::{Clip, Tables};
@@ -62,10 +63,19 @@ pub fn encode_chunk(chunk: &ChunkItems, ctx: &mut EncodeCtx<'_>) -> Encoded {
         match item {
             Item::Box(b) => encode_box(b, 1.0, anchor, ctx, &mut out),
             Item::EllipticBox(e) => encode_box(&e.base, e.ratio, anchor, ctx, &mut out),
-            Item::Shadow(s) => encode_shadow(s, anchor, ctx, &mut out),
+            Item::Shadow(s) => encode_shadow(s, false, anchor, ctx, &mut out),
+            Item::InsetShadow(s) => encode_shadow(s, true, anchor, ctx, &mut out),
             Item::Mask(m) => encode_mask(m, anchor, ctx, &mut out),
             Item::Image(m) => encode_image(m, anchor, ctx, &mut out),
-            Item::Glyphs(g) => encode_glyphs(g, anchor, ctx, &mut out),
+            Item::Glyphs(g) => encode_glyphs(g, 0.0, anchor, ctx, &mut out),
+            Item::GlyphShadow(s) => {
+                let sigma = if s.blur.is_finite() && s.blur > 0.0 {
+                    s.blur * 0.5
+                } else {
+                    0.0
+                };
+                encode_glyphs(&s.glyphs, sigma, anchor, ctx, &mut out)
+            }
         }
     }
     out
@@ -212,18 +222,28 @@ fn encode_gradient(g: &Gradient, i: &mut Ui2Instance) {
     }
 }
 
-/// An outer shadow: one instance whose quad the shader grows to the blurred shadow.
-fn encode_shadow(s: &ShadowItem, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Encoded) {
+/// A shadow: one instance. The shader grows the quad of an outer shadow to the blurred shadow; an inset
+/// shadow's quad is its rectangle (the padding box).
+fn encode_shadow(
+    s: &ShadowItem,
+    inset: bool,
+    anchor: u16,
+    ctx: &mut EncodeCtx<'_>,
+    out: &mut Encoded,
+) {
     let finite = s.offset.is_finite() && s.blur.is_finite() && s.spread.is_finite();
     if !s.rect.is_drawable() || s.color.is_transparent() || !finite {
         return;
     }
-    // A spread that swallows the box leaves nothing.
-    if s.rect.w + 2.0 * s.spread <= 0.0 || s.rect.h + 2.0 * s.spread <= 0.0 {
+    // A spread that swallows the box leaves nothing of an outer shadow (an inset one then fills its box).
+    if !inset && (s.rect.w + 2.0 * s.spread <= 0.0 || s.rect.h + 2.0 * s.spread <= 0.0) {
         return;
     }
     let (xform, clip) = place(&s.transform, &s.clip, ctx, out);
     let mut i = Ui2Instance::of_kind(KIND_SHADOW);
+    if inset {
+        i.flags |= FLAG_INSET;
+    }
     i.rect = [s.rect.x, s.rect.y, s.rect.w, s.rect.h];
     let r = s.radii.fitted(s.rect.w, s.rect.h);
     i.set_radii([r.tl, r.tr, r.br, r.bl]);
@@ -366,7 +386,9 @@ fn nine_pieces(rect: Rect, uv: [f32; 4], n: &NineSlice) -> Vec<(Rect, [f32; 4])>
     out
 }
 
-fn encode_glyphs(g: &Glyphs, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Encoded) {
+/// A run of glyphs: one mask instance per glyph. `sigma` (local px, 0: sharp) blurs every glyph's coverage
+/// (see [`crate::GlyphShadow`]); the shader grows the quad by the blur's reach.
+fn encode_glyphs(g: &Glyphs, sigma: f32, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Encoded) {
     if g.glyphs.is_empty() {
         return;
     }
@@ -377,6 +399,7 @@ fn encode_glyphs(g: &Glyphs, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Enc
         let (key, px, baseline) = glyph_key(g, pos);
         let mut i = Ui2Instance::of_kind(KIND_MASK);
         i.colors[0] = g.color.0;
+        i.extra[0] = f16_bits(sigma);
         i.xform = xform;
         i.clip = clip;
         i.anchor = anchor;
@@ -805,6 +828,47 @@ mod tests {
         }
     }
 
+    #[test]
+    fn inset_shadow_bytes() {
+        let mut rig = Rig::new();
+        let s = ShadowItem {
+            rect: Rect::new(11.0, 21.0, 98.0, 48.0),
+            radii: Radii::uniform(5.0),
+            offset: Vec2::new(2.0, -3.0),
+            blur: 6.0,
+            spread: 80.0,
+            color: Color::rgba(0, 0, 0, 128),
+            ..ShadowItem::default()
+        };
+        let i = rig.encode(&one(Item::InsetShadow(s.clone()))).instances[0];
+        assert_eq!(i.kind, KIND_SHADOW);
+        assert_eq!(i.flags, FLAG_INSET);
+        assert_eq!(i.rect, [11.0, 21.0, 98.0, 48.0]);
+        assert_eq!(i.radii, [5.0; 4].map(f16_bits));
+        assert_eq!(i.uv, [2.0, -3.0, 0.0, 0.0]);
+        // A spread larger than the box closes the hole: the whole box is shadow, still drawn.
+        assert_eq!(i.extra, [3.0, 80.0, 0.0, 0.0].map(f16_bits));
+        // The outer form of the same item carries no flag.
+        let o = rig.encode(&one(Item::Shadow(s.clone()))).instances[0];
+        assert_eq!(o.flags, 0);
+        for none in [
+            ShadowItem {
+                color: Color::TRANSPARENT,
+                ..s.clone()
+            },
+            ShadowItem {
+                rect: Rect::new(0.0, 0.0, 0.0, 10.0),
+                ..s
+            },
+        ] {
+            assert!(
+                rig.encode(&one(Item::InsetShadow(none)))
+                    .instances
+                    .is_empty()
+            );
+        }
+    }
+
     fn ext_image(rect: Rect, tex: u64, nine: Option<NineSlice>) -> Item {
         Item::Image(ImageItem {
             rect,
@@ -917,5 +981,36 @@ mod tests {
         }
         // Glyph 5 at pen x 10.0 and 24.0 share a key (subpixel 0); glyph 6 at 17.3 is subpixel 1.
         assert_eq!(rig.glyphs.pending_len(), 2);
+    }
+
+    #[test]
+    fn glyph_shadows_carry_their_sigma_and_keep_one_instance_per_glyph() {
+        let run = Glyphs {
+            face: ui2_text::FaceId(0),
+            size_px: 14.0,
+            wght: 400.0,
+            color: Color::rgba(0, 0, 0, 160),
+            glyphs: vec![(5, 10.0, 20.0).into(), (6, 17.0, 20.0).into()],
+            transform: None,
+            clip: None,
+        };
+        for (blur, sigma) in [(6.0, 3.0), (0.0, 0.0), (-2.0, 0.0), (f32::NAN, 0.0)] {
+            let mut rig = Rig::new();
+            let e = rig.encode(&one(Item::GlyphShadow(crate::GlyphShadow {
+                glyphs: run.clone(),
+                blur,
+            })));
+            assert_eq!(e.instances.len(), 2, "blur {blur}");
+            assert_eq!(e.unresolved, 2);
+            for i in &e.instances {
+                assert_eq!(i.kind, KIND_MASK);
+                assert_eq!(i.extra, [f16_bits(sigma), 0, 0, 0], "blur {blur}");
+                assert_eq!(i.colors[0], [0, 0, 0, 160]);
+            }
+        }
+        // A sharp run leaves `extra` zero.
+        let mut rig = Rig::new();
+        let e = rig.encode(&one(Item::Glyphs(run)));
+        assert!(e.instances.iter().all(|i| i.extra == [0; 4]));
     }
 }

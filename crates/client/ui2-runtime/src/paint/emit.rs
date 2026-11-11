@@ -7,12 +7,12 @@
 //!
 //! An element paints, in this order: its outer box shadows (the last listed first), its background color
 //! (inside the `background-clip` box of the bottom layer), its `background-image` layers (the bottom layer
-//! first: a box per gradient layer, a picture per tile of a `url()` layer), its inset shadows without blur
-//! (bands inside the padding box), its border or, when it has one, its `border-image` (a 9-slice of a
-//! package picture over the border box), and its outline (a border-only box grown by the outline offset and
-//! width). Text paints each piece's text shadows without blur (the glyphs again, moved, in the shadow's
-//! color) right under the piece. The draw layer has no blurred inner shadow and no blurred glyphs: blurred
-//! inset box shadows and blurred text shadows are reported and not drawn.
+//! first: a box per gradient layer, a picture per tile of a `url()` layer), its inset shadows (the last
+//! listed first; without blur as bands inside the padding box, with blur as inset shadow items of the padding
+//! box), its border or, when it has one, its `border-image` (a 9-slice of a package picture over the border
+//! box), and its outline (a border-only box grown by the outline offset and width). Text paints each piece's
+//! text shadows (the last listed first: the glyphs again, moved, in the shadow's color, blurred when the
+//! shadow has a blur) right under the piece.
 //!
 //! Pictures of `url()` layers and `border-image-source` are found by their path in the skin among the
 //! package's pictures (`IMGS`), as sprites of its `Rgba8` pages.
@@ -26,8 +26,8 @@ use std::sync::Arc;
 use glam::{Affine2, Vec2};
 use ui2_draw::{
     Border, BoxItem, ChunkBuilder, ChunkItems, Clip, Color, EllipticBox, ExtTexture, Fill,
-    GlyphPos, Glyphs, Gradient, GradientStop, ImageItem, ImageRef, Item, LayerId, MaskItem,
-    NineSlice, Polygon, Radii, Rect, ShadowItem, css_corner_angle, css_linear_line,
+    GlyphPos, GlyphShadow, Glyphs, Gradient, GradientStop, ImageItem, ImageRef, Item, LayerId,
+    MaskItem, NineSlice, Polygon, Radii, Rect, ShadowItem, css_corner_angle, css_linear_line,
 };
 use ui2_package::style::{
     BgBox, BgImage, BgRepeat, BgSize, BorderStyle, ColorV, GradDir, ImageRepeat, ImageWidth, Len,
@@ -454,8 +454,11 @@ impl<'a> Emitter<'a> {
 
     fn push(&mut self, item: Item) {
         self.stats.items += 1;
-        if let Item::Glyphs(g) = &item {
-            self.stats.glyphs += g.glyphs.len() as u32;
+        match &item {
+            Item::Glyphs(g) | Item::GlyphShadow(GlyphShadow { glyphs: g, .. }) => {
+                self.stats.glyphs += g.glyphs.len() as u32;
+            }
+            _ => {}
         }
         self.out.push(item);
     }
@@ -971,18 +974,7 @@ impl<'a> Emitter<'a> {
                 self.unsupported(id, "a border with sides of different colors");
             }
         }
-        let insets: Vec<_> = r
-            .box_shadow
-            .iter()
-            .filter(|sh| sh.inset && sh.blur == 0.0)
-            .copied()
-            .collect();
-        if r.box_shadow.iter().any(|sh| sh.inset && sh.blur != 0.0) {
-            self.unsupported(id, "a blurred inset box shadow");
-        }
-        if r.text_shadow.iter().any(|sh| sh.blur != 0.0) {
-            self.unsupported(id, "a blurred text shadow");
-        }
+        let insets: Vec<_> = r.box_shadow.iter().filter(|sh| sh.inset).copied().collect();
         let clip = Self::clip_of(s);
         let transform = Self::xf_of(xf);
 
@@ -1063,10 +1055,26 @@ impl<'a> Emitter<'a> {
                     }
                 }
             }
-            // Inset shadows without blur are bands inside the padding box, between the background and the
-            // border.
+            // Inset shadows lie inside the padding box, between the background and the border, the first listed
+            // on top. Without blur they are bands (a border-only box); with blur, inset shadow items.
             let (pad, inner) = boxes.padding;
             for sh in insets.iter().rev() {
+                if sh.blur != 0.0 {
+                    let color = self.color(sh.color, alpha);
+                    if !color.is_transparent() && pad.is_drawable() {
+                        self.push(Item::InsetShadow(ShadowItem {
+                            rect: pad,
+                            radii: inner,
+                            offset: Vec2::new(sh.x * k, sh.y * k),
+                            blur: sh.blur * k,
+                            spread: sh.spread * k,
+                            color,
+                            transform,
+                            clip,
+                        }));
+                    }
+                    continue;
+                }
                 let band = |v: f32| {
                     if v > 0.0 {
                         (v * k).round().max(1.0)
@@ -1487,20 +1495,18 @@ impl<'a> Emitter<'a> {
                     continue;
                 }
                 let style = run.shaped.style;
-                let glyphs_of = |color: Color, glyphs: Vec<GlyphPos>| {
-                    Item::Glyphs(Glyphs {
-                        face: style.face,
-                        size_px: style.size * k,
-                        wght: style.wght,
-                        color,
-                        glyphs,
-                        transform: Self::xf_of(s.xf),
-                        clip: Self::clip_of(s),
-                    })
+                let glyphs_of = |color: Color, glyphs: Vec<GlyphPos>| Glyphs {
+                    face: style.face,
+                    size_px: style.size * k,
+                    wght: style.wght,
+                    color,
+                    glyphs,
+                    transform: Self::xf_of(s.xf),
+                    clip: Self::clip_of(s),
                 };
-                // Text shadows without blur: the glyphs again, moved and in the shadow's color, under the
-                // text (the first listed on top). Blurred ones are reported with the element's box.
-                for sh in r.text_shadow.iter().rev().filter(|sh| sh.blur == 0.0) {
+                // Text shadows: the glyphs again, moved and in the shadow's color, blurred when the shadow
+                // has a blur, under the text (the first listed on top).
+                for sh in r.text_shadow.iter().rev() {
                     let color = self.color(sh.color, s.alpha);
                     if color.is_transparent() {
                         continue;
@@ -1514,9 +1520,17 @@ impl<'a> Emitter<'a> {
                             ..*g
                         })
                         .collect();
-                    items.push(glyphs_of(color, moved));
+                    let run = glyphs_of(color, moved);
+                    items.push(if sh.blur > 0.0 {
+                        Item::GlyphShadow(GlyphShadow {
+                            glyphs: run,
+                            blur: sh.blur * k,
+                        })
+                    } else {
+                        Item::Glyphs(run)
+                    });
                 }
-                items.push(glyphs_of(color, glyphs));
+                items.push(Item::Glyphs(glyphs_of(color, glyphs)));
             }
         }
         for item in items {
