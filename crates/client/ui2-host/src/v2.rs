@@ -178,6 +178,9 @@ pub struct V2Ui {
     clock: Option<HostClock>,
     load: LoadStats,
     frames: u64,
+    no_session: ui2_source::session::testing::FakeSession,
+    ui_state: ui2_model::r#gen::Ui,
+    dismissed: std::collections::BTreeSet<ui2_model::Key>,
 }
 
 impl V2Ui {
@@ -210,6 +213,9 @@ impl V2Ui {
             skin,
             clock: init.clock,
             load,
+            no_session: Default::default(),
+            ui_state: Default::default(),
+            dismissed: Default::default(),
             frames: 0,
         })
     }
@@ -242,9 +248,13 @@ impl V2Ui {
                 SourceFrame {
                     replica: f.replica,
                     steps: f.steps,
+                    // No session and no actions module in this slice: an offline session, default UI state.
+                    session: &self.no_session,
+                    dismissed: &self.dismissed,
                     now_ms: f.now_ms.max(0.0) as u64,
                 },
                 &mut w,
+                &self.ui_state,
             )
         };
         let source_ms = (now() - t_source) as f32;

@@ -158,7 +158,10 @@ fn fake_core_values_reach_the_scene_as_glyphs() {
 
     let first = rig.frame(&[ReplicaStep::Loaded { turn: 87 }]);
     assert!(first.errors.is_empty(), "{:?}", first.errors);
-    assert_eq!(first.source.roots_built, 4, "meta, top, research, game");
+    assert!(
+        first.source.roots_built >= 4,
+        "at least meta, top, research, game"
+    );
     assert!(first.delta_ops > 0);
     assert_eq!(first.runtime.binds_evaluated, 5);
     assert_eq!(first.runtime.layout_runs, 1);

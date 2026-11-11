@@ -4000,6 +4000,8 @@ dependencies = [
 name = "ui2-source"
 version = "0.1.0"
 dependencies = [
+ "client-core",
+ "protocol",
  "replica",
  "tracing",
  "ui2-model",

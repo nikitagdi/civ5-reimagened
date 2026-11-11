@@ -2,25 +2,25 @@
 
 use std::sync::Arc;
 
-use replica::{GameStatus, ReadError, State};
+use protocol::{TurnPhase, TurnState};
+use replica::{GameInfo, GameStatus, Player, ReadError, State};
 use ui2_model::r#gen::{EraRef, Game, Meta, Phase, Source, TurnMode};
 use ui2_model::{Key, Text};
 
 use crate::CountingRead;
-use crate::catalog::Catalog;
+use crate::build::{Cx, player_key};
 use crate::trigger::Seen;
 
-/// `meta` from the replica's signals; reads nothing. `seen` is `None` when there is no replica.
+/// `meta` from the replica's signals and the session's connection; reads nothing. `seen` is `None` when there is
+/// no replica.
 #[must_use]
-pub fn meta(schema: &Arc<str>, seen: Option<&Seen>) -> Meta {
+pub fn meta(schema: &Arc<str>, seen: Option<&Seen>, connected: bool) -> Meta {
     Meta {
         schema: schema.clone(),
         source: Source::Replica,
         live: seen.is_some_and(|s| s.state == State::Live),
         catching_up: seen.is_some_and(|s| s.catching_up),
-        // The connection state comes from the session, which this source does not read yet: until the session
-        // reader lands it stays at the schema's default.
-        connected: false,
+        connected,
     }
 }
 
@@ -35,67 +35,80 @@ pub fn year_text(year: i32) -> Text {
     }
 }
 
-/// `game` from `Q_GAME` of the seat and the era of `Q_TOP_BAR`.
-///
-/// Phase, turn mode and winner come from the core's game record here; the session's turn state (which the turn
-/// root will read) says the same for a live replica.
-pub(crate) fn game(read: &mut CountingRead<'_, '_>, catalog: &Catalog) -> Result<Game, ReadError> {
+/// The phase of the turn: the session's turn state when there is one (a network game), else the core's game
+/// record (a game without a server turn state).
+#[must_use]
+pub fn phase(turn: Option<&TurnState>, info: &GameInfo) -> Phase {
+    match turn.map(|t| t.phase) {
+        Some(TurnPhase::Starting) => Phase::Starting,
+        Some(TurnPhase::Ai { .. }) => Phase::Ai,
+        Some(TurnPhase::Humans) => Phase::Humans,
+        Some(TurnPhase::GameOver { .. }) => Phase::GameOver,
+        None if info.status == GameStatus::GameOver => Phase::GameOver,
+        None if info.status == GameStatus::AiRunning || info.phase == replica::Phase::Ai => {
+            Phase::Ai
+        }
+        None => Phase::Humans,
+    }
+}
+
+/// How the humans take their turns: the session's turn state, else the core's game record.
+#[must_use]
+pub fn mode(turn: Option<&TurnState>, info: &GameInfo) -> TurnMode {
+    match turn.map(|t| t.mode) {
+        Some(protocol::TurnMode::Hybrid) => TurnMode::Hybrid,
+        Some(protocol::TurnMode::Simultaneous) => TurnMode::Simultaneous,
+        None => match info.turn_mode {
+            Some(replica::TurnMode::Hybrid) => TurnMode::Hybrid,
+            Some(replica::TurnMode::Simultaneous) | None => TurnMode::Simultaneous,
+        },
+    }
+}
+
+/// The winning team once the game is over: the session's, else the core's.
+fn winner_team(turn: Option<&TurnState>, info: &GameInfo) -> Option<i8> {
+    match turn.map(|t| t.phase) {
+        Some(TurnPhase::GameOver { winner }) => winner,
+        Some(_) => None,
+        None => (info.status == GameStatus::GameOver && info.winner >= 0).then_some(info.winner),
+    }
+}
+
+/// `game` from `Q_GAME` of the seat, the era of `Q_TOP_BAR` and the session's turn state (phase, mode, winner).
+pub(crate) fn game(read: &mut CountingRead<'_, '_>, cx: &Cx<'_>) -> Result<Game, ReadError> {
     let info = read.game_info()?;
-    let (turn, year, status, core_phase, turn_mode, winner_team) = (
-        info.turn,
-        info.year,
-        info.status,
-        info.phase,
-        info.turn_mode,
-        info.winner,
-    );
     // A core without the top bar still has a turn and a year: the era then stays unnamed.
     let era = match read.top_bar() {
-        Ok(t) => {
-            let id = t.era;
-            EraRef {
-                id,
-                name: catalog.era(id).name,
-            }
-        }
+        Ok(t) => EraRef {
+            id: t.era,
+            name: cx.catalog.era(t.era).name,
+        },
         Err(_) => EraRef::default(),
     };
-    let over = status == GameStatus::GameOver;
-    let phase = if over {
-        Phase::GameOver
-    } else if status == GameStatus::AiRunning || core_phase == replica::Phase::Ai {
-        Phase::Ai
-    } else {
-        Phase::Humans
-    };
-    let mode = match turn_mode {
-        Some(replica::TurnMode::Hybrid) => TurnMode::Hybrid,
-        Some(replica::TurnMode::Simultaneous) | None => TurnMode::Simultaneous,
-    };
-    let winner = if over && winner_team >= 0 {
-        winner(read, winner_team)
-    } else {
-        None
+    let ts = cx.session.turn_state();
+    let winner = match winner_team(ts, &info) {
+        // One read of the players, only once the game is over.
+        Some(team) => read.players().ok().and_then(|p| first_of_team(&p, team)),
+        None => None,
     };
     Ok(Game {
-        turn,
-        year,
-        year_text: year_text(year),
+        turn: info.turn,
+        year: info.year,
+        year_text: year_text(info.year),
         era,
-        me: Key::from_i32(i32::from(read.seat())),
-        phase,
-        mode,
+        me: player_key(read.seat().cast_signed()),
+        phase: phase(ts, &info),
+        mode: mode(ts, &info),
         winner,
     })
 }
 
-/// The first player of the winning team (one read, only once the game is over).
-fn winner(read: &mut CountingRead<'_, '_>, team: i8) -> Option<Key> {
-    let players = read.players().ok()?;
+/// The first player of a team, the way the winner is shown.
+fn first_of_team(players: &[Player], team: i8) -> Option<Key> {
     players
         .iter()
         .find(|p| p.team == team && !p.flags.observer())
-        .map(|p| Key::from_i32(i32::from(p.id)))
+        .map(|p| player_key(p.id))
 }
 
 #[cfg(test)]
