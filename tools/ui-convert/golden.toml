@@ -1,0 +1,67 @@
+# Golden images of UI v2: the pixels of our own rendering against references recorded by our own rendering
+# (`cargo xtask playtest --scenario ui2-golden --record`, then looked at once next to the Chrome frame of the same
+# skin). Geometry is checked against Chrome elsewhere (`cargo xtask ui verify`); pixels never are, as small text is
+# rasterised differently there.
+#
+# The references are not in the repository (as for `tools/golden`): they live in `<cache>/ui2-golden/<skin>/`, where
+# `<cache>` is `CIV5_CACHE` or the `cache` folder next to the repository (`CIV5_UI2_GOLDEN_DIR` names another folder).
+# Headless Chrome draws them on SwiftShader (the CPU), so the frames do not depend on the machine's GPU.
+#
+# The metric is LDR-FLIP over the interface only: the pixels that differ from the solid background in either frame,
+# grown by `[compare] grow` pixels. Per metric (`mean`, `over02` = the share of those pixels with an error over 0.2):
+#   threshold = max(factor * noise, noise + margin, floor)
+# where noise is the larger of the case's `noise_<metric>` here and the noise measured by the last `--record` (it
+# records each case twice, in two fresh sessions, and compares the two).
+
+#
+# Calibration (SwiftShader, 2026-11-12, G1 and G3): two recordings in two fresh sessions differ by exactly 0 on both
+# backends, and WebGPU against WebGL2 differs by 0 too, so the floors decide. Faults put into G1 by hand give
+# (mean / over02): the frame moved by 1 px 0.0254 / 0.0506; the notification log button gone 0.0112 / 0.0230; one
+# digit of the turn number gone 0.0014 / 0.0018. `over02` catches all three; `mean` (as in tools/golden) none, so it
+# guards against large breakage only.
+
+[threshold.mean]
+factor = 1.5
+margin = 0.02
+# The floor of `flip_mean` in tools/golden/thresholds.toml.
+floor = 0.05
+
+[threshold.over02]
+factor = 1.5
+margin = 0.001
+# 0.1 % of the interface pixels (about 100 px at 1920x1200).
+floor = 0.001
+
+[compare]
+# Colour distance (largest channel difference) under which a pixel counts as the background.
+background_tolerance = 2
+# How far the interface mask grows around what differs from the background (antialiased edges, shadows).
+grow = 2
+
+# Defaults of every case.
+[defaults]
+skin = "engraved"
+# The solid background under the skin (`?ui2bg=`).
+background = "202020"
+# `game`: a live game (seed 7, turn 0, real-core server, `--attach`) with the world hidden under the solid
+# background. `sample`: the skin's sample model (`?ui2sample=<state>`, no game), once the client has that mode.
+source = "game"
+# Rendering backends; one reference per case and backend.
+backends = ["webgpu", "webgl2"]
+scale = 1.0
+
+# The cases. `id` is the number in the acceptance list of the screens; `name` names the files.
+# In the `game` source only the state `hud` exists (the game screen as it comes up, nothing opened).
+# A case may set `noise_mean` / `noise_over02` when its frames are known to vary; these measured 0, so none is set.
+
+[[case]]
+id = "G1"
+name = "hud-1920x1200"
+state = "hud"
+viewport = [1920, 1200]
+
+[[case]]
+id = "G3"
+name = "hud-1280x720"
+state = "hud"
+viewport = [1280, 720]

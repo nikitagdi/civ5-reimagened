@@ -1376,9 +1376,11 @@ fn cmd_playtest(root: &Path, args: &[String]) -> Result<()> {
             && a != "--release"
             && a != "--threads"
             && a != "--single"
+            // The `ui2-golden` scenario: write its references instead of comparing.
+            && a != "--record"
         {
             bail!(
-                "playtest: unknown argument {a:?} (allowed: --scenario <autoplay|saveload|smoke|fatal|simp|perf|terrain-scroll|perf-huge|perf-late|bench|quality|cold-start|golden|gallery|all>[,...], --scroll-s N, --gallery <report dir> (scenario gallery), --golden-dir <dir> --golden-out <dir> --golden-captures S1a,S1b --golden-backend webgpu|webgl2 (scenario golden), --release (optimised wasm bundle), --out <dir>, --perf-runs N, --perf-turns N, --perf-idle-s N, --late-url U --late-nick N --late-token F (scenario perf-late), --turns N, --seed N, --ai 1|2, --seeds 1,2,3, --ais 1,2, --save-turns N, --after-load-turns N, --smoke-turns N, --simp-turns N, --headed, --port N, --assets <dir>, --gfx webgl2, --preset low|medium|high, --simp-check <simp_check.py>, --verbose)"
+                "playtest: unknown argument {a:?} (allowed: --scenario <autoplay|saveload|smoke|fatal|simp|perf|terrain-scroll|perf-huge|perf-late|bench|quality|cold-start|golden|gallery|all>[,...], --scroll-s N, --gallery <report dir> (scenario gallery), --golden-dir <dir> --golden-out <dir> --golden-captures S1a,S1b --golden-backend webgpu|webgl2 (scenario golden), --record (scenario ui2-golden), --release (optimised wasm bundle), --out <dir>, --perf-runs N, --perf-turns N, --perf-idle-s N, --late-url U --late-nick N --late-token F (scenario perf-late), --turns N, --seed N, --ai 1|2, --seeds 1,2,3, --ais 1,2, --save-turns N, --after-load-turns N, --smoke-turns N, --simp-turns N, --headed, --port N, --assets <dir>, --gfx webgl2, --preset low|medium|high, --simp-check <simp_check.py>, --verbose)"
             );
         }
     }
