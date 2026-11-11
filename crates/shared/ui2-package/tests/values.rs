@@ -144,3 +144,113 @@ fn parsing_is_deterministic() {
     assert_eq!(a, b);
     assert_eq!(a.canon(), b.canon());
 }
+
+// ---------------------------------------------------------------------------------------------
+// Parsed values into records
+
+use ui2_package::StrId;
+use ui2_package::profile::apply::compose_transitions;
+use ui2_package::profile::values::Value;
+use ui2_package::style::{PropSel, StyleRecord};
+
+fn no_strings(_: &str) -> StrId {
+    StrId(0)
+}
+
+#[test]
+fn record_initials_match_the_profile_table() {
+    for &id in PropId::ALL {
+        let def = Profile::v1().def(id);
+        let mut record = StyleRecord::initial();
+        let value = parse_value(id, &def.initial).expect("initial parses");
+        match record.set_value(id, &value, &mut no_strings) {
+            Ok(()) => {}
+            Err(ui2_package::style::StyleError::Transition(_)) => continue,
+            Err(e) => panic!("{}: {e}", id.name()),
+        }
+        if id == PropId::FontFamily {
+            continue; // family ids belong to the builder's string table
+        }
+        assert_eq!(record, StyleRecord::initial(), "{}", id.name());
+    }
+}
+
+#[test]
+fn every_keyword_of_the_table_has_a_record_variant() {
+    for &id in PropId::ALL {
+        let def = Profile::v1().def(id);
+        if def.kind != ValueKind::Keyword {
+            continue;
+        }
+        let mut seen = Vec::new();
+        for keyword in &def.values {
+            let mut record = StyleRecord::initial();
+            record
+                .set_value(id, &Value::Keyword(keyword.clone()), &mut no_strings)
+                .unwrap_or_else(|e| panic!("{} {keyword}: {e}", id.name()));
+            seen.push(format!("{record:?}"));
+        }
+        seen.sort();
+        seen.dedup();
+        assert_eq!(
+            seen.len(),
+            def.values.len(),
+            "{}: two keywords share a variant",
+            id.name()
+        );
+    }
+}
+
+#[test]
+fn a_value_of_the_wrong_kind_does_not_fit() {
+    let mut record = StyleRecord::initial();
+    let color = parse_value(PropId::Color, "red").expect("color");
+    assert!(
+        record
+            .set_value(PropId::Width, &color, &mut no_strings)
+            .is_err()
+    );
+    let length = parse_value(PropId::Width, "4px").expect("length");
+    assert!(
+        record
+            .set_value(PropId::Color, &length, &mut no_strings)
+            .is_err()
+    );
+    let times = parse_value(PropId::TransitionDuration, "1s").expect("times");
+    assert!(matches!(
+        record.set_value(PropId::TransitionDuration, &times, &mut no_strings),
+        Err(ui2_package::style::StyleError::Transition(_))
+    ));
+}
+
+#[test]
+fn transitions_are_composed_like_css() {
+    let profile = Profile::v1();
+    let props = [
+        PropSel::Prop(PropId::Color),
+        PropSel::Prop(PropId::Opacity),
+        PropSel::Prop(PropId::BackgroundColor),
+    ];
+    let t = compose_transitions(
+        profile,
+        &props,
+        &[150.0, 300.0],
+        &[],
+        &[[0.0, 0.0, 1.0, 1.0]],
+    );
+    assert_eq!(t.len(), 3);
+    assert_eq!(
+        (t[0].dur_ms, t[1].dur_ms, t[2].dur_ms),
+        (150.0, 300.0, 150.0)
+    );
+    assert!(
+        t.iter()
+            .all(|x| x.delay_ms == 0.0 && x.ease == [0.0, 0.0, 1.0, 1.0])
+    );
+    // `all` is one list item that covers every animatable property.
+    let t = compose_transitions(profile, &[PropSel::All], &[200.0], &[50.0], &[]);
+    assert!(t.len() > 10);
+    assert!(t.iter().all(|x| x.dur_ms == 200.0 && x.delay_ms == 50.0));
+    assert!(t.iter().all(|x| profile.def(x.prop).anim));
+    assert!(compose_transitions(profile, &[], &[200.0], &[], &[]).is_empty());
+}

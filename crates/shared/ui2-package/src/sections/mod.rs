@@ -2,3 +2,6 @@
 
 pub mod manifest;
 pub mod strings;
+pub mod styles;
+pub mod templates;
+pub mod tokens;

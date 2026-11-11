@@ -11,8 +11,11 @@ mod error;
 pub mod ids;
 mod package;
 pub mod profile;
+#[cfg(feature = "write")]
+mod remap;
 pub mod sections;
 pub mod style;
+mod validate;
 #[cfg(feature = "write")]
 mod write;
 
@@ -24,5 +27,11 @@ pub use ids::{
 pub use package::Package;
 pub use profile::{PropId, Tag};
 pub use sections::manifest::{FaceFamily, FontRoles, Kind, Manifest, Tool};
+pub use sections::styles::{Bound, Cond, CondKind, MAX_CELLS, MAX_CONDS, StyleSet, Styles};
+pub use sections::templates::{
+    ImageSrc, Layer, Node, NodeKind, Template, Templates, TextSrc, node_flags,
+};
+pub use sections::tokens::{Theme, Tokens};
+pub use style::StyleRecord;
 #[cfg(feature = "write")]
 pub use write::PackageBuilder;

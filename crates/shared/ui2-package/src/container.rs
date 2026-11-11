@@ -42,6 +42,12 @@ impl SectionTag {
     pub const MANI: SectionTag = SectionTag(*b"MANI");
     /// The string table.
     pub const STRS: SectionTag = SectionTag(*b"STRS");
+    /// Node templates.
+    pub const TMPL: SectionTag = SectionTag(*b"TMPL");
+    /// Baked styles.
+    pub const STYL: SectionTag = SectionTag(*b"STYL");
+    /// Color tokens and themes.
+    pub const TOKN: SectionTag = SectionTag(*b"TOKN");
 }
 
 impl fmt::Display for SectionTag {
