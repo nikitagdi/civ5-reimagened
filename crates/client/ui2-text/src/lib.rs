@@ -10,7 +10,15 @@
 
 #![forbid(unsafe_code)]
 
+mod face;
+pub mod metrics;
+
+use std::collections::HashMap;
 use std::fmt;
+use std::sync::Arc;
+
+use face::Face;
+pub use metrics::LineMetrics;
 
 /// Identifier of a loaded font face, chosen by the caller (for example an index into the skin's font table).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -31,4 +39,41 @@ pub enum TextError {
     /// No face was loaded under this id.
     #[error("unknown font face {0}")]
     UnknownFace(FaceId),
+}
+
+/// The text engine: loaded faces plus the shaping cache. One instance serves layout and rasterization.
+pub struct TextEngine {
+    faces: HashMap<FaceId, Face>,
+}
+
+impl Default for TextEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TextEngine {
+    /// An engine with no faces.
+    pub fn new() -> Self {
+        Self {
+            faces: HashMap::new(),
+        }
+    }
+
+    /// Parses and registers a face under `id`, replacing any face already there. `bytes` is the (decompressed)
+    /// TrueType/OpenType file.
+    pub fn load_face(&mut self, id: FaceId, bytes: Arc<[u8]>) -> Result<(), TextError> {
+        let face = Face::parse(bytes)?;
+        self.faces.insert(id, face);
+        Ok(())
+    }
+
+    /// True if a face is loaded under `id`.
+    pub fn has_face(&self, id: FaceId) -> bool {
+        self.faces.contains_key(&id)
+    }
+
+    pub(crate) fn face(&self, id: FaceId) -> Result<&Face, TextError> {
+        self.faces.get(&id).ok_or(TextError::UnknownFace(id))
+    }
 }
