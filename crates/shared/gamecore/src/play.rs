@@ -1,5 +1,5 @@
 //! Typed results of the in-game queries: units, unit actions, paths, range targets, notifications,
-//! cities, city builds, top bar.
+//! cities, city builds, top bar, and the UI v2 reads (city queue, technologies, resources, policy branches).
 //!
 //! "No value" is `None` where the ABI uses -1 for an id, an order or a turn count.
 
@@ -166,15 +166,57 @@ pub struct Unit {
     pub name: String,
 }
 
-/// `Q_UNIT_ACTIONS` record: one unit command that applies to the unit.
+/// `Q_UNIT_ACTIONS` record: one unit command that applies to the unit, or (asked with
+/// [`Game::unit_actions_with_rows`](crate::Game::unit_actions_with_rows)) one of the extra rows ([`UnitRow`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnitAction {
-    /// `GC_CMD_UNIT_*`.
+    /// `GC_CMD_UNIT_*`, or `GC_UNIT_ROW_*` for an extra row.
     pub action: i16,
     /// Can be given now (the target is not checked).
     pub enabled: bool,
     /// Why not, when `enabled` is false and the core says.
     pub reason: Option<String>,
+    /// Gold the row costs now (the upgrade price); `None` = no cost, or a core without the field.
+    pub cost: Option<i32>,
+}
+
+impl UnitAction {
+    /// The extra row this record is, `None` for a unit command.
+    pub fn row(&self) -> Option<UnitRow> {
+        UnitRow::from_abi(self.action)
+    }
+}
+
+/// The extra rows of `Q_UNIT_ACTIONS` (`GC_UNIT_ROW_*`): what the unit could do besides the unit commands of the
+/// ABI. They are not commands; the core only says whether they apply and are possible now.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnitRow {
+    /// Put the unit on alert (`MISSION_ALERT`).
+    Alert,
+    /// Pillage the plot (`MISSION_PILLAGE`).
+    Pillage,
+    /// Upgrade the unit; the record's `cost` is the price.
+    Upgrade,
+}
+
+impl UnitRow {
+    pub(crate) fn from_abi(v: i16) -> Option<Self> {
+        match v {
+            ffi::GC_UNIT_ROW_ALERT => Some(UnitRow::Alert),
+            ffi::GC_UNIT_ROW_PILLAGE => Some(UnitRow::Pillage),
+            ffi::GC_UNIT_ROW_UPGRADE => Some(UnitRow::Upgrade),
+            _ => None,
+        }
+    }
+
+    /// The `GC_UNIT_ROW_*` number.
+    pub fn abi(self) -> i16 {
+        match self {
+            UnitRow::Alert => ffi::GC_UNIT_ROW_ALERT,
+            UnitRow::Pillage => ffi::GC_UNIT_ROW_PILLAGE,
+            UnitRow::Upgrade => ffi::GC_UNIT_ROW_UPGRADE,
+        }
+    }
 }
 
 /// Flags of a path-search node (`GC_REACH_F_*`): `Q_PATH`, `Q_REACHABLE`, `Q_REACHABLE_TREE`.
@@ -403,6 +445,9 @@ pub struct City {
     /// Founder (v2): the player the city was founded by (`CvCity::getOriginalOwner`); `None` =
     /// unknown or a core without the field.
     pub founder: Option<u8>,
+    /// Production carried over into the next item (`CvCity::getOverflowProduction`); own cities only,
+    /// `None` for the others and for a core without the field.
+    pub overflow: Option<i32>,
     pub name: String,
 }
 
@@ -491,6 +536,8 @@ pub struct TopBar {
     pub flags: TopBarFlags,
     pub golden_age_progress: i32,
     pub golden_age_threshold: i32,
+    /// The empire's tourism per turn; `None` for a core without the field.
+    pub tourism: Option<i32>,
 }
 
 /// `flags` of a `Q_CITY_BUILDS` record (`GC_BUILD_F_*`).
@@ -540,4 +587,103 @@ pub struct CityBuild {
     pub faith_cost: Option<i32>,
     /// Why it is disabled (the core's own text); `None` when enabled.
     pub reason: Option<String>,
+}
+
+/// `Q_CITY_QUEUE` record: one entry of a city's order queue, head first.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CityOrder {
+    /// Position in the queue, 0 = what the city builds now.
+    pub slot: i32,
+    /// `OrderType::Other(3)` is a specialist order of the core (never given through the ABI).
+    pub order: OrderType,
+    pub item: i16,
+    /// Turns to finish at the current production, as the city screen shows them for this slot;
+    /// `None` = never (no production) and for processes.
+    pub turns: Option<i16>,
+    /// Production the item costs, 0 for processes.
+    pub needed: i32,
+}
+
+/// `status` of a `Q_TECHS` record (`GC_TECH_*`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TechStatus {
+    /// The team has it.
+    Have,
+    /// Can be researched now.
+    CanResearch,
+    /// Prerequisites missing, or disabled.
+    Locked,
+    /// A value this reader does not know.
+    Other(u8),
+}
+
+impl TechStatus {
+    pub(crate) fn from_abi(v: u8) -> Self {
+        match v {
+            ffi::GC_TECH_HAVE => TechStatus::Have,
+            ffi::GC_TECH_CAN_RESEARCH => TechStatus::CanResearch,
+            ffi::GC_TECH_LOCKED => TechStatus::Locked,
+            _ => TechStatus::Other(v),
+        }
+    }
+}
+
+/// `Q_TECHS` record: one technology of the game data and its state for the player.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TechState {
+    /// `TechTypes`.
+    pub tech: i16,
+    pub status: TechStatus,
+    /// Position in the research queue: `Some(0)` = the current research, `None` = not queued.
+    pub queue: Option<u8>,
+    /// Turns to research at the current science; `None` = never (no science) or a technology the team has.
+    pub turns: Option<i16>,
+    pub progress: i32,
+    pub cost: i32,
+}
+
+/// `usage` of a `Q_PLAYER_RESOURCES` record (`GC_RESOURCE_USAGE_*`, `ResourceUsageTypes` of the core).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResourceUsage {
+    Bonus,
+    Strategic,
+    Luxury,
+    /// A value this reader does not know.
+    Other(u8),
+}
+
+impl ResourceUsage {
+    pub(crate) fn from_abi(v: u8) -> Self {
+        match v {
+            ffi::GC_RESOURCE_USAGE_BONUS => ResourceUsage::Bonus,
+            ffi::GC_RESOURCE_USAGE_STRATEGIC => ResourceUsage::Strategic,
+            ffi::GC_RESOURCE_USAGE_LUXURY => ResourceUsage::Luxury,
+            _ => ResourceUsage::Other(v),
+        }
+    }
+}
+
+/// `Q_PLAYER_RESOURCES` record: a resource the player has or uses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlayerResource {
+    /// `ResourceTypes`.
+    pub resource: i16,
+    pub usage: ResourceUsage,
+    /// `total - used`.
+    pub available: i32,
+    pub used: i32,
+    /// Imports, city-states and siphons included, exports taken off.
+    pub total: i32,
+}
+
+/// `Q_POLICY_BRANCHES` record: one policy branch and the player's progress in it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PolicyBranchState {
+    /// `PolicyBranchTypes`.
+    pub branch: i16,
+    pub unlocked: bool,
+    /// Policies of the branch the player has.
+    pub owned: u8,
+    /// Policies of the branch in the game data.
+    pub total: u8,
 }

@@ -638,6 +638,7 @@ mod tests {
             production_needed: 0,
             yields: [2, 2, 1, 1, 1, 0],
             founder: None,
+            overflow: None,
             name: "Rome".into(),
         };
         let v = city_view(&c);

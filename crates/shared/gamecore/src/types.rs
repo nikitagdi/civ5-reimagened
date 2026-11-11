@@ -619,6 +619,8 @@ pub enum CatalogTable {
     ArtTechs = ffi::GC_CATALOG_ART_TECHS,
     /// v2: the `GameSpeeds` rows (only id, type and name are set).
     GameSpeeds = ffi::GC_CATALOG_GAME_SPEEDS,
+    /// v5 (UI v2): the policy branches, ids as in `Q_POLICY_BRANCHES` (only id, type and name are set).
+    PolicyBranches = ffi::GC_CATALOG_POLICY_BRANCHES,
 }
 
 impl CatalogTable {

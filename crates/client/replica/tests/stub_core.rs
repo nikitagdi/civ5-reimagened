@@ -110,4 +110,16 @@ fn a_replica_joins_a_stub_game_and_applies_an_empty_batch() {
     );
     // Team-wide reads ask for the seat's team first; that fails the same way.
     assert_eq!(read.players(), Err(replica::ReadError::Unsupported));
+    // The UI v2 queries (23..27, the policy branch catalog, the extra unit action rows) as well.
+    use replica::ReadError::Unsupported;
+    assert_eq!(read.city_queue(1), Err(Unsupported));
+    assert_eq!(read.techs(), Err(Unsupported));
+    assert_eq!(read.player_resources(), Err(Unsupported));
+    assert_eq!(read.policy_branches(), Err(Unsupported));
+    assert_eq!(read.unit_promotions(1), Err(Unsupported));
+    assert_eq!(read.unit_actions(1), Err(Unsupported));
+    assert_eq!(
+        read.catalog(replica::CatalogTable::PolicyBranches),
+        Err(Unsupported)
+    );
 }

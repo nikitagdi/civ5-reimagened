@@ -5,8 +5,8 @@ use gamecore::{Applied, HostServices, ReplicaGame};
 
 use crate::game_side::{NetMessage, PathNode, TradePath, UiEvent, UiOp};
 use crate::read::{
-    CatalogEntry, CatalogTable, City, CityBuild, GameInfo, GameRead, Notification, Player,
-    ReadError, TopBar, Unit, UnitAction,
+    CatalogEntry, CatalogTable, City, CityBuild, CityOrder, GameInfo, GameRead, Notification,
+    Player, PlayerResource, PolicyBranchState, ReadError, TechState, TopBar, Unit, UnitAction,
 };
 
 /// What the state machine needs of the game.
@@ -270,7 +270,14 @@ impl GameRead for CoreEngine {
     }
 
     fn unit_actions(&mut self, unit: i32) -> Result<Vec<UnitAction>, ReadError> {
-        Ok(self.game.game().unit_actions(self.seat, unit)?)
+        match self.game.game().unit_actions_with_rows(self.seat, unit) {
+            // A core without the extra rows refuses the third argument: the unit commands alone (a missing unit
+            // fails the same way again).
+            Err(gamecore::GameError::Core(gamecore::GcError::InvalidArg(_))) => {
+                Ok(self.game.game().unit_actions(self.seat, unit)?)
+            }
+            other => Ok(other?),
+        }
     }
 
     fn cities(&mut self) -> Result<Vec<City>, ReadError> {
@@ -288,6 +295,26 @@ impl GameRead for CoreEngine {
 
     fn notifications(&mut self) -> Result<Vec<Notification>, ReadError> {
         Ok(self.game.game().notifications(self.seat)?)
+    }
+
+    fn city_queue(&mut self, city: i32) -> Result<Vec<CityOrder>, ReadError> {
+        Ok(self.game.game().city_queue(self.seat, city)?)
+    }
+
+    fn techs(&mut self) -> Result<Vec<TechState>, ReadError> {
+        Ok(self.game.game().techs(self.seat)?)
+    }
+
+    fn player_resources(&mut self) -> Result<Vec<PlayerResource>, ReadError> {
+        Ok(self.game.game().player_resources(self.seat)?)
+    }
+
+    fn policy_branches(&mut self) -> Result<Vec<PolicyBranchState>, ReadError> {
+        Ok(self.game.game().policy_branches(self.seat)?)
+    }
+
+    fn unit_promotions(&mut self, unit: i32) -> Result<Vec<i16>, ReadError> {
+        Ok(self.game.game().unit_promotions(self.seat, unit)?)
     }
 }
 

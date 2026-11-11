@@ -27,9 +27,10 @@ pub use machine::{
     State,
 };
 pub use read::{
-    Activity, BuildFlags, CatalogEntry, CatalogTable, City, CityBuild, CityFlags, GameInfo,
-    GameRead, GameStatus, GameType, Notification, OrderType, Phase, Player, PlayerFlags, ReadError,
-    TopBar, TopBarFlags, TurnMode, Unit, UnitAction, UnitFlags, UnsafeReason, testing,
+    Activity, BuildFlags, CatalogEntry, CatalogTable, City, CityBuild, CityFlags, CityOrder,
+    GameInfo, GameRead, GameStatus, GameType, Notification, OrderType, Phase, Player, PlayerFlags,
+    PlayerResource, PolicyBranchState, ReadError, ResourceUsage, TechState, TechStatus, TopBar,
+    TopBarFlags, TurnMode, Unit, UnitAction, UnitFlags, UnitRow, UnsafeReason, testing,
 };
 
 pub use client_core::{

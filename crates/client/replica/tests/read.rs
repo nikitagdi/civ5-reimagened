@@ -135,6 +135,97 @@ fn the_fake_records_every_call() {
 }
 
 #[test]
+fn the_fake_serves_the_ui2_queries_and_can_lack_them() {
+    use replica::{
+        CityOrder, OrderType, PlayerResource, PolicyBranchState, ResourceUsage, TechState,
+        TechStatus,
+    };
+    let mut f = FakeRead::new(1, 1);
+    f.queues.insert(
+        4,
+        vec![CityOrder {
+            slot: 0,
+            order: OrderType::Construct,
+            item: 40,
+            turns: Some(6),
+            needed: 312,
+        }],
+    );
+    f.techs.push(TechState {
+        tech: 7,
+        status: TechStatus::CanResearch,
+        queue: Some(1),
+        turns: Some(4),
+        progress: 0,
+        cost: 412,
+    });
+    f.resources.push(PlayerResource {
+        resource: 3,
+        usage: ResourceUsage::Strategic,
+        available: 2,
+        used: 4,
+        total: 6,
+    });
+    f.branches.push(PolicyBranchState {
+        branch: 0,
+        unlocked: true,
+        owned: 3,
+        total: 5,
+    });
+    f.promotions.insert(9, vec![2, 17]);
+
+    assert_eq!(f.city_queue(4).map(|q| q[0].item), Ok(40));
+    assert_eq!(f.city_queue(5), Ok(Vec::new()), "a city without entries");
+    assert_eq!(f.techs().map(|t| t[0].queue), Ok(Some(1)));
+    assert_eq!(f.player_resources().map(|r| r[0].total), Ok(6));
+    assert_eq!(f.policy_branches().map(|b| b[0].owned), Ok(3));
+    assert_eq!(f.unit_promotions(9), Ok(vec![2, 17]));
+    assert_eq!(
+        f.calls,
+        vec![
+            "city_queue",
+            "city_queue",
+            "techs",
+            "player_resources",
+            "policy_branches",
+            "unit_promotions"
+        ]
+    );
+
+    // A core without the UI v2 queries: those reads are unsupported, the others still answer.
+    f.ui2_error = Some(ReadError::Unsupported);
+    assert_eq!(f.techs(), Err(ReadError::Unsupported));
+    assert_eq!(f.unit_promotions(9), Err(ReadError::Unsupported));
+    assert_eq!(f.city_queue(4), Err(ReadError::Unsupported));
+    assert_eq!(f.player_resources(), Err(ReadError::Unsupported));
+    assert_eq!(f.policy_branches(), Err(ReadError::Unsupported));
+    assert_eq!(f.top_bar(), Ok(top_bar()));
+    assert_eq!(f.call_count(), 12, "a failed read is a call too");
+}
+
+#[test]
+fn a_core_older_than_the_query_is_unsupported() {
+    // What the core of before the UI v2 queries answers for kinds 23..27 and the policy branch catalog.
+    for m in [
+        "gc_query kind 24: unknown query kind",
+        "gc_query kind 13: Q_CATALOG: table out of range",
+    ] {
+        assert_eq!(
+            ReadError::from(GameError::Core(GcError::InvalidArg(m.into()))),
+            ReadError::Unsupported,
+            "{m}"
+        );
+    }
+    // A bad argument of a known query stays an error.
+    assert!(matches!(
+        ReadError::from(GameError::Core(GcError::InvalidArg(
+            "gc_query kind 23: Q_CITY_QUEUE: the player has no such city".into()
+        ))),
+        ReadError::Core(_)
+    ));
+}
+
+#[test]
 fn not_implemented_is_unsupported_and_the_rest_is_a_core_error() {
     assert_eq!(
         ReadError::from(GameError::Core(GcError::NotImplemented)),

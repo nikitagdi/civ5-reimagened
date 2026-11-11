@@ -221,6 +221,11 @@ typedef struct gc_command {
 #define GC_Q_COMBAT_PREVIEW 20   /* v2: args {player, attacker, x, y}; attacker >= 0 = a unit id, < 0 = -(city id) (as Q_RANGE_TARGETS) */
 #define GC_Q_PLOTS_DIRTY 21      /* v2: no args; plot indices changed since the last call (the call resets the set) */
 #define GC_Q_TRADE_PATHS 22      /* B4 fix-path: args {viewer_team}; the plots of the routes Q_TRADE_ROUTES lists */
+#define GC_Q_CITY_QUEUE 23       /* UI v2 (read only): args {player, city id}; the city's order queue (gcq_city_order) */
+#define GC_Q_TECHS 24            /* UI v2 (read only): args {player}; every technology and its state for the player (gcq_tech) */
+#define GC_Q_PLAYER_RESOURCES 25 /* UI v2 (read only): args {player}; the resources the player has or uses (gcq_resource) */
+#define GC_Q_POLICY_BRANCHES 26  /* UI v2 (read only): args {player}; every policy branch and the player's progress in it (gcq_policy_branch) */
+#define GC_Q_UNIT_PROMOTIONS 27  /* UI v2 (read only): args {player, unit id}; the promotions the unit has (gcq_promotion) */
 
 /* Every gc_query reply starts with this header (little endian), then count * record_size bytes, then
  * the string table (UTF-8, NUL-terminated strings, referenced by u32 offset; 0xFFFFFFFF = none).
@@ -439,13 +444,24 @@ typedef struct gcq_unit {
 
 /* Q_UNIT_ACTIONS: args = {player, unit id}. One record per unit command (GC_CMD_UNIT_* 1..12) that applies to the unit, in
  * command order; enabled says whether it can be given now (target-less check: UNIT_MOVE_TO / UNIT_RANGE_ATTACK only test the unit,
- * the target is checked by gc_apply_command). reason is the refusal text when enabled is 0, GCQ_NO_STRING otherwise. */
+ * the target is checked by gc_apply_command). reason is the refusal text when enabled is 0, GCQ_NO_STRING otherwise.
+ * UI v2 (append only): the record gets cost (gold the row costs now, -1 = none; -1 for every command row). args {player, unit id, rows}: rows is a
+ * set of GC_UNIT_ACTIONS_ROWS_* bits (0 = as with two arguments, an unknown bit is GC_ERR_INVALID_ARG); with GC_UNIT_ACTIONS_ROWS_EXTRA the command
+ * rows are followed by one record per GC_UNIT_ROW_* that applies to the unit, in GC_UNIT_ROW_* order. Those rows are not commands (no GC_CMD_*
+ * carries them); they only tell a UI what the unit could do. Without the third argument the reply has the command rows only (the hosts of v1
+ * and the test bots read it so). */
+#define GC_UNIT_ACTIONS_ROWS_EXTRA 0x0001u
+#define GC_UNIT_ROW_ALERT 101    /* MISSION_ALERT: applies to a unit that can defend; enabled = CvUnit::CanStartMission(MISSION_ALERT) */
+#define GC_UNIT_ROW_PILLAGE 102  /* MISSION_PILLAGE: applies to a unit type that can pillage; enabled = CvUnit::CanStartMission(MISSION_PILLAGE) here */
+#define GC_UNIT_ROW_UPGRADE 103  /* applies when CvUnit::CanUpgradeRightNow(true) (an upgrade exists and its technology is known); enabled =
+                                  * CanUpgradeRightNow(false) (own land, gold, resources, moves); cost = upgradePrice(GetUpgradeUnitType()) */
 typedef struct gcq_unit_action {
-    int16_t action;      /* GC_CMD_UNIT_* */
+    int16_t action;      /* GC_CMD_UNIT_*, or GC_UNIT_ROW_* (rows argument) */
     uint8_t enabled;
     uint8_t reserved;
     uint32_t reason;     /* string */
-} gcq_unit_action;       /* 8 bytes */
+    int32_t cost;        /* UI v2: gold, -1 = none */
+} gcq_unit_action;       /* 12 bytes (v1: 8) */
 
 /* Q_PATH: args = {player, unit id, x, y}. The gamecore's interface pathfinder (the one behind the mouse-over path line) from the
  * unit's plot to the target, first node = the unit's plot. turn = turns from now at which the unit stands there: 0 = this turn.
@@ -537,7 +553,8 @@ typedef struct gcq_city {
     uint32_t name;             /* string: localized city name */
     int8_t founder;            /* v2 (P13): CvCity::getOriginalOwner, -1 = unknown; set for own cities and cities seen now (GC_CITY_F_VISIBLE), -1 for a city last seen */
     uint8_t reserved3[3];
-} gcq_city;                    /* 56 bytes (v1: 52) */
+    int32_t overflow;          /* UI v2: CvCity::getOverflowProduction (production carried into the next item); own cities only, -1 for the others */
+} gcq_city;                    /* 60 bytes (v1: 52, P13: 56) */
 
 /* Q_CITY_ART (17, v2 package P13): args = {viewer_team}; viewer_team -1 = every city. One record per pair city - building for the buildings of the city that have art in the world
  * (Buildings.ArtDefineTag set: wonders, walls, the buildings with a model), ordered by owner, city id, building id. Own cities and cities seen now only (the cities Q_CITIES lists
@@ -600,7 +617,8 @@ typedef struct gcq_top_bar {
     uint16_t flags;             /* GC_TOPBAR_F_* */
     int32_t golden_age_progress;
     int32_t golden_age_threshold;
-} gcq_top_bar;                  /* 60 bytes */
+    int32_t tourism;            /* UI v2: CvPlayerCulture::GetTourism, the empire's tourism per turn */
+} gcq_top_bar;                  /* 64 bytes (v1: 60) */
 
 /* Q_CITY_BUILDS: args = {player, city id}; v2: the own city of any living major civ (v1: the human's). One record per thing the city could build (the production
  * popup's list: units, buildings and wonders, projects, processes), in that order, by item id. enabled = can be started
@@ -701,6 +719,11 @@ typedef struct gcq_catalog_timer {
  * GC_CATALOG_TABLE_COUNT_V4 = 25 is the count to loop to. */
 #define GC_CATALOG_CIV_INFO 24
 #define GC_CATALOG_TABLE_COUNT_V4 25
+/* v5 (UI v2): 25 POLICY_BRANCHES, one gcq_catalog per policy branch the core knows (id = PolicyBranchTypes, the number Q_POLICY_BRANCHES uses);
+ * only id, type and name are set (no icon columns in the game data). GC_CATALOG_TABLE_COUNT_V5 = 26 is the count to loop to; a table from 26 on is
+ * GC_ERR_INVALID_ARG. */
+#define GC_CATALOG_POLICY_BRANCHES 25
+#define GC_CATALOG_TABLE_COUNT_V5 26
 typedef struct gcq_catalog_ext {
     int32_t n[4];
     uint32_t s[4];             /* strings */
@@ -804,6 +827,75 @@ typedef struct gcq_plot_dirty {
     uint32_t index;
 } gcq_plot_dirty;         /* 4 bytes */
 
+/* ---- UI v2: read-only queries 23..27 (append only, GC_ABI_VERSION stays 2) ----------------------------------------
+ * They only read the game: no setter, no cache of the game is filled or refreshed by them (a getter that would store something runs inside the
+ * same no-store scope as Q_TOP_BAR, or is not used). The player of 23..26 must be a living major civ that is not the server seat (as Q_TOP_BAR and
+ * Q_CITY_BUILDS), the player of 27 any player that has the unit (as Q_UNIT_ACTIONS); GC_ERR_INVALID_ARG otherwise. A seated human is asked as that
+ * human (QueryIsForPlayer). */
+
+/* Q_CITY_QUEUE (23): args = {player, city id}; a city of that player (GC_ERR_INVALID_ARG when it has none). One record per entry of the order queue,
+ * head first (slot 0 = what the city builds now, Q_CITIES' production_*). order = GC_ORDER_* (3 = a specialist order of the core, never given by
+ * this ABI); turns = turns to finish at the current production as the city screen shows them for that slot (CvCity::getProductionTurnsLeft(item, slot)),
+ * -1 = never (no production) and for processes; needed = production the item costs (CvCity::getProductionNeeded(item)), 0 for processes. */
+typedef struct gcq_city_order {
+    int32_t slot;
+    int8_t order;         /* GC_ORDER_* */
+    uint8_t reserved0;
+    int16_t item;
+    int16_t turns;
+    uint16_t reserved1;
+    int32_t needed;
+} gcq_city_order;         /* 16 bytes */
+
+/* Q_TECHS (24): args = {player}. One record per technology of the game data, by id. status: GC_TECH_HAVE (the team has it), GC_TECH_CAN_RESEARCH
+ * (CvPlayerTechs::CanResearch), GC_TECH_LOCKED (prerequisites missing or disabled). queue = position in the research queue, 0 = the current research,
+ * -1 = not queued. turns = CvPlayerTechs::GetResearchTurnsLeft(tech, true) at the current science, -1 = never (no science) and for a technology the team
+ * has. progress / cost = CvPlayerTechs::GetResearchProgress / GetResearchCost (the top bar's values for the current research). */
+#define GC_TECH_HAVE 0
+#define GC_TECH_CAN_RESEARCH 1
+#define GC_TECH_LOCKED 2
+typedef struct gcq_tech {
+    int16_t tech;         /* TechTypes */
+    uint8_t status;       /* GC_TECH_* */
+    int8_t queue;
+    int16_t turns;
+    uint16_t reserved;
+    int32_t progress;
+    int32_t cost;
+} gcq_tech;               /* 16 bytes */
+
+/* Q_PLAYER_RESOURCES (25): args = {player}. One record per resource the player has or uses (total > 0 or used > 0), by id. usage = the resource's
+ * class (ResourceUsageTypes: GC_RESOURCE_USAGE_*). available = CvPlayer::getNumResourceAvailable(r, true), used = getNumResourceUsed(r),
+ * total = getNumResourceTotal(r, true) (imports, city-states and siphons included, exports taken off). */
+#define GC_RESOURCE_USAGE_BONUS 0
+#define GC_RESOURCE_USAGE_STRATEGIC 1
+#define GC_RESOURCE_USAGE_LUXURY 2
+typedef struct gcq_resource {
+    int16_t resource;     /* ResourceTypes */
+    uint8_t usage;        /* GC_RESOURCE_USAGE_* */
+    uint8_t reserved;
+    int32_t available;
+    int32_t used;
+    int32_t total;
+} gcq_resource;           /* 16 bytes */
+
+/* Q_POLICY_BRANCHES (26): args = {player}. One record per policy branch of the game data, by id. unlocked = CvPlayerPolicies::IsPolicyBranchUnlocked,
+ * owned = GetNumPoliciesOwnedInBranch, total = the policies of the game data whose branch it is (the same count owned is taken from). */
+typedef struct gcq_policy_branch {
+    int16_t branch;       /* PolicyBranchTypes */
+    uint8_t unlocked;
+    uint8_t owned;
+    uint8_t total;
+    uint8_t reserved[3];
+} gcq_policy_branch;      /* 8 bytes */
+
+/* Q_UNIT_PROMOTIONS (27): args = {player, unit id}; a unit of that player (GC_ERR_INVALID_ARG when it has none). One record per promotion the unit has
+ * (CvUnit::isHasPromotion), by id. Whether a promotion can be picked now is GC_UNIT_F_CAN_PROMOTE of Q_UNITS (CvUnit::isPromotionReady). */
+typedef struct gcq_promotion {
+    int16_t promotion;    /* PromotionTypes */
+    uint16_t reserved;
+} gcq_promotion;          /* 4 bytes */
+
 /* ---- Lua bridge (host functions callable from game Lua; not built yet) ---- */
 typedef int32_t (*gc_lua_fn)(void* user, struct lua_State* L);
 
@@ -856,7 +948,8 @@ int32_t gc_pump(gc_instance* inst, uint32_t max_slices, gc_pump_result* out, gc_
 int32_t gc_apply_command(gc_instance* inst, const gc_command* cmd, gc_error* err);
 
 /* Fills out with a GCQ1 reply for query kind GC_Q_*. Implemented: GC_Q_GAME, GC_Q_PLOTS, GC_Q_UNITS, GC_Q_PLAYERS,
- * GC_Q_UNIT_ACTIONS, GC_Q_PATH, GC_Q_REACHABLE, GC_Q_CATALOG, GC_Q_CITIES, GC_Q_TOP_BAR, GC_Q_CITY_BUILDS, GC_Q_RANGE_TARGETS, GC_Q_NOTIFICATIONS, GC_Q_TURN, GC_Q_DIPLO. A unit (or a city) that
+ * GC_Q_UNIT_ACTIONS, GC_Q_PATH, GC_Q_REACHABLE, GC_Q_CATALOG, GC_Q_CITIES, GC_Q_TOP_BAR, GC_Q_CITY_BUILDS, GC_Q_RANGE_TARGETS, GC_Q_NOTIFICATIONS, GC_Q_TURN, GC_Q_DIPLO
+ * and the later kinds up to GC_Q_UNIT_PROMOTIONS. A unit (or a city) that
  * does not exist for the player is GC_ERR_INVALID_ARG. A wrong argc, an out-of-range argument
  * (viewer_team outside -1..MAX_TEAMS-1, table outside 0..GC_CATALOG_TABLE_COUNT-1) or an unknown kind is
  * GC_ERR_INVALID_ARG. out is untouched on error. */
