@@ -172,6 +172,9 @@ impl UiActions {
             "unit.select" | "unit.select_next" | "unit.deselect" | "unit.action" | "unit.move"
             | "unit.range_attack" => route::unit::run(&mut ctx, intent),
             "map.click" => route::map::click(&mut ctx, intent),
+            "turn.primary" | "turn.end" | "turn.cancel" | "screen.open" => {
+                route::turn::run(&mut ctx, intent);
+            }
             "camera.to_plot" | "camera.to_city" | "camera.to_unit" => {
                 route::camera::run(&mut ctx, intent);
             }
