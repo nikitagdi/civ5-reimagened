@@ -174,7 +174,14 @@ fn the_fixture_builds_and_mounts_in_engraved() {
     assert_eq!((m.id.as_str(), m.version.as_str()), ("uifixture", "0.2.0"));
     assert_eq!(m.api, (1, 0));
     assert!(frag.fonts().is_empty());
-    assert_eq!(frag.scripts().count(), 1);
+    // The script, then the model fragment under its reserved name.
+    let scripts: Vec<&str> = frag.scripts().map(|(p, _)| p).collect();
+    assert_eq!(scripts, ["ui/fixture.js", fragment::MODEL_FILE]);
+    let packed_model = frag
+        .scripts()
+        .find(|(p, _)| *p == fragment::MODEL_FILE)
+        .map(|(_, b)| String::from_utf8(b.to_vec()).expect("text"))
+        .expect("the model is in the package");
     // Template 0 holds the panel, named by its id.
     let doc = &frag.templates()[0];
     assert_eq!(
@@ -221,6 +228,7 @@ fn the_fixture_builds_and_mounts_in_engraved() {
     .expect("runtime");
     let mut store = ModelStore::new(Schema::v1());
     let model = std::fs::read_to_string(fixture().join("ui/model.toml")).expect("model.toml");
+    assert_eq!(packed_model, model.replace("\r\n", "\n"));
     store
         .mount(
             Namespace::Mod(Arc::from("uifixture")),

@@ -15,9 +15,15 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use ui2_model::schema::{Scalar, Schema, Type};
-use ui2_model::wire::{ModIdx, ModIntent, Origin, WireIntent};
+use ui2_model::wire::{ModIdx, ModIntent, Origin, ScriptCtxId, WireIntent};
 use ui2_model::{Fragment, Key, ModelStore, Namespace, Owner, Text, Value};
 
+use platform::ScriptHost;
+use ui2_package::Package;
+use ui2_runtime::{MountMode, Runtime};
+use ui2_script::ScriptOutput;
+
+use crate::scripts::Scripts;
 use crate::v2::V2Ui;
 
 /// A value a mod's Rust half writes (the host's copy of the mod API's `UiValue`).
@@ -250,6 +256,15 @@ pub(crate) struct Mods {
     intents_out: Vec<ModIntent>,
     /// `(mod, field)` whose refused write was logged.
     warned: BTreeSet<(Arc<str>, String)>,
+    /// The mods' UI as last mounted, in load order, with why a mod shows a placeholder (mounted again in a skin
+    /// built anew).
+    uis: Vec<(ModUi, Option<String>)>,
+    /// The skin package the panels are mounted in.
+    mounted_in: Option<Arc<Package>>,
+    /// The workers of the mods' scripts, before the first mod with scripts starts.
+    script_host: Option<Box<dyn ScriptHost>>,
+    /// The mods' script contexts (a supervisor of their own: a mod's script never stops the skin's).
+    pub(crate) scripts: Option<Scripts>,
 }
 
 /// The most writes kept between two frames, over all mods; later ones are dropped (the application keeps its
@@ -381,6 +396,415 @@ impl V2Ui {
     }
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// The panels
+
+/// The reserved path in a fragment's script files under which the converter stores the mod's model fragment
+/// (`[ui] model`): no script file can have this name. The host mounts it at `mods.<id>`; it is never run.
+pub const MODEL_FILE: &str = "ui2:model.toml";
+
+/// The extension point every skin has: the panels whose point a skin lacks go there.
+pub const MODS_POINT: &str = "mods";
+
+/// The index of the mods' fragments in the web build, relative to the page.
+pub const MODS_INDEX_PATH: &str = "ui2/mods-ui.json";
+
+/// One panel of a mod (`[[ui.panels]]`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModPanel {
+    pub id: String,
+    pub point: String,
+    /// `mode = "replace"`: in place of the point's element (hidden while the panel is there).
+    pub replace: bool,
+    /// `fallback = "mods"`: in the `mods` point when the skin lacks `point`; `false` (`none`): no panel then.
+    pub fallback: bool,
+}
+
+/// A mod's UI for UI v2: its fragment package, the UI API it asks for, its panels in order.
+#[derive(Debug, Clone)]
+pub struct ModUi {
+    pub id: Arc<str>,
+    pub pkg: Arc<Package>,
+    /// `[ui] api` as written (`^1`): what the placeholder of a mod this client cannot run says it needs.
+    pub api: String,
+    pub panels: Vec<ModPanel>,
+}
+
+impl ModUi {
+    /// The mod's model fragment (`[ui] model`), when the package carries one.
+    pub fn model(&self) -> Option<&str> {
+        self.pkg
+            .scripts()
+            .find(|(p, _)| *p == MODEL_FILE)
+            .and_then(|(_, b)| std::str::from_utf8(b).ok())
+    }
+
+    /// The mod's script files, in order (the model is not one).
+    pub fn script_files(&self) -> Vec<(String, Arc<str>)> {
+        self.pkg
+            .scripts()
+            .filter(|(p, _)| *p != MODEL_FILE)
+            .filter_map(|(p, b)| Some((p.to_string(), Arc::from(std::str::from_utf8(b).ok()?))))
+            .collect()
+    }
+}
+
+/// One panel of the index.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct IndexPanel {
+    pub id: String,
+    pub point: String,
+    pub mode: String,
+    pub fallback: String,
+}
+
+/// One entry of `ui2/mods-ui.json`: a mod's fragment package in the build.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct ModIndexEntry {
+    pub id: String,
+    pub version: String,
+    /// Relative to `ui2/`.
+    pub file: String,
+    /// blake3 of the package, hex.
+    pub hash: String,
+    pub api: String,
+    pub panels: Vec<IndexPanel>,
+}
+
+/// Reads `ui2/mods-ui.json`.
+///
+/// # Errors
+/// The text is not the index.
+pub fn parse_mods_index(text: &str) -> Result<Vec<ModIndexEntry>, String> {
+    serde_json::from_str(text).map_err(|e| format!("{MODS_INDEX_PATH}: {e}"))
+}
+
+impl ModIndexEntry {
+    /// The package's path relative to the page.
+    pub fn path(&self) -> String {
+        format!("ui2/{}", self.file)
+    }
+
+    /// The downloaded package as the mod's UI: readable, the hash of the index, a fragment of this mod.
+    ///
+    /// # Errors
+    /// Why the package cannot be used.
+    pub fn open(&self, bytes: Arc<[u8]>) -> Result<ModUi, String> {
+        let pkg = Package::read(bytes).map_err(|e| format!("{}: {e}", self.path()))?;
+        let hash = crate::hash_hex(&pkg.hash());
+        if !hash.eq_ignore_ascii_case(&self.hash) {
+            return Err(format!(
+                "{}: the package's hash {hash} is not the index's {}",
+                self.path(),
+                self.hash
+            ));
+        }
+        if !matches!(pkg.manifest().kind, ui2_package::Kind::Fragment { .. })
+            || pkg.manifest().id != self.id
+        {
+            return Err(format!(
+                "{}: not the fragment of mod {}",
+                self.path(),
+                self.id
+            ));
+        }
+        Ok(ModUi {
+            id: Arc::from(self.id.as_str()),
+            pkg: Arc::new(pkg),
+            api: self.api.clone(),
+            panels: self
+                .panels
+                .iter()
+                .map(|p| ModPanel {
+                    id: p.id.clone(),
+                    point: p.point.clone(),
+                    replace: p.mode == "replace",
+                    fallback: p.fallback != "none",
+                })
+                .collect(),
+        })
+    }
+}
+
+/// What mounting a mod's UI did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModMount {
+    pub id: Arc<str>,
+    /// `(panel, point)` of each panel mounted, in order.
+    pub panels: Vec<(String, String)>,
+    /// Why the mod shows one placeholder in `mods` instead of its panels.
+    pub refused: Option<String>,
+    /// The panels left out, and why.
+    pub skipped: Vec<String>,
+}
+
+/// The order of a mod's panel among the mod panels of a point: by load order, then by `[[ui.panels]]`.
+fn order(mod_pos: usize, panel: usize) -> u32 {
+    (mod_pos as u32)
+        .saturating_mul(32)
+        .saturating_add(panel as u32)
+}
+
+/// Mounts the panels of the mods in the skin's runtime, in load order.
+fn mount_panels(
+    runtime: &mut Runtime,
+    skin: &Package,
+    uis: &[(ModUi, Option<String>)],
+) -> Vec<ModMount> {
+    let mut out = Vec::new();
+    for (pos, (ui, refused)) in uis.iter().enumerate() {
+        let mut m = ModMount {
+            id: Arc::clone(&ui.id),
+            panels: Vec::new(),
+            refused: refused.clone(),
+            skipped: Vec::new(),
+        };
+        if let Some(why) = refused {
+            // One line in `mods`: a fragment of one panel is mounted under the reason as its name (the placeholder
+            // shows the name), else its first panel.
+            let tries = [
+                why.as_str(),
+                ui.panels.first().map_or("", |p| p.id.as_str()),
+            ];
+            let mounted = tries.iter().find_map(|name| {
+                runtime
+                    .mount_fragment(
+                        Arc::clone(&ui.pkg),
+                        name,
+                        MODS_POINT,
+                        MountMode::Append,
+                        order(pos, 0),
+                    )
+                    .ok()
+            });
+            match mounted {
+                Some(id) => runtime.set_panel_failed(id, why),
+                None => {
+                    tracing::warn!(target: "ui2_host", "mod {}: no placeholder either: {why}", ui.id)
+                }
+            }
+            out.push(m);
+            continue;
+        }
+        for (i, p) in ui.panels.iter().enumerate() {
+            let has = skin.slots().any(|(n, _)| n == p.point);
+            let (slot, mode) = if has {
+                let mode = if p.replace {
+                    MountMode::Replace
+                } else {
+                    MountMode::Append
+                };
+                (p.point.as_str(), mode)
+            } else if p.fallback {
+                (MODS_POINT, MountMode::Append)
+            } else {
+                m.skipped.push(format!(
+                    "{}: the skin has no point {} (fallback none)",
+                    p.id, p.point
+                ));
+                continue;
+            };
+            match runtime.mount_fragment(Arc::clone(&ui.pkg), &p.id, slot, mode, order(pos, i)) {
+                Ok(_) => m.panels.push((p.id.clone(), slot.to_string())),
+                Err(e) => {
+                    let ui2_runtime::LoadError::Fatal(why) = e;
+                    tracing::warn!(target: "ui2_host", "mod {}: panel {} is not mounted: {why}", ui.id, p.id);
+                    m.skipped.push(format!("{}: {why}", p.id));
+                }
+            }
+        }
+        out.push(m);
+    }
+    out
+}
+
+/// Whether a fragment can run in this client: versions, model paths and intents, as for a skin; `Err` is the
+/// line its placeholder shows.
+fn check_mod(ui: &ModUi) -> Result<(), String> {
+    let mani = ui.pkg.manifest();
+    if !matches!(mani.kind, ui2_package::Kind::Fragment { .. }) {
+        return Err(format!("{}: not a mod fragment", ui.id));
+    }
+    if mani.api.0 != crate::SCRIPT_API.major || mani.api.1 > crate::SCRIPT_API.minor {
+        return Err(format!("{}: needs interface API {}", ui.id, ui.api));
+    }
+    crate::registry::check_package(&ui.pkg).map_err(|e| format!("{}: {e}", ui.id))
+}
+
+impl V2Ui {
+    /// The workers the mods' scripts run in (the skin's run in workers of their own): without one, a mod's
+    /// panels work on their markup alone.
+    pub fn set_mod_script_host(&mut self, host: Box<dyn ScriptHost>) {
+        self.mods.script_host = Some(host);
+    }
+
+    /// Brings up the UI of the game's mods, in load order: for each, its model at `mods.<id>`, its scripts in a
+    /// context of its own (`mod:<id>`), and its panels in the skin's extension points. A panel whose point the
+    /// skin lacks goes to `mods` (or nowhere with `fallback = none`); a mod this client cannot run (another UI
+    /// API, a model or scripts that do not load) shows one placeholder line in `mods`. The panels mounted before
+    /// go first; the models and the state stay.
+    pub fn mount_mods(&mut self, uis: Vec<ModUi>) -> Vec<ModMount> {
+        self.unmount_mod_panels();
+        let mut prepared = Vec::with_capacity(uis.len());
+        for ui in uis {
+            let refused = self.prepare_mod(&ui).err();
+            if let Some(why) = &refused {
+                tracing::warn!(target: "ui2_host", "mod UI not shown: {why}");
+            }
+            prepared.push((ui, refused));
+        }
+        let out = mount_panels(&mut self.skin.runtime, &self.skin.pkg, &prepared);
+        self.mods.uis = prepared;
+        self.mods.mounted_in = Some(Arc::clone(&self.skin.pkg));
+        out
+    }
+
+    /// The mod panels go (a replaced element of the skin comes back).
+    fn unmount_mod_panels(&mut self) {
+        let runtime = &mut self.skin.runtime;
+        for p in runtime.panels() {
+            if p.owner.is_some() {
+                runtime.unmount(p.id);
+            }
+        }
+    }
+
+    /// The model and the scripts of one mod; `Err` is the line of its placeholder.
+    fn prepare_mod(&mut self, ui: &ModUi) -> Result<(), String> {
+        check_mod(ui)?;
+        let id = ui.id.as_ref();
+        if let Some(model) = ui.model() {
+            self.mount_mod_model(id, model)?;
+        }
+        let files = ui.script_files();
+        if files.is_empty() {
+            return Ok(());
+        }
+        if self.mods.scripts.is_none() {
+            let Some(host) = self.mods.script_host.take() else {
+                tracing::info!(target: "ui2_host", "mod {id}: its scripts do not run here; its panels work on markup");
+                return Ok(());
+            };
+            let skin = self.skin.pkg.manifest().id.clone();
+            self.mods.scripts = Some(Scripts::for_mods(host, &self.skin.runtime, &skin));
+        }
+        let mut reads: Vec<String> = ui.pkg.script_reads().map(str::to_string).collect();
+        if self.store.is_mounted(&Namespace::Mod(Arc::clone(&ui.id))) {
+            reads.push(format!("mods.{id}"));
+        }
+        let bundle = ui2_script::ScriptBundle {
+            files,
+            reads,
+            state_ns: ui2_script::StateNs::Mod(Arc::clone(&ui.id)),
+            settings_ns: ui2_script::SettingsNs::Mod(Arc::clone(&ui.id)),
+            intent_prefix: Some(format!("mods.{id}.")),
+        };
+        let settings = self
+            .actions
+            .settings_snapshot(&ui2_actions::SettingsNs::Mod(Arc::clone(&ui.id)));
+        let Some(s) = self.mods.scripts.as_mut() else {
+            return Ok(());
+        };
+        let init =
+            ui2_script::ScriptInit::from_store(&self.store, &bundle, settings, s.env().clone())
+                .map_err(|e| format!("{id}: its scripts cannot start ({e})"))?;
+        match s
+            .sup
+            .start(ScriptCtxId::Mod(Arc::clone(&ui.id)), bundle, init)
+        {
+            Ok(()) => Ok(()),
+            Err(ui2_script::ScriptError::Host(e)) => {
+                tracing::info!(target: "ui2_host", "mod {id}: its scripts do not run here ({e}); markup only");
+                Ok(())
+            }
+            Err(e) => Err(format!("{id}: its scripts cannot start ({e})")),
+        }
+    }
+
+    /// The skin was built anew (its runtime has none of the mods' panels): they are mounted in it again. Called
+    /// at the start of every frame; nothing to do while the skin is the one they are mounted in.
+    pub(crate) fn keep_mod_panels(&mut self) {
+        let same = self
+            .mods
+            .mounted_in
+            .as_ref()
+            .is_none_or(|p| Arc::ptr_eq(p, &self.skin.pkg));
+        if same {
+            return;
+        }
+        mount_panels(&mut self.skin.runtime, &self.skin.pkg, &self.mods.uis);
+        self.mods.mounted_in = Some(Arc::clone(&self.skin.pkg));
+    }
+}
+
+impl Mods {
+    /// What the mods' script contexts answered since the last frame joins the skin's (`js`): their intents with
+    /// the origin of their mod; a context that failed while loading is switched off like one that hung.
+    pub(crate) fn drain_scripts(&mut self, now_ms: f64, js: &mut Option<ScriptOutput>) {
+        let Some(s) = self.scripts.as_mut() else {
+            return;
+        };
+        if s.sup.is_empty() {
+            return;
+        }
+        let mut out = s.sup.drain(now_ms);
+        if let Some((ctx, why)) = s.sup.take_fatal() {
+            tracing::warn!(target: "ui2_host", "{}: {why}", ui2_script::ctx_name(&ctx));
+            s.sup.stop(&ctx);
+            out.failed.push(ctx);
+        }
+        for (ctx, i) in &mut out.intents {
+            if let ScriptCtxId::Mod(id) = ctx
+                && let Some(idx) = self.idx_of(id)
+            {
+                i.origin = Origin::Mod(idx);
+            }
+        }
+        match js {
+            None => *js = Some(out),
+            Some(j) => {
+                j.state_ops.append(&mut out.state_ops);
+                j.intents.append(&mut out.intents);
+                j.island_cmds.append(&mut out.island_cmds);
+                j.settings.append(&mut out.settings);
+                j.failed.append(&mut out.failed);
+                j.log.append(&mut out.log);
+            }
+        }
+    }
+
+    /// The mods' script contexts get the frame: the delta they watch, their markup events, a new environment.
+    pub(crate) fn post_scripts(
+        &mut self,
+        now_ms: f64,
+        runtime: &Runtime,
+        delta: Option<&ui2_model::FrameDelta>,
+        events: &[ui2_model::wire::ScriptEvent],
+        store: &ModelStore,
+    ) {
+        let Some(s) = self.scripts.as_mut() else {
+            return;
+        };
+        if s.sup.is_empty() {
+            return;
+        }
+        let env = s.env_change(runtime);
+        s.sup.post(
+            now_ms,
+            &ui2_script::FrameInput {
+                delta,
+                events,
+                env: env.as_ref(),
+                store: Some(store),
+            },
+        );
+    }
+
+    /// Whether any mod script context runs.
+    pub(crate) fn has_scripts(&self) -> bool {
+        self.scripts.as_ref().is_some_and(|s| !s.sup.is_empty())
+    }
+}
 /// The root id of a mounted namespace (tests).
 #[cfg(test)]
 pub(crate) fn root_of(store: &ModelStore, ns: &Namespace) -> Option<ui2_model::RootId> {

@@ -19,8 +19,9 @@
 //! tokens are token references by name, so the runtime paints them with the active skin's palette; the
 //! families `ui-sans` and `ui-display` become the skin's faces. There are no fonts and no text tables: a mod
 //! panel writes its text in the markup or binds it. The mod's scripts (`[ui] scripts`) and `[ui] reads` go
-//! into `SCRP`. Expressions read the shared model, the mod's own fields `mods.<id>.*` (`[ui] model`), and
-//! send the intents of the catalogue and `mods.<id>.*`.
+//! into `SCRP`, and so does the model fragment (`[ui] model`) under [`MODEL_FILE`] (the client mounts the
+//! mod's fields from it). Expressions read the shared model, the mod's own fields `mods.<id>.*`, and send the
+//! intents of the catalogue and `mods.<id>.*`.
 //!
 //! **The rules of a fragment** (on top of the profile): one root element per panel page (E7-008); no
 //! layers, screens or extension points; classes start with `m-<id>-` (E7-009); `--ui-*` tokens are read, not
@@ -75,6 +76,11 @@ pub const REFERENCE_TOKENS: &[(&str, &str)] = &[
     ("--ui-y-happy", "#b9c662"),
     ("--ui-y-tour", "#cc86b4"),
 ];
+
+/// The name the mod's model fragment (`[ui] model`) is stored under among the fragment's script files: no script
+/// file can have it (a `:` is not in a relative path), and the client mounts it at `mods.<id>` instead of running it
+/// (`ui2_host::mods::MODEL_FILE`).
+pub const MODEL_FILE: &str = "ui2:model.toml";
 
 /// The font roles a mod panel uses.
 pub const FONT_ROLES: &[&str] = &["ui-sans", "ui-display"];
@@ -766,8 +772,26 @@ pub fn build(dir: &Path, out: &Path) -> FragmentOut {
     };
     let id = src.skin.skin.id.clone();
     let mut run = check_source(src, Input::Chrome, &Opts::default());
-    let (scr, e) = crate::build::scripts(dir, &run);
+    let (mut scr, e) = crate::build::scripts(dir, &run);
     run.errors.extend(e);
+    // The model fragment travels with the package: the client mounts its fields from it.
+    if let Some(model) = run
+        .source
+        .as_ref()
+        .and_then(|s| s.skin.fragment.as_ref())
+        .and_then(|f| f.model.clone())
+    {
+        match std::fs::read_to_string(dir.join(&model)) {
+            Ok(text) => scr.push((
+                MODEL_FILE.to_string(),
+                text.replace("\r\n", "\n").into_bytes(),
+            )),
+            Err(e) => run.errors.push(fragment_error(
+                Place::file(&model),
+                format!("cannot read the model fragment: {e}"),
+            )),
+        }
+    }
     let pictures = if run.errors.is_empty() {
         match crate::build::pictures_of(&run, None) {
             Ok(p) => p,

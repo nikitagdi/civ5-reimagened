@@ -48,7 +48,7 @@ fn skin_bundle(pkg: &Package) -> Result<Option<ScriptBundle>, LoadFailure> {
 }
 
 /// What the scripts see of the window and the skin.
-fn script_env(runtime: &Runtime, skin: &str) -> ScriptEnv {
+pub(crate) fn script_env(runtime: &Runtime, skin: &str) -> ScriptEnv {
     let env = runtime.env();
     ScriptEnv {
         lang: SCRIPT_LANG.to_string(),
@@ -105,6 +105,19 @@ impl Scripts {
             }
             Err(e) => Err(LoadFailure::Scripts(e.to_string())),
         }
+    }
+
+    /// A supervisor with no context yet, for the mods' scripts (each mod's context is started on its own).
+    pub(crate) fn for_mods(host: Box<dyn ScriptHost>, runtime: &Runtime, skin: &str) -> Scripts {
+        Scripts {
+            sup: ScriptSupervisor::new(host),
+            env: script_env(runtime, skin),
+        }
+    }
+
+    /// The environment the scripts were last told.
+    pub(crate) fn env(&self) -> &ScriptEnv {
+        &self.env
     }
 
     /// The scripts' environment, when the window, the scale or the style cell changed since it was last sent.

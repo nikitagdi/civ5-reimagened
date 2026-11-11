@@ -484,7 +484,8 @@ impl V2Frontend {
 
     /// The store of the mods' UI fields the app shares with the hook of the mods (mod API 1.3).
     pub fn set_mod_ui(&mut self, link: crate::mod_host::ModUiLink) {
-        self.mod_ui.set_link(link);
+        self.mod_ui
+            .set_link(link, Rc::clone(&self.http), self.scripts.clone());
     }
 
     /// Reference images: every skin that loads gets a solid background and a frozen scene.
@@ -545,6 +546,7 @@ impl V2Frontend {
     pub fn net_event(&mut self, ev: &ClientEvent) {
         if let ClientEvent::ModSet(set) = ev {
             self.mods = Some(mod_ids(set));
+            self.mod_ui.set_mods(set);
         }
         // The game is followed always; the events are kept only for a skin that is loading or loaded.
         let a = action_event(ev, &mut self.game);
