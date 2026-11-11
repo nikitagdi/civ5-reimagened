@@ -1,0 +1,208 @@
+# UI profile 1.0: the one machine-readable description of what a skin may use.
+#
+# Read by `Profile::v1()` (include_str!), by the converter and by the preview. Chrome bakes the
+# cascade, so only longhand properties appear; a property outside this file with a non-initial
+# computed value is an error (E2).
+#
+# prop.<name> fields:
+#   kind       how the value is parsed (see ValueKind in src/profile/props.rs)
+#   values     keywords of a `keyword` / `keyword-set` property; for the other kinds the extra
+#              keywords allowed beside the value (`auto`, `none`, `normal`). For a `keyword-set`
+#              the first entry stands alone, the others combine.
+#   inherited  inherited by children (informational: Chrome already resolved it)
+#   anim       can be the target of a transition
+#   bind       can be set by data-bind-style-<name>
+#   token      a color that may refer to a root color token
+#   calc       calc() is allowed
+#   pct        a percentage is allowed in a length (default true)
+#   min, max   inclusive range of a number, integer, length (px) or time (ms)
+#   max_items  longest list
+#   initial    the initial value as Chrome serializes it; it must parse
+
+version = "1.0"
+
+# Elements (HTML). `group` is the profile's own grouping; `types` and `require` restrict a few.
+element.html = { group = "document" }
+element.head = { group = "document" }
+element.body = { group = "document" }
+element.meta = { group = "document" }
+element.title = { group = "document" }
+element.style = { group = "document" }
+element.template = { group = "document" }
+element.link = { group = "document" }
+element.script = { group = "document" }
+element.div = { group = "block" }
+element.section = { group = "block" }
+element.header = { group = "block" }
+element.footer = { group = "block" }
+element.aside = { group = "block" }
+element.nav = { group = "block" }
+element.main = { group = "block" }
+element.article = { group = "block" }
+element.p = { group = "block" }
+element.h1 = { group = "block" }
+element.h2 = { group = "block" }
+element.h3 = { group = "block" }
+element.h4 = { group = "block" }
+element.h5 = { group = "block" }
+element.h6 = { group = "block" }
+element.ul = { group = "block", require = { list-style = "none" } }
+element.ol = { group = "block", require = { list-style = "none" } }
+element.li = { group = "block", require = { list-style = "none" } }
+element.label = { group = "block" }
+element.hr = { group = "block" }
+element.span = { group = "text" }
+element.b = { group = "text" }
+element.strong = { group = "text" }
+element.i = { group = "text" }
+element.em = { group = "text" }
+element.small = { group = "text" }
+element.button = { group = "control", require = { appearance = "none" } }
+element.input = { group = "control", types = ["text"], require = { appearance = "none" } }
+element.img = { group = "image" }
+element.svg = { group = "image" }
+element.use = { group = "image" }
+element.symbol = { group = "image" }
+element.defs = { group = "image" }
+
+# Layout
+prop.display = { kind = "keyword", values = ["none", "block", "flex", "grid", "inline"], initial = "inline" }
+prop.position = { kind = "keyword", values = ["static", "relative", "absolute"], initial = "static" }
+prop.z-index = { kind = "integer", values = ["auto"], min = -9999, max = 9999, initial = "auto" }
+prop.box-sizing = { kind = "keyword", values = ["border-box", "content-box"], initial = "content-box" }
+prop.top = { kind = "length", values = ["auto"], bind = true, initial = "auto" }
+prop.right = { kind = "length", values = ["auto"], bind = true, initial = "auto" }
+prop.bottom = { kind = "length", values = ["auto"], bind = true, initial = "auto" }
+prop.left = { kind = "length", values = ["auto"], bind = true, initial = "auto" }
+prop.width = { kind = "length", values = ["auto"], min = 0, bind = true, initial = "auto" }
+prop.height = { kind = "length", values = ["auto"], min = 0, bind = true, initial = "auto" }
+prop.min-width = { kind = "length", values = ["auto"], min = 0, initial = "auto" }
+prop.min-height = { kind = "length", values = ["auto"], min = 0, initial = "auto" }
+prop.max-width = { kind = "length", values = ["none"], min = 0, initial = "none" }
+prop.max-height = { kind = "length", values = ["none"], min = 0, initial = "none" }
+prop.margin-top = { kind = "length", values = ["auto"], initial = "0px" }
+prop.margin-right = { kind = "length", values = ["auto"], initial = "0px" }
+prop.margin-bottom = { kind = "length", values = ["auto"], initial = "0px" }
+prop.margin-left = { kind = "length", values = ["auto"], initial = "0px" }
+prop.padding-top = { kind = "length", min = 0, initial = "0px" }
+prop.padding-right = { kind = "length", min = 0, initial = "0px" }
+prop.padding-bottom = { kind = "length", min = 0, initial = "0px" }
+prop.padding-left = { kind = "length", min = 0, initial = "0px" }
+prop.overflow-x = { kind = "keyword", values = ["visible", "hidden", "clip", "auto", "scroll"], initial = "visible" }
+prop.overflow-y = { kind = "keyword", values = ["visible", "hidden", "clip", "auto", "scroll"], initial = "visible" }
+prop.flex-direction = { kind = "keyword", values = ["row", "row-reverse", "column", "column-reverse"], initial = "row" }
+prop.flex-wrap = { kind = "keyword", values = ["nowrap", "wrap"], initial = "nowrap" }
+prop.flex-grow = { kind = "number", min = 0, bind = true, initial = "0" }
+prop.flex-shrink = { kind = "number", min = 0, initial = "1" }
+prop.flex-basis = { kind = "length", values = ["auto"], min = 0, initial = "auto" }
+prop.order = { kind = "integer", initial = "0" }
+prop.justify-content = { kind = "keyword", values = ["normal", "flex-start", "flex-end", "start", "end", "center", "space-between", "space-around", "space-evenly"], initial = "normal" }
+prop.align-items = { kind = "keyword", values = ["normal", "stretch", "flex-start", "flex-end", "start", "end", "center", "baseline"], initial = "normal" }
+prop.align-self = { kind = "keyword", values = ["auto", "normal", "stretch", "flex-start", "flex-end", "start", "end", "center", "baseline"], initial = "auto" }
+prop.align-content = { kind = "keyword", values = ["normal", "flex-start", "flex-end", "start", "end", "center", "space-between", "space-around", "space-evenly"], initial = "normal" }
+prop.row-gap = { kind = "length", values = ["normal"], min = 0, initial = "normal" }
+prop.column-gap = { kind = "length", values = ["normal"], min = 0, initial = "normal" }
+
+# Decoration
+prop.color = { kind = "color", inherited = true, anim = true, bind = true, token = true, initial = "rgb(0, 0, 0)" }
+prop.background-color = { kind = "color", anim = true, bind = true, token = true, initial = "rgba(0, 0, 0, 0)" }
+prop.opacity = { kind = "number", min = 0, max = 1, anim = true, bind = true, initial = "1" }
+prop.visibility = { kind = "keyword", values = ["visible", "hidden"], inherited = true, anim = true, initial = "visible" }
+prop.border-top-width = { kind = "length", pct = false, min = 0, initial = "0px" }
+prop.border-right-width = { kind = "length", pct = false, min = 0, initial = "0px" }
+prop.border-bottom-width = { kind = "length", pct = false, min = 0, initial = "0px" }
+prop.border-left-width = { kind = "length", pct = false, min = 0, initial = "0px" }
+prop.border-top-style = { kind = "keyword", values = ["none", "solid"], initial = "none" }
+prop.border-right-style = { kind = "keyword", values = ["none", "solid"], initial = "none" }
+prop.border-bottom-style = { kind = "keyword", values = ["none", "solid"], initial = "none" }
+prop.border-left-style = { kind = "keyword", values = ["none", "solid"], initial = "none" }
+prop.border-top-color = { kind = "color", anim = true, token = true, initial = "rgb(0, 0, 0)" }
+prop.border-right-color = { kind = "color", anim = true, token = true, initial = "rgb(0, 0, 0)" }
+prop.border-bottom-color = { kind = "color", anim = true, token = true, initial = "rgb(0, 0, 0)" }
+prop.border-left-color = { kind = "color", anim = true, token = true, initial = "rgb(0, 0, 0)" }
+prop.border-top-left-radius = { kind = "radius", min = 0, initial = "0px" }
+prop.border-top-right-radius = { kind = "radius", min = 0, initial = "0px" }
+prop.border-bottom-right-radius = { kind = "radius", min = 0, initial = "0px" }
+prop.border-bottom-left-radius = { kind = "radius", min = 0, initial = "0px" }
+prop.box-shadow = { kind = "shadows", anim = true, token = true, max_items = 4, initial = "none" }
+prop.text-shadow = { kind = "shadows", inherited = true, token = true, max_items = 1, initial = "none" }
+prop.transform = { kind = "transform", anim = true, bind = true, calc = true, initial = "none" }
+prop.transform-origin = { kind = "origin", calc = true, initial = "50% 50%" }
+prop.cursor = { kind = "keyword", values = ["auto", "default", "pointer", "text", "move", "grab", "grabbing", "not-allowed"], inherited = true, initial = "auto" }
+prop.pointer-events = { kind = "keyword", values = ["auto", "none"], inherited = true, initial = "auto" }
+
+# Transitions: duration and delay in ms after parsing
+prop.transition-property = { kind = "properties", initial = "all" }
+prop.transition-duration = { kind = "times", min = 0, max = 1000, initial = "0s" }
+prop.transition-delay = { kind = "times", min = 0, max = 1000, initial = "0s" }
+prop.transition-timing-function = { kind = "easings", initial = "ease" }
+
+# Text
+prop.font-family = { kind = "families", inherited = true, initial = "serif" }
+prop.font-size = { kind = "length", pct = false, min = 0, inherited = true, initial = "16px" }
+prop.font-weight = { kind = "integer", min = 100, max = 900, inherited = true, initial = "400" }
+prop.font-style = { kind = "keyword", values = ["normal", "italic"], inherited = true, initial = "normal" }
+prop.font-variant-numeric = { kind = "keyword-set", values = ["normal", "tabular-nums", "proportional-nums", "lining-nums", "oldstyle-nums"], inherited = true, initial = "normal" }
+prop.line-height = { kind = "line-height", inherited = true, min = 0, initial = "normal" }
+prop.letter-spacing = { kind = "length", values = ["normal"], pct = false, inherited = true, initial = "normal" }
+prop.word-spacing = { kind = "length", values = ["normal"], pct = false, inherited = true, initial = "normal" }
+prop.text-align = { kind = "keyword", values = ["start", "end", "left", "right", "center"], inherited = true, initial = "start" }
+prop.white-space-collapse = { kind = "keyword", values = ["collapse", "preserve"], inherited = true, initial = "collapse" }
+prop.text-wrap-mode = { kind = "keyword", values = ["wrap", "nowrap"], inherited = true, initial = "wrap" }
+prop.text-overflow = { kind = "keyword", values = ["clip", "ellipsis"], initial = "clip" }
+prop.overflow-wrap = { kind = "keyword", values = ["normal", "break-word", "anywhere"], inherited = true, initial = "normal" }
+prop.word-break = { kind = "keyword", values = ["normal", "break-word"], inherited = true, initial = "normal" }
+prop.text-transform = { kind = "keyword", values = ["none"], inherited = true, initial = "none" }
+prop.text-decoration-line = { kind = "keyword-set", values = ["none", "underline"], initial = "none" }
+
+# Icons (svg elements only)
+prop.fill = { kind = "color", values = ["none"], inherited = true, anim = true, token = true, initial = "rgb(0, 0, 0)" }
+prop.stroke = { kind = "color", values = ["none"], inherited = true, anim = true, token = true, initial = "none" }
+prop.stroke-width = { kind = "length", pct = false, min = 0, inherited = true, initial = "1px" }
+prop.stroke-linecap = { kind = "keyword", values = ["butt", "round", "square"], inherited = true, initial = "butt" }
+prop.stroke-linejoin = { kind = "keyword", values = ["miter", "round", "bevel"], inherited = true, initial = "miter" }
+
+# Ignored: documented, without effect.
+ignored."-webkit-font-smoothing" = { why = "the platform decides smoothing; it does not change layout" }
+ignored."text-rendering" = { why = "the text stack always uses its own shaping and rasterizer" }
+ignored."user-select" = { why = "the runtime has no text selection" }
+ignored."will-change" = { why = "a hint for the browser compositor" }
+ignored."-webkit-tap-highlight-color" = { why = "no tap highlight in the runtime" }
+ignored."font-kerning" = { why = "kerning is always on" }
+ignored."font-optical-sizing" = { why = "variable fonts are not part of the profile" }
+ignored."caret-color" = { why = "the runtime draws its own caret" }
+
+selector = { pseudo_class = ["hover", "active", "focus", "focus-visible", "disabled"], combinators = [" ", ">"] }
+
+# Extension points every skin must have.
+slot.mods = { required = true }
+
+# Synonyms every skin defines for mods.
+token."--ui-surface" = { required = true }
+token."--ui-surface-2" = { required = true }
+token."--ui-line" = { required = true }
+token."--ui-text" = { required = true }
+token."--ui-text-2" = { required = true }
+token."--ui-text-3" = { required = true }
+token."--ui-accent" = { required = true }
+token."--ui-accent-ink" = { required = true }
+token."--ui-negative" = { required = true }
+token."--ui-y-food" = { required = true }
+token."--ui-y-prod" = { required = true }
+token."--ui-y-gold" = { required = true }
+token."--ui-y-sci" = { required = true }
+token."--ui-y-cult" = { required = true }
+token."--ui-y-faith" = { required = true }
+token."--ui-y-happy" = { required = true }
+token."--ui-y-tour" = { required = true }
+
+# Error codes (value parsers). The converter prints `what` and `hint`; categories: E1 HTML and
+# attributes, E2 properties and values, E3 selectors and variants, E4 bindings and expressions,
+# E5 fonts and images, E6 localization, E7 slots, keys, anchors, tokens, E8 budgets, E9 environment.
+error.E2-002 = { what = "value outside the profile", hint = "use one of the values the profile table lists for this property" }
+error.E2-003 = { what = "unit other than px", hint = "viewport and container units would be baked into px at one size; use % or px, or a breakpoint" }
+error.E2-004 = { what = "number is not finite", hint = "NaN and infinity cannot be stored; check the calc() expression and its variables" }
+error.E2-005 = { what = "value out of range", hint = "keep the number inside the range the profile table gives" }
+error.E2-006 = { what = "color form outside the profile", hint = "write the color as #hex, rgb(), rgba(), a color name or transparent; currentcolor and color functions are resolved by Chrome first" }
+error.E2-007 = { what = "calc() outside decoration properties", hint = "layout cannot use calc(); use flex, grid or a percentage" }
+error.E2-008 = { what = "list too long", hint = "shorten the list to the number the profile table allows" }

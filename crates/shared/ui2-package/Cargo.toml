@@ -1,0 +1,35 @@
+[package]
+name = "ui2-package"
+description = "UI v2 skin package: the C5UI2PKG container, its sections and the machine-readable UI profile"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "shared"
+
+[features]
+default = []
+# The package builder (tool side). Reading never needs it.
+write = []
+# The machine-readable UI profile (`profile/profile.toml`) and its parsers.
+profile = ["dep:toml"]
+
+[dependencies]
+serde.workspace = true
+postcard.workspace = true
+blake3.workspace = true
+# Decompression only: the client never compresses (the converter does, with zstd).
+ruzstd.workspace = true
+thiserror.workspace = true
+toml = { workspace = true, optional = true }
+
+[dev-dependencies]
+# Tests only: compresses fonts and pages the way the converter does.
+zstd.workspace = true
+serde_json.workspace = true
+# Tests run with every feature, also under a plain `cargo test` and `cargo xtask test`.
+ui2-package = { workspace = true, features = ["write", "profile"] }

@@ -18,6 +18,7 @@ members = [
     "crates/server/mod-host-server",
     "crates/shared/loc",
     "crates/shared/ui2-model",
+    "crates/shared/ui2-package",
     "crates/client/platform",
     "crates/client/replica",
     "crates/client/client-core",
@@ -81,6 +82,7 @@ mod-assets = { path = "crates/shared/mod-assets" }
 mod-host-server = { path = "crates/server/mod-host-server" }
 loc = { path = "crates/shared/loc" }
 ui2-model = { path = "crates/shared/ui2-model" }
+ui2-package = { path = "crates/shared/ui2-package" }
 granny = { path = "tools/granny" }
 platform = { path = "crates/client/platform" }
 mod-client = { path = "crates/client/mod-client" }
