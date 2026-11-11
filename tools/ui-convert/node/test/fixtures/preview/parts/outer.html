@@ -1,0 +1,6 @@
+<section id="outer">
+  <div data-include="parts/inner.html"></div>
+  <ul id="list">
+    <li data-bind-for="c:{{items}}" data-bind-filter="{{c.n != 'skip'}}" data-bind-sort="{{c.n}}" data-bind-sort-desc="{{state.desc}}"><b data-bind-value="{{c.n}}">x</b><i data-bind-for="t:{{c.tags}}" data-bind-key="{{t}}" data-bind-value="{{t}}" data-bind-class-toggle="hot:{{t == 'a'}}">t</i></li>
+  </ul>
+</section>

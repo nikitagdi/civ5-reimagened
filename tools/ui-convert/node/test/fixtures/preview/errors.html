@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Preview errors</title></head>
+<body>
+  <div data-include="parts/cycle-a.html"></div>
+  <div data-include="parts/missing.html"></div>
+  <div data-include="../outside.html"></div>
+  <span id="bad" data-bind-value="{{1 +}}">kept</span>
+  <span id="nokey" data-l10n="no.such">kept</span>
+  <span id="notlist" data-bind-for="x:{{title}}">q</span>
+  <span id="dup" data-bind-for="r:{{items}}" data-bind-key="{{'k'}}">q</span>
+  <span id="div" data-bind-value="{{1 / 0}}">kept</span>
+  <span id="grp" data-l10n="t.group" data-l10n-args="{{3}}">kept</span>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Preview fixture</title>
+</head>
+<body>
+  <div class="layer" data-layer="hud">
+    <div data-include="parts/outer.html"></div>
+    <p id="maybe" data-bind-if="{{flag}}">shown</p>
+    <button id="on" data-bind-disabled="{{flag}}">on</button>
+    <button id="off" data-bind-disabled="{{!flag}}">off</button>
+    <div id="bar" data-bind-style-width="{{ratio * 100}}%" style="width: 1%"></div>
+    <img id="ico" data-bind-src="{{icon}}">
+    <span id="cnt" data-l10n="t.count" data-l10n-args="{{len(items)}}">0 things</span>
+    <span id="who" data-l10n="t.who" data-l10n-args="{{me.name}}, {{me.score}}">?</span>
+    <span id="when" data-bind-value="{{when}}">?</span>
+    <div id="empty" data-bind-for="e:{{none}}"><span data-bind-value="{{e.x}}">q</span></div>
+    <div id="dev" data-ui2-dev><span>helper</span></div>
+  </div>
+</body>
+</html>
