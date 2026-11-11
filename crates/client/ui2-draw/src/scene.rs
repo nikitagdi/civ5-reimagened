@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 use std::ops::Range;
 
-use ui2_text::{AtlasConfig, DirtyRect, GlyphAtlas};
+use ui2_text::{AtlasConfig, DirtyRect, GlyphAtlas, TextEngine};
 
 use crate::encode::{EncodeCtx, encode_chunk};
 use crate::glyphs::GlyphStore;
@@ -17,6 +17,10 @@ use crate::instance::Ui2Instance;
 use crate::stats::SceneStats;
 use crate::tables::{TableSegment, Tables};
 use crate::{AnchorSlot, AnchorXform, ChunkId, ChunkItems, DrawError, Item, LayerId};
+
+/// Estimated cost of rasterizing one glyph in milliseconds, used to turn a time budget into a glyph count when the
+/// scene has no clock (about 1.5 ms for the 235 glyphs of the HUD in wasm).
+pub const FALLBACK_MS_PER_GLYPH: f64 = 0.006;
 
 /// A monotonic clock in milliseconds. The host provides one (the scene itself reads no time source, so that the
 /// crate builds for wasm).
@@ -296,6 +300,44 @@ impl Scene {
         lay.revision += 1;
         lay.mark_full();
         lay.ops_stale = true;
+    }
+
+    // ----- glyphs -----
+
+    /// Rasterizes queued glyphs for at most `budget_ms` (at least one glyph per call, so the queue always makes
+    /// progress), places them in the atlas and encodes again the chunks that were waiting for them. What is left
+    /// stays queued for the next call: a text change shows within two frames. Call it once per frame, after the
+    /// chunks were set and before the pass prepares.
+    ///
+    /// The budget is measured with the [`Clock`] of [`Scene::set_clock`]; without one it is converted to a glyph
+    /// count at [`FALLBACK_MS_PER_GLYPH`] per glyph.
+    pub fn resolve(&mut self, text: &mut TextEngine, budget_ms: f32) {
+        self.reencode_stale();
+        let budget = f64::from(budget_ms);
+        let t0 = self.now();
+        let report = {
+            let clock = self.clock.as_ref();
+            self.glyphs.rasterize(text, |done| {
+                let spent = match clock {
+                    Some(c) => c() - t0,
+                    None => f64::from(done) * FALLBACK_MS_PER_GLYPH,
+                };
+                spent < budget
+            })
+        };
+        self.frame.raster_glyphs += report.rasterized;
+        self.frame.raster_ms += self.now() - t0;
+        if report.rasterized + report.dropped > 0 {
+            let waiting: Vec<ChunkId> = self
+                .chunks
+                .iter()
+                .filter(|(_, c)| c.unresolved > 0)
+                .map(|(id, _)| *id)
+                .collect();
+            for id in waiting {
+                self.reencode(id);
+            }
+        }
     }
 
     // ----- anchors -----

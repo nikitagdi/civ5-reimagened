@@ -30,7 +30,7 @@ pub use glam::{Affine2, Vec2};
 
 pub use glyphs::GlyphStore;
 pub use instance::Ui2Instance;
-pub use scene::{Clock, LayerChange, Op, Scene};
+pub use scene::{Clock, FALLBACK_MS_PER_GLYPH, LayerChange, Op, Scene};
 pub use stats::SceneStats;
 pub use tables::{Clip, Polygon, TableSegment};
 pub use ui2_text::{DirtyRect, FaceId};

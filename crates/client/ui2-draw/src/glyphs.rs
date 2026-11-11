@@ -11,7 +11,9 @@
 
 use std::collections::{HashSet, VecDeque};
 
-use ui2_text::{AtlasConfig, AtlasSlot, DirtyRect, GlyphAtlas, GlyphKey, quantize_x};
+use ui2_text::{
+    AtlasConfig, AtlasError, AtlasSlot, DirtyRect, GlyphAtlas, GlyphKey, TextEngine, quantize_x,
+};
 
 use crate::{GlyphPos, Glyphs};
 
@@ -32,6 +34,17 @@ pub enum Lookup {
     Pending,
     /// The glyph cannot be placed (atlas full, glyph larger than a page).
     Unavailable,
+}
+
+/// What one [`GlyphStore::rasterize`] call did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct RasterReport {
+    /// Glyphs rasterized and placed.
+    pub rasterized: u32,
+    /// Glyphs still queued afterwards.
+    pub deferred: u32,
+    /// Glyphs dropped because the atlas is full or the glyph is too large.
+    pub dropped: u32,
 }
 
 /// The atlas of glyph coverage and the queue of glyphs to rasterize.
@@ -104,6 +117,38 @@ impl GlyphStore {
             self.pending.push_back(key);
         }
         Lookup::Pending
+    }
+
+    /// Rasterizes queued glyphs in request order. `may_continue(done)` is asked before every glyph after the first
+    /// of the call (`done` glyphs were handled so far) and ends the step when it says no: that is how the caller
+    /// keeps to a time budget. Glyphs that do not fit are dropped and not retried until [`GlyphStore::clear`].
+    pub fn rasterize(
+        &mut self,
+        text: &TextEngine,
+        mut may_continue: impl FnMut(u32) -> bool,
+    ) -> RasterReport {
+        let mut report = RasterReport::default();
+        let mut handled = 0u32;
+        while let Some(&key) = self.pending.front() {
+            if handled > 0 && !may_continue(handled) {
+                break;
+            }
+            self.pending.pop_front();
+            self.pending_set.remove(&key);
+            handled += 1;
+            match self.atlas.get_or_raster(text, key) {
+                Ok(_) => report.rasterized += 1,
+                Err(e) => {
+                    if e == AtlasError::Full {
+                        self.full += 1;
+                    }
+                    self.failed.insert(key);
+                    report.dropped += 1;
+                }
+            }
+        }
+        report.deferred = self.pending.len() as u32;
+        report
     }
 
     /// True if the glyph is queued.
