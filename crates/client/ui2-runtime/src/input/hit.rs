@@ -131,6 +131,27 @@ fn resolve(l: Len, reference: f32) -> f32 {
     l.px + l.pct * reference / 100.0
 }
 
+/// The `transform` of a record for a border box at `pos` of `size` (CSS px), around its
+/// `transform-origin`: the matrix painting uses, in CSS px instead of device pixels.
+pub(crate) fn transform_about(r: &StyleRecord, pos: Vec2, size: Vec2) -> Affine2 {
+    let origin = pos
+        + Vec2::new(
+            resolve(r.transform_origin.x, size.x),
+            resolve(r.transform_origin.y, size.y),
+        );
+    let mut m = Affine2::from_translation(origin);
+    for f in &r.transform {
+        m *= match *f {
+            TFn::Translate(x, y) => {
+                Affine2::from_translation(Vec2::new(resolve(x, size.x), resolve(y, size.y)))
+            }
+            TFn::Rotate(deg) => Affine2::from_angle(deg.to_radians()),
+            TFn::Scale(x, y) => Affine2::from_scale(Vec2::new(x, y)),
+        };
+    }
+    m * Affine2::from_translation(-origin)
+}
+
 /// Page geometry of the nodes, computed on demand and cached for one query.
 pub(crate) struct Geo<'a> {
     pub arena: &'a Arena,
@@ -233,22 +254,7 @@ impl<'a> Geo<'a> {
         }
         let pos = self.abs(id);
         let size = self.size(id);
-        let origin = pos
-            + Vec2::new(
-                resolve(r.transform_origin.x, size.x),
-                resolve(r.transform_origin.y, size.y),
-            );
-        let mut m = Affine2::from_translation(origin);
-        for f in &r.transform {
-            m *= match *f {
-                TFn::Translate(x, y) => {
-                    Affine2::from_translation(Vec2::new(resolve(x, size.x), resolve(y, size.y)))
-                }
-                TFn::Rotate(deg) => Affine2::from_angle(deg.to_radians()),
-                TFn::Scale(x, y) => Affine2::from_scale(Vec2::new(x, y)),
-            };
-        }
-        m * Affine2::from_translation(-origin)
+        transform_about(r, pos, size)
     }
 
     /// The padding box of a node in layout space.
