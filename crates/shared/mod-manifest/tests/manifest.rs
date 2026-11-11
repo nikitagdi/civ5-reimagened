@@ -2,8 +2,8 @@
 
 use mod_manifest::{
     CHANNEL_PAYLOAD_CEILING, ClientPolicy, Manifest, ManifestError, ModId, Part, SyncClass,
-    UI_PANELS_MAX, UI_READS_MAX, UI_SCRIPTS_MAX, UiConflict, UiFallback, UiMode, UiSection,
-    Version, VersionReq, ui_conflicts,
+    UI_PANELS_MAX, UI_READS_MAX, UI_SCRIPTS_MAX, UI_STATE_MAX, UI_STATE_STR_MAX, UiConflict,
+    UiFallback, UiMode, UiSection, UiStateValue, Version, VersionReq, ui_conflicts,
 };
 
 const FULL: &str = r#"
@@ -834,6 +834,52 @@ fn ui_full_section_parses() {
             ("ui.panels[1].source".to_string(), "ui/map.html"),
         ]
     );
+}
+
+#[test]
+fn ui_state_gives_the_defaults_by_path_and_checks_its_values() {
+    let src = ui_with(
+        "scripts = [\"ui/hello.js\"]",
+        "scripts = [\"ui/hello.js\"]\nstate   = { open = true, tab = \"all\", filter = { min = 2 } }",
+    );
+    let ui = Manifest::parse(&src).unwrap().ui.unwrap();
+    assert_eq!(
+        ui.state,
+        [
+            ("filter.min".to_string(), UiStateValue::Int(2)),
+            ("open".to_string(), UiStateValue::Bool(true)),
+            ("tab".to_string(), UiStateValue::Str("all".into())),
+        ]
+    );
+    assert!(
+        Manifest::parse(UI_FULL)
+            .unwrap()
+            .ui
+            .unwrap()
+            .state
+            .is_empty()
+    );
+    let bad = |state: &str| {
+        let src = ui_with(
+            "scripts = [\"ui/hello.js\"]",
+            &format!("scripts = [\"ui/hello.js\"]\nstate   = {state}"),
+        );
+        parse_err(&src)
+    };
+    for (state, path) in [
+        ("{ open = 1.5 }", "ui.state.open"),
+        ("{ Open = true }", "ui.state.Open"),
+        ("{ a = { x = [1] } }", "ui.state.a.x"),
+        ("true", "ui.state"),
+    ] {
+        let e = bad(state);
+        assert_eq!(e.path(), Some(path), "{state}: {e}");
+    }
+    let long = format!("{{ s = \"{}\" }}", "x".repeat(UI_STATE_STR_MAX + 1));
+    assert_eq!(bad(&long).path(), Some("ui.state.s"));
+    let many: Vec<String> = (0..=UI_STATE_MAX).map(|i| format!("v{i} = {i}")).collect();
+    let e = bad(&format!("{{ {} }}", many.join(", ")));
+    assert!(e.to_string().contains("at most"), "{e}");
 }
 
 #[test]

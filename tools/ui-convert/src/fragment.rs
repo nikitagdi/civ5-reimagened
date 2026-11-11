@@ -34,14 +34,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use mod_api::UI_CATALOG;
-use mod_manifest::{Manifest, Version};
+use mod_manifest::{Manifest, UiStateValue, Version};
 use ui2_model::{Fragment, ModelStore, Namespace, Schema};
 use ui2_package::profile::{SchemaView, TypeSig};
 
 use crate::check::Statics;
 use crate::errors::{self, ConvError, Place, codes};
 use crate::ir::{CssItem, Dom, Element, Ir, Ix};
-use crate::skin::{Fonts, Scripts, Skin, SkinSection, Themes, Verify, is_skin_path};
+use crate::skin::{Fonts, Scripts, Skin, SkinSection, StateValue, Themes, Verify, is_skin_path};
 use crate::styles::Compiled;
 use crate::write::{Pictures, Written};
 use crate::{Input, Opts, Run, Source, check_source};
@@ -293,7 +293,19 @@ pub fn load(dir: &Path) -> Result<Source, Vec<ConvError>> {
             extends: None,
         },
         fonts: Fonts::default(),
-        state: BTreeMap::new(),
+        // `[ui] state`: the mod's own state, `state.*` in its panels (`modstate.<id>.*` in the game).
+        state: ui
+            .state
+            .iter()
+            .map(|(path, v)| {
+                let v = match v {
+                    UiStateValue::Bool(b) => StateValue::Bool(*b),
+                    UiStateValue::Int(i) => StateValue::Int(*i),
+                    UiStateValue::Str(s) => StateValue::Str(s.clone()),
+                };
+                (path.clone(), v)
+            })
+            .collect(),
         themes: Themes::default(),
         scripts: Scripts {
             files: ui.scripts.clone(),

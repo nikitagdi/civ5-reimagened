@@ -27,7 +27,7 @@
 use std::sync::Arc;
 
 use replica::ReplicaStep;
-use ui2_actions::{ActionEvent, StateNs};
+use ui2_actions::ActionEvent;
 use ui2_draw::SceneStats;
 use ui2_model::Owner;
 use ui2_model::wire::ScriptCtxId;
@@ -197,9 +197,9 @@ impl V2Ui {
         // 3. State writes (the markup's, then the scripts'), the scripts' settings, then intents; orders leave
         //    through the sink.
         let mut refused = 0;
-        for e in self
-            .actions
-            .state_ops(StateNs::Skin, &out.state_writes, &mut self.store)
+        // A mod panel's writes (`modstate.<id>.*`) go to that mod's state.
+        for e in
+            crate::mods::markup_state_ops(&mut self.actions, &out.state_writes, &mut self.store)
         {
             tracing::warn!(target: "ui2_host", "state write refused: {e}");
             refused += 1;

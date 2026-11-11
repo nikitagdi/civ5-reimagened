@@ -84,6 +84,11 @@ fn the_fixture_manifest_becomes_a_fragment_source() {
     assert_eq!(src.skin.skin.api, "1.0");
     assert_eq!(src.skin.scripts.files, ["ui/fixture.js"]);
     assert_eq!(src.skin.scripts.reads, ["game.turn"]);
+    // `[ui] state`: the panels' `state.*`.
+    assert_eq!(
+        src.skin.state.get("open"),
+        Some(&ui2_convert::skin::StateValue::Bool(true))
+    );
     // The page: the panel included, the catalogue's tokens with reference values.
     let files = f.virtual_files();
     let page = &files[&f.entry()];

@@ -301,3 +301,133 @@ fn the_index_lists_the_fragments_and_a_package_must_match_its_entry() {
     );
     assert!(parse_mods_index("{}").is_err());
 }
+
+/// A fragment of mod `echo` with one 40 px panel `box` that toggles `state.open` on a click, the state default
+/// `open = true` and a script.
+fn stateful() -> Arc<Package> {
+    use ui2_package::profile::action::{Action, Event};
+    use ui2_package::{BindKind, Binding, Lit};
+    let mut b = PackageBuilder::new();
+    let mut r = StyleRecord::initial();
+    r.display = Display::Block;
+    r.height = LenAuto::Len(Len::px(40.0));
+    let record = b.style_record(r);
+    let style = b.style_set(StyleSet::plain(vec![record]));
+    let part = b.str("box");
+    let name = b.str("doc");
+    let tpl = b.template(Template {
+        name,
+        nodes: vec![Node {
+            kind: NodeKind::Box { tag: Tag::Div },
+            subtree: 1,
+            style,
+            part: Some(part),
+            flags: 0,
+        }],
+    });
+    b.binding(Binding {
+        tpl,
+        node: 0,
+        kind: BindKind::Event {
+            ev: Event::Click,
+            actions: vec![Action::Toggle {
+                path: "state.open".into(),
+            }],
+        },
+    });
+    b.state_default("open", Lit::Bool(true));
+    b.state_default("view.tab", Lit::Str("all".into()));
+    b.script("ui/echo.js", b"ui.log.info('up');");
+    let mut m: Manifest = Kit::manifest();
+    m.kind = Kind::Fragment {
+        slots: vec!["mods".into()],
+    };
+    m.id = "echo".into();
+    let bytes = b.finish(m).expect("fragment");
+    Arc::new(Package::read(Arc::from(bytes)).expect("readable"))
+}
+
+/// `modstate.echo.open`.
+fn open(ui: &V2Ui) -> Option<bool> {
+    match ui.mod_state_value("echo")? {
+        ui2_model::Value::Struct(f) => f.iter().find_map(|v| match v {
+            ui2_model::Value::Bool(b) => Some(*b),
+            _ => None,
+        }),
+        _ => None,
+    }
+}
+
+fn click(ui: &mut V2Ui, x: f64, y: f64) {
+    use platform::{
+        Modifiers, MouseButton, PhysicalPosition, PointerEvent, PointerId, PointerKind,
+        PointerPhase,
+    };
+    for (phase, button) in [
+        (PointerPhase::Move, None),
+        (PointerPhase::Down, Some(MouseButton::Left)),
+        (PointerPhase::Up, Some(MouseButton::Left)),
+    ] {
+        ui.handle_input(
+            &platform::InputEvent::Pointer(PointerEvent {
+                id: PointerId::MOUSE,
+                kind: PointerKind::Mouse,
+                phase,
+                position: PhysicalPosition { x, y },
+                button,
+                modifiers: Modifiers::default(),
+            }),
+            16.0,
+        );
+    }
+}
+
+#[test]
+fn a_mods_state_is_written_by_its_markup_and_its_script_and_not_by_the_skin() {
+    let host = MockScriptHost::new();
+    let mut ui = V2Ui::new(skin(), V2Init::default()).expect("ui");
+    ui.set_mod_script_host(Box::new(host.clone()));
+    let report = ui.mount_mods(vec![mod_ui(
+        "echo",
+        stateful(),
+        "^1",
+        vec![panel("box", "hud.right", false, true)],
+    )]);
+    assert_eq!(report[0].refused, None, "{report:?}");
+    frame(&mut ui, Some(vec![Arc::from("echo")]));
+    assert_eq!(open(&ui), Some(true), "the default of [ui] state");
+    // The panel's `toggle state.open` writes modstate.echo.open.
+    let r = ui.runtime().dump_rects(Some("box"))[0].clone();
+    click(
+        &mut ui,
+        f64::from(r.x + r.w / 2.0),
+        f64::from(r.y + r.h / 2.0),
+    );
+    let out = frame(&mut ui, None);
+    assert_eq!(out.refused, 0, "{:?}", out.errors);
+    assert_eq!(open(&ui), Some(false));
+    // The mod's script writes it as its `state.open`.
+    let w = host.live()[0];
+    host.reply(
+        w,
+        r#"{"t":"out","n":1,"ack":null,"state":[{"p":"state.open","v":true}]}"#,
+    );
+    let out = frame(&mut ui, None);
+    assert_eq!(out.refused, 0);
+    assert_eq!(open(&ui), Some(true));
+    // The skin's state is another namespace: the mod's is not `state.*`, and a mount again keeps the value.
+    assert!(!ui.store().is_mounted(&ui2_model::Namespace::State));
+    host.reply(
+        w,
+        r#"{"t":"out","n":2,"ack":null,"state":[{"p":"state.open","v":false}]}"#,
+    );
+    frame(&mut ui, None);
+    ui.mount_mods(vec![mod_ui(
+        "echo",
+        stateful(),
+        "^1",
+        vec![panel("box", "hud.right", false, true)],
+    )]);
+    frame(&mut ui, None);
+    assert_eq!(open(&ui), Some(false), "kept over a mount again");
+}

@@ -14,6 +14,7 @@ api     = "^1"
 model   = "ui/model.toml"
 reads   = ["game.turn"]
 scripts = ["ui/fixture.js"]
+state   = { open = true }
 
 [[ui.panels]]
 id       = "echo"

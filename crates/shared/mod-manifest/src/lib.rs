@@ -26,6 +26,6 @@ pub use modset::{ContentHash, ModSet, ModsetHash, ResolvedMod};
 pub use resolve::{Installed, Pick, Resolution, STEP_LIMIT, Warning, resolve};
 pub use semver::{MAX_COMPONENT, Version, VersionReq};
 pub use ui::{
-    UI_PANELS_MAX, UI_READS_MAX, UI_SCRIPTS_MAX, UiConflict, UiFallback, UiMode, UiPanel,
-    UiSection, ui_conflicts,
+    UI_PANELS_MAX, UI_READS_MAX, UI_SCRIPTS_MAX, UI_STATE_MAX, UI_STATE_STR_MAX, UiConflict,
+    UiFallback, UiMode, UiPanel, UiSection, UiStateValue, ui_conflicts,
 };

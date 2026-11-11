@@ -265,6 +265,8 @@ pub(crate) struct Mods {
     script_host: Option<Box<dyn ScriptHost>>,
     /// The mods' script contexts (a supervisor of their own: a mod's script never stops the skin's).
     pub(crate) scripts: Option<Scripts>,
+    /// The mods whose state got its defaults in this UI (a later mount keeps what is there).
+    seeded: BTreeSet<Arc<str>>,
 }
 
 /// The most writes kept between two frames, over all mods; later ones are dropped (the application keeps its
@@ -676,6 +678,7 @@ impl V2Ui {
         if let Some(model) = ui.model() {
             self.mount_mod_model(id, model)?;
         }
+        self.mount_mod_state(ui)?;
         let files = ui.script_files();
         if files.is_empty() {
             return Ok(());
@@ -803,6 +806,151 @@ impl Mods {
     /// Whether any mod script context runs.
     pub(crate) fn has_scripts(&self) -> bool {
         self.scripts.as_ref().is_some_and(|s| !s.sup.is_empty())
+    }
+}
+/// The fragment of a mod's state (`[ui] state`, as the package's state defaults): one field per path, nested
+/// tables as structs. `None` when the mod has no state.
+fn state_fragment(defaults: &[(String, ui2_package::Lit)]) -> Result<Option<String>, String> {
+    use std::collections::BTreeMap;
+    use std::fmt::Write as _;
+    #[derive(Default)]
+    struct Table {
+        fields: BTreeMap<String, Entry>,
+    }
+    enum Entry {
+        Leaf(&'static str),
+        Table(Table),
+    }
+    let mut root = Table::default();
+    for (path, lit) in defaults {
+        let ty = match lit {
+            ui2_package::Lit::Bool(_) => "bool",
+            ui2_package::Lit::Int(_) => "i32",
+            ui2_package::Lit::Float(_) => "f32",
+            ui2_package::Lit::Str(_) => "str",
+            ui2_package::Lit::List(_) => {
+                return Err(format!("state.{path}: a list is not a state value"));
+            }
+        };
+        let segs: Vec<&str> = path.split('.').collect();
+        let (last, dirs) = segs
+            .split_last()
+            .ok_or_else(|| "an empty state path".to_string())?;
+        let mut at = &mut root;
+        for d in dirs {
+            let e = at
+                .fields
+                .entry((*d).to_string())
+                .or_insert_with(|| Entry::Table(Table::default()));
+            at = match e {
+                Entry::Table(t) => t,
+                Entry::Leaf(_) => return Err(format!("state.{path}: {d} is a value and a table")),
+            };
+        }
+        at.fields.insert((*last).to_string(), Entry::Leaf(ty));
+    }
+    if root.fields.is_empty() {
+        return Ok(None);
+    }
+    // Types first (named S0, S1, ... in the order they are met), then the root.
+    fn emit(t: &Table, types: &mut Vec<String>) -> String {
+        let mut body = String::new();
+        for (name, e) in &t.fields {
+            let ty = match e {
+                Entry::Leaf(ty) => (*ty).to_string(),
+                Entry::Table(inner) => {
+                    let inner_body = emit(inner, types);
+                    let n = format!("S{}", types.len());
+                    types.push(format!("[type.{n}]\n{inner_body}"));
+                    n
+                }
+            };
+            let _ = writeln!(body, "{name} = \"{ty}\"");
+        }
+        body
+    }
+    let mut types = Vec::new();
+    let root_body = emit(&root, &mut types);
+    let mut src = types.join("\n");
+    if !src.is_empty() {
+        src.push('\n');
+    }
+    src.push_str("[root]\n");
+    src.push_str(&root_body);
+    Ok(Some(src))
+}
+
+/// The model value of a state default (`None`: it does not fit its field).
+fn state_value(lit: &ui2_package::Lit) -> Option<Value> {
+    match lit {
+        ui2_package::Lit::Bool(b) => Some(Value::Bool(*b)),
+        ui2_package::Lit::Int(i) => i32::try_from(*i).ok().map(Value::I32),
+        ui2_package::Lit::Float(f) => Some(Value::F32(*f as f32)),
+        ui2_package::Lit::Str(s) => Some(Value::Str(Arc::from(s.as_str()))),
+        ui2_package::Lit::List(_) => None,
+    }
+}
+
+/// The state writes of the markup: a mod panel's (`modstate.<id>.*`, which linking made of its `state.*`) go to
+/// that mod's state, the skin's to the skin's. A skin's markup cannot name `modstate` (its converter refuses any
+/// path but its own `state.*`), and the actions module keeps each mod in its own namespace.
+pub(crate) fn markup_state_ops(
+    actions: &mut ui2_actions::UiActions,
+    writes: &[ui2_model::wire::StateOp],
+    store: &mut ModelStore,
+) -> Vec<ui2_actions::StateError> {
+    let mut errors = Vec::new();
+    for w in writes {
+        let ns = match Namespace::of_path(&w.path) {
+            Some(Namespace::ModState(id)) => ui2_actions::StateNs::Mod(id),
+            _ => ui2_actions::StateNs::Skin,
+        };
+        errors.extend(actions.state_ops(ns, std::slice::from_ref(w), store));
+    }
+    errors
+}
+
+impl V2Ui {
+    /// Mounts a mod's state `modstate.<id>` from its fragment's defaults (`[ui] state`): the first time in this UI
+    /// with the defaults, later with what it held (the actions module sets it aside while it is unmounted).
+    fn mount_mod_state(&mut self, ui: &ModUi) -> Result<(), String> {
+        let defaults: Vec<(String, ui2_package::Lit)> = ui
+            .pkg
+            .state_defaults()
+            .map(|(p, l)| (p.to_string(), l.clone()))
+            .collect();
+        let Some(src) = state_fragment(&defaults).map_err(|e| format!("{}: {e}", ui.id))? else {
+            return Ok(());
+        };
+        let frag = Fragment::parse(&src).map_err(|e| format!("{}: its state: {e}", ui.id))?;
+        let ns = Namespace::ModState(Arc::clone(&ui.id));
+        if self.store.is_mounted(&ns) && self.mods.seeded.contains(&ui.id) {
+            return Ok(());
+        }
+        let errs = self
+            .actions
+            .set_mod_state(&ui.id, Some(&frag), &mut self.store);
+        if let Some(e) = errs.first() {
+            return Err(format!("{}: its state: {e}", ui.id));
+        }
+        if self.mods.seeded.insert(Arc::clone(&ui.id)) {
+            let mut w = self.store.writer(ns.owner());
+            for (path, lit) in &defaults {
+                if let Some(v) = state_value(lit) {
+                    let full = format!("{}.{path}", ns.root_name());
+                    if let Err(e) = w.set_value(&full, v) {
+                        tracing::warn!(target: "ui2_host", "mod {}: state default {path}: {e}", ui.id);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// The value of the root `modstate.<id>` (with this frame's writes), for tests and tools.
+    pub fn mod_state_value(&self, id: &str) -> Option<&Value> {
+        self.store
+            .fragment_value(&Namespace::ModState(Arc::from(id)))
     }
 }
 /// The root id of a mounted namespace (tests).
