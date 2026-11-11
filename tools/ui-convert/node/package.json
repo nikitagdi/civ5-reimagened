@@ -1,0 +1,17 @@
+{
+  "name": "ui2-convert-node",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Node side of the UI skin converter: Chromium as a style compiler",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "dependencies": {
+    "css-tree": "3.2.1",
+    "parse5": "8.1.1"
+  }
+}

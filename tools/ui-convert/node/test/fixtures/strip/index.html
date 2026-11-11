@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Top strip</title>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/strip.css">
+  <style>
+    .hint { color: var(--ink-dim); }
+  </style>
+</head>
+<body>
+  <div class="layer" data-layer="hud">
+    <header class="strip" data-part="strip.top">
+      <div class="cell" data-part="strip.gold" data-bind-class-toggle="is-low:{{economy.gold < 0}}">
+        <span class="lbl">Gold</span>
+        <span class="val" data-bind-value="{{economy.gold}}">1&nbsp;234</span>
+        <span class="delta" data-bind-value="{{fmt.signed(economy.gold_per_turn)}}">+12</span>
+      </div>
+      <div class="cell" data-part="strip.science"><span class="lbl">Science</span>+8<span class="unit">/t</span></div>
+      <div class="cell" data-part="strip.turn">
+        <svg class="ico" width="12" height="12" viewBox="0 0 12 12"><path d="M0 0h12v12z"/></svg>
+        <span class="val" data-bind-value="{{game.turn}}">87</span>
+      </div>
+      <button class="menu" data-on-click="intent game.menu()">
+        <span data-l10n="strip.menu">Menu</span>
+      </button>
+      <div class="badge">!</div>
+    </header>
+    <div class="hint">Intro <b>text</b><div class="row">row</div>tail</div>
+  </div>
+</body>
+</html>
