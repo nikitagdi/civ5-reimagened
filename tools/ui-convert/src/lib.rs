@@ -24,6 +24,7 @@ pub mod atlas;
 pub mod bindings;
 pub mod build;
 pub mod check;
+pub mod docs;
 pub mod errors;
 pub mod fonts;
 pub mod fragment;
