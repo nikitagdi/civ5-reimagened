@@ -3,6 +3,9 @@
 //   node tools/playtest/run.mjs --attach http://127.0.0.1:8790 --scenario ui2-host [--gfx webgl2] [--headed]
 // Without `--attach` (the local fixture server) the game's layer that UI v2 reads never comes up: the scenario says so.
 //
+// Also: the playtest hooks (`state().ui`, `ui2()`, `ui2Rects`, `digest('replica')`), switching v2 -> classic (warm)
+// -> v2 -> classic (cold) -> v2 on the fly, and broken skin packages (fixtures) on the classic page.
+//
 // Start: `?ui=v2:engraved&test=1&autostart=1&stats=1`; once the skin runs, the top strip's texts (read through
 // `__civ5test.ui2()`, never from pixels) show the gold, the science rate, the turn and the year that `state()` reports,
 // at the start (then a click on the map selects a unit: the unit panel shows its name and its Fortify button fortifies it
@@ -185,6 +188,84 @@ async function hooks(page, numbers, check) {
   check("R17: UI-only actions leave the replica digest as it is", /^[0-9a-f]{16}$/.test(d0 ?? "") && (d0 === d1 || seq0 !== seq1), JSON.stringify(numbers.replicaDigest));
 }
 
+/** `__civ5stats.ui.lua_errors` of the classic UI (null before its stats came). */
+async function luaErrors(page) {
+  return page.evaluate(() => window.__civ5stats?.ui?.lua_errors ?? null).catch(() => null);
+}
+
+/** The client's attaches so far (a reconnect would add one). */
+async function attaches(page) {
+  return page.evaluate(() => {
+    const c = window.__civ5test.metrics().client;
+    return c ? c.attachedReplay + c.attachedFresh : null;
+  }).catch(() => null);
+}
+
+/**
+ * One switch: `setUi` with `opts`, then until `want` is on the screen and (for the classic UI) its layer ran again
+ * (`ui.classic.wake_ms` changed). Returns the host's switch time, the classic UI's wake-up time and the wall time.
+ */
+async function switchTo(page, value, want, opts = {}) {
+  const before = await counters(page);
+  const t0 = Date.now();
+  await act(page, { kind: "setUi", value, ...opts });
+  const st = await until(page, (x) => x.ui?.active === want && !x.ui.switching, 30000, `${value} on the screen`);
+  let wakeMs = null;
+  if (want === "classic") {
+    const deadline = Date.now() + 30000;
+    for (;;) {
+      const c = await counters(page);
+      if (typeof c["ui.classic.wake_ms"] === "number" && c["ui.classic.wake_ms"] !== before["ui.classic.wake_ms"]) {
+        wakeMs = c["ui.classic.wake_ms"];
+        break;
+      }
+      if (Date.now() > deadline) break;
+      await sleep(100);
+    }
+  }
+  return { value, switchMs: st.ui.lastSwitchMs, wakeMs, wallMs: Date.now() - t0, switches: st.ui.switches };
+}
+
+/**
+ * Switching on the fly (R21, R22): v2 -> classic (warm: the classic layer stays and the game is announced to it
+ * again) -> v2 -> classic (cold: a new layer) -> v2, each within 3 s (the warm way and UI v2's way back; the cold
+ * way is measured), the classic UI without new Lua errors after its sleep, the same connection all along, and the
+ * choice kept in `civ5.options.ui` only when saved (`?ui=` writes nothing).
+ */
+async function switching(page, numbers, check) {
+  const st0 = await state(page);
+  check("?ui= keeps nothing: civ5.options.ui is not written", st0?.ui?.saved === null, `${JSON.stringify(st0?.ui?.saved)}`);
+  const att0 = await attaches(page);
+  const lua0 = await luaErrors(page);
+  const runs = [];
+  runs.push(await switchTo(page, "classic", "classic"));
+  await sleep(3000);
+  const lua1 = await luaErrors(page);
+  const c1 = await counters(page);
+  await sleep(1500);
+  const c2 = await counters(page);
+  check("warm: the classic UI is back within 3 s", runs[0].switchMs <= 3000 && runs[0].wakeMs !== null && runs[0].switchMs + runs[0].wakeMs <= 3000, JSON.stringify(runs[0]));
+  check("warm: no Lua errors after the sleep", lua1 !== null && lua1 === (lua0 ?? 0), `${lua0} -> ${lua1}`);
+  check("warm: the classic UI runs, UI v2 sleeps", c2["ui.active"] === 1 && c2["ui.frames.v2"] === c1["ui.frames.v2"] && c2["ui.frames.classic"] > c1["ui.frames.classic"],
+    `active ${c2["ui.active"]}, v2 ${c1["ui.frames.v2"]} -> ${c2["ui.frames.v2"]}, classic ${c1["ui.frames.classic"]} -> ${c2["ui.frames.classic"]}`);
+  runs.push(await switchTo(page, "v2:engraved", "v2", { save: true }));
+  check("v2 is back within 3 s", runs[1].switchMs <= 3000, JSON.stringify(runs[1]));
+  const probe = await ui2(page);
+  check("v2 is back with its texts", probe?.active === true && partTexts(probe, "top.yield.gold").length > 0, `${probe?.active}`);
+  const st1 = await state(page);
+  check("the setting keeps the choice: civ5.options.ui == v2:engraved", st1.ui.saved === "v2:engraved", `${JSON.stringify(st1.ui.saved)}`);
+  runs.push(await switchTo(page, "classic", "classic", { cold: true }));
+  await sleep(3000);
+  const lua2 = await luaErrors(page);
+  check("cold: the classic UI is back, no Lua errors", runs[2].wakeMs !== null && lua2 === lua1, `${JSON.stringify(runs[2])}, lua ${lua1} -> ${lua2}`);
+  runs.push(await switchTo(page, "v2:engraved", "v2", { cold: false }));
+  check("v2 is back within 3 s (after the cold classic)", runs[3].switchMs <= 3000, JSON.stringify(runs[3]));
+  const att1 = await attaches(page);
+  check("the same connection: no new attach while switching", att0 !== null && att1 === att0, `${att0} -> ${att1}`);
+  check("one switch per request", runs[3].switches - runs[0].switches === 3, runs.map((r) => r.switches).join(","));
+  numbers.switching = { runs, lua: [lua0, lua1, lua2], attaches: [att0, att1] };
+}
+
 /** The broken skin packages of `crates/client/ui2-host/tests/fixtures` (`badhash`, `api9`, `scriptfail`). */
 const FIXTURES = fileURLToPath(new URL("../../../crates/client/ui2-host/tests/fixtures/", import.meta.url));
 
@@ -314,6 +395,7 @@ export async function run(ctx) {
     const c2 = await counters(b.page);
     check("one active UI: ui.active == 2 (UI v2)", c2["ui.active"] === 2, `${c2["ui.active"]}`);
     check("the classic UI sleeps: ui.frames.classic does not grow", typeof c["ui.frames.classic"] === "number" && c2["ui.frames.classic"] === c["ui.frames.classic"] && c2["ui.frames.v2"] > c["ui.frames.v2"], `classic ${c["ui.frames.classic"]} -> ${c2["ui.frames.classic"]}, v2 ${c["ui.frames.v2"]} -> ${c2["ui.frames.v2"]}`);
+    await switching(b.page, result.numbers, check);
     await shot("ui2-top");
   } catch (e) {
     error = e;

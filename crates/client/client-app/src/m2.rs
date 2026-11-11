@@ -1489,6 +1489,21 @@ impl M2Ui {
         }
     }
 
+    /// The layer slept while the game went on: its next frame takes the replica's game as a new load
+    /// (`ExeApi::force_resync`), keeping the layer. `false`: there is no layer to wake up.
+    pub fn force_resync(&self) -> bool {
+        match (&self.layer, &self.exe) {
+            (Some(_), Some(exe)) => match exe.try_borrow() {
+                Ok(e) => {
+                    e.force_resync();
+                    true
+                }
+                Err(_) => false,
+            },
+            _ => false,
+        }
+    }
+
     /// The layer of this game is made again over the same replica once it is live (it missed the core's events
     /// while it did not run): what it left for the app goes as for a new game, without waiting for another game.
     pub fn restart_layer(&mut self) {

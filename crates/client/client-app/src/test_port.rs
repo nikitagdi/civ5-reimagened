@@ -85,11 +85,12 @@ pub enum TestAction {
     /// The quick start with these parameters (`RoomScript`), as the lobby's [Quick start] button runs it.
     QuickStart(RoomParams),
     /// The game UI to switch to: `classic`, `v2` or `v2:<skin>` (`UiChoice::parse`). `save`: kept as the player's
-    /// choice, as the settings window does; `cold`: the classic UI wakes up the cold way (its layer is made again).
+    /// choice, as the settings window does; `cold`: how the classic UI wakes up from now on (`true`: its layer is
+    /// made again; `None`: as it is set).
     SetUi {
         value: String,
         save: bool,
-        cold: bool,
+        cold: Option<bool>,
     },
     /// Computes the replica's digest (`Replica::digest`) in the next frame; `state().ui.replicaDigest` has it.
     ReplicaDigest,
@@ -130,7 +131,7 @@ pub enum Dispatch {
     SetUi {
         value: String,
         save: bool,
-        cold: bool,
+        cold: Option<bool>,
     },
     /// The replica's digest for the test port.
     ReplicaDigest,

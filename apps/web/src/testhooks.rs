@@ -485,7 +485,7 @@ fn parse_action(v: &Value) -> Result<TestAction, String> {
         "setUi" => TestAction::SetUi {
             value: text("value").ok_or("act setUi: `value` is required")?,
             save: flag("save"),
-            cold: flag("cold"),
+            cold: v["cold"].as_bool(),
         },
         "replicaDigest" => TestAction::ReplicaDigest,
         "leaveGame" => TestAction::Ui(UiAction::LeaveGame),

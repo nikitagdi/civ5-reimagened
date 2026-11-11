@@ -186,6 +186,14 @@ pub trait Frontend {
     fn skin(&self) -> Option<String> {
         None
     }
+    /// The choice the host asks this frontend for (UI v2: the skin), before [`UiHost::request`]'s preparation.
+    fn choose(&mut self, _choice: &UiChoice) {}
+    /// The choices this frontend offers in the settings: `(value, label)`, `value` as [`UiChoice::value`].
+    fn options(&mut self) -> Vec<(String, String)> {
+        Vec::new()
+    }
+    /// The classic UI wakes up the cold way (its layer made again) instead of the warm one.
+    fn set_cold_wake(&mut self, _cold: bool) {}
 }
 
 /// The game UI chosen for this run (`?ui=`, `AppConfig::ui_choice`).
@@ -230,6 +238,35 @@ impl UiChoice {
             UiChoice::V2 { .. } => Some(UiKind::V2),
             UiChoice::Interim => None,
         }
+    }
+}
+
+/// The player's choice of the game UI in the store (`classic`, `v2`, `v2:<skin>`); `civ5.options.*` keys follow the
+/// account.
+pub const UI_KEY: &str = "civ5.options.ui";
+
+/// The game UI to start with: `?ui=` (this run only, never written), else the player's stored choice, else `None`
+/// (the classic UI, the first registered). The interim panels are a page choice only, not a stored one; an unknown
+/// skin is resolved against the skin index later (the default skin) and the stored value stays as it is.
+pub fn start_choice(
+    param: Option<&UiChoice>,
+    kv: &dyn platform::KeyValueStore,
+) -> Option<UiChoice> {
+    if let Some(p) = param {
+        return Some(p.clone());
+    }
+    stored_choice(kv)
+}
+
+/// The player's stored choice (`None`: none, or a value this client does not know).
+pub fn stored_choice(kv: &dyn platform::KeyValueStore) -> Option<UiChoice> {
+    UiChoice::parse(&kv.get(UI_KEY)?).filter(|c| *c != UiChoice::Interim)
+}
+
+/// Keeps the player's choice (the settings window).
+pub fn save_choice(kv: &dyn platform::KeyValueStore, choice: &UiChoice) {
+    if *choice != UiChoice::Interim {
+        kv.set(UI_KEY, &choice.value());
     }
 }
 
@@ -330,11 +367,25 @@ impl UiHost {
         let Some(kind) = choice.kind() else {
             return false;
         };
-        if !self.request(kind) {
+        let Some(f) = self.fronts.iter_mut().find(|f| f.kind() == kind) else {
             return false;
-        }
+        };
+        f.choose(&choice);
+        self.request(kind);
         self.choice = Some(choice);
         true
+    }
+
+    /// The choices the registered frontends offer (settings): `(value, label)`.
+    pub fn options(&mut self) -> Vec<(String, String)> {
+        self.fronts.iter_mut().flat_map(|f| f.options()).collect()
+    }
+
+    /// The classic UI's way back after a sleep: cold (its layer made again) or warm (the default).
+    pub fn set_cold_wake(&mut self, cold: bool) {
+        for f in &mut self.fronts {
+            f.set_cold_wake(cold);
+        }
     }
 
     /// A game UI is registered (the interim game panels are off).
@@ -909,6 +960,79 @@ mod tests {
         assert_eq!((v.switches, v.last_switch_ms), (1, Some(20)));
         assert_eq!(v.frames, [1, 1]);
         assert_eq!(h.choice(), Some(engraved));
+    }
+
+    #[test]
+    fn the_start_choice_is_the_page_then_the_store_then_the_default() {
+        use platform::{KeyValueStore, MemoryStore};
+        let kv = MemoryStore::new();
+        let v2 = |s: &str| UiChoice::V2 {
+            skin: Some(s.into()),
+        };
+        assert_eq!(start_choice(None, &kv), None, "nothing: the classic UI");
+        save_choice(&kv, &v2("engraved"));
+        assert_eq!(kv.get(UI_KEY).as_deref(), Some("v2:engraved"));
+        assert_eq!(start_choice(None, &kv), Some(v2("engraved")));
+        // `?ui=` wins for this run and is not written.
+        assert_eq!(
+            start_choice(Some(&UiChoice::Classic), &kv),
+            Some(UiChoice::Classic)
+        );
+        assert_eq!(kv.get(UI_KEY).as_deref(), Some("v2:engraved"));
+        // A skin this build lacks is kept as it is (the index gives the default skin when it loads).
+        kv.set(UI_KEY, "v2:gilded");
+        assert_eq!(start_choice(None, &kv), Some(v2("gilded")));
+        assert_eq!(kv.get(UI_KEY).as_deref(), Some("v2:gilded"));
+        // Garbage and the interim panels are no stored choice.
+        for bad in ["v3", "interim", ""] {
+            kv.set(UI_KEY, bad);
+            assert_eq!(start_choice(None, &kv), None, "{bad:?}");
+        }
+        save_choice(&kv, &UiChoice::Interim);
+        assert_eq!(kv.get(UI_KEY).as_deref(), Some(""), "not written");
+        save_choice(&kv, &UiChoice::Classic);
+        assert_eq!(stored_choice(&kv), Some(UiChoice::Classic));
+    }
+
+    #[test]
+    fn a_choice_reaches_its_frontend_before_it_prepares() {
+        let mut h = UiHost::new();
+        let (classic, _) = fake(UiKind::Classic);
+        h.register(classic);
+        let chosen = Rc::new(RefCell::new(Vec::new()));
+        struct Picky(Rc<RefCell<Vec<UiChoice>>>);
+        impl Frontend for Picky {
+            fn kind(&self) -> UiKind {
+                UiKind::V2
+            }
+            fn needs_replica(&self) -> bool {
+                true
+            }
+            fn prepare(&mut self, _cx: &mut PrepareCx<'_>) -> Readiness {
+                Readiness::Ready
+            }
+            fn activate(&mut self, _cx: &mut PrepareCx<'_>) {}
+            fn deactivate(&mut self, _cx: &mut PrepareCx<'_>) {}
+            fn frame(&mut self, _cx: &mut FrameCx<'_>, _out: &mut UiDrawList) {}
+            fn input(&mut self, _cx: &mut InputCx<'_>, _ev: InputEvent) {}
+            fn new_game(&mut self) {}
+            fn choose(&mut self, choice: &UiChoice) {
+                self.0.borrow_mut().push(choice.clone());
+            }
+            fn options(&mut self) -> Vec<(String, String)> {
+                vec![("v2".into(), "UI v2".into())]
+            }
+        }
+        h.register(Box::new(Picky(Rc::clone(&chosen))));
+        let pick = UiChoice::V2 {
+            skin: Some("vellum".into()),
+        };
+        assert!(h.ask(pick.clone()));
+        assert_eq!(*chosen.borrow(), [pick]);
+        frame(&mut h, 0.0);
+        assert_eq!(h.active_kind(), Some(UiKind::V2));
+        // The settings list what the frontends offer; the fake classic offers nothing.
+        assert_eq!(h.options(), [("v2".to_owned(), "UI v2".to_owned())]);
     }
 
     #[test]

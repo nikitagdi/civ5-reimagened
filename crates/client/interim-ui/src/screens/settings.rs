@@ -104,6 +104,10 @@ pub struct SettingsView {
     pub can_leave: bool,
     /// A server session: [Sign out].
     pub can_sign_out: bool,
+    /// The game interfaces to choose from: `(value, label)` (`classic`, `v2`, `v2:<skin>`); empty: no row.
+    pub interfaces: Vec<(String, String)>,
+    /// The value of the interface in force.
+    pub interface: String,
 }
 
 pub fn show(ctx: &egui::Context, view: &SettingsView) -> Vec<UiAction> {
@@ -124,6 +128,22 @@ pub fn show(ctx: &egui::Context, view: &SettingsView) -> Vec<UiAction> {
                 .max_height(body_height)
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
+            // ---- the game interface: switched at once, kept for the next games
+            if !view.interfaces.is_empty() {
+                ui.strong("Interface");
+                ui.horizontal_wrapped(|ui| {
+                    for (value, label) in &view.interfaces {
+                        let b = egui::Button::new(label).selected(view.interface == *value);
+                        let r = ui.add(b);
+                        if r.clicked() && view.interface != *value {
+                            r.surrender_focus();
+                            actions.push(UiAction::SetUi(value.clone()));
+                        }
+                    }
+                });
+                ui.weak("The interface changes now and is kept for the next games.");
+                ui.separator();
+            }
             // ---- preset: the render scale, the shadows and the multisampling together
             ui.strong("Preset");
             ui.horizontal(|ui| {
@@ -306,6 +326,26 @@ mod tests {
 
     fn click(v: &SettingsView, label: &str) -> Vec<UiAction> {
         click_nth(v, label, 0)
+    }
+
+    #[test]
+    fn the_interface_row_switches_to_another_interface_only() {
+        let mut v = view();
+        assert!(
+            find_widget("Interface", |ctx| show(ctx, &v)).is_none(),
+            "no row without choices"
+        );
+        v.interfaces = vec![
+            ("classic".into(), "Classic".into()),
+            ("v2".into(), "UI v2".into()),
+            ("v2:engraved".into(), "UI v2: engraved".into()),
+        ];
+        v.interface = "classic".into();
+        assert_eq!(
+            click(&v, "UI v2: engraved"),
+            [UiAction::SetUi("v2:engraved".into())]
+        );
+        assert!(click(&v, "Classic").is_empty(), "the one in force");
     }
 
     #[test]

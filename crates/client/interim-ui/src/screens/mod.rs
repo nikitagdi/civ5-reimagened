@@ -170,6 +170,8 @@ pub enum UiAction {
     ToggleStats(bool),
     /// The notice of a failed game interface was closed.
     DismissUiNotice,
+    /// The settings' "Interface": the game UI to switch to and keep (`classic`, `v2`, `v2:<skin>`).
+    SetUi(String),
     /// The performance panel's checkboxes: the draw groups `Main` skips (bit = `render::perf::Group::bit`; 0
     /// draws all). A debug aid, not saved.
     SetPerfGroups(u32),
