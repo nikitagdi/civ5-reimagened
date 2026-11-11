@@ -61,6 +61,38 @@ function dumpInPage() {
     flush();
     return set;
   };
+  // A single-line text cut with `text-overflow: ellipsis`: a Range still spans the whole text, so the record is
+  // the text that stays plus the ellipsis, the way the line is drawn. The cut is the longest prefix (whole
+  // characters) that fits with the ellipsis into the content box; both widths are Chrome's own measurements.
+  const ellipsized = (el, t, start, end, r) => {
+    const cs = getComputedStyle(el);
+    if (cs.textOverflow !== "ellipsis" || cs.overflowX === "visible") return r;
+    const pl = parseFloat(cs.paddingLeft) || 0;
+    const pr = parseFloat(cs.paddingRight) || 0;
+    const box = el.getBoundingClientRect();
+    const right = box.left + el.clientLeft + el.clientWidth - pr;
+    if (r.right <= right + 0.001) return r;
+    const probe = document.createElement("span");
+    probe.textContent = "…";
+    probe.style.cssText = `position:absolute;left:0;top:0;white-space:pre;font:${cs.font};letter-spacing:${cs.letterSpacing};font-variant-numeric:${cs.fontVariantNumeric}`;
+    document.body.appendChild(probe);
+    const ell = probe.getBoundingClientRect().width;
+    probe.remove();
+    const avail = right - Math.max(r.left, box.left + el.clientLeft + pl);
+    const range = document.createRange();
+    range.setStart(t, start);
+    let fit = 0;
+    for (let i = start; i < end; ) {
+      const cp = t.data.codePointAt(i);
+      const next = i + (cp > 0xffff ? 2 : 1);
+      range.setEnd(t, next);
+      const w = range.getBoundingClientRect().width;
+      if (w + ell > avail + 0.001) break;
+      fit = w;
+      i = next;
+    }
+    return { x: r.x, y: r.y, width: fit + ell, height: r.height };
+  };
   const rects = [];
   const push = (node, keys, r) => rects.push([node, keys, r3(r.x), r3(r.y), r3(r.width), r3(r.height)]);
   for (const el of document.querySelectorAll("[data-ui2-node]")) {
@@ -86,7 +118,7 @@ function dumpInPage() {
       const range = document.createRange();
       range.setStart(t, start);
       range.setEnd(t, end);
-      push(`${node}#${k}`, keys, range.getBoundingClientRect());
+      push(`${node}#${k}`, keys, ellipsized(el, t, start, end, range.getBoundingClientRect()));
       k++;
     }
   }

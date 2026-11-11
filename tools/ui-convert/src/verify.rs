@@ -386,6 +386,25 @@ fn describe(pkg: &Package, node: &str) -> (String, String) {
     let Some(tpl) = pkg.templates().get(t) else {
         return Default::default();
     };
+    // The record names the element's index among the template's elements (text leaves and `for`/`if` nodes
+    // are not counted, as in the runtime's labels); the package numbers every node.
+    use ui2_package::NodeKind;
+    let element = |k: &NodeKind| {
+        matches!(
+            k,
+            NodeKind::Box { .. } | NodeKind::Image(_) | NodeKind::Input { .. } | NodeKind::Layer(_)
+        )
+    };
+    let Some(i) = tpl
+        .nodes
+        .iter()
+        .enumerate()
+        .filter(|(_, n)| element(&n.kind))
+        .nth(i)
+        .map(|(j, _)| j)
+    else {
+        return Default::default();
+    };
     let at = pkg
         .source_loc(ui2_package::TemplateId(t as u32), i as u32)
         .map(|(f, l, _)| format!("{f}:{l}"))
