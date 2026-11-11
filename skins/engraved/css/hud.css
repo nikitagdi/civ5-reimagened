@@ -157,24 +157,6 @@
   height: 18px;
 }
 
-/* ---------- turn and year (until the turn dial shows them) ---------- */
-.date {
-  gap: 8px;
-  padding: 0 16px;
-  white-space: nowrap;
-}
-
-.date .v {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--bone);
-}
-
-.date .d {
-  font-size: 13px;
-  color: var(--bone-3);
-}
-
 /* ---------- yields and resources ---------- */
 .yields {
   gap: 28px;
@@ -653,4 +635,340 @@
 
 .act.danger:hover {
   color: var(--neg);
+}
+
+/* ---------- the helm: turn state, players, the turn dial and the minimap (bottom right) ---------- */
+.helm {
+  --c: 16px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 400px;
+  height: 392px;
+}
+
+.helm .side {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  width: 140px;
+  display: flex;
+  flex-direction: column;
+}
+
+.helm .st {
+  display: flex;
+  font: 500 16px/22px var(--sans);
+  color: var(--bone);
+}
+
+.helm .sub {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--bone-2);
+}
+
+.helm .hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--bone-3);
+  white-space: nowrap;
+}
+
+.helm .rule {
+  height: 1px;
+  margin: 14px 0 10px;
+  background-color: var(--engrave);
+}
+
+.helm .ph {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bone-3);
+}
+
+/* Four players fit beside the dial; more are cut (the players panel has them all). */
+.helm .seats {
+  max-height: 88px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.player {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 22px;
+  font-size: 13px;
+  color: var(--bone);
+  white-space: nowrap;
+}
+
+.player .notch {
+  flex: none;
+  width: 4px;
+  height: 12px;
+  background-color: var(--brass);
+}
+
+.player .nm {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player .you {
+  font-size: 12px;
+  color: var(--bone-3);
+}
+
+.player.wait {
+  color: var(--bone-3);
+}
+
+.player.wait .notch {
+  background-color: var(--engrave);
+}
+
+/* The dial: concentric discs from the rim inwards. A timer's remaining time is a 2px arc between the track and
+   its cover; the scale is two conic gradients (a tick every 9 degrees, a longer one every 45). */
+.dial {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 216px;
+  height: 216px;
+  border-radius: 108px;
+}
+
+.dial .face,
+.dial .track,
+.dial .arc,
+.dial .cover,
+.dial .scale,
+.dial .scale-in,
+.dial .hub,
+.dial .lit,
+.dial .rim,
+.dial .disc {
+  position: absolute;
+}
+
+.dial .face {
+  left: 4px;
+  top: 4px;
+  width: 208px;
+  height: 208px;
+  border-radius: 104px;
+  background-color: var(--lacquer-0);
+  box-shadow: inset 0 0 0 1px var(--engrave);
+}
+
+.dial .track,
+.dial .arc {
+  left: 8px;
+  top: 8px;
+  width: 200px;
+  height: 200px;
+}
+
+.dial .track {
+  border-radius: 100px;
+  background-color: var(--lacquer-2);
+}
+
+/* Each half shows the part of a half disc rotated into it: the right half the first 180 degrees, the left
+   half the rest. */
+.dial .half {
+  position: absolute;
+  top: 0;
+  width: 100px;
+  height: 200px;
+  overflow: hidden;
+}
+
+.dial .half.r {
+  left: 100px;
+}
+
+.dial .half.l {
+  left: 0;
+}
+
+.dial .sweep {
+  position: absolute;
+  top: 0;
+  width: 100px;
+  height: 200px;
+  background-color: var(--brass);
+}
+
+.dial .half.r .sweep {
+  left: -100px;
+  border-radius: 100px 0 0 100px;
+  transform-origin: 100% 50%;
+}
+
+.dial .half.l .sweep {
+  left: 100px;
+  border-radius: 0 100px 100px 0;
+  transform-origin: 0 50%;
+}
+
+.dial .cover {
+  left: 10px;
+  top: 10px;
+  width: 196px;
+  height: 196px;
+  border-radius: 98px;
+  background-color: var(--lacquer-0);
+}
+
+/* One gradient per node: the converter reads a list of background layers as one value of the properties the
+   profile does not keep. */
+.dial .scale,
+.dial .scale-maj {
+  left: 15px;
+  top: 15px;
+  width: 186px;
+  height: 186px;
+  border-radius: 93px;
+}
+
+.dial .scale {
+  background-image: repeating-conic-gradient(from -0.35deg, var(--engrave) 0deg 0.7deg, transparent 0.7deg 9deg);
+}
+
+.dial .scale-maj {
+  position: absolute;
+  background-image: repeating-conic-gradient(from -0.5deg, var(--engrave-hi) 0deg 1deg, transparent 1deg 45deg);
+}
+
+.dial .scale-in {
+  left: 23px;
+  top: 23px;
+  width: 170px;
+  height: 170px;
+  border-radius: 85px;
+  background-color: var(--lacquer-0);
+  background-image: repeating-conic-gradient(from -0.5deg, var(--engrave-hi) 0deg 1deg, transparent 1deg 45deg);
+}
+
+.dial .hub {
+  left: 28px;
+  top: 28px;
+  width: 160px;
+  height: 160px;
+  border-radius: 80px;
+  background-color: var(--lacquer-0);
+}
+
+/* The lit ticks of a turn timer: one node per tick, turned about the centre; its bar is drawn at the top. */
+.dial .lit {
+  left: 15px;
+  top: 15px;
+  width: 186px;
+  height: 186px;
+}
+
+.dial .tk {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 186px;
+  height: 186px;
+}
+
+.dial .tk.on {
+  background-image: linear-gradient(var(--brass), var(--brass));
+  background-size: 1.5px 8px;
+  background-position: top center;
+  background-repeat: no-repeat;
+}
+
+.dial .rim {
+  left: 34px;
+  top: 34px;
+  width: 148px;
+  height: 148px;
+  border-radius: 74px;
+  box-shadow: inset 0 0 0 1px var(--engrave);
+}
+
+.dial .disc {
+  left: 39px;
+  top: 39px;
+  width: 138px;
+  height: 138px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 69px;
+  background-color: var(--lacquer-2);
+  box-shadow: inset 0 0 0 1px var(--engrave-hi);
+  white-space: nowrap;
+  transition: background-color 150ms var(--ease);
+}
+
+.dial:hover .disc {
+  background-color: var(--lacquer-3);
+}
+
+.dial:focus-visible .disc {
+  box-shadow: inset 0 0 0 1px var(--brass);
+}
+
+.dial .tm {
+  font-size: 14px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--brass);
+}
+
+.dial .no {
+  font: 500 50px/50px var(--serif);
+  color: var(--bone);
+}
+
+.dial .yr {
+  font-size: 14px;
+  line-height: 18px;
+  color: var(--bone-2);
+}
+
+.dial .era {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bone-3);
+}
+
+/* The minimap: the game's own picture of the world. */
+.minimap {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  width: 368px;
+  height: 144px;
+  overflow: hidden;
+  border-radius: 4px;
+  background-color: var(--lacquer-0);
+  box-shadow: inset 0 0 0 1px var(--engrave);
+}
+
+.minimap .mm {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 368px;
+  height: 144px;
 }

@@ -5,7 +5,6 @@
 # Top strip.
 "top.turns" = "{1_Num} {1_Num: plural 1?turn; other?turns;}"
 "top.next" = "{1} next"
-"top.turn" = "Turn {1_Num}"
 
 # Names of keys on keycaps.
 "key.f7" = "F7"
@@ -100,6 +99,29 @@
 "prod.buy" = "Buy"
 "prod.short" = "You have {1_Num} gold, {2_Num} short"
 "prod.pick" = "Point at an item to see what it does"
+
+# The helm: what the turn button does now, and who is ready.
+"turn.next" = "Next turn"
+"turn.unit" = "Unit needs orders"
+"turn.production" = "Choose production"
+"turn.research" = "Choose research"
+"turn.policy" = "Choose a policy"
+"turn.other" = "Something needs you"
+"turn.waiting" = "Waiting for players"
+"turn.ai" = "Other civilizations move"
+"turn.ended" = "Turn ended"
+"turn.over" = "Game over"
+"turn.units_waiting" = "{1_Num} {1_Num: plural 1?unit; other?units;} waiting"
+"turn.do.end" = "End turn"
+"turn.do.unit" = "Next unit"
+"turn.do.production" = "Open the city"
+"turn.do.research" = "Open research"
+"turn.do.policy" = "Open policies"
+"turn.do.other" = "Open the log"
+"turn.do.cancel" = "Take it back"
+"turn.ready" = "Ready"
+"turn.ready_of" = "{1_Num} of {2_Num}"
+"turn.you" = "you"
 
 # Year line of the turn dial (the model gives the key and the year).
 "year.ad" = "{1} AD"

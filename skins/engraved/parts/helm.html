@@ -1,0 +1,110 @@
+<section class="helm plate tl" data-part="helm">
+  <!-- What the turn button does now, and who has ended the turn. -->
+  <div class="side" data-part="helm.state">
+    <div class="st">
+      <span data-bind-if="{{turn.state == 'next_turn'}}" data-l10n="turn.next">Next turn</span>
+      <span data-bind-if="{{turn.state == 'unit_needs_orders'}}" data-l10n="turn.unit">Unit needs orders</span>
+      <span data-bind-if="{{turn.state == 'city_needs_production'}}" data-l10n="turn.production">Choose production</span>
+      <span data-bind-if="{{turn.state == 'research_needed'}}" data-l10n="turn.research">Choose research</span>
+      <span data-bind-if="{{turn.state == 'policy_needed'}}" data-l10n="turn.policy">Choose a policy</span>
+      <span data-bind-if="{{turn.state == 'other_blocker'}}" data-l10n="turn.other">Something needs you</span>
+      <span data-bind-if="{{turn.state == 'waiting_others'}}" data-l10n="turn.waiting">Waiting for players</span>
+      <span data-bind-if="{{turn.state == 'ai_moving'}}" data-l10n="turn.ai">Other civilizations move</span>
+      <span data-bind-if="{{turn.state == 'ended'}}" data-l10n="turn.ended">Turn ended</span>
+      <span data-bind-if="{{turn.state == 'game_over'}}" data-l10n="turn.over">Game over</span>
+    </div>
+    <div class="sub" data-bind-if="{{turn.state == 'unit_needs_orders' && turn.units_waiting > 0}}" data-l10n="turn.units_waiting" data-l10n-args="{{turn.units_waiting}}">5 units waiting</div>
+    <div class="hint" data-bind-if="{{turn.state != 'waiting_others' && turn.state != 'ai_moving' && turn.state != 'game_over'}}">
+      <span class="key"><span data-l10n="key.enter">Enter</span></span>
+      <span data-bind-if="{{turn.state == 'next_turn'}}" data-l10n="turn.do.end">End turn</span>
+      <span data-bind-if="{{turn.state == 'unit_needs_orders'}}" data-l10n="turn.do.unit">Next unit</span>
+      <span data-bind-if="{{turn.state == 'city_needs_production'}}" data-l10n="turn.do.production">Open the city</span>
+      <span data-bind-if="{{turn.state == 'research_needed'}}" data-l10n="turn.do.research">Open research</span>
+      <span data-bind-if="{{turn.state == 'policy_needed'}}" data-l10n="turn.do.policy">Open policies</span>
+      <span data-bind-if="{{turn.state == 'other_blocker'}}" data-l10n="turn.do.other">Open the log</span>
+      <span data-bind-if="{{turn.state == 'ended'}}" data-l10n="turn.do.cancel">Take it back</span>
+    </div>
+    <div class="rule"></div>
+    <div class="ph"><span data-l10n="turn.ready">Ready</span><span data-l10n="turn.ready_of" data-l10n-args="{{turn.ready}}, {{turn.humans}}">3 of 4</span></div>
+    <!-- The key spells out the list's key, so the preview names the instances as the runtime does. -->
+    <div class="seats" data-part="helm.seats">
+      <div class="player" data-bind-for="s:{{turn.seats}}" data-bind-key="{{s.player}}" data-bind-class-toggle="wait:{{!s.finished}}">
+        <i class="notch"></i>
+        <span class="nm" data-bind-value="{{s.name}}">Catherine</span>
+        <span class="you" data-bind-if="{{s.me}}" data-l10n="turn.you">you</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- The turn dial: a click (or Enter) does what the state above says. The scale is a conic gradient, the
+       remaining time of a turn timer is an arc of two rotating halves and 40 lit ticks. -->
+  <button class="dial" data-part="helm.dial" data-hotkey="Enter" data-on-click="intent turn.primary()">
+    <div class="face"></div>
+    <div class="track"></div>
+    <div class="arc" data-bind-if="{{turn.timer != null}}">
+      <div class="half r"><div class="sweep" data-bind-style-transform="rotate({{clamp(turn.timer.left_s / max(turn.timer.total_s, 1), 0, 0.5) * 360}}deg)" style="transform: rotate(126deg)"></div></div>
+      <div class="half l"><div class="sweep" data-bind-style-transform="rotate({{clamp(turn.timer.left_s / max(turn.timer.total_s, 1) - 0.5, 0, 0.5) * 360}}deg)" style="transform: rotate(0deg)"></div></div>
+    </div>
+    <div class="cover"></div>
+    <div class="scale"></div>
+    <div class="scale-maj"></div>
+    <div class="scale-in"></div>
+    <div class="hub"></div>
+    <div class="lit" data-bind-if="{{turn.timer != null}}">
+      <i class="tk" style="transform: rotate(0deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 0 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(9deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 1 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(18deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 2 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(27deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 3 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(36deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 4 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(45deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 5 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(54deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 6 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(63deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 7 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(72deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 8 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(81deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 9 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(90deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 10 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(99deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 11 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(108deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 12 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(117deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 13 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(126deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 14 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(135deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 15 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(144deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 16 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(153deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 17 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(162deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 18 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(171deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 19 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(180deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 20 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(189deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 21 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(198deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 22 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(207deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 23 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(216deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 24 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(225deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 25 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(234deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 26 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(243deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 27 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(252deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 28 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(261deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 29 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(270deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 30 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(279deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 31 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(288deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 32 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(297deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 33 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(306deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 34 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(315deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 35 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(324deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 36 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(333deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 37 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(342deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 38 * turn.timer.total_s}}"></i>
+      <i class="tk" style="transform: rotate(351deg)" data-bind-class-toggle="on:{{turn.timer.left_s * 40 > 39 * turn.timer.total_s}}"></i>
+    </div>
+    <div class="rim"></div>
+    <div class="disc">
+      <span class="tm" data-bind-if="{{turn.timer != null}}" data-bind-value="{{fmt.mmss(turn.timer.left_s)}}">0:42</span>
+      <span class="no" data-bind-value="{{game.turn}}">87</span>
+      <span class="yr" data-bind-value="{{game.year_text}}">1250 AD</span>
+      <span class="era" data-bind-value="{{game.era.name}}">Medieval era</span>
+    </div>
+  </button>
+
+  <!-- The minimap is a picture the game draws; a press on it moves the camera (the host does that).
+       SIMPLIFIED(SIMP-278): no frame of the camera's view on the minimap; the camera does not give the model the
+       rectangle it sees. -->
+  <div class="minimap" data-part="helm.minimap" data-slot="hud.minimap">
+    <img class="mm" data-asset="render:minimap">
+  </div>
+</section>
