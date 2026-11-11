@@ -16,10 +16,10 @@ use ui2_text::{AtlasConfig, DirtyRect, GlyphAtlas, TextEngine};
 use crate::encode::{EncodeCtx, encode_chunk};
 use crate::glyphs::GlyphStore;
 use crate::instance::Ui2Instance;
-use crate::pages::Pages;
+use crate::pages::{ExtSlots, Pages};
 use crate::stats::SceneStats;
 use crate::tables::{TableSegment, Tables};
-use crate::{AnchorSlot, AnchorXform, ChunkId, ChunkItems, DrawError, Item, LayerId};
+use crate::{AnchorSlot, AnchorXform, ChunkId, ChunkItems, DrawError, ExtTexture, Item, LayerId};
 
 /// Estimated cost of rasterizing one glyph in milliseconds, used to turn a time budget into a glyph count when the
 /// scene has no clock (about 1.5 ms for the 235 glyphs of the HUD in wasm).
@@ -58,6 +58,7 @@ struct Chunk {
     items: ChunkItems,
     xforms: Vec<u16>,
     clips: Vec<u16>,
+    exts: Vec<u16>,
     unresolved: u32,
     revision: u64,
     offset: usize,
@@ -111,6 +112,7 @@ pub struct Scene {
     tables: Tables,
     glyphs: GlyphStore,
     pages: Pages,
+    exts: ExtSlots,
     clock: Option<Clock>,
     overflow: u32,
     frame: Frame,
@@ -126,6 +128,7 @@ impl Scene {
             tables: Tables::new(),
             glyphs: GlyphStore::new(AtlasConfig::default()),
             pages: Pages::default(),
+            exts: ExtSlots::default(),
             clock: None,
             overflow: 0,
             frame: Frame::default(),
@@ -211,6 +214,9 @@ impl Scene {
         for c in &ch.clips {
             self.tables.release_clip(*c);
         }
+        for e in &ch.exts {
+            self.exts.release(*e);
+        }
     }
 
     fn drop_chunk(&mut self, id: ChunkId, old: Chunk) {
@@ -232,6 +238,7 @@ impl Scene {
                 table_overflow: &mut self.overflow,
                 pages: &self.pages,
                 mask_side,
+                exts: &mut self.exts,
             };
             encode_chunk(&items, &mut ctx)
         };
@@ -249,6 +256,7 @@ impl Scene {
             items,
             xforms: enc.xforms,
             clips: enc.clips,
+            exts: enc.exts,
             unresolved: enc.unresolved,
             revision: old.as_ref().map_or(1, |o| o.revision + 1),
             offset: 0,
@@ -486,6 +494,16 @@ impl Scene {
     /// Revision of a chunk: grows when its encoded instances change.
     pub fn chunk_revision(&self, id: ChunkId) -> Option<u64> {
         self.chunks.get(&id).map(|c| c.revision)
+    }
+
+    /// The external texture of an instance's xt slot (None for 0 and for free slots).
+    pub fn ext_texture(&self, slot: u16) -> Option<ExtTexture> {
+        self.exts.get(slot)
+    }
+
+    /// The external texture slots.
+    pub fn ext_slots(&self) -> &ExtSlots {
+        &self.exts
     }
 
     /// The changed ranges of the transform and clip tables, and forgets them.

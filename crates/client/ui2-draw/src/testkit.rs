@@ -5,8 +5,8 @@
 //!   (conic scale, rotated ticks, an arc of two clipped halves).
 //! - [`hud_a`]: the heads-up display of the reference mockup as the runtime would hand it over: the top strip
 //!   with its groups, separators, icons and labels and the research plate; the notes column and the unit panel
-//!   with their shadows and action buttons; the minimap frame and the end-turn dial. Sizes are in CSS px times
-//!   the scale factor.
+//!   with their shadows, the unit portrait ([`PORTRAIT`], an external texture) and action buttons; the minimap
+//!   ([`ExtTexture::MINIMAP`]) in its frame and the end-turn dial. Sizes are in CSS px times the scale factor.
 //! - [`map_banners`]: `n` city banners on the map layer, one chunk and one anchor each.
 //!
 //! The scenes only use public items, so what they exercise is what the runtime can emit.
@@ -18,9 +18,9 @@ use ui2_package::{BlobRef, BlobSection, Images, Page, PageFormat};
 use ui2_text::{FaceId, RunStyle, TextEngine};
 
 use crate::{
-    AnchorSlot, AnchorXform, Border, BoxItem, ChunkBuilder, ChunkId, ChunkItems, Clip, Color, Fill,
-    Glyphs, Gradient, GradientStop, ImageRef, Item, LayerId, MaskItem, Polygon, Radii, Rect, Scene,
-    ShadowItem, css_corner_angle, css_linear_line,
+    AnchorSlot, AnchorXform, Border, BoxItem, ChunkBuilder, ChunkId, ChunkItems, Clip, Color,
+    ExtTexture, Fill, Glyphs, Gradient, GradientStop, ImageItem, ImageRef, Item, LayerId, MaskItem,
+    Polygon, Radii, Rect, Scene, ShadowItem, css_corner_angle, css_linear_line,
 };
 
 /// Background lacquer of the mockup.
@@ -33,6 +33,9 @@ pub const ENGRAVE: Color = Color::rgba(77, 64, 50, 255);
 pub const BONE: Color = Color::rgba(233, 223, 207, 255);
 /// Accent.
 pub const BRASS: Color = Color::rgba(201, 163, 106, 255);
+
+/// The external texture id [`hud_a`] uses for the unit portrait (a game asset id in the renderer's space).
+pub const PORTRAIT: ExtTexture = ExtTexture(0x7000_0001);
 
 /// Side of the icon page.
 pub const ICON_PAGE: u16 = 64;
@@ -438,6 +441,17 @@ pub fn hud_a(text: &mut TextEngine, face: FaceId, k: f32) -> Vec<(LayerId, Chunk
     kit.shadow(400.0, 880.0, 760.0, 184.0, 8.0, 8.0, 24.0);
     kit.panel(400.0, 880.0, 760.0, 184.0, LACQUER, 8.0);
     kit.panel(416.0, 896.0, 104.0, 104.0, LACQUER_2, 4.0);
+    // The unit portrait: a game asset of the `ui:tx` store.
+    kit.out.push(Item::Image(ImageItem {
+        rect: kit.r(420.0, 900.0, 96.0, 96.0),
+        image: ImageRef {
+            layer: 0,
+            uv: [0.0, 0.0, 1.0, 1.0],
+        },
+        radii: Radii::uniform(3.0 * k),
+        external: Some(PORTRAIT),
+        ..ImageItem::default()
+    }));
     kit.text("Swordsman", 536.0, 916.0, 18.0, BONE);
     for (i, s) in ["Strength 14", "Moves 2/2", "XP 12/30"].iter().enumerate() {
         let x = 536.0 + 120.0 * i as f32;
@@ -469,10 +483,19 @@ pub fn hud_a(text: &mut TextEngine, face: FaceId, k: f32) -> Vec<(LayerId, Chunk
     }
     push(kit.take(), &mut chunks);
 
-    // Minimap frame (the map picture itself is an external texture, added by the caller when it has one) and
-    // its rounded clip.
+    // Minimap: the frame, the map (the renderer's minimap target) in its rounded clip, the view frame over it.
     kit.panel(16.0, 920.0, 368.0, 144.0, LACQUER, 4.0);
     let clip = Clip::rounded(kit.r(16.0, 920.0, 368.0, 144.0), 4.0 * k);
+    kit.out.push(Item::Image(ImageItem {
+        rect: kit.r(17.0, 921.0, 366.0, 142.0),
+        image: ImageRef {
+            layer: 0,
+            uv: [0.0, 0.0, 1.0, 1.0],
+        },
+        clip: Some(clip),
+        external: Some(ExtTexture::MINIMAP),
+        ..ImageItem::default()
+    }));
     kit.out.push(Item::Box(BoxItem {
         clip: Some(clip),
         ..BoxItem::solid(

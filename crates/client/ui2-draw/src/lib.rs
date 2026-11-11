@@ -33,7 +33,7 @@ pub use glam::{Affine2, Vec2};
 
 pub use glyphs::GlyphStore;
 pub use instance::Ui2Instance;
-pub use pages::{Pages, StaticPage};
+pub use pages::{ExtSlots, Pages, StaticPage};
 pub use scene::{Clock, FALLBACK_MS_PER_GLYPH, LayerChange, Op, Scene};
 pub use stats::SceneStats;
 pub use tables::{Clip, Polygon, TableSegment};
@@ -536,21 +536,54 @@ pub struct MaskItem {
     pub clip: Option<Clip>,
 }
 
-/// A colour picture of the package's `Rgba8` pages (premultiplied), tinted and with rounded corners.
+/// A texture the renderer owns rather than the skin package: a game asset of the `ui:tx` store (portraits,
+/// emblems, unit icons) or a render target (the minimap). The value is the renderer's texture id
+/// (`draw_list::TextureId`, the id space of the original UI); the pass resolves it every frame and draws
+/// nothing (counting `ui2.ext_missing`) while the texture is not resident.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ExtTexture(pub u64);
+
+impl ExtTexture {
+    /// The minimap render target (`draw_list::TextureId::MINIMAP`).
+    pub const MINIMAP: ExtTexture = ExtTexture((1 << 63) | 1);
+}
+
+/// A 9-slice (CSS `border-image`): the sprite is cut by `src` into corners, edges and a middle, the corners
+/// are drawn at the sizes `dst`, the edges and the middle stretched between them.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct NineSlice {
+    /// Where the sprite is cut, as fractions of its height (top, bottom) and width (right, left): top, right,
+    /// bottom, left (`border-image-slice`).
+    pub src: [f32; 4],
+    /// Widths of the destination's border area, device px: top, right, bottom, left (`border-image-width`).
+    /// When opposite widths exceed the rectangle, all are scaled down together.
+    pub dst: [f32; 4],
+    /// The middle is drawn too (`border-image-slice: ... fill`).
+    pub fill: bool,
+}
+
+/// A colour picture: a sprite of the package's `Rgba8` pages (premultiplied), or an external texture, tinted
+/// and with rounded corners, whole or as a 9-slice.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImageItem {
     /// Destination rectangle, in chunk space.
     pub rect: Rect,
-    /// The sprite in the image pages.
+    /// The sprite in the image pages. With `external`, only its `uv` counts: the rectangle in that texture,
+    /// normalized to it (`(0, 0, 1, 1)` is the whole texture).
     pub image: ImageRef,
     /// Multiplies the picture (straight colour; white opaque leaves it as it is, the alpha is an opacity).
     pub tint: Color,
-    /// Corner radii (the picture is cut to the rounded rectangle).
+    /// Corner radii (the picture is cut to the rounded rectangle). Not used by a 9-slice.
     pub radii: Radii,
     /// Transform from the item's space to chunk space.
     pub transform: Option<Affine2>,
     /// Clip in chunk space.
     pub clip: Option<Clip>,
+    /// Draw the picture as a 9-slice.
+    pub nine: Option<NineSlice>,
+    /// Sample this renderer texture instead of the package pages. Items of different external textures are
+    /// drawn by different draw calls (the only thing that splits a layer's draw).
+    pub external: Option<ExtTexture>,
 }
 
 impl Default for ImageItem {
@@ -562,6 +595,8 @@ impl Default for ImageItem {
             radii: Radii::ZERO,
             transform: None,
             clip: None,
+            nine: None,
+            external: None,
         }
     }
 }

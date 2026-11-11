@@ -4049,7 +4049,15 @@ impl Renderer {
             format: self.view_format,
             size: (self.config.width, self.config.height),
         };
-        self.ui2.prepare(&self.device, &self.queue, scene, &target);
+        // Pictures of game assets and the minimap come from the textures of the original UI.
+        let mut textures = crate::ui2_pass::RendererTextures {
+            textures: &mut self.ui_textures,
+            external: UiExternal {
+                minimap: minimap_of(&self.layers, &self.targets),
+            },
+        };
+        self.ui2
+            .prepare(&self.device, &self.queue, scene, &target, &mut textures);
         self.ui2.prepare_ms += (self.cpu_clock)() - started;
     }
 

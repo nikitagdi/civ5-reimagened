@@ -16,12 +16,13 @@
 //! The pages change only when a skin is loaded or replaced ([`crate::Scene::set_pages`]); their revision tells
 //! the pass when to upload them, so a frame without a skin change uploads none.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use ui2_package::sections::blobs::MAX_PAGE_EDGE;
 use ui2_package::{Images, PageFormat};
 
-use crate::DrawError;
+use crate::{DrawError, ExtTexture};
 
 /// The most mask pages a package may bring: the layer index of a mask is 8 bits wide and the glyph pages need
 /// layers after them.
@@ -187,6 +188,68 @@ impl Pages {
         self.image = image;
         self.revision += 1;
         Ok(true)
+    }
+}
+
+/// The external textures the scene's instances refer to: each gets a slot (1 to 65535; 0 means none) held as
+/// long as an encoded chunk uses it, shared by all items of the same texture. An instance carries the slot in
+/// its `ext` field; the pass asks [`crate::Scene::ext_texture`] which texture that is.
+#[derive(Debug, Default)]
+pub struct ExtSlots {
+    /// Slot `i + 1`: the texture and its reference count.
+    slots: Vec<Option<(ExtTexture, u32)>>,
+    map: HashMap<ExtTexture, u16>,
+    free: Vec<u16>,
+}
+
+impl ExtSlots {
+    /// The slot of `tex`, one reference more; `None` when all slots are taken.
+    pub(crate) fn acquire(&mut self, tex: ExtTexture) -> Option<u16> {
+        if let Some(&slot) = self.map.get(&tex) {
+            if let Some(Some((_, refs))) = self.slots.get_mut(usize::from(slot) - 1) {
+                *refs += 1;
+            }
+            return Some(slot);
+        }
+        let slot = match self.free.pop() {
+            Some(s) => s,
+            None => {
+                let s = u16::try_from(self.slots.len() + 1).ok()?;
+                self.slots.push(None);
+                s
+            }
+        };
+        self.slots[usize::from(slot) - 1] = Some((tex, 1));
+        self.map.insert(tex, slot);
+        Some(slot)
+    }
+
+    /// Drops one reference of a slot.
+    pub(crate) fn release(&mut self, slot: u16) {
+        let Some(entry) = usize::from(slot)
+            .checked_sub(1)
+            .and_then(|i| self.slots.get_mut(i))
+        else {
+            return;
+        };
+        let Some((tex, refs)) = entry else { return };
+        *refs -= 1;
+        if *refs == 0 {
+            self.map.remove(tex);
+            *entry = None;
+            self.free.push(slot);
+        }
+    }
+
+    /// The texture of a slot.
+    pub fn get(&self, slot: u16) -> Option<ExtTexture> {
+        let i = usize::from(slot).checked_sub(1)?;
+        self.slots.get(i).copied().flatten().map(|(t, _)| t)
+    }
+
+    /// Slots in use.
+    pub fn live(&self) -> usize {
+        self.map.len()
     }
 }
 

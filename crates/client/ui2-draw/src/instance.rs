@@ -56,6 +56,9 @@ pub const FLAG_ELLIPSE: u8 = 1 << 4;
 pub const FLAG_BORDER: u8 = 1 << 3;
 /// Flag: the gradient is drawn in tiles of `extra.xy` px starting at the box's top left corner.
 pub const FLAG_TILE: u8 = 1 << 5;
+/// Flag (pictures): sample the external texture of slot `ext` (`uv` normalized to it) instead of the image
+/// array.
+pub const FLAG_EXT: u8 = 1 << 6;
 
 /// A drawable primitive. See the module docs for the byte layout.
 #[repr(C)]

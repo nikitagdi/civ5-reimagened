@@ -9,9 +9,9 @@ use draw_list::UiDrawList;
 use glam::{Affine2, Vec2};
 use ui2_draw::instance::{ATTRIBUTES, INSTANCE_SIZE};
 use ui2_draw::{
-    AnchorXform, Border, BoxItem, ChunkBuilder, ChunkId, Clip, Color, EllipticBox, FaceId, Fill,
-    Glyphs, Gradient, GradientStop, ImageItem, ImageRef, Item, LayerId, MaskItem, Radii, Rect,
-    Scene, ShadowItem, testkit,
+    AnchorXform, Border, BoxItem, ChunkBuilder, ChunkId, Clip, Color, EllipticBox, ExtTexture,
+    FaceId, Fill, Glyphs, Gradient, GradientStop, ImageItem, ImageRef, Item, LayerId, MaskItem,
+    NineSlice, Radii, Rect, Scene, ShadowItem, testkit,
 };
 use ui2_text::{RunStyle, TextEngine};
 
@@ -132,15 +132,80 @@ fn chunk(items: Vec<Item>) -> ui2_draw::ChunkItems {
     b.build()
 }
 
+/// External textures of a test: id to (serial, texture, view, uv scale).
+#[derive(Default)]
+struct FakeTextures {
+    map: std::collections::HashMap<u64, (u64, Tex, wgpu::TextureView, [f32; 2])>,
+    serial: u64,
+    asked: Vec<u64>,
+}
+
+impl Ui2ExtTextures for FakeTextures {
+    fn resolve(&mut self, id: u64) -> Option<(u64, &wgpu::TextureView, [f32; 2])> {
+        self.asked.push(id);
+        self.map.get(&id).map(|(s, _, v, k)| (*s, v, *k))
+    }
+}
+
 struct Rig {
     gpu: Gpu,
     target: Tex,
     view: wgpu::TextureView,
     pass: Ui2Pass,
     size: (u32, u32),
+    ext: FakeTextures,
 }
 
 impl Rig {
+    /// Makes (or replaces) external texture `id`: `w` x `h` straight RGBA pixels, `scale` its UV scale.
+    fn add_ext(&mut self, id: u64, w: u32, h: u32, pixels: &[u8], scale: [f32; 2]) {
+        let tex = self.gpu.device.tex(
+            &wgpu::TextureDescriptor {
+                label: Some("ui2 test external"),
+                size: wgpu::Extent3d {
+                    width: w,
+                    height: h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            },
+            Cluster::Other,
+        );
+        self.gpu.queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &tex,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            pixels,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(w * 4),
+                rows_per_image: Some(h),
+            },
+            wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+        );
+        let view = tex.create_view(&wgpu::TextureViewDescriptor::default());
+        self.ext.serial += 1;
+        self.ext.map.insert(id, (self.ext.serial, tex, view, scale));
+    }
+
+    /// A solid external texture of 4 x 4.
+    fn add_solid_ext(&mut self, id: u64, c: Color) {
+        let px: Vec<u8> = (0..16).flat_map(|_| c.0).collect();
+        self.add_ext(id, 4, 4, &px, [1.0, 1.0]);
+    }
+
     fn new(test: &str, backends: wgpu::Backends, size: (u32, u32)) -> Option<Rig> {
         let gpu = gpu(test, backends, wgpu::Features::empty())?;
         let target = gpu.device.tex(
@@ -172,6 +237,7 @@ impl Rig {
             view,
             pass,
             size,
+            ext: FakeTextures::default(),
         })
     }
 
@@ -186,8 +252,13 @@ impl Rig {
             format: FORMAT,
             size: self.size,
         };
-        self.pass
-            .prepare(&self.gpu.device, &self.gpu.queue, scene, &target);
+        self.pass.prepare(
+            &self.gpu.device,
+            &self.gpu.queue,
+            scene,
+            &target,
+            &mut self.ext,
+        );
         let mut encoder = self
             .gpu
             .device
@@ -1135,6 +1206,224 @@ fn ui2_draws_the_dial() {
     assert_eq!(rig.pass.stats().draws, 1);
 }
 
+/// A colour page of 16 x 16: a 4 px red frame around a green middle (opaque, so premultiplied as it is).
+fn frame_page() -> (ui2_package::Images, Vec<Arc<[u8]>>) {
+    use ui2_package::{BlobRef, BlobSection, Page, PageFormat};
+    let px: Vec<u8> = (0..16 * 16)
+        .flat_map(|i| {
+            let (x, y) = (i % 16, i / 16);
+            if (4..12).contains(&x) && (4..12).contains(&y) {
+                [0, 255, 0, 255]
+            } else {
+                [255, 0, 0, 255]
+            }
+        })
+        .collect();
+    let page = Page {
+        format: PageFormat::Rgba8,
+        scale: 1,
+        size: [16, 16],
+        blob: BlobRef {
+            section: BlobSection::Imgs,
+            offset: 0,
+            len: 0,
+            raw_len: 0,
+            zstd: false,
+        },
+        blake3: [0; 32],
+    };
+    (
+        ui2_package::Images {
+            pages: vec![page],
+            imgs: Vec::new(),
+        },
+        vec![Arc::from(px)],
+    )
+}
+
+fn nine_on(test: &str, backends: wgpu::Backends) {
+    let Some(mut rig) = Rig::new(test, backends, (160, 110)) else {
+        return;
+    };
+    let mut scene = Scene::new(1.0);
+    let (images, pages) = frame_page();
+    scene.set_pages(&images, pages).expect("page");
+    let picture = |rect: Rect, dst: f32, fill: bool| {
+        Item::Image(ImageItem {
+            rect,
+            image: ImageRef {
+                layer: 0,
+                uv: [0.0, 0.0, 1.0, 1.0],
+            },
+            nine: Some(NineSlice {
+                src: [0.25; 4],
+                dst: [dst; 4],
+                fill,
+            }),
+            ..ImageItem::default()
+        })
+    };
+    scene.set_chunk(
+        LayerId::Hud,
+        ChunkId(1),
+        chunk(vec![
+            picture(Rect::new(10.0, 10.0, 60.0, 40.0), 4.0, true),
+            picture(Rect::new(90.0, 10.0, 60.0, 40.0), 4.0, false),
+            picture(Rect::new(10.0, 60.0, 60.0, 40.0), 8.0, true),
+        ]),
+    );
+    let img = rig.frame(&mut scene);
+    let w = rig.size.0;
+    let c = |x, y| rgb(&img, w, x, y);
+    let (r, g, k) = ([255, 0, 0], [0, 255, 0], [0, 0, 0]);
+    // 4 px frame at 1:1: corners and edges red, the stretched middle green, nothing outside.
+    for (x, y) in [
+        (10, 10),
+        (13, 13),
+        (40, 10),
+        (40, 13),
+        (10, 30),
+        (69, 49),
+        (66, 30),
+    ] {
+        assert_eq!(c(x, y), r, "frame at ({x}, {y})");
+    }
+    // (The middle is stretched bilinearly: its pixels next to the seam blend in the frame's last texel, as a
+    // stretched picture does.)
+    for (x, y) in [(20, 20), (40, 30), (60, 40)] {
+        assert_eq!(c(x, y), g, "middle at ({x}, {y})");
+    }
+    assert_eq!(c(9, 30), k);
+    assert_eq!(c(70, 30), k);
+    // Without `fill` the middle stays empty.
+    assert_eq!(c(120, 11), r);
+    assert_eq!(c(120, 30), k, "no middle");
+    assert_eq!(c(91, 30), r);
+    // Destination widths of 8 px: the 4 px slices drawn twice as large.
+    for (x, y) in [(10, 60), (16, 66), (40, 61), (40, 66), (63, 80)] {
+        assert_eq!(c(x, y), r, "wide frame at ({x}, {y})");
+    }
+    assert_eq!(c(40, 80), g);
+    let s = rig.pass.stats();
+    assert_eq!(s.instances, 9 + 8 + 9);
+    assert_eq!(s.draws, 1);
+}
+
+#[test]
+fn ui2_draws_nine_slices() {
+    nine_on("ui2_draws_nine_slices", wgpu::Backends::PRIMARY);
+}
+
+#[test]
+fn ui2_draws_nine_slices_on_gl() {
+    nine_on("ui2_draws_nine_slices_on_gl", wgpu::Backends::GL);
+}
+
+fn ext_picture(x: f32, tex: ExtTexture) -> Item {
+    Item::Image(ImageItem {
+        rect: Rect::new(x, 0.0, 10.0, 10.0),
+        image: ImageRef {
+            layer: 0,
+            uv: [0.0, 0.0, 1.0, 1.0],
+        },
+        external: Some(tex),
+        ..ImageItem::default()
+    })
+}
+
+fn external_on(test: &str, backends: wgpu::Backends) {
+    let Some(mut rig) = Rig::new(test, backends, (100, 20)) else {
+        return;
+    };
+    let (a, b, scaled, missing) = (
+        ExtTexture(0x51),
+        ExtTexture::MINIMAP,
+        ExtTexture(0x52),
+        ExtTexture(0x53),
+    );
+    rig.add_solid_ext(a.0, BLUE);
+    rig.add_solid_ext(b.0, YELLOW);
+    // 8 x 8 stored, the picture is its top left 4 x 4 (white); the rest is red padding.
+    let px: Vec<u8> = (0..64)
+        .flat_map(|i| {
+            if i % 8 < 4 && i / 8 < 4 {
+                [255, 255, 255, 255]
+            } else {
+                [255, 0, 0, 255]
+            }
+        })
+        .collect();
+    rig.add_ext(scaled.0, 8, 8, &px, [0.5, 0.5]);
+    let boxed = |x: f32, col: Color| Item::Box(BoxItem::solid(Rect::new(x, 0.0, 10.0, 10.0), col));
+    let mut scene = Scene::new(1.0);
+    scene.set_chunk(
+        LayerId::Hud,
+        ChunkId(1),
+        chunk(vec![
+            boxed(0.0, RED),
+            ext_picture(10.0, a),
+            boxed(20.0, GREEN),
+            boxed(30.0, GREEN),
+            ext_picture(40.0, a),
+            ext_picture(50.0, b),
+            ext_picture(60.0, scaled),
+            ext_picture(70.0, missing),
+            boxed(80.0, WHITE),
+        ]),
+    );
+    let img = rig.frame(&mut scene);
+    let w = rig.size.0;
+    let c = |x| rgb(&img, w, x, 5);
+    assert_eq!(c(5), [255, 0, 0]);
+    assert_eq!(c(15), [0, 0, 255]);
+    assert_eq!(c(25), [0, 255, 0]);
+    assert_eq!(c(45), [0, 0, 255]);
+    assert_eq!(c(55), [255, 255, 0]);
+    assert_eq!(c(65), [255, 255, 255], "the UV scale keeps the padding out");
+    assert_eq!(
+        c(75),
+        [0, 0, 0],
+        "a texture that is not there draws nothing"
+    );
+    assert_eq!(c(85), [255, 255, 255]);
+    let s = rig.pass.stats();
+    // Runs: box | a | box box | a | b | scaled | (missing) | box. Only a texture change splits the draw.
+    assert_eq!(s.draws, 7, "{s:?}");
+    assert_eq!(s.ext_missing, 1);
+    assert_eq!(s.ext_groups_made, 3);
+    assert!(rig.ext.asked.contains(&missing.0));
+
+    // An idle frame makes no group and uploads nothing.
+    let _ = rig.frame(&mut scene);
+    let idle = rig.pass.stats();
+    assert_eq!(
+        (idle.upload_bytes, idle.ext_groups_made, idle.draws),
+        (0, 0, 7)
+    );
+    // A new upload of a texture makes its group again; the missing one arriving draws it.
+    rig.add_solid_ext(a.0, GREEN);
+    rig.add_solid_ext(missing.0, RED);
+    let img = rig.frame(&mut scene);
+    assert_eq!(rgb(&img, w, 15, 5), [0, 255, 0]);
+    assert_eq!(rgb(&img, w, 75, 5), [255, 0, 0]);
+    let s = rig.pass.stats();
+    assert_eq!((s.ext_groups_made, s.ext_missing, s.draws), (2, 0, 8));
+}
+
+#[test]
+fn ui2_external_textures_split_the_batch_only_where_they_change() {
+    assert_eq!(ExtTexture::MINIMAP.0, draw_list::TextureId::MINIMAP.0);
+    external_on(
+        "ui2_external_textures_split_the_batch_only_where_they_change",
+        wgpu::Backends::PRIMARY,
+    );
+}
+
+#[test]
+fn ui2_external_textures_on_gl() {
+    external_on("ui2_external_textures_on_gl", wgpu::Backends::GL);
+}
+
 /// Test 3 (draw call budget) and test 4 (an unchanged frame uploads nothing), on the HUD of the reference
 /// mockup and 200 city banners.
 #[test]
@@ -1143,6 +1432,9 @@ fn ui2_hud_and_200_banners_stay_within_the_draw_budget_and_idle_frames_upload_no
     let Some(mut rig) = Rig::new("ui2_hud_and_200_banners", wgpu::Backends::PRIMARY, size) else {
         return;
     };
+    // The portrait (a game asset) and the minimap target.
+    rig.add_solid_ext(testkit::PORTRAIT.0, BLUE);
+    rig.add_solid_ext(ExtTexture::MINIMAP.0, GREEN);
     let mut text = engine();
     let mut scene = Scene::new(1.0);
     testkit::load_hud_a(&mut scene, &mut text, FIRA);
@@ -1163,7 +1455,11 @@ fn ui2_hud_and_200_banners_stay_within_the_draw_budget_and_idle_frames_upload_no
     assert!(draws <= 30, "{draws} draw calls");
     assert!(draws <= 6, "{draws} draw calls, expected at most 6");
     assert!(s.layer_draws[LayerId::Map.index()] <= 3, "{s:?}");
+    // The HUD splits only around the portrait and the minimap: at most five runs.
+    assert!(s.layer_draws[LayerId::Hud.index()] <= 5, "{s:?}");
     assert_eq!(s.ext_missing, 0);
+    assert_eq!(rgb(&img, size.0, 468, 948), [0, 0, 255], "portrait");
+    assert_eq!(rgb(&img, size.0, 300, 1000), [0, 255, 0], "minimap");
     assert!(s.instances > 1000, "{s:?}");
     // Something of the HUD and of the banners is on screen: the strip's lacquer, a banner's brass tab.
     assert_eq!(rgb(&img, size.0, 960, 2), testkit::LACQUER.0[..3]);

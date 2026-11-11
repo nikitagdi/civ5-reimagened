@@ -1,22 +1,23 @@
 //! Item to instance encoding.
 //!
-//! One box makes one instance (fill and border together), one mask, picture or glyph one instance. Boxes
-//! with nothing to show, rectangles without area and pictures of a page the scene does not hold make none. Sprite
-//! rectangles of package pages are mapped from page to array coordinates ([`Pages`]). Transforms and clips are interned in the
-//! [`Tables`]; the instance carries their indices and the chunk's anchor.
+//! One box, shadow, mask, picture or glyph makes one instance (a box's fill and border together); a 9-slice
+//! picture makes nine. Boxes with nothing to show, rectangles without area and pictures of a page the scene does
+//! not hold make none. Sprite rectangles of package pages are mapped from page to array coordinates ([`Pages`]).
+//! Transforms and clips are interned in the [`Tables`], external textures in the [`ExtSlots`]; the instance
+//! carries their indices and the chunk's anchor.
 
 use glam::Affine2;
 
 use crate::glyphs::{GlyphStore, Lookup, glyph_key};
 use crate::instance::{
-    FILL_CONIC, FILL_LINEAR, FILL_REPEAT, FILL_SOLID, FLAG_BORDER, FLAG_ELLIPSE, FLAG_FILL,
-    FLAG_TILE, KIND_BOX, KIND_IMAGE, KIND_MASK, KIND_SHADOW, Ui2Instance, f16_bits,
+    FILL_CONIC, FILL_LINEAR, FILL_REPEAT, FILL_SOLID, FLAG_BORDER, FLAG_ELLIPSE, FLAG_EXT,
+    FLAG_FILL, FLAG_TILE, KIND_BOX, KIND_IMAGE, KIND_MASK, KIND_SHADOW, Ui2Instance, f16_bits,
 };
-use crate::pages::Pages;
+use crate::pages::{ExtSlots, Pages};
 use crate::tables::{Clip, Tables};
 use crate::{
     BoxItem, ChunkItems, Fill, Glyphs, Gradient, GradientShape, ImageItem, Item, MaskItem,
-    ShadowItem,
+    NineSlice, Rect, ShadowItem,
 };
 
 /// What the encoder works on besides the items.
@@ -25,12 +26,15 @@ pub struct EncodeCtx<'a> {
     pub tables: &'a mut Tables,
     /// Glyph atlas and queue.
     pub glyphs: &'a mut GlyphStore,
-    /// Incremented for every transform or clip that did not fit in its table (the item is drawn without it).
+    /// Incremented for every transform, clip or external texture that did not fit in its table (the item is
+    /// drawn without the transform or clip; a picture without its texture is not drawn).
     pub table_overflow: &'a mut u32,
     /// The package's picture pages.
     pub pages: &'a Pages,
     /// Side of the layers of the coverage array (mask pages and glyph pages), px.
     pub mask_side: u32,
+    /// Slots of the external textures.
+    pub exts: &'a mut ExtSlots,
 }
 
 /// The result of encoding one chunk.
@@ -42,6 +46,8 @@ pub struct Encoded {
     pub xforms: Vec<u16>,
     /// Clips acquired (one reference each).
     pub clips: Vec<u16>,
+    /// External texture slots acquired (one reference each).
+    pub exts: Vec<u16>,
     /// Glyphs that were queued for rasterization (their instances are placeholders until then).
     pub unresolved: u32,
 }
@@ -245,27 +251,117 @@ fn encode_mask(m: &MaskItem, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Enc
     out.instances.push(i);
 }
 
-/// A colour picture: the sprite of an `Rgba8` page times the tint, cut to the rounded rectangle. A picture whose
-/// page the scene does not hold makes no instance.
+/// A colour picture: the sprite of an `Rgba8` page or a rectangle of an external texture, times the tint, cut
+/// to the rounded rectangle, or drawn as a 9-slice. A picture whose page the scene does not hold makes no
+/// instance.
 fn encode_image(m: &ImageItem, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Encoded) {
     if !m.rect.is_drawable() || m.tint.is_transparent() {
         return;
     }
-    let Some(uv) = ctx.pages.image_uv(m.image.layer, m.image.uv) else {
-        return;
+    let (uv, layer) = match m.external {
+        Some(_) => (m.image.uv, 0),
+        None => match ctx.pages.image_uv(m.image.layer, m.image.uv) {
+            Some(uv) => (uv, m.image.layer),
+            None => return,
+        },
     };
+    let mut ext = 0;
+    if let Some(t) = m.external {
+        let Some(slot) = ctx.exts.acquire(t) else {
+            *ctx.table_overflow += 1;
+            return;
+        };
+        out.exts.push(slot);
+        ext = slot;
+    }
     let (xform, clip) = place(&m.transform, &m.clip, ctx, out);
-    let mut i = Ui2Instance::of_kind(KIND_IMAGE);
-    i.rect = [m.rect.x, m.rect.y, m.rect.w, m.rect.h];
-    let r = m.radii.fitted(m.rect.w, m.rect.h);
-    i.set_radii([r.tl, r.tr, r.br, r.bl]);
-    i.uv = uv;
-    i.colors[0] = m.tint.0;
-    i.atlas_layer = m.image.layer;
-    i.xform = xform;
-    i.clip = clip;
-    i.anchor = anchor;
-    out.instances.push(i);
+    let mut base = Ui2Instance::of_kind(KIND_IMAGE);
+    base.colors[0] = m.tint.0;
+    base.atlas_layer = layer;
+    base.ext = ext;
+    if ext != 0 {
+        base.flags |= FLAG_EXT;
+    }
+    base.xform = xform;
+    base.clip = clip;
+    base.anchor = anchor;
+    match m.nine {
+        None => {
+            let mut i = base;
+            i.rect = [m.rect.x, m.rect.y, m.rect.w, m.rect.h];
+            let r = m.radii.fitted(m.rect.w, m.rect.h);
+            i.set_radii([r.tl, r.tr, r.br, r.bl]);
+            i.uv = uv;
+            out.instances.push(i);
+        }
+        Some(n) => {
+            for (rect, uv) in nine_pieces(m.rect, uv, &n) {
+                let mut i = base;
+                i.rect = [rect.x, rect.y, rect.w, rect.h];
+                i.uv = uv;
+                out.instances.push(i);
+            }
+        }
+    }
+}
+
+/// The pieces of a 9-slice, row by row: destination rectangle and sprite rectangle of each corner, edge and
+/// (with `fill`) the middle. Pieces without area in the destination or in the sprite are left out.
+fn nine_pieces(rect: Rect, uv: [f32; 4], n: &NineSlice) -> Vec<(Rect, [f32; 4])> {
+    let w = |v: f32| if v.is_finite() { v.max(0.0) } else { 0.0 };
+    let f = |v: f32| {
+        if v.is_finite() {
+            v.clamp(0.0, 1.0)
+        } else {
+            0.0
+        }
+    };
+    let [t, r, b, l] = n.dst.map(w);
+    // CSS: widths that do not fit are scaled down together.
+    let mut k = 1.0f32;
+    if l + r > rect.w {
+        k = k.min(rect.w / (l + r));
+    }
+    if t + b > rect.h {
+        k = k.min(rect.h / (t + b));
+    }
+    let (t, r, b, l) = (t * k, r * k, b * k, l * k);
+    let xs = [rect.x, rect.x + l, rect.x + rect.w - r, rect.x + rect.w];
+    let ys = [rect.y, rect.y + t, rect.y + rect.h - b, rect.y + rect.h];
+    let [st, sr, sb, sl] = n.src.map(f);
+    let (du, dv) = (uv[2] - uv[0], uv[3] - uv[1]);
+    // Slices that overlap in the sprite meet in the middle.
+    let (sl, sr) = if sl + sr > 1.0 {
+        (sl / (sl + sr), sr / (sl + sr))
+    } else {
+        (sl, sr)
+    };
+    let (st, sb) = if st + sb > 1.0 {
+        (st / (st + sb), sb / (st + sb))
+    } else {
+        (st, sb)
+    };
+    let us = [uv[0], uv[0] + sl * du, uv[2] - sr * du, uv[2]];
+    let vs = [uv[1], uv[1] + st * dv, uv[3] - sb * dv, uv[3]];
+    let mut out = Vec::with_capacity(9);
+    for row in 0..3 {
+        for col in 0..3 {
+            if row == 1 && col == 1 && !n.fill {
+                continue;
+            }
+            let dst = Rect::new(
+                xs[col],
+                ys[row],
+                xs[col + 1] - xs[col],
+                ys[row + 1] - ys[row],
+            );
+            let src = [us[col], vs[row], us[col + 1], vs[row + 1]];
+            if dst.is_drawable() && src[2] != src[0] && src[3] != src[1] {
+                out.push((dst, src));
+            }
+        }
+    }
+    out
 }
 
 fn encode_glyphs(g: &Glyphs, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Encoded) {
@@ -313,7 +409,7 @@ mod tests {
     use super::*;
     use crate::instance::f16_bits;
     use crate::{
-        AnchorSlot, Border, ChunkBuilder, Color, EllipticBox, GradientStop, ImageRef, Radii, Rect,
+        AnchorSlot, Border, ChunkBuilder, Color, EllipticBox, GradientStop, ImageRef, Radii,
     };
 
     struct Rig {
@@ -321,6 +417,7 @@ mod tests {
         glyphs: GlyphStore,
         overflow: u32,
         pages: Pages,
+        exts: ExtSlots,
     }
 
     impl Rig {
@@ -330,6 +427,7 @@ mod tests {
                 glyphs: GlyphStore::new(AtlasConfig::default()),
                 overflow: 0,
                 pages: Pages::default(),
+                exts: ExtSlots::default(),
             }
         }
         fn encode(&mut self, c: &ChunkItems) -> Encoded {
@@ -340,6 +438,7 @@ mod tests {
                 table_overflow: &mut self.overflow,
                 pages: &self.pages,
                 mask_side,
+                exts: &mut self.exts,
             };
             encode_chunk(c, &mut ctx)
         }
@@ -699,6 +798,92 @@ mod tests {
         ] {
             assert!(rig.encode(&one(Item::Shadow(none))).instances.is_empty());
         }
+    }
+
+    fn ext_image(rect: Rect, tex: u64, nine: Option<NineSlice>) -> Item {
+        Item::Image(ImageItem {
+            rect,
+            image: ImageRef {
+                layer: 3,
+                uv: [0.0, 0.0, 1.0, 0.5],
+            },
+            nine,
+            external: Some(crate::ExtTexture(tex)),
+            ..ImageItem::default()
+        })
+    }
+
+    #[test]
+    fn external_pictures_share_a_slot_and_carry_the_flag() {
+        let mut rig = Rig::new();
+        let mut b = ChunkBuilder::new();
+        b.push(ext_image(Rect::new(0.0, 0.0, 8.0, 8.0), 77, None));
+        b.push(ext_image(Rect::new(8.0, 0.0, 8.0, 8.0), 77, None));
+        b.push(ext_image(Rect::new(16.0, 0.0, 8.0, 8.0), 78, None));
+        let e = rig.encode(&b.build());
+        let ext: Vec<u16> = e.instances.iter().map(|i| i.ext).collect();
+        assert_eq!(ext, vec![1, 1, 2]);
+        assert_eq!(e.exts, vec![1, 1, 2]);
+        let i = e.instances[0];
+        assert_eq!(i.kind, KIND_IMAGE);
+        assert_eq!(i.flags, FLAG_EXT);
+        // The uv is the texture's own, the page layer is not used.
+        assert_eq!((i.uv, i.atlas_layer), ([0.0, 0.0, 1.0, 0.5], 0));
+        assert_eq!(rig.exts.get(2), Some(crate::ExtTexture(78)));
+        rig.exts.release(2);
+        assert_eq!(rig.exts.get(2), None);
+        assert_eq!(rig.exts.live(), 1);
+    }
+
+    #[test]
+    fn nine_slice_makes_nine_pictures_with_the_css_geometry() {
+        let mut rig = Rig::new();
+        let n = NineSlice {
+            src: [0.25, 0.25, 0.5, 0.25],
+            dst: [4.0, 6.0, 8.0, 2.0],
+            fill: true,
+        };
+        let e = rig.encode(&one(ext_image(
+            Rect::new(10.0, 20.0, 40.0, 30.0),
+            5,
+            Some(n),
+        )));
+        assert_eq!(e.instances.len(), 9);
+        // The middle: x 12..44, y 24..42; uv x 0.25..0.75, y (of 0..0.5) 0.125..0.25.
+        let mid = e.instances[4];
+        assert_eq!(mid.rect, [12.0, 24.0, 32.0, 18.0]);
+        assert_eq!(mid.uv, [0.25, 0.125, 0.75, 0.25]);
+        // The bottom right corner.
+        let br = e.instances[8];
+        assert_eq!(br.rect, [44.0, 42.0, 6.0, 8.0]);
+        assert_eq!(br.uv, [0.75, 0.25, 1.0, 0.5]);
+        assert!(e.instances.iter().all(|i| i.ext == 1 && i.radii == [0; 4]));
+        // No fill: eight pieces at most. Widths too large for the box are scaled down together (here to 10 px,
+        // which leaves the middle row without height: corners, top and bottom remain).
+        let wide = NineSlice {
+            src: [0.25; 4],
+            dst: [20.0; 4],
+            fill: false,
+        };
+        let e = rig.encode(&one(ext_image(
+            Rect::new(0.0, 0.0, 40.0, 20.0),
+            5,
+            Some(wide),
+        )));
+        assert_eq!(e.instances.len(), 6);
+        assert_eq!(e.instances[0].rect, [0.0, 0.0, 10.0, 10.0]);
+        // Zero widths leave out the pieces they empty.
+        let thin = NineSlice {
+            src: [0.25; 4],
+            dst: [0.0, 4.0, 0.0, 4.0],
+            fill: true,
+        };
+        let e = rig.encode(&one(ext_image(
+            Rect::new(0.0, 0.0, 40.0, 20.0),
+            5,
+            Some(thin),
+        )));
+        assert_eq!(e.instances.len(), 3);
     }
 
     #[test]

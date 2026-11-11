@@ -26,6 +26,16 @@ struct Frame {
 @group(0) @binding(3) var mask_smp: sampler;
 @group(0) @binding(4) var image: texture_2d_array<f32>;
 
+// Group 1: the external texture of the draw (a game asset or the minimap; straight alpha) and the scale that maps
+// a picture's 0..1 onto the stored texture. Draws without one bind a placeholder they never sample.
+struct ExtParams {
+    uv_scale: vec2<f32>,
+    pad: vec2<f32>,
+}
+
+@group(1) @binding(0) var ext_tex: texture_2d<f32>;
+@group(1) @binding(1) var<uniform> ext: ExtParams;
+
 const KIND_BOX: u32 = 0u;
 const KIND_SHADOW: u32 = 1u;
 const KIND_IMAGE: u32 = 2u;
@@ -40,6 +50,7 @@ const FLAG_FILL: u32 = 4u;
 const FLAG_BORDER: u32 = 8u;
 const FLAG_ELLIPSE: u32 = 16u;
 const FLAG_TILE: u32 = 32u;
+const FLAG_EXT: u32 = 64u;
 
 // Table layout (`ui2_draw::tables`).
 const RECORDS_PER_ROW: u32 = 512u;
@@ -444,11 +455,17 @@ fn shade_mask(in: VsOut) -> vec4<f32> {
     return premul(unpack_color(in.colors.x)) * cov;
 }
 
-// IMAGE: a premultiplied texel of a colour page times the tint (straight colour, its alpha an opacity), cut to
-// the rounded rectangle of the instance.
+// IMAGE: a premultiplied texel of a colour page, or a straight one of the external texture, times the tint
+// (straight colour, its alpha an opacity), cut to the rounded rectangle of the instance.
 fn shade_image(in: VsOut, px: f32) -> vec4<f32> {
+    let flags = (in.prim.x >> 8u) & 0xffu;
     let layer = i32((in.prim.x >> 16u) & 0xffu);
-    let s = textureSampleLevel(image, mask_smp, in.local_uv.zw, layer, 0.0);
+    var s = vec4<f32>(0.0);
+    if (flags & FLAG_EXT) != 0u {
+        s = premul(textureSampleLevel(ext_tex, mask_smp, in.local_uv.zw * ext.uv_scale, 0.0));
+    } else {
+        s = textureSampleLevel(image, mask_smp, in.local_uv.zw, layer, 0.0);
+    }
     let tint = unpack_color(in.colors.x);
     let half = in.size.xy * 0.5;
     let cover = inside(sd_box(in.local_uv.xy - half, half, in.radii, 1.0), px);
