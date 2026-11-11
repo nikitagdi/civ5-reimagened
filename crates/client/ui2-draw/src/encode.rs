@@ -67,7 +67,15 @@ pub fn encode_chunk(chunk: &ChunkItems, ctx: &mut EncodeCtx<'_>) -> Encoded {
             Item::InsetShadow(s) => encode_shadow(s, true, anchor, ctx, &mut out),
             Item::Mask(m) => encode_mask(m, anchor, ctx, &mut out),
             Item::Image(m) => encode_image(m, anchor, ctx, &mut out),
-            Item::Glyphs(g) => encode_glyphs(g, anchor, ctx, &mut out),
+            Item::Glyphs(g) => encode_glyphs(g, 0.0, anchor, ctx, &mut out),
+            Item::GlyphShadow(s) => {
+                let sigma = if s.blur.is_finite() && s.blur > 0.0 {
+                    s.blur * 0.5
+                } else {
+                    0.0
+                };
+                encode_glyphs(&s.glyphs, sigma, anchor, ctx, &mut out)
+            }
         }
     }
     out
@@ -378,7 +386,9 @@ fn nine_pieces(rect: Rect, uv: [f32; 4], n: &NineSlice) -> Vec<(Rect, [f32; 4])>
     out
 }
 
-fn encode_glyphs(g: &Glyphs, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Encoded) {
+/// A run of glyphs: one mask instance per glyph. `sigma` (local px, 0: sharp) blurs every glyph's coverage
+/// (see [`crate::GlyphShadow`]); the shader grows the quad by the blur's reach.
+fn encode_glyphs(g: &Glyphs, sigma: f32, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Encoded) {
     if g.glyphs.is_empty() {
         return;
     }
@@ -389,6 +399,7 @@ fn encode_glyphs(g: &Glyphs, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Enc
         let (key, px, baseline) = glyph_key(g, pos);
         let mut i = Ui2Instance::of_kind(KIND_MASK);
         i.colors[0] = g.color.0;
+        i.extra[0] = f16_bits(sigma);
         i.xform = xform;
         i.clip = clip;
         i.anchor = anchor;
@@ -970,5 +981,36 @@ mod tests {
         }
         // Glyph 5 at pen x 10.0 and 24.0 share a key (subpixel 0); glyph 6 at 17.3 is subpixel 1.
         assert_eq!(rig.glyphs.pending_len(), 2);
+    }
+
+    #[test]
+    fn glyph_shadows_carry_their_sigma_and_keep_one_instance_per_glyph() {
+        let run = Glyphs {
+            face: ui2_text::FaceId(0),
+            size_px: 14.0,
+            wght: 400.0,
+            color: Color::rgba(0, 0, 0, 160),
+            glyphs: vec![(5, 10.0, 20.0).into(), (6, 17.0, 20.0).into()],
+            transform: None,
+            clip: None,
+        };
+        for (blur, sigma) in [(6.0, 3.0), (0.0, 0.0), (-2.0, 0.0), (f32::NAN, 0.0)] {
+            let mut rig = Rig::new();
+            let e = rig.encode(&one(Item::GlyphShadow(crate::GlyphShadow {
+                glyphs: run.clone(),
+                blur,
+            })));
+            assert_eq!(e.instances.len(), 2, "blur {blur}");
+            assert_eq!(e.unresolved, 2);
+            for i in &e.instances {
+                assert_eq!(i.kind, KIND_MASK);
+                assert_eq!(i.extra, [f16_bits(sigma), 0, 0, 0], "blur {blur}");
+                assert_eq!(i.colors[0], [0, 0, 0, 160]);
+            }
+        }
+        // A sharp run leaves `extra` zero.
+        let mut rig = Rig::new();
+        let e = rig.encode(&one(Item::Glyphs(run)));
+        assert!(e.instances.iter().all(|i| i.extra == [0; 4]));
     }
 }

@@ -215,7 +215,7 @@ impl Scene {
         self.k = k;
         self.glyphs.clear();
         for ch in self.chunks.values_mut() {
-            ch.stale = ch.items.items.iter().any(|i| matches!(i, Item::Glyphs(_)));
+            ch.stale = ch.items.items.iter().any(Item::has_glyphs);
         }
     }
 
@@ -491,7 +491,7 @@ impl Scene {
                 c.items
                     .items
                     .iter()
-                    .any(|i| matches!(i, Item::Mask(_) | Item::Image(_) | Item::Glyphs(_)))
+                    .any(|i| i.has_glyphs() || matches!(i, Item::Mask(_) | Item::Image(_)))
             })
             .map(|(id, _)| *id)
             .collect();

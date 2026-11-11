@@ -6,8 +6,10 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use ui2_draw::glyphs::{GlyphStore, Lookup, glyph_key};
+use ui2_draw::instance::f16_bits;
 use ui2_draw::{
-    ChunkBuilder, ChunkId, Color, FaceId, GlyphPos, Glyphs, Item, LayerChange, LayerId, Scene,
+    ChunkBuilder, ChunkId, Color, FaceId, GlyphPos, GlyphShadow, Glyphs, Item, LayerChange,
+    LayerId, Scene,
 };
 use ui2_text::{AtlasConfig, GlyphKey, RunStyle, TextEngine, quantize_x};
 
@@ -33,6 +35,56 @@ fn chunk_of(g: Glyphs) -> ui2_draw::ChunkItems {
     let mut b = ChunkBuilder::new();
     b.push(Item::Glyphs(g));
     b.build()
+}
+
+/// A text shadow with blur under its text: the shadow run shares the text's atlas glyphs (moved by the offset),
+/// carries its sigma, keeps one instance per glyph through resolve, and is encoded again on a scale change.
+#[test]
+fn glyph_shadows_share_the_texts_glyphs_and_carry_their_blur() {
+    let mut text = engine();
+    let g = run_item(&mut text, "Gold", 1.0, 10.0, 30.0, WHITE);
+    let shadow = Glyphs {
+        color: Color::rgba(0, 0, 0, 200),
+        glyphs: g
+            .glyphs
+            .iter()
+            .map(|p| GlyphPos {
+                x: p.x + 2.0,
+                y: p.y + 3.0,
+                ..*p
+            })
+            .collect(),
+        ..g.clone()
+    };
+    let mut b = ChunkBuilder::new();
+    b.push(Item::GlyphShadow(GlyphShadow {
+        glyphs: shadow,
+        blur: 4.0,
+    }));
+    b.push(Item::Glyphs(g.clone()));
+    let mut s = Scene::new(1.0);
+    s.set_chunk(LayerId::Hud, ChunkId(1), b.build());
+    assert_eq!(s.layer_instances(LayerId::Hud).len(), 8);
+    assert_eq!(s.chunk_unresolved(ChunkId(1)), Some(8));
+    s.resolve(&mut text, 1000.0);
+    assert_eq!(s.chunk_unresolved(ChunkId(1)), Some(0));
+    let layer = s.layer_instances(LayerId::Hud);
+    let (blurred, sharp) = layer.split_at(4);
+    for (b, t) in blurred.iter().zip(sharp) {
+        assert_eq!(b.extra[0], f16_bits(2.0), "sigma is half the blur");
+        assert_eq!(t.extra[0], 0);
+        assert_eq!(b.uv, t.uv, "the same atlas glyph");
+        assert_eq!(b.atlas_layer, t.atlas_layer);
+        assert_eq!(
+            [b.rect[0] - 2.0, b.rect[1] - 3.0, b.rect[2], b.rect[3]],
+            t.rect
+        );
+        assert_eq!(b.colors[0], [0, 0, 0, 200]);
+    }
+    // A new scale drops the atlas: the chunk is encoded again although its first item is the shadow.
+    s.set_scale(2.0);
+    s.reencode_stale();
+    assert_eq!(s.chunk_unresolved(ChunkId(1)), Some(8));
 }
 
 /// A clock that moves by `step` ms on every read.

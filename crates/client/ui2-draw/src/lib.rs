@@ -677,6 +677,34 @@ impl Glyphs {
     }
 }
 
+/// A blurred run of glyphs: the shadow of a text with a blur radius (CSS `text-shadow: x y <blur> color`). The
+/// runtime hands the text's glyphs already moved by the shadow offset and in the shadow colour; the run is
+/// drawn under the text.
+///
+/// How the blur is computed (an approximation of the browser's Gaussian blur of the whole text layer):
+/// - Each glyph is blurred on its own, from its own coverage in the glyph atlas, by the fragment shader. The
+///   kernel is the separable Gaussian of standard deviation `sigma = blur / 2` sampled at whole atlas texels,
+///   cut at `ceil(2 * sigma)` texels from the centre and renormalized (a full Gaussian has about 4.6 % of its
+///   weight per axis beyond `2 * sigma`, so the faint outer tail of the shadow is missing).
+/// - The kernel is evaluated with bilinear taps that merge pairs of neighbouring texels, at most 9 taps per
+///   axis and 81 per pixel (`sigma` up to 4, a blur up to 8 px). The result is exactly that discrete kernel
+///   when the glyph sits on whole device pixels without a transform (glyph quads are placed on whole pixels);
+///   under a transform the bilinear base sample adds a little blur of its own.
+/// - Above `sigma = 4` the 9 x 9 pattern of `sigma = 4` is stretched by `sigma / 4`: taps then lie further
+///   apart than two texels and thin strokes show as faint bands instead of a smooth blur.
+/// - The shadows of neighbouring glyphs are blended one over the other, so where their blurs overlap the
+///   shadow is a little lighter than a blur of the whole run would be.
+/// - The coverage is the rasterizer's (gamma-corrected) coverage, blurred as it is.
+///
+/// A glyph keeps exactly one instance, like in [`Glyphs`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct GlyphShadow {
+    /// The run: the text's glyphs moved by the shadow offset, in the shadow colour.
+    pub glyphs: Glyphs,
+    /// Blur radius, device px (CSS: twice the standard deviation). 0, negative or not finite: no blur.
+    pub blur: f32,
+}
+
 /// One drawable thing.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -695,6 +723,15 @@ pub enum Item {
     Image(ImageItem),
     /// A run of glyphs.
     Glyphs(Glyphs),
+    /// A blurred run of glyphs (a text shadow with a blur radius).
+    GlyphShadow(GlyphShadow),
+}
+
+impl Item {
+    /// True if the item draws glyphs of the glyph atlas.
+    pub fn has_glyphs(&self) -> bool {
+        matches!(self, Item::Glyphs(_) | Item::GlyphShadow(_))
+    }
 }
 
 /// The items of one chunk, in drawing order (later over earlier), and the anchor of the chunk.

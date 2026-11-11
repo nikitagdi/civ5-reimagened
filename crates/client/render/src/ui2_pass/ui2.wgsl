@@ -181,6 +181,14 @@ fn vs(@builtin(vertex_index) vi: u32, inst: Instance) -> VsOut {
         lo = inst.uv.xy - vec2<f32>(grow);
         hi = inst.rect.zw + inst.uv.xy + vec2<f32>(grow);
     }
+    // A blurred mask (a glyph of a text shadow) grows by the reach of its blur; a placeholder without area stays
+    // without area.
+    let blurred_mask = kind == KIND_MASK && inst.extra.x > 0.0 && inst.rect.z > 0.0 && inst.rect.w > 0.0;
+    if blurred_mask {
+        let reach = mask_blur_reach(inst.extra.x) + AA_MARGIN;
+        lo = vec2<f32>(-reach);
+        hi = inst.rect.zw + vec2<f32>(reach);
+    }
     let local = mix(lo, hi, corner);
     let p = inst.rect.xy + local;
 
@@ -202,6 +210,10 @@ fn vs(@builtin(vertex_index) vi: u32, inst: Instance) -> VsOut {
         o.pos = vec4<f32>(-2.0, -2.0, 0.0, 1.0);
     }
     o.local_uv = vec4<f32>(local, mix(inst.uv.xy, inst.uv.zw, corner));
+    if blurred_mask {
+        // The sprite's uv continued past its rectangle (taps outside it read nothing, see `shade_mask`).
+        o.local_uv = vec4<f32>(local, inst.uv.xy + (inst.uv.zw - inst.uv.xy) * local / inst.rect.zw);
+    }
     o.size = vec4<f32>(inst.rect.zw, inst.extra.xy);
     o.radii = inst.radii;
     o.border = inst.border;
@@ -469,11 +481,83 @@ fn shade_shadow(in: VsOut, px: f32) -> vec4<f32> {
     return premul(unpack_color(in.colors.x)) * (a * (1.0 - own));
 }
 
-// MASK: coverage of a glyph or an icon times the colour. Glyph coverage already carries the rasterizer's
-// gamma, so it is used as it is.
+// The largest sigma (texels) the glyph blur samples exactly; larger ones stretch its pattern.
+const BLUR_MAX_SIGMA: f32 = 4.0;
+
+// How far a blurred mask reaches past its sprite, local px: the kernel's cut-off radius (ceil(2 sigma) texels,
+// stretched above BLUR_MAX_SIGMA) plus the texel a bilinear tap reads beyond it.
+fn mask_blur_reach(sigma: f32) -> f32 {
+    let s = min(sigma, BLUR_MAX_SIGMA);
+    return ceil(2.0 * s) * max(sigma / BLUR_MAX_SIGMA, 1.0) + 1.0;
+}
+
+// The coverage of a mask sprite blurred by a Gaussian of `sigma` (a text shadow; the approximation is stated on
+// `ui2_draw::GlyphShadow`). One axis of the kernel: the Gaussian at whole texels, cut at ceil(2 sigma) texels
+// and renormalized, as bilinear taps: the centre texel alone, then the texel pairs (1, 2), (3, 4), ... on each
+// side merged into one tap between them (offset weighted by the pair, weight the pair's sum): at most 9 taps
+// for sigma <= 4. The 2D kernel is the product of two axes. Taps whose bilinear footprint leaves the sprite's
+// rectangle plus its 1 px margin of zeros (the atlas keeps one around every glyph) read nothing, so neighbours
+// in the atlas never bleed in.
+fn blurred_mask(in: VsOut, layer: i32, sigma: f32) -> f32 {
+    // The sprite: uv rectangle and size in texels (glyphs are drawn 1:1, a local px is a texel).
+    let slot = in.grad;
+    let size = in.size.xy;
+    let texel = (slot.zw - slot.xy) / size;
+    // This fragment in texels from the sprite's top left corner.
+    let base = (in.local_uv.zw - slot.xy) / texel;
+    let s = min(sigma, BLUR_MAX_SIGMA);
+    let stretch = max(sigma / BLUR_MAX_SIGMA, 1.0);
+    let r = i32(ceil(2.0 * s));
+    let k = -0.5 / (s * s);
+    var taps: array<vec2<f32>, 9>;
+    taps[0] = vec2<f32>(0.0, 1.0);
+    var n = 1;
+    var total = 1.0;
+    for (var a = 1; a <= r && n < 9; a += 2) {
+        let wa = exp(k * f32(a * a));
+        var off = f32(a);
+        var w = wa;
+        if a + 1 <= r {
+            let wb = exp(k * f32((a + 1) * (a + 1)));
+            off = (f32(a) * wa + f32(a + 1) * wb) / (wa + wb);
+            w = wa + wb;
+        }
+        taps[n] = vec2<f32>(off * stretch, w);
+        taps[n + 1] = vec2<f32>(-off * stretch, w);
+        n += 2;
+        total += 2.0 * w;
+    }
+    var sum = 0.0;
+    for (var j = 0; j < n; j++) {
+        let ty = base.y + taps[j].x;
+        if ty < -0.5 || ty > size.y + 0.5 {
+            continue;
+        }
+        var row = 0.0;
+        for (var i = 0; i < n; i++) {
+            let tx = base.x + taps[i].x;
+            if tx < -0.5 || tx > size.x + 0.5 {
+                continue;
+            }
+            let uv = slot.xy + vec2<f32>(tx, ty) * texel;
+            row += taps[i].y * textureSampleLevel(mask, mask_smp, uv, layer, 0.0).r;
+        }
+        sum += taps[j].y * row;
+    }
+    return sum / (total * total);
+}
+
+// MASK: coverage of a glyph or an icon times the colour, blurred when the instance has a sigma (a text
+// shadow). Glyph coverage already carries the rasterizer's gamma, so it is used as it is.
 fn shade_mask(in: VsOut) -> vec4<f32> {
     let layer = i32((in.prim.x >> 16u) & 0xffu);
-    let cov = textureSampleLevel(mask, mask_smp, in.local_uv.zw, layer, 0.0).r;
+    let sigma = in.size.z;
+    var cov = 0.0;
+    if sigma > 0.0 && in.size.x > 0.0 && in.size.y > 0.0 {
+        cov = blurred_mask(in, layer, sigma);
+    } else {
+        cov = textureSampleLevel(mask, mask_smp, in.local_uv.zw, layer, 0.0).r;
+    }
     return premul(unpack_color(in.colors.x)) * cov;
 }
 
