@@ -6,6 +6,7 @@
 //! `profile` module holds the schema types the package shares with the converter and the runtime,
 //! and, behind feature `profile`, the profile tables and parsers.
 
+mod compat;
 pub mod container;
 mod error;
 pub mod ids;
@@ -19,6 +20,7 @@ mod validate;
 #[cfg(feature = "write")]
 mod write;
 
+pub use compat::{PROFILE_VERSION, Versions};
 pub use container::{FORMAT_MAJOR, FORMAT_MINOR, PackageHash, SectionTag};
 pub use error::PackageError;
 pub use ids::{
