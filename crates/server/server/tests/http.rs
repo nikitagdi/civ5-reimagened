@@ -347,6 +347,69 @@ fn cross_origin_isolation_headers_by_default_and_off_when_asked() {
     }
 }
 
+/// The UI v2 script worker gets a policy without network and with `eval` for the skin files; every other file
+/// keeps its headers (no policy), with and without cross-origin isolation.
+#[test]
+fn the_script_worker_has_its_csp_and_nothing_else_does() {
+    let web = temp_dir("web-csp");
+    std::fs::create_dir_all(web.join("ui2")).unwrap();
+    std::fs::write(web.join("index.html"), "<h1>hi</h1>").unwrap();
+    std::fs::write(web.join("app.js"), "export {}").unwrap();
+    std::fs::write(web.join("worker.js"), "// not the script worker").unwrap();
+    std::fs::write(
+        web.join("ui2").join("worker.js"),
+        "importScripts('api.js');",
+    )
+    .unwrap();
+    std::fs::write(web.join("ui2").join("api.js"), "self.x = 1;").unwrap();
+    let csp = "default-src 'none'; script-src 'self' 'unsafe-eval'";
+    for on in [false, true] {
+        let srv = TestServer::start(ServerConfig {
+            web_root: Some(web.clone()),
+            cross_origin_isolation: on,
+            ..ServerConfig::default()
+        });
+        let (status, head, body) = http_get(srv.addr, "/ui2/worker.js");
+        assert_eq!(
+            (status, body.as_slice()),
+            (200, &b"importScripts('api.js');"[..])
+        );
+        assert_eq!(
+            header_value(&head, "content-security-policy"),
+            Some(csp),
+            "{head}"
+        );
+        assert!(head.contains("content-type: text/javascript"), "{head}");
+        assert!(head.contains("cache-control: no-cache"), "{head}");
+        assert_eq!(
+            head.contains("cross-origin-embedder-policy: require-corp"),
+            on,
+            "{head}"
+        );
+        // An encoded path is the same file.
+        let (_, head, _) = http_get(srv.addr, "/ui2/worker%2Ejs");
+        assert_eq!(
+            header_value(&head, "content-security-policy"),
+            Some(csp),
+            "{head}"
+        );
+        // A revalidation keeps the policy.
+        let etag = header_value(&head, "etag").unwrap().to_string();
+        let (status, head, _) = http_get_h(srv.addr, "/ui2/worker.js", &[("If-None-Match", &etag)]);
+        assert_eq!(status, 304);
+        assert_eq!(
+            header_value(&head, "content-security-policy"),
+            Some(csp),
+            "{head}"
+        );
+        for path in ["/", "/index.html", "/app.js", "/worker.js", "/ui2/api.js"] {
+            let (status, head, _) = http_get(srv.addr, path);
+            assert_eq!(status, 200, "{path}");
+            assert!(!head.contains("content-security-policy"), "{path}: {head}");
+        }
+    }
+}
+
 #[test]
 fn assets_immutable_and_no_traversal() {
     let web = temp_dir("web2");

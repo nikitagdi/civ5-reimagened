@@ -6,6 +6,8 @@
 #![recursion_limit = "256"]
 
 mod testhooks;
+// The UI v2 script workers without a game (`ui2-selftest.html`, playtest scenario `ui2-script`).
+mod ui2_script_selftest;
 
 #[cfg(feature = "replica-selftest")]
 mod replica_selftest;

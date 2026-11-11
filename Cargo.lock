@@ -177,6 +177,8 @@ dependencies = [
  "replica",
  "serde_json",
  "tracing",
+ "ui2-model",
+ "ui2-script",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

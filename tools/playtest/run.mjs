@@ -78,6 +78,8 @@ const SCENARIOS = {
   "m5-turn-ready": () => import("./scenarios/m5-turn-ready.mjs"),
   // The END TURN button goes from "Waiting for players" straight to the new turn (live report 2026-10-31).
   "m5-turn-flow": () => import("./scenarios/m5-turn-flow.mjs"),
+  // UI v2 script workers without a game (page ui2-selftest.html): echo, hang, exception, CSP of the worker.
+  "ui2-script": () => import("./scenarios/ui2-script.mjs"),
 };
 /** The scenarios of `--scenario all` (perf is headed for real FPS numbers; headless it keeps them but enforces no FPS limit). */
 // Every scenario starts its game through the server (`?autostart=1`, net-client NC9); `saveload` uses the server's saves

@@ -359,7 +359,7 @@ function workerGlobal() {
   const send = (msg) => {
     for (const fn of listeners.message || []) fn({ data: JSON.stringify(msg) });
   };
-  return { g, posted, send, run: (code) => vm.runInContext(code, g) };
+  return { g, posted, send, listeners, run: (code) => vm.runInContext(code, g) };
 }
 
 test("the worker takes the forbidden globals away before any skin code runs", () => {
@@ -447,4 +447,145 @@ test("a handler error names the file and line", () => {
   assert.equal(out.log[0].file, "js/h.js");
   assert.equal(out.log[0].line, 3);
   assert.match(out.log[0].text, /^ui2\.js: skin on\(go\) disabled: missing is not defined at js\/h\.js:3$/);
+});
+
+test("error lines carry the key the supervisor writes them once by, and the element of the event", () => {
+  const w = workerGlobal();
+  w.send(init({ files: [{ path: "js/h.js", code: "ui.on('go', () => { throw new Error('boom'); });" }] }));
+  w.send({ t: "frame", seq: 1, model: null, events: [{ name: "go", arg: null, node: "hud.html/div[2]" }] });
+  const l = w.posted.at(-1).log[0];
+  assert.equal(l.key, "on(go)|boom");
+  assert.match(l.text, /disabled: boom at js\/h\.js:1 \(element hud\.html\/div\[2\]\)$/);
+});
+
+test("an uncaught error of the worker becomes one log line, not a failed worker", () => {
+  const w = workerGlobal();
+  w.send(init({ files: [{ path: "js/a.js", code: "self.later = () => { throw new Error('late'); };" }] }));
+  const errorEvent = { error: (() => { try { w.run("later()"); } catch (e) { return e; } })(), message: "late", cancelled: false };
+  errorEvent.preventDefault = () => (errorEvent.cancelled = true);
+  for (const fn of w.listeners.error || []) fn(errorEvent);
+  assert.equal(errorEvent.cancelled, true);
+  const l = w.posted.at(-1).log[0];
+  assert.equal(l.level, "error");
+  assert.equal(l.key, "uncaught error|late");
+  assert.match(l.text, /^ui2\.js: skin uncaught error: late at js\/a\.js:1$/);
+});
+// ------------------------------------------------------------------ islands, settings, timers
+
+function timedContext(extra) {
+  const sent = [];
+  let clock = 0;
+  const pending = new Map();
+  let next = 0;
+  const port = {
+    post: (m) => sent.push(JSON.parse(JSON.stringify(m))),
+    now: () => clock,
+    timers: {
+      set: (fn, ms, repeat) => {
+        const h = ++next;
+        pending.set(h, { fn, ms, repeat, due: clock + ms });
+        return h;
+      },
+      clear: (h) => pending.delete(h),
+    },
+  };
+  const ctx = api.createContext(init(extra), port);
+  // Advance the clock and run what fell due, in order.
+  const advance = (ms) => {
+    const end = clock + ms;
+    for (;;) {
+      const due = [...pending.entries()].filter(([, t]) => t.due <= end).sort((a, b) => a[1].due - b[1].due)[0];
+      if (!due) break;
+      const [h, t] = due;
+      clock = t.due;
+      if (t.repeat) t.due += t.ms;
+      else pending.delete(h);
+      t.fn();
+    }
+    clock = end;
+  };
+  return { ctx, ui: ctx.ui, sent, advance, pending };
+}
+
+test("island commands go out as cmds", () => {
+  const { ctx, ui, sent } = context();
+  ui.island("clock").text("t", "12:00").text("u", { loc: "TXT_KEY_TURN", args: [5] }).cls("t", "lit").cls("u", "lit", false);
+  ui.island("clock").style("t", "opacity", 0.5).show("u", false);
+  assert.throws(() => ui.island(""), TypeError);
+  assert.throws(() => ui.island("clock").text("", "x"), TypeError);
+  ctx.ready();
+  assert.deepEqual(sent[0].cmds, [
+    { island: "clock", key: "t", op: "text", value: "12:00" },
+    { island: "clock", key: "u", op: "text", value: { loc: "TXT_KEY_TURN", args: ["5"] } },
+    { island: "clock", key: "t", op: "cls", name: "lit", on: true },
+    { island: "clock", key: "u", op: "cls", name: "lit", on: false },
+    { island: "clock", key: "t", op: "style", prop: "opacity", value: 0.5 },
+    { island: "clock", key: "u", op: "show", on: false },
+  ]);
+});
+
+test("settings are read from init and written through out", () => {
+  const { ctx, ui, sent } = context({ settings: [["vol", "3"], ["layout", '{"a":[1,2]}']] });
+  assert.equal(ui.settings.get("vol"), 3);
+  const layout = ui.settings.get("layout");
+  layout.a.push(9);
+  assert.deepEqual(ui.settings.get("layout"), { a: [1, 2] }, "get gives a copy");
+  assert.equal(ui.settings.get("none"), null);
+  ui.settings.set("vol", 7);
+  ui.settings.remove("layout");
+  assert.equal(ui.settings.get("vol"), 7);
+  assert.equal(ui.settings.get("layout"), null);
+  ctx.ready();
+  assert.deepEqual(sent[0].settings, [
+    { key: "vol", value: 7 },
+    { key: "layout", value: null },
+  ]);
+});
+
+test("ui.state writes the skin state and only the js fields of ui", () => {
+  const { ctx, ui, sent } = context();
+  ui.state.set("sort", "turns");
+  ui.state.set("ui.tab", "units");
+  assert.throws(() => ui.state.set("ui.sel", 2), /not a field of `ui` scripts may write/);
+  ctx.ready();
+  assert.deepEqual(sent[0].state, [
+    { p: "state.sort", v: "turns" },
+    { p: "ui.tab", v: "units" },
+  ]);
+});
+
+test("timers: after, every, cancel, the minimum interval, and errors switch the timer off", () => {
+  const { ui, sent, advance, pending } = timedContext({ limits: { slow_ms: 50, log_per_s: 20, timer_min_ms: 50 } });
+  let once = 0;
+  let ticks = 0;
+  ui.timer.after(10, () => {
+    once += 1;
+    ui.state.set("open", true);
+  });
+  assert.equal([...pending.values()][0].ms, 50, "at least the minimum");
+  const every = ui.timer.every(100, () => {
+    ticks += 1;
+  });
+  advance(49);
+  assert.equal(once, 0);
+  advance(1);
+  assert.equal(once, 1);
+  // The timer's write went out at once, not acknowledging a frame.
+  assert.equal(sent.at(-1).ack, null);
+  assert.deepEqual(sent.at(-1).state, [{ p: "state.open", v: true }]);
+  advance(250);
+  assert.equal(ticks, 3);
+  ui.timer.cancel(every);
+  advance(500);
+  assert.equal(ticks, 3);
+  assert.equal(pending.size, 0);
+  const sentBefore = sent.length;
+  ui.timer.every(50, () => {
+    throw new Error("tick");
+  });
+  advance(200);
+  assert.equal(pending.size, 0, "a timer that throws is cancelled");
+  const lines = sent.slice(sentBefore).flatMap((m) => m.log);
+  assert.equal(lines.length, 1);
+  assert.match(lines[0].text, /timer\.every\(50\) disabled: tick/);
 });
