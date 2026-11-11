@@ -1,0 +1,22 @@
+[package]
+name = "ui2-text"
+description = "UI v2 text stack: shaping, line metrics, line breaking and glyph rasterization that match Chrome"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "client"
+
+[dependencies]
+harfrust.workspace = true
+skrifa.workspace = true
+ab_glyph_rasterizer.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde.workspace = true
+serde_json.workspace = true

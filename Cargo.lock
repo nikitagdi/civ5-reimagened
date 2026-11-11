@@ -3884,6 +3884,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ui2-text"
+version = "0.1.0"
+dependencies = [
+ "ab_glyph_rasterizer",
+ "harfrust",
+ "serde",
+ "serde_json",
+ "skrifa",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "unicode-general-category"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

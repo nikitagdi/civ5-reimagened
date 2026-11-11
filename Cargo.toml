@@ -28,6 +28,7 @@ members = [
     "crates/client/ui",
     "crates/client/ui-text",
     "crates/client/ui-client",
+    "crates/client/ui2-text",
     "crates/client/exe-api",
     "crates/client/render",
     "crates/client/interim-ui",
@@ -88,6 +89,7 @@ jobs = { path = "crates/client/jobs" }
 ui = { path = "crates/client/ui" }
 ui-text = { path = "crates/client/ui-text" }
 ui-client = { path = "crates/client/ui-client" }
+ui2-text = { path = "crates/client/ui2-text" }
 exe-api = { path = "crates/client/exe-api" }
 render = { path = "crates/client/render" }
 interim-ui = { path = "crates/client/interim-ui" }
@@ -104,6 +106,12 @@ bytemuck = { version = "1.25.2", features = ["derive"] }
 # Interim UI (SIMP-001): only the interim-ui crate may depend on egui (rule R9).
 egui = { version = "0.37", default-features = false, features = ["default_fonts"] }
 egui-wgpu = { version = "0.37", default-features = false }
+
+# Approved 2026-11-11 (UI v2 text stack): shaping and outlines for ui2-text. Pure Rust, versions already in Cargo.lock.
+harfrust = "=0.12.0"
+skrifa = { version = "=0.44.0", default-features = false, features = ["std"] }
+# Approved 2026-11-11 (UI v2 text stack): glyph coverage for ui2-text.
+ab_glyph_rasterizer = { version = "=0.1.10", default-features = false, features = ["std"] }
 
 # Web. wasm-bindgen is pinned exactly: the CLI must be the same version.
 wasm-bindgen = "=0.2.129"
