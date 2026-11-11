@@ -109,10 +109,14 @@ bytemuck = { version = "1.25.2", features = ["derive"] }
 egui = { version = "0.37", default-features = false, features = ["default_fonts"] }
 egui-wgpu = { version = "0.37", default-features = false }
 
-# Approved 2026-11-11 (UI v2 text stack): shaping and outlines for ui2-text. Pure Rust, versions already in Cargo.lock.
+# UI v2 dependencies, approved by the maintainer 2026-11-11. All pure Rust: none of them reaches web-sys or js-sys.
+# taffy: box layout of the UI v2 runtime (flexbox, grid, block). Rounding is a runtime setting in this version, not a
+# Cargo feature; only the layout algorithms and the tree are enabled (add `parse` etc. in the consuming crate if needed).
+taffy = { version = "=0.15.1", default-features = false, features = ["std", "taffy_tree", "flexbox", "grid", "block_layout", "calc", "content_size"] }
+# harfrust, skrifa: shaping and outlines for ui2-text. Versions already in Cargo.lock.
 harfrust = "=0.12.0"
 skrifa = { version = "=0.44.0", default-features = false, features = ["std"] }
-# Approved 2026-11-11 (UI v2 text stack): glyph coverage for ui2-text.
+# ab_glyph_rasterizer: glyph coverage for ui2-text.
 ab_glyph_rasterizer = { version = "=0.1.10", default-features = false, features = ["std"] }
 
 # Web. wasm-bindgen is pinned exactly: the CLI must be the same version.
@@ -129,7 +133,7 @@ serde_json = "1.0.154"
 # Compression (net-protocol NP-D9): pure Rust zstd, one crate for wasm decode and server encode. Approved 2026-10-21.
 ruzstd = "=0.9.0"
 # Terrain-piece sections (assets-b2 AB-D3): packing in the asset pipeline only, level 19. Same version as the one
-# `ctt` already pulls in. Approved 2026-10-21.
+# `ctt` already pulls in. Approved 2026-10-21. Tools and server only: the client reads zstd through `ruzstd`.
 zstd = "=0.13.3"
 # Client log reports (`POST /client-report/v2`, packet P4 of the logging spec): the gzip body is inflated with a size cap and the stored log is
 # gzip again. Pure Rust backend; the version is already in Cargo.lock (the png crate pulls it). Server side only.
