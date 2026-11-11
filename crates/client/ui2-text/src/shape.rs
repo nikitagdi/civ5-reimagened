@@ -354,23 +354,28 @@ impl TextEngine {
             .get_mut(&style.face)
             .ok_or(TextError::UnknownFace(style.face))?;
         face.ensure_instance(style.wght);
+        let (shaping, map) = shaping_text(text);
+        let feats = features_for(style);
+        let mut buf = UnicodeBuffer::new();
+        buf.push_str(&shaping);
+        buf.guess_segment_properties();
+        // The plan harfrust would build for this buffer (no language is ever set; a script the guess
+        // did not find stays unset), kept on the face.
+        let script = Some(buf.script()).filter(|s| *s != harfrust::script::UNKNOWN);
+        let plan = face.plan(style.wght, buf.direction(), script, &feats);
         let face = &*face;
         let upem = face.upem;
         let scale = style.size / upem;
-        let (shaping, map) = shaping_text(text);
-        let feats = features_for(style);
         let font = face
             .font()
             .ok_or_else(|| TextError::Font("font bytes no longer parse".into()))?;
 
         // Shape. The instance borrows `face`, so it is fetched after the font and used right away.
-        let mut buf = UnicodeBuffer::new();
-        buf.push_str(&shaping);
-        buf.guess_segment_properties();
         let (infos, positions) = {
             let instance = face.instance(style.wght);
             let shaper = face.data.shaper(&font).instance(instance).build();
-            let out = shaper.shape(buf, ShapeOptions::new().features(&feats));
+            let plan = plan.and_then(|i| face.plans.get(i));
+            let out = shaper.shape(buf, ShapeOptions::new().features(&feats).plan(plan));
             (out.glyph_infos().to_vec(), out.glyph_positions().to_vec())
         };
 

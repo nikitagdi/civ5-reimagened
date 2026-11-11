@@ -3,7 +3,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use harfrust::{ShaperData, ShaperInstance, Tag, Variation};
+use harfrust::{
+    Direction, Feature, Script, ShapePlan, ShapePlanKey, ShaperData, ShaperInstance, Tag, Variation,
+};
 use skrifa::raw::TableProvider;
 use skrifa::{FontRef, MetadataProvider};
 
@@ -21,11 +23,16 @@ pub(crate) struct RawMetrics {
     pub line_gap: i32,
 }
 
-/// A loaded face. The `ShaperData` is built once; shaper instances are cached per `wght` value.
+/// Shape plans kept per face (one per weight instance, direction, script and feature set in use).
+const MAX_PLANS: usize = 64;
+
+/// A loaded face. The `ShaperData` is built once; shaper instances are cached per `wght` value, shape
+/// plans per instance, direction, script and features (building a plan costs more than shaping a short run).
 pub(crate) struct Face {
     pub bytes: Arc<[u8]>,
     pub data: ShaperData,
     instances: HashMap<u32, ShaperInstance>,
+    pub plans: Vec<ShapePlan>,
     pub upem: f32,
     pub has_wght: bool,
     pub raw: RawMetrics,
@@ -64,6 +71,7 @@ impl Face {
             bytes,
             data,
             instances: HashMap::new(),
+            plans: Vec::new(),
             upem: f32::from(upem),
             has_wght,
             raw,
@@ -99,5 +107,36 @@ impl Face {
     /// The shaper instance made by [`Face::ensure_instance`]; `None` for static faces.
     pub fn instance(&self, wght: f32) -> Option<&ShaperInstance> {
         self.instances.get(&wght.to_bits())
+    }
+
+    /// The index in `plans` of the shape plan for a weight instance, a direction, a script and features,
+    /// made on first use (`None` when the font does not parse or the cache is full: the caller shapes
+    /// without a plan and harfrust makes the same plan for that one call). Call
+    /// [`Face::ensure_instance`] first. The plan is the one harfrust would build for a buffer of these
+    /// properties without a language, which is how runs are shaped here.
+    pub fn plan(
+        &mut self,
+        wght: f32,
+        direction: Direction,
+        script: Option<Script>,
+        features: &[Feature],
+    ) -> Option<usize> {
+        let instance = self.instances.get(&wght.to_bits());
+        let key = ShapePlanKey::new(script, direction)
+            .instance(instance)
+            .features(features);
+        if let Some(i) = self.plans.iter().position(|p| key.matches(p)) {
+            return Some(i);
+        }
+        if self.plans.len() >= MAX_PLANS {
+            return None;
+        }
+        let font = FontRef::new(&self.bytes).ok()?;
+        let plan = {
+            let shaper = self.data.shaper(&font).instance(instance).build();
+            ShapePlan::new(&shaper, direction, script, None, features)
+        };
+        self.plans.push(plan);
+        Some(self.plans.len() - 1)
     }
 }
