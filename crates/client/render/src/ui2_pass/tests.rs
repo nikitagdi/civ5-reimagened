@@ -1305,6 +1305,79 @@ fn ui2_draws_gradients_and_shadows_on_gl() {
     primitives_on("ui2_draws_gradients_and_shadows_on_gl", wgpu::Backends::GL);
 }
 
+/// Inset shadows: a sharp one (offset, spread, rounded padding box) and a blurred one (sigma 2), every checked
+/// pixel against the hand-computed coverage.
+fn insets_on(test: &str, backends: wgpu::Backends) {
+    let Some(mut rig) = Rig::new(test, backends, (130, 60)) else {
+        return;
+    };
+    let mut scene = Scene::new(1.0);
+    scene.set_chunk(
+        LayerId::Hud,
+        ChunkId(1),
+        chunk(vec![
+            // Padding box x 10..50, y 10..50, radius 8; the hole is the box moved by (4, 6) and shrunk by 2:
+            // x 16..52, y 18..54 (radius 6). The shadow is the left 6 and top 8 px of the box.
+            Item::InsetShadow(ShadowItem {
+                rect: Rect::new(10.0, 10.0, 40.0, 40.0),
+                radii: Radii::uniform(8.0),
+                offset: Vec2::new(4.0, 6.0),
+                spread: 2.0,
+                color: GREEN,
+                ..ShadowItem::default()
+            }),
+            // Padding box x 70..110, y 10..50, blur 4 (sigma 2), no offset.
+            Item::InsetShadow(ShadowItem {
+                rect: Rect::new(70.0, 10.0, 40.0, 40.0),
+                blur: 4.0,
+                color: RED,
+                ..ShadowItem::default()
+            }),
+        ]),
+    );
+    let img = rig.frame(&mut scene);
+    let w = rig.size.0;
+    let c = |x, y| rgb(&img, w, x, y);
+
+    // Sharp: the hole's left edge at x 16, its top edge at y 18; right and bottom of the box are in the hole.
+    assert_eq!(c(15, 30), [0, 255, 0], "left band, last column");
+    assert_eq!(c(16, 30), [0, 0, 0], "in the hole");
+    assert_eq!(c(30, 17), [0, 255, 0], "top band, last row");
+    assert_eq!(c(30, 18), [0, 0, 0], "in the hole");
+    assert_eq!(c(12, 40), [0, 255, 0], "left band, low");
+    assert_eq!(c(49, 30), [0, 0, 0], "the right side is in the hole");
+    assert_eq!(c(30, 49), [0, 0, 0], "the bottom is in the hole");
+    assert_eq!(c(9, 30), [0, 0, 0], "outside the padding box");
+    // The rounded padding box cuts the shadow: the corner pixel lies 10.6 px from the arc centre (18, 18).
+    assert_eq!(c(10, 10), [0, 0, 0], "outside the rounded corner");
+    assert_eq!(c(11, 11), [0, 0, 0], "outside the rounded corner");
+    assert_eq!(c(14, 14), [0, 255, 0], "inside the corner");
+
+    // Blurred: across the middle row the hole's coverage is Phi(d / 2) (d: distance of the pixel centre from
+    // the edge) times 0.99865, the four-sample integral of the Gaussian along y; the shadow is 1 minus that.
+    near(red(&img, w, 70, 30), 0.402, "0.5 px inside the left edge");
+    near(red(&img, w, 71, 30), 0.228, "1.5 px inside");
+    near(red(&img, w, 72, 30), 0.107, "2.5 px inside");
+    near(red(&img, w, 78, 30), 0.0, "8.5 px inside");
+    near(red(&img, w, 90, 30), 0.0, "the middle");
+    near(red(&img, w, 109, 30), 0.402, "0.5 px inside the right edge");
+    // Along y the four samples give 0.6005 instead of Phi(0.25) = 0.5987 for the hole.
+    near(red(&img, w, 90, 10), 0.3995, "0.5 px inside the top edge");
+    assert_eq!(red(&img, w, 69, 30), 0, "outside the padding box");
+    assert_eq!(c(90, 30)[1], 0);
+    assert_eq!(rig.pass.stats().draws, 1);
+}
+
+#[test]
+fn ui2_draws_inset_shadows() {
+    insets_on("ui2_draws_inset_shadows", wgpu::Backends::PRIMARY);
+}
+
+#[test]
+fn ui2_draws_inset_shadows_on_gl() {
+    insets_on("ui2_draws_inset_shadows_on_gl", wgpu::Backends::GL);
+}
+
 /// The end-turn dial of the mockup: conic scale, rotated ticks, an arc of two clipped halves.
 #[test]
 fn ui2_draws_the_dial() {

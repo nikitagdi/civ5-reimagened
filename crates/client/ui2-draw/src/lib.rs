@@ -469,14 +469,23 @@ impl EllipticBox {
     }
 }
 
-/// An outer box shadow (CSS `box-shadow` without `inset`): the rounded rectangle `rect` moved by `offset`, grown
-/// by `spread` and blurred with a Gaussian of `blur / 2` standard deviation. Like in CSS, nothing of it is drawn
-/// inside `rect` itself (the element's border box), so a translucent element does not show its own shadow.
+/// A box shadow (CSS `box-shadow`).
+///
+/// As [`Item::Shadow`], an outer shadow: the rounded rectangle `rect` moved by `offset`, grown by `spread` and
+/// blurred with a Gaussian of `blur / 2` standard deviation. Like in CSS, nothing of it is drawn inside `rect`
+/// itself (the element's border box), so a translucent element does not show its own shadow.
+///
+/// As [`Item::InsetShadow`], an inner shadow (CSS `inset`): `rect` and `radii` are the element's padding box and
+/// its corner radii (the border box's radii reduced by the border widths, as CSS does). The shadow covers that
+/// box except for a hole: the same box moved by `offset`, shrunk by `spread` (its rounded corners shrink with
+/// it, square ones stay square) and blurred with the same Gaussian. Nothing is drawn outside the rounded
+/// padding box.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShadowItem {
-    /// The element's border box, chunk space (before the offset and the spread).
+    /// The element's border box (outer shadow) or padding box (inset shadow), chunk space, before the offset and
+    /// the spread.
     pub rect: Rect,
-    /// The element's corner radii (the shadow's grow with the spread).
+    /// The corner radii of `rect` (the shadow's grow with the spread, or shrink with it when inset).
     pub radii: Radii,
     /// Shadow offset, device px.
     pub offset: Vec2,
@@ -678,6 +687,8 @@ pub enum Item {
     EllipticBox(EllipticBox),
     /// An outer blurred shadow.
     Shadow(ShadowItem),
+    /// An inner blurred shadow (CSS `box-shadow: inset ...`), drawn inside the item's rectangle only.
+    InsetShadow(ShadowItem),
     /// A mask sprite.
     Mask(MaskItem),
     /// A colour picture.

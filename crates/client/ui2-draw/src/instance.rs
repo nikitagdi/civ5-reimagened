@@ -25,7 +25,9 @@ use bytemuck::{Pod, Zeroable};
 pub const KIND_BOX: u8 = 0;
 /// Primitive kind: a blurred shadow of a rounded rectangle. `rect` and `radii` are the element's border box,
 /// `uv.xy` the shadow offset, `extra.x` the Gaussian's standard deviation, `extra.y` the spread, `c0` the colour.
-/// The quad covers the shadow and its blur; nothing is drawn inside the element's own box.
+/// The quad covers the shadow and its blur; nothing is drawn inside the element's own box. With [`FLAG_INSET`]
+/// the shadow is an inner one: `rect` and `radii` are the padding box, the quad is that box, and the colour
+/// covers it except for the blurred hole (the box moved by the offset and shrunk by the spread).
 pub const KIND_SHADOW: u8 = 1;
 /// Primitive kind: an RGBA sprite or external texture.
 pub const KIND_IMAGE: u8 = 2;
@@ -59,6 +61,8 @@ pub const FLAG_TILE: u8 = 1 << 5;
 /// Flag (pictures): sample the external texture of slot `ext` (`uv` normalized to it) instead of the image
 /// array.
 pub const FLAG_EXT: u8 = 1 << 6;
+/// Flag (shadows): an inset shadow, drawn inside `rect` only (see [`KIND_SHADOW`]).
+pub const FLAG_INSET: u8 = 1 << 7;
 
 /// A drawable primitive. See the module docs for the byte layout.
 #[repr(C)]

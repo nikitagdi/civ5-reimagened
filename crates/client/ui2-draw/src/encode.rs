@@ -11,7 +11,8 @@ use glam::Affine2;
 use crate::glyphs::{GlyphStore, Lookup, glyph_key};
 use crate::instance::{
     FILL_CONIC, FILL_LINEAR, FILL_REPEAT, FILL_SOLID, FLAG_BORDER, FLAG_ELLIPSE, FLAG_EXT,
-    FLAG_FILL, FLAG_TILE, KIND_BOX, KIND_IMAGE, KIND_MASK, KIND_SHADOW, Ui2Instance, f16_bits,
+    FLAG_FILL, FLAG_INSET, FLAG_TILE, KIND_BOX, KIND_IMAGE, KIND_MASK, KIND_SHADOW, Ui2Instance,
+    f16_bits,
 };
 use crate::pages::{ExtSlots, Pages};
 use crate::tables::{Clip, Tables};
@@ -62,7 +63,8 @@ pub fn encode_chunk(chunk: &ChunkItems, ctx: &mut EncodeCtx<'_>) -> Encoded {
         match item {
             Item::Box(b) => encode_box(b, 1.0, anchor, ctx, &mut out),
             Item::EllipticBox(e) => encode_box(&e.base, e.ratio, anchor, ctx, &mut out),
-            Item::Shadow(s) => encode_shadow(s, anchor, ctx, &mut out),
+            Item::Shadow(s) => encode_shadow(s, false, anchor, ctx, &mut out),
+            Item::InsetShadow(s) => encode_shadow(s, true, anchor, ctx, &mut out),
             Item::Mask(m) => encode_mask(m, anchor, ctx, &mut out),
             Item::Image(m) => encode_image(m, anchor, ctx, &mut out),
             Item::Glyphs(g) => encode_glyphs(g, anchor, ctx, &mut out),
@@ -212,18 +214,28 @@ fn encode_gradient(g: &Gradient, i: &mut Ui2Instance) {
     }
 }
 
-/// An outer shadow: one instance whose quad the shader grows to the blurred shadow.
-fn encode_shadow(s: &ShadowItem, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Encoded) {
+/// A shadow: one instance. The shader grows the quad of an outer shadow to the blurred shadow; an inset
+/// shadow's quad is its rectangle (the padding box).
+fn encode_shadow(
+    s: &ShadowItem,
+    inset: bool,
+    anchor: u16,
+    ctx: &mut EncodeCtx<'_>,
+    out: &mut Encoded,
+) {
     let finite = s.offset.is_finite() && s.blur.is_finite() && s.spread.is_finite();
     if !s.rect.is_drawable() || s.color.is_transparent() || !finite {
         return;
     }
-    // A spread that swallows the box leaves nothing.
-    if s.rect.w + 2.0 * s.spread <= 0.0 || s.rect.h + 2.0 * s.spread <= 0.0 {
+    // A spread that swallows the box leaves nothing of an outer shadow (an inset one then fills its box).
+    if !inset && (s.rect.w + 2.0 * s.spread <= 0.0 || s.rect.h + 2.0 * s.spread <= 0.0) {
         return;
     }
     let (xform, clip) = place(&s.transform, &s.clip, ctx, out);
     let mut i = Ui2Instance::of_kind(KIND_SHADOW);
+    if inset {
+        i.flags |= FLAG_INSET;
+    }
     i.rect = [s.rect.x, s.rect.y, s.rect.w, s.rect.h];
     let r = s.radii.fitted(s.rect.w, s.rect.h);
     i.set_radii([r.tl, r.tr, r.br, r.bl]);
@@ -802,6 +814,47 @@ mod tests {
             },
         ] {
             assert!(rig.encode(&one(Item::Shadow(none))).instances.is_empty());
+        }
+    }
+
+    #[test]
+    fn inset_shadow_bytes() {
+        let mut rig = Rig::new();
+        let s = ShadowItem {
+            rect: Rect::new(11.0, 21.0, 98.0, 48.0),
+            radii: Radii::uniform(5.0),
+            offset: Vec2::new(2.0, -3.0),
+            blur: 6.0,
+            spread: 80.0,
+            color: Color::rgba(0, 0, 0, 128),
+            ..ShadowItem::default()
+        };
+        let i = rig.encode(&one(Item::InsetShadow(s.clone()))).instances[0];
+        assert_eq!(i.kind, KIND_SHADOW);
+        assert_eq!(i.flags, FLAG_INSET);
+        assert_eq!(i.rect, [11.0, 21.0, 98.0, 48.0]);
+        assert_eq!(i.radii, [5.0; 4].map(f16_bits));
+        assert_eq!(i.uv, [2.0, -3.0, 0.0, 0.0]);
+        // A spread larger than the box closes the hole: the whole box is shadow, still drawn.
+        assert_eq!(i.extra, [3.0, 80.0, 0.0, 0.0].map(f16_bits));
+        // The outer form of the same item carries no flag.
+        let o = rig.encode(&one(Item::Shadow(s.clone()))).instances[0];
+        assert_eq!(o.flags, 0);
+        for none in [
+            ShadowItem {
+                color: Color::TRANSPARENT,
+                ..s.clone()
+            },
+            ShadowItem {
+                rect: Rect::new(0.0, 0.0, 0.0, 10.0),
+                ..s
+            },
+        ] {
+            assert!(
+                rig.encode(&one(Item::InsetShadow(none)))
+                    .instances
+                    .is_empty()
+            );
         }
     }
 

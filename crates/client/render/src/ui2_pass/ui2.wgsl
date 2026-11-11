@@ -51,6 +51,7 @@ const FLAG_BORDER: u32 = 8u;
 const FLAG_ELLIPSE: u32 = 16u;
 const FLAG_TILE: u32 = 32u;
 const FLAG_EXT: u32 = 64u;
+const FLAG_INSET: u32 = 128u;
 
 // Table layout (`ui2_draw::tables`).
 const RECORDS_PER_ROW: u32 = 512u;
@@ -168,11 +169,11 @@ fn vs(@builtin(vertex_index) vi: u32, inst: Instance) -> VsOut {
     let anchor_id = inst.words.z & 0xffffu;
 
     let corner = quad_corner(vi);
-    // The quad, relative to the rectangle: boxes get a margin for the soft edge, shadows their offset, spread
-    // and three standard deviations of blur; masks and pictures are their texels exactly.
+    // The quad, relative to the rectangle: boxes and inset shadows get a margin for the soft edge, outer shadows
+    // their offset, spread and three standard deviations of blur; masks and pictures are their texels exactly.
     var lo = vec2<f32>(0.0);
     var hi = inst.rect.zw;
-    if kind == KIND_BOX {
+    if kind == KIND_BOX || (kind == KIND_SHADOW && (flags & FLAG_INSET) != 0u) {
         lo = vec2<f32>(-AA_MARGIN);
         hi = inst.rect.zw + vec2<f32>(AA_MARGIN);
     } else if kind == KIND_SHADOW {
@@ -425,6 +426,9 @@ fn blurred_box(p: vec2<f32>, half: vec2<f32>, corner: f32, sigma: f32) -> f32 {
 }
 
 // SHADOW: the element box moved by the offset, grown by the spread, blurred; cut out of the element's own box.
+// Inset: the padding box minus the hole (the box moved by the offset, shrunk by the spread, blurred), cut to the
+// rounded padding box. The hole uses the same coverage model as the outer shadow (exact erf along x, four
+// samples along y).
 fn shade_shadow(in: VsOut, px: f32) -> vec4<f32> {
     let size = in.size.xy;
     let local = in.local_uv.xy;
@@ -432,6 +436,24 @@ fn shade_shadow(in: VsOut, px: f32) -> vec4<f32> {
     let offset = in.grad.xy;
     let sigma = in.grad.z;
     let spread = in.grad.w;
+    let flags = (in.prim.x >> 8u) & 0xffu;
+    if (flags & FLAG_INSET) != 0u {
+        let own = inside(sd_box(local - half, half, in.radii, 1.0), px);
+        // CSS: the hole's rounded corners shrink with the spread (not below 0), square ones stay square.
+        let hhalf = max(half - vec2<f32>(spread), vec2<f32>(0.0));
+        let hradii = select(vec4<f32>(0.0), max(in.radii - vec4<f32>(spread), vec4<f32>(0.0)), in.radii > vec4<f32>(0.0));
+        let hp = local - half - offset;
+        var hole = 0.0;
+        if hhalf.x > 0.0 && hhalf.y > 0.0 {
+            if sigma < 0.25 * px {
+                hole = inside(sd_box(hp, hhalf, hradii, 1.0), px);
+            } else {
+                let corner = min(corner_radius(hp, hradii), min(hhalf.x, hhalf.y));
+                hole = blurred_box(hp, hhalf, corner, sigma);
+            }
+        }
+        return premul(unpack_color(in.colors.x)) * (clamp(1.0 - hole, 0.0, 1.0) * own);
+    }
     let shalf = max(half + vec2<f32>(spread), vec2<f32>(0.0));
     // CSS: a rounded corner grows with the spread, a square one stays square.
     let sradii = select(vec4<f32>(0.0), max(in.radii + vec4<f32>(spread), vec4<f32>(0.0)), in.radii > vec4<f32>(0.0));
