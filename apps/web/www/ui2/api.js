@@ -16,7 +16,7 @@
 //                       events, then send one `out` that acknowledges the frame
 //   ctx.ready()         after the files ran: call the `ready` handlers, send what they and the files wrote
 //   ctx.handlers()      the event names given to `ui.on`
-//   ctx.rejection(r)    an unhandled promise rejection of the worker
+//   ctx.rejection(r, w) an unhandled promise rejection of the worker, or (`w` names it) an uncaught error
 //
 // The model mirror is immutable inside: a change makes new objects along its path, so a subscription sees a
 // change by identity. In development mode (`init.dev`) it is frozen, and a script that writes to it throws.
@@ -326,31 +326,38 @@
     }
     out = fresh();
 
-    function line(level, text, file, ln) {
-      out.log.push({ level, text, file: file || null, line: ln || null });
+    // A log line. `key` says what an error is about: the supervisor writes a line with a key once per context,
+    // also across restarts of the worker (its handlers are switched on again and may fail again).
+    function line(level, text, file, ln, key) {
+      const l = { level, text, file: file || null, line: ln || null };
+      if (key) l.key = key;
+      out.log.push(l);
     }
 
-    function failed(h, e) {
+    // `node`: the markup element of the event that called the handler, if it was one.
+    function failed(h, e, node) {
       h.live = false;
       const at = locate(e);
       const where = at.file ? " at " + at.file + ":" + at.line : "";
-      line("error", "ui2.js: " + ctxName + " " + h.label + " disabled: " + messageOf(e) + where, at.file, at.line);
+      const msg = messageOf(e);
+      const el = node ? " (element " + node + ")" : "";
+      line("error", "ui2.js: " + ctxName + " " + h.label + " disabled: " + msg + where + el, at.file, at.line, h.label + "|" + msg);
     }
 
     // Call a handler; an exception switches it off for good, a slow call is reported once.
-    function call(h, f) {
+    function call(h, f, node) {
       if (!h.live) return;
       const t0 = now();
       try {
         f();
       } catch (e) {
-        failed(h, e);
+        failed(h, e, node);
         return;
       }
       const ms = now() - t0;
       if (ms > limits.slow_ms && !h.slow) {
         h.slow = true;
-        line("warn", "ui2.js: " + ctxName + " " + h.label + " slow handler: " + Math.round(ms) + " ms");
+        line("warn", "ui2.js: " + ctxName + " " + h.label + " slow handler: " + Math.round(ms) + " ms", null, null, h.label + "|slow");
       }
     }
 
@@ -424,7 +431,7 @@
     function fire(name, arg, info) {
       const list = events.get(name);
       if (!list) return;
-      for (const h of list.slice()) call(h, () => h.fn(arg, info));
+      for (const h of list.slice()) call(h, () => h.fn(arg, info), info && info.node);
     }
 
     function empty() {
@@ -527,7 +534,7 @@
     // The snapshot of `init`, or the decoded roots the shim passes.
     if (init.model) {
       const e = mirror.apply(init.model);
-      if (e) line("error", "ui2.js: " + ctxName + " model snapshot: " + messageOf(e));
+      if (e) line("error", "ui2.js: " + ctxName + " model snapshot: " + messageOf(e), null, null, "model|" + messageOf(e));
     }
     if (init.roots) for (const k of Object.keys(init.roots)) mirror.roots[k] = init.roots[k];
     if (init.dev) for (const k of Object.keys(mirror.roots)) deepFreeze(mirror.roots[k]);
@@ -542,7 +549,7 @@
         }
         if (msg.model) {
           const e = mirror.apply(msg.model);
-          if (e) line("error", "ui2.js: " + ctxName + " model delta: " + messageOf(e));
+          if (e) line("error", "ui2.js: " + ctxName + " model delta: " + messageOf(e), null, null, "model|" + messageOf(e));
           notify();
         }
         if (msg.env) {
@@ -560,10 +567,11 @@
       handlers() {
         return Array.from(events.keys());
       },
-      rejection(reason) {
+      // An unhandled promise rejection (`what` empty) or an uncaught error of the worker (`what` names it).
+      rejection(reason, what) {
         const at = locate(reason);
         const where = at.file ? " at " + at.file + ":" + at.line : "";
-        line("error", "ui2.js: " + ctxName + " unhandled rejection: " + messageOf(reason) + where, at.file, at.line);
+        line("error", "ui2.js: " + ctxName + " " + (what || "unhandled rejection") + ": " + messageOf(reason) + where, at.file, at.line, (what || "rejection") + "|" + messageOf(reason));
         flush(null, now());
       },
     };

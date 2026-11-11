@@ -13,6 +13,7 @@
 //   __ui2self.get(path)            a model value (`state.n`), JSON-decoded
 //   __ui2self.status()             starting | running | busy | restarting | disabled | none
 //   __ui2self.answers              what each frame took, oldest first (frames that took nothing are left out)
+//   __ui2self.gaps()               the longest time between two frames of the page since the last call, ms
 const out = document.getElementById("out");
 try {
   const { default: init, Ui2ScriptSelftest } = await import("./pkg/app_web.js");
@@ -20,7 +21,12 @@ try {
   const t = new Ui2ScriptSelftest();
   let writes = [];
   const answers = [];
+  let last = performance.now();
+  let gap = 0;
   setInterval(() => {
+    const t0 = performance.now();
+    gap = Math.max(gap, t0 - last);
+    last = t0;
     const r = JSON.parse(t.frame(performance.now(), JSON.stringify(writes)));
     writes = [];
     if (r.state.length || r.intents.length || r.cmds || r.settings.length || r.log.length || r.failed.length) {
@@ -35,6 +41,11 @@ try {
     get: (path) => JSON.parse(t.get(path)),
     status: () => t.status(),
     stop: () => t.stop(),
+    gaps: () => {
+      const g = gap;
+      gap = 0;
+      return g;
+    },
     answers,
   };
   out.textContent = "ui2 script selftest: ready";

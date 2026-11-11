@@ -1,32 +1,75 @@
-//! The supervisor: one worker per script context, the frame batch, and the answers turned into output for
-//! the host.
+//! The supervisor: one worker per script context, the frame batch, the watchdog and restarts, and the answers
+//! turned into output for the host.
 
 use std::sync::Arc;
 
 use platform::{ScriptHost, ScriptHostEvent, WorkerId};
-use ui2_model::wire::{Origin, ScriptCtxId, StateOp, WireIntent};
-use ui2_model::{Schema, WatchSet};
+use ui2_model::wire::{Origin, ScriptCtxId, ScriptEvent, StateOp, WireIntent};
+use ui2_model::{FrameDelta, Op, Schema, WatchSet};
 
+use crate::log::LogOnce;
 use crate::proto::{self, FromWorker, OutMsg};
+use crate::watchdog::{KILL_AFTER_MS, Verdict, Watchdog};
 use crate::{
-    FrameInput, LogLevel, LogLine, MAX_CONTEXTS, SchemaPart, ScriptBundle, ScriptError, ScriptInit,
-    ScriptOutput, ScriptStats, ScriptStatus, ctx_name,
+    FrameInput, LogLevel, LogLine, MAX_CONTEXTS, SchemaPart, ScriptBundle, ScriptEnv, ScriptError,
+    ScriptInit, ScriptOutput, ScriptStats, ScriptStatus, ctx_name,
 };
+
+/// What a busy context did not get yet: the frames since it got busy, merged into one.
+#[derive(Debug, Default)]
+struct Backlog {
+    revision: u64,
+    ops: Vec<Op>,
+    events: Vec<ScriptEvent>,
+    env: Option<ScriptEnv>,
+}
+
+impl Backlog {
+    fn is_empty(&self) -> bool {
+        self.ops.is_empty() && self.events.is_empty() && self.env.is_none()
+    }
+
+    /// Add a frame. A value set again replaces the earlier set of the same place; list changes stay one by one,
+    /// in order.
+    fn add(&mut self, delta: Option<FrameDelta>, events: &[&ScriptEvent], env: Option<&ScriptEnv>) {
+        if let Some(d) = delta {
+            self.revision = d.revision;
+            for op in d.ops {
+                if let Op::Set { field, keys, .. } = &op {
+                    self.ops.retain(|o| {
+                        !matches!(o, Op::Set { field: f, keys: k, .. } if f == field && k == keys)
+                    });
+                }
+                self.ops.push(op);
+            }
+        }
+        self.events.extend(events.iter().map(|e| (*e).clone()));
+        if let Some(env) = env {
+            self.env = Some(env.clone());
+        }
+    }
+}
 
 struct Ctx {
     id: ScriptCtxId,
-    worker: WorkerId,
+    /// `None` while a killed worker waits for its successor.
+    worker: Option<WorkerId>,
     bundle: ScriptBundle,
     watch: WatchSet,
     parts: Vec<SchemaPart>,
     status: ScriptStatus,
+    /// What a restart starts from besides the model: the settings as the scripts last wrote them, the last
+    /// environment, the development mode.
+    settings: Vec<(String, String)>,
+    env: ScriptEnv,
+    dev: bool,
     /// The `seq` of the last frame sent, and of the last one answered.
     seq: u64,
     acked: u64,
     /// The highest `out.n` drained: every write up to it reaches the model before the next frame is taken.
     applied: u64,
-    /// When the oldest unanswered frame was sent.
-    sent_ms: Option<f64>,
+    wd: Watchdog,
+    backlog: Backlog,
     handlers: Vec<String>,
 }
 
@@ -46,6 +89,26 @@ impl Ctx {
             },
         )
     }
+
+    fn off(&self) -> bool {
+        matches!(self.status, ScriptStatus::Disabled { .. })
+    }
+
+    /// The worker answers frames (it said `ready`).
+    fn live(&self) -> bool {
+        matches!(
+            self.status,
+            ScriptStatus::Running | ScriptStatus::Busy { .. }
+        )
+    }
+
+    /// Remember a settings write for a restart.
+    fn remember_setting(&mut self, key: &str, value: Option<&String>) {
+        self.settings.retain(|(k, _)| k != key);
+        if let Some(v) = value {
+            self.settings.push((key.to_string(), v.clone()));
+        }
+    }
 }
 
 /// Runs the script contexts of the active skin and mods. Owned by the host; called twice per frame:
@@ -53,11 +116,12 @@ impl Ctx {
 pub struct ScriptSupervisor {
     host: Box<dyn ScriptHost>,
     ctxs: Vec<Ctx>,
-    /// Output produced outside `drain` (a failed post), handed over with the next drain.
+    /// Output produced outside `drain` (a failed post, a kill, a restart), handed over with the next drain.
     pending: ScriptOutput,
     fatal: Option<(ScriptCtxId, String)>,
     stats: ScriptStats,
     events: Vec<(WorkerId, ScriptHostEvent)>,
+    once: LogOnce,
 }
 
 impl ScriptSupervisor {
@@ -71,11 +135,12 @@ impl ScriptSupervisor {
             fatal: None,
             stats: ScriptStats::default(),
             events: Vec::new(),
+            once: LogOnce::default(),
         }
     }
 
     /// Start a context: a new worker gets the files and the snapshot. A context of the same id is stopped
-    /// first.
+    /// first, and the errors it logged may be logged again.
     ///
     /// # Errors
     /// [`MAX_CONTEXTS`] are running, or the host could not start a worker (on the native client it never can:
@@ -87,42 +152,62 @@ impl ScriptSupervisor {
         init: ScriptInit,
     ) -> Result<(), ScriptError> {
         self.stop(&ctx);
+        self.once.clear(&ctx);
         if self.ctxs.len() >= MAX_CONTEXTS {
             return Err(ScriptError::TooMany);
         }
+        let worker = self.spawn(&ctx, &bundle, &init)?;
+        let mut wd = Watchdog::default();
+        wd.started();
+        self.ctxs.push(Ctx {
+            id: ctx,
+            worker: Some(worker),
+            bundle,
+            watch: init.watch,
+            parts: init.parts,
+            status: ScriptStatus::Starting,
+            settings: init.settings,
+            env: init.env,
+            dev: init.dev,
+            seq: 0,
+            acked: 0,
+            applied: 0,
+            wd,
+            backlog: Backlog::default(),
+            handlers: Vec::new(),
+        });
+        Ok(())
+    }
+
+    /// A worker with the context's files and snapshot.
+    fn spawn(
+        &mut self,
+        ctx: &ScriptCtxId,
+        bundle: &ScriptBundle,
+        init: &ScriptInit,
+    ) -> Result<WorkerId, ScriptError> {
         let worker = self.host.spawn()?;
-        let text = proto::encode_init(&ctx_name(&ctx), &bundle, &init);
+        let text = proto::encode_init(&ctx_name(ctx), bundle, init);
         if let Err(e) = self.host.post(worker, &text) {
             self.host.terminate(worker);
             return Err(e.into());
         }
         self.stats.posted += 1;
-        self.ctxs.push(Ctx {
-            id: ctx,
-            worker,
-            bundle,
-            watch: init.watch,
-            parts: init.parts,
-            status: ScriptStatus::Starting,
-            seq: 0,
-            acked: 0,
-            applied: 0,
-            sent_ms: None,
-            handlers: Vec::new(),
-        });
-        Ok(())
+        Ok(worker)
     }
 
     /// Stop a context and its worker. Unknown contexts are ignored.
     pub fn stop(&mut self, ctx: &ScriptCtxId) {
         if let Some(i) = self.ctxs.iter().position(|c| c.id == *ctx) {
             let c = self.ctxs.remove(i);
-            // `stop` lets a worker that is still alive close itself; terminating makes sure it is gone, and
-            // nothing it sends is read any more.
-            if self.host.post(c.worker, proto::STOP).is_ok() {
-                self.stats.posted += 1;
+            if let Some(w) = c.worker {
+                // `stop` lets a worker that is still alive close itself; terminating makes sure it is gone, and
+                // nothing it sends is read any more.
+                if self.host.post(w, proto::STOP).is_ok() {
+                    self.stats.posted += 1;
+                }
+                self.host.terminate(w);
             }
-            self.host.terminate(c.worker);
         }
     }
 
@@ -155,90 +240,222 @@ impl ScriptSupervisor {
     pub fn stats(&self) -> ScriptStats {
         let mut s = self.stats.clone();
         s.contexts = self.ctxs.len() as u32;
-        s.running = self
-            .ctxs
-            .iter()
-            .filter(|c| matches!(c.status, ScriptStatus::Running | ScriptStatus::Busy { .. }))
-            .count() as u32;
+        s.running = self.ctxs.iter().filter(|c| c.live()).count() as u32;
         s
     }
 
     /// Send each context its part of the frame: the delta filtered by its watch set, its markup events and a
-    /// changed environment. A context with nothing to receive gets no message.
+    /// changed environment. A context with nothing to receive gets no message; a busy one keeps it for later,
+    /// merged with what follows. A context whose worker was killed starts again here, from `input.store`.
     pub fn post(&mut self, now_ms: f64, input: &FrameInput<'_>) {
-        for c in &mut self.ctxs {
-            if matches!(c.status, ScriptStatus::Disabled { .. }) {
+        let mut out = std::mem::take(&mut self.pending);
+        self.watch(now_ms, &mut out);
+        for i in 0..self.ctxs.len() {
+            if self.ctxs[i].off() {
                 continue;
             }
-            let model = input
-                .delta
-                .and_then(|d| d.filter(&c.watch))
-                .map(|d| d.to_umd1(c.parts[0].schema));
-            let events: Vec<_> = input.events.iter().filter(|e| e.ctx == c.id).collect();
-            if model.is_none() && events.is_empty() && input.env.is_none() {
+            if self.ctxs[i].worker.is_none() {
+                // The snapshot holds this frame's delta; the events were meant for the worker that hung.
+                if let Some(store) = input.store {
+                    self.restart(i, store, &mut out);
+                }
+                continue;
+            }
+            let c = &mut self.ctxs[i];
+            if let Some(env) = input.env {
+                c.env = env.clone();
+            }
+            let delta = input.delta.and_then(|d| d.filter(&c.watch));
+            let events: Vec<&ScriptEvent> = input.events.iter().filter(|e| e.ctx == c.id).collect();
+            if matches!(c.status, ScriptStatus::Busy { .. }) {
+                c.backlog.add(delta, &events, input.env);
+                continue;
+            }
+            let (model, events, env) = if c.backlog.is_empty() {
+                let model = delta.map(|d| d.to_umd1(c.parts[0].schema));
+                (
+                    model,
+                    events.into_iter().cloned().collect(),
+                    input.env.cloned(),
+                )
+            } else {
+                c.backlog.add(delta, &events, input.env);
+                let b = std::mem::take(&mut c.backlog);
+                let model = (!b.ops.is_empty()).then(|| {
+                    FrameDelta {
+                        revision: b.revision,
+                        ops: b.ops,
+                    }
+                    .to_umd1(c.parts[0].schema)
+                });
+                (model, b.events, b.env)
+            };
+            if model.is_none() && events.is_empty() && env.is_none() {
                 continue;
             }
             c.seq += 1;
-            let text = proto::encode_frame(c.seq, c.applied, model.as_deref(), &events, input.env);
-            match self.host.post(c.worker, &text) {
+            let refs: Vec<&ScriptEvent> = events.iter().collect();
+            let text = proto::encode_frame(c.seq, c.applied, model.as_deref(), &refs, env.as_ref());
+            let Some(worker) = c.worker else {
+                continue;
+            };
+            match self.host.post(worker, &text) {
                 Ok(()) => {
                     self.stats.posted += 1;
-                    c.sent_ms.get_or_insert(now_ms);
+                    c.wd.sent(c.seq, now_ms);
                 }
                 Err(e) => {
                     let reason = e.to_string();
-                    self.pending
-                        .log
+                    out.log
                         .push(c.line(LogLevel::Error, format!("stopped: {reason}")));
-                    self.pending.failed.push(c.id.clone());
+                    out.failed.push(c.id.clone());
                     self.stats.errors += 1;
                     c.status = ScriptStatus::Disabled { reason };
+                    self.host.terminate(worker);
+                    c.worker = None;
                 }
             }
         }
+        self.pending = out;
     }
 
     /// Take what the workers sent since the last call.
     pub fn drain(&mut self, now_ms: f64) -> ScriptOutput {
-        let _ = now_ms;
         let mut out = std::mem::take(&mut self.pending);
         self.stats.worker_ms = 0.0;
         self.events.clear();
         self.host.drain(&mut self.events);
         let events = std::mem::take(&mut self.events);
         for (worker, ev) in &events {
-            let Some(i) = self.ctxs.iter().position(|c| c.worker == *worker) else {
+            let Some(i) = self.ctxs.iter().position(|c| c.worker == Some(*worker)) else {
                 continue;
             };
             self.stats.received += 1;
             match ev {
                 ScriptHostEvent::Message(text) => match proto::decode(text) {
-                    Ok(msg) => self.on_message(i, msg, &mut out),
+                    Ok(msg) => self.on_message(i, now_ms, msg, &mut out),
                     Err(e) => {
-                        let c = &self.ctxs[i];
-                        out.log.push(c.line(
-                            LogLevel::Error,
-                            format!("sent a message it should not: {e}"),
-                        ));
                         self.stats.errors += 1;
+                        let c = &self.ctxs[i];
+                        if self.once.first(&c.id, "garbage") {
+                            out.log.push(c.line(
+                                LogLevel::Error,
+                                format!("sent a message it should not: {e}"),
+                            ));
+                        }
                     }
                 },
                 ScriptHostEvent::Error(message) => {
-                    self.fail(i, format!("worker error: {message}"), &mut out);
+                    self.fail(i, now_ms, format!("worker error: {message}"), &mut out);
                 }
             }
         }
         self.events = events;
+        self.watch(now_ms, &mut out);
         out
     }
 
-    fn on_message(&mut self, i: usize, msg: FromWorker, out: &mut ScriptOutput) {
+    /// Ask the watchdog about every context: mark the busy ones, kill the hung ones.
+    fn watch(&mut self, now_ms: f64, out: &mut ScriptOutput) {
+        for i in 0..self.ctxs.len() {
+            let c = &mut self.ctxs[i];
+            if c.off() || c.worker.is_none() {
+                continue;
+            }
+            match c.wd.check(now_ms) {
+                Verdict::Fine => {
+                    if matches!(c.status, ScriptStatus::Busy { .. }) {
+                        c.status = ScriptStatus::Running;
+                    }
+                }
+                Verdict::Busy(ms) => {
+                    if c.live() {
+                        c.status = ScriptStatus::Busy { ms };
+                    }
+                }
+                Verdict::Kill { waited_ms, loading } => {
+                    let text = if loading {
+                        format!("killed: not ready after {waited_ms:.0} ms")
+                    } else {
+                        format!("killed after {KILL_AFTER_MS:.0} ms")
+                    };
+                    out.log.push(c.line(LogLevel::Error, text.clone()));
+                    self.stats.errors += 1;
+                    self.lost(i, now_ms, text, out);
+                }
+            }
+        }
+    }
+
+    /// The worker of a context is gone (killed or failed): start it again on the next frame with a store, or
+    /// switch the context off after too many failures.
+    fn lost(&mut self, i: usize, now_ms: f64, reason: String, out: &mut ScriptOutput) {
+        let c = &mut self.ctxs[i];
+        if let Some(w) = c.worker.take() {
+            self.host.terminate(w);
+        }
+        c.backlog = Backlog::default();
+        c.handlers.clear();
+        if c.wd.failure(now_ms) {
+            out.log.push(c.line(
+                LogLevel::Error,
+                format!(
+                    "switched off: failed {} times in a minute",
+                    crate::MAX_FAILURES
+                ),
+            ));
+            out.failed.push(c.id.clone());
+            c.status = ScriptStatus::Disabled { reason };
+        } else {
+            c.status = ScriptStatus::Restarting;
+        }
+    }
+
+    /// A new worker for a context whose worker was lost, from the model as it is now.
+    fn restart(&mut self, i: usize, store: &ui2_model::ModelStore, out: &mut ScriptOutput) {
+        let c = &self.ctxs[i];
+        let init = ScriptInit::from_store(store, &c.bundle, c.settings.clone(), c.env.clone()).map(
+            |mut init| {
+                init.dev = c.dev;
+                init
+            },
+        );
+        let (id, bundle) = (c.id.clone(), c.bundle.clone());
+        let started = init.and_then(|init| {
+            let w = self.spawn(&id, &bundle, &init)?;
+            Ok((w, init))
+        });
+        let c = &mut self.ctxs[i];
+        match started {
+            Ok((w, init)) => {
+                c.worker = Some(w);
+                c.watch = init.watch;
+                c.parts = init.parts;
+                c.seq = 0;
+                c.acked = 0;
+                c.applied = 0;
+                c.wd.started();
+                c.status = ScriptStatus::Restarting;
+                self.stats.restarts += 1;
+            }
+            Err(e) => {
+                let reason = format!("cannot start again: {e}");
+                out.log.push(c.line(LogLevel::Error, reason.clone()));
+                out.failed.push(c.id.clone());
+                self.stats.errors += 1;
+                c.status = ScriptStatus::Disabled { reason };
+            }
+        }
+    }
+
+    fn on_message(&mut self, i: usize, now_ms: f64, msg: FromWorker, out: &mut ScriptOutput) {
         match msg {
             FromWorker::Ready { handlers, ms } => {
                 let c = &mut self.ctxs[i];
-                if c.status == ScriptStatus::Starting {
+                if matches!(c.status, ScriptStatus::Starting | ScriptStatus::Restarting) {
                     c.status = ScriptStatus::Running;
                 }
+                c.wd.ready(now_ms);
                 c.handlers = handlers;
                 out.log
                     .push(c.line(LogLevel::Info, format!("ready in {ms:.1} ms")));
@@ -249,31 +466,43 @@ impl ScriptSupervisor {
                     (Some(f), None) => format!(" at {f}"),
                     _ => String::new(),
                 };
-                self.fail(i, format!("failed to load: {}{at}", error.message), out);
+                self.fail(
+                    i,
+                    now_ms,
+                    format!("failed to load: {}{at}", error.message),
+                    out,
+                );
             }
             FromWorker::Out(o) => self.on_out(i, o, out),
         }
     }
 
-    /// Switch a context off: its panels get a stub; the skin's failing while it starts is fatal.
-    fn fail(&mut self, i: usize, reason: String, out: &mut ScriptOutput) {
+    /// A worker failed (its files threw while loading, or the worker itself broke). The skin failing at its
+    /// first start is fatal; otherwise the context starts again, or is switched off after too many failures.
+    fn fail(&mut self, i: usize, now_ms: f64, reason: String, out: &mut ScriptOutput) {
         let c = &mut self.ctxs[i];
-        if matches!(c.status, ScriptStatus::Disabled { .. }) {
+        if c.off() {
             return;
+        }
+        self.stats.errors += 1;
+        if self.once.first(&c.id, &format!("fail|{reason}")) {
+            out.log.push(c.line(LogLevel::Error, reason.clone()));
         }
         if c.id == ScriptCtxId::Skin && c.status == ScriptStatus::Starting {
             self.fatal = Some((c.id.clone(), reason.clone()));
+            out.failed.push(c.id.clone());
+            c.status = ScriptStatus::Disabled { reason };
+            if let Some(w) = c.worker.take() {
+                self.host.terminate(w);
+            }
+            return;
         }
-        out.log.push(c.line(LogLevel::Error, reason.clone()));
-        out.failed.push(c.id.clone());
-        self.stats.errors += 1;
-        c.status = ScriptStatus::Disabled { reason };
-        self.host.terminate(c.worker);
+        self.lost(i, now_ms, reason, out);
     }
 
     fn on_out(&mut self, i: usize, o: OutMsg, out: &mut ScriptOutput) {
         let c = &mut self.ctxs[i];
-        if matches!(c.status, ScriptStatus::Disabled { .. }) {
+        if c.off() {
             return;
         }
         self.stats.worker_ms += o.busy_ms;
@@ -288,8 +517,9 @@ impl ScriptSupervisor {
                 ));
             } else {
                 c.acked = ack;
-                if c.acked == c.seq {
-                    c.sent_ms = None;
+                c.wd.acked(ack);
+                if !c.wd.waiting() && matches!(c.status, ScriptStatus::Busy { .. }) {
+                    c.status = ScriptStatus::Running;
                 }
             }
         }
@@ -347,12 +577,18 @@ impl ScriptSupervisor {
         }
         for s in o.settings {
             let value = (!s.value.is_null()).then(|| s.value.to_string());
+            c.remember_setting(&s.key, value.as_ref());
             out.settings.push((id.clone(), s.key, value));
         }
         for l in &o.log {
             let line = l.to_line();
             if line.level == LogLevel::Error {
                 self.stats.errors += 1;
+            }
+            if let Some(key) = &l.key
+                && !self.once.first(&id, key)
+            {
+                continue;
             }
             out.log.push((id.clone(), line));
         }

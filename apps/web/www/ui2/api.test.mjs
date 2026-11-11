@@ -359,7 +359,7 @@ function workerGlobal() {
   const send = (msg) => {
     for (const fn of listeners.message || []) fn({ data: JSON.stringify(msg) });
   };
-  return { g, posted, send, run: (code) => vm.runInContext(code, g) };
+  return { g, posted, send, listeners, run: (code) => vm.runInContext(code, g) };
 }
 
 test("the worker takes the forbidden globals away before any skin code runs", () => {
@@ -447,4 +447,26 @@ test("a handler error names the file and line", () => {
   assert.equal(out.log[0].file, "js/h.js");
   assert.equal(out.log[0].line, 3);
   assert.match(out.log[0].text, /^ui2\.js: skin on\(go\) disabled: missing is not defined at js\/h\.js:3$/);
+});
+
+test("error lines carry the key the supervisor writes them once by, and the element of the event", () => {
+  const w = workerGlobal();
+  w.send(init({ files: [{ path: "js/h.js", code: "ui.on('go', () => { throw new Error('boom'); });" }] }));
+  w.send({ t: "frame", seq: 1, model: null, events: [{ name: "go", arg: null, node: "hud.html/div[2]" }] });
+  const l = w.posted.at(-1).log[0];
+  assert.equal(l.key, "on(go)|boom");
+  assert.match(l.text, /disabled: boom at js\/h\.js:1 \(element hud\.html\/div\[2\]\)$/);
+});
+
+test("an uncaught error of the worker becomes one log line, not a failed worker", () => {
+  const w = workerGlobal();
+  w.send(init({ files: [{ path: "js/a.js", code: "self.later = () => { throw new Error('late'); };" }] }));
+  const errorEvent = { error: (() => { try { w.run("later()"); } catch (e) { return e; } })(), message: "late", cancelled: false };
+  errorEvent.preventDefault = () => (errorEvent.cancelled = true);
+  for (const fn of w.listeners.error || []) fn(errorEvent);
+  assert.equal(errorEvent.cancelled, true);
+  const l = w.posted.at(-1).log[0];
+  assert.equal(l.level, "error");
+  assert.equal(l.key, "uncaught error|late");
+  assert.match(l.text, /^ui2\.js: skin uncaught error: late at js\/a\.js:1$/);
 });

@@ -15,7 +15,7 @@
 //! |---|---|
 //! | `ready` | `ctx`, `handlers` (names given to `ui.on`), `ms` (load time) |
 //! | `fail` | `ctx`, `error: {message, file, line}`: a file threw while loading |
-//! | `out` | `n` (the worker's out counter), `ack` (the `seq` of the frame answered, `null` for one the worker started itself), `state: [{p, v}]`, `intents: [{name, args: {..}}]`, `cmds: [{island, key, op, ..}]`, `settings: [{key, value}]`, `log: [{level, text, file, line}]`, `busy_ms` |
+//! | `out` | `n` (the worker's out counter), `ack` (the `seq` of the frame answered, `null` for one the worker started itself), `state: [{p, v}]`, `intents: [{name, args: {..}}]`, `cmds: [{island, key, op, ..}]`, `settings: [{key, value}]`, `log: [{level, text, file, line, key}]` (`key`: what an error is about, written once), `busy_ms` |
 //!
 //! `env` is `{lang, viewport: [w, h], scale, cell, skin}`. A state path is `state.<path>` for the context's own
 //! state (the skin's `state.*`, a mod's `modstate.<id>.*`) or `ui.<path>` for a `js` field of the `ui` root.
@@ -317,6 +317,10 @@ pub struct LogMsg {
     pub file: Option<String>,
     #[serde(default)]
     pub line: Option<u32>,
+    /// What the line is about, for writing it once (`on(sort)|x is not defined`); lines without one are always
+    /// written.
+    #[serde(default)]
+    pub key: Option<String>,
 }
 
 impl LogMsg {

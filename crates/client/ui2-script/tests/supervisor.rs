@@ -10,8 +10,9 @@ use ui2_model::wire::{IslandOp, Origin, ScriptCtxId, ScriptEvent};
 use ui2_model::{Fragment, ModelStore, Namespace, Owner, Schema, Value};
 use ui2_script::testing::MockScriptHost;
 use ui2_script::{
-    FrameInput, LogLevel, MAX_CONTEXTS, ScriptBundle, ScriptEnv, ScriptError, ScriptInit,
-    ScriptStatus, ScriptSupervisor, SettingsNs, StateNs, check_api,
+    BUSY_AFTER_MS, FrameInput, KILL_AFTER_MS, LogLevel, MAX_CONTEXTS, MAX_FAILURES,
+    READY_TIMEOUT_MS, ScriptBundle, ScriptEnv, ScriptError, ScriptInit, ScriptStatus,
+    ScriptSupervisor, SettingsNs, StateNs, check_api,
 };
 
 const STATE: &str = "[root]\nsort = \"str\"\nopen = \"bool\"\nshare = \"f32\"\n";
@@ -230,6 +231,7 @@ fn events_go_to_their_context_and_env_to_all() {
             delta: None,
             events: &events[..1],
             env: None,
+            store: None,
         },
     );
     let posted = host.take_posted();
@@ -248,6 +250,7 @@ fn events_go_to_their_context_and_env_to_all() {
             delta: None,
             events: &[],
             env: Some(&e),
+            store: None,
         },
     );
     assert_eq!(
@@ -452,18 +455,269 @@ fn a_skin_that_fails_to_load_is_fatal() {
 }
 
 #[test]
-fn a_mod_that_fails_is_switched_off_without_fatal() {
+fn a_mod_that_fails_restarts_then_is_switched_off_without_fatal() {
     let host = MockScriptHost::new();
     let mut sup = ScriptSupervisor::new(Box::new(host.clone()));
     let store = store();
     let ctx = ScriptCtxId::Mod(Arc::from("hello"));
     start(&mut sup, &store, ctx.clone(), mod_bundle("hello")).unwrap_or_else(|e| panic!("{e}"));
-    let w = host.live()[0];
-    host.error(w, "worker.js: 404");
+    for round in 0..MAX_FAILURES {
+        let w = host.live()[0];
+        host.error(w, "worker.js: 404");
+        let out = sup.drain(round as f64);
+        assert!(sup.take_fatal().is_none());
+        if round + 1 < MAX_FAILURES {
+            assert!(out.failed.is_empty(), "round {round}");
+            assert_eq!(sup.status(&ctx), Some(ScriptStatus::Restarting));
+            sup.post(round as f64, &with_store(&store));
+            assert_eq!(host.live().len(), 1, "a new worker");
+        } else {
+            assert_eq!(out.failed, vec![ctx.clone()]);
+            assert!(matches!(
+                sup.status(&ctx),
+                Some(ScriptStatus::Disabled { .. })
+            ));
+        }
+    }
+    assert!(host.live().is_empty());
+    assert_eq!(sup.stats().errors, MAX_FAILURES as u64);
+    assert_eq!(sup.stats().restarts, MAX_FAILURES as u64 - 1);
+}
+
+fn with_store(store: &ModelStore) -> FrameInput<'_> {
+    FrameInput {
+        store: Some(store),
+        ..FrameInput::default()
+    }
+}
+
+fn ready(sup: &mut ScriptSupervisor, host: &MockScriptHost, w: WorkerId, now: f64) {
+    host.reply(w, r#"{"t":"ready","ctx":"skin","handlers":[],"ms":1}"#);
+    let _ = sup.drain(now);
+    host.take_posted();
+}
+
+fn gold(store: &mut ModelStore, n: i32) -> ui2_model::FrameDelta {
+    store
+        .writer(Owner::Source)
+        .set_value("top.gold", Value::I32(n))
+        .unwrap_or_else(|e| panic!("{e}"));
+    store.take_frame().unwrap_or_else(|| panic!("a delta"))
+}
+
+#[test]
+fn a_busy_context_gets_its_frames_merged_after_the_answer() {
+    let (mut sup, host, mut store, w) = setup(&["top"]);
+    ready(&mut sup, &host, w, 0.0);
+    let d1 = gold(&mut store, 1);
+    sup.post(
+        0.0,
+        &FrameInput {
+            delta: Some(&d1),
+            ..FrameInput::default()
+        },
+    );
+    assert_eq!(host.take_posted().len(), 1);
+    assert!(sup.drain(BUSY_AFTER_MS - 1.0).is_empty());
+    assert_eq!(sup.status(&ScriptCtxId::Skin), Some(ScriptStatus::Running));
+    let _ = sup.drain(BUSY_AFTER_MS + 10.0);
+    assert_eq!(
+        sup.status(&ScriptCtxId::Skin),
+        Some(ScriptStatus::Busy {
+            ms: BUSY_AFTER_MS + 10.0
+        })
+    );
+    // Busy: two more frames are held back.
+    for n in [2, 3] {
+        let d = gold(&mut store, n);
+        let ev = [ScriptEvent {
+            ctx: ScriptCtxId::Skin,
+            name: Arc::from(format!("e{n}").as_str()),
+            arg: Value::None,
+            node_path: Arc::from(""),
+        }];
+        sup.post(
+            300.0,
+            &FrameInput {
+                delta: Some(&d),
+                events: &ev,
+                ..FrameInput::default()
+            },
+        );
+    }
+    assert!(host.take_posted().is_empty());
+    host.reply(w, r#"{"t":"out","n":1,"ack":1}"#);
+    let _ = sup.drain(400.0);
+    assert_eq!(sup.status(&ScriptCtxId::Skin), Some(ScriptStatus::Running));
+    // The next frame carries what waited: one set of `top.gold` (the last value) and both events.
+    sup.post(410.0, &FrameInput::default());
+    let posted = host.take_posted();
+    assert_eq!(posted.len(), 1);
+    let m = json(&posted[0].1);
+    assert_eq!(m["seq"], 2);
+    let ops = m["model"].as_array().unwrap_or_else(|| panic!("model"));
+    assert_eq!(ops.len(), 2, "revision and one op: {m}");
+    assert_eq!(ops[1][3], 3);
+    let names: Vec<&str> = m["events"]
+        .as_array()
+        .unwrap_or_else(|| panic!("events"))
+        .iter()
+        .filter_map(|e| e["name"].as_str())
+        .collect();
+    assert_eq!(names, ["e2", "e3"]);
+}
+
+#[test]
+fn a_hung_worker_is_killed_and_restarted_from_a_snapshot() {
+    let (mut sup, host, mut store, w) = setup(&["top"]);
+    ready(&mut sup, &host, w, 0.0);
+    host.reply(
+        w,
+        r#"{"t":"out","n":1,"ack":null,"settings":[{"key":"vol","value":7}]}"#,
+    );
+    let _ = sup.drain(1.0);
+    let d = gold(&mut store, 5);
+    sup.post(
+        10.0,
+        &FrameInput {
+            delta: Some(&d),
+            ..FrameInput::default()
+        },
+    );
+    host.take_posted();
+    let out = sup.drain(10.0 + KILL_AFTER_MS);
+    assert!(
+        out.log
+            .iter()
+            .any(|(_, l)| l.text == "ui2.js: skin killed after 1000 ms"),
+        "{:?}",
+        out.log
+    );
+    assert!(out.failed.is_empty());
+    assert_eq!(host.terminated(), vec![w]);
+    assert_eq!(
+        sup.status(&ScriptCtxId::Skin),
+        Some(ScriptStatus::Restarting)
+    );
+    // Without a store the restart waits; with one, a new worker gets the model as it is now.
+    sup.post(1100.0, &FrameInput::default());
+    assert!(host.live().is_empty());
+    let d = gold(&mut store, 6);
+    sup.post(
+        1110.0,
+        &FrameInput {
+            delta: Some(&d),
+            store: Some(&store),
+            ..FrameInput::default()
+        },
+    );
+    let w2 = host.live()[0];
+    assert_ne!(w2, w);
+    let posted = host.take_posted();
+    assert_eq!(posted.len(), 1, "only the init: the snapshot has the delta");
+    let m = json(&posted[0].1);
+    assert_eq!(m["t"], "init");
+    assert_eq!(m["settings"], json(r#"[["vol","7"]]"#));
+    // The snapshot resets `top` with the gold written in the frame of the restart.
+    let s = Schema::v1();
+    let top = u64::from(s.root_by_name("top").unwrap_or_else(|| panic!("top")).0);
+    let gold_at = s
+        .types()
+        .iter()
+        .find(|t| t.name == "Top")
+        .and_then(|t| t.fields.iter().position(|f| f.name == "gold"))
+        .unwrap_or_else(|| panic!("Top.gold"));
+    let reset = m["model"]
+        .as_array()
+        .and_then(|a| a.iter().find(|o| o[0] == 4 && o[1] == top))
+        .unwrap_or_else(|| panic!("no reset of top: {}", m["model"]));
+    assert_eq!(reset[2][gold_at], 6);
+    assert_eq!(sup.stats().restarts, 1);
+    // Its frames count from 1 again.
+    ready(&mut sup, &host, w2, 1200.0);
+    assert_eq!(sup.status(&ScriptCtxId::Skin), Some(ScriptStatus::Running));
+    let d = gold(&mut store, 7);
+    sup.post(
+        1210.0,
+        &FrameInput {
+            delta: Some(&d),
+            ..FrameInput::default()
+        },
+    );
+    assert_eq!(json(&host.take_posted()[0].1)["seq"], 1);
+}
+
+#[test]
+fn three_kills_in_a_minute_switch_the_context_off() {
+    let (mut sup, host, mut store, w) = setup(&["top"]);
+    let mut worker = w;
+    let mut now = 0.0;
+    for round in 0..MAX_FAILURES {
+        ready(&mut sup, &host, worker, now);
+        let d = gold(&mut store, round as i32 + 1);
+        sup.post(
+            now,
+            &FrameInput {
+                delta: Some(&d),
+                ..FrameInput::default()
+            },
+        );
+        now += KILL_AFTER_MS;
+        let out = sup.drain(now);
+        if round + 1 < MAX_FAILURES {
+            assert!(out.failed.is_empty());
+            sup.post(now, &with_store(&store));
+            worker = host.live()[0];
+        } else {
+            assert_eq!(out.failed, vec![ScriptCtxId::Skin]);
+            assert!(matches!(
+                sup.status(&ScriptCtxId::Skin),
+                Some(ScriptStatus::Disabled { .. })
+            ));
+            assert!(sup.take_fatal().is_none(), "the skin keeps its markup");
+        }
+    }
+    assert!(host.live().is_empty());
+    // Off: no more frames, no restart.
+    sup.post(now + 1.0, &with_store(&store));
+    assert!(host.live().is_empty());
+}
+
+#[test]
+fn a_worker_that_never_gets_ready_is_killed() {
+    let (mut sup, host, store, w) = setup(&["top"]);
+    let _ = sup.drain(0.0);
+    let _ = sup.drain(READY_TIMEOUT_MS - 1.0);
+    assert_eq!(sup.status(&ScriptCtxId::Skin), Some(ScriptStatus::Starting));
+    let out = sup.drain(READY_TIMEOUT_MS);
+    assert!(out.log.iter().any(|(_, l)| l.text.contains("not ready")));
+    assert_eq!(host.terminated(), vec![w]);
+    sup.post(READY_TIMEOUT_MS, &with_store(&store));
+    assert_eq!(host.live().len(), 1);
+}
+
+#[test]
+fn an_error_is_logged_once_until_the_context_starts_anew() {
+    let (mut sup, host, store, w) = setup(&["top"]);
+    let line = r#"{"t":"out","n":1,"ack":null,"log":[{"level":"error","text":"ui2.js: skin on(x) disabled: boom","key":"on(x)|boom"},{"level":"info","text":"hello"}]}"#;
+    host.reply(w, line);
+    host.reply(w, line);
     let out = sup.drain(0.0);
-    assert_eq!(out.failed, vec![ctx]);
-    assert!(sup.take_fatal().is_none());
-    assert_eq!(sup.stats().errors, 1);
+    let errors = |out: &ui2_script::ScriptOutput| {
+        out.log
+            .iter()
+            .filter(|(_, l)| l.level == LogLevel::Error)
+            .count()
+    };
+    assert_eq!(errors(&out), 1);
+    assert_eq!(out.log.iter().filter(|(_, l)| l.text == "hello").count(), 2);
+    assert_eq!(sup.stats().errors, 2, "the counter counts each one");
+    // A new skin (the context started again) may log it again.
+    start(&mut sup, &store, ScriptCtxId::Skin, skin_bundle(&["top"]))
+        .unwrap_or_else(|e| panic!("{e}"));
+    let w2 = host.live()[0];
+    host.reply(w2, line);
+    assert_eq!(errors(&sup.drain(1.0)), 1);
 }
 
 #[test]

@@ -133,4 +133,10 @@
     if (e.preventDefault) e.preventDefault();
     if (ctx) ctx.rejection(e.reason);
   });
+  // An error thrown by skin code outside any handler of `ui` (a callback of its own): one log line, and the worker
+  // carries on. Not cancelled, it would reach the page as a failure of the whole worker, which is restarted.
+  listen("error", (e) => {
+    if (e.preventDefault) e.preventDefault();
+    if (ctx) ctx.rejection(e.error !== undefined && e.error !== null ? e.error : e.message, "uncaught error");
+  });
 })(self);

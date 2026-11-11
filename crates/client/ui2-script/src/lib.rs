@@ -13,9 +13,11 @@
 
 #![forbid(unsafe_code)]
 
+mod log;
 pub mod proto;
 mod supervisor;
 pub mod testing;
+mod watchdog;
 
 use std::sync::Arc;
 
@@ -25,6 +27,9 @@ use ui2_model::wire::{IslandCmd, ScriptCtxId, ScriptEvent, StateOp, WireIntent};
 use ui2_model::{FrameDelta, ModelStore, Namespace, Schema, WatchSet};
 
 pub use supervisor::ScriptSupervisor;
+pub use watchdog::{
+    BUSY_AFTER_MS, FAILURE_WINDOW_MS, KILL_AFTER_MS, MAX_FAILURES, READY_TIMEOUT_MS,
+};
 
 /// The version of the `ui` API scripts are written against. A package whose major differs is refused.
 pub const UI_SCRIPT_API: &str = "1.0.0";
@@ -197,12 +202,27 @@ impl ScriptInit {
 
 /// What one frame gives the scripts. The supervisor filters the delta by each context's watch set and picks
 /// the events addressed to it.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Default)]
 pub struct FrameInput<'a> {
     pub delta: Option<&'a FrameDelta>,
     pub events: &'a [ScriptEvent],
     /// A new environment (window size, scale, language), if it changed this frame.
     pub env: Option<&'a ScriptEnv>,
+    /// The model after this frame's delta was taken. A context whose worker was killed starts again from a
+    /// snapshot of it ([`ScriptInit::from_store`], with the settings and environment the supervisor kept); without
+    /// a store the restart waits for a frame that has one.
+    pub store: Option<&'a ModelStore>,
+}
+
+impl std::fmt::Debug for FrameInput<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FrameInput")
+            .field("delta", &self.delta)
+            .field("events", &self.events)
+            .field("env", &self.env)
+            .field("store", &self.store.map(|_| "ModelStore"))
+            .finish()
+    }
 }
 
 /// How bad a log line is.
@@ -280,9 +300,9 @@ pub struct ScriptStats {
     /// Messages sent to workers and received from them since the start.
     pub posted: u64,
     pub received: u64,
-    /// Error lines and failed contexts since the start.
+    /// Error lines (each one, also those written to the log only once) and failed contexts since the start.
     pub errors: u64,
-    /// Workers restarted since the start.
+    /// Workers killed (hung) or failed and started again since the start.
     pub restarts: u64,
     /// The `busy_ms` the workers reported in the last drain, summed.
     pub worker_ms: f64,

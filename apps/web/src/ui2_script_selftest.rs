@@ -126,6 +126,8 @@ impl Ui2ScriptSelftest {
                 delta: delta.as_ref(),
                 events: &events,
                 env: None,
+                // A killed worker starts again from the model as it is now.
+                store: Some(&self.store),
             },
         );
         Ok(report(&self.sup, &out).to_string())
