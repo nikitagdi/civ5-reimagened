@@ -85,7 +85,8 @@ fn write_templates_follow_the_page() {
     assert_eq!(texts(|s| matches!(s, TextSrc::L10n { .. })), 3);
     assert!(pkg.slots().any(|(s, _)| s == "mods"));
     assert!(pkg.parts().any(|(s, _)| s == "top.research"));
-    // The loop body reads the item through the list's model path.
+    // The loop body reads the item through its loop variable (the runtime resolves it per instance); no
+    // expression names a list's elements directly.
     let paths: Vec<String> = (0..)
         .map_while(|i| pkg.expr(ui2_package::ExprId(i)))
         .map(|e| format!("{e:?}"))
@@ -93,13 +94,10 @@ fn write_templates_follow_the_page() {
     assert!(
         paths
             .iter()
-            .any(|p| p.contains("\"resources[]\", \"available\"")),
+            .any(|p| p.contains("Path([\"r\", \"available\"])")),
         "{paths:?}"
     );
-    assert!(
-        !paths.iter().any(|p| p.contains("Path([\"r\"")),
-        "{paths:?}"
-    );
+    assert!(!paths.iter().any(|p| p.contains("[]")), "{paths:?}");
 }
 
 #[test]
