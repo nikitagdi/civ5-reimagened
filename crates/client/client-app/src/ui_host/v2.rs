@@ -271,6 +271,8 @@ pub struct V2Host {
     cursor: Cursor,
     /// The script workers of each skin that loads; `None`: scripts do not run.
     scripts: Option<ScriptHostFactory>,
+    /// A game is up (its replica live while it is played); UI v2 runs no frame before.
+    game_up: bool,
 }
 
 impl V2Host {
@@ -294,6 +296,15 @@ impl V2Host {
             mods: None,
             cursor: Cursor::Auto,
             scripts: take_script_host(),
+            game_up: false,
+        }
+    }
+
+    /// The game was left: the next frame waits for the next game and rebuilds the model from it.
+    pub fn new_game(&mut self) {
+        self.game_up = false;
+        if let Some(ui) = self.ui_mut() {
+            ui.reset_source();
         }
     }
 
@@ -496,14 +507,11 @@ impl V2Host {
     ///
     /// The network handle is borrowed for the UI v2 frame only, in the app's frame: never inside a call into page
     /// script (the frame, the timer and the page events never run inside one another).
-    /// `game_up`: the game's layer is up (UI v2 waits for it); `look`: where a camera request of the frame sends the
-    /// camera, set when there is one.
-    #[allow(clippy::too_many_arguments)]
+    /// `look`: where a camera request of the frame sends the camera, set when there is one.
     pub(crate) fn frame(
         &mut self,
         session: &GameSession,
         steps: &[replica::ReplicaStep],
-        game_up: bool,
         net: Option<&NetHandle>,
         env: Env,
         now_ms: f64,
@@ -521,7 +529,19 @@ impl V2Host {
                 }
             });
         }
-        if !self.running() || !game_up {
+        // The game is up once the replica is live in a game being played; it stays up until the game is left.
+        if !self.game_up
+            && session.live()
+            && net.is_some_and(|n| {
+                matches!(
+                    n.with_client(|c| c.phase()),
+                    client_core::ClientPhase::Playing
+                )
+            })
+        {
+            self.game_up = true;
+        }
+        if !self.running() || !self.game_up {
             return None;
         }
         // The replica and the localizer are the game session's.

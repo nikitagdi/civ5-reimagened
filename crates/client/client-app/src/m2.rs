@@ -1489,6 +1489,13 @@ impl M2Ui {
         }
     }
 
+    /// The layer of this game is made again over the same replica once it is live (it missed the core's events
+    /// while it did not run): what it left for the app goes as for a new game, without waiting for another game.
+    pub fn restart_layer(&mut self) {
+        self.new_game();
+        self.awaiting_game = false;
+    }
+
     /// Everything of the last game that lives outside the Lua layer and the replica: the highlights the Lua set, the
     /// requests and sounds the layer queued for the app, the orders waiting for an answer, the heights of its map. The
     /// next game starts with none of it (a second game in the page is the same as the first after a fresh load).

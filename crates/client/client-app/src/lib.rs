@@ -20,10 +20,8 @@ mod lobby_art;
 pub mod m2;
 pub mod session;
 pub mod timeline;
-/// The UI frontends: for now only the temporary UI v2 wiring over the classic layer.
-mod ui_host {
-    pub mod v2;
-}
+/// The game's interfaces: the host, the classic UI and UI v2.
+mod ui_host;
 
 /// The page's `?ui=` value (web, before `run`): `v2` or `v2:<skin>` loads a UI v2 skin over the classic layer.
 pub use ui_host::v2::set_ui_param as set_ui2_param;
