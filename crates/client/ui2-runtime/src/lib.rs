@@ -12,13 +12,15 @@
 //! ([`frame`]: [`Runtime::apply_delta`], [`Runtime::frame`], [`Runtime::drain_output`]), input
 //! ([`input`]: [`Runtime::handle_input`], hit-testing, interaction states, pointer capture, the wheel, modal
 //! screens), list and condition bindings (`for` by key with sorting, filtering and virtual lists; `if` bodies
-//! that sleep while false) and rectangle dumps ([`debug`]).
+//! that sleep while false), map anchors ([`anchor`]: [`Runtime::set_anchor_screen`]) and rectangle dumps
+//! ([`debug`]).
 //!
 //! Zero-work rule: every pass is driven by the arena's dirty queues; a frame without changes checks a few
 //! counters and touches no node.
 
 #![forbid(unsafe_code)]
 
+pub mod anchor;
 mod anim;
 pub mod arena;
 mod bind;
@@ -44,6 +46,7 @@ use ui2_model::{FrameDelta, Key, ModelStore};
 use ui2_package::style::{ColorV, StyleRecord};
 use ui2_package::{Package, StrId, TemplateId};
 
+pub use anchor::{AnchorChange, AnchorId, AnchorScreen};
 pub use arena::{
     Arena, Dirty, HIDDEN_STYLE, Instance, LayoutSlot, Node, NodeClass, NodeId, PLACEHOLDER_STYLE,
     StateBits,
@@ -144,6 +147,8 @@ pub struct Runtime {
     anim: anim::Animator,
     /// Where game asset pictures are found.
     assets: Option<AssetResolver>,
+    /// Map anchors.
+    anchors: anchor::Anchors,
 }
 
 impl Runtime {
@@ -174,6 +179,7 @@ impl Runtime {
             fit_roots: Vec::new(),
             anim: anim::Animator::default(),
             assets: None,
+            anchors: anchor::Anchors::default(),
         };
         if !env_ok {
             rt.report_bad_env(env);
@@ -415,6 +421,7 @@ impl Runtime {
             anim: &self.anim,
             srcs: self.binder.srcs(),
             assets: self.assets.as_ref(),
+            anchors: &self.anchors,
         };
         let layer = paint::emit::layer_of(&self.arena, &self.pkg, id);
         let (items, _) = paint::build(&self.arena, &cx, &mut self.errors, id);

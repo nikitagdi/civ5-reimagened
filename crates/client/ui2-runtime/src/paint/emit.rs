@@ -43,6 +43,8 @@ pub(crate) struct PaintCtx<'a> {
     pub srcs: &'a HashMap<NodeId, Arc<str>>,
     /// Where game asset pictures are found (the host's texture ids).
     pub assets: Option<&'a AssetResolver>,
+    /// Map anchors: the slots their chunks are placed with.
+    pub anchors: &'a crate::anchor::Anchors,
 }
 
 impl<'a> PaintCtx<'a> {
@@ -127,6 +129,9 @@ pub(crate) struct Emitter<'a> {
     out: ChunkBuilder,
     stats: Emitted,
     abs: HashMap<u32, [f32; 2]>,
+    /// The page point (CSS px) that is the chunk's origin: zero, or for a map anchor the origin of its
+    /// root's containing block.
+    origin: [f32; 2],
 }
 
 impl<'a> Emitter<'a> {
@@ -139,7 +144,16 @@ impl<'a> Emitter<'a> {
             out: ChunkBuilder::new(),
             stats: Emitted::default(),
             abs: HashMap::new(),
+            origin: [0.0, 0.0],
         }
+    }
+
+    /// Whether a node is marked as a map anchor in its template.
+    fn is_anchor_node(&self, id: NodeId) -> bool {
+        self.arena
+            .get(id)
+            .and_then(|n| instantiate::template_node(self.cx.pkg, n.tmpl()))
+            .is_some_and(|t| t.flags & ui2_package::node_flags::ANCHOR != 0)
     }
 
     fn record(&self, id: NodeId) -> Option<&'a StyleRecord> {
@@ -204,9 +218,10 @@ impl<'a> Emitter<'a> {
         p
     }
 
-    /// The border box of a node in device px (unsnapped).
+    /// The border box of a node in device px of the chunk (unsnapped).
     fn border_box(&mut self, id: NodeId) -> Rect {
-        let [x, y] = self.abs(id);
+        let [ax, ay] = self.abs(id);
+        let (x, y) = (ax - self.origin[0], ay - self.origin[1]);
         let size = self
             .arena
             .get(id)
@@ -1113,8 +1128,25 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// The items of the chunk of `root`.
+    /// The items of the chunk of `root`. A map anchor's chunk is drawn in its own space (the origin of the
+    /// root's containing block is the anchor point) and placed by its anchor slot; while it has no slot it
+    /// draws nothing.
     pub fn chunk(mut self, root: NodeId) -> (ChunkItems, Emitted) {
+        if let Some(slot) = self.cx.anchors.slot(root) {
+            let Some(slot) = slot else {
+                return (ChunkItems::default(), self.stats);
+            };
+            self.out = ChunkBuilder::new().anchor(slot);
+            let [x, y] = self.abs(root);
+            let loc = self
+                .arena
+                .get(root)
+                .map_or(taffy::Point::ZERO, |n| n.layout().unrounded.location);
+            self.origin = [x - loc.x, y - loc.y];
+        } else if self.is_anchor_node(root) {
+            // An anchor that has no object yet is not drawn at the layout position.
+            return (ChunkItems::default(), self.stats);
+        }
         self.paint_context(root, &Inherit::ROOT);
         (self.out.build(), self.stats)
     }

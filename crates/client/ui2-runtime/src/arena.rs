@@ -703,6 +703,12 @@ impl Arena {
         std::mem::take(&mut self.removed_chunks)
     }
 
+    /// The chunks whose root was removed or hidden since the last
+    /// [`take_removed_chunks`](Self::take_removed_chunks), without taking them.
+    pub(crate) fn removed_chunks(&self) -> &[ChunkId] {
+        &self.removed_chunks
+    }
+
     /// Whether chunks were removed since the last [`take_removed_chunks`](Self::take_removed_chunks).
     pub fn has_removed_chunks(&self) -> bool {
         !self.removed_chunks.is_empty()

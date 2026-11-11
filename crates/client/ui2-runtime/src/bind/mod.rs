@@ -2,7 +2,7 @@
 //!
 //! Every node instance with bindings owns a contiguous range of *rows* (`Node::binds`): one per scalar binding
 //! of its template node (`data-bind-value`, `data-l10n`, `data-bind-class-toggle`, `data-bind-style-*`,
-//! `data-bind-disabled`, `data-bind-model`), and one per step of `data-on-*` that reads something (the arguments of `intent`
+//! `data-bind-disabled`, `data-bind-model`, `data-bind-src`, `data-anchor`), and one per step of `data-on-*` that reads something (the arguments of `intent`
 //! and `call`, the value of `set`, the path of `toggle`): those rows only keep their values, which input
 //! reads when the event happens. A `for` node has one row for its list, an `if` node one for its condition;
 //! a sorted or filtered list also has one row per model item for its sort key and filter (see [`list`]).
@@ -29,12 +29,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use ui2_model::{FrameDelta, Key, ModelStore, Op, Scalar as MScalar, Type, Value as MValue};
-use ui2_package::profile::action::{Action, ControlKind};
+use ui2_package::profile::action::{Action, AnchorKind, ControlKind};
 use ui2_package::profile::expr::{Expr, Value, eval, render, truthy};
 use ui2_package::{
     BindKind, ExprId, ImageSrc, NodeKind, NodeRef, Package, PropId, StrId, TextSrc, TplId,
 };
 
+use crate::anchor::AnchorUpdate;
 use crate::arena::{Arena, Dirty, NodeClass, NodeId, StateBits};
 use crate::error::{ErrorCode, ErrorSink, UiError};
 use crate::instantiate;
@@ -73,6 +74,8 @@ pub(crate) enum RowKind {
     Item,
     /// The game asset reference a picture shows (`data-bind-src`).
     Src(ExprId),
+    /// The map object a node follows (`data-anchor`): its kind and the expression of its key.
+    Anchor { kind: AnchorKind, id: ExprId },
 }
 
 impl RowKind {
@@ -91,6 +94,17 @@ enum Out {
     Values(Vec<MValue>),
     /// Structural rows apply their result themselves.
     Done,
+}
+
+/// The key of an anchor's object as the model holds keys (the expression language sees keys as integers).
+fn anchor_key(v: &Value) -> MValue {
+    match v {
+        Value::Int(i) => MValue::Key(Key(*i as u64)),
+        Value::Str(s) | Value::Text(s) => {
+            Key::parse_js(s).map_or(MValue::Str(s.as_str().into()), MValue::Key)
+        }
+        other => to_model(other, None),
+    }
 }
 
 /// Whether a markup action reads anything (and so needs a row).
@@ -238,6 +252,8 @@ pub(crate) struct Binder {
     pub loc: SkinLoc,
     /// The asset references of bound pictures, by node.
     srcs: HashMap<NodeId, Arc<str>>,
+    /// Anchor bindings whose object changed since the frame took them.
+    anchor_updates: Vec<AnchorUpdate>,
 }
 
 /// What the pass reads besides the arena.
@@ -322,6 +338,7 @@ impl Binder {
             windows_dirty: false,
             loc,
             srcs: HashMap::new(),
+            anchor_updates: Vec::new(),
         }
     }
 
@@ -517,6 +534,10 @@ impl Binder {
                 BindKind::Src(e) if !kinds.contains(&RowKind::Src(*e)) => {
                     kinds.push(RowKind::Src(*e))
                 }
+                BindKind::Anchor { kind, id } => kinds.push(RowKind::Anchor {
+                    kind: *kind,
+                    id: *id,
+                }),
                 BindKind::Model(p) => kinds.push(RowKind::Model(*p)),
                 BindKind::Style { prop, tpl } if styles::bindable(*prop) => {
                     kinds.push(RowKind::Style {
@@ -532,7 +553,7 @@ impl Binder {
                         format!("{} cannot be bound in this runtime", prop.name()),
                     ));
                 }
-                // Pictures, controls, events, anchors and fitting are handled by their own passes.
+                // Controls, hotkey labels and fitting are handled by their own passes.
                 _ => {}
             }
         }
@@ -584,7 +605,8 @@ impl Binder {
             RowKind::Class { cond: e, .. }
             | RowKind::Disabled(e)
             | RowKind::Cond(e)
-            | RowKind::Src(e) => pkg.expr(*e).into_iter().collect(),
+            | RowKind::Src(e)
+            | RowKind::Anchor { id: e, .. } => pkg.expr(*e).into_iter().collect(),
             // Read through `reads_of` (actions) or the list's state (lists, items).
             RowKind::Action { .. } | RowKind::Model(_) | RowKind::List | RowKind::Item => {
                 Vec::new()
@@ -859,6 +881,7 @@ impl Binder {
             RowKind::Class { cond, .. } | RowKind::Disabled(cond) | RowKind::Cond(cond) => {
                 Out::Bool(truthy(&host.expr(*cond)))
             }
+            RowKind::Anchor { id, .. } => Out::Values(vec![anchor_key(&host.expr(*id))]),
             RowKind::Src(e) => match host.expr(*e) {
                 Value::Null => Out::Text("".into()),
                 v => Out::Text(render(&v).into()),
@@ -921,6 +944,10 @@ impl Binder {
             (RowKind::Cond(_), Out::Bool(on)) => {
                 self.set_cond(arena, cx, errors, row.node, *on);
             }
+            (RowKind::Anchor { kind, .. }, Out::Values(v)) => {
+                let key = v.first().cloned().unwrap_or(MValue::None);
+                self.anchor_updates.push((row.node, *kind, key));
+            }
             (RowKind::Src(_), Out::Text(s)) => {
                 self.srcs.insert(row.node, Arc::clone(s));
                 arena.mark(row.node, Dirty::PAINT);
@@ -932,6 +959,11 @@ impl Binder {
             _ => {}
         }
         row.last = Some(out);
+    }
+
+    /// The anchor bindings whose object changed (new anchor nodes included) since the last call.
+    pub fn take_anchor_updates(&mut self) -> Vec<AnchorUpdate> {
+        std::mem::take(&mut self.anchor_updates)
     }
 
     /// The asset references bound pictures show (`data-bind-src`), by node.
