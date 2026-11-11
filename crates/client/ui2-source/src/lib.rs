@@ -139,6 +139,9 @@ pub struct UiSource {
     ui: UiSeen,
     /// The turn each chat line came in.
     chat: build::chat::ChatLog,
+    /// The open production window waited for a frame of its own while other roots were built: it goes first in
+    /// the next frame, so a stream of journal batches cannot starve it.
+    production_waits: bool,
 }
 
 /// The UI v2 queries a core answered `ReadError::Unsupported` to (the stub, a core older than the queries). Their
@@ -177,6 +180,7 @@ impl UiSource {
             note_ids: None,
             ui: UiSeen::default(),
             chat: build::chat::ChatLog::default(),
+            production_waits: false,
         }
     }
 
@@ -189,7 +193,11 @@ impl UiSource {
     ///   left of the budget is not written, waits for the next frame and stops this one (what it read so far is
     ///   kept, so the next frame does not read it again);
     /// - the first root of a frame always gets all its reads, so every frame makes progress: a frame spends more
-    ///   than the budget only when that first root alone costs more.
+    ///   than the budget only when that first root alone costs more;
+    /// - an open production window is built only as the first root of a frame (its city's options alone cost
+    ///   more than the default budget), and the frame after it waited it goes first; it reads the options of at
+    ///   most one city per frame while the budget is limited, so its comparison across the seat's cities fills
+    ///   over frames, the window's own city first, the root rewritten whole as each city arrives.
     pub fn set_read_budget(&mut self, units: u32) {
         self.budget = units;
     }
@@ -307,10 +315,23 @@ impl UiSource {
 
         // Roots in the queue order. A root is built against the budget and written only when none of its reads
         // was refused; a refused root stays pending and ends the frame (its admitted reads are kept in the cache).
+        // An open production window reads the options of a city (more than a frame's budget): it is built only as
+        // the first root of a frame, and goes first in the frame after it had to wait.
+        let window = ui.windows.production.open;
+        let order: &[Roots] = if self.production_waits && self.pending.contains(Roots::PRODUCTION) {
+            &[Roots::PRODUCTION]
+        } else {
+            &Roots::QUEUE
+        };
         let mut built = false;
-        for root in Roots::QUEUE {
+        let mut sweeping = false;
+        for &root in order {
             if !self.pending.contains(root) {
                 continue;
+            }
+            if root == Roots::PRODUCTION && window && built && self.budget != UNLIMITED {
+                self.production_waits = true;
+                break;
             }
             read.begin(!built);
             if root == Roots::TOP {
@@ -356,7 +377,12 @@ impl UiSource {
                     ui.production.focus,
                     &ui.pending,
                 );
+                self.production_waits = false;
                 if let Some(r) = read.settle(r) {
+                    let r = r.map(|(root, complete)| {
+                        sweeping = !complete;
+                        root
+                    });
                     write_built(w, r, &mut stats);
                 }
             } else if root == Roots::NOTES {
@@ -379,6 +405,11 @@ impl UiSource {
             }
             self.pending = self.pending.without(root);
             built = true;
+        }
+        if sweeping {
+            // The comparison still misses cities: the next frame reads one more. Only this source's own state
+            // keeps it going; its writes to the model trigger nothing.
+            self.pending = self.pending.union(Roots::PRODUCTION);
         }
         stats.deferred = self.pending.len();
         stats.getter_calls = read.meter.calls;
@@ -514,6 +545,8 @@ pub(crate) struct Meter {
     grace: bool,
     /// A read of the current piece of work was refused: its result must not be written.
     refused: bool,
+    /// Calls of `city_builds` in this frame.
+    builds: u32,
 }
 
 impl Meter {
@@ -524,6 +557,7 @@ impl Meter {
             budget,
             grace: false,
             refused: false,
+            builds: 0,
         }
     }
 
@@ -541,6 +575,9 @@ impl Meter {
         }
         self.spent = self.spent.saturating_add(kind.cost());
         self.calls += 1;
+        if kind == ReadKind::CityBuilds {
+            self.builds += 1;
+        }
         Ok(())
     }
 }
@@ -585,6 +622,17 @@ impl<'a, 'r> CountingRead<'a, 'r> {
     /// refusal for a missing value: such a result is incomplete and must not reach the model).
     fn settle<T>(&self, r: T) -> Option<T> {
         (!self.meter.refused).then_some(r)
+    }
+
+    /// The options of `city` were read since the game last changed (reading them again costs nothing).
+    pub(crate) fn builds_known(&self, city: i32) -> bool {
+        matches!(self.cache.builds.get(&city), Some(Some(_)))
+    }
+
+    /// One more city's options may be read in this frame: none was read yet, or the budget still has room for
+    /// them. At the default budget that is one city a frame.
+    pub(crate) fn may_read_builds(&self) -> bool {
+        self.meter.builds == 0 || self.meter.affords(ReadKind::CityBuilds)
     }
 
     /// One UI v2 read: not made when the core is known not to serve it; an `Unsupported` answer is remembered.

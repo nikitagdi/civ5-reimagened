@@ -10,6 +10,7 @@ use replica::testing::{FakeRead, catalog_entry};
 use replica::{BuildFlags, CatalogTable, CityBuild, CityOrder, OrderType, ReadError};
 use ui2_model::r#gen::{ItemKind, Opt, Pending, ProdNow, Production, QueueRow};
 use ui2_model::{AssetRef, Key, KeyedList, Text};
+use ui2_source::DEFAULT_FRAME_BUDGET;
 use ui2_source::pending::option_target;
 
 // `GC_BUILD_F_*`
@@ -463,6 +464,152 @@ fn a_core_without_the_queue_shows_the_head_only() {
     f.calls.clear();
     rig.batch(&mut f);
     assert!(!f.calls.contains(&"city_queue"), "not asked again");
+}
+
+/// The reference game with seven more cities of the seat (ten in all), each able to build a University.
+fn ten_cities() -> FakeRead {
+    let mut f = reference();
+    for id in 4..=10 {
+        let x = i16::try_from(id).unwrap();
+        f.cities.push(city(
+            id,
+            CATHERINE,
+            &format!("City {id}"),
+            4,
+            x,
+            40,
+            C_VISIBLE,
+        ));
+        f.builds.insert(
+            id,
+            vec![build(
+                OrderType::Construct,
+                UNIVERSITY,
+                Some(10 + x),
+                ENABLED,
+                240,
+            )],
+        );
+    }
+    f
+}
+
+fn compare_rows(rig: &Rig) -> Vec<(String, Option<i16>, f32)> {
+    production(rig)
+        .and_then(|p| p.detail)
+        .map(|d| {
+            d.compare
+                .iter()
+                .map(|c| (c.name.to_string(), c.turns, c.fraction))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[test]
+fn the_comparison_fills_one_city_a_frame() {
+    // What one unlimited frame shows.
+    let mut f = ten_cities();
+    let mut whole = Rig::new(session());
+    whole.start(&mut f);
+    open(&mut whole, MOSCOW);
+    whole.ui.production.focus = Some(item(OrderType::Construct, UNIVERSITY));
+    whole.frame(&mut f);
+    let expected = compare_rows(&whole);
+    assert_eq!(expected.len(), 10);
+
+    let mut f = ten_cities();
+    let mut rig = Rig::new(session());
+    rig.start(&mut f);
+    rig.src.set_read_budget(DEFAULT_FRAME_BUDGET);
+    open(&mut rig, MOSCOW);
+    rig.ui.production.focus = Some(item(OrderType::Construct, UNIVERSITY));
+
+    let mut frames = 0;
+    let mut rows = 0;
+    loop {
+        f.calls.clear();
+        let stats = rig.frame(&mut f);
+        frames += 1;
+        let builds = f.calls.iter().filter(|c| **c == "city_builds").count();
+        assert!(builds <= 1, "one city's options a frame: {:?}", f.calls);
+        assert_eq!(stats.roots_built, 1, "the window, whole, every frame");
+        let p = production(&rig).expect("open");
+        // The window's own city comes first and complete; the comparison grows by one city a frame.
+        assert_eq!(p.groups.len(), 4);
+        assert_eq!(p.queue.len(), 3);
+        let now = compare_rows(&rig);
+        assert_eq!(now.len(), rows + 1, "frame {frames}: {now:?}");
+        rows = now.len();
+        if stats.deferred == 0 {
+            break;
+        }
+        assert!(frames < 20, "the comparison never ends");
+    }
+    assert!(frames >= 10, "{frames}");
+    assert_eq!(
+        compare_rows(&rig),
+        expected,
+        "the same as one unlimited frame"
+    );
+
+    // Done: nothing is read or written any more.
+    rig.delta();
+    for _ in 0..5 {
+        f.calls.clear();
+        let stats = rig.frame(&mut f);
+        assert_eq!(stats, ui2_source::SourceStats::default());
+        assert!(f.calls.is_empty());
+    }
+    assert!(rig.delta().is_none());
+
+    // The game changes in the middle of a new sweep: the window is rebuilt from the new state, one city a frame.
+    rig.batch(&mut f);
+    rig.frame(&mut f);
+    f.builds.get_mut(&10).unwrap()[0].turns = Some(3);
+    let mut frames = 0;
+    let mut stats = rig.batch(&mut f);
+    while stats.deferred > 0 {
+        stats = rig.frame(&mut f);
+        frames += 1;
+        assert!(frames < 25);
+    }
+    let last = compare_rows(&rig);
+    assert_eq!(last.len(), 10);
+    assert_eq!(last[9].1, Some(3));
+}
+
+#[test]
+fn the_open_window_does_not_share_a_frame() {
+    let mut f = reference();
+    let mut rig = Rig::new(session());
+    open(&mut rig, MOSCOW);
+    rig.start(&mut f);
+    rig.src.set_read_budget(DEFAULT_FRAME_BUDGET);
+
+    // A batch: the other roots first; the window waits for the next frame and has it alone.
+    f.calls.clear();
+    let stats = rig.batch(&mut f);
+    assert!(!f.calls.contains(&"city_builds"), "{:?}", f.calls);
+    assert!(stats.spent_units <= DEFAULT_FRAME_BUDGET);
+    assert_eq!(stats.deferred, 1, "the window");
+    f.calls.clear();
+    let stats = rig.frame(&mut f);
+    assert_eq!(stats.roots_built, 1);
+    assert_eq!(f.calls, ["city_builds", "city_queue"]);
+    assert_eq!(stats.deferred, 0);
+
+    // Batches every frame: the window is not starved, it goes first every other frame.
+    let mut window_frames = 0;
+    for _ in 0..6 {
+        f.calls.clear();
+        rig.batch(&mut f);
+        if f.calls.contains(&"city_builds") {
+            window_frames += 1;
+            assert!(!f.calls.contains(&"notifications"), "alone: {:?}", f.calls);
+        }
+    }
+    assert_eq!(window_frames, 3);
 }
 
 #[test]
