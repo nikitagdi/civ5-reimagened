@@ -30,6 +30,7 @@ use ui2_model::wire::{Origin, WireIntent};
 use ui2_model::{Key, ModelStore, Schema};
 
 pub use intent::{Intent, IntentError};
+pub use pending::ActionEvent;
 pub use settings::{MemorySettings, SettingsNs, SettingsStore};
 pub use sink::{CameraReq, OrderSink, RecordingSink, Refused, Sent};
 pub use state::{SkinId, StateError, StateNs};
