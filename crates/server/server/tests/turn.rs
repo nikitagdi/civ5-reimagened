@@ -674,6 +674,39 @@ fn taking_the_end_of_turn_back_sends_the_turn_state_to_all_and_to_the_seat_with_
     assert_eq!(alice.turn_no(), 1);
 }
 
+/// The v15 queue and research orders travel the order path of the classic ones: session, worker, and
+/// the worker's answer back to the seat (the mock worker applies every order).
+#[test]
+fn queue_and_research_orders_are_answered_like_any_order() {
+    let (_srv, mut alice, _bob) = game("t-queue", "echo turns=1", TimerMode::Off);
+    for cmd in [
+        Command::CityQueuePush {
+            city: 1,
+            order: 0,
+            item: 2,
+            front: false,
+        },
+        Command::CityQueuePop { city: 1, slot: 1 },
+        Command::CityQueueMove {
+            city: 1,
+            from: 1,
+            to: 0,
+        },
+        Command::CityReplaceHead {
+            city: 1,
+            order: 1,
+            item: 0,
+        },
+        Command::ResearchSet {
+            tech: 3,
+            queue: true,
+        },
+    ] {
+        let id = alice.order(1, cmd);
+        assert_eq!(alice.answer(id), CommandOutcome::Applied, "{cmd:?}");
+    }
+}
+
 // ---------------------------------------------------------------- seats: lost, kick, leave, host
 
 fn conn_of(v: &[SeatView], player: i8) -> Conn {

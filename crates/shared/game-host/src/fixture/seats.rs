@@ -499,6 +499,12 @@ impl Major {
     }
 }
 
+/// The major knows technology `tech` (the techs of the test world are the art-tech rows: bit `tech` of
+/// `art_techs`).
+pub fn knows_tech(m: &Major, tech: i16) -> bool {
+    u32::try_from(tech).is_ok_and(|t| t < 64 && m.art_techs & (1u64 << t) != 0)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn unit(
     id: i32,

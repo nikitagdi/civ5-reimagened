@@ -102,6 +102,197 @@ fn refusal_of(reason: gc::RejectReason, text: String) -> Refusal {
     Refusal::new(code, text)
 }
 
+// ---------------------------------------------------------------- v15 orders as net messages
+//
+// The build queue and research orders of protocol v15 (tags 20-24) are not core commands: the host checks
+// them against the core's own answers and gives them to the core as the net messages the original UI sends
+// for the same click, through `gc_net_submit` (which checks the seat again and stamps the sender). The
+// messages are delivered by the next pump, which the worker runs after every order it answers `Applied`.
+//
+// What the core does with them (Lekmod sources):
+// * `sendPushOrder(city, order, item, alt, shift, ctrl)` -> `CvDllNetMessageHandler::ResponseCityPushOrder`
+//   -> `CvCity::pushOrder(order, item, -1, bSave = alt, bPop = shift, bAppend = ctrl)`. `bPop` clears the
+//   whole queue first; `bAppend` adds at the end, otherwise the item goes in front of the head
+//   (`stopHeadOrder`, insert at the beginning, `startHeadOrder`). An item `canTrain` / `canConstruct` /
+//   `canCreate` / `canMaintain` refuses is dropped without a word.
+// * `sendPopOrder(city, n)` -> `ResponseCityPopOrder` -> `CvCity::popOrder(n)`: removes entry `n` (0 = the
+//   head); an index past the end is ignored.
+// * `sendSwapOrder(city, n)` -> `ResponseCitySwapOrder` -> `CvCity::swapOrder(n)`: exchanges entries `n` and
+//   `n + 1` (the queue's `swapUp`); an index without a successor is ignored.
+// * `sendResearch(tech, discover, steal_from, shift)` -> `ResponseResearch`: with `discover = 0` and no
+//   victim it is the normal choice, `CvPlayer::pushResearch(tech, bClear = !shift)` (prerequisites are
+//   queued too); without `shift` a tech already known or being researched clears the research queue.
+// * The core has no limit of the queue length (the order list grows past its inline storage).
+
+/// The seat's city as the checks of a v15 queue order see it: the core's own answers (`Q_CITIES`,
+/// `Q_CITY_BUILDS`).
+#[derive(Debug, Clone)]
+pub(crate) struct QueueCity {
+    pub id: i32,
+    pub puppet: bool,
+    /// The queue has a head (the production order of `Q_CITIES`).
+    pub has_head: bool,
+    pub builds: Vec<gc::CityBuild>,
+}
+
+/// A v15 order of the build queue or the research (protocol tags 20-24).
+pub(crate) fn is_v15_order(cmd: &protocol::Command) -> bool {
+    use protocol::Command as P;
+    matches!(
+        cmd,
+        P::CityQueuePush { .. }
+            | P::CityQueuePop { .. }
+            | P::CityQueueMove { .. }
+            | P::CityReplaceHead { .. }
+            | P::ResearchSet { .. }
+    )
+}
+
+/// One net message by its `gDLL->send*` name.
+fn net(name: &str, args: &[i32]) -> Result<gc::replica::NetMessage, String> {
+    gc::replica::NetMessage::new(name, args)
+        .ok_or_else(|| format!("the core has no net message {name}"))
+}
+
+/// `sendPushOrder` of `item`: appended (`ctrl`) or in front of the head; never `shift` (that would clear the
+/// queue) nor `alt` (the repeat flag of the original UI).
+fn push_order(
+    city: i32,
+    order: i8,
+    item: i16,
+    append: bool,
+) -> Result<gc::replica::NetMessage, String> {
+    net(
+        "sendPushOrder",
+        &[
+            city,
+            i32::from(order),
+            i32::from(item),
+            0,
+            0,
+            i32::from(append),
+        ],
+    )
+}
+
+/// The build `order` / `item` of the city may go into its queue now. `CvCity::pushOrder` drops what the
+/// city cannot start without a word, so the host refuses it first.
+fn check_build(c: &QueueCity, order: i8, item: i16, adding: bool) -> Result<(), String> {
+    let o = wb::order_of(order)?;
+    let b = c
+        .builds
+        .iter()
+        .find(|b| b.order == o && b.item == item)
+        .ok_or_else(|| format!("city {} cannot build order {order} item {item}", c.id))?;
+    if !b.flags.enabled() {
+        return Err(format!(
+            "city {}: {}",
+            c.id,
+            b.reason.as_deref().unwrap_or("cannot be started now")
+        ));
+    }
+    // `Q_CITY_BUILDS` asks about the head item as one that goes on (`bContinue`), `pushOrder` asks without it: a
+    // building or a project that is being built cannot go into the queue a second time.
+    if adding && b.flags.current() && matches!(o, gc::OrderType::Construct | gc::OrderType::Create)
+    {
+        return Err(format!(
+            "city {}: item {item} is in the queue already",
+            c.id
+        ));
+    }
+    Ok(())
+}
+
+/// The net messages of a v15 order, or why the host refuses it (answered `Invalid`). `city`: the seat's
+/// city the order names (`None`: the seat has no such city); `techs`: the rows of the technology table.
+///
+/// Until the core answers a query of the whole queue, a slot past the end of a non-empty queue is not
+/// caught here; the core ignores it (see the notes above), so such an order changes nothing.
+pub(crate) fn v15_net(
+    cmd: &protocol::Command,
+    city: Option<&QueueCity>,
+    techs: usize,
+) -> Result<Vec<gc::replica::NetMessage>, String> {
+    use protocol::Command as P;
+    if let P::ResearchSet { tech, queue } = *cmd {
+        if tech < 0 || usize::try_from(tech).is_ok_and(|t| t >= techs) {
+            return Err(format!("there is no technology {tech}"));
+        }
+        // discover 0, no victim: the normal research choice; shift = add to the research queue.
+        return Ok(vec![net(
+            "sendResearch",
+            &[i32::from(tech), 0, -1, i32::from(queue)],
+        )?]);
+    }
+    let id = match *cmd {
+        P::CityQueuePush { city, .. }
+        | P::CityQueuePop { city, .. }
+        | P::CityQueueMove { city, .. }
+        | P::CityReplaceHead { city, .. } => city,
+        _ => return Err("not a v15 queue or research order".into()),
+    };
+    let c = city
+        .filter(|c| c.id == id)
+        .ok_or_else(|| format!("the seat has no city {id}"))?;
+    if c.puppet {
+        return Err(format!(
+            "city {id}: a puppet city chooses its own production"
+        ));
+    }
+    let empty = || format!("city {id}: the build queue is empty");
+    match *cmd {
+        P::CityQueuePush {
+            order, item, front, ..
+        } => {
+            check_build(c, order, item, true)?;
+            Ok(vec![push_order(id, order, item, !front)?])
+        }
+        P::CityQueuePop { slot, .. } => {
+            if slot < 0 {
+                return Err(format!("city {id}: no slot {slot}"));
+            }
+            if !c.has_head {
+                return Err(empty());
+            }
+            Ok(vec![net("sendPopOrder", &[id, i32::from(slot)])?])
+        }
+        P::CityQueueMove { from, to, .. } => {
+            if from < 0 || to < 0 {
+                return Err(format!("city {id}: no slot {}", from.min(to)));
+            }
+            if from == to {
+                return Err(format!("city {id}: slot {from} is moved onto itself"));
+            }
+            if !c.has_head {
+                return Err(empty());
+            }
+            // `swapOrder(n)` exchanges n and n + 1: walk the entry step by step, in one submit.
+            let (from, to) = (i32::from(from), i32::from(to));
+            let steps: Vec<i32> = if from < to {
+                (from..to).collect()
+            } else {
+                (to..from).rev().collect()
+            };
+            steps
+                .into_iter()
+                .map(|n| net("sendSwapOrder", &[id, n]))
+                .collect()
+        }
+        P::CityReplaceHead { order, item, .. } => {
+            if !c.has_head {
+                return Err(empty());
+            }
+            check_build(c, order, item, false)?;
+            // The head goes, the new item goes in front of what is left: the rest of the queue stays.
+            Ok(vec![
+                net("sendPopOrder", &[id, 0])?,
+                push_order(id, order, item, false)?,
+            ])
+        }
+        _ => Err("not a v15 queue or research order".into()),
+    }
+}
+
 /// A `map_script` with this prefix names a `.Civ5Map` of the game's VFS to build the world from (and its
 /// scenario data), not a script. Only the golden tool sends it; the lobby validates map scripts against its list.
 pub const WORLD_BUILDER_MAP_PREFIX: &str = "world_builder_map:";
@@ -422,6 +613,69 @@ impl RealCore {
             Err(gc::CommandError::Rejected { reason, message }) => Err(refusal_of(reason, message)),
             Err(gc::CommandError::Other(e)) => Err(Refusal::other(e.to_string())),
         }
+    }
+
+    /// A v15 order (build queue, research): checked against the core's answers and given to the core as the
+    /// net messages of the original UI (see [`v15_net`]). A failed check is `Invalid`; a refusal of
+    /// `gc_net_submit` keeps the core's reason.
+    pub fn typed_net(&mut self, player: PlayerId, cmd: &protocol::Command) -> Result<(), Refusal> {
+        use protocol::Command as P;
+        let p =
+            u8::try_from(player).map_err(|_| Refusal::invalid(format!("no player {player}")))?;
+        let msgs = match *cmd {
+            P::ResearchSet { .. } => {
+                let techs = self
+                    .game
+                    .catalog(gc::CatalogTable::Technologies)
+                    .map_err(|e| Refusal::other(format!("Q_CATALOG technologies: {e}")))?
+                    .len();
+                v15_net(cmd, None, techs)
+            }
+            P::CityQueuePush { city, .. }
+            | P::CityQueuePop { city, .. }
+            | P::CityQueueMove { city, .. }
+            | P::CityReplaceHead { city, .. } => {
+                let c = self.queue_city(player, city)?;
+                v15_net(cmd, c.as_ref(), 0)
+            }
+            _ => return Err(Refusal::other("not a v15 queue or research order")),
+        }
+        .map_err(Refusal::invalid)?;
+        self.game
+            .net_submit(p, &msgs)
+            .map_err(|e| match gc::CommandError::from(e) {
+                gc::CommandError::Rejected { reason, message } => refusal_of(reason, message),
+                gc::CommandError::Other(e) => Refusal::other(e.to_string()),
+            })
+    }
+
+    /// The seat's city `city` for the checks of a queue order; `None`: the seat has no such city.
+    fn queue_city(&mut self, player: PlayerId, city: i32) -> Result<Option<QueueCity>, Refusal> {
+        let p =
+            u8::try_from(player).map_err(|_| Refusal::invalid(format!("no player {player}")))?;
+        let team = self
+            .team_of(player)
+            .map_err(|e| Refusal::other(e.message))?;
+        let cities = self
+            .game
+            .cities(i32::from(team))
+            .map_err(|e| Refusal::other(format!("Q_CITIES: {e}")))?;
+        let Some(c) = cities
+            .into_iter()
+            .find(|c| c.owner == player && c.id == city)
+        else {
+            return Ok(None);
+        };
+        let builds = self
+            .game
+            .city_builds(p, city)
+            .map_err(|e| Refusal::other(format!("Q_CITY_BUILDS: {e}")))?;
+        Ok(Some(QueueCity {
+            id: city,
+            puppet: c.flags.puppet(),
+            has_head: c.production_order.is_some(),
+            builds,
+        }))
     }
 
     /// Journal entries of a batch of core events, addressed (GH-R6).
@@ -763,6 +1017,9 @@ impl Core for RealCore {
     }
 
     fn command(&mut self, player: PlayerId, cmd: &protocol::Command) -> Result<(), Refusal> {
+        if is_v15_order(cmd) {
+            return self.typed_net(player, cmd);
+        }
         let core = self.core_command(cmd)?;
         self.give(player, &core)
     }
@@ -1272,5 +1529,200 @@ mod tests {
             !json.contains("victories") && !json.contains("max_turns"),
             "{json}"
         );
+    }
+
+    // ------------------------------------------------------------ v15 orders as net messages
+
+    use gamecore_sys::ffi;
+    use protocol::Command as P;
+
+    fn build(order: gc::OrderType, item: i16, flags: u16) -> gc::CityBuild {
+        gc::CityBuild {
+            order,
+            item,
+            turns: Some(3),
+            flags: gc::BuildFlags(flags),
+            production_cost: 40,
+            gold_cost: None,
+            faith_cost: None,
+            reason: (flags & ffi::GC_BUILD_F_ENABLED == 0).then(|| "needs Pottery".to_owned()),
+        }
+    }
+
+    /// City 7 builds warrior 2 (the head); it could train unit 3, build building 5, not building 6.
+    fn city7() -> QueueCity {
+        let on = ffi::GC_BUILD_F_ENABLED;
+        QueueCity {
+            id: 7,
+            puppet: false,
+            has_head: true,
+            builds: vec![
+                build(gc::OrderType::Train, 2, on | ffi::GC_BUILD_F_CURRENT),
+                build(gc::OrderType::Train, 3, on),
+                build(gc::OrderType::Construct, 5, on),
+                build(gc::OrderType::Construct, 6, 0),
+            ],
+        }
+    }
+
+    /// `(name, leading args)` of the messages.
+    fn plan(cmd: P, city: Option<&QueueCity>) -> Result<Vec<(&'static str, Vec<i32>)>, String> {
+        Ok(v15_net(&cmd, city, 80)?
+            .iter()
+            .map(|m| (m.name(), m.args[..6].to_vec()))
+            .collect())
+    }
+
+    #[test]
+    fn a_push_is_send_push_order_with_ctrl_for_the_back_and_without_for_the_front() {
+        let c = city7();
+        let push = |front| P::CityQueuePush {
+            city: 7,
+            order: 1,
+            item: 5,
+            front,
+        };
+        assert_eq!(
+            plan(push(false), Some(&c)),
+            Ok(vec![("sendPushOrder", vec![7, 1, 5, 0, 0, 1])])
+        );
+        assert_eq!(
+            plan(push(true), Some(&c)),
+            Ok(vec![("sendPushOrder", vec![7, 1, 5, 0, 0, 0])])
+        );
+    }
+
+    #[test]
+    fn pop_move_and_replace_head_use_the_messages_of_the_city_screen() {
+        let c = city7();
+        assert_eq!(
+            plan(P::CityQueuePop { city: 7, slot: 2 }, Some(&c)),
+            Ok(vec![("sendPopOrder", vec![7, 2, 0, 0, 0, 0])])
+        );
+        let swaps = |from, to| {
+            plan(P::CityQueueMove { city: 7, from, to }, Some(&c))
+                .unwrap()
+                .into_iter()
+                .map(|(n, a)| {
+                    assert_eq!((n, a[0]), ("sendSwapOrder", 7));
+                    a[1]
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(swaps(0, 3), vec![0, 1, 2]);
+        assert_eq!(swaps(3, 1), vec![2, 1]);
+        assert_eq!(swaps(1, 0), vec![0]);
+        assert_eq!(
+            plan(
+                P::CityReplaceHead {
+                    city: 7,
+                    order: 0,
+                    item: 3
+                },
+                Some(&c)
+            ),
+            Ok(vec![
+                ("sendPopOrder", vec![7, 0, 0, 0, 0, 0]),
+                ("sendPushOrder", vec![7, 0, 3, 0, 0, 0]),
+            ])
+        );
+    }
+
+    #[test]
+    fn research_is_send_research_with_shift_for_the_queue() {
+        assert_eq!(
+            plan(
+                P::ResearchSet {
+                    tech: 12,
+                    queue: false
+                },
+                None
+            ),
+            Ok(vec![("sendResearch", vec![12, 0, -1, 0, 0, 0])])
+        );
+        assert_eq!(
+            plan(
+                P::ResearchSet {
+                    tech: 12,
+                    queue: true
+                },
+                None
+            ),
+            Ok(vec![("sendResearch", vec![12, 0, -1, 1, 0, 0])])
+        );
+        for tech in [-1, 80, 300] {
+            assert!(plan(P::ResearchSet { tech, queue: false }, None).is_err());
+        }
+    }
+
+    #[test]
+    fn what_the_city_cannot_take_is_refused_before_the_core() {
+        let c = city7();
+        let push = |order, item| P::CityQueuePush {
+            city: 7,
+            order,
+            item,
+            front: false,
+        };
+        // Not the seat's city, a puppet, an unknown order type, an item it cannot build or start.
+        assert!(plan(push(0, 3), None).unwrap_err().contains("no city 7"));
+        let puppet = QueueCity {
+            puppet: true,
+            ..city7()
+        };
+        assert!(
+            plan(push(0, 3), Some(&puppet))
+                .unwrap_err()
+                .contains("puppet")
+        );
+        assert!(plan(push(9, 3), Some(&c)).is_err());
+        assert!(plan(push(0, 99), Some(&c)).is_err());
+        assert!(
+            plan(push(1, 6), Some(&c))
+                .unwrap_err()
+                .contains("needs Pottery")
+        );
+        // A building that is being built cannot be queued again; a unit can.
+        let head_building = QueueCity {
+            builds: vec![build(
+                gc::OrderType::Construct,
+                5,
+                ffi::GC_BUILD_F_ENABLED | ffi::GC_BUILD_F_CURRENT,
+            )],
+            ..city7()
+        };
+        assert!(plan(push(1, 5), Some(&head_building)).is_err());
+        assert!(plan(push(0, 2), Some(&c)).is_ok());
+        // Slots: negative, a move onto itself, an empty queue.
+        assert!(plan(P::CityQueuePop { city: 7, slot: -1 }, Some(&c)).is_err());
+        assert!(
+            plan(
+                P::CityQueueMove {
+                    city: 7,
+                    from: 1,
+                    to: 1
+                },
+                Some(&c)
+            )
+            .is_err()
+        );
+        let empty = QueueCity {
+            has_head: false,
+            ..city7()
+        };
+        assert!(plan(P::CityQueuePop { city: 7, slot: 0 }, Some(&empty)).is_err());
+        assert!(
+            plan(
+                P::CityReplaceHead {
+                    city: 7,
+                    order: 0,
+                    item: 3
+                },
+                Some(&empty)
+            )
+            .is_err()
+        );
+        // Not a v15 order at all.
+        assert!(plan(P::EndTurn { force: false }, Some(&c)).is_err());
     }
 }
