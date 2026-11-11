@@ -6,8 +6,8 @@
 //! missing glyph is queued and the caller gets a placeholder), and a rasterization step with a budget.
 //!
 //! Gaps against the render-layers design, left for the eviction task: the atlas has no eviction (when its pages are
-//! full the glyph is dropped, counted in [`GlyphStore::full_count`]), and its pages are separate from the static
-//! mask pages of a skin package (the scene only adds a base layer index, [`GlyphStore::layer_base`]).
+//! full the glyph is dropped, counted in [`GlyphStore::full_count`]). Its pages follow the static mask pages of a
+//! skin package in the coverage array: [`crate::Scene::set_pages`] sets [`GlyphStore::layer_base`].
 
 use std::collections::{HashSet, VecDeque};
 

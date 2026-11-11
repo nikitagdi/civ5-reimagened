@@ -8,12 +8,15 @@
 
 use std::collections::HashMap;
 use std::ops::Range;
+use std::sync::Arc;
 
+use ui2_package::Images;
 use ui2_text::{AtlasConfig, DirtyRect, GlyphAtlas, TextEngine};
 
 use crate::encode::{EncodeCtx, encode_chunk};
 use crate::glyphs::GlyphStore;
 use crate::instance::Ui2Instance;
+use crate::pages::Pages;
 use crate::stats::SceneStats;
 use crate::tables::{TableSegment, Tables};
 use crate::{AnchorSlot, AnchorXform, ChunkId, ChunkItems, DrawError, Item, LayerId};
@@ -107,6 +110,7 @@ pub struct Scene {
     layers: [Layer; 4],
     tables: Tables,
     glyphs: GlyphStore,
+    pages: Pages,
     clock: Option<Clock>,
     overflow: u32,
     frame: Frame,
@@ -121,6 +125,7 @@ impl Scene {
             layers: Default::default(),
             tables: Tables::new(),
             glyphs: GlyphStore::new(AtlasConfig::default()),
+            pages: Pages::default(),
             clock: None,
             overflow: 0,
             frame: Frame::default(),
@@ -219,11 +224,14 @@ impl Scene {
 
     fn install(&mut self, id: ChunkId, layer: LayerId, items: ChunkItems, old: Option<Chunk>) {
         let t0 = self.now();
+        let mask_side = self.mask_side();
         let enc = {
             let mut ctx = EncodeCtx {
                 tables: &mut self.tables,
                 glyphs: &mut self.glyphs,
                 table_overflow: &mut self.overflow,
+                pages: &self.pages,
+                mask_side,
             };
             encode_chunk(&items, &mut ctx)
         };
@@ -338,6 +346,52 @@ impl Scene {
                 self.reencode(id);
             }
         }
+    }
+
+    // ----- picture pages -----
+
+    /// Takes the picture pages of a skin package: `pages[i]` is the decompressed pixels of `images.pages[i]`
+    /// (`Package::page_data`). `A8` pages become the first layers of the coverage array (the glyph pages move
+    /// after them), `Rgba8` pages the layers of the image array; the pass uploads them on its next `prepare`.
+    /// Replaces the pages of an earlier skin; an empty table drops them. Pages equal to the held ones change
+    /// nothing. When the pages change, the chunks that draw masks, pictures or glyphs are encoded again (their
+    /// layers and sprite rectangles depend on the pages).
+    ///
+    /// A page count, size or pixel length that does not match the table is an error and leaves the scene as it
+    /// was.
+    pub fn set_pages(&mut self, images: &Images, pages: Vec<Arc<[u8]>>) -> Result<(), DrawError> {
+        if !self.pages.replace(images, pages)? {
+            return Ok(());
+        }
+        // `replace` keeps the mask page count within `MAX_MASK_PAGES`, so it fits a layer index.
+        self.glyphs
+            .set_layer_base(u8::try_from(self.pages.mask().len()).unwrap_or(u8::MAX));
+        let ids: Vec<ChunkId> = self
+            .chunks
+            .iter()
+            .filter(|(_, c)| {
+                c.items
+                    .items
+                    .iter()
+                    .any(|i| matches!(i, Item::Mask(_) | Item::Image(_) | Item::Glyphs(_)))
+            })
+            .map(|(id, _)| *id)
+            .collect();
+        for id in ids {
+            self.reencode(id);
+        }
+        Ok(())
+    }
+
+    /// The picture pages the scene holds.
+    pub fn pages(&self) -> &Pages {
+        &self.pages
+    }
+
+    /// Side of the square layers of the coverage array, px: the glyph page size, or the longest mask page edge
+    /// when that is larger.
+    pub fn mask_side(&self) -> u32 {
+        self.glyphs.page_size().max(self.pages.mask_edge())
     }
 
     // ----- anchors -----
@@ -482,6 +536,9 @@ impl Scene {
             clips,
             table_overflow: self.overflow,
             anchor_bytes: self.frame.anchor_bytes,
+            mask_pages: self.pages.mask().len(),
+            image_pages: self.pages.image().len(),
+            page_bytes: self.pages.bytes(),
         }
     }
 

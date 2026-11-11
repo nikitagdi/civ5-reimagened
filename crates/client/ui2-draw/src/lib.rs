@@ -22,6 +22,7 @@
 pub mod encode;
 pub mod glyphs;
 pub mod instance;
+pub mod pages;
 mod scene;
 mod stats;
 pub mod tables;
@@ -30,6 +31,7 @@ pub use glam::{Affine2, Vec2};
 
 pub use glyphs::GlyphStore;
 pub use instance::Ui2Instance;
+pub use pages::{Pages, StaticPage};
 pub use scene::{Clock, FALLBACK_MS_PER_GLYPH, LayerChange, Op, Scene};
 pub use stats::SceneStats;
 pub use tables::{Clip, Polygon, TableSegment};
@@ -44,6 +46,9 @@ pub enum DrawError {
     /// A clip polygon is not a usable convex polygon of 3 to 8 vertices.
     #[error("invalid clip polygon: {0}")]
     InvalidPolygon(&'static str),
+    /// The picture pages handed to [`Scene::set_pages`] do not match the package's page table.
+    #[error("invalid picture page: {0}")]
+    InvalidPage(String),
 }
 
 /// The layers in drawing order: later layers are drawn over earlier ones. The world is drawn before all of them,
@@ -289,12 +294,17 @@ impl BoxItem {
     }
 }
 
-/// Where a sprite lies in a texture array: the layer and the normalized rectangle `(u0, v0, u1, v1)`.
+/// Where a sprite lies: a layer and the normalized rectangle `(u0, v0, u1, v1)`.
+///
+/// For a [`MaskItem`] the layer counts the package's `A8` pages in order (`0` is the first mask page); for an
+/// [`ImageItem`] it counts the package's `Rgba8` pages in order. `uv` is normalized to that page (`(0, 0, 1, 1)`
+/// is the whole page); the scene maps it into the GPU array ([`pages`]). A mask layer past the package's mask
+/// pages is a glyph page of the scene and its `uv` is used as it is.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct ImageRef {
-    /// Array layer.
+    /// Page (array layer).
     pub layer: u8,
-    /// Normalized rectangle of the sprite in the layer: left, top, right, bottom.
+    /// Normalized rectangle of the sprite in the page: left, top, right, bottom.
     pub uv: [f32; 4],
 }
 
@@ -311,6 +321,36 @@ pub struct MaskItem {
     pub transform: Option<Affine2>,
     /// Clip in chunk space.
     pub clip: Option<Clip>,
+}
+
+/// A colour picture of the package's `Rgba8` pages (premultiplied), tinted and with rounded corners.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImageItem {
+    /// Destination rectangle, in chunk space.
+    pub rect: Rect,
+    /// The sprite in the image pages.
+    pub image: ImageRef,
+    /// Multiplies the picture (straight colour; white opaque leaves it as it is, the alpha is an opacity).
+    pub tint: Color,
+    /// Corner radii (the picture is cut to the rounded rectangle).
+    pub radii: Radii,
+    /// Transform from the item's space to chunk space.
+    pub transform: Option<Affine2>,
+    /// Clip in chunk space.
+    pub clip: Option<Clip>,
+}
+
+impl Default for ImageItem {
+    fn default() -> Self {
+        Self {
+            rect: Rect::default(),
+            image: ImageRef::default(),
+            tint: Color::rgba(255, 255, 255, 255),
+            radii: Radii::ZERO,
+            transform: None,
+            clip: None,
+        }
+    }
 }
 
 /// One glyph of a [`Glyphs`] item: the glyph id and its pen position in chunk space, device px, as shaped (no
@@ -388,6 +428,8 @@ pub enum Item {
     Box(BoxItem),
     /// A mask sprite.
     Mask(MaskItem),
+    /// A colour picture.
+    Image(ImageItem),
     /// A run of glyphs.
     Glyphs(Glyphs),
 }

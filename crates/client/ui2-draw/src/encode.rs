@@ -1,15 +1,19 @@
 //! Item to instance encoding.
 //!
-//! One box makes one instance (fill and border together), one mask one instance, one glyph one instance. Boxes
-//! with nothing to show and rectangles without area make none. Transforms and clips are interned in the
+//! One box makes one instance (fill and border together), one mask, picture or glyph one instance. Boxes
+//! with nothing to show, rectangles without area and pictures of a page the scene does not hold make none. Sprite
+//! rectangles of package pages are mapped from page to array coordinates ([`Pages`]). Transforms and clips are interned in the
 //! [`Tables`]; the instance carries their indices and the chunk's anchor.
 
 use glam::Affine2;
 
 use crate::glyphs::{GlyphStore, Lookup, glyph_key};
-use crate::instance::{FILL_SOLID, FLAG_BORDER, FLAG_FILL, KIND_BOX, KIND_MASK, Ui2Instance};
+use crate::instance::{
+    FILL_SOLID, FLAG_BORDER, FLAG_FILL, KIND_BOX, KIND_IMAGE, KIND_MASK, Ui2Instance,
+};
+use crate::pages::Pages;
 use crate::tables::{Clip, Tables};
-use crate::{BoxItem, ChunkItems, Fill, Glyphs, Item, MaskItem};
+use crate::{BoxItem, ChunkItems, Fill, Glyphs, ImageItem, Item, MaskItem};
 
 /// What the encoder works on besides the items.
 pub struct EncodeCtx<'a> {
@@ -19,6 +23,10 @@ pub struct EncodeCtx<'a> {
     pub glyphs: &'a mut GlyphStore,
     /// Incremented for every transform or clip that did not fit in its table (the item is drawn without it).
     pub table_overflow: &'a mut u32,
+    /// The package's picture pages.
+    pub pages: &'a Pages,
+    /// Side of the layers of the coverage array (mask pages and glyph pages), px.
+    pub mask_side: u32,
 }
 
 /// The result of encoding one chunk.
@@ -42,6 +50,7 @@ pub fn encode_chunk(chunk: &ChunkItems, ctx: &mut EncodeCtx<'_>) -> Encoded {
         match item {
             Item::Box(b) => encode_box(b, anchor, ctx, &mut out),
             Item::Mask(m) => encode_mask(m, anchor, ctx, &mut out),
+            Item::Image(m) => encode_image(m, anchor, ctx, &mut out),
             Item::Glyphs(g) => encode_glyphs(g, anchor, ctx, &mut out),
         }
     }
@@ -123,9 +132,32 @@ fn encode_mask(m: &MaskItem, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Enc
     let (xform, clip) = place(&m.transform, &m.clip, ctx, out);
     let mut i = Ui2Instance::of_kind(KIND_MASK);
     i.rect = [m.rect.x, m.rect.y, m.rect.w, m.rect.h];
-    i.uv = m.mask.uv;
+    i.uv = ctx.pages.mask_uv(m.mask.layer, m.mask.uv, ctx.mask_side);
     i.colors[0] = m.color.0;
     i.atlas_layer = m.mask.layer;
+    i.xform = xform;
+    i.clip = clip;
+    i.anchor = anchor;
+    out.instances.push(i);
+}
+
+/// A colour picture: the sprite of an `Rgba8` page times the tint, cut to the rounded rectangle. A picture whose
+/// page the scene does not hold makes no instance.
+fn encode_image(m: &ImageItem, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Encoded) {
+    if !m.rect.is_drawable() || m.tint.is_transparent() {
+        return;
+    }
+    let Some(uv) = ctx.pages.image_uv(m.image.layer, m.image.uv) else {
+        return;
+    };
+    let (xform, clip) = place(&m.transform, &m.clip, ctx, out);
+    let mut i = Ui2Instance::of_kind(KIND_IMAGE);
+    i.rect = [m.rect.x, m.rect.y, m.rect.w, m.rect.h];
+    let r = m.radii.fitted(m.rect.w, m.rect.h);
+    i.set_radii([r.tl, r.tr, r.br, r.bl]);
+    i.uv = uv;
+    i.colors[0] = m.tint.0;
+    i.atlas_layer = m.image.layer;
     i.xform = xform;
     i.clip = clip;
     i.anchor = anchor;
@@ -137,7 +169,7 @@ fn encode_glyphs(g: &Glyphs, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Enc
         return;
     }
     let (xform, clip) = place(&g.transform, &g.clip, ctx, out);
-    let page = ctx.glyphs.page_size() as f32;
+    let page = ctx.mask_side as f32;
     let layer_base = ctx.glyphs.layer_base();
     for pos in &g.glyphs {
         let (key, px, baseline) = glyph_key(g, pos);
@@ -182,6 +214,7 @@ mod tests {
         tables: Tables,
         glyphs: GlyphStore,
         overflow: u32,
+        pages: Pages,
     }
 
     impl Rig {
@@ -190,13 +223,17 @@ mod tests {
                 tables: Tables::new(),
                 glyphs: GlyphStore::new(AtlasConfig::default()),
                 overflow: 0,
+                pages: Pages::default(),
             }
         }
         fn encode(&mut self, c: &ChunkItems) -> Encoded {
+            let mask_side = self.glyphs.page_size();
             let mut ctx = EncodeCtx {
                 tables: &mut self.tables,
                 glyphs: &mut self.glyphs,
                 table_overflow: &mut self.overflow,
+                pages: &self.pages,
+                mask_side,
             };
             encode_chunk(c, &mut ctx)
         }

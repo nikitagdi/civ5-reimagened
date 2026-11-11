@@ -16,3 +16,5 @@ glam.workspace = true
 bytemuck.workspace = true
 thiserror.workspace = true
 ui2-text.workspace = true
+# The picture page table of a skin package (`Scene::set_pages`).
+ui2-package.workspace = true

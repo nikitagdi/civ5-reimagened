@@ -3054,6 +3054,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tracing",
  "ui2-draw",
+ "ui2-package",
  "ui2-text",
  "wgpu",
 ]
@@ -3935,6 +3936,7 @@ dependencies = [
  "bytemuck",
  "glam",
  "thiserror 2.0.21",
+ "ui2-package",
  "ui2-text",
 ]
 
