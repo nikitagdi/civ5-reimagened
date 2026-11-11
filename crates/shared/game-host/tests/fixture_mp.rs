@@ -2698,6 +2698,48 @@ fn rejected_with(h: &Harness, p: PlayerId, id: CmdId, want: RejectCode) {
     }
 }
 
+// v15 orders
+
+/// The queue and research orders of protocol v15 reach the core and get its refusal, like any order the
+/// host cannot execute; the game is unchanged.
+#[test]
+fn v15_queue_and_research_orders_are_refused_for_now() {
+    let mut h = started(2, 1, false);
+    let before = h.view(0).clone();
+    let ids: Vec<_> = [
+        Command::CityQueuePush {
+            city: 1,
+            order: 0,
+            item: 0,
+            front: false,
+        },
+        Command::CityQueuePop { city: 1, slot: 0 },
+        Command::CityQueueMove {
+            city: 1,
+            from: 1,
+            to: 0,
+        },
+        Command::CityReplaceHead {
+            city: 1,
+            order: 0,
+            item: 0,
+        },
+        Command::ResearchSet {
+            tech: 0,
+            queue: true,
+        },
+    ]
+    .into_iter()
+    .map(|c| h.cmd(0, c))
+    .collect();
+    h.run();
+    for id in ids {
+        rejected_with(&h, 0, id, RejectCode::Core);
+    }
+    assert_eq!(h.view(0), &before);
+    h.assert_in_sync();
+}
+
 #[test]
 fn a_peace_offer_is_in_the_views_of_both_sides_and_in_nobody_else_s() {
     let mut h = started(3, 1, false);

@@ -596,6 +596,43 @@ mod tests {
         assert!(matches!(decode_next(&bytes), Next::Entry(e, _) if *e == now));
     }
 
+    /// Protocol v15 orders are recorded like the older ones. A reader whose `Command` lacks a variant (a
+    /// v14 build reading a v15 recording) skips that order record by its length and reads on.
+    #[test]
+    fn v15_orders_record_and_unknown_commands_are_skipped() {
+        let order = entry(Body::Order(OrderRec {
+            player: 1,
+            cmd: Cmd {
+                id: 4,
+                turn: 30,
+                cmd: protocol::Command::CityQueuePush {
+                    city: 2,
+                    order: 1,
+                    item: 3,
+                    front: false,
+                },
+            },
+            verdict: Verdict::Forwarded,
+        }));
+        let bytes = encode_entry(&order).unwrap();
+        assert!(
+            matches!(decode_next(&bytes), Next::Entry(e, n) if *e == order && n == bytes.len())
+        );
+
+        // Entry { mono_us, wall_ms, Body::Order (1) { player, Cmd { id, turn, Command tag 99 } } }.
+        let payload = postcard::to_stdvec(&(5u64, 6u64, 1u32, 1i8, 4u32, 30i32, 99u32)).unwrap();
+        let mut rec = ((payload.len() + 1) as u32).to_le_bytes().to_vec();
+        rec.push(1);
+        rec.extend_from_slice(&payload);
+        let skipped_len = rec.len();
+        rec.extend_from_slice(&bytes);
+        let Next::Skipped { tag: 1, total, .. } = decode_next(&rec) else {
+            panic!("an order with an unknown command is not skipped");
+        };
+        assert_eq!(total, skipped_len);
+        assert!(matches!(decode_next(&rec[total..]), Next::Entry(e, _) if *e == order));
+    }
+
     #[test]
     fn the_header_round_trips_and_bad_ones_are_refused() {
         let h = SegHeader::new(936, 126);

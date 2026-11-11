@@ -529,6 +529,36 @@ pub enum Command {
         from: PlayerId,
         accept: bool,
     },
+    /// v15 (tag 20): add `item` of order type `order` to the city's build queue, at the front
+    /// (`front = true`) or at the back.
+    CityQueuePush {
+        city: i32,
+        order: i8,
+        item: i16,
+        front: bool,
+    },
+    /// v15 (tag 21): remove the queue entry at `slot` (0 is the item being built).
+    CityQueuePop {
+        city: i32,
+        slot: i8,
+    },
+    /// v15 (tag 22): move the queue entry at `from` to `to`, shifting the entries between them.
+    CityQueueMove {
+        city: i32,
+        from: i8,
+        to: i8,
+    },
+    /// v15 (tag 23): replace only the item being built; the rest of the queue stays.
+    CityReplaceHead {
+        city: i32,
+        order: i8,
+        item: i16,
+    },
+    /// v15 (tag 24): research `tech` now (`queue = false`) or append it to the research queue.
+    ResearchSet {
+        tech: i16,
+        queue: bool,
+    },
 }
 
 /// Who shoots in `Query::RangeTargets`.

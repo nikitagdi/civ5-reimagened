@@ -447,6 +447,15 @@ pub fn core_command(cmd: &Command) -> Result<CoreCommand, BuildError> {
         Command::CancelEndTurn | Command::ProposePeace { .. } | Command::AnswerPeace { .. } => {
             return Err("the B1 host does not support this v3 command".into());
         }
+        // v15 queue and research orders: no core command maps to them yet; refused like any
+        // order this host cannot execute.
+        Command::CityQueuePush { .. }
+        | Command::CityQueuePop { .. }
+        | Command::CityQueueMove { .. }
+        | Command::CityReplaceHead { .. }
+        | Command::ResearchSet { .. } => {
+            return Err("this host does not support the v15 queue and research orders yet".into());
+        }
     })
 }
 
@@ -734,6 +743,37 @@ mod tests {
                 y: 4
             })
         );
+    }
+
+    /// The v15 queue and research orders have no core command yet: refused, never mapped to another.
+    #[test]
+    fn v15_orders_are_not_core_commands_yet() {
+        for cmd in [
+            Command::CityQueuePush {
+                city: 1,
+                order: 0,
+                item: 2,
+                front: false,
+            },
+            Command::CityQueuePop { city: 1, slot: 0 },
+            Command::CityQueueMove {
+                city: 1,
+                from: 0,
+                to: 1,
+            },
+            Command::CityReplaceHead {
+                city: 1,
+                order: 0,
+                item: 2,
+            },
+            Command::ResearchSet {
+                tech: 3,
+                queue: false,
+            },
+        ] {
+            let e = core_command(&cmd).unwrap_err();
+            assert!(e.contains("does not support"), "{cmd:?}: {e}");
+        }
     }
 
     #[test]
