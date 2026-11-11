@@ -25,7 +25,7 @@ export const IR_VERSION = 1;
 /** Runs inside the page. Must be self-contained (it is serialized). */
 function extractInPage() {
   let nextId = 0;
-  const INTERNAL = new Set(["data-ui2-src", "data-ui2-node", "data-ui2-inst"]);
+  const INTERNAL = new Set(["data-ui2-src", "data-ui2-node", "data-ui2-inst", "data-ui2-asset"]);
   const SVG_NS = "http://www.w3.org/2000/svg";
   const isWs = (s) => !/[^ \t\n\r\f]/.test(s);
   const INLINE_DISPLAY = new Set(["inline", "inline-block", "inline-flex", "inline-grid", "inline-table"]);
@@ -192,6 +192,8 @@ export async function scanPage({ page, server, entry, state = "", viewport = [19
   blocked.clear();
   await page.setViewportSize({ width: viewport[0], height: viewport[1] });
   await page.goto(`${server.url}/${entry}`, { waitUntil: "load" });
+  // With the preview script the page is not final before includes and bindings are done.
+  await page.evaluate(() => (window.__ui2preview ? window.__ui2preview.ready : null));
   await page.evaluate(() => document.fonts.ready);
   const { dom, fonts, title, compat } = await page.evaluate(extractInPage);
 

@@ -1,0 +1,18 @@
+{
+  "model": {
+    "title": "Other",
+    "flag": true,
+    "ratio": 0.25,
+    "icon": "icon:ATLAS:4",
+    "when": "plain",
+    "me": { "name": "Bob", "score": 1 },
+    "none": [{ "x": "n1" }],
+    "items": [
+      { "id": 5, "n": "fig", "tags": ["b"] },
+      { "id": 6, "n": "kiwi", "tags": [] }
+    ]
+  },
+  "state": { "desc": true },
+  "ui": {},
+  "anchors": {}
+}
