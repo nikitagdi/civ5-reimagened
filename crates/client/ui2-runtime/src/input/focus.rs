@@ -29,7 +29,7 @@ impl Runtime {
             return false;
         };
         let flagged = instantiate::template_node(&*self.pkg, n.tmpl())
-            .is_some_and(|t| t.flags & node_flags::FOCUSABLE != 0);
+            .is_some_and(|t| t.flags & (node_flags::FOCUSABLE | node_flags::CONTROL) != 0);
         flagged && !self.disabled(id) && self.geo().shown(id)
     }
 

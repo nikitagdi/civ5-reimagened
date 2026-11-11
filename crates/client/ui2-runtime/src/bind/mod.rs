@@ -2,7 +2,7 @@
 //!
 //! Every node instance with bindings owns a contiguous range of *rows* (`Node::binds`): one per scalar binding
 //! of its template node (`data-bind-value`, `data-l10n`, `data-bind-class-toggle`, `data-bind-style-*`,
-//! `data-bind-disabled`), and one per step of `data-on-*` that reads something (the arguments of `intent`
+//! `data-bind-disabled`, `data-bind-model`), and one per step of `data-on-*` that reads something (the arguments of `intent`
 //! and `call`, the value of `set`, the path of `toggle`): those rows only keep their values, which input
 //! reads when the event happens. A `for` node has one row for its list, an `if` node one for its condition;
 //! a sorted or filtered list also has one row per model item for its sort key and filter (see [`list`]).
@@ -29,8 +29,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use ui2_model::{FrameDelta, Key, ModelStore, Op, Scalar as MScalar, Type, Value as MValue};
-use ui2_package::profile::action::Action;
-use ui2_package::profile::expr::{Expr, Value, eval, truthy};
+use ui2_package::profile::action::{Action, ControlKind};
+use ui2_package::profile::expr::{Expr, Value, eval, render, truthy};
 use ui2_package::{BindKind, ExprId, NodeKind, NodeRef, Package, PropId, StrId, TextSrc, TplId};
 
 use crate::arena::{Arena, Dirty, NodeClass, NodeId, StateBits};
@@ -60,6 +60,9 @@ pub(crate) enum RowKind {
     /// bindings, `action` the step's index in it. Evaluated like any row (when what it reads changes) and
     /// kept: an event reads the values as the player saw them, without the model at hand.
     Action { bind: u16, action: u16 },
+    /// The value a control edits (`data-bind-model`, the path below `state.`): kept as the model holds it
+    /// and as text, for the control's behaviour and its checked state.
+    Model(StrId),
     /// The items of a `for` node (its list, and whether the sort is descending).
     List,
     /// The condition of an `if` node.
@@ -137,6 +140,34 @@ pub(crate) fn to_model(v: &Value, ty: Option<&Type>) -> MValue {
             _ => MValue::Str(s.as_str().into()),
         },
         Value::Color(c) => MValue::U32(*c),
+    }
+}
+
+/// The segments of a control's model path (`data-bind-model` keeps the path below `state.`).
+pub(crate) fn model_segs(pkg: &Package, path: StrId) -> Vec<String> {
+    let mut segs = vec!["state".to_string()];
+    segs.extend(pkg.str(path).unwrap_or("").split('.').map(str::to_string));
+    segs
+}
+
+/// Whether a control is checked with its model at `v` (the value and its text): a checkbox or a toggle whose
+/// value is true, a radio whose `data-value` is the value. Other nodes are never checked.
+fn checked(pkg: &Package, tmpl: NodeRef, v: &[MValue]) -> bool {
+    let control = pkg
+        .bindings_of(tmpl.0, tmpl.1)
+        .iter()
+        .find_map(|b| match &b.kind {
+            BindKind::Control { kind, value, .. } => Some((*kind, *value)),
+            _ => None,
+        });
+    match (control, v) {
+        (Some((ControlKind::Checkbox | ControlKind::Toggle, _)), [raw, _]) => {
+            *raw == MValue::Bool(true)
+        }
+        (Some((ControlKind::Radio, Some(value))), [_, MValue::Str(text)]) => {
+            pkg.str(value) == Some(&**text)
+        }
+        _ => false,
     }
 }
 
@@ -475,6 +506,7 @@ impl Binder {
                     cond: *cond,
                 }),
                 BindKind::Disabled(e) => kinds.push(RowKind::Disabled(*e)),
+                BindKind::Model(p) => kinds.push(RowKind::Model(*p)),
                 BindKind::Style { prop, tpl } if styles::bindable(*prop) => {
                     kinds.push(RowKind::Style {
                         prop: *prop,
@@ -498,6 +530,10 @@ impl Binder {
 
     /// Adds the reads of a row of a node.
     fn reads_of(pkg: &Package, tmpl: NodeRef, kind: &RowKind, reads: &mut Reads<'_>) {
+        if let RowKind::Model(p) = kind {
+            reads.path(&model_segs(pkg, *p));
+            return;
+        }
         if let RowKind::Action { bind, action } = kind {
             match action_of(pkg, tmpl, *bind, *action) {
                 Some(Action::Intent { args, .. } | Action::Call { args, .. }) => {
@@ -538,7 +574,9 @@ impl Binder {
                 pkg.expr(*e).into_iter().collect()
             }
             // Read through `reads_of` (actions) or the list's state (lists, items).
-            RowKind::Action { .. } | RowKind::List | RowKind::Item => Vec::new(),
+            RowKind::Action { .. } | RowKind::Model(_) | RowKind::List | RowKind::Item => {
+                Vec::new()
+            }
         }
     }
 
@@ -775,6 +813,22 @@ impl Binder {
                     Some(Action::Stop) | None => Vec::new(),
                 })
             }
+            RowKind::Model(p) => {
+                let segs = model_segs(pkg, *p);
+                let raw = host.raw_path(&segs);
+                let seen = ui2_package::profile::expr::EvalHost::path(&mut host, &segs);
+                // A state path the store does not carry reads the package's default.
+                let raw = if raw == MValue::None {
+                    to_model(&seen, None)
+                } else {
+                    raw
+                };
+                let text = match &raw {
+                    MValue::Key(k) => k.to_js(),
+                    _ => render(&seen),
+                };
+                Out::Values(vec![raw, MValue::Str(text.into())])
+            }
             RowKind::Text(tpl) => Out::Text(host.template(*tpl).into()),
             RowKind::L10n { key, args } => {
                 let values: Vec<Value> = args.iter().map(|e| host.expr(*e)).collect();
@@ -848,6 +902,10 @@ impl Binder {
             (RowKind::Cond(_), Out::Bool(on)) => {
                 self.set_cond(arena, cx, errors, row.node, *on);
             }
+            (RowKind::Model(_), Out::Values(v)) => {
+                let on = tmpl.is_some_and(|t| checked(pkg, t, v));
+                styles::select::set_state(arena, row.node, StateBits::CHECKED, on);
+            }
             _ => {}
         }
         row.last = Some(out);
@@ -867,6 +925,41 @@ impl Binder {
                 Some(Out::Values(v)) => Some(v.as_slice()),
                 _ => None,
             })
+    }
+
+    /// The value of a control's model as its row last read it (`rows` is the node's row range): the value as
+    /// the model holds it and as text. `None` while it was not evaluated yet.
+    pub fn model_values(&self, rows: std::ops::Range<u32>) -> Option<(&MValue, &str)> {
+        let row = rows
+            .filter_map(|r| self.rows.get(r as usize)?.as_ref())
+            .find(|row| matches!(row.kind, RowKind::Model(_)))?;
+        match &row.last {
+            Some(Out::Values(v)) => match v.as_slice() {
+                [raw, MValue::Str(text)] => Some((raw, &**text)),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// The type of the value at a path a row reads (an optional value gives its inner type); a skin state
+    /// path the store does not carry has the type of its default.
+    pub fn model_type(&self, path: &str) -> Option<Type> {
+        let plan = self.plan.as_ref()?;
+        match plan.lookup(path) {
+            Slot::Field(f) => plan.entry(f).map(|(_, e)| match &e.ty {
+                Type::Option(inner) => (**inner).clone(),
+                t => t.clone(),
+            }),
+            Slot::State(i) => match plan.state.get(i as usize)? {
+                Value::Bool(_) => Some(Type::Scalar(MScalar::Bool)),
+                Value::Int(_) => Some(Type::Scalar(MScalar::I32)),
+                Value::Float(_) => Some(Type::Scalar(MScalar::F32)),
+                Value::Str(_) => Some(Type::Scalar(MScalar::Str)),
+                _ => None,
+            },
+            Slot::Missing => None,
+        }
     }
 
     /// The number of live rows.

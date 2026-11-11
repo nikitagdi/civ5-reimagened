@@ -2,7 +2,8 @@
 //!
 //! 1. a focused text field takes every key but Esc and Tab (the host's text bridge edits it);
 //! 2. Tab and Shift+Tab move the focus ([`focus`](super::focus));
-//! 3. Enter and Space click the focused node;
+//! 3. a focused control takes its keys ([`controls`](super::controls): arrows, Page Up/Down, Home, End,
+//!    Esc of a select); Enter and Space click the focused node;
 //! 4. Esc closes the top visible screen: `window.close` with the screen's window, origin `Hotkey`;
 //! 5. `data-hotkey` of the package: the key clicks its node (origin `Hotkey`) while the node is shown and not
 //!    disabled; the topmost layer wins (`window`, `hud`, `map`; never `tooltip`) and a visible screen blocks
@@ -48,6 +49,9 @@ impl Runtime {
         }
         if named == Some(NamedKey::Tab) && self.tab(k.modifiers.shift) {
             return InputOutcome::Consumed;
+        }
+        if let Some(out) = self.control_key(k, named) {
+            return out;
         }
         match named {
             Some(NamedKey::Enter | NamedKey::Space) => {
