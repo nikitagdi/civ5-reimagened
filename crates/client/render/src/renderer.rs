@@ -382,6 +382,8 @@ pub struct Renderer {
     /// The original UI's draw list (`ui-render`) and the textures it names.
     ui_pass: UiPass,
     ui_textures: UiTextures,
+    /// The UI v2 pass, made and armed by `prepare_ui2` (nothing of it exists or runs without that).
+    ui2: crate::ui2_pass::Ui2Slot,
     device: wgpu::Device,
     queue: wgpu::Queue,
     info: BackendInfo,
@@ -1079,6 +1081,7 @@ impl Renderer {
             present,
             ui_pass,
             ui_textures,
+            ui2: Default::default(),
             device,
             queue,
             info,
@@ -4038,6 +4041,23 @@ impl Renderer {
         self.targets.set_screen(self.scene_size());
     }
 
+    /// Uploads what changed in the UI v2 `scene` and arms the `Ui2` pass for the next [`Self::render`]. A
+    /// frame without this call draws no UI v2 and does no work for it.
+    pub fn prepare_ui2(&mut self, scene: &mut ui2_draw::Scene) {
+        let started = (self.cpu_clock)();
+        let target = UiTarget {
+            format: self.view_format,
+            size: (self.config.width, self.config.height),
+        };
+        self.ui2.prepare(&self.device, &self.queue, scene, &target);
+        self.ui2.prepare_ms += (self.cpu_clock)() - started;
+    }
+
+    /// The `ui2.*` counters of the last `prepare_ui2` (zero before the first).
+    pub fn ui2_stats(&self) -> crate::Ui2Stats {
+        self.ui2.stats()
+    }
+
     /// Skipped frames are not errors; the surface is reconfigured.
     pub fn render(
         &mut self,
@@ -5136,6 +5156,10 @@ impl Renderer {
         let mut pass: Option<wgpu::RenderPass<'static>> = None;
         let mut reflection_pass: Option<wgpu::RenderPass<'static>> = None;
         for step in &frame_plan.steps {
+            // Not asked for in this frame: no trace at all, not even a row of the pass table.
+            if *step == Step::Core(PassId::Ui2) && !self.ui2.armed {
+                continue;
+            }
             let mut started = (self.cpu_clock)();
             let mut counted = (stats.draws, stats.triangles);
             let mut cmds_before = crate::perf::draw::counts();
@@ -5471,6 +5495,38 @@ impl Renderer {
                         span.map(|s| self.timer.writes(s)),
                     );
                 }
+                // The UI v2 layers, prepared by `prepare_ui2` (whose time counts here): over the frame,
+                // under the original UI. Nothing to draw opens no pass.
+                Step::Core(PassId::Ui2) => {
+                    started -= std::mem::take(&mut self.ui2.prepare_ms);
+                    self.ui2.armed = false;
+                    self.ui2.ran = true;
+                    if let Some(ui2) = self.ui2.pass.as_ref().filter(|p| p.has_work()) {
+                        let span = self.timer.reserve(PassId::Ui2);
+                        let mut p = encoder
+                            .begin_render_pass(&wgpu::RenderPassDescriptor {
+                                label: Some("ui2"),
+                                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                                    view,
+                                    depth_slice: None,
+                                    resolve_target: None,
+                                    ops: wgpu::Operations {
+                                        load: wgpu::LoadOp::Load,
+                                        store: wgpu::StoreOp::Store,
+                                    },
+                                })],
+                                depth_stencil_attachment: None,
+                                timestamp_writes: span.map(|s| self.timer.writes(s)),
+                                occlusion_query_set: None,
+                                multiview_mask: None,
+                            })
+                            .forget_lifetime();
+                        ui2.draw(&mut p);
+                        let (draws, triangles) = ui2.draw_totals();
+                        stats.draws += draws;
+                        stats.triangles += triangles;
+                    }
+                }
                 // The original UI (`ui-render`): over the frame, under egui. An empty list, or one
                 // with nothing to draw yet, opens no pass.
                 Step::Core(PassId::UiGame) => {
@@ -5655,6 +5711,9 @@ impl Renderer {
             .extend(self.world.services.anim.stats().counters());
         stats.ui = self.ui_pass.stats();
         stats.counters.extend(stats.ui.counters());
+        if std::mem::take(&mut self.ui2.ran) {
+            stats.counters.extend(self.ui2.stats().counters());
+        }
         stats.ui_times = ui_times(&stats.passes);
         {
             let (built, deferred, checked) = self.world.city.layout_counters();

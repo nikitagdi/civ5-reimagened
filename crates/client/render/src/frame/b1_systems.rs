@@ -1162,7 +1162,14 @@ mod tests {
         frame(&gpu, &mut r, &cameras()[0].1, F::Rgba8Unorm);
         let stats = r.last_frame_stats().clone();
         let order: Vec<_> = stats.passes.iter().map(|p| p.pass).collect();
-        assert_eq!(order, crate::frame::PassId::ORDER);
+        let always: Vec<_> = crate::frame::PassId::ORDER
+            .into_iter()
+            .filter(|p| !p.on_demand())
+            .collect();
+        assert_eq!(
+            order, always,
+            "an on-demand pass that did not run has no row"
+        );
         assert!(stats.draws > 0);
         assert_eq!(
             stats.passes.iter().map(|p| p.draws).sum::<u32>(),
@@ -1201,7 +1208,7 @@ mod tests {
             .unwrap();
         assert_eq!(resolve.gpu_ms, None);
         let table = stats.pass_table();
-        for pass in crate::frame::PassId::ORDER {
+        for pass in always {
             assert!(table.contains(crate::frame::pass_name(pass)), "{table}");
         }
     }

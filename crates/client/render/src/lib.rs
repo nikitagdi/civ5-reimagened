@@ -38,6 +38,7 @@ pub mod terrain;
 pub mod terrain_detail;
 mod terrain_pipeline;
 pub mod texture;
+pub mod ui2_pass;
 pub mod ui_pass;
 mod water_pipeline;
 pub mod world;
@@ -66,6 +67,7 @@ pub use terrain::{TerrainMesh, TerrainSnapshot};
 pub use ui_pass::{
     UiExternal, UiPass, UiStats, UiTarget, UiTextureData, UiTextureError, UiTextures, UiTimes,
 };
+pub use ui2_pass::{Ui2Pass, Ui2Stats};
 
 /// Re-exported: model and texture blob types appear in the renderer API.
 pub use asset_format;

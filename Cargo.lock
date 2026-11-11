@@ -3050,6 +3050,8 @@ dependencies = [
  "naga",
  "thiserror 2.0.21",
  "tracing",
+ "ui2-draw",
+ "ui2-text",
  "wgpu",
 ]
 

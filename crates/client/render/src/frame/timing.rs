@@ -4,7 +4,8 @@
 //! only the CPU time of recording the pass is known and `gpu_ms` is `None` ("GPU -" in the table).
 //!
 //! `PassStat` rows are made for every pass of table 4.1 (`PassId::ORDER`), also for those that did
-//! no work in the frame, so `?stats=1` always lists all of them (AC-R8.6).
+//! no work in the frame, so `?stats=1` always lists all of them (AC-R8.6). An on-demand pass
+//! (`PassId::on_demand`) gets its row, in table order, only in frames where it ran.
 
 use crate::perf::{Buf, Cluster, DeviceTrack};
 use std::sync::Arc;
@@ -52,6 +53,7 @@ pub fn pass_name(pass: PassId) -> &'static str {
         PassId::Main => "Main",
         PassId::Resolve => "Resolve",
         PassId::Present => "Present",
+        PassId::Ui2 => "Ui2",
         PassId::UiGame => "UiGame",
         PassId::Ui => "Ui",
         PassId::ClassMask => "ClassMask",
@@ -92,6 +94,7 @@ impl PassTally {
         Self {
             rows: PassId::ORDER
                 .iter()
+                .filter(|p| !p.on_demand())
                 .map(|&pass| PassStat {
                     pass,
                     gpu_ms: None,
@@ -104,20 +107,33 @@ impl PassTally {
         }
     }
 
-    /// Adds a step's recording time and draws to its pass. `ClassMask` gets a row on first use.
+    /// Adds a step's recording time and draws to its pass. An on-demand pass gets its row on first use
+    /// at its place in the table; `ClassMask` (not in the table) at the end.
     pub fn add(&mut self, pass: PassId, cpu_ms: f64, draws: u32, triangles: u32) {
         let at = match self.rows.iter().position(|r| r.pass == pass) {
             Some(at) => at,
             None => {
-                self.rows.push(PassStat {
-                    pass,
-                    gpu_ms: None,
-                    cpu_ms: 0.0,
-                    draws: 0,
-                    triangles: 0,
-                    counts: Default::default(),
-                });
-                self.rows.len() - 1
+                let order = |p: PassId| PassId::ORDER.iter().position(|&q| q == p);
+                let at = match order(pass) {
+                    Some(o) => self
+                        .rows
+                        .iter()
+                        .position(|r| order(r.pass).is_none_or(|ro| ro > o))
+                        .unwrap_or(self.rows.len()),
+                    None => self.rows.len(),
+                };
+                self.rows.insert(
+                    at,
+                    PassStat {
+                        pass,
+                        gpu_ms: None,
+                        cpu_ms: 0.0,
+                        draws: 0,
+                        triangles: 0,
+                        counts: Default::default(),
+                    },
+                );
+                at
             }
         };
         let row = &mut self.rows[at];
@@ -383,7 +399,28 @@ mod tests {
     fn the_tally_has_a_row_for_every_pass_of_the_table() {
         let t = PassTally::new();
         let rows = t.rows.iter().map(|r| r.pass).collect::<Vec<_>>();
-        assert_eq!(rows, PassId::ORDER);
+        let always: Vec<PassId> = PassId::ORDER
+            .into_iter()
+            .filter(|p| !p.on_demand())
+            .collect();
+        assert_eq!(rows, always);
+        assert!(
+            !rows.contains(&PassId::Ui2),
+            "an on-demand pass has no row until it runs"
+        );
+    }
+
+    #[test]
+    fn an_on_demand_pass_gets_its_row_in_table_order_when_it_runs() {
+        let mut t = PassTally::new();
+        t.add(PassId::ClassMask, 0.1, 0, 0);
+        t.add(PassId::Ui2, 0.2, 3, 6);
+        let rows = t.rows.iter().map(|r| r.pass).collect::<Vec<_>>();
+        let mut want: Vec<PassId> = PassId::ORDER.to_vec();
+        want.push(PassId::ClassMask);
+        assert_eq!(rows, want);
+        let ui2 = t.rows.iter().find(|r| r.pass == PassId::Ui2).unwrap();
+        assert_eq!((ui2.draws, ui2.triangles), (3, 6));
     }
 
     #[test]
@@ -396,7 +433,11 @@ mod tests {
         let main = t.rows.iter().find(|r| r.pass == PassId::Main).unwrap();
         assert_eq!((main.draws, main.triangles), (5, 50));
         assert!((main.cpu_ms - 0.75).abs() < 1e-6);
-        assert_eq!(t.rows.len(), PassId::ORDER.len() + 1, "ClassMask got a row");
+        assert_eq!(
+            t.rows.len(),
+            PassId::ORDER.len(),
+            "ClassMask got a row, Ui2 has none"
+        );
     }
 
     #[test]

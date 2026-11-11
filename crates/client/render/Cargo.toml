@@ -18,6 +18,9 @@ wgpu.workspace = true
 glam.workspace = true
 bytemuck.workspace = true
 draw-list.workspace = true
+# UI v2: the retained scene the `Ui2` pass draws, and its glyph atlas.
+ui2-draw.workspace = true
+ui2-text.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
