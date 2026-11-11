@@ -1,25 +1,52 @@
-//! When to rebuild: the replica's change signals of this frame against the previous frame's.
+//! When to rebuild: the change signals of this frame (replica, session, the UI's own state) against the previous
+//! frame's.
 //!
-//! The comparison is a handful of integers; nothing here reads the game. A root marked here stays pending until
-//! the replica can be read (live and caught up), then it is built once, however many batches came meanwhile.
+//! The comparisons are a handful of integers and a few small values; nothing here reads the game. A root marked
+//! here stays pending until it can be built (the replica live and caught up), then it is built once, however
+//! many signals came meanwhile.
 
+use protocol::{PlayerId, SeatView, TurnState};
 use replica::{ReplicaStep, State};
+use ui2_model::r#gen::Timer;
 
-/// A set of model roots, as bits.
+use crate::session::{SessionRead, timer};
+
+/// A set of model roots (and the timer patch of `turn`), as bits.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Roots(u8);
+pub struct Roots(u16);
 
 impl Roots {
     pub const NONE: Roots = Roots(0);
     pub const GAME: Roots = Roots(1);
     pub const TOP: Roots = Roots(1 << 1);
     pub const RESEARCH: Roots = Roots(1 << 2);
-    /// Every root built from the replica's game.
-    pub const GAME_DATA: Roots = Roots(Self::GAME.0 | Self::TOP.0 | Self::RESEARCH.0);
+    pub const PLAYERS: Roots = Roots(1 << 3);
+    pub const TURN: Roots = Roots(1 << 4);
+    /// Only `turn.timer` (a new second): written from the last `turn`, without reading the game.
+    pub const TIMER: Roots = Roots(1 << 5);
+    /// Every root built from the replica's game: what a journal batch or a new snapshot rebuilds.
+    pub const GAME_DATA: Roots =
+        Roots(Self::GAME.0 | Self::TOP.0 | Self::RESEARCH.0 | Self::PLAYERS.0 | Self::TURN.0);
+    /// What a change of the session's turn state or seats rebuilds.
+    pub const SESSION_TURN: Roots = Roots(Self::GAME.0 | Self::TURN.0);
+
+    /// The roots that need the replica's game, in the order a frame builds them (the budget queue).
+    pub const QUEUE: [Roots; 5] = [
+        Self::TOP,
+        Self::RESEARCH,
+        Self::GAME,
+        Self::TURN,
+        Self::PLAYERS,
+    ];
 
     #[must_use]
     pub const fn union(self, other: Roots) -> Roots {
         Roots(self.0 | other.0)
+    }
+
+    #[must_use]
+    pub const fn without(self, other: Roots) -> Roots {
+        Roots(self.0 & !other.0)
     }
 
     #[must_use]
@@ -56,7 +83,7 @@ impl Seen {
     }
 }
 
-/// The roots this frame's signals ask to rebuild.
+/// The roots the replica's signals of this frame ask to rebuild.
 ///
 /// - a first look at a replica, a new generation (snapshot load, resync) or a `Loaded`/`TurnSwitched` step:
 ///   everything;
@@ -84,6 +111,44 @@ pub fn changes(prev: Option<&Seen>, now: &Seen, steps: &[ReplicaStep]) -> Roots 
         }
     }
     roots
+}
+
+/// What the source remembers of the session between frames. A value is cloned only when it changed.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SessionSeen {
+    pub me: Option<PlayerId>,
+    pub turn: Option<TurnState>,
+    pub seats: Vec<SeatView>,
+    pub timer: Option<Timer>,
+}
+
+impl SessionSeen {
+    /// Compares the session with what was seen, remembers the new values and says what to rebuild:
+    ///
+    /// - our seat, the turn state (phase, mode, who ended the turn, the timers) or the seats' connections changed:
+    ///   `game` and `turn`;
+    /// - only the second shown on our timer changed: the timer patch of `turn`.
+    pub fn update(&mut self, s: &dyn SessionRead, now_ms: u64) -> Roots {
+        let mut roots = Roots::NONE;
+        if self.me != s.me() {
+            self.me = s.me();
+            roots = roots.union(Roots::SESSION_TURN);
+        }
+        if self.turn.as_ref() != s.turn_state() {
+            self.turn = s.turn_state().cloned();
+            roots = roots.union(Roots::SESSION_TURN);
+        }
+        if self.seats.as_slice() != s.seats() {
+            self.seats = s.seats().to_vec();
+            roots = roots.union(Roots::TURN);
+        }
+        let t = timer(s, now_ms);
+        if self.timer != t {
+            self.timer = t;
+            roots = roots.union(Roots::TIMER);
+        }
+        roots
+    }
 }
 
 #[cfg(test)]
@@ -130,6 +195,13 @@ mod tests {
         assert!(r.contains(Roots::TOP));
         assert!(!r.contains(Roots::RESEARCH));
         assert_eq!(r.len(), 2);
+        assert_eq!(r.without(Roots::TOP), Roots::GAME);
         assert!(Roots::NONE.is_empty());
+        let queued = Roots::QUEUE.iter().fold(Roots::NONE, |a, r| a.union(*r));
+        assert_eq!(
+            queued,
+            Roots::GAME_DATA,
+            "every game-data root has a place in the queue"
+        );
     }
 }

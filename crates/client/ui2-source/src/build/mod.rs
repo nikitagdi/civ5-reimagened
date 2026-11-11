@@ -1,7 +1,21 @@
-//! Builders of the model roots: plain functions from core records to generated root structs.
+//! Builders of the model roots: plain functions from core records and session facts to generated root structs.
 
 pub mod game;
+pub mod players;
 pub mod top;
+pub mod turn;
+
+use ui2_model::Key;
+
+use crate::catalog::Catalog;
+use crate::session::SessionRead;
+
+/// What a builder may look at besides the game: the session, the frame's time, the catalog.
+pub(crate) struct Cx<'a> {
+    pub session: &'a dyn SessionRead,
+    pub now_ms: u64,
+    pub catalog: &'a Catalog,
+}
 
 /// `part / whole` rounded to 1/1000; 0 when `whole` is not positive.
 #[must_use]
@@ -13,9 +27,22 @@ pub fn fraction(part: i32, whole: i32) -> f32 {
     ((f * 1000.0).round() / 1000.0) as f32
 }
 
+/// `key<unit>` / `key<city>`: `(owner << 32) | id`. The core's owner is a small player id (barbarians 63).
+#[must_use]
+pub fn entity_key(owner: i8, id: i32) -> Key {
+    Key::new(u32::from(owner.cast_unsigned()), id.cast_unsigned())
+}
+
+/// `key<player>`: the player id.
+#[must_use]
+pub fn player_key(id: i8) -> Key {
+    Key::from_i32(i32::from(id))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::fraction;
+    use super::{entity_key, fraction};
+    use ui2_model::Key;
 
     #[test]
     fn fraction_rounds_to_thousandths() {
@@ -24,5 +51,11 @@ mod tests {
         assert_eq!(fraction(2, 3), 0.667);
         assert_eq!(fraction(5, 0), 0.0);
         assert_eq!(fraction(5, -1), 0.0);
+    }
+
+    #[test]
+    fn entity_keys_put_the_owner_high() {
+        assert_eq!(entity_key(2, 7), Key::new(2, 7));
+        assert_eq!(entity_key(63, 1).to_js(), "63:1");
     }
 }
