@@ -256,6 +256,25 @@ pub fn show(ctx: &egui::Context, view: &SettingsView) -> Vec<UiAction> {
     actions
 }
 
+/// The notice of a game interface that failed (top centre, over the game): the reason and [Close].
+pub fn show_ui_notice(ctx: &egui::Context, text: &str) -> Vec<UiAction> {
+    let mut actions = Vec::new();
+    let width = (ctx.content_rect().width() - 32.0).clamp(240.0, 520.0);
+    egui::Window::new("Interface")
+        .anchor(egui::Align2::CENTER_TOP, [0.0, 48.0])
+        .collapsible(false)
+        .resizable(false)
+        .min_width(width)
+        .max_width(width)
+        .show(ctx, |ui| {
+            ui.label(text);
+            if ui.button("Close").clicked() {
+                actions.push(UiAction::DismissUiNotice);
+            }
+        });
+    actions
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -287,6 +306,19 @@ mod tests {
 
     fn click(v: &SettingsView, label: &str) -> Vec<UiAction> {
         click_nth(v, label, 0)
+    }
+
+    #[test]
+    fn the_interface_notice_says_why_and_closes() {
+        let text = "Interface v2 failed: skin x (scripts: boom). The current interface stays.";
+        assert!(find_widget(text, |ctx| show_ui_notice(ctx, text)).is_some());
+        let at = find_widget("Close", |ctx| show_ui_notice(ctx, text))
+            .expect("Close")
+            .center();
+        assert_eq!(
+            click_at(at, false, |ctx| show_ui_notice(ctx, text)),
+            [UiAction::DismissUiNotice]
+        );
     }
 
     #[test]

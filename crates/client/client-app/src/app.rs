@@ -1093,6 +1093,7 @@ impl App {
                     self.gfx_polled_ms = 0;
                 }
                 UiAction::ToggleStats(on) => self.config.stats = on,
+                UiAction::DismissUiNotice => self.ui_host.dismiss_notice(),
                 UiAction::SetPerfGroups(mask) => {
                     if let Some(r) = self.renderer.as_mut() {
                         r.set_disabled_groups(mask);
@@ -2021,6 +2022,11 @@ impl App {
                             self.config.stats,
                             Some(session),
                         );
+                        // A game UI failed: the notice says why and which one shows now.
+                        views.ui_notice = self
+                            .ui_host
+                            .notice(self.clock.now_ms_f64())
+                            .map(str::to_owned);
                         if m2_on && matches!(phase, ClientPhase::Playing) && terrain_ready {
                             // AC-S4: the game screen of the original UI has no egui panel of the game.
                             original_game_screen(&mut views);
@@ -2062,7 +2068,7 @@ impl App {
                             snap.terrain_cells = Some((live.visible as u32, live.unpaged as u32));
                             (snap.map_units, snap.map_cities) = self.bridge.drawn();
                             if self.ui_host.has_game_ui() {
-                                let mut ui = self.ui_host.test_view(None);
+                                let mut ui = self.ui_host.test_view(None, self.clock.now_ms_f64());
                                 ui.replica_digest = self.replica_digest.clone();
                                 snap.ui = Some(ui);
                             }
@@ -2521,6 +2527,8 @@ fn original_game_screen(views: &mut Screens) {
         conn: views.conn.take(),
         // Opened from the performance panel (the original UI has no screen for it).
         settings: views.settings.take(),
+        // A game UI that failed tells why (the host's own notice, not a panel of the game).
+        ui_notice: views.ui_notice.take(),
         ..Screens::default()
     };
 }
@@ -2623,6 +2631,7 @@ fn is_game_action(a: &UiAction) -> bool {
             | UiAction::SetPerfGroups(_)
             | UiAction::SendPerfReport
             | UiAction::MinimapPointer { .. }
+            | UiAction::DismissUiNotice
     )
 }
 

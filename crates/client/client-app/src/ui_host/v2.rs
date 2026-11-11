@@ -426,6 +426,10 @@ pub struct V2Frontend {
     text_bridge: Option<Box<dyn TextInputBridge>>,
     /// The source's warm-up (`V2Ui::warm_up`) is due: a game was joined, loaded or left since the last one.
     warm_due: bool,
+    /// The running skin failed (for the host, once): why.
+    lost: Option<String>,
+    /// Why UI v2 is off, once no skin can be used.
+    off_reason: Option<String>,
 }
 
 impl V2Frontend {
@@ -459,6 +463,8 @@ impl V2Frontend {
             text_input: None,
             text_bridge: None,
             warm_due: true,
+            lost: None,
+            off_reason: None,
         }
     }
 
@@ -583,19 +589,19 @@ impl V2Frontend {
     fn on_index(&mut self, answer: Result<HttpResponse, HttpError>) -> Stage {
         let body = match body_of(INDEX_PATH, answer) {
             Ok(b) => b,
-            Err(why) => return classic(&why),
+            Err(why) => return self.off(&why),
         };
         let text = match std::str::from_utf8(&body) {
             Ok(t) => t,
-            Err(_) => return classic(&format!("{INDEX_PATH} is not UTF-8")),
+            Err(_) => return self.off(&format!("{INDEX_PATH} is not UTF-8")),
         };
         match SkinRegistry::parse(text) {
             Ok(r) => self.registry = r,
-            Err(e) => return classic(&e.to_string()),
+            Err(e) => return self.off(&e.to_string()),
         }
         let want = self.choice.skin.as_deref();
         let Some(entry) = self.registry.resolve(want) else {
-            return classic("the skin index has no skin to start");
+            return self.off("the skin index has no skin to start");
         };
         if let Some(w) = want
             && w != entry.id
@@ -611,8 +617,13 @@ impl V2Frontend {
 
     fn fetch(&mut self, id: String) -> Stage {
         let Some(entry) = self.registry.get(&id) else {
-            return classic(&format!("skin {id} is not in the index"));
+            return self.off(&format!("skin {id} is not in the index"));
         };
+        // A skin for another script API is refused before it is downloaded.
+        if let Err(e) = entry.check_api() {
+            let why = e.failure.to_string();
+            return self.fall_back(&id, &why);
+        }
         let url = entry.path();
         tracing::info!(%url, "UI v2: fetching skin {id}");
         let op = self.http.get(&url);
@@ -691,8 +702,15 @@ impl V2Frontend {
                 tracing::warn!("UI v2: skin {id} cannot be used ({why}); trying skin {next}");
                 self.fetch(next)
             }
-            Fallback::Classic => classic(&format!("skin {id} cannot be used ({why})")),
+            Fallback::Classic => self.off(&format!("skin {id} cannot be used ({why})")),
         }
+    }
+
+    /// No skin can be used in this session: UI v2 is off and says why.
+    fn off(&mut self, why: &str) -> Stage {
+        tracing::warn!("UI v2 is off, the classic UI stays: {why}");
+        self.off_reason = Some(why.to_owned());
+        Stage::Classic
     }
 
     /// One frame after the classic layer's: advances the loading and, while a skin runs and the game's layer is up,
@@ -830,6 +848,7 @@ impl V2Frontend {
     fn after_frame(&mut self, report: &V2FrameReport) -> bool {
         if let Some(e) = &report.fatal {
             let failure = e.failure.to_string();
+            self.lost = Some(format!("skin {} ({failure})", e.skin));
             self.drop_skin();
             self.stage = self.fall_back(&e.skin, &failure);
         }
@@ -895,7 +914,11 @@ impl Frontend for V2Frontend {
         self.probe_stage();
         self.note_game(cx.session, cx.playing);
         match &self.stage {
-            Stage::Classic => Readiness::Failed("no UI v2 skin can be used".into()),
+            Stage::Classic => Readiness::Failed(
+                self.off_reason
+                    .clone()
+                    .unwrap_or_else(|| "no UI v2 skin can be used".into()),
+            ),
             Stage::Running(_) if self.game_up => Readiness::Ready,
             _ => Readiness::Loading { progress: None },
         }
@@ -1012,8 +1035,12 @@ impl Frontend for V2Frontend {
         V2Frontend::cursor_row(self)
     }
 
-    fn failure(&self) -> Option<String> {
-        matches!(self.stage, Stage::Classic).then(|| "no UI v2 skin can be used".to_owned())
+    fn take_failure(&mut self) -> Option<String> {
+        self.lost.take()
+    }
+
+    fn recovers(&self) -> bool {
+        !matches!(self.stage, Stage::Classic)
     }
 
     fn skin(&self) -> Option<String> {
@@ -1049,11 +1076,6 @@ fn body_of(url: &str, answer: Result<HttpResponse, HttpError>) -> Result<Vec<u8>
         Ok(r) => Err(format!("{url}: HTTP {}", r.status)),
         Err(e) => Err(format!("{url}: {e}")),
     }
-}
-
-fn classic(why: &str) -> Stage {
-    tracing::warn!("UI v2 is off, the classic UI stays: {why}");
-    Stage::Classic
 }
 
 #[cfg(test)]
@@ -1657,6 +1679,77 @@ mod tests {
         assert!(
             h.warm_due,
             "a new skin warms the source up once a game is read"
+        );
+    }
+
+    /// A fixture package of `ui2-host` (`tests/fixtures`) by skin id, and its index entry.
+    fn fixture(id: &str) -> (Vec<u8>, serde_json::Value) {
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../ui2-host/tests/fixtures");
+        let idx: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(dir.join("skins.json")).expect("the fixture index"),
+        )
+        .expect("json");
+        let mut entry = idx
+            .as_array()
+            .and_then(|a| a.iter().find(|e| e["id"] == id))
+            .cloned()
+            .expect("entry");
+        let bytes =
+            std::fs::read(dir.join(entry["file"].as_str().expect("file"))).expect("package");
+        entry["default"] = serde_json::json!(false);
+        (bytes, entry)
+    }
+
+    #[test]
+    fn a_skin_for_another_script_api_is_not_downloaded() {
+        let (_, api9) = fixture("api9");
+        let pkg = kit_package();
+        let full = ui2_host::hash_hex(&pkg.hash());
+        let idx = index(&[api9, entry("kit", &full, true)]);
+        let file = format!("ui2/kit-{}.ui2", &full[..16]);
+        let (mut h, http) = host(
+            FakeHttp::default()
+                .ok(INDEX_PATH, idx)
+                .ok(&file, pkg.bytes().to_vec()),
+            Some("api9"),
+        );
+        assert_eq!(settle(&mut h), V2State::Running("kit".into()));
+        assert_eq!(*http.asked.borrow(), [INDEX_PATH.to_owned(), file]);
+    }
+
+    #[test]
+    fn a_skin_that_fails_while_running_is_reported_once_and_the_default_comes_up() {
+        let (bytes, scriptfail) = fixture("scriptfail");
+        let file = format!("ui2/{}", scriptfail["file"].as_str().expect("file"));
+        let pkg = kit_package();
+        let full = ui2_host::hash_hex(&pkg.hash());
+        let kit_file = format!("ui2/kit-{}.ui2", &full[..16]);
+        let workers = ui2_script::testing::MockScriptHost::new();
+        let w = workers.clone();
+        let (mut h, _) = host_with(
+            FakeHttp::default()
+                .ok(INDEX_PATH, index(&[scriptfail, entry("kit", &full, true)]))
+                .ok(&file, bytes)
+                .ok(&kit_file, pkg.bytes().to_vec()),
+            Some("scriptfail"),
+            Some(Rc::new(move || Box::new(w.clone()) as Box<dyn ScriptHost>)),
+        );
+        assert_eq!(settle(&mut h), V2State::Running("scriptfail".into()));
+        workers.reply(
+            workers.live()[0],
+            r#"{"t":"fail","ctx":"skin","error":{"message":"Error: boom"}}"#,
+        );
+        let r = frame(&mut h);
+        assert!(!h.after_frame(&r));
+        let why = Frontend::take_failure(&mut h).expect("the failure");
+        assert!(why.contains("scriptfail") && why.contains("boom"), "{why}");
+        assert_eq!(Frontend::take_failure(&mut h), None, "once");
+        assert!(h.recovers(), "the default skin loads");
+        assert_eq!(settle(&mut h), V2State::Running("kit".into()));
+        assert!(
+            h.text_bridge.is_none(),
+            "the next skin holds the text input"
         );
     }
 

@@ -9,6 +9,7 @@
 // within 2 s) and again once the settler founded a city (through the test port's orders); `ui2.draws.hud` <= 5; no console errors. Then a page without `&ui=`: `ui2()` is null and no `ui2.*` pass ran
 // (`ui2.draws` absent or 0). Screenshot of the strip: <logs>/ui2-top.png.
 import { writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { openPage, act, until, state, appUrl } from "../lib/browser.mjs";
 import { DEV_PASSWORD } from "../lib/game.mjs";
 import { FOUND_CITY } from "../lib/policy.mjs";
@@ -184,6 +185,39 @@ async function hooks(page, numbers, check) {
   check("R17: UI-only actions leave the replica digest as it is", /^[0-9a-f]{16}$/.test(d0 ?? "") && (d0 === d1 || seq0 !== seq1), JSON.stringify(numbers.replicaDigest));
 }
 
+/** The broken skin packages of `crates/client/ui2-host/tests/fixtures` (`badhash`, `api9`, `scriptfail`). */
+const FIXTURES = fileURLToPath(new URL("../../../crates/client/ui2-host/tests/fixtures/", import.meta.url));
+
+/**
+ * Fatal skin failures (R4) on a page whose classic UI runs and whose UI v2 has not loaded yet: the page gets the fixture
+ * index instead of the build's. `v2:badhash` (another hash than its file) falls back to the default `scriptfail` (its
+ * script throws while it loads), which falls back to the classic UI with a notice; `v2:api9` (script API 9) is refused
+ * before its download. The classic UI stays on the screen, each failure is counted once, nothing is tried in a loop.
+ */
+async function brokenPackages(page, numbers, check) {
+  await page.route("**/ui2/skins.json", (r) => r.fulfill({ path: `${FIXTURES}skins.json`, contentType: "application/json" }));
+  await page.route(/\/ui2\/[a-z0-9]+-[0-9a-f]{16}\.ui2$/, (r) => r.fulfill({ path: `${FIXTURES}${r.request().url().split("/").pop()}` }));
+  const before = (await state(page))?.ui;
+  await act(page, { kind: "setUi", value: "v2:badhash" });
+  const t0 = Date.now();
+  let st = await until(page, (x) => (x.ui?.failed?.length ?? 0) > (before?.failed?.length ?? 0) && !x.ui.switching, 30000, "the broken skins refused");
+  const firstMs = Date.now() - t0;
+  // No loop: a few seconds later nothing more failed and the classic UI still has the screen.
+  await sleep(3000);
+  st = await state(page);
+  const failed = st.ui.failed.slice(before?.failed?.length ?? 0);
+  numbers.broken = { firstMs, failed, notice: st.ui.notice, switches: [before?.switches, st.ui.switches], probe: await ui2(page) };
+  check("broken package: back to the classic UI with a notice", st.ui.active === "classic" && typeof st.ui.notice === "string" && /failed/.test(st.ui.notice),
+    JSON.stringify({ active: st.ui.active, notice: st.ui.notice }));
+  check("broken package: badhash, then the default scriptfail, once each", failed.length === 1 && /scriptfail/.test(failed[0].why), JSON.stringify(failed));
+  check("broken package: no loop", st.ui.switches - (before?.switches ?? 0) <= 1 && !st.ui.switching, JSON.stringify(numbers.broken.switches));
+  await act(page, { kind: "setUi", value: "v2:api9" });
+  st = await until(page, (x) => x.ui.failed.length > (before?.failed?.length ?? 0) + 1 && !x.ui.switching, 15000, "api9 refused");
+  const last = st.ui.failed[st.ui.failed.length - 1];
+  numbers.broken.api9 = last;
+  check("api9: refused (script API 9.0), the classic UI stays", st.ui.active === "classic" && /9\.0/.test(last?.why ?? ""), JSON.stringify(last));
+}
+
 export async function run(ctx) {
   const o = ctx.opts;
   const started = Date.now();
@@ -321,6 +355,13 @@ export async function run(ctx) {
     result.consoleErrors.push(...c.errors);
     const errs = appErrors(c.errors);
     check("no console errors (classic)", errs.length === 0, `${errs.length} error(s)${errs[0] ? `: ${errs[0]}` : ""}`);
+    if (!error) {
+      try {
+        await brokenPackages(c.page, result.numbers, check);
+      } catch (e) {
+        error = e;
+      }
+    }
     await c.close();
   }
 

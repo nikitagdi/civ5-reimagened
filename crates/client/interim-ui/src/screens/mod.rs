@@ -168,6 +168,8 @@ pub enum UiAction {
     SetTerrainDetail(render::terrain_detail::TerrainDetail),
     /// "Show performance statistics".
     ToggleStats(bool),
+    /// The notice of a failed game interface was closed.
+    DismissUiNotice,
     /// The performance panel's checkboxes: the draw groups `Main` skips (bit = `render::perf::Group::bit`; 0
     /// draws all). A debug aid, not saved.
     SetPerfGroups(u32),
@@ -219,6 +221,8 @@ pub struct Screens {
     pub settings: Option<settings::SettingsView>,
     /// The performance panel (F3, ?hud=1).
     pub perf: Option<perf_panel::PerfView>,
+    /// A game interface failed: what happened and which one shows now.
+    pub ui_notice: Option<String>,
 }
 
 /// What the player has typed and picked on the screens, kept between frames.
@@ -291,6 +295,9 @@ pub fn show(ctx: &egui::Context, screens: &Screens, forms: &mut Forms) -> Vec<Ui
     }
     if let Some(v) = &screens.perf {
         actions.extend(perf_panel::show(ctx, v));
+    }
+    if let Some(text) = &screens.ui_notice {
+        actions.extend(settings::show_ui_notice(ctx, text));
     }
     if let Some(v) = &screens.confirm {
         actions.extend(confirm::show(ctx, v));
@@ -452,6 +459,7 @@ mod tests {
             minimap: Some(minimap::MinimapView::default()),
             settings: Some(settings::SettingsView::default()),
             perf: None,
+            ui_notice: Some("Interface v2 failed".into()),
         };
         let shapes = run_headless(|ctx| {
             assert!(show(ctx, &screens, &mut form).is_empty());
