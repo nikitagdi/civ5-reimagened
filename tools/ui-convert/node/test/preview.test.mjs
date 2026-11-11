@@ -17,6 +17,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..", "..", "..", "..");
 const ENGRAVED = path.join(REPO, "skins", "engraved");
 const FIXTURE = path.join(HERE, "fixtures", "preview");
+const STATE_FIXTURE = path.join(HERE, "fixtures", "preview-state");
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ui2-preview-"));
 // The fonts the skin's @font-face rules name, taken from the repository's own font folder.
@@ -29,11 +30,13 @@ for (const [name, from] of [["FiraSans-Regular.ttf", "fira-sans/FiraSans-Regular
 let browser;
 let engraved;
 let fixture;
+let stateFixture;
 const external = [];
 
 before(async () => {
   engraved = await startServer({ root: ENGRAVED, fontsDir, preview: true });
   fixture = await startServer({ root: FIXTURE, preview: true });
+  stateFixture = await startServer({ root: STATE_FIXTURE, preview: true });
   browser = await launchChromium();
 });
 
@@ -41,6 +44,7 @@ after(async () => {
   await browser?.close();
   await engraved?.close();
   await fixture?.close();
+  await stateFixture?.close();
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 
@@ -333,5 +337,37 @@ test("session open({preview: true}): the scan sees the page after includes and b
     assert.deepEqual(ir.errors, []);
   } finally {
     await s.close();
+  }
+});
+
+// --- the skin state: skin.toml [state] defaults under the sample's state, as verify mounts them ---
+
+test("skin state: the defaults of skin.toml, then the sample's state over them", async () => {
+  // The server writes the file's text in front of the script; a folder without skin.toml gets nothing.
+  const script = await (await fetch(`${stateFixture.url}/__ui2/preview.js`)).text();
+  assert.match(script, /^window\.__ui2skin = \{"toml":"# The skin state/);
+  assert.doesNotMatch(await (await fetch(`${fixture.url}/__ui2/preview.js`)).text(), /^window\.__ui2skin/);
+
+  const ctx = await newContext();
+  try {
+    const shown = async (page) => ({
+      sort: await text(page, "#sort"), hide: await text(page, "#hide"), page: await text(page, "#page"),
+      zoom: await text(page, "#zoom"), win: await page.evaluate(() => !!document.querySelector("#win")),
+    });
+    // The sample sets prod.sort and windows.production; the rest of the group keeps its defaults.
+    const { page, problems } = await openPage(ctx, stateFixture, "index.html?ui2state=hud");
+    assert.deepEqual(await shown(page), { sort: "name", hide: "false", page: "2", zoom: "1.5", win: false });
+    // A sample without state sees the defaults only.
+    const bare = (await openPage(ctx, stateFixture, "index.html?ui2state=bare")).page;
+    assert.deepEqual(await shown(bare), { sort: "order", hide: "false", page: "2", zoom: "1.5", win: true });
+    // A rerender keeps the defaults under the new state, by name and as an object.
+    await page.evaluate(() => window.__ui2preview.rerender("bare"));
+    assert.deepEqual(await shown(page), await shown(bare));
+    await page.evaluate(() => window.__ui2preview.rerender({ model: {}, state: { prod: { page: 7 }, zoom: 3 } }));
+    assert.deepEqual(await shown(page), { sort: "order", hide: "false", page: "7", zoom: "3", win: true });
+    assert.deepEqual(await page.evaluate(() => window.__ui2preview.errors), []);
+    assert.deepEqual(problems, []);
+  } finally {
+    await ctx.close();
   }
 });

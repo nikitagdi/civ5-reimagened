@@ -9,7 +9,9 @@
 //   3. The sample (sample/<state>.json) and the texts (l10n/<lang>.toml) are loaded and the bindings are
 //      evaluated: data-bind-value, -if, -for (+ -key, -sort, -sort-desc, -filter), -class-toggle,
 //      -style-<prop>, -src, -disabled, data-l10n and data-l10n-args. Elements created by a `for` carry
-//      data-ui2-inst="<key>/<key>" (the keys of the enclosing loops, outermost first).
+//      data-ui2-inst="<key>/<key>" (the keys of the enclosing loops, outermost first). `state.*` reads the
+//      skin's defaults (`skin.toml [state]`, written in front of this script by the server as
+//      window.__ui2skin = { toml }) with the sample's `state` written over them, as the runtime mounts them.
 //   4. Problems never throw: they are appended to window.__ui2preview.errors as
 //      { code, level, src, node, attr, message } where src is the element's data-ui2-src.
 //
@@ -857,6 +859,144 @@
     return { table, errors };
   }
 
+  /**
+   * The skin state of `skin.toml`: the `[state]` table (and `[state.<group>]` tables) with booleans,
+   * integers, floats (Flt, as parseJson reads a number with a fraction), strings and inline tables. A dotted
+   * key, bare or quoted, is a path of groups, as the converter flattens it. Returns { state, errors } with
+   * state a nested object and errors = [{ line, message }]; other tables are skipped.
+   */
+  function parseSkinState(text) {
+    const state = {};
+    const errors = [];
+    let base = null; // the path of the current table below `state`, or null outside it
+    const fail = (line, message) => { const e = new Error(message); e.line = line; throw e; };
+    text.replace(/^﻿/, "").split(/\r\n|\n|\r/).forEach((raw, n) => {
+      const line = raw.trim();
+      if (line === "" || line[0] === "#") return;
+      if (line[0] === "[") {
+        const m = /^\[\s*([A-Za-z0-9_.-]+)\s*\]\s*(#.*)?$/.exec(line);
+        const name = m ? m[1] : "";
+        base = name === "state" || name.startsWith("state.") ? name.split(".").slice(1) : null;
+        return;
+      }
+      if (base === null) return;
+      const p = { s: line, i: 0, line: n + 1 };
+      try {
+        const key = readKey(p);
+        ws(p);
+        if (p.s[p.i] !== "=") fail(p.line, "`=` is expected after the key");
+        p.i++;
+        const value = readValue(p);
+        ws(p);
+        if (p.i < p.s.length && p.s[p.i] !== "#") fail(p.line, "text after the value");
+        put(state, base.concat(key), value, p.line);
+      } catch (e) {
+        errors.push({ line: n + 1, message: e.message });
+      }
+    });
+    return { state, errors };
+
+    function ws(p) { while (p.s[p.i] === " " || p.s[p.i] === "\t") p.i++; }
+    function quoted(p) {
+      const q = p.s[p.i];
+      let out = "";
+      for (let j = p.i + 1; j < p.s.length; j++) {
+        const c = p.s[j];
+        if (c === q) { p.i = j + 1; return out; }
+        if (q === '"' && c === "\\") {
+          const e = p.s[++j];
+          const map = { n: "\n", t: "\t", r: "\r", b: "\b", f: "\f", '"': '"', "\\": "\\" };
+          if (e in map) out += map[e];
+          else if (e === "u" || e === "U") {
+            const len = e === "u" ? 4 : 8;
+            const cp = parseInt(p.s.slice(j + 1, j + 1 + len), 16);
+            if (!Number.isFinite(cp)) fail(p.line, "bad escape");
+            out += String.fromCodePoint(cp);
+            j += len;
+          } else fail(p.line, "bad escape");
+        } else out += c;
+      }
+      return fail(p.line, "unclosed string");
+    }
+    function readKey(p) {
+      const segs = [];
+      for (;;) {
+        ws(p);
+        const c = p.s[p.i];
+        if (c === '"' || c === "'") segs.push(...quoted(p).split("."));
+        else {
+          const m = /^[A-Za-z0-9_-]+/.exec(p.s.slice(p.i));
+          if (!m) fail(p.line, "a key is expected");
+          segs.push(m[0]);
+          p.i += m[0].length;
+        }
+        ws(p);
+        if (p.s[p.i] !== ".") return segs;
+        p.i++;
+      }
+    }
+    function readValue(p) {
+      ws(p);
+      const c = p.s[p.i];
+      if (c === '"' || c === "'") {
+        if (p.s.startsWith(c.repeat(3), p.i)) fail(p.line, "multi-line strings are not read");
+        return quoted(p);
+      }
+      if (c === "{") {
+        p.i++;
+        const obj = {};
+        ws(p);
+        if (p.s[p.i] === "}") { p.i++; return obj; }
+        for (;;) {
+          const key = readKey(p);
+          if (p.s[p.i] !== "=") fail(p.line, "`=` is expected after the key");
+          p.i++;
+          put(obj, key, readValue(p), p.line);
+          ws(p);
+          if (p.s[p.i] === ",") { p.i++; continue; }
+          if (p.s[p.i] === "}") { p.i++; return obj; }
+          fail(p.line, "`,` or `}` is expected in an inline table");
+        }
+      }
+      const rest = p.s.slice(p.i);
+      const b = /^(true|false)(?![A-Za-z0-9_])/.exec(rest);
+      if (b) { p.i += b[0].length; return b[1] === "true"; }
+      const m = /^[+-]?\d[\d_]*(\.\d[\d_]*)?([eE][+-]?\d[\d_]*)?/.exec(rest);
+      if (m) {
+        p.i += m[0].length;
+        const v = Number(m[0].replace(/_/g, ""));
+        return m[1] !== undefined || m[2] !== undefined ? new Flt(v) : v;
+      }
+      return fail(p.line, "a boolean, number, string or inline table is expected");
+    }
+    function put(obj, path, value, line) {
+      let at = obj;
+      for (let k = 0; k < path.length - 1; k++) {
+        const seg = path[k];
+        if (!Object.prototype.hasOwnProperty.call(at, seg)) at[seg] = {};
+        else if (!isPlainObject(at[seg])) fail(line, "state." + path.join(".") + " is a value and a group at once");
+        at = at[seg];
+      }
+      const last = path[path.length - 1];
+      if (Object.prototype.hasOwnProperty.call(at, last)) fail(line, "state." + path.join(".") + " is written twice");
+      at[last] = value;
+    }
+  }
+
+  /**
+   * The state a sample sees: the skin's defaults with the sample's `state` written over them, as the runtime
+   * mounts the skin state and then applies the sample (a group is walked, any other value replaces). Neither
+   * argument is changed.
+   */
+  function mergeState(defaults, state) {
+    const out = {};
+    for (const [k, v] of Object.entries(defaults || {})) out[k] = isPlainObject(v) ? mergeState(v, {}) : v;
+    for (const [k, v] of Object.entries(isPlainObject(state) ? state : {})) {
+      out[k] = isPlainObject(v) && isPlainObject(out[k]) ? mergeState(out[k], v) : v;
+    }
+    return out;
+  }
+
   /** `1,234` for ints, up to three decimals (trailing zeros dropped) for floats: the engine's "#,##0.###". */
   function defaultNumber(v) {
     if (typeof v === "number") return groupInt(v);
@@ -943,7 +1083,7 @@
     parseExpr, parseTemplate, evalExpr, renderTemplate, renderValue, truthy, fmtFixed, fmtFloat, groupInt,
     parseJson, fromJson, isPlainObject,
     splitTop, parseSingleExpr, parseForHead, parseClassToggle, parseL10nArgs, parseBindings,
-    planFor, keyLabel, escKey, parseToml, locRender, codePointCompare,
+    planFor, keyLabel, escKey, parseToml, parseSkinState, mergeState, locRender, codePointCompare,
   };
 
   // ------------------------------------------------------------------------------------------------
@@ -1048,6 +1188,9 @@
 
     let sample = { model: {}, state: {}, ui: {}, anchors: {} };
     let l10n = {};
+    // The skin state's defaults (`skin.toml [state]`): the converter's server puts the file's text in front of
+    // this script (no request of its own). A sample's `state` is written over them.
+    let stateDefaults = {};
     let currentEl = null;
 
     const host = {
@@ -1110,10 +1253,18 @@
       if (!okName(name)) { report(PV.LOAD_FAILED, "error", null, null, "bad sample name " + JSON.stringify(name)); return; }
       try {
         const s = await loadJson("sample/" + name + ".json");
-        sample = { model: isPlainObject(s) && isPlainObject(s.model) ? s.model : {}, state: (s && s.state) || {}, ui: (s && s.ui) || {}, anchors: (s && s.anchors) || {}, modstate: (s && s.modstate) || {} };
+        sample = { model: isPlainObject(s) && isPlainObject(s.model) ? s.model : {}, state: mergeState(stateDefaults, s && s.state), ui: (s && s.ui) || {}, anchors: (s && s.anchors) || {}, modstate: (s && s.modstate) || {} };
       } catch (e) {
         report(PV.LOAD_FAILED, "error", null, null, "cannot load sample/" + name + ".json: " + (e && e.message));
       }
+    }
+
+    function readStateDefaults() {
+      const skin = win.__ui2skin || null;
+      if (!skin || typeof skin.toml !== "string") return;
+      const t = parseSkinState(skin.toml);
+      for (const e of t.errors) report(PV.TOML, "warn", null, "skin.toml:" + e.line, e.message);
+      stateDefaults = t.state;
     }
 
     async function loadL10n(lang) {
@@ -1259,6 +1410,7 @@
         numberDocument(doc.body);
         if (cfg.mode !== "templates") {
           pristine = Array.from(doc.body.childNodes, (n) => n.cloneNode(true));
+          readStateDefaults();
           await Promise.all([loadSample(cfg.state), loadL10n(cfg.lang)]);
           staticErrors = errors.length;
           render();
@@ -1279,7 +1431,7 @@
         await loadSample(arg);
         staticErrors = errors.length;
       } else if (isPlainObject(arg)) {
-        sample = { model: isPlainObject(arg.model) ? arg.model : {}, state: arg.state || {}, ui: arg.ui || {}, anchors: arg.anchors || {}, modstate: arg.modstate || {} };
+        sample = { model: isPlainObject(arg.model) ? arg.model : {}, state: mergeState(stateDefaults, arg.state), ui: arg.ui || {}, anchors: arg.anchors || {}, modstate: arg.modstate || {} };
       }
       seenErrors.clear();
       errors.splice(0, errors.length, ...errors.slice(0, staticErrors));

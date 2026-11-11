@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Skin state fixture</title>
+</head>
+<body>
+  <div class="layer" data-layer="hud">
+    <span id="sort" data-bind-value="{{state.prod.sort}}">?</span>
+    <span id="hide" data-bind-value="{{state.prod.hide_locked}}">?</span>
+    <span id="page" data-bind-value="{{state.prod.page}}">?</span>
+    <span id="zoom" data-bind-value="{{state.zoom}}">?</span>
+    <p id="win" data-bind-if="{{!state.windows.production}}">closed</p>
+  </div>
+</body>
+</html>
