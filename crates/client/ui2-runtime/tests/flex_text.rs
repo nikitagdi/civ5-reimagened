@@ -6,7 +6,8 @@ use ui2_draw::Scene;
 use ui2_model::{ModelStore, Schema};
 use ui2_package::Layer;
 use ui2_package::style::{
-    ContentAlign, Display, FlexDirection, ItemsAlign, Len, LenAuto, StyleRecord, TextAlign,
+    ContentAlign, Display, FlexDirection, ItemsAlign, Len, LenAuto, LenNormal, StyleRecord,
+    TextAlign,
 };
 use ui2_runtime::testkit::{Kit, TNode};
 use ui2_runtime::{ElementRect, Env, Runtime, Services, load_faces};
@@ -120,6 +121,144 @@ fn flex_text_justify_content_center_and_end() {
     let (_, lead, line, width) = text_metrics(&mut engine);
     assert!(close(leaf.x - el.x, W - width));
     assert!(close(leaf.y - el.y, H - line + lead.floor()));
+}
+
+/// The boxes of a 300 x 40 flex container (gap 8 px) holding the text `Gold`, a `span` with `12` and the
+/// text `per turn`, styled by `f`: the container, the span, and the three text rectangles in order. With
+/// `inline` the span's record says `display: inline` (a flex item is blockified: it is laid out as a
+/// block either way); otherwise `block`, as Chrome computes it for a flex item.
+fn mixed(
+    inline: bool,
+    f: impl Fn(&mut StyleRecord),
+) -> (ElementRect, ElementRect, [ElementRect; 3]) {
+    let mut kit = Kit::new();
+    kit.font("Fira Sans", 400, false, &fira());
+    let family = kit.str("Fira Sans");
+    let mut block = StyleRecord::initial();
+    block.display = Display::Block;
+    block.font_family = vec![family];
+    block.font_size = Len::px(SIZE);
+    let mut flex = block.clone();
+    flex.display = Display::Flex;
+    flex.width = LenAuto::Len(Len::px(300.0));
+    flex.height = LenAuto::Len(Len::px(H));
+    flex.column_gap = LenNormal::Len(Len::px(8.0));
+    flex.row_gap = LenNormal::Len(Len::px(8.0));
+    f(&mut flex);
+    let mut span = block.clone();
+    if inline {
+        span.display = Display::Inline;
+    }
+    let (block, flex, span) = (kit.record(block), kit.record(flex), kit.record(span));
+    let (block, flex, span) = (kit.plain(block), kit.plain(flex), kit.plain(span));
+    let part = kit.str("mix");
+    let texts = ["Gold", "12", "per turn"].map(|t| kit.str(t));
+    kit.template(
+        "doc",
+        vec![
+            TNode::layer(Layer::Hud, block).child(
+                TNode::el(flex)
+                    .part(part)
+                    .child(TNode::text(texts[0], flex))
+                    .child(TNode::el(span).child(TNode::text(texts[1], span)))
+                    .child(TNode::text(texts[2], flex)),
+            ),
+        ],
+    );
+    let pkg = kit.finish().expect("package");
+    let mut engine = TextEngine::new();
+    load_faces(&pkg, &mut engine).expect("fonts");
+    let env = Env {
+        viewport_px: (800, 600),
+        ..Env::default()
+    };
+    let mut rt = Runtime::new(pkg, env, Services::default()).expect("runtime");
+    let store = ModelStore::new(Schema::v1());
+    let mut scene = Scene::new(1.0);
+    rt.frame(0.0, &store, &mut engine, &mut scene);
+    let all = rt.dump_rects(Some("mix"));
+    let get = |n: &str| {
+        all.iter()
+            .find(|r| r.node == n)
+            .cloned()
+            .unwrap_or_else(|| panic!("no {n} in {all:?}"))
+    };
+    // Elements in preorder: layer 0, the container 1, the span 2; text leaves are named after their element.
+    (
+        get("0:1"),
+        get("0:2"),
+        [get("0:1#0"), get("0:2#0"), get("0:1#1")],
+    )
+}
+
+fn width_of(engine: &mut TextEngine, text: &str) -> f32 {
+    engine
+        .shape(&RunStyle::new(FaceId(0), SIZE).with_wght(400.0), text)
+        .expect("shape")
+        .width
+}
+
+/// Text mixed with elements in a flex container: each run of text is its own anonymous flex item, in
+/// document order, and the element between them is a flex item too; `gap`, `justify-content` and
+/// `align-items` place all three.
+#[test]
+fn flex_text_mixed_with_elements_makes_one_item_per_run() {
+    let mut engine = TextEngine::new();
+    engine
+        .load_face(FaceId(0), std::sync::Arc::from(fira()))
+        .expect("font");
+    let (content, lead, line, _) = text_metrics(&mut engine);
+    let w = ["Gold", "12", "per turn"].map(|t| width_of(&mut engine, t));
+    for inline in [false, true] {
+        let (el, span, t) = mixed(inline, |r| {
+            r.justify_content = ContentAlign::Center;
+            r.align_items = ItemsAlign::Center;
+        });
+        let total = w[0] + w[1] + w[2] + 16.0;
+        let x0 = (300.0 - total) / 2.0;
+        let xs = [x0, x0 + w[0] + 8.0, x0 + w[0] + w[1] + 16.0];
+        let top = (H - line) / 2.0;
+        for i in 0..3 {
+            assert!(
+                close(t[i].x - el.x, xs[i]),
+                "{inline} {i}: {:?} vs {}",
+                t[i],
+                xs[i]
+            );
+            assert!(close(t[i].w, w[i]), "{inline} {i}: {:?} vs {}", t[i], w[i]);
+            assert!(
+                close(t[i].y - el.y, top + lead.floor()),
+                "{inline} {i}: {:?}",
+                t[i]
+            );
+            assert!(close(t[i].h, content), "{inline} {i}: {:?}", t[i]);
+        }
+        assert!(
+            close(span.x - el.x, xs[1]) && close(span.w, w[1]),
+            "{span:?}"
+        );
+        assert!(close(span.y - el.y, top) && close(span.h, line), "{span:?}");
+
+        // `flex-start` and `flex-end`, 3 px apart: the runs keep their order and the gap.
+        let (el, _, t) = mixed(inline, |r| {
+            r.align_items = ItemsAlign::FlexEnd;
+            r.column_gap = LenNormal::Len(Len::px(3.0));
+        });
+        let xs = [0.0, w[0] + 3.0, w[0] + w[1] + 6.0];
+        for i in 0..3 {
+            assert!(
+                close(t[i].x - el.x, xs[i]),
+                "{inline} {i}: {:?} vs {}",
+                t[i],
+                xs[i]
+            );
+            assert!(
+                close(t[i].y - el.y, H - line + lead.floor()),
+                "{inline} {i}: {:?}",
+                t[i]
+            );
+        }
+    }
 }
 
 #[test]
