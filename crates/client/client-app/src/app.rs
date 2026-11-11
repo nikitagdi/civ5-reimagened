@@ -400,6 +400,9 @@ struct App {
     original_ui: Option<crate::original_ui::OriginalUi>,
     /// The original UI on the replica of a real game (M2), when `AppConfig::original_ui` is set.
     m2: Option<crate::m2::M2Ui>,
+    /// The game session (the replica, its data and network, the game's localizer): there when a game UI reads the
+    /// replica (not with `?ui=interim`).
+    session: Option<crate::session::GameSession>,
     /// TEMP(T51): `?ui=v2[:skin]`, a UI v2 skin over `m2` (which then neither draws nor gets input).
     v2: Option<crate::ui_host::v2::V2Host>,
     group_stats_sink: Option<crate::GroupStatsSink>,
@@ -589,6 +592,7 @@ impl App {
             (config.original_ui && config.original_ui_m1).then(crate::original_ui::OriginalUi::m1);
         let m2 = (config.original_ui && !config.original_ui_m1 && matches!(net, Link::Net(_)))
             .then(|| crate::m2::M2Ui::new(Rc::clone(&ui_kv), config_ui_volume));
+        let session = m2.as_ref().map(|_| crate::session::GameSession::new());
         let v2 = crate::ui_host::v2::take_choice()
             .filter(|_| m2.is_some())
             .map(|choice| {
@@ -659,6 +663,7 @@ impl App {
             ui: UiDrawList::new(),
             original_ui,
             m2,
+            session,
             v2,
             group_stats_sink,
             dom_ui: ui_bridge.map(crate::dom_ui::DomUi::new),
@@ -1714,6 +1719,9 @@ impl App {
                     if let Some(m2) = self.m2.as_mut() {
                         m2.new_game();
                     }
+                    if let Some(session) = self.session.as_mut() {
+                        session.new_game();
+                    }
                     if let Some(ui) = self.v2.as_mut().and_then(|v| v.ui_mut()) {
                         ui.reset_source();
                     }
@@ -2103,8 +2111,9 @@ impl App {
                 }
             }
             // The original UI is not run while a mod owns the screen (client-hooks C3).
-            if let (Some(m2), Some(w), false) = (
+            if let (Some(m2), Some(session), Some(w), false) = (
                 self.m2.as_mut(),
+                self.session.as_mut(),
                 self.window.as_ref(),
                 self.hooks.ui_suppressed(),
             ) {
@@ -2113,7 +2122,23 @@ impl App {
                     Link::NetFailed(_) => None,
                 };
                 let s = w.inner_size();
-                // TEMP(T51): while a UI v2 skin runs, the classic layer draws into a list nobody submits.
+                let seat = seat_info(handle.as_ref());
+                // The game session first: the replica's network and pump, the game's texts.
+                let step = if s.width == 0 || s.height == 0 {
+                    crate::session::SessionStep::default()
+                } else {
+                    session.frame(crate::session::SessionEnv {
+                        now_ms: now,
+                        loader: self.assets.as_mut().map(AssetsBoot::loader_mut),
+                        net: handle.as_ref(),
+                        clock: &self.clock,
+                        seat: seat.as_ref().map_or(0, |s| s.local_id),
+                        seat_known: seat.is_some(),
+                        // The classic UI dispatches the core's events.
+                        drain_events: false,
+                    })
+                };
+                // TEMP(T52): while a UI v2 skin runs, the classic layer draws into a list nobody submits.
                 let ui = match self.v2.as_mut().and_then(|v| v.classic_sink()) {
                     Some(scratch) => scratch,
                     None => &mut self.ui,
@@ -2122,6 +2147,8 @@ impl App {
                     m2,
                     (s.width, s.height),
                     handle.as_ref(),
+                    seat,
+                    (session, &step),
                     M2Parts {
                         camera: &mut self.game_camera,
                         assets: self.assets.as_mut(),
@@ -2132,15 +2159,28 @@ impl App {
                     },
                     now,
                 );
-                // TEMP(T51): UI v2 reads the replica the classic layer just pumped; its scene is drawn this frame.
+                // TEMP(T52): UI v2 reads the session's replica once the game's layer is up; its scene is drawn
+                // this frame.
                 if let Some(v2) = self.v2.as_mut() {
                     let env = ui2_host::Env {
                         viewport_px: (s.width, s.height),
                         dpr: w.scale_factor() as f32,
                         ..ui2_host::Env::default()
                     };
-                    if let Some(ui) = v2.frame(m2, handle.as_ref(), env, self.clock.now_ms_f64()) {
+                    let mut look = None;
+                    if let Some(ui) = v2.frame(
+                        session,
+                        &step.steps,
+                        m2.layer().is_some(),
+                        handle.as_ref(),
+                        env,
+                        self.clock.now_ms_f64(),
+                        &mut look,
+                    ) {
                         renderer.prepare_ui2(ui.scene_mut());
+                    }
+                    if let Some((x, y)) = look {
+                        self.game_camera.look_at(render::hexgrid::cell_center(x, y));
                     }
                 }
                 // The camera keys of `WorldView.lua` (SIMP-exe-560).
@@ -3135,42 +3175,16 @@ struct M2Parts<'a> {
 
 /// One frame of the M2 original UI: the replica, the exe API and the layer (frame order of the exe API),
 /// then what the layer asked of the world (camera, highlights).
+#[allow(clippy::too_many_arguments)]
 fn m2_frame(
     m2: &mut crate::m2::M2Ui,
     size: (u32, u32),
     handle: Option<&NetHandle>,
+    seat: Option<exe_api::SeatInfo>,
+    (session, step): (&crate::session::GameSession, &crate::session::SessionStep),
     p: M2Parts<'_>,
     now: u64,
 ) {
-    let seat = handle.and_then(|h| {
-        h.peek(|c| {
-            c.attach_info().map(|a| {
-                // WO-C (K7): the host is the host seat of the game; SIMPLIFIED(SIMP-exe-135): every other online
-                // human has the line's round trip as its ping (the server is the only peer).
-                let seats = c.seats();
-                let rtt = c.rtt_ms().map_or(0, |r| r as i32);
-                exe_api::SeatInfo {
-                    nick: c.nick().to_owned(),
-                    local_id: i32::from(a.player),
-                    host_id: seats
-                        .iter()
-                        .find(|s| s.host)
-                        .map_or(i32::from(a.player), |s| i32::from(s.player)),
-                    pings_ms: seats
-                        .iter()
-                        .filter(|s| {
-                            s.player != a.player
-                                && matches!(s.control, protocol::SeatControl::Human { .. })
-                                && matches!(s.conn, protocol::Conn::Online)
-                        })
-                        .map(|s| (i32::from(s.player), rtt))
-                        .collect(),
-                }
-            })
-        })
-        .flatten()
-    });
-    let seat_known = seat.is_some();
     let seat = seat.unwrap_or_default();
     let ai_turn = handle.and_then(|h| {
         h.peek(|c| {
@@ -3200,7 +3214,6 @@ fn m2_frame(
         clock: p.clock,
         seat,
         ai_turn,
-        seat_known,
         projection,
     };
     // `GridToWorld` gives the relief's height as z (turn numbers of a path, yield and resource icons, flags).
@@ -3217,7 +3230,7 @@ fn m2_frame(
         has_map,
     );
     m2.set_texture_profile(&p.renderer.platform_profile());
-    m2.begin_frame(env, p.ui);
+    m2.begin_frame(env, session, step, p.ui);
     if let Some(on) = m2.take_grid() {
         p.renderer.set_grid_visible(on);
     }
@@ -3275,7 +3288,7 @@ fn m2_frame(
         p.renderer.set_bridges(bridge, iron);
     }
     if let Some(sink) = p.sink
-        && let Some(stats) = m2.stats(now)
+        && let Some(stats) = m2.stats(now, session)
     {
         for (group, values) in &stats.groups {
             sink(group, values);
@@ -3283,6 +3296,37 @@ fn m2_frame(
     }
 }
 
+/// This client's seat as the exe API tells it (`Matchmaking.*`), once the attach named it.
+fn seat_info(handle: Option<&NetHandle>) -> Option<exe_api::SeatInfo> {
+    handle.and_then(|h| {
+        h.peek(|c| {
+            c.attach_info().map(|a| {
+                // WO-C (K7): the host is the host seat of the game; SIMPLIFIED(SIMP-exe-135): every other online
+                // human has the line's round trip as its ping (the server is the only peer).
+                let seats = c.seats();
+                let rtt = c.rtt_ms().map_or(0, |r| r as i32);
+                exe_api::SeatInfo {
+                    nick: c.nick().to_owned(),
+                    local_id: i32::from(a.player),
+                    host_id: seats
+                        .iter()
+                        .find(|s| s.host)
+                        .map_or(i32::from(a.player), |s| i32::from(s.player)),
+                    pings_ms: seats
+                        .iter()
+                        .filter(|s| {
+                            s.player != a.player
+                                && matches!(s.control, protocol::SeatControl::Human { .. })
+                                && matches!(s.conn, protocol::Conn::Online)
+                        })
+                        .map(|s| (i32::from(s.player), rtt))
+                        .collect(),
+                }
+            })
+        })
+        .flatten()
+    })
+}
 /// The sounds of the original UI: the button events of the layer and the scripts the Lua asked for go to the engine;
 /// the counters go to `__civ5stats.audio` about four times a second. `scene` is where the player is, for the music.
 #[allow(clippy::too_many_arguments)]

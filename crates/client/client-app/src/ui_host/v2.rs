@@ -1,14 +1,13 @@
 //! Temporary wiring of UI v2 into the app (`?ui=v2`, `?ui=v2:<skin>`), for the first slice only.
 //!
-//! The classic original UI keeps running as before (its replica pumps, it consumes the core's events), but while a
-//! skin runs its draw list goes to a scratch list nobody submits and it gets no input. UI v2 reads the replica
-//! through temporary getters of the classic layer; once the game session owns the replica and the frontends switch
-//! through one interface, this module is replaced.
+//! The classic original UI keeps running as before (it consumes the core's events), but while a skin runs its draw
+//! list goes to a scratch list nobody submits and it gets no input. UI v2 reads the replica and the localizer of
+//! the game session; once the frontends switch through one interface, this module is replaced.
 //!
 //! The network reaches UI v2 the same temporary way: the app hands each of the core's events to
 //! [`V2Host::net_event`] (kept, as the actions module's events, until the next UI v2 frame) and lends the network
-//! handle to [`V2Host::frame`], which runs the UI v2 frame inside one borrow of the core ([`NetSink`]). Camera
-//! requests of the frame go to the classic layer's look-at, which the app carries out on its next frame.
+//! handle to [`V2Host::frame`], which runs the UI v2 frame inside one borrow of the core ([`NetSink`]). A camera
+//! request of the frame comes back to the app, which moves the camera.
 //!
 //! Input: while a skin runs every window event the app's chain leaves for the game UI goes to [`V2Host::input`]
 //! first. What the skin takes stops there; what it passes to the world goes to the camera and the picker, and a
@@ -40,6 +39,7 @@ use ui2_host::{
 };
 
 use crate::net::NetHandle;
+use crate::session::GameSession;
 
 /// The skin index of the web build, relative to the page.
 pub const INDEX_PATH: &str = "ui2/skins.json";
@@ -496,12 +496,18 @@ impl V2Host {
     ///
     /// The network handle is borrowed for the UI v2 frame only, in the app's frame: never inside a call into page
     /// script (the frame, the timer and the page events never run inside one another).
+    /// `game_up`: the game's layer is up (UI v2 waits for it); `look`: where a camera request of the frame sends the
+    /// camera, set when there is one.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn frame(
         &mut self,
-        m2: &mut crate::m2::M2Ui,
+        session: &GameSession,
+        steps: &[replica::ReplicaStep],
+        game_up: bool,
         net: Option<&NetHandle>,
         env: Env,
         now_ms: f64,
+        look: &mut Option<(i32, i32)>,
     ) -> Option<&mut V2Ui> {
         self.poll(env);
         if probe_on() && !self.running() {
@@ -515,17 +521,16 @@ impl V2Host {
                 }
             });
         }
-        if !self.running() || m2.layer().is_none() {
+        if !self.running() || !game_up {
             return None;
         }
-        // TEMP(T51): the replica and the localizer come from the classic layer.
-        let loc = m2.v2_localizer();
+        // The replica and the localizer are the game session's.
+        let loc = session.localizer();
         let new_loc = match (&loc, &self.loc) {
             (Some(a), Some(b)) => !Rc::ptr_eq(a, b),
             (a, b) => a.is_some() != b.is_some(),
         };
-        let replica = m2.v2_replica();
-        let steps = m2.v2_take_steps();
+        let replica = session.replica();
         let load_ms = self.load_ms.take();
         let Stage::Running(ui) = &mut self.stage else {
             return None;
@@ -542,10 +547,10 @@ impl V2Host {
             Some(Err(_)) => return self.ui_mut(),
             None => None,
         };
-        let steps: &[replica::ReplicaStep] = if held.is_some() { &steps } else { &[] };
+        let steps: &[replica::ReplicaStep] = if held.is_some() { steps } else { &[] };
         let events = std::mem::take(&mut self.events);
         let mods = self.mods.take();
-        let (report, look) = match net {
+        let (report, look_at) = match net {
             Some(h) => h.with(|core| {
                 let mut sink = NetSink::new(core);
                 let report = ui.frame(V2Frame {
@@ -570,9 +575,9 @@ impl V2Host {
                 (report, None)
             }
         };
-        // TEMP(T51): the camera goes where the classic UI's `UI.LookAt` would send it.
-        if let Some((x, y)) = look {
-            m2.v2_look_at(x, y);
+        // The camera eases to a plot the frame asked for, as the classic UI's `UI.LookAt` does.
+        if look_at.is_some() {
+            *look = look_at;
         }
         self.cursor = report.cursor;
         publish(&report, load_ms);

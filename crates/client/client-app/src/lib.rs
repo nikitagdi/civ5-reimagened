@@ -18,6 +18,7 @@ mod icon_assets;
 mod input;
 mod lobby_art;
 pub mod m2;
+pub mod session;
 pub mod timeline;
 /// The UI frontends: for now only the temporary UI v2 wiring over the classic layer.
 mod ui_host {
