@@ -135,12 +135,21 @@ pub(crate) fn set_override(
     }
     let old = node.over.take();
     let old_record = old.as_ref().map_or(base, |o| &o.record);
-    if props.is_empty() {
-        return diff(old_record, base);
+    let element = node.class() != crate::arena::NodeClass::Text;
+    let (bits, display) = if props.is_empty() {
+        (diff(old_record, base), old_record.display != base.display)
+    } else {
+        let new = Overrides::new(base, props);
+        let out = (
+            diff(old_record, &new.record),
+            old_record.display != new.record.display,
+        );
+        node.over = Some(Box::new(new));
+        out
+    };
+    if element && display {
+        crate::text::display_changed(arena, id);
     }
-    let new = Overrides::new(base, props);
-    let bits = diff(old_record, &new.record);
-    node.over = Some(Box::new(new));
     bits
 }
 

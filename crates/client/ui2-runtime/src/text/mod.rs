@@ -333,8 +333,13 @@ fn build(
     let mut texts = Vec::new();
     let mut boxes = Vec::new();
     match class {
-        NodeClass::Text => texts.push((root, Vec::new())),
-        _ if ctx.inline_content(arena, root) => {
+        // A text leaf is a root of its own only while no element around it holds it in a line.
+        NodeClass::Text if ctx.root_of(arena, root) == root => texts.push((root, Vec::new())),
+        // An inline element is a piece of the root around it, never a root.
+        _ if class != NodeClass::Text
+            && !ctx.is_inline_element(arena, root)
+            && ctx.inline_content(arena, root) =>
+        {
             collect(arena, root, &mut Vec::new(), &mut texts, &mut boxes)
         }
         _ => {
@@ -523,6 +528,23 @@ fn build(
     }
 }
 
+/// A node's `display` changed (a class, a state or a binding gave it another record): the inline formatting
+/// roots around it may change. Its own box turned inline or block (the root of its parent's text), or it
+/// turned into a flex or grid container or back (its children are blockified items or pieces of its lines).
+/// Its parent, itself and its children are queued for the text pass, which builds the roots there again and
+/// drops those that stopped being roots, and for layout, since a root is a leaf for taffy.
+pub(crate) fn display_changed(arena: &mut Arena, id: NodeId) {
+    let Some(n) = arena.get(id) else {
+        return;
+    };
+    let mut around: Vec<NodeId> = n.children().to_vec();
+    around.extend(n.parent());
+    around.push(id);
+    for at in around {
+        arena.mark(at, Dirty::TEXT | Dirty::LAYOUT);
+    }
+}
+
 /// What one text pass did.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) struct PassStats {
@@ -551,12 +573,13 @@ pub(crate) fn pass(
         let Some(n) = arena.get(id) else {
             continue;
         };
+        // A node that was a root is built again: it may stay one or stop being one.
+        if n.ifc.is_some() {
+            roots.push(id);
+        }
         if n.class() == NodeClass::Text {
             roots.push(ctx.root_of(arena, id));
             continue;
-        }
-        if n.ifc.is_some() {
-            roots.push(id);
         }
         if instantiate::template_node(ctx.pkg, n.tmpl())
             .is_some_and(|t| matches!(t.kind, ui2_package::NodeKind::Input { .. }))
@@ -564,13 +587,25 @@ pub(crate) fn pass(
             fields.push(id);
             continue;
         }
-        // Text leaves below this element, through inline elements.
+        // Text leaves below this element, through inline elements (and what was a root among them before
+        // a `display` change, so it is dropped).
         let mut stack: Vec<NodeId> = n.children().to_vec();
         while let Some(c) = stack.pop() {
-            match arena.get(c).map(|c| c.class()) {
-                Some(NodeClass::Text) => roots.push(ctx.root_of(arena, c)),
-                Some(NodeClass::Element) if ctx.is_inline_element(arena, c) => {
-                    stack.extend(arena.get(c).map_or(&[][..], |c| c.children()).iter())
+            let Some(cn) = arena.get(c) else {
+                continue;
+            };
+            match cn.class() {
+                NodeClass::Text => {
+                    if cn.ifc.is_some() {
+                        roots.push(c);
+                    }
+                    roots.push(ctx.root_of(arena, c));
+                }
+                NodeClass::Element if ctx.is_inline_element(arena, c) => {
+                    if cn.ifc.is_some() {
+                        roots.push(c);
+                    }
+                    stack.extend(cn.children().iter())
                 }
                 _ => {}
             }

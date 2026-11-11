@@ -3,7 +3,7 @@
 //! computed by hand from the font's metrics and the shaped width.
 
 use ui2_draw::Scene;
-use ui2_model::{ModelStore, Schema};
+use ui2_model::{ModelStore, Sample, Schema};
 use ui2_package::style::{
     ContentAlign, Display, FlexDirection, ItemsAlign, Len, LenAuto, LenNormal, StyleRecord,
     TextAlign,
@@ -311,6 +311,143 @@ fn button_text_is_centred_down_its_content_box() {
         "{}",
         leaf.y - el.y
     );
+}
+
+/// The engraved sample with the gold rate set: a negative rate turns the class `row` on below.
+fn sample_with_rate(rate: i64) -> String {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../skins/engraved/sample/hud.json");
+    let src = std::fs::read_to_string(&path).expect("sample");
+    let mut v: serde_json::Value = serde_json::from_str(&src).expect("sample is JSON");
+    v["model"]["top"]["gold_rate"] = serde_json::json!(rate);
+    v.to_string()
+}
+
+/// A runtime over a container whose class `row` (on while `top.gold_rate < 0`) turns it from a block into
+/// a flex container, holding the text `Gold`, an inline `span` with `12` and the text `per turn`, with the
+/// store already written from the sample of `rate`.
+fn switching(rate: i64) -> (Runtime, ModelStore, TextEngine, Scene) {
+    let mut kit = Kit::new();
+    kit.font("Fira Sans", 400, false, &fira());
+    let family = kit.str("Fira Sans");
+    let mut block = StyleRecord::initial();
+    block.display = Display::Block;
+    block.font_family = vec![family];
+    block.font_size = Len::px(SIZE);
+    let mut col = block.clone();
+    col.width = LenAuto::Len(Len::px(300.0));
+    let mut row = col.clone();
+    row.display = Display::Flex;
+    row.column_gap = LenNormal::Len(Len::px(8.0));
+    row.align_items = ItemsAlign::Center;
+    row.height = LenAuto::Len(Len::px(H));
+    let mut span = block.clone();
+    span.display = Display::Inline;
+    span.padding_left = Len::px(3.0);
+    let (block, col, row, span) = (
+        kit.record(block),
+        kit.record(col),
+        kit.record(row),
+        kit.record(span),
+    );
+    let (block, span) = (kit.plain(block), kit.plain(span));
+    let class = kit.str("row");
+    let toggled = kit.set(
+        vec![ui2_package::Cond {
+            up: 0,
+            kind: ui2_package::CondKind::Class(class),
+        }],
+        vec![col, row],
+    );
+    let neg = kit.expr(ui2_package::profile::expr::parse("top.gold_rate < 0").expect("expr"));
+    let part = kit.str("mix");
+    let texts = ["Gold", "12", "per turn"].map(|t| kit.str(t));
+    kit.template(
+        "doc",
+        vec![
+            TNode::layer(Layer::Hud, block).child(
+                TNode::el(toggled)
+                    .part(part)
+                    .bind(ui2_package::BindKind::ClassToggle { class, cond: neg })
+                    .child(TNode::text(texts[0], toggled))
+                    .child(TNode::el(span).child(TNode::text(texts[1], span)))
+                    .child(TNode::text(texts[2], toggled)),
+            ),
+        ],
+    );
+    let pkg = kit.finish().expect("package");
+    let mut engine = TextEngine::new();
+    load_faces(&pkg, &mut engine).expect("fonts");
+    let env = Env {
+        viewport_px: (800, 600),
+        ..Env::default()
+    };
+    let rt = Runtime::new(pkg, env, Services::default()).expect("runtime");
+    let mut store = ModelStore::new(Schema::v1());
+    Sample::parse(Schema::v1(), &sample_with_rate(rate))
+        .expect("sample")
+        .apply(&mut store)
+        .expect("apply");
+    (rt, store, engine, Scene::new(1.0))
+}
+
+/// Writes the sample of `rate` and runs a frame.
+fn run(rt: &mut Runtime, store: &mut ModelStore, engine: &mut TextEngine, scene: &mut Scene) {
+    if let Some(d) = store.take_frame() {
+        rt.apply_delta(&d, store);
+    }
+    rt.frame(0.0, store, engine, scene);
+}
+
+/// The rectangles of the container's subtree, text leaves included, as a fresh runtime of `rate` lays
+/// them out.
+fn fresh(rate: i64) -> Vec<ElementRect> {
+    let (mut rt, mut store, mut engine, mut scene) = switching(rate);
+    run(&mut rt, &mut store, &mut engine, &mut scene);
+    rt.dump_rects(Some("mix"))
+}
+
+/// A container that turns from a block into a flex container and back at run time: its inline span and
+/// the texts beside it are pieces of one line while it is a block, and blockified items (each text its own
+/// anonymous item) while it is a flex container. The text roots are rebuilt on each switch, so the boxes
+/// equal a fresh build of the same state both ways; frames after the switch do no work.
+#[test]
+fn display_switch_rebuilds_the_text_roots() {
+    let as_block = fresh(5);
+    let as_flex = fresh(-5);
+    assert_ne!(
+        as_block, as_flex,
+        "the two displays lay the text out differently"
+    );
+    // In the flex container the span is an item between two anonymous items.
+    let get = |rs: &[ElementRect], n: &str| {
+        rs.iter()
+            .find(|r| r.node == n)
+            .cloned()
+            .unwrap_or_else(|| panic!("no {n} in {rs:?}"))
+    };
+    assert!(get(&as_flex, "0:1#1").x > get(&as_flex, "0:2").x + get(&as_flex, "0:2").w);
+    // In the block the three are one line: the span sits on the texts' baseline, inside the line.
+    assert_eq!(get(&as_block, "0:1#0").y, get(&as_block, "0:1#1").y);
+
+    for start in [5i64, -5] {
+        let (mut rt, mut store, mut engine, mut scene) = switching(start);
+        run(&mut rt, &mut store, &mut engine, &mut scene);
+        for rate in [-start, start, -start] {
+            Sample::parse(Schema::v1(), &sample_with_rate(rate))
+                .expect("sample")
+                .apply(&mut store)
+                .expect("apply");
+            run(&mut rt, &mut store, &mut engine, &mut scene);
+            let want = if rate < 0 { &as_flex } else { &as_block };
+            assert_eq!(&rt.dump_rects(Some("mix")), want, "from {start} to {rate}");
+            for _ in 0..3 {
+                let s = rt.frame(0.0, &store, &mut engine, &mut scene).stats;
+                assert_eq!(s.visited, 0, "an idle frame after the switch to {rate}");
+            }
+        }
+        assert!(rt.take_errors().is_empty());
+    }
 }
 
 #[test]
