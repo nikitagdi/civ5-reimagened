@@ -171,6 +171,49 @@ fn a_class_bound_in_the_first_frame_starts_no_transition() {
     }
 }
 
+/// A frozen scene gives the transitions their time: a transition half way when the scene is frozen holds
+/// there whatever the frame clock says, costs nothing after the frame that froze it and does not ask for
+/// frames; thawed, it runs on the frame clock again. A transition that starts in a frozen scene starts at
+/// the frozen time.
+#[test]
+fn transitions_take_the_time_of_a_frozen_scene() {
+    let mut rig = Rig::new();
+    let button = rig.button;
+    rig.rt.set_hover(Some(button));
+    rig.frame(1000.0);
+    rig.scene.freeze(Some(1075.0));
+    let out = rig.frame(1010.0);
+    assert!(!out.animating, "nothing moves in a frozen scene");
+    let mid = (Color([100, 50, 0, 191]), 1.5);
+    let (c, s) = rig.shown();
+    assert_eq!(c, mid.0);
+    assert!((s - mid.1).abs() < 1e-4, "{s}");
+    for t in [2000.0, 9000.0, 1075.0] {
+        let out = rig.frame(t);
+        let st = out.stats;
+        assert!(!out.animating);
+        assert_eq!((st.chunks_rebuilt, st.visited), (0, 0), "at {t}");
+        assert_eq!(rig.shown().0, mid.0);
+    }
+    // Thawed: the frame clock again (the transition ended long ago).
+    rig.scene.freeze(None);
+    let out = rig.frame(9000.0);
+    assert!(!out.animating);
+    assert_eq!(rig.shown(), (Color([200, 100, 0, 128]), 2.0));
+
+    // Leaving while frozen: the way back starts at the frozen time and holds its first values.
+    rig.scene.freeze(Some(20_000.0));
+    rig.rt.set_hover(None);
+    let out = rig.frame(9100.0);
+    assert!(!out.animating);
+    assert_eq!(rig.shown(), (Color([200, 100, 0, 128]), 2.0));
+    rig.scene.freeze(Some(20_075.0));
+    rig.frame(9200.0);
+    let (c, s) = rig.shown();
+    assert_eq!(c, mid.0, "half way back at the new frozen time");
+    assert!((s - 1.5).abs() < 1e-4, "{s}");
+}
+
 #[test]
 fn transitions_run_150_ms_without_layout_and_then_cost_nothing() {
     let mut rig = Rig::new();
