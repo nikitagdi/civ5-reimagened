@@ -205,14 +205,14 @@ async function attaches(page) {
  * One switch: `setUi` with `opts`, then until `want` is on the screen and (for the classic UI) its layer ran again
  * (`ui.classic.wake_ms` changed). Returns the host's switch time, the classic UI's wake-up time and the wall time.
  */
-async function switchTo(page, value, want, opts = {}) {
+async function switchTo(page, value, want, opts = {}, waitMs = 30000) {
   const before = await counters(page);
   const t0 = Date.now();
   await act(page, { kind: "setUi", value, ...opts });
   const st = await until(page, (x) => x.ui?.active === want && !x.ui.switching, 30000, `${value} on the screen`);
   let wakeMs = null;
   if (want === "classic") {
-    const deadline = Date.now() + 30000;
+    const deadline = Date.now() + waitMs;
     for (;;) {
       const c = await counters(page);
       if (typeof c["ui.classic.wake_ms"] === "number" && c["ui.classic.wake_ms"] !== before["ui.classic.wake_ms"]) {
@@ -236,7 +236,13 @@ async function switching(page, numbers, check) {
   const st0 = await state(page);
   check("?ui= keeps nothing: civ5.options.ui is not written", st0?.ui?.saved === null, `${JSON.stringify(st0?.ui?.saved)}`);
   const att0 = await attaches(page);
+  // The classic UI's layer may never have come up under UI v2 (it took the screen early): its first boot first.
+  const boot = await switchTo(page, "classic", "classic", {}, 180000);
+  numbers.classicBoot = boot;
+  check("classic: its layer runs", boot.wakeMs !== null, JSON.stringify(boot));
+  await sleep(2000);
   const lua0 = await luaErrors(page);
+  await switchTo(page, "v2:engraved", "v2");
   const runs = [];
   runs.push(await switchTo(page, "classic", "classic"));
   await sleep(3000);

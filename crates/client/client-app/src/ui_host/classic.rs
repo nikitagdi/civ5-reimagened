@@ -65,8 +65,9 @@ impl Frontend for ClassicFrontend {
     }
 
     fn activate(&mut self, cx: &mut PrepareCx<'_>) {
+        // Measured from here to the layer's first frame (a layer that never came up boots in that time).
+        self.woke_at = Some(cx.now_ms);
         if std::mem::take(&mut self.slept_with_layer) {
-            self.woke_at = Some(cx.now_ms);
             // The layer missed the core's events while it slept. The warm way keeps it and announces the game to
             // it again as a new load; the cold way (on request, or without a layer to keep) makes it again.
             // SIMPLIFIED(SIMP-267): the warm way announces every unit and city again, as after a snapshot load.
