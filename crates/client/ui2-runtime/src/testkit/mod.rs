@@ -479,6 +479,19 @@ impl Kit {
         self.languages = langs.iter().map(|l| l.to_string()).collect();
     }
 
+    /// Writes and reads a mod fragment: a package of kind `Fragment` with the mod's id, for the given
+    /// extension points.
+    pub fn finish_fragment(self, id: &str, slots: &[&str]) -> Result<Arc<Package>, PackageError> {
+        let mut manifest = Self::manifest();
+        manifest.kind = Kind::Fragment {
+            slots: slots.iter().map(|s| s.to_string()).collect(),
+        };
+        manifest.id = id.into();
+        manifest.languages = self.languages.clone();
+        let bytes = self.b.finish(manifest)?;
+        Package::read(Arc::from(bytes)).map(Arc::new)
+    }
+
     /// Writes and reads the package.
     pub fn finish(self) -> Result<Arc<Package>, PackageError> {
         let mut manifest = Self::manifest();

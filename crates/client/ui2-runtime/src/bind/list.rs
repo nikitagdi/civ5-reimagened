@@ -674,6 +674,8 @@ impl Binder {
                         at,
                         key: Some(*k),
                         owner: Some(service),
+                        nodes: None,
+                        own_chunk: false,
                     },
                 );
                 if let Some(n) = arena.get_mut(service) {
@@ -888,6 +890,8 @@ impl Binder {
                         at,
                         key: None,
                         owner: Some(service),
+                        nodes: None,
+                        own_chunk: false,
                     },
                 );
             }

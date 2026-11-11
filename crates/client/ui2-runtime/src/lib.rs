@@ -12,8 +12,10 @@
 //! ([`frame`]: [`Runtime::apply_delta`], [`Runtime::frame`], [`Runtime::drain_output`]), input
 //! ([`input`]: [`Runtime::handle_input`], hit-testing, interaction states, pointer capture, the wheel, modal
 //! screens), list and condition bindings (`for` by key with sorting, filtering and virtual lists; `if` bodies
-//! that sleep while false), map anchors ([`anchor`]: [`Runtime::set_anchor_screen`]) and rectangle dumps
-//! ([`debug`]).
+//! that sleep while false), map anchors ([`anchor`]: [`Runtime::set_anchor_screen`]), rectangle dumps
+//! ([`debug`]), script islands ([`Runtime::apply_island`]), panels and their placeholders ([`panel`]:
+//! [`Runtime::set_panel_failed`]) and mod fragments in the skin's extension points
+//! ([`Runtime::mount_fragment`], linked into the document view [`Doc`]).
 //!
 //! Zero-work rule: every pass is driven by the arena's dirty queues; a frame without changes checks a few
 //! counters and touches no node.
@@ -33,6 +35,7 @@ pub mod instantiate;
 mod island;
 pub mod layout;
 mod loc;
+mod mount;
 mod paint;
 pub mod panel;
 mod stats;
@@ -62,7 +65,7 @@ pub use input::{CARET_BLINK_MS, InputOutcome, PointerCapture};
 use instantiate::Spawn;
 pub use instantiate::{MAX_INSTANCE_NODES, Source};
 pub use layout::LayoutStyles;
-pub use panel::{PanelId, PanelStatus};
+pub use panel::{MountMode, PanelId, PanelStatus};
 pub use platform::ui2::{TextInputRequest, TextInputState, TextSel};
 pub use stats::FrameStats;
 use style::select::EnvChange;
@@ -351,6 +354,8 @@ impl Runtime {
                 at,
                 key: None,
                 owner: None,
+                nodes: None,
+                own_chunk: false,
             },
         )
     }

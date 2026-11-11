@@ -58,6 +58,10 @@ pub(crate) struct Panel {
     /// The top node of the panel (the placeholder once it failed).
     pub root: Option<NodeId>,
     pub failed: Option<String>,
+    /// The order of a mod panel inside its point (the host's mod order).
+    pub order: u32,
+    /// The node of the skin a `Replace` panel hides.
+    pub hides: Option<NodeId>,
 }
 
 /// The panels of a runtime; a `PanelId` is the index. Unmounted panels leave a hole (ids are not reused).
@@ -137,6 +141,8 @@ impl Runtime {
                     mode: None,
                     root: Some(id),
                     failed: None,
+                    order: 0,
+                    hides: None,
                 });
             }
         }

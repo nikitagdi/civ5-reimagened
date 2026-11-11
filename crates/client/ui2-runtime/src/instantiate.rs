@@ -61,6 +61,10 @@ pub(crate) struct Spawn {
     pub key: Option<Key>,
     /// The service node the instance belongs to.
     pub owner: Option<NodeId>,
+    /// Only the template nodes `start..end` (one top-level node and its subtree); `None` for all.
+    pub nodes: Option<(u32, u32)>,
+    /// The top-level nodes start chunks of their own (mod panels).
+    pub own_chunk: bool,
 }
 
 /// The arena class of a template node kind.
@@ -136,11 +140,15 @@ pub(crate) fn instantiate<S: Source + ?Sized>(
         let msg = format!("template {} does not exist", s.tpl.0);
         return fail(arena, errors, ErrorCode::MissingTemplate, msg);
     };
-    if template.nodes.len() > MAX_INSTANCE_NODES {
+    let (first, end) = match s.nodes {
+        Some((a, b)) => (a as usize, (b as usize).min(template.nodes.len())),
+        None => (0, template.nodes.len()),
+    };
+    if end.saturating_sub(first) > MAX_INSTANCE_NODES {
         let msg = format!(
             "template {} has {} nodes, at most {MAX_INSTANCE_NODES}",
             s.tpl.0,
-            template.nodes.len()
+            end.saturating_sub(first)
         );
         return fail(arena, errors, ErrorCode::NodeLimit, msg);
     }
@@ -148,7 +156,8 @@ pub(crate) fn instantiate<S: Source + ?Sized>(
     let mut roots = Vec::new();
     // Open subtrees: (end index in the template, node).
     let mut open: Vec<(usize, NodeId)> = Vec::new();
-    for (i, t) in template.nodes.iter().enumerate() {
+    let nodes = template.nodes.get(first..end).unwrap_or(&[]);
+    for (i, t) in nodes.iter().enumerate().map(|(i, t)| (i + first, t)) {
         while open.last().is_some_and(|&(end, _)| end <= i) {
             open.pop();
         }
@@ -178,7 +187,11 @@ pub(crate) fn instantiate<S: Source + ?Sized>(
             });
         }
         let id = arena.alloc(node);
-        let chunk = chunk_of(arena, id, parent);
+        let chunk = if top && s.own_chunk {
+            id.index()
+        } else {
+            chunk_of(arena, id, parent)
+        };
         if let Some(n) = arena.get_mut(id) {
             n.chunk = chunk;
         }
@@ -263,6 +276,8 @@ pub(crate) fn instantiate_body<S: Source + ?Sized>(
         at: base + 1 + owned,
         key,
         owner: Some(service),
+        nodes: None,
+        own_chunk: false,
     };
     instantiate(arena, src, env, errors, spawn)
 }
@@ -493,6 +508,8 @@ mod tests {
             at: 0,
             key: None,
             owner: None,
+            nodes: None,
+            own_chunk: false,
         }
     }
 
