@@ -5,7 +5,7 @@
 //! `null` alone has no alternatives. The checker also reports the model paths an expression
 //! reads, which the converter stores in the package (`BIND.used_paths`).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use super::{BinOp, Expr, ExprError, Func, Template, TplSeg, UnOp, codes};
@@ -30,6 +30,9 @@ pub struct Scope {
     pub state: BTreeMap<String, TypeSig>,
     /// Further whole paths with their types (`mods.<id>.score` in a mod fragment).
     pub extra: BTreeMap<String, TypeSig>,
+    /// Paths (as written, `unit` or `u.target`) known not to be null here: an enclosing `data-bind-if` tests
+    /// them (`{{ unit }}`, `{{ unit != null }}`, joined by `&&`). A path through them is not nullable there.
+    pub non_null: BTreeSet<String>,
 }
 
 /// Names a loop variable may not take, besides the model roots.
@@ -51,6 +54,32 @@ impl Scope {
     pub fn with_extra(mut self, path: &str, ty: TypeSig) -> Self {
         self.extra.insert(path.to_string(), ty);
         self
+    }
+
+    /// The scope under a condition: the paths the condition proves not null are added (a path alone, `p != null`,
+    /// `null != p`, and those of both sides of `&&`).
+    pub fn narrowed_by(&self, cond: &Expr) -> Scope {
+        fn proven(e: &Expr, out: &mut BTreeSet<String>) {
+            match e {
+                Expr::Path(segs) => {
+                    out.insert(segs.join("."));
+                }
+                Expr::Binary(BinOp::Ne, a, b) => match (a.as_ref(), b.as_ref()) {
+                    (Expr::Path(segs), Expr::Null) | (Expr::Null, Expr::Path(segs)) => {
+                        out.insert(segs.join("."));
+                    }
+                    _ => {}
+                },
+                Expr::Binary(BinOp::And, a, b) => {
+                    proven(a, out);
+                    proven(b, out);
+                }
+                _ => {}
+            }
+        }
+        let mut s = self.clone();
+        proven(cond, &mut s.non_null);
+        s
     }
 
     /// Adds a variable.
@@ -342,11 +371,14 @@ impl Checker<'_> {
             )));
         };
         let mut nullable = false;
+        // The path as written up to the current segment: an `Opt` there is not null when a condition proved it.
+        let mut written = first.clone();
         for name in rest {
             if let TypeSig::Opt(inner) = cur {
-                nullable = true;
+                nullable |= !self.scope.non_null.contains(&written);
                 cur = *inner;
             }
+            written = format!("{written}.{name}");
             match &cur {
                 TypeSig::List(_) => {
                     return Err(ExprError::new(
@@ -375,6 +407,11 @@ impl Checker<'_> {
         }
         if let Some(o) = origin {
             self.paths.push((o, cur.clone()));
+        }
+        if self.scope.non_null.contains(&written)
+            && let TypeSig::Opt(inner) = cur
+        {
+            return Ok(Ty::of(*inner).nullable(nullable));
         }
         Ok(Ty::of(cur).nullable(nullable))
     }

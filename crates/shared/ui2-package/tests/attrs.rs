@@ -704,6 +704,9 @@ fn view() -> MapView {
         .ty("game.units[].portrait", "asset")
         .ty("game.tags", "list<str>")
         .ty("game.accent", "color")
+        .ty("game.sel", "struct game.sel?")
+        .ty("game.sel.key", "key<unit>")
+        .ty("game.sel.hp", "int")
         .ty("ui.panel", "str")
         .ty("ui.zoom", "float")
         .ty("ui.fixed", "int")
@@ -1157,5 +1160,23 @@ fn models_sources_and_anchors_are_typed() {
             .err()
             .map(|e| e[0]),
         Some(codes::TYPE)
+    );
+}
+
+#[test]
+fn a_key_read_through_an_optional_record_is_an_intent_argument() {
+    run(
+        Tag::Button,
+        &[(
+            "data-on-click",
+            "intent unit.action(unit: game.sel.key, action: 'fortify')",
+        )],
+    )
+    .expect("a nullable key argument");
+    // Other targets still refuse a nullable value.
+    check_fails(
+        Tag::Button,
+        &[("data-on-click", "set state.prod.page = game.sel.hp")],
+        codes::TYPE,
     );
 }
