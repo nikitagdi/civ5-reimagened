@@ -7,7 +7,7 @@
 // -> v2 -> classic (cold) -> v2 on the fly, and broken skin packages (fixtures) on the classic page.
 //
 // Start: `?ui=v2:engraved&test=1&autostart=1&stats=1`; once the skin runs, the top strip's texts (read through
-// `__civ5test.ui2()`, never from pixels) show the gold, the science rate, the turn and the year that `state()` reports,
+// `__civ5test.ui2()`, never from pixels) show the gold and the science rate, and the turn dial the turn and the year, that `state()` reports,
 // at the start (then a click on the map selects a unit: the unit panel shows its name and its Fortify button fortifies it
 // within 2 s) and again once the settler founded a city (through the test port's orders); `ui2.draws.hud` <= 5; no console errors. Then a page without `&ui=`: `ui2()` is null and no `ui2.*` pass ran
 // (`ui2.draws` absent or 0). Screenshot of the strip: <logs>/ui2-top.png.
@@ -355,11 +355,12 @@ export async function run(ctx) {
           year: yearText(st.year),
         } : null;
         const gold = partTexts(probe, "top.yield.gold");
-        const date = partTexts(probe, "top.date");
+        // The turn and the year are on the turn dial of the helm.
+        const date = partTexts(probe, "helm.dial");
         shown = {
           gold: gold[0] ?? null,
           science: partTexts(probe, "top.yield.science")[0] ?? null,
-          turn: date.find((t) => /\d/.test(t) && !/BC|AD/.test(t))?.replace(/\D+/g, "") ?? null,
+          turn: date.find((t) => /^\d+$/.test(t)) ?? null,
           year: date.find((t) => /BC|AD/.test(t)) ?? null,
         };
         const same = want && ["gold", "science", "turn", "year"].every((k) => shown[k] === want[k]);

@@ -10,8 +10,8 @@ use glam::{Affine2, Vec2};
 use ui2_draw::instance::{ATTRIBUTES, INSTANCE_SIZE};
 use ui2_draw::{
     AnchorXform, Border, BoxItem, ChunkBuilder, ChunkId, Clip, Color, EllipticBox, ExtTexture,
-    FaceId, Fill, Glyphs, Gradient, GradientStop, ImageItem, ImageRef, Item, LayerId, MaskItem,
-    NineSlice, Radii, Rect, Scene, ShadowItem, testkit,
+    FaceId, Fill, GlyphShadow, Glyphs, Gradient, GradientStop, ImageItem, ImageRef, Item, LayerId,
+    MaskItem, NineSlice, Radii, Rect, Scene, ShadowItem, testkit,
 };
 use ui2_text::{RunStyle, TextEngine};
 
@@ -1303,6 +1303,181 @@ fn ui2_draws_gradients_ellipses_shadows_polygon_clips_and_rotations() {
 #[test]
 fn ui2_draws_gradients_and_shadows_on_gl() {
     primitives_on("ui2_draws_gradients_and_shadows_on_gl", wgpu::Backends::GL);
+}
+
+/// Inset shadows: a sharp one (offset, spread, rounded padding box) and a blurred one (sigma 2), every checked
+/// pixel against the hand-computed coverage.
+fn insets_on(test: &str, backends: wgpu::Backends) {
+    let Some(mut rig) = Rig::new(test, backends, (130, 60)) else {
+        return;
+    };
+    let mut scene = Scene::new(1.0);
+    scene.set_chunk(
+        LayerId::Hud,
+        ChunkId(1),
+        chunk(vec![
+            // Padding box x 10..50, y 10..50, radius 8; the hole is the box moved by (4, 6) and shrunk by 2:
+            // x 16..52, y 18..54 (radius 6). The shadow is the left 6 and top 8 px of the box.
+            Item::InsetShadow(ShadowItem {
+                rect: Rect::new(10.0, 10.0, 40.0, 40.0),
+                radii: Radii::uniform(8.0),
+                offset: Vec2::new(4.0, 6.0),
+                spread: 2.0,
+                color: GREEN,
+                ..ShadowItem::default()
+            }),
+            // Padding box x 70..110, y 10..50, blur 4 (sigma 2), no offset.
+            Item::InsetShadow(ShadowItem {
+                rect: Rect::new(70.0, 10.0, 40.0, 40.0),
+                blur: 4.0,
+                color: RED,
+                ..ShadowItem::default()
+            }),
+        ]),
+    );
+    let img = rig.frame(&mut scene);
+    let w = rig.size.0;
+    let c = |x, y| rgb(&img, w, x, y);
+
+    // Sharp: the hole's left edge at x 16, its top edge at y 18; right and bottom of the box are in the hole.
+    assert_eq!(c(15, 30), [0, 255, 0], "left band, last column");
+    assert_eq!(c(16, 30), [0, 0, 0], "in the hole");
+    assert_eq!(c(30, 17), [0, 255, 0], "top band, last row");
+    assert_eq!(c(30, 18), [0, 0, 0], "in the hole");
+    assert_eq!(c(12, 40), [0, 255, 0], "left band, low");
+    assert_eq!(c(49, 30), [0, 0, 0], "the right side is in the hole");
+    assert_eq!(c(30, 49), [0, 0, 0], "the bottom is in the hole");
+    assert_eq!(c(9, 30), [0, 0, 0], "outside the padding box");
+    // The rounded padding box cuts the shadow: the corner pixel lies 10.6 px from the arc centre (18, 18).
+    assert_eq!(c(10, 10), [0, 0, 0], "outside the rounded corner");
+    assert_eq!(c(11, 11), [0, 0, 0], "outside the rounded corner");
+    assert_eq!(c(14, 14), [0, 255, 0], "inside the corner");
+
+    // Blurred: across the middle row the hole's coverage is Phi(d / 2) (d: distance of the pixel centre from
+    // the edge) times 0.99865, the four-sample integral of the Gaussian along y; the shadow is 1 minus that.
+    near(red(&img, w, 70, 30), 0.402, "0.5 px inside the left edge");
+    near(red(&img, w, 71, 30), 0.228, "1.5 px inside");
+    near(red(&img, w, 72, 30), 0.107, "2.5 px inside");
+    near(red(&img, w, 78, 30), 0.0, "8.5 px inside");
+    near(red(&img, w, 90, 30), 0.0, "the middle");
+    near(red(&img, w, 109, 30), 0.402, "0.5 px inside the right edge");
+    // Along y the four samples give 0.6005 instead of Phi(0.25) = 0.5987 for the hole.
+    near(red(&img, w, 90, 10), 0.3995, "0.5 px inside the top edge");
+    assert_eq!(red(&img, w, 69, 30), 0, "outside the padding box");
+    assert_eq!(c(90, 30)[1], 0);
+    assert_eq!(rig.pass.stats().draws, 1);
+}
+
+/// The red channel of `img` blurred on the CPU by the discrete Gaussian of `sigma` cut at `radius` texels
+/// (renormalized), at `(x, y)` read from `(x - dx, y)`; pixels outside the image count as 0.
+fn cpu_blur(img: &[u8], size: (u32, u32), x: i32, y: i32, dx: i32, sigma: f32, radius: i32) -> f32 {
+    let w = |i: i32| (-((i * i) as f32) / (2.0 * sigma * sigma)).exp();
+    let total: f32 = (-radius..=radius).map(w).sum();
+    let mut sum = 0.0;
+    for j in -radius..=radius {
+        for i in -radius..=radius {
+            let (sx, sy) = (x - dx + i, y + j);
+            if sx < 0 || sy < 0 || sx >= size.0 as i32 || sy >= size.1 as i32 {
+                continue;
+            }
+            sum += w(i) * w(j) * f32::from(px(img, size.0, sx as u32, sy as u32)[0]);
+        }
+    }
+    sum / (total * total)
+}
+
+/// Text shadow with blur: one glyph drawn sharp and the same glyph drawn blurred 60 px to the right (blur 4,
+/// sigma 2). Every pixel around the blurred glyph matches the CPU convolution of the sharp one with the
+/// shader's kernel (Gaussian cut at 2 sigma) within 2 levels, and the plain Gaussian (cut at 4 sigma) within a
+/// few levels; glyphs next to it in the atlas do not bleed in.
+fn glyph_blur_on(test: &str, backends: wgpu::Backends) {
+    let Some(mut rig) = Rig::new(test, backends, (140, 90)) else {
+        return;
+    };
+    let mut text = engine();
+    let style = RunStyle::new(FIRA, 20.0);
+    let h = text.shape(&style, "H").expect("shape");
+    let ow = text.shape(&style, "OW").expect("shape");
+    let mut scene = Scene::new(1.0);
+    scene.set_chunk(
+        LayerId::Hud,
+        ChunkId(1),
+        chunk(vec![
+            Item::Glyphs(Glyphs::from_run(&h, 1.0, 10.0, 30.0, WHITE)),
+            Item::GlyphShadow(GlyphShadow {
+                glyphs: Glyphs::from_run(&h, 1.0, 70.0, 30.0, WHITE),
+                blur: 4.0,
+            }),
+            // Neighbours of the H in the atlas (the same shelf).
+            Item::Glyphs(Glyphs::from_run(&ow, 1.0, 10.0, 75.0, WHITE)),
+        ]),
+    );
+    scene.resolve(&mut text, 1000.0);
+    let img = rig.frame(&mut scene);
+    let size = rig.size;
+    // The sharp glyph's ink: x 10..50, y 0..45.
+    let ink: Vec<(i32, i32)> = (0..45)
+        .flat_map(|y| (0..50).map(move |x| (x, y)))
+        .filter(|&(x, y)| px(&img, size.0, x as u32, y as u32)[0] > 0)
+        .collect();
+    assert!(ink.len() > 40, "the H has ink: {}", ink.len());
+    let (x0, x1) = (
+        ink.iter().map(|p| p.0).min().unwrap(),
+        ink.iter().map(|p| p.0).max().unwrap(),
+    );
+    let (y0, y1) = (
+        ink.iter().map(|p| p.1).min().unwrap(),
+        ink.iter().map(|p| p.1).max().unwrap(),
+    );
+    let mut worst_kernel = 0.0f32;
+    let mut worst_gauss = 0.0f32;
+    for y in (y0 - 6)..=(y1 + 6) {
+        for x in (x0 + 60 - 6)..=(x1 + 60 + 6) {
+            let got = f32::from(px(&img, size.0, x as u32, y as u32)[0]);
+            let kernel = cpu_blur(&img, size, x, y, 60, 2.0, 4);
+            let gauss = cpu_blur(&img, size, x, y, 60, 2.0, 8);
+            worst_kernel = worst_kernel.max((got - kernel).abs());
+            worst_gauss = worst_gauss.max((got - gauss).abs());
+            assert!(
+                (got - kernel).abs() <= 2.0,
+                "({x}, {y}): {got}, the cut Gaussian gives {kernel:.1}"
+            );
+        }
+    }
+    println!(
+        "{test}: worst difference {worst_kernel:.1} levels to the cut kernel, {worst_gauss:.1} to the Gaussian"
+    );
+    assert!(
+        worst_gauss <= 6.0,
+        "the cut kernel stays close to the Gaussian: {worst_gauss}"
+    );
+    // The blur reaches past the glyph's ink and fades out within 2 sigma plus a texel.
+    let mid = (y0 + y1) / 2;
+    assert!(px(&img, size.0, (x0 + 60 - 2) as u32, mid as u32)[0] > 20);
+    assert_eq!(px(&img, size.0, (x0 + 60 - 6) as u32, mid as u32)[0], 0);
+    // The sharp glyph is untouched by the blur flag of its twin.
+    assert_eq!(px(&img, size.0, (x0 - 1) as u32, mid as u32)[0], 0);
+    assert_eq!(rig.pass.stats().draws, 1);
+}
+
+#[test]
+fn ui2_draws_blurred_glyphs() {
+    glyph_blur_on("ui2_draws_blurred_glyphs", wgpu::Backends::PRIMARY);
+}
+
+#[test]
+fn ui2_draws_blurred_glyphs_on_gl() {
+    glyph_blur_on("ui2_draws_blurred_glyphs_on_gl", wgpu::Backends::GL);
+}
+
+#[test]
+fn ui2_draws_inset_shadows() {
+    insets_on("ui2_draws_inset_shadows", wgpu::Backends::PRIMARY);
+}
+
+#[test]
+fn ui2_draws_inset_shadows_on_gl() {
+    insets_on("ui2_draws_inset_shadows_on_gl", wgpu::Backends::GL);
 }
 
 /// The end-turn dial of the mockup: conic scale, rotated ticks, an arc of two clipped halves.

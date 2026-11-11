@@ -1,4 +1,4 @@
-//! Painting what the draw layer draws beyond plain boxes: outer shadows, background gradients (layers,
+//! Painting what the draw layer draws beyond plain boxes: outer and inset shadows, background gradients (layers,
 //! sizes, positions, repeats, clip boxes), outlines, elliptic corners, color pictures of the package and game
 //! pictures (resolved by the host, bound by markup, the minimap); idle frames that do nothing and a style
 //! change that builds one chunk again.
@@ -150,6 +150,23 @@ fn rig() -> Rig {
             spread: 0.0,
             color: ColorV::Lit([0, 0, 0, 100]),
         },
+        // Inset shadows: a blurred one listed before a sharp one (a band).
+        Shadow {
+            inset: true,
+            x: 0.0,
+            y: 1.0,
+            blur: 4.0,
+            spread: 1.0,
+            color: ColorV::Lit([9, 9, 9, 150]),
+        },
+        Shadow {
+            inset: true,
+            x: 0.0,
+            y: 0.0,
+            blur: 0.0,
+            spread: 1.0,
+            color: ColorV::Lit([8, 8, 8, 255]),
+        },
     ];
     grad.outline_style = OutlineStyle::Solid;
     grad.outline_width = Len::px(1.0);
@@ -289,6 +306,7 @@ fn paint_shadows_gradient_layers_border_and_outline_in_order() {
         .iter()
         .map(|i| match i {
             Item::Shadow(_) => "shadow",
+            Item::InsetShadow(_) => "inset",
             Item::Box(b) => match b.fill {
                 Fill::Solid(_) => "color",
                 Fill::Gradient(_) => "gradient",
@@ -297,13 +315,27 @@ fn paint_shadows_gradient_layers_border_and_outline_in_order() {
             _ => "other",
         })
         .collect();
-    // The last shadow first; the color; the bottom (conic) layer, then the top one; border; outline.
+    // The last outer shadow first; the color; the bottom (conic) layer, then the top one; the inset shadows,
+    // the last listed first (the sharp one is a band); border; outline.
     assert_eq!(
         kinds,
         [
-            "shadow", "shadow", "color", "gradient", "gradient", "border", "border"
+            "shadow", "shadow", "color", "gradient", "gradient", "border", "inset", "border",
+            "border"
         ]
     );
+    // (Every frame of the rig asserts that nothing was reported.) The blurred inset shadow lies in the padding box with its inner radii, in device px.
+    let Item::InsetShadow(inset) = &items[6] else {
+        panic!("{items:?}");
+    };
+    assert_eq!(inset.rect, ui2_draw::Rect::new(4.0, 4.0, 192.0, 112.0));
+    assert_eq!(inset.radii.tl, 8.0);
+    assert_eq!(
+        (inset.offset, inset.blur, inset.spread),
+        (Vec2::new(0.0, 2.0), 8.0, 2.0)
+    );
+    assert_eq!(inset.color, Color([9, 9, 9, 150]));
+    assert_eq!(inset.clip, None);
     // Device scale 2: the border box is 200 x 120, the padding box is inside the 4 px border.
     let (Item::Shadow(back), Item::Shadow(front)) = (&items[0], &items[1]) else {
         panic!("{items:?}");
@@ -349,14 +381,20 @@ fn paint_shadows_gradient_layers_border_and_outline_in_order() {
     }
     let pos: Vec<f32> = linear.stops().iter().map(|s| s.pos).collect();
     assert_eq!(pos, [0.0, 1.0]);
-    // The border, then the outline 2 px out and 2 px wide (device), its radii grown as much.
-    assert_eq!(b[3].border.top, 4.0);
-    assert_eq!(b[4].rect, ui2_draw::Rect::new(-6.0, -6.0, 212.0, 132.0));
+    // The sharp inset shadow: a 2 px band inside the padding box.
+    assert_eq!(b[3].rect, ui2_draw::Rect::new(4.0, 4.0, 192.0, 112.0));
     assert_eq!(
-        (b[4].border.left, b[4].border.color),
+        (b[3].border.top, b[3].border.color),
+        (2.0, Color([8, 8, 8, 255]))
+    );
+    // The border, then the outline 2 px out and 2 px wide (device), its radii grown as much.
+    assert_eq!(b[4].border.top, 4.0);
+    assert_eq!(b[5].rect, ui2_draw::Rect::new(-6.0, -6.0, 212.0, 132.0));
+    assert_eq!(
+        (b[5].border.left, b[5].border.color),
         (2.0, Color([1, 2, 3, 255]))
     );
-    assert_eq!(b[4].radii.tl, 18.0);
+    assert_eq!(b[5].radii.tl, 18.0);
 }
 
 #[test]

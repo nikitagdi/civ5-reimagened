@@ -12,12 +12,13 @@ use std::sync::Arc;
 
 use serde_json::{Value, json};
 use ui2_draw::Scene;
-use ui2_model::{ModelStore, Sample, Schema};
+use ui2_model::{Fragment, ModelStore, Namespace, Owner, Sample, Schema, Value as ModelValue};
 use ui2_package::Package;
 use ui2_runtime::{Env, Runtime, Services, load_faces};
 use ui2_text::TextEngine;
 
 use crate::errors::{ConvError, Place, codes};
+use crate::skin::StateValue;
 
 /// The largest difference of any edge, CSS px.
 pub const TOLERANCE: f64 = 0.5;
@@ -253,8 +254,15 @@ pub fn verify(skin_dir: &Path, state: &str) -> Result<Outcome, Vec<ConvError>> {
     let sample_path = skin_dir.join("sample").join(format!("{state}.json"));
     let sample = std::fs::read_to_string(&sample_path)
         .map_err(|e| fail(format!("cannot read {}: {e}", sample_path.display())))?;
-    let report =
-        compare(&written.bytes, &sample, &src.skin.skin.id, state, &dumps).map_err(fail)?;
+    let report = compare(
+        &written.bytes,
+        &sample,
+        &src.skin.state,
+        &src.skin.skin.id,
+        state,
+        &dumps,
+    )
+    .map_err(fail)?;
     Ok(Outcome {
         report,
         package: written.bytes,
@@ -272,10 +280,12 @@ fn env(vp: [u32; 2], dsf: f32) -> Env {
 }
 
 /// Runs the package on the sample at the viewports of `dumps` (one dump per [`VIEWPORTS`] entry, in order) and
-/// compares the rectangles.
+/// compares the rectangles. `skin_state` is the skin's `[state]`: it is mounted at `state.*` with its defaults
+/// before the sample's own state is written, as the host does when the skin loads.
 pub fn compare(
     package: &[u8],
     sample: &str,
+    skin_state: &BTreeMap<String, StateValue>,
     skin: &str,
     state: &str,
     dumps: &[Value],
@@ -295,9 +305,13 @@ pub fn compare(
     )
     .map_err(|e| format!("runtime: {e:?}"))?;
     let mut store = ModelStore::new(Schema::v1());
+    mount_state(&mut store, skin_state)?;
     sample
         .apply(&mut store)
         .map_err(|e| format!("sample {state}: {e:?}"))?;
+    sample
+        .apply_state(&mut store)
+        .map_err(|e| format!("sample {state}: {}", e.join("; ")))?;
     let mut scene = Scene::new(1.0);
     // The runtime makes the `for` and `if` bodies itself from the model (keyed instances in model order).
     if let Some(d) = store.take_frame() {
@@ -354,6 +368,104 @@ pub fn compare(
         }
     }
     Ok(report)
+}
+
+/// The skin's [state] as a model fragment: a struct type per dotted prefix (State0, State1, ...) and the
+/// leaves typed by their defaults (bool, i32, f32, str). None for a skin without state.
+///
+/// # Errors
+/// A path that is a value and a prefix at once, or an integer default outside i32.
+pub fn state_fragment(state: &BTreeMap<String, StateValue>) -> Result<Option<Fragment>, String> {
+    enum Node {
+        Leaf(&'static str),
+        Branch(BTreeMap<String, Node>),
+    }
+    fn body(fields: &BTreeMap<String, Node>, types: &mut Vec<String>) -> String {
+        let mut s = String::new();
+        for (k, n) in fields {
+            let ty = match n {
+                Node::Leaf(t) => (*t).to_string(),
+                Node::Branch(sub) => {
+                    let i = types.len();
+                    types.push(String::new());
+                    let b = body(sub, types);
+                    let name = format!("State{i}");
+                    types[i] = format!("[type.{name}]\n{b}");
+                    name
+                }
+            };
+            s.push_str(&format!("{k} = \"{ty}\"\n"));
+        }
+        s
+    }
+    if state.is_empty() {
+        return Ok(None);
+    }
+    let mut root: BTreeMap<String, Node> = BTreeMap::new();
+    for (path, v) in state {
+        let leaf = match v {
+            StateValue::Bool(_) => "bool",
+            StateValue::Int(_) => "i32",
+            StateValue::Float(_) => "f32",
+            StateValue::Str(_) => "str",
+        };
+        let segs: Vec<&str> = path.split('.').collect();
+        let mut at = &mut root;
+        for (i, seg) in segs.iter().enumerate() {
+            if i + 1 == segs.len() {
+                if at.insert(seg.to_string(), Node::Leaf(leaf)).is_some() {
+                    return Err(format!("state.{path} is a value and a group at once"));
+                }
+                break;
+            }
+            let next = at
+                .entry(seg.to_string())
+                .or_insert_with(|| Node::Branch(BTreeMap::new()));
+            at = match next {
+                Node::Branch(m) => m,
+                Node::Leaf(_) => {
+                    return Err(format!("state.{path} is a value and a group at once"));
+                }
+            };
+        }
+    }
+    let mut types = Vec::new();
+    let root_body = body(&root, &mut types);
+    let src = format!("{}\n[root]\n{root_body}", types.join("\n"));
+    Fragment::parse(&src)
+        .map(Some)
+        .map_err(|e| format!("skin state: {e}"))
+}
+
+/// The model value of a state default.
+fn state_value(v: &StateValue) -> Result<ModelValue, String> {
+    Ok(match v {
+        StateValue::Bool(b) => ModelValue::Bool(*b),
+        StateValue::Int(i) => ModelValue::I32(
+            i32::try_from(*i).map_err(|_| format!("state default {i} is outside i32"))?,
+        ),
+        StateValue::Float(f) => ModelValue::F32(*f as f32),
+        StateValue::Str(s) => ModelValue::Str(Arc::from(s.as_str())),
+    })
+}
+
+/// Mounts the skin state at state.* and writes its defaults (what the host does when the skin loads).
+fn mount_state(
+    store: &mut ModelStore,
+    skin_state: &BTreeMap<String, StateValue>,
+) -> Result<(), String> {
+    let Some(fragment) = state_fragment(skin_state)? else {
+        return Ok(());
+    };
+    store
+        .mount(Namespace::State, &fragment)
+        .map_err(|e| format!("skin state: {e}"))?;
+    let mut w = store.writer(Owner::Skin);
+    for (path, v) in skin_state {
+        w.set_value(&format!("state.{path}"), state_value(v)?)
+            .map_err(|e| format!("state.{path}: {e}"))?;
+    }
+    Ok(())
 }
 
 fn first_difference(ours: &[String], theirs: &[String]) -> String {
@@ -420,4 +532,35 @@ fn describe(pkg: &Package, node: &str) -> (String, String) {
         }
     }
     (part, at)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn skin_state_mounts_with_its_defaults() {
+        let skin = crate::skin::Skin::parse(
+            "[skin]\nid = \"t\"\nversion = \"0.1.0\"\ntitle = \"skin.title\"\nmodel = \"1.0\"\napi = \"1.0\"\n\n[state]\nprod = { sort = \"order\", hide_locked = false, page = { n = 2 } }\nzoom = 1.5\n",
+        )
+        .expect("skin");
+        let mut store = ModelStore::new(Schema::v1());
+        mount_state(&mut store, &skin.state).expect("mounts");
+        store.take_frame().expect("a frame");
+        let read = |p: &str| {
+            let f = store.resolve(p).expect(p);
+            store.value(f.id, &[]).cloned()
+        };
+        assert_eq!(
+            read("state.prod.sort"),
+            Some(ModelValue::Str(Arc::from("order")))
+        );
+        assert_eq!(
+            read("state.prod.hide_locked"),
+            Some(ModelValue::Bool(false))
+        );
+        assert_eq!(read("state.prod.page.n"), Some(ModelValue::I32(2)));
+        assert_eq!(read("state.zoom"), Some(ModelValue::F32(1.5)));
+        assert!(state_fragment(&BTreeMap::new()).expect("empty").is_none());
+    }
 }

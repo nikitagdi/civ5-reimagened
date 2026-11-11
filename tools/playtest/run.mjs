@@ -54,6 +54,8 @@ const SCENARIOS = {
   "m3-woi-boot": () => import("./scenarios/m3-woi-boot.mjs"),
   // UI v2 over a live game (?ui=v2:engraved): --attach <url of a real-core server>.
   "ui2-host": () => import("./scenarios/ui2-host.mjs"),
+  // UI v2 orders through the skin (turn dial, production and research windows) and the server's answers: --attach.
+  "ui2-actions": () => import("./scenarios/ui2-actions.mjs"),
   "ui-sound": () => import("./scenarios/ui-sound.mjs"),
   "m3-city": () => import("./scenarios/m3-city.mjs"),
   "m4-diplo-trade": () => import("./scenarios/m4-diplo-trade.mjs"),
@@ -82,6 +84,7 @@ const SCENARIOS = {
   "m5-turn-flow": () => import("./scenarios/m5-turn-flow.mjs"),
   // UI v2 script workers without a game (page ui2-selftest.html): echo, hang, exception, CSP of the worker.
   "ui2-script": () => import("./scenarios/ui2-script.mjs"),
+  "ui2-n6": () => import("./scenarios/ui2-n6.mjs"), // where skin scripts run: worker against main thread (page ui2/bench/bench.html)
 };
 /** The scenarios of `--scenario all` (perf is headed for real FPS numbers; headless it keeps them but enforces no FPS limit). */
 // Every scenario starts its game through the server (`?autostart=1`, net-client NC9); `saveload` uses the server's saves

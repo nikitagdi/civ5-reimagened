@@ -106,6 +106,23 @@ function installInPage() {
     return res;
   };
   const killOff = (off) => { kill.sheet.disabled = off; };
+  // The top-level items of a comma list (commas inside functions do not split).
+  const listItems = (v) => {
+    const out = [];
+    let depth = 0;
+    let from = 0;
+    for (let i = 0; i < v.length; i++) {
+      const c = v[i];
+      if (c === "(") depth++;
+      else if (c === ")") depth--;
+      else if (c === "," && depth === 0) { out.push(v.slice(from, i).trim()); from = i + 1; }
+    }
+    out.push(v.slice(from).trim());
+    return out;
+  };
+  // A list-valued property repeats its value per background (or mask) layer: "scroll, scroll" for two layers
+  // is the initial value of every layer.
+  const isInitial = (v, init) => v === init || (init !== undefined && v.includes(",") && listItems(v).every((x) => x === init));
   const offProfile = (e, known) => {
     const cs = getComputedStyle(e);
     const initial = baselines.get(`${e.namespaceURI} ${e.localName}`) || {};
@@ -114,7 +131,7 @@ function installInPage() {
       const name = cs[i];
       if (name.startsWith("--") || known.has(name)) continue;
       const v = cs.getPropertyValue(name);
-      if (v !== initial[name]) out.push([name, v, initial[name] ?? ""]);
+      if (!isInitial(v, initial[name])) out.push([name, v, initial[name] ?? ""]);
     }
     out.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
     return out;

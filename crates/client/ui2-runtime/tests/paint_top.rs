@@ -458,10 +458,11 @@ fn paint_anonymous_text_and_hidden_roots() {
     assert!(rt.chunk_items(gone).expect("chunk").1.items.is_empty());
 }
 
-/// A text shadow without blur is the text's glyphs again, moved by the offset and in the shadow's color, right
-/// under the text; a blurred one is reported and not drawn (the draw layer has no blurred glyphs).
+/// A text shadow is the text's glyphs again, moved by the offset and in the shadow's color, right under the
+/// text; a shadow with a blur is a blurred glyph run with the blur in device px. Several shadows paint the last
+/// listed first.
 #[test]
-fn paint_text_shadows_without_blur() {
+fn paint_text_shadows() {
     use ui2_package::Layer;
     use ui2_package::style::{ColorV, Display, Len, Shadow, StyleRecord};
     use ui2_runtime::testkit::{Kit, TNode};
@@ -471,7 +472,8 @@ fn paint_text_shadows_without_blur() {
             .join("../../../third_party/fonts/fira-sans/FiraSans-Regular.ttf"),
     )
     .expect("font");
-    let run = |blur: f32, k: f32| {
+    // The runs of the label: (blur, run), blur 0 for a sharp run.
+    let run = |shadows: &[(f32, [u8; 4])], k: f32| {
         let mut kit = Kit::new();
         kit.font("Fira Sans", 400, false, &fira);
         let mut rec = StyleRecord::initial();
@@ -480,14 +482,17 @@ fn paint_text_shadows_without_blur() {
         rec.font_size = Len::px(14.0);
         rec.color = ColorV::Lit([255, 255, 255, 255]);
         let mut shadowed = rec.clone();
-        shadowed.text_shadow = vec![Shadow {
-            inset: false,
-            x: 1.0,
-            y: 2.0,
-            blur,
-            spread: 0.0,
-            color: ColorV::Lit([0, 0, 0, 255]),
-        }];
+        shadowed.text_shadow = shadows
+            .iter()
+            .map(|&(blur, color)| Shadow {
+                inset: false,
+                x: 1.0,
+                y: 2.0,
+                blur,
+                spread: 0.0,
+                color: ColorV::Lit(color),
+            })
+            .collect();
         let (rec, shadowed) = (kit.record(rec), kit.record(shadowed));
         let (set, shadowed) = (kit.plain(rec), kit.plain(shadowed));
         let (text, part) = (kit.str("Gold"), kit.str("label"));
@@ -510,40 +515,52 @@ fn paint_text_shadows_without_blur() {
         let errors = rt.frame(0.0, &store, &mut engine, &mut scene).errors;
         let id = rt.find_part("label").expect("part");
         let chunk = rt.node(id).expect("node").chunk();
-        let runs: Vec<ui2_draw::Glyphs> = rt
+        let runs: Vec<(f32, ui2_draw::Glyphs)> = rt
             .chunk_items(chunk)
             .expect("chunk")
             .1
             .items
             .iter()
             .filter_map(|i| match i {
-                Item::Glyphs(g) => Some(g.clone()),
+                Item::Glyphs(g) => Some((0.0, g.clone())),
+                Item::GlyphShadow(s) => Some((s.blur, s.glyphs.clone())),
                 _ => None,
             })
             .collect();
         (runs, errors)
     };
-    for k in [1.0, 1.5] {
-        let (runs, errors) = run(0.0, k);
-        assert!(errors.is_empty(), "{errors:?}");
-        assert_eq!(runs.len(), 2, "the shadow, then the text");
-        let (shadow, text) = (&runs[0], &runs[1]);
-        assert_eq!(shadow.color, ui2_draw::Color::rgba(0, 0, 0, 255));
-        assert_eq!(text.color, ui2_draw::Color::rgba(255, 255, 255, 255));
+    let moved_by_the_offset = |shadow: &ui2_draw::Glyphs, text: &ui2_draw::Glyphs, k: f32| {
         assert_eq!(shadow.glyphs.len(), text.glyphs.len());
+        assert_eq!((shadow.size_px, shadow.face), (text.size_px, text.face));
         for (s, t) in shadow.glyphs.iter().zip(&text.glyphs) {
             assert_eq!(s.glyph, t.glyph);
             assert!((s.x - t.x - 1.0 * k).abs() < 1e-3 && (s.y - t.y - 2.0 * k).abs() < 1e-3);
         }
+    };
+    const BLACK: [u8; 4] = [0, 0, 0, 255];
+    const RED: [u8; 4] = [255, 0, 0, 255];
+    for k in [1.0, 1.5] {
+        let (runs, errors) = run(&[(0.0, BLACK)], k);
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(runs.len(), 2, "the shadow, then the text");
+        let ((sb, shadow), (tb, text)) = (&runs[0], &runs[1]);
+        assert_eq!((*sb, *tb), (0.0, 0.0));
+        assert_eq!(shadow.color, ui2_draw::Color::rgba(0, 0, 0, 255));
+        assert_eq!(text.color, ui2_draw::Color::rgba(255, 255, 255, 255));
+        moved_by_the_offset(shadow, text, k);
+
+        // A blurred shadow listed first, a sharp one second: the sharp one at the bottom, then the blurred one
+        // (blur 3 CSS px in device px), then the text. Nothing is reported.
+        let (runs, errors) = run(&[(3.0, RED), (0.0, BLACK)], k);
+        assert!(errors.is_empty(), "{errors:?}");
+        let blurs: Vec<f32> = runs.iter().map(|r| r.0).collect();
+        assert_eq!(blurs, vec![0.0, 3.0 * k, 0.0]);
+        assert_eq!(runs[0].1.color, ui2_draw::Color::rgba(0, 0, 0, 255));
+        assert_eq!(runs[1].1.color, ui2_draw::Color::rgba(255, 0, 0, 255));
+        assert_eq!(runs[2].1.color, ui2_draw::Color::rgba(255, 255, 255, 255));
+        moved_by_the_offset(&runs[0].1, &runs[2].1, k);
+        moved_by_the_offset(&runs[1].1, &runs[2].1, k);
     }
-    let (runs, errors) = run(3.0, 1.0);
-    assert_eq!(runs.len(), 1, "a blurred text shadow is not drawn");
-    assert!(
-        errors
-            .iter()
-            .any(|e| format!("{e:?}").contains("a blurred text shadow")),
-        "{errors:?}"
-    );
 }
 
 /// Test 7 of the runtime spec: once settled, frames without changes do not touch the scene.

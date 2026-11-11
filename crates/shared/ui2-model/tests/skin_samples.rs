@@ -56,5 +56,10 @@ fn engraved_hud_sample_is_the_top_strip_fixture() {
     let fixture = include_str!("fixtures/top-sample.json");
     let a = Sample::parse(Schema::v1(), fixture).unwrap();
     let b = load("engraved", "hud.json");
-    assert_eq!(a.roots(), b.roots());
+    // The hud sample grew past the top strip (the helm, the unit panel, notifications): every root of the
+    // fixture is in it with the same value.
+    for (rid, v) in a.roots() {
+        let other = b.roots().iter().find(|(r, _)| r == rid).map(|(_, v)| v);
+        assert_eq!(other, Some(v), "root {rid:?}");
+    }
 }

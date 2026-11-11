@@ -49,6 +49,22 @@
       "known": true,
       "blocked": false
     },
+    "turn": {
+      "state": "unit_needs_orders",
+      "blocker": null,
+      "units_waiting": 5,
+      "finished": false,
+      "can_cancel": false,
+      "timer": null,
+      "ready": 3,
+      "humans": 4,
+      "seats": [
+        { "player": "0:0", "name": "Catherine", "me": true, "finished": false, "may_act": true, "online": true },
+        { "player": "0:1", "name": "Harun al-Rashid", "me": false, "finished": true, "may_act": true, "online": true },
+        { "player": "0:2", "name": "Montezuma", "me": false, "finished": true, "may_act": true, "online": true },
+        { "player": "0:3", "name": "Ramesses", "me": false, "finished": true, "may_act": true, "online": true }
+      ]
+    },
     "map": {
       "cities": [],
       "units": [

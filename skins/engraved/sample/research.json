@@ -1,0 +1,205 @@
+{
+  "model": {
+    "meta": {
+      "schema": "1.0",
+      "source": "replica",
+      "live": true,
+      "catching_up": false,
+      "connected": true
+    },
+    "game": {
+      "turn": 87,
+      "year": 1250,
+      "year_text": {
+        "k": "year.ad",
+        "a": [
+          "1250"
+        ]
+      },
+      "era": {
+        "id": 3,
+        "name": "Medieval era"
+      },
+      "me": "0:0",
+      "phase": "humans",
+      "mode": "simultaneous",
+      "winner": null
+    },
+    "top": {
+      "science_rate": 48,
+      "gold": 312,
+      "gold_rate": 21,
+      "happiness": 7,
+      "mood": "content",
+      "golden_age": {
+        "active": false,
+        "turns": 0,
+        "progress": 412,
+        "threshold": 650
+      },
+      "culture": 214,
+      "culture_rate": 31,
+      "policy_cost": 400,
+      "policy_turns": 6,
+      "faith": 140,
+      "faith_rate": 9,
+      "tourism": 4,
+      "resources": [
+        {
+          "id": "0:1",
+          "name": "Horses",
+          "icon": "icon:RESOURCE_ATLAS:1",
+          "available": 2,
+          "used": 0,
+          "total": 2
+        },
+        {
+          "id": "0:2",
+          "name": "Iron",
+          "icon": "icon:RESOURCE_ATLAS:2",
+          "available": 4,
+          "used": 0,
+          "total": 4
+        },
+        {
+          "id": "0:3",
+          "name": "Coal",
+          "icon": "icon:RESOURCE_ATLAS:3",
+          "available": 0,
+          "used": 3,
+          "total": 3
+        }
+      ],
+      "policies": []
+    },
+    "research": {
+      "current": null,
+      "next": null,
+      "queue": [],
+      "options": [
+        {
+          "id": "0:42",
+          "name": "Astronomy",
+          "icon": "icon:TECH_ATLAS:42",
+          "turns": 9,
+          "progress": 0,
+          "cost": 520,
+          "fraction": 0.0
+        },
+        {
+          "id": "0:43",
+          "name": "Philosophy",
+          "icon": "icon:TECH_ATLAS:43",
+          "turns": 6,
+          "progress": 120,
+          "cost": 400,
+          "fraction": 0.3
+        },
+        {
+          "id": "0:44",
+          "name": "Civil Service",
+          "icon": "icon:TECH_ATLAS:44",
+          "turns": 11,
+          "progress": 0,
+          "cost": 600,
+          "fraction": 0.0
+        },
+        {
+          "id": "0:45",
+          "name": "Physics",
+          "icon": "icon:TECH_ATLAS:45",
+          "turns": null,
+          "progress": 0,
+          "cost": 700,
+          "fraction": 0.0
+        },
+        {
+          "id": "0:46",
+          "name": "Guilds",
+          "icon": "icon:TECH_ATLAS:46",
+          "turns": 7,
+          "progress": 0,
+          "cost": 480,
+          "fraction": 0.0
+        }
+      ],
+      "known": true,
+      "blocked": false
+    },
+    "turn": {
+      "state": "research_needed",
+      "blocker": null,
+      "units_waiting": 0,
+      "finished": false,
+      "can_cancel": false,
+      "timer": null,
+      "ready": 0,
+      "humans": 1,
+      "seats": [
+        { "player": "0:0", "name": "Catherine", "me": true, "finished": false, "may_act": true, "online": true }
+      ]
+    },
+    "map": {
+      "cities": [
+        {
+          "key": "0:1",
+          "owner": "0:0",
+          "name": "Moscow",
+          "plot": {
+            "x": 21,
+            "y": 25
+          },
+          "size": 14,
+          "capital": true,
+          "mine": true,
+          "visible": true,
+          "strength": 31,
+          "hp_fraction": 1.0,
+          "growth_turns": 4
+        },
+        {
+          "key": "0:2",
+          "owner": "0:0",
+          "name": "Novgorod",
+          "plot": {
+            "x": 14,
+            "y": 22
+          },
+          "size": 8,
+          "capital": false,
+          "mine": true,
+          "visible": true,
+          "strength": 18,
+          "hp_fraction": 1.0,
+          "growth_turns": 9
+        },
+        {
+          "key": "0:3",
+          "owner": "0:0",
+          "name": "Kazan",
+          "plot": {
+            "x": 27,
+            "y": 19
+          },
+          "size": 5,
+          "capital": false,
+          "mine": true,
+          "visible": true,
+          "strength": 12,
+          "hp_fraction": 1.0,
+          "growth_turns": 6
+        }
+      ],
+      "units": []
+    }
+  },
+  "state": {},
+  "ui": {
+    "windows": {
+      "research": {
+        "open": true
+      }
+    }
+  },
+  "anchors": {}
+}

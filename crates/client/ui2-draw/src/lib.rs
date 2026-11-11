@@ -469,14 +469,23 @@ impl EllipticBox {
     }
 }
 
-/// An outer box shadow (CSS `box-shadow` without `inset`): the rounded rectangle `rect` moved by `offset`, grown
-/// by `spread` and blurred with a Gaussian of `blur / 2` standard deviation. Like in CSS, nothing of it is drawn
-/// inside `rect` itself (the element's border box), so a translucent element does not show its own shadow.
+/// A box shadow (CSS `box-shadow`).
+///
+/// As [`Item::Shadow`], an outer shadow: the rounded rectangle `rect` moved by `offset`, grown by `spread` and
+/// blurred with a Gaussian of `blur / 2` standard deviation. Like in CSS, nothing of it is drawn inside `rect`
+/// itself (the element's border box), so a translucent element does not show its own shadow.
+///
+/// As [`Item::InsetShadow`], an inner shadow (CSS `inset`): `rect` and `radii` are the element's padding box and
+/// its corner radii (the border box's radii reduced by the border widths, as CSS does). The shadow covers that
+/// box except for a hole: the same box moved by `offset`, shrunk by `spread` (its rounded corners shrink with
+/// it, square ones stay square) and blurred with the same Gaussian. Nothing is drawn outside the rounded
+/// padding box.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShadowItem {
-    /// The element's border box, chunk space (before the offset and the spread).
+    /// The element's border box (outer shadow) or padding box (inset shadow), chunk space, before the offset and
+    /// the spread.
     pub rect: Rect,
-    /// The element's corner radii (the shadow's grow with the spread).
+    /// The corner radii of `rect` (the shadow's grow with the spread, or shrink with it when inset).
     pub radii: Radii,
     /// Shadow offset, device px.
     pub offset: Vec2,
@@ -668,6 +677,34 @@ impl Glyphs {
     }
 }
 
+/// A blurred run of glyphs: the shadow of a text with a blur radius (CSS `text-shadow: x y <blur> color`). The
+/// runtime hands the text's glyphs already moved by the shadow offset and in the shadow colour; the run is
+/// drawn under the text.
+///
+/// How the blur is computed (an approximation of the browser's Gaussian blur of the whole text layer):
+/// - Each glyph is blurred on its own, from its own coverage in the glyph atlas, by the fragment shader. The
+///   kernel is the separable Gaussian of standard deviation `sigma = blur / 2` sampled at whole atlas texels,
+///   cut at `ceil(2 * sigma)` texels from the centre and renormalized (a full Gaussian has about 4.6 % of its
+///   weight per axis beyond `2 * sigma`, so the faint outer tail of the shadow is missing).
+/// - The kernel is evaluated with bilinear taps that merge pairs of neighbouring texels, at most 9 taps per
+///   axis and 81 per pixel (`sigma` up to 4, a blur up to 8 px). The result is exactly that discrete kernel
+///   when the glyph sits on whole device pixels without a transform (glyph quads are placed on whole pixels);
+///   under a transform the bilinear base sample adds a little blur of its own.
+/// - Above `sigma = 4` the 9 x 9 pattern of `sigma = 4` is stretched by `sigma / 4`: taps then lie further
+///   apart than two texels and thin strokes show as faint bands instead of a smooth blur.
+/// - The shadows of neighbouring glyphs are blended one over the other, so where their blurs overlap the
+///   shadow is a little lighter than a blur of the whole run would be.
+/// - The coverage is the rasterizer's (gamma-corrected) coverage, blurred as it is.
+///
+/// A glyph keeps exactly one instance, like in [`Glyphs`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct GlyphShadow {
+    /// The run: the text's glyphs moved by the shadow offset, in the shadow colour.
+    pub glyphs: Glyphs,
+    /// Blur radius, device px (CSS: twice the standard deviation). 0, negative or not finite: no blur.
+    pub blur: f32,
+}
+
 /// One drawable thing.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -678,12 +715,23 @@ pub enum Item {
     EllipticBox(EllipticBox),
     /// An outer blurred shadow.
     Shadow(ShadowItem),
+    /// An inner blurred shadow (CSS `box-shadow: inset ...`), drawn inside the item's rectangle only.
+    InsetShadow(ShadowItem),
     /// A mask sprite.
     Mask(MaskItem),
     /// A colour picture.
     Image(ImageItem),
     /// A run of glyphs.
     Glyphs(Glyphs),
+    /// A blurred run of glyphs (a text shadow with a blur radius).
+    GlyphShadow(GlyphShadow),
+}
+
+impl Item {
+    /// True if the item draws glyphs of the glyph atlas.
+    pub fn has_glyphs(&self) -> bool {
+        matches!(self, Item::Glyphs(_) | Item::GlyphShadow(_))
+    }
 }
 
 /// The items of one chunk, in drawing order (later over earlier), and the anchor of the chunk.

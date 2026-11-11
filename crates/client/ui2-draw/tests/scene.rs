@@ -1,8 +1,9 @@
 //! Chunks, layers, revisions, change records and anchors of the scene (no GPU).
 
+use ui2_draw::instance::{FLAG_BORDER, FLAG_FILL, FLAG_INSET, KIND_BOX, KIND_SHADOW, f16_bits};
 use ui2_draw::{
-    Affine2, AnchorXform, BoxItem, ChunkBuilder, ChunkId, ChunkItems, Clip, Color, ExtTexture,
-    Fill, ImageItem, Item, LayerChange, LayerId, Rect, Scene, Vec2,
+    Affine2, AnchorXform, Border, BoxItem, ChunkBuilder, ChunkId, ChunkItems, Clip, Color,
+    ExtTexture, Fill, ImageItem, Item, LayerChange, LayerId, Radii, Rect, Scene, ShadowItem, Vec2,
 };
 
 fn one(start: usize, end: usize) -> Vec<std::ops::Range<usize>> {
@@ -18,6 +19,77 @@ fn boxes(n: usize, color: u8) -> ChunkItems {
         )));
     }
     b.build()
+}
+
+/// An element as the runtime paints it with an outer and an inset shadow: outer shadow, background, inset
+/// shadow over the background, border on top.
+fn shadowed(inset_blur: f32) -> ChunkItems {
+    let border = Rect::new(10.0, 10.0, 60.0, 40.0);
+    let padding = Rect::new(12.0, 12.0, 56.0, 36.0);
+    let black = Color::rgba(0, 0, 0, 128);
+    let mut b = ChunkBuilder::new();
+    b.push(Item::Shadow(ShadowItem {
+        rect: border,
+        radii: Radii::uniform(6.0),
+        offset: Vec2::new(0.0, 4.0),
+        blur: 12.0,
+        color: black,
+        ..ShadowItem::default()
+    }));
+    b.push(Item::Box(BoxItem {
+        radii: Radii::uniform(6.0),
+        ..BoxItem::solid(border, Color::rgba(40, 30, 20, 255))
+    }));
+    b.push(Item::InsetShadow(ShadowItem {
+        rect: padding,
+        radii: Radii::uniform(4.0),
+        offset: Vec2::new(0.0, 2.0),
+        blur: inset_blur,
+        spread: 1.0,
+        color: black,
+        ..ShadowItem::default()
+    }));
+    b.push(Item::Box(BoxItem {
+        rect: border,
+        border: Border::uniform(2.0, Color::rgba(200, 160, 100, 255)),
+        radii: Radii::uniform(6.0),
+        ..BoxItem::default()
+    }));
+    b.build()
+}
+
+#[test]
+fn inset_shadows_encode_in_place_between_the_background_and_the_border() {
+    let mut s = Scene::new(1.0);
+    s.set_chunk(LayerId::Hud, ChunkId(1), boxes(2, 10));
+    s.set_chunk(LayerId::Hud, ChunkId(2), shadowed(6.0));
+    s.take_layer_change(LayerId::Hud);
+    let layer = s.layer_instances(LayerId::Hud);
+    assert_eq!(layer.len(), 6);
+    let kinds: Vec<(u8, u8)> = layer[2..].iter().map(|i| (i.kind, i.flags)).collect();
+    assert_eq!(
+        kinds,
+        vec![
+            (KIND_SHADOW, 0),
+            (KIND_BOX, FLAG_FILL),
+            (KIND_SHADOW, FLAG_INSET),
+            (KIND_BOX, FLAG_BORDER),
+        ]
+    );
+    let inset = layer[4];
+    assert_eq!(inset.rect, [12.0, 12.0, 56.0, 36.0]);
+    assert_eq!(inset.radii, [4.0; 4].map(f16_bits));
+    assert_eq!(inset.uv[..2], [0.0, 2.0]);
+    assert_eq!(inset.extra[..2], [f16_bits(3.0), f16_bits(1.0)]);
+    // A new blur patches the inset shadow's chunk in place.
+    let rev = s.layer_revision(LayerId::Hud);
+    s.set_chunk(LayerId::Hud, ChunkId(2), shadowed(8.0));
+    assert_eq!(s.layer_revision(LayerId::Hud), rev + 1);
+    assert_eq!(
+        s.take_layer_change(LayerId::Hud),
+        LayerChange::Ranges(one(2, 6))
+    );
+    assert_eq!(s.layer_instances(LayerId::Hud)[4].extra[0], f16_bits(4.0));
 }
 
 fn color_of(s: &Scene, id: ChunkId, i: usize) -> u8 {

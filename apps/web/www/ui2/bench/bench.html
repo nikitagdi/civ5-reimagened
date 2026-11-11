@@ -1,0 +1,748 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>ui2 script host bench</title>
+<!--
+  Where skin scripts should run: in a Web Worker (the production path, `ui2/host.js`) or on the page's main thread
+  (`main-arm.js`, the same host contract). The playtest scenario `ui2-n6` drives `window.__n6`:
+
+    __n6.info()                    -> {isolated, measure, skinBytes, ...}
+    __n6.emptyWorker()             -> heap of a worker with api.js and no skin (null if the page cannot measure)
+    __n6.workload(arm, o)          -> the skin workload on one context: idle, 20 turns, feed filter events, heap
+    __n6.gcPass(arm, o)            -> the turns again on a fresh context, fast (the scenario traces it for GC pauses)
+    __n6.rust(arm, o)              -> the Rust supervisor (`Ui2ScriptSelftest`) over the arm's host: a 200-row delta
+                                      probe with its main-thread counter, then a handler that loops for 5 s
+  `arm` is "worker" or "main". The model is a late game on a Huge map, generated here from a fixed seed with the
+  generated schema tables (`ui2/model.gen.js`); deltas are UMD1 texts precomputed before a run, so the loop measures
+  the host and the scripts, not the generator.
+-->
+<pre id="out">ui2 script host bench: loading</pre>
+<script src="../api.js"></script>
+<script src="../host.js"></script>
+
+<!-- The bench skin: the HUD of mockup A in draft form, as a skin would write it (API 1.0, a classic script). Island
+     commands stand in for the unbound nodes these texts would go to. -->
+<script type="text/plain" id="skin-hud">
+const signed = (n) => (n >= 0 ? "+" : "") + n;
+const compact = (n) => (Math.abs(n) >= 10000 ? (n / 1000).toFixed(1) + "k" : String(n));
+const top = ui.island("top");
+
+ui.model.on("top", (t) => {
+  if (!t) return;
+  top.text("gold", compact(t.gold) + " (" + signed(t.gold_rate) + ")");
+  top.text("science", signed(t.science_rate));
+  top.text("culture", compact(t.culture) + " (" + signed(t.culture_rate) + ")");
+  top.text("faith", compact(t.faith) + " (" + signed(t.faith_rate) + ")");
+  top.text("happiness", String(t.happiness)).cls("happiness", "unhappy", t.mood !== "content");
+  top.text("policy", t.policy_turns === null ? "" : t.policy_turns + "T");
+  let lacking = 0;
+  for (const r of t.resources) if (r.available < 0) lacking += 1;
+  top.show("resource-alert", lacking > 0).text("resource-alert", String(lacking));
+});
+
+ui.model.on("game", (g) => {
+  if (g) top.text("date", "T" + g.turn + " " + (typeof g.year_text === "string" ? g.year_text : g.year));
+});
+
+ui.model.on("research", (r) => {
+  const c = r && r.current;
+  top.text("tech", c ? c.name + " " + Math.round(c.fraction * 100) + "%" + (c.turns === null ? "" : " (" + c.turns + ")") : "");
+});
+
+const LABELS = {
+  next_turn: "Next turn",
+  unit_needs_orders: "Unit needs orders",
+  city_needs_production: "Choose production",
+  research_needed: "Choose research",
+  policy_needed: "Choose policy",
+  other_blocker: "Action needed",
+  waiting_others: "Waiting for players",
+  ai_moving: "Please wait",
+  ended: "Turn ended",
+  game_over: "Game over",
+};
+const turnIsland = ui.island("turn");
+ui.model.on("turn", (t) => {
+  if (!t) return;
+  const label = LABELS[t.state] || String(t.state);
+  const left = t.timer ? t.timer.left_s : 0;
+  const clock = t.timer ? Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0") : "";
+  turnIsland.text("label", label).text("ready", t.ready + "/" + t.humans).text("timer", clock).cls("timer", "late", !!t.timer && left < 30);
+  ui.state.set("turn.label", label);
+});
+
+// The notification feed and its filter.
+const feed = ui.island("feed");
+const notes = new Map();
+let filter = "all";
+const passes = (n) => filter === "all" || n.category === filter;
+ui.model.onList("notes", {
+  add(k, n) {
+    notes.set(k, n);
+    feed.text(k, n.summary).show(k, passes(n));
+  },
+  change(k, n) {
+    notes.set(k, n);
+    feed.text(k, n.summary).show(k, passes(n));
+  },
+  remove(k) {
+    notes.delete(k);
+    feed.show(k, false);
+  },
+});
+function refilter() {
+  let count = 0;
+  const first = [];
+  for (const [k, n] of notes) {
+    const v = passes(n);
+    feed.show(k, v);
+    if (v) {
+      count += 1;
+      if (first.length < 20) first.push(k);
+    }
+  }
+  ui.state.set("feed", { filter, count, first });
+}
+ui.on("feed.filter", (cat) => {
+  filter = typeof cat === "string" ? cat : "all";
+  refilter();
+});
+
+// City banners: the label with the production.
+const banners = ui.island("banners");
+function bannerText(c) {
+  const p = c.production;
+  return c.name + " " + c.size + (p ? " - " + p.name + (p.turns === null ? "" : " " + p.turns) : "");
+}
+ui.model.onList("map.cities", {
+  add(k, c) {
+    banners.text(k, bannerText(c));
+  },
+  change(k, c, old) {
+    if (c.name !== old.name || c.size !== old.size || c.production !== old.production) banners.text(k, bannerText(c));
+    if (c.growth_turns !== old.growth_turns) banners.cls(k, "starving", c.growth_turns !== null && c.growth_turns < 0);
+  },
+  remove(k) {
+    banners.show(k, false);
+  },
+});
+
+// The production window with the skin's own sort.
+let sortBy = "turns";
+const prod = ui.island("prod");
+const ORDER = {
+  turns: (a, b) => (a.turns === null ? 1e9 : a.turns) - (b.turns === null ? 1e9 : b.turns) || a.cost - b.cost,
+  cost: (a, b) => a.cost - b.cost,
+  name: (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
+};
+function resort(p) {
+  if (!p) return;
+  const rows = [];
+  for (const g of p.groups) for (const o of g.options) if (o.enabled) rows.push(o);
+  rows.sort(ORDER[sortBy] || ORDER.turns);
+  ui.state.set("prod.order", rows.map((o) => o.item));
+  const c = p.current;
+  prod.text("title", p.name + " (" + p.size + ")").text("rate", signed(p.rate));
+  prod.text("current", c ? c.name + (c.turns === null ? "" : " " + c.turns) : "");
+  if (rows.length) prod.text("best", rows[0].name);
+}
+ui.model.on("production", resort);
+ui.on("prod.sort", (s) => {
+  sortBy = s;
+  resort(ui.model.get("production"));
+});
+</script>
+
+<!-- The skin of the Rust supervisor runs: a list of 200 rows in `top.resources`, and a handler that loops. -->
+<script type="text/plain" id="skin-probe">
+const rows = ui.island("rows");
+const label = (r) => r.name + " " + r.available + "/" + r.total;
+ui.model.onList("top.resources", {
+  add(k, r) {
+    rows.text(k, label(r));
+  },
+  change(k, r) {
+    rows.text(k, label(r)).cls(k, "short", r.available < 0);
+  },
+});
+ui.model.on("top.gold", (g) => ui.state.set("n", g));
+ui.on("hang", (ms) => {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    // A script that does not return.
+  }
+  ui.state.set("sort", "after the hang");
+});
+</script>
+
+<script type="module">
+import { ROOTS, ENUMS, TYPES, PATHS, SCHEMA_HASH, fieldId } from "../model.gen.js";
+import { createMainThreadHost } from "./main-arm.js";
+import { createWorkerHost, takeProductionHost, canMeasureWorkers, whyNotMeasurable, measureRealms, emptyWorkerBytes } from "./worker-arm.js";
+
+const out = document.getElementById("out");
+const SKIN = document.getElementById("skin-hud").textContent;
+const PROBE = document.getElementById("skin-probe").textContent;
+const READS = ["game", "top", "research", "turn", "notes", "map.cities", "production"];
+const production = takeProductionHost();
+
+// ---------------------------------------------------------------- schema tables and the UMD1 encoder
+
+const SCHEMA = {
+  hash: SCHEMA_HASH,
+  parts: [
+    {
+      base: 0,
+      roots: ROOTS.map(([name, type], i) => [i, name, type]),
+      enums: ENUMS,
+      types: TYPES,
+      paths: PATHS.map((p) => [p.path, p.type, p.key ?? null, !!p.js]),
+    },
+  ],
+};
+// The key field of each list element type.
+const KEY_OF = {};
+for (const p of PATHS) if (p.key && Array.isArray(p.type) && p.type[0] === "list") KEY_OF[p.type[1]] = p.key;
+
+const keyText = (v) => (typeof v === "string" ? v : "0:" + (v | 0));
+
+function scalarDefault(s) {
+  if (s === "bool") return false;
+  if (s === "str" || s === "text" || s === "asset") return "";
+  if (s === "key") return "0:0";
+  return 0;
+}
+
+/** A value in its UMD1 form: structs as arrays in field order, lists as [key, element] pairs, enums as indexes. */
+function enc(d, v) {
+  if (typeof d === "string") return v === undefined || v === null ? scalarDefault(d) : v;
+  switch (d[0]) {
+    case "opt":
+      return v === undefined || v === null ? null : enc(d[1], v);
+    case "enum":
+      return typeof v === "string" ? ENUMS[d[1]].indexOf(v) : (v ?? 0);
+    case "struct":
+      return TYPES[d[1]].map(([f, fd]) => enc(fd, v ? v[f] : undefined));
+    case "list": {
+      const k = KEY_OF[d[1]];
+      return (v || []).map((e) => [keyText(e[k]), enc(["struct", d[1]], e)]);
+    }
+    default:
+      throw new Error("bad type " + JSON.stringify(d));
+  }
+}
+
+function fid(path) {
+  const id = fieldId(path);
+  if (id < 0) throw new Error("no such model path " + path);
+  return id;
+}
+const typeOf = (path) => PATHS[fid(path)].type;
+const rootId = (name) => ROOTS.findIndex((r) => r[0] === name);
+const op = {
+  set: (path, keys, v) => [0, fid(path), keys, enc(typeOf(path), v)],
+  insert: (path, keys, at, key, v) => [1, fid(path), keys, at, key, enc(["struct", typeOf(path)[1]], v)],
+  remove: (path, keys, key) => [2, fid(path), keys, key],
+  reset: (root, v) => [4, rootId(root), enc(ROOTS[rootId(root)][1], v)],
+};
+
+// ---------------------------------------------------------------- the late game (Huge map, fixed seed)
+
+function rng(seed) {
+  let s = seed >>> 0 || 1;
+  return () => {
+    s ^= s << 13;
+    s ^= s >>> 17;
+    s ^= s << 5;
+    return (s >>> 0) / 4294967296;
+  };
+}
+
+const CITIES = 200;
+const NOTES = 150;
+const CATS = ["growth", "great_people", "diplomacy", "military", "production", "research", "policy", "religion", "other"];
+
+/** The snapshot of the roots the skin reads, and `turns` turn deltas each followed by three timer ticks. */
+function generate(turns) {
+  const r = rng(0x5eed);
+  const int = (a, b) => a + Math.floor(r() * (b - a + 1));
+  const tech = (i) => ({ id: "0:" + i, name: "Tech " + i, icon: "icon:TECH:" + i, turns: int(1, 9), progress: int(0, 900), cost: 1200, fraction: r() });
+  const game = { turn: 250, year: 1850, year_text: "1850 AD", era: { id: 5, name: "Industrial Era" }, me: "0:0", phase: "humans", mode: "simultaneous", winner: null };
+  const top = {
+    science_rate: 420, gold: 5400, gold_rate: 85, happiness: 12, mood: "content",
+    golden_age: { active: false, turns: 0, progress: 400, threshold: 1200 },
+    culture: 22000, culture_rate: 260, policy_cost: 4000, policy_turns: 7, faith: 900, faith_rate: 25, tourism: 40,
+    resources: Array.from({ length: 30 }, (_, i) => ({ id: "0:" + i, name: "Resource " + i, icon: "icon:RES:" + i, available: int(-2, 9), used: int(0, 6), total: int(1, 12) })),
+    policies: Array.from({ length: 10 }, (_, i) => ({ id: i, name: "Branch " + i, unlocked: i < 6, owned: int(0, 6), total: 6 })),
+  };
+  const research = { current: tech(60), next: tech(61), queue: [tech(61), tech(62)], options: Array.from({ length: 10 }, (_, i) => tech(60 + i)), known: true, blocked: false };
+  const seats = Array.from({ length: 8 }, (_, i) => ({ player: "0:" + i, name: "Player " + i, me: i === 0, finished: false, may_act: true, online: true }));
+  const turn = { state: "next_turn", blocker: null, units_waiting: 0, finished: false, can_cancel: false, timer: { left_s: 120, total_s: 120, stopped: false }, ready: 0, humans: 8, seats };
+  const prodOf = (i, t) => ({ item: "0:" + ((i * 7 + t) % 60), name: "Item " + ((i * 7 + t) % 60), icon: "icon:ITEM:" + ((i * 7 + t) % 60), turns: int(1, 15), fraction: r() });
+  const cities = Array.from({ length: CITIES }, (_, i) => ({
+    key: "0:" + (1000 + i), owner: "0:" + (i % 12), color: 0xff3366ff, color2: 0xffffffff, name: "City " + i, plot: { x: int(0, 127), y: int(0, 79) },
+    size: int(3, 25), capital: i % 12 === 0, mine: i % 12 === 0, visible: true, puppet: false, razing: false, occupied: false, resistance: false,
+    can_shoot: i % 3 === 0, strength: int(15, 60), hp_fraction: 1, growth_turns: int(-3, 12), production: prodOf(i, 0),
+  }));
+  let noteNo = 0;
+  const note = (t) => {
+    const id = noteNo++;
+    return { id: "0:" + id, category: CATS[id % CATS.length], message: "Something happened in City " + (id % CITIES) + " on turn " + t, summary: "Note " + id, turn: t, plot: id % 2 ? { x: int(0, 127), y: int(0, 79) } : null };
+  };
+  const notes = Array.from({ length: NOTES }, () => note(250));
+  const opt = (kind, i) => ({ item: "0:" + (kind * 100 + i), order: kind === 0 ? 0 : 1, name: (kind === 0 ? "Unit " : kind === 1 ? "Building " : "Wonder ") + i, icon: "icon:ITEM:" + i, turns: int(1, 40), cost: int(80, 1500), enabled: r() > 0.1, current: false, queued: false, locked_reason: null, effect: null, buy_gold: int(200, 3000), buy_gold_ok: r() > 0.5, buy_faith: null, buy_faith_ok: false, pending: false });
+  const groups = [
+    { kind: 0, count: 15, options: Array.from({ length: 15 }, (_, i) => opt(0, i)) },
+    { kind: 1, count: 20, options: Array.from({ length: 20 }, (_, i) => opt(1, i)) },
+    { kind: 2, count: 5, options: Array.from({ length: 5 }, (_, i) => opt(2, i)) },
+  ];
+  const prod = {
+    city: "0:1000", name: "City 0", capital: true, size: 18, rate: 64, overflow: null, gold: 5400, faith: 900,
+    current: { item: "0:101", name: "Building 1", kind: "building", stored: 120, needed: 400, turns: 5, fraction: 0.3 },
+    queue_known: true, queue: [{ slot: 1, item: "0:102", name: "Building 2", kind: "building", turns: 9, first: false }], groups, detail: null,
+  };
+
+  const snapshot = [0, [5, SCHEMA_HASH], op.reset("game", game), op.reset("top", top), op.reset("research", research), op.reset("turn", turn), op.reset("map", { cities, units: [] }), op.reset("notes", notes), op.reset("production", prod)];
+  const deltas = [];
+  let rev = 1;
+  let left = notes.map((n) => n.id);
+  for (let t = 1; t <= turns; t++) {
+    const ops = [];
+    const g = 250 + t;
+    ops.push(op.set("game.turn", [], g), op.set("game.year", [], 1850 + t), op.set("game.year_text", [], 1850 + t + " AD"));
+    for (const [f, v] of [["gold", 5400 + t * 85], ["gold_rate", int(60, 110)], ["science_rate", 420 + t], ["culture", 22000 + t * 260], ["faith", 900 + t * 25], ["happiness", int(-3, 15)], ["policy_turns", int(1, 9)]]) {
+      ops.push(op.set("top." + f, [], v));
+    }
+    ops.push(op.set("top.mood", [], r() > 0.8 ? "unhappy" : "content"));
+    for (let i = 0; i < 10; i++) ops.push(op.set("top.resources[].available", ["0:" + int(0, 29)], int(-2, 9)));
+    ops.push(op.set("research.current", [], tech(60 + (t % 10))));
+    ops.push(op.set("turn.state", [], "next_turn"), op.set("turn.ready", [], 0), op.set("turn.timer", [], { left_s: 120, total_s: 120, stopped: false }));
+    for (let p = 0; p < 8; p++) ops.push(op.set("turn.seats[].finished", ["0:" + p], false));
+    for (let i = 0; i < CITIES; i++) {
+      const k = ["0:" + (1000 + i)];
+      ops.push(op.set("map.cities[].production", k, prodOf(i, t)));
+      ops.push(op.set("map.cities[].growth_turns", k, int(-3, 12)));
+      if (i % 5 === t % 5) ops.push(op.set("map.cities[].size", k, int(3, 25)));
+    }
+    for (let i = 0; i < 5; i++) {
+      ops.push(op.remove("notes", [], left[0]));
+      left = left.slice(1);
+      const n = note(g);
+      ops.push(op.insert("notes", [], left.length, n.id, n));
+      left.push(n.id);
+    }
+    for (const gr of groups) {
+      const gk = keyText(gr.kind);
+      for (const o of gr.options) {
+        ops.push(op.set("production.groups[].options[].turns", [gk, o.item], int(1, 40)));
+        ops.push(op.set("production.groups[].options[].cost", [gk, o.item], int(80, 1500)));
+      }
+    }
+    ops.push(op.set("production.current.turns", [], int(1, 9)));
+    deltas.push({ kind: "turn", text: JSON.stringify([rev++, ...ops]), ops: ops.length });
+    for (let tick = 1; tick <= 3; tick++) {
+      const tops = [op.set("turn.timer.left_s", [], 120 - tick * 30), op.set("turn.ready", [], tick * 2)];
+      deltas.push({ kind: "tick", text: JSON.stringify([rev++, ...tops]), ops: tops.length });
+    }
+  }
+  return { snapshot: JSON.stringify(snapshot), deltas };
+}
+
+const TURNS = 20;
+const WORLD = generate(TURNS);
+
+function initText(files) {
+  return (
+    '{"t":"init","api":"1.0.0","ctx":"skin","files":' +
+    JSON.stringify(files) +
+    ',"model":' +
+    WORLD.snapshot +
+    ',"settings":[],"env":{"lang":"en_US","viewport":[1920,1080],"scale":1,"cell":0,"skin":"bench"},"limits":{},"reads":' +
+    JSON.stringify(READS) +
+    ',"ns":{"state":"state"},"schema":' +
+    JSON.stringify(SCHEMA) +
+    ',"dev":false}'
+  );
+}
+
+// ---------------------------------------------------------------- the bench's frame loop
+
+function hostFor(arm) {
+  if (arm === "worker") return createWorkerHost();
+  if (arm === "main") return createMainThreadHost();
+  throw new Error("arm: worker or main");
+}
+
+function frames(onFrame) {
+  return new Promise((resolve, reject) => {
+    const tick = (ts) => {
+      let go;
+      try {
+        go = onFrame(ts);
+      } catch (e) {
+        reject(e);
+        return;
+      }
+      if (go) requestAnimationFrame(tick);
+      else resolve();
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+function record() {
+  return { work: [], drain: [], post: [], turnPost: [], turnDrain: [], turnWork: [], turnBusy: [], gaps: [], posts: 0, postBytes: 0, outs: 0, busy: [], n3: [], stateOps: 0, cmds: 0, errors: [], logErrors: [] };
+}
+
+/** One script context over a host, stepped once per animation frame. */
+class Session {
+  constructor(arm) {
+    this.arm = arm;
+    this.host = hostFor(arm);
+    this.id = this.host.spawn();
+    this.seq = 0;
+    this.frame = 0;
+    this.posted = new Map();
+    this.ready = false;
+    this.host.post(this.id, initText([{ path: "js/hud.js", code: SKIN }]));
+  }
+
+  outstanding() {
+    return this.posted.size;
+  }
+
+  /** Drain the answers, then post `entry` (a delta, events, or nothing). */
+  step(entry, rec) {
+    this.frame += 1;
+    const t0 = performance.now();
+    const q = this.host.drain();
+    let turnAck = false;
+    for (const [id, kind, text] of q) {
+      if (id !== this.id) continue;
+      if (kind === "error") {
+        rec.errors.push(text);
+        continue;
+      }
+      const m = JSON.parse(text);
+      if (m.t === "ready") this.ready = true;
+      else if (m.t === "fail") rec.errors.push("fail: " + m.error.message);
+      else if (m.t === "out") {
+        rec.outs += 1;
+        rec.busy.push(m.busy_ms);
+        rec.stateOps += m.state.length;
+        rec.cmds += m.cmds.length;
+        for (const l of m.log) if (l.level === "error") rec.logErrors.push(l.text);
+        if (m.ack !== null && m.ack !== undefined && this.posted.has(m.ack)) {
+          const p = this.posted.get(m.ack);
+          this.posted.delete(m.ack);
+          if (p.kind === "turn") {
+            turnAck = true;
+            rec.turnBusy.push(m.busy_ms);
+          }
+          if (m.state.length || m.cmds.length || m.intents.length) rec.n3.push(this.frame - p.frame);
+        }
+      }
+    }
+    const t1 = performance.now();
+    let sent = false;
+    if (entry) {
+      const text = '{"t":"frame","seq":' + this.seq + (entry.model ? ',"model":' + entry.model : "") + ',"events":' + JSON.stringify(entry.events || []) + "}";
+      this.host.post(this.id, text);
+      this.posted.set(this.seq, { frame: this.frame, kind: entry.kind });
+      this.seq += 1;
+      rec.posts += 1;
+      rec.postBytes += text.length;
+      sent = true;
+    }
+    const t2 = performance.now();
+    if (q.length || sent) {
+      rec.work.push(t2 - t0);
+      rec.drain.push(t1 - t0);
+      rec.post.push(t2 - t1);
+    }
+    if (sent && entry.kind === "turn") rec.turnPost.push(t2 - t1);
+    if (turnAck) rec.turnDrain.push(t1 - t0);
+    if ((sent && entry.kind === "turn") || turnAck) rec.turnWork.push(t2 - t0);
+  }
+
+  async untilReady(ms = 10000) {
+    const rec = record();
+    const start = performance.now();
+    await frames(() => {
+      this.step(null, rec);
+      if (rec.errors.length) throw new Error(this.arm + ": " + rec.errors[0]);
+      return !this.ready && performance.now() - start < ms;
+    });
+    if (!this.ready) throw new Error(this.arm + ": the context did not say ready in " + ms + " ms");
+    return performance.now() - start;
+  }
+
+  /** Run `entries` ({at, kind, model?, events?}, by time) for at least `ms`, then until every frame is answered. */
+  async phase(entries, ms) {
+    const rec = record();
+    const start = performance.now();
+    let i = 0;
+    let last = null;
+    await frames((ts) => {
+      if (last !== null) rec.gaps.push(ts - last);
+      last = ts;
+      const el = performance.now() - start;
+      const due = i < entries.length && entries[i].at <= el ? entries[i++] : null;
+      this.step(due, rec);
+      const done = el >= ms && i >= entries.length && this.outstanding() === 0;
+      return !done && el < ms + 10000;
+    });
+    rec.wallMs = performance.now() - start;
+    rec.unanswered = this.outstanding();
+    return rec;
+  }
+
+  stop() {
+    this.host.terminate(this.id);
+  }
+}
+
+function turnEntries(turnMs) {
+  const e = [];
+  WORLD.deltas.forEach((d, i) => {
+    const turn = Math.floor(i / 4);
+    const tick = i % 4;
+    e.push({ at: turn * turnMs + (tick * turnMs) / 4, kind: d.kind, model: d.text });
+  });
+  return e;
+}
+
+function feedEntries(seconds, perSecond) {
+  const cats = ["growth", "military", "production", "all"];
+  const e = [];
+  for (let i = 0; i < seconds * perSecond; i++) e.push({ at: (i * 1000) / perSecond, kind: "event", events: [{ name: "feed.filter", arg: cats[i % cats.length], node: "feed" }] });
+  return e;
+}
+
+const r2 = (x) => (x === null || x === undefined || Number.isNaN(x) ? null : Math.round(x * 1000) / 1000);
+function pct(a, p) {
+  if (!a.length) return null;
+  const s = a.slice().sort((x, y) => x - y);
+  return s[Math.min(s.length - 1, Math.ceil((p / 100) * s.length) - 1)];
+}
+const dist = (a) => ({ n: a.length, p50: r2(pct(a, 50)), p95: r2(pct(a, 95)), max: r2(a.length ? Math.max(...a) : null) });
+
+function summary(rec) {
+  return {
+    work: dist(rec.work),
+    drain: dist(rec.drain),
+    post: dist(rec.post),
+    turnPost: dist(rec.turnPost),
+    turnDrain: dist(rec.turnDrain),
+    turnWork: dist(rec.turnWork),
+    turnBusy: dist(rec.turnBusy),
+    workerBusy: dist(rec.busy),
+    longestFrameMs: r2(rec.gaps.length ? Math.max(...rec.gaps) : null),
+    frames: rec.gaps.length + 1,
+    posts: rec.posts,
+    postKB: r2(rec.postBytes / 1024),
+    outs: rec.outs,
+    stateOps: rec.stateOps,
+    cmds: rec.cmds,
+    n3: { n: rec.n3.length, withinOne: rec.n3.filter((x) => x <= 1).length, max: rec.n3.length ? Math.max(...rec.n3) : null, hist: rec.n3.reduce((h, x) => ((h[x] = (h[x] || 0) + 1), h), {}) },
+    errors: rec.errors.slice(0, 3),
+    logErrors: rec.logErrors.length,
+    firstLogError: rec.logErrors[0] ?? null,
+    unanswered: rec.unanswered,
+    wallMs: r2(rec.wallMs),
+  };
+}
+
+async function heap(arm, before) {
+  if (await canMeasureWorkers()) {
+    const m = await measureRealms();
+    return { how: "measureUserAgentSpecificMemory", window: m.window, workers: m.workers, total: m.total, windowGrowth: before ? m.window - before.window : null };
+  }
+  const used = performance.memory ? performance.memory.usedJSHeapSize : null;
+  return { how: "performance.memory (main thread only)", window: used, workers: null, total: null, windowGrowth: before && used !== null ? used - before.window : null };
+}
+
+async function baseline() {
+  if (await canMeasureWorkers()) {
+    const m = await measureRealms();
+    return { window: m.window };
+  }
+  return { window: performance.memory ? performance.memory.usedJSHeapSize : null };
+}
+
+// ---------------------------------------------------------------- the runs
+
+async function runWorkload(arm, o = {}) {
+  const turnMs = o.turnMs ?? 2000;
+  const idleMs = o.idleMs ?? 10000;
+  const feedS = o.feedS ?? 10;
+  const before = await baseline();
+  const s = new Session(arm);
+  const readyMs = await s.untilReady();
+  const idle = await s.phase([], idleMs);
+  const turns = await s.phase(turnEntries(turnMs), TURNS * turnMs);
+  const mem = await heap(arm, before);
+  const feed = await s.phase(feedEntries(feedS, 10), feedS * 1000);
+  const host = s.host.stats();
+  s.stop();
+  return {
+    arm,
+    readyMs: r2(readyMs),
+    idle: { posts: idle.posts, outs: idle.outs, frames: idle.gaps.length + 1, longestFrameMs: r2(idle.gaps.length ? Math.max(...idle.gaps) : null) },
+    turns: summary(turns),
+    feed: summary(feed),
+    heap: mem,
+    host,
+    turnDeltaOps: WORLD.deltas.filter((d) => d.kind === "turn").map((d) => d.ops)[0],
+    turnDeltaKB: r2(WORLD.deltas[0].text.length / 1024),
+    snapshotKB: r2(WORLD.snapshot.length / 1024),
+  };
+}
+
+async function runGcPass(arm, o = {}) {
+  const turnMs = o.turnMs ?? 250;
+  const s = new Session(arm);
+  await s.untilReady();
+  const rec = await s.phase(turnEntries(turnMs), TURNS * turnMs);
+  s.stop();
+  return summary(rec);
+}
+
+// ---- the Rust supervisor over either host
+
+let wasm = null;
+async function rustModule() {
+  if (!wasm) {
+    wasm = await import("../../pkg/app_web.js");
+    await wasm.default();
+  }
+  return wasm;
+}
+
+async function runRust(arm, o = {}) {
+  const m = await rustModule();
+  const host = arm === "main" ? createMainThreadHost() : production;
+  window.__civ5ui2 = host;
+  const t = new m.Ui2ScriptSelftest();
+  window.__civ5ui2 = production;
+  const rows = o.rows ?? 200;
+  const turns = o.turns ?? 20;
+  const turnMs = o.turnMs ?? 500;
+  const hangMs = o.hangMs ?? 5000;
+  t.start(JSON.stringify([{ path: "js/probe.js", code: PROBE }]), JSON.stringify(["top"]));
+  let writes = [];
+  let last = null;
+  const counter = () => {
+    const c = (window.__civ5stats && window.__civ5stats.counters) || {};
+    return c["ui2.js.main_ms"];
+  };
+  const step = (ts, rec) => {
+    if (last !== null && rec) rec.gaps.push({ at: ts, gap: ts - last });
+    last = ts;
+    const w = JSON.stringify(writes);
+    writes = [];
+    const r = JSON.parse(t.frame(performance.now(), w));
+    return { r, main: counter() };
+  };
+  const result = { arm };
+  try {
+    // Ready.
+    const t0 = performance.now();
+    await frames((ts) => {
+      step(ts, null);
+      return t.status() !== "running" && performance.now() - t0 < 10000;
+    });
+    result.readyMs = r2(performance.now() - t0);
+    // The probe: every `turnMs` all rows change.
+    const res = (turn) => Array.from({ length: rows }, (_, i) => ({ id: "0:" + i, name: "Row " + i, icon: "icon:R:" + i, available: ((i * 7 + turn * 13) % 17) - 3, used: turn % 5, total: 20 }));
+    const main = [];
+    const turnMain = [];
+    const busy = [];
+    let posted = 0;
+    let n = 0;
+    const p0 = performance.now();
+    let lastPosted = 0;
+    await frames((ts) => {
+      const el = performance.now() - p0;
+      const due = n < turns && el >= n * turnMs;
+      if (due) {
+        writes.push(["top.gold", 1000 + n], ["top.resources", res(n)]);
+        n += 1;
+      }
+      const { r, main: ms } = step(ts, null);
+      const sent = r.stats.posted > lastPosted;
+      lastPosted = r.stats.posted;
+      if (sent || r.state.length || r.cmds || r.stats.worker_ms > 0) {
+        main.push(ms);
+        if (sent && due) turnMain.push(ms);
+      }
+      if (r.stats.worker_ms > 0) busy.push(r.stats.worker_ms);
+      posted = r.stats.posted;
+      return n < turns || el < turns * turnMs + 1000;
+    });
+    result.probe = { rows, turns, mainMs: dist(main), turnFrameMainMs: dist(turnMain), workerMs: dist(busy), posted };
+    const stateN = () => JSON.parse(t.get("state.n"));
+    result.echo = stateN();
+
+    // The hang: a handler that loops for `hangMs`.
+    const rec = { gaps: [] };
+    const hangAt = performance.now();
+    t.event("hang", JSON.stringify(hangMs));
+    let busyAt = null;
+    let killAt = null;
+    let backAt = null;
+    let doneAt = null;
+    await frames((ts) => {
+      const { r } = step(ts, rec);
+      const now = performance.now();
+      if (busyAt === null && r.status === "busy") busyAt = now;
+      if (killAt === null && r.log.some((l) => /killed after/.test(l[1]))) killAt = now;
+      if (killAt !== null && backAt === null && r.status === "running") backAt = now;
+      if (doneAt === null && now - hangAt > 200 && r.status === "running" && (killAt === null ? true : backAt !== null)) doneAt = now;
+      return now - hangAt < (o.hangWatchMs ?? Math.max(hangMs + 3000, 8000));
+    });
+    // The context still answers afterwards.
+    writes.push(["top.gold", 4242]);
+    const e0 = performance.now();
+    await frames((ts) => {
+      step(ts, null);
+      return stateN() !== 4242 && performance.now() - e0 < 5000;
+    });
+    const gapAfterHang = rec.gaps.filter((g) => g.at >= hangAt);
+    result.hang = {
+      hangMs,
+      detectMs: busyAt === null ? null : r2(busyAt - hangAt),
+      killMs: killAt === null ? null : r2(killAt - hangAt),
+      runningAgainMs: backAt === null ? null : r2(backAt - hangAt),
+      longestFrameMs: r2(gapAfterHang.length ? Math.max(...gapAfterHang.map((g) => g.gap)) : null),
+      answersAfter: stateN() === 4242,
+      echoAfterMs: r2(performance.now() - e0),
+      status: t.status(),
+    };
+  } finally {
+    t.stop();
+    t.free();
+  }
+  return result;
+}
+
+window.__n6 = {
+  info: async () => ({
+    isolated: globalThis.crossOriginIsolated === true,
+    measure: await canMeasureWorkers(),
+    whyNot: whyNotMeasurable(),
+    memoryApi: !!performance.memory,
+    skinBytes: new TextEncoder().encode(SKIN).length,
+    probeBytes: new TextEncoder().encode(PROBE).length,
+    turnDeltaOps: WORLD.deltas[0].ops,
+    turnDeltaKB: r2(WORLD.deltas[0].text.length / 1024),
+    snapshotKB: r2(WORLD.snapshot.length / 1024),
+    cores: navigator.hardwareConcurrency,
+    userAgent: navigator.userAgent,
+  }),
+  emptyWorker: () => emptyWorkerBytes(JSON.parse(initText([]))),
+  workload: runWorkload,
+  gcPass: runGcPass,
+  rust: runRust,
+};
+out.textContent = "ui2 script host bench: ready";
+</script>

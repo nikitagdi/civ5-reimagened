@@ -11,6 +11,7 @@
         <div class="ticks" data-bind-style-background-size="{{100 * (1 - research.current.fraction) / research.current.turns}}% 100%" style="background-size: 12.6667% 100%"></div>
       </div>
     </div>
+    <button class="pick" data-part="top.research.pick" data-bind-if="{{research.current == null}}" data-on-click="intent window.open(window: 'research')"><span data-l10n="research.title">Choose research</span></button>
   </div>
 
   <div class="grp menus sep" data-part="top.menu" data-slot="hud.menu">
@@ -62,11 +63,6 @@
       <img class="rico" data-bind-src="{{r.icon}}">
       <span class="v" data-bind-value="{{r.available}}">2</span>
     </div>
-  </div>
-
-  <div class="grp date sep" data-part="top.date">
-    <span class="v" data-l10n="top.turn" data-l10n-args="{{game.turn}}">Turn 87</span>
-    <span class="d muted" data-bind-value="{{game.year_text}}">1250 AD</span>
   </div>
 
   <div class="grp menus menu-end sep" data-part="top.main-menu">
