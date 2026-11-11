@@ -12,17 +12,19 @@
 //! of element objects (the list key is read from the key field). A missing struct field takes its default, a
 //! field the schema does not have is an error.
 //!
-//! Limits of this first version: only roots that exist in the schema are accepted. `ui` has no root in the
-//! schema yet, so it must be empty; `state` is skin-defined and kept as it is, without a check.
+//! `ui` is the `ui` root written like a struct (a missing field takes its default; an empty object writes
+//! nothing); it is applied as the actions module would. `state` is skin-defined and kept as it is, without a
+//! check. A root that is a list is an array, an optional root is an object or `null`.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use serde_json::Value as Json;
 
-use crate::model::Root;
-use crate::schema::{FieldDef, RootId, Scalar, Schema, Type};
-use crate::store::{ModelStore, Owner};
+use crate::generated;
+use crate::model::PutError;
+use crate::schema::{FieldDef, RootId, RootKind, Scalar, Schema, Type};
+use crate::store::{ModelStore, ModelWriter, Owner};
 use crate::value::{AssetRef, Key, Text, Value, default_value, validate};
 
 /// A parsed, checked sample.
@@ -30,6 +32,7 @@ use crate::value::{AssetRef, Key, Text, Value, default_value, validate};
 pub struct Sample {
     schema_hash: u64,
     roots: Vec<(RootId, Value)>,
+    ui: Option<(RootId, Value)>,
     state: BTreeMap<String, Json>,
     anchors: BTreeMap<String, (f32, f32)>,
 }
@@ -59,6 +62,7 @@ impl Sample {
         };
         let mut errs = Vec::new();
         let mut roots = Vec::new();
+        let mut ui = None;
         let mut state = BTreeMap::new();
         let mut anchors = BTreeMap::new();
         for (k, v) in &top {
@@ -68,18 +72,7 @@ impl Sample {
                     Json::Object(m) => state.extend(m.iter().map(|(k, v)| (k.clone(), v.clone()))),
                     _ => errs.push("state: expected an object".to_string()),
                 },
-                "ui" => match v {
-                    Json::Object(m) if m.is_empty() => {}
-                    Json::Object(m) => {
-                        if schema.root_by_name("ui").is_some() {
-                            errs.push("ui: the `ui` root is not supported in samples yet".into());
-                        } else {
-                            let first = m.keys().next().map_or("", String::as_str);
-                            errs.push(format!("ui.{first}: the schema has no `ui` root"));
-                        }
-                    }
-                    _ => errs.push("ui: expected an object".to_string()),
-                },
+                "ui" => self::ui(schema, v, &mut ui, &mut errs),
                 "anchors" => self::anchors(v, &mut anchors, &mut errs),
                 other => errs.push(format!(
                     "{other}: unknown key (expected model, state, ui, anchors)"
@@ -90,6 +83,7 @@ impl Sample {
             Ok(Sample {
                 schema_hash: schema.hash(),
                 roots,
+                ui,
                 state,
                 anchors,
             })
@@ -110,14 +104,11 @@ impl Sample {
         }
         let mut w = store.writer(Owner::Source);
         for (rid, v) in &self.roots {
-            let name = schema.root(*rid).name.as_str();
-            match name {
-                "meta" => put::<crate::generated::Meta>(&mut w, name, v)?,
-                "game" => put::<crate::generated::Game>(&mut w, name, v)?,
-                "top" => put::<crate::generated::Top>(&mut w, name, v)?,
-                "research" => put::<crate::generated::Research>(&mut w, name, v)?,
-                other => return Err(SampleError::UnknownRoot(other.to_string())),
-            }
+            put(&mut w, schema.root(*rid).name.as_str(), v)?;
+        }
+        if let Some((rid, v)) = &self.ui {
+            let mut w = store.writer(Owner::Actions);
+            put(&mut w, schema.root(*rid).name.as_str(), v)?;
         }
         Ok(())
     }
@@ -134,26 +125,32 @@ impl Sample {
         &self.state
     }
 
-    /// The checked root values, in the order of the file.
+    /// The checked root values of the source, in the order of the file.
     #[must_use]
     pub fn roots(&self) -> &[(RootId, Value)] {
         &self.roots
     }
+
+    /// The checked value of the `ui` root, if the sample has a non-empty `ui` object.
+    #[must_use]
+    pub fn ui(&self) -> Option<&(RootId, Value)> {
+        self.ui.as_ref()
+    }
 }
 
-fn put<R: Root>(
-    w: &mut crate::store::ModelWriter<'_>,
-    name: &str,
-    v: &Value,
-) -> Result<(), SampleError> {
-    let typed = R::from_value(v).map_err(|e| SampleError::Root {
-        root: name.to_string(),
-        msg: e.to_string(),
-    })?;
-    w.try_put(typed).map_err(|e| SampleError::Store {
-        root: name.to_string(),
-        msg: e.to_string(),
-    })
+fn put(w: &mut ModelWriter<'_>, name: &str, v: &Value) -> Result<(), SampleError> {
+    match generated::put_root(w, name, v) {
+        None => Err(SampleError::UnknownRoot(name.to_string())),
+        Some(Ok(())) => Ok(()),
+        Some(Err(PutError::Value(e))) => Err(SampleError::Root {
+            root: name.to_string(),
+            msg: e.to_string(),
+        }),
+        Some(Err(PutError::Store(e))) => Err(SampleError::Store {
+            root: name.to_string(),
+            msg: e.to_string(),
+        }),
+    }
 }
 
 fn model(schema: &Schema, v: &Json, out: &mut Vec<(RootId, Value)>, errs: &mut Vec<String>) {
@@ -167,7 +164,13 @@ fn model(schema: &Schema, v: &Json, out: &mut Vec<(RootId, Value)>, errs: &mut V
             errs.push(format!("{path}: unknown root"));
             continue;
         };
-        let ty = Type::Struct(schema.root(rid).ty);
+        if schema.root(rid).kind == RootKind::Ui {
+            errs.push(format!(
+                "{path}: the `ui` root is written under the sample's `ui` key"
+            ));
+            continue;
+        }
+        let ty = schema.root_type(rid);
         let before = errs.len();
         let value = convert(schema, &ty, rv, &path, errs);
         if errs.len() == before {
@@ -176,6 +179,31 @@ fn model(schema: &Schema, v: &Json, out: &mut Vec<(RootId, Value)>, errs: &mut V
             } else {
                 out.push((rid, value));
             }
+        }
+    }
+}
+
+/// The `ui` object: the value of the `ui` root, if it holds anything.
+fn ui(schema: &Schema, v: &Json, out: &mut Option<(RootId, Value)>, errs: &mut Vec<String>) {
+    let Json::Object(m) = v else {
+        errs.push("ui: expected an object".to_string());
+        return;
+    };
+    if m.is_empty() {
+        return;
+    }
+    let Some(rid) = schema.root_by_name("ui") else {
+        let first = m.keys().next().map_or("", String::as_str);
+        errs.push(format!("ui.{first}: the schema has no `ui` root"));
+        return;
+    };
+    let ty = schema.root_type(rid);
+    let before = errs.len();
+    let value = convert(schema, &ty, v, "ui", errs);
+    if errs.len() == before {
+        match validate(schema, &ty, &value) {
+            Ok(()) => *out = Some((rid, value)),
+            Err(e) => errs.push(format!("ui: {e}")),
         }
     }
 }

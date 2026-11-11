@@ -29,7 +29,7 @@ pub use model::{Keyed, KeyedList, Model, Root};
 pub use sample::{Sample, SampleError};
 pub use schema::{
     EnumDef, EnumId, FieldDef, FieldId, FieldRef, IntentDef, ListType, PathEntry, Root as RootDef,
-    RootId, RootKind, Scalar, Schema, SchemaError, StructDef, Type, TypeId, Version,
+    RootId, RootKind, RootShape, Scalar, Schema, SchemaError, StructDef, Type, TypeId, Version,
 };
 pub use state::{ApplyError, ModelState};
 pub use store::{ModelStore, ModelWriter, Owner, StoreError};

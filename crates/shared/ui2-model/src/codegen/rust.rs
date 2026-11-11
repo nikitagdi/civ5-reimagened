@@ -72,10 +72,24 @@ fn enum_code(out: &mut String, e: &crate::schema::EnumDef) {
     let _ = writeln!(out, "}}\n");
     let _ = writeln!(out, "impl {name} {{");
     let names: Vec<String> = e.variants.iter().map(|v| format!("{v:?}")).collect();
+    let all: Vec<String> = e
+        .variants
+        .iter()
+        .map(|v| format!("{name}::{}", pascal(v)))
+        .collect();
     let _ = writeln!(
         out,
         "    /// The names, indexed by the discriminant.\n    pub const NAMES: [&'static str; {n}] = [{}];\n",
         names.join(", ")
+    );
+    let _ = writeln!(
+        out,
+        "    /// Every variant, in declaration order.\n    pub const ALL: &'static [{name}] = &[{}];\n",
+        all.join(", ")
+    );
+    let _ = writeln!(
+        out,
+        "    /// The schema name of the variant (the same as [`name`](Self::name)).\n    #[must_use]\n    pub fn as_str(self) -> &'static str {{\n        Self::NAMES[self as usize]\n    }}\n"
     );
     let _ = writeln!(out, "    /// The variant with this discriminant.");
     let _ = writeln!(
@@ -184,17 +198,36 @@ fn struct_code(out: &mut String, s: &Schema, td: &StructDef) {
             key_expr(&td.fields[ki])
         );
     }
-    if td.is_root {
-        let root = s
-            .roots()
-            .iter()
-            .find(|r| s.type_def(r.ty).name == *name)
-            .map_or("", |r| r.name.as_str());
+}
+
+/// The Rust type that holds a whole root.
+fn root_rust_type(s: &Schema, r: &crate::schema::Root) -> String {
+    rust_type(s, &r.value_type())
+}
+
+/// `impl Root` for the type of every root, and the dispatch from a root name to a typed write.
+fn roots_code(out: &mut String, s: &Schema) {
+    for r in s.roots() {
         let _ = writeln!(
             out,
-            "impl crate::model::Root for {name} {{\n    const NAME: &'static str = {root:?};\n}}\n"
+            "impl crate::model::Root for {} {{\n    const NAME: &'static str = {:?};\n}}\n",
+            root_rust_type(s, r),
+            r.name
         );
     }
+    let _ = writeln!(
+        out,
+        "/// Write a root, given by name as a dynamic value, through a writer: the typed form of `Value`-based sources\n/// (samples, remote frames). `None` if the schema has no root of that name.\npub fn put_root(\n    w: &mut crate::store::ModelWriter<'_>,\n    name: &str,\n    v: &crate::value::Value,\n) -> Option<Result<(), crate::model::PutError>> {{\n    Some(match name {{"
+    );
+    for r in s.roots() {
+        let _ = writeln!(
+            out,
+            "        {:?} => crate::model::put_value::<{}>(w, v),",
+            r.name,
+            root_rust_type(s, r)
+        );
+    }
+    let _ = writeln!(out, "        _ => return None,\n    }})\n}}");
 }
 
 /// The text of `src/gen/model.rs`.
@@ -217,5 +250,6 @@ pub fn generate(s: &Schema) -> String {
     for t in s.types() {
         struct_code(&mut out, s, t);
     }
+    roots_code(&mut out, s);
     out
 }

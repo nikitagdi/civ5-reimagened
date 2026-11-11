@@ -9,8 +9,17 @@ Source = ["replica", "server"]
 Phase = ["starting", "ai", "humans", "game_over"]
 TurnMode = ["simultaneous", "hybrid"]
 Mood = ["content", "unhappy", "very_unhappy"]
+TurnUi = ["next_turn", "unit_needs_orders", "city_needs_production", "research_needed", "policy_needed", "other_blocker", "waiting_others", "ai_moving", "ended", "game_over"]
+# Domain and Activity follow the order of the core; `other` stands for a value this model does not know.
+Domain = ["sea", "air", "land", "immobile", "hover", "other"]
+Activity = ["awake", "hold", "sleep", "heal", "sentry", "intercept", "mission", "other"]
+# The first twelve are the unit commands of the core; the last three are shown but have no order yet.
+UnitActionKind = ["move", "range_attack", "found_city", "fortify", "sleep", "skip", "heal", "automate_build", "automate_explore", "cancel", "disband", "wake", "alert", "pillage", "upgrade"]
+NoteCat = ["growth", "great_people", "diplomacy", "military", "production", "research", "policy", "religion", "other"]
+ChatTo = ["all", "player"]
 
 [type]
+Plot = { x = "i16", y = "i16" }
 EraRef = { id = "i16", name = "text" }
 GoldenAge = { active = "bool", turns = "i16", progress = "i32", threshold = "i32" }
 
@@ -38,7 +47,118 @@ progress = "i32"
 cost = "i32"
 fraction = "f32"
 
-# Session and source state.
+[type.PlayerRow]
+id = "key<player>"
+leader = "str"
+civ = "str"
+nick = "str?"
+color = "color"
+color2 = "color"
+human = "bool"
+alive = "bool"
+met = "bool"
+at_war = "bool"
+me = "bool"
+
+[type.Blocker]
+kind = "i8"
+unit = "key<unit>?"
+city = "key<city>?"
+plot = "Plot?"
+
+[type.Timer]
+left_s = "i32"
+total_s = "i32"
+stopped = "bool"
+
+[type.Seat]
+player = "key<player>"
+name = "str"
+me = "bool"
+finished = "bool"
+may_act = "bool"
+online = "bool"
+
+[type.Promo]
+id = "i16"
+name = "text"
+icon = "asset"
+
+[type.UnitActionRow]
+kind = "UnitActionKind"
+enabled = "bool"
+reason = "str?"
+supported = "bool"
+
+[type.Act]
+shown = "bool"
+enabled = "bool"
+reason = "str?"
+
+# One `Act` per unit action, named after it: a button reads `unit.act.fortify.shown`.
+[type.UnitActs]
+_each = "UnitActionKind"
+_type = "Act"
+
+[type.BannerProd]
+item = "key<item>"
+name = "text"
+icon = "asset"
+turns = "i16?"
+fraction = "f32"
+
+[type.CityBanner]
+key = "key<city>"
+owner = "key<player>"
+color = "color"
+color2 = "color"
+name = "str"
+plot = "Plot"
+size = "i16"
+capital = "bool"
+mine = "bool"
+visible = "bool"
+puppet = "bool"
+razing = "bool"
+occupied = "bool"
+resistance = "bool"
+can_shoot = "bool"
+strength = "i16"
+hp_fraction = "f32"
+growth_turns = "i16?"
+production = "BannerProd?"
+
+[type.UnitFlag]
+key = "key<unit>"
+owner = "key<player>"
+color = "color"
+color2 = "color"
+plot = "Plot"
+icon = "asset"
+hp_fraction = "f32"
+domain = "Domain"
+mine = "bool"
+waiting = "bool"
+at_war = "bool"
+cargo = "bool"
+
+[type.Note]
+id = "key<note>"
+category = "NoteCat"
+message = "str"
+summary = "str"
+turn = "i16"
+plot = "Plot?"
+
+[type.ChatRow]
+seq = "key<chat>"
+from = "str"
+from_player = "key<player>?"
+to = "ChatTo"
+text = "str"
+turn = "i32"
+mine = "bool"
+
 [model.meta]
 schema = "str"
 source = "Source"
@@ -81,3 +201,60 @@ queue = { list = "Tech", key = "id" }
 options = { list = "Tech", key = "id" }
 known = "bool"
 blocked = "bool"
+
+# The players of the game, in seat order.
+[model.players]
+_list = "PlayerRow"
+_key = "id"
+
+# The turn button and the readiness of the players.
+[model.turn]
+state = "TurnUi"
+blocker = "Blocker?"
+units_waiting = "i32"
+finished = "bool"
+can_cancel = "bool"
+timer = "Timer?"
+ready = "i32"
+humans = "i32"
+seats = { list = "Seat", key = "player" }
+
+# The selected unit; absent while nothing is selected.
+[model.unit]
+_optional = true
+key = "key<unit>"
+name = "str"
+type_name = "text"
+portrait = "asset"
+level = "i16"
+xp = "i16"
+strength = "i16"
+ranged = "i16"
+range = "i16"
+moves = "f32"
+max_moves = "i16"
+hp = "i16"
+max_hp = "i16"
+hp_fraction = "f32"
+domain = "Domain"
+activity = "Activity"
+promotions = { list = "Promo", key = "id" }
+promotion_ready = "bool"
+actions = { list = "UnitActionRow", key = "kind" }
+act = "UnitActs"
+pending = "bool"
+
+# What the map shows: city banners and unit flags.
+[model.map]
+cities = { list = "CityBanner", key = "key" }
+units = { list = "UnitFlag", key = "key" }
+
+# Notifications, newest last.
+[model.notes]
+_list = "Note"
+_key = "id"
+
+# The most recent chat lines.
+[model.chat]
+_list = "ChatRow"
+_key = "seq"

@@ -151,6 +151,18 @@ pub struct StructDef {
     pub body_len: u32,
 }
 
+impl Root {
+    /// The type of the value of the whole root.
+    #[must_use]
+    pub fn value_type(&self) -> Type {
+        match &self.shape {
+            RootShape::Struct => Type::Struct(self.ty),
+            RootShape::Optional => Type::Option(Box::new(Type::Struct(self.ty))),
+            RootShape::List(l) => Type::List(l.clone()),
+        }
+    }
+}
+
 /// An enum: a closed set of names, stored as a `u16` index.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnumDef {
@@ -174,11 +186,25 @@ pub enum RootKind {
     Ui,
 }
 
+/// The form of a root: a struct, an optional struct (absent while nothing applies, like the selected unit) or
+/// a keyed list (the notes, the chat lines).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RootShape {
+    /// `[model.x]` with fields: always present.
+    Struct,
+    /// `[model.x]` with `_optional = true`: `None` until the source has something to show.
+    Optional,
+    /// `[model.x]` with `_list = "Elem"` and `_key = "field"`: a list at the top of the model.
+    List(ListType),
+}
+
 /// A model root.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Root {
     pub name: String,
+    /// The root struct, or the element struct of a list root.
     pub ty: TypeId,
+    pub shape: RootShape,
     /// The path slot of the root itself.
     pub field: FieldId,
     pub kind: RootKind,

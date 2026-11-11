@@ -381,6 +381,29 @@ impl<T: Model + Keyed> Model for KeyedList<T> {
     }
 }
 
+/// Why a root given as a dynamic value could not be written.
+#[derive(Clone, Debug, PartialEq, thiserror::Error)]
+pub enum PutError {
+    /// The value does not have the shape of the root.
+    #[error("{0}")]
+    Value(ValueError),
+    /// The store refused the write (wrong owner, unknown root).
+    #[error("{0}")]
+    Store(crate::store::StoreError),
+}
+
+/// Convert a dynamic value to the typed root `R` and write it. Used by the generated `put_root` dispatch.
+///
+/// # Errors
+/// The value has the wrong shape, or the writer does not own the root.
+pub fn put_value<R: Root>(
+    w: &mut crate::store::ModelWriter<'_>,
+    v: &Value,
+) -> Result<(), PutError> {
+    let typed = R::from_value(v).map_err(PutError::Value)?;
+    w.try_put(typed).map_err(PutError::Store)
+}
+
 fn element<T: Model + Keyed>(a: &T, b: &T, at: &mut Cursor, out: &mut Ops) {
     let keys = at.keys;
     at.keys.push(a.key());
