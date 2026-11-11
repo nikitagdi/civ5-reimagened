@@ -11,6 +11,7 @@ mod engine;
 mod game_side;
 mod host;
 mod machine;
+pub mod read;
 pub mod selftest;
 
 pub use engine::{CoreEngine, Engine};
@@ -24,6 +25,11 @@ pub use host::{
 pub use machine::{
     OWN_PENDING_MAX_MS, Outgoing, Replica, ReplicaConfig, ReplicaSpan, ReplicaStats, ReplicaStep,
     State,
+};
+pub use read::{
+    Activity, BuildFlags, CatalogEntry, CatalogTable, City, CityBuild, CityFlags, GameInfo,
+    GameRead, GameStatus, GameType, Notification, OrderType, Phase, Player, PlayerFlags, ReadError,
+    TopBar, TopBarFlags, TurnMode, Unit, UnitAction, UnitFlags, UnsafeReason, testing,
 };
 
 pub use client_core::{

@@ -97,4 +97,17 @@ fn a_replica_joins_a_stub_game_and_applies_an_empty_batch() {
     assert_eq!(r.stats().checks_skipped, 1);
     // The router sees the core's (empty) box.
     assert!(r.take_outgoing().is_empty());
+
+    // The read facade of the real wiring: the stub serves no query, which reads as "unsupported".
+    let read = r.read().expect("a live core engine has a reader");
+    assert_eq!(read.seat(), 0);
+    assert_eq!(read.team(), -1, "no Q_GAME answered yet");
+    assert_eq!(read.top_bar(), Err(replica::ReadError::Unsupported));
+    assert_eq!(read.game_info(), Err(replica::ReadError::Unsupported));
+    assert_eq!(
+        read.catalog(replica::CatalogTable::Eras),
+        Err(replica::ReadError::Unsupported)
+    );
+    // Team-wide reads ask for the seat's team first; that fails the same way.
+    assert_eq!(read.players(), Err(replica::ReadError::Unsupported));
 }
