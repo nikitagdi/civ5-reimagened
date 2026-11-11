@@ -8,9 +8,9 @@
 use std::sync::Arc;
 
 use ui2_package::{
-    Bound, Cond, FaceFamily, FontRoles, Kind, Layer, Manifest, Node, NodeKind, Package,
-    PackageBuilder, PackageError, StrId, StyleId, StyleRecord, StyleSet, StyleSetId, Tag, Template,
-    TemplateId, TextSrc, Tokens, Tool,
+    BlobRef, BlobSection, Bound, Cond, Face, FaceFamily, FontRoles, Kind, Layer, Manifest, Node,
+    NodeKind, Package, PackageBuilder, PackageError, StrId, StyleId, StyleRecord, StyleSet,
+    StyleSetId, Tag, Template, TemplateId, TextSrc, Tokens, Tool,
 };
 
 /// A template node with its children, for [`Kit::template`].
@@ -177,6 +177,21 @@ impl Kit {
     /// Sets the color tokens and themes.
     pub fn tokens(&mut self, tokens: Tokens) {
         self.b.tokens(tokens);
+    }
+
+    /// Adds a font face (the font file stored as it is, not compressed).
+    pub fn font(&mut self, family: &str, weight: u16, italic: bool, file: &[u8]) {
+        let family = self.b.str(family);
+        let face = Face {
+            family,
+            weight,
+            italic,
+            role: None,
+            ranges: vec![(0, 0x10_ffff)],
+            blob: BlobRef::unplaced(BlobSection::Font, false),
+            blake3: *blake3::hash(file).as_bytes(),
+        };
+        self.b.font(face, file, file.len() as u32);
     }
 
     /// Adds a template made of the given top-level nodes; the first template is the document.

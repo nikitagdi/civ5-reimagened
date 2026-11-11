@@ -10,7 +10,7 @@
 //! the node's path.
 
 use ui2_model::Key;
-use ui2_package::{NodeKind, NodeRef, Package, StrId, Styles, Template, TemplateId};
+use ui2_package::{NodeKind, NodeRef, Package, StrId, Styles, Template, TemplateId, TextSrc};
 
 use crate::arena::{Arena, Dirty, Node, NodeClass, NodeId, PLACEHOLDER_STYLE};
 use crate::error::{ErrorCode, ErrorSink, NodePath, UiError};
@@ -170,6 +170,13 @@ pub(crate) fn instantiate<S: Source + ?Sized>(
             node.key = s.key;
             node.owner = s.owner;
         }
+        if let NodeKind::Text(src_text) = &t.kind {
+            // Localized and bound texts are filled in by the bindings; until then they are empty.
+            node.text = Some(match src_text {
+                TextSrc::Static(s) => src.str(*s).unwrap_or("").into(),
+                TextSrc::L10n { .. } | TextSrc::Bound(_) => "".into(),
+            });
+        }
         let id = arena.alloc(node);
         let chunk = chunk_of(arena, id, parent);
         if let Some(n) = arena.get_mut(id) {
@@ -201,7 +208,8 @@ pub(crate) fn instantiate<S: Source + ?Sized>(
     }
     add_instance(arena, s.owner, s.key, &roots);
     if let Some(p) = s.parent {
-        arena.mark(p, Dirty::LAYOUT);
+        // New children may turn the parent into an inline formatting root or out of one.
+        arena.mark(p, Dirty::LAYOUT | Dirty::TEXT);
     }
     arena.bump_revision();
     roots

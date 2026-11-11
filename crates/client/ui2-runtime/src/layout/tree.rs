@@ -1,47 +1,66 @@
 //! taffy's tree traits over the arena.
 //!
-//! A layout run borrows the arena mutably together with the taffy styles of the records ([`LayoutStyles`]).
-//! taffy addresses nodes by slot index ([`NodeId::taffy`]); every id it receives came from the arena during the
-//! same run, so a missing node only happens on a broken invariant and is answered with a hidden box instead of
-//! a panic.
+//! A layout run borrows the arena mutably together with the taffy styles of the records ([`LayoutStyles`]) and
+//! the text measurer. taffy addresses nodes by slot index ([`NodeId::taffy`]); every id it receives came from
+//! the arena during the same run, so a missing node only happens on a broken invariant and is answered with a
+//! hidden box instead of a panic.
 //!
-//! Present state: the tree, the cache and the dispatch to block, flex and grid are complete; leaves measure as
-//! empty boxes. The text leaf measurement (with first baselines), the conversion of style records to taffy
-//! styles and the dirty-flag driven cache invalidation come with the layout pass.
+//! Inline formatting roots (nodes with an [`Ifc`](crate::text::Ifc)) are leaves for taffy: their children are
+//! laid out by the text module. A leaf measures its lines at the width taffy offers and reports its first and
+//! last baselines (for `align-items: baseline`); the full layout pass also keeps the lines for paint and dumps.
+
+use std::cell::{Cell, RefCell};
 
 use taffy::{
     AvailableSpace, BlockContext, CacheTree, Display, LayoutBlockContainer, LayoutContainingBlock,
     LayoutFlexboxContainer, LayoutGridContainer, LayoutInput, LayoutOutput, LayoutPartialTree,
-    RunMode, Size, Style, TraversePartialTree, compute_block_layout, compute_cached_layout,
-    compute_flexbox_layout, compute_grid_layout, compute_hidden_layout, compute_leaf_layout,
-    compute_oof_layout, compute_root_layout,
+    ResolveOrZero, RunMode, Size, Style, TraversePartialTree, compute_block_layout,
+    compute_cached_layout, compute_flexbox_layout, compute_grid_layout, compute_hidden_layout,
+    compute_leaf_layout, compute_oof_layout, compute_root_layout,
 };
-use ui2_package::StyleId;
+use ui2_package::{StyleId, Styles};
+use ui2_text::{Lines, TextMeasure};
 
-use crate::arena::{Arena, HIDDEN_STYLE, LayoutSlot, NodeId, PLACEHOLDER_STYLE};
+use crate::arena::{Arena, HIDDEN_STYLE, LayoutSlot, NodeClass, NodeId, PLACEHOLDER_STYLE};
+use crate::text::Ifc;
 
-/// The taffy style of each style record, plus the built-in styles of service nodes and placeholders.
+/// The taffy style of each style record, plus the built-in styles of service nodes, placeholders and text
+/// leaves that are their own inline root (anonymous blocks).
 #[derive(Debug, Clone)]
 pub struct LayoutStyles {
     by_record: Vec<Style>,
     hidden: Style,
     placeholder: Style,
+    anonymous: Style,
 }
 
 impl LayoutStyles {
     /// Styles indexed by `StyleId`.
     pub fn new(by_record: Vec<Style>) -> Self {
+        let block = Style {
+            display: Display::Block,
+            ..Style::DEFAULT
+        };
         Self {
             by_record,
             hidden: Style {
                 display: Display::None,
                 ..Style::DEFAULT
             },
-            placeholder: Style {
-                display: Display::Block,
-                ..Style::DEFAULT
-            },
+            placeholder: block.clone(),
+            anonymous: block,
         }
+    }
+
+    /// The styles of every record of a package (computed once when the skin loads).
+    pub fn from_styles(styles: &Styles) -> Self {
+        Self::new(
+            styles
+                .records
+                .iter()
+                .map(super::style::taffy_style)
+                .collect(),
+        )
     }
 
     /// The taffy style of a record; an unknown record is hidden.
@@ -55,26 +74,33 @@ impl LayoutStyles {
 }
 
 /// Lays out the subtree of `root` in the available space. Results are in each node's `LayoutSlot`, relative to
-/// the parent's border box, in CSS px, unrounded.
+/// the parent's border box (out-of-flow boxes: to their containing block), in CSS px, unrounded. Returns the
+/// nodes whose layout changed.
 pub fn compute_root(
     arena: &mut Arena,
     styles: &LayoutStyles,
+    text: &dyn TextMeasure,
     root: NodeId,
     available: Size<AvailableSpace>,
-) {
+) -> Vec<NodeId> {
     let mut view = View {
         arena,
         styles,
+        text,
         scratch: LayoutSlot::default(),
+        changed: Vec::new(),
     };
     compute_root_layout(&mut view, root.taffy(), available);
+    view.changed
 }
 
 struct View<'a> {
     arena: &'a mut Arena,
     styles: &'a LayoutStyles,
+    text: &'a dyn TextMeasure,
     /// Absorbs writes for ids that are not live (never happens while the arena is consistent).
     scratch: LayoutSlot,
+    changed: Vec<NodeId>,
 }
 
 fn to_taffy(id: &NodeId) -> taffy::NodeId {
@@ -84,6 +110,7 @@ fn to_taffy(id: &NodeId) -> taffy::NodeId {
 impl View<'_> {
     fn style(&self, id: taffy::NodeId) -> &Style {
         match self.arena.at(usize::from(id)) {
+            Some(node) if node.class() == NodeClass::Text => &self.styles.anonymous,
             Some(node) => self.styles.get(node.style()),
             None => &self.styles.hidden,
         }
@@ -97,9 +124,65 @@ impl View<'_> {
     }
 
     fn children(&self, id: taffy::NodeId) -> &[NodeId] {
-        self.arena
-            .at(usize::from(id))
-            .map_or(&[][..], |n| n.children())
+        match self.arena.at(usize::from(id)) {
+            // The content of an inline root is laid out by the text module.
+            Some(n) if n.ifc.is_some() => &[],
+            Some(n) => n.children(),
+            None => &[],
+        }
+    }
+
+    /// A leaf: an inline root measures its lines, any other leaf is an empty box sized by its style.
+    fn leaf(&mut self, node: taffy::NodeId, inputs: LayoutInput) -> LayoutOutput {
+        let idx = usize::from(node);
+        let ifc: Option<&Ifc> = self.arena.at(idx).and_then(|n| n.ifc.as_deref());
+        let style = self.style(node);
+        let text = self.text;
+        let baselines = Cell::new((None, None));
+        let kept: RefCell<Option<Lines>> = RefCell::new(None);
+        let mut output = compute_leaf_layout(
+            inputs,
+            style,
+            |_, _| 0.0,
+            |known, avail| {
+                let Some(ifc) = ifc else {
+                    return Size::ZERO;
+                };
+                let width = known.width.unwrap_or(match avail.width {
+                    AvailableSpace::Definite(w) => w,
+                    AvailableSpace::MinContent => 0.0,
+                    AvailableSpace::MaxContent => f32::INFINITY,
+                });
+                let lines = ifc.lines_at(text, width);
+                let first = Ifc::first_baseline(&lines);
+                let last = lines.lines.last().map(|l| l.top + l.baseline);
+                baselines.set((first, last));
+                let size = Size {
+                    width: known.width.unwrap_or(lines.width),
+                    height: known.height.unwrap_or(lines.height),
+                };
+                *kept.borrow_mut() = Some(lines);
+                size
+            },
+        );
+        if ifc.is_some() {
+            let inset = style
+                .padding
+                .resolve_or_zero(inputs.parent_size.width, |_, _| 0.0)
+                + style
+                    .border
+                    .resolve_or_zero(inputs.parent_size.width, |_, _| 0.0);
+            let (first, last) = baselines.get();
+            output.baselines.first = first.map(|b| b + inset.top);
+            output.baselines.last = last.map(|b| b + inset.top);
+        }
+        if inputs.run_mode == RunMode::PerformLayout
+            && let Some(lines) = kept.into_inner()
+            && let Some(ifc) = self.arena.at_mut(idx).and_then(|n| n.ifc.as_deref_mut())
+        {
+            ifc.lines = lines;
+        }
+        output
     }
 
     fn compute(
@@ -120,10 +203,7 @@ impl View<'_> {
                 (Display::FlowRoot, true) => compute_block_layout(tree, node, inputs, None),
                 (Display::Flex, true) => compute_flexbox_layout(tree, node, inputs),
                 (Display::Grid, true) => compute_grid_layout(tree, node, inputs),
-                // Leaves: text and pictures measure here (text with its first baseline).
-                (_, false) => {
-                    compute_leaf_layout(inputs, tree.style(node), |_, _| 0.0, |_, _| Size::ZERO)
-                }
+                (_, false) => tree.leaf(node, inputs),
             };
             if inputs.run_mode == RunMode::PerformLayout {
                 compute_oof_layout(tree, node, &mut output);
@@ -168,7 +248,13 @@ impl LayoutPartialTree for View<'_> {
     }
 
     fn set_unrounded_layout(&mut self, node: taffy::NodeId, layout: &taffy::Layout) {
-        self.slot_mut(node).unrounded = *layout;
+        let slot = self.slot_mut(node);
+        if slot.unrounded != *layout {
+            slot.unrounded = *layout;
+            if let Some(id) = self.arena.id_at(usize::from(node)) {
+                self.changed.push(id);
+            }
+        }
     }
 
     fn compute_child_layout(&mut self, node: taffy::NodeId, inputs: LayoutInput) -> LayoutOutput {
@@ -333,9 +419,11 @@ mod tests {
         let hidden = node(&mut arena, Some(root), HIDDEN_STYLE.0);
         let c = node(&mut arena, Some(root), 3);
         let max = AvailableSpace::MaxContent;
+        let engine = ui2_text::TextEngine::new();
         compute_root(
             &mut arena,
             &styles,
+            &engine,
             root,
             Size {
                 width: max,

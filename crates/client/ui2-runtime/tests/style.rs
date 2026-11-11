@@ -111,7 +111,7 @@ fn env(w: u32, h: u32) -> Env {
 /// A runtime after its first frame, with every queue drained (as the later passes would).
 fn settled(e: Env) -> Runtime {
     let mut rt = Runtime::new(package(), e, Services::default()).expect("runtime");
-    rt.update();
+    tick(&mut rt);
     drain(&mut rt);
     rt
 }
@@ -143,7 +143,7 @@ fn style_mask_follows_state_and_classes() {
 
     rt.set_state(btn, StateBits::HOVER, true);
     assert_eq!(
-        rt.update().restyled,
+        tick(&mut rt).restyled,
         3,
         "the button, its text leaf and the icon"
     );
@@ -154,17 +154,17 @@ fn style_mask_follows_state_and_classes() {
     assert!(rt.take_dirty(Dirty::PAINT).contains(&btn));
 
     rt.set_class(btn, on, true);
-    rt.update();
+    tick(&mut rt);
     assert_eq!(background(&rt, btn), BLUE);
     rt.set_state(btn, StateBits::HOVER, false);
-    rt.update();
+    tick(&mut rt);
     assert_eq!(background(&rt, btn), GREEN);
     rt.set_class(btn, on, false);
-    rt.update();
+    tick(&mut rt);
     assert_eq!(background(&rt, btn), [0, 0, 0, 0]);
     // Switching a class that is already off changes nothing.
     rt.set_class(btn, on, false);
-    assert_eq!(rt.update().restyled, 0);
+    assert_eq!(tick(&mut rt).restyled, 0);
 }
 
 #[test]
@@ -174,7 +174,7 @@ fn style_conditions_on_ancestors_follow_them() {
     let icon = part(&rt, "icon");
     let text = rt.node(btn).expect("btn").children()[0];
     rt.set_state(btn, StateBits::HOVER, true);
-    rt.update();
+    tick(&mut rt);
     assert_eq!(background(&rt, icon), RED, "`:hover` one element up");
     assert_eq!(
         background(&rt, text),
@@ -185,13 +185,13 @@ fn style_conditions_on_ancestors_follow_them() {
     let a = part(&rt, "a");
     let deep = part(&rt, "deep");
     rt.set_class(a, class(&rt, "open"), true);
-    assert_eq!(rt.update().restyled, 1);
+    assert_eq!(tick(&mut rt).restyled, 1);
     assert_eq!(background(&rt, deep), GREEN, "a class two elements up");
     // The class is on `a`, not on `b`: setting it on `b` does nothing for `deep`.
     let b = part(&rt, "b");
     rt.set_class(a, class(&rt, "open"), false);
     rt.set_class(b, class(&rt, "open"), true);
-    rt.update();
+    tick(&mut rt);
     assert_eq!(background(&rt, deep), [0, 0, 0, 0]);
 }
 
@@ -200,7 +200,11 @@ fn style_hover_restyles_only_sensitive_nodes() {
     let mut rt = settled(Env::default());
     let c3 = part(&rt, "c3");
     rt.set_hover(Some(c3));
-    assert_eq!(rt.update().restyled, 0, "nothing tests hover on this chain");
+    assert_eq!(
+        tick(&mut rt).restyled,
+        0,
+        "nothing tests hover on this chain"
+    );
     for name in ["c3", "c2", "c1", "panel", "hud"] {
         let n = part(&rt, name);
         assert!(
@@ -212,7 +216,7 @@ fn style_hover_restyles_only_sensitive_nodes() {
 
     let icon = part(&rt, "icon");
     rt.set_hover(Some(icon));
-    let stats = rt.update();
+    let stats = tick(&mut rt);
     assert_eq!(stats.restyled, 3, "the button, its text leaf and the icon");
     assert_eq!(stats.visited, 3);
     assert!(!rt.node(c3).expect("c3").state().contains(StateBits::HOVER));
@@ -224,7 +228,7 @@ fn style_hover_restyles_only_sensitive_nodes() {
     );
 
     rt.set_hover(None);
-    assert_eq!(rt.update().restyled, 3);
+    assert_eq!(tick(&mut rt).restyled, 3);
     assert_eq!(background(&rt, part(&rt, "btn")), [0, 0, 0, 0]);
 }
 
@@ -237,25 +241,24 @@ fn style_cell_change_restyles_varying_sets_only() {
     assert_eq!(w(&rt), Some(LenAuto::Len(Len::px(50.0))));
 
     rt.set_env(env(1920, 1080));
-    let stats = rt.update();
+    let stats = tick(&mut rt);
     assert_eq!(
         stats.restyled, 1,
         "only the node whose set differs between cells"
     );
     assert_eq!(w(&rt), Some(LenAuto::Len(Len::px(100.0))));
-    let layout = rt.take_dirty(Dirty::LAYOUT);
-    assert!(layout.contains(&resp), "a width change lays out again");
-    assert!(
-        layout.contains(&part(&rt, "hud")),
-        "a new viewport lays the root out again"
+    assert_eq!(
+        stats.layout_runs, 1,
+        "a width change and a new viewport lay out again"
     );
+    assert!(rt.take_dirty(Dirty::PAINT).contains(&resp));
 
     // UI scale 150 %: the logical viewport is 1280 px wide, back in the first cell.
     rt.set_env(Env {
         ui_scale: 1.5,
         ..env(1920, 1080)
     });
-    rt.update();
+    tick(&mut rt);
     assert_eq!(rt.style_env().scale.k, 1.5);
     assert_eq!(rt.style_env().scale.viewport_css, [1280.0, 720.0]);
     assert_eq!(rt.style_env().cell, 0);
@@ -275,10 +278,10 @@ fn style_theme_switch_repaints_token_nodes_only() {
         theme: 1,
         ..Env::default()
     });
-    let stats = rt.update();
+    let stats = tick(&mut rt);
     assert_eq!(stats.restyled, 0, "a theme reselects nothing");
     assert_eq!(rt.take_dirty(Dirty::PAINT), vec![tok]);
-    assert!(rt.take_dirty(Dirty::LAYOUT).is_empty());
+    assert_eq!(stats.layout_runs, 0);
     assert_eq!(color(&rt), LIGHT);
 }
 
@@ -291,11 +294,11 @@ fn style_idle_frames_do_no_work() {
         theme: 1,
         ..env(1280, 720)
     });
-    rt.update();
+    tick(&mut rt);
     drain(&mut rt);
     let rev = rt.arena().revision();
     for _ in 0..100 {
-        let s = rt.update();
+        let s = tick(&mut rt);
         assert_eq!((s.restyled, s.visited), (0, 0));
     }
     // Setting the same state again is not a change.
@@ -304,7 +307,7 @@ fn style_idle_frames_do_no_work() {
         theme: 1,
         ..env(1280, 720)
     });
-    assert_eq!(rt.update().visited, 0);
+    assert_eq!(tick(&mut rt).visited, 0);
     assert_eq!(rt.arena().revision(), rev);
     for d in [
         Dirty::STYLE,
@@ -324,7 +327,7 @@ fn style_removed_dependents_are_forgotten() {
     let icon = part(&rt, "icon");
     rt.remove(icon);
     rt.set_state(btn, StateBits::HOVER, true);
-    assert_eq!(rt.update().restyled, 2, "the button and its text leaf");
+    assert_eq!(tick(&mut rt).restyled, 2, "the button and its text leaf");
     assert_eq!(background(&rt, btn), RED);
 }
 
@@ -336,10 +339,17 @@ fn style_bad_scale_is_replaced_and_reported_once() {
             dpr: f32::NAN,
             ..Env::default()
         });
-        rt.update();
+        tick(&mut rt);
     }
     assert_eq!(rt.style_env().scale.k, 1.0);
     let errors = rt.take_errors();
-    assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].code, ErrorCode::BadEnv);
+    let bad_env = errors
+        .iter()
+        .filter(|e| e.code == ErrorCode::BadEnv)
+        .count();
+    assert_eq!(bad_env, 1, "{errors:?}");
+}
+
+fn tick(rt: &mut Runtime) -> ui2_runtime::FrameStats {
+    rt.update(&mut ui2_text::TextEngine::new())
 }

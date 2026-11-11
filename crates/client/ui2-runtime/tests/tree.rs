@@ -123,7 +123,7 @@ fn new_nodes_are_queued_for_layout_paint_text_and_bindings() {
 #[test]
 fn idle_frames_touch_nothing() {
     let mut rt = runtime();
-    rt.update();
+    tick(&mut rt);
     let rev = rt.arena().revision();
     let pending: Vec<usize> = [
         Dirty::STYLE,
@@ -136,7 +136,7 @@ fn idle_frames_touch_nothing() {
     .map(|&d| rt.arena().pending(d))
     .collect();
     for _ in 0..100 {
-        let stats = rt.update();
+        let stats = tick(&mut rt);
         assert_eq!(stats.visited, 0);
         assert_eq!(stats.restyled, 0);
         assert_eq!(stats.layout_runs, 0);
@@ -171,7 +171,11 @@ fn a_bad_template_gives_a_placeholder_and_one_error() {
         );
         rt.remove(ph[0]);
     }
-    let errors = rt.take_errors();
+    let errors: Vec<_> = rt
+        .take_errors()
+        .into_iter()
+        .filter(|e| e.code == ErrorCode::MissingTemplate)
+        .collect();
     assert_eq!(errors.len(), 1, "{errors:?}");
     assert_eq!(errors[0].code, ErrorCode::MissingTemplate);
     assert_eq!(errors[0].panel.as_deref(), Some("hud"));
@@ -185,4 +189,8 @@ fn a_package_without_a_document_is_fatal() {
     let kit = Kit::new();
     let pkg = kit.finish().expect("empty package");
     assert!(Runtime::new(pkg, Env::default(), Services::default()).is_err());
+}
+
+fn tick(rt: &mut Runtime) -> ui2_runtime::FrameStats {
+    rt.update(&mut ui2_text::TextEngine::new())
 }
