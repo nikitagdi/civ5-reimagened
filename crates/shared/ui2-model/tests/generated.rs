@@ -75,6 +75,8 @@ fn typed_diff_equals_dynamic_diff_for_every_root() {
     check_root::<g::Map>(s);
     check_root::<ui2_model::KeyedList<g::Note>>(s);
     check_root::<ui2_model::KeyedList<g::ChatRow>>(s);
+    check_root::<Option<g::Production>>(s);
+    check_root::<g::Ui>(s);
 }
 
 #[test]

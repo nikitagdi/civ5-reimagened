@@ -175,18 +175,21 @@ fn snapshot_and_umd1_carry_the_new_roots() {
 }
 
 #[test]
-fn samples_fill_list_and_optional_roots() {
+fn samples_fill_list_optional_and_ui_roots() {
     let text = r#"{
       "model": {
         "players": [ { "id": "0:1", "leader": "A", "civ": "B", "color": 255, "human": true, "me": true } ],
         "unit": { "key": "1:4", "name": "Worker", "act": { "fortify": { "shown": true, "enabled": true } },
                   "actions": [ { "kind": "fortify", "enabled": true, "supported": true } ] },
         "notes": [ { "id": "0:9", "category": "production", "message": "m", "summary": "s", "turn": 3 } ],
-        "chat": []
-      }
+        "chat": [],
+        "production": null
+      },
+      "ui": { "windows": { "production": { "open": true, "city": "1:2" } }, "production": { "tab": "units" } }
     }"#;
     let sample = Sample::parse(s(), text).unwrap_or_else(|e| panic!("{e:?}"));
-    assert_eq!(sample.roots().len(), 4);
+    assert_eq!(sample.roots().len(), 5);
+    assert!(sample.ui().is_some());
     let mut store = ModelStore::new(s());
     sample.apply(&mut store).unwrap();
     store.take_frame().unwrap();
@@ -198,10 +201,16 @@ fn samples_fill_list_and_optional_roots() {
     assert!(u.act.fortify.shown);
     assert!(!u.act.sleep.shown);
     assert_eq!(u.actions[0].kind, g::UnitActionKind::Fortify);
+    assert!(store.get::<Option<g::Production>>().unwrap().is_none());
     assert_eq!(
         store.get::<KeyedList<g::Note>>().unwrap()[0].category,
         g::NoteCat::Production
     );
+    let ui = store.get::<g::Ui>().unwrap();
+    assert!(ui.windows.production.open);
+    assert_eq!(ui.windows.production.city, Some(Key::new(1, 2)));
+    assert_eq!(ui.production.tab, g::ProdTab::Units);
+
     // Wrong shapes are named by path.
     let errs = Sample::parse(s(), r#"{ "model": { "notes": { "id": 1 } } }"#).unwrap_err();
     assert!(
@@ -219,4 +228,33 @@ fn samples_fill_list_and_optional_roots() {
         errs[0].contains("notes[0].id: list key is missing"),
         "{errs:?}"
     );
+    let errs = Sample::parse(
+        s(),
+        r#"{ "ui": { "windows": { "production": { "open": 1 } } } }"#,
+    )
+    .unwrap_err();
+    assert!(
+        errs[0].starts_with("ui.windows.production.open: expected a boolean"),
+        "{errs:?}"
+    );
+}
+
+#[test]
+fn screen_and_window_ids_are_the_generated_enums() {
+    use ui2_model::wire::{ScreenId, WindowId};
+    // The same types, with the names the schema gives.
+    let _: g::ScreenId = ScreenId::TechTree;
+    let _: g::WindowId = WindowId::NotesLog;
+    let names = |n: &str| -> Vec<String> {
+        s().enums()
+            .iter()
+            .find(|e| e.name == n)
+            .unwrap()
+            .variants
+            .clone()
+    };
+    let screens: Vec<&str> = ScreenId::ALL.iter().map(|x| x.as_str()).collect();
+    assert_eq!(screens, names("ScreenId"));
+    let windows: Vec<&str> = WindowId::ALL.iter().map(|x| x.as_str()).collect();
+    assert_eq!(windows, names("WindowId"));
 }

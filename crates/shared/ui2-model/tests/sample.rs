@@ -181,10 +181,14 @@ fn state_ui_and_anchors() {
     assert_eq!(s.state().len(), 1);
     assert_eq!(s.anchors().get("city:3"), Some(&(1320.0, 640.5)));
 
-    // The schema has no `ui` root yet: only an empty object is accepted.
-    let errs = errors_of(r#"{ "ui": { "windows": {} } }"#);
+    // `ui` is the `ui` root: unknown fields are refused with their path, an empty object writes nothing.
+    let errs = errors_of(r#"{ "ui": { "windowz": {} } }"#);
+    assert!(errs[0].starts_with("ui.windowz: no such field"), "{errs:?}");
+    assert!(s.ui().is_none());
+    assert!(parse(r#"{ "ui": {} }"#).unwrap().ui().is_none());
+    let errs = errors_of(r#"{ "model": { "ui": {} } }"#);
     assert!(
-        errs[0].starts_with("ui.windows: the schema has no `ui` root"),
+        errs[0].starts_with("model.ui: the `ui` root is written under"),
         "{errs:?}"
     );
     let errs = errors_of(r#"{ "anchors": { "a": [1] } }"#);
@@ -286,7 +290,7 @@ fn wire_types_carry_plain_values() {
 #[test]
 fn window_and_screen_ids_round_trip_their_names() {
     assert_eq!(WindowId::ALL.len(), 5);
-    assert_eq!(ScreenId::ALL.len(), 6);
+    assert_eq!(ScreenId::ALL.len(), 11);
     for w in WindowId::ALL {
         assert_eq!(WindowId::from_name(w.as_str()), Some(*w));
     }
