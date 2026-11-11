@@ -26,11 +26,15 @@ pub use ids::{
 };
 pub use package::Package;
 pub use profile::{PropId, Tag};
+pub use sections::bindings::{BindKind, Binding, Bindings, Lit, Scalar, Seg};
 pub use sections::blobs::{
     ARefs, BlobRef, BlobSection, Face, FontRole, Fonts, Images, Img, Page, PageFormat, Scripts,
     Sprite,
 };
+pub use sections::extn::{Extn, Hotkey, Island, hotkey_mods};
+pub use sections::l10n::{L10n, Lang};
 pub use sections::manifest::{FaceFamily, FontRoles, Kind, Manifest, Tool};
+pub use sections::srcmap::{SrcLoc, SrcMap};
 pub use sections::styles::{Bound, Cond, CondKind, MAX_CELLS, MAX_CONDS, StyleSet, Styles};
 pub use sections::templates::{
     ImageSrc, Layer, Node, NodeKind, Template, Templates, TextSrc, node_flags,

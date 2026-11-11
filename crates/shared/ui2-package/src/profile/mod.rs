@@ -3,8 +3,12 @@
 //! The schema types (`SchemaView`, `TypeSig`) and the id enums (`PropId`, `Tag`) are always
 //! available; the profile tables and parsers need feature `profile`.
 
+pub mod action;
 #[cfg(feature = "profile")]
 pub mod apply;
+#[cfg(feature = "profile")]
+pub mod attrs;
+pub mod expr;
 mod ids;
 #[cfg(feature = "profile")]
 mod props;
@@ -18,6 +22,6 @@ pub use props::{
     ElementDef, ErrorDef, IgnoredDef, Profile, PropDef, SelectorDef, SlotDef, TableError, TokenDef,
     ValueKind,
 };
-pub use schema_view::{SchemaView, TypeSig};
+pub use schema_view::{SchemaView, TypeSig, resolve_path};
 #[cfg(feature = "profile")]
 pub use values::{Value, ValueError, parse_value};

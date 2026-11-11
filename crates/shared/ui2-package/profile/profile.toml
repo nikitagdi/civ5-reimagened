@@ -206,3 +206,63 @@ error.E2-005 = { what = "value out of range", hint = "keep the number inside the
 error.E2-006 = { what = "color form outside the profile", hint = "write the color as #hex, rgb(), rgba(), a color name or transparent; currentcolor and color functions are resolved by Chrome first" }
 error.E2-007 = { what = "calc() outside decoration properties", hint = "layout cannot use calc(); use flex, grid or a percentage" }
 error.E2-008 = { what = "list too long", hint = "shorten the list to the number the profile table allows" }
+
+# Numbering: one counter per family, in the order the codes were defined. Ranges that other
+# parts of the pipeline own are reserved here so new codes do not collide:
+#   E1-001..E1-019 document and element rules (converter), E1-020.. attribute names
+#   E4-001..E4-019 expressions and templates, E4-020.. attribute values and actions
+#   E6-001..E6-009 skin texts (converter), E6-010.. l10n attribute grammar
+#   E7-001..E7-009 required slots, tokens, layers (converter), E7-010.. attribute grammar
+error.E4-001 = { what = "syntax error in an expression", hint = "check the expression against the grammar: literals, paths, operators, calls, ?: and parentheses; comparisons cannot be chained" }
+error.E4-002 = { what = "unknown function", hint = "the functions are fmt.int fmt.signed fmt.fixed fmt.pct fmt.mmss loc len min max clamp round floor ceil abs" }
+error.E4-003 = { what = "wrong number of arguments", hint = "see the argument counts of the function in the profile reference" }
+error.E4-004 = { what = "unknown path", hint = "a path starts at a model root, a loop variable or state; check the name against the model schema" }
+error.E4-005 = { what = "arithmetic over something that is not a number", hint = "only int and float values can be added, multiplied or passed to numeric functions; write text with a {{ }} insert" }
+error.E4-006 = { what = "values of different types cannot be compared", hint = "compare numbers with numbers, strings with strings or enum values, keys of one kind; null can be compared with anything" }
+error.E4-007 = { what = "string is not a value of the enum", hint = "use one of the values the schema lists for this enum" }
+error.E4-008 = { what = "a bool, a list or a record cannot be written into text", hint = "use a condition (data-bind-if, class-toggle) or write a field of the record" }
+error.E4-009 = { what = "data-bind-for needs a list", hint = "loop over a path whose type is a list" }
+error.E4-010 = { what = "the loop variable name is taken", hint = "use a name that is not a model root, a keyword (state, mods, true, false, null) or an enclosing variable" }
+error.E4-011 = { what = "argument of the wrong type", hint = "see the argument types of the function in the profile reference" }
+error.E4-012 = { what = "a list has no fields", hint = "loop over the list with data-bind-for and read the field of the item" }
+error.E4-013 = { what = "an insert is not closed", hint = "every {{ needs a }}; a string inside the insert may contain }} only between its quotes" }
+
+# Attributes (E1-020.. names, E4-020.. values and actions, E5-010, E6-010, E7-010.. grammar)
+error.E1-020 = { what = "title attribute", hint = "use data-tooltip with the id of a tooltip template" }
+error.E1-021 = { what = "inline event attribute", hint = "use data-on-<event>=\"intent ...\" or \"call ...\"" }
+error.E1-022 = { what = "data attribute outside the profile", hint = "check the spelling against the list of data-* attributes in the profile reference" }
+error.E1-023 = { what = "srcset attribute", hint = "put the 2x picture next to the 1x file as <name>@2x.<ext>" }
+error.E1-024 = { what = "attribute outside the profile", hint = "remove it, or use the profile's own attribute for the same purpose" }
+error.E1-025 = { what = "attribute not allowed on this element", hint = "see which elements take the attribute in the profile reference" }
+error.E1-026 = { what = "attribute written twice", hint = "keep one of them" }
+error.E1-027 = { what = "include path outside the skin", hint = "write a relative path with / separators that does not leave the skin folder" }
+error.E1-028 = { what = "attribute value outside the profile", hint = "use one of the values the profile allows for this element" }
+error.E4-020 = { what = "the value must be exactly one {{ }} insert", hint = "write the whole attribute as {{ expression }}" }
+error.E4-021 = { what = "malformed data-bind-for", hint = "write [index,] item:{{ list }}, for example c:{{ top.cities }}" }
+error.E4-022 = { what = "the list has no key", hint = "add data-bind-key=\"{{ item.field }}\" with a unique value per item" }
+error.E4-023 = { what = "attribute without the attribute it belongs to", hint = "add the missing attribute on the same element, or remove this one" }
+error.E4-024 = { what = "malformed data-bind-class-toggle", hint = "write class:{{ condition }}, separated by ; for several classes" }
+error.E4-025 = { what = "property cannot be bound", hint = "only properties marked bind in the profile table can be set by data-bind-style-<property>" }
+error.E4-026 = { what = "malformed action", hint = "an action is intent name(args), set state.x = expr, toggle state.x, call name(args) or stop; separate several with ;" }
+error.E4-027 = { what = "unknown intent", hint = "intents come from the catalogue of the model schema" }
+error.E4-028 = { what = "wrong intent arguments", hint = "pass every argument of the intent, all by name or all by position" }
+error.E4-029 = { what = "value of the wrong type", hint = "the value must have the type the target declares" }
+error.E4-030 = { what = "path is read-only for markup", hint = "markup writes only state.* and ui.* fields the schema marks writable" }
+error.E4-031 = { what = "intent of another mod", hint = "a mod fragment sends intents of the catalogue and mods.<its own id>.<name>" }
+error.E4-032 = { what = "malformed data-bind-model", hint = "write the path of a skin state value, for example state.volume" }
+error.E4-033 = { what = "malformed data-control", hint = "a control is checkbox, toggle, radio, slider or select with data-bind-model and the attributes of its kind" }
+error.E4-034 = { what = "data-event next to data-on-click", hint = "put the call into data-on-click instead" }
+error.E4-035 = { what = "binding inside a script island", hint = "an island is driven by script commands; move the binding outside the island" }
+error.E4-036 = { what = "conflicting sources of text", hint = "an element has one source of text (data-bind-value or data-l10n) and then no child elements" }
+error.E4-037 = { what = "data-bind-if and data-bind-for on one node", hint = "put the condition on a parent element or use data-bind-filter" }
+error.E5-010 = { what = "malformed game asset reference", hint = "write <namespace>:<id>, for example render:minimap" }
+error.E6-010 = { what = "malformed text key", hint = "write lower case words separated by dots, for example top.turn" }
+error.E7-010 = { what = "malformed slot or part name", hint = "use lower case words, digits and - separated by dots, for example top.right" }
+error.E7-011 = { what = "malformed layer or screen", hint = "layers are map, hud, window and tooltip; a screen is a child of the window layer" }
+error.E7-012 = { what = "malformed or misplaced anchor", hint = "write city:{{ id }}, unit:{{ id }} or plot:{{ id }} on the node with data-bind-for in the map layer" }
+error.E7-013 = { what = "malformed hotkey", hint = "write [Ctrl+][Alt+][Shift+]<KeyboardEvent.code>, for example Ctrl+KeyB or F5" }
+error.E7-014 = { what = "hotkey inside a loop", hint = "a hotkey needs a node that exists once; move it out of the data-bind-for body" }
+error.E7-015 = { what = "slot on a node with if or for", hint = "put data-slot on a plain parent element" }
+error.E7-016 = { what = "malformed tooltip reference", hint = "data-tooltip is the id of a <template data-layer=\"tooltip\">" }
+error.E7-017 = { what = "malformed data-fit", hint = "write data-fit=\"shrink\" and optionally data-fit-min=\"12px\"" }
+error.E7-018 = { what = "malformed script island", hint = "an island has an id; keys and classes are plain words" }
