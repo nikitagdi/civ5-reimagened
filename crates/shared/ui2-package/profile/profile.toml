@@ -195,3 +195,14 @@ token."--ui-y-cult" = { required = true }
 token."--ui-y-faith" = { required = true }
 token."--ui-y-happy" = { required = true }
 token."--ui-y-tour" = { required = true }
+
+# Error codes (value parsers). The converter prints `what` and `hint`; categories: E1 HTML and
+# attributes, E2 properties and values, E3 selectors and variants, E4 bindings and expressions,
+# E5 fonts and images, E6 localization, E7 slots, keys, anchors, tokens, E8 budgets, E9 environment.
+error.E2-002 = { what = "value outside the profile", hint = "use one of the values the profile table lists for this property" }
+error.E2-003 = { what = "unit other than px", hint = "viewport and container units would be baked into px at one size; use % or px, or a breakpoint" }
+error.E2-004 = { what = "number is not finite", hint = "NaN and infinity cannot be stored; check the calc() expression and its variables" }
+error.E2-005 = { what = "value out of range", hint = "keep the number inside the range the profile table gives" }
+error.E2-006 = { what = "color form outside the profile", hint = "write the color as #hex, rgb(), rgba(), a color name or transparent; currentcolor and color functions are resolved by Chrome first" }
+error.E2-007 = { what = "calc() outside decoration properties", hint = "layout cannot use calc(); use flex, grid or a percentage" }
+error.E2-008 = { what = "list too long", hint = "shorten the list to the number the profile table allows" }

@@ -12,6 +12,7 @@ pub mod ids;
 mod package;
 pub mod profile;
 pub mod sections;
+pub mod style;
 #[cfg(feature = "write")]
 mod write;
 
