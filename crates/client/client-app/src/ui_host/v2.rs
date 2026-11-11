@@ -10,6 +10,12 @@
 //! handle to [`V2Host::frame`], which runs the UI v2 frame inside one borrow of the core ([`NetSink`]). Camera
 //! requests of the frame go to the classic layer's look-at, which the app carries out on its next frame.
 //!
+//! Input: while a skin runs every window event the app's chain leaves for the game UI goes to [`V2Host::input`]
+//! first. What the skin takes stops there; what it passes to the world goes to the camera and the picker, and a
+//! click the picker turns into a plot comes back as [`V2Host::map_click`] (`map.click` for the actions module)
+//! instead of the classic UI's click handling; a press on the skin's minimap moves the camera there. The cursor the
+//! last frame reported is shown with the game's cursors ([`cursor_row`]).
+//!
 //! Loading: the index `ui2/skins.json` and the chosen package are fetched relative to the page. Any failure (no
 //! index, a bad index, a package that is missing, damaged, of another hash, or that does not build) is a warning and
 //! a fallback: the default skin if another one failed, else the classic UI. Never a panic, never a retry loop.
@@ -20,11 +26,11 @@ use std::sync::Arc;
 
 use client_core::ClientEvent;
 use draw_list::UiDrawList;
-use platform::{HttpClient, HttpError, HttpOp, HttpResponse};
+use platform::{HttpClient, HttpError, HttpOp, HttpResponse, InputEvent};
 use protocol::GameId;
 use ui2_host::{
-    ActionEvent, Env, Fallback, HostClock, NetSink, ReplicaView, Services, SkinRegistry, V2Frame,
-    V2FrameReport, V2Init, V2Ui,
+    ActionEvent, Cursor, Env, Fallback, HostClock, InputOutcome, MapButton, NetSink, ReplicaView,
+    Services, SkinRegistry, V2Frame, V2FrameReport, V2Init, V2Ui,
 };
 
 use crate::net::NetHandle;
@@ -67,6 +73,26 @@ pub(crate) fn mod_ids(set: &protocol::ModSetView) -> Vec<Arc<str>> {
     let mut mods: Vec<_> = set.mods.iter().collect();
     mods.sort_by_key(|m| m.load_idx);
     mods.into_iter().map(|m| Arc::from(m.id.as_str())).collect()
+}
+
+/// The row of the game's `Cursors` table (see [`crate::cursor`]) that shows the cursor a skin asked for; `None` for
+/// `auto`, where the world's own cursor stays. The game has no hand or text beam of its own: a pointer is its
+/// link cursor, text its edit cursor, grabbing its grip.
+pub(crate) fn cursor_row(c: Cursor) -> Option<i32> {
+    match c {
+        Cursor::Auto => None,
+        Cursor::Default | Cursor::NotAllowed => Some(0),
+        Cursor::Move => Some(12),
+        Cursor::Pointer => Some(20),
+        Cursor::Grab | Cursor::Grabbing => Some(21),
+        Cursor::Text => Some(22),
+    }
+}
+
+/// A point of the skin's minimap picture (0 to 1) as the share the renderer's `minimap_to_world` takes
+/// (0 to 65535).
+pub(crate) fn minimap_share(t: f32) -> u16 {
+    (t.clamp(0.0, 1.0) * f32::from(u16::MAX)).round() as u16
 }
 
 /// What `?ui=` asked of UI v2.
@@ -150,6 +176,8 @@ pub struct V2Host {
     game: Option<GameId>,
     /// The game's mod set, when it changed since the last UI v2 frame.
     mods: Option<Vec<Arc<str>>>,
+    /// The cursor the last UI v2 frame reported.
+    cursor: Cursor,
 }
 
 impl V2Host {
@@ -171,6 +199,30 @@ impl V2Host {
             events: Vec::new(),
             game: None,
             mods: None,
+            cursor: Cursor::Auto,
+        }
+    }
+
+    /// One window event, before the world sees it: `None` while no skin runs (the classic UI's path stays as it
+    /// is), else who takes it. `now_ms` is the app's clock.
+    pub fn input(&mut self, ev: &InputEvent, now_ms: f64) -> Option<InputOutcome> {
+        self.ui_mut().map(|ui| ui.handle_input(ev, now_ms))
+    }
+
+    /// A click the world took and the picker turned into the plot `cell`: a `map.click` for the next UI v2 frame.
+    pub fn map_click(&mut self, cell: (i32, i32), button: MapButton) {
+        if let Some(ui) = self.ui_mut() {
+            ui.click_map(cell.0, cell.1, button);
+        }
+    }
+
+    /// The row of the game's cursors the running skin asks for (its last frame's cursor); `None`: no skin runs,
+    /// or the skin leaves the cursor to the world.
+    pub fn cursor_row(&self) -> Option<i32> {
+        if self.running() {
+            cursor_row(self.cursor)
+        } else {
+            None
         }
     }
 
@@ -412,6 +464,7 @@ impl V2Host {
         if let Some((x, y)) = look {
             m2.v2_look_at(x, y);
         }
+        self.cursor = report.cursor;
         publish(&report, load_ms);
         Some(ui)
     }
@@ -785,5 +838,157 @@ mod tests {
         assert!(r.errors.is_empty(), "{:?}", r.errors);
         assert_eq!(ui.texts(), ["Hello"]);
         assert!(r.scene.raster_glyphs > 0);
+    }
+
+    /// A package with the `menu` button (10, 10, 100 x 40; cursor pointer; a click toggles the menu window) on
+    /// the HUD layer.
+    fn button_package() -> Arc<ui2_package::Package> {
+        use ui2_package::profile::action::{Action, Arg, Event};
+        use ui2_package::style::{LenAuto, Position};
+        let mut kit = Kit::new();
+        let mut r = StyleRecord::initial();
+        r.position = Position::Absolute;
+        r.left = LenAuto::Len(Len::px(10.0));
+        r.top = LenAuto::Len(Len::px(10.0));
+        r.width = LenAuto::Len(Len::px(100.0));
+        r.height = LenAuto::Len(Len::px(40.0));
+        r.cursor = Cursor::Pointer;
+        let button = kit.record(r);
+        let button = kit.plain(button);
+        let layer = kit.record(StyleRecord::initial());
+        let layer = kit.plain(layer);
+        let toggle = Action::Intent {
+            name: "window.toggle".into(),
+            args: vec![Arg {
+                name: Some("window".into()),
+                value: ui2_package::profile::expr::Expr::Str("menu".into()),
+            }],
+        };
+        kit.template(
+            "doc",
+            vec![
+                TNode::layer(Layer::Hud, layer).child(TNode::el(button).bind(
+                    ui2_package::BindKind::Event {
+                        ev: Event::Click,
+                        actions: vec![toggle],
+                    },
+                )),
+            ],
+        );
+        kit.finish().expect("package")
+    }
+
+    /// A host whose skin runs `pkg`.
+    fn running(pkg: &Arc<ui2_package::Package>) -> V2Host {
+        let full = ui2_host::hash_hex(&pkg.hash());
+        let idx = index(&[entry("kit", &full, true)]);
+        let file = format!("ui2/kit-{}.ui2", &full[..16]);
+        let (mut h, _) = host(
+            FakeHttp::default()
+                .ok(INDEX_PATH, idx)
+                .ok(&file, pkg.bytes().to_vec()),
+            None,
+        );
+        let env = Env {
+            viewport_px: (1280, 720),
+            ..Env::default()
+        };
+        for _ in 0..8 {
+            h.poll(env);
+        }
+        assert_eq!(h.state(), V2State::Running("kit".into()));
+        h
+    }
+
+    fn frame(h: &mut V2Host) -> V2FrameReport {
+        let r = h.ui_mut().expect("running").frame(V2Frame {
+            replica: None,
+            steps: &[],
+            net: None,
+            events: &[],
+            mods: None,
+            now_ms: 16.0,
+        });
+        assert!(r.errors.is_empty(), "{:?}", r.errors);
+        h.cursor = r.cursor;
+        r
+    }
+
+    fn press(phase: platform::PointerPhase, x: f64, y: f64) -> InputEvent {
+        use platform::{
+            Modifiers, MouseButton, PhysicalPosition, PointerEvent, PointerId, PointerKind,
+        };
+        InputEvent::Pointer(PointerEvent {
+            id: PointerId::MOUSE,
+            kind: PointerKind::Mouse,
+            phase,
+            position: PhysicalPosition { x, y },
+            button: (phase != platform::PointerPhase::Move).then_some(MouseButton::Left),
+            modifiers: Modifiers::default(),
+        })
+    }
+
+    #[test]
+    fn without_a_running_skin_input_takes_the_classic_path() {
+        let (mut h, _) = host(FakeHttp::default(), None);
+        let ev = press(platform::PointerPhase::Down, 50.0, 30.0);
+        assert_eq!(h.input(&ev, 1.0), None, "still loading");
+        settle(&mut h);
+        assert_eq!(h.state(), V2State::Classic);
+        assert_eq!(h.input(&ev, 2.0), None, "the classic UI");
+        assert_eq!(h.cursor_row(), None);
+        // A click the world took is dropped: no skin to tell.
+        h.map_click((3, 4), MapButton::Left);
+    }
+
+    #[test]
+    fn a_running_skin_routes_panel_clicks_to_itself_and_the_rest_to_the_world() {
+        use platform::PointerPhase::{Down, Move, Up};
+        let mut h = running(&button_package());
+        frame(&mut h);
+        // On the button: the skin's; its intent runs in the next frame.
+        for (phase, t) in [(Move, 1.0), (Down, 2.0), (Up, 3.0)] {
+            assert_eq!(
+                h.input(&press(phase, 50.0, 30.0), t),
+                Some(InputOutcome::Consumed)
+            );
+        }
+        let r = frame(&mut h);
+        assert_eq!(r.intents, 1);
+        assert!(
+            h.ui_mut()
+                .expect("running")
+                .actions()
+                .ui()
+                .windows
+                .menu
+                .open
+        );
+        assert_eq!(h.cursor_row(), Some(20), "the pointer over the button");
+        // Off the panels: the world's (the camera and the picker); the picked plot comes back as `map.click`.
+        for (phase, t) in [(Move, 4.0), (Down, 5.0), (Up, 6.0)] {
+            assert_eq!(
+                h.input(&press(phase, 640.0, 400.0), t),
+                Some(InputOutcome::PassToWorld)
+            );
+        }
+        h.map_click((3, 4), MapButton::Left);
+        let r = frame(&mut h);
+        assert_eq!(r.intents, 1, "the map click");
+        assert_eq!(h.cursor_row(), None, "the world's cursor");
+    }
+
+    #[test]
+    fn skin_cursors_map_to_game_cursor_rows_and_the_minimap_to_shares() {
+        assert_eq!(cursor_row(Cursor::Auto), None);
+        assert_eq!(cursor_row(Cursor::Default), Some(0));
+        assert_eq!(cursor_row(Cursor::Pointer), Some(20));
+        assert_eq!(cursor_row(Cursor::Text), Some(22));
+        assert_eq!(cursor_row(Cursor::Grabbing), Some(21));
+        assert_eq!(minimap_share(0.0), 0);
+        assert_eq!(minimap_share(0.5), 32_768);
+        assert_eq!(minimap_share(1.0), u16::MAX);
+        assert_eq!(minimap_share(-1.0), 0);
+        assert_eq!(minimap_share(2.0), u16::MAX);
     }
 }

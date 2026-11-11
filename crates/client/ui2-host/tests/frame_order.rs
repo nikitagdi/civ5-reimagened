@@ -12,81 +12,13 @@ use std::sync::Arc;
 
 use protocol::{CmdId, Command, CommandOutcome};
 use replica::testing::FakeRead;
-use replica::{Activity, Notification, ReplicaStep, State, Unit, UnitFlags};
-use ui2_actions::{ActionEvent, OrderSink, RecordingSink, Sent};
-use ui2_host::{Env, HostNet, ReplicaView, V2Frame, V2FrameReport, V2Init, V2Ui};
+use replica::{ReplicaStep, State};
+use support::{FakeNet, game};
+use ui2_actions::{ActionEvent, Sent};
+use ui2_host::{Env, ReplicaView, V2Frame, V2FrameReport, V2Init, V2Ui};
 use ui2_model::r#gen::{Note, Ui, Unit as UnitRoot};
 use ui2_model::wire::{Origin, WireIntent};
 use ui2_model::{Key, KeyedList, Value};
-use ui2_source::SessionRead;
-use ui2_source::session::testing::FakeSession;
-
-/// A network for the tests: orders are recorded and numbered, the session is plain data.
-#[derive(Default)]
-struct FakeNet {
-    sink: RecordingSink,
-    session: FakeSession,
-}
-
-impl HostNet for FakeNet {
-    fn sink(&mut self) -> &mut dyn OrderSink {
-        &mut self.sink
-    }
-
-    fn session(&self) -> &dyn SessionRead {
-        &self.session
-    }
-}
-
-fn unit(id: i32, x: i16) -> Unit {
-    Unit {
-        id,
-        owner: 0,
-        unit_type: 1,
-        x,
-        y: 4,
-        hp: 100,
-        max_hp: 100,
-        moves_left: 120,
-        max_moves: 120,
-        strength: 8,
-        ranged: 0,
-        range: 0,
-        domain: 2,
-        activity: Activity::Awake,
-        level: 1,
-        experience: 0,
-        flags: UnitFlags::default(),
-        transport_id: None,
-        build_type: None,
-        facing: None,
-        name: format!("Warrior {id}"),
-    }
-}
-
-fn note(id: i32) -> Notification {
-    Notification {
-        id,
-        kind: 0,
-        x: -1,
-        y: -1,
-        data1: 0,
-        data2: 0,
-        turn: 87,
-        dismissed: false,
-        message: format!("note {id}"),
-        summary: format!("note {id}"),
-    }
-}
-
-/// Seat 0 at turn 87 with two units and two notifications.
-fn game() -> FakeRead {
-    let mut f = FakeRead::new(0, 0);
-    f.info.turn = 87;
-    f.units = vec![unit(1, 10), unit(2, 11)];
-    f.notes = vec![note(2), note(3)];
-    f
-}
 
 fn ukey(id: u32) -> Key {
     Key::new(0, id)

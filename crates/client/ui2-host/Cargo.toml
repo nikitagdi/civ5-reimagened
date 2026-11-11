@@ -24,6 +24,7 @@ client-core.workspace = true
 protocol.workspace = true
 replica.workspace = true
 loc.workspace = true
+platform.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
