@@ -54,7 +54,7 @@ mod types;
 pub use client_mod::{ClientMod, ModRenderSystem};
 pub use ctx::{
     ClientCtx, ClientHost, CtxError, CutoutMask, Guarded, Hotkeys, HudTextures, ModAssets,
-    ModAudio, ModKv, ModTerrain, ModWorld,
+    ModAudio, ModKv, ModTerrain, ModUiModel, ModWorld,
 };
 pub use draw_list::{TextureId, UiBlend, UiDrawList, UiVertex};
 pub use hotkeys::{HotkeyTable, KeyUse, game_key};
@@ -68,7 +68,7 @@ pub use registry::{ClientRegistry, ModDispatcher};
 pub use render::cutout::{CutoutGrid, CutoutRegion};
 pub use types::{
     AttachInfo, Claim, FrameOut, HotkeySpec, ModBuild, ModInfo, PackState, PlayOpts, PlayerInfo,
-    PlotView, ScreenInfo, SetEntry, StrategicCamera,
+    PlotView, ScreenInfo, SetEntry, StrategicCamera, UiValue,
 };
 
 /// Labeled timing of a mod's own work, for the engine's slow-frame log and the performance panel. Hold the guard

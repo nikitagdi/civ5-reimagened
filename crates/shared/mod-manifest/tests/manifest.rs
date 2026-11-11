@@ -2,7 +2,8 @@
 
 use mod_manifest::{
     CHANNEL_PAYLOAD_CEILING, ClientPolicy, Manifest, ManifestError, ModId, Part, SyncClass,
-    Version, VersionReq,
+    UI_PANELS_MAX, UI_READS_MAX, UI_SCRIPTS_MAX, UiConflict, UiFallback, UiMode, UiSection,
+    Version, VersionReq, ui_conflicts,
 };
 
 const FULL: &str = r#"
@@ -187,13 +188,18 @@ fn part_class_matrix_matches_the_design() {
         (Assets, [true, true, true]),
         (ServerRs, [true, true, false]),
         (ClientRs, [true, true, true]),
+        (Ui, [true, true, true]),
     ];
     for (part, row) in allowed {
         for (class, want) in [Gameplay, Cosmetic, Client].into_iter().zip(row) {
             assert_eq!(part.allowed_in(class), want, "{part:?} in {class:?}");
         }
     }
-    assert_eq!(Part::ALL.len(), 7);
+    assert_eq!(Part::ALL.len(), 8);
+    // The bits of the older parts never move: the mod set hash depends on them.
+    let bits: Vec<u16> = Part::ALL.iter().map(|p| p.bit()).collect();
+    assert_eq!(bits, [1, 2, 4, 8, 16, 32, 64, 128]);
+    assert_eq!(Part::parse("ui"), Some(Part::Ui));
     for p in Part::ALL {
         assert_eq!(Part::parse(p.as_str()), Some(p));
     }
@@ -724,4 +730,318 @@ fn error_messages_are_readable() {
         "name = \"VoxelDemo\"\ncolour = 1",
     ));
     assert_eq!(e.to_string(), "mod.colour: unknown key");
+}
+
+// ---------------------------------------------------------------- [ui] (mod API 1.3)
+
+const UI_FULL: &str = r#"
+[mod]
+id      = "hello"
+name    = "Hello"
+version = "0.3.0"
+api     = "^1.3"
+license = "MIT"
+sync    = "cosmetic"
+client  = "optional"
+parts   = ["client-rs", "ui"]
+
+[rust]
+client = { crate = "hello-client", entry = "hello_client::register" }
+caps   = ["hud", "ui"]
+
+[ui]
+api     = "^1"
+model   = "ui/model.toml"
+reads   = ["game.turn", "players.*.name"]
+scripts = ["ui/hello.js"]
+
+[[ui.panels]]
+id       = "echo"
+source   = "ui/echo.html"
+point    = "hud.right"
+mode     = "append"
+fallback = "mods"
+
+[[ui.panels]]
+id     = "map"
+source = "ui/map.html"
+point  = "hud.minimap"
+mode   = "replace"
+"#;
+
+/// The smallest `[ui]`: a client-only mod with one panel and no Rust half.
+const UI_MIN: &str = r#"
+[mod]
+id      = "clock"
+name    = "Clock"
+version = "1.0.0"
+api     = "^1.3"
+license = "MIT"
+sync    = "client"
+parts   = ["ui"]
+
+[ui]
+api = "^1"
+
+[[ui.panels]]
+id     = "clock"
+source = "ui/clock.html"
+point  = "hud.top.extra"
+mode   = "append"
+"#;
+
+fn ui_with(from: &str, to: &str) -> String {
+    assert!(UI_FULL.contains(from), "fixture has no {from:?}");
+    UI_FULL.replacen(from, to, 1)
+}
+
+#[test]
+fn ui_full_section_parses() {
+    let m = Manifest::parse(UI_FULL).unwrap();
+    assert!(m.has_part(Part::Ui));
+    let ui = m.ui.as_ref().unwrap();
+    assert_eq!(ui.api, "^1".parse::<VersionReq>().unwrap());
+    assert_eq!(ui.model.as_deref(), Some("ui/model.toml"));
+    assert_eq!(ui.reads, ["game.turn", "players.*.name"]);
+    assert_eq!(ui.scripts, ["ui/hello.js"]);
+    assert_eq!(ui.panels.len(), 2);
+    let echo = &ui.panels[0];
+    assert_eq!(
+        (
+            echo.id.as_str(),
+            echo.source.as_str(),
+            echo.point.as_str(),
+            echo.mode,
+            echo.fallback
+        ),
+        (
+            "echo",
+            "ui/echo.html",
+            "hud.right",
+            UiMode::Append,
+            UiFallback::Mods
+        )
+    );
+    assert_eq!(ui.panels[1].mode, UiMode::Replace);
+    assert_eq!(ui.panels[1].fallback, UiFallback::Mods, "the default");
+    let files: Vec<(String, &str)> = ui.files();
+    assert_eq!(
+        files,
+        [
+            ("ui.model".to_string(), "ui/model.toml"),
+            ("ui.scripts[0]".to_string(), "ui/hello.js"),
+            ("ui.panels[0].source".to_string(), "ui/echo.html"),
+            ("ui.panels[1].source".to_string(), "ui/map.html"),
+        ]
+    );
+}
+
+#[test]
+fn ui_minimal_section_parses_without_rust() {
+    let m = Manifest::parse(UI_MIN).unwrap();
+    let ui = m.ui.unwrap();
+    assert!(ui.model.is_none() && ui.reads.is_empty() && ui.scripts.is_empty());
+    assert_eq!(ui.panels[0].point, "hud.top.extra");
+    // A mod without [ui] has none.
+    assert!(Manifest::parse(FULL).unwrap().ui.is_none());
+}
+
+#[test]
+fn ui_part_and_section_go_together() {
+    // The part without the section.
+    let no_section = UI_MIN.split("[ui]").next().unwrap().to_string();
+    assert_path(&no_section, "ui");
+    assert!(matches!(
+        parse_err(&no_section),
+        ManifestError::Missing { .. }
+    ));
+    // The section without the part.
+    let no_part = UI_FULL.replacen(
+        "parts   = [\"client-rs\", \"ui\"]",
+        "parts = [\"client-rs\"]",
+        1,
+    );
+    let e = parse_err(&no_part);
+    assert_eq!(e.path(), Some("ui"));
+    assert!(e.to_string().contains("`parts` has no `ui`"), "{e}");
+    // The part is allowed in every class.
+    for sync in ["gameplay", "cosmetic", "client"] {
+        let src = UI_MIN.replacen("sync    = \"client\"", &format!("sync = \"{sync}\""), 1);
+        Manifest::parse(&src).unwrap_or_else(|e| panic!("{sync}: {e}"));
+    }
+}
+
+#[test]
+fn ui_rules_carry_their_key_path() {
+    let rows: Vec<(String, &str)> = vec![
+        (ui_with("api     = \"^1\"\nmodel", "model"), "ui.api"),
+        (ui_with("api     = \"^1\"", "api = \"one\""), "ui.api"),
+        (ui_with("api     = \"^1\"", "api = 1"), "ui.api"),
+        (
+            ui_with("\"ui/model.toml\"", "\"/abs/model.toml\""),
+            "ui.model",
+        ),
+        (
+            ui_with("\"ui/model.toml\"", "\"../model.toml\""),
+            "ui.model",
+        ),
+        (ui_with("\"ui/model.toml\"", "\"ui/*.toml\""), "ui.model"),
+        (ui_with("\"game.turn\"", "\"Game.turn\""), "ui.reads[0]"),
+        (
+            ui_with("\"players.*.name\"", "\"game.turn\""),
+            "ui.reads[1]",
+        ),
+        (
+            ui_with("\"ui/hello.js\"", "\"ui\\\\hello.js\""),
+            "ui.scripts[0]",
+        ),
+        (
+            ui_with("\"ui/hello.js\"", "\"ui/a.js\", \"ui/a.js\""),
+            "ui.scripts[1]",
+        ),
+        (ui_with("scripts = [", "bogus = 1\nscripts = ["), "ui.bogus"),
+        (
+            ui_with("id       = \"echo\"", "id = \"Echo\""),
+            "ui.panels[0].id",
+        ),
+        (
+            ui_with("id     = \"map\"", "id = \"echo\""),
+            "ui.panels[1].id",
+        ),
+        (
+            ui_with("source   = \"ui/echo.html\"", "source = \"ui/\""),
+            "ui.panels[0].source",
+        ),
+        (
+            ui_with("point    = \"hud.right\"", "point = \"Hud\""),
+            "ui.panels[0].point",
+        ),
+        (
+            ui_with("mode     = \"append\"", "mode = \"prepend\""),
+            "ui.panels[0].mode",
+        ),
+        (ui_with("mode     = \"append\"\n", ""), "ui.panels[0].mode"),
+        (
+            ui_with("fallback = \"mods\"", "fallback = \"skin\""),
+            "ui.panels[0].fallback",
+        ),
+        (
+            ui_with("fallback = \"mods\"", "fallback = \"mods\"\nslot = \"x\""),
+            "ui.panels[0].slot",
+        ),
+    ];
+    for (src, path) in &rows {
+        assert_path(src, path);
+    }
+    // An append and a replace of one point in one mod are fine.
+    Manifest::parse(&ui_with(
+        "point  = \"hud.minimap\"",
+        "point = \"hud.right\"",
+    ))
+    .unwrap();
+    // Two panels of one mod replace the same point.
+    let src = ui_with("mode     = \"append\"", "mode = \"replace\"").replacen(
+        "point  = \"hud.minimap\"",
+        "point = \"hud.right\"",
+        1,
+    );
+    let e = parse_err(&src);
+    assert_eq!(e.path(), Some("ui.panels[1].point"));
+    assert!(e.to_string().contains("already replaces"), "{e}");
+}
+
+#[test]
+fn ui_limits() {
+    // Panels: at least one, at most 16.
+    assert_path(UI_MIN.split("[[ui.panels]]").next().unwrap(), "ui.panels");
+    let no_panels = UI_MIN.replacen("[[ui.panels]]", "panels = []\n[x]", 1);
+    assert!(Manifest::parse(&no_panels).is_err());
+    let mut many = UI_MIN.split("[[ui.panels]]").next().unwrap().to_string();
+    for i in 0..=UI_PANELS_MAX {
+        many.push_str(&format!(
+            "[[ui.panels]]\nid = \"p{i}\"\nsource = \"ui/p.html\"\npoint = \"mods\"\nmode = \"append\"\n"
+        ));
+    }
+    assert_path(&many, "ui.panels");
+    // Scripts: at most 8.
+    let scripts: Vec<String> = (0..=UI_SCRIPTS_MAX)
+        .map(|i| format!("\"ui/s{i}.js\""))
+        .collect();
+    let src = ui_with("[\"ui/hello.js\"]", &format!("[{}]", scripts.join(", ")));
+    assert_path(&src, "ui.scripts");
+    // Reads: at most 32.
+    let reads: Vec<String> = (0..=UI_READS_MAX)
+        .map(|i| format!("\"game.f{i}\""))
+        .collect();
+    let src = ui_with(
+        "[\"game.turn\", \"players.*.name\"]",
+        &format!("[{}]", reads.join(", ")),
+    );
+    assert_path(&src, "ui.reads");
+    // Wrong types.
+    assert_path(
+        &UI_MIN.replacen("[[ui.panels]]", "panels = 1\n[[x]]", 1),
+        "ui.panels",
+    );
+}
+
+fn ui_section(src: &str) -> (ModId, UiSection) {
+    let m = Manifest::parse(src).unwrap();
+    (m.id, m.ui.unwrap())
+}
+
+fn replacer(id: &str, points: &[&str]) -> (ModId, UiSection) {
+    let mut src = format!(
+        "[mod]\nid=\"{id}\"\nname=\"{id}\"\nversion=\"1.0.0\"\napi=\"^1.3\"\nlicense=\"MIT\"\nsync=\"client\"\nparts=[\"ui\"]\n[ui]\napi=\"^1\"\n"
+    );
+    for (i, p) in points.iter().enumerate() {
+        let (point, mode) = p.split_once(':').unwrap_or((p, "replace"));
+        src.push_str(&format!(
+            "[[ui.panels]]\nid=\"p{i}\"\nsource=\"ui/p{i}.html\"\npoint=\"{point}\"\nmode=\"{mode}\"\n"
+        ));
+    }
+    ui_section(&src)
+}
+
+#[test]
+fn ui_conflicts_name_both_mods_in_load_order() {
+    let a = replacer("aa", &["hud.minimap", "hud.right:append"]);
+    let b = replacer("bb", &["hud.right:append", "hud.chat"]);
+    let c = replacer("cc", &["hud.minimap", "hud.chat"]);
+    let set = |v: &[&(ModId, UiSection)]| -> Vec<UiConflict> {
+        let pairs: Vec<(&ModId, &UiSection)> = v.iter().map(|(i, u)| (i, u)).collect();
+        ui_conflicts(&pairs)
+    };
+    // Appends never conflict; one replacer per point is fine.
+    assert!(set(&[&a, &b]).is_empty());
+    let found = set(&[&a, &b, &c]);
+    assert_eq!(found.len(), 2);
+    assert_eq!(
+        (
+            found[0].first.as_str(),
+            found[0].second.as_str(),
+            found[0].point.as_str()
+        ),
+        ("bb", "cc", "hud.chat")
+    );
+    assert_eq!(
+        (
+            found[1].first.as_str(),
+            found[1].second.as_str(),
+            found[1].point.as_str()
+        ),
+        ("aa", "cc", "hud.minimap")
+    );
+    assert_eq!(
+        found[1].to_string(),
+        "mods `aa` and `cc` both replace the interface element `hud.minimap`; keep one of them"
+    );
+    assert!(found[1].to_string().chars().count() <= 240);
+    // The load order decides who is first.
+    let found = set(&[&c, &a]);
+    assert_eq!(
+        (found[0].first.as_str(), found[0].second.as_str()),
+        ("cc", "aa")
+    );
+    assert!(set(&[]).is_empty());
 }

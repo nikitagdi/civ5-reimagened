@@ -1487,3 +1487,62 @@ fn a_room_with_unresolvable_picks_shows_the_chain_and_cannot_start() {
     assert!(a.error().contains("open slots"));
     let _ = std::fs::remove_dir_all(mods);
 }
+
+/// Mod API 1.3: two mods that both replace one UI point are a problem of the plan naming both, and the start is
+/// refused; appending to a point is never a conflict.
+#[test]
+fn two_mods_replacing_one_ui_point_show_a_problem_and_cannot_start() {
+    let ui = |point: &str, mode: &str| {
+        format!(
+            "[ui]\napi=\"^1\"\n[[ui.panels]]\nid=\"p\"\nsource=\"ui/p.html\"\npoint=\"{point}\"\nmode=\"{mode}\""
+        )
+    };
+    let mods = install_mods(
+        "lobby-mods-ui",
+        &[
+            ("map-a", "client", &ui("hud.minimap", "replace")),
+            ("map-b", "client", &ui("hud.minimap", "replace")),
+            ("side", "client", &ui("hud.right", "append")),
+        ],
+    );
+    // The helper writes `parts = ["assets"]` and `api = "^1"`: these mods have the `ui` part.
+    for id in ["map-a", "map-b", "side"] {
+        let p = mods.join(id).join("mod.toml");
+        let text = std::fs::read_to_string(&p)
+            .unwrap()
+            .replace("parts=[\"assets\"]", "parts=[\"ui\"]");
+        std::fs::write(&p, text).unwrap();
+    }
+    let dir = mods.clone();
+    let srv = start_with("lobby-mods-ui-srv", "echo", move |c| {
+        c.mods_dir = Some(dir);
+    });
+    let mut a = Client::login(&srv, "alice");
+    a.state("the lobby", |_| true);
+    let mut s = settings("ui-conflict");
+    s.mods = vec![pick("map-a", "*"), pick("side", "*")];
+    a.lobby(LobbyCmd::CreateRoom { settings: s });
+    let room = a.room("the room", |_| true);
+    assert_eq!(
+        plan_ids(&room.mod_plan),
+        [("map-a".to_string(), false), ("side".to_string(), false)]
+    );
+
+    let mut s = room.settings.clone();
+    s.mods = vec![pick("map-a", "*"), pick("map-b", "*"), pick("side", "*")];
+    a.lobby(LobbyCmd::Settings(s));
+    let room = a.room("the conflict", |r| {
+        matches!(r.mod_plan, protocol::ModPlan::Err(_))
+    });
+    assert_eq!(
+        plan_problems(&room.mod_plan),
+        "mods `map-a` and `map-b` both replace the interface element `hud.minimap`; keep one of them"
+    );
+    a.lobby(LobbyCmd::Start);
+    let e = a.error();
+    assert!(
+        e.contains("mods cannot be loaded") && e.contains("`map-a`") && e.contains("`map-b`"),
+        "{e}"
+    );
+    let _ = std::fs::remove_dir_all(mods);
+}

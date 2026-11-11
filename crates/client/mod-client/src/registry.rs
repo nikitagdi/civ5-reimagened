@@ -9,7 +9,7 @@ use platform::InputEvent;
 
 use crate::client_mod::{ClientMod, ModRenderSystem};
 use crate::ctx::{ClientHost, Control, Guarded};
-use crate::types::{AttachInfo, Claim, FrameOut, ModBuild, ModInfo, SetEntry};
+use crate::types::{AttachInfo, Claim, FrameOut, ModBuild, ModInfo, SetEntry, UiValue};
 
 type Factory = Box<dyn Fn() -> Box<dyn ClientMod>>;
 
@@ -303,6 +303,39 @@ impl ModDispatcher {
         let mut g = guarded!(host, s, &mut self.control);
         s.m.on_hotkey(&mut g, id);
         true
+    }
+
+    /// Delivers an intent of the UI v2 panels to the mod at `mod_idx` (API 1.3): `name` is the part after
+    /// `mods.<id>.`. Only an enabled mod holding `ui` gets it; returns whether a mod saw it. The host has already
+    /// checked that the intent came from this mod's own panels or script.
+    pub fn on_ui_intent(
+        &mut self,
+        host: &mut dyn ClientHost,
+        mod_idx: u16,
+        name: &str,
+        args: &[(String, UiValue)],
+    ) -> bool {
+        let Some(s) = self
+            .slots
+            .iter_mut()
+            .find(|s| s.info.mod_idx == mod_idx && s.enabled)
+        else {
+            return false;
+        };
+        if !s.info.caps.has(Cap::Ui) {
+            return false;
+        }
+        let mut g = guarded!(host, s, &mut self.control);
+        s.m.on_ui_intent(&mut g, name, args);
+        true
+    }
+
+    /// The load index of the enabled mod with this id, for a host that routes by id (UI v2 intents name the mod).
+    pub fn idx_of(&self, id: &str) -> Option<u16> {
+        self.slots
+            .iter()
+            .find(|s| s.enabled && s.info.id.as_str() == id)
+            .map(|s| s.info.mod_idx)
     }
 
     /// Offers the event to the mods that hold `input.claim`, in load order; the first `Consume` wins and the later

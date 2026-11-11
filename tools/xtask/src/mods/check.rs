@@ -92,11 +92,14 @@ pub fn prepare(list_path: &Path, stage_root: &Path) -> Result<Prepared> {
     let resolution = mod_manifest::resolve(&picks, &installed, &MOD_API_VERSION)
         .map_err(|e: ResolveError| anyhow!("{e}"))
         .with_context(|| format!("resolving the mods of {}", list_path.display()))?;
-    Ok(Prepared {
+    let prepared = Prepared {
         list_path: list_path.to_path_buf(),
         mods,
         resolution,
-    })
+    };
+    super::ui::check_set(&prepared)
+        .with_context(|| format!("the UI panels of the mods of {}", list_path.display()))?;
+    Ok(prepared)
 }
 
 fn describe(s: &Source) -> String {
@@ -178,9 +181,10 @@ pub fn copy_without(from: &Path, to: &Path, root: bool) -> Result<()> {
     Ok(())
 }
 
-/// Checks of one mod that need no other mod: SPDX licence, Rust crates and entries.
+/// Checks of one mod that need no other mod: SPDX licence, Rust crates and entries, the `[ui]` section.
 pub fn check_mod(m: &Manifest, dir: &Path) -> Result<()> {
     check_spdx(&m.license).with_context(|| format!("mod.license {:?}", m.license))?;
+    super::ui::check_mod(m, dir)?;
     for (part, entry) in [
         (Part::ServerRs, &m.rust.server),
         (Part::ClientRs, &m.rust.client),

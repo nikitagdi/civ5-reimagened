@@ -5,7 +5,7 @@ use mod_api::{ChannelId, PlayerId};
 use platform::InputEvent;
 
 use crate::ctx::ClientCtx;
-use crate::types::{AttachInfo, Claim, FrameOut};
+use crate::types::{AttachInfo, Claim, FrameOut, UiValue};
 
 /// A render system a mod contributes to `MainSlot::Mod`: the engine's own `render::frame::RenderSystem` trait. Its id
 /// must be `SystemId::Mod(_)`; the host renumbers it so that two mods never clash.
@@ -53,4 +53,10 @@ pub trait ClientMod {
     fn render_systems(&mut self, _cx: &mut dyn ClientCtx) -> Vec<Box<dyn ModRenderSystem>> {
         Vec::new()
     }
+
+    /// An intent of the mod's own panels or script (API 1.3, needs `ui`): `mods.<id>.<name>` in the markup
+    /// (`data-on-click="intent mods.hello.say()"`) or the script (`ui.intent("mods.hello.say", {})`). `name` is the
+    /// part after `mods.<id>.` (`say`); `args` are the intent's arguments by name. Another mod's intents never
+    /// arrive here: the host refuses a prefix that is not this mod's before calling.
+    fn on_ui_intent(&mut self, _cx: &mut dyn ClientCtx, _name: &str, _args: &[(String, UiValue)]) {}
 }

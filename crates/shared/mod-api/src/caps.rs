@@ -34,10 +34,12 @@ pub enum Cap {
     WorldBodies,
     /// Let a seat draw the ground of plots it has not revealed (server, API 1.2, cosmetic).
     WorldShareTerrain,
+    /// Write the mod's UI v2 model fields (`mods.<id>.*`) and receive its panels' intents (client, API 1.3).
+    Ui,
 }
 
 impl Cap {
-    pub const ALL: [Cap; 12] = [
+    pub const ALL: [Cap; 13] = [
         Cap::NetChannel,
         Cap::WorldRead,
         Cap::InputClaim,
@@ -50,6 +52,7 @@ impl Cap {
         Cap::TerrainCutout,
         Cap::WorldBodies,
         Cap::WorldShareTerrain,
+        Cap::Ui,
     ];
 
     /// The name used in `mod.toml`.
@@ -67,6 +70,7 @@ impl Cap {
             Cap::TerrainCutout => "terrain.cutout",
             Cap::WorldBodies => "world.bodies",
             Cap::WorldShareTerrain => "world.share_terrain",
+            Cap::Ui => "ui",
         }
     }
 
@@ -85,6 +89,7 @@ impl Cap {
                 | Cap::Kv
                 | Cap::Audio
                 | Cap::TerrainCutout
+                | Cap::Ui
         )
     }
 
