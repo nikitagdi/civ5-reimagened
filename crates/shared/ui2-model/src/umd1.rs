@@ -166,15 +166,10 @@ pub(crate) fn op(out: &mut String, o: &Op) {
 }
 
 impl FrameDelta {
-    /// The UMD1 text of this delta. `schema` is the schema the field ids belong to.
+    /// The UMD1 text of this delta. Ids past the end of the schema's tables belong to mounted fragments (see
+    /// `ModelStore`); the encoding does not need the tables for them.
     #[must_use]
-    pub fn to_umd1(&self, schema: &Schema) -> String {
-        debug_assert!(self.ops.iter().all(|o| match o {
-            Op::Set { field, .. } => (field.0 as usize) < schema.paths().len(),
-            Op::Insert { list, .. } | Op::Remove { list, .. } | Op::Move { list, .. } =>
-                (list.0 as usize) < schema.paths().len(),
-            Op::Reset { root, .. } => usize::from(root.0) < schema.roots().len(),
-        }));
+    pub fn to_umd1(&self, _schema: &Schema) -> String {
         let mut out = format!("[{}", self.revision);
         for o in &self.ops {
             out.push(',');

@@ -8,7 +8,7 @@ use crate::schema::{FieldId, PathEntry, Root as RootDef, RootId, RootShape, Sche
 use crate::value::{Key, Value, ValueError, default_value, validate};
 
 /// A delta that does not fit the model.
-#[derive(Clone, Debug, PartialEq, Error)]
+#[derive(Clone, Debug, PartialEq, Eq, Error)]
 pub enum ApplyError {
     #[error("field id {0} is not in the schema")]
     UnknownField(u32),
@@ -122,167 +122,18 @@ impl ModelState {
 
     fn apply_one(&mut self, op: &Op) -> Result<(), ApplyError> {
         let schema = self.schema;
-        match op {
-            Op::Reset { root, value } => {
-                let r = schema
-                    .roots()
-                    .get(usize::from(root.0))
-                    .ok_or(ApplyError::UnknownRoot(root.0))?;
-                validate(schema, &r.value_type(), value).map_err(|source| ApplyError::Value {
-                    path: r.name.clone(),
-                    source,
-                })?;
-                self.roots[usize::from(root.0)] = value.clone();
-                Ok(())
-            }
-            Op::Set { field, keys, value } => {
-                let e = self.entry(*field)?;
-                validate(schema, &e.ty, value).map_err(|source| ApplyError::Value {
-                    path: e.path.clone(),
-                    source,
-                })?;
-                if e.steps.is_empty() {
-                    // The whole root (an optional root appearing or going away).
-                    if !keys.is_empty() {
-                        return Err(ApplyError::Shape {
-                            path: e.path.clone(),
-                            msg: "too many keys for the path",
-                        });
-                    }
-                    self.roots[usize::from(e.root.0)] = value.clone();
-                    return Ok(());
-                }
-                let slot = self.slot_mut(e, keys)?;
-                *slot = value.clone();
-                Ok(())
-            }
-            Op::Insert {
-                list,
-                keys,
-                at,
-                key,
-                value,
-            } => {
-                let e = self.entry(*list)?;
-                let l = list_type(e)?;
-                validate(schema, &Type::Struct(l.elem), value).map_err(|source| {
-                    ApplyError::Value {
-                        path: e.path.clone(),
-                        source,
-                    }
-                })?;
-                if let Value::Struct(fs) = value
-                    && fs[l.key_index].as_key() != Some(*key)
-                {
-                    return Err(ApplyError::Value {
-                        path: e.path.clone(),
-                        source: ValueError::KeyMismatch {
-                            listed: *key,
-                            actual: fs[l.key_index].as_key().unwrap_or(Key(0)),
-                        },
-                    });
-                }
-                let items = self.list_mut(e, keys)?;
-                if items.iter().any(|(k, _)| k == key) {
-                    return Err(ApplyError::DuplicateKey {
-                        path: e.path.clone(),
-                        key: *key,
-                    });
-                }
-                if *at as usize > items.len() {
-                    return Err(ApplyError::Position {
-                        path: e.path.clone(),
-                        pos: *at,
-                        len: items.len(),
-                    });
-                }
-                items.insert(*at as usize, (*key, value.clone()));
-                Ok(())
-            }
-            Op::Remove { list, keys, key } => {
-                let e = self.entry(*list)?;
-                let items = self.list_mut(e, keys)?;
-                let i = items.iter().position(|(k, _)| k == key).ok_or_else(|| {
-                    ApplyError::NoElement {
-                        path: e.path.clone(),
-                        key: *key,
-                    }
-                })?;
-                items.remove(i);
-                Ok(())
-            }
-            Op::Move {
-                list,
-                keys,
-                key,
-                to,
-            } => {
-                let e = self.entry(*list)?;
-                let items = self.list_mut(e, keys)?;
-                let i = items.iter().position(|(k, _)| k == key).ok_or_else(|| {
-                    ApplyError::NoElement {
-                        path: e.path.clone(),
-                        key: *key,
-                    }
-                })?;
-                if *to as usize >= items.len() {
-                    return Err(ApplyError::Position {
-                        path: e.path.clone(),
-                        pos: *to,
-                        len: items.len(),
-                    });
-                }
-                let item = items.remove(i);
-                items.insert(*to as usize, item);
-                Ok(())
-            }
-        }
-    }
-
-    fn walk_err(e: &PathEntry, w: Walk) -> ApplyError {
-        match w {
-            Walk::Shape(msg) => ApplyError::Shape {
-                path: e.path.clone(),
-                msg,
-            },
-            Walk::NoElement(key) => ApplyError::NoElement {
-                path: e.path.clone(),
-                key,
-            },
-        }
-    }
-
-    fn slot_mut(&mut self, e: &PathEntry, keys: &[Key]) -> Result<&mut Value, ApplyError> {
-        let schema = self.schema;
-        let root = &mut self.roots[usize::from(e.root.0)];
-        slot_mut(schema, root, schema.root(e.root), &e.steps, keys)
-            .map_err(|w| Self::walk_err(e, w))
-    }
-
-    fn list_mut(
-        &mut self,
-        e: &PathEntry,
-        keys: &[Key],
-    ) -> Result<&mut Vec<(Key, Value)>, ApplyError> {
-        // The list at the top of a list root is the root value itself.
-        let slot = if e.steps.is_empty() {
-            if !keys.is_empty() {
-                return Err(ApplyError::Shape {
-                    path: e.path.clone(),
-                    msg: "too many keys for the path",
-                });
-            }
-            &mut self.roots[usize::from(e.root.0)]
-        } else {
-            self.slot_mut(e, keys)?
+        let root = match op {
+            Op::Reset { root, .. } => usize::from(root.0),
+            Op::Set { field: f, .. }
+            | Op::Insert { list: f, .. }
+            | Op::Remove { list: f, .. }
+            | Op::Move { list: f, .. } => usize::from(self.entry(*f)?.root.0),
         };
-        match slot {
-            Value::List(items) => Ok(items),
-            _ => Err(ApplyError::Shape {
-                path: e.path.clone(),
-                msg: "the field is not a list",
-            }),
-        }
+        let slot = self
+            .roots
+            .get_mut(root)
+            .ok_or(ApplyError::UnknownRoot(root as u16))?;
+        apply_op(schema, slot, op)
     }
 
     /// The value of a field. `keys` are the keys of the lists that enclose the field, outermost first. `None`
@@ -290,11 +141,7 @@ impl ModelState {
     #[must_use]
     pub fn value(&self, field: FieldId, keys: &[Key]) -> Option<&Value> {
         let e = self.schema.paths().get(field.0 as usize)?;
-        let root = &self.roots[usize::from(e.root.0)];
-        if e.steps.is_empty() {
-            return keys.is_empty().then_some(root);
-        }
-        slot_ref(self.schema, root, self.schema.root(e.root), &e.steps, keys).ok()
+        read_at(self.schema, &self.roots[usize::from(e.root.0)], e, keys)
     }
 
     /// The keys of a list, in list order.
@@ -307,6 +154,275 @@ impl ModelState {
         match self.value(field, keys)? {
             Value::List(items) => Some(items.iter().map(|(k, _)| *k)),
             _ => None,
+        }
+    }
+}
+
+fn walk_err(e: &PathEntry, w: Walk) -> ApplyError {
+    match w {
+        Walk::Shape(msg) => ApplyError::Shape {
+            path: e.path.clone(),
+            msg,
+        },
+        Walk::NoElement(key) => ApplyError::NoElement {
+            path: e.path.clone(),
+            key,
+        },
+    }
+}
+
+fn entry_of(schema: &Schema, f: FieldId) -> Result<&PathEntry, ApplyError> {
+    schema
+        .paths()
+        .get(f.0 as usize)
+        .ok_or(ApplyError::UnknownField(f.0))
+}
+
+/// The value of the field `e` inside the value of its root; `None` if an element or an optional on the way is
+/// not there.
+pub(crate) fn read_at<'a>(
+    schema: &Schema,
+    root: &'a Value,
+    e: &PathEntry,
+    keys: &[Key],
+) -> Option<&'a Value> {
+    if e.steps.is_empty() {
+        return keys.is_empty().then_some(root);
+    }
+    slot_ref(schema, root, schema.root(e.root), &e.steps, keys).ok()
+}
+
+/// The list the field `e` is, inside the value of its root.
+fn list_slot<'a>(
+    schema: &Schema,
+    root: &'a mut Value,
+    e: &PathEntry,
+    keys: &[Key],
+) -> Result<&'a mut Vec<(Key, Value)>, ApplyError> {
+    // The list at the top of a list root is the root value itself.
+    let slot = if e.steps.is_empty() {
+        if !keys.is_empty() {
+            return Err(ApplyError::Shape {
+                path: e.path.clone(),
+                msg: "too many keys for the path",
+            });
+        }
+        root
+    } else {
+        slot_mut(schema, root, schema.root(e.root), &e.steps, keys).map_err(|w| walk_err(e, w))?
+    };
+    match slot {
+        Value::List(items) => Ok(items),
+        _ => Err(ApplyError::Shape {
+            path: e.path.clone(),
+            msg: "the field is not a list",
+        }),
+    }
+}
+
+/// Apply one operation to the value of the root it belongs to.
+pub(crate) fn apply_op(schema: &Schema, root: &mut Value, op: &Op) -> Result<(), ApplyError> {
+    match op {
+        Op::Reset { root: rid, value } => {
+            let r = schema
+                .roots()
+                .get(usize::from(rid.0))
+                .ok_or(ApplyError::UnknownRoot(rid.0))?;
+            validate(schema, &r.value_type(), value).map_err(|source| ApplyError::Value {
+                path: r.name.clone(),
+                source,
+            })?;
+            *root = value.clone();
+            Ok(())
+        }
+        Op::Set { field, keys, value } => {
+            let e = entry_of(schema, *field)?;
+            validate(schema, &e.ty, value).map_err(|source| ApplyError::Value {
+                path: e.path.clone(),
+                source,
+            })?;
+            if e.steps.is_empty() {
+                // The whole root (an optional root appearing or going away).
+                if !keys.is_empty() {
+                    return Err(ApplyError::Shape {
+                        path: e.path.clone(),
+                        msg: "too many keys for the path",
+                    });
+                }
+                *root = value.clone();
+                return Ok(());
+            }
+            let slot = slot_mut(schema, root, schema.root(e.root), &e.steps, keys)
+                .map_err(|w| walk_err(e, w))?;
+            *slot = value.clone();
+            Ok(())
+        }
+        Op::Insert {
+            list,
+            keys,
+            at,
+            key,
+            value,
+        } => {
+            let e = entry_of(schema, *list)?;
+            let l = list_type(e)?;
+            validate(schema, &Type::Struct(l.elem), value).map_err(|source| ApplyError::Value {
+                path: e.path.clone(),
+                source,
+            })?;
+            if let Value::Struct(fs) = value
+                && fs[l.key_index].as_key() != Some(*key)
+            {
+                return Err(ApplyError::Value {
+                    path: e.path.clone(),
+                    source: ValueError::KeyMismatch {
+                        listed: *key,
+                        actual: fs[l.key_index].as_key().unwrap_or(Key(0)),
+                    },
+                });
+            }
+            let items = list_slot(schema, root, e, keys)?;
+            if items.iter().any(|(k, _)| k == key) {
+                return Err(ApplyError::DuplicateKey {
+                    path: e.path.clone(),
+                    key: *key,
+                });
+            }
+            if *at as usize > items.len() {
+                return Err(ApplyError::Position {
+                    path: e.path.clone(),
+                    pos: *at,
+                    len: items.len(),
+                });
+            }
+            items.insert(*at as usize, (*key, value.clone()));
+            Ok(())
+        }
+        Op::Remove { list, keys, key } => {
+            let e = entry_of(schema, *list)?;
+            let items = list_slot(schema, root, e, keys)?;
+            let i =
+                items
+                    .iter()
+                    .position(|(k, _)| k == key)
+                    .ok_or_else(|| ApplyError::NoElement {
+                        path: e.path.clone(),
+                        key: *key,
+                    })?;
+            items.remove(i);
+            Ok(())
+        }
+        Op::Move {
+            list,
+            keys,
+            key,
+            to,
+        } => {
+            let e = entry_of(schema, *list)?;
+            let items = list_slot(schema, root, e, keys)?;
+            let i =
+                items
+                    .iter()
+                    .position(|(k, _)| k == key)
+                    .ok_or_else(|| ApplyError::NoElement {
+                        path: e.path.clone(),
+                        key: *key,
+                    })?;
+            if *to as usize >= items.len() {
+                return Err(ApplyError::Position {
+                    path: e.path.clone(),
+                    pos: *to,
+                    len: items.len(),
+                });
+            }
+            let item = items.remove(i);
+            items.insert(*to as usize, item);
+            Ok(())
+        }
+    }
+}
+
+/// A write by path, as a writer makes it.
+#[derive(Clone, Debug)]
+pub(crate) enum Edit {
+    /// Replace the value of the field.
+    Set(Value),
+    /// Replace the element with the key (keeping its place) or add it at the end.
+    Put(Key, Value),
+    /// Remove the element with the key.
+    Remove(Key),
+    /// Remove every element.
+    Clear,
+}
+
+/// Apply a write by path to the value of the root the field belongs to; nothing changes on an error.
+pub(crate) fn edit_root(
+    schema: &Schema,
+    root: &mut Value,
+    field: FieldId,
+    keys: &[Key],
+    edit: Edit,
+) -> Result<(), ApplyError> {
+    let e = entry_of(schema, field)?;
+    match edit {
+        Edit::Set(value) => apply_op(
+            schema,
+            root,
+            &Op::Set {
+                field,
+                keys: crate::delta::Keys::from_slice(keys).ok_or_else(|| ApplyError::Shape {
+                    path: e.path.clone(),
+                    msg: "too many keys for the path",
+                })?,
+                value,
+            },
+        ),
+        Edit::Put(key, value) => {
+            let l = list_type(e)?;
+            validate(schema, &Type::Struct(l.elem), &value).map_err(|source| {
+                ApplyError::Value {
+                    path: e.path.clone(),
+                    source,
+                }
+            })?;
+            let actual = match &value {
+                Value::Struct(fs) => fs[l.key_index].as_key().unwrap_or(Key(0)),
+                _ => Key(0),
+            };
+            if actual != key {
+                return Err(ApplyError::Value {
+                    path: e.path.clone(),
+                    source: ValueError::KeyMismatch {
+                        listed: key,
+                        actual,
+                    },
+                });
+            }
+            let items = list_slot(schema, root, e, keys)?;
+            match items.iter_mut().find(|(k, _)| *k == key) {
+                Some(slot) => slot.1 = value,
+                None => items.push((key, value)),
+            }
+            Ok(())
+        }
+        Edit::Remove(key) => {
+            list_type(e)?;
+            let items = list_slot(schema, root, e, keys)?;
+            let i =
+                items
+                    .iter()
+                    .position(|(k, _)| *k == key)
+                    .ok_or_else(|| ApplyError::NoElement {
+                        path: e.path.clone(),
+                        key,
+                    })?;
+            items.remove(i);
+            Ok(())
+        }
+        Edit::Clear => {
+            list_type(e)?;
+            list_slot(schema, root, e, keys)?.clear();
+            Ok(())
         }
     }
 }
