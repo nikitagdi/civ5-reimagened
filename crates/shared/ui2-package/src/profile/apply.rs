@@ -2,12 +2,12 @@
 
 use super::ids::PropId;
 use super::props::Profile;
-use super::values::Value;
+use super::values::{BgLayer, Value};
 use crate::ids::StrId;
 use crate::style::{
-    BgBox, BgImage, BgRepeat, BgSize, ColorV, IntAuto, Len, LenAuto, LenNone, LenNormal,
-    LineHeight, NumericFeatures, Origin, Paint, PropSel, Radius, Shadow, TFn, TextDecoration,
-    Transition,
+    AspectRatio, BgBox, BgImage, BgRepeat, BgSize, ColorV, GridLine, ImageRepeats, ImageSlice,
+    ImageWidth, IntAuto, Len, LenAuto, LenNone, LenNormal, LineHeight, NumericFeatures, Origin,
+    Paint, Point, PropSel, Radius, Shadow, TFn, TextDecoration, Track, TrackSize, Transition,
 };
 
 /// A field type that can take a parsed value.
@@ -152,10 +152,109 @@ impl FromValue for Vec<TFn> {
     }
 }
 
+/// Picture layers keep their URL as a string-table id: the converter calls `set_value` with the
+/// path inside the skin in place of Chrome's URL.
 impl FromValue for Vec<BgImage> {
+    fn from_value(value: &Value, strs: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
+        match value {
+            Value::Images(v) => Some(
+                v.iter()
+                    .map(|layer| match layer {
+                        BgLayer::Gradient(g) => BgImage::Gradient(g.clone()),
+                        BgLayer::Url(u) => BgImage::Url(strs(u)),
+                    })
+                    .collect(),
+            ),
+            _ => None,
+        }
+    }
+}
+
+/// `border-image-source`: `None` for `none`, else the picture (see `Vec<BgImage>`).
+impl FromValue for Option<StrId> {
+    fn from_value(value: &Value, strs: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
+        match value {
+            Value::Keyword(k) if k == "none" => Some(None),
+            Value::Url(u) => Some(Some(strs(u))),
+            _ => None,
+        }
+    }
+}
+
+impl FromValue for AspectRatio {
     fn from_value(value: &Value, _: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
         match value {
-            Value::Images(v) => Some(v.clone()),
+            Value::Ratio(r) => Some(*r),
+            _ => None,
+        }
+    }
+}
+
+impl FromValue for Vec<Track> {
+    fn from_value(value: &Value, _: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
+        match value {
+            Value::Tracks(t) => Some(t.clone()),
+            _ => None,
+        }
+    }
+}
+
+/// `grid-auto-*`: plain sizes only (the parser refuses `repeat()` there).
+impl FromValue for Vec<TrackSize> {
+    fn from_value(value: &Value, _: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
+        match value {
+            Value::Tracks(t) if !t.is_empty() => t
+                .iter()
+                .map(|x| match x {
+                    Track::Size(s) => Some(*s),
+                    Track::Repeat(..) => None,
+                })
+                .collect(),
+            _ => None,
+        }
+    }
+}
+
+impl FromValue for GridLine {
+    fn from_value(value: &Value, _: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
+        match value {
+            Value::GridLine(l) => Some(*l),
+            _ => None,
+        }
+    }
+}
+
+impl FromValue for ImageSlice {
+    fn from_value(value: &Value, _: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
+        match value {
+            Value::Slice(s) => Some(*s),
+            _ => None,
+        }
+    }
+}
+
+impl FromValue for [ImageWidth; 4] {
+    fn from_value(value: &Value, _: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
+        match value {
+            Value::ImageWidths(w) => Some(*w),
+            _ => None,
+        }
+    }
+}
+
+impl FromValue for ImageRepeats {
+    fn from_value(value: &Value, _: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
+        match value {
+            Value::ImageRepeats(r) => Some(*r),
+            _ => None,
+        }
+    }
+}
+
+impl FromValue for Vec<Point> {
+    fn from_value(value: &Value, _: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
+        match value {
+            Value::Polygon(p) => Some(p.clone()),
             _ => None,
         }
     }

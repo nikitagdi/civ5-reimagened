@@ -377,6 +377,30 @@ pub fn diff(a: &StyleRecord, b: &StyleRecord) -> Dirty {
         outline_width,
         outline_color,
         outline_offset,
+        justify_items,
+        justify_self,
+        aspect_ratio,
+        scrollbar_width,
+        grid_template_columns,
+        grid_template_rows,
+        grid_auto_columns,
+        grid_auto_rows,
+        grid_auto_flow,
+        grid_row_start,
+        grid_row_end,
+        grid_column_start,
+        grid_column_end,
+        border_image_source,
+        border_image_slice,
+        border_image_width,
+        border_image_repeat,
+        border_image_outset,
+        clip_path,
+        text_indent,
+        text_wrap_style,
+        vertical_align,
+        direction,
+        writing_mode,
         transitions: _,
     } = a;
     let mut d = Dirty::NONE;
@@ -393,12 +417,14 @@ pub fn diff(a: &StyleRecord, b: &StyleRecord) -> Dirty {
         padding_right, padding_bottom, padding_left, overflow_x, overflow_y, flex_direction, flex_wrap,
         flex_grow, flex_shrink, flex_basis, order, justify_content, align_items, align_self,
         align_content, row_gap, column_gap, border_top_width, border_right_width, border_bottom_width,
-        border_left_width,
+        border_left_width, justify_items, justify_self, aspect_ratio, scrollbar_width,
+        grid_template_columns, grid_template_rows, grid_auto_columns, grid_auto_rows, grid_auto_flow,
+        grid_row_start, grid_row_end, grid_column_start, grid_column_end,
     );
     group!(Dirty::LAYOUT | Dirty::TEXT;
         font_family, font_size, font_weight, font_style, font_variant_numeric, line_height,
         letter_spacing, word_spacing, white_space_collapse, text_wrap_mode, overflow_wrap, word_break,
-        text_transform,
+        text_transform, text_indent, text_wrap_style, vertical_align, direction, writing_mode,
     );
     group!(Dirty::TEXT; text_align, text_overflow);
     group!(Dirty::PAINT;
@@ -411,6 +437,9 @@ pub fn diff(a: &StyleRecord, b: &StyleRecord) -> Dirty {
         background_position_y, background_repeat, background_origin, background_clip,
         // An outline takes no space: it is paint only.
         outline_style, outline_width, outline_color, outline_offset,
+        // A border image paints over the border box (its outset is always 0); a clip only masks.
+        border_image_source, border_image_slice, border_image_width, border_image_repeat,
+        border_image_outset, clip_path,
     );
     d
 }

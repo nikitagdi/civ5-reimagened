@@ -7,7 +7,7 @@
 # prop.<name> fields:
 #   kind       how the value is parsed (see ValueKind in src/profile/props.rs)
 #   values     keywords of a `keyword` / `keyword-set` property (of each item of a `keywords`
-#              list); for the other kinds the extra
+#              list, of each axis of an `image-repeat`); for the other kinds the extra
 #              keywords allowed beside the value (`auto`, `none`, `normal`). For a `keyword-set`
 #              the first entry stands alone, the others combine.
 #   inherited  inherited by children (informational: Chrome already resolved it)
@@ -177,6 +177,38 @@ prop.outline-width = { kind = "length", pct = false, min = 0, initial = "3px" }
 prop.outline-color = { kind = "color", anim = true, token = true, initial = "rgb(0, 0, 0)" }
 prop.outline-offset = { kind = "length", pct = false, initial = "0px" }
 
+# Layout, second part: grid, item alignment on the inline axis, aspect ratio, scrollbars. Track
+# lists take px, %, fr, auto, min-content, max-content, minmax() and repeat(N, ...); no calc().
+prop.justify-items = { kind = "keyword", values = ["normal", "stretch", "flex-start", "flex-end", "start", "end", "center", "baseline"], initial = "normal" }
+prop.justify-self = { kind = "keyword", values = ["auto", "normal", "stretch", "flex-start", "flex-end", "start", "end", "center", "baseline"], initial = "auto" }
+prop.aspect-ratio = { kind = "ratio", initial = "auto" }
+prop.scrollbar-width = { kind = "keyword", values = ["auto", "none"], initial = "auto" }
+prop.grid-template-columns = { kind = "tracks", min = 0, initial = "none" }
+prop.grid-template-rows = { kind = "tracks", min = 0, initial = "none" }
+prop.grid-auto-columns = { kind = "track-sizes", min = 0, initial = "auto" }
+prop.grid-auto-rows = { kind = "track-sizes", min = 0, initial = "auto" }
+prop.grid-auto-flow = { kind = "keyword", values = ["row", "column", "dense", "column dense"], initial = "row" }
+prop.grid-row-start = { kind = "grid-line", initial = "auto" }
+prop.grid-row-end = { kind = "grid-line", initial = "auto" }
+prop.grid-column-start = { kind = "grid-line", initial = "auto" }
+prop.grid-column-end = { kind = "grid-line", initial = "auto" }
+
+# 9-slice frames (border-image) and clipping. The outset is always 0; a clip polygon is convex
+# with at most 8 points (the clip shader's limit).
+prop.border-image-source = { kind = "url", values = ["none"], initial = "none" }
+prop.border-image-slice = { kind = "slice", initial = "100%" }
+prop.border-image-width = { kind = "image-widths", initial = "1" }
+prop.border-image-repeat = { kind = "image-repeat", values = ["stretch", "repeat", "round"], initial = "stretch" }
+prop.border-image-outset = { kind = "length", pct = false, min = 0, max = 0, initial = "0" }
+prop.clip-path = { kind = "polygon", calc = true, max_items = 8, initial = "none" }
+
+# Text, second part: the single values the profile allows.
+prop.text-indent = { kind = "length", pct = false, min = 0, max = 0, inherited = true, initial = "0px" }
+prop.text-wrap-style = { kind = "keyword", values = ["auto"], inherited = true, initial = "auto" }
+prop.vertical-align = { kind = "keyword", values = ["baseline"], initial = "baseline" }
+prop.direction = { kind = "keyword", values = ["ltr"], inherited = true, initial = "ltr" }
+prop.writing-mode = { kind = "keyword", values = ["horizontal-tb"], inherited = true, initial = "horizontal-tb" }
+
 # Ignored: documented, without effect.
 ignored."-webkit-font-smoothing" = { why = "the platform decides smoothing; it does not change layout" }
 ignored."text-rendering" = { why = "the text stack always uses its own shaping and rasterizer" }
@@ -221,9 +253,14 @@ error.E2-005 = { what = "value out of range", hint = "keep the number inside the
 error.E2-006 = { what = "color form outside the profile", hint = "write the color as #hex, rgb(), rgba(), a color name or transparent; currentcolor and color functions are resolved by Chrome first" }
 error.E2-007 = { what = "calc() outside decoration properties", hint = "layout cannot use calc(); use flex, grid or a percentage" }
 error.E2-008 = { what = "list too long", hint = "shorten the list to the number the profile table allows" }
+error.E2-020 = { what = "grid feature outside the profile", hint = "write tracks as px, %, fr, auto, min-content, max-content, minmax() or repeat(<count>, ...); place items by line numbers or span <count>; grid lines and areas have no names" }
+error.E2-021 = { what = "clip shape outside the profile", hint = "use clip-path: none or a polygon() of three to eight points" }
+error.E2-022 = { what = "clip polygon is not convex", hint = "the clip is drawn as one convex polygon; list the points in order around the shape, or split the shape into nested elements" }
+error.E2-023 = { what = "picture reference outside the profile", hint = "refer to a png, webp or svg file inside the skin (a border image is png or webp), without a query or a data: URL" }
 
 # Numbering: one counter per family, in the order the codes were defined. Ranges that other
 # parts of the pipeline own are reserved here so new codes do not collide:
+#   E2-001..E2-009 and E2-020..E2-039 value parsers, E2-010..E2-019 and E2-040.. converter
 #   E1-001..E1-019 document and element rules (converter), E1-020.. attribute names
 #   E4-001..E4-019 expressions and templates, E4-020.. attribute values and actions
 #   E6-001..E6-009 skin texts (converter), E6-010.. l10n attribute grammar
@@ -282,7 +319,8 @@ error.E7-016 = { what = "malformed tooltip reference", hint = "data-tooltip is t
 error.E7-017 = { what = "malformed data-fit", hint = "write data-fit=\"shrink\" and optionally data-fit-min=\"12px\"" }
 error.E7-018 = { what = "malformed script island", hint = "an island has an id; keys and classes are plain words" }
 
-# The converter's own rules (tools/ui-convert): E1-001.., E2-010.., E3 (all), E4-040.., E5-001..,
+# The converter's own rules (tools/ui-convert): E1-001.., E2-010..E2-019 and E2-040.., E3 (all
+# but the selector and media codes of the profile's select module), E4-040.., E5-001..,
 # E6-001.., E7-001.., E9 (all).
 error.E1-001 = { what = "skin.toml is malformed", hint = "check the file against the skin.toml reference: [skin] id, version, title, entry, model, api; [fonts], [state], [themes], [scripts], [verify]" }
 error.E1-002 = { what = "element outside the profile", hint = "use the elements of the profile reference; links, tables, forms and media elements have no place in a skin" }

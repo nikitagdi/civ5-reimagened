@@ -149,9 +149,9 @@ impl Styles {
         if self
             .records
             .iter()
-            .any(|r| r.font_family.iter().any(|f| f.index() >= strs))
+            .any(|r| r.str_ids().any(|f| f.index() >= strs))
         {
-            return bad("a font family is not in the string table".into());
+            return bad("a font family or a picture is not in the string table".into());
         }
         if self.records.iter().any(|r| !r.transitions.finite()) {
             return bad("a transition holds a NaN or an infinity".into());
@@ -186,7 +186,7 @@ impl Styles {
 #[cfg(feature = "write")]
 impl crate::remap::Remapped for StyleRecord {
     fn remap(&mut self, r: &crate::remap::Remap) {
-        for f in &mut self.font_family {
+        for f in self.str_ids_mut() {
             r.str(f);
         }
     }

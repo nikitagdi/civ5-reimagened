@@ -82,11 +82,14 @@ pub fn api(p: PropId) -> Api {
     match p {
         // Typed OM ignores border-style: none for the width; the transition lists are truncated
         // to their first item by `get()`, and so are the per-layer lists of background size, origin
-        // and clip.
+        // and clip, and the implicit track lists of a grid (the explicit ones must stay Typed OM:
+        // there `getComputedStyle` answers the used track sizes in px).
         P::BorderTopWidth
         | P::BackgroundSize
         | P::BackgroundOrigin
         | P::BackgroundClip
+        | P::GridAutoColumns
+        | P::GridAutoRows
         | P::BorderRightWidth
         | P::BorderBottomWidth
         | P::BorderLeftWidth

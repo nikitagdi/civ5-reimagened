@@ -177,12 +177,14 @@ pub struct Transition {
     pub ease: [f32; 4],
 }
 
-/// One layer of `background-image`. Only gradients for now; picture layers (`url()`) are refused by
-/// the profile parser until pictures can be baked.
+/// One layer of `background-image`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BgImage {
     /// A linear or conic gradient.
     Gradient(Gradient),
+    /// A picture of the skin: its path inside the skin in the string table (the `path` of an
+    /// `IMGS` entry). The converter writes the skin-relative path, never Chrome's absolute URL.
+    Url(StrId),
 }
 
 /// A `linear-gradient`, `conic-gradient` or one of their `repeating-` forms.
@@ -244,6 +246,153 @@ impl BgRepeat {
         x: Repeat::Repeat,
         y: Repeat::Repeat,
     };
+}
+
+/// `aspect-ratio`.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum AspectRatio {
+    /// `auto`.
+    Auto,
+    /// `w / h`, both positive.
+    Ratio(f32, f32),
+}
+
+/// One breadth of a grid track.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum TrackBreadth {
+    /// A length (px and %; no `calc`: layout).
+    Len(Len),
+    /// `<n>fr`, not negative.
+    Fr(f32),
+    /// `auto`.
+    Auto,
+    /// `min-content`.
+    MinContent,
+    /// `max-content`.
+    MaxContent,
+}
+
+/// The size of one grid track.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum TrackSize {
+    /// One breadth.
+    Breadth(TrackBreadth),
+    /// `minmax(min, max)`; `min` is never `fr`.
+    MinMax(TrackBreadth, TrackBreadth),
+}
+
+/// One entry of a `grid-template-*` track list.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Track {
+    /// One track.
+    Size(TrackSize),
+    /// `repeat(count, tracks...)` with a fixed count (no `auto-fill`/`auto-fit`).
+    Repeat(u16, Vec<TrackSize>),
+}
+
+/// `grid-row-start` and the other three placement properties.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GridLine {
+    /// `auto`.
+    Auto,
+    /// A line number, never 0; negative counts from the end.
+    Line(i16),
+    /// `span N`, N at least 1.
+    Span(u16),
+}
+
+/// `border-image-slice`: the four insets into the picture (top, right, bottom, left) and `fill`.
+/// A number is in picture pixels: it is stored as `Len::px` (a percentage as `Len::pct` of the
+/// picture's size).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ImageSlice {
+    /// Top, right, bottom, left.
+    pub edges: [Len; 4],
+    /// `fill`: the middle part is drawn too.
+    pub fill: bool,
+}
+
+/// One edge of `border-image-width`.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum ImageWidth {
+    /// CSS px.
+    Px(f32),
+    /// A multiple of the border width of the edge.
+    Factor(f32),
+}
+
+/// `border-image-repeat`, per axis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImageRepeats {
+    /// The top and bottom edges.
+    pub x: ImageRepeat,
+    /// The left and right edges.
+    pub y: ImageRepeat,
+}
+
+/// A point of a `clip-path` polygon, relative to the border box.
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+pub struct Point {
+    /// Horizontal.
+    pub x: Len,
+    /// Vertical.
+    pub y: Len,
+}
+
+impl Point {
+    /// The point in a box of `size` CSS px.
+    pub fn resolve(&self, size: [f32; 2]) -> [f32; 2] {
+        [
+            self.x.px + self.x.pct * size[0] / 100.0,
+            self.y.px + self.y.pct * size[1] / 100.0,
+        ]
+    }
+}
+
+/// Whether a polygon is convex and simple in a box of `size`: every turn goes the same way and
+/// the turns add up to one full turn (a star turns the same way at every corner but twice
+/// around). Straight corners (three points on a line) are allowed.
+pub fn convex_at(points: &[Point], size: [f32; 2]) -> bool {
+    let n = points.len();
+    if n < 3 {
+        return false;
+    }
+    let p: Vec<[f64; 2]> = points
+        .iter()
+        .map(|q| {
+            let r = q.resolve(size);
+            [f64::from(r[0]), f64::from(r[1])]
+        })
+        .collect();
+    let mut sign = 0i8;
+    let mut turn = 0f64;
+    for i in 0..n {
+        let (a, b, c) = (p[i], p[(i + 1) % n], p[(i + 2) % n]);
+        let (u, v) = ([b[0] - a[0], b[1] - a[1]], [c[0] - b[0], c[1] - b[1]]);
+        if (u[0] == 0.0 && u[1] == 0.0) || (v[0] == 0.0 && v[1] == 0.0) {
+            return false; // two equal points in a row
+        }
+        let cross = u[0] * v[1] - u[1] * v[0];
+        let dot = u[0] * v[0] + u[1] * v[1];
+        let s = if cross > 1e-9 {
+            1
+        } else if cross < -1e-9 {
+            -1
+        } else {
+            if dot < 0.0 {
+                return false; // the outline goes back on itself
+            }
+            0
+        };
+        if s != 0 {
+            if sign != 0 && s != sign {
+                return false;
+            }
+            sign = s;
+        }
+        turn += cross.atan2(dot);
+    }
+    sign != 0 && (turn.abs() - std::f64::consts::TAU).abs() < 1e-3
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -418,6 +567,34 @@ keyword_enum! {
     /// `outline-style`.
     OutlineStyle { None => "none", Solid => "solid", }
 }
+keyword_enum! {
+    /// `scrollbar-width`.
+    ScrollbarWidth { Auto => "auto", None => "none", }
+}
+keyword_enum! {
+    /// `grid-auto-flow` (Chrome writes `row dense` as `dense`).
+    GridAutoFlow { Row => "row", Column => "column", RowDense => "dense", ColumnDense => "column dense", }
+}
+keyword_enum! {
+    /// One axis of `border-image-repeat`.
+    ImageRepeat { Stretch => "stretch", Repeat => "repeat", Round => "round", }
+}
+keyword_enum! {
+    /// `text-wrap-style`.
+    TextWrapStyle { Auto => "auto", }
+}
+keyword_enum! {
+    /// `vertical-align`.
+    VerticalAlign { Baseline => "baseline", }
+}
+keyword_enum! {
+    /// `direction`.
+    Direction { Ltr => "ltr", }
+}
+keyword_enum! {
+    /// `writing-mode`.
+    WritingMode { HorizontalTb => "horizontal-tb", }
+}
 
 /// `font-variant-numeric`: the figure features the shaper turns on (`tnum`, `pnum`, `lnum`,
 /// `onum`). They are never frozen into the font.
@@ -537,7 +714,63 @@ impl Finite for BgImage {
     fn finite(&self) -> bool {
         match self {
             BgImage::Gradient(g) => g.finite(),
+            BgImage::Url(_) => true,
         }
+    }
+}
+impl Finite for AspectRatio {
+    fn finite(&self) -> bool {
+        match self {
+            AspectRatio::Auto => true,
+            AspectRatio::Ratio(w, h) => w.is_finite() && h.is_finite(),
+        }
+    }
+}
+impl Finite for TrackBreadth {
+    fn finite(&self) -> bool {
+        match self {
+            TrackBreadth::Len(l) => l.is_finite(),
+            TrackBreadth::Fr(f) => f.is_finite(),
+            TrackBreadth::Auto | TrackBreadth::MinContent | TrackBreadth::MaxContent => true,
+        }
+    }
+}
+impl Finite for TrackSize {
+    fn finite(&self) -> bool {
+        match self {
+            TrackSize::Breadth(b) => b.finite(),
+            TrackSize::MinMax(a, b) => a.finite() && b.finite(),
+        }
+    }
+}
+impl Finite for Track {
+    fn finite(&self) -> bool {
+        match self {
+            Track::Size(s) => s.finite(),
+            Track::Repeat(_, v) => v.finite(),
+        }
+    }
+}
+impl Finite for ImageSlice {
+    fn finite(&self) -> bool {
+        self.edges.iter().all(Len::is_finite)
+    }
+}
+impl Finite for ImageWidth {
+    fn finite(&self) -> bool {
+        match self {
+            ImageWidth::Px(v) | ImageWidth::Factor(v) => v.is_finite(),
+        }
+    }
+}
+impl<const N: usize> Finite for [ImageWidth; N] {
+    fn finite(&self) -> bool {
+        self.iter().all(Finite::finite)
+    }
+}
+impl Finite for Point {
+    fn finite(&self) -> bool {
+        self.x.is_finite() && self.y.is_finite()
     }
 }
 impl Finite for BgSize {
@@ -573,7 +806,10 @@ always_finite!(
     StrId,
     NumericFeatures,
     TextDecoration,
-    BgRepeat
+    BgRepeat,
+    GridLine,
+    ImageRepeats,
+    Option<StrId>
 );
 
 // ---------------------------------------------------------------------------------------------
@@ -746,11 +982,68 @@ style_record! {
     // The initial `currentcolor`, as Chrome resolves it for the initial `color`.
     outline_color: ColorV = OutlineColor, BLACK;
     outline_offset: Len = OutlineOffset, Len::ZERO;
+    justify_items: ItemsAlign = JustifyItems, ItemsAlign::Normal;
+    justify_self: SelfAlign = JustifySelf, SelfAlign::Auto;
+    aspect_ratio: AspectRatio = AspectRatio, AspectRatio::Auto;
+    scrollbar_width: ScrollbarWidth = ScrollbarWidth, ScrollbarWidth::Auto;
+    // `none`: no explicit tracks.
+    grid_template_columns: Vec<Track> = GridTemplateColumns, Vec::new();
+    grid_template_rows: Vec<Track> = GridTemplateRows, Vec::new();
+    grid_auto_columns: Vec<TrackSize> = GridAutoColumns, vec![TrackSize::Breadth(TrackBreadth::Auto)];
+    grid_auto_rows: Vec<TrackSize> = GridAutoRows, vec![TrackSize::Breadth(TrackBreadth::Auto)];
+    grid_auto_flow: GridAutoFlow = GridAutoFlow, GridAutoFlow::Row;
+    grid_row_start: GridLine = GridRowStart, GridLine::Auto;
+    grid_row_end: GridLine = GridRowEnd, GridLine::Auto;
+    grid_column_start: GridLine = GridColumnStart, GridLine::Auto;
+    grid_column_end: GridLine = GridColumnEnd, GridLine::Auto;
+    // `None` for `none`; else the picture's path inside the skin (see `BgImage::Url`).
+    border_image_source: Option<StrId> = BorderImageSource, None;
+    border_image_slice: ImageSlice = BorderImageSlice, ImageSlice { edges: [Len::pct(100.0); 4], fill: false };
+    border_image_width: [ImageWidth; 4] = BorderImageWidth, [ImageWidth::Factor(1.0); 4];
+    border_image_repeat: ImageRepeats = BorderImageRepeat, ImageRepeats { x: ImageRepeat::Stretch, y: ImageRepeat::Stretch };
+    // Always zero in the profile.
+    border_image_outset: Len = BorderImageOutset, Len::ZERO;
+    // Empty for `none`; else a convex polygon of 3 to 8 points.
+    clip_path: Vec<Point> = ClipPath, Vec::new();
+    // The single values of the profile: the fields exist so a record is complete.
+    text_indent: Len = TextIndent, Len::ZERO;
+    text_wrap_style: TextWrapStyle = TextWrapStyle, TextWrapStyle::Auto;
+    vertical_align: VerticalAlign = VerticalAlign, VerticalAlign::Baseline;
+    direction: Direction = Direction, Direction::Ltr;
+    writing_mode: WritingMode = WritingMode, WritingMode::HorizontalTb;
 }
 
 impl Default for StyleRecord {
     fn default() -> Self {
         Self::initial()
+    }
+}
+
+impl StyleRecord {
+    /// Every string-table id the record holds: font families and picture paths.
+    pub fn str_ids(&self) -> impl Iterator<Item = StrId> + '_ {
+        let pictures = self.background_image.iter().filter_map(|l| match l {
+            BgImage::Url(s) => Some(*s),
+            BgImage::Gradient(_) => None,
+        });
+        self.font_family
+            .iter()
+            .copied()
+            .chain(pictures)
+            .chain(self.border_image_source)
+    }
+
+    /// Every string-table id of the record, for the builder's renumbering.
+    #[cfg(feature = "write")]
+    pub(crate) fn str_ids_mut(&mut self) -> impl Iterator<Item = &mut StrId> + '_ {
+        let pictures = self.background_image.iter_mut().filter_map(|l| match l {
+            BgImage::Url(s) => Some(s),
+            BgImage::Gradient(_) => None,
+        });
+        self.font_family
+            .iter_mut()
+            .chain(pictures)
+            .chain(self.border_image_source.as_mut())
     }
 }
 
