@@ -390,10 +390,23 @@ fn watch_cycle() {
     copy_dir(&engraved(), &skin);
     std::fs::create_dir_all(skin.join("scripts")).expect("mkdir");
     std::fs::write(skin.join("scripts").join("watch.js"), "// watch test\n").expect("script");
+    // The skin's own `[scripts]` table gets the test's script as one more file.
     let toml = std::fs::read_to_string(skin.join("skin.toml")).expect("skin.toml");
+    let mut doc: toml::Table = toml.parse().expect("skin.toml parses");
+    let scripts = doc
+        .entry("scripts")
+        .or_insert_with(|| toml::Value::Table(toml::Table::new()))
+        .as_table_mut()
+        .expect("[scripts] is a table");
+    let files = scripts
+        .entry("files")
+        .or_insert_with(|| toml::Value::Array(Vec::new()))
+        .as_array_mut()
+        .expect("[scripts] files is a list");
+    files.push(toml::Value::String("scripts/watch.js".to_string()));
     std::fs::write(
         skin.join("skin.toml"),
-        format!("{toml}\n[scripts]\nfiles = [\"scripts/watch.js\"]\n"),
+        toml::to_string(&doc).expect("skin.toml writes"),
     )
     .expect("skin.toml");
     let opts = WatchOpts {

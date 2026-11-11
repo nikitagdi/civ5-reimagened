@@ -540,8 +540,22 @@ api = "1.0"
         assert_eq!(skin.skin.entry, "index.html");
         assert_eq!(skin.fonts.files.len(), 3);
         assert_eq!(skin.fonts.sans.as_deref(), Some("Fira Sans"));
-        assert!(skin.state.is_empty());
-        assert_eq!(skin.verify.states, ["hud"]);
+        assert_eq!(
+            skin.state.into_iter().collect::<Vec<_>>(),
+            [
+                ("prod.hide_locked".to_string(), StateValue::Bool(false)),
+                (
+                    "prod.sort".to_string(),
+                    StateValue::Str("order".to_string())
+                ),
+            ]
+        );
+        assert_eq!(skin.scripts.files, ["js/production.js"]);
+        // The first state is the one the converter scans with.
+        assert_eq!(
+            skin.verify.states,
+            ["hud", "production", "production-sorted", "research"]
+        );
         assert_eq!(skin.verify.golden[0].viewport, [1920, 1080]);
     }
 
