@@ -209,6 +209,12 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
             background: page::query_param("ui2bg")
                 .as_deref()
                 .and_then(client_app::parse_ui2_background),
+            // The skins' text fields type through a hidden textarea, added to the page when the first skin
+            // comes up.
+            text_input: Some(Box::new(|| match platform_web::WebTextInput::new() {
+                Some(t) => Box::new(t) as Box<dyn platform::ui2::TextInputBridge>,
+                None => Box::new(platform::ui2::NullTextInput),
+            })),
         }),
     };
     let config = AppConfig {

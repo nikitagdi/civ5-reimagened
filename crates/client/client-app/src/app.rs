@@ -612,6 +612,7 @@ impl App {
                 p.scripts,
             );
             v2.set_background(p.background);
+            v2.set_text_input(p.text_input);
             ui_host.register(Box::new(v2));
             ui_host.request(crate::ui_host::UiKind::V2);
         }

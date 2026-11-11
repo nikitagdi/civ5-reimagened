@@ -28,6 +28,7 @@ use std::sync::Arc;
 
 use client_core::ClientEvent;
 use draw_list::UiDrawList;
+use platform::ui2::{NullTextInput, TextInputBridge};
 use platform::{
     HttpClient, HttpError, HttpOp, HttpResponse, InputEvent, NullScriptHost, ScriptHost,
 };
@@ -125,12 +126,17 @@ pub fn parse_ui_param(value: Option<&str>) -> Option<V2Choice> {
 /// Makes the script host for a skin; each skin that loads gets a new one.
 pub type ScriptHostFactory = Rc<dyn Fn() -> Box<dyn ScriptHost>>;
 
+/// Makes the platform's text input for the skins' text fields; called once, when the first skin comes up.
+pub type TextInputFactory = Box<dyn FnOnce() -> Box<dyn TextInputBridge>>;
+
 /// What UI v2 needs of the platform (`Services::ui2`).
 pub struct Ui2Platform {
     /// The script workers of each skin that loads; `None`: skins run their markup only.
     pub scripts: Option<ScriptHostFactory>,
     /// Reference images (`?ui2bg=<rrggbb>`): a solid background under the skin and its scene frozen at time 0.
     pub background: Option<[u8; 3]>,
+    /// The text input of the skins' text fields (web: a hidden textarea); `None`: fields take no typing.
+    pub text_input: Option<TextInputFactory>,
 }
 
 /// `?ui2bg=<rrggbb>` (an optional `#`): the colour, or `None` for anything else.
@@ -307,6 +313,11 @@ pub struct V2Frontend {
     game_up: bool,
     /// `?ui2bg=`: reference images (see [`Ui2Platform::background`]).
     background: Option<[u8; 3]>,
+    /// The platform's text input, made when the first skin comes up; the running skin holds it meanwhile.
+    text_input: Option<TextInputFactory>,
+    text_bridge: Option<Box<dyn TextInputBridge>>,
+    /// The source's warm-up (`V2Ui::warm_up`) is due: a game was joined, loaded or left since the last one.
+    warm_due: bool,
 }
 
 impl V2Frontend {
@@ -337,6 +348,9 @@ impl V2Frontend {
             scripts,
             game_up: false,
             background: None,
+            text_input: None,
+            text_bridge: None,
+            warm_due: true,
         }
     }
 
@@ -345,9 +359,26 @@ impl V2Frontend {
         self.background = background;
     }
 
+    /// The platform's text input for the skins' text fields (made when the first skin comes up).
+    pub fn set_text_input(&mut self, make: Option<TextInputFactory>) {
+        self.text_input = make;
+    }
+
+    /// The text input for a skin that comes up: the one the host has, else a new one of the platform, else none.
+    fn text_bridge(&mut self) -> Box<dyn TextInputBridge> {
+        if let Some(b) = self.text_bridge.take() {
+            return b;
+        }
+        match self.text_input.take() {
+            Some(make) => make(),
+            None => Box::new(NullTextInput),
+        }
+    }
+
     /// The game was left: the next frame waits for the next game and rebuilds the model from it.
     pub fn new_game(&mut self) {
         self.game_up = false;
+        self.warm_due = true;
         if let Some(ui) = self.ui_mut() {
             ui.reset_source();
         }
@@ -387,6 +418,9 @@ impl V2Frontend {
             self.mods = Some(mod_ids(set));
         }
         if let Some(a) = action_event(ev, &mut self.game) {
+            if a == ActionEvent::NewGame {
+                self.warm_due = true;
+            }
             if self.events.len() >= MAX_EVENTS {
                 tracing::warn!(
                     "UI v2: no frame for {MAX_EVENTS} network events; the oldest is dropped"
@@ -522,9 +556,23 @@ impl V2Frontend {
                 self.load_ms = Some(ms);
                 let mut ui = ui;
                 ui.set_golden(self.background);
+                let bridge = self.text_bridge();
+                ui.set_text_bridge(bridge);
+                // A new skin over a game already up reads its slow first calls once too.
+                self.warm_due = true;
                 Stage::Running(Box::new(ui))
             }
             Err(why) => self.fall_back(&id, &why),
+        }
+    }
+
+    /// The running skin is dropped: the text input goes back to the host for the next one.
+    fn drop_skin(&mut self) {
+        if let Stage::Running(ui) = &mut self.stage {
+            ui.release_text_input();
+            if let Some(b) = ui.take_text_bridge() {
+                self.text_bridge = Some(b);
+            }
         }
     }
 
@@ -613,6 +661,27 @@ impl V2Frontend {
                 (report, None)
             }
         };
+        // The core's slow first reads, once per game (joined, loaded or a new skin), after the frame and outside its
+        // budget.
+        if self.warm_due
+            && let Some(r) = held.as_deref_mut()
+        {
+            let view = ReplicaView::of(r);
+            if view.state == replica::State::Live
+                && !view.catching_up
+                && let Some(read) = view.read
+            {
+                let w = ui.warm_up(read);
+                self.warm_due = false;
+                render::perf::set_counter("ui2.source.warm_reads", f64::from(w.getter_calls));
+                render::perf::set_counter("ui2.source.warm_units", f64::from(w.spent_units));
+                tracing::info!(
+                    reads = w.getter_calls,
+                    units = w.spent_units,
+                    "UI v2: the source's first reads are warm"
+                );
+            }
+        }
         // The camera eases to a plot the frame asked for, as the classic UI's `UI.LookAt` does.
         if look_at.is_some() {
             *look = look_at;
@@ -642,6 +711,7 @@ impl V2Frontend {
     fn after_frame(&mut self, report: &V2FrameReport) -> bool {
         if let Some(e) = &report.fatal {
             let failure = e.failure.to_string();
+            self.drop_skin();
             self.stage = self.fall_back(&e.skin, &failure);
         }
         self.running()
@@ -718,6 +788,10 @@ impl Frontend for V2Frontend {
 
     fn deactivate(&mut self, _cx: &mut PrepareCx<'_>) {
         self.cursor = Cursor::Auto;
+        // A focused text field of the skin lets the platform's input go while UI v2 sleeps.
+        if let Some(ui) = self.ui_mut() {
+            ui.release_text_input();
+        }
     }
 
     /// The skin's frame; its scene goes to the renderer (`prepare_ui2`), the app's draw list gets nothing.
@@ -1423,6 +1497,36 @@ mod tests {
         assert!(!h.after_frame(&r));
         assert_eq!(h.state(), V2State::Classic, "the only skin is broken");
         assert!(workers.live().is_empty(), "its worker is gone");
+        // The skin's text input came back to the host for the next skin.
+        assert!(h.text_bridge.is_some());
+    }
+
+    #[test]
+    fn the_text_input_is_made_once_and_handed_to_the_running_skin() {
+        let made = Rc::new(Cell::new(0));
+        let pkg = kit_package();
+        let full = ui2_host::hash_hex(&pkg.hash());
+        let idx = index(&[entry("kit", &full, true)]);
+        let file = format!("ui2/kit-{}.ui2", &full[..16]);
+        let (mut h, _) = host(
+            FakeHttp::default()
+                .ok(INDEX_PATH, idx)
+                .ok(&file, pkg.bytes().to_vec()),
+            None,
+        );
+        let m = Rc::clone(&made);
+        h.set_text_input(Some(Box::new(move || {
+            m.set(m.get() + 1);
+            Box::new(NullTextInput) as Box<dyn TextInputBridge>
+        })));
+        assert_eq!(settle(&mut h), V2State::Running("kit".into()));
+        assert_eq!(made.get(), 1);
+        assert!(h.text_bridge.is_none(), "the skin holds it");
+        assert!(h.ui_mut().expect("running").take_text_bridge().is_some());
+        assert!(
+            h.warm_due,
+            "a new skin warms the source up once a game is read"
+        );
     }
 
     #[test]

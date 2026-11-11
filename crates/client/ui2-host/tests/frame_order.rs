@@ -501,13 +501,49 @@ fn a_new_window_size_reaches_the_scripts_once() {
 }
 
 #[test]
-fn island_commands_are_counted_as_dropped_until_the_runtime_takes_them() {
+fn island_commands_go_to_the_runtime_and_a_refused_one_is_reported_once() {
     let (mut rig, host, w) = scripted_rig();
-    host.reply(
-        w,
-        r#"{"t":"out","n":1,"ack":null,"cmds":[{"island":"clock","key":"t","op":"text","value":"12:00"}]}"#,
+    let out = r#"{"t":"out","n":1,"ack":null,"cmds":[{"island":"clock","key":"t","op":"text","value":"12:00"}]}"#;
+    host.reply(w, out);
+    rig.now += 16.0;
+    let r = rig.ui.frame(V2Frame {
+        replica: None,
+        steps: &[],
+        net: Some(&mut rig.net),
+        events: &[],
+        mods: None,
+        now_ms: rig.now,
+    });
+    // The skin has no island `clock`: the runtime refuses the command, the frame reports it; nothing is dropped.
+    assert_eq!(r.dropped_output, 0);
+    assert_eq!(r.errors.len(), 1, "{:?}", r.errors);
+    assert!(
+        r.errors[0].path.contains("island clock#t"),
+        "{:?}",
+        r.errors
     );
-    assert_eq!(rig.run(&[], &[]).dropped_output, 1);
+    // The same command again: refused, not reported again.
+    let out2 = out.replace(r#""n":1"#, r#""n":2"#);
+    host.reply(w, &out2);
+    assert!(rig.run(&[], &[]).errors.is_empty());
+}
+
+#[test]
+fn the_warm_up_reads_the_slow_calls_once_and_its_cost_is_counted() {
+    let mut rig = Rig::new();
+    let mut game = game();
+    let stats = rig.ui.warm_up(&mut game);
+    assert!(stats.getter_calls > 0, "{stats:?}");
+    assert!(stats.spent_units > 0, "{stats:?}");
+    // A frame's counters carry the cost units next to the reads.
+    let r = rig.batch();
+    let c = r.counters();
+    let get = |n: &str| c.iter().find(|(k, _)| *k == n).map(|(_, v)| *v);
+    assert_eq!(
+        get("ui2.source.units"),
+        Some(f64::from(r.source.spent_units))
+    );
+    assert!(get("ui2.source.reads").is_some());
 }
 
 #[test]

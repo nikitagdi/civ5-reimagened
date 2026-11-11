@@ -10,6 +10,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use platform::ScriptHost;
+use platform::ui2::{TextInputBridge, TextInputRequest};
+use replica::GameRead;
 use ui2_actions::{MemorySettings, UiActions};
 use ui2_draw::Scene;
 use ui2_draw::{Color, Vec2};
@@ -19,7 +21,7 @@ use ui2_package::Package;
 use ui2_package::profile::action::AnchorKind;
 use ui2_runtime::{AnchorId, AnchorScreen, Env, LoadError, NodeClass, Runtime, Services};
 use ui2_script::{ScriptStats, ScriptStatus};
-use ui2_source::UiSource;
+use ui2_source::{SourceStats, UiSource};
 use ui2_text::TextEngine;
 
 use crate::error::{LoadFailure, SkinLoadError};
@@ -129,6 +131,8 @@ pub struct V2Ui {
     pub(crate) frames: u64,
     /// The map anchors of the document and the object each follows (kind and key), as the runtime reported them.
     pub(crate) anchors: BTreeMap<AnchorId, (AnchorKind, Value)>,
+    /// The platform's text input for the focused text field (`None`: fields take no typing).
+    pub(crate) text_bridge: Option<Box<dyn TextInputBridge>>,
 }
 
 impl V2Ui {
@@ -177,7 +181,37 @@ impl V2Ui {
             load,
             frames: 0,
             anchors: BTreeMap::new(),
+            text_bridge: None,
         })
+    }
+
+    /// Gives the UI the platform's text input (the host owns one per page and hands it to the running UI); the
+    /// previous one comes back. Each frame passes the runtime's request for the focused field to it, then the
+    /// field's state it reports back to the runtime.
+    pub fn set_text_bridge(
+        &mut self,
+        bridge: Box<dyn TextInputBridge>,
+    ) -> Option<Box<dyn TextInputBridge>> {
+        self.text_bridge.replace(bridge)
+    }
+
+    /// Takes the text input back (before the UI is dropped, so the next one gets it).
+    pub fn take_text_bridge(&mut self) -> Option<Box<dyn TextInputBridge>> {
+        self.text_bridge.take()
+    }
+
+    /// The UI leaves the screen: the platform's text input lets the focused field go.
+    pub fn release_text_input(&mut self) {
+        if let Some(b) = self.text_bridge.as_mut() {
+            b.request(&TextInputRequest::Blur);
+        }
+    }
+
+    /// Makes the core's slow first reads once, outside the frames (`UiSource::warm_up`): call it once when a game
+    /// is joined or loaded and after [`reset_source`](Self::reset_source) for a new game, at a moment that may
+    /// take a few ms more. Its reads count in the returned stats (`spent_units`: their cost units).
+    pub fn warm_up(&mut self, read: &mut dyn GameRead) -> SourceStats {
+        self.source.warm_up(read)
     }
 
     /// Changes the window size, pixel density, UI scale or theme; the next frame redoes what depends on it.
