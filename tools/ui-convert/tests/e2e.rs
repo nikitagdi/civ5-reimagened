@@ -40,7 +40,7 @@ fn bad_mockups() {
         .filter(|p| p.join("expect.txt").is_file())
         .collect();
     dirs.sort();
-    assert_eq!(dirs.len(), 41, "the whole set of bad mockups is present");
+    assert_eq!(dirs.len(), 42, "the whole set of bad mockups is present");
     let mut failures = Vec::new();
     for dir in dirs {
         let out = ui2_convert::build::build(&dir, false);
@@ -170,8 +170,6 @@ fn engraved_builds_and_the_package_is_deterministic() {
 const PROBE_CASES: &[&str] = &[
     "ellipsis",
     "ellipsis-narrow",
-    "hhea",
-    "hhea-48",
     "typo",
     "typo-48",
     "span-weight",
@@ -180,16 +178,11 @@ const PROBE_CASES: &[&str] = &[
     "flex-text-tall",
 ];
 
-/// Cases that do not match Chromium yet, with why. They are measured and printed, not asserted.
-const PROBE_KNOWN: &[(&str, &str)] = &[
-    (
-        "hhea",
-        "a face without USE_TYPO_METRICS: the runtime takes hhea, Chromium on Windows the OS/2 win metrics",
-    ),
-    ("hhea-48", "as hhea"),
-];
+/// Cases that do not match Chromium yet, with why. They are measured and printed, not asserted. (A face without
+/// USE_TYPO_METRICS whose tables differ used to be one; the converter refuses it now, E5-008.)
+const PROBE_KNOWN: &[(&str, &str)] = &[];
 
-/// The probe fonts (`make_fonts.py`) under the target folder, which `skin.toml` names relative to the
+/// The probe font (`make_fonts.py`) under the target folder, which `skin.toml` names relative to the
 /// repository. `None` (with the reason printed) when the target folder is outside the repository.
 fn probe_fonts() -> Option<()> {
     let repo = ui2_convert::fonts::repo_root();
@@ -223,8 +216,8 @@ fn probe_fonts() -> Option<()> {
     Some(())
 }
 
-/// Text cases outside the text spike, against Chromium through `verify`: the ellipsis cut, faces whose hhea and
-/// typo metrics differ (with and without USE_TYPO_METRICS), a span of another weight inside a word, kerning
+/// Text cases outside the text spike, against Chromium through `verify`: the ellipsis cut, a face whose hhea and
+/// typo metrics differ under USE_TYPO_METRICS, a span of another weight inside a word, kerning
 /// across a span, text directly in a flex container. The matching cases stay within 0.5 px at every reference
 /// viewport; `font-feature-settings` (outside the profile) is E2-010 where it is written.
 #[test]

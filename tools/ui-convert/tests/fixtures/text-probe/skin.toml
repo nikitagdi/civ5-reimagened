@@ -14,7 +14,6 @@ subset = ["latin"]
 [fonts.files]
 "fonts/FiraSans-Regular.ttf" = "third_party/fonts/fira-sans/FiraSans-Regular.ttf"
 "fonts/FiraSans-Medium.ttf" = "third_party/fonts/fira-sans/FiraSans-Medium.ttf"
-"fonts/ProbeHhea.ttf" = "target/ui2/text-probe-fonts/ProbeHhea.ttf"
 "fonts/ProbeTypo.ttf" = "target/ui2/text-probe-fonts/ProbeTypo.ttf"
 
 [verify]

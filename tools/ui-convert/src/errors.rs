@@ -94,6 +94,8 @@ pub mod codes {
     pub const GLYPH: &str = "E5-006";
     /// A game asset without a width and a height from CSS.
     pub const ASSET_SIZE: &str = "E5-007";
+    /// A font face whose line metrics differ between platforms.
+    pub const FONT_METRICS: &str = "E5-008";
 
     /// A package budget is exceeded.
     pub const BUDGET: &str = "E8-001";
@@ -173,6 +175,7 @@ pub mod codes {
         IMAGE,
         GLYPH,
         ASSET_SIZE,
+        FONT_METRICS,
         BUDGET,
         UNTRANSLATED,
         L10N_MISSING,

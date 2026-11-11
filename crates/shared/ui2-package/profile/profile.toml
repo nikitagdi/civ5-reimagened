@@ -356,6 +356,7 @@ error.E5-004 = { what = "font face not loaded", hint = "Chromium could not load 
 error.E5-005 = { what = "picture cannot be rasterized", hint = "pictures are png, webp or svg files inside the skin with a size from CSS" }
 error.E5-006 = { what = "character missing from the skin fonts", hint = "the runtime has no fallback fonts; use a font of skin.toml [fonts.files] that has the character, or change the text" }
 error.E5-007 = { what = "game asset without a size", hint = "give the element of data-asset or data-bind-src a width and a height in CSS; the asset's own size is not known when the skin is built" }
+error.E5-008 = { what = "font face whose line height depends on the platform", hint = "set the USE_TYPO_METRICS bit (OS/2 fsSelection bit 7) of the font, or give it the same ascent and descent in hhea, OS/2 typo and OS/2 win with no line gap; otherwise Chrome on Windows and the game lay the text out at different heights" }
 error.E8-001 = { what = "package budget exceeded", hint = "the package holds at most 3 MB: fonts 1.2 MB, pictures 0.8 MB, scripts 750 KB, the rest 0.5 MB; use fewer or smaller pictures, fewer faces or a smaller subset" }
 error.E6-001 = { what = "untranslated text", hint = "put the text into the skin's l10n tables and show it with data-l10n, or bind it with data-bind-value" }
 error.E6-002 = { what = "text key not found", hint = "add the key to l10n/<lang>.toml of every language of the skin" }

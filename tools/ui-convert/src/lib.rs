@@ -528,6 +528,7 @@ pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
         run.errors.extend(errs);
         run.errors
             .extend(fonts::missing_glyphs(&src.dir, &src.skin, &texts));
+        run.errors.extend(fonts::metrics(&scanned.ir, &src.skin));
         run.bindings = Some(bound);
         run.texts = Some(texts);
         run.statics = Some(statics);

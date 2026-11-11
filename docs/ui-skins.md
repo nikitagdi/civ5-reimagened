@@ -62,7 +62,7 @@ the same list. Each code has its own text in the profile file; the families are:
 | E2 | Properties and values: a property or value outside the profile (also when it came from the browser's own styles or inheritance), a unit other than px, an unclosed scroll container, a page background. |
 | E3 | Selectors, at-rules and variants: structural or sibling selectors, pseudo-elements, at-rules other than `@media` and `@font-face`, media queries outside width and height, more than four dynamic conditions on one node. |
 | E4 | Bindings and expressions: unknown paths, wrong types, loops over something that is not a list, malformed actions, intent arguments of the wrong type. |
-| E5 | Fonts, pictures and game assets: SVG content outside the profile, icons that mix `currentColor` with fixed colors, characters no skin font has, a game asset without a CSS size. |
+| E5 | Fonts, pictures and game assets: SVG content outside the profile, icons that mix `currentColor` with fixed colors, characters no skin font has, a font face whose line height depends on the platform (it needs the USE_TYPO_METRICS bit, or the same ascent and descent in its hhea, OS/2 typo and OS/2 win tables and no line gap), a game asset without a CSS size. |
 | E6 | Texts: untranslated literal text, missing text keys, malformed templates. |
 | E7 | Slots, hotkeys, anchors, layers, tokens: a missing `mods` slot or color synonym, a hotkey used twice in a layer or inside a loop, an anchor outside the map layer. |
 | E8 | Package budget: at most 3 MB in all (fonts, pictures, scripts and the rest have their own limits). |
