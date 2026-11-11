@@ -31,7 +31,12 @@ const MIME = {
 };
 
 const PREVIEW_URL = "/__ui2/preview.js";
-const PREVIEW_FILE = new URL("preview/preview.js", import.meta.url);
+export const PREVIEW_FILE = new URL("preview/preview.js", import.meta.url);
+
+/** Whether the preview script exists (it expands includes, loops and bindings in the page). */
+export function previewAvailable() {
+  return fs.existsSync(PREVIEW_FILE);
+}
 
 export function escapeAttr(s) {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");

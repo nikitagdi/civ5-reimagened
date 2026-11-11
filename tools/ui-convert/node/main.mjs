@@ -7,7 +7,10 @@
 // Requests are handled strictly one after another, in the order they arrive. Output is canonical
 // JSON (sorted keys). stdout carries protocol lines only; diagnostics go to stderr.
 //
-//   open   {skin_dir, entry?, profile?, port?, fonts_dir?}  -> {chrome, flags, base_url}
+//   open   {skin_dir, entry?, profile?, port?, fonts_dir?, preview?}
+//                                                           -> {chrome, flags, base_url, preview}
+//          preview: inject node/preview/preview.js into every page (answered false when the
+//          script does not exist)
 //   scan   {state?, viewport?}                              -> the IR (see scan.mjs)
 //   reload {}                                               -> {}
 //   close  {}                                               -> {}   (the process exits afterwards)

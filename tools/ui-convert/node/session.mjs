@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { launchChromium, chromiumFlags } from "./chromium.mjs";
-import { startServer } from "./server.mjs";
+import { startServer, previewAvailable } from "./server.mjs";
 import { scanPage } from "./ir.mjs";
 
 export class ProtocolError extends Error {
@@ -36,11 +36,14 @@ export function createSession() {
       const port = req.port ?? 0;
       need(Number.isInteger(port) && port >= 0 && port < 65536, "open: port must be an integer 0..65535");
       for (const k of ["fonts_dir", "profile"]) need(req[k] == null || typeof req[k] === "string", `open: ${k} must be a string`);
+      need(req.preview == null || typeof req.preview === "boolean", "open: preview must be a boolean");
       const root = path.resolve(req.skin_dir);
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) throw new ProtocolError("E9-004", `skin directory not found: ${req.skin_dir}`);
       if (!fs.existsSync(path.join(root, entry)) || !fs.statSync(path.join(root, entry)).isFile()) throw new ProtocolError("E9-004", `entry file not found: ${entry}`);
 
-      const server = await startServer({ root, port, fontsDir: req.fonts_dir ? path.resolve(req.fonts_dir) : null });
+      // The preview script is injected only when asked for and present.
+      const preview = req.preview === true && previewAvailable();
+      const server = await startServer({ root, port, preview, fontsDir: req.fonts_dir ? path.resolve(req.fonts_dir) : null });
       let browser;
       try {
         browser = await launchChromium();
@@ -74,7 +77,7 @@ export function createSession() {
       }
       const page = await context.newPage();
       st = { root, entry, server, browser, context, page, blocked };
-      return { chrome: browser.version(), flags: chromiumFlags(), base_url: `${server.url}/` };
+      return { chrome: browser.version(), flags: chromiumFlags(), base_url: `${server.url}/`, preview };
     },
 
     async scan(req = {}) {

@@ -54,6 +54,7 @@ members = [
     "tools/net-test",
     "tools/save-import",
     "tools/civ5-replay",
+    "tools/ui-convert",
 ]
 
 [workspace.package]

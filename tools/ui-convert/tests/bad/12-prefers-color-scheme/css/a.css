@@ -1,0 +1,16 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.panel {
+  display: flex;
+  pointer-events: auto;
+}
+
+@media (prefers-color-scheme: dark) {
+  .panel {
+    color: red;
+  }
+}

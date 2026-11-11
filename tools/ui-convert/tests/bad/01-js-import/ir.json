@@ -1,0 +1,527 @@
+{
+  "preview": false,
+  "scan": {
+    "compat": "CSS1Compat",
+    "dom": {
+      "attrs": [
+        [
+          "lang",
+          "en"
+        ]
+      ],
+      "children": [
+        {
+          "attrs": [],
+          "children": [
+            {
+              "id": 2,
+              "text": "\n  ",
+              "type": "text",
+              "ws": true
+            },
+            {
+              "attrs": [
+                [
+                  "charset",
+                  "utf-8"
+                ]
+              ],
+              "children": [],
+              "id": 3,
+              "src": "index.html:4:3",
+              "tag": "meta",
+              "type": "element"
+            },
+            {
+              "id": 4,
+              "text": "\n  ",
+              "type": "text",
+              "ws": true
+            },
+            {
+              "attrs": [],
+              "children": [
+                {
+                  "id": 6,
+                  "text": "Bad",
+                  "type": "text"
+                }
+              ],
+              "id": 5,
+              "src": "index.html:5:3",
+              "tag": "title",
+              "type": "element"
+            },
+            {
+              "id": 7,
+              "text": "\n  ",
+              "type": "text",
+              "ws": true
+            },
+            {
+              "attrs": [
+                [
+                  "rel",
+                  "stylesheet"
+                ],
+                [
+                  "href",
+                  "css/tokens.css"
+                ]
+              ],
+              "children": [],
+              "id": 8,
+              "src": "index.html:6:3",
+              "tag": "link",
+              "type": "element"
+            },
+            {
+              "id": 9,
+              "text": "\n  ",
+              "type": "text",
+              "ws": true
+            },
+            {
+              "attrs": [
+                [
+                  "rel",
+                  "stylesheet"
+                ],
+                [
+                  "href",
+                  "css/a.css"
+                ]
+              ],
+              "children": [],
+              "id": 10,
+              "src": "index.html:7:3",
+              "tag": "link",
+              "type": "element"
+            },
+            {
+              "id": 11,
+              "text": "\n",
+              "type": "text",
+              "ws": true
+            }
+          ],
+          "id": 1,
+          "src": "index.html:3:1",
+          "tag": "head",
+          "type": "element"
+        },
+        {
+          "id": 12,
+          "text": "\n",
+          "type": "text",
+          "ws": true
+        },
+        {
+          "attrs": [],
+          "children": [
+            {
+              "id": 14,
+              "text": "\n  ",
+              "type": "text",
+              "ws": true
+            },
+            {
+              "attrs": [
+                [
+                  "class",
+                  "layer"
+                ],
+                [
+                  "data-layer",
+                  "map"
+                ]
+              ],
+              "children": [],
+              "id": 15,
+              "src": "index.html:10:3",
+              "tag": "div",
+              "type": "element"
+            },
+            {
+              "id": 16,
+              "text": "\n  ",
+              "type": "text",
+              "ws": true
+            },
+            {
+              "attrs": [
+                [
+                  "class",
+                  "layer"
+                ],
+                [
+                  "data-layer",
+                  "hud"
+                ]
+              ],
+              "children": [
+                {
+                  "id": 18,
+                  "text": "\n    ",
+                  "type": "text",
+                  "ws": true
+                },
+                {
+                  "attrs": [
+                    [
+                      "class",
+                      "panel"
+                    ],
+                    [
+                      "data-slot",
+                      "mods"
+                    ]
+                  ],
+                  "children": [],
+                  "id": 19,
+                  "src": "index.html:12:5",
+                  "tag": "div",
+                  "type": "element"
+                },
+                {
+                  "id": 20,
+                  "text": "\n\n  ",
+                  "type": "text",
+                  "ws": true
+                }
+              ],
+              "id": 17,
+              "src": "index.html:11:3",
+              "tag": "div",
+              "type": "element"
+            },
+            {
+              "id": 21,
+              "text": "\n  ",
+              "type": "text",
+              "ws": true
+            },
+            {
+              "attrs": [
+                [
+                  "class",
+                  "layer"
+                ],
+                [
+                  "data-layer",
+                  "window"
+                ]
+              ],
+              "children": [],
+              "id": 22,
+              "src": "index.html:15:3",
+              "tag": "div",
+              "type": "element"
+            },
+            {
+              "id": 23,
+              "text": "\n  ",
+              "type": "text",
+              "ws": true
+            },
+            {
+              "attrs": [
+                [
+                  "class",
+                  "layer"
+                ],
+                [
+                  "data-layer",
+                  "tooltip"
+                ]
+              ],
+              "children": [],
+              "id": 24,
+              "src": "index.html:16:3",
+              "tag": "div",
+              "type": "element"
+            },
+            {
+              "id": 25,
+              "text": "\n\n\n",
+              "type": "text",
+              "ws": true
+            }
+          ],
+          "id": 13,
+          "src": "index.html:9:1",
+          "tag": "body",
+          "type": "element"
+        }
+      ],
+      "id": 0,
+      "src": "index.html:2:1",
+      "tag": "html",
+      "type": "element"
+    },
+    "entry": "index.html",
+    "errors": [],
+    "fonts": [],
+    "resources": [
+      {
+        "path": "/css/a.css",
+        "status": 200
+      },
+      {
+        "path": "/css/tokens.css",
+        "status": 200
+      },
+      {
+        "path": "/index.html",
+        "status": 200
+      }
+    ],
+    "sheets": [
+      {
+        "file": "css/tokens.css",
+        "href": "css/tokens.css",
+        "kind": "link",
+        "node": 8,
+        "parseErrors": [],
+        "rules": [
+          {
+            "col": 1,
+            "items": [
+              {
+                "col": 3,
+                "important": false,
+                "line": 2,
+                "prop": "--ink",
+                "type": "decl",
+                "value": "#ebe2d2"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 3,
+                "prop": "--ui-surface",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 4,
+                "prop": "--ui-surface-2",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 5,
+                "prop": "--ui-line",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 6,
+                "prop": "--ui-text",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 7,
+                "prop": "--ui-text-2",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 8,
+                "prop": "--ui-text-3",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 9,
+                "prop": "--ui-accent",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 10,
+                "prop": "--ui-accent-ink",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 11,
+                "prop": "--ui-negative",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 12,
+                "prop": "--ui-y-food",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 13,
+                "prop": "--ui-y-prod",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 14,
+                "prop": "--ui-y-gold",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 15,
+                "prop": "--ui-y-sci",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 16,
+                "prop": "--ui-y-cult",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 17,
+                "prop": "--ui-y-faith",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 18,
+                "prop": "--ui-y-happy",
+                "type": "decl",
+                "value": "var(--ink)"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 19,
+                "prop": "--ui-y-tour",
+                "type": "decl",
+                "value": "var(--ink)"
+              }
+            ],
+            "line": 1,
+            "selector": ":root",
+            "selectors": [
+              ":root"
+            ],
+            "type": "rule"
+          }
+        ],
+        "src": "index.html:6:3"
+      },
+      {
+        "file": "css/a.css",
+        "href": "css/a.css",
+        "kind": "link",
+        "node": 10,
+        "parseErrors": [],
+        "rules": [
+          {
+            "col": 1,
+            "items": [
+              {
+                "col": 3,
+                "important": false,
+                "line": 2,
+                "prop": "position",
+                "type": "decl",
+                "value": "absolute"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 3,
+                "prop": "inset",
+                "type": "decl",
+                "value": "0"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 4,
+                "prop": "pointer-events",
+                "type": "decl",
+                "value": "none"
+              }
+            ],
+            "line": 1,
+            "selector": ".layer",
+            "selectors": [
+              ".layer"
+            ],
+            "type": "rule"
+          },
+          {
+            "col": 1,
+            "items": [
+              {
+                "col": 3,
+                "important": false,
+                "line": 8,
+                "prop": "display",
+                "type": "decl",
+                "value": "flex"
+              },
+              {
+                "col": 3,
+                "important": false,
+                "line": 9,
+                "prop": "pointer-events",
+                "type": "decl",
+                "value": "auto"
+              }
+            ],
+            "line": 7,
+            "selector": ".panel",
+            "selectors": [
+              ".panel"
+            ],
+            "type": "rule"
+          }
+        ],
+        "src": "index.html:7:3"
+      }
+    ],
+    "state": "",
+    "title": "Bad",
+    "version": 1,
+    "viewport": [
+      1920,
+      1080
+    ]
+  },
+  "v": 1
+}
