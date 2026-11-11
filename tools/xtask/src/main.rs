@@ -74,6 +74,31 @@ fn target_dir(root: &Path) -> Result<PathBuf> {
     Ok(md.target_directory.into_std_path_buf())
 }
 
+/// `cargo fmt --check` over the workspace, a few packages at a time: one `--all` call puts every target file
+/// on a single rustfmt command line, which no longer fits the Windows limit.
+fn fmt_check(root: &Path) -> Result<()> {
+    let md = cargo_metadata::MetadataCommand::new()
+        .manifest_path(root.join("Cargo.toml"))
+        .no_deps()
+        .exec()
+        .context("cargo metadata --no-deps")?;
+    let names: Vec<String> = md
+        .workspace_packages()
+        .iter()
+        .map(|p| p.name.to_string())
+        .collect();
+    for group in names.chunks(8) {
+        let mut c = cargo();
+        c.arg("fmt");
+        for name in group {
+            c.args(["-p", name]);
+        }
+        c.args(["--", "--check"]);
+        run(root, c)?;
+    }
+    Ok(())
+}
+
 /// Two passes per target: default features and `--all-features`.
 fn analyze_deps(root: &Path) -> Result<(Vec<String>, Graph)> {
     let cfg = load_deps_config(root)?;
@@ -807,11 +832,7 @@ fn cmd_check(root: &Path) -> Result<()> {
         }
     };
 
-    step("fmt", {
-        let mut c = cargo();
-        c.args(["fmt", "--all", "--", "--check"]);
-        run(root, c)
-    });
+    step("fmt", fmt_check(root));
     // R8 native: clippy over the whole workspace builds everything that must build natively.
     step("clippy (native, R8)", {
         let mut c = cargo();
