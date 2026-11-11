@@ -54,6 +54,7 @@ const SCENARIOS = {
   "m3-woi-boot": () => import("./scenarios/m3-woi-boot.mjs"),
   // UI v2 over a live game (?ui=v2:engraved): --attach <url of a real-core server>.
   "ui2-host": () => import("./scenarios/ui2-host.mjs"),
+  "ui2-golden": () => import("./scenarios/ui2-golden.mjs"), // UI v2 pixels against our own references (tools/ui-convert/golden.toml); --record writes them
   "ui-sound": () => import("./scenarios/ui-sound.mjs"),
   "m3-city": () => import("./scenarios/m3-city.mjs"),
   "m4-diplo-trade": () => import("./scenarios/m4-diplo-trade.mjs"),
@@ -195,6 +196,7 @@ function parseArgs(argv) {
       case "--golden-backend": o.goldenBackend = val(); break; // golden: webgpu | webgl2
       case "--golden-scenes": o.goldenScenes = val(); break; // m5-goldens: S1,S2 (default: every scene of lib/goldens.mjs)
       case "--golden-no-threshold": o.goldenNoThreshold = true; break; // m5-goldens: record the FLIP numbers only
+      case "--record": o.record = true; break; // ui2-golden: write the references instead of comparing
       case "--verbose": o.verbose = true; break;
       case "--threads": o.threads = true; break; // B3 render-mt (default from xtask): the gateway sends COOP/COEP, the page loads the threaded build (pkg-mt)
       case "--single": o.threads = false; break; // the single-threaded fallback: no COOP/COEP, the page loads pkg
