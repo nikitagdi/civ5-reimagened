@@ -459,6 +459,45 @@ impl<'a> Geo<'a> {
         None
     }
 
+    /// The roots of the chunks nested in a chunk (mod panels mounted into a skin node), outermost only, in
+    /// tree order.
+    fn nested_chunks(&self, root: NodeId) -> Vec<NodeId> {
+        let Some(chunk) = self.arena.get(root).map(|n| n.chunk) else {
+            return Vec::new();
+        };
+        let mut out = Vec::new();
+        let mut stack: Vec<NodeId> = self
+            .arena
+            .get(root)
+            .map_or_else(Vec::new, |n| n.children().iter().rev().copied().collect());
+        while let Some(id) = stack.pop() {
+            let Some(n) = self.arena.get(id) else {
+                continue;
+            };
+            if n.chunk != chunk {
+                if n.chunk == id.index() && !n.detached {
+                    out.push(id);
+                }
+                continue;
+            }
+            stack.extend(n.children().iter().rev().copied());
+        }
+        out
+    }
+
+    /// The topmost hittable node of a chunk and of the chunks nested in it (painted over it) under a point.
+    fn hit_chunk_tree(&mut self, root: NodeId, p: Vec2) -> Option<(NodeId, Vec2)> {
+        for nested in self.nested_chunks(root).into_iter().rev() {
+            if !self.shown(nested) {
+                continue;
+            }
+            if let Some(hit) = self.hit_chunk_tree(nested, p) {
+                return Some(hit);
+            }
+        }
+        self.hit_chunk(root, p)
+    }
+
     /// The node under a page point. `modal` says that a screen of the `window` layer is visible: what the
     /// window layer does not take is then blocked.
     pub fn hit(&mut self, p: Vec2, modal: bool) -> Hit {
@@ -469,7 +508,7 @@ impl<'a> Geo<'a> {
                     continue;
                 }
                 for chunk in chunk_roots(self.arena, root, is_layer).into_iter().rev() {
-                    if let Some((node, local)) = self.hit_chunk(chunk, p) {
+                    if let Some((node, local)) = self.hit_chunk_tree(chunk, p) {
                         return Hit {
                             node: Some(node),
                             local,
