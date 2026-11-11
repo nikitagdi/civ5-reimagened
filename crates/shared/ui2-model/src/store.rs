@@ -256,6 +256,14 @@ impl ModelStore {
         self.mounts.iter().find(|m| m.ns == *ns).map(|m| m.schema)
     }
 
+    /// The value of a mounted fragment's root, including the writes of the current frame (unlike
+    /// [`value`](Self::value), which shows the last frame): for carrying the state of a skin or mod over a
+    /// remount. Its shape is that of [`mount_schema`](Self::mount_schema).
+    #[must_use]
+    pub fn fragment_value(&self, ns: &Namespace) -> Option<&Value> {
+        self.mounts.iter().find(|m| m.ns == *ns).map(|m| &m.cur)
+    }
+
     /// Resolve a path of the schema or of a mounted fragment to its store-wide id.
     ///
     /// # Errors

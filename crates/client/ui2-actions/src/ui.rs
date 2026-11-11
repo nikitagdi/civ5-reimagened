@@ -2,10 +2,11 @@
 //! actions module owns the typed [`Ui`] value and writes it to the store whole after every change; the store
 //! diffs it, so a change of one field is one delta.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use ui2_model::generated::{RefuseWhy, Toast, ToastKind, Ui};
-use ui2_model::{KeyedList, ModelStore, Owner, StoreError};
+use ui2_model::{Key, KeyedList, ModelStore, Owner, StoreError};
 
 /// How long a toast stays, in milliseconds.
 pub const TOAST_MS: u64 = 6000;
@@ -21,6 +22,8 @@ pub struct UiState {
     next_toast: i32,
     /// When each toast goes, by sequence number.
     toast_until: Vec<(i32, u64)>,
+    /// Notifications the player dismissed (the source leaves them out of `notes`).
+    pub(crate) dismissed: BTreeSet<Key>,
 }
 
 impl UiState {
@@ -41,6 +44,12 @@ impl UiState {
     pub(crate) fn edit(&mut self) -> &mut Ui {
         self.dirty = true;
         &mut self.ui
+    }
+
+    /// Replace the value with one the store holds (the store is already up to date).
+    pub(crate) fn replace(&mut self, ui: Ui) {
+        self.ui = ui;
+        self.dirty = false;
     }
 
     /// Show a toast; it goes after [`TOAST_MS`].

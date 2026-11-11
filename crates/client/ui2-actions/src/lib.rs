@@ -13,22 +13,29 @@
 #![forbid(unsafe_code)]
 
 mod intent;
+mod reconcile;
 pub mod route;
+mod settings;
 mod sink;
+mod state;
 mod ui;
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 
 use ui2_model::generated::{RefuseWhy, ToastKind, Ui};
 use ui2_model::wire::{Origin, WireIntent};
-use ui2_model::{ModelStore, Schema};
+use ui2_model::{Key, ModelStore, Schema};
 
 pub use intent::{Intent, IntentError};
+pub use settings::{MemorySettings, SettingsNs, SettingsStore};
 pub use sink::{CameraReq, OrderSink, RecordingSink, Refused, Sent};
+pub use state::{SkinId, StateError, StateNs};
 pub use ui::{MAX_TOASTS, TOAST_MS, UiState};
 
 use route::Ctx;
+use settings::Settings;
+use state::{Keep, Leaf};
 
 /// The most distinct `(origin, intent)` pairs remembered for the log-once rule.
 const MAX_LOGGED: usize = 512;
@@ -48,18 +55,28 @@ pub struct UiActions {
     /// Form errors already reported, by origin (for markup the node) and intent name.
     logged: HashSet<(Origin, Arc<str>)>,
     form_errors: Vec<FormError>,
+    settings: Settings,
+    /// state.* of skins and mods that are not mounted now, to be brought back.
+    saved: HashMap<Keep, Vec<Leaf>>,
+    active_skin: Option<SkinId>,
+    /// The last time the host gave (settings are written at most once a second by it).
+    clock_ms: u64,
 }
 
 impl UiActions {
-    /// A module for the model `schema`. Nothing is written to a store until the first
-    /// [`apply`](Self::apply) or [`publish`](Self::publish).
+    /// A module for the model `schema`, keeping skin and mod settings in `device`. Nothing is written to a
+    /// model store until the first [`apply`](Self::apply) or [`publish`](Self::publish).
     #[must_use]
-    pub fn new(schema: &'static Schema) -> UiActions {
+    pub fn new(schema: &'static Schema, device: Box<dyn SettingsStore>) -> UiActions {
         UiActions {
             schema,
             state: UiState::new(),
             logged: HashSet::new(),
             form_errors: Vec::new(),
+            settings: Settings::new(device),
+            saved: HashMap::new(),
+            active_skin: None,
+            clock_ms: 0,
         }
     }
 
@@ -87,6 +104,7 @@ impl UiActions {
         sink: &mut dyn OrderSink,
         now_ms: u64,
     ) {
+        self.tick(now_ms);
         self.state.expire(now_ms);
         for wire in std::mem::take(intents) {
             match Intent::from_wire(self.schema, &wire) {
@@ -95,6 +113,42 @@ impl UiActions {
             }
         }
         self.publish(store);
+    }
+
+    /// Tell the module the time (the host's clock, in milliseconds) and write the settings that are due: they
+    /// reach the store at most once a second. [`apply`](Self::apply) and [`reconcile`](Self::reconcile) do
+    /// this themselves; a host that does neither for a while calls it.
+    pub fn tick(&mut self, now_ms: u64) {
+        self.clock_ms = now_ms;
+        self.settings.flush(now_ms);
+    }
+
+    /// The settings of a skin or mod as `(key, JSON text)` pairs, by key: what the script worker is started
+    /// with.
+    pub fn settings_snapshot(&mut self, ns: &SettingsNs) -> Vec<(String, String)> {
+        self.settings.snapshot(ns)
+    }
+
+    /// Set a setting to a JSON text, or remove it (`None`). The new value is visible at once; it reaches the
+    /// store with the next write that is due (see [`tick`](Self::tick)).
+    ///
+    /// # Errors
+    /// The key or the value breaks a limit (key of 1 to 64 characters of `A-Z a-z 0-9 . _ -`; value JSON of at
+    /// most 4096 bytes; at most 64 keys), or the id of the skin or mod cannot be part of a store key. The
+    /// change is dropped and logged.
+    pub fn settings_set(
+        &mut self,
+        ns: &SettingsNs,
+        key: &str,
+        json: Option<&str>,
+    ) -> Result<(), StateError> {
+        self.settings.set(ns, key, json, self.clock_ms)
+    }
+
+    /// The notifications the player dismissed and the source must leave out.
+    #[must_use]
+    pub fn dismissed(&self) -> &BTreeSet<Key> {
+        &self.state.dismissed
     }
 
     /// The form errors found since the last call, each `(origin, intent)` once. They are also logged.

@@ -353,6 +353,23 @@ fn default_hello() -> Value {
 }
 
 #[test]
+fn fragment_value_shows_the_writes_of_the_current_frame() {
+    let mut s = store();
+    assert!(s.fragment_value(&mods_hello()).is_none());
+    s.mount(mods_hello(), &hello()).unwrap();
+    frame(&mut s);
+    s.writer(Owner::Mod(Arc::from("hello")))
+        .set_value("mods.hello.count", Value::I32(3))
+        .unwrap();
+    // `value` is the last frame; `fragment_value` is the root as written.
+    assert_eq!(read(&s, "mods.hello.count"), Some(Value::I32(0)));
+    let Some(Value::Struct(f)) = s.fragment_value(&mods_hello()) else {
+        panic!("a struct root");
+    };
+    assert_eq!(f[0], Value::I32(3));
+}
+
+#[test]
 fn mount_and_unmount_in_one_frame_leave_no_trace() {
     let mut s = store();
     s.mount(mods_hello(), &hello()).unwrap();

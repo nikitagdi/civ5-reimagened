@@ -170,7 +170,7 @@ impl Intent {
 }
 
 /// Bring a value to the canonical form of `ty`, or say why it does not fit.
-fn coerce(schema: &Schema, ty: &Type, v: &Value) -> Result<Value, String> {
+pub(crate) fn coerce(schema: &Schema, ty: &Type, v: &Value) -> Result<Value, String> {
     let out = match (ty, v) {
         (Type::Option(_), Value::None) => Value::None,
         (Type::Option(inner), other) => coerce(schema, inner, other)?,

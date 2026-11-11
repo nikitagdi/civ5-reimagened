@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use ui2_actions::{IntentError, RecordingSink, UiActions};
+use ui2_actions::{IntentError, MemorySettings, RecordingSink, UiActions};
 use ui2_model::generated::{CityBanner, Map, RefuseWhy, ToastKind, Ui};
 use ui2_model::wire::{Origin, WireIntent};
 use ui2_model::{Key, ModelStore, Op, Owner, Schema, Value};
@@ -32,7 +32,7 @@ impl Rig {
     fn new() -> Rig {
         let schema = Schema::v1();
         let mut store = ModelStore::new(schema);
-        let mut actions = UiActions::new(schema);
+        let mut actions = UiActions::new(schema, Box::new(MemorySettings::default()));
         actions.publish(&mut store);
         store
             .take_frame()
