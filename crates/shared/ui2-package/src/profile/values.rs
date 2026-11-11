@@ -6,7 +6,13 @@
 
 use super::ids::PropId;
 use super::props::{Profile, PropDef, ValueKind};
-use crate::style::{ColorV, Len, LineHeight, Origin, PropSel, Radius, Shadow, TFn};
+use crate::style::{
+    BgImage, BgRepeat, BgSize, ColorV, GradDir, Gradient, Len, LenAuto, LineHeight, Origin,
+    PropSel, Radius, Repeat, Shadow, Side, Stop, TFn,
+};
+
+/// Most color stops one gradient may have.
+pub const MAX_GRADIENT_STOPS: usize = 4;
 
 /// Error codes of the value parsers; the texts are in `profile.toml` (`error.<code>`).
 pub mod codes {
@@ -80,6 +86,16 @@ pub enum Value {
     Families(Vec<String>),
     /// A line height.
     LineHeight(LineHeight),
+    /// Background layers (empty for `none`).
+    Images(Vec<BgImage>),
+    /// Background sizes, one per layer.
+    BgSizes(Vec<BgSize>),
+    /// A comma list of lengths.
+    Lengths(Vec<Len>),
+    /// Background repeats, one per layer.
+    Repeats(Vec<BgRepeat>),
+    /// A comma list of keywords.
+    Keywords(Vec<String>),
 }
 
 /// Parses `text` as a value of `prop` against `Profile::v1()`.
@@ -106,6 +122,15 @@ pub fn parse_value_in(profile: &Profile, prop: PropId, text: &str) -> Result<Val
         );
     }
     match def.kind {
+        ValueKind::Keyword if prop == PropId::OutlineStyle => {
+            parse_keyword(def, s).map_err(|e| ValueError {
+                code: e.code,
+                message: format!(
+                    "outline-style `{s}`: the browser's focus ring is not part of the profile; \
+                     style :focus-visible yourself with `outline: <width> solid <color>`"
+                ),
+            })
+        }
         ValueKind::Keyword => parse_keyword(def, s),
         ValueKind::KeywordSet => parse_keyword_set(def, s),
         ValueKind::Length => parse_length_value(def, s),
@@ -130,6 +155,11 @@ pub fn parse_value_in(profile: &Profile, prop: PropId, text: &str) -> Result<Val
         ValueKind::Properties => parse_properties(profile, s),
         ValueKind::Families => parse_families(s),
         ValueKind::LineHeight => parse_line_height(def, s),
+        ValueKind::Images => parse_images(def, s),
+        ValueKind::BgSizes => parse_bg_sizes(def, s),
+        ValueKind::Lengths => parse_lengths(def, s),
+        ValueKind::Repeats => parse_repeats(def, s),
+        ValueKind::Keywords => parse_keywords(def, s),
     }
 }
 
@@ -1074,6 +1104,338 @@ fn parse_families(s: &str) -> Result<Value, ValueError> {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Background layers
+
+/// The items of a comma list, at most `max_items` of them.
+fn list_items<'a>(def: &PropDef, s: &'a str, what: &str) -> Result<Vec<&'a str>, ValueError> {
+    let items = split_top(s, ',');
+    if let Some(max) = def.max_items
+        && items.len() > max
+    {
+        return err(
+            codes::TOO_MANY,
+            format!("at most {max} {what} are allowed, got {}", items.len()),
+        );
+    }
+    if items.iter().any(|i| i.is_empty()) {
+        return err(codes::OUTSIDE, format!("{s:?}: empty list item"));
+    }
+    Ok(items)
+}
+
+fn parse_images(def: &PropDef, s: &str) -> Result<Value, ValueError> {
+    if s == "none" {
+        return Ok(Value::Images(Vec::new()));
+    }
+    let mut out = Vec::new();
+    for item in list_items(def, s, "background layers")? {
+        out.push(BgImage::Gradient(parse_gradient(def, item)?));
+    }
+    Ok(Value::Images(out))
+}
+
+fn parse_gradient(def: &PropDef, item: &str) -> Result<Gradient, ValueError> {
+    let lower = item.to_ascii_lowercase();
+    let Some(open) = lower.find('(') else {
+        return err(
+            codes::OUTSIDE,
+            format!(
+                "{item:?} is not a gradient; background-image takes linear and conic gradients"
+            ),
+        );
+    };
+    let (conic, repeating) = match lower[..open].trim() {
+        "linear-gradient" => (false, false),
+        "repeating-linear-gradient" => (false, true),
+        "conic-gradient" => (true, false),
+        "repeating-conic-gradient" => (true, true),
+        "url" | "image-set" => {
+            return err(
+                codes::OUTSIDE,
+                "picture backgrounds (url()) are not baked yet; use a gradient, or an <img> element",
+            );
+        }
+        name => {
+            return err(
+                codes::OUTSIDE,
+                format!("`{name}()` is outside the profile (linear and conic gradients only)"),
+            );
+        }
+    };
+    let Some(inner) = item[open + 1..].strip_suffix(')') else {
+        return err(codes::OUTSIDE, format!("{item:?}: malformed gradient"));
+    };
+    let args = split_top(inner, ',');
+    let head = args[0].to_ascii_lowercase();
+    let head_first = split_ws_top(&head).first().copied().unwrap_or("");
+    let has_head = matches!(head_first, "to" | "from" | "at" | "in")
+        || head_first
+            .bytes()
+            .next()
+            .is_some_and(|b| b.is_ascii_digit() || matches!(b, b'+' | b'-' | b'.'));
+    let dir = match (has_head, conic) {
+        (false, false) => GradDir::To(Side::Bottom),
+        (false, true) => GradDir::Angle(0.0),
+        (true, false) => parse_linear_head(&head)?,
+        (true, true) => parse_conic_head(&head)?,
+    };
+    let stops = if has_head { &args[1..] } else { &args[..] };
+    if stops.len() > MAX_GRADIENT_STOPS {
+        return err(
+            codes::TOO_MANY,
+            format!(
+                "a gradient has at most {MAX_GRADIENT_STOPS} color stops, got {}",
+                stops.len()
+            ),
+        );
+    }
+    if stops.len() < 2 {
+        return err(codes::OUTSIDE, "a gradient needs at least two color stops");
+    }
+    let stops = stops
+        .iter()
+        .map(|st| parse_stop(def, conic, st))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(Gradient {
+        conic,
+        repeating,
+        dir,
+        stops,
+    })
+}
+
+/// An angle in degrees (`0` alone is allowed).
+fn parse_deg(tok: &str) -> Result<f32, ValueError> {
+    let d = parse_dim(tok)?;
+    match d.unit.as_str() {
+        "deg" => to_f32(d.v),
+        "" if d.v == 0.0 => Ok(0.0),
+        unit => err(
+            codes::OUTSIDE,
+            format!("a gradient angle is in degrees (`deg`), not `{unit}`"),
+        ),
+    }
+}
+
+/// `<angle>` or `to <side>` / `to <corner>` (the two words of a corner in either order).
+fn parse_linear_head(head: &str) -> Result<GradDir, ValueError> {
+    let words = split_ws_top(head);
+    match words.as_slice() {
+        ["in", ..] => err(
+            codes::OUTSIDE,
+            "a color interpolation method (`in ...`) is outside the profile",
+        ),
+        ["to", sides @ ..] if !sides.is_empty() && sides.len() <= 2 => {
+            let (mut h, mut v) = (None, None);
+            for w in sides {
+                let slot = match *w {
+                    "left" | "right" => &mut h,
+                    "top" | "bottom" => &mut v,
+                    _ => return err(codes::OUTSIDE, format!("`to {w}` is not a side")),
+                };
+                if slot.replace(*w).is_some() {
+                    return err(codes::OUTSIDE, format!("{head:?}: two sides of one axis"));
+                }
+            }
+            let side = match (h, v) {
+                (Some("left"), None) => Side::Left,
+                (Some(_), None) => Side::Right,
+                (None, Some("top")) => Side::Top,
+                (None, _) => Side::Bottom,
+                (Some("left"), Some("top")) => Side::TopLeft,
+                (Some(_), Some("top")) => Side::TopRight,
+                (Some("left"), Some(_)) => Side::BottomLeft,
+                (Some(_), Some(_)) => Side::BottomRight,
+            };
+            Ok(GradDir::To(side))
+        }
+        [angle] => Ok(GradDir::Angle(parse_deg(angle)?)),
+        _ => err(
+            codes::OUTSIDE,
+            format!("{head:?} is not a gradient direction (an angle in deg or `to <side>`)"),
+        ),
+    }
+}
+
+/// `from <angle>` and `at center` (Chrome drops a centered `at`).
+fn parse_conic_head(head: &str) -> Result<GradDir, ValueError> {
+    let words = split_ws_top(head);
+    let mut angle = 0.0;
+    let mut i = 0;
+    if words.first() == Some(&"from") {
+        let Some(a) = words.get(1) else {
+            return err(codes::OUTSIDE, "`from` needs an angle");
+        };
+        angle = parse_deg(a)?;
+        i = 2;
+    }
+    if words.get(i) == Some(&"at") {
+        let at = &words[i + 1..];
+        if at.is_empty() || !at.iter().all(|w| matches!(*w, "center" | "50%")) {
+            return err(
+                codes::OUTSIDE,
+                "a conic gradient is centered: `at` other than `center` is outside the profile",
+            );
+        }
+        i = words.len();
+    }
+    if words.get(i) == Some(&"in") {
+        return err(
+            codes::OUTSIDE,
+            "a color interpolation method (`in ...`) is outside the profile",
+        );
+    }
+    if i != words.len() || i == 0 {
+        return err(
+            codes::OUTSIDE,
+            format!("{head:?} is not a conic gradient start (`from <angle>`)"),
+        );
+    }
+    Ok(GradDir::Angle(angle))
+}
+
+/// `<color> [<position>]`. Linear positions are lengths (calc allowed); conic positions are
+/// degrees or percentages, stored as percent of a turn.
+fn parse_stop(def: &PropDef, conic: bool, item: &str) -> Result<Stop, ValueError> {
+    let parts = split_ws_top(item);
+    let Some(first) = parts.first() else {
+        return err(codes::OUTSIDE, "empty color stop");
+    };
+    let starts_numeric = first
+        .bytes()
+        .next()
+        .is_some_and(|b| b.is_ascii_digit() || matches!(b, b'+' | b'-' | b'.'))
+        || first.to_ascii_lowercase().starts_with("calc(");
+    if starts_numeric {
+        return err(
+            codes::OUTSIDE,
+            format!("{item:?}: a color hint (a position without a color) is outside the profile"),
+        );
+    }
+    let color = ColorV::Lit(parse_color(first)?);
+    let pos = match &parts[1..] {
+        [] => None,
+        [p] if conic => {
+            let d = parse_dim(p).map_err(|e| ValueError {
+                code: e.code,
+                message: format!("{p:?}: a conic stop position is an angle (deg) or a percentage"),
+            })?;
+            let pct = match d.unit.as_str() {
+                "deg" => d.v / 3.6,
+                "%" => d.v,
+                "" if d.v == 0.0 => 0.0,
+                unit => {
+                    return err(
+                        codes::OUTSIDE,
+                        format!("a conic stop position is in deg or %, not `{unit}`"),
+                    );
+                }
+            };
+            Some(Len::pct(to_f32(pct)?))
+        }
+        [p] => Some(parse_len(def, p)?),
+        _ => {
+            return err(
+                codes::OUTSIDE,
+                format!("{item:?}: a color stop is a color and at most one position"),
+            );
+        }
+    };
+    Ok(Stop { color, pos })
+}
+
+fn parse_bg_sizes(def: &PropDef, s: &str) -> Result<Value, ValueError> {
+    let len_auto = |t: &str| -> Result<LenAuto, ValueError> {
+        if t == "auto" {
+            Ok(LenAuto::Auto)
+        } else {
+            Ok(LenAuto::Len(parse_len(def, t)?))
+        }
+    };
+    let mut out = Vec::new();
+    for item in list_items(def, s, "background sizes")? {
+        let size = match item {
+            "cover" => BgSize::Cover,
+            "contain" => BgSize::Contain,
+            _ => match split_ws_top(item).as_slice() {
+                [w] => BgSize::Size(len_auto(w)?, LenAuto::Auto),
+                [w, h] => BgSize::Size(len_auto(w)?, len_auto(h)?),
+                _ => {
+                    return err(
+                        codes::OUTSIDE,
+                        format!(
+                            "{item:?}: a background size is cover, contain or one or two lengths"
+                        ),
+                    );
+                }
+            },
+        };
+        out.push(size);
+    }
+    Ok(Value::BgSizes(out))
+}
+
+fn parse_lengths(def: &PropDef, s: &str) -> Result<Value, ValueError> {
+    let mut out = Vec::new();
+    for item in list_items(def, s, "positions")? {
+        out.push(parse_len(def, item)?);
+    }
+    Ok(Value::Lengths(out))
+}
+
+fn parse_repeats(def: &PropDef, s: &str) -> Result<Value, ValueError> {
+    let axis = |w: &str| -> Result<Repeat, ValueError> {
+        match w {
+            "repeat" => Ok(Repeat::Repeat),
+            "no-repeat" => Ok(Repeat::NoRepeat),
+            "space" | "round" => err(
+                codes::OUTSIDE,
+                format!(
+                    "background-repeat `{w}` is outside the profile (repeat, no-repeat, repeat-x, repeat-y)"
+                ),
+            ),
+            _ => err(codes::OUTSIDE, format!("`{w}` is not a background repeat")),
+        }
+    };
+    let mut out = Vec::new();
+    for item in list_items(def, s, "background repeats")? {
+        let (x, y) = match split_ws_top(item).as_slice() {
+            ["repeat-x"] => (Repeat::Repeat, Repeat::NoRepeat),
+            ["repeat-y"] => (Repeat::NoRepeat, Repeat::Repeat),
+            [one] => {
+                let r = axis(one)?;
+                (r, r)
+            }
+            [x, y] => (axis(x)?, axis(y)?),
+            _ => {
+                return err(
+                    codes::OUTSIDE,
+                    format!("{item:?}: a background repeat is one or two keywords"),
+                );
+            }
+        };
+        out.push(BgRepeat { x, y });
+    }
+    Ok(Value::Repeats(out))
+}
+
+fn parse_keywords(def: &PropDef, s: &str) -> Result<Value, ValueError> {
+    let mut out = Vec::new();
+    for item in list_items(def, s, "items")? {
+        match keyword_of(def, item) {
+            Some(k) => out.push(k),
+            None => {
+                return err(
+                    codes::OUTSIDE,
+                    format!("`{item}` is not one of: {}", def.values.join(", ")),
+                );
+            }
+        }
+    }
+    Ok(Value::Keywords(out))
+}
+
+// ---------------------------------------------------------------------------------------------
 // Canonical text (the form the test vectors compare)
 
 fn len_text(l: Len) -> String {
@@ -1161,6 +1523,59 @@ impl Value {
                 LineHeight::Px(p) => format!("lh:{p}px"),
                 LineHeight::Factor(f) => format!("lh:{f}x"),
             },
+            Value::Images(v) => {
+                let items: Vec<String> = v
+                    .iter()
+                    .map(|BgImage::Gradient(g)| {
+                        let dir = match g.dir {
+                            GradDir::Angle(a) => format!("{a}deg"),
+                            GradDir::To(side) => format!("to {}", side.keyword()),
+                        };
+                        let stops: Vec<String> = g
+                            .stops
+                            .iter()
+                            .map(|st| match st.pos {
+                                Some(p) => format!("{} {}", color_text(st.color), len_text(p)),
+                                None => color_text(st.color),
+                            })
+                            .collect();
+                        format!(
+                            "{}{}({dir}: {})",
+                            if g.repeating { "repeating-" } else { "" },
+                            if g.conic { "conic" } else { "linear" },
+                            stops.join(", ")
+                        )
+                    })
+                    .collect();
+                format!("images:{}", items.join("; "))
+            }
+            Value::BgSizes(v) => {
+                let la = |l: LenAuto| match l {
+                    LenAuto::Auto => "auto".to_string(),
+                    LenAuto::Len(l) => len_text(l),
+                };
+                let items: Vec<String> = v
+                    .iter()
+                    .map(|s| match s {
+                        BgSize::Cover => "cover".to_string(),
+                        BgSize::Contain => "contain".to_string(),
+                        BgSize::Size(w, h) => format!("{} {}", la(*w), la(*h)),
+                    })
+                    .collect();
+                format!("sizes:{}", items.join(", "))
+            }
+            Value::Lengths(v) => {
+                let items: Vec<String> = v.iter().map(|l| len_text(*l)).collect();
+                format!("lens:{}", items.join(", "))
+            }
+            Value::Repeats(v) => {
+                let items: Vec<String> = v
+                    .iter()
+                    .map(|r| format!("{} {}", r.x.keyword(), r.y.keyword()))
+                    .collect();
+                format!("repeats:{}", items.join(", "))
+            }
+            Value::Keywords(v) => format!("kws:{}", v.join(",")),
         }
     }
 }

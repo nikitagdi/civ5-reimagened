@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Deserialize;
 use ui2_package::profile::{Profile, PropId, Tag, Value, parse_value};
-use ui2_package::style::{ColorV, Display, StyleRecord};
+use ui2_package::style::{BgImage, ColorV, Display, StyleRecord};
 use ui2_package::{Bound, Cond, CondKind, StrId, StyleId, StyleSet, TokenId, Tokens};
 
 use crate::errors::{ConvError, Place, codes};
@@ -257,6 +257,20 @@ impl Beacon {
                     }
                 }
                 Value::Shadows(list)
+            }
+            (Value::Images(mut list), Value::Images(blist)) if list.len() == blist.len() => {
+                for (img, b) in list.iter_mut().zip(blist) {
+                    let (BgImage::Gradient(g), BgImage::Gradient(bg)) = (img, b);
+                    if g.stops.len() != bg.stops.len() {
+                        continue;
+                    }
+                    for (s, bs) in g.stops.iter_mut().zip(&bg.stops) {
+                        if let Some(t) = self.token(&bs.color) {
+                            s.color = ColorV::Tok(t);
+                        }
+                    }
+                }
+                Value::Images(list)
             }
             (v, _) => v,
         }

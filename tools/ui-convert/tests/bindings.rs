@@ -67,12 +67,8 @@ fn codes_of(run: &Run, prefix: &str) -> Vec<String> {
 #[test]
 fn the_top_strip_types_against_the_schema() {
     let run = top();
-    // The one E4 of the skin today: background-size is not in the profile yet, so it cannot be
-    // bound.
-    assert_eq!(
-        codes_of(&run, "E4"),
-        ["E4-025 data-bind-style-background-size index.html:76:9"]
-    );
+    // The skin binds cleanly (background-size, which the research scale binds, is in the profile).
+    assert_eq!(codes_of(&run, "E4"), Vec::<String>::new());
     assert_eq!(codes_of(&run, "E6"), Vec::<String>::new());
     let b = run.bindings.as_ref().expect("bindings");
     assert_eq!(b.paths.get("top.gold"), Some(&TypeSig::Int));

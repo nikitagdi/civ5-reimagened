@@ -919,6 +919,8 @@
 
   function install(win) {
     const doc = win.document;
+    // The server writes this script into the page; it is not part of the skin, so it leaves the DOM the converter reads.
+    const ownScript = doc.currentScript && /\/__ui2\/preview\.js$/.test(doc.currentScript.src || "") ? doc.currentScript : null;
     const errors = [];
     const seenErrors = new Set();
     let staticErrors = 0;
@@ -1139,9 +1141,17 @@
       const c = el.cloneNode(false);
       stampInst(c, inst);
       currentEl = el;
-      for (const t of p.classToggle) c.classList.toggle(t.cls, truthy(ev(t.cond, scope)));
-      for (const s of p.styles) c.style.setProperty(s.prop, evText(s.tpl, scope));
-      if (p.src) {
+      // In extract mode the converter computes the toggled classes as conditions itself and style bindings are
+      // runtime values on top of the baked record: the page keeps the markup's own classes and inline styles.
+      if (!extract()) {
+        for (const t of p.classToggle) c.classList.toggle(t.cls, truthy(ev(t.cond, scope)));
+        for (const s of p.styles) c.style.setProperty(s.prop, evText(s.tpl, scope));
+      }
+      if (p.src && extract()) {
+        // A picture the runtime fills from data: the converter needs only the reference, not a placeholder.
+        const v = renderValue(ev(p.src, scope));
+        if (v !== "") c.setAttribute("data-ui2-asset", v);
+      } else if (p.src) {
         const v = renderValue(ev(p.src, scope));
         if (/^[a-z][a-z0-9-]*:/i.test(v)) {
           // A game asset reference: the game's files are not here. Keep the reference, show a placeholder.
@@ -1185,6 +1195,7 @@
     }
 
     async function start() {
+      if (ownScript) ownScript.remove();
       try {
         if (!["layout", "extract", "templates"].includes(cfg.mode)) {
           report(PV.MODE, "error", null, null, "unknown mode " + JSON.stringify(cfg.mode) + ", using layout");

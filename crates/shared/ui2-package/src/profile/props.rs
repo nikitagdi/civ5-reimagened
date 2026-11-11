@@ -46,6 +46,16 @@ pub enum ValueKind {
     Families,
     /// `normal`, a length in px, or a number.
     LineHeight,
+    /// `none` or a comma list of gradient layers (`background-image`).
+    Images,
+    /// A comma list of background sizes: `auto`, `cover`, `contain`, or one or two lengths/`auto`.
+    BgSizes,
+    /// A comma list of lengths (`background-position-x`, `-y`).
+    Lengths,
+    /// A comma list of `background-repeat` values.
+    Repeats,
+    /// A comma list of keywords, each one of `values`.
+    Keywords,
 }
 
 /// One property of the profile.
@@ -324,7 +334,10 @@ fn parse_version(s: &str) -> Option<(u16, u16)> {
 
 fn check_prop(name: &str, def: &PropDef) -> Result<(), TableError> {
     let bad = |m: &str| Err(TableError::Invalid(format!("prop.{name}: {m}")));
-    let keywords = matches!(def.kind, ValueKind::Keyword | ValueKind::KeywordSet);
+    let keywords = matches!(
+        def.kind,
+        ValueKind::Keyword | ValueKind::KeywordSet | ValueKind::Keywords
+    );
     if keywords && def.values.is_empty() {
         return bad("a keyword property needs values");
     }
@@ -344,8 +357,13 @@ fn check_prop(name: &str, def: &PropDef) -> Result<(), TableError> {
     if seen.windows(2).any(|w| w[0] == w[1]) {
         return bad("repeated value");
     }
-    if def.token && !matches!(def.kind, ValueKind::Color | ValueKind::Shadows) {
-        return bad("only colors and shadows can use tokens");
+    if def.token
+        && !matches!(
+            def.kind,
+            ValueKind::Color | ValueKind::Shadows | ValueKind::Images
+        )
+    {
+        return bad("only colors, shadows and gradients can use tokens");
     }
     Ok(())
 }
@@ -381,6 +399,13 @@ mod tests {
         assert_eq!(p.def(PropId::BoxShadow).max_items, Some(4));
         assert!(p.def(PropId::Transform).calc);
         assert!(!p.def(PropId::Width).calc);
+        let image = p.def(PropId::BackgroundImage);
+        assert!(image.token && image.calc && !image.anim && !image.bind);
+        assert_eq!(image.max_items, Some(4));
+        assert!(p.def(PropId::BackgroundSize).bind);
+        let outline = p.def(PropId::OutlineColor);
+        assert!(outline.anim && outline.token && !outline.bind);
+        assert!(!p.def(PropId::OutlineWidth).pct);
     }
 
     #[test]

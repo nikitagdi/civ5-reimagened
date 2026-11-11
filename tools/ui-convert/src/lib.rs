@@ -25,6 +25,7 @@ pub mod errors;
 pub mod ir;
 pub mod l10n;
 pub mod node;
+pub mod numbering;
 pub mod plan;
 pub mod script;
 pub mod select;
@@ -140,7 +141,7 @@ pub fn scan(node: &mut NodeClient, src: &Source) -> Result<Scanned, ConvError> {
         json!({ "skin_dir": dir, "entry": src.skin.skin.entry, "preview": true }),
     )?;
     let preview = opened.get("preview") == Some(&Value::Bool(true));
-    let json = node.call("scan", json!({}))?;
+    let json = node.call("scan", json!({ "state": src.skin.scan_state() }))?;
     Scanned::from_json(json, preview)
 }
 
@@ -318,6 +319,9 @@ pub fn check_skin(dir: &Path, input: Input) -> Run {
             ));
         }
         let dom = ir::Dom::new(&scanned.ir.dom);
+        if scanned.preview {
+            run.errors.extend(numbering::check(&dom).1);
+        }
         let (p, errs) = plan::plan(&dom, &statics);
         run.errors.extend(errs);
         let request = p.request();

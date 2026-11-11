@@ -5,8 +5,9 @@ use super::props::Profile;
 use super::values::Value;
 use crate::ids::StrId;
 use crate::style::{
-    ColorV, IntAuto, Len, LenAuto, LenNone, LenNormal, LineHeight, NumericFeatures, Origin, Paint,
-    PropSel, Radius, Shadow, TFn, TextDecoration, Transition,
+    BgBox, BgImage, BgRepeat, BgSize, ColorV, IntAuto, Len, LenAuto, LenNone, LenNormal,
+    LineHeight, NumericFeatures, Origin, Paint, PropSel, Radius, Shadow, TFn, TextDecoration,
+    Transition,
 };
 
 /// A field type that can take a parsed value.
@@ -146,6 +147,51 @@ impl FromValue for Vec<TFn> {
     fn from_value(value: &Value, _: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
         match value {
             Value::Transform(t) => Some(t.clone()),
+            _ => None,
+        }
+    }
+}
+
+impl FromValue for Vec<BgImage> {
+    fn from_value(value: &Value, _: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
+        match value {
+            Value::Images(v) => Some(v.clone()),
+            _ => None,
+        }
+    }
+}
+
+impl FromValue for Vec<BgSize> {
+    fn from_value(value: &Value, _: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
+        match value {
+            Value::BgSizes(v) => Some(v.clone()),
+            _ => None,
+        }
+    }
+}
+
+impl FromValue for Vec<Len> {
+    fn from_value(value: &Value, _: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
+        match value {
+            Value::Lengths(v) => Some(v.clone()),
+            _ => None,
+        }
+    }
+}
+
+impl FromValue for Vec<BgRepeat> {
+    fn from_value(value: &Value, _: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
+        match value {
+            Value::Repeats(v) => Some(v.clone()),
+            _ => None,
+        }
+    }
+}
+
+impl FromValue for Vec<BgBox> {
+    fn from_value(value: &Value, _: &mut dyn FnMut(&str) -> StrId) -> Option<Self> {
+        match value {
+            Value::Keywords(v) => v.iter().map(|k| BgBox::from_keyword(k)).collect(),
             _ => None,
         }
     }

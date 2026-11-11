@@ -133,6 +133,17 @@ named_enum! {
         StrokeWidth => "stroke-width",
         StrokeLinecap => "stroke-linecap",
         StrokeLinejoin => "stroke-linejoin",
+        BackgroundImage => "background-image",
+        BackgroundSize => "background-size",
+        BackgroundPositionX => "background-position-x",
+        BackgroundPositionY => "background-position-y",
+        BackgroundRepeat => "background-repeat",
+        BackgroundOrigin => "background-origin",
+        BackgroundClip => "background-clip",
+        OutlineStyle => "outline-style",
+        OutlineWidth => "outline-width",
+        OutlineColor => "outline-color",
+        OutlineOffset => "outline-offset",
     }
 }
 

@@ -60,6 +60,13 @@ pub struct Skin {
     pub verify: Verify,
 }
 
+impl Skin {
+    /// The sample state the converter scans and extracts with: the first state of `[verify]`, else `hud`.
+    pub fn scan_state(&self) -> &str {
+        self.verify.states.first().map_or("hud", String::as_str)
+    }
+}
+
 /// `[skin]`.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]

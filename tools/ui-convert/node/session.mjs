@@ -87,13 +87,14 @@ export function createSession() {
       need(typeof state === "string", "scan: state must be a string");
       const viewport = req.viewport ?? [1920, 1080];
       need(Array.isArray(viewport) && viewport.length === 2 && viewport.every((n) => Number.isInteger(n) && n > 0), "scan: viewport must be [w, h]");
+      st.state = state;
       return scanPage({ page: st.page, server: st.server, entry: st.entry, state, viewport, blocked: st.blocked });
     },
 
-    /** Answers the converter's style plan (see extract.mjs). */
+    /** Answers the converter's style plan (see extract.mjs) on the page of the last scan. */
     async extract(req = {}) {
       need(st, "extract: no open session");
-      return extractPage({ page: st.page, server: st.server, entry: st.entry, req });
+      return extractPage({ page: st.page, server: st.server, entry: st.entry, req, state: st.state || "" });
     },
 
     /** The next scan always loads the page again; this drops what the server cached (file changes). */

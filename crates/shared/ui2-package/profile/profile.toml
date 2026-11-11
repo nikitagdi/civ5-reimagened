@@ -6,13 +6,14 @@
 #
 # prop.<name> fields:
 #   kind       how the value is parsed (see ValueKind in src/profile/props.rs)
-#   values     keywords of a `keyword` / `keyword-set` property; for the other kinds the extra
+#   values     keywords of a `keyword` / `keyword-set` property (of each item of a `keywords`
+#              list); for the other kinds the extra
 #              keywords allowed beside the value (`auto`, `none`, `normal`). For a `keyword-set`
 #              the first entry stands alone, the others combine.
 #   inherited  inherited by children (informational: Chrome already resolved it)
 #   anim       can be the target of a transition
 #   bind       can be set by data-bind-style-<name>
-#   token      a color that may refer to a root color token
+#   token      a color (shadow color, gradient stop color) that may refer to a root color token
 #   calc       calc() is allowed
 #   pct        a percentage is allowed in a length (default true)
 #   min, max   inclusive range of a number, integer, length (px) or time (ms)
@@ -161,6 +162,20 @@ prop.stroke = { kind = "color", values = ["none"], inherited = true, anim = true
 prop.stroke-width = { kind = "length", pct = false, min = 0, inherited = true, initial = "1px" }
 prop.stroke-linecap = { kind = "keyword", values = ["butt", "round", "square"], inherited = true, initial = "butt" }
 prop.stroke-linejoin = { kind = "keyword", values = ["miter", "round", "bevel"], inherited = true, initial = "miter" }
+
+# Background layers and outline (decoration). The background lists hold one entry per layer; Chrome
+# repeats the shorter lists to the number of images. Gradients take at most 4 stops each.
+prop.background-image = { kind = "images", token = true, calc = true, max_items = 4, initial = "none" }
+prop.background-size = { kind = "bg-sizes", bind = true, calc = true, min = 0, max_items = 4, initial = "auto" }
+prop.background-position-x = { kind = "lengths", calc = true, max_items = 4, initial = "0%" }
+prop.background-position-y = { kind = "lengths", calc = true, max_items = 4, initial = "0%" }
+prop.background-repeat = { kind = "repeats", max_items = 4, initial = "repeat" }
+prop.background-origin = { kind = "keywords", values = ["border-box", "padding-box", "content-box"], max_items = 4, initial = "padding-box" }
+prop.background-clip = { kind = "keywords", values = ["border-box", "padding-box", "content-box"], max_items = 4, initial = "border-box" }
+prop.outline-style = { kind = "keyword", values = ["none", "solid"], initial = "none" }
+prop.outline-width = { kind = "length", pct = false, min = 0, initial = "3px" }
+prop.outline-color = { kind = "color", anim = true, token = true, initial = "rgb(0, 0, 0)" }
+prop.outline-offset = { kind = "length", pct = false, initial = "0px" }
 
 # Ignored: documented, without effect.
 ignored."-webkit-font-smoothing" = { why = "the platform decides smoothing; it does not change layout" }

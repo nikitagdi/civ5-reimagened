@@ -81,8 +81,12 @@ pub fn api(p: PropId) -> Api {
     use PropId as P;
     match p {
         // Typed OM ignores border-style: none for the width; the transition lists are truncated
-        // to their first item by `get()`.
+        // to their first item by `get()`, and so are the per-layer lists of background size, origin
+        // and clip.
         P::BorderTopWidth
+        | P::BackgroundSize
+        | P::BackgroundOrigin
+        | P::BackgroundClip
         | P::BorderRightWidth
         | P::BorderBottomWidth
         | P::BorderLeftWidth

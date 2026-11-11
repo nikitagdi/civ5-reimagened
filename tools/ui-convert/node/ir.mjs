@@ -187,14 +187,35 @@ function buildSheets(dom, server) {
  * Loads the entry page in `page` (a fresh navigation every time, so a scan never depends on a previous
  * one) and builds the IR. `blocked` is the set of external URLs the network guard refused.
  */
-export async function scanPage({ page, server, entry, state = "", viewport = [1920, 1080], blocked }) {
+/**
+ * The URL of the entry page in a preview mode (`extract` for the converter's scan and style reads, `layout` for
+ * the honest sample of the rectangle dump) and sample state. Without the preview script the parameters are
+ * ignored by the page.
+ */
+export function entryUrl(server, entry, mode, state) {
+  const q = new URLSearchParams();
+  if (mode) q.set("ui2mode", mode);
+  if (state) q.set("ui2state", state);
+  const s = q.toString();
+  return `${server.url}/${entry}${s ? `?${s}` : ""}`;
+}
+
+/** Loads the entry page and waits until the preview script (if any) finished and every font face loaded. */
+export async function loadPage(page, url) {
+  await page.goto(url, { waitUntil: "load" });
+  // With the preview script the page is not final before includes and bindings are done.
+  await page.evaluate(() => (window.__ui2preview ? window.__ui2preview.ready : null));
+  await page.evaluate(async () => {
+    await Promise.all([...document.fonts].map((f) => f.load().catch(() => null)));
+    await document.fonts.ready;
+  });
+}
+
+export async function scanPage({ page, server, entry, state = "", viewport = [1920, 1080], blocked, mode = "extract" }) {
   server.reset();
   blocked.clear();
   await page.setViewportSize({ width: viewport[0], height: viewport[1] });
-  await page.goto(`${server.url}/${entry}`, { waitUntil: "load" });
-  // With the preview script the page is not final before includes and bindings are done.
-  await page.evaluate(() => (window.__ui2preview ? window.__ui2preview.ready : null));
-  await page.evaluate(() => document.fonts.ready);
+  await loadPage(page, entryUrl(server, entry, mode, state));
   const { dom, fonts, title, compat } = await page.evaluate(extractInPage);
 
   const fontKey = (f) => `${f.family}|${f.weight}|${f.style}`;

@@ -13,7 +13,7 @@ use ui2_draw::{
     LayerId, MaskItem, Radii, Rect,
 };
 use ui2_package::style::{
-    BorderStyle, ColorV, Len, Overflow, Position, StyleRecord, TFn, Visibility,
+    BorderStyle, ColorV, Len, OutlineStyle, Overflow, Position, StyleRecord, TFn, Visibility,
 };
 use ui2_package::{ImageSrc, Layer, NodeKind, Package, PageFormat};
 
@@ -414,6 +414,13 @@ impl<'a> Emitter<'a> {
         }
         if !r.text_shadow.is_empty() {
             self.unsupported(id, "a text shadow");
+        }
+        // Gradient layers and outlines are baked but not drawn yet.
+        if !r.background_image.is_empty() {
+            self.unsupported(id, "a background gradient");
+        }
+        if r.outline_style == OutlineStyle::Solid && self.width(r.outline_width) > 0.0 {
+            self.unsupported(id, "an outline");
         }
         let clip = Self::clip_of(s);
         let transform = Self::xf_of(xf);

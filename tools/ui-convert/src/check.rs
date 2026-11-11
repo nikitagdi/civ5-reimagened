@@ -84,6 +84,8 @@ pub const SHORTHANDS: &[(&str, &[&str])] = &[
     ("border-color", &["border-top-color"]),
     ("border-radius", &["border-top-left-radius"]),
     ("background", &["background-color"]),
+    ("background-position", &["background-position-x"]),
+    ("outline", &["outline-style"]),
     ("font", &["font-size"]),
     ("font-variant", &["font-variant-numeric"]),
     ("overflow", &["overflow-x"]),
