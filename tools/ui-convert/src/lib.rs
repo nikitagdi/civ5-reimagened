@@ -33,7 +33,6 @@ pub mod node;
 pub mod numbering;
 pub mod plan;
 pub mod script;
-pub mod select;
 pub mod skin;
 pub mod styles;
 pub mod verify;

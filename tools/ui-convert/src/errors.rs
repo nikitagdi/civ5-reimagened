@@ -20,6 +20,8 @@ use ui2_package::profile::Profile;
 /// The codes the converter raises itself. The texts live in `profile.toml`; the codes of the
 /// profile's own parsers (`values`, `attrs`, `expr`) are reused as they come.
 pub mod codes {
+    use ui2_package::profile::select::codes as select;
+
     /// `skin.toml` is malformed.
     pub const SKIN_TOML: &str = "E1-001";
     /// An element outside the profile.
@@ -50,24 +52,24 @@ pub mod codes {
 
     /// An at-rule outside the profile.
     pub const AT_RULE: &str = "E3-001";
-    /// A selector outside the profile.
-    pub const SELECTOR: &str = "E3-002";
+    /// A selector outside the profile (raised by the profile's selector check).
+    pub const SELECTOR: &str = select::SELECTOR;
     /// A class a binding toggles is also written in the static `class`.
-    pub const DYN_CLASS: &str = "E3-003";
+    pub const DYN_CLASS: &str = select::TOGGLED_STATIC;
     /// A media query outside the profile.
-    pub const MEDIA: &str = "E3-004";
+    pub const MEDIA: &str = select::MEDIA;
     /// More than four conditions on one node.
-    pub const CONDS: &str = "E3-005";
+    pub const CONDS: &str = select::CONDS;
     /// Too many breakpoints or viewport cells.
-    pub const CELLS: &str = "E3-006";
+    pub const CELLS: &str = select::CELLS;
     /// Transitions differ between the variants of a node.
     pub const TRANSITIONS: &str = "E3-007";
     /// `display: contents` changes with a condition or a breakpoint.
     pub const CONTENTS: &str = "E3-008";
     /// `order` changes with a condition or a breakpoint.
     pub const ORDER: &str = "E3-009";
-    /// A CSS syntax error.
-    pub const CSS_SYNTAX: &str = "E3-010";
+    /// A CSS syntax error (also selector text that is not CSS).
+    pub const CSS_SYNTAX: &str = select::SYNTAX;
 
     /// A sample does not fit the model schema.
     pub const SAMPLE: &str = "E4-040";

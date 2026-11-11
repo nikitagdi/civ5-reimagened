@@ -18,13 +18,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Value, json};
-use ui2_package::profile::{Profile, PropId, ValueKind};
-use ui2_package::{Bound, Styles};
+use ui2_package::profile::select::{self, Comb, Pseudo, SelInfo, StaticCompound};
+use ui2_package::profile::{Profile, PropId, Tag, ValueKind};
+use ui2_package::{Bound, Cond, CondKind, StrId, Styles};
 
 use crate::check::{SHORTHANDS, Statics};
-use crate::errors::{ConvError, codes};
+use crate::errors::ConvError;
 use crate::ir::{Dom, Ix};
-use crate::select::{Axis, Comb, Compound, Pseudo, Selector};
 
 /// What a condition tests.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -125,52 +125,6 @@ pub struct Plan {
     pub extra: Vec<String>,
 }
 
-/// One value of a cell axis: the lower end of the interval, else one below the upper end.
-fn axis_value(bounds: &[Bound], i: usize, default: u32) -> u32 {
-    if i > 0 {
-        let lo = bounds[i - 1];
-        if lo.upper_inclusive {
-            lo.px.floor() as u32 + 1
-        } else {
-            lo.px.ceil() as u32
-        }
-    } else if let Some(hi) = bounds.first() {
-        if hi.upper_inclusive {
-            hi.px.floor() as u32
-        } else {
-            (hi.px.ceil() as u32).saturating_sub(1).max(1)
-        }
-    } else {
-        default
-    }
-}
-
-/// The breakpoints and the representative viewport of each cell.
-pub fn cells(media: &[(Axis, Bound)]) -> (Vec<Bound>, Vec<Bound>, Vec<[u32; 2]>) {
-    let mut w: Vec<Bound> = media
-        .iter()
-        .filter(|m| m.0 == Axis::W)
-        .map(|m| m.1)
-        .collect();
-    let mut h: Vec<Bound> = media
-        .iter()
-        .filter(|m| m.0 == Axis::H)
-        .map(|m| m.1)
-        .collect();
-    let by_px = |a: &Bound, b: &Bound| a.px.total_cmp(&b.px);
-    w.sort_by(by_px);
-    h.sort_by(by_px);
-    w.dedup_by(|a, b| a.px == b.px);
-    h.dedup_by(|a, b| a.px == b.px);
-    let mut out = Vec::new();
-    for wi in 0..=w.len() {
-        for hi in 0..=h.len() {
-            out.push([axis_value(&w, wi, 1920), axis_value(&h, hi, 1080)]);
-        }
-    }
-    (w, h, out)
-}
-
 /// Whether a declared property is inherited (so a condition on its rule reaches descendants).
 fn inherited(name: &str) -> bool {
     if name.starts_with("--") {
@@ -190,18 +144,16 @@ struct Matcher<'a> {
 }
 
 impl Matcher<'_> {
-    /// The conditions an element must meet to match one compound, or `None` when it cannot.
-    fn compound(&self, c: &Compound, ix: Ix) -> Option<Vec<CondK>> {
+    /// The conditions an element must meet to match one compound (its static part `c` and its dynamic
+    /// pseudo-classes), or `None` when it cannot.
+    fn compound(&self, c: &StaticCompound, pseudos: &[Pseudo], ix: Ix) -> Option<Vec<CondK>> {
         let e = self.dom.elems[ix];
-        if let Some(tag) = &c.tag
-            && *tag != e.tag.to_ascii_lowercase()
+        if let Some(tag) = c.tag
+            && Tag::from_name(&e.tag.to_ascii_lowercase()) != Some(tag)
         {
             return None;
         }
         if c.root && (e.tag != "html" || e.is_svg()) {
-            return None;
-        }
-        if c.placeholder {
             return None;
         }
         let id = e.attr("id");
@@ -224,7 +176,7 @@ impl Matcher<'_> {
                 return None;
             }
         }
-        for &p in &c.pseudos {
+        for &p in pseudos {
             if p == Pseudo::Disabled && !matches!(e.tag.as_str(), "button" | "input") {
                 return None;
             }
@@ -235,12 +187,18 @@ impl Matcher<'_> {
 
     /// Matches compounds `0..=k` with compound `k` on `ix`; returns the element and conditions of
     /// each compound (nearest ancestors first, the first solution).
-    fn select(&self, s: &Selector, k: usize, ix: Ix) -> Option<Vec<(Ix, Vec<CondK>)>> {
-        let conds = self.compound(&s.parts[k].1, ix)?;
+    fn select(&self, s: &SelInfo, k: usize, ix: Ix) -> Option<Vec<(Ix, Vec<CondK>)>> {
+        let pseudos: Vec<Pseudo> = s
+            .conds
+            .iter()
+            .filter(|c| c.part == k)
+            .map(|c| c.pseudo)
+            .collect();
+        let conds = self.compound(&s.static_part[k].1, &pseudos, ix)?;
         if k == 0 {
             return Some(vec![(ix, conds)]);
         }
-        let candidates: Vec<Ix> = match s.parts[k].0 {
+        let candidates: Vec<Ix> = match s.static_part[k].0 {
             Some(Comb::Child) => self.dom.parent[ix].into_iter().collect(),
             _ => self.dom.ancestors(ix).collect(),
         };
@@ -257,7 +215,9 @@ impl Matcher<'_> {
 /// Builds the plan. Errors: more than four conditions on a node (E3-005).
 pub fn plan(dom: &Dom, statics: &Statics) -> (Plan, Vec<ConvError>) {
     let mut errs = Vec::new();
-    let (media_w, media_h, cell_list) = cells(&statics.media);
+    let media_w = statics.cells.media_w.clone();
+    let media_h = statics.cells.media_h.clone();
+    let cell_list = statics.cells.viewports();
     debug_assert!({
         let s = Styles {
             media_w: media_w.clone(),
@@ -305,17 +265,12 @@ pub fn plan(dom: &Dom, statics: &Statics) -> (Plan, Vec<ConvError>) {
     for rule in &statics.rules {
         let spreads = rule.props.iter().any(|p| inherited(p));
         for sel in &rule.selectors {
-            let dynamic = sel.parts.iter().any(|(_, c)| {
-                !c.pseudos.is_empty()
-                    || c.classes
-                        .iter()
-                        .any(|k| statics.dyn_classes.contains_key(k))
-            });
-            if !dynamic {
+            // `input::placeholder` styles the placeholder text, not the element.
+            if sel.placeholder || !sel.is_dynamic(&|k| statics.dyn_classes.contains_key(k)) {
                 continue;
             }
             for &(ix, _) in &ixs {
-                let Some(found) = matcher.select(sel, sel.parts.len() - 1, ix) else {
+                let Some(found) = matcher.select(sel, sel.static_part.len() - 1, ix) else {
                     continue;
                 };
                 let mut conds = Vec::new();
@@ -359,7 +314,16 @@ pub fn plan(dom: &Dom, statics: &Statics) -> (Plan, Vec<ConvError>) {
         } else {
             d.remove(&ix).unwrap_or_default().into_iter().collect()
         };
-        if conds.len() > ui2_package::MAX_CONDS {
+        // The profile's limit on a node's conditions (a class stands in by its position: the conditions
+        // are distinct already).
+        let probe = conds.iter().enumerate().map(|(i, c)| Cond {
+            up: c.up,
+            kind: match &c.kind {
+                CondK::Pseudo(p) => p.cond_kind(),
+                CondK::Class(_) => CondKind::Class(StrId(i as u32)),
+            },
+        });
+        if let Err(why) = select::node_conds(probe) {
             let list: Vec<String> = conds
                 .iter()
                 .map(|c| match &c.kind {
@@ -370,9 +334,9 @@ pub fn plan(dom: &Dom, statics: &Statics) -> (Plan, Vec<ConvError>) {
             let e = dom.elems[ix];
             errs.push(
                 ConvError::new(
-                    codes::CONDS,
+                    why.code,
                     e.place(),
-                    format!("{} conditions: {}", conds.len(), list.join(", ")),
+                    format!("{}: {}", why.message, list.join(", ")),
                 )
                 .element(e.describe()),
             );
@@ -475,7 +439,7 @@ impl Plan {
     pub fn reads(&self) -> usize {
         self.nodes
             .iter()
-            .map(|n| self.cells.len() << n.conds.len())
+            .map(|n| self.cells.len() * select::variants(n.conds.len()))
             .sum()
     }
 }
@@ -496,6 +460,18 @@ mod tests {
         }
     }
 
+    use ui2_package::profile::media::{self, Cells};
+
+    /// The cells of the media preludes of a skin, through the profile's parser.
+    fn cells(preludes: &[&str]) -> (Vec<Bound>, Vec<Bound>, Vec<[u32; 2]>) {
+        let conds: Vec<_> = preludes
+            .iter()
+            .flat_map(|p| media::parse(p).expect("a media query of the profile"))
+            .collect();
+        let c = Cells::new(&conds).expect("cells");
+        (c.media_w.clone(), c.media_h.clone(), c.viewports())
+    }
+
     #[test]
     fn styles_cells_without_breakpoints_are_one_full_hd_cell() {
         let (w, h, c) = cells(&[]);
@@ -505,12 +481,12 @@ mod tests {
 
     #[test]
     fn styles_cells_take_the_lower_end_of_each_interval() {
-        let media = [
-            (Axis::W, b(1600.0, false)),
-            (Axis::W, b(1280.0, false)),
-            (Axis::H, b(800.0, true)),
-        ];
-        let (w, h, c) = cells(&media);
+        let (w, h, c) = cells(&[
+            "(min-width: 1600px)",
+            "screen and (width >= 1280px)",
+            "(max-height: 800px)",
+            "(min-width: 1600px)",
+        ]);
         assert_eq!(w, [b(1280.0, false), b(1600.0, false)]);
         assert_eq!(h, [b(800.0, true)]);
         assert_eq!(

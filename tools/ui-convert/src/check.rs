@@ -6,30 +6,36 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use ui2_package::Bound;
 use ui2_package::profile::attrs::{self, AttrCtx, NodeAttrs, RawAttrs};
+use ui2_package::profile::media::{self, Cells, MediaCond};
+use ui2_package::profile::select::{self, SelInfo, SelectError};
 use ui2_package::profile::values::codes as value_codes;
 use ui2_package::profile::{Profile, PropId, Tag, ValueKind};
 use ui2_package::sections::templates::Layer;
 
 use crate::errors::{ConvError, Place, codes};
 use crate::ir::{CssItem, Dom, Element, Ir, Ix, Node};
-use crate::select::{self, Axis, Selector};
 use crate::skin::{Skin, is_skin_path, resolve_in_skin, url_args};
 
-/// One style rule of the skin's stylesheets, with its selectors parsed.
+/// One style rule of the skin's stylesheets, with its selectors checked against the profile.
 #[derive(Debug, Clone)]
 pub struct Rule {
     /// The file and position of the rule.
     pub place: Place,
     /// The selector list as written.
     pub text: String,
-    /// The selectors that parsed (the others were reported).
-    pub selectors: Vec<Selector>,
+    /// The selectors of the profile, split into their static part and conditions (the others were
+    /// reported).
+    pub selectors: Vec<SelInfo>,
     /// The declared properties (as written, lower case).
     pub props: Vec<String>,
     /// The media conditions the rule sits in.
-    pub media: Vec<(Axis, Bound)>,
+    pub media: Vec<MediaCond>,
+}
+
+/// A profile error of a selector, a media query or a node's conditions as a converter error.
+fn select_error(e: SelectError, place: Place) -> ConvError {
+    ConvError::new(e.code, place, e.message)
 }
 
 /// A custom property declared on `:root`.
@@ -55,8 +61,8 @@ pub struct Statics {
     pub dyn_classes: BTreeMap<String, BTreeSet<Ix>>,
     /// The style rules, in cascade-independent document order.
     pub rules: Vec<Rule>,
-    /// The distinct media conditions.
-    pub media: Vec<(Axis, Bound)>,
+    /// The viewport cells the media conditions of every rule make.
+    pub cells: Cells,
     /// Custom properties of `:root` rules, in order.
     pub root_vars: Vec<RootVar>,
 }
@@ -372,18 +378,13 @@ fn elements(cx: &mut Ctx) {
     let mut dyn_static = Vec::new();
     for (class, owners) in &cx.out.dyn_classes {
         for &ix in owners {
-            if dom.elems[ix].classes().contains(&class.as_str()) {
-                dyn_static.push((ix, class.clone()));
+            if let Err(e) = select::check_toggled(&dom.elems[ix].classes(), &[class.as_str()]) {
+                dyn_static.push((ix, e));
             }
         }
     }
-    for (ix, class) in dyn_static {
-        cx.err_at(
-            ix,
-            codes::DYN_CLASS,
-            "class",
-            format!("`{class}` is toggled by a binding and also written in class"),
-        );
+    for (ix, e) in dyn_static {
+        cx.err_at(ix, e.code, "class", e.message);
     }
 }
 
@@ -703,44 +704,18 @@ fn sheets(cx: &mut Ctx, ir: &Ir) {
         }
         items(cx, &file, &sheet.rules, &[]);
     }
-    // Distinct media conditions and the cell count.
-    let mut media: Vec<(Axis, Bound)> = Vec::new();
-    for r in &cx.out.rules {
-        for m in &r.media {
-            if !media.iter().any(|x| x.0 == m.0 && x.1 == m.1) {
-                media.push(*m);
-            }
-        }
+    // The viewport cells of every media condition (E3-004 for a breakpoint written with and without `=`,
+    // E3-006 for too many). With an error the skin has one cell, so the later stages still run.
+    let all: Vec<MediaCond> = cx
+        .out
+        .rules
+        .iter()
+        .flat_map(|r| r.media.iter().copied())
+        .collect();
+    match Cells::new(&all) {
+        Ok(cells) => cx.out.cells = cells,
+        Err(e) => cx.errs.push(select_error(e, Place::default())),
     }
-    media.sort_by(|a, b| {
-        a.0.cmp(&b.0)
-            .then(a.1.px.total_cmp(&b.1.px))
-            .then(a.1.upper_inclusive.cmp(&b.1.upper_inclusive))
-    });
-    let w = media.iter().filter(|m| m.0 == Axis::W).count();
-    let h = media.len() - w;
-    if media.len() > 8 || (w + 1) * (h + 1) > ui2_package::MAX_CELLS {
-        cx.errs.push(ConvError::new(
-            codes::CELLS,
-            Place::default(),
-            format!(
-                "{} media conditions ({w} on width, {h} on height) make {} cells",
-                media.len(),
-                (w + 1) * (h + 1)
-            ),
-        ));
-    }
-    for axis in [Axis::W, Axis::H] {
-        let on: Vec<&Bound> = media.iter().filter(|m| m.0 == axis).map(|m| &m.1).collect();
-        if on.windows(2).any(|p| p[0].px == p[1].px) {
-            cx.errs.push(ConvError::new(
-                codes::MEDIA,
-                Place::default(),
-                format!("two breakpoints at the same {axis:?} with < and <=; use one form"),
-            ));
-        }
-    }
-    cx.out.media = media;
     // The synonyms every skin defines for mods.
     for (name, def) in Profile::v1().tokens() {
         if def.required && !cx.out.root_vars.iter().any(|v| &v.name == name) {
@@ -756,7 +731,7 @@ fn sheets(cx: &mut Ctx, ir: &Ir) {
     }
 }
 
-fn items(cx: &mut Ctx, file: &str, list: &[CssItem], media: &[(Axis, Bound)]) {
+fn items(cx: &mut Ctx, file: &str, list: &[CssItem], within: &[MediaCond]) {
     for item in list {
         match item {
             CssItem::Rule {
@@ -769,18 +744,17 @@ fn items(cx: &mut Ctx, file: &str, list: &[CssItem], media: &[(Axis, Bound)]) {
                 let place = Place::at(file, *line, *col);
                 let mut parsed = Vec::new();
                 for s in selectors {
-                    match select::parse_selector(s) {
+                    match select::parse(s).and_then(|ast| select::check(&ast)) {
                         Ok(p) => parsed.push(p),
-                        Err(why) => cx.errs.push(
-                            ConvError::new(codes::SELECTOR, place.clone(), why)
-                                .element(format!("`{s}`")),
-                        ),
+                        Err(e) => cx
+                            .errs
+                            .push(select_error(e, place.clone()).element(format!("`{s}`"))),
                     }
                 }
                 let is_root = parsed.len() == 1
-                    && parsed[0].parts.len() == 1
+                    && parsed[0].static_part.len() == 1
                     && parsed[0].subject().root
-                    && parsed[0].subject().pseudos.is_empty();
+                    && parsed[0].conds.is_empty();
                 let mut props = Vec::new();
                 for d in decls {
                     if let CssItem::Decl {
@@ -793,7 +767,7 @@ fn items(cx: &mut Ctx, file: &str, list: &[CssItem], media: &[(Axis, Bound)]) {
                     {
                         let dplace = Place::at(file, *line, *col);
                         declaration(cx, &dplace, selector, prop, value);
-                        if is_root && prop.starts_with("--") && media.is_empty() {
+                        if is_root && prop.starts_with("--") && within.is_empty() {
                             cx.out.root_vars.push(RootVar {
                                 name: prop.clone(),
                                 value: value.clone(),
@@ -819,7 +793,7 @@ fn items(cx: &mut Ctx, file: &str, list: &[CssItem], media: &[(Axis, Bound)]) {
                     text: selector.clone(),
                     selectors: parsed,
                     props,
-                    media: media.to_vec(),
+                    media: within.to_vec(),
                 });
             }
             CssItem::Atrule {
@@ -832,16 +806,15 @@ fn items(cx: &mut Ctx, file: &str, list: &[CssItem], media: &[(Axis, Bound)]) {
                 let place = Place::at(file, *line, *col);
                 match name.to_ascii_lowercase().as_str() {
                     "font-face" => font_face(cx, &place, inner.as_deref().unwrap_or(&[])),
-                    "media" => match select::parse_media(prelude) {
+                    "media" => match media::parse(prelude) {
                         Ok(conds) => {
-                            let mut all = media.to_vec();
+                            let mut all = within.to_vec();
                             all.extend(conds);
                             items(cx, file, inner.as_deref().unwrap_or(&[]), &all);
                         }
-                        Err(why) => cx.errs.push(
-                            ConvError::new(codes::MEDIA, place, why)
-                                .element(format!("`@media {prelude}`")),
-                        ),
+                        Err(e) => cx
+                            .errs
+                            .push(select_error(e, place).element(format!("`@media {prelude}`"))),
                     },
                     other => cx.errs.push(
                         ConvError::new(codes::AT_RULE, place, format!("`@{other}`"))
@@ -1012,6 +985,101 @@ fn scripts(cx: &mut Ctx, skin: &Skin) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sel(s: &str) -> Result<SelInfo, SelectError> {
+        select::parse(s).and_then(|a| select::check(&a))
+    }
+
+    /// The selectors and media queries the converter's own parser used to take (and refuse) go the same
+    /// way through the profile's.
+    #[test]
+    fn profile_selectors_parse() {
+        use ui2_package::profile::select::{Comb, Pseudo};
+        let s = sel(".top .grp").expect("descendant");
+        assert_eq!(s.static_part.len(), 2);
+        assert_eq!(s.static_part[1].0, Some(Comb::Descendant));
+        let s = sel(".yields .yield>svg.i").expect("child");
+        assert_eq!(s.static_part[2].0, Some(Comb::Child));
+        assert_eq!(s.subject().tag, Some(Tag::Svg));
+        assert_eq!(s.subject().classes, ["i"]);
+        let s = sel(".mbtn:hover").expect("hover");
+        assert_eq!(s.conds[0].pseudo, Pseudo::Hover);
+        assert!(sel(":root").expect("root").subject().root);
+        assert!(sel("*").expect("any").subject().tag.is_none());
+        assert!(sel("input::placeholder").expect("placeholder").placeholder);
+        let s = sel(".a > .b:focus-visible").expect("focus-visible");
+        assert_eq!(s.static_part[1].0, Some(Comb::Child));
+        assert_eq!(s.conds[0].pseudo, Pseudo::FocusVisible);
+        assert_eq!(s.conds[0].part, 1);
+    }
+
+    #[test]
+    fn selectors_outside_the_profile_are_refused() {
+        for bad in [
+            ".a+.b",
+            ".a~.b",
+            "li:nth-child(2)",
+            ".x::after",
+            "[data-x]",
+            ".a:first-child",
+            "svg|use",
+            ".a:not(.b)",
+            ".a:focus-within",
+        ] {
+            assert_eq!(
+                sel(bad).map(|_| ()).map_err(|e| e.code),
+                Err(codes::SELECTOR),
+                "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn media_queries_become_cells() {
+        let cells = |p: &[&str]| {
+            let all: Vec<MediaCond> = p
+                .iter()
+                .flat_map(|q| media::parse(q).expect("parses"))
+                .collect();
+            Cells::new(&all).map(|c| c.viewports())
+        };
+        assert_eq!(
+            cells(&["(min-width:1600px)"]),
+            Ok(vec![[1599, 1080], [1600, 1080]])
+        );
+        assert_eq!(
+            cells(&["screen and (max-height:800px)"]),
+            Ok(vec![[1920, 800], [1920, 801]])
+        );
+        assert_eq!(
+            cells(&["(1280px<=width<1600px)"]),
+            Ok(vec![[1279, 1080], [1280, 1080], [1600, 1080]])
+        );
+        assert_eq!(
+            cells(&["(min-width:1600px)", "(width<=1600px)"]).map_err(|e| e.code),
+            Err(codes::MEDIA)
+        );
+    }
+
+    #[test]
+    fn media_outside_the_profile_is_refused() {
+        for bad in [
+            "(prefers-color-scheme:dark)",
+            "(orientation:landscape)",
+            "(min-width:40em)",
+            "print",
+            "not screen",
+            "(min-width:100px),(max-width:50px)",
+            "(min-width:100px) or (max-width:50px)",
+            "(width:100px)",
+        ] {
+            assert_eq!(
+                media::parse(bad).map(|_| ()).map_err(|e| e.code),
+                Err(codes::MEDIA),
+                "{bad}"
+            );
+        }
+    }
 
     #[test]
     fn neutral_text() {

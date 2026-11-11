@@ -23,7 +23,6 @@ use ui2_package::{Bound, Cond, CondKind, StrId, StyleId, StyleSet, TokenId, Toke
 use crate::errors::{ConvError, Place, codes};
 use crate::ir::{AnonKind, Dom, Element, Ix, Node};
 use crate::plan::{CondK, Plan, PlanNode, token_capable};
-use crate::select::Pseudo;
 
 /// One overlay of values: `(property index, value)`.
 pub type Set = Vec<(usize, String)>;
@@ -537,11 +536,7 @@ pub fn compile(
         for &bit in &keep {
             let cs = &pn.conds[bit];
             let kind = match &cs.kind {
-                CondK::Pseudo(Pseudo::Hover) => CondKind::Hover,
-                CondK::Pseudo(Pseudo::Active) => CondKind::Active,
-                CondK::Pseudo(Pseudo::Focus) => CondKind::Focus,
-                CondK::Pseudo(Pseudo::FocusVisible) => CondKind::FocusVisible,
-                CondK::Pseudo(Pseudo::Disabled) => CondKind::Disabled,
+                CondK::Pseudo(p) => p.cond_kind(),
                 CondK::Class(k) => CondKind::Class(cx.strs.id(k)),
             };
             conds.push(Cond { up: cs.up, kind });
