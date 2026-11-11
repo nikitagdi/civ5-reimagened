@@ -2,7 +2,7 @@
 //!
 //! ```text
 //! ui2-convert check  <skin> [--dump-ir <file>] [--from-ir <file>]
-//! ui2-convert build  <skin>        (not yet: package writing)
+//! ui2-convert build  <skin> [--dump-ir <file>]   (the package in target/ui2/<id>/)
 //! ui2-convert verify <skin>        (not yet: layout check against the runtime)
 //! ```
 //!
@@ -95,11 +95,10 @@ fn main() -> ExitCode {
                 },
                 None => None,
             };
-            let input = match &stored {
-                Some(t) => Input::Dump(t),
-                None => Input::Chrome,
+            let run = match &stored {
+                Some(t) => check_skin(&dir, Input::Dump(t)),
+                None => ui2_convert::build::build(&dir, false).run,
             };
-            let run = check_skin(&dir, input);
             if let (Some(path), Some(text)) = (&dump_ir, run.dump())
                 && let Err(e) = std::fs::write(path, text)
             {
@@ -108,10 +107,32 @@ fn main() -> ExitCode {
             }
             report(&run)
         }
-        "build" | "verify" => {
-            eprintln!(
-                "ui2-convert {cmd}: not implemented yet (package writing and the layout check come later); `check` runs every check that exists"
-            );
+        "build" => {
+            let out = ui2_convert::build::build(&dir, true);
+            if let (Some(path), Some(text)) = (&dump_ir, out.run.dump())
+                && let Err(e) = std::fs::write(path, text)
+            {
+                eprintln!("ui2-convert: cannot write {path}: {e}");
+                return ExitCode::from(2);
+            }
+            if let Some(w) = &out.written {
+                println!(
+                    "package: {} ({} bytes, blake3 {})",
+                    w.file_name,
+                    w.bytes.len(),
+                    w.hash
+                );
+                for (tag, n) in &w.sections {
+                    println!("  {tag} {n}");
+                }
+                for (what, n, max) in ui2_convert::write::budget(&w.sections) {
+                    println!("  budget {what}: {n} of {max}");
+                }
+            }
+            report(&out.run)
+        }
+        "verify" => {
+            eprintln!("ui2-convert verify: not implemented yet (the layout check comes later)");
             ExitCode::from(2)
         }
         other => {

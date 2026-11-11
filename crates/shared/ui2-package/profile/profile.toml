@@ -6,13 +6,14 @@
 #
 # prop.<name> fields:
 #   kind       how the value is parsed (see ValueKind in src/profile/props.rs)
-#   values     keywords of a `keyword` / `keyword-set` property; for the other kinds the extra
+#   values     keywords of a `keyword` / `keyword-set` property (of each item of a `keywords`
+#              list); for the other kinds the extra
 #              keywords allowed beside the value (`auto`, `none`, `normal`). For a `keyword-set`
 #              the first entry stands alone, the others combine.
 #   inherited  inherited by children (informational: Chrome already resolved it)
 #   anim       can be the target of a transition
 #   bind       can be set by data-bind-style-<name>
-#   token      a color that may refer to a root color token
+#   token      a color (shadow color, gradient stop color) that may refer to a root color token
 #   calc       calc() is allowed
 #   pct        a percentage is allowed in a length (default true)
 #   min, max   inclusive range of a number, integer, length (px) or time (ms)
@@ -162,6 +163,20 @@ prop.stroke-width = { kind = "length", pct = false, min = 0, inherited = true, i
 prop.stroke-linecap = { kind = "keyword", values = ["butt", "round", "square"], inherited = true, initial = "butt" }
 prop.stroke-linejoin = { kind = "keyword", values = ["miter", "round", "bevel"], inherited = true, initial = "miter" }
 
+# Background layers and outline (decoration). The background lists hold one entry per layer; Chrome
+# repeats the shorter lists to the number of images. Gradients take at most 4 stops each.
+prop.background-image = { kind = "images", token = true, calc = true, max_items = 4, initial = "none" }
+prop.background-size = { kind = "bg-sizes", bind = true, calc = true, min = 0, max_items = 4, initial = "auto" }
+prop.background-position-x = { kind = "lengths", calc = true, max_items = 4, initial = "0%" }
+prop.background-position-y = { kind = "lengths", calc = true, max_items = 4, initial = "0%" }
+prop.background-repeat = { kind = "repeats", max_items = 4, initial = "repeat" }
+prop.background-origin = { kind = "keywords", values = ["border-box", "padding-box", "content-box"], max_items = 4, initial = "padding-box" }
+prop.background-clip = { kind = "keywords", values = ["border-box", "padding-box", "content-box"], max_items = 4, initial = "border-box" }
+prop.outline-style = { kind = "keyword", values = ["none", "solid"], initial = "none" }
+prop.outline-width = { kind = "length", pct = false, min = 0, initial = "3px" }
+prop.outline-color = { kind = "color", anim = true, token = true, initial = "rgb(0, 0, 0)" }
+prop.outline-offset = { kind = "length", pct = false, initial = "0px" }
+
 # Ignored: documented, without effect.
 ignored."-webkit-font-smoothing" = { why = "the platform decides smoothing; it does not change layout" }
 ignored."text-rendering" = { why = "the text stack always uses its own shaping and rasterizer" }
@@ -297,6 +312,10 @@ error.E4-041 = { what = "sample state value is not in the skin state", hint = "d
 error.E4-042 = { what = "skin state value of an unsupported type", hint = "a state value is a bool, an integer, a float or a string" }
 error.E5-001 = { what = "SVG content outside the profile", hint = "an inline svg is a static picture: no text, script or foreignObject; write text as HTML" }
 error.E5-002 = { what = "icon reference outside the sprite", hint = "an icon is <use href=\"#id\"> of a symbol in the skin's sprite" }
+error.E5-003 = { what = "font face without a skin font file", hint = "point src: url() at a path listed in skin.toml [fonts.files], which maps it to a file under third_party/fonts" }
+error.E5-004 = { what = "font face not loaded", hint = "Chromium could not load the subset of the face; check the file and that the face is a TTF or OTF" }
+error.E5-005 = { what = "picture cannot be rasterized", hint = "pictures are png, webp or svg files inside the skin with a size from CSS" }
+error.E8-001 = { what = "package budget exceeded", hint = "the package holds at most 3 MB: fonts 1.2 MB, pictures 0.8 MB, scripts 750 KB, the rest 0.5 MB; use fewer or smaller pictures, fewer faces or a smaller subset" }
 error.E6-001 = { what = "untranslated text", hint = "put the text into the skin's l10n tables and show it with data-l10n, or bind it with data-bind-value" }
 error.E6-002 = { what = "text key not found", hint = "add the key to l10n/<lang>.toml of every language of the skin" }
 error.E6-003 = { what = "malformed text table or template", hint = "an l10n file is TOML with \"key\" = \"template\"; a template uses {1}, {1_Num}, {1: plural ...} like the game's texts" }
@@ -313,3 +332,5 @@ error.E9-002 = { what = "Node or Chromium failed", hint = "run npm ci in tools/p
 error.E9-003 = { what = "bad request on the converter protocol", hint = "a converter bug: the Node side refused a request" }
 error.E9-004 = { what = "skin folder or entry file not found", hint = "pass the skin id (skins/<id>) or a folder with skin.toml and the entry file" }
 error.E9-005 = { what = "preview script missing", hint = "includes and bindings are expanded by node/preview/preview.js; without it the page shows only the entry file" }
+error.E9-006 = { what = "font subsetter missing", hint = "install it: python -m pip install --user -r tools/ui-convert/fonts/requirements.txt (or point CIV5_PYTHON at a Python that has it)" }
+error.E9-007 = { what = "package not written", hint = "a converter bug or a file system problem: the package builder refused the data or the output folder is not writable" }

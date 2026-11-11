@@ -22,6 +22,7 @@
 // pseudo-classes forced over CDP). Then the same reads with the beacon sheet on, which replaces
 // every root color token by rgb(R, i >> 8, i & 255); R is the smallest value no base color uses.
 import { ProtocolError } from "./session.mjs";
+import { entryUrl, loadPage } from "./ir.mjs";
 
 /** Runs inside the page: indexes the nodes as ir.mjs numbers them, and installs helpers. */
 function installInPage() {
@@ -166,12 +167,12 @@ async function settle(page) {
 /**
  * Loads the entry page again and answers the plan. `page`, `server`, `entry` as in scanPage.
  */
-export async function extractPage({ page, server, entry, req }) {
+export async function extractPage({ page, server, entry, req, state = "" }) {
   checkRequest(req);
   server.reset();
   await page.setViewportSize({ width: req.cells[0][0], height: req.cells[0][1] });
-  await page.goto(`${server.url}/${entry}`, { waitUntil: "load" });
-  await page.evaluate(() => document.fonts.ready);
+  // The same page as the scan: extract mode of the preview, the scan's sample state.
+  await loadPage(page, entryUrl(server, entry, "extract", state));
   const count = await page.evaluate(installInPage);
   for (const n of req.nodes) if (n.id >= count) throw new ProtocolError("E9-003", `extract: node ${n.id} does not exist in the page`);
 

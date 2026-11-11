@@ -1,9 +1,9 @@
 //! Values of style bindings (`data-bind-style-<prop>`): the text a template renders, parsed by the type of the
 //! property, as the profile allows for bindable properties: lengths (`12px`, `62%`, `auto`), numbers, colors
-//! (`#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()`, `transparent`, `var(--token)`) and transform lists
-//! (`translate`, `translateX`, `translateY`, `rotate`, `scale`, `scaleX`, `scaleY`).
+//! (`#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()`, `transparent`, `var(--token)`), transform lists
+//! (`translate`, `translateX`, `translateY`, `rotate`, `scale`, `scaleX`, `scaleY`) and background sizes.
 
-use ui2_package::style::{ColorV, Len, LenAuto, TFn};
+use ui2_package::style::{BgSize, ColorV, Len, LenAuto, TFn};
 use ui2_package::{Package, PropId, TokenId};
 
 use crate::style::OverValue;
@@ -150,6 +150,32 @@ fn transform(s: &str) -> Option<Vec<TFn>> {
     Some(out)
 }
 
+/// `background-size`: a comma list of `auto`, `cover`, `contain` or one or two lengths/`auto` (one value is
+/// the width; the height is then `auto`).
+fn bg_size(s: &str) -> Option<Vec<BgSize>> {
+    let len_auto = |t: &str| {
+        if t == "auto" {
+            Some(LenAuto::Auto)
+        } else {
+            len(t).map(LenAuto::Len)
+        }
+    };
+    s.split(',')
+        .map(|item| {
+            let item = item.trim();
+            match item {
+                "cover" => Some(BgSize::Cover),
+                "contain" => Some(BgSize::Contain),
+                _ => match item.split_whitespace().collect::<Vec<_>>().as_slice() {
+                    [w] => Some(BgSize::Size(len_auto(w)?, LenAuto::Auto)),
+                    [w, h] => Some(BgSize::Size(len_auto(w)?, len_auto(h)?)),
+                    _ => None,
+                },
+            }
+        })
+        .collect()
+}
+
 /// The value of a bindable property from the text a binding rendered; `None` when it does not parse (the
 /// property keeps its previous value).
 pub(crate) fn parse(pkg: &Package, prop: PropId, text: &str) -> Option<OverValue> {
@@ -174,6 +200,7 @@ pub(crate) fn parse(pkg: &Package, prop: PropId, text: &str) -> Option<OverValue
         },
         PropId::Color | PropId::BackgroundColor => color(pkg, t).map(OverValue::Color),
         PropId::Transform => transform(t).map(OverValue::Transform),
+        PropId::BackgroundSize => bg_size(t).map(OverValue::BgSize),
         _ => None,
     }
 }
@@ -201,5 +228,33 @@ mod tests {
             ])
         );
         assert_eq!(transform("skew(3deg)"), None);
+    }
+
+    #[test]
+    fn background_sizes_parse() {
+        let pct = |v: f32| LenAuto::Len(Len::pct(v));
+        assert_eq!(
+            bg_size("12.6667% 100%"),
+            Some(vec![BgSize::Size(pct(12.6667), pct(100.0))])
+        );
+        assert_eq!(
+            bg_size("50%"),
+            Some(vec![BgSize::Size(pct(50.0), LenAuto::Auto)])
+        );
+        assert_eq!(
+            bg_size(" auto "),
+            Some(vec![BgSize::Size(LenAuto::Auto, LenAuto::Auto)])
+        );
+        assert_eq!(bg_size("cover"), Some(vec![BgSize::Cover]));
+        assert_eq!(bg_size("contain"), Some(vec![BgSize::Contain]));
+        assert_eq!(
+            bg_size("auto 4px, cover"),
+            Some(vec![
+                BgSize::Size(LenAuto::Auto, LenAuto::Len(Len::px(4.0))),
+                BgSize::Cover
+            ])
+        );
+        assert_eq!(bg_size("1px 2px 3px"), None);
+        assert_eq!(bg_size("big"), None);
     }
 }

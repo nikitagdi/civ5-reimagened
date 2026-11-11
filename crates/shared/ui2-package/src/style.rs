@@ -177,6 +177,75 @@ pub struct Transition {
     pub ease: [f32; 4],
 }
 
+/// One layer of `background-image`. Only gradients for now; picture layers (`url()`) are refused by
+/// the profile parser until pictures can be baked.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum BgImage {
+    /// A linear or conic gradient.
+    Gradient(Gradient),
+}
+
+/// A `linear-gradient`, `conic-gradient` or one of their `repeating-` forms.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Gradient {
+    /// A conic gradient (centered; `dir` is its `from` angle) instead of a linear one.
+    pub conic: bool,
+    /// The `repeating-` form.
+    pub repeating: bool,
+    /// The direction of a linear gradient, or the start angle of a conic one.
+    pub dir: GradDir,
+    /// The color stops, 2 to 4.
+    pub stops: Vec<Stop>,
+}
+
+/// The direction of a gradient.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum GradDir {
+    /// Degrees. Linear: the CSS gradient angle (0 points to the top, 90 to the right). Conic: the
+    /// `from` angle, clockwise from the top.
+    Angle(f32),
+    /// `to <side or corner>` (linear only); a corner angle depends on the box size.
+    To(Side),
+}
+
+/// One color stop. A conic stop position given in degrees is stored as percent of a full turn
+/// (`deg / 3.6`); `None` means the position is spread evenly as in CSS.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Stop {
+    /// The color.
+    pub color: ColorV,
+    /// The position along the gradient line.
+    pub pos: Option<Len>,
+}
+
+/// One layer of `background-size`.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum BgSize {
+    /// `cover`.
+    Cover,
+    /// `contain`.
+    Contain,
+    /// Width and height; `auto` is `Size(Auto, Auto)`.
+    Size(LenAuto, LenAuto),
+}
+
+/// One layer of `background-repeat`, per axis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BgRepeat {
+    /// Horizontal.
+    pub x: Repeat,
+    /// Vertical.
+    pub y: Repeat,
+}
+
+impl BgRepeat {
+    /// `repeat` on both axes.
+    pub const REPEAT: BgRepeat = BgRepeat {
+        x: Repeat::Repeat,
+        y: Repeat::Repeat,
+    };
+}
+
 // ---------------------------------------------------------------------------------------------
 // Keyword enums
 
@@ -329,6 +398,26 @@ keyword_enum! {
     /// `stroke-linejoin`.
     StrokeLinejoin { Miter => "miter", Round => "round", Bevel => "bevel", }
 }
+keyword_enum! {
+    /// The side or corner of a `to ...` gradient direction (a corner is two words in any order).
+    Side {
+        Top => "top", Right => "right", Bottom => "bottom", Left => "left",
+        TopLeft => "top left", TopRight => "top right", BottomLeft => "bottom left",
+        BottomRight => "bottom right",
+    }
+}
+keyword_enum! {
+    /// One axis of `background-repeat`.
+    Repeat { Repeat => "repeat", NoRepeat => "no-repeat", }
+}
+keyword_enum! {
+    /// `background-origin` and `background-clip`.
+    BgBox { BorderBox => "border-box", PaddingBox => "padding-box", ContentBox => "content-box", }
+}
+keyword_enum! {
+    /// `outline-style`.
+    OutlineStyle { None => "none", Solid => "solid", }
+}
 
 /// `font-variant-numeric`: the figure features the shaper turns on (`tnum`, `pnum`, `lnum`,
 /// `onum`). They are never frozen into the font.
@@ -426,6 +515,39 @@ impl Finite for Transition {
             && self.ease.iter().all(|v| v.is_finite())
     }
 }
+impl Finite for GradDir {
+    fn finite(&self) -> bool {
+        match self {
+            GradDir::Angle(a) => a.is_finite(),
+            GradDir::To(_) => true,
+        }
+    }
+}
+impl Finite for Stop {
+    fn finite(&self) -> bool {
+        self.pos.is_none_or(|p| p.is_finite())
+    }
+}
+impl Finite for Gradient {
+    fn finite(&self) -> bool {
+        self.dir.finite() && self.stops.finite()
+    }
+}
+impl Finite for BgImage {
+    fn finite(&self) -> bool {
+        match self {
+            BgImage::Gradient(g) => g.finite(),
+        }
+    }
+}
+impl Finite for BgSize {
+    fn finite(&self) -> bool {
+        match self {
+            BgSize::Cover | BgSize::Contain => true,
+            BgSize::Size(w, h) => w.finite() && h.finite(),
+        }
+    }
+}
 impl<T: Finite> Finite for Vec<T> {
     fn finite(&self) -> bool {
         self.iter().all(Finite::finite)
@@ -450,7 +572,8 @@ always_finite!(
     Paint,
     StrId,
     NumericFeatures,
-    TextDecoration
+    TextDecoration,
+    BgRepeat
 );
 
 // ---------------------------------------------------------------------------------------------
@@ -610,6 +733,19 @@ style_record! {
     stroke_width: Len = StrokeWidth, Len::px(1.0);
     stroke_linecap: StrokeLinecap = StrokeLinecap, StrokeLinecap::Butt;
     stroke_linejoin: StrokeLinejoin = StrokeLinejoin, StrokeLinejoin::Miter;
+    background_image: Vec<BgImage> = BackgroundImage, Vec::new();
+    background_size: Vec<BgSize> = BackgroundSize, vec![BgSize::Size(LenAuto::Auto, LenAuto::Auto)];
+    background_position_x: Vec<Len> = BackgroundPositionX, vec![Len::ZERO];
+    background_position_y: Vec<Len> = BackgroundPositionY, vec![Len::ZERO];
+    background_repeat: Vec<BgRepeat> = BackgroundRepeat, vec![BgRepeat::REPEAT];
+    background_origin: Vec<BgBox> = BackgroundOrigin, vec![BgBox::PaddingBox];
+    background_clip: Vec<BgBox> = BackgroundClip, vec![BgBox::BorderBox];
+    outline_style: OutlineStyle = OutlineStyle, OutlineStyle::None;
+    // Chrome reports the `medium` width (3px) even while the style is `none`.
+    outline_width: Len = OutlineWidth, Len::px(3.0);
+    // The initial `currentcolor`, as Chrome resolves it for the initial `color`.
+    outline_color: ColorV = OutlineColor, BLACK;
+    outline_offset: Len = OutlineOffset, Len::ZERO;
 }
 
 impl Default for StyleRecord {

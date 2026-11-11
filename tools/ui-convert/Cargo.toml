@@ -31,3 +31,12 @@ serde.workspace = true
 postcard.workspace = true
 serde_json.workspace = true
 toml.workspace = true
+# Font and picture blobs are zstd frames (level 19); package and cache keys are blake3.
+zstd.workspace = true
+blake3.workspace = true
+
+[dev-dependencies]
+# The end-to-end layout check runs the package in the runtime with the text engine (tool -> client).
+ui2-runtime.workspace = true
+ui2-text.workspace = true
+ui2-draw.workspace = true

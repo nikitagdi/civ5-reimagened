@@ -14,7 +14,7 @@ pub mod select;
 pub mod tokens;
 
 use ui2_package::PropId;
-use ui2_package::style::{ColorV, LenAuto, StyleRecord, TFn};
+use ui2_package::style::{BgSize, ColorV, LenAuto, StyleRecord, TFn};
 use ui2_package::{StyleId, StyleSetId, Styles};
 
 use crate::Env;
@@ -33,6 +33,8 @@ pub enum OverValue {
     Color(ColorV),
     /// A transform list (`transform`).
     Transform(Vec<TFn>),
+    /// Background sizes, one per layer (`background-size`).
+    BgSize(Vec<BgSize>),
 }
 
 /// The style properties bindings set on a node, on top of its selected record (like an inline style in
@@ -78,6 +80,7 @@ pub fn bindable(prop: PropId) -> bool {
             | PropId::BackgroundColor
             | PropId::Opacity
             | PropId::Transform
+            | PropId::BackgroundSize
     )
 }
 
@@ -96,6 +99,7 @@ fn apply_over(r: &mut StyleRecord, prop: PropId, value: &OverValue) {
         (PropId::Color, OverValue::Color(c)) => r.color = *c,
         (PropId::BackgroundColor, OverValue::Color(c)) => r.background_color = *c,
         (PropId::Transform, OverValue::Transform(t)) => r.transform = t.clone(),
+        (PropId::BackgroundSize, OverValue::BgSize(s)) => r.background_size = s.clone(),
         _ => {}
     }
 }
@@ -362,6 +366,17 @@ pub fn diff(a: &StyleRecord, b: &StyleRecord) -> Dirty {
         stroke_width,
         stroke_linecap,
         stroke_linejoin,
+        background_image,
+        background_size,
+        background_position_x,
+        background_position_y,
+        background_repeat,
+        background_origin,
+        background_clip,
+        outline_style,
+        outline_width,
+        outline_color,
+        outline_offset,
         transitions: _,
     } = a;
     let mut d = Dirty::NONE;
@@ -392,7 +407,10 @@ pub fn diff(a: &StyleRecord, b: &StyleRecord) -> Dirty {
         border_bottom_color, border_left_color, border_top_left_radius, border_top_right_radius,
         border_bottom_right_radius, border_bottom_left_radius, box_shadow, text_shadow, transform,
         transform_origin, text_decoration_line, fill, stroke, stroke_width, stroke_linecap,
-        stroke_linejoin,
+        stroke_linejoin, background_image, background_size, background_position_x,
+        background_position_y, background_repeat, background_origin, background_clip,
+        // An outline takes no space: it is paint only.
+        outline_style, outline_width, outline_color, outline_offset,
     );
     d
 }
@@ -420,6 +438,10 @@ mod tests {
         let mut c = a.clone();
         c.text_overflow = ui2_package::style::TextOverflow::Ellipsis;
         assert_eq!(diff(&a, &c), Dirty::TEXT);
+        let mut c = a.clone();
+        c.outline_width = Len::px(8.0);
+        c.background_size = vec![ui2_package::style::BgSize::Cover];
+        assert_eq!(diff(&a, &c), Dirty::PAINT);
     }
 
     #[test]

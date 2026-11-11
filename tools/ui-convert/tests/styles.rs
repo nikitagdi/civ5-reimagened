@@ -73,23 +73,34 @@ fn styles_fixture_matches_the_plan() {
 }
 
 #[test]
-fn styles_mbtn_hover_gives_two_variants() {
+fn styles_mbtn_hover_and_focus_give_four_variants() {
     let run = top();
     let s = styles(&run);
     let dom = Dom::new(&run.scanned.as_ref().unwrap().ir.dom);
     let b = find(&dom, &["mbtn"], Some("top.menu.tech"));
     let set = s.set_of(b.id).expect("set");
-    // :focus-visible changes only the outline, which the profile does not have yet: dropped.
+    // :hover changes the colors, :focus-visible the outline: two conditions, four variants.
     assert_eq!(
         set.conds,
-        [Cond {
-            up: 0,
-            kind: CondKind::Hover
-        }]
+        [
+            Cond {
+                up: 0,
+                kind: CondKind::Hover
+            },
+            Cond {
+                up: 0,
+                kind: CondKind::FocusVisible
+            }
+        ]
     );
-    assert_eq!(s.variant_count(b.id), 2);
+    assert_eq!(s.variant_count(b.id), 4);
     let base = s.record_of(b.id, 0, 0).unwrap();
     let hover = s.record_of(b.id, 0, 1).unwrap();
+    let focus = s.record_of(b.id, 0, 2).unwrap();
+    assert_eq!(focus.outline_style, ui2_package::style::OutlineStyle::Solid);
+    assert_eq!(focus.outline_color, token(s, "--brass"));
+    assert_eq!(focus.outline_offset, ui2_package::style::Len::px(-2.0));
+    assert_eq!(base.outline_style, ui2_package::style::OutlineStyle::None);
     assert_eq!(base.color, token(s, "--bone-3"));
     assert_eq!(hover.color, token(s, "--bone"));
     assert_eq!(base.background_color, ColorV::Lit([0, 0, 0, 0]));
@@ -300,4 +311,38 @@ fn styles_values_outside_the_profile_are_errors_with_the_node() {
         .unwrap();
     assert!(e.why.contains("computed by Chrome"), "{e}");
     assert!(e.place.line > 0);
+}
+
+#[test]
+fn styles_research_ticks_are_a_repeating_gradient_with_a_token_stop() {
+    use ui2_package::style::{BgImage, BgSize, GradDir, Len, LenAuto, Repeat, Side};
+    let run = top();
+    let s = styles(&run);
+    let dom = Dom::new(&run.scanned.as_ref().unwrap().ir.dom);
+    let ticks = find(&dom, &["ticks"], None);
+    let r = s.record_of(ticks.id, 0, 0).unwrap();
+    assert_eq!(r.background_image.len(), 1);
+    let BgImage::Gradient(g) = &r.background_image[0];
+    assert!(!g.conic && !g.repeating);
+    assert_eq!(g.dir, GradDir::To(Side::Right));
+    assert_eq!(g.stops.len(), 2);
+    assert_eq!(g.stops[0].color, ColorV::Lit([0, 0, 0, 0]));
+    assert_eq!(g.stops[1].color, token(s, "--lacquer"));
+    assert_eq!(
+        g.stops[1].pos,
+        Some(Len {
+            px: -1.0,
+            pct: 100.0
+        })
+    );
+    assert_eq!(r.background_repeat[0].x, Repeat::Repeat);
+    assert_eq!(r.background_repeat[0].y, Repeat::NoRepeat);
+    // The markup's inline size (the binding replaces it at run time).
+    assert_eq!(
+        r.background_size,
+        [BgSize::Size(
+            LenAuto::Len(Len::pct(12.6667)),
+            LenAuto::Len(Len::pct(100.0))
+        )]
+    );
 }

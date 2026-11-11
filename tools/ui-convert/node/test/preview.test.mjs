@@ -81,7 +81,7 @@ test("engraved: includes are expanded and the strip shows the mockup numbers", a
     assert.equal(await page.evaluate(() => document.querySelectorAll("[data-include]").length), 0, "no include left");
     assert.equal(await page.evaluate(() => !!document.querySelector('header.top[data-part="top"]')), true, "top.html is in");
     assert.equal(await page.evaluate(() => !!document.querySelector("svg symbol#i-sci")), true, "icons.svg is in");
-    assert.equal(await page.evaluate(() => document.querySelectorAll('script[src$="preview.js"]').length), 1, "only the page's own script tag");
+    assert.equal(await page.evaluate(() => document.querySelectorAll('script[src$="preview.js"]').length), 0, "the preview script removed its own tag");
 
     const t = (part, sel) => text(page, `[data-part="top.yield.${part}"] ${sel}`);
     assert.equal(await t("science", ".v"), "+48");

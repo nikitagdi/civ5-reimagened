@@ -83,6 +83,11 @@ fn vectors_cover_every_error_code_and_value_kind() {
         ValueKind::Properties,
         ValueKind::Families,
         ValueKind::LineHeight,
+        ValueKind::Images,
+        ValueKind::BgSizes,
+        ValueKind::Lengths,
+        ValueKind::Repeats,
+        ValueKind::Keywords,
     ] {
         assert!(
             kinds.contains(&format!("{kind:?}")),
@@ -221,6 +226,67 @@ fn a_value_of_the_wrong_kind_does_not_fit() {
         record.set_value(PropId::TransitionDuration, &times, &mut no_strings),
         Err(ui2_package::style::StyleError::Transition(_))
     ));
+}
+
+#[test]
+fn background_and_outline_values_fill_the_record() {
+    use ui2_package::style::{
+        BgImage, BgRepeat, BgSize, ColorV, GradDir, Len, LenAuto, OutlineStyle, Repeat, Side,
+    };
+    let mut r = StyleRecord::initial();
+    for (id, text) in [
+        (
+            PropId::BackgroundImage,
+            "linear-gradient(to right, rgba(0, 0, 0, 0) calc(100% - 1px), rgb(27, 24, 21) calc(100% - 1px))",
+        ),
+        (PropId::BackgroundSize, "12.6667% 100%"),
+        (PropId::BackgroundRepeat, "repeat-x"),
+        (PropId::OutlineStyle, "solid"),
+        (PropId::OutlineWidth, "1px"),
+        (PropId::OutlineColor, "rgb(201, 163, 106)"),
+        (PropId::OutlineOffset, "-2px"),
+    ] {
+        let value = parse_value(id, text).unwrap_or_else(|e| panic!("{}: {e}", id.name()));
+        r.set_value(id, &value, &mut no_strings)
+            .unwrap_or_else(|e| panic!("{}: {e}", id.name()));
+    }
+    let [BgImage::Gradient(g)] = r.background_image.as_slice() else {
+        panic!("one layer");
+    };
+    assert!(!g.conic && !g.repeating);
+    assert_eq!(g.dir, GradDir::To(Side::Right));
+    assert_eq!(g.stops[0].color, ColorV::Lit([0, 0, 0, 0]));
+    assert_eq!(
+        g.stops[1].pos,
+        Some(Len {
+            px: -1.0,
+            pct: 100.0
+        })
+    );
+    assert_eq!(
+        r.background_size,
+        [BgSize::Size(
+            LenAuto::Len(Len::pct(12.6667)),
+            LenAuto::Len(Len::pct(100.0))
+        )]
+    );
+    assert_eq!(
+        r.background_repeat,
+        [BgRepeat {
+            x: Repeat::Repeat,
+            y: Repeat::NoRepeat
+        }]
+    );
+    assert_eq!(r.outline_style, OutlineStyle::Solid);
+    assert_eq!(r.outline_width, Len::px(1.0));
+    assert_eq!(r.outline_color, ColorV::Lit([201, 163, 106, 255]));
+    assert_eq!(r.outline_offset, Len::px(-2.0));
+    assert!(r.is_finite());
+
+    let e = parse_value(PropId::OutlineStyle, "auto").expect_err("auto");
+    assert!(e.message.contains(":focus-visible"), "{e}");
+    let e = parse_value(PropId::BackgroundImage, "url(\"a.png\")").expect_err("url");
+    assert!(e.message.contains("not baked yet"), "{e}");
 }
 
 #[test]
