@@ -4,6 +4,7 @@
 
 use protocol::Command;
 use ui2_model::generated::{BuyWith, Opt, Production, PushAt, RefuseWhy};
+use ui2_model::target::{city_target, option_target};
 use ui2_model::{Key, ModelStore};
 
 use crate::intent::Intent;
@@ -81,7 +82,7 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
                     )
                 }
             };
-            ctx.send(cmd, name, target.to_js(), None);
+            ctx.send(cmd, name, option_target(city, target), None);
         }
         "production.pop" | "production.move" => queue_edit(ctx, intent, city, window),
         "production.buy" => {
@@ -139,7 +140,7 @@ fn queue_edit(ctx: &mut Ctx<'_>, intent: &Intent, city: Key, window: Option<&Pro
     };
     match cmd {
         Some(cmd) => {
-            ctx.send(cmd, intent.name(), city.to_js(), None);
+            ctx.send(cmd, intent.name(), city_target(city), None);
         }
         None => ctx.refuse(RefuseWhy::BadSlot),
     }
@@ -171,7 +172,7 @@ fn buy(ctx: &mut Ctx<'_>, city: Key, item: Key, with: BuyWith, window: Option<&P
             yield_,
         },
         "production.buy",
-        item.to_js(),
+        option_target(city, item),
         None,
     );
 }

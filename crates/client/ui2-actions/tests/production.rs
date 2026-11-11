@@ -117,7 +117,10 @@ fn choose_replaces_the_queue_with_the_item() {
     assert!(matches!(rig.sent()[0], Sent::Command { turn: 42, .. }));
     let row = rig.ui().pending.iter().next().unwrap().clone();
     assert_eq!(&*row.intent, "production.choose");
-    assert_eq!(&*row.target, item(1, 7).to_js());
+    assert_eq!(
+        &*row.target, "city/0:20/0:65543",
+        "the source looks up `option_target`"
+    );
     assert!(rig.toasts().is_empty());
 }
 
@@ -267,7 +270,7 @@ fn pop_removes_a_slot_of_the_queue() {
         vec![Command::CityQueuePop { city: 20, slot: 2 }]
     );
     let row = rig.ui().pending.iter().next().unwrap().clone();
-    assert_eq!(&*row.target, key(20).to_js());
+    assert_eq!(&*row.target, "city/0:20");
 }
 
 #[test]
@@ -340,6 +343,14 @@ fn buy_with_gold_and_with_faith() {
             },
         ]
     );
+    // Both rows name the option of the city (item 1:3 is the key 65539), as the source looks it up.
+    let rows: Vec<_> = rig
+        .ui()
+        .pending
+        .iter()
+        .map(|p| p.target.to_string())
+        .collect();
+    assert_eq!(rows, vec!["city/0:20/0:65539"; 2]);
 }
 
 #[test]
@@ -444,7 +455,7 @@ fn research_now_and_queued() {
 }
 
 fn tk_text(id: u32) -> String {
-    Key::from_u32(id).to_js()
+    format!("tech/0:{id}")
 }
 
 #[test]

@@ -63,8 +63,9 @@ fn reject_why(code: RejectCode) -> RefuseWhy {
 }
 
 impl UiState {
-    /// Show an order as waiting. `target` names what it is about (the key of the unit, item, tech or city in its
-    /// `Key::to_js` form, or `turn`), which is how the source marks `unit.pending` and `Opt.pending`.
+    /// Show an order as waiting. `target` names what it is about, spelled by [`ui2_model::target`] (the unit,
+    /// the item of a city, the city, the tech, or the turn): the source looks the same spelling up to mark
+    /// `unit.pending` and `Opt.pending`.
     pub(crate) fn track(
         &mut self,
         id: CmdId,

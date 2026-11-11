@@ -174,7 +174,7 @@ fn an_answer_settles_each_order_by_its_own_id() {
         .iter()
         .map(|p| p.target.to_string())
         .collect();
-    assert_eq!(left, vec![key(1).to_js()]);
+    assert_eq!(left, vec!["unit/0:1".to_string()]);
 }
 
 fn end(rig: &mut Rig) {

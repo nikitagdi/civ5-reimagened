@@ -6,6 +6,8 @@ use ui2_model::generated::{
     Game, Meta, Phase, RefuseWhy, ScreenId, Turn, TurnPending, TurnUi, WindowId,
 };
 
+use ui2_model::target::TURN_TARGET;
+
 use crate::intent::Intent;
 use crate::route::{Ctx, unit, window};
 
@@ -74,7 +76,7 @@ fn end(ctx: &mut Ctx<'_>, force: bool) {
     ctx.send(
         Command::EndTurn { force },
         "turn.end",
-        "turn".into(),
+        TURN_TARGET.into(),
         Some(TurnPending::Ending),
     );
 }
@@ -95,7 +97,7 @@ fn cancel(ctx: &mut Ctx<'_>) {
     ctx.send(
         Command::CancelEndTurn,
         "turn.cancel",
-        "turn".into(),
+        TURN_TARGET.into(),
         Some(TurnPending::Cancelling),
     );
 }
