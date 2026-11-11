@@ -3937,12 +3937,15 @@ dependencies = [
 name = "ui2-host"
 version = "0.1.0"
 dependencies = [
+ "client-core",
  "loc",
+ "protocol",
  "replica",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
  "tracing",
+ "ui2-actions",
  "ui2-draw",
  "ui2-model",
  "ui2-package",
