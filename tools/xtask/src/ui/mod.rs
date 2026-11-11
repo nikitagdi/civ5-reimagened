@@ -1,6 +1,7 @@
 //! `cargo xtask ui ...`: UI v2 tooling.
 
 mod gen_model;
+pub mod web;
 
 use std::path::Path;
 

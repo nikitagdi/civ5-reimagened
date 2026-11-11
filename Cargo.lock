@@ -3921,6 +3921,7 @@ dependencies = [
  "serde_json",
  "toml",
  "ui2-draw",
+ "ui2-host",
  "ui2-model",
  "ui2-package",
  "ui2-runtime",

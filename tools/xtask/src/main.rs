@@ -635,11 +635,13 @@ fn cmd_build(root: &Path, args: &[String]) -> Result<()> {
         }
     }
     let web = |root: &Path| {
-        if threads {
-            build_web_threads(root, release)
+        let dir = if threads {
+            build_web_threads(root, release)?
         } else {
-            build_web(root, release)
-        }
+            build_web(root, release)?
+        };
+        ui::web::build_skins(root, &dir)?;
+        Ok::<_, anyhow::Error>(dir)
     };
     match only.as_deref() {
         None => {

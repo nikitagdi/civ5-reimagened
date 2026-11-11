@@ -26,6 +26,7 @@ pub mod build;
 pub mod check;
 pub mod errors;
 pub mod fonts;
+pub mod index;
 pub mod ir;
 pub mod l10n;
 pub mod node;
