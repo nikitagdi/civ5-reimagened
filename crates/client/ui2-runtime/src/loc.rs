@@ -14,6 +14,86 @@ use ui2_model::Text;
 use ui2_package::Package;
 use ui2_package::profile::expr::Value;
 
+/// A piece of a text with the game's markup taken out: its text (`[NEWLINE]` is a line feed) and the color
+/// tag around it (`POSITIVE_TEXT` of `[COLOR_POSITIVE_TEXT]`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Piece {
+    pub text: String,
+    pub color: Option<String>,
+}
+
+/// The game's markup in a shown text: `[NEWLINE]` breaks the line, `[COLOR_X]...[ENDCOLOR]` colors a piece,
+/// `[ICON_X]` is cut out (the flag says one was). Other bracketed words stay as they are. A text without
+/// markup is one piece.
+pub(crate) fn split_markup(s: &str) -> (Vec<Piece>, bool) {
+    let mut pieces = Vec::new();
+    let mut cur = String::new();
+    let mut color: Option<String> = None;
+    let mut icons = false;
+    let mut rest = s;
+    while let Some(open) = rest.find('[') {
+        cur.push_str(&rest[..open]);
+        let after = &rest[open + 1..];
+        let Some(close) = after.find(']') else {
+            cur.push_str(&rest[open..]);
+            rest = "";
+            break;
+        };
+        let tag = &after[..close];
+        let word = tag
+            .bytes()
+            .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_');
+        match tag {
+            "NEWLINE" => cur.push('\n'),
+            "ENDCOLOR" => {
+                if !cur.is_empty() {
+                    pieces.push(Piece {
+                        text: std::mem::take(&mut cur),
+                        color: color.take(),
+                    });
+                }
+                color = None;
+            }
+            t if word && t.starts_with("COLOR_") => {
+                if !cur.is_empty() {
+                    pieces.push(Piece {
+                        text: std::mem::take(&mut cur),
+                        color: color.clone(),
+                    });
+                }
+                color = Some(t["COLOR_".len()..].to_string());
+            }
+            t if word && t.starts_with("ICON_") => {
+                // SIMPLIFIED(SIMP-228): icons in game texts ([ICON_*]) are cut out and reported once; the profile allows no pictures inside text
+                icons = true;
+            }
+            _ => cur.push_str(&rest[open..open + close + 2]),
+        }
+        rest = &after[close + 1..];
+    }
+    cur.push_str(rest);
+    if !cur.is_empty() || pieces.is_empty() {
+        pieces.push(Piece { text: cur, color });
+    }
+    (pieces, icons)
+}
+
+/// The color token of a markup color: `--ui-loc-<x>` (lower case, `_` as `-`), as a root token or a
+/// synonym; `None` when the skin has none (the text keeps its color).
+pub(crate) fn markup_color(pkg: &Package, tag: &str) -> Option<ui2_package::style::ColorV> {
+    let name = format!("--ui-loc-{}", tag.to_ascii_lowercase().replace('_', "-"));
+    let id = pkg.str_id(&name)?;
+    let tokens = pkg.tokens();
+    let tok = tokens.alias(id).or_else(|| {
+        tokens
+            .roots
+            .iter()
+            .position(|(n, _)| *n == id)
+            .map(|i| ui2_package::TokenId(i as u32))
+    })?;
+    Some(ui2_package::style::ColorV::Tok(tok))
+}
+
 /// The localization state of a runtime.
 pub(crate) struct SkinLoc {
     /// The host's localizer.
@@ -112,5 +192,39 @@ impl SkinLoc {
                 self.call(pkg, key, &args)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn p(text: &str, color: Option<&str>) -> Piece {
+        Piece {
+            text: text.into(),
+            color: color.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn markup_splits_colors_breaks_lines_and_cuts_icons() {
+        assert_eq!(split_markup("plain"), (vec![p("plain", None)], false));
+        assert_eq!(split_markup(""), (vec![p("", None)], false));
+        let (pieces, icons) =
+            split_markup("Gold[NEWLINE][COLOR_POSITIVE_TEXT]+5[ENDCOLOR] per turn [ICON_GOLD]");
+        assert!(icons);
+        assert_eq!(
+            pieces,
+            vec![
+                p("Gold\n", None),
+                p("+5", Some("POSITIVE_TEXT")),
+                p(" per turn ", None)
+            ]
+        );
+        // Unknown or unclosed brackets stay as text.
+        assert_eq!(
+            split_markup("[Esc] to close [x"),
+            (vec![p("[Esc] to close [x", None)], false)
+        );
     }
 }

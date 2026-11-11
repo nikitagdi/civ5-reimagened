@@ -560,11 +560,12 @@ impl<'a> Emitter<'a> {
         let k = self.k;
         let cw = content.w / k;
         let mut items = Vec::new();
-        for line in &ifc.lines.lines {
+        let shown = ifc.shown();
+        for line in &shown.lines.lines {
             let lx = ifc.line_x(line, cw);
             let base = line.top + line.baseline;
             for seg in &line.segments {
-                let Some(run) = ifc.runs.get(seg.run) else {
+                let Some(run) = shown.run(seg.run) else {
                     continue;
                 };
                 // A text leaf is styled like its parent element (with that element's bound properties).
@@ -584,7 +585,8 @@ impl<'a> Emitter<'a> {
                 if r.visibility == Visibility::Hidden {
                     continue;
                 }
-                let color = self.color(r.color, s.alpha);
+                // A piece colored by markup (`[COLOR_X]`) has its token's color.
+                let color = self.color(run.color.unwrap_or(r.color), s.alpha);
                 let range = seg.start as u32..seg.end as u32;
                 let glyphs: Vec<GlyphPos> = run
                     .shaped

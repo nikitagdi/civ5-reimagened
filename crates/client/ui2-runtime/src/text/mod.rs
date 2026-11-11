@@ -6,23 +6,27 @@
 //! root. Each root keeps an [`Ifc`]: one shaped run per text leaf (runs are never shaped across an element
 //! boundary), the vertical metrics of every inline box, and the lines at the width layout gave it.
 //!
-//! Line boxes follow CSS: every inline box on a line (the root's strut, each inline element, each run) sits
-//! on the baseline with its half-leading (`floor((L - (ascent + descent)) / 2)` above the content area, the
-//! rule of the text spike); the line box spans the highest top to the lowest bottom.
+//! Line boxes, markup pieces and ellipsis are in [`ifc`]; `data-fit` in [`fit`].
 //!
-//! Shaping happens in the text pass (TEXT dirty nodes only); layout only breaks shaped runs into lines.
+//! Shaping happens in the text pass (TEXT dirty nodes only); layout only breaks shaped runs into lines;
+//! fitting runs after layout, for the roots whose room or text changed.
+
+pub mod fit;
+pub mod ifc;
 
 use std::sync::Arc;
 
-use ui2_package::Package;
 use ui2_package::style::{
-    Display, FontStyle, LenNormal, LineHeight as CssLineHeight, StyleRecord, TextAlign,
-    TextWrapMode,
+    Display, FontStyle, LenNormal, LineHeight as CssLineHeight, Overflow, StyleRecord,
+    TextOverflow, TextWrapMode,
 };
+use ui2_package::{BindKind, Package};
 use ui2_text::{
-    BreakOptions, FaceId, Line, LineHeight, LineMetrics, Lines, NumericFigure, NumericSpacing,
-    NumericVariant, RunStyle, ShapedRun, TextEngine, TextMeasure,
+    FaceId, Lines, NumericFigure, NumericSpacing, NumericVariant, RunStyle, ShapedRun, TextEngine,
+    TextMeasure,
 };
+
+pub use ifc::{Fitted, Ifc, InlineBox, InlineRect, Run, Shown, VMetrics};
 
 use crate::LoadError;
 use crate::arena::{Arena, Dirty, NodeClass, NodeId};
@@ -118,186 +122,6 @@ pub fn load_faces(pkg: &Package, engine: &mut TextEngine) -> Result<(), LoadErro
             .map_err(|e| LoadError::Fatal(format!("font {i}: {e}")))?;
     }
     Ok(())
-}
-
-/// Vertical metrics of an inline box: the font's metrics and the used line height.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct VMetrics {
-    /// Ascent, descent and gap of the box's first available font.
-    pub metrics: LineMetrics,
-    /// `line-height` in px.
-    pub line_height: f32,
-}
-
-impl VMetrics {
-    const ZERO: VMetrics = VMetrics {
-        metrics: LineMetrics {
-            ascent: 0.0,
-            descent: 0.0,
-            line_gap: 0.0,
-        },
-        line_height: 0.0,
-    };
-
-    /// Space above the baseline: the top half-leading (floored) plus the ascent.
-    pub fn above(self) -> f32 {
-        self.metrics.baseline_in(self.line_height)
-    }
-
-    /// Space below the baseline.
-    pub fn below(self) -> f32 {
-        self.line_height - self.above()
-    }
-}
-
-/// An inline element inside a root.
-#[derive(Debug, Clone)]
-pub struct InlineBox {
-    /// The element.
-    pub node: NodeId,
-    /// Its metrics.
-    pub vm: VMetrics,
-}
-
-/// One text leaf of a root.
-#[derive(Debug, Clone)]
-pub struct Run {
-    /// The text leaf.
-    pub node: NodeId,
-    /// The shaped text.
-    pub shaped: ShapedRun,
-    /// The metrics of the leaf (its parent's font and line height).
-    pub vm: VMetrics,
-    /// The inline elements around the leaf, innermost first (indices into [`Ifc::boxes`]).
-    pub boxes: Vec<usize>,
-}
-
-/// The inline layout of a root.
-#[derive(Debug, Clone)]
-pub struct Ifc {
-    /// Text leaves in document order.
-    pub runs: Vec<Run>,
-    /// Inline elements in document order.
-    pub boxes: Vec<InlineBox>,
-    /// The root's own font and line height (the strut every line starts with).
-    pub strut: VMetrics,
-    /// `white-space` allows wrapping.
-    pub wrap: bool,
-    /// `text-align` of the root.
-    pub align: TextAlign,
-    /// The lines at the width of the last full layout.
-    pub lines: Lines,
-    /// The content width of the last full layout (the width `lines` were broken at).
-    pub width: f32,
-}
-
-impl Ifc {
-    /// Breaks the runs at a width and builds the line boxes.
-    pub fn lines_at(&self, tm: &dyn TextMeasure, width: f32) -> Lines {
-        if self.runs.is_empty() {
-            return Lines::default();
-        }
-        let shaped: Vec<ShapedRun> = self.runs.iter().map(|r| r.shaped.clone()).collect();
-        let opts = BreakOptions {
-            max_width: width,
-            wrap: self.wrap,
-            line_height: LineHeight::Px(0.0),
-        };
-        let mut lines = tm.break_lines(&shaped, &opts);
-        let mut top = 0.0;
-        for line in &mut lines.lines {
-            let (mut above, mut below) = (self.strut.above(), self.strut.below());
-            let mut take = |vm: VMetrics| {
-                above = above.max(vm.above());
-                below = below.max(vm.below());
-            };
-            for seg in &line.segments {
-                if let Some(run) = self.runs.get(seg.run) {
-                    take(run.vm);
-                    for &b in &run.boxes {
-                        if let Some(b) = self.boxes.get(b) {
-                            take(b.vm);
-                        }
-                    }
-                }
-            }
-            line.top = top;
-            line.height = above + below;
-            line.baseline = above;
-            top += line.height;
-        }
-        lines.height = top;
-        lines
-    }
-
-    /// The x of a line inside a content box of `width` (`text-align`).
-    pub fn line_x(&self, line: &Line, width: f32) -> f32 {
-        let free = (width - line.width).max(0.0);
-        match self.align {
-            TextAlign::Start | TextAlign::Left => 0.0,
-            TextAlign::Center => free / 2.0,
-            TextAlign::End | TextAlign::Right => free,
-        }
-    }
-
-    /// The first baseline from the top of the content box.
-    pub fn first_baseline(lines: &Lines) -> Option<f32> {
-        lines.lines.first().map(|l| l.top + l.baseline)
-    }
-}
-
-/// A rectangle relative to the content box of a root.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct InlineRect {
-    /// The text leaf or inline element.
-    pub node: NodeId,
-    /// Left.
-    pub x: f32,
-    /// Top.
-    pub y: f32,
-    /// Width.
-    pub w: f32,
-    /// Height.
-    pub h: f32,
-}
-
-impl Ifc {
-    /// The rectangles of the text leaves and inline elements (the content areas Chrome reports for a text
-    /// range and an inline element), in a content box of `width`.
-    pub fn rects(&self, width: f32) -> Vec<InlineRect> {
-        let mut out: Vec<InlineRect> = Vec::new();
-        let mut union = |node: NodeId, x: f32, y: f32, w: f32, h: f32| {
-            if let Some(r) = out.iter_mut().find(|r| r.node == node) {
-                let x1 = (r.x + r.w).max(x + w);
-                let y1 = (r.y + r.h).max(y + h);
-                r.x = r.x.min(x);
-                r.y = r.y.min(y);
-                r.w = x1 - r.x;
-                r.h = y1 - r.y;
-            } else {
-                out.push(InlineRect { node, x, y, w, h });
-            }
-        };
-        for line in &self.lines.lines {
-            let lx = self.line_x(line, width);
-            let base = line.top + line.baseline;
-            for seg in &line.segments {
-                let Some(run) = self.runs.get(seg.run) else {
-                    continue;
-                };
-                let x = lx + seg.x;
-                let m = run.vm.metrics;
-                union(run.node, x, base - m.ascent, seg.width, m.content_height());
-                for &b in &run.boxes {
-                    if let Some(b) = self.boxes.get(b) {
-                        let m = b.vm.metrics;
-                        union(b.node, x, base - m.ascent, seg.width, m.content_height());
-                    }
-                }
-            }
-        }
-        out
-    }
 }
 
 /// What the text pass reads.
@@ -476,6 +300,7 @@ fn same_extent(old: &Ifc, new: &Ifc) -> bool {
         && old.runs.len() == new.runs.len()
         && old.runs.iter().zip(&new.runs).all(|(a, b)| {
             a.node == b.node
+                && a.piece == b.piece
                 && a.vm == b.vm
                 && a.boxes == b.boxes
                 && a.shaped.width == b.shaped.width
@@ -492,6 +317,8 @@ struct Built {
     shaped: u32,
     /// The root's box must be laid out again (its content takes another room).
     layout: bool,
+    /// The root fits its text to its box (`data-fit`).
+    fits: bool,
 }
 
 /// Builds the inline layout of a root (or removes it when the node is not a root any more).
@@ -517,13 +344,14 @@ fn build(
             return Built {
                 shaped: 0,
                 layout: had,
+                fits: false,
             };
         }
     }
     let old = arena.get_mut(root).and_then(|n| n.ifc.take());
-    let mut report = |arena: &Arena, id: NodeId, msg: &str| {
+    let mut report = |arena: &Arena, id: NodeId, code: ErrorCode, msg: &str| {
         let path = instantiate::node_path(arena, ctx.pkg, id);
-        errors.report(UiError::at(&path, ErrorCode::Font, msg));
+        errors.report(UiError::at(&path, code, msg));
     };
     let Some(root_rec) = ctx.record(arena, root).cloned() else {
         return Built::default();
@@ -531,7 +359,12 @@ fn build(
     let strut = match ctx.vmetrics(tm, &root_rec) {
         Some((_, _, vm)) => vm,
         None => {
-            report(arena, root, "no font face of the package matches");
+            report(
+                arena,
+                root,
+                ErrorCode::Font,
+                "no font face of the package matches",
+            );
             VMetrics::ZERO
         }
     };
@@ -553,42 +386,106 @@ fn build(
             continue;
         };
         let Some((_, style, vm)) = ctx.vmetrics(tm, &rec) else {
-            report(arena, node, "no font face of the package matches");
+            report(
+                arena,
+                node,
+                ErrorCode::Font,
+                "no font face of the package matches",
+            );
             continue;
         };
-        // A leaf whose text and style did not change keeps its shaped run.
-        let kept = old
-            .as_ref()
-            .and_then(|o| o.runs.iter().find(|r| r.node == node))
-            .filter(|r| r.shaped.style == style && *r.shaped.text == *text);
-        if let Some(prev) = kept {
-            runs.push(Run {
+        let (pieces, icons) = crate::loc::split_markup(&text);
+        if icons {
+            report(
+                arena,
                 node,
-                shaped: prev.shaped.clone(),
-                vm,
-                boxes: bxs,
-            });
-            continue;
+                ErrorCode::L10n,
+                "icons in a text ([ICON_*]) are not shown",
+            );
         }
-        shaped += 1;
-        match tm.shape(&style, &text) {
-            Ok(run) => runs.push(Run {
-                node,
-                shaped: run,
-                vm,
-                boxes: bxs,
-            }),
-            Err(e) => report(arena, node, &format!("text cannot be shaped: {e}")),
+        for (i, p) in pieces.into_iter().enumerate() {
+            let piece = i.min(usize::from(u16::MAX - 1)) as u16;
+            let color = p
+                .color
+                .as_deref()
+                .and_then(|c| crate::loc::markup_color(ctx.pkg, c));
+            // A piece whose text and style did not change keeps its shaped run.
+            let kept = old
+                .as_ref()
+                .and_then(|o| o.runs.iter().find(|r| r.node == node && r.piece == piece))
+                .filter(|r| r.shaped.style == style && *r.shaped.text == *p.text);
+            let run = match kept {
+                Some(prev) => Ok(prev.shaped.clone()),
+                None => {
+                    shaped += 1;
+                    tm.shape(&style, &p.text)
+                }
+            };
+            match run {
+                Ok(run) => runs.push(Run {
+                    node,
+                    piece,
+                    color,
+                    shaped: run,
+                    vm,
+                    boxes: bxs.clone(),
+                }),
+                Err(e) => report(
+                    arena,
+                    node,
+                    ErrorCode::Font,
+                    &format!("text cannot be shaped: {e}"),
+                ),
+            }
         }
     }
+    let wrap = root_rec.text_wrap_mode == TextWrapMode::Wrap;
+    // `text-overflow: ellipsis` cuts a single line that overflows a clipping box.
+    let clips = root_rec.overflow_x != Overflow::Visible;
+    let ellipsis = match runs.last() {
+        Some(last) if clips && !wrap && root_rec.text_overflow == TextOverflow::Ellipsis => {
+            let kept = old
+                .as_ref()
+                .and_then(|o| o.ellipsis.as_ref())
+                .filter(|e| e.shaped.style == last.shaped.style);
+            let shaped_ell = match kept {
+                Some(e) => Ok(e.shaped.clone()),
+                None => {
+                    shaped += 1;
+                    tm.shape(&last.shaped.style, "\u{2026}")
+                }
+            };
+            shaped_ell.ok().map(|s| Run {
+                piece: u16::MAX,
+                shaped: s,
+                ..last.clone()
+            })
+        }
+        _ => None,
+    };
+    let fit = arena.get(root).and_then(|n| {
+        let r = n.tmpl();
+        ctx.pkg
+            .bindings_of(r.0, r.1)
+            .iter()
+            .find_map(|b| match b.kind {
+                BindKind::Fit { min } => Some(min),
+                _ => None,
+            })
+    });
     let mut ifc = Ifc {
         runs,
         boxes,
         strut,
-        wrap: root_rec.text_wrap_mode == TextWrapMode::Wrap,
+        wrap,
         align: root_rec.text_align,
+        ellipsis,
+        fit: if class == NodeClass::Text { None } else { fit },
+        font_size: root_rec.font_size.px,
         lines: Lines::default(),
         width: 0.0,
+        fitted: None,
+        fit_key: None,
     };
     let layout = match &old {
         Some(o) if same_extent(o, &ifc) => {
@@ -599,10 +496,15 @@ fn build(
         }
         _ => true,
     };
+    let fits = ifc.fit.is_some();
     if let Some(n) = arena.get_mut(root) {
         n.ifc = Some(Box::new(ifc));
     }
-    Built { shaped, layout }
+    Built {
+        shaped,
+        layout,
+        fits,
+    }
 }
 
 /// What one text pass did.
@@ -619,6 +521,7 @@ pub(crate) fn pass(
     arena: &mut Arena,
     tm: &mut dyn TextMeasure,
     errors: &mut ErrorSink,
+    fit_roots: &mut Vec<NodeId>,
 ) -> PassStats {
     let mut stats = PassStats::default();
     if arena.pending(Dirty::TEXT) == 0 {
@@ -660,7 +563,39 @@ pub(crate) fn pass(
             Dirty::PAINT
         };
         arena.mark(root, bits);
+        if built.fits && !fit_roots.contains(&root) {
+            fit_roots.push(root);
+        }
     }
+    stats
+}
+
+/// Fits the texts of the `data-fit` roots whose room or text changed since they were last fitted (after
+/// layout). Roots that were removed or stopped fitting leave the list.
+pub(crate) fn fit_pass(
+    arena: &mut Arena,
+    tm: &mut dyn TextMeasure,
+    fit_roots: &mut Vec<NodeId>,
+) -> PassStats {
+    let mut stats = PassStats::default();
+    fit_roots.retain(|&id| {
+        let Some(ifc) = arena
+            .get_mut(id)
+            .and_then(|n| n.ifc.as_deref_mut())
+            .filter(|i| i.fit.is_some())
+        else {
+            return false;
+        };
+        stats.visited += 1;
+        let before = ifc.fitted.as_ref().map(|f| f.scale);
+        let shaped = fit::fit(ifc, tm);
+        let after = ifc.fitted.as_ref().map(|f| f.scale);
+        stats.shaped += shaped;
+        if shaped > 0 || before != after {
+            arena.mark(id, Dirty::PAINT);
+        }
+        true
+    });
     stats
 }
 
@@ -677,19 +612,5 @@ mod tests {
         assert_eq!(pick_weight(300, &[400, 500]), Some(400));
         assert_eq!(pick_weight(700, &[400, 900]), Some(900));
         assert_eq!(pick_weight(400, &[]), None);
-    }
-
-    #[test]
-    fn half_leading_floors_the_top() {
-        let vm = VMetrics {
-            metrics: LineMetrics {
-                ascent: 12.0,
-                descent: 3.0,
-                line_gap: 0.0,
-            },
-            line_height: 18.0,
-        };
-        assert_eq!(vm.above(), 13.0);
-        assert_eq!(vm.below(), 5.0);
     }
 }

@@ -122,6 +122,8 @@ pub struct Runtime {
     input: input::InputState,
     /// Times the passes of a frame, when the host gives one.
     clock: Option<ui2_draw::Clock>,
+    /// Inline roots that fit their text to their box (`data-fit`).
+    fit_roots: Vec<NodeId>,
 }
 
 impl Runtime {
@@ -149,6 +151,7 @@ impl Runtime {
             errors: ErrorSink::new(),
             output: UiOutput::default(),
             clock: None,
+            fit_roots: Vec::new(),
         };
         if !env_ok {
             rt.report_bad_env(env);

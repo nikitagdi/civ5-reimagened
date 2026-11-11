@@ -96,7 +96,13 @@ impl Runtime {
             fonts: &self.fonts,
             index: &self.style_index,
         };
-        let mut texts = text::pass(&ctx, &mut self.arena, text, &mut self.errors);
+        let mut texts = text::pass(
+            &ctx,
+            &mut self.arena,
+            text,
+            &mut self.errors,
+            &mut self.fit_roots,
+        );
         let mut text_ms = watch.lap();
         let mut layout = layout::pass(
             &mut self.arena,
@@ -153,7 +159,13 @@ impl Runtime {
                 fonts: &self.fonts,
                 index: &self.style_index,
             };
-            let t = text::pass(&ctx, &mut self.arena, text, &mut self.errors);
+            let t = text::pass(
+                &ctx,
+                &mut self.arena,
+                text,
+                &mut self.errors,
+                &mut self.fit_roots,
+            );
             texts.shaped += t.shaped;
             texts.visited += t.visited;
             text_ms += watch.lap();
@@ -169,6 +181,13 @@ impl Runtime {
             if l.runs > 0 {
                 self.binder.windows_changed();
             }
+        }
+        // Texts that fit their box are shrunk once the box is known (only after work: an idle frame skips).
+        if !self.fit_roots.is_empty() && (layout.runs > 0 || texts.visited > 0) {
+            let f = text::fit_pass(&mut self.arena, text, &mut self.fit_roots);
+            texts.shaped += f.shaped;
+            texts.visited += f.visited;
+            text_ms += watch.lap();
         }
         if scene.scale() != self.style_env.scale.k {
             scene.set_scale(self.style_env.scale.k);

@@ -176,6 +176,7 @@ pub fn path(p: &str) -> Expr {
 pub struct Kit {
     b: PackageBuilder,
     cells: usize,
+    languages: Vec<String>,
 }
 
 impl Kit {
@@ -184,6 +185,7 @@ impl Kit {
         Self {
             b: PackageBuilder::new(),
             cells: 1,
+            languages: vec!["en_US".into()],
         }
     }
 
@@ -346,7 +348,7 @@ impl Kit {
         self.b.state_default(path, value);
     }
 
-    /// Adds a skin text (`lang` must be a language of [`Kit::manifest`]: `en_US`).
+    /// Adds a skin text (`lang` must be one of the kit's languages, `en_US` by default).
     pub fn l10n(&mut self, lang: &str, key: &str, template: &str) {
         self.b.l10n(lang, key, template);
     }
@@ -392,9 +394,17 @@ impl Kit {
             .collect()
     }
 
+    /// Sets the skin's languages (the first is the fallback; the default is `en_US` alone). Call before
+    /// adding texts of the other languages.
+    pub fn languages(&mut self, langs: &[&str]) {
+        self.languages = langs.iter().map(|l| l.to_string()).collect();
+    }
+
     /// Writes and reads the package.
     pub fn finish(self) -> Result<Arc<Package>, PackageError> {
-        let bytes = self.b.finish(Self::manifest())?;
+        let mut manifest = Self::manifest();
+        manifest.languages = self.languages.clone();
+        let bytes = self.b.finish(manifest)?;
         Package::read(Arc::from(bytes)).map(Arc::new)
     }
 }
