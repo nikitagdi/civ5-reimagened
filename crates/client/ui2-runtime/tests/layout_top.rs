@@ -5,6 +5,8 @@
 
 mod support;
 
+use ui2_draw::Scene;
+use ui2_model::{ModelStore, Schema};
 use ui2_runtime::{Env, Runtime, Services, load_faces};
 use ui2_text::TextEngine;
 
@@ -26,12 +28,14 @@ fn layout_top_strip_matches_chrome() {
     let mut engine = TextEngine::new();
     load_faces(&pkg, &mut engine).expect("fonts");
     let mut rt = Runtime::new(pkg, env(fx.viewports[0].0), Services::default()).expect("runtime");
+    let store = ModelStore::new(Schema::v1());
+    let mut scene = Scene::new(1.0);
 
     let mut worst = (0.0f64, String::new());
     let mut failures = Vec::new();
     for (vp, chrome) in &fx.viewports {
         rt.set_env(env(*vp));
-        let stats = rt.update(&mut engine);
+        let stats = rt.frame(0.0, &store, &mut engine, &mut scene).stats;
         assert_eq!(stats.layout_runs, 1, "{vp:?}");
         let ours = rt.dump_rects(None);
         let names = |v: Vec<String>| v.join(" ");
@@ -69,7 +73,7 @@ fn layout_top_strip_matches_chrome() {
 
     // Laid out: idle frames do no layout and shape nothing.
     for _ in 0..100 {
-        let s = rt.update(&mut engine);
+        let s = rt.frame(0.0, &store, &mut engine, &mut scene).stats;
         assert_eq!(
             (s.layout_runs, s.shaped_runs, s.restyled, s.visited),
             (0, 0, 0, 0)
@@ -120,7 +124,14 @@ fn layout_text_wraps_unless_nowrap() {
     let mut engine = TextEngine::new();
     load_faces(&pkg, &mut engine).expect("fonts");
     let mut rt = Runtime::new(pkg, env([800, 600]), Services::default()).expect("runtime");
-    let stats = rt.update(&mut engine);
+    let stats = rt
+        .frame(
+            0.0,
+            &ModelStore::new(Schema::v1()),
+            &mut engine,
+            &mut Scene::new(1.0),
+        )
+        .stats;
     assert_eq!(stats.shaped_runs, 2);
     let rect = |part: &str, i: usize| {
         let r = &rt.dump_rects(Some(part))[i];

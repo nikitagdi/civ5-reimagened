@@ -5,17 +5,21 @@
 //! `top_strip_chrome.mjs` (see there); this module turns its node list (tags, parts, texts, computed styles)
 //! into a package with one plain style set per element, as the converter would bake it for one viewport cell.
 
+// Each test file uses part of this module.
+#![allow(dead_code)]
+
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde_json::Value;
 use ui2_package::style::{
-    BoxSizing, ContentAlign, Display, FlexDirection, FlexWrap, FontStyle, ItemsAlign, Len, LenAuto,
-    LenNone, LenNormal, LineHeight, NumericFeatures, Overflow, Position, SelfAlign, StyleRecord,
-    TextAlign, TextOverflow, TextWrapMode, WhiteSpaceCollapse,
+    BorderStyle, BoxSizing, ColorV, ContentAlign, Display, FlexDirection, FlexWrap, FontStyle,
+    ItemsAlign, Len, LenAuto, LenNone, LenNormal, LineHeight, NumericFeatures, Overflow, Position,
+    Radius, SelfAlign, Shadow, StyleRecord, TextAlign, TextOverflow, TextWrapMode, Visibility,
+    WhiteSpaceCollapse,
 };
-use ui2_package::{Layer, NodeKind, Package, Tag};
+use ui2_package::{BindKind, Layer, NodeKind, Package, PropId, Tag};
 use ui2_runtime::testkit::{Kit, TNode};
 
 /// One node of the fixture.
@@ -196,16 +200,217 @@ fn record(kit: &mut Kit, s: &serde_json::Map<String, Value>) -> StyleRecord {
     r.white_space_collapse = kw(WhiteSpaceCollapse::from_keyword, &g("white-space-collapse"));
     r.text_wrap_mode = kw(TextWrapMode::from_keyword, &g("text-wrap-mode"));
     r.text_overflow = kw(TextOverflow::from_keyword, &g("text-overflow"));
+    // Paint.
+    r.color = ColorV::Lit(color(&g("color")));
+    r.background_color = ColorV::Lit(color(&g("background-color")));
+    r.opacity = num("opacity");
+    r.visibility = kw(Visibility::from_keyword, &g("visibility"));
+    for (side, style, col) in [
+        (0, "border-top-style", "border-top-color"),
+        (1, "border-right-style", "border-right-color"),
+        (2, "border-bottom-style", "border-bottom-color"),
+        (3, "border-left-style", "border-left-color"),
+    ] {
+        let st = kw(BorderStyle::from_keyword, &g(style));
+        let c = ColorV::Lit(color(&g(col)));
+        match side {
+            0 => (r.border_top_style, r.border_top_color) = (st, c),
+            1 => (r.border_right_style, r.border_right_color) = (st, c),
+            2 => (r.border_bottom_style, r.border_bottom_color) = (st, c),
+            _ => (r.border_left_style, r.border_left_color) = (st, c),
+        }
+    }
+    let radius = |k: &str| {
+        let v = g(k);
+        let mut parts = v.split_whitespace().map(len);
+        let h = parts.next().unwrap_or(Len::ZERO);
+        Radius {
+            h,
+            v: parts.next().unwrap_or(h),
+        }
+    };
+    r.border_top_left_radius = radius("border-top-left-radius");
+    r.border_top_right_radius = radius("border-top-right-radius");
+    r.border_bottom_right_radius = radius("border-bottom-right-radius");
+    r.border_bottom_left_radius = radius("border-bottom-left-radius");
+    r.box_shadow = shadows(&g("box-shadow"));
+    assert_eq!(g("transform"), "none", "the strip has no transforms");
     r
+}
+
+/// `rgb(r, g, b)` or `rgba(r, g, b, a)` as Chrome writes resolved colors.
+fn color(v: &str) -> [u8; 4] {
+    let inner = v
+        .strip_prefix("rgba(")
+        .or_else(|| v.strip_prefix("rgb("))
+        .and_then(|s| s.strip_suffix(')'))
+        .unwrap_or_else(|| panic!("color {v:?}"));
+    let p: Vec<f32> = inner
+        .split(',')
+        .map(|x| x.trim().parse().expect("color channel"))
+        .collect();
+    let a = p.get(3).copied().unwrap_or(1.0);
+    [
+        p[0] as u8,
+        p[1] as u8,
+        p[2] as u8,
+        (a * 255.0).round() as u8,
+    ]
+}
+
+/// `box-shadow` as Chrome writes it: `none`, or shadows `<color> <x> <y> <blur> <spread> [inset]` separated
+/// by commas outside the color's parentheses.
+fn shadows(v: &str) -> Vec<Shadow> {
+    if v == "none" {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    let mut depth = 0;
+    let mut start = 0;
+    let bytes = v.as_bytes();
+    let mut pieces = Vec::new();
+    for (i, &b) in bytes.iter().enumerate() {
+        match b {
+            b'(' => depth += 1,
+            b')' => depth -= 1,
+            b',' if depth == 0 => {
+                pieces.push(&v[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    pieces.push(&v[start..]);
+    for p in pieces {
+        let p = p.trim();
+        let close = p.find(')').expect("shadow color") + 1;
+        let c = color(&p[..close]);
+        let rest: Vec<&str> = p[close..].split_whitespace().collect();
+        let px = |i: usize| len(rest[i]).px;
+        out.push(Shadow {
+            inset: rest.contains(&"inset"),
+            x: px(0),
+            y: px(1),
+            blur: px(2),
+            spread: px(3),
+            color: ColorV::Lit(c),
+        });
+    }
+    out
 }
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..")
 }
 
+/// How the texts of the strip are made.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Texts {
+    /// The sample texts Chrome laid out, as static text.
+    Static,
+    /// The bindings of `parts/top.html` (scalar ones: `if` and `for` are left static), with the skin's
+    /// texts; the research fill's width comes from its `style-width` binding (its record has none).
+    Bound,
+}
+
+/// A text leaf's binding in `parts/top.html`: a template, or a skin text key with argument expressions.
+enum TextBind {
+    Tpl(&'static str),
+    L10n(&'static str, &'static [&'static str]),
+}
+
+/// The bound text leaves of the strip, by node name.
+const TEXT_BINDS: &[(&str, TextBind)] = &[
+    ("0:8#0", TextBind::Tpl("{{research.current.name}}")),
+    (
+        "0:9#0",
+        TextBind::L10n("top.turns", &["research.current.turns"]),
+    ),
+    (
+        "0:10#0",
+        TextBind::L10n("top.next", &["research.next.name"]),
+    ),
+    ("0:35#0", TextBind::Tpl("{{fmt.signed(top.science_rate)}}")),
+    ("0:38#0", TextBind::Tpl("{{top.gold}}")),
+    ("0:39#0", TextBind::Tpl("{{fmt.signed(top.gold_rate)}}")),
+    ("0:42#0", TextBind::Tpl("{{top.happiness}}")),
+    (
+        "0:43#0",
+        TextBind::Tpl("{{top.golden_age.progress}}/{{top.golden_age.threshold}}"),
+    ),
+    ("0:46#0", TextBind::Tpl("{{fmt.signed(top.culture_rate)}}")),
+    ("0:47#0", TextBind::L10n("top.turns", &["top.policy_turns"])),
+    ("0:50#0", TextBind::Tpl("{{top.faith}}")),
+    ("0:51#0", TextBind::Tpl("{{fmt.signed(top.faith_rate)}}")),
+    ("0:54#0", TextBind::Tpl("{{top.tourism}}")),
+];
+
+/// Elements with a `neg` class toggle: node and condition.
+const NEG_TOGGLES: &[(&str, &str)] = &[
+    ("0:39", "top.gold_rate < 0"),
+    ("0:51", "top.faith_rate < 0"),
+];
+
+/// The research fill and its width binding.
+const FILL: (&str, &str) = ("0:12", "{{research.current.fraction * 100}}%");
+
+/// The color of `.neg` (a record variant the toggles select).
+pub const NEG_COLOR: [u8; 4] = [214, 96, 77, 255];
+
+fn tpl(kit: &mut Kit, src: &str) -> ui2_package::TplId {
+    use ui2_package::profile::expr::{TplSeg, parse_template};
+    use ui2_runtime::testkit::TplPiece;
+    let t = parse_template(src).unwrap_or_else(|e| panic!("{src}: {e}"));
+    let pieces = t
+        .segs
+        .into_iter()
+        .map(|s| match s {
+            TplSeg::Lit(l) => TplPiece::Lit(l),
+            TplSeg::Expr(e) => TplPiece::Expr(e),
+        })
+        .collect();
+    kit.tpl_of(pieces)
+}
+
+fn expr(kit: &mut Kit, src: &str) -> ui2_package::ExprId {
+    let e = ui2_package::profile::expr::parse(src).unwrap_or_else(|e| panic!("{src}: {e}"));
+    kit.expr(e)
+}
+
+/// The skin's texts (`l10n/en_US.toml`: `"key" = "template"` lines).
+fn skin_texts(kit: &mut Kit) {
+    let path = repo_root().join("skins/engraved/l10n/en_US.toml");
+    let src = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    for line in src.lines() {
+        let Some(rest) = line.strip_prefix('"') else {
+            continue;
+        };
+        let Some((key, value)) = rest.split_once("\" = \"") else {
+            continue;
+        };
+        kit.l10n("en_US", key, value.trim_end().trim_end_matches('"'));
+    }
+}
+
+/// The sample state of the strip (`sample/hud.json`) as JSON, for edits.
+pub fn sample_json() -> serde_json::Value {
+    let path = repo_root().join("skins/engraved/sample/hud.json");
+    let src = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    serde_json::from_str(&src).expect("sample is JSON")
+}
+
 /// The top strip package: the fixture's nodes as template 0, Fira Sans 400 and 500.
 pub fn package(fx: &Fixture) -> Arc<Package> {
+    package_with(fx, Texts::Static)
+}
+
+/// The top strip package with static or bound texts.
+pub fn package_with(fx: &Fixture, texts: Texts) -> Arc<Package> {
     let mut kit = Kit::new();
+    let bound = texts == Texts::Bound;
+    if bound {
+        skin_texts(&mut kit);
+    }
     for (weight, file) in [(400, "FiraSans-Regular.ttf"), (500, "FiraSans-Medium.ttf")] {
         let path = repo_root().join("third_party/fonts/fira-sans").join(file);
         let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
@@ -215,26 +420,84 @@ pub fn package(fx: &Fixture) -> Arc<Package> {
     let mut children: BTreeMap<String, Vec<usize>> = BTreeMap::new();
     for (i, n) in fx.nodes.iter().enumerate() {
         if let Some(s) = &n.style {
-            let rec = record(&mut kit, s);
-            let rec = kit.record(rec);
-            sets.insert(n.node.clone(), kit.plain(rec));
+            let mut rec = record(&mut kit, s);
+            if bound && n.node == FILL.0 {
+                // The width comes from the binding only.
+                rec.width = LenAuto::Len(Len::ZERO);
+            }
+            let set = if bound && NEG_TOGGLES.iter().any(|(node, _)| *node == n.node) {
+                let mut neg = rec.clone();
+                neg.color = ui2_package::style::ColorV::Lit(NEG_COLOR);
+                let (rec, neg) = (kit.record(rec), kit.record(neg));
+                let class = kit.str("neg");
+                let cond = ui2_package::Cond {
+                    up: 0,
+                    kind: ui2_package::CondKind::Class(class),
+                };
+                let mut table = Vec::new();
+                for _ in 0..kit.cells() {
+                    table.extend([rec, neg]);
+                }
+                kit.set(vec![cond], table)
+            } else {
+                let rec = kit.record(rec);
+                kit.plain(rec)
+            };
+            sets.insert(n.node.clone(), set);
         }
         if let Some(p) = &n.parent {
             children.entry(p.clone()).or_default().push(i);
         }
     }
+    // The icons of the skin's sprite (`svg` with `use`) become mask pictures of their CSS size.
+    let svgs: Vec<(String, [u16; 2])> = fx
+        .nodes
+        .iter()
+        .filter(|n| n.tag == "svg")
+        .map(|n| {
+            let s = n.style.as_ref().expect("svg style");
+            let px = |k: &str| len(&str_of(&s[k])).px as u16;
+            (n.node.clone(), [px("width"), px("height")])
+        })
+        .collect();
+    let named: Vec<(String, [u16; 2])> = svgs
+        .iter()
+        .map(|(node, size)| (format!("icons/{node}"), *size))
+        .collect();
+    let named: Vec<(&str, [u16; 2])> = named.iter().map(|(p, s)| (p.as_str(), *s)).collect();
+    let ids = kit.mask_icons(&named);
+    let icons: Vec<(String, ui2_package::ImgId)> =
+        svgs.into_iter().map(|(node, _)| node).zip(ids).collect();
+    #[allow(clippy::too_many_arguments)]
     fn build(
         kit: &mut Kit,
         fx: &Fixture,
         sets: &BTreeMap<String, ui2_package::StyleSetId>,
         children: &BTreeMap<String, Vec<usize>>,
+        icons: &[(String, ui2_package::ImgId)],
+        bound: bool,
         i: usize,
     ) -> TNode {
         let n = &fx.nodes[i];
         if let Some(text) = &n.text {
             let parent = n.parent.as_deref().unwrap_or_default();
-            let s = kit.str(text);
-            return TNode::text(s, sets[parent]);
+            let style = sets[parent];
+            let bind = TEXT_BINDS.iter().find(|(node, _)| *node == n.node);
+            return match (bound, bind) {
+                (true, Some((_, TextBind::Tpl(src)))) => {
+                    let t = tpl(kit, src);
+                    TNode::bound_text(t, style)
+                }
+                (true, Some((_, TextBind::L10n(key, args)))) => {
+                    let key = kit.str(key);
+                    let args = args.iter().map(|a| expr(kit, a)).collect();
+                    TNode::l10n_text(key, args, style)
+                }
+                _ => {
+                    let s = kit.str(text);
+                    TNode::text(s, style)
+                }
+            };
         }
         let set = sets[&n.node];
         let tag = match n.tag.as_str() {
@@ -246,8 +509,11 @@ pub fn package(fx: &Fixture) -> Arc<Package> {
             "img" => Tag::Img,
             other => panic!("tag {other}"),
         };
+        let icon = icons.iter().find(|(node, _)| *node == n.node);
         let mut t = if n.parent.is_none() {
             TNode::new(NodeKind::Layer(Layer::Hud), set)
+        } else if let Some((_, img)) = icon {
+            TNode::icon(*img, set)
         } else {
             TNode::new(NodeKind::Box { tag }, set)
         };
@@ -255,13 +521,27 @@ pub fn package(fx: &Fixture) -> Arc<Package> {
             let p = kit.str(&n.part);
             t = t.part(p);
         }
+        if bound {
+            if let Some((_, cond)) = NEG_TOGGLES.iter().find(|(node, _)| *node == n.node) {
+                let class = kit.str("neg");
+                let cond = expr(kit, cond);
+                t = t.bind(BindKind::ClassToggle { class, cond });
+            }
+            if n.node == FILL.0 {
+                let tpl = tpl(kit, FILL.1);
+                t = t.bind(BindKind::Style {
+                    prop: PropId::Width,
+                    tpl,
+                });
+            }
+        }
         for &c in children.get(&n.node).map_or(&[][..], |v| v.as_slice()) {
-            let child = build(kit, fx, sets, children, c);
+            let child = build(kit, fx, sets, children, icons, bound, c);
             t = t.child(child);
         }
         t
     }
-    let root = build(&mut kit, fx, &sets, &children, 0);
+    let root = build(&mut kit, fx, &sets, &children, &icons, bound, 0);
     kit.template("doc", vec![root]);
     kit.finish().expect("package")
 }

@@ -1,0 +1,40 @@
+box 0 0 1920 48 fill=#1b1815ff border=0,0,0,0 #00000000 radii=0,0,0,0
+box 0 0 1920 48 fill=none border=0,0,1,0 #4d4032ff radii=0,0,0,0
+box 16 10 28 28 fill=#141210ff border=0,0,0,0 #00000000 radii=14,14,14,14
+box 16 10 28 28 fill=none border=1,1,1,1 #4d4032ff radii=14,14,14,14
+box 368 0 340 48 fill=none border=0,0,0,1 #4d4032ff radii=0,0,0,0
+box 1800 0 72 48 fill=none border=0,0,0,1 #4d4032ff radii=0,0,0,0
+box 1872 0 48 48 fill=none border=0,0,0,1 #4d4032ff radii=0,0,0,0
+mask 22 16 16 16 layer=0 uv=0 0.05 0.06 0.85 #78a6d6ff
+glyphs face=1 size=14 wght=500 #ebe2d2ff n=9 x=56..111.17 y=24
+glyphs face=0 size=14 wght=400 #ebe2d2ff n=2 x=119.31..123.02 y=24
+glyphs face=0 size=13 wght=400 #b2a794ff n=7 x=126.73..162.35 y=24
+glyphs face=0 size=12 wght=400 #8a8072ff n=14 x=266.95..347.65 y=24
+mask 1218 13 16 16 layer=0 uv=0.58 0.05 0.64 0.85 #78a6d6ff
+glyphs face=1 size=15 wght=500 #ebe2d2ff n=3 x=1241.97..1258.77 y=29
+mask 1295 13 16 16 layer=0 uv=0.64 0.05 0.7 0.85 #dcc057ff
+glyphs face=1 size=15 wght=500 #ebe2d2ff n=3 x=1319.17..1335.97 y=29
+glyphs face=0 size=13 wght=400 #b2a794ff n=3 x=1352.38..1366.94 y=28
+mask 1402 13 16 16 layer=0 uv=0.7 0.05 0.75 0.85 #b9c662ff
+glyphs face=1 size=15 wght=500 #ebe2d2ff n=1 x=1426.22..1426.22 y=29
+glyphs face=0 size=13 wght=400 #8a8072ff n=7 x=1442.62..1485.79 y=28
+mask 1521 13 16 16 layer=0 uv=0.76 0.05 0.81 0.85 #a98cccff
+glyphs face=1 size=15 wght=500 #ebe2d2ff n=3 x=1545.08..1561.88 y=29
+glyphs face=0 size=13 wght=400 #8a8072ff n=7 x=1578.28..1613.9 y=28
+mask 1648 13 16 16 layer=0 uv=0.82 0.05 0.87 0.85 #cfcbc1ff
+glyphs face=1 size=15 wght=500 #ebe2d2ff n=3 x=1671.98..1688.78 y=29
+glyphs face=0 size=13 wght=400 #b2a794ff n=2 x=1705.19..1712.47 y=28
+mask 1748 13 16 16 layer=0 uv=0.88 0.05 0.93 0.85 #cc86b4ff
+glyphs face=1 size=15 wght=500 #ebe2d2ff n=1 x=1771.75..1771.75 y=29
+glyphs face=1 size=14 wght=500 #ebe2d2ff n=1 x=1844.16..1844.16 y=28
+box 56 33 296 4 fill=#302a24ff border=0,0,0,0 #00000000 radii=0,0,0,0
+box 56 33 184 4 fill=#78a6d6ff border=0,0,0,0 #00000000 radii=0,0,0,0
+mask 389 15 18 18 layer=0 uv=0.06 0.05 0.12 0.95 #8a8072ff
+mask 429 15 18 18 layer=0 uv=0.13 0.05 0.19 0.95 #8a8072ff
+mask 469 15 18 18 layer=0 uv=0.19 0.05 0.25 0.95 #8a8072ff
+mask 509 15 18 18 layer=0 uv=0.26 0.05 0.32 0.95 #8a8072ff
+mask 549 15 18 18 layer=0 uv=0.32 0.05 0.38 0.95 #8a8072ff
+mask 589 15 18 18 layer=0 uv=0.39 0.05 0.45 0.95 #8a8072ff
+mask 629 15 18 18 layer=0 uv=0.45 0.05 0.51 0.95 #8a8072ff
+mask 669 15 18 18 layer=0 uv=0.52 0.05 0.58 0.95 #8a8072ff
+mask 1887 15 18 18 layer=0 uv=0.94 0.05 1 0.95 #8a8072ff

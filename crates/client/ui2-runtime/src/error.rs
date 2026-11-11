@@ -22,6 +22,13 @@ pub enum ErrorCode {
     BadEnv,
     /// No font face of the package matches a text's style, or the text cannot be shaped.
     Font,
+    /// A binding reads a path the model does not have, its expression warned (a division by zero, an
+    /// overflow), or its value does not fit what it sets.
+    Bind,
+    /// A skin text key that the package has in no language.
+    L10n,
+    /// A paint property the runtime or the scene cannot draw yet (drawn without it).
+    Paint,
 }
 
 impl ErrorCode {
@@ -34,6 +41,9 @@ impl ErrorCode {
             ErrorCode::BadNode => "bad-node",
             ErrorCode::BadEnv => "bad-env",
             ErrorCode::Font => "font",
+            ErrorCode::Bind => "bind",
+            ErrorCode::L10n => "l10n",
+            ErrorCode::Paint => "paint",
         }
     }
 }

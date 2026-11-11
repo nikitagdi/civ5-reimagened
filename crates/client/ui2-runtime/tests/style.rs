@@ -142,16 +142,12 @@ fn style_mask_follows_state_and_classes() {
     assert_eq!(background(&rt, btn), [0, 0, 0, 0]);
 
     rt.set_state(btn, StateBits::HOVER, true);
-    assert_eq!(
-        tick(&mut rt).restyled,
-        3,
-        "the button, its text leaf and the icon"
-    );
+    let stats = tick(&mut rt);
+    assert_eq!(stats.restyled, 3, "the button, its text leaf and the icon");
     assert_eq!(background(&rt, btn), RED);
     assert_eq!(rt.node(btn).map(|n| n.cond_mask()), Some(0b01));
-    // A color change needs paint only.
-    assert!(rt.take_dirty(Dirty::LAYOUT).is_empty());
-    assert!(rt.take_dirty(Dirty::PAINT).contains(&btn));
+    // A color change needs paint only: the chunk of the button.
+    assert_eq!((stats.layout_runs, stats.chunks_rebuilt), (0, 1));
 
     rt.set_class(btn, on, true);
     tick(&mut rt);
@@ -218,7 +214,7 @@ fn style_hover_restyles_only_sensitive_nodes() {
     rt.set_hover(Some(icon));
     let stats = tick(&mut rt);
     assert_eq!(stats.restyled, 3, "the button, its text leaf and the icon");
-    assert_eq!(stats.visited, 3);
+    assert_eq!(stats.visited, 6, "restyled, then queued for paint");
     assert!(!rt.node(c3).expect("c3").state().contains(StateBits::HOVER));
     assert!(
         rt.node(part(&rt, "panel"))
@@ -251,20 +247,24 @@ fn style_cell_change_restyles_varying_sets_only() {
         stats.layout_runs, 1,
         "a width change and a new viewport lay out again"
     );
-    assert!(rt.take_dirty(Dirty::PAINT).contains(&resp));
+    assert_eq!(
+        stats.chunks_rebuilt, 2,
+        "the layer root (a new size) and the panel"
+    );
 
     // UI scale 150 %: the logical viewport is 1280 px wide, back in the first cell.
     rt.set_env(Env {
         ui_scale: 1.5,
         ..env(1920, 1080)
     });
-    tick(&mut rt);
+    let stats = tick(&mut rt);
     assert_eq!(rt.style_env().scale.k, 1.5);
     assert_eq!(rt.style_env().scale.viewport_css, [1280.0, 720.0]);
     assert_eq!(rt.style_env().cell, 0);
     assert_eq!(w(&rt), Some(LenAuto::Len(Len::px(50.0))));
-    // The device scale changed: every chunk repaints.
-    assert!(rt.take_dirty(Dirty::PAINT).contains(&part(&rt, "panel")));
+    // The device scale changed: every chunk repaints (the layer root and the panel).
+    assert_eq!(stats.chunks_rebuilt, 2);
+    let _ = resp;
 }
 
 #[test]
@@ -280,7 +280,7 @@ fn style_theme_switch_repaints_token_nodes_only() {
     });
     let stats = tick(&mut rt);
     assert_eq!(stats.restyled, 0, "a theme reselects nothing");
-    assert_eq!(rt.take_dirty(Dirty::PAINT), vec![tok]);
+    assert_eq!(stats.chunks_rebuilt, 1, "the chunk of tok only");
     assert_eq!(stats.layout_runs, 0);
     assert_eq!(color(&rt), LIGHT);
 }
@@ -334,15 +334,15 @@ fn style_removed_dependents_are_forgotten() {
 #[test]
 fn style_bad_scale_is_replaced_and_reported_once() {
     let mut rt = settled(Env::default());
+    let mut errors = Vec::new();
     for _ in 0..10 {
         rt.set_env(Env {
             dpr: f32::NAN,
             ..Env::default()
         });
-        tick(&mut rt);
+        errors.extend(frame(&mut rt).errors);
     }
     assert_eq!(rt.style_env().scale.k, 1.0);
-    let errors = rt.take_errors();
     let bad_env = errors
         .iter()
         .filter(|e| e.code == ErrorCode::BadEnv)
@@ -351,5 +351,15 @@ fn style_bad_scale_is_replaced_and_reported_once() {
 }
 
 fn tick(rt: &mut Runtime) -> ui2_runtime::FrameStats {
-    rt.update(&mut ui2_text::TextEngine::new())
+    frame(rt).stats
+}
+
+fn frame(rt: &mut Runtime) -> ui2_runtime::FrameOutput {
+    let store = ui2_model::ModelStore::new(ui2_model::Schema::v1());
+    rt.frame(
+        0.0,
+        &store,
+        &mut ui2_text::TextEngine::new(),
+        &mut ui2_draw::Scene::new(1.0),
+    )
 }

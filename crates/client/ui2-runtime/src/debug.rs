@@ -43,7 +43,7 @@ struct Ctx<'a, S: Source + ?Sized> {
 impl<S: Source + ?Sized> Ctx<'_, S> {
     fn record(&self, id: NodeId) -> Option<&ui2_package::style::StyleRecord> {
         let n = self.arena.get(id)?;
-        Some(self.index.record(self.src.styles(), n.style()))
+        Some(crate::style::node_record(self.index, self.src.styles(), n))
     }
 
     fn out_of_flow(&self, id: NodeId) -> bool {

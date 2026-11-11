@@ -11,9 +11,10 @@
 //! in the same parent. An element of an instance therefore has its real parent element as `parent`, which is
 //! what CSS conditions on ancestors (`up = k`) and layout expect.
 
-use std::ops::{BitAnd, BitOr, BitOrAssign, Not};
+use std::ops::{BitAnd, BitOr, BitOrAssign, Not, Range};
 use std::sync::Arc;
 
+use crate::style::Overrides;
 use crate::text::Ifc;
 
 use ui2_draw::ChunkId;
@@ -247,7 +248,10 @@ pub struct Node {
     pub(crate) text: Option<Arc<str>>,
     /// Inline formatting roots: shaped runs and lines (see [`crate::text`]).
     pub(crate) ifc: Option<Box<Ifc>>,
-    // Extension point (bindings): the range of this instance's rows in the binding table.
+    /// The rows of this node in the runtime's binding table (empty until the binding pass made them).
+    pub(crate) binds: Range<u32>,
+    /// Style properties set by bindings (`data-bind-style-*`), with the record they give.
+    pub(crate) over: Option<Box<Overrides>>,
 }
 
 impl Node {
@@ -272,7 +276,14 @@ impl Node {
             layout: LayoutSlot::default(),
             text: None,
             ifc: None,
+            binds: 0..0,
+            over: None,
         }
+    }
+
+    /// The style properties bindings set on the node (`None` when there are none).
+    pub fn overrides(&self) -> Option<&Overrides> {
+        self.over.as_deref()
     }
 
     /// The string of a text leaf.
@@ -377,6 +388,7 @@ pub struct Arena {
     revision: u64,
     queues: [Vec<NodeId>; Dirty::COUNT],
     removed_chunks: Vec<ChunkId>,
+    removed_binds: Vec<Range<u32>>,
 }
 
 impl Arena {
@@ -576,6 +588,9 @@ impl Arena {
             if node.chunk == id.index {
                 self.removed_chunks.push(ChunkId(id.index));
             }
+            if !node.binds.is_empty() {
+                self.removed_binds.push(node.binds.clone());
+            }
             stack.extend(node.children.iter().copied());
             // The instances of a service node are its siblings: detach them from the parent that may survive.
             for inst in &node.instances {
@@ -632,6 +647,21 @@ impl Arena {
     /// The chunks whose root was removed since the last call (the paint pass drops them from the scene).
     pub fn take_removed_chunks(&mut self) -> Vec<ChunkId> {
         std::mem::take(&mut self.removed_chunks)
+    }
+
+    /// Whether chunks were removed since the last [`take_removed_chunks`](Self::take_removed_chunks).
+    pub fn has_removed_chunks(&self) -> bool {
+        !self.removed_chunks.is_empty()
+    }
+
+    /// The binding rows of the nodes removed since the last call (the binding pass frees them).
+    pub(crate) fn take_removed_binds(&mut self) -> Vec<Range<u32>> {
+        std::mem::take(&mut self.removed_binds)
+    }
+
+    /// Whether removed nodes left binding rows to free.
+    pub(crate) fn has_removed_binds(&self) -> bool {
+        !self.removed_binds.is_empty()
     }
 }
 

@@ -14,7 +14,7 @@
 use ui2_package::{CondKind, StrId, StyleSet, Styles};
 
 use crate::arena::{Arena, Dep, Dirty, NodeClass, NodeId, StateBits};
-use crate::style::{StyleEnv, StyleIndex, diff};
+use crate::style::{Overrides, StyleEnv, StyleIndex, diff};
 
 /// Sensitivity bits: which kinds of conditions are tested on a node.
 pub(crate) mod sens {
@@ -138,6 +138,13 @@ pub(crate) fn reselect(
     let old = std::mem::replace(&mut node.style, new);
     if old == new {
         return Dirty::NONE;
+    }
+    // Properties set by bindings stay on top of the new record.
+    if let Some(over) = node.over.as_mut() {
+        let rebuilt = Overrides::new(index.record(styles, new), std::mem::take(&mut over.props));
+        let bits = diff(&over.record, &rebuilt.record);
+        **over = rebuilt;
+        return bits;
     }
     diff(index.record(styles, old), index.record(styles, new))
 }

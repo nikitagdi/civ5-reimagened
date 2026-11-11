@@ -46,7 +46,15 @@ const TYPED = [
   "font-weight", "font-style", "font-variant-numeric", "line-height", "letter-spacing", "word-spacing",
   "text-align", "white-space-collapse", "text-wrap-mode", "text-overflow",
 ];
-const RESOLVED = ["border-top-width", "border-right-width", "border-bottom-width", "border-left-width"];
+const RESOLVED = [
+  "border-top-width", "border-right-width", "border-bottom-width", "border-left-width",
+  // Paint (resolved values: colors as rgb()/rgba(), lengths in px).
+  "color", "background-color", "opacity", "visibility",
+  "border-top-style", "border-right-style", "border-bottom-style", "border-left-style",
+  "border-top-color", "border-right-color", "border-bottom-color", "border-left-color",
+  "border-top-left-radius", "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius",
+  "box-shadow", "transform",
+];
 
 function extract({ typed, resolved }) {
   const hud = document.querySelector('.layer[data-layer="hud"]');
