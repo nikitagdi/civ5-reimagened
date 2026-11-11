@@ -16,8 +16,8 @@ pub mod trigger;
 use std::sync::Arc;
 
 use replica::{
-    CatalogEntry, CatalogTable, GameInfo, GameRead, GameSide, Player, ReadError, Replica,
-    ReplicaStep, State, TopBar,
+    CatalogEntry, CatalogTable, GameInfo, GameRead, GameSide, Player, PlayerResource,
+    PolicyBranchState, ReadError, Replica, ReplicaStep, State, TechState, TopBar,
 };
 use ui2_model::{ModelWriter, Root, Schema};
 
@@ -98,6 +98,17 @@ pub struct UiSource {
     meta: Option<ui2_model::r#gen::Meta>,
     /// Read once per core; `None` until a rebuild needs it (or after a failed read).
     catalog: Option<Catalog>,
+    /// The UI v2 queries the core does not serve: not asked again until [`UiSource::reset`].
+    missing: Missing,
+}
+
+/// The UI v2 queries a core answered `ReadError::Unsupported` to (the stub, a core older than the queries). Their
+/// fields stay at the schema's defaults; asking again on every trigger would only cost reads.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Missing {
+    techs: bool,
+    resources: bool,
+    branches: bool,
 }
 
 impl UiSource {
@@ -109,15 +120,18 @@ impl UiSource {
             pending: Roots::NONE,
             meta: None,
             catalog: None,
+            missing: Missing::default(),
         }
     }
 
-    /// Forgets everything (a new game or a new core): the next frame rebuilds every root and reads the catalog.
+    /// Forgets everything (a new game or a new core): the next frame rebuilds every root, reads the catalog and
+    /// asks the UI v2 queries again.
     pub fn reset(&mut self) {
         self.seen = None;
         self.pending = Roots::NONE;
         self.meta = None;
         self.catalog = None;
+        self.missing = Missing::default();
     }
 
     /// One frame: rebuild what the replica's signals ask for, write it, report the cost.
@@ -152,9 +166,9 @@ impl UiSource {
         };
 
         let want = std::mem::take(&mut self.pending);
-        let mut read = CountingRead::new(read);
-        if (want.contains(Roots::GAME) || want.contains(Roots::RESEARCH)) && self.catalog.is_none()
-        {
+        let mut read = CountingRead::new(read, self.missing);
+        // Every root of this source shows catalog names (eras, technologies, resources, policy branches).
+        if !want.is_empty() && self.catalog.is_none() {
             match Catalog::load(&mut read) {
                 Ok(c) => self.catalog = Some(c),
                 Err(e) => tracing::debug!(target: "ui2_source", "catalog: {e}"),
@@ -165,7 +179,7 @@ impl UiSource {
 
         // The order of the budget queue: the top bar first, then research, then the game root.
         if want.contains(Roots::TOP) {
-            let r = build::top::top(&mut read);
+            let r = build::top::top(&mut read, catalog);
             self.write_built(w, r, &mut stats);
         }
         if want.contains(Roots::RESEARCH) {
@@ -177,6 +191,7 @@ impl UiSource {
             self.write_built(w, r, &mut stats);
         }
         stats.getter_calls = read.calls;
+        self.missing = read.missing;
         stats
     }
 
@@ -208,16 +223,58 @@ pub(crate) struct CountingRead<'a, 'r> {
     calls: u32,
     info: Option<Result<GameInfo, ReadError>>,
     top: Option<Result<TopBar, ReadError>>,
+    /// The UI v2 queries known to be missing; the frame hands back what it learned.
+    missing: Missing,
 }
 
 impl<'a, 'r> CountingRead<'a, 'r> {
-    fn new(read: &'a mut (dyn GameRead + 'r)) -> Self {
+    fn new(read: &'a mut (dyn GameRead + 'r), missing: Missing) -> Self {
         CountingRead {
             read,
             calls: 0,
             info: None,
             top: None,
+            missing,
         }
+    }
+
+    /// One UI v2 read: not made when the core is known not to serve it; an `Unsupported` answer is remembered.
+    fn ui2<T>(
+        &mut self,
+        flag: fn(&mut Missing) -> &mut bool,
+        name: &'static str,
+        f: impl FnOnce(&mut (dyn GameRead + 'r)) -> Result<T, ReadError>,
+    ) -> Result<T, ReadError> {
+        if *flag(&mut self.missing) {
+            return Err(ReadError::Unsupported);
+        }
+        self.calls += 1;
+        let r = f(&mut *self.read);
+        if matches!(r, Err(ReadError::Unsupported)) {
+            *flag(&mut self.missing) = true;
+            tracing::debug!(target: "ui2_source", query = name, "the core does not serve it: the fields stay empty");
+        }
+        r
+    }
+
+    pub(crate) fn techs(&mut self) -> Result<Vec<TechState>, ReadError> {
+        self.ui2(|m| &mut m.techs, "techs", |r| r.techs())
+    }
+
+    pub(crate) fn player_resources(&mut self) -> Result<Vec<PlayerResource>, ReadError> {
+        self.ui2(
+            |m| &mut m.resources,
+            "player_resources",
+            |r| r.player_resources(),
+        )
+    }
+
+    pub(crate) fn policy_branches(&mut self) -> Result<Vec<PolicyBranchState>, ReadError> {
+        self.ui2(
+            |m| &mut m.branches,
+            "policy_branches",
+            |r| r.policy_branches(),
+        )
     }
 
     pub(crate) fn seat(&self) -> u8 {

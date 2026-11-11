@@ -34,11 +34,13 @@ pub fn icon(atlas: Option<&str>, index: Option<i16>) -> AssetRef {
     }
 }
 
-/// The tables the first-slice roots need.
+/// The tables the roots `game`, `top` and `research` need.
 #[derive(Clone, Debug, Default)]
 pub struct Catalog {
     eras: BTreeMap<i16, Item>,
     techs: BTreeMap<i16, Item>,
+    resources: BTreeMap<i16, Item>,
+    branches: BTreeMap<i16, Item>,
 }
 
 impl Catalog {
@@ -51,6 +53,8 @@ impl Catalog {
         Ok(Catalog {
             eras: table(read, CatalogTable::Eras)?,
             techs: table(read, CatalogTable::Technologies)?,
+            resources: table(read, CatalogTable::Resources)?,
+            branches: table(read, CatalogTable::PolicyBranches)?,
         })
     }
 
@@ -64,6 +68,18 @@ impl Catalog {
     #[must_use]
     pub fn tech(&self, id: i16) -> Item {
         self.techs.get(&id).cloned().unwrap_or_default()
+    }
+
+    /// A resource by `ResourceTypes` id.
+    #[must_use]
+    pub fn resource(&self, id: i16) -> Item {
+        self.resources.get(&id).cloned().unwrap_or_default()
+    }
+
+    /// A policy branch by `PolicyBranchTypes` id (the table has names only, no icons).
+    #[must_use]
+    pub fn branch(&self, id: i16) -> Item {
+        self.branches.get(&id).cloned().unwrap_or_default()
     }
 }
 
