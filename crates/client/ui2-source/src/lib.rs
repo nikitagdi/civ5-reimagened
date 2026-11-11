@@ -129,6 +129,8 @@ pub struct UiSource {
     budget: u32,
     /// The dismissed notifications as of the last frame.
     dismissed: BTreeSet<Key>,
+    /// The ids of the notifications the core had at the last `notes` build.
+    note_ids: Option<BTreeSet<Key>>,
     /// The UI root's parts the roots depend on, as of the last frame.
     ui: UiSeen,
     /// The turn each chat line came in.
@@ -165,6 +167,7 @@ impl UiSource {
             missing: Missing::default(),
             budget,
             dismissed: BTreeSet::new(),
+            note_ids: None,
             ui: UiSeen::default(),
             chat: build::chat::ChatLog::default(),
         }
@@ -173,6 +176,14 @@ impl UiSource {
     /// Reads of the core a frame may start roots with (at least one root is built per frame).
     pub fn set_read_budget(&mut self, reads: u32) {
         self.budget = reads;
+    }
+
+    /// The ids of the notifications the core has (those it did not dismiss itself), as of the last `notes`
+    /// build; `None` before the first. The `notes` root leaves out what the player dismissed here, so this is
+    /// what the actions module judges its dismissed set by (`UiActions::reconcile`).
+    #[must_use]
+    pub fn notification_ids(&self) -> Option<&BTreeSet<Key>> {
+        self.note_ids.as_ref()
     }
 
     /// Forgets everything (a new game or a new core): the next frame rebuilds every root, reads the catalog and
@@ -316,7 +327,11 @@ impl UiSource {
                 );
                 write_built(w, r, &mut stats);
             } else if root == Roots::NOTES {
-                write_built(w, build::notes::notes(&mut read, dismissed), &mut stats);
+                let r = build::notes::notes(&mut read, dismissed).map(|(rows, ids)| {
+                    self.note_ids = Some(ids);
+                    rows
+                });
+                write_built(w, r, &mut stats);
             } else if root == Roots::MAP {
                 write_built(w, build::map::map(&mut read, catalog), &mut stats);
             }
