@@ -704,6 +704,9 @@ fn view() -> MapView {
         .ty("game.units[].portrait", "asset")
         .ty("game.tags", "list<str>")
         .ty("game.accent", "color")
+        .ty("game.sel", "struct game.sel?")
+        .ty("game.sel.key", "key<unit>")
+        .ty("game.sel.hp", "int")
         .ty("ui.panel", "str")
         .ty("ui.zoom", "float")
         .ty("ui.fixed", "int")
@@ -1158,4 +1161,76 @@ fn models_sources_and_anchors_are_typed() {
             .map(|e| e[0]),
         Some(codes::TYPE)
     );
+}
+
+#[test]
+fn a_key_read_through_an_optional_record_is_an_intent_argument() {
+    run(
+        Tag::Button,
+        &[(
+            "data-on-click",
+            "intent unit.action(unit: game.sel.key, action: 'fortify')",
+        )],
+    )
+    .expect("a nullable key argument");
+    // Other targets still refuse a nullable value.
+    check_fails(
+        Tag::Button,
+        &[("data-on-click", "set state.prod.page = game.sel.hp")],
+        codes::TYPE,
+    );
+}
+
+#[test]
+fn a_condition_narrows_the_paths_it_tests() {
+    for cond in [
+        "{{ game.sel }}",
+        "{{ game.sel != null }}",
+        "{{ null != game.sel }}",
+        "{{ game.alive && game.sel != null }}",
+    ] {
+        let (_, c) = run(
+            Tag::Button,
+            &[
+                ("data-bind-if", cond),
+                ("data-on-click", "set state.prod.page = game.sel.hp"),
+            ],
+        )
+        .unwrap_or_else(|e| panic!("{cond}: {e:?}"));
+        // The children see the narrowed scope too.
+        assert!(c.scope.non_null.contains("game.sel"), "{cond}");
+    }
+    // `||` proves nothing, and neither does a test of another path.
+    for cond in ["{{ game.alive || game.sel != null }}", "{{ game.alive }}"] {
+        match run(
+            Tag::Button,
+            &[
+                ("data-bind-if", cond),
+                ("data-on-click", "set state.prod.page = game.sel.hp"),
+            ],
+        ) {
+            Ok(_) => panic!("{cond}: expected {}", codes::TYPE),
+            Err(got) => assert!(got.contains(&codes::TYPE), "{cond}: {got:?}"),
+        }
+    }
+}
+#[test]
+fn a_static_disabled_is_a_binding_that_is_always_true() {
+    let ctx = AttrCtx::default();
+    let a = parse(&raw(Tag::Button, &[("disabled", "")]), &ctx).expect("parse");
+    assert_eq!(a.disabled, Some(Expr::Bool(true)));
+    // A bound `disabled` wins, in either order.
+    for attrs in [
+        [("disabled", ""), ("data-bind-disabled", "{{ game.alive }}")],
+        [("data-bind-disabled", "{{ game.alive }}"), ("disabled", "")],
+    ] {
+        let a = parse(&raw(Tag::Button, &attrs), &ctx).expect("parse");
+        assert_eq!(
+            a.disabled,
+            Some(Expr::Path(vec!["game".into(), "alive".into()])),
+            "{attrs:?}"
+        );
+    }
+    let a = parse(&raw(Tag::Button, &[]), &ctx).expect("parse");
+    assert_eq!(a.disabled, None);
 }

@@ -1,0 +1,2 @@
+# stage: build (found when the icons are rasterized)
+E5-005 index.html:13

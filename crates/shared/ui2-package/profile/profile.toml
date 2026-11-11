@@ -335,6 +335,7 @@ error.E2-010 = { what = "property outside the profile", hint = "remove the decla
 error.E2-011 = { what = "computed value cannot be stored", hint = "Chrome computed a value of another kind than the property's field holds; simplify the declaration" }
 error.E2-012 = { what = "icon paint on an element that is not an icon", hint = "fill and stroke style only svg icons" }
 error.E2-013 = { what = "page background is not transparent", hint = "the world is drawn under the UI; give html and body no background (the preview backdrop is not part of the skin)" }
+error.E2-014 = { what = "scroll container without scrollbar-width: none", hint = "add scrollbar-width: none next to overflow: auto or scroll; the runtime draws no scrollbar, so Chrome's bar would change the layout" }
 error.E3-001 = { what = "at-rule outside the profile", hint = "a skin may use @media (width and height) and @font-face only" }
 error.E3-002 = { what = "selector outside the profile", hint = "use tags, classes, ids, :root, the combinators space and >, and :hover :active :focus :focus-visible :disabled; give the element a class instead of a structural or sibling selector" }
 error.E3-003 = { what = "a toggled class is also written in the static class attribute", hint = "a class that data-bind-class-toggle switches must not be in class=\"...\" of the same element" }
@@ -353,6 +354,8 @@ error.E5-002 = { what = "icon reference outside the sprite", hint = "an icon is 
 error.E5-003 = { what = "font face without a skin font file", hint = "point src: url() at a path listed in skin.toml [fonts.files], which maps it to a file under third_party/fonts" }
 error.E5-004 = { what = "font face not loaded", hint = "Chromium could not load the subset of the face; check the file and that the face is a TTF or OTF" }
 error.E5-005 = { what = "picture cannot be rasterized", hint = "pictures are png, webp or svg files inside the skin with a size from CSS" }
+error.E5-006 = { what = "character missing from the skin fonts", hint = "the runtime has no fallback fonts; use a font of skin.toml [fonts.files] that has the character, or change the text" }
+error.E5-007 = { what = "game asset without a size", hint = "give the element of data-asset or data-bind-src a width and a height in CSS; the asset's own size is not known when the skin is built" }
 error.E8-001 = { what = "package budget exceeded", hint = "the package holds at most 3 MB: fonts 1.2 MB, pictures 0.8 MB, scripts 750 KB, the rest 0.5 MB; use fewer or smaller pictures, fewer faces or a smaller subset" }
 error.E6-001 = { what = "untranslated text", hint = "put the text into the skin's l10n tables and show it with data-l10n, or bind it with data-bind-value" }
 error.E6-002 = { what = "text key not found", hint = "add the key to l10n/<lang>.toml of every language of the skin" }

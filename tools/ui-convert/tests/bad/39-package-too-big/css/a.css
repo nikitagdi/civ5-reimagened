@@ -1,0 +1,23 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.panel {
+  display: flex;
+  pointer-events: auto;
+}
+
+.noise {
+  width: 500px;
+  height: 500px;
+}
+
+.a {
+  background-image: url("../images/a.svg");
+}
+
+.b {
+  background-image: url("../images/b.svg");
+}

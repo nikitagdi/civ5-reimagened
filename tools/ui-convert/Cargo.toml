@@ -39,6 +39,8 @@ blake3.workspace = true
 ui2-runtime.workspace = true
 ui2-text.workspace = true
 ui2-draw.workspace = true
+# The character maps of the skin's font files: a text character no font has is an error (no fallback fonts).
+skrifa.workspace = true
 
 [dev-dependencies]
 # The written skin index must be accepted by the application's registry.
