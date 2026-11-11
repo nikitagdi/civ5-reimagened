@@ -37,7 +37,10 @@ mod events;
 mod focus;
 pub(crate) mod hit;
 mod hotkeys;
+pub(crate) mod text_edit;
 mod tooltip;
+
+pub use text_edit::CARET_BLINK_MS;
 
 use std::sync::Arc;
 
@@ -112,6 +115,8 @@ pub(crate) struct InputState {
     pub tooltip: Option<tooltip::Tooltip>,
     /// Controls: writes not in the model yet, the dragged slider.
     pub controls: controls::Controls,
+    /// Text fields: what they show, the focused one's edit, the request for the host's text bridge.
+    pub fields: text_edit::Fields,
 }
 
 impl InputState {
@@ -281,6 +286,7 @@ impl Runtime {
         self.pointer_down_on(node, p);
         if bit == 1 && !self.disabled(node) {
             self.control_press(node, at);
+            self.field_press(node, hit.local);
         }
         if bit == 1 && self.is_minimap(node) {
             self.input.minimap_drag = true;

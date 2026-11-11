@@ -11,6 +11,7 @@ mod script;
 pub mod stats;
 mod store;
 mod transport;
+mod ui2_input;
 mod ui_bridge;
 
 use std::cell::RefCell;
@@ -29,6 +30,7 @@ pub use script::WebScriptHost;
 pub use store::LocalStorage;
 pub use transport::{BACKLOG_REASON, LimitedWebSocketTransport, WebSocketTransport};
 pub use ui_bridge::WebUiBridge;
+pub use ui2_input::WebTextInput;
 
 /// Falls back to `Date.now()` (not monotonic).
 pub struct WebClock {

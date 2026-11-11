@@ -54,10 +54,11 @@ pub use arena::{
 pub use debug::ElementRect;
 pub use error::{ErrorCode, ErrorSink, NodePath, UiError};
 pub use frame::{FrameOutput, UiOutput};
-pub use input::{InputOutcome, PointerCapture};
+pub use input::{CARET_BLINK_MS, InputOutcome, PointerCapture};
 use instantiate::Spawn;
 pub use instantiate::{MAX_INSTANCE_NODES, Source};
 pub use layout::LayoutStyles;
+pub use platform::ui2::{TextInputRequest, TextInputState, TextSel};
 pub use stats::FrameStats;
 use style::select::EnvChange;
 pub use style::{Scale, StyleEnv, StyleIndex};
@@ -422,6 +423,7 @@ impl Runtime {
             srcs: self.binder.srcs(),
             assets: self.assets.as_ref(),
             anchors: &self.anchors,
+            fields: &self.input.fields,
         };
         let layer = paint::emit::layer_of(&self.arena, &self.pkg, id);
         let (items, _) = paint::build(&self.arena, &cx, &mut self.errors, id);

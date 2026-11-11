@@ -4,7 +4,7 @@
 //! backgrounds of its in-flow, non-positioned descendants in tree order; their content (text, pictures);
 //! positioned descendants with `z-index: auto` or `0` in tree order; descendant contexts with a positive
 //! `z-index`, lowest first (ties in tree order). A node makes a context when it is positioned with an integer
-//! `z-index`, has `opacity < 1` or a `transform`; the chunk root is always one. A positioned node with
+//! `z-index`, has `opacity < 1`, a `transform` or a `clip-path`; the chunk root is always one. A positioned node with
 //! `z-index: auto` is painted with its subtree at its place in the zero list (its positioned descendants
 //! are not lifted out of it).
 
@@ -17,6 +17,7 @@ pub(crate) fn makes_context(r: &StyleRecord) -> bool {
     (r.position != Position::Static && matches!(r.z_index, IntAuto::Int(_)))
         || r.opacity < 1.0
         || !r.transform.is_empty()
+        || !r.clip_path.is_empty()
 }
 
 /// The `z-index` a context or positioned node is ordered by (`auto` is 0).
