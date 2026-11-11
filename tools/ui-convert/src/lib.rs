@@ -249,6 +249,24 @@ pub struct Run {
     pub errors: Vec<ConvError>,
     /// The Chromium version of the run (empty for a dump).
     pub chrome: String,
+    /// How long each stage took, in order: (stage, milliseconds). For the watch's cycle report.
+    pub stages: Vec<(&'static str, u128)>,
+}
+
+/// A stopwatch over the stages of a run.
+pub(crate) struct Stages(std::time::Instant);
+
+impl Stages {
+    pub(crate) fn start() -> Self {
+        Self(std::time::Instant::now())
+    }
+
+    /// Records the time since the last mark under `name`.
+    pub(crate) fn mark(&mut self, out: &mut Vec<(&'static str, u128)>, name: &'static str) {
+        let now = std::time::Instant::now();
+        out.push((name, (now - self.0).as_millis()));
+        self.0 = now;
+    }
 }
 
 impl Run {
@@ -367,6 +385,7 @@ pub fn check_skin(dir: &Path, input: Input) -> Run {
 /// `check` with options.
 pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
     let mut run = Run::default();
+    let mut sw = Stages::start();
     let src = match Source::load(dir) {
         Ok(s) => s,
         Err(e) => {
@@ -410,6 +429,7 @@ pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
         Ok(s) => run.scanned = Some(s),
         Err(e) => run.errors.push(e),
     }
+    sw.mark(&mut run.stages, "scan");
     if let Some(scanned) = &run.scanned {
         let (statics, errs) = check::check(&src.skin, &scanned.ir, &src.dir);
         let reported = statically_reported(&errs);
@@ -427,6 +447,7 @@ pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
         }
         let (p, errs) = plan::plan(&dom, &statics);
         run.errors.extend(errs);
+        sw.mark(&mut run.stages, "static checks and plan");
         let request = p.request();
         let answer = match (node, &stored) {
             (Some(n), _) => n.call("extract", request).map(Some),
@@ -441,6 +462,7 @@ pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
             },
             (None, None) => Ok(None),
         };
+        sw.mark(&mut run.stages, "extract");
         match answer {
             Ok(Some(json)) => {
                 match serde_json::from_value::<styles::Extracted>(json.clone()) {
@@ -463,6 +485,7 @@ pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
             Err(e) => run.errors.push(e),
         }
         run.plan = Some(p);
+        sw.mark(&mut run.stages, "styles");
 
         let schema = ui2_model::Schema::v1();
         let (bound, errs) = bindings::check(&dom, &statics, &src.skin, schema);
@@ -482,6 +505,7 @@ pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
         run.bindings = Some(bound);
         run.texts = Some(texts);
         run.statics = Some(statics);
+        sw.mark(&mut run.stages, "bindings and texts");
     }
     if let Some(n) = owned {
         n.close();

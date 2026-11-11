@@ -20,7 +20,8 @@
 //! in the open session, scanned and extracted, its pictures rasterized (only those whose request or file
 //! changed), the font subsets made again only when the glyph set changed (and taken from the font cache),
 //! and the package written. A cycle with errors keeps the last package and its `.rev`, writes the errors
-//! into `errors.json` and prints them. Every cycle prints `ui2.watch cycle_ms=<n>`. Layout is not verified
+//! into `errors.json` and prints them. Every cycle prints `ui2.watch cycle_ms=<n>` and the time of each stage.
+//! Layout is not verified
 //! in watch mode.
 //!
 //! Package files are replaced through a temporary file and a rename, the `.rev` last, so a client that sees
@@ -110,6 +111,8 @@ pub struct Cycle {
     pub ms: u128,
     /// The errors (empty when it built).
     pub errors: Vec<ConvError>,
+    /// How long each stage took: (stage, milliseconds), in order.
+    pub stages: Vec<(String, u128)>,
 }
 
 /// The font subsets of the current glyph set.
@@ -191,6 +194,7 @@ pub struct Watcher {
     fonts: Option<FontState>,
     scan: Option<ScanState>,
     rasters: RasterCache,
+    stages: Vec<(String, u128)>,
 }
 
 impl Watcher {
@@ -249,6 +253,7 @@ impl Watcher {
             fonts: None,
             scan: None,
             rasters: RasterCache::default(),
+            stages: Vec::new(),
         };
         let first = w.cycle(Change::Full);
         Ok((w, first))
@@ -299,6 +304,7 @@ impl Watcher {
     /// Runs one cycle of the given kind (a no-Chromium kind without the scan of a full cycle runs in full).
     pub fn cycle(&mut self, change: Change) -> Cycle {
         let t = Instant::now();
+        self.stages.clear();
         let ready =
             self.scan.as_ref().is_some_and(|s| s.pictures.is_some()) && self.fonts.is_some();
         let change = if ready { change } else { Change::Full };
@@ -306,6 +312,7 @@ impl Watcher {
             Change::Full => self.full(),
             Change::Scripts | Change::Texts => self.without_chrome(),
         };
+        let p = Instant::now();
         let mut errors = match result {
             Ok(written) => match self.publish(&written) {
                 Ok(()) => Vec::new(),
@@ -313,6 +320,7 @@ impl Watcher {
             },
             Err(e) => e,
         };
+        self.stage("publish", p);
         errors::sort(&mut errors);
         let built = errors.is_empty();
         if !built {
@@ -334,6 +342,20 @@ impl Watcher {
             built,
             ms: t.elapsed().as_millis(),
             errors,
+            stages: std::mem::take(&mut self.stages),
+        }
+    }
+
+    /// Records a stage that started at since.
+    fn stage(&mut self, name: &str, since: Instant) {
+        self.stages
+            .push((name.to_string(), since.elapsed().as_millis()));
+    }
+
+    /// Records the stages of a run under a prefix.
+    fn run_stages(&mut self, prefix: &str, run: &Run) {
+        for (n, ms) in &run.stages {
+            self.stages.push((format!("{prefix}{n}"), *ms));
         }
     }
 
@@ -390,10 +412,16 @@ impl Watcher {
     ) -> Result<write::Written, Vec<ConvError>> {
         let opened = self.opened.clone();
         let mut run = check_skin_with(&self.dir, Input::Session(node, &opened), opts);
-        if self.subsets_for(&run)? {
+        self.run_stages("", &run);
+        let t = Instant::now();
+        let new_subsets = self.subsets_for(&run)?;
+        self.stage("font subsets", t);
+        if new_subsets {
             // New subsets: Chromium lays out and shapes with them (the second pass of a build).
             run = check_skin_with(&self.dir, Input::Session(node, &opened), opts);
+            self.run_stages("pass 2: ", &run);
         }
+        let t = Instant::now();
         let ranges = self
             .fonts
             .as_ref()
@@ -417,12 +445,18 @@ impl Watcher {
             return Err(run.errors);
         };
         let dom = Dom::new(&scanned.ir.dom);
+        self.stage("dump and scripts", t);
+        let t = Instant::now();
         let pictures =
             crate::assets::pictures_cached(node, &self.dir, &dom, styles, &mut self.rasters)?;
         if let Some(s) = &mut self.scan {
             s.pictures = Some(pictures.clone());
         }
-        self.package(&run, &pictures, &scr)
+        self.stage("pictures", t);
+        let t = Instant::now();
+        let w = self.package(&run, &pictures, &scr);
+        self.stage("package", t);
+        w
     }
 
     /// Scripts, texts or samples changed: the stored scan with the files as they are now.
@@ -509,6 +543,8 @@ pub fn report(c: &Cycle) {
             "kept the last package"
         }
     );
+    let stages: Vec<String> = c.stages.iter().map(|(n, ms)| format!("{n} {ms}")).collect();
+    println!("  stages (ms): {}", stages.join(", "));
     for e in &c.errors {
         eprintln!("{e}\n");
     }

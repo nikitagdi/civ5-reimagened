@@ -408,6 +408,7 @@ fn watch_cycle() {
     let (mut w, first) = Watcher::start(&skin, &opts).expect("the watch starts");
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         assert!(first.built, "{:?}", first.errors);
+        println!("first cycle: {} ms, stages {:?}", first.ms, first.stages);
         assert_eq!(first.rev, 1);
         let base = w.url().to_string();
         let get = |what: &str| http_get(&base, &format!("/pkg/engraved.{what}"));
@@ -446,7 +447,10 @@ fn watch_cycle() {
         )
         .expect("edit");
         let (c, took) = next(&mut w, t);
-        println!("css edit: {took:?} (cycle {} ms)", c.ms);
+        println!(
+            "css edit: {took:?} (cycle {} ms, stages {:?})",
+            c.ms, c.stages
+        );
         assert!(c.built, "{:?}", c.errors);
         assert_eq!((c.change, c.rev), (Change::Full, 2));
         assert!(took <= Duration::from_secs(3), "{took:?}");

@@ -76,14 +76,15 @@ function installInPage() {
     for (let k = 0; k < up && e; k++) e = e.parentElement;
     return e;
   };
+  // The values of `pick`, the transition longhands left null: they are read with the kill-sheet off, once for
+  // many nodes (`fillTrans`), because switching the sheet restyles the whole document.
   const read = (e, props, pick) => {
     const out = [];
     let map = null;
     let cs = null;
-    let needKillOff = false;
     for (const i of pick) {
       const p = props[i];
-      if (p.name.startsWith("transition-")) { needKillOff = true; out.push(null); continue; }
+      if (p.name.startsWith("transition-")) { out.push(null); continue; }
       if (p.api === "T") {
         map = map || e.computedStyleMap();
         const v = map.get(p.name);
@@ -93,14 +94,18 @@ function installInPage() {
         out.push(cs.getPropertyValue(p.name));
       }
     }
-    if (needKillOff) {
-      kill.sheet.disabled = true;
-      const cs2 = getComputedStyle(e);
-      pick.forEach((i, k) => { if (out[k] === null) out[k] = cs2.getPropertyValue(props[i].name); });
-      kill.sheet.disabled = false;
-    }
     return out;
   };
+  const isTrans = (i) => plan.props[i].name.startsWith("transition-");
+  // The transition longhands of `pick` into `out` (a fresh list of nulls when there is none); the kill-sheet must
+  // be off.
+  const fillTrans = (e, pick, out) => {
+    const res = out || pick.map(() => null);
+    const cs = getComputedStyle(e);
+    pick.forEach((i, k) => { if (isTrans(i)) res[k] = cs.getPropertyValue(plan.props[i].name); });
+    return res;
+  };
+  const killOff = (off) => { kill.sheet.disabled = off; };
   const offProfile = (e, known) => {
     const cs = getComputedStyle(e);
     const initial = baselines.get(`${e.namespaceURI} ${e.localName}`) || {};
@@ -114,14 +119,18 @@ function installInPage() {
     out.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
     return out;
   };
+  // Turning a condition off restores the element as the page had it (a static class or `disabled` stays).
   const setClass = (id, up, cls, on) => {
     const a = ancestor(id, up);
-    if (a) a.classList.toggle(cls, on);
+    if (!a) return;
+    if (a.__ui2cls === undefined) a.__ui2cls = new Set(a.classList);
+    a.classList.toggle(cls, on || a.__ui2cls.has(cls));
   };
   const setDisabled = (id, up, on) => {
     const a = ancestor(id, up);
     if (!a) return;
-    if (on) a.setAttribute("disabled", ""); else a.removeAttribute("disabled");
+    if (a.__ui2dis === undefined) a.__ui2dis = a.hasAttribute("disabled");
+    if (on || a.__ui2dis) a.setAttribute("disabled", ""); else a.removeAttribute("disabled");
   };
   const tokenValues = (names) => {
     const root = document.documentElement;
@@ -144,7 +153,56 @@ function installInPage() {
     beacon.textContent = text;
     beacon.sheet.disabled = text === "";
   };
-  window.__ui2x = { el, ancestor, read, offProfile, setClass, setDisabled, tokenValues, setBeacon, ids };
+  // The plan's property list, sent once (every read below names properties by index).
+  let plan = null;
+  const setPlan = (props, extra) => {
+    plan = { props, extra, all: props.map((_, i) => i), known: new Set(props.map((p) => p.name).concat(extra)) };
+  };
+  // The class and `disabled` conditions of `mask` on (or off); pseudo-classes are forced over CDP.
+  const applyIn = (id, conds, mask, on) => {
+    conds.forEach((c, b) => {
+      if (!(mask & (1 << b))) return;
+      if (c.kind === "class") setClass(id, c.up, c.class, on);
+      else if (c.kind === "disabled") setDisabled(id, c.up, on);
+    });
+  };
+  // Base reads of many nodes at once: values, extra values, off-profile differences.
+  const readBase = (ids) => {
+    const rows = ids.map((id) => {
+      const e = nodes[id];
+      const cs = getComputedStyle(e);
+      return { base: read(e, plan.props, plan.all), extra: plan.extra.map((p) => cs.getPropertyValue(p)), off: offProfile(e, plan.known) };
+    });
+    if (plan.all.some(isTrans)) {
+      killOff(true);
+      ids.forEach((id, k) => fillTrans(nodes[id], plan.all, rows[k].base));
+      killOff(false);
+    }
+    return rows;
+  };
+  // One variant: its in-page conditions on, the values read, the conditions off. `pick` null = every property.
+  // `trans`: only the transition longhands (the caller switched the kill-sheet off).
+  const readMasked = (id, conds, mask, pick, trans = false) => {
+    const p = pick || plan.all;
+    applyIn(id, conds, mask, true);
+    const v = trans ? fillTrans(nodes[id], p, null) : read(nodes[id], plan.props, p);
+    applyIn(id, conds, mask, false);
+    return v;
+  };
+  const hasTrans = (pick) => (pick || plan.all).some(isTrans);
+  const readJobs = (jobs, pick) => {
+    const out = jobs.map((j) => readMasked(j.id, j.conds, j.mask, pick));
+    if (hasTrans(pick)) {
+      killOff(true);
+      jobs.forEach((j, k) => {
+        const t = readMasked(j.id, j.conds, j.mask, pick, true);
+        t.forEach((v, i) => { if (v !== null) out[k][i] = v; });
+      });
+      killOff(false);
+    }
+    return out;
+  };
+  window.__ui2x = { el, ancestor, read, offProfile, setClass, setDisabled, tokenValues, setBeacon, ids, setPlan, readBase, readMasked, readJobs, killOff, hasTrans };
   return nodes.length;
 }
 
@@ -197,27 +255,63 @@ export async function extractPage({ page, server, entry, req, state = "" }) {
   const props = req.props;
   const all = props.map((_, i) => i);
   const beaconPick = req.beacon_props;
-  const known = props.map((p) => p.name).concat(req.extra);
   const clipAt = props.findIndex((p) => p.name === "clip-path");
+  await page.evaluate(([props, extra]) => window.__ui2x.setPlan(props, extra), [props, req.extra]);
 
-  // Applies (on = true) or clears the conditions of `mask` for node `n`.
-  const apply = async (n, mask, on) => {
-    const forced = new Map(); // cdp node id -> pseudo list
-    for (let b = 0; b < n.conds.length; b++) {
-      if (!(mask & (1 << b))) continue;
-      const c = n.conds[b];
-      if (c.kind === "class") await page.evaluate(([id, up, cls, v]) => window.__ui2x.setClass(id, up, cls, v), [n.id, c.up, c.class, on]);
-      else if (c.kind === "disabled") await page.evaluate(([id, up, v]) => window.__ui2x.setDisabled(id, up, v), [n.id, c.up, on]);
-      else {
-        const nid = await cdpNode(n.id, c.up);
+  // The variants to read: one job per (node, non-empty mask). A job whose mask holds only classes and
+  // `disabled` runs inside the page; one with a pseudo-class needs CDP to force it.
+  const jobs = [];
+  for (const n of req.nodes) {
+    for (let mask = 1; mask < (1 << n.conds.length); mask++) {
+      const pseudo = n.conds.some((c, b) => (mask & (1 << b)) && PSEUDO.has(c.kind));
+      jobs.push({ n, mask, pseudo });
+    }
+  }
+  // The CDP node ids of the elements that get a forced state, resolved once (requests pipelined).
+  const keys = new Set();
+  for (const j of jobs) if (j.pseudo) j.n.conds.forEach((c, b) => { if ((j.mask & (1 << b)) && PSEUDO.has(c.kind)) keys.add(`${j.n.id}/${c.up}`); });
+  await Promise.all([...keys].map((k) => cdpNode(...k.split("/").map(Number))));
+
+  // Reads every job with `pick` (null = all properties); returns the value lists in job order. The in-page jobs
+  // go in one call; the CDP ones are pipelined on the CDP session, whose commands run in order: force the
+  // pseudo-classes, read (classes toggled in the same call), clear.
+  const readVariants = async (pick) => {
+    const out = new Array(jobs.length);
+    const local = jobs.map((j, k) => [j, k]).filter(([j]) => !j.pseudo);
+    const vals = await page.evaluate(([list, pick]) => window.__ui2x.readJobs(list, pick),
+      [local.map(([j]) => ({ id: j.n.id, conds: j.n.conds, mask: j.mask })), pick]);
+    local.forEach(([, k], i) => { out[k] = vals[i]; });
+    const evalCdp = (expression) => cdp.send("Runtime.evaluate", { expression, returnByValue: true }).then((r) => {
+      if (r.exceptionDetails) throw new ProtocolError("E9-003", `extract: ${r.exceptionDetails.text}`);
+      return r.result.value;
+    });
+    // Pass 1: everything but the transition longhands; pass 2 (kill-sheet off): those.
+    const trans = pick === null ? props.some((p) => p.name.startsWith("transition-")) : pick.some((i) => props[i].name.startsWith("transition-"));
+    for (const phase of trans ? [false, true] : [false]) {
+    const sends = [];
+    if (phase) sends.push(evalCdp("window.__ui2x.killOff(true)"));
+    jobs.forEach((j, k) => {
+      if (!j.pseudo) return;
+      const forced = new Map();
+      j.n.conds.forEach((c, b) => {
+        if (!(j.mask & (1 << b)) || !PSEUDO.has(c.kind)) return;
+        const nid = cdpIds.get(`${j.n.id}/${c.up}`);
         if (!forced.has(nid)) forced.set(nid, []);
         forced.get(nid).push(c.kind);
-      }
+      });
+      for (const [nodeId, list] of forced) sends.push(cdp.send("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: list }));
+      const expr = `window.__ui2x.readMasked(${j.n.id}, ${JSON.stringify(j.n.conds)}, ${j.mask}, ${JSON.stringify(pick)}, ${phase})`;
+      sends.push(evalCdp(expr).then((v) => {
+        if (!phase) out[k] = v;
+        else v.forEach((x, i) => { if (x !== null) out[k][i] = x; });
+      }));
+      for (const nodeId of forced.keys()) sends.push(cdp.send("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: [] }));
+    });
+    if (phase) sends.push(evalCdp("window.__ui2x.killOff(false)"));
+    await Promise.all(sends);
     }
-    for (const [nodeId, list] of forced) await cdp.send("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: on ? list : [] });
+    return out;
   };
-
-  const readNode = (id, pick) => page.evaluate(([id, props, pick]) => window.__ui2x.read(window.__ui2x.el(id), props, pick), [id, props, pick]);
   const diff = (base, vals, pick) => {
     const set = [];
     pick.forEach((i, k) => { if (vals[k] !== base[i]) set.push([i, vals[k]]); });
@@ -229,34 +323,28 @@ export async function extractPage({ page, server, entry, req, state = "" }) {
   for (const [w, h] of req.cells) {
     await page.setViewportSize({ width: w, height: h });
     await settle(page);
-    const out = [];
-    for (const n of req.nodes) {
-      const base = await readNode(n.id, all);
-      const extra = await page.evaluate(([id, names]) => { const cs = getComputedStyle(window.__ui2x.el(id)); return names.map((p) => cs.getPropertyValue(p)); }, [n.id, req.extra]);
-      const off = await page.evaluate(([id, known]) => window.__ui2x.offProfile(window.__ui2x.el(id), new Set(known)), [n.id, known]);
-      const vars = [];
-      for (let mask = 1; mask < (1 << n.conds.length); mask++) {
-        await apply(n, mask, true);
-        const vals = await readNode(n.id, all);
-        await apply(n, mask, false);
-        vars.push({ mask, set: diff(base, vals, all) });
-      }
-      const node = { id: n.id, base, extra, off, vars };
+    const bases = await page.evaluate((ids) => window.__ui2x.readBase(ids), req.nodes.map((n) => n.id));
+    const variants = await readVariants(null);
+    const out = req.nodes.map((n, i) => ({ id: n.id, base: bases[i].base, extra: bases[i].extra, off: bases[i].off, vars: [] }));
+    const at = new Map(req.nodes.map((n, i) => [n, i]));
+    jobs.forEach((j, k) => {
+      const node = out[at.get(j.n)];
+      node.vars.push({ mask: j.mask, set: diff(node.base, variants[k], all) });
+    });
+    for (const node of out) {
       // A clipped node: the size of its border box (the clip polygon's reference box), so the converter can
       // check the polygon at the size it has.
-      if (clipAt >= 0 && (base[clipAt] !== "none" || vars.some((v) => v.set.some(([i]) => i === clipAt)))) {
+      if (clipAt >= 0 && (node.base[clipAt] !== "none" || node.vars.some((v) => v.set.some(([i]) => i === clipAt)))) {
         node.size = await page.evaluate((id) => {
           const e = window.__ui2x.el(id);
           if (e instanceof HTMLElement) return [e.offsetWidth, e.offsetHeight];
           const r = e.getBoundingClientRect();
           return [r.width, r.height];
-        }, n.id);
+        }, node.id);
       }
-      out.push(node);
     }
     cells.push({ viewport: [w, h], nodes: out });
   }
-
   // The beacon prefix: the smallest R such that no base color reads rgb(R, ...).
   const used = new Set();
   for (const c of cells) for (const n of c.nodes) {
@@ -280,22 +368,16 @@ export async function extractPage({ page, server, entry, req, state = "" }) {
       const [w, h] = req.cells[ci];
       await page.setViewportSize({ width: w, height: h });
       await settle(page);
-      for (let ni = 0; ni < req.nodes.length; ni++) {
-        const n = req.nodes[ni];
-        const a = cells[ci].nodes[ni];
-        const vb = await readNode(n.id, beaconPick);
-        const base = diff(a.base, vb, beaconPick);
-        const vars = [];
-        for (let mask = 1; mask < (1 << n.conds.length); mask++) {
-          const va = a.base.slice();
-          for (const [i, v] of a.vars[mask - 1].set) va[i] = v;
-          await apply(n, mask, true);
-          const vals = await readNode(n.id, beaconPick);
-          await apply(n, mask, false);
-          vars.push({ mask, set: diff(va, vals, beaconPick) });
-        }
-        a.beacon = { base, vars };
-      }
+      const bases = await page.evaluate(([ids, pick]) => ids.map((id) => window.__ui2x.readMasked(id, [], 0, pick)), [req.nodes.map((n) => n.id), beaconPick]);
+      const variants = await readVariants(beaconPick);
+      const at = new Map(req.nodes.map((n, i) => [n, i]));
+      cells[ci].nodes.forEach((a, ni) => { a.beacon = { base: diff(a.base, bases[ni], beaconPick), vars: [] }; });
+      jobs.forEach((j, k) => {
+        const a = cells[ci].nodes[at.get(j.n)];
+        const va = a.base.slice();
+        for (const [i, v] of a.vars[j.mask - 1].set) va[i] = v;
+        a.beacon.vars.push({ mask: j.mask, set: diff(va, variants[k], beaconPick) });
+      });
     }
     await page.evaluate(() => window.__ui2x.setBeacon(""));
   } else {
