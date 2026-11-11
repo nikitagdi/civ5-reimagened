@@ -754,6 +754,11 @@ impl M2Ui {
         self.v2_loc.clone()
     }
 
+    /// TEMP(T51): UI v2 asks the camera to go to a plot, as the layer's `UI.LookAt` does (carried out next frame).
+    pub fn v2_look_at(&self, x: i32, y: i32) {
+        self.host.look.set(Some((x, y)));
+    }
+
     pub fn phase(&self) -> M2Phase {
         self.phase
     }

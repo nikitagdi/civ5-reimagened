@@ -5,6 +5,11 @@
 //! through temporary getters of the classic layer; once the game session owns the replica and the frontends switch
 //! through one interface, this module is replaced.
 //!
+//! The network reaches UI v2 the same temporary way: the app hands each of the core's events to
+//! [`V2Host::net_event`] (kept, as the actions module's events, until the next UI v2 frame) and lends the network
+//! handle to [`V2Host::frame`], which runs the UI v2 frame inside one borrow of the core ([`NetSink`]). Camera
+//! requests of the frame go to the classic layer's look-at, which the app carries out on its next frame.
+//!
 //! Loading: the index `ui2/skins.json` and the chosen package are fetched relative to the page. Any failure (no
 //! index, a bad index, a package that is missing, damaged, of another hash, or that does not build) is a warning and
 //! a fallback: the default skin if another one failed, else the classic UI. Never a panic, never a retry loop.
@@ -13,15 +18,56 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use client_core::ClientEvent;
 use draw_list::UiDrawList;
 use platform::{HttpClient, HttpError, HttpOp, HttpResponse};
+use protocol::GameId;
 use ui2_host::{
-    Env, Fallback, HostClock, ReplicaView, Services, SkinRegistry, V2Frame, V2FrameReport, V2Init,
-    V2Ui,
+    ActionEvent, Env, Fallback, HostClock, NetSink, ReplicaView, Services, SkinRegistry, V2Frame,
+    V2FrameReport, V2Init, V2Ui,
 };
+
+use crate::net::NetHandle;
 
 /// The skin index of the web build, relative to the page.
 pub const INDEX_PATH: &str = "ui2/skins.json";
+
+/// The most network events kept for UI v2 while it runs no frame (loading, a mod owning the screen); the oldest
+/// go first.
+const MAX_EVENTS: usize = 1024;
+
+/// What the actions module must know of a core event. `game` is the game the last `Attached` named: attaching
+/// to the same game again (a reconnect) keeps the UI's state; another game, or leaving the game, is a new game.
+pub(crate) fn action_event(ev: &ClientEvent, game: &mut Option<GameId>) -> Option<ActionEvent> {
+    match ev {
+        ClientEvent::OrderAnswered { id, outcome } => Some(ActionEvent::Answered {
+            id: *id,
+            outcome: outcome.clone(),
+        }),
+        ClientEvent::OrderRolledBack { id, text } => Some(ActionEvent::RolledBack {
+            id: *id,
+            text: text.clone(),
+        }),
+        ClientEvent::EndTurnCancelled { by_order } => Some(ActionEvent::EndTurnCancelled {
+            by_order: *by_order,
+        }),
+        ClientEvent::Attached { game: g, .. } => {
+            (game.replace(*g) != Some(*g)).then_some(ActionEvent::NewGame)
+        }
+        ClientEvent::Detached(_) => {
+            *game = None;
+            Some(ActionEvent::NewGame)
+        }
+        _ => None,
+    }
+}
+
+/// The ids of a mod set's mods in load order: the index of a mod there is the index its intents carry.
+pub(crate) fn mod_ids(set: &protocol::ModSetView) -> Vec<Arc<str>> {
+    let mut mods: Vec<_> = set.mods.iter().collect();
+    mods.sort_by_key(|m| m.load_idx);
+    mods.into_iter().map(|m| Arc::from(m.id.as_str())).collect()
+}
 
 /// What `?ui=` asked of UI v2.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -99,6 +145,11 @@ pub struct V2Host {
     loc: Option<Rc<loc::Localizer>>,
     /// Where the classic layer draws while a skin runs: cleared every frame, never submitted.
     scratch: UiDrawList,
+    /// The network's events for the actions module since the last UI v2 frame, and the game they belong to.
+    events: Vec<ActionEvent>,
+    game: Option<GameId>,
+    /// The game's mod set, when it changed since the last UI v2 frame.
+    mods: Option<Vec<Arc<str>>>,
 }
 
 impl V2Host {
@@ -117,6 +168,30 @@ impl V2Host {
             load_ms: None,
             loc: None,
             scratch: UiDrawList::new(),
+            events: Vec::new(),
+            game: None,
+            mods: None,
+        }
+    }
+
+    /// One event of the client core, in the order the app got them: kept for the next UI v2 frame. Nothing is
+    /// kept once UI v2 is off for the session.
+    pub fn net_event(&mut self, ev: &ClientEvent) {
+        if matches!(self.stage, Stage::Classic) {
+            self.events.clear();
+            return;
+        }
+        if let ClientEvent::ModSet(set) = ev {
+            self.mods = Some(mod_ids(set));
+        }
+        if let Some(a) = action_event(ev, &mut self.game) {
+            if self.events.len() >= MAX_EVENTS {
+                tracing::warn!(
+                    "UI v2: no frame for {MAX_EVENTS} network events; the oldest is dropped"
+                );
+                self.events.remove(0);
+            }
+            self.events.push(a);
         }
     }
 
@@ -265,11 +340,15 @@ impl V2Host {
     }
 
     /// One frame after the classic layer's: advances the loading and, while a skin runs and the game's layer is up,
-    /// runs UI v2 on the replica and publishes its counters. `Some`: the scene of the returned UI goes to the
-    /// renderer (`prepare_ui2`) before it draws.
+    /// runs UI v2 on the replica and the network (`net`: the app's handle; `None` without a network) and publishes
+    /// its counters. `Some`: the scene of the returned UI goes to the renderer (`prepare_ui2`) before it draws.
+    ///
+    /// The network handle is borrowed for the UI v2 frame only, in the app's frame: never inside a call into page
+    /// script (the frame, the timer and the page events never run inside one another).
     pub(crate) fn frame(
         &mut self,
         m2: &mut crate::m2::M2Ui,
+        net: Option<&NetHandle>,
         env: Env,
         now_ms: f64,
     ) -> Option<&mut V2Ui> {
@@ -295,20 +374,44 @@ impl V2Host {
         }
         self.loc = loc;
         ui.set_env(env);
-        let report = match replica.as_ref().map(|r| r.try_borrow_mut()) {
-            Some(Ok(mut r)) => ui.frame(V2Frame {
-                replica: Some(ReplicaView::of(&mut r)),
-                steps: &steps,
-                now_ms,
-            }),
-            // The layer holds the replica (it never does between frames): the last scene stays.
+        let mut held = match replica.as_ref().map(|r| r.try_borrow_mut()) {
+            Some(Ok(r)) => Some(r),
+            // The layer holds the replica (it never does between frames): the last scene stays, the events wait.
             Some(Err(_)) => return Some(ui),
-            None => ui.frame(V2Frame {
-                replica: None,
-                steps: &[],
-                now_ms,
-            }),
+            None => None,
         };
+        let steps: &[replica::ReplicaStep] = if held.is_some() { &steps } else { &[] };
+        let events = std::mem::take(&mut self.events);
+        let mods = self.mods.take();
+        let (report, look) = match net {
+            Some(h) => h.with(|core| {
+                let mut sink = NetSink::new(core);
+                let report = ui.frame(V2Frame {
+                    replica: held.as_deref_mut().map(ReplicaView::of),
+                    steps,
+                    net: Some(&mut sink),
+                    events: &events,
+                    mods,
+                    now_ms,
+                });
+                (report, sink.look_at())
+            }),
+            None => {
+                let report = ui.frame(V2Frame {
+                    replica: held.as_deref_mut().map(ReplicaView::of),
+                    steps,
+                    net: None,
+                    events: &events,
+                    mods,
+                    now_ms,
+                });
+                (report, None)
+            }
+        };
+        // TEMP(T51): the camera goes where the classic UI's `UI.LookAt` would send it.
+        if let Some((x, y)) = look {
+            m2.v2_look_at(x, y);
+        }
         publish(&report, load_ms);
         Some(ui)
     }
@@ -380,6 +483,71 @@ mod tests {
         ] {
             assert_eq!(parse_ui_param(other), None, "{other:?}");
         }
+    }
+
+    #[test]
+    fn core_events_become_action_events() {
+        use protocol::{AttachMode, CommandOutcome, DetachReason};
+        let mut game = None;
+        let mut map = |ev: ClientEvent| action_event(&ev, &mut game);
+        assert_eq!(
+            map(ClientEvent::OrderAnswered {
+                id: 4,
+                outcome: CommandOutcome::Applied
+            }),
+            Some(ActionEvent::Answered {
+                id: 4,
+                outcome: CommandOutcome::Applied
+            })
+        );
+        assert_eq!(
+            map(ClientEvent::OrderRolledBack {
+                id: 5,
+                text: "lost".into()
+            }),
+            Some(ActionEvent::RolledBack {
+                id: 5,
+                text: "lost".into()
+            })
+        );
+        assert_eq!(
+            map(ClientEvent::EndTurnCancelled { by_order: true }),
+            Some(ActionEvent::EndTurnCancelled { by_order: true })
+        );
+        let attach = |game| ClientEvent::Attached {
+            game,
+            mode: AttachMode::Fresh,
+        };
+        // The first game is a new game; attaching to it again (a reconnect) is not; another game is.
+        assert_eq!(map(attach(7)), Some(ActionEvent::NewGame));
+        assert_eq!(map(attach(7)), None);
+        assert_eq!(map(attach(8)), Some(ActionEvent::NewGame));
+        // Leaving the game is a new game, and so is coming back to it.
+        assert_eq!(
+            map(ClientEvent::Detached(DetachReason::Left)),
+            Some(ActionEvent::NewGame)
+        );
+        assert_eq!(map(attach(8)), Some(ActionEvent::NewGame));
+        assert_eq!(map(ClientEvent::ViewChanged), None);
+    }
+
+    #[test]
+    fn mod_ids_follow_the_load_order() {
+        let m = |id: &str, load_idx| protocol::ModView {
+            id: id.into(),
+            version: "1.0".into(),
+            load_idx,
+            sync: protocol::ModSync::Client,
+            client_required: false,
+            available: true,
+            pack: None,
+        };
+        let set = protocol::ModSetView {
+            modset_hash: 1,
+            mods: vec![m("b", 1), m("a", 0)],
+        };
+        let ids: Vec<String> = mod_ids(&set).iter().map(|s| s.to_string()).collect();
+        assert_eq!(ids, ["a", "b"]);
     }
 
     #[test]
@@ -609,6 +777,9 @@ mod tests {
         let r = ui.frame(V2Frame {
             replica: None,
             steps: &[],
+            net: None,
+            events: &[],
+            mods: None,
             now_ms: 16.0,
         });
         assert!(r.errors.is_empty(), "{:?}", r.errors);

@@ -1363,6 +1363,10 @@ impl App {
                 self.apply_pointer_request(lock);
             }
             self.hud.on_game_event(&ev, now);
+            // TEMP(T51): the answers to UI v2's orders and the game's attach and detach, for its next frame.
+            if let Some(v2) = self.v2.as_mut() {
+                v2.net_event(&ev);
+            }
             // The original UI's end of turn: a refusal brings the end-turn button back (live game 931).
             if let Some(m2) = self.m2.as_mut() {
                 match &ev {
@@ -2129,7 +2133,7 @@ impl App {
                         dpr: w.scale_factor() as f32,
                         ..ui2_host::Env::default()
                     };
-                    if let Some(ui) = v2.frame(m2, env, self.clock.now_ms_f64()) {
+                    if let Some(ui) = v2.frame(m2, handle.as_ref(), env, self.clock.now_ms_f64()) {
                         renderer.prepare_ui2(ui.scene_mut());
                     }
                 }
