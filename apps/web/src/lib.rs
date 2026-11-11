@@ -205,6 +205,10 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
                     None => Box::new(platform::NullScriptHost),
                 },
             )),
+            // `&ui2bg=<rrggbb>`: reference images of the skin alone (solid background, frozen scene).
+            background: page::query_param("ui2bg")
+                .as_deref()
+                .and_then(client_app::parse_ui2_background),
         }),
     };
     let config = AppConfig {

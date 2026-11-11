@@ -605,12 +605,13 @@ impl App {
         {
             tracing::info!(?skin, "UI v2 requested");
             let c = Rc::clone(&clock);
-            let v2 = crate::ui_host::v2::V2Frontend::new(
+            let mut v2 = crate::ui_host::v2::V2Frontend::new(
                 crate::ui_host::v2::V2Choice { skin: skin.clone() },
                 v2_http,
                 Rc::new(move || c.now_ms_f64()),
                 p.scripts,
             );
+            v2.set_background(p.background);
             ui_host.register(Box::new(v2));
             ui_host.request(crate::ui_host::UiKind::V2);
         }

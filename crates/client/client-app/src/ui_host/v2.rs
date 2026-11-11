@@ -32,6 +32,7 @@ use platform::{
     HttpClient, HttpError, HttpOp, HttpResponse, InputEvent, NullScriptHost, ScriptHost,
 };
 use protocol::GameId;
+use render::Renderer;
 use ui2_host::{
     ActionEvent, Cursor, Env, Fallback, HostClock, InputOutcome, MapButton, NetSink, ReplicaView,
     Services, SkinRegistry, V2Frame, V2FrameReport, V2Init, V2Ui,
@@ -128,6 +129,65 @@ pub type ScriptHostFactory = Rc<dyn Fn() -> Box<dyn ScriptHost>>;
 pub struct Ui2Platform {
     /// The script workers of each skin that loads; `None`: skins run their markup only.
     pub scripts: Option<ScriptHostFactory>,
+    /// Reference images (`?ui2bg=<rrggbb>`): a solid background under the skin and its scene frozen at time 0.
+    pub background: Option<[u8; 3]>,
+}
+
+/// `?ui2bg=<rrggbb>` (an optional `#`): the colour, or `None` for anything else.
+pub fn parse_background(value: &str) -> Option<[u8; 3]> {
+    let hex = value.trim().trim_start_matches('#');
+    if hex.len() != 6 || !hex.is_ascii() {
+        return None;
+    }
+    let byte = |i: usize| u8::from_str_radix(&hex[i..i + 2], 16).ok();
+    Some([byte(0)?, byte(2)?, byte(4)?])
+}
+
+/// Where a map anchor's object is in the world: a city's banner or a unit's flag as the renderer hangs them, or
+/// the centre of a plot on the relief. `None`: not on the map (not seen, gone).
+fn anchor_point(
+    kind: ui2_host::AnchorKind,
+    key: &ui2_host::ModelValue,
+    labels: &[render::entities::WorldLabel],
+    terrain: Option<&render::terrain::TerrainSnapshot>,
+) -> Option<render::glam::Vec3> {
+    use render::entities::LabelData;
+    use ui2_host::{AnchorKind, ModelValue};
+    // The id of a city or a unit is the low 32 bits of its key.
+    let id = || match key {
+        ModelValue::Key(k) => Some(k.0 as u32 as i32),
+        ModelValue::I32(v) => Some(*v),
+        ModelValue::U32(v) => Some(*v as i32),
+        _ => None,
+    };
+    match kind {
+        AnchorKind::Plot => {
+            let ModelValue::Struct(xy) = key else {
+                return None;
+            };
+            let (Some(ModelValue::I32(x)), Some(ModelValue::I32(y))) = (xy.first(), xy.get(1))
+            else {
+                return None;
+            };
+            let c = render::hexgrid::cell_center(*x, *y);
+            let h = terrain.map_or(0.0, |t| render::terrain::terrain_height_at(t, c));
+            Some(render::glam::Vec3::new(c.x, h, c.y))
+        }
+        AnchorKind::City => {
+            let id = id()?;
+            labels.iter().find_map(|l| match &l.data {
+                LabelData::CityBanner(b) if b.city == id => Some(l.position),
+                _ => None,
+            })
+        }
+        AnchorKind::Unit => {
+            let id = id()?;
+            labels.iter().find_map(|l| match &l.data {
+                LabelData::UnitFlag(f) if f.unit == id => Some(l.position),
+                _ => None,
+            })
+        }
+    }
 }
 
 /// What the playtest hooks (`?test=1`) read of UI v2 after each of its frames: the loading stage and, while a
@@ -245,6 +305,8 @@ pub struct V2Frontend {
     scripts: Option<ScriptHostFactory>,
     /// A game is up (its replica live while it is played); UI v2 runs no frame before.
     game_up: bool,
+    /// `?ui2bg=`: reference images (see [`Ui2Platform::background`]).
+    background: Option<[u8; 3]>,
 }
 
 impl V2Frontend {
@@ -274,7 +336,13 @@ impl V2Frontend {
             cursor: Cursor::Auto,
             scripts,
             game_up: false,
+            background: None,
         }
+    }
+
+    /// Reference images: every skin that loads gets a solid background and a frozen scene.
+    pub fn set_background(&mut self, background: Option<[u8; 3]>) {
+        self.background = background;
     }
 
     /// The game was left: the next frame waits for the next game and rebuilds the model from it.
@@ -452,6 +520,8 @@ impl V2Frontend {
                     "UI v2: skin is up; the classic UI stops drawing"
                 );
                 self.load_ms = Some(ms);
+                let mut ui = ui;
+                ui.set_golden(self.background);
                 Stage::Running(Box::new(ui))
             }
             Err(why) => self.fall_back(&id, &why),
@@ -662,6 +732,26 @@ impl Frontend for V2Frontend {
             cx.now_ms,
             &mut look,
         ) {
+            // The map anchors follow their objects through the camera, as the classic UI's banners do.
+            if ui.anchor_count() > 0 {
+                let renderer: &Renderer = cx.renderer;
+                let (w, h) = cx.size;
+                let view_proj = cx.camera.view_proj(w as f32 / h.max(1) as f32);
+                let eye = cx.camera.eye();
+                let viewport = render::glam::Vec2::new(w as f32, h as f32);
+                let terrain = renderer.terrain_snapshot();
+                let wrap = terrain
+                    .filter(|t| t.wrap_x())
+                    .map(|t| render::hexgrid::HEX_WIDTH * t.width() as f32);
+                let labels = renderer.entity_labels();
+                ui.place_anchors(|kind, key| {
+                    let world = anchor_point(kind, key, labels, terrain)?;
+                    let s = render::entities::project_wrapped_label(
+                        world, wrap, &view_proj, viewport, eye, terrain,
+                    );
+                    s.visible.then_some((s.pos, 1.0))
+                });
+            }
             cx.renderer.prepare_ui2(ui.scene_mut());
         }
         if let Some((x, y)) = look {
@@ -1342,6 +1432,69 @@ mod tests {
         let r = frame(&mut h);
         assert_eq!((&r.scripts, r.fatal.is_some()), (&None, false));
         assert!(h.after_frame(&r));
+    }
+
+    #[test]
+    fn the_reference_background_is_a_hex_colour() {
+        assert_eq!(parse_background("1a2b3c"), Some([0x1a, 0x2b, 0x3c]));
+        assert_eq!(parse_background("#FFFFFF"), Some([255, 255, 255]));
+        for bad in ["", "fff", "12345g", "1234567", "ééé"] {
+            assert_eq!(parse_background(bad), None, "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn anchors_find_plots_cities_and_units_on_the_map() {
+        use render::entities::{CityBanner, LabelData, UnitFlag, WorldLabel};
+        use render::glam::Vec3;
+        use ui2_host::{AnchorKind, ModelValue};
+        let at = Vec3::new(1.0, 2.0, 3.0);
+        let labels = vec![
+            WorldLabel {
+                cell: (4, 5),
+                position: at,
+                data: LabelData::CityBanner(CityBanner {
+                    city: 7,
+                    owner: 0,
+                    name: "Rome".into(),
+                    population: 1,
+                    capital: true,
+                    hp: 0,
+                    max_hp: 0,
+                }),
+            },
+            WorldLabel {
+                cell: (6, 5),
+                position: at * 2.0,
+                data: LabelData::UnitFlag(UnitFlag {
+                    unit: 9,
+                    owner: 0,
+                    type_name: "UNIT_WARRIOR".into(),
+                    hp: 1,
+                    max_hp: 1,
+                    needs_orders: false,
+                    civilian: false,
+                }),
+            },
+        ];
+        let key = |k: u64| ModelValue::Key(ui2_host::ModelKey(k));
+        assert_eq!(
+            anchor_point(AnchorKind::City, &key(7), &labels, None),
+            Some(at)
+        );
+        assert_eq!(anchor_point(AnchorKind::City, &key(8), &labels, None), None);
+        // The id is the low 32 bits of the key.
+        assert_eq!(
+            anchor_point(AnchorKind::Unit, &key((3 << 32) | 9), &labels, None),
+            Some(at * 2.0)
+        );
+        let plot = ModelValue::Struct(vec![ModelValue::I32(2), ModelValue::I32(3)]);
+        let c = render::hexgrid::cell_center(2, 3);
+        assert_eq!(
+            anchor_point(AnchorKind::Plot, &plot, &labels, None),
+            Some(Vec3::new(c.x, 0.0, c.y))
+        );
+        assert_eq!(anchor_point(AnchorKind::Plot, &key(1), &labels, None), None);
     }
 
     #[test]
