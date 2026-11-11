@@ -9,8 +9,9 @@ use draw_list::UiDrawList;
 use glam::{Affine2, Vec2};
 use ui2_draw::instance::{ATTRIBUTES, INSTANCE_SIZE};
 use ui2_draw::{
-    AnchorXform, Border, BoxItem, ChunkBuilder, ChunkId, Clip, Color, FaceId, Fill, Glyphs,
-    ImageItem, ImageRef, Item, LayerId, MaskItem, Radii, Rect, Scene, testkit,
+    AnchorXform, Border, BoxItem, ChunkBuilder, ChunkId, Clip, Color, EllipticBox, FaceId, Fill,
+    Glyphs, Gradient, GradientStop, ImageItem, ImageRef, Item, LayerId, MaskItem, Radii, Rect,
+    Scene, ShadowItem, testkit,
 };
 use ui2_text::{RunStyle, TextEngine};
 
@@ -109,7 +110,7 @@ fn ui2_vertex_layout_fits_the_webgl2_limits() {
         locations <= limits.max_inter_stage_shader_variables,
         "{locations} varyings"
     );
-    // Room is left for the gradient and image tasks.
+    // Gradients, shadows and ellipses fit in 12 (colours packed): three stay free for later primitives.
     assert!(locations <= 12);
 }
 
@@ -820,6 +821,317 @@ fn ui2_mask_icons_reproduce_the_page_coverage() {
     // The square (10 x 10 in its cell) at 2x: 20 x 20 covered in the middle.
     assert_eq!(rgb(&img, w, 16, 32), [0, 255, 0]);
     assert_eq!(rgb(&img, w, 2, 18), [0, 0, 0]);
+    assert_eq!(rig.pass.stats().draws, 1);
+}
+
+fn stops(s: &[(Color, f32)]) -> Vec<GradientStop> {
+    s.iter().map(|(c, p)| GradientStop::new(*c, *p)).collect()
+}
+
+fn gradient_box(rect: Rect, g: Gradient) -> Item {
+    Item::Box(BoxItem {
+        rect,
+        fill: Fill::Gradient(g),
+        ..BoxItem::default()
+    })
+}
+
+/// A pixel `(x, y)` at `deg` degrees clockwise from the top and `r` px from `c`.
+fn polar(c: Vec2, r: f32, deg: f32) -> (u32, u32) {
+    let a = deg.to_radians();
+    let p = c + Vec2::new(a.sin(), -a.cos()) * r;
+    (p.x as u32, p.y as u32)
+}
+
+/// Test 2 (the rest): gradients (hard stops, smooth, repeating, conic, repeating conic, tiled), an elliptic
+/// ring, shadows (hard with spread, blurred, offset), a polygon clip (a bevelled plate) and a rotated box.
+fn primitives_on(test: &str, backends: wgpu::Backends) {
+    let Some(mut rig) = Rig::new(test, backends, (200, 130)) else {
+        return;
+    };
+    let v = Vec2::new;
+    let tr = Color::TRANSPARENT;
+    let hard = stops(&[(RED, 0.0), (RED, 0.5), (GREEN, 0.5), (GREEN, 1.0)]);
+    let mut items = vec![
+        // Hard stop in the middle of a 40 px line.
+        gradient_box(
+            Rect::new(0.0, 0.0, 40.0, 20.0),
+            Gradient::linear(v(0.0, 0.0), v(40.0, 0.0), &hard).unwrap(),
+        ),
+        // Red to blue over 40 px.
+        gradient_box(
+            Rect::new(0.0, 20.0, 41.0, 10.0),
+            Gradient::linear(
+                v(0.5, 0.0),
+                v(40.5, 0.0),
+                &stops(&[(RED, 0.0), (BLUE, 1.0)]),
+            )
+            .unwrap(),
+        ),
+        // Stripes: 5 px red, 5 px nothing.
+        gradient_box(
+            Rect::new(50.0, 0.0, 40.0, 20.0),
+            Gradient::linear(
+                v(0.0, 0.0),
+                v(10.0, 0.0),
+                &stops(&[(RED, 0.0), (RED, 0.5), (tr, 0.5), (tr, 1.0)]),
+            )
+            .unwrap()
+            .repeating(),
+        ),
+        // Conic halves: red on the right (from the top, clockwise), blue on the left; then turned a quarter.
+        gradient_box(
+            Rect::new(100.0, 0.0, 40.0, 40.0),
+            Gradient::conic(
+                v(20.0, 20.0),
+                0.0,
+                &stops(&[(RED, 0.0), (RED, 0.5), (BLUE, 0.5), (BLUE, 1.0)]),
+            )
+            .unwrap(),
+        ),
+        gradient_box(
+            Rect::new(150.0, 0.0, 40.0, 40.0),
+            Gradient::conic(
+                v(20.0, 20.0),
+                0.25,
+                &stops(&[(RED, 0.0), (RED, 0.5), (BLUE, 0.5), (BLUE, 1.0)]),
+            )
+            .unwrap(),
+        ),
+        // Repeating conic: 45 degrees red, 45 nothing.
+        gradient_box(
+            Rect::new(0.0, 40.0, 40.0, 40.0),
+            Gradient::conic(
+                v(20.0, 20.0),
+                0.0,
+                &stops(&[(RED, 0.0), (RED, 0.125), (tr, 0.125), (tr, 0.25)]),
+            )
+            .unwrap()
+            .repeating(),
+        ),
+        // The hard stop gradient in 10 x 20 tiles.
+        gradient_box(
+            Rect::new(50.0, 40.0, 40.0, 20.0),
+            Gradient::linear(v(0.0, 0.0), v(10.0, 0.0), &hard)
+                .unwrap()
+                .tiled(v(10.0, 20.0)),
+        ),
+        // An elliptic ring, 2 px, on a 60 x 24 box (CSS `border-radius: 50%`).
+        Item::EllipticBox(EllipticBox::ellipse(
+            Rect::new(100.0, 44.0, 60.0, 24.0),
+            Fill::None,
+            Border::uniform(2.0, WHITE),
+        )),
+        // Shadows: hard with a 4 px spread, blurred (sigma 4), offset 6 px down.
+        Item::Shadow(ShadowItem {
+            rect: Rect::new(20.0, 90.0, 20.0, 20.0),
+            spread: 4.0,
+            color: RED,
+            ..ShadowItem::default()
+        }),
+        Item::Shadow(ShadowItem {
+            rect: Rect::new(60.0, 90.0, 20.0, 20.0),
+            blur: 8.0,
+            color: RED,
+            ..ShadowItem::default()
+        }),
+        Item::Shadow(ShadowItem {
+            rect: Rect::new(170.0, 70.0, 20.0, 10.0),
+            offset: v(0.0, 6.0),
+            color: GREEN,
+            ..ShadowItem::default()
+        }),
+        // A box rotated by 45 degrees about its centre (160, 110).
+        Item::Box(BoxItem {
+            transform: Some(
+                Affine2::from_translation(v(160.0, 110.0))
+                    * Affine2::from_angle(std::f32::consts::FRAC_PI_4)
+                    * Affine2::from_translation(v(-160.0, -110.0)),
+            ),
+            ..BoxItem::solid(Rect::new(150.0, 100.0, 20.0, 20.0), YELLOW)
+        }),
+    ];
+    // A plate bevelled at the top left: polygon clip and the engraved gradient line along the cut.
+    items.extend(testkit::plate(
+        Rect::new(100.0, 76.0, 44.0, 40.0),
+        12.0,
+        [true, false, false, false],
+    ));
+    let mut scene = Scene::new(1.0);
+    scene.set_chunk(LayerId::Hud, ChunkId(1), chunk(items));
+    let img = rig.frame(&mut scene);
+    let w = rig.size.0;
+    let c = |x, y| rgb(&img, w, x, y);
+
+    // Hard stop: pixel 19 (centre 19.5) is red, pixel 20 green.
+    assert_eq!(c(10, 10), [255, 0, 0]);
+    assert_eq!(c(19, 10), [255, 0, 0]);
+    assert_eq!(c(20, 10), [0, 255, 0]);
+    assert_eq!(c(39, 10), [0, 255, 0]);
+    // Smooth: half way at pixel 20, a quarter at pixel 10.
+    let mid = c(20, 25);
+    assert!(
+        (126..=130).contains(&mid[0]) && mid[1] == 0 && (126..=130).contains(&mid[2]),
+        "{mid:?}"
+    );
+    let q = c(10, 25);
+    assert!(
+        (189..=193).contains(&q[0]) && (62..=66).contains(&q[2]),
+        "{q:?}"
+    );
+    // Stripes.
+    for (x, on) in [
+        (52, true),
+        (57, false),
+        (62, true),
+        (67, false),
+        (87, false),
+    ] {
+        assert_eq!(c(x, 10)[0] == 255, on, "stripe at {x}");
+    }
+    // Conic halves.
+    assert_eq!(c(130, 20), [255, 0, 0], "right half");
+    assert_eq!(c(110, 20), [0, 0, 255], "left half");
+    assert_eq!(
+        c(170, 30),
+        [255, 0, 0],
+        "bottom half when started at a quarter"
+    );
+    assert_eq!(
+        c(170, 10),
+        [0, 0, 255],
+        "top half when started at a quarter"
+    );
+    // Repeating conic sectors of 45 degrees.
+    let centre = v(20.0, 60.0);
+    for (deg, on) in [
+        (22.5, true),
+        (67.5, false),
+        (112.5, true),
+        (157.5, false),
+        (337.5, false),
+    ] {
+        let (x, y) = polar(centre, 12.0, deg);
+        assert_eq!(c(x, y)[0] == 255, on, "sector at {deg} degrees");
+    }
+    // Tiles.
+    for (x, red) in [(52, true), (57, false), (62, true), (67, false), (82, true)] {
+        let want = if red { [255, 0, 0] } else { [0, 255, 0] };
+        assert_eq!(c(x, 50), want, "tile at {x}");
+    }
+    // Elliptic ring: white at the ends of both axes, black in the middle and outside the corner.
+    assert_eq!(c(130, 44), [255, 255, 255], "top of the ellipse");
+    assert_eq!(c(130, 45), [255, 255, 255]);
+    assert_eq!(c(130, 46), [0, 0, 0], "inside the ring");
+    assert_eq!(c(130, 67), [255, 255, 255], "bottom of the ellipse");
+    // At the ends of the long axis the pixel centre is 0.5 px off the axis, where the ellipse has moved in by
+    // 0.03 px: coverage 0.97.
+    near(red(&img, w, 100, 56), 0.974, "left end");
+    near(red(&img, w, 159, 56), 0.974, "right end");
+    assert_eq!(c(130, 56), [0, 0, 0], "centre");
+    assert_eq!(c(102, 46), [0, 0, 0], "outside the elliptic corner");
+    // Along the diagonal of the bounding box the ring is crossed once: the pixels go black, white, black.
+    let diag: Vec<u8> = (0..12).map(|i| c(100 + i * 2, 44 + i)[1]).collect();
+    let first = diag
+        .iter()
+        .position(|g| *g > 200)
+        .expect("the ring on the diagonal");
+    assert!(
+        first > 0 && diag[first + 2..].iter().any(|g| *g < 50),
+        "{diag:?}"
+    );
+    // Hard shadow with spread: a 4 px red ring around the element's box, nothing inside it.
+    assert_eq!(c(17, 100), [255, 0, 0], "spread");
+    assert_eq!(c(15, 100), [0, 0, 0], "beyond the spread");
+    assert_eq!(c(30, 100), [0, 0, 0], "the element's own box");
+    assert_eq!(c(30, 112), [255, 0, 0], "spread below");
+    // Blurred shadow: Gaussian of sigma 4; half a pixel outside the edge about 0.44 of the colour.
+    let edge = red(&img, w, 59, 100);
+    assert!((105..=121).contains(&edge), "blurred edge {edge}");
+    assert!(red(&img, w, 55, 100) < edge && red(&img, w, 55, 100) > 20);
+    assert!(red(&img, w, 47, 100) < 3, "three sigma away");
+    assert_eq!(red(&img, w, 70, 100), 0, "the element's own box");
+    // Offset shadow: the 6 px below the element only.
+    assert_eq!(c(180, 82), [0, 255, 0]);
+    assert_eq!(c(180, 85), [0, 255, 0]);
+    assert_eq!(c(180, 86), [0, 0, 0]);
+    assert_eq!(c(180, 75), [0, 0, 0], "under the element: cut out");
+    assert_eq!(c(180, 68), [0, 0, 0]);
+    // Rotated box: a diamond around (160, 110).
+    assert_eq!(c(160, 110), [255, 255, 0]);
+    assert_eq!(
+        c(147, 110),
+        [255, 255, 0],
+        "left tip, outside the unrotated box"
+    );
+    assert_eq!(c(160, 97), [255, 255, 0], "top tip");
+    assert_eq!(c(151, 101), [0, 0, 0], "the unrotated corner");
+    // Plate: the cut corner is clipped, the body lacquer, an engraved line along the cut.
+    assert_eq!(c(101, 77), [0, 0, 0], "cut corner");
+    assert_eq!(c(130, 100), testkit::LACQUER.0[..3]);
+    assert_eq!(c(100, 100), testkit::ENGRAVE.0[..3], "the plate's ring");
+    let line = (104..110)
+        .flat_map(|x| (78..86).map(move |y| (x, y)))
+        .filter(|&(x, y)| c(x, y)[1] > 50)
+        .count();
+    assert!(line >= 4, "engraved pixels along the cut: {line}");
+    assert_eq!(rig.pass.stats().draws, 1);
+}
+
+#[test]
+fn ui2_draws_gradients_ellipses_shadows_polygon_clips_and_rotations() {
+    primitives_on(
+        "ui2_draws_gradients_ellipses_shadows_polygon_clips_and_rotations",
+        wgpu::Backends::PRIMARY,
+    );
+}
+
+#[test]
+fn ui2_draws_gradients_and_shadows_on_gl() {
+    primitives_on("ui2_draws_gradients_and_shadows_on_gl", wgpu::Backends::GL);
+}
+
+/// The end-turn dial of the mockup: conic scale, rotated ticks, an arc of two clipped halves.
+#[test]
+fn ui2_draws_the_dial() {
+    let Some(mut rig) = Rig::new("ui2_draws_the_dial", wgpu::Backends::PRIMARY, (120, 120)) else {
+        return;
+    };
+    let centre = Vec2::new(60.0, 60.0);
+    let mut scene = Scene::new(1.0);
+    scene.set_chunk(
+        LayerId::Hud,
+        ChunkId(1),
+        chunk(testkit::dial(centre, 50.0, 0.7)),
+    );
+    let img = rig.frame(&mut scene);
+    let w = rig.size.0;
+    let at = |deg: f32, r: f32| {
+        let (x, y) = polar(centre, r, deg);
+        rgb(&img, w, x, y)
+    };
+    let (brass, lacquer, engrave, bone) = (
+        &testkit::BRASS.0[..3],
+        &testkit::LACQUER.0[..3],
+        &testkit::ENGRAVE.0[..3],
+        &testkit::BONE.0[..3],
+    );
+    // The arc covers 0.7 of a turn, clockwise from the top.
+    for deg in [10.0, 45.0, 135.0, 179.0, 200.0, 240.0] {
+        assert_eq!(&at(deg, 24.0)[..], brass, "arc at {deg}");
+    }
+    for deg in [260.0, 300.0, 350.0] {
+        assert_eq!(&at(deg, 24.0)[..], lacquer, "no arc at {deg}");
+    }
+    // The conic scale: one engraved degree of every nine.
+    assert_eq!(
+        &rgb(&img, w, 60, 18)[..],
+        engrave,
+        "scale tick at 0 degrees"
+    );
+    assert_eq!(&rgb(&img, w, 63, 18)[..], lacquer, "between scale ticks");
+    // A rotated tick at 90 degrees: x 90..96, y 59..61.
+    assert_eq!(&rgb(&img, w, 93, 60)[..], bone);
     assert_eq!(rig.pass.stats().draws, 1);
 }
 

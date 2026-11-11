@@ -51,6 +51,9 @@ pub enum DrawError {
     /// The picture pages handed to [`Scene::set_pages`] do not match the package's page table.
     #[error("invalid picture page: {0}")]
     InvalidPage(String),
+    /// A gradient without 2 to 4 finite stops or with non-finite geometry.
+    #[error("invalid gradient: {0}")]
+    InvalidGradient(&'static str),
 }
 
 /// The layers in drawing order: later layers are drawn over earlier ones. The world is drawn before all of them,
@@ -256,7 +259,7 @@ impl Border {
     }
 }
 
-/// What fills a box. More kinds (gradients) are added without changing the instance format.
+/// What fills a box.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 #[non_exhaustive]
 pub enum Fill {
@@ -265,6 +268,149 @@ pub enum Fill {
     None,
     /// One colour.
     Solid(Color),
+    /// A linear or conic gradient, plain or repeating, optionally tiled.
+    Gradient(Gradient),
+}
+
+/// Most stops of a gradient.
+pub const MAX_STOPS: usize = 4;
+
+/// One colour stop: a straight colour at a position along the gradient (a fraction of the line from `from` to
+/// `to` for a linear gradient, a fraction of a turn for a conic one). Positions may lie outside 0..1.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct GradientStop {
+    /// The colour.
+    pub color: Color,
+    /// The position.
+    pub pos: f32,
+}
+
+impl GradientStop {
+    /// A stop.
+    pub const fn new(color: Color, pos: f32) -> Self {
+        Self { color, pos }
+    }
+}
+
+/// The geometry of a gradient, in the box's own coordinates: `(0, 0)` is the top left corner of the box's
+/// `rect`, or of each tile when the gradient is tiled.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum GradientShape {
+    /// Colours change along the line from `from` (position 0) to `to` (position 1) and are constant across it.
+    Linear {
+        /// Where position 0 lies.
+        from: Vec2,
+        /// Where position 1 lies.
+        to: Vec2,
+    },
+    /// Colours change with the angle around `center`, clockwise from `start` (CSS `conic-gradient(from ...)`).
+    Conic {
+        /// The centre.
+        center: Vec2,
+        /// Angle of position 0, in turns, clockwise from the top (0.25 points right).
+        start: f32,
+    },
+}
+
+/// A gradient of 2 to [`MAX_STOPS`] stops (CSS `linear-gradient`, `conic-gradient` and their `repeating-`
+/// forms). Colours are interpolated premultiplied, like the browser does; equal positions make a hard stop.
+// SIMPLIFIED(SIMP-245): a gradient has at most 4 colour stops (the instance has room for 4); the style profile refuses more
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Gradient {
+    /// The geometry.
+    pub shape: GradientShape,
+    /// The pattern between the first and the last stop repeats (CSS `repeating-*`).
+    pub repeating: bool,
+    /// Tile size, device px (CSS `background-size` with `background-repeat: repeat`): the gradient is drawn in
+    /// every tile, tiles start at the top left corner of the box. `None`: one tile, the whole box.
+    pub tile: Option<Vec2>,
+    stops: [GradientStop; MAX_STOPS],
+    len: u8,
+}
+
+impl Gradient {
+    /// A gradient from 2 to 4 stops. Positions that go backwards are raised to the previous one (the CSS rule),
+    /// so the stops are always in order.
+    pub fn new(
+        shape: GradientShape,
+        repeating: bool,
+        stops: &[GradientStop],
+    ) -> Result<Self, DrawError> {
+        if !(2..=MAX_STOPS).contains(&stops.len()) {
+            return Err(DrawError::InvalidGradient("needs 2 to 4 stops"));
+        }
+        let finite = match shape {
+            GradientShape::Linear { from, to } => from.is_finite() && to.is_finite(),
+            GradientShape::Conic { center, start } => center.is_finite() && start.is_finite(),
+        };
+        if !finite || stops.iter().any(|s| !s.pos.is_finite()) {
+            return Err(DrawError::InvalidGradient("non-finite geometry or stop"));
+        }
+        let mut out = [GradientStop::default(); MAX_STOPS];
+        let mut last = f32::NEG_INFINITY;
+        for (o, s) in out.iter_mut().zip(stops) {
+            last = s.pos.max(last);
+            *o = GradientStop::new(s.color, last);
+        }
+        Ok(Self {
+            shape,
+            repeating,
+            tile: None,
+            stops: out,
+            len: stops.len() as u8,
+        })
+    }
+
+    /// A linear gradient.
+    pub fn linear(from: Vec2, to: Vec2, stops: &[GradientStop]) -> Result<Self, DrawError> {
+        Self::new(GradientShape::Linear { from, to }, false, stops)
+    }
+
+    /// A conic gradient.
+    pub fn conic(center: Vec2, start: f32, stops: &[GradientStop]) -> Result<Self, DrawError> {
+        Self::new(GradientShape::Conic { center, start }, false, stops)
+    }
+
+    /// The same gradient, repeating.
+    pub fn repeating(mut self) -> Self {
+        self.repeating = true;
+        self
+    }
+
+    /// The same gradient drawn in tiles of `size` (ignored unless both sides are positive and finite).
+    pub fn tiled(mut self, size: Vec2) -> Self {
+        self.tile = (size.is_finite() && size.x > 0.0 && size.y > 0.0).then_some(size);
+        self
+    }
+
+    /// The stops, in order.
+    pub fn stops(&self) -> &[GradientStop] {
+        &self.stops[..usize::from(self.len)]
+    }
+
+    /// True if no stop has a visible colour.
+    pub fn is_transparent(&self) -> bool {
+        self.stops().iter().all(|s| s.color.is_transparent())
+    }
+}
+
+/// The line of a CSS `linear-gradient(<angle>, ...)` in a box of `size`: `(from, to)` in box coordinates. The
+/// angle is in degrees, clockwise from the top; the line runs through the centre and is long enough for the
+/// corners to get positions 0 and 1.
+pub fn css_linear_line(angle_deg: f32, size: Vec2) -> (Vec2, Vec2) {
+    let a = angle_deg.to_radians();
+    let dir = Vec2::new(a.sin(), -a.cos());
+    let len = (size.x * a.sin()).abs() + (size.y * a.cos()).abs();
+    let c = size * 0.5;
+    (c - dir * len * 0.5, c + dir * len * 0.5)
+}
+
+/// The angle of a CSS `linear-gradient(to <corner>, ...)` in a box of `size`, degrees: the 50 % line joins the
+/// two other corners.
+pub fn css_corner_angle(right: bool, bottom: bool, size: Vec2) -> f32 {
+    let sx = if right { 1.0 } else { -1.0 };
+    let sy = if bottom { 1.0 } else { -1.0 };
+    (sx * size.y).atan2(-sy * size.x).to_degrees()
 }
 
 /// A rectangle with a fill, a border and rounded corners.
@@ -292,6 +438,71 @@ impl BoxItem {
             rect,
             fill: Fill::Solid(color),
             ..Self::default()
+        }
+    }
+}
+
+/// A box whose corners are quarter ellipses (CSS `border-radius: rx / ry`, `50%` on a non-square box), all with
+/// the same ratio of vertical to horizontal radius.
+// SIMPLIFIED(SIMP-248): every elliptic corner of a box has the same ry / rx ratio; corners with different ellipses are refused by the style profile
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct EllipticBox {
+    /// The box; its `radii` are the horizontal radii.
+    pub base: BoxItem,
+    /// Vertical radius over horizontal radius, positive (1: circular corners, like a plain box).
+    pub ratio: f32,
+}
+
+impl EllipticBox {
+    /// The ellipse inscribed in `rect` (CSS `border-radius: 50%`).
+    pub fn ellipse(rect: Rect, fill: Fill, border: Border) -> Self {
+        Self {
+            base: BoxItem {
+                rect,
+                fill,
+                border,
+                radii: Radii::uniform(rect.w * 0.5),
+                ..BoxItem::default()
+            },
+            ratio: if rect.w > 0.0 { rect.h / rect.w } else { 1.0 },
+        }
+    }
+}
+
+/// An outer box shadow (CSS `box-shadow` without `inset`): the rounded rectangle `rect` moved by `offset`, grown
+/// by `spread` and blurred with a Gaussian of `blur / 2` standard deviation. Like in CSS, nothing of it is drawn
+/// inside `rect` itself (the element's border box), so a translucent element does not show its own shadow.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShadowItem {
+    /// The element's border box, chunk space (before the offset and the spread).
+    pub rect: Rect,
+    /// The element's corner radii (the shadow's grow with the spread).
+    pub radii: Radii,
+    /// Shadow offset, device px.
+    pub offset: Vec2,
+    /// Blur radius, device px (CSS: twice the standard deviation).
+    pub blur: f32,
+    /// Spread, device px (negative shrinks).
+    pub spread: f32,
+    /// Shadow colour.
+    pub color: Color,
+    /// Transform from the item's space to chunk space.
+    pub transform: Option<Affine2>,
+    /// Clip in chunk space.
+    pub clip: Option<Clip>,
+}
+
+impl Default for ShadowItem {
+    fn default() -> Self {
+        Self {
+            rect: Rect::default(),
+            radii: Radii::ZERO,
+            offset: Vec2::ZERO,
+            blur: 0.0,
+            spread: 0.0,
+            color: Color::TRANSPARENT,
+            transform: None,
+            clip: None,
         }
     }
 }
@@ -422,12 +633,16 @@ impl Glyphs {
     }
 }
 
-/// One drawable thing. Later primitives (shadows, images, 9-slices) are added to this enum.
+/// One drawable thing.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum Item {
     /// A box.
     Box(BoxItem),
+    /// A box with elliptic corners.
+    EllipticBox(EllipticBox),
+    /// An outer blurred shadow.
+    Shadow(ShadowItem),
     /// A mask sprite.
     Mask(MaskItem),
     /// A colour picture.

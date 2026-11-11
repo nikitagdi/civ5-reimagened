@@ -8,6 +8,9 @@
 // Group 0: frame constants, the transform and clip table (`Rgba32Float`, read with `textureLoad` only, so it
 // needs no filtering), the coverage array (R8: package mask pages, then glyph pages), the sampler of both
 // arrays, and the image array (RGBA8, premultiplied: the package's colour pages).
+//
+// The varyings stay within 12 locations (WebGL2 allows 15): the four fill colours travel packed in one
+// `vec4<u32>`, the ellipse ratio and the clip radius as bits of the primitive word vector.
 
 struct Frame {
     // (2 / width, 2 / height): pixels to NDC.
@@ -23,13 +26,20 @@ struct Frame {
 @group(0) @binding(3) var mask_smp: sampler;
 @group(0) @binding(4) var image: texture_2d_array<f32>;
 
-// `KIND_SHADOW` (1) is not drawn yet.
 const KIND_BOX: u32 = 0u;
+const KIND_SHADOW: u32 = 1u;
 const KIND_IMAGE: u32 = 2u;
 const KIND_MASK: u32 = 3u;
 
+const FILL_SOLID: u32 = 0u;
+const FILL_LINEAR: u32 = 1u;
+const FILL_REPEAT: u32 = 2u;
+const FILL_CONIC: u32 = 3u;
+const FILL_MODE_MASK: u32 = 3u;
 const FLAG_FILL: u32 = 4u;
 const FLAG_BORDER: u32 = 8u;
+const FLAG_ELLIPSE: u32 = 16u;
+const FLAG_TILE: u32 = 32u;
 
 // Table layout (`ui2_draw::tables`).
 const RECORDS_PER_ROW: u32 = 512u;
@@ -40,6 +50,7 @@ const CLIPS_PER_ROW: u32 = 128u;
 const FAR: f32 = 1.0e6;
 // Anti-aliasing margin around a box, local px.
 const AA_MARGIN: f32 = 1.0;
+const TAU: f32 = 6.283185307179586;
 
 struct Instance {
     @location(0) rect: vec4<f32>,
@@ -47,16 +58,17 @@ struct Instance {
     @location(1) radii: vec4<f32>,
     // top, right, bottom, left
     @location(2) border: vec4<f32>,
-    // sprite rectangle (u0, v0, u1, v1) or gradient points
+    // sprite rectangle (u0, v0, u1, v1), gradient geometry, shadow offset
     @location(3) uv: vec4<f32>,
+    // fill colour, gradient stop colours, tint
     @location(4) c0: vec4<f32>,
-    // Stop colours and tint: read by the gradient and image modes.
     @location(5) c1: vec4<f32>,
     @location(6) c2: vec4<f32>,
     @location(7) c3: vec4<f32>,
     @location(8) border_color: vec4<f32>,
-    // Gradient stop positions; shadow sigma, spread, ellipse ratio, repeat period.
+    // Gradient stop positions.
     @location(9) stops: vec4<f32>,
+    // Shadow sigma and spread, or the tile size; ellipse ratio; unused.
     @location(10) extra: vec4<f32>,
     // kind:8 flags:8 atlas_layer:8 n_stops:8 | xform:16 clip:16 | anchor:16 ext:16
     @location(11) words: vec3<u32>,
@@ -64,22 +76,25 @@ struct Instance {
 
 struct VsOut {
     @builtin(position) pos: vec4<f32>,
-    // Position in the primitive's rectangle, local px (0,0 = its top left corner).
-    @location(0) local: vec2<f32>,
-    @location(1) @interpolate(flat) size: vec2<f32>,
-    @location(2) uv: vec2<f32>,
-    @location(3) @interpolate(flat) radii: vec4<f32>,
-    @location(4) @interpolate(flat) border: vec4<f32>,
-    @location(5) @interpolate(flat) fill: vec4<f32>,
-    @location(6) @interpolate(flat) border_color: vec4<f32>,
-    // kind, flags, atlas layer, 0
-    @location(7) @interpolate(flat) prim: vec4<u32>,
+    // xy: position relative to the primitive's rectangle, local px (0,0 = its top left corner); zw: sprite uv.
+    @location(0) local_uv: vec4<f32>,
+    // Rectangle size; tile size of a tiled gradient.
+    @location(1) @interpolate(flat) size: vec4<f32>,
+    @location(2) @interpolate(flat) radii: vec4<f32>,
+    @location(3) @interpolate(flat) border: vec4<f32>,
+    // c0..c3 as RGBA8 words.
+    @location(4) @interpolate(flat) colors: vec4<u32>,
+    @location(5) @interpolate(flat) border_color: vec4<f32>,
+    // The first meta word (kind, flags, layer, stops), the ellipse ratio's bits, the clip radius's bits, 0.
+    @location(6) @interpolate(flat) prim: vec4<u32>,
     // Distances to the clip rectangle's left, top, right, bottom edges (positive inside), chunk px.
-    @location(8) clip_rect: vec4<f32>,
+    @location(7) clip_rect: vec4<f32>,
     // Distances to the clip polygon's faces 0-3 and 4-7 (positive inside; FAR for missing faces).
-    @location(9) clip_faces0: vec4<f32>,
-    @location(10) clip_faces1: vec4<f32>,
-    @location(11) @interpolate(flat) clip_radius: f32,
+    @location(8) clip_faces0: vec4<f32>,
+    @location(9) clip_faces1: vec4<f32>,
+    // Gradient geometry (`uv` of the instance), or the shadow's offset, sigma and spread.
+    @location(10) @interpolate(flat) grad: vec4<f32>,
+    @location(11) @interpolate(flat) stops: vec4<f32>,
 }
 
 struct Xform {
@@ -119,19 +134,42 @@ fn quad_corner(vi: u32) -> vec2<f32> {
     return vec2<f32>(x, y);
 }
 
+fn pack_color(c: vec4<f32>) -> u32 {
+    let b = vec4<u32>(round(clamp(c, vec4<f32>(0.0), vec4<f32>(1.0)) * 255.0));
+    return b.x | (b.y << 8u) | (b.z << 16u) | (b.w << 24u);
+}
+
+fn unpack_color(w: u32) -> vec4<f32> {
+    return vec4<f32>(
+        f32(w & 255u),
+        f32((w >> 8u) & 255u),
+        f32((w >> 16u) & 255u),
+        f32(w >> 24u),
+    ) / 255.0;
+}
+
 @vertex
 fn vs(@builtin(vertex_index) vi: u32, inst: Instance) -> VsOut {
     let kind = inst.words.x & 0xffu;
     let flags = (inst.words.x >> 8u) & 0xffu;
-    let layer = (inst.words.x >> 16u) & 0xffu;
     let xform_id = inst.words.y & 0xffffu;
     let clip_id = inst.words.y >> 16u;
     let anchor_id = inst.words.z & 0xffffu;
 
     let corner = quad_corner(vi);
-    // Boxes get a margin for the soft edge; masks are their texels exactly.
-    let margin = select(0.0, AA_MARGIN, kind == KIND_BOX);
-    let local = corner * (inst.rect.zw + vec2<f32>(2.0 * margin)) - vec2<f32>(margin);
+    // The quad, relative to the rectangle: boxes get a margin for the soft edge, shadows their offset, spread
+    // and three standard deviations of blur; masks and pictures are their texels exactly.
+    var lo = vec2<f32>(0.0);
+    var hi = inst.rect.zw;
+    if kind == KIND_BOX {
+        lo = vec2<f32>(-AA_MARGIN);
+        hi = inst.rect.zw + vec2<f32>(AA_MARGIN);
+    } else if kind == KIND_SHADOW {
+        let grow = inst.extra.y + 3.0 * inst.extra.x + AA_MARGIN;
+        lo = inst.uv.xy - vec2<f32>(grow);
+        hi = inst.rect.zw + inst.uv.xy + vec2<f32>(grow);
+    }
+    let local = mix(lo, hi, corner);
     let p = inst.rect.xy + local;
 
     var element = identity();
@@ -151,24 +189,28 @@ fn vs(@builtin(vertex_index) vi: u32, inst: Instance) -> VsOut {
         // A hidden anchor: zero area, off screen.
         o.pos = vec4<f32>(-2.0, -2.0, 0.0, 1.0);
     }
-    o.local = local;
-    o.size = inst.rect.zw;
-    o.uv = mix(inst.uv.xy, inst.uv.zw, corner);
+    o.local_uv = vec4<f32>(local, mix(inst.uv.xy, inst.uv.zw, corner));
+    o.size = vec4<f32>(inst.rect.zw, inst.extra.xy);
     o.radii = inst.radii;
     o.border = inst.border;
-    o.fill = inst.c0;
+    o.colors = vec4<u32>(pack_color(inst.c0), pack_color(inst.c1), pack_color(inst.c2), pack_color(inst.c3));
     o.border_color = inst.border_color;
-    o.prim = vec4<u32>(kind, flags, layer, 0u);
+    let ratio = select(1.0, inst.extra.z, (flags & FLAG_ELLIPSE) != 0u && inst.extra.z > 0.0);
+    o.grad = inst.uv;
+    if kind == KIND_SHADOW {
+        o.grad = vec4<f32>(inst.uv.xy, inst.extra.xy);
+    }
+    o.stops = inst.stops;
 
     o.clip_rect = vec4<f32>(FAR);
     o.clip_faces0 = vec4<f32>(FAR);
     o.clip_faces1 = vec4<f32>(FAR);
-    o.clip_radius = 0.0;
+    var clip_radius = 0.0;
     if clip_id != 0u {
         let r = clip_texel(clip_id, 0);
         let head = clip_texel(clip_id, 1);
         o.clip_rect = vec4<f32>(chunk - r.xy, r.xy + r.zw - chunk);
-        o.clip_radius = head.x;
+        clip_radius = head.x;
         let n = u32(head.y);
         if n > 0u {
             // Face i is floats 3i..3i+3 of texels 2-7.
@@ -192,6 +234,7 @@ fn vs(@builtin(vertex_index) vi: u32, inst: Instance) -> VsOut {
             );
         }
     }
+    o.prim = vec4<u32>(inst.words.x, bitcast<u32>(ratio), bitcast<u32>(clip_radius), 0u);
     return o;
 }
 
@@ -207,65 +250,208 @@ fn corner_radius(p: vec2<f32>, r: vec4<f32>) -> f32 {
     return select(top, bottom, p.y > 0.0);
 }
 
-// Signed distance to a rectangle of half size `half` with per-corner radii, `p` relative to its centre.
-fn sd_rounded(p: vec2<f32>, half: vec2<f32>, radii: vec4<f32>) -> f32 {
+// Signed distance to a rectangle of half size `half` with per-corner radii, `p` relative to its centre. The
+// radii are horizontal; the vertical ones are `ratio` times larger (1: circles). An elliptic corner is a
+// circle in a space squeezed by `ratio` vertically; the distance there is divided by the length of its
+// gradient in the real space (first-order distance to the ellipse).
+fn sd_box(p: vec2<f32>, half: vec2<f32>, radii: vec4<f32>, ratio: f32) -> f32 {
+    let ps = vec2<f32>(p.x, p.y / ratio);
+    let hs = vec2<f32>(half.x, half.y / ratio);
     let r = corner_radius(p, radii);
-    let q = abs(p) - half + vec2<f32>(r);
-    return min(max(q.x, q.y), 0.0) + length(max(q, vec2<f32>(0.0))) - r;
+    let q = abs(ps) - hs + vec2<f32>(r);
+    if q.x > 0.0 && q.y > 0.0 {
+        let l = length(q);
+        let n = q / l;
+        return (l - r) / length(vec2<f32>(n.x, n.y / ratio));
+    }
+    if q.x > q.y {
+        return q.x - r;
+    }
+    return (q.y - r) * ratio;
 }
 
 fn premul(c: vec4<f32>) -> vec4<f32> {
     return vec4<f32>(c.rgb * c.a, c.a);
 }
 
-// The fill colour at this fragment: `FILL_SOLID` (the fill mode bits of `flags`, 0). The gradient modes
-// (`FILL_LINEAR`, `FILL_REPEAT`, `FILL_CONIC`) take their points from `uv`, colours from `c0..c3` and stops
-// from `stops`; they branch here on `in.prim.y & 3u` once those values reach the fragment stage.
-fn fill_color(in: VsOut) -> vec4<f32> {
-    return in.fill;
+// The premultiplied colour of gradient position `t`: `n` stops at positions `s` (in order) with the straight
+// colours `c`, interpolated premultiplied (as the browser does); before the first and after the last stop the
+// end colours. Equal positions make a hard stop.
+fn stop_color(t: f32, n: u32, s: vec4<f32>, c: vec4<u32>) -> vec4<f32> {
+    let p0 = premul(unpack_color(c.x));
+    let p1 = premul(unpack_color(c.y));
+    if t <= s.x {
+        return p0;
+    }
+    if t <= s.y {
+        return mix(p0, p1, (t - s.x) / max(s.y - s.x, 1.0e-6));
+    }
+    if n <= 2u {
+        return p1;
+    }
+    let p2 = premul(unpack_color(c.z));
+    if t <= s.z {
+        return mix(p1, p2, (t - s.y) / max(s.z - s.y, 1.0e-6));
+    }
+    if n <= 3u {
+        return p2;
+    }
+    let p3 = premul(unpack_color(c.w));
+    if t <= s.w {
+        return mix(p2, p3, (t - s.z) / max(s.w - s.z, 1.0e-6));
+    }
+    return p3;
 }
 
-// BOX: fill under a border, per-corner radii, per-side widths (CSS `background-clip: border-box`).
-fn shade_box(in: VsOut, px: f32) -> vec4<f32> {
-    let half = in.size * 0.5;
-    let outer = inside(sd_rounded(in.local - half, half, in.radii), px);
-    var fill = vec4<f32>(0.0);
-    if (in.prim.y & FLAG_FILL) != 0u {
-        fill = premul(fill_color(in)) * outer;
+// The premultiplied fill at this fragment: the solid colour `c0`, or the gradient of the fill mode.
+fn fill_color(in: VsOut) -> vec4<f32> {
+    let flags = (in.prim.x >> 8u) & 0xffu;
+    let mode = flags & FILL_MODE_MASK;
+    if mode == FILL_SOLID {
+        return premul(unpack_color(in.colors.x));
     }
-    if (in.prim.y & FLAG_BORDER) == 0u {
+    var q = in.local_uv.xy;
+    let tile = in.size.zw;
+    if (flags & FLAG_TILE) != 0u && tile.x > 0.0 && tile.y > 0.0 {
+        q = q - tile * floor(q / tile);
+    }
+    var t = 0.0;
+    if mode == FILL_CONIC {
+        // Clockwise from the top, y down: atan2(x, -y).
+        let v = q - in.grad.xy;
+        if dot(v, v) > 1.0e-12 {
+            let turns = fract(atan2(v.x, -v.y) / TAU - in.grad.z);
+            t = fract(turns / max(in.grad.w, 1.0e-6));
+        }
+    } else {
+        let d = in.grad.zw - in.grad.xy;
+        t = dot(q - in.grad.xy, d) / max(dot(d, d), 1.0e-12);
+        if mode == FILL_REPEAT {
+            t = fract(t);
+        }
+    }
+    let n = in.prim.x >> 24u;
+    return stop_color(t, n, in.stops, in.colors);
+}
+
+// BOX: fill under a border, per-corner radii (or one ellipse ratio), per-side widths (CSS
+// `background-clip: border-box`).
+fn shade_box(in: VsOut, px: f32) -> vec4<f32> {
+    let flags = (in.prim.x >> 8u) & 0xffu;
+    let ratio = bitcast<f32>(in.prim.y);
+    let size = in.size.xy;
+    let local = in.local_uv.xy;
+    let half = size * 0.5;
+    let outer = inside(sd_box(local - half, half, in.radii, ratio), px);
+    var fill = vec4<f32>(0.0);
+    if (flags & FLAG_FILL) != 0u {
+        fill = fill_color(in) * outer;
+    }
+    if (flags & FLAG_BORDER) == 0u {
         return fill;
     }
     let b = in.border;
     let inner_min = vec2<f32>(b.w, b.x);
-    let inner_size = in.size - vec2<f32>(b.y + b.w, b.x + b.z);
+    let inner_size = size - vec2<f32>(b.y + b.w, b.x + b.z);
     var inner = 0.0;
     if inner_size.x > 0.0 && inner_size.y > 0.0 {
         let ihalf = inner_size * 0.5;
-        // SIMPLIFIED(SIMP-248): the inner corner of a border is a circle shrunk by the mean of the two adjacent widths, not the CSS ellipse when those widths differ
+        // SIMPLIFIED(SIMP-248): the inner corner of a border is the outer one shrunk by the mean of the adjacent widths (one ellipse ratio for the whole box), not the CSS ellipse of each corner when the widths differ
         let inset = 0.5 * vec4<f32>(b.w + b.x, b.y + b.x, b.y + b.z, b.w + b.z);
-        let iradii = max(in.radii - inset, vec4<f32>(0.0));
-        inner = inside(sd_rounded(in.local - inner_min - ihalf, ihalf, iradii), px);
+        var iradii = max(in.radii - inset, vec4<f32>(0.0));
+        var iratio = 1.0;
+        if ratio != 1.0 {
+            // Horizontal radii shrink by the side widths, vertical ones by the top and bottom widths.
+            let bx = 0.5 * (b.y + b.w);
+            let by = 0.5 * (b.x + b.z);
+            let rmax = max(max(in.radii.x, in.radii.y), max(in.radii.z, in.radii.w));
+            iradii = max(in.radii - vec4<f32>(bx), vec4<f32>(0.0));
+            iratio = max(rmax * ratio - by, 0.0) / max(rmax - bx, 1.0e-3);
+            iratio = clamp(iratio, 1.0e-3, 1.0e3);
+        }
+        inner = inside(sd_box(local - inner_min - ihalf, ihalf, iradii, iratio), px);
     }
     let ring = clamp(outer - inner, 0.0, 1.0);
     let border = premul(in.border_color) * ring;
     return border + fill * (1.0 - border.a);
 }
 
+// The error function, for a pair of values (Abramowitz and Stegun 7.1.27, error below 5e-4).
+fn erf2(v: vec2<f32>) -> vec2<f32> {
+    let s = sign(v);
+    let a = abs(v);
+    var r = 1.0 + (0.278393 + (0.230389 + 0.078108 * (a * a)) * a) * a;
+    r = r * r;
+    return s - s / (r * r);
+}
+
+fn gaussian(x: f32, sigma: f32) -> f32 {
+    return exp(-(x * x) / (2.0 * sigma * sigma)) / (2.5066282746 * sigma);
+}
+
+// The blur along x of the row `y` of a rounded rectangle (`p` relative to its centre).
+fn blur_along_x(x: f32, y: f32, sigma: f32, corner: f32, half: vec2<f32>) -> f32 {
+    let delta = min(half.y - corner - abs(y), 0.0);
+    let curved = half.x - corner + sqrt(max(0.0, corner * corner - delta * delta));
+    let integral = 0.5 + 0.5 * erf2((x + vec2<f32>(-curved, curved)) * (0.70710678 / sigma));
+    return integral.y - integral.x;
+}
+
+// Coverage of a rounded rectangle convolved with a Gaussian: exact along x (erf), four samples along y.
+fn blurred_box(p: vec2<f32>, half: vec2<f32>, corner: f32, sigma: f32) -> f32 {
+    let low = p.y - half.y;
+    let high = p.y + half.y;
+    let start = clamp(-3.0 * sigma, low, high);
+    let end = clamp(3.0 * sigma, low, high);
+    let step = (end - start) / 4.0;
+    var y = start + step * 0.5;
+    var a = 0.0;
+    for (var i = 0; i < 4; i++) {
+        a += blur_along_x(p.x, p.y - y, sigma, corner, half) * gaussian(y, sigma) * step;
+        y += step;
+    }
+    return a;
+}
+
+// SHADOW: the element box moved by the offset, grown by the spread, blurred; cut out of the element's own box.
+fn shade_shadow(in: VsOut, px: f32) -> vec4<f32> {
+    let size = in.size.xy;
+    let local = in.local_uv.xy;
+    let half = size * 0.5;
+    let offset = in.grad.xy;
+    let sigma = in.grad.z;
+    let spread = in.grad.w;
+    let shalf = max(half + vec2<f32>(spread), vec2<f32>(0.0));
+    // CSS: a rounded corner grows with the spread, a square one stays square.
+    let sradii = select(vec4<f32>(0.0), max(in.radii + vec4<f32>(spread), vec4<f32>(0.0)), in.radii > vec4<f32>(0.0));
+    let p = local - half - offset;
+    var a = 0.0;
+    if sigma < 0.25 * px {
+        a = inside(sd_box(p, shalf, sradii, 1.0), px);
+    } else {
+        let corner = min(corner_radius(p, sradii), min(shalf.x, shalf.y));
+        a = blurred_box(p, shalf, corner, sigma);
+    }
+    let own = inside(sd_box(local - half, half, in.radii, 1.0), px);
+    return premul(unpack_color(in.colors.x)) * (a * (1.0 - own));
+}
+
 // MASK: coverage of a glyph or an icon times the colour. Glyph coverage already carries the rasterizer's
 // gamma, so it is used as it is.
 fn shade_mask(in: VsOut) -> vec4<f32> {
-    let cov = textureSampleLevel(mask, mask_smp, in.uv, i32(in.prim.z), 0.0).r;
-    return premul(in.fill) * cov;
+    let layer = i32((in.prim.x >> 16u) & 0xffu);
+    let cov = textureSampleLevel(mask, mask_smp, in.local_uv.zw, layer, 0.0).r;
+    return premul(unpack_color(in.colors.x)) * cov;
 }
 
 // IMAGE: a premultiplied texel of a colour page times the tint (straight colour, its alpha an opacity), cut to
 // the rounded rectangle of the instance.
 fn shade_image(in: VsOut, px: f32) -> vec4<f32> {
-    let s = textureSampleLevel(image, mask_smp, in.uv, i32(in.prim.z), 0.0);
-    let tint = in.fill;
-    let half = in.size * 0.5;
-    let cover = inside(sd_rounded(in.local - half, half, in.radii), px);
+    let layer = i32((in.prim.x >> 16u) & 0xffu);
+    let s = textureSampleLevel(image, mask_smp, in.local_uv.zw, layer, 0.0);
+    let tint = unpack_color(in.colors.x);
+    let half = in.size.xy * 0.5;
+    let cover = inside(sd_box(in.local_uv.xy - half, half, in.radii, 1.0), px);
     return vec4<f32>(s.rgb * tint.rgb, s.a) * (tint.a * cover);
 }
 
@@ -274,7 +460,7 @@ fn clip_coverage(in: VsOut, w_rect: vec4<f32>, w0: vec4<f32>, w1: vec4<f32>) -> 
     let e = in.clip_rect;
     let ex = min(e.x, e.z);
     let ey = min(e.y, e.w);
-    let r = in.clip_radius;
+    let r = bitcast<f32>(in.prim.z);
     let q = vec2<f32>(r - ex, r - ey);
     let d = select(min(ex, ey), r - length(q), r > 0.0 && q.x > 0.0 && q.y > 0.0);
     let wr = max(max(w_rect.x, w_rect.y), max(w_rect.z, w_rect.w));
@@ -302,8 +488,8 @@ fn finish(c: vec4<f32>) -> vec4<f32> {
 @fragment
 fn fs(in: VsOut) -> @location(0) vec4<f32> {
     // Derivatives first, in uniform control flow.
-    let dx = dpdx(in.local);
-    let dy = dpdy(in.local);
+    let dx = dpdx(in.local_uv.xy);
+    let dy = dpdy(in.local_uv.xy);
     // Local px per screen pixel (isotropic estimate; exact for translation, rotation and uniform scale).
     let px = max(sqrt(0.5 * (dot(dx, dx) + dot(dy, dy))), 1.0e-6);
     let w_rect = fwidth(in.clip_rect);
@@ -311,9 +497,12 @@ fn fs(in: VsOut) -> @location(0) vec4<f32> {
     let w1 = fwidth(in.clip_faces1);
 
     var c = vec4<f32>(0.0);
-    switch in.prim.x {
+    switch in.prim.x & 0xffu {
         case KIND_BOX: {
             c = shade_box(in, px);
+        }
+        case KIND_SHADOW: {
+            c = shade_shadow(in, px);
         }
         case KIND_MASK: {
             c = shade_mask(in);
@@ -321,7 +510,6 @@ fn fs(in: VsOut) -> @location(0) vec4<f32> {
         case KIND_IMAGE: {
             c = shade_image(in, px);
         }
-        // KIND_SHADOW comes with the shadow task; until then it draws nothing.
         default: {}
     }
     return finish(c * clip_coverage(in, w_rect, w0, w1));

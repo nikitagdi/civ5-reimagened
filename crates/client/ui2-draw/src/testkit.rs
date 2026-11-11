@@ -1,22 +1,26 @@
 //! Ready-made scenes for tests of the draw side and of the GPU pass (feature `testkit`).
 //!
 //! - [`icon_pages`]: a package page table with one `A8` page of four 16 x 16 icons ([`icon`]).
+//! - [`plate`]: a bevelled plate (polygon clip, hard-stop gradient along the cut); [`dial`]: the end-turn dial
+//!   (conic scale, rotated ticks, an arc of two clipped halves).
 //! - [`hud_a`]: the heads-up display of the reference mockup as the runtime would hand it over: the top strip
-//!   with its groups, separators, icons and labels; the notes column; the unit panel with its action buttons;
-//!   the minimap frame and the end-turn dial. Sizes are in CSS px times the scale factor.
+//!   with its groups, separators, icons and labels and the research plate; the notes column and the unit panel
+//!   with their shadows and action buttons; the minimap frame and the end-turn dial. Sizes are in CSS px times
+//!   the scale factor.
 //! - [`map_banners`]: `n` city banners on the map layer, one chunk and one anchor each.
 //!
 //! The scenes only use public items, so what they exercise is what the runtime can emit.
 
 use std::sync::Arc;
 
-use glam::Vec2;
+use glam::{Affine2, Vec2};
 use ui2_package::{BlobRef, BlobSection, Images, Page, PageFormat};
 use ui2_text::{FaceId, RunStyle, TextEngine};
 
 use crate::{
     AnchorSlot, AnchorXform, Border, BoxItem, ChunkBuilder, ChunkId, ChunkItems, Clip, Color, Fill,
-    Glyphs, ImageRef, Item, LayerId, MaskItem, Radii, Rect, Scene,
+    Glyphs, Gradient, GradientStop, ImageRef, Item, LayerId, MaskItem, Polygon, Radii, Rect, Scene,
+    ShadowItem, css_corner_angle, css_linear_line,
 };
 
 /// Background lacquer of the mockup.
@@ -162,6 +166,19 @@ impl Kit<'_> {
         }));
     }
 
+    /// `box-shadow: 0 <dy>px <blur>px rgba(0, 0, 0, .35)` of a box.
+    #[allow(clippy::too_many_arguments)]
+    fn shadow(&mut self, x: f32, y: f32, w: f32, h: f32, radius: f32, dy: f32, blur: f32) {
+        self.out.push(Item::Shadow(ShadowItem {
+            rect: self.r(x, y, w, h),
+            radii: Radii::uniform(radius * self.k),
+            offset: Vec2::new(0.0, dy * self.k),
+            blur: blur * self.k,
+            color: Color::rgba(0, 0, 0, 89),
+            ..ShadowItem::default()
+        }));
+    }
+
     fn icon(&mut self, n: u8, x: f32, y: f32, size: f32, color: Color) {
         self.out.push(Item::Mask(MaskItem {
             rect: self.r(x, y, size, size),
@@ -181,6 +198,171 @@ impl Kit<'_> {
     fn take(&mut self) -> ChunkItems {
         std::mem::take(&mut self.out).build()
     }
+}
+
+/// A plate of the mockup: a lacquer box with an engraved 1 px ring, the corners flagged in `bevels` (tl, tr, br,
+/// bl) cut off by `bevel` px with a polygon clip (`clip-path: polygon(...)`), and an engraved line along every
+/// cut drawn by a hard-stop `linear-gradient(to <corner>, ...)` in a `bevel` x `bevel` box at that corner.
+pub fn plate(rect: Rect, bevel: f32, bevels: [bool; 4]) -> Vec<Item> {
+    let (x0, y0, x1, y1) = (rect.x, rect.y, rect.x + rect.w, rect.y + rect.h);
+    let c = bevel;
+    let mut pts = Vec::new();
+    let v = Vec2::new;
+    if bevels[0] {
+        pts.extend([v(x0, y0 + c), v(x0 + c, y0)]);
+    } else {
+        pts.push(v(x0, y0));
+    }
+    if bevels[1] {
+        pts.extend([v(x1 - c, y0), v(x1, y0 + c)]);
+    } else {
+        pts.push(v(x1, y0));
+    }
+    if bevels[2] {
+        pts.extend([v(x1, y1 - c), v(x1 - c, y1)]);
+    } else {
+        pts.push(v(x1, y1));
+    }
+    if bevels[3] {
+        pts.extend([v(x0 + c, y1), v(x0, y1 - c)]);
+    } else {
+        pts.push(v(x0, y1));
+    }
+    let clip = Clip::polygon(&pts).ok();
+    let mut out = vec![Item::Box(BoxItem {
+        rect,
+        fill: Fill::Solid(LACQUER),
+        border: Border::uniform(1.0, ENGRAVE),
+        clip,
+        ..BoxItem::default()
+    })];
+    let size = Vec2::splat(c);
+    // The 50 % line of `to <corner>` joins the two other corners: the cut. Engraved from 50 % - 1 px to
+    // 50 % + 0.5 px along the gradient line.
+    let len = c * std::f32::consts::SQRT_2;
+    let (a, b) = (0.5 - 1.0 / len, 0.5 + 0.5 / len);
+    let stops = [
+        GradientStop::new(Color::TRANSPARENT, a),
+        GradientStop::new(ENGRAVE, a),
+        GradientStop::new(ENGRAVE, b),
+        GradientStop::new(Color::TRANSPARENT, b),
+    ];
+    for (k, (right, bottom)) in [(false, false), (true, false), (true, true), (false, true)]
+        .into_iter()
+        .enumerate()
+    {
+        if !bevels[k] {
+            continue;
+        }
+        let (from, to) = css_linear_line(css_corner_angle(right, bottom, size), size);
+        let Ok(g) = Gradient::linear(from, to, &stops) else {
+            continue;
+        };
+        let at = Vec2::new(
+            if right { x1 - c } else { x0 },
+            if bottom { y1 - c } else { y0 },
+        );
+        out.push(Item::Box(BoxItem {
+            rect: Rect::new(at.x, at.y, c, c),
+            fill: Fill::Gradient(g),
+            clip,
+            ..BoxItem::default()
+        }));
+    }
+    out
+}
+
+/// The end-turn dial of the mockup (the conic-gradient design): a disc with an engraved ring, a scale of
+/// `repeating-conic-gradient` ticks (1 degree of every 9), 40 rotated ticks, and a progress arc of `progress`
+/// (0..1) made of two half rings, each rotated and clipped to its half.
+pub fn dial(center: Vec2, radius: f32, progress: f32) -> Vec<Item> {
+    let r = radius;
+    let sq = |r: f32| Rect::new(center.x - r, center.y - r, 2.0 * r, 2.0 * r);
+    let mut out = vec![Item::Box(BoxItem {
+        rect: sq(r),
+        fill: Fill::Solid(LACQUER),
+        border: Border::uniform(1.0, ENGRAVE),
+        radii: Radii::uniform(r),
+        ..BoxItem::default()
+    })];
+    // The scale: a ring between r - 12 and r - 4 of a repeating conic gradient.
+    let deg = 1.0 / 360.0;
+    if let Ok(g) = Gradient::conic(
+        Vec2::splat(r - 4.0),
+        0.0,
+        &[
+            GradientStop::new(ENGRAVE, 0.0),
+            GradientStop::new(ENGRAVE, deg),
+            GradientStop::new(Color::TRANSPARENT, deg),
+            GradientStop::new(Color::TRANSPARENT, 9.0 * deg),
+        ],
+    ) {
+        out.push(Item::Box(BoxItem {
+            rect: sq(r - 4.0),
+            fill: Fill::Gradient(g.repeating()),
+            radii: Radii::uniform(r - 4.0),
+            ..BoxItem::default()
+        }));
+    }
+    out.push(Item::Box(BoxItem {
+        radii: Radii::uniform(r - 12.0),
+        ..BoxItem::solid(sq(r - 12.0), LACQUER)
+    }));
+    // 40 ticks, each a 2 x 6 box at the top rotated about the centre.
+    for i in 0..40 {
+        let a = i as f32 / 40.0 * std::f32::consts::TAU;
+        let m = Affine2::from_translation(center)
+            * Affine2::from_angle(a)
+            * Affine2::from_translation(-center);
+        out.push(Item::Box(BoxItem {
+            transform: Some(m),
+            ..BoxItem::solid(
+                Rect::new(center.x - 1.0, center.y - r + 14.0, 2.0, 6.0),
+                BONE,
+            )
+        }));
+    }
+    // The progress arc: a ring of radius r - 24, 4 px wide, in two halves as the mockup builds it: a half ring
+    // rotated inside a clip of one half of the dial. The rotated half ring's own edge becomes, in chunk space, a
+    // half plane through the centre at the rotated angle: the runtime flattens such nested clips into one clip
+    // rectangle (the dial's half) and one polygon (the rotated half plane).
+    let ring = |turns: f32, right: bool| {
+        let ar = r - 24.0;
+        let half = if right {
+            Rect::new(center.x, center.y - r, r, 2.0 * r)
+        } else {
+            Rect::new(center.x - r, center.y - r, r, 2.0 * r)
+        };
+        // The half plane left of the vertical through the centre (right of it for the second half), rotated
+        // clockwise by `turns`.
+        let m = Affine2::from_angle(turns * std::f32::consts::TAU);
+        let s = if right { -1.0 } else { 1.0 };
+        let b = 2.0 * r;
+        let quad: Vec<Vec2> = [(0.0, -b), (s * b, -b), (s * b, b), (0.0, b)]
+            .into_iter()
+            .map(|(x, y)| center + m.transform_vector2(Vec2::new(x, y)))
+            .collect();
+        Item::Box(BoxItem {
+            rect: Rect::new(center.x - ar, center.y - ar, 2.0 * ar, 2.0 * ar),
+            border: Border::uniform(4.0, BRASS),
+            radii: Radii::uniform(ar),
+            clip: Some(Clip {
+                rect: Some(half),
+                radius: 0.0,
+                polygon: Polygon::new(&quad).ok(),
+            }),
+            ..BoxItem::default()
+        })
+    };
+    // Clockwise from the top: the right half shows angles 0..p of the turn, the left half 0.5..p.
+    let p = progress.clamp(0.0, 1.0);
+    if p > 0.0 {
+        out.push(ring(p.min(0.5), true));
+    }
+    if p > 0.5 {
+        out.push(ring(p - 0.5, false));
+    }
+    out
 }
 
 /// Chunk ids of [`hud_a`] start here.
@@ -228,11 +410,21 @@ pub fn hud_a(text: &mut TextEngine, face: FaceId, k: f32) -> Vec<(LayerId, Chunk
         kit.text(s, x, 25.0, 13.0, BONE);
         x += 12.0 * s.len() as f32 * 0.6 + 24.0;
     }
+    // The research plate hanging under the strip, bevelled at the bottom.
+    for item in plate(
+        kit.r(0.0, 40.0, 320.0, 48.0),
+        10.0 * k,
+        [false, false, true, true],
+    ) {
+        kit.out.push(item);
+    }
+    kit.text("Education: 4 turns", 16.0, 70.0, 13.0, BONE);
     push(kit.take(), &mut chunks);
 
-    // Notes column on the right: cards with a title and a line.
+    // Notes column on the right: cards with a title and a line, each with its shadow.
     for i in 0..4 {
         let y = 56.0 + 64.0 * i as f32;
+        kit.shadow(1600.0, y, 304.0, 56.0, 6.0, 8.0, 24.0);
         kit.panel(1600.0, y, 304.0, 56.0, LACQUER, 6.0);
         kit.icon(i as u8, 1612.0, y + 12.0, 18.0, BRASS);
         kit.text("Great Library completed", 1640.0, y + 24.0, 13.0, BONE);
@@ -242,7 +434,8 @@ pub fn hud_a(text: &mut TextEngine, face: FaceId, k: f32) -> Vec<(LayerId, Chunk
     kit.text("More", 1820.0, 336.0, 12.0, BONE);
     push(kit.take(), &mut chunks);
 
-    // Unit panel: portrait frame, name, stats, pips, eight actions with keys.
+    // Unit panel: shadow, portrait frame, name, stats, pips, eight actions with keys.
+    kit.shadow(400.0, 880.0, 760.0, 184.0, 8.0, 8.0, 24.0);
     kit.panel(400.0, 880.0, 760.0, 184.0, LACQUER, 8.0);
     kit.panel(416.0, 896.0, 104.0, 104.0, LACQUER_2, 4.0);
     kit.text("Swordsman", 536.0, 916.0, 18.0, BONE);
@@ -289,12 +482,10 @@ pub fn hud_a(text: &mut TextEngine, face: FaceId, k: f32) -> Vec<(LayerId, Chunk
     }));
     push(kit.take(), &mut chunks);
 
-    // End-turn dial: a disc with a ring, ticks around it, the turn number.
-    kit.panel(1688.0, 848.0, 216.0, 216.0, LACQUER, 108.0);
-    for i in 0..40 {
-        let a = i as f32 / 40.0 * std::f32::consts::TAU;
-        let c = Vec2::new(1796.0, 956.0) + Vec2::new(a.sin(), -a.cos()) * 96.0;
-        kit.fill(c.x - 1.0, c.y - 1.0, 2.0, 2.0, ENGRAVE, 1.0);
+    // End-turn dial with its shadow: disc, conic scale, rotated ticks, progress arc, the turn number.
+    kit.shadow(1688.0, 848.0, 216.0, 216.0, 108.0, 8.0, 24.0);
+    for item in dial(Vec2::new(1796.0, 956.0) * k, 108.0 * k, 0.7) {
+        kit.out.push(item);
     }
     kit.text("87", 1780.0, 966.0, 28.0, BONE);
     kit.text("Next turn", 1764.0, 1000.0, 12.0, BRASS);

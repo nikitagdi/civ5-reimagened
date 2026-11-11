@@ -9,11 +9,15 @@ use glam::Affine2;
 
 use crate::glyphs::{GlyphStore, Lookup, glyph_key};
 use crate::instance::{
-    FILL_SOLID, FLAG_BORDER, FLAG_FILL, KIND_BOX, KIND_IMAGE, KIND_MASK, Ui2Instance,
+    FILL_CONIC, FILL_LINEAR, FILL_REPEAT, FILL_SOLID, FLAG_BORDER, FLAG_ELLIPSE, FLAG_FILL,
+    FLAG_TILE, KIND_BOX, KIND_IMAGE, KIND_MASK, KIND_SHADOW, Ui2Instance, f16_bits,
 };
 use crate::pages::Pages;
 use crate::tables::{Clip, Tables};
-use crate::{BoxItem, ChunkItems, Fill, Glyphs, ImageItem, Item, MaskItem};
+use crate::{
+    BoxItem, ChunkItems, Fill, Glyphs, Gradient, GradientShape, ImageItem, Item, MaskItem,
+    ShadowItem,
+};
 
 /// What the encoder works on besides the items.
 pub struct EncodeCtx<'a> {
@@ -48,7 +52,9 @@ pub fn encode_chunk(chunk: &ChunkItems, ctx: &mut EncodeCtx<'_>) -> Encoded {
     let anchor = chunk.anchor.map_or(0, |a| a.0);
     for item in &chunk.items {
         match item {
-            Item::Box(b) => encode_box(b, anchor, ctx, &mut out),
+            Item::Box(b) => encode_box(b, 1.0, anchor, ctx, &mut out),
+            Item::EllipticBox(e) => encode_box(&e.base, e.ratio, anchor, ctx, &mut out),
+            Item::Shadow(s) => encode_shadow(s, anchor, ctx, &mut out),
             Item::Mask(m) => encode_mask(m, anchor, ctx, &mut out),
             Item::Image(m) => encode_image(m, anchor, ctx, &mut out),
             Item::Glyphs(g) => encode_glyphs(g, anchor, ctx, &mut out),
@@ -91,27 +97,46 @@ fn place(
     (xf, cl)
 }
 
-fn encode_box(b: &BoxItem, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Encoded) {
+/// A box: fill (solid or gradient) and border in one instance. `ratio` is the ry / rx ratio of elliptic corners
+/// (1: circular).
+fn encode_box(b: &BoxItem, ratio: f32, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Encoded) {
     if !b.rect.is_drawable() {
         return;
     }
     let fill = match b.fill {
-        Fill::Solid(c) if !c.is_transparent() => Some(c),
-        _ => None,
+        Fill::Solid(c) if c.is_transparent() => Fill::None,
+        Fill::Gradient(g) if g.is_transparent() => Fill::None,
+        f => f,
     };
     let border = (!b.border.is_none()).then_some(b.border);
-    if fill.is_none() && border.is_none() {
+    if fill == Fill::None && border.is_none() {
         return;
     }
     let (xform, clip) = place(&b.transform, &b.clip, ctx, out);
     let mut i = Ui2Instance::of_kind(KIND_BOX);
     i.rect = [b.rect.x, b.rect.y, b.rect.w, b.rect.h];
-    let r = b.radii.fitted(b.rect.w, b.rect.h);
+    let ratio = if ratio.is_finite() && ratio > 0.0 {
+        ratio
+    } else {
+        1.0
+    };
+    // Elliptic radii are fitted with the vertical ones against the height: ry = rx * ratio <= h.
+    let r = b.radii.fitted(b.rect.w, b.rect.h / ratio);
     i.set_radii([r.tl, r.tr, r.br, r.bl]);
-    i.flags = FILL_SOLID;
-    if let Some(c) = fill {
-        i.colors[0] = c.0;
-        i.flags |= FLAG_FILL;
+    if ratio != 1.0 {
+        i.flags |= FLAG_ELLIPSE;
+        i.extra[2] = f16_bits(ratio);
+    }
+    match fill {
+        Fill::Solid(c) => {
+            i.colors[0] = c.0;
+            i.flags |= FLAG_FILL | FILL_SOLID;
+        }
+        Fill::Gradient(g) => {
+            encode_gradient(&g, &mut i);
+            i.flags |= FLAG_FILL;
+        }
+        _ => {}
     }
     if let Some(bd) = border {
         let w = |v: f32| v.max(0.0);
@@ -119,6 +144,85 @@ fn encode_box(b: &BoxItem, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Encod
         i.border_color = bd.color.0;
         i.flags |= FLAG_BORDER;
     }
+    i.xform = xform;
+    i.clip = clip;
+    i.anchor = anchor;
+    out.instances.push(i);
+}
+
+/// Writes a gradient into the fill fields of a box instance (mode bits, `uv`, colours, stops, tile).
+///
+/// The stops are normalized so that the first lies at position 0 and the last at 1, which keeps them exact as
+/// half floats and makes the repeat period of a repeating gradient the whole 0..1 range: a linear gradient's
+/// line is moved onto the first and the last stop, a repeating conic gradient's start angle and span likewise.
+/// A plain conic gradient keeps its positions (the angle outside the stops takes the end colours).
+fn encode_gradient(g: &Gradient, i: &mut Ui2Instance) {
+    let stops = g.stops();
+    let (first, last) = (stops[0].pos, stops[stops.len() - 1].pos);
+    // All stops at one position: a hard switch there. Keep a tiny span so the order still decides.
+    let last = if last - first > 1e-6 {
+        last
+    } else {
+        first + 1e-6
+    };
+    let span = last - first;
+    let normalize = !matches!(g.shape, GradientShape::Conic { .. }) || g.repeating;
+    for (k, s) in stops.iter().enumerate() {
+        i.colors[k] = s.color.0;
+        let pos = if normalize {
+            (s.pos - first) / span
+        } else {
+            s.pos.clamp(0.0, 1.0)
+        };
+        i.stops[k] = f16_bits(pos);
+    }
+    i.n_stops = stops.len() as u8;
+    match g.shape {
+        GradientShape::Linear { from, to } => {
+            let d = to - from;
+            let (a, b) = (from + d * first, from + d * last);
+            i.uv = [a.x, a.y, b.x, b.y];
+            i.flags |= if g.repeating {
+                FILL_REPEAT
+            } else {
+                FILL_LINEAR
+            };
+        }
+        GradientShape::Conic { center, start } => {
+            i.uv = if g.repeating {
+                [center.x, center.y, (start + first).rem_euclid(1.0), span]
+            } else {
+                [center.x, center.y, start.rem_euclid(1.0), 1.0]
+            };
+            i.flags |= FILL_CONIC;
+        }
+    }
+    if let Some(t) = g.tile {
+        i.flags |= FLAG_TILE;
+        i.extra[0] = f16_bits(t.x);
+        i.extra[1] = f16_bits(t.y);
+    }
+}
+
+/// An outer shadow: one instance whose quad the shader grows to the blurred shadow.
+fn encode_shadow(s: &ShadowItem, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Encoded) {
+    let finite = s.offset.is_finite() && s.blur.is_finite() && s.spread.is_finite();
+    if !s.rect.is_drawable() || s.color.is_transparent() || !finite {
+        return;
+    }
+    // A spread that swallows the box leaves nothing.
+    if s.rect.w + 2.0 * s.spread <= 0.0 || s.rect.h + 2.0 * s.spread <= 0.0 {
+        return;
+    }
+    let (xform, clip) = place(&s.transform, &s.clip, ctx, out);
+    let mut i = Ui2Instance::of_kind(KIND_SHADOW);
+    i.rect = [s.rect.x, s.rect.y, s.rect.w, s.rect.h];
+    let r = s.radii.fitted(s.rect.w, s.rect.h);
+    i.set_radii([r.tl, r.tr, r.br, r.bl]);
+    i.uv = [s.offset.x, s.offset.y, 0.0, 0.0];
+    i.extra[0] = f16_bits(s.blur.max(0.0) * 0.5);
+    i.extra[1] = f16_bits(s.spread);
+    i.colors[0] = s.color.0;
     i.xform = xform;
     i.clip = clip;
     i.anchor = anchor;
@@ -208,7 +312,9 @@ mod tests {
 
     use super::*;
     use crate::instance::f16_bits;
-    use crate::{AnchorSlot, Border, ChunkBuilder, Color, ImageRef, Radii, Rect};
+    use crate::{
+        AnchorSlot, Border, ChunkBuilder, Color, EllipticBox, GradientStop, ImageRef, Radii, Rect,
+    };
 
     struct Rig {
         tables: Tables,
@@ -427,6 +533,172 @@ mod tests {
         assert_eq!(&b[32..36], &0.25f32.to_le_bytes());
         assert_eq!(b[84], 3);
         assert_eq!(b[86], 2);
+    }
+
+    fn gstops(s: &[(Color, f32)]) -> Vec<GradientStop> {
+        s.iter().map(|(c, p)| GradientStop::new(*c, *p)).collect()
+    }
+
+    const R: Color = Color::rgba(255, 0, 0, 255);
+    const G: Color = Color::rgba(0, 255, 0, 255);
+
+    fn gradient_instance(g: Gradient) -> Ui2Instance {
+        let mut rig = Rig::new();
+        let b = BoxItem {
+            rect: Rect::new(0.0, 0.0, 40.0, 20.0),
+            fill: Fill::Gradient(g),
+            ..BoxItem::default()
+        };
+        rig.encode(&one(Item::Box(b))).instances[0]
+    }
+
+    #[test]
+    fn linear_gradient_moves_its_line_onto_the_first_and_last_stop() {
+        let g = Gradient::linear(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(100.0, 0.0),
+            &gstops(&[(R, 0.25), (G, 0.5), (R, 0.75)]),
+        )
+        .unwrap();
+        let i = gradient_instance(g);
+        assert_eq!(i.flags, FLAG_FILL | FILL_LINEAR);
+        assert_eq!(i.n_stops, 3);
+        assert_eq!(i.uv, [25.0, 0.0, 75.0, 0.0]);
+        assert_eq!(i.stops, [0.0, 0.5, 1.0, 0.0].map(f16_bits));
+        assert_eq!(i.colors, [R.0, G.0, R.0, [0; 4]]);
+        let r = gradient_instance(g.repeating().tiled(Vec2::new(10.0, 20.0)));
+        assert_eq!(r.flags, FLAG_FILL | FILL_REPEAT | FLAG_TILE);
+        assert_eq!(r.extra, [10.0, 20.0, 0.0, 0.0].map(f16_bits));
+    }
+
+    #[test]
+    fn conic_gradient_keeps_plain_positions_and_normalizes_repeating_ones() {
+        let s = gstops(&[(R, 0.0), (R, 0.125), (G, 0.125), (G, 0.25)]);
+        let plain = gradient_instance(Gradient::conic(Vec2::new(5.0, 6.0), 1.25, &s).unwrap());
+        assert_eq!(plain.flags, FLAG_FILL | FILL_CONIC);
+        assert_eq!(plain.uv, [5.0, 6.0, 0.25, 1.0]);
+        assert_eq!(plain.stops, [0.0, 0.125, 0.125, 0.25].map(f16_bits));
+        let rep = gradient_instance(
+            Gradient::conic(Vec2::new(5.0, 6.0), 0.5, &s)
+                .unwrap()
+                .repeating(),
+        );
+        assert_eq!(rep.uv, [5.0, 6.0, 0.5, 0.25]);
+        assert_eq!(rep.stops, [0.0, 0.5, 0.5, 1.0].map(f16_bits));
+    }
+
+    #[test]
+    fn gradients_validate_their_stops() {
+        let v = Vec2::ZERO;
+        assert!(Gradient::linear(v, v, &gstops(&[(R, 0.0)])).is_err());
+        let five = gstops(&[(R, 0.0), (R, 0.1), (R, 0.2), (R, 0.3), (R, 0.4)]);
+        assert!(Gradient::linear(v, v, &five).is_err());
+        assert!(Gradient::linear(v, v, &gstops(&[(R, 0.0), (R, f32::NAN)])).is_err());
+        // Backward positions are raised to the previous one.
+        let g = Gradient::linear(v, v, &gstops(&[(R, 0.5), (G, 0.2), (R, 0.7)])).unwrap();
+        let pos: Vec<f32> = g.stops().iter().map(|s| s.pos).collect();
+        assert_eq!(pos, vec![0.5, 0.5, 0.7]);
+        // A gradient of transparent stops fills nothing.
+        let mut rig = Rig::new();
+        let clear = Gradient::linear(
+            v,
+            Vec2::X,
+            &gstops(&[(Color::TRANSPARENT, 0.0), (Color::TRANSPARENT, 1.0)]),
+        )
+        .unwrap();
+        let b = BoxItem {
+            rect: Rect::new(0.0, 0.0, 4.0, 4.0),
+            fill: Fill::Gradient(clear),
+            ..BoxItem::default()
+        };
+        assert!(rig.encode(&one(Item::Box(b))).instances.is_empty());
+    }
+
+    #[test]
+    fn css_gradient_lines() {
+        let size = Vec2::new(40.0, 20.0);
+        // 90 degrees: left to right across the box.
+        let (a, b) = crate::css_linear_line(90.0, size);
+        assert!(
+            (a - Vec2::new(0.0, 10.0)).length() < 1e-4
+                && (b - Vec2::new(40.0, 10.0)).length() < 1e-4
+        );
+        // `to bottom right`: the 50 % line joins the top right and bottom left corners.
+        let deg = crate::css_corner_angle(true, true, size);
+        let (a, b) = crate::css_linear_line(deg, size);
+        let d = b - a;
+        let t = |p: Vec2| (p - a).dot(d) / d.length_squared();
+        assert!((t(Vec2::new(40.0, 0.0)) - 0.5).abs() < 1e-5);
+        assert!((t(Vec2::new(0.0, 20.0)) - 0.5).abs() < 1e-5);
+        assert!(t(Vec2::ZERO).abs() < 1e-5 && (t(size) - 1.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn elliptic_box_carries_its_ratio_and_fits_radii_against_the_height() {
+        let mut rig = Rig::new();
+        let e = EllipticBox::ellipse(
+            Rect::new(0.0, 0.0, 120.0, 48.0),
+            Fill::None,
+            Border::uniform(2.0, R),
+        );
+        let i = rig.encode(&one(Item::EllipticBox(e))).instances[0];
+        assert_eq!(i.flags, FLAG_BORDER | FLAG_ELLIPSE);
+        assert_eq!(i.radii, [60.0; 4].map(f16_bits));
+        assert_eq!(i.extra[2], f16_bits(0.4));
+        // Too large vertical radii are scaled down together: ry = 2 * rx would need 2 * 60 * 2 > 48.
+        let tall = EllipticBox {
+            base: BoxItem {
+                radii: Radii::uniform(60.0),
+                ..BoxItem::solid(Rect::new(0.0, 0.0, 120.0, 48.0), R)
+            },
+            ratio: 2.0,
+        };
+        let i = rig.encode(&one(Item::EllipticBox(tall))).instances[0];
+        assert_eq!(i.radii, [12.0; 4].map(f16_bits));
+        // Ratio 1 is a plain box.
+        let round = EllipticBox::ellipse(
+            Rect::new(0.0, 0.0, 10.0, 10.0),
+            Fill::Solid(R),
+            Border::NONE,
+        );
+        let i = rig.encode(&one(Item::EllipticBox(round))).instances[0];
+        assert_eq!(i.flags, FLAG_FILL);
+    }
+
+    #[test]
+    fn shadow_bytes() {
+        let mut rig = Rig::new();
+        let s = ShadowItem {
+            rect: Rect::new(10.0, 20.0, 100.0, 50.0),
+            radii: Radii::uniform(6.0),
+            offset: Vec2::new(0.0, 8.0),
+            blur: 24.0,
+            spread: -2.0,
+            color: Color::rgba(0, 0, 0, 89),
+            ..ShadowItem::default()
+        };
+        let i = rig.encode(&one(Item::Shadow(s.clone()))).instances[0];
+        assert_eq!(i.kind, KIND_SHADOW);
+        assert_eq!(i.rect, [10.0, 20.0, 100.0, 50.0]);
+        assert_eq!(i.uv, [0.0, 8.0, 0.0, 0.0]);
+        assert_eq!(i.extra, [12.0, -2.0, 0.0, 0.0].map(f16_bits));
+        assert_eq!(i.colors[0], [0, 0, 0, 89]);
+        for none in [
+            ShadowItem {
+                color: Color::TRANSPARENT,
+                ..s.clone()
+            },
+            ShadowItem {
+                spread: -60.0,
+                ..s.clone()
+            },
+            ShadowItem {
+                blur: f32::NAN,
+                ..s
+            },
+        ] {
+            assert!(rig.encode(&one(Item::Shadow(none))).instances.is_empty());
+        }
     }
 
     #[test]
