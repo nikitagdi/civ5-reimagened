@@ -7,7 +7,8 @@
 
 use protocol::{PlayerId, SeatView, TurnState};
 use replica::{ReplicaStep, State};
-use ui2_model::r#gen::Timer;
+use ui2_model::r#gen::{Pending, Timer, Ui};
+use ui2_model::{Key, KeyedList};
 
 use crate::session::{SessionRead, timer};
 
@@ -28,6 +29,7 @@ impl Roots {
     pub const NOTES: Roots = Roots(1 << 7);
     /// Built from the session only.
     pub const CHAT: Roots = Roots(1 << 8);
+    pub const UNIT: Roots = Roots(1 << 9);
     /// Every root built from the replica's game: what a journal batch or a new snapshot rebuilds.
     pub const GAME_DATA: Roots = Roots(
         Self::GAME.0
@@ -36,17 +38,19 @@ impl Roots {
             | Self::PLAYERS.0
             | Self::TURN.0
             | Self::MAP.0
-            | Self::NOTES.0,
+            | Self::NOTES.0
+            | Self::UNIT.0,
     );
     /// What a change of the session's turn state or seats rebuilds.
     pub const SESSION_TURN: Roots = Roots(Self::GAME.0 | Self::TURN.0);
 
     /// The roots that need the replica's game, in the order a frame builds them (the budget queue).
-    pub const QUEUE: [Roots; 7] = [
+    pub const QUEUE: [Roots; 8] = [
         Self::TOP,
         Self::RESEARCH,
         Self::GAME,
         Self::TURN,
+        Self::UNIT,
         Self::NOTES,
         Self::MAP,
         Self::PLAYERS,
@@ -165,6 +169,30 @@ impl SessionSeen {
         if self.timer != t {
             self.timer = t;
             roots = roots.union(Roots::TIMER);
+        }
+        roots
+    }
+}
+
+/// What the source remembers of the UI's own root between frames: the parts its roots depend on.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct UiSeen {
+    pub unit: Option<Key>,
+    pub pending: KeyedList<Pending>,
+}
+
+impl UiSeen {
+    /// Compares the UI root with what was seen, remembers the new values and says what to rebuild: a new
+    /// selected unit, or a change of the orders waiting for an answer (`unit.pending`): `unit`.
+    pub fn update(&mut self, ui: &Ui) -> Roots {
+        let mut roots = Roots::NONE;
+        if self.unit != ui.selection.unit {
+            self.unit = ui.selection.unit;
+            roots = roots.union(Roots::UNIT);
+        }
+        if self.pending != ui.pending {
+            self.pending.clone_from(&ui.pending);
+            roots = roots.union(Roots::UNIT);
         }
         roots
     }

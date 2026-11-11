@@ -29,7 +29,7 @@ const TRADITION: i16 = 0;
 const LIBERTY: i16 = 1;
 
 /// Catalog tables read once per core.
-const CATALOG_TABLES: usize = 7;
+const CATALOG_TABLES: usize = 8;
 /// The reads of a rebuild once the catalog is known: the top bar with its two lists, the game record, the
 /// technologies, the units (turn), the notifications, the cities (map), the players. Shared records are read once.
 const REBUILD: [&str; 9] = [
@@ -49,8 +49,9 @@ fn first_frame() -> Vec<&'static str> {
     v.extend(REBUILD);
     v
 }
-/// Roots of the replica's game written by a full rebuild: top, research, game, turn, notes, map, players.
-const GAME_ROOTS: u32 = 7;
+/// Roots of the replica's game written by a full rebuild: top, research, game, turn, unit (none selected), notes,
+/// map, players.
+const GAME_ROOTS: u32 = 8;
 /// Roots of the session written on the first frame besides `meta`: chat.
 const SESSION_ROOTS: u32 = 1;
 
@@ -237,7 +238,7 @@ fn the_mockup_top_bar() {
     );
     assert_eq!(stats.deferred, 0);
     assert_eq!(f.calls, first_frame());
-    assert_eq!(stats.getter_calls, 16);
+    assert_eq!(stats.getter_calls, 17);
 
     let top = rig.store.get::<Top>().expect("top is written");
     assert_eq!(
@@ -454,7 +455,11 @@ fn a_core_without_queries_leaves_the_roots_unwritten() {
     f.error = Some(ReadError::Unsupported);
     let mut rig = Rig::new();
     let stats = rig.frame(Some(view(State::Live, 1, 0, &mut f)), &[]);
-    assert_eq!(stats.roots_built, 1 + SESSION_ROOTS, "meta and chat only");
+    assert_eq!(
+        stats.roots_built,
+        2 + SESSION_ROOTS,
+        "meta, chat and the unit root (nothing selected needs no read)"
+    );
     assert!(rig.store.get::<Top>().is_none());
     assert!(rig.store.get::<Game>().is_none());
     // Failing reads are not retried every frame.

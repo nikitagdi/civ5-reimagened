@@ -14,16 +14,17 @@
 
 pub mod build;
 pub mod catalog;
+pub mod pending;
 pub mod session;
 pub mod trigger;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use replica::{
     CatalogEntry, CatalogTable, City, GameInfo, GameRead, GameSide, Notification, Player,
     PlayerResource, PolicyBranchState, ReadError, Replica, ReplicaStep, State, TechState, TopBar,
-    Unit,
+    Unit, UnitAction,
 };
 use ui2_model::r#gen::{Meta, Turn, Ui};
 use ui2_model::{Key, ModelWriter, Root, Schema};
@@ -31,7 +32,7 @@ use ui2_model::{Key, ModelWriter, Root, Schema};
 pub use crate::session::SessionRead;
 
 use crate::catalog::Catalog;
-use crate::trigger::{Roots, Seen, SessionSeen};
+use crate::trigger::{Roots, Seen, SessionSeen, UiSeen};
 
 /// The replica as one frame of the source sees it: its change signals and, while it can be read, its reader.
 pub struct ReplicaView<'a> {
@@ -128,6 +129,8 @@ pub struct UiSource {
     budget: u32,
     /// The dismissed notifications as of the last frame.
     dismissed: BTreeSet<Key>,
+    /// The UI root's parts the roots depend on, as of the last frame.
+    ui: UiSeen,
     /// The turn each chat line came in.
     chat: build::chat::ChatLog,
 }
@@ -139,6 +142,7 @@ pub(crate) struct Missing {
     techs: bool,
     resources: bool,
     branches: bool,
+    promotions: bool,
 }
 
 impl UiSource {
@@ -160,6 +164,7 @@ impl UiSource {
             missing: Missing::default(),
             budget,
             dismissed: BTreeSet::new(),
+            ui: UiSeen::default(),
             chat: build::chat::ChatLog::default(),
         }
     }
@@ -181,7 +186,7 @@ impl UiSource {
         &mut self,
         f: SourceFrame<'_, '_>,
         w: &mut ModelWriter<'_>,
-        _ui: &Ui,
+        ui: &Ui,
     ) -> SourceStats {
         let mut stats = SourceStats::default();
         let SourceFrame {
@@ -209,6 +214,7 @@ impl UiSource {
             self.dismissed.clone_from(dismissed);
             self.pending = self.pending.union(Roots::NOTES);
         }
+        self.pending = self.pending.union(self.ui.update(ui));
 
         let mut reader = None;
         if let Some(view) = replica {
@@ -296,6 +302,9 @@ impl UiSource {
                 }
             } else if root == Roots::PLAYERS {
                 write_built(w, build::players::players(&mut read), &mut stats);
+            } else if root == Roots::UNIT {
+                let r = build::unit::unit(&mut read, catalog, ui.selection.unit, &ui.pending);
+                write_built(w, r, &mut stats);
             } else if root == Roots::NOTES {
                 write_built(w, build::notes::notes(&mut read, dismissed), &mut stats);
             } else if root == Roots::MAP {
@@ -361,6 +370,10 @@ pub(crate) struct Cache {
     units: Slot<Vec<Unit>>,
     cities: Slot<Vec<City>>,
     notes: Slot<Vec<Notification>>,
+    /// `Q_UNIT_ACTIONS` by unit id.
+    actions: BTreeMap<i32, Slot<Vec<UnitAction>>>,
+    /// `Q_UNIT_PROMOTIONS` by unit id.
+    promotions: BTreeMap<i32, Slot<Vec<i16>>>,
 }
 
 impl Cache {
@@ -376,6 +389,8 @@ impl Cache {
         clear(&mut self.units);
         clear(&mut self.cities);
         clear(&mut self.notes);
+        self.actions.retain(|_, s| matches!(s, Some(Ok(_))));
+        self.promotions.retain(|_, s| matches!(s, Some(Ok(_))));
     }
 
     /// The game turn, if the game record was read since the game last changed.
@@ -496,6 +511,26 @@ impl<'a, 'r> CountingRead<'a, 'r> {
         cached(&mut self.cache.notes, &mut self.calls, || {
             read.notifications()
         })
+    }
+
+    pub(crate) fn unit_actions(&mut self, unit: i32) -> Result<Arc<Vec<UnitAction>>, ReadError> {
+        let read = &mut *self.read;
+        let slot = self.cache.actions.entry(unit).or_default();
+        cached(slot, &mut self.calls, || read.unit_actions(unit))
+    }
+
+    /// `Q_UNIT_PROMOTIONS`, a UI v2 query: kept like the others, and not asked again once unsupported.
+    pub(crate) fn unit_promotions(&mut self, unit: i32) -> Result<Arc<Vec<i16>>, ReadError> {
+        if self.missing.promotions {
+            return Err(ReadError::Unsupported);
+        }
+        let read = &mut *self.read;
+        let slot = self.cache.promotions.entry(unit).or_default();
+        let r = cached(slot, &mut self.calls, || read.unit_promotions(unit));
+        if matches!(r, Err(ReadError::Unsupported)) {
+            self.missing.promotions = true;
+        }
+        r
     }
 
     pub(crate) fn catalog(&mut self, t: CatalogTable) -> Result<Vec<CatalogEntry>, ReadError> {

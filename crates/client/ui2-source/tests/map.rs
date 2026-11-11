@@ -317,7 +317,7 @@ fn the_read_budget_defers_whole_roots_to_the_next_frames() {
     assert!(rig.store.get::<ui2_model::r#gen::Top>().is_some());
     assert!(rig.store.get::<Map>().is_none());
     let mut deferred = stats.deferred;
-    assert_eq!(deferred, 6);
+    assert_eq!(deferred, 7);
     // Then at least one root a frame (a root whose reads are kept costs nothing), each whole, with no new
     // trigger.
     let mut frames = 0;
@@ -332,7 +332,7 @@ fn the_read_budget_defers_whole_roots_to_the_next_frames() {
         deferred = stats.deferred;
         frames += 1;
     }
-    assert!((4..=6).contains(&frames), "{frames}");
+    assert!((4..=7).contains(&frames), "{frames}");
     assert_eq!(map(&rig).cities.len(), 5, "the map is whole");
     assert_eq!(notes(&rig).len(), 5);
     let n = f.call_count();

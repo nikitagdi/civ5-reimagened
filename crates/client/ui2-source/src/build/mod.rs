@@ -7,6 +7,7 @@ pub mod notes;
 pub mod players;
 pub mod top;
 pub mod turn;
+pub mod unit;
 
 use replica::OrderType;
 use ui2_model::Key;

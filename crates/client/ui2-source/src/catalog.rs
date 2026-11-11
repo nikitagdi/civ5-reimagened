@@ -44,6 +44,7 @@ pub struct Catalog {
     units: BTreeMap<i16, Item>,
     buildings: BTreeMap<i16, Item>,
     projects: BTreeMap<i16, Item>,
+    promotions: BTreeMap<i16, Item>,
 }
 
 impl Catalog {
@@ -61,6 +62,7 @@ impl Catalog {
             units: table(read, CatalogTable::Units)?,
             buildings: table(read, CatalogTable::Buildings)?,
             projects: table(read, CatalogTable::Projects)?,
+            promotions: table(read, CatalogTable::Promotions)?,
         })
     }
 
@@ -68,6 +70,12 @@ impl Catalog {
     #[must_use]
     pub fn unit(&self, id: i16) -> Item {
         self.units.get(&id).cloned().unwrap_or_default()
+    }
+
+    /// A promotion by `PromotionTypes` id.
+    #[must_use]
+    pub fn promotion(&self, id: i16) -> Item {
+        self.promotions.get(&id).cloned().unwrap_or_default()
     }
 
     /// What a city order builds: a unit, a building (wonders too), a project; a process has no catalog row.
