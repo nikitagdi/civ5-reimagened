@@ -370,9 +370,22 @@ fn paint_stacking_clips_opacity_and_transforms() {
     assert_eq!(xf.translation, glam::Vec2::new(20.0, 0.0));
     // The bound width (7 px from the sample) went through layout into the item.
     assert_eq!(boxes[3].rect.w, 14.0);
-    // The blurred shadow is reported once, also after the chunk is built again.
-    assert_eq!(errors.len(), 1, "{errors:?}");
-    assert_eq!(errors[0].code, ui2_runtime::ErrorCode::Paint);
+    // The blurred outer shadow is drawn under its box, with the box's transform.
+    assert!(errors.is_empty(), "{errors:?}");
+    let shadow = items
+        .items
+        .iter()
+        .position(|i| matches!(i, Item::Shadow(_)))
+        .expect("a shadow");
+    match &items.items[shadow..] {
+        [Item::Shadow(sh), Item::Box(b), ..] => {
+            assert_eq!(b.fill, Fill::Solid(ui2_draw::Color([255, 255, 0, 255])));
+            assert_eq!(sh.rect, b.rect);
+            assert_eq!((sh.offset, sh.blur), (glam::Vec2::new(0.0, 4.0), 8.0));
+            assert_eq!(sh.transform, b.transform);
+        }
+        other => panic!("{other:?}"),
+    }
     sample["model"]["top"]["happiness"] = json!(9);
     let d = frame_of(&mut store, &sample);
     rt.apply_delta(&d, &store);

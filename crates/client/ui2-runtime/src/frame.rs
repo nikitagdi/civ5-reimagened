@@ -13,7 +13,9 @@
 //! 4. layout: the roots above queued nodes are laid out; boxes that moved are queued for paint; virtual
 //!    lists move their windows, `data-fit` texts shrink to their boxes;
 //! 5. transitions: records that changed start them, running ones queue their chunks for paint;
-//! 6. paint: removed chunks leave the scene, chunks with a queued node are built and set on the scene (whose
+//! 6. anchors: anchor bindings that gave an object make or change map anchors, removed anchor nodes free
+//!    their scene slots (both reported in `anchor_changes`);
+//! 7. paint: removed chunks leave the scene, chunks with a queued node are built and set on the scene (whose
 //!    device scale follows the environment).
 //!
 //! A frame without changes finds every queue empty: no evaluation, no shaping, no layout, no draw list, and
@@ -52,6 +54,10 @@ impl UiOutput {
 pub struct FrameOutput {
     /// The pointer cursor the UI wants (`auto`: the world decides).
     pub cursor: Cursor,
+    /// Map anchors made, given another object, or removed (`Value::None`) during this frame and since the
+    /// last one: the host projects the anchors it knows and calls
+    /// [`Runtime::set_anchor_screen`](crate::Runtime::set_anchor_screen).
+    pub anchor_changes: Vec<crate::AnchorChange>,
     /// Errors reported for the first time during this frame (each is logged once).
     pub errors: Vec<UiError>,
     /// Transitions are running: the host should keep producing frames.
@@ -208,6 +214,10 @@ impl Runtime {
         if scene.scale() != self.style_env.scale.k {
             scene.set_scale(self.style_env.scale.k);
         }
+        // Anchors that bindings made or changed, and anchors whose node went away.
+        let updates = self.binder.take_anchor_updates();
+        self.anchors
+            .sync(&mut self.arena, &self.pkg, scene, updates, &mut self.errors);
         let paint = paint::pass(
             &mut self.arena,
             &paint::PaintCtx {
@@ -215,6 +225,9 @@ impl Runtime {
                 index: &self.style_index,
                 env: &self.style_env,
                 anim: &self.anim,
+                srcs: self.binder.srcs(),
+                assets: self.assets.as_ref(),
+                anchors: &self.anchors,
             },
             scene,
             &mut self.errors,
@@ -224,6 +237,7 @@ impl Runtime {
         self.clock = clock;
         FrameOutput {
             cursor: self.cursor(),
+            anchor_changes: self.anchors.take_changes(),
             errors: self.errors.take(),
             animating,
             stats: FrameStats {

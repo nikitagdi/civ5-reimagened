@@ -6,7 +6,8 @@
 //! the one hit. A box is hit when the point lies in its border box after its transforms and the scroll offsets
 //! above it, and inside every overflow clip above it. `pointer-events: none` and `visibility: hidden` skip the
 //! box but not its children; layer roots are never targets (a click on an empty part of a layer reaches the
-//! world). Map anchors are skipped until the host places them on the screen.
+//! world). A map anchor's chunk is tested where the host placed it ([`crate::Runtime::set_anchor_screen`]),
+//! and skipped while it is not placed or not visible.
 //!
 //! The geometry repeats what painting computes, in CSS px instead of device pixels: positions relative to the
 //! containing block made absolute, scroll offsets of scroll containers, transforms around their origins.
@@ -19,6 +20,7 @@ use ui2_package::style::{
 };
 use ui2_package::{Layer, NodeKind, NodeRef, Package, node_flags};
 
+use crate::anchor::Anchors;
 use crate::arena::{Arena, NodeClass, NodeId};
 use crate::instantiate;
 use crate::paint::stacking;
@@ -130,6 +132,8 @@ pub(crate) struct Geo<'a> {
     pub pkg: &'a Package,
     pub index: &'a StyleIndex,
     abs: HashMap<u32, Vec2>,
+    /// Map anchors and the device scale, to place anchor chunks on the screen.
+    anchors: Option<(&'a Anchors, f32)>,
 }
 
 impl<'a> Geo<'a> {
@@ -139,7 +143,31 @@ impl<'a> Geo<'a> {
             pkg,
             index,
             abs: HashMap::new(),
+            anchors: None,
         }
+    }
+
+    /// Hit-tests placed map anchors where the host put them (device scale `k`).
+    pub fn with_anchors(mut self, anchors: &'a Anchors, k: f32) -> Self {
+        self.anchors = Some((anchors, k));
+        self
+    }
+
+    /// For an anchor's node: `Some` with its placement (layout space to page space) while it is placed and
+    /// visible, `Some(None)` otherwise; `None` for other nodes.
+    fn anchor_placement(&mut self, id: NodeId) -> Option<Option<Affine2>> {
+        let n = self.arena.get(id)?;
+        let flagged = instantiate::template_node(self.pkg, n.tmpl())
+            .is_some_and(|t| t.flags & node_flags::ANCHOR != 0);
+        if !flagged {
+            return None;
+        }
+        let loc = n.layout().unrounded.location;
+        let Some((anchors, k)) = self.anchors else {
+            return Some(None);
+        };
+        let origin = self.abs(id) - Vec2::new(loc.x, loc.y);
+        Some(anchors.placement(id, origin, k))
     }
 
     pub fn record(&self, id: NodeId) -> Option<&'a StyleRecord> {
@@ -312,16 +340,14 @@ impl<'a> Geo<'a> {
     }
 
     /// Whether a node can be the target of input at all (its children may be even when it cannot).
-    fn hittable(&self, id: NodeId) -> bool {
+    fn hittable(&mut self, id: NodeId) -> bool {
         let Some(n) = self.arena.get(id) else {
             return false;
         };
         if !matches!(n.class(), NodeClass::Element | NodeClass::Placeholder) {
             return false;
         }
-        let anchor = instantiate::template_node(self.pkg, n.tmpl())
-            .is_some_and(|t| t.flags & node_flags::ANCHOR != 0);
-        if anchor {
+        if self.anchor_placement(id).is_some_and(|p| p.is_none()) {
             return false;
         }
         self.record(id).is_some_and(|r| {
@@ -363,11 +389,15 @@ impl<'a> Geo<'a> {
 
     /// The topmost hittable node of a chunk under a point.
     fn hit_chunk(&mut self, root: NodeId, p: Vec2) -> Option<(NodeId, Vec2)> {
-        if self.under_anchor(root) {
-            return None;
-        }
+        // A placed anchor's chunk is where the host put it; an anchor deeper in a chunk is never placed.
+        let start = match self.anchor_placement(root) {
+            Some(Some(xf)) => HitState { xf, clip: None },
+            Some(None) => return None,
+            None if self.under_anchor(root) => return None,
+            None => HitState::ROOT,
+        };
         let mut order = Vec::new();
-        self.context(root, HitState::ROOT, &mut order);
+        self.context(root, start, &mut order);
         for (n, s) in order.into_iter().rev() {
             if !self.hittable(n) {
                 continue;

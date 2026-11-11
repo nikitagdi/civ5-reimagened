@@ -145,6 +145,7 @@ fn button_bit(b: Option<MouseButton>) -> u8 {
 impl Runtime {
     fn geo(&self) -> Geo<'_> {
         Geo::new(&self.arena, &self.pkg, &self.style_index)
+            .with_anchors(&self.anchors, self.style_env.scale.k)
     }
 
     /// Physical window pixels to page CSS px.

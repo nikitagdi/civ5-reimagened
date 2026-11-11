@@ -12,13 +12,15 @@
 //! ([`frame`]: [`Runtime::apply_delta`], [`Runtime::frame`], [`Runtime::drain_output`]), input
 //! ([`input`]: [`Runtime::handle_input`], hit-testing, interaction states, pointer capture, the wheel, modal
 //! screens), list and condition bindings (`for` by key with sorting, filtering and virtual lists; `if` bodies
-//! that sleep while false) and rectangle dumps ([`debug`]).
+//! that sleep while false), map anchors ([`anchor`]: [`Runtime::set_anchor_screen`]) and rectangle dumps
+//! ([`debug`]).
 //!
 //! Zero-work rule: every pass is driven by the arena's dirty queues; a frame without changes checks a few
 //! counters and touches no node.
 
 #![forbid(unsafe_code)]
 
+pub mod anchor;
 mod anim;
 pub mod arena;
 mod bind;
@@ -44,6 +46,7 @@ use ui2_model::{FrameDelta, Key, ModelStore};
 use ui2_package::style::{ColorV, StyleRecord};
 use ui2_package::{Package, StrId, TemplateId};
 
+pub use anchor::{AnchorChange, AnchorId, AnchorScreen};
 pub use arena::{
     Arena, Dirty, HIDDEN_STYLE, Instance, LayoutSlot, Node, NodeClass, NodeId, PLACEHOLDER_STYLE,
     StateBits,
@@ -94,6 +97,21 @@ pub struct Services {
     pub loc: Option<Rc<::loc::Localizer>>,
 }
 
+/// A picture of a texture the renderer owns: the texture and the rectangle in it, normalized
+/// (`[0, 0, 1, 1]` is the whole texture).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ExtImage {
+    /// The renderer's texture id.
+    pub texture: ui2_draw::ExtTexture,
+    /// Left, top, right, bottom.
+    pub uv: [f32; 4],
+}
+
+/// Finds the texture of a game asset reference of the skin (`data-asset`, `data-bind-src`), such as a
+/// `ui:tx` texture or a portrait: `None` when the game has no such picture. The minimap (`render:minimap`)
+/// is known to the runtime and never asked for.
+pub type AssetResolver = Rc<dyn Fn(&str) -> Option<ExtImage>>;
+
 /// The skin cannot be used at all; the host keeps the previous UI.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum LoadError {
@@ -127,6 +145,10 @@ pub struct Runtime {
     fit_roots: Vec<NodeId>,
     /// Running transitions.
     anim: anim::Animator,
+    /// Where game asset pictures are found.
+    assets: Option<AssetResolver>,
+    /// Map anchors.
+    anchors: anchor::Anchors,
 }
 
 impl Runtime {
@@ -156,6 +178,8 @@ impl Runtime {
             clock: None,
             fit_roots: Vec::new(),
             anim: anim::Animator::default(),
+            assets: None,
+            anchors: anchor::Anchors::default(),
         };
         if !env_ok {
             rt.report_bad_env(env);
@@ -351,6 +375,33 @@ impl Runtime {
         self.binder.queue_localized();
     }
 
+    /// Sets where game asset pictures are found (the renderer's texture ids). Every game asset picture is
+    /// painted again in the next frame: the host calls this again when pictures that were missing became
+    /// known. Without a resolver such pictures are reported once and not drawn (the minimap is drawn).
+    pub fn set_asset_resolver(&mut self, resolver: AssetResolver) {
+        self.assets = Some(resolver);
+        let pkg = Arc::clone(&self.pkg);
+        let pictures: Vec<NodeId> = self
+            .arena
+            .ids()
+            .filter(|&id| {
+                self.arena.get(id).is_some_and(|n| {
+                    instantiate::template_node(&*pkg, n.tmpl()).is_some_and(|t| {
+                        matches!(
+                            t.kind,
+                            ui2_package::NodeKind::Image(
+                                ui2_package::ImageSrc::Asset(_) | ui2_package::ImageSrc::Bound(_)
+                            )
+                        )
+                    })
+                })
+            })
+            .collect();
+        for id in pictures {
+            self.arena.mark(id, Dirty::PAINT);
+        }
+    }
+
     /// The number of live binding rows (one per scalar binding of a live node).
     pub fn binding_rows(&self) -> usize {
         self.binder.len()
@@ -368,6 +419,9 @@ impl Runtime {
             index: &self.style_index,
             env: &self.style_env,
             anim: &self.anim,
+            srcs: self.binder.srcs(),
+            assets: self.assets.as_ref(),
+            anchors: &self.anchors,
         };
         let layer = paint::emit::layer_of(&self.arena, &self.pkg, id);
         let (items, _) = paint::build(&self.arena, &cx, &mut self.errors, id);
