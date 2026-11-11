@@ -26,7 +26,6 @@
 import { writeFileSync } from "node:fs";
 import { openPage, act, until, state, appUrl } from "../lib/browser.mjs";
 import { DEV_PASSWORD } from "../lib/game.mjs";
-import { uiDriver } from "../lib/ui-driver.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const UP_MS = Number(process.env.UI2_UP_MS ?? 420000);
@@ -306,13 +305,9 @@ async function research(b, check, n, shot) {
   const open = await waitUi(page, (p) => partTexts(p, "research.list").length > 0, 5000);
   const r = n.research = { list: partTexts(open.probe, "research.list") };
   check("dial on 'Choose research' opens the research window", open.ok, `${open.ms} ms`);
-  if (!open.ok) {
-    // Without the window the turn cannot go on: choose through the game's Lua, as `ui2-host` does.
-    const ui = uiDriver(b);
-    r.lua = await ui.lua(`Network.SendResearch(GameInfoTypes.TECH_POTTERY, 0, -1, false) print(TAG .. "research")`).catch((e) => [`lua failed: ${e.message}`]);
-    await sleep(2000);
-    return;
-  }
+  // Without the window the turn cannot go on, and nothing else can choose: the classic UI (and its Lua) sleeps under
+  // UI v2, and the test port has no research order.
+  if (!open.ok) throw new Error("the research window did not open");
   await shot("t122-research");
   const first = r.list[0];
   // A line "Now <research>" stands under the header while something is researched.
