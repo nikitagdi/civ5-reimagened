@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>ui2 script selftest</title>
+<pre id="out">ui2 script selftest: loading</pre>
+<script src="ui2/host.js"></script>
+<script type="module">
+// The UI v2 script supervisor (Rust, `Ui2ScriptSelftest` of app-web) over the page's real workers, without a game:
+// the playtest scenario `ui2-script` drives it through `window.__ui2self`. A frame runs every 16 ms, as the game
+// would: the answers of the workers are taken, their state writes reach the model, the delta goes out.
+//   __ui2self.start(files, reads)  files [{path, code}], reads ["top"]: start the skin context
+//   __ui2self.write(path, value)   a model write for the next frame (`top.gold`)
+//   __ui2self.event(name, arg)     a markup event for the skin for the next frame
+//   __ui2self.get(path)            a model value (`state.n`), JSON-decoded
+//   __ui2self.status()             starting | running | busy | restarting | disabled | none
+//   __ui2self.answers              what each frame took, oldest first (frames that took nothing are left out)
+const out = document.getElementById("out");
+try {
+  const { default: init, Ui2ScriptSelftest } = await import("./pkg/app_web.js");
+  await init();
+  const t = new Ui2ScriptSelftest();
+  let writes = [];
+  const answers = [];
+  setInterval(() => {
+    const r = JSON.parse(t.frame(performance.now(), JSON.stringify(writes)));
+    writes = [];
+    if (r.state.length || r.intents.length || r.cmds || r.settings.length || r.log.length || r.failed.length) {
+      r.at = performance.now();
+      answers.push(r);
+    }
+  }, 16);
+  window.__ui2self = {
+    start: (files, reads) => t.start(JSON.stringify(files), JSON.stringify(reads || ["top"])),
+    write: (path, value) => writes.push([path, value]),
+    event: (name, arg) => t.event(name, JSON.stringify(arg === undefined ? null : arg)),
+    get: (path) => JSON.parse(t.get(path)),
+    status: () => t.status(),
+    stop: () => t.stop(),
+    answers,
+  };
+  out.textContent = "ui2 script selftest: ready";
+} catch (e) {
+  out.textContent = "ui2 script selftest: FAIL " + String(e && e.stack ? e.stack : e);
+  window.__ui2self = { error: String(e && e.message ? e.message : e) };
+}
+</script>

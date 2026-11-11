@@ -7,6 +7,7 @@ mod http;
 mod log;
 pub mod page;
 mod pointer_lock;
+mod script;
 pub mod stats;
 mod store;
 mod transport;
@@ -24,6 +25,7 @@ pub use log::{
     show_crash,
 };
 pub use pointer_lock::WebPointerLockProbe;
+pub use script::WebScriptHost;
 pub use store::LocalStorage;
 pub use transport::{BACKLOG_REASON, LimitedWebSocketTransport, WebSocketTransport};
 pub use ui_bridge::WebUiBridge;
