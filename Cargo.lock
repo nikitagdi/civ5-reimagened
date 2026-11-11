@@ -3539,6 +3539,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bf256ce5efdfa370213c1dabab5935a12e49f2c58d15e9eac2870d3b4f27263"
 
 [[package]]
+name = "taffy"
+version = "0.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31f7bd2d97198df05186f93a3a3c306845f40e8b3c22bf9279cdd7e5cf5fea7d"
+dependencies = [
+ "serde",
+ "slotmap",
+ "smallvec",
+]
+
+[[package]]
 name = "termcolor"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3916,6 +3927,23 @@ dependencies = [
  "toml",
  "ui2-package",
  "zstd",
+]
+
+[[package]]
+name = "ui2-runtime"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "loc",
+ "platform",
+ "taffy",
+ "thiserror 2.0.21",
+ "tracing",
+ "ui2-draw",
+ "ui2-model",
+ "ui2-package",
+ "ui2-runtime",
+ "ui2-text",
 ]
 
 [[package]]
