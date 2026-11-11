@@ -1,0 +1,11 @@
+version = "1.0"
+
+[enum]
+Source = ["replica", "server"]
+
+[model.meta]
+schema = "str"
+source = "Source"
+live = "bool"
+catching_up = "bool"
+connected = "bool"
