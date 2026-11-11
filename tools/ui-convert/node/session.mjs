@@ -16,6 +16,7 @@ import { startServer, previewAvailable } from "./server.mjs";
 import { scanPage } from "./ir.mjs";
 import { extractPage } from "./extract.mjs";
 import { rasterItems } from "./raster.mjs";
+import { rectsOf } from "./rects.mjs";
 
 export class ProtocolError extends Error {
   constructor(code, message) {
@@ -106,6 +107,17 @@ export function createSession() {
     async extract(req = {}) {
       need(st, "extract: no open session");
       return extractPage({ page: st.page, server: st.server, entry: st.entry, req, state: st.state || "" });
+    },
+
+    /** Chrome's rectangle dump of the page in layout mode (see rects.mjs). */
+    async rects(req = {}) {
+      need(st, "rects: no open session");
+      const api = {
+        newContext: (viewport, dsf) => st.guarded(viewport, dsf),
+        server: () => st.server,
+        entry: () => st.entry,
+      };
+      return rectsOf({ session: api, req, skin: req.skin ?? st.skin });
     },
 
     /** Rasterizes pictures at device scale 1 and 2 (see raster.mjs). */

@@ -1,7 +1,8 @@
 //! TEMPORARY test support: the top strip package built with the test kit from Chrome's computed styles.
 //!
-//! Replaced by the converter's top strip package and rectangle dump once they exist; delete this module,
-//! `top_strip_chrome.mjs` and `fixtures/top-strip-chrome.json` then. The fixture is made by
+//! The layout test (`layout_top.rs`) runs on the converter's top strip package and Chrome dump now; the paint,
+//! binding and frame tests still use this hand-built package. Move them to the converter fixture and delete this
+//! module, `top_strip_chrome.mjs` and `fixtures/top-strip-chrome.json`. The fixture is made by
 //! `top_strip_chrome.mjs` (see there); this module turns its node list (tags, parts, texts, computed styles)
 //! into a package with one plain style set per element, as the converter would bake it for one viewport cell.
 
