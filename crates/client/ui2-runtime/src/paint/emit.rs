@@ -1445,7 +1445,7 @@ impl<'a> Emitter<'a> {
         let shown = ifc.shown();
         for line in &shown.lines.lines {
             let lx = ifc.line_x(line, cw);
-            let base = line.top + line.baseline;
+            let base = ifc.lines_y() + line.top + line.baseline;
             for seg in &line.segments {
                 let Some(run) = shown.run(seg.run) else {
                     continue;

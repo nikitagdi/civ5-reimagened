@@ -111,6 +111,21 @@ pub struct Ifc {
     pub fitted: Option<Box<Fitted>>,
     /// The content width and natural width the fitting was done for.
     pub(crate) fit_key: Option<(f32, f32)>,
+    /// A flex container whose only content is text: the box of the anonymous flex item that holds the text
+    /// (as Chrome makes one), placed by the container's alignment. `None` for other roots: the lines fill
+    /// the content box.
+    pub item: Option<AnonItem>,
+}
+
+/// The anonymous flex item around the text of a flex container, relative to its content box.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AnonItem {
+    /// Left.
+    pub x: f32,
+    /// Top.
+    pub y: f32,
+    /// Width (`text-align` works inside it).
+    pub w: f32,
 }
 
 /// What paint and dumps show of a root: the runs and their lines (shrunk ones when the text was fitted).
@@ -277,12 +292,21 @@ impl Ifc {
 
     /// The x of a line inside a content box of `width` (`text-align`).
     pub fn line_x(&self, line: &Line, width: f32) -> f32 {
+        let (x0, width) = match self.item {
+            Some(a) => (a.x, a.w),
+            None => (0.0, width),
+        };
         let free = (width - line.width).max(0.0);
-        match self.align {
+        x0 + match self.align {
             TextAlign::Start | TextAlign::Left => 0.0,
             TextAlign::Center => free / 2.0,
             TextAlign::End | TextAlign::Right => free,
         }
+    }
+
+    /// The top of the lines in the content box (below the top when an anonymous flex item is aligned down).
+    pub fn lines_y(&self) -> f32 {
+        self.item.map_or(0.0, |a| a.y)
     }
 
     /// The first baseline from the top of the content box.
@@ -309,7 +333,7 @@ impl Ifc {
         let shown = self.shown();
         for line in &shown.lines.lines {
             let lx = self.line_x(line, width);
-            let base = line.top + line.baseline;
+            let base = self.lines_y() + line.top + line.baseline;
             for seg in &line.segments {
                 let Some(run) = shown.run(seg.run) else {
                     continue;
