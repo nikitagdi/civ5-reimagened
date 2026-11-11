@@ -1,10 +1,14 @@
 //! Builders of the model roots: plain functions from core records and session facts to generated root structs.
 
+pub mod chat;
 pub mod game;
+pub mod map;
+pub mod notes;
 pub mod players;
 pub mod top;
 pub mod turn;
 
+use replica::OrderType;
 use ui2_model::Key;
 
 use crate::catalog::Catalog;
@@ -37,6 +41,12 @@ pub fn entity_key(owner: i8, id: i32) -> Key {
 #[must_use]
 pub fn player_key(id: i8) -> Key {
     Key::from_i32(i32::from(id))
+}
+
+/// `key<item>`: `(order << 16) | item`, the order being the core's `OrderTypes` number.
+#[must_use]
+pub fn item_key(order: OrderType, item: i16) -> Key {
+    Key::from_u32((order.abi().cast_unsigned() << 16) | u32::from(item.cast_unsigned()))
 }
 
 #[cfg(test)]

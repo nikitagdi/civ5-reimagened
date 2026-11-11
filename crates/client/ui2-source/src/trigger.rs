@@ -24,18 +24,31 @@ impl Roots {
     pub const TURN: Roots = Roots(1 << 4);
     /// Only `turn.timer` (a new second): written from the last `turn`, without reading the game.
     pub const TIMER: Roots = Roots(1 << 5);
+    pub const MAP: Roots = Roots(1 << 6);
+    pub const NOTES: Roots = Roots(1 << 7);
+    /// Built from the session only.
+    pub const CHAT: Roots = Roots(1 << 8);
     /// Every root built from the replica's game: what a journal batch or a new snapshot rebuilds.
-    pub const GAME_DATA: Roots =
-        Roots(Self::GAME.0 | Self::TOP.0 | Self::RESEARCH.0 | Self::PLAYERS.0 | Self::TURN.0);
+    pub const GAME_DATA: Roots = Roots(
+        Self::GAME.0
+            | Self::TOP.0
+            | Self::RESEARCH.0
+            | Self::PLAYERS.0
+            | Self::TURN.0
+            | Self::MAP.0
+            | Self::NOTES.0,
+    );
     /// What a change of the session's turn state or seats rebuilds.
     pub const SESSION_TURN: Roots = Roots(Self::GAME.0 | Self::TURN.0);
 
     /// The roots that need the replica's game, in the order a frame builds them (the budget queue).
-    pub const QUEUE: [Roots; 5] = [
+    pub const QUEUE: [Roots; 7] = [
         Self::TOP,
         Self::RESEARCH,
         Self::GAME,
         Self::TURN,
+        Self::NOTES,
+        Self::MAP,
         Self::PLAYERS,
     ];
 
@@ -120,6 +133,7 @@ pub struct SessionSeen {
     pub turn: Option<TurnState>,
     pub seats: Vec<SeatView>,
     pub timer: Option<Timer>,
+    pub chat_total: u64,
 }
 
 impl SessionSeen {
@@ -127,12 +141,17 @@ impl SessionSeen {
     ///
     /// - our seat, the turn state (phase, mode, who ended the turn, the timers) or the seats' connections changed:
     ///   `game` and `turn`;
+    /// - a chat line came (or our seat changed: "mine" is ours): `chat`;
     /// - only the second shown on our timer changed: the timer patch of `turn`.
     pub fn update(&mut self, s: &dyn SessionRead, now_ms: u64) -> Roots {
         let mut roots = Roots::NONE;
         if self.me != s.me() {
             self.me = s.me();
-            roots = roots.union(Roots::SESSION_TURN);
+            roots = roots.union(Roots::SESSION_TURN).union(Roots::CHAT);
+        }
+        if self.chat_total != s.chat_total() {
+            self.chat_total = s.chat_total();
+            roots = roots.union(Roots::CHAT);
         }
         if self.turn.as_ref() != s.turn_state() {
             self.turn = s.turn_state().cloned();

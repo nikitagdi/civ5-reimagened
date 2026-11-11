@@ -28,33 +28,31 @@ const WINE: i16 = 9;
 const TRADITION: i16 = 0;
 const LIBERTY: i16 = 1;
 
-/// The reads of a first frame: the catalog (four tables), the top bar with its two lists, the game record, the
-/// technologies, the units (turn), the players. Shared records are read once a frame.
-const FIRST_FRAME: [&str; 11] = [
-    "catalog",
-    "catalog",
-    "catalog",
-    "catalog",
+/// Catalog tables read once per core.
+const CATALOG_TABLES: usize = 7;
+/// The reads of a rebuild once the catalog is known: the top bar with its two lists, the game record, the
+/// technologies, the units (turn), the notifications, the cities (map), the players. Shared records are read once.
+const REBUILD: [&str; 9] = [
     "top_bar",
     "player_resources",
     "policy_branches",
     "game_info",
     "techs",
     "units",
+    "notifications",
+    "cities",
     "players",
 ];
-/// The reads of a rebuild once the catalog is known.
-const REBUILD: [&str; 7] = [
-    "top_bar",
-    "player_resources",
-    "policy_branches",
-    "game_info",
-    "techs",
-    "units",
-    "players",
-];
-/// Roots of the replica's game written by a full rebuild: top, research, game, turn, players.
-const GAME_ROOTS: u32 = 5;
+/// The reads of a first frame: the catalog, then a rebuild.
+fn first_frame() -> Vec<&'static str> {
+    let mut v = vec!["catalog"; CATALOG_TABLES];
+    v.extend(REBUILD);
+    v
+}
+/// Roots of the replica's game written by a full rebuild: top, research, game, turn, notes, map, players.
+const GAME_ROOTS: u32 = 7;
+/// Roots of the session written on the first frame besides `meta`: chat.
+const SESSION_ROOTS: u32 = 1;
 
 fn tech_row(tech: i16, status: TechStatus, queue: Option<u8>, turns: Option<i16>) -> TechState {
     TechState {
@@ -215,6 +213,7 @@ impl Rig {
                 replica,
                 steps,
                 session: &self.session,
+                dismissed: &std::collections::BTreeSet::new(),
                 now_ms: 0,
             },
             &mut w,
@@ -233,12 +232,12 @@ fn the_mockup_top_bar() {
     );
     assert_eq!(
         stats.roots_built,
-        1 + GAME_ROOTS,
+        1 + SESSION_ROOTS + GAME_ROOTS,
         "meta, top, research, game, turn, players"
     );
     assert_eq!(stats.deferred, 0);
-    assert_eq!(f.calls, FIRST_FRAME);
-    assert_eq!(stats.getter_calls, 11);
+    assert_eq!(f.calls, first_frame());
+    assert_eq!(stats.getter_calls, 16);
 
     let top = rig.store.get::<Top>().expect("top is written");
     assert_eq!(
@@ -439,10 +438,10 @@ fn a_replica_that_cannot_be_read_defers_and_marks_meta() {
 }
 
 #[test]
-fn without_a_replica_only_meta_is_written() {
+fn without_a_replica_only_the_session_roots_are_written() {
     let mut rig = Rig::new();
     let stats = rig.frame(None, &[]);
-    assert_eq!(stats.roots_built, 1);
+    assert_eq!(stats.roots_built, 1 + SESSION_ROOTS, "meta and chat");
     let meta = rig.store.get::<Meta>().expect("meta");
     assert!(!meta.live);
     assert!(rig.store.get::<Top>().is_none());
@@ -455,7 +454,7 @@ fn a_core_without_queries_leaves_the_roots_unwritten() {
     f.error = Some(ReadError::Unsupported);
     let mut rig = Rig::new();
     let stats = rig.frame(Some(view(State::Live, 1, 0, &mut f)), &[]);
-    assert_eq!(stats.roots_built, 1, "meta only");
+    assert_eq!(stats.roots_built, 1 + SESSION_ROOTS, "meta and chat only");
     assert!(rig.store.get::<Top>().is_none());
     assert!(rig.store.get::<Game>().is_none());
     // Failing reads are not retried every frame.
@@ -498,8 +497,8 @@ fn reset_reads_everything_again() {
     f.calls.clear();
     rig.src.reset();
     let stats = rig.frame(Some(view(State::Live, 1, 0, &mut f)), &[]);
-    assert_eq!(stats.roots_built, 1 + GAME_ROOTS);
-    assert_eq!(f.calls, FIRST_FRAME);
+    assert_eq!(stats.roots_built, 1 + SESSION_ROOTS + GAME_ROOTS);
+    assert_eq!(f.calls, first_frame());
 }
 
 #[test]
@@ -522,7 +521,7 @@ fn a_core_without_the_ui2_queries_leaves_their_fields_empty_and_is_not_asked_aga
     let stats = rig.frame(Some(view(State::Live, 1, 0, &mut f)), &[]);
     assert_eq!(
         stats.roots_built,
-        1 + GAME_ROOTS,
+        1 + SESSION_ROOTS + GAME_ROOTS,
         "the roots are written all the same"
     );
     let top = rig.store.get::<Top>().expect("top");
@@ -538,7 +537,17 @@ fn a_core_without_the_ui2_queries_leaves_their_fields_empty_and_is_not_asked_aga
     f.calls.clear();
     f.top.gold = 320;
     rig.frame(Some(view(State::Live, 1, 1, &mut f)), &[]);
-    assert_eq!(f.calls, vec!["top_bar", "game_info", "units", "players"]);
+    assert_eq!(
+        f.calls,
+        vec![
+            "top_bar",
+            "game_info",
+            "units",
+            "notifications",
+            "cities",
+            "players"
+        ]
+    );
     assert_eq!(rig.store.get::<Top>().map(|t| t.gold), Some(320));
 
     // A new core (reset) is asked again; this one serves them.
@@ -546,7 +555,7 @@ fn a_core_without_the_ui2_queries_leaves_their_fields_empty_and_is_not_asked_aga
     rig.src.reset();
     f.calls.clear();
     rig.frame(Some(view(State::Live, 1, 1, &mut f)), &[]);
-    assert_eq!(f.calls, FIRST_FRAME);
+    assert_eq!(f.calls, first_frame());
     assert!(rig.store.get::<Research>().is_some_and(|r| r.known));
     assert_eq!(rig.store.get::<Top>().map(|t| t.policies.len()), Some(2));
 }
@@ -562,7 +571,11 @@ fn a_failing_ui2_query_keeps_the_last_root() {
     f.top.gold = 999;
     f.calls.clear();
     let stats = rig.frame(Some(view(State::Live, 1, 1, &mut f)), &[]);
-    assert_eq!(stats.roots_built, 3, "game, turn and players only");
+    assert_eq!(
+        stats.roots_built,
+        GAME_ROOTS - 2,
+        "all but top and research"
+    );
     assert_eq!(rig.store.get::<Top>().map(|t| t.gold), Some(312));
     assert!(rig.store.get::<Research>().is_some_and(|r| r.known));
     f.ui2_error = None;

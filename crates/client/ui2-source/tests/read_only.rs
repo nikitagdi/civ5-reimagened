@@ -13,6 +13,9 @@ const SOURCES: &[(&str, &str)] = &[
     ("build/top.rs", include_str!("../src/build/top.rs")),
     ("build/players.rs", include_str!("../src/build/players.rs")),
     ("build/turn.rs", include_str!("../src/build/turn.rs")),
+    ("build/map.rs", include_str!("../src/build/map.rs")),
+    ("build/notes.rs", include_str!("../src/build/notes.rs")),
+    ("build/chat.rs", include_str!("../src/build/chat.rs")),
 ];
 
 /// Calls that move the game or the replica machine, or steal a queue another consumer owns.

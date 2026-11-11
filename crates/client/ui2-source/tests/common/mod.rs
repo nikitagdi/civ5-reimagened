@@ -2,11 +2,16 @@
 //! running turn timer, a few units. Each test file takes what it needs.
 #![allow(dead_code)]
 
+use std::collections::BTreeSet;
+
 use protocol::{Conn, SeatControl, SeatTurn, SeatView, TimerState, TurnMode, TurnPhase, TurnState};
-use replica::testing::FakeRead;
-use replica::{Activity, Player, PlayerFlags, ReplicaStep, State, Unit, UnitFlags};
+use replica::testing::{FakeRead, catalog_entry};
+use replica::{
+    Activity, CatalogTable, City, CityFlags, Notification, OrderType, Player, PlayerFlags,
+    ReplicaStep, State, Unit, UnitFlags,
+};
 use ui2_model::r#gen::Ui;
-use ui2_model::{FrameDelta, ModelStore, Owner, Schema};
+use ui2_model::{FrameDelta, Key, ModelStore, Owner, Schema};
 use ui2_source::session::testing::FakeSession;
 use ui2_source::{ReplicaView, SourceFrame, SourceStats, UiSource};
 
@@ -200,7 +205,212 @@ pub fn units() -> Vec<Unit> {
     ]
 }
 
-/// The game at turn 87 seen by Catherine: the players and units above, no blocker.
+// `GC_CITY_F_*`
+pub const C_CAPITAL: u16 = 0x0001;
+pub const C_CAN_SHOOT: u16 = 0x0010;
+pub const C_VISIBLE: u16 = 0x0020;
+
+pub const MOSCOW: i32 = 1;
+pub const NOVGOROD: i32 = 2;
+pub const KAZAN: i32 = 3;
+pub const BAGHDAD: i32 = 1;
+pub const TENOCHTITLAN: i32 = 1;
+
+// `BuildingTypes`
+pub const GRANARY: i16 = 3;
+pub const UNIVERSITY: i16 = 20;
+pub const MACHU_PICCHU: i16 = 40;
+
+#[allow(clippy::too_many_arguments)]
+pub fn city(id: i32, owner: i8, name: &str, size: i16, x: i16, y: i16, flags: u16) -> City {
+    City {
+        id,
+        owner,
+        production_order: None,
+        x,
+        y,
+        population: size,
+        flags: CityFlags(flags),
+        hp: 200,
+        max_hp: 200,
+        defense: 20,
+        production_item: None,
+        production_turns: None,
+        growth_turns: None,
+        production_stored: 0,
+        production_needed: 0,
+        yields: [10, 20, 5, 8, 4, 2],
+        founder: None,
+        overflow: None,
+        name: name.into(),
+    }
+}
+
+/// Catherine's three cities as the banners show them, a foreign city in sight and one in the fog.
+pub fn cities() -> Vec<City> {
+    let producing = |mut c: City, order, item, turns, stored, needed| {
+        c.production_order = Some(order);
+        c.production_item = Some(item);
+        c.production_turns = Some(turns);
+        c.production_stored = stored;
+        c.production_needed = needed;
+        c
+    };
+    let mut moscow = producing(
+        city(
+            MOSCOW,
+            CATHERINE,
+            "Moscow",
+            14,
+            40,
+            20,
+            C_CAPITAL | C_VISIBLE | C_CAN_SHOOT,
+        ),
+        OrderType::Construct,
+        MACHU_PICCHU,
+        6,
+        180,
+        420,
+    );
+    moscow.growth_turns = Some(4);
+    moscow.defense = 31;
+    moscow.hp = 150;
+    moscow.yields = [24, 38, 21, 30, 9, 4];
+    moscow.overflow = Some(12);
+    let mut novgorod = producing(
+        city(NOVGOROD, CATHERINE, "Novgorod", 8, 20, 12, C_VISIBLE),
+        OrderType::Train,
+        LONGSWORDSMAN,
+        2,
+        90,
+        120,
+    );
+    novgorod.growth_turns = Some(7);
+    let kazan = producing(
+        city(KAZAN, CATHERINE, "Kazan", 5, 30, 25, C_VISIBLE),
+        OrderType::Construct,
+        GRANARY,
+        3,
+        20,
+        60,
+    );
+    // A fogged foreign city: whatever else the record holds is not shown.
+    let mut tenochtitlan = city(
+        TENOCHTITLAN,
+        MONTEZUMA,
+        "Tenochtitlan",
+        9,
+        60,
+        30,
+        C_CAPITAL,
+    );
+    tenochtitlan.defense = 25;
+    vec![
+        moscow,
+        novgorod,
+        kazan,
+        city(BAGHDAD, HARUN, "Baghdad", 11, 50, 10, C_CAPITAL | C_VISIBLE),
+        tenochtitlan,
+    ]
+}
+
+/// The catalog tables the roots name things with.
+pub fn catalogs() -> Vec<(CatalogTable, Vec<replica::CatalogEntry>)> {
+    vec![
+        (
+            CatalogTable::Units,
+            vec![
+                catalog_entry(WORKER, "UNIT_WORKER", "Worker", "UNIT_ATLAS_1", 1),
+                catalog_entry(KNIGHT, "UNIT_KNIGHT", "Knight", "UNIT_ATLAS_1", 25),
+                catalog_entry(
+                    LONGSWORDSMAN,
+                    "UNIT_LONGSWORDSMAN",
+                    "Longswordsman",
+                    "UNIT_ATLAS_1",
+                    26,
+                ),
+                catalog_entry(JAGUAR, "UNIT_AZTEC_JAGUAR", "Jaguar", "UNIT_ATLAS_2", 3),
+            ],
+        ),
+        (
+            CatalogTable::Buildings,
+            vec![
+                catalog_entry(GRANARY, "BUILDING_GRANARY", "Granary", "BW_ATLAS_1", 3),
+                catalog_entry(
+                    UNIVERSITY,
+                    "BUILDING_UNIVERSITY",
+                    "University",
+                    "BW_ATLAS_1",
+                    20,
+                ),
+                catalog_entry(
+                    MACHU_PICCHU,
+                    "BUILDING_MACHU_PICHU",
+                    "Machu Picchu",
+                    "BW_ATLAS_2",
+                    4,
+                ),
+            ],
+        ),
+    ]
+}
+
+/// The hash the core gives a notification type name.
+pub fn note_type(name: &str) -> u32 {
+    ui2_source::build::notes::type_hash(name)
+}
+
+pub fn note(id: i32, kind: &str, message: &str, plot: (i16, i16)) -> Notification {
+    Notification {
+        id,
+        kind: note_type(kind),
+        x: plot.0,
+        y: plot.1,
+        data1: 0,
+        data2: 0,
+        turn: 86,
+        dismissed: false,
+        message: message.into(),
+        summary: message.into(),
+    }
+}
+
+/// The four notifications of the reference HUD, one the core already dismissed and one of a type the table does
+/// not know.
+pub fn notes() -> Vec<Notification> {
+    let mut old = note(1, "NOTIFICATION_TECH", "Philosophy learned", (-1, -1));
+    old.dismissed = true;
+    vec![
+        old,
+        note(
+            2,
+            "NOTIFICATION_CITY_GROWTH",
+            "Novgorod has grown to size 8",
+            (20, 12),
+        ),
+        note(
+            3,
+            "NOTIFICATION_GREAT_PERSON_ACTIVE_PLAYER",
+            "Great Scientist born in Moscow",
+            (40, 20),
+        ),
+        note(
+            4,
+            "NOTIFICATION_DIPLOMACY_DECLARATION",
+            "Montezuma denounced you",
+            (-1, -1),
+        ),
+        note(
+            5,
+            "NOTIFICATION_BARBARIAN",
+            "Barbarians spotted near Kazan",
+            (31, 26),
+        ),
+        note(6, "NOTIFICATION_SOMETHING_NEW", "A mod speaks", (-1, -1)),
+    ]
+}
+
+/// The game at turn 87 seen by Catherine: the players, units, cities and notifications above, no blocker.
 pub fn game() -> FakeRead {
     let mut f = FakeRead::new(CATHERINE.cast_unsigned(), 0);
     f.info.turn = 87;
@@ -209,6 +419,9 @@ pub fn game() -> FakeRead {
     f.info.humans_left = 1;
     f.players = players();
     f.units = units();
+    f.cities = cities();
+    f.notes = notes();
+    f.catalogs = catalogs();
     f
 }
 
@@ -269,6 +482,8 @@ pub struct Rig {
     pub src: UiSource,
     pub session: FakeSession,
     pub ui: Ui,
+    /// Notifications dismissed here (the actions module's set).
+    pub dismissed: BTreeSet<Key>,
     pub now_ms: u64,
     /// The replica's generation and last batch as the next frame shows them.
     pub generation: u64,
@@ -282,6 +497,7 @@ impl Rig {
             src: UiSource::new(Schema::v1()),
             session,
             ui: Ui::default(),
+            dismissed: BTreeSet::new(),
             now_ms: T0,
             generation: 1,
             jseq: 0,
@@ -319,6 +535,7 @@ impl Rig {
                 replica: Some(view),
                 steps,
                 session: &self.session,
+                dismissed: &self.dismissed,
                 now_ms: self.now_ms,
             },
             &mut w,

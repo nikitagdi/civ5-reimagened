@@ -17,14 +17,16 @@ pub mod catalog;
 pub mod session;
 pub mod trigger;
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use replica::{
-    CatalogEntry, CatalogTable, GameInfo, GameRead, GameSide, Player, PlayerResource,
-    PolicyBranchState, ReadError, Replica, ReplicaStep, State, TechState, TopBar, Unit,
+    CatalogEntry, CatalogTable, City, GameInfo, GameRead, GameSide, Notification, Player,
+    PlayerResource, PolicyBranchState, ReadError, Replica, ReplicaStep, State, TechState, TopBar,
+    Unit,
 };
 use ui2_model::r#gen::{Meta, Turn, Ui};
-use ui2_model::{ModelWriter, Root, Schema};
+use ui2_model::{Key, ModelWriter, Root, Schema};
 
 pub use crate::session::SessionRead;
 
@@ -79,6 +81,8 @@ pub struct SourceFrame<'r, 's> {
     pub steps: &'s [ReplicaStep],
     /// The client session (in the app: the `ClientCore`).
     pub session: &'s dyn SessionRead,
+    /// The notifications the player dismissed here (in the app: `UiActions::dismissed`); `notes` leaves them out.
+    pub dismissed: &'s BTreeSet<Key>,
     /// The host's clock, ms: the turn timer is read at this time.
     pub now_ms: u64,
 }
@@ -122,6 +126,10 @@ pub struct UiSource {
     missing: Missing,
     /// Reads per frame, see [`DEFAULT_READ_BUDGET`].
     budget: u32,
+    /// The dismissed notifications as of the last frame.
+    dismissed: BTreeSet<Key>,
+    /// The turn each chat line came in.
+    chat: build::chat::ChatLog,
 }
 
 /// The UI v2 queries a core answered `ReadError::Unsupported` to (the stub, a core older than the queries). Their
@@ -151,6 +159,8 @@ impl UiSource {
             cache: Cache::default(),
             missing: Missing::default(),
             budget,
+            dismissed: BTreeSet::new(),
+            chat: build::chat::ChatLog::default(),
         }
     }
 
@@ -178,6 +188,7 @@ impl UiSource {
             replica,
             steps,
             session,
+            dismissed,
             now_ms,
         } = f;
 
@@ -188,8 +199,16 @@ impl UiSource {
             self.meta = Some(meta);
         }
 
+        if self.session.is_none() {
+            // A first look at the session: the session's roots are written once even if it holds nothing yet.
+            self.pending = self.pending.union(Roots::CHAT);
+        }
         let sess = self.session.get_or_insert_with(SessionSeen::default);
         self.pending = self.pending.union(sess.update(session, now_ms));
+        if &self.dismissed != dismissed {
+            self.dismissed.clone_from(dismissed);
+            self.pending = self.pending.union(Roots::NOTES);
+        }
 
         let mut reader = None;
         if let Some(view) = replica {
@@ -216,6 +235,16 @@ impl UiSource {
             if !(self.pending.contains(Roots::TURN) && reader.is_some()) {
                 self.patch_timer(w, session, now_ms, &mut stats);
             }
+        }
+        // The chat reads only the session.
+        if self.pending.contains(Roots::CHAT) {
+            self.pending = self.pending.without(Roots::CHAT);
+            let turn = session
+                .turn_state()
+                .map(|t| t.turn)
+                .or_else(|| self.cache.turn());
+            let chat = self.chat.rows(session, turn.unwrap_or(0));
+            write(w, chat, &mut stats);
         }
         if self.pending.is_empty() {
             return stats;
@@ -267,6 +296,10 @@ impl UiSource {
                 }
             } else if root == Roots::PLAYERS {
                 write_built(w, build::players::players(&mut read), &mut stats);
+            } else if root == Roots::NOTES {
+                write_built(w, build::notes::notes(&mut read, dismissed), &mut stats);
+            } else if root == Roots::MAP {
+                write_built(w, build::map::map(&mut read, catalog), &mut stats);
             }
         }
         stats.deferred = self.pending.len();
@@ -326,6 +359,8 @@ pub(crate) struct Cache {
     top: Slot<TopBar>,
     players: Slot<Vec<Player>>,
     units: Slot<Vec<Unit>>,
+    cities: Slot<Vec<City>>,
+    notes: Slot<Vec<Notification>>,
 }
 
 impl Cache {
@@ -339,6 +374,16 @@ impl Cache {
         clear(&mut self.top);
         clear(&mut self.players);
         clear(&mut self.units);
+        clear(&mut self.cities);
+        clear(&mut self.notes);
+    }
+
+    /// The game turn, if the game record was read since the game last changed.
+    fn turn(&self) -> Option<i32> {
+        match &self.info {
+            Some(Ok(i)) => Some(i.turn),
+            _ => None,
+        }
     }
 }
 
@@ -439,6 +484,18 @@ impl<'a, 'r> CountingRead<'a, 'r> {
     pub(crate) fn units(&mut self) -> Result<Arc<Vec<Unit>>, ReadError> {
         let read = &mut *self.read;
         cached(&mut self.cache.units, &mut self.calls, || read.units())
+    }
+
+    pub(crate) fn cities(&mut self) -> Result<Arc<Vec<City>>, ReadError> {
+        let read = &mut *self.read;
+        cached(&mut self.cache.cities, &mut self.calls, || read.cities())
+    }
+
+    pub(crate) fn notifications(&mut self) -> Result<Arc<Vec<Notification>>, ReadError> {
+        let read = &mut *self.read;
+        cached(&mut self.cache.notes, &mut self.calls, || {
+            read.notifications()
+        })
     }
 
     pub(crate) fn catalog(&mut self, t: CatalogTable) -> Result<Vec<CatalogEntry>, ReadError> {

@@ -34,17 +34,22 @@ fn the_reference_readiness_and_players() {
             "catalog",
             "catalog",
             "catalog",
+            "catalog",
+            "catalog",
+            "catalog",
             "top_bar",
             "player_resources",
             "policy_branches",
             "game_info",
             "techs",
             "units",
+            "notifications",
+            "cities",
             "players",
         ],
         "every human seat has a nick: the turn reads no players"
     );
-    assert_eq!(stats.getter_calls, 11);
+    assert_eq!(stats.getter_calls, 16);
 
     let seat = |p: i8, name: &str, finished| Seat {
         player: Key::from_i32(i32::from(p)),
