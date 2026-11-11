@@ -123,8 +123,8 @@ pub struct UiSource {
     meta: Option<Meta>,
     /// The last `turn` written: the timer patch starts from it.
     turn: Option<Turn>,
-    /// Read once per core; `None` until a rebuild needs it (or after a failed read).
-    catalog: Option<Catalog>,
+    /// Read once per core, table by table over the first frames that read the game.
+    catalog: Catalog,
     /// The game reads of the current replica state.
     cache: Cache,
     /// The UI v2 queries the core does not serve: not asked again until [`UiSource::reset`].
@@ -172,7 +172,7 @@ impl UiSource {
             pending: Roots::NONE,
             meta: None,
             turn: None,
-            catalog: None,
+            catalog: Catalog::default(),
             cache: Cache::default(),
             missing: Missing::default(),
             budget,
@@ -192,10 +192,13 @@ impl UiSource {
     /// - roots are built in the queue order and written whole; a root whose next read does not fit in what is
     ///   left of the budget is not written, waits for the next frame and stops this one (what it read so far is
     ///   kept, so the next frame does not read it again);
-    /// - the first root of a frame always gets all its reads, so every frame makes progress: a frame spends more
-    ///   than the budget only when that first root alone costs more;
-    /// - an open production window is built only as the first root of a frame (its city's options alone cost
-    ///   more than the default budget), and the frame after it waited it goes first; it reads the options of at
+    /// - the first piece of work of a frame that reads the game (a root, or a catalog table) always gets all its
+    ///   reads, so every frame makes progress: a frame spends more than the budget only when that first piece
+    ///   alone costs more;
+    /// - the catalog (about 1.9 ms in all) is read table by table over the first frames, the tables that fit;
+    ///   a root that names things from a table not read yet waits for it, the other roots go on;
+    /// - an open production window is built only when nothing was read before it in the frame (its city's
+    ///   options alone cost more than the default budget), and the frame after it waited it goes first; it reads the options of at
     ///   most one city per frame while the budget is limited, so its comparison across the seat's cities fills
     ///   over frames, the window's own city first, the root rewritten whole as each city arrives.
     pub fn set_read_budget(&mut self, units: u32) {
@@ -259,6 +262,7 @@ impl UiSource {
             if !changed.is_empty() {
                 // The game changed: what was read of it is stale.
                 self.cache = Cache::default();
+                self.catalog.retry_failed();
             }
             self.pending = self.pending.union(changed);
             self.seen = Some(now);
@@ -297,16 +301,12 @@ impl UiSource {
         };
 
         let mut read = CountingRead::new(read, &mut self.cache, self.missing, self.budget);
-        // The roots of this source show catalog names (eras, technologies, resources, policy branches).
-        if self.catalog.is_none() {
-            read.begin(true);
-            match Catalog::load(&mut read) {
-                Ok(c) => self.catalog = Some(c),
-                Err(e) => tracing::debug!(target: "ui2_source", "catalog: {e}"),
-            }
+        // The roots of this source show catalog names; the tables are read over the first frames, and a root
+        // waits for the tables it needs.
+        if !self.catalog.complete() {
+            self.catalog.load(&mut read);
         }
-        let empty = Catalog::default();
-        let catalog = self.catalog.as_ref().unwrap_or(&empty);
+        let catalog = &self.catalog;
         let cx = build::Cx {
             session,
             now_ms,
@@ -315,25 +315,33 @@ impl UiSource {
 
         // Roots in the queue order. A root is built against the budget and written only when none of its reads
         // was refused; a refused root stays pending and ends the frame (its admitted reads are kept in the cache).
-        // An open production window reads the options of a city (more than a frame's budget): it is built only as
-        // the first root of a frame, and goes first in the frame after it had to wait.
+        // The first piece of work of a frame that reads gets all its reads. An open production window reads the
+        // options of a city (more than a frame's budget): it is built only when nothing was read before it in the
+        // frame, and goes first in the frame after it had to wait.
         let window = ui.windows.production.open;
-        let order: &[Roots] = if self.production_waits && self.pending.contains(Roots::PRODUCTION) {
+        let order: &[Roots] = if self.production_waits
+            && self.pending.contains(Roots::PRODUCTION)
+            && catalog.ready(catalog::tables_of(Roots::PRODUCTION))
+        {
             &[Roots::PRODUCTION]
         } else {
             &Roots::QUEUE
         };
-        let mut built = false;
         let mut sweeping = false;
         for &root in order {
-            if !self.pending.contains(root) {
+            if !self.pending.contains(root) || !catalog.ready(catalog::tables_of(root)) {
+                // Not asked for, or its names are not loaded yet.
                 continue;
             }
-            if root == Roots::PRODUCTION && window && built && self.budget != UNLIMITED {
+            if root == Roots::PRODUCTION
+                && window
+                && !read.nothing_read()
+                && self.budget != UNLIMITED
+            {
                 self.production_waits = true;
                 break;
             }
-            read.begin(!built);
+            read.begin(read.nothing_read());
             if root == Roots::TOP {
                 let r = build::top::top(&mut read, catalog);
                 if let Some(r) = read.settle(r) {
@@ -404,7 +412,6 @@ impl UiSource {
                 break;
             }
             self.pending = self.pending.without(root);
-            built = true;
         }
         if sweeping {
             // The comparison still misses cities: the next frame reads one more. Only this source's own state
@@ -611,6 +618,11 @@ impl<'a, 'r> CountingRead<'a, 'r> {
     fn begin(&mut self, grace: bool) {
         self.meter.grace = grace;
         self.meter.refused = false;
+    }
+
+    /// No call of the core was made in this frame yet.
+    fn nothing_read(&self) -> bool {
+        self.meter.calls == 0
     }
 
     /// A read of the current piece of work was refused.

@@ -97,6 +97,70 @@ fn the_default_budget_rebuilds_the_reference_game_in_one_frame() {
 }
 
 #[test]
+fn the_catalog_is_read_over_frames_within_the_budget() {
+    let mut f = game();
+    let mut whole = Rig::new(session());
+    whole.frame(&mut f);
+
+    // From the first frame on at the default budget: the whole catalog (1860 units) does not fit in one frame.
+    let mut f = game();
+    let mut rig = Rig::new(session());
+    rig.src.set_read_budget(DEFAULT_FRAME_BUDGET);
+    let mut tables = 0;
+    let mut frames = 0;
+    loop {
+        f.calls.clear();
+        let s = rig.frame(&mut f);
+        frames += 1;
+        assert!(
+            s.spent_units <= DEFAULT_FRAME_BUDGET,
+            "frame {frames}: {}",
+            s.spent_units
+        );
+        tables += f.calls.iter().filter(|c| **c == "catalog").count();
+        if s.deferred == 0 {
+            break;
+        }
+        assert!(frames < 10);
+    }
+    assert_eq!(frames, 2, "the catalog and the roots in two frames");
+    assert_eq!(tables, 8, "each table once");
+    // The roots show the names of the tables read on the second frame (units, promotions) all the same.
+    assert_eq!(rig.store.get::<Map>(), whole.store.get::<Map>());
+    assert_eq!(rig.store.get::<Top>(), whole.store.get::<Top>());
+    assert_eq!(rig.store.get::<Research>(), whole.store.get::<Research>());
+
+    // Read once per core: a batch reads no table.
+    f.calls.clear();
+    rig.batch(&mut f);
+    assert!(!f.calls.contains(&"catalog"));
+}
+
+#[test]
+fn a_failed_table_is_asked_again_after_the_game_changes() {
+    let mut f = game();
+    let mut rig = Rig::new(session());
+    f.error = Some(replica::ReadError::Core("down".into()));
+    rig.frame(&mut f);
+    assert_eq!(
+        f.calls.iter().filter(|c| **c == "catalog").count(),
+        8,
+        "every table tried once"
+    );
+    // No new trigger: nothing is asked again.
+    f.calls.clear();
+    for _ in 0..3 {
+        rig.frame(&mut f);
+    }
+    assert!(f.calls.is_empty(), "{:?}", f.calls);
+    // The core answers again and the game changes: the tables and the roots are read.
+    f.error = None;
+    rig.batch(&mut f);
+    assert_eq!(f.calls.iter().filter(|c| **c == "catalog").count(), 8);
+    assert!(rig.store.get::<Map>().is_some());
+}
+
+#[test]
 fn the_first_root_of_a_frame_gets_all_its_reads() {
     let mut f = game();
     let mut rig = Rig::new(session());
