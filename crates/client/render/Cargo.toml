@@ -29,3 +29,5 @@ tracing.workspace = true
 naga.workspace = true
 # The picture page table the `Ui2` pass tests hand to `Scene::set_pages`.
 ui2-package.workspace = true
+# The ready-made scenes of the `Ui2` pass tests.
+ui2-draw = { workspace = true, features = ["testkit"] }

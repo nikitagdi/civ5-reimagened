@@ -1,8 +1,8 @@
 //! Chunks, layers, revisions, change records and anchors of the scene (no GPU).
 
 use ui2_draw::{
-    Affine2, AnchorXform, BoxItem, ChunkBuilder, ChunkId, ChunkItems, Clip, Color, Fill, Item,
-    LayerChange, LayerId, Rect, Scene, Vec2,
+    Affine2, AnchorXform, BoxItem, ChunkBuilder, ChunkId, ChunkItems, Clip, Color, ExtTexture,
+    Fill, ImageItem, Item, LayerChange, LayerId, Rect, Scene, Vec2,
 };
 
 fn one(start: usize, end: usize) -> Vec<std::ops::Range<usize>> {
@@ -261,4 +261,47 @@ fn scale_change_keeps_non_glyph_chunks() {
     s.reencode_stale();
     assert_eq!(s.scale(), 2.0);
     assert_eq!(s.take_layer_change(LayerId::Hud), LayerChange::None);
+}
+
+#[test]
+fn external_textures_split_ops_and_free_their_slots_with_the_chunk() {
+    let picture = |x: f32, tex: u64| {
+        Item::Image(ImageItem {
+            rect: Rect::new(x, 0.0, 10.0, 10.0),
+            external: Some(ExtTexture(tex)),
+            ..ImageItem::default()
+        })
+    };
+    let solid = |x: f32| {
+        Item::Box(BoxItem::solid(
+            Rect::new(x, 0.0, 10.0, 10.0),
+            Color::rgba(1, 2, 3, 255),
+        ))
+    };
+    let mut s = Scene::new(1.0);
+    let mut b = ChunkBuilder::new();
+    for item in [
+        solid(0.0),
+        picture(10.0, 7),
+        picture(20.0, 7),
+        solid(30.0),
+        solid(40.0),
+        picture(50.0, 8),
+    ] {
+        b.push(item);
+    }
+    s.set_chunk(LayerId::Hud, ChunkId(1), b.build());
+    let ops: Vec<(std::ops::Range<u32>, u16)> = s
+        .layer_ops(LayerId::Hud)
+        .iter()
+        .map(|o| (o.range.clone(), o.ext))
+        .collect();
+    assert_eq!(ops, vec![(0..1, 0), (1..3, 1), (3..5, 0), (5..6, 2)]);
+    assert_eq!(s.ext_texture(1), Some(ExtTexture(7)));
+    assert_eq!(s.ext_texture(2), Some(ExtTexture(8)));
+    assert_eq!(s.ext_texture(0), None);
+    // The chunk without its pictures frees their slots.
+    s.set_chunk(LayerId::Hud, ChunkId(1), ChunkBuilder::new().build());
+    assert_eq!(s.ext_slots().live(), 0);
+    assert_eq!(s.ext_texture(1), None);
 }

@@ -23,7 +23,9 @@ use bytemuck::{Pod, Zeroable};
 
 /// Primitive kind: a box (fill, border, rounded corners).
 pub const KIND_BOX: u8 = 0;
-/// Primitive kind: a blurred shadow of a rounded rectangle.
+/// Primitive kind: a blurred shadow of a rounded rectangle. `rect` and `radii` are the element's border box,
+/// `uv.xy` the shadow offset, `extra.x` the Gaussian's standard deviation, `extra.y` the spread, `c0` the colour.
+/// The quad covers the shadow and its blur; nothing is drawn inside the element's own box.
 pub const KIND_SHADOW: u8 = 1;
 /// Primitive kind: an RGBA sprite or external texture.
 pub const KIND_IMAGE: u8 = 2;
@@ -31,23 +33,32 @@ pub const KIND_IMAGE: u8 = 2;
 pub const KIND_MASK: u8 = 3;
 
 /// Flags bits 0-1: how the fill is computed. Solid: `c0`.
+///
+/// The gradient modes take `n_stops` (2 to 4) straight colours from `c0..c3` and their positions (0 to 1, in
+/// order) from `stops`; coordinates are local to the box (or to its tile), `(0, 0)` at the top left corner.
 pub const FILL_SOLID: u8 = 0;
-/// Fill mode: linear gradient between the points `uv.xy` and `uv.zw`.
+/// Fill mode: linear gradient, position 0 at `uv.xy` and 1 at `uv.zw`; outside it the end colours.
 pub const FILL_LINEAR: u8 = 1;
-/// Fill mode: repeating linear gradient (period in `extra.w`).
+/// Fill mode: repeating linear gradient, `uv` as [`FILL_LINEAR`]; the position wraps around 1.
 pub const FILL_REPEAT: u8 = 2;
-/// Fill mode: conic gradient (centre `uv.xy`, start angle `uv.z`).
+/// Fill mode: conic gradient around the centre `uv.xy`. Position = `fract(turns / uv.w)`, where `turns` is the
+/// angle clockwise from `uv.z` (turns from the top) as a fraction of a turn; `uv.w` is 1 for a plain gradient
+/// and the span of the pattern for a repeating one.
 pub const FILL_CONIC: u8 = 3;
 /// Mask of the fill mode bits of `flags`.
 pub const FILL_MODE_MASK: u8 = 0b11;
 /// Flag: the fill is drawn (a border-only box leaves it off).
 pub const FLAG_FILL: u8 = 1 << 2;
+/// Flag: the corner radii are horizontal radii of ellipses whose vertical radii are `extra.z` (ry / rx) times
+/// larger.
+pub const FLAG_ELLIPSE: u8 = 1 << 4;
 /// Flag: the border is drawn.
 pub const FLAG_BORDER: u8 = 1 << 3;
-/// Flag: the corner radii describe an ellipse of ratio `extra.z` (ry/rx).
-pub const FLAG_ELLIPSE: u8 = 1 << 4;
-/// Flag: the gradient tiles with the period in `extra`.
+/// Flag: the gradient is drawn in tiles of `extra.xy` px starting at the box's top left corner.
 pub const FLAG_TILE: u8 = 1 << 5;
+/// Flag (pictures): sample the external texture of slot `ext` (`uv` normalized to it) instead of the image
+/// array.
+pub const FLAG_EXT: u8 = 1 << 6;
 
 /// A drawable primitive. See the module docs for the byte layout.
 #[repr(C)]
