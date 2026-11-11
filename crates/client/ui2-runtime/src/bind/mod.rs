@@ -31,7 +31,9 @@ use std::sync::Arc;
 use ui2_model::{FrameDelta, Key, ModelStore, Op, Scalar as MScalar, Type, Value as MValue};
 use ui2_package::profile::action::{Action, ControlKind};
 use ui2_package::profile::expr::{Expr, Value, eval, render, truthy};
-use ui2_package::{BindKind, ExprId, NodeKind, NodeRef, Package, PropId, StrId, TextSrc, TplId};
+use ui2_package::{
+    BindKind, ExprId, ImageSrc, NodeKind, NodeRef, Package, PropId, StrId, TextSrc, TplId,
+};
 
 use crate::arena::{Arena, Dirty, NodeClass, NodeId, StateBits};
 use crate::error::{ErrorCode, ErrorSink, UiError};
@@ -69,6 +71,8 @@ pub(crate) enum RowKind {
     Cond(ExprId),
     /// The sort key and the filter of one item of a sorted or filtered `for` (the row's `item`).
     Item,
+    /// The game asset reference a picture shows (`data-bind-src`).
+    Src(ExprId),
 }
 
 impl RowKind {
@@ -232,6 +236,8 @@ pub(crate) struct Binder {
     windows_dirty: bool,
     /// Localization.
     pub loc: SkinLoc,
+    /// The asset references of bound pictures, by node.
+    srcs: HashMap<NodeId, Arc<str>>,
 }
 
 /// What the pass reads besides the arena.
@@ -315,6 +321,7 @@ impl Binder {
             dirty_lists: Vec::new(),
             windows_dirty: false,
             loc,
+            srcs: HashMap::new(),
         }
     }
 
@@ -484,6 +491,7 @@ impl Binder {
                 }),
                 NodeKind::For { .. } => return vec![RowKind::List],
                 NodeKind::If { cond, .. } => return vec![RowKind::Cond(*cond)],
+                NodeKind::Image(ImageSrc::Bound(e)) => kinds.push(RowKind::Src(*e)),
                 _ => {}
             }
         }
@@ -506,6 +514,9 @@ impl Binder {
                     cond: *cond,
                 }),
                 BindKind::Disabled(e) => kinds.push(RowKind::Disabled(*e)),
+                BindKind::Src(e) if !kinds.contains(&RowKind::Src(*e)) => {
+                    kinds.push(RowKind::Src(*e))
+                }
                 BindKind::Model(p) => kinds.push(RowKind::Model(*p)),
                 BindKind::Style { prop, tpl } if styles::bindable(*prop) => {
                     kinds.push(RowKind::Style {
@@ -570,9 +581,10 @@ impl Binder {
         match kind {
             RowKind::Text(t) | RowKind::Style { tpl: t, .. } => tpl_exprs(*t),
             RowKind::L10n { args, .. } => args.iter().filter_map(|e| pkg.expr(*e)).collect(),
-            RowKind::Class { cond: e, .. } | RowKind::Disabled(e) | RowKind::Cond(e) => {
-                pkg.expr(*e).into_iter().collect()
-            }
+            RowKind::Class { cond: e, .. }
+            | RowKind::Disabled(e)
+            | RowKind::Cond(e)
+            | RowKind::Src(e) => pkg.expr(*e).into_iter().collect(),
             // Read through `reads_of` (actions) or the list's state (lists, items).
             RowKind::Action { .. } | RowKind::Model(_) | RowKind::List | RowKind::Item => {
                 Vec::new()
@@ -691,6 +703,9 @@ impl Binder {
         }
         for range in arena.take_removed_binds() {
             self.free_rows(range);
+        }
+        if !self.srcs.is_empty() {
+            self.srcs.retain(|id, _| arena.contains(*id));
         }
         let dead: Vec<NodeId> = self
             .lists
@@ -844,6 +859,10 @@ impl Binder {
             RowKind::Class { cond, .. } | RowKind::Disabled(cond) | RowKind::Cond(cond) => {
                 Out::Bool(truthy(&host.expr(*cond)))
             }
+            RowKind::Src(e) => match host.expr(*e) {
+                Value::Null => Out::Text("".into()),
+                v => Out::Text(render(&v).into()),
+            },
             RowKind::Style { prop, tpl } => {
                 let text = host.template(*tpl);
                 match style::parse(pkg, *prop, &text) {
@@ -902,6 +921,10 @@ impl Binder {
             (RowKind::Cond(_), Out::Bool(on)) => {
                 self.set_cond(arena, cx, errors, row.node, *on);
             }
+            (RowKind::Src(_), Out::Text(s)) => {
+                self.srcs.insert(row.node, Arc::clone(s));
+                arena.mark(row.node, Dirty::PAINT);
+            }
             (RowKind::Model(_), Out::Values(v)) => {
                 let on = tmpl.is_some_and(|t| checked(pkg, t, v));
                 styles::select::set_state(arena, row.node, StateBits::CHECKED, on);
@@ -909,6 +932,11 @@ impl Binder {
             _ => {}
         }
         row.last = Some(out);
+    }
+
+    /// The asset references bound pictures show (`data-bind-src`), by node.
+    pub fn srcs(&self) -> &HashMap<NodeId, Arc<str>> {
+        &self.srcs
     }
 
     /// The values the row of a node's markup action holds (`rows` is the node's row range): `None` while it

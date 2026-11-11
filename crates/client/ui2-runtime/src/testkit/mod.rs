@@ -394,6 +394,42 @@ impl Kit {
             .collect()
     }
 
+    /// Adds color pictures of the given CSS sizes, packed side by side on one new 1x `Rgba8` page (opaque
+    /// white, a 1 px margin around each), and returns their ids in order (provisional like string ids).
+    pub fn color_pictures(&mut self, pictures: &[(&str, [u16; 2])]) -> Vec<ImgId> {
+        let width: u16 = pictures.iter().map(|(_, [w, _])| w + 2).sum();
+        let height: u16 = pictures.iter().map(|(_, [_, h])| h + 2).max().unwrap_or(0);
+        let pixels = vec![255u8; usize::from(width) * usize::from(height) * 4];
+        let mut x = 0u16;
+        let mut rects = Vec::new();
+        for (_, [w, h]) in pictures {
+            rects.push([x, 0, w + 2, h + 2]);
+            x += w + 2;
+        }
+        let page = Page {
+            format: PageFormat::Rgba8,
+            scale: 1,
+            size: [width, height],
+            blob: BlobRef::unplaced(BlobSection::Imgs, false),
+            blake3: *blake3::hash(&pixels).as_bytes(),
+        };
+        let page = self.b.image_page(page, &pixels, pixels.len() as u32);
+        pictures
+            .iter()
+            .zip(rects)
+            .map(|((path, [w, h]), rect)| {
+                let path = self.b.str(path);
+                self.b.image(Img {
+                    path,
+                    size: [f32::from(*w), f32::from(*h)],
+                    mask: false,
+                    x1: Sprite { page, rect },
+                    x2: None,
+                })
+            })
+            .collect()
+    }
+
     /// Sets the skin's languages (the first is the fallback; the default is `en_US` alone). Call before
     /// adding texts of the other languages.
     pub fn languages(&mut self, langs: &[&str]) {

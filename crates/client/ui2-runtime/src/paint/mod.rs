@@ -8,8 +8,8 @@
 //! frame finds the queue empty and does not touch the scene.
 //!
 //! The order of items inside a chunk follows CSS stacking ([`stacking`]); coordinates are device pixels.
-//! What the scene cannot draw yet (pictures of the package and the game, outer or blurred shadows, text
-//! shadows, elliptical corners, borders of several colors) is reported once per node and left out.
+//! What is not drawn (blurred inset shadows, text shadows, corners of different ellipses, borders of several
+//! colors, game pictures the host cannot name) is reported once per node and left out.
 
 pub(crate) mod emit;
 pub(crate) mod stacking;

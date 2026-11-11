@@ -4,7 +4,8 @@
 //! new record whose property changed starts an animation: from the value shown now (the old record's, or
 //! where a running animation of that property is) to the new record's, with the record's duration, delay
 //! and cubic Bezier. Only paint properties transition (`color`, `background-color`, the border colors,
-//! `opacity`, `transform`, the colors of `box-shadow`); the profile does not let geometry transition, so a
+//! `outline-color`, `opacity`, `transform`, the colors of `box-shadow`; gradient stops switch at once); the
+//! profile does not let geometry transition, so a
 //! transition never lays anything out.
 //!
 //! Every frame with running animations ([`Animator::tick`]) builds, for each animated node, its record with
@@ -77,6 +78,7 @@ fn value(cx: &AnimCtx<'_>, r: &StyleRecord, prop: PropId) -> Option<AVal> {
         PropId::BorderRightColor => color(r.border_right_color),
         PropId::BorderBottomColor => color(r.border_bottom_color),
         PropId::BorderLeftColor => color(r.border_left_color),
+        PropId::OutlineColor => color(r.outline_color),
         PropId::Opacity => AVal::Num(r.opacity),
         PropId::Transform => AVal::Transform(r.transform.clone()),
         PropId::BoxShadow => AVal::Shadows(
@@ -99,6 +101,7 @@ fn apply(r: &mut StyleRecord, prop: PropId, v: &AVal) {
         (PropId::BorderRightColor, AVal::Color(c)) => r.border_right_color = lit(c),
         (PropId::BorderBottomColor, AVal::Color(c)) => r.border_bottom_color = lit(c),
         (PropId::BorderLeftColor, AVal::Color(c)) => r.border_left_color = lit(c),
+        (PropId::OutlineColor, AVal::Color(c)) => r.outline_color = lit(c),
         (PropId::Opacity, AVal::Num(o)) => r.opacity = o.clamp(0.0, 1.0),
         (PropId::Transform, AVal::Transform(t)) => r.transform = t.clone(),
         (PropId::BoxShadow, AVal::Shadows(cs)) => {

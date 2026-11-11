@@ -215,6 +215,8 @@ impl Runtime {
                 index: &self.style_index,
                 env: &self.style_env,
                 anim: &self.anim,
+                srcs: self.binder.srcs(),
+                assets: self.assets.as_ref(),
             },
             scene,
             &mut self.errors,
