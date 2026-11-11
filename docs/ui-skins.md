@@ -84,6 +84,83 @@ the same list. Each code has its own text in the profile file; the families are:
 - The tests that need a browser run only with `CIV5_UI2_CHROME=1`:
   `cargo test -p ui2-convert --test e2e -- --test-threads=1`.
 
+## Skin package
+
+The converter's output is a single binary file, `<id>-<hash16>.ui2`: the skin's markup as node templates, its
+styles already resolved by Chromium, color tokens, bindings, texts, scripts, font subsets and rasterized pictures.
+The game reads it with the crate `ui2-package` and never needs the HTML, the CSS or a browser. The same format
+carries the panels of a mod (see "Mod fragments" below).
+
+### Format
+
+- **Container.** The file starts with the magic `C5UI2PKG`, the format version (major and minor, 16 bits each)
+  and a table of at most 32 sections: a four-letter tag, flags (bit 0: a reader that does not know the section
+  must refuse the file), offset and length. Sections follow in ascending tag order, each starting at a multiple
+  of 8 bytes, with zero bytes between them. The last 32 bytes are the blake3 hash of everything before them: it
+  is the package's identity, and its first 16 hex digits are the `hash16` of the file name. A reader refuses files
+  over 16 MiB.
+- **Sections.**
+
+  | Tag | Holds |
+  |---|---|
+  | `MANI` | kind (skin or mod fragment), id, version, title key, the profile, model and script API versions the skin was built for, the tools that built it, themes, languages, the faces of the font roles |
+  | `STRS` | every string the other sections name, sorted, without repeats |
+  | `TMPL` | node templates: template 0 is the document, the others are the bodies of loops, conditions and tooltips |
+  | `STYL` | the viewport cells of the breakpoints, the style records (one field per property of the profile), and per node the record for every cell and combination of dynamic conditions |
+  | `TOKN` | the root color tokens, their synonyms and the themes |
+  | `BIND` | expressions, text templates, the bindings and events of each node, the model paths and intents the skin uses, the skin state with its defaults |
+  | `L10N` | the text tables, one per language |
+  | `FONT` | the font subsets (TTF or OTF bytes as the skin's characters need them) |
+  | `IMGS` | atlas pages of the rasterized pictures (RGBA and alpha-only icon masks, at scale 1 and 2) and where each picture sits |
+  | `SCRP` | the classic scripts in execution order and the model roots they read |
+  | `AREF` | references to game assets (`portrait:...`, `render:minimap`), never the assets themselves |
+  | `EXTN` | extension points, part names, screens, script islands, hotkeys, tooltips |
+  | `SRCM` | the source map: file, line and column of every node, for error messages |
+
+  Structural sections are serialized with `postcard`. Fonts and picture pages are zstd frames, decompressed once
+  when the skin loads; scripts are stored as they are (the web server compresses them).
+- **Determinism.** The same sources give the same bytes on every machine: no build time, no paths of the build
+  machine, maps written in sorted order, numbers as Chrome computed them. The tool versions that could change the
+  output (Chromium, its flags, the font subsetter) are recorded in `MANI`.
+- **Loading.** The client checks the magic, the format version, the size, the hash and the section table, decodes
+  every section and checks every index into another section; a damaged file is refused, never half used. Then it
+  checks the versions (next section) and that every model path the skin reads exists in the client's model with
+  the same type. A package that fails any check is not shown: the skin in use stays, and the reason is logged once.
+
+### Versions
+
+- **Format** (`major.minor` in the header, now 1.0). A new section is a minor change: a reader skips an unknown
+  section unless its flag says it must understand it. Any change to the structure or meaning of an existing
+  section is a major change.
+- **Profile, model and script API** (in `MANI`). The client loads a package whose profile major equals its own,
+  whose model major equals its own with a minor not newer than its own, and whose script API major equals its own.
+  New model fields therefore do not break built skins; a removed or retyped field does, through the path check.
+- Packages are never migrated. A skin built for an older format or profile is rebuilt from its sources with one
+  command (`cargo xtask ui build <skin>`).
+
+### Budget
+
+A skin package holds at most 3 MB, counted in the file as written (after compression): fonts at most 1.2 MB,
+pictures at most 0.8 MB, scripts at most 750 KB, everything else at most 0.5 MB. The converter refuses a package
+over any limit (E8-001) and prints the size of every section with each build (also stored in `build.json`). Game
+assets do not count: the package only names them. A mod fragment has its own, smaller budget (E8-002).
+
+### Delivery
+
+- **Web build.** `cargo xtask build --only web` (and the Docker context of `cargo xtask dist`) builds every skin
+  under `skins/` and puts the packages into `ui2/` of the web bundle with an index, `ui2/skins.json`: one entry
+  per skin with its id, file, hash, title key, themes, script API and whether it is the default skin. The content
+  hash in the file name makes every package safe to cache forever.
+- **Client.** The client reads the index, downloads the package of the chosen skin, checks that its hash is the
+  one the index names, and runs the load checks above before it replaces the skin in use.
+- **Development.** `cargo xtask ui watch <skin>` serves the package being edited on 127.0.0.1; a client started
+  with `?ui2dev=<server>` polls it and reloads the skin when a new build appears.
+- **Mod fragments.** The panels of a mod are a package of the same format with the kind "fragment", built by
+  `cargo xtask mods build` into `ui2/mods/<id>-<version>-<hash16>.ui2` and listed in `ui2/mods-ui.json` with the
+  mod's id, version, file, hash, UI API requirement and panels. A fragment has no fonts, themes or text tables:
+  its colors name the color tokens of the catalogue and its fonts name the font roles, and the client resolves
+  both with the skin the fragment is mounted into. It ships with the client build, not with the game server.
+
 <!-- profile: generated by `cargo xtask ui docs` from the profile file; edit profile.toml, not this section -->
 ## Profile 1.0
 
