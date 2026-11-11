@@ -13,13 +13,141 @@
 pub mod select;
 pub mod tokens;
 
-use ui2_package::style::StyleRecord;
+use ui2_package::PropId;
+use ui2_package::style::{ColorV, LenAuto, StyleRecord, TFn};
 use ui2_package::{StyleId, StyleSetId, Styles};
 
 use crate::Env;
-use crate::arena::{Dirty, HIDDEN_STYLE, PLACEHOLDER_STYLE};
+use crate::arena::{Dirty, HIDDEN_STYLE, Node, PLACEHOLDER_STYLE};
 
 pub(crate) use select::attach;
+
+/// A value a style binding (`data-bind-style-<prop>`) sets, already parsed for its property.
+#[derive(Debug, Clone, PartialEq)]
+pub enum OverValue {
+    /// `auto` or a length (`width`, `top`, ...).
+    Len(LenAuto),
+    /// A number (`opacity`, `flex-grow`).
+    Num(f32),
+    /// A color (`color`, `background-color`).
+    Color(ColorV),
+    /// A transform list (`transform`).
+    Transform(Vec<TFn>),
+}
+
+/// The style properties bindings set on a node, on top of its selected record (like an inline style in
+/// Chrome), and the record and layout style they give. Rebuilt when the selected record or a value changes.
+#[derive(Debug, Clone)]
+pub struct Overrides {
+    /// The properties, in the order they were first set.
+    pub props: Vec<(PropId, OverValue)>,
+    /// The selected record with the properties applied.
+    pub record: StyleRecord,
+    /// The layout style of `record`.
+    pub taffy: taffy::Style,
+}
+
+impl Overrides {
+    /// The overrides of `props` over a base record.
+    pub fn new(base: &StyleRecord, props: Vec<(PropId, OverValue)>) -> Self {
+        let mut record = base.clone();
+        for (prop, value) in &props {
+            apply_over(&mut record, *prop, value);
+        }
+        let taffy = crate::layout::style::taffy_style(&record);
+        Self {
+            props,
+            record,
+            taffy,
+        }
+    }
+}
+
+/// Whether a style binding can set the property (flag B of the profile) and the record has a field for it.
+pub fn bindable(prop: PropId) -> bool {
+    matches!(
+        prop,
+        PropId::Top
+            | PropId::Right
+            | PropId::Bottom
+            | PropId::Left
+            | PropId::Width
+            | PropId::Height
+            | PropId::FlexGrow
+            | PropId::Color
+            | PropId::BackgroundColor
+            | PropId::Opacity
+            | PropId::Transform
+    )
+}
+
+/// Writes one bound value into a record. A value of the wrong kind for the property changes nothing (the
+/// binding parsed it for that property).
+fn apply_over(r: &mut StyleRecord, prop: PropId, value: &OverValue) {
+    match (prop, value) {
+        (PropId::Top, OverValue::Len(l)) => r.top = *l,
+        (PropId::Right, OverValue::Len(l)) => r.right = *l,
+        (PropId::Bottom, OverValue::Len(l)) => r.bottom = *l,
+        (PropId::Left, OverValue::Len(l)) => r.left = *l,
+        (PropId::Width, OverValue::Len(l)) => r.width = *l,
+        (PropId::Height, OverValue::Len(l)) => r.height = *l,
+        (PropId::FlexGrow, OverValue::Num(v)) => r.flex_grow = v.max(0.0),
+        (PropId::Opacity, OverValue::Num(v)) => r.opacity = v.clamp(0.0, 1.0),
+        (PropId::Color, OverValue::Color(c)) => r.color = *c,
+        (PropId::BackgroundColor, OverValue::Color(c)) => r.background_color = *c,
+        (PropId::Transform, OverValue::Transform(t)) => r.transform = t.clone(),
+        _ => {}
+    }
+}
+
+/// Sets (`Some`) or clears (`None`) a bound property on a node and returns the passes the change needs.
+pub(crate) fn set_override(
+    arena: &mut crate::arena::Arena,
+    styles: &Styles,
+    index: &StyleIndex,
+    id: crate::arena::NodeId,
+    prop: PropId,
+    value: Option<OverValue>,
+) -> Dirty {
+    let Some(node) = arena.get_mut(id) else {
+        return Dirty::NONE;
+    };
+    let base = index.record(styles, node.style);
+    let mut props = node
+        .over
+        .as_ref()
+        .map(|o| o.props.clone())
+        .unwrap_or_default();
+    match (props.iter().position(|(p, _)| *p == prop), value) {
+        (Some(at), Some(v)) => props[at].1 = v,
+        (None, Some(v)) => props.push((prop, v)),
+        (Some(at), None) => {
+            props.remove(at);
+        }
+        (None, None) => return Dirty::NONE,
+    }
+    let old = node.over.take();
+    let old_record = old.as_ref().map_or(base, |o| &o.record);
+    if props.is_empty() {
+        return diff(old_record, base);
+    }
+    let new = Overrides::new(base, props);
+    let bits = diff(old_record, &new.record);
+    node.over = Some(Box::new(new));
+    bits
+}
+
+/// The record a node is drawn and laid out with: its selected record, or the one its style bindings give.
+pub fn node_record<'a>(
+    index: &'a StyleIndex,
+    styles: &'a Styles,
+    node: &'a Node,
+) -> &'a StyleRecord {
+    match node.overrides() {
+        Some(o) => &o.record,
+        None => index.record(styles, node.style()),
+    }
+}
 
 /// The factor between CSS px and device pixels, and the logical viewport layout runs in.
 #[derive(Debug, Clone, Copy, PartialEq)]

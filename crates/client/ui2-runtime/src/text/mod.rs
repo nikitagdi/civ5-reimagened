@@ -187,6 +187,8 @@ pub struct Ifc {
     pub align: TextAlign,
     /// The lines at the width of the last full layout.
     pub lines: Lines,
+    /// The content width of the last full layout (the width `lines` were broken at).
+    pub width: f32,
 }
 
 impl Ifc {
@@ -306,9 +308,9 @@ pub(crate) struct TextCtx<'a> {
 }
 
 impl TextCtx<'_> {
-    fn record(&self, arena: &Arena, id: NodeId) -> Option<&StyleRecord> {
+    fn record<'a>(&'a self, arena: &'a Arena, id: NodeId) -> Option<&'a StyleRecord> {
         let n = arena.get(id)?;
-        Some(self.index.record(self.pkg.styles(), n.style()))
+        Some(crate::style::node_record(self.index, self.pkg.styles(), n))
     }
 
     fn is_inline_element(&self, arena: &Arena, id: NodeId) -> bool {
@@ -441,17 +443,67 @@ fn collect(
     }
 }
 
-/// Builds the inline layout of a root (or removes it when the node is not a root any more). Returns the
-/// number of runs shaped.
+/// The widths a line breaker sees in a run: the width of every piece between spaces and of every space, in
+/// order. Two runs with the same profile break into lines of the same widths at any available width.
+fn break_profile(run: &ShapedRun) -> Vec<f32> {
+    let bytes = run.text.as_bytes();
+    let mut out = Vec::new();
+    let mut acc = 0.0f32;
+    let mut in_space = None;
+    for g in run.glyphs.iter() {
+        let space = matches!(bytes.get(g.cluster as usize), Some(b' '));
+        if in_space != Some(space) {
+            if in_space.is_some() {
+                out.push(acc);
+            }
+            acc = 0.0;
+            in_space = Some(space);
+        }
+        acc += g.advance;
+    }
+    out.push(acc);
+    out
+}
+
+/// Whether a new inline layout takes exactly the room of the old one, so the box needs no layout: the same
+/// runs with the same widths and vertical metrics (and, when lines wrap, the same widths between spaces).
+fn same_extent(old: &Ifc, new: &Ifc) -> bool {
+    let same_boxes = old.boxes.len() == new.boxes.len()
+        && old.boxes.iter().zip(&new.boxes).all(|(a, b)| a.vm == b.vm);
+    same_boxes
+        && old.strut == new.strut
+        && old.wrap == new.wrap
+        && old.runs.len() == new.runs.len()
+        && old.runs.iter().zip(&new.runs).all(|(a, b)| {
+            a.node == b.node
+                && a.vm == b.vm
+                && a.boxes == b.boxes
+                && a.shaped.width == b.shaped.width
+                && (!new.wrap
+                    || Arc::ptr_eq(&a.shaped.glyphs, &b.shaped.glyphs)
+                    || break_profile(&a.shaped) == break_profile(&b.shaped))
+        })
+}
+
+/// What rebuilding one root did.
+#[derive(Debug, Clone, Copy, Default)]
+struct Built {
+    /// Runs shaped (runs whose text and style did not change are kept).
+    shaped: u32,
+    /// The root's box must be laid out again (its content takes another room).
+    layout: bool,
+}
+
+/// Builds the inline layout of a root (or removes it when the node is not a root any more).
 fn build(
     ctx: &TextCtx<'_>,
     arena: &mut Arena,
     tm: &mut dyn TextMeasure,
     errors: &mut ErrorSink,
     root: NodeId,
-) -> u32 {
+) -> Built {
     let Some(class) = arena.get(root).map(|n| n.class()) else {
-        return 0;
+        return Built::default();
     };
     let mut texts = Vec::new();
     let mut boxes = Vec::new();
@@ -461,18 +513,20 @@ fn build(
             collect(arena, root, &mut Vec::new(), &mut texts, &mut boxes)
         }
         _ => {
-            if let Some(n) = arena.get_mut(root) {
-                n.ifc = None;
-            }
-            return 0;
+            let had = arena.get_mut(root).and_then(|n| n.ifc.take()).is_some();
+            return Built {
+                shaped: 0,
+                layout: had,
+            };
         }
     }
+    let old = arena.get_mut(root).and_then(|n| n.ifc.take());
     let mut report = |arena: &Arena, id: NodeId, msg: &str| {
         let path = instantiate::node_path(arena, ctx.pkg, id);
         errors.report(UiError::at(&path, ErrorCode::Font, msg));
     };
     let Some(root_rec) = ctx.record(arena, root).cloned() else {
-        return 0;
+        return Built::default();
     };
     let strut = match ctx.vmetrics(tm, &root_rec) {
         Some((_, _, vm)) => vm,
@@ -502,6 +556,20 @@ fn build(
             report(arena, node, "no font face of the package matches");
             continue;
         };
+        // A leaf whose text and style did not change keeps its shaped run.
+        let kept = old
+            .as_ref()
+            .and_then(|o| o.runs.iter().find(|r| r.node == node))
+            .filter(|r| r.shaped.style == style && *r.shaped.text == *text);
+        if let Some(prev) = kept {
+            runs.push(Run {
+                node,
+                shaped: prev.shaped.clone(),
+                vm,
+                boxes: bxs,
+            });
+            continue;
+        }
         shaped += 1;
         match tm.shape(&style, &text) {
             Ok(run) => runs.push(Run {
@@ -513,18 +581,28 @@ fn build(
             Err(e) => report(arena, node, &format!("text cannot be shaped: {e}")),
         }
     }
-    let ifc = Ifc {
+    let mut ifc = Ifc {
         runs,
         boxes,
         strut,
         wrap: root_rec.text_wrap_mode == TextWrapMode::Wrap,
         align: root_rec.text_align,
         lines: Lines::default(),
+        width: 0.0,
+    };
+    let layout = match &old {
+        Some(o) if same_extent(o, &ifc) => {
+            // Same room: break again at the width layout gave, for paint, and leave the box alone.
+            ifc.width = o.width;
+            ifc.lines = ifc.lines_at(tm, o.width);
+            false
+        }
+        _ => true,
     };
     if let Some(n) = arena.get_mut(root) {
         n.ifc = Some(Box::new(ifc));
     }
-    shaped
+    Built { shaped, layout }
 }
 
 /// What one text pass did.
@@ -534,7 +612,8 @@ pub(crate) struct PassStats {
     pub visited: u32,
 }
 
-/// The text pass: rebuilds the inline layout of every root with a TEXT-dirty node and queues it for layout.
+/// The text pass: rebuilds the inline layout of every root with a TEXT-dirty node and queues it for paint,
+/// and for layout only when its content takes another room.
 pub(crate) fn pass(
     ctx: &TextCtx<'_>,
     arena: &mut Arena,
@@ -573,8 +652,14 @@ pub(crate) fn pass(
     roots.sort();
     roots.dedup();
     for root in roots {
-        stats.shaped += build(ctx, arena, tm, errors, root);
-        arena.mark(root, Dirty::LAYOUT | Dirty::PAINT);
+        let built = build(ctx, arena, tm, errors, root);
+        stats.shaped += built.shaped;
+        let bits = if built.layout {
+            Dirty::LAYOUT | Dirty::PAINT
+        } else {
+            Dirty::PAINT
+        };
+        arena.mark(root, bits);
     }
     stats
 }

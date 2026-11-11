@@ -35,4 +35,5 @@ blake3 = { workspace = true, optional = true }
 serde_json.workspace = true
 # Tests run with the test kit, also under a plain `cargo test` and `cargo xtask test`.
 ui2-runtime = { workspace = true, features = ["testkit"] }
-ui2-package = { workspace = true, features = ["write"] }
+# `profile`: tests write binding expressions as text and parse them as the converter does.
+ui2-package = { workspace = true, features = ["write", "profile"] }

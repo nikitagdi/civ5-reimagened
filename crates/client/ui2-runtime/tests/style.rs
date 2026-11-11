@@ -351,5 +351,6 @@ fn style_bad_scale_is_replaced_and_reported_once() {
 }
 
 fn tick(rt: &mut Runtime) -> ui2_runtime::FrameStats {
-    rt.update(&mut ui2_text::TextEngine::new())
+    let store = ui2_model::ModelStore::new(ui2_model::Schema::v1());
+    rt.update(&store, &mut ui2_text::TextEngine::new())
 }

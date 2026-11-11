@@ -111,7 +111,10 @@ impl View<'_> {
     fn style(&self, id: taffy::NodeId) -> &Style {
         match self.arena.at(usize::from(id)) {
             Some(node) if node.class() == NodeClass::Text => &self.styles.anonymous,
-            Some(node) => self.styles.get(node.style()),
+            Some(node) => match node.overrides() {
+                Some(o) => &o.taffy,
+                None => self.styles.get(node.style()),
+            },
             None => &self.styles.hidden,
         }
     }
@@ -139,7 +142,7 @@ impl View<'_> {
         let style = self.style(node);
         let text = self.text;
         let baselines = Cell::new((None, None));
-        let kept: RefCell<Option<Lines>> = RefCell::new(None);
+        let kept: RefCell<Option<(Lines, f32)>> = RefCell::new(None);
         let mut output = compute_leaf_layout(
             inputs,
             style,
@@ -161,7 +164,7 @@ impl View<'_> {
                     width: known.width.unwrap_or(lines.width),
                     height: known.height.unwrap_or(lines.height),
                 };
-                *kept.borrow_mut() = Some(lines);
+                *kept.borrow_mut() = Some((lines, width));
                 size
             },
         );
@@ -177,10 +180,11 @@ impl View<'_> {
             output.baselines.last = last.map(|b| b + inset.top);
         }
         if inputs.run_mode == RunMode::PerformLayout
-            && let Some(lines) = kept.into_inner()
+            && let Some((lines, width)) = kept.into_inner()
             && let Some(ifc) = self.arena.at_mut(idx).and_then(|n| n.ifc.as_deref_mut())
         {
             ifc.lines = lines;
+            ifc.width = width;
         }
         output
     }

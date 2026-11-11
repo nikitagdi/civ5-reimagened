@@ -6,9 +6,10 @@
 //! draw lists to the render side.
 //!
 //! Present state: the node arena ([`arena`]), instantiation from templates with node paths
-//! ([`instantiate`]), error reporting ([`error`]), style selection ([`style`]), text leaves and inline layout on
-//! `ui2-text` ([`text`]), box layout with taffy over the arena ([`layout`]) and rectangle dumps ([`debug`]).
-//! Bindings, input and painting build on these.
+//! ([`instantiate`]), error reporting ([`error`]), style selection ([`style`]), scalar bindings with their
+//! dependency index and the skin's texts, text leaves and inline layout on `ui2-text` ([`text`]), box layout
+//! with taffy over the arena ([`layout`]) and rectangle dumps ([`debug`]). List bindings, input and painting
+//! build on these.
 //!
 //! Zero-work rule: every pass is driven by the arena's dirty queues; a frame without changes checks a few
 //! counters and touches no node.
@@ -16,10 +17,12 @@
 #![forbid(unsafe_code)]
 
 pub mod arena;
+mod bind;
 pub mod debug;
 pub mod error;
 pub mod instantiate;
 pub mod layout;
+mod loc;
 pub mod style;
 #[cfg(feature = "testkit")]
 pub mod testkit;
@@ -28,7 +31,7 @@ pub mod text;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use ui2_model::Key;
+use ui2_model::{FrameDelta, Key, ModelStore};
 use ui2_package::style::{ColorV, StyleRecord};
 use ui2_package::{Package, StrId, TemplateId};
 
@@ -73,9 +76,10 @@ impl Default for Env {
 /// What the host lends the runtime.
 #[derive(Clone, Default)]
 pub struct Services {
-    /// The game's localizer (texts of the game, `Text::Key` values). Localization is wired with the bindings;
-    /// until then it may be absent.
-    pub loc: Option<Rc<loc::Localizer>>,
+    /// The game's localizer: texts of the game (`Text::Key` values, `loc(...)` of keys the skin does not
+    /// have), the language the skin's own texts are shown in, and the composition of those texts. Without
+    /// one the skin's texts show in its first language.
+    pub loc: Option<Rc<::loc::Localizer>>,
 }
 
 /// The skin cannot be used at all; the host keeps the previous UI.
@@ -119,6 +123,7 @@ pub struct Runtime {
     errors: ErrorSink,
     layout_styles: LayoutStyles,
     fonts: FontBook,
+    binder: bind::Binder,
 }
 
 impl Runtime {
@@ -134,6 +139,7 @@ impl Runtime {
             style_index: StyleIndex::new(pkg.styles()),
             layout_styles: LayoutStyles::from_styles(pkg.styles()),
             fonts: FontBook::new(&pkg),
+            binder: bind::Binder::new(loc::SkinLoc::new(&pkg, svc.loc.clone())),
             pkg,
             env,
             style_env,
@@ -196,7 +202,11 @@ impl Runtime {
     /// The selected style record of a node.
     pub fn style(&self, id: NodeId) -> Option<&StyleRecord> {
         let node = self.arena.get(id)?;
-        Some(self.style_index.record(self.pkg.styles(), node.style()))
+        Some(style::node_record(
+            &self.style_index,
+            self.pkg.styles(),
+            node,
+        ))
     }
 
     /// A record color under the current theme.
@@ -317,9 +327,37 @@ impl Runtime {
         self.errors.take()
     }
 
-    /// Runs the passes that exist so far (styles, text, layout) and returns the frame's counters. A frame
-    /// without changes only checks the queues.
-    pub fn update(&mut self, text: &mut dyn TextMeasure) -> FrameStats {
+    /// Takes the changes of a model frame: queues the bindings that read a changed field (nothing is
+    /// evaluated before the next frame).
+    pub fn apply_delta(&mut self, d: &FrameDelta, m: &ModelStore) {
+        self.binder.apply_delta(&mut self.arena, &self.pkg, d, m);
+    }
+
+    /// Changes the game's localizer (and the language). Every binding whose text depends on the language is
+    /// evaluated again in the next frame.
+    pub fn set_localizer(&mut self, loc: Rc<::loc::Localizer>) {
+        self.binder.loc.set_game(&self.pkg, Some(Rc::clone(&loc)));
+        self.svc.loc = Some(loc);
+        self.binder.queue_localized();
+    }
+
+    /// The number of live binding rows (one per scalar binding of a live node).
+    pub fn binding_rows(&self) -> usize {
+        self.binder.len()
+    }
+
+    /// Runs the passes that exist so far (bindings, styles, text, layout) and returns the frame's counters. A
+    /// frame without changes only checks the queues.
+    pub fn update(&mut self, m: &ModelStore, text: &mut dyn TextMeasure) -> FrameStats {
+        let binds = self.binder.pass(
+            &mut self.arena,
+            &bind::Ctx {
+                pkg: &self.pkg,
+                index: &self.style_index,
+                store: m,
+            },
+            &mut self.errors,
+        );
         let change = std::mem::take(&mut self.env_change);
         let styles = style::select::pass(
             &mut self.arena,
@@ -344,7 +382,8 @@ impl Runtime {
             restyled: styles.restyled,
             shaped_runs: texts.shaped,
             layout_runs: layout.runs,
-            visited: styles.visited + texts.visited + layout.visited,
+            binds_evaluated: binds.evaluated,
+            visited: binds.visited + styles.visited + texts.visited + layout.visited,
             nodes: self.arena.len() as u32,
             ..FrameStats::default()
         }
