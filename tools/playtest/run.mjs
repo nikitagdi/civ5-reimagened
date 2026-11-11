@@ -82,6 +82,7 @@ const SCENARIOS = {
   "m5-turn-flow": () => import("./scenarios/m5-turn-flow.mjs"),
   // UI v2 script workers without a game (page ui2-selftest.html): echo, hang, exception, CSP of the worker.
   "ui2-script": () => import("./scenarios/ui2-script.mjs"),
+  "ui2-n6": () => import("./scenarios/ui2-n6.mjs"), // where skin scripts run: worker against main thread (page ui2/bench/bench.html)
 };
 /** The scenarios of `--scenario all` (perf is headed for real FPS numbers; headless it keeps them but enforces no FPS limit). */
 // Every scenario starts its game through the server (`?autostart=1`, net-client NC9); `saveload` uses the server's saves
