@@ -1,0 +1,24 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.panel {
+  display: flex;
+  pointer-events: auto;
+}
+
+.btn {
+  display: flex;
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+
+.btn:focus-visible {
+  color: red;
+}

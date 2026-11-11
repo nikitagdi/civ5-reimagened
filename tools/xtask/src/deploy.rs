@@ -235,6 +235,9 @@ fn build_dist_into(
         Some((_, dist, _)) => crate::mods::build::build_web(root, dist, true, true)?,
         None => build_web_threads(root, true)?,
     };
+    // The UI v2 skin packages and their index (`web/ui2/`) are built here, before the image context: the image
+    // has no Node, Chromium or Python (`CIV5_SKIP_UI2=1` leaves them out).
+    crate::ui::web::build_skins(root, &web)?;
 
     if out.exists() {
         std::fs::remove_dir_all(out).with_context(|| format!("clearing {}", out.display()))?;

@@ -1,0 +1,30 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.panel {
+  display: flex;
+  pointer-events: auto;
+}
+
+.knob:hover {
+  color: red;
+}
+
+.knob:active {
+  color: red;
+}
+
+.knob:focus {
+  color: red;
+}
+
+.knob:focus-visible {
+  outline: none;
+}
+
+.knob.on {
+  color: red;
+}

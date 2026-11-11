@@ -13,6 +13,7 @@ use toml::Value;
 use crate::error::ManifestError;
 use crate::reader::{Res, Tbl, wrong_type};
 use crate::semver::{Version, VersionReq};
+use crate::ui::{UiSection, parse_ui};
 
 /// Hard ceiling of a channel payload (below the 64 KiB gateway frame, D7).
 pub const CHANNEL_PAYLOAD_CEILING: u32 = 56 * 1024;
@@ -132,10 +133,12 @@ pub enum Part {
     CorePatch = 16,
     ServerRs = 32,
     ClientRs = 64,
+    /// UI v2 panels, model fields and scripts (`[ui]`, mod API 1.3).
+    Ui = 128,
 }
 
 impl Part {
-    pub const ALL: [Part; 7] = [
+    pub const ALL: [Part; 8] = [
         Part::Data,
         Part::LuaGameplay,
         Part::LuaUi,
@@ -143,6 +146,7 @@ impl Part {
         Part::CorePatch,
         Part::ServerRs,
         Part::ClientRs,
+        Part::Ui,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -154,6 +158,7 @@ impl Part {
             Self::CorePatch => "core-patch",
             Self::ServerRs => "server-rs",
             Self::ClientRs => "client-rs",
+            Self::Ui => "ui",
         }
     }
 
@@ -171,7 +176,7 @@ impl Part {
         match self {
             Part::Data | Part::LuaGameplay | Part::CorePatch => class == SyncClass::Gameplay,
             Part::ServerRs => class != SyncClass::Client,
-            Part::LuaUi | Part::Assets | Part::ClientRs => true,
+            Part::LuaUi | Part::Assets | Part::ClientRs | Part::Ui => true,
         }
     }
 }
@@ -272,6 +277,8 @@ pub struct Manifest {
     pub channels: Vec<Channel>,
     pub content: Content,
     pub core: Option<CoreSection>,
+    /// `[ui]`: present exactly when `parts` has `ui`.
+    pub ui: Option<UiSection>,
 }
 
 impl Manifest {
@@ -323,6 +330,7 @@ impl Manifest {
         let channels = parse_channels(root.get("channels"))?;
         let content = parse_content(root.table_opt("content")?)?;
         let core = parse_core(root.table_opt("core")?)?;
+        let ui = parse_ui(root.table_opt("ui")?)?;
         root.finish()?;
 
         let m = Manifest {
@@ -343,6 +351,7 @@ impl Manifest {
             channels,
             content,
             core,
+            ui,
         };
         m.validate(state_max_given)?;
         Ok(m)
@@ -515,6 +524,19 @@ impl Manifest {
                     "core",
                     "declared, but `parts` has no `core-patch`".to_string(),
                 );
+            }
+            _ => {}
+        }
+
+        // [ui] <-> ui.
+        match (self.has_part(Part::Ui), &self.ui) {
+            (true, None) => {
+                return Err(ManifestError::Missing {
+                    path: "ui".to_string(),
+                });
+            }
+            (false, Some(_)) => {
+                return bad("ui", "declared, but `parts` has no `ui`".to_string());
             }
             _ => {}
         }
@@ -885,7 +907,7 @@ fn parse_channels(v: Option<&Value>) -> Res<Vec<Channel>> {
 }
 
 /// A path relative to the mod root; glob characters are allowed, escapes are not.
-fn rel_path(path: String, s: &str) -> Res<String> {
+pub(crate) fn rel_path(path: String, s: &str) -> Res<String> {
     // One trailing '/' marks a directory ("assets/").
     let body = s.strip_suffix('/').unwrap_or(s);
     let bad = body.is_empty()

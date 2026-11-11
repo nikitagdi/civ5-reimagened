@@ -1,0 +1,23 @@
+# A client-only mod with one UI v2 panel and no Rust code: the fixture of `mods check` / `mods build` for `[ui]`.
+
+[mod]
+id      = "uifixture"
+name    = "UI fixture"
+version = "0.2.0"
+api     = "^1.3"
+license = "MIT"
+sync    = "client"
+parts   = ["ui"]
+
+[ui]
+api     = "^1"
+model   = "ui/model.toml"
+reads   = ["game.turn"]
+scripts = ["ui/fixture.js"]
+
+[[ui.panels]]
+id       = "echo"
+source   = "ui/echo.html"
+point    = "hud.right"
+mode     = "append"
+fallback = "mods"

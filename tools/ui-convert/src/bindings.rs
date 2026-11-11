@@ -13,7 +13,9 @@ use std::path::Path;
 
 use ui2_model::{Sample, Schema};
 use ui2_package::profile::action::Action;
+use ui2_package::profile::attrs::codes::NO_KEY;
 use ui2_package::profile::attrs::{self, AttrCtx, Checked, NodeAttrs};
+use ui2_package::profile::expr::codes::NOT_LIST;
 use ui2_package::profile::expr::{Expr, Func, Scope, TplSeg};
 use ui2_package::profile::{SchemaView, TypeSig};
 use ui2_package::sections::templates::Layer;
@@ -237,7 +239,13 @@ pub fn check(
                 );
             }
             Err(list) => {
+                // A loop over something that is not a list has no key either: that follows from the
+                // first error and is not reported again.
+                let not_list = list.iter().any(|pe| pe.code == NOT_LIST);
                 for pe in list {
+                    if not_list && pe.code == NO_KEY {
+                        continue;
+                    }
                     let mut why = pe.message.clone();
                     if let Some(at) = pe.at {
                         why.push_str(&format!(" (at byte {at} of the value)"));

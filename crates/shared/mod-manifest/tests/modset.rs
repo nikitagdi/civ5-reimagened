@@ -68,6 +68,21 @@ fn golden_hash() {
     );
 }
 
+/// Mod API 1.3 adds the `ui` part with a new bit: the golden hash of a set without it is the one above, and a mod
+/// that gains the part changes the hash (through the part mask; its content hash would change as well).
+#[test]
+fn the_ui_part_leaves_old_hashes_alone_and_changes_its_own() {
+    assert_eq!(set(sample()).modset_hash().to_string(), GOLDEN_HASH);
+    let mut with_ui = sample();
+    with_ui[1].parts.insert(Part::Ui);
+    let h = set(with_ui.clone()).modset_hash();
+    assert_ne!(h.to_string(), GOLDEN_HASH);
+    // The lock keeps the part.
+    let text = write_lock(&set(with_ui.clone()));
+    assert!(text.contains("\"ui\""), "{text}");
+    assert_eq!(parse_lock(&text).unwrap(), set(with_ui));
+}
+
 #[test]
 fn hash_is_stable_and_clone_independent() {
     let a = set(sample());

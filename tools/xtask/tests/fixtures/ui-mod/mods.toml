@@ -1,0 +1,4 @@
+# The list of the `[ui]` fixture mod (paths relative to this file).
+
+[[mod]]
+path = "."

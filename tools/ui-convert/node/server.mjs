@@ -8,6 +8,9 @@
 // Fonts: when `fontsDir` is given, a request whose path exists below it is served from there first
 // (the converter serves subset fonts this way). `preview: true` adds the preview script to every page.
 //
+// List keys: `listKeys` (model path of a list -> its key field and kind, from the converter) is prepended to the
+// preview script as `window.__ui2keys`, so the preview keys loop instances as the runtime does.
+//
 // Packages (watch mode): when `pkgDir` is given, `GET /pkg/<id>.ui2`, `/pkg/<id>.rev` and
 // `/pkg/<id>.errors.json` are files of that folder (the converter writes them; `.rev` grows with every
 // package that built). These answers carry `Access-Control-Allow-Origin: *` and
@@ -103,7 +106,7 @@ export function pkgType(name) {
   return MIME[".json"];
 }
 
-export async function startServer({ root, port = 0, fontsDir = null, preview = false, pkgDir = null }) {
+export async function startServer({ root, port = 0, fontsDir = null, preview = false, pkgDir = null, listKeys = null }) {
   const rootDir = path.resolve(root);
   const log = new Map(); // url path -> status of the last response
   const htmlCache = new Map(); // relPath -> { mtimeMs, html, styles }
@@ -164,7 +167,10 @@ export async function startServer({ root, port = 0, fontsDir = null, preview = f
 
       if (urlPath === PREVIEW_URL) {
         if (!fs.existsSync(PREVIEW_FILE)) return done(404, "preview script is not available");
-        return done(200, fs.readFileSync(PREVIEW_FILE), MIME[".js"]);
+        // The list keys of the model schema go in front of the script (no request of their own, so the page
+        // loads the same files with and without them).
+        const keys = listKeys ? `window.__ui2keys = ${JSON.stringify(listKeys)};\n` : "";
+        return done(200, keys + fs.readFileSync(PREVIEW_FILE, "utf8"), MIME[".js"]);
       }
       if (rel.startsWith("__ui2/")) return done(404, "not found");
       if (cors) {

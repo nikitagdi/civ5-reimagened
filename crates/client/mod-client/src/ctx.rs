@@ -13,7 +13,7 @@ use render::cutout::{CutoutGrid, CutoutRegion};
 use render::frame::ModGpu;
 
 use crate::types::{
-    HotkeySpec, PackState, PlayOpts, PlayerInfo, PlotView, ScreenInfo, StrategicCamera,
+    HotkeySpec, PackState, PlayOpts, PlayerInfo, PlotView, ScreenInfo, StrategicCamera, UiValue,
 };
 
 /// Why a context call failed.
@@ -156,6 +156,22 @@ pub trait HudTextures {
     -> Result<TextureId, CtxError>;
 }
 
+/// The mod's own fields of the UI v2 model, `mods.<id>.*` (API 1.3, needs `ui`). The fields and their types come from
+/// the mod's `ui/model.toml`; the panels and the mod's script read them. Writes are queued by the host whatever UI is
+/// active and reach the panels in load order. An unknown field, a value of another type or out of the field's range is
+/// refused with `CtxError::Rejected` naming the field, and the write is dropped.
+pub trait ModUiModel {
+    /// Sets a scalar field (`count`, or `stats.last` inside a struct field).
+    fn set(&mut self, field: &str, v: UiValue) -> Result<(), CtxError>;
+    /// Inserts or replaces the record `key` of a keyed list; `rec` names the record's fields (the key field may be
+    /// left out).
+    fn list_put(&mut self, list: &str, key: i64, rec: &[(&str, UiValue)]) -> Result<(), CtxError>;
+    /// Removes the record `key` of a list (nothing happens when there is none).
+    fn list_remove(&mut self, list: &str, key: i64) -> Result<(), CtxError>;
+    /// Empties a list.
+    fn list_clear(&mut self, list: &str) -> Result<(), CtxError>;
+}
+
 /// The context of one mod, as the mod sees it. Every method that needs a capability returns
 /// `CtxError::Denied` when the mod did not declare it.
 pub trait ClientCtx {
@@ -219,6 +235,13 @@ pub trait ClientCtx {
     /// `AttachInfo::this.id`). A mod can tell the player that another mode is active before trying.
     fn control_holder(&self) -> Option<ModId> {
         None
+    }
+
+    /// The mod's UI v2 model fields (API 1.3). Needs `ui`. Available in every call (`attach`, `on_msg`, `on_hotkey`,
+    /// `frame`, `on_ui_intent`): it is the mod's own state, so data from the server goes to the panels straight from
+    /// `on_msg`. A host without UI v2 answers `CtxError::Unavailable("ui")`.
+    fn ui_model(&mut self) -> Result<&mut dyn ModUiModel, CtxError> {
+        Err(CtxError::Unavailable("ui"))
     }
 }
 
@@ -394,5 +417,10 @@ impl ClientCtx for Guarded<'_> {
             Some(a) => a.control.holder().map(|(_, id)| id.clone()),
             None => self.inner.control_holder(),
         }
+    }
+
+    fn ui_model(&mut self) -> Result<&mut dyn ModUiModel, CtxError> {
+        self.caps.require(Cap::Ui)?;
+        self.inner.ui_model()
     }
 }

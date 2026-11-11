@@ -200,6 +200,102 @@ impl Default for ModBuild {
     }
 }
 
+/// A value a mod writes into its UI v2 model fields or receives with an intent of its panels (API 1.3). The host
+/// converts it to the type the field declares in the mod's `ui/model.toml`: `Int` to `i16`/`i32`/`u32` with a range
+/// check, `Num` to `f32`, `Str` to `str`/`text`; a value that does not fit is refused with the field's name.
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
+pub enum UiValue {
+    Null,
+    Bool(bool),
+    Int(i64),
+    Num(f64),
+    Str(String),
+}
+
+impl UiValue {
+    /// The integer, if this is one.
+    pub fn as_int(&self) -> Option<i64> {
+        match self {
+            Self::Int(n) => Some(*n),
+            _ => None,
+        }
+    }
+
+    /// The text, if this is a string.
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            Self::Str(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// The flag, if this is a boolean.
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            Self::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    /// The number, for an `Int` or a `Num`.
+    pub fn as_num(&self) -> Option<f64> {
+        match self {
+            Self::Int(n) => Some(*n as f64),
+            Self::Num(x) => Some(*x),
+            _ => None,
+        }
+    }
+}
+
+impl From<bool> for UiValue {
+    fn from(v: bool) -> Self {
+        Self::Bool(v)
+    }
+}
+
+impl From<i64> for UiValue {
+    fn from(v: i64) -> Self {
+        Self::Int(v)
+    }
+}
+
+impl From<i32> for UiValue {
+    fn from(v: i32) -> Self {
+        Self::Int(i64::from(v))
+    }
+}
+
+impl From<u32> for UiValue {
+    fn from(v: u32) -> Self {
+        Self::Int(i64::from(v))
+    }
+}
+
+impl From<f64> for UiValue {
+    fn from(v: f64) -> Self {
+        Self::Num(v)
+    }
+}
+
+impl From<f32> for UiValue {
+    fn from(v: f32) -> Self {
+        Self::Num(f64::from(v))
+    }
+}
+
+impl From<&str> for UiValue {
+    fn from(v: &str) -> Self {
+        Self::Str(v.to_string())
+    }
+}
+
+impl From<String> for UiValue {
+    fn from(v: String) -> Self {
+        Self::Str(v)
+    }
+}
+
 /// One mod of a game's frozen set as the server announced it (`GameMsg::Mods`), as plain values.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SetEntry {

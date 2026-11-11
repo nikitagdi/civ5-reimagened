@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Deserialize;
 use ui2_package::profile::{BgLayer, Profile, PropId, Tag, Value, parse_value};
-use ui2_package::style::{ColorV, Display, StyleRecord};
+use ui2_package::style::{ColorV, Display, Overflow, ScrollbarWidth, StyleRecord};
 use ui2_package::{Bound, Cond, CondKind, StrId, StyleId, StyleSet, TokenId, Tokens};
 
 use crate::errors::{ConvError, Place, codes};
@@ -390,6 +390,17 @@ impl Cx<'_> {
                 ));
             }
         }
+        // A scroll container keeps Chrome's scrollbar out of the layout: the runtime draws none, so the
+        // content box would differ by the bar's width.
+        if scrolls(&rec) && rec.scrollbar_width != ScrollbarWidth::None {
+            self.errs.push(err_node(
+                self.dom,
+                ix,
+                codes::SCROLLBAR,
+                "scrollbar-width",
+                "`overflow: auto` or `scroll` without `scrollbar-width: none`".to_string(),
+            ));
+        }
         if let [
             Some(Value::Properties(ps)),
             Some(Value::Times(d)),
@@ -405,6 +416,41 @@ impl Cx<'_> {
             contents,
         }
     }
+}
+
+/// Game assets (`data-asset`, `data-bind-src`) take their size from CSS: the asset's own size is not known when
+/// the skin is built. An element whose width or height is `auto` in some cell or state is E5-007.
+pub fn asset_sizes(dom: &Dom, statics: &crate::check::Statics, c: &Compiled) -> Vec<ConvError> {
+    use ui2_package::style::LenAuto;
+    let mut errs = Vec::new();
+    for (&ix, a) in &statics.attrs {
+        if a.asset.is_none() && a.src.is_none() {
+            continue;
+        }
+        let e = dom.elems[ix];
+        let Some(set) = c.set_of(e.id) else { continue };
+        let auto = set.table.iter().any(|s| {
+            c.records.get(s.index()).is_some_and(|r| {
+                matches!(r.width, LenAuto::Auto) || matches!(r.height, LenAuto::Auto)
+            })
+        });
+        if auto {
+            errs.push(err_node(
+                dom,
+                ix,
+                codes::ASSET_SIZE,
+                "width",
+                "a game asset whose width or height is `auto`".to_string(),
+            ));
+        }
+    }
+    errs
+}
+
+/// Whether a record is a scroll container on either axis.
+pub fn scrolls(r: &StyleRecord) -> bool {
+    matches!(r.overflow_x, Overflow::Auto | Overflow::Scroll)
+        || matches!(r.overflow_y, Overflow::Auto | Overflow::Scroll)
 }
 
 /// A value with every picture URL (Chrome's absolute URL on the local server) replaced by the path of the

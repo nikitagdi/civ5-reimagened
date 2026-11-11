@@ -48,6 +48,74 @@ pub struct Subset {
     pub bytes: Vec<u8>,
 }
 
+/// The line of a key in an l10n table as written (`"key" = ...` or `key = ...`); 0 when not found (a nested
+/// table).
+fn key_line(raw: &str, key: &str) -> u32 {
+    let quoted = format!("\"{key}\"");
+    raw.lines()
+        .position(|l| {
+            let l = l.trim_start();
+            let rest = l
+                .strip_prefix(quoted.as_str())
+                .or_else(|| l.strip_prefix(key));
+            rest.is_some_and(|r| r.trim_start().starts_with('='))
+        })
+        .map_or(0, |i| i as u32 + 1)
+}
+
+/// The skin's texts must be drawable with the skin's fonts: the runtime has no fallback fonts, so a character of
+/// an l10n text that no font of `[fonts.files]` has is E5-006 at the text. A skin without font files is not
+/// checked here (its faces fail earlier).
+pub fn missing_glyphs(skin_dir: &Path, skin: &Skin, texts: &crate::l10n::Texts) -> Vec<ConvError> {
+    use skrifa::MetadataProvider;
+    let files: Vec<Vec<u8>> = skin
+        .fonts
+        .files
+        .values()
+        .filter_map(|f| std::fs::read(repo_root().join(f)).ok())
+        .collect();
+    let fonts: Vec<skrifa::FontRef> = files
+        .iter()
+        .filter_map(|b| skrifa::FontRef::new(b).ok())
+        .collect();
+    if fonts.is_empty() {
+        return Vec::new();
+    }
+    let maps: Vec<skrifa::charmap::Charmap> = fonts.iter().map(|f| f.charmap()).collect();
+    let has = |c: char| maps.iter().any(|m| m.map(c).is_some());
+    let mut errs = Vec::new();
+    for lang in &texts.langs {
+        let rel = format!("l10n/{}.toml", lang.tag);
+        let raw = std::fs::read_to_string(skin_dir.join(&rel))
+            .unwrap_or_default()
+            .replace("\r\n", "\n");
+        for (key, text) in &lang.entries {
+            let mut missing: Vec<char> = text
+                .chars()
+                .filter(|c| !c.is_whitespace() && !c.is_control() && !has(*c))
+                .collect();
+            missing.sort();
+            missing.dedup();
+            if missing.is_empty() {
+                continue;
+            }
+            let list: Vec<String> = missing
+                .iter()
+                .map(|c| format!("`{c}` (U+{:04X})", u32::from(*c)))
+                .collect();
+            errs.push(
+                ConvError::new(
+                    codes::GLYPH,
+                    Place::at(&rel, key_line(&raw, key), 1),
+                    format!("`{key}`: no font of the skin has {}", list.join(", ")),
+                )
+                .prop(key.clone()),
+            );
+        }
+    }
+    errs
+}
+
 /// The repository root (the converter is a tool of this repository).
 pub fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..")

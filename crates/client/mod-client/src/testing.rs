@@ -12,10 +12,10 @@ use render::cutout::{CutoutGrid, CutoutRegion};
 
 use crate::ctx::{
     ClientCtx, ClientHost, CtxError, CutoutMask, Hotkeys, HudTextures, ModAssets, ModAudio, ModKv,
-    ModTerrain, ModWorld,
+    ModTerrain, ModUiModel, ModWorld,
 };
 use crate::types::{
-    HotkeySpec, PackState, PlayOpts, PlayerInfo, PlotView, ScreenInfo, StrategicCamera,
+    HotkeySpec, PackState, PlayOpts, PlayerInfo, PlotView, ScreenInfo, StrategicCamera, UiValue,
 };
 
 /// A message `send` recorded.
@@ -324,6 +324,121 @@ impl CutoutMask for MockCutout {
     }
 }
 
+/// One write of a mod into its UI v2 model fields, as [`MockUiModel`] records it.
+#[derive(Debug, Clone, PartialEq)]
+pub enum UiOp {
+    Set {
+        field: String,
+        v: UiValue,
+    },
+    ListPut {
+        list: String,
+        key: i64,
+        rec: Vec<(String, UiValue)>,
+    },
+    ListRemove {
+        list: String,
+        key: i64,
+    },
+    ListClear {
+        list: String,
+    },
+}
+
+/// One mod's UI v2 model fields in memory: the writes in order and the resulting values. With `declared` set, a write
+/// to a field or list that is not declared is refused the way a host refuses it (`CtxError::Rejected` with the name).
+#[derive(Debug, Clone, Default)]
+pub struct MockUiModel {
+    pub ops: Vec<UiOp>,
+    pub fields: BTreeMap<String, UiValue>,
+    pub lists: BTreeMap<String, BTreeMap<i64, Vec<(String, UiValue)>>>,
+    /// The names writes may use (fields and lists); `None` accepts every name.
+    pub declared: Option<Vec<String>>,
+}
+
+impl MockUiModel {
+    /// A model that accepts only these field and list names.
+    pub fn declared(names: &[&str]) -> Self {
+        Self {
+            declared: Some(names.iter().map(|s| (*s).to_string()).collect()),
+            ..Self::default()
+        }
+    }
+
+    fn check(&self, name: &str) -> Result<(), CtxError> {
+        match &self.declared {
+            Some(d) if !d.iter().any(|n| n == name) => Err(CtxError::Rejected(format!(
+                "`{name}` is not a field of the mod's model"
+            ))),
+            _ => Ok(()),
+        }
+    }
+
+    /// The value of a scalar field.
+    pub fn get(&self, field: &str) -> Option<&UiValue> {
+        self.fields.get(field)
+    }
+
+    /// The keys of a list, in key order.
+    pub fn keys(&self, list: &str) -> Vec<i64> {
+        self.lists
+            .get(list)
+            .map(|l| l.keys().copied().collect())
+            .unwrap_or_default()
+    }
+}
+
+impl ModUiModel for MockUiModel {
+    fn set(&mut self, field: &str, v: UiValue) -> Result<(), CtxError> {
+        self.check(field)?;
+        self.fields.insert(field.to_string(), v.clone());
+        self.ops.push(UiOp::Set {
+            field: field.to_string(),
+            v,
+        });
+        Ok(())
+    }
+
+    fn list_put(&mut self, list: &str, key: i64, rec: &[(&str, UiValue)]) -> Result<(), CtxError> {
+        self.check(list)?;
+        let rec: Vec<(String, UiValue)> = rec
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), v.clone()))
+            .collect();
+        self.lists
+            .entry(list.to_string())
+            .or_default()
+            .insert(key, rec.clone());
+        self.ops.push(UiOp::ListPut {
+            list: list.to_string(),
+            key,
+            rec,
+        });
+        Ok(())
+    }
+
+    fn list_remove(&mut self, list: &str, key: i64) -> Result<(), CtxError> {
+        self.check(list)?;
+        if let Some(l) = self.lists.get_mut(list) {
+            l.remove(&key);
+        }
+        self.ops.push(UiOp::ListRemove {
+            list: list.to_string(),
+            key,
+        });
+        Ok(())
+    }
+
+    fn list_clear(&mut self, list: &str) -> Result<(), CtxError> {
+        self.check(list)?;
+        self.lists.remove(list);
+        self.ops.push(UiOp::ListClear {
+            list: list.to_string(),
+        });
+        Ok(())
+    }
+}
+
 /// A headless client host. All parts are public: set up the world, run the code under test, read what was recorded.
 pub struct MockClientCtx {
     /// Index of the mod the dispatcher is currently calling (set by `ClientHost::ctx`).
@@ -351,6 +466,8 @@ pub struct MockClientCtx {
     pub control_holder: Option<ModId>,
     /// The id the mock answers for the mod under test when it acquires (`mock` unless set).
     pub control_id: ModId,
+    /// The UI v2 model fields of each mod, by mod index (API 1.3). A mod without an entry gets an accepting one.
+    pub ui: BTreeMap<u16, MockUiModel>,
 }
 
 impl MockClientCtx {
@@ -380,7 +497,13 @@ impl MockClientCtx {
             pointer_lock_requests: Vec::new(),
             control_holder: None,
             control_id: ModId::new("mock").unwrap_or_else(|_| unreachable!("a valid id")),
+            ui: BTreeMap::new(),
         }
+    }
+
+    /// The UI v2 model fields mod `mod_idx` wrote (an empty model if it wrote none).
+    pub fn ui_of(&self, mod_idx: u16) -> MockUiModel {
+        self.ui.get(&mod_idx).cloned().unwrap_or_default()
     }
 
     /// Makes the pack available with these files.
@@ -516,6 +639,10 @@ impl ClientCtx for MockClientCtx {
 
     fn control_holder(&self) -> Option<ModId> {
         self.control_holder.clone()
+    }
+
+    fn ui_model(&mut self) -> Result<&mut dyn ModUiModel, CtxError> {
+        Ok(self.ui.entry(self.current).or_default())
     }
 }
 

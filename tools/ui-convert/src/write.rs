@@ -23,7 +23,7 @@ use std::collections::BTreeMap;
 use ui2_package::profile::attrs::NodeAttrs;
 use ui2_package::profile::expr::{Expr, TplSeg};
 use ui2_package::sections::blobs::{BlobRef, BlobSection};
-use ui2_package::style::{BgImage, Overflow, StyleRecord};
+use ui2_package::style::BgImage;
 use ui2_package::{
     BindKind, Binding, CondKind, Face, FaceFamily, FontRole, FontRoles, ImageSrc, Kind, Lit,
     Manifest, Node, NodeKind, NodeRef, PackageBuilder, Seg, SrcLoc, StyleSet, StyleSetId, Tag,
@@ -36,7 +36,7 @@ use crate::fonts::Subset;
 use crate::ir::{Dom, Element, Node as IrNode};
 use crate::numbering;
 use crate::skin::{Skin, StateValue};
-use crate::styles::{BoxNode, Compiled};
+use crate::styles::{BoxNode, Compiled, scrolls};
 
 /// zstd level of font and picture blobs (deterministic for a fixed library version).
 pub const ZSTD_LEVEL: i32 = 19;
@@ -546,11 +546,6 @@ impl Tb<'_> {
     }
 }
 
-fn scrolls(r: &StyleRecord) -> bool {
-    matches!(r.overflow_x, Overflow::Auto | Overflow::Scroll)
-        || matches!(r.overflow_y, Overflow::Auto | Overflow::Scroll)
-}
-
 fn lit_of(v: &StateValue) -> Lit {
     match v {
         StateValue::Bool(b) => Lit::Bool(*b),
@@ -858,17 +853,19 @@ pub fn budget(sections: &[(String, u32)]) -> Vec<(&'static str, u64, u64)> {
     ]
 }
 
-/// E8 errors for a budget over its limits.
+/// The E8 error of a package over its budget: one error that names every part over its limit.
 pub fn check_budget(sections: &[(String, u32)]) -> Vec<ConvError> {
-    budget(sections)
+    let over: Vec<String> = budget(sections)
         .into_iter()
         .filter(|(_, n, max)| n > max)
-        .map(|(what, n, max)| {
-            ConvError::new(
-                codes::BUDGET,
-                Place::default(),
-                format!("{what}: {n} bytes, at most {max}"),
-            )
-        })
-        .collect()
+        .map(|(what, n, max)| format!("{what}: {n} bytes, at most {max}"))
+        .collect();
+    if over.is_empty() {
+        return Vec::new();
+    }
+    vec![ConvError::new(
+        codes::BUDGET,
+        Place::default(),
+        over.join("; "),
+    )]
 }
