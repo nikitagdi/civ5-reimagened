@@ -56,6 +56,26 @@ test("packages are served cross-origin from the package folder only", async () =
   }
 });
 
+test("virtual files are served before the folder's own, HTML annotated like a file", async () => {
+  const server = await startServer({
+    root: FIXTURE,
+    virtualFiles: { "css/page.html": "<!doctype html>\n<body>\n<div data-include=\"x.html\"></div>\n</body>\n", "css/extra.css": ".a { color: red; }\n" },
+  });
+  try {
+    const page = await fetch(`${server.url}/css/page.html`);
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /<div data-ui2-src="css\/page\.html:3:1" data-include="x\.html">/);
+    const css = await fetch(`${server.url}/css/extra.css`);
+    assert.equal(css.headers.get("content-type"), "text/css; charset=utf-8");
+    assert.equal(await css.text(), ".a { color: red; }\n");
+    assert.equal(server.readText("css/extra.css"), ".a { color: red; }\n");
+    assert.match(server.readText("css/strip.css"), /\S/, "a file of the folder");
+    assert.equal(server.readText("css/none.css"), null);
+  } finally {
+    await server.close();
+  }
+});
+
 test("without a package folder there are no package routes", async () => {
   const server = await startServer({ root: FIXTURE });
   try {

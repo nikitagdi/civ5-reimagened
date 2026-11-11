@@ -41,6 +41,9 @@ ui2-text.workspace = true
 ui2-draw.workspace = true
 # The character maps of the skin's font files: a text character no font has is an error (no fallback fonts).
 skrifa.workspace = true
+# Fragment mode: a mod's `mod.toml [ui]`, and the catalogue of extension points and color tokens a mod may use.
+mod-manifest.workspace = true
+mod-api.workspace = true
 
 [dev-dependencies]
 # The written skin index must be accepted by the application's registry.

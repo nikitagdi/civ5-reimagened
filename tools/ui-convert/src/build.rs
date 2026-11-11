@@ -155,7 +155,7 @@ pub fn build(dir: &Path, write_package: bool) -> BuildOut {
     run.errors.extend(e);
 
     let pictures = if run.errors.is_empty() {
-        match pictures_of(&run, &fonts_dir_of(&out)) {
+        match pictures_of(&run, Some(&fonts_dir_of(&out))) {
             Ok(p) => p,
             Err(e) => {
                 run.errors.extend(e);
@@ -202,15 +202,16 @@ fn fonts_dir_of(out: &Path) -> PathBuf {
     out.join("fonts")
 }
 
-/// The pictures of a run, rasterized in a Chromium session of their own.
-pub fn pictures_of(run: &Run, fonts_dir: &Path) -> Result<Pictures, Vec<ConvError>> {
+/// The pictures of a run, rasterized in a Chromium session of their own (the font subsets served from
+/// `fonts_dir`; a mod fragment has none).
+pub fn pictures_of(run: &Run, fonts_dir: Option<&Path>) -> Result<Pictures, Vec<ConvError>> {
     let (Some(src), Some(scanned), Some(styles)) = (&run.source, &run.scanned, &run.styles) else {
         return Ok(Pictures::default());
     };
     let dom = Dom::new(&scanned.ir.dom);
     let mut node = crate::node::NodeClient::start().map_err(|e| vec![e])?;
     let opts = Opts {
-        fonts_dir: Some(fonts_dir.to_path_buf()),
+        fonts_dir: fonts_dir.map(Path::to_path_buf),
     };
     let r = crate::open(&mut node, src, &opts)
         .map_err(|e| vec![e])

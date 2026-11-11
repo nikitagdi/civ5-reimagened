@@ -485,6 +485,7 @@ pub fn compile(
     plan: &Plan,
     out: &Extracted,
     static_props: &BTreeSet<String>,
+    fragment: bool,
 ) -> (Compiled, Vec<ConvError>) {
     let color_tokens: Vec<&TokenOut> = out.tokens.iter().filter(|t| t.color.is_some()).collect();
     let mut cx = Cx {
@@ -616,7 +617,7 @@ pub fn compile(
             c.contents.insert(pn.id);
         }
     }
-    c.tree = box_tree(dom, &c, plan);
+    c.tree = box_tree(dom, &c, fragment);
     c.strs = cx.strs;
     (c, cx.errs)
 }
@@ -919,14 +920,20 @@ fn paragraph(e: &Element) -> bool {
         .any(|k| matches!(k, Node::Text(t) if !t.ws))
 }
 
-fn box_tree(dom: &Dom, c: &Compiled, _plan: &Plan) -> Vec<BoxNode> {
+/// The box tree: the layer roots of a skin, or the panel roots of a mod fragment (the elements of its body).
+fn box_tree(dom: &Dom, c: &Compiled, fragment: bool) -> Vec<BoxNode> {
     let Some(body) = dom.body() else {
         return Vec::new();
     };
     let mut seen = BTreeSet::new();
     let mut out = Vec::new();
     for k in dom.elems[body].elements() {
-        if k.attr("data-layer").is_none() || k.attr("data-ui2-dev").is_some() {
+        let top = if fragment {
+            !crate::numbering::skipped(k)
+        } else {
+            k.attr("data-layer").is_some() && k.attr("data-ui2-dev").is_none()
+        };
+        if !top {
             continue;
         }
         if let Some(&set) = c.node_set.get(&k.id) {

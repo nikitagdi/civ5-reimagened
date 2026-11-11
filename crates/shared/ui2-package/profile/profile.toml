@@ -356,7 +356,10 @@ error.E5-004 = { what = "font face not loaded", hint = "Chromium could not load 
 error.E5-005 = { what = "picture cannot be rasterized", hint = "pictures are png, webp or svg files inside the skin with a size from CSS" }
 error.E5-006 = { what = "character missing from the skin fonts", hint = "the runtime has no fallback fonts; use a font of skin.toml [fonts.files] that has the character, or change the text" }
 error.E5-007 = { what = "game asset without a size", hint = "give the element of data-asset or data-bind-src a width and a height in CSS; the asset's own size is not known when the skin is built" }
+error.E5-008 = { what = "font face whose line height depends on the platform", hint = "set the USE_TYPO_METRICS bit (OS/2 fsSelection bit 7) of the font, or give it the same ascent and descent in hhea, OS/2 typo and OS/2 win with no line gap; otherwise Chrome on Windows and the game lay the text out at different heights" }
+error.E5-009 = { what = "font of a mod panel that is not a font role of the skin", hint = "a mod brings no fonts: write font-family: ui-sans or ui-display (the skin's faces for those roles) on every element that shows text, and no @font-face" }
 error.E8-001 = { what = "package budget exceeded", hint = "the package holds at most 3 MB: fonts 1.2 MB, pictures 0.8 MB, scripts 750 KB, the rest 0.5 MB; use fewer or smaller pictures, fewer faces or a smaller subset" }
+error.E8-002 = { what = "mod fragment budget exceeded", hint = "a mod's fragment holds at most 1 MB, and one picture at most 256 KiB of pixels at both scales together; use fewer or smaller pictures" }
 error.E6-001 = { what = "untranslated text", hint = "put the text into the skin's l10n tables and show it with data-l10n, or bind it with data-bind-value" }
 error.E6-002 = { what = "text key not found", hint = "add the key to l10n/<lang>.toml of every language of the skin" }
 error.E6-003 = { what = "malformed text table or template", hint = "an l10n file is TOML with \"key\" = \"template\"; a template uses {1}, {1_Num}, {1: plural ...} like the game's texts" }
@@ -368,6 +371,8 @@ error.E7-004 = { what = "the same hotkey twice in one layer", hint = "give each 
 error.E7-005 = { what = "the same part name twice", hint = "a part name names one element of the skin" }
 error.E7-006 = { what = "tooltip template not found", hint = "data-tooltip is the id of a <template data-layer=\"tooltip\"> of the skin" }
 error.E7-007 = { what = "layer root is not a full-size box without pointer events", hint = "a layer root is position:absolute; inset:0; pointer-events:none, and its panels switch pointer events on" }
+error.E7-008 = { what = "mod panel outside the rules of a fragment", hint = "a panel page holds one root element (and the <link> of its stylesheets); the panel pages of a mod sit in one folder; a mod adds no layers, screens or extension points; it reads the --ui-* color tokens of the catalogue and does not define them" }
+error.E7-009 = { what = "class of a mod panel without the mod's prefix", hint = "every class a mod panel writes, toggles or selects starts with m-<mod id>-, so it never meets a class of the skin" }
 error.E9-001 = { what = "request outside the local server", hint = "a skin loads nothing from the network or from other servers; refer to files inside the skin folder" }
 error.E9-002 = { what = "Node or Chromium failed", hint = "run npm ci in tools/playtest and tools/ui-convert/node; check that node is on PATH" }
 error.E9-003 = { what = "bad request on the converter protocol", hint = "a converter bug: the Node side refused a request" }

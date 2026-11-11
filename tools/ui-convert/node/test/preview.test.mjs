@@ -139,19 +139,33 @@ test("engraved: node numbering is the same on every load and follows the rule", 
     const layers = await a.page.evaluate(() => [...document.querySelectorAll("body > .layer")].map((e) => e.getAttribute("data-ui2-node")));
     assert.deepEqual(layers.slice(0, 2), ["0:0", "0:1"]);
     assert.ok(layers.every((l) => l.startsWith("0:")));
-    // the three `if` nodes and the `for` node are roots of their own templates: element 0 there
-    const roots = await a.page.evaluate(() => [...document.querySelectorAll("[data-bind-if],[data-bind-for]")].map((e) => e.getAttribute("data-ui2-node")));
-    assert.ok(roots.every((r) => r.endsWith(":0") && !r.startsWith("0:")), roots.join(" "));
-    assert.equal(new Set(roots).size, 4, "three `if` roots and one `for` root (its three instances share a number)");
-    // inside an instance: the same numbers as the template, plus the key path
-    const inst = first.filter((l) => l.split("|")[1] !== "");
-    assert.ok(inst.length >= 6 && inst.every((l) => /^\d+:\d+\|0:[123]\|/.test(l)), inst.join("\n"));
-    // the numbers do not depend on the data
+    // The rule is checked against the skin as it is, not against a count of its templates (the skin grows).
+    const rootsOf = (page) => page.evaluate(() => [...document.querySelectorAll("[data-bind-if],[data-bind-for]")]
+      .map((e) => [e.getAttribute("data-ui2-node"), e.getAttribute("data-ui2-src") || ""].join("|")));
+    // Without data (templates mode) every `if` and `for` root appears once: element 0 of its own template, the
+    // templates numbered 1, 2, 3, ... in document order.
     const c = await openPage(ctx, engraved, "index.html?ui2mode=templates");
     const templates = await nodeList(c.page);
+    const tplRoots = await rootsOf(c.page);
+    assert.ok(tplRoots.length > 0);
+    assert.deepEqual(tplRoots.map((r) => r.split("|")[0]), tplRoots.map((_, i) => `${i + 1}:0`), tplRoots.join("\n"));
+    // With the sample: a root is still element 0 of a template that is not the document; the instances of a loop
+    // share their template's number, and a root has the number it has without data.
+    const roots = await rootsOf(a.page);
+    assert.ok(roots.every((r) => /^[1-9]\d*:0\|/.test(r)), roots.join("\n"));
+    assert.ok(roots.every((r) => tplRoots.includes(r)), roots.join("\n"));
+    // inside an instance: the same numbers as the template, plus the key path
+    const inst = first.filter((l) => l.split("|")[1] !== "");
+    assert.ok(inst.length >= 6 && inst.every((l) => /^\d+:\d+\|[^|]+\|/.test(l)), inst.join("\n"));
+    // the numbers do not depend on the data: every numbered element of the page (instances folded) is an element
+    // of the templates page with the same number and source
     const stripInst = (l) => l.split("|").filter((_, i) => i !== 1).join("|");
     const uniq = (xs) => [...new Set(xs)];
-    assert.deepEqual(uniq(first.map(stripInst)), templates.map(stripInst));
+    const shown = uniq(first.map(stripInst));
+    const all = templates.map(stripInst);
+    assert.equal(new Set(all).size, all.length, "every element of the templates page has its own number");
+    const at = shown.map((l) => all.indexOf(l));
+    assert.ok(at.every((i) => i >= 0), shown.filter((_, k) => at[k] < 0).join("\n"));
   } finally {
     await ctx.close();
   }
