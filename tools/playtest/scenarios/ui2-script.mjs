@@ -5,7 +5,8 @@
 //   lands in the model; a markup event does the same;
 // - isolation: the forbidden globals are gone in the worker; a handler that throws is switched off with one log
 //   line (also when it is called again) and the page goes on; a handler that hangs gets its worker killed after
-//   1000 ms and a new one starts from the model as it is, without stalling the page.
+//   1000 ms and a new one starts from the model as it is, without stalling the page;
+// - the server sends `ui2/worker.js` with its policy (no network, `eval` for the skin files), the page without one.
 import { openPage } from "../lib/browser.mjs";
 
 /** The skin script of the run. */
@@ -92,6 +93,17 @@ export async function run(ctx) {
     const gap = await page.evaluate(() => window.__ui2self.gaps());
     result.numbers.longestFrameGapMs = Math.round(gap);
     check("the page does not stall while the worker hangs", gap < 250, `${Math.round(gap)} ms between frames`);
+
+    // ---- part 3: the policy of the worker
+    const csp = await page.evaluate(async () => {
+      const get = async (u) => (await fetch(u, { cache: "no-store" })).headers.get("content-security-policy");
+      return { worker: await get("ui2/worker.js"), api: await get("ui2/api.js"), page: await get("ui2-selftest.html") };
+    });
+    check(
+      "the worker is served with its policy, the other files without",
+      csp.worker === "default-src 'none'; script-src 'self' 'unsafe-eval'" && csp.api === null && csp.page === null,
+      JSON.stringify(csp),
+    );
 
     // The module's start finds no game canvas on this page and says so: not an error of the scripts.
     const errors = b.errors.filter((e) => !/page has no <canvas/.test(e));

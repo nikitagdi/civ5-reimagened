@@ -136,9 +136,27 @@ pub async fn static_file(
     if decoded.ends_with('/') {
         rel.push("index.html");
     }
+    let worker = rel == Path::new(SCRIPT_WORKER);
     let resp = serve_file(shared.config.web_root.clone(), rel, &headers, Kind::Web).await;
-    isolate(&shared, resp)
+    let mut resp = isolate(&shared, resp);
+    if worker {
+        resp.headers_mut().insert(
+            header::CONTENT_SECURITY_POLICY,
+            HeaderValue::from_static(SCRIPT_WORKER_CSP),
+        );
+    }
+    resp
 }
+
+/// The loader of the UI v2 script workers: skin and mod scripts run in it.
+const SCRIPT_WORKER: &str = "ui2/worker.js";
+
+/// The policy of a script worker (a dedicated worker takes the policy of its own script's response): no network
+/// at all (`default-src 'none'` covers `connect-src`), scripts only from the page's origin (the loader's
+/// `importScripts("api.js")`), and `'unsafe-eval'` for the skin files, which arrive as text in the worker's first
+/// message and run through `new Function`. The loader also takes the network globals away; the policy holds if
+/// that is ever bypassed. The page itself gets no policy here.
+const SCRIPT_WORKER_CSP: &str = "default-src 'none'; script-src 'self' 'unsafe-eval'";
 
 /// `None` on malformed or non-UTF-8 input.
 fn percent_decode(s: &str) -> Option<String> {
