@@ -16,8 +16,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Deserialize;
-use ui2_package::profile::{Profile, PropId, Tag, Value, parse_value};
-use ui2_package::style::{BgImage, ColorV, Display, StyleRecord};
+use ui2_package::profile::{BgLayer, Profile, PropId, Tag, Value, parse_value};
+use ui2_package::style::{ColorV, Display, StyleRecord};
 use ui2_package::{Bound, Cond, CondKind, StrId, StyleId, StyleSet, TokenId, Tokens};
 
 use crate::errors::{ConvError, Place, codes};
@@ -260,7 +260,9 @@ impl Beacon {
             }
             (Value::Images(mut list), Value::Images(blist)) if list.len() == blist.len() => {
                 for (img, b) in list.iter_mut().zip(blist) {
-                    let (BgImage::Gradient(g), BgImage::Gradient(bg)) = (img, b);
+                    let (BgLayer::Gradient(g), BgLayer::Gradient(bg)) = (img, b) else {
+                        continue;
+                    };
                     if g.stops.len() != bg.stops.len() {
                         continue;
                     }

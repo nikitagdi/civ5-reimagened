@@ -56,6 +56,24 @@ pub enum ValueKind {
     Repeats,
     /// A comma list of keywords, each one of `values`.
     Keywords,
+    /// `auto` or `w / h` (`aspect-ratio`).
+    Ratio,
+    /// `none` or a track list with `repeat(N, ...)` (`grid-template-*`).
+    Tracks,
+    /// A list of track sizes (`grid-auto-*`).
+    TrackSizes,
+    /// `auto`, a line number or `span N` (`grid-row-start` ...).
+    GridLine,
+    /// `none` or `url()` of a picture (`border-image-source`).
+    Url,
+    /// One to four numbers or percentages and `fill` (`border-image-slice`).
+    Slice,
+    /// One to four px lengths or numbers (`border-image-width`).
+    ImageWidths,
+    /// One or two of `values` (`border-image-repeat`).
+    ImageRepeat,
+    /// `none` or a convex `polygon()` (`clip-path`).
+    Polygon,
 }
 
 /// One property of the profile.
@@ -336,7 +354,7 @@ fn check_prop(name: &str, def: &PropDef) -> Result<(), TableError> {
     let bad = |m: &str| Err(TableError::Invalid(format!("prop.{name}: {m}")));
     let keywords = matches!(
         def.kind,
-        ValueKind::Keyword | ValueKind::KeywordSet | ValueKind::Keywords
+        ValueKind::Keyword | ValueKind::KeywordSet | ValueKind::Keywords | ValueKind::ImageRepeat
     );
     if keywords && def.values.is_empty() {
         return bad("a keyword property needs values");

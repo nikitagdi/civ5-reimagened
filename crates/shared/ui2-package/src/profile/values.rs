@@ -7,12 +7,19 @@
 use super::ids::PropId;
 use super::props::{Profile, PropDef, ValueKind};
 use crate::style::{
-    BgImage, BgRepeat, BgSize, ColorV, GradDir, Gradient, Len, LenAuto, LineHeight, Origin,
-    PropSel, Radius, Repeat, Shadow, Side, Stop, TFn,
+    AspectRatio, BgRepeat, BgSize, ColorV, GradDir, Gradient, GridLine, ImageRepeat, ImageRepeats,
+    ImageSlice, ImageWidth, Len, LenAuto, LineHeight, Origin, Point, PropSel, Radius, Repeat,
+    Shadow, Side, Stop, TFn, Track, TrackBreadth, TrackSize, convex_at,
 };
 
 /// Most color stops one gradient may have.
 pub const MAX_GRADIENT_STOPS: usize = 4;
+
+/// The boxes (CSS px) a `clip-path` polygon must be convex in. The parser cannot know the size of
+/// the node; a polygon mixing px and % is checked again at the node's size by the converter
+/// (`style::convex_at`).
+pub const CLIP_REFERENCE_BOXES: [[f32; 2]; 3] =
+    [[1024.0, 1024.0], [4096.0, 512.0], [512.0, 4096.0]];
 
 /// Error codes of the value parsers; the texts are in `profile.toml` (`error.<code>`).
 pub mod codes {
@@ -30,9 +37,19 @@ pub mod codes {
     pub const CALC: &str = "E2-007";
     /// A list longer than the property allows.
     pub const TOO_MANY: &str = "E2-008";
+    /// A grid feature outside the profile (`auto-fill`, named lines, `subgrid`, `fit-content()`).
+    pub const GRID: &str = "E2-020";
+    /// A clip shape other than a polygon.
+    pub const CLIP: &str = "E2-021";
+    /// A clip polygon that is not convex.
+    pub const CONCAVE: &str = "E2-022";
+    /// A picture reference outside the profile (format, `data:` URL, query).
+    pub const PICTURE: &str = "E2-023";
 
     /// Every code, for the tests.
-    pub const ALL: &[&str] = &[OUTSIDE, UNIT, NOT_FINITE, RANGE, COLOR, CALC, TOO_MANY];
+    pub const ALL: &[&str] = &[
+        OUTSIDE, UNIT, NOT_FINITE, RANGE, COLOR, CALC, TOO_MANY, GRID, CLIP, CONCAVE, PICTURE,
+    ];
 }
 
 /// A value the profile does not allow.
@@ -87,7 +104,7 @@ pub enum Value {
     /// A line height.
     LineHeight(LineHeight),
     /// Background layers (empty for `none`).
-    Images(Vec<BgImage>),
+    Images(Vec<BgLayer>),
     /// Background sizes, one per layer.
     BgSizes(Vec<BgSize>),
     /// A comma list of lengths.
@@ -96,6 +113,32 @@ pub enum Value {
     Repeats(Vec<BgRepeat>),
     /// A comma list of keywords.
     Keywords(Vec<String>),
+    /// `aspect-ratio`.
+    Ratio(AspectRatio),
+    /// A grid track list (empty for `none`).
+    Tracks(Vec<Track>),
+    /// A grid placement.
+    GridLine(GridLine),
+    /// A picture as Chrome wrote it (`url("...")` without the wrapper): an absolute URL on the
+    /// converter's server, which the converter turns into the path inside the skin.
+    Url(String),
+    /// `border-image-slice`.
+    Slice(ImageSlice),
+    /// `border-image-width`: top, right, bottom, left.
+    ImageWidths([ImageWidth; 4]),
+    /// `border-image-repeat`.
+    ImageRepeats(ImageRepeats),
+    /// A `clip-path` polygon (empty for `none`).
+    Polygon(Vec<Point>),
+}
+
+/// One layer of a parsed `background-image`.
+#[derive(Debug, Clone, PartialEq)]
+pub enum BgLayer {
+    /// A gradient.
+    Gradient(Gradient),
+    /// A picture, as Chrome wrote its URL (see `Value::Url`).
+    Url(String),
 }
 
 /// Parses `text` as a value of `prop` against `Profile::v1()`.
@@ -160,6 +203,18 @@ pub fn parse_value_in(profile: &Profile, prop: PropId, text: &str) -> Result<Val
         ValueKind::Lengths => parse_lengths(def, s),
         ValueKind::Repeats => parse_repeats(def, s),
         ValueKind::Keywords => parse_keywords(def, s),
+        ValueKind::Ratio => parse_ratio(s),
+        ValueKind::Tracks => parse_tracks(def, s, true),
+        ValueKind::TrackSizes => parse_tracks(def, s, false),
+        ValueKind::GridLine => parse_grid_line(s),
+        ValueKind::Url => match keyword_of(def, s) {
+            Some(k) => Ok(Value::Keyword(k)),
+            None => Ok(Value::Url(parse_url(prop, s)?)),
+        },
+        ValueKind::Slice => parse_slice(s),
+        ValueKind::ImageWidths => parse_image_widths(s),
+        ValueKind::ImageRepeat => parse_image_repeat(def, s),
+        ValueKind::Polygon => parse_polygon(def, s),
     }
 }
 
@@ -1129,7 +1184,11 @@ fn parse_images(def: &PropDef, s: &str) -> Result<Value, ValueError> {
     }
     let mut out = Vec::new();
     for item in list_items(def, s, "background layers")? {
-        out.push(BgImage::Gradient(parse_gradient(def, item)?));
+        if item.to_ascii_lowercase().starts_with("url(") {
+            out.push(BgLayer::Url(parse_url(PropId::BackgroundImage, item)?));
+        } else {
+            out.push(BgLayer::Gradient(parse_gradient(def, item)?));
+        }
     }
     Ok(Value::Images(out))
 }
@@ -1149,10 +1208,10 @@ fn parse_gradient(def: &PropDef, item: &str) -> Result<Gradient, ValueError> {
         "repeating-linear-gradient" => (false, true),
         "conic-gradient" => (true, false),
         "repeating-conic-gradient" => (true, true),
-        "url" | "image-set" => {
+        "image-set" | "-webkit-image-set" => {
             return err(
-                codes::OUTSIDE,
-                "picture backgrounds (url()) are not baked yet; use a gradient, or an <img> element",
+                codes::PICTURE,
+                "image-set() is outside the profile; write url() and put the 2x file next to it as <name>@2x.<ext>",
             );
         }
         name => {
@@ -1436,6 +1495,432 @@ fn parse_keywords(def: &PropDef, s: &str) -> Result<Value, ValueError> {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Pictures
+
+/// The picture formats a property may refer to.
+fn picture_formats(prop: PropId) -> &'static [&'static str] {
+    match prop {
+        // A 9-slice frame is a raster picture.
+        PropId::BorderImageSource => &["png", "webp"],
+        _ => &["png", "webp", "svg"],
+    }
+}
+
+/// `url("...")` (or unquoted) of a picture file: the URL as written, checked for its format.
+fn parse_url(prop: PropId, s: &str) -> Result<String, ValueError> {
+    let lower = s.to_ascii_lowercase();
+    if !lower.starts_with("url(") {
+        return err(
+            codes::OUTSIDE,
+            format!("{s:?}: {} takes none or url() of a picture", prop.name()),
+        );
+    }
+    let Some(inner) = s[4..].strip_suffix(')').map(str::trim) else {
+        return err(codes::OUTSIDE, format!("{s:?}: malformed url()"));
+    };
+    let url = match inner.chars().next() {
+        Some(q @ ('"' | '\'')) => match inner[1..].strip_suffix(q) {
+            Some(body) => body.replace(&format!("\\{q}"), &q.to_string()),
+            None => return err(codes::OUTSIDE, format!("{s:?}: unterminated quote")),
+        },
+        _ => inner.to_string(),
+    };
+    let formats = picture_formats(prop);
+    let want = || format!("a {} file of the skin", formats.join(", "));
+    if url.is_empty() {
+        return err(codes::PICTURE, format!("an empty url(): {}", want()));
+    }
+    if url.to_ascii_lowercase().starts_with("data:") {
+        return err(
+            codes::PICTURE,
+            format!("an inline data: picture; save it as {}", want()),
+        );
+    }
+    if url.contains(['?', '#']) {
+        return err(
+            codes::PICTURE,
+            format!("{url:?}: a picture reference has no query or fragment"),
+        );
+    }
+    let file = url.rsplit('/').next().unwrap_or(&url);
+    let ext = file
+        .rsplit_once('.')
+        .map(|(_, e)| e.to_ascii_lowercase())
+        .unwrap_or_default();
+    if !formats.contains(&ext.as_str()) {
+        return err(
+            codes::PICTURE,
+            format!("{url:?}: {} takes {}", prop.name(), want()),
+        );
+    }
+    Ok(url)
+}
+
+// ---------------------------------------------------------------------------------------------
+// Grid
+
+fn parse_ratio(s: &str) -> Result<Value, ValueError> {
+    if s == "auto" {
+        return Ok(Value::Ratio(AspectRatio::Auto));
+    }
+    let words = split_ws_top(s);
+    if words.contains(&"auto") {
+        return err(
+            codes::OUTSIDE,
+            format!(
+                "aspect-ratio {s:?}: `auto` with a ratio is outside the profile; write the ratio alone"
+            ),
+        );
+    }
+    let num = |t: &str| -> Result<f32, ValueError> {
+        let d = parse_dim(t)?;
+        if !d.unit.is_empty() {
+            return err(
+                codes::OUTSIDE,
+                format!("{t:?}: a ratio is two plain numbers"),
+            );
+        }
+        if d.v <= 0.0 {
+            return err(
+                codes::RANGE,
+                format!("aspect-ratio {s:?}: both numbers must be positive"),
+            );
+        }
+        to_f32(d.v)
+    };
+    match s.split_once('/') {
+        Some((w, h)) => Ok(Value::Ratio(AspectRatio::Ratio(
+            num(w.trim())?,
+            num(h.trim())?,
+        ))),
+        None => Ok(Value::Ratio(AspectRatio::Ratio(num(s)?, 1.0))),
+    }
+}
+
+fn grid_feature<T>(what: impl std::fmt::Display) -> Result<T, ValueError> {
+    err(codes::GRID, format!("{what} is outside the profile"))
+}
+
+/// One breadth: a length (px, %), `<n>fr`, `auto`, `min-content`, `max-content`.
+fn parse_breadth(def: &PropDef, t: &str) -> Result<TrackBreadth, ValueError> {
+    let lower = t.to_ascii_lowercase();
+    match lower.as_str() {
+        "auto" => return Ok(TrackBreadth::Auto),
+        "min-content" => return Ok(TrackBreadth::MinContent),
+        "max-content" => return Ok(TrackBreadth::MaxContent),
+        _ => {}
+    }
+    if lower.starts_with("fit-content(") {
+        return grid_feature("the track size fit-content()");
+    }
+    if !lower.starts_with("calc(")
+        && let Ok(d) = parse_dim(t)
+        && d.unit == "fr"
+    {
+        if d.v < 0.0 {
+            return err(
+                codes::RANGE,
+                format!("{t:?}: a flexible track is not negative"),
+            );
+        }
+        return Ok(TrackBreadth::Fr(to_f32(d.v)?));
+    }
+    Ok(TrackBreadth::Len(parse_len(def, t)?))
+}
+
+fn parse_track_size(def: &PropDef, t: &str) -> Result<TrackSize, ValueError> {
+    let lower = t.to_ascii_lowercase();
+    if let Some(inner) = lower
+        .strip_prefix("minmax(")
+        .and_then(|r| r.strip_suffix(')'))
+    {
+        let args = split_top(inner, ',');
+        let [min, max] = args.as_slice() else {
+            return err(codes::OUTSIDE, format!("{t:?}: minmax() takes two sizes"));
+        };
+        let min = parse_breadth(def, min)?;
+        if matches!(min, TrackBreadth::Fr(_)) {
+            return err(
+                codes::OUTSIDE,
+                format!("{t:?}: the minimum of minmax() is not fr"),
+            );
+        }
+        return Ok(TrackSize::MinMax(min, parse_breadth(def, max)?));
+    }
+    if lower.starts_with("repeat(") {
+        return err(
+            codes::OUTSIDE,
+            format!("{t:?}: repeat() is not allowed here"),
+        );
+    }
+    Ok(TrackSize::Breadth(parse_breadth(def, t)?))
+}
+
+/// A track list: `none` (templates only), sizes and `repeat(N, sizes)` (templates only).
+fn parse_tracks(def: &PropDef, s: &str, template: bool) -> Result<Value, ValueError> {
+    let lower = s.to_ascii_lowercase();
+    if template && lower == "none" {
+        return Ok(Value::Tracks(Vec::new()));
+    }
+    if lower.contains('[') {
+        return grid_feature("a named grid line ([name])");
+    }
+    if matches!(lower.as_str(), "subgrid" | "masonry") || lower.starts_with("subgrid ") {
+        return grid_feature(format!("`{lower}`"));
+    }
+    let mut out = Vec::new();
+    for t in split_ws_top(s) {
+        let tl = t.to_ascii_lowercase();
+        let Some(inner) = tl.strip_prefix("repeat(").and_then(|r| r.strip_suffix(')')) else {
+            out.push(Track::Size(parse_track_size(def, t)?));
+            continue;
+        };
+        if !template {
+            return err(
+                codes::OUTSIDE,
+                format!("{t:?}: repeat() is not allowed here"),
+            );
+        }
+        let args = split_top(inner, ',');
+        let [count, sizes] = args.as_slice() else {
+            return err(
+                codes::OUTSIDE,
+                format!("{t:?}: repeat() takes a count and tracks"),
+            );
+        };
+        if matches!(*count, "auto-fill" | "auto-fit") {
+            return grid_feature(format!("repeat({count}, ...)"));
+        }
+        let d = parse_dim(count)?;
+        if !d.unit.is_empty() || d.v.fract() != 0.0 {
+            return err(
+                codes::OUTSIDE,
+                format!("{count:?}: a repeat count is an integer"),
+            );
+        }
+        if !(1.0..=f64::from(u16::MAX)).contains(&d.v) {
+            return err(
+                codes::RANGE,
+                format!("{count:?}: a repeat count is 1 or more"),
+            );
+        }
+        let list = split_ws_top(sizes)
+            .into_iter()
+            .map(|x| parse_track_size(def, x))
+            .collect::<Result<Vec<_>, _>>()?;
+        if list.is_empty() {
+            return err(codes::OUTSIDE, format!("{t:?}: repeat() without tracks"));
+        }
+        out.push(Track::Repeat(d.v as u16, list));
+    }
+    if out.is_empty() {
+        return err(codes::OUTSIDE, "an empty track list");
+    }
+    Ok(Value::Tracks(out))
+}
+
+/// `auto`, a line number or `span N`; named lines are outside the profile.
+fn parse_grid_line(s: &str) -> Result<Value, ValueError> {
+    if s == "auto" {
+        return Ok(Value::GridLine(GridLine::Auto));
+    }
+    let int = |t: &str| -> Option<f64> {
+        parse_dim(t)
+            .ok()
+            .filter(|d| d.unit.is_empty() && d.v.fract() == 0.0)
+            .map(|d| d.v)
+    };
+    match split_ws_top(s).as_slice() {
+        ["span", n] => match int(n) {
+            Some(v) if (1.0..=f64::from(u16::MAX)).contains(&v) => {
+                Ok(Value::GridLine(GridLine::Span(v as u16)))
+            }
+            Some(_) => err(codes::RANGE, format!("{s:?}: span is 1 or more")),
+            None => grid_feature(format!("the named span {s:?}")),
+        },
+        [n] => match int(n) {
+            Some(v) if v != 0.0 && v.abs() <= f64::from(i16::MAX) => {
+                Ok(Value::GridLine(GridLine::Line(v as i16)))
+            }
+            Some(_) => err(codes::RANGE, format!("{s:?}: a line number is not 0")),
+            None => grid_feature(format!("the named line {s:?}")),
+        },
+        _ => grid_feature(format!("the grid placement {s:?}")),
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Border image
+
+/// CSS's one-to-four expansion: top, right, bottom, left.
+fn four<T: Copy>(v: &[T]) -> Option<[T; 4]> {
+    match *v {
+        [a] => Some([a, a, a, a]),
+        [a, b] => Some([a, b, a, b]),
+        [a, b, c] => Some([a, b, c, b]),
+        [a, b, c, d] => Some([a, b, c, d]),
+        _ => None,
+    }
+}
+
+fn parse_slice(s: &str) -> Result<Value, ValueError> {
+    let mut fill = false;
+    let mut edges = Vec::new();
+    for t in split_ws_top(s) {
+        if t.eq_ignore_ascii_case("fill") {
+            if fill {
+                return err(codes::OUTSIDE, "`fill` twice");
+            }
+            fill = true;
+            continue;
+        }
+        let d = parse_dim(t)?;
+        if d.v < 0.0 {
+            return err(codes::RANGE, format!("{t:?}: a slice is not negative"));
+        }
+        edges.push(match d.unit.as_str() {
+            "" => Len::px(to_f32(d.v)?),
+            "%" => Len::pct(to_f32(d.v)?),
+            unit => {
+                return err(
+                    codes::OUTSIDE,
+                    format!("a slice is a number of picture pixels or a percentage, not `{unit}`"),
+                );
+            }
+        });
+    }
+    match four(&edges) {
+        Some(edges) => Ok(Value::Slice(ImageSlice { edges, fill })),
+        None => err(
+            codes::OUTSIDE,
+            format!("{s:?}: a slice is one to four values"),
+        ),
+    }
+}
+
+fn parse_image_widths(s: &str) -> Result<Value, ValueError> {
+    let mut list = Vec::new();
+    for t in split_ws_top(s) {
+        if t == "auto" {
+            return err(
+                codes::OUTSIDE,
+                "border-image-width `auto` is outside the profile; give px or a multiple of the border width",
+            );
+        }
+        let d = parse_dim(t)?;
+        if d.v < 0.0 {
+            return err(codes::RANGE, format!("{t:?}: a width is not negative"));
+        }
+        list.push(match d.unit.as_str() {
+            "" => ImageWidth::Factor(to_f32(d.v)?),
+            "px" => ImageWidth::Px(to_f32(d.v)?),
+            "%" => {
+                return err(
+                    codes::OUTSIDE,
+                    "a border image width in % is outside the profile; give px or a number",
+                );
+            }
+            unit => return bad_unit(unit),
+        });
+    }
+    match four(&list) {
+        Some(w) => Ok(Value::ImageWidths(w)),
+        None => err(
+            codes::OUTSIDE,
+            format!("{s:?}: a width is one to four values"),
+        ),
+    }
+}
+
+fn parse_image_repeat(def: &PropDef, s: &str) -> Result<Value, ValueError> {
+    let one = |t: &str| -> Result<ImageRepeat, ValueError> {
+        keyword_of(def, t)
+            .and_then(|k| ImageRepeat::from_keyword(&k))
+            .ok_or_else(|| ValueError {
+                code: codes::OUTSIDE,
+                message: format!("`{t}` is not one of: {}", def.values.join(", ")),
+            })
+    };
+    match split_ws_top(s).as_slice() {
+        [a] => {
+            let r = one(a)?;
+            Ok(Value::ImageRepeats(ImageRepeats { x: r, y: r }))
+        }
+        [a, b] => Ok(Value::ImageRepeats(ImageRepeats {
+            x: one(a)?,
+            y: one(b)?,
+        })),
+        _ => err(
+            codes::OUTSIDE,
+            format!("{s:?}: a repeat is one or two keywords"),
+        ),
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Clip path
+
+fn parse_polygon(def: &PropDef, s: &str) -> Result<Value, ValueError> {
+    let lower = s.to_ascii_lowercase();
+    if lower == "none" {
+        return Ok(Value::Polygon(Vec::new()));
+    }
+    let Some(inner) = lower
+        .strip_prefix("polygon(")
+        .and_then(|r| r.strip_suffix(')'))
+    else {
+        let shape = lower.split(['(', ' ']).next().unwrap_or("");
+        return err(
+            codes::CLIP,
+            format!("the clip shape `{shape}` is outside the profile: use none or polygon()"),
+        );
+    };
+    let mut args = split_top(inner, ',');
+    if matches!(args.first(), Some(&"evenodd" | &"nonzero")) {
+        // A convex polygon fills the same either way.
+        args.remove(0);
+    }
+    if let Some(max) = def.max_items
+        && args.len() > max
+    {
+        return err(
+            codes::TOO_MANY,
+            format!(
+                "a clip polygon has at most {max} points, got {}",
+                args.len()
+            ),
+        );
+    }
+    if args.len() < 3 {
+        return err(codes::CLIP, "a clip polygon needs at least three points");
+    }
+    let mut points = Vec::with_capacity(args.len());
+    for a in &args {
+        let parts = split_ws_top(a);
+        let [x, y] = parts.as_slice() else {
+            return err(codes::OUTSIDE, format!("{a:?}: a point is two lengths"));
+        };
+        points.push(Point {
+            x: parse_len(def, x)?,
+            y: parse_len(def, y)?,
+        });
+    }
+    if let Some(b) = CLIP_REFERENCE_BOXES
+        .iter()
+        .find(|b| !convex_at(&points, **b))
+    {
+        return err(
+            codes::CONCAVE,
+            format!(
+                "the clip polygon is not convex (checked in a {}x{} px box)",
+                b[0], b[1]
+            ),
+        );
+    }
+    Ok(Value::Polygon(points))
+}
+
+// ---------------------------------------------------------------------------------------------
 // Canonical text (the form the test vectors compare)
 
 fn len_text(l: Len) -> String {
@@ -1526,7 +2011,11 @@ impl Value {
             Value::Images(v) => {
                 let items: Vec<String> = v
                     .iter()
-                    .map(|BgImage::Gradient(g)| {
+                    .map(|layer| {
+                        let g = match layer {
+                            BgLayer::Gradient(g) => g,
+                            BgLayer::Url(u) => return format!("url({u})"),
+                        };
                         let dir = match g.dir {
                             GradDir::Angle(a) => format!("{a}deg"),
                             GradDir::To(side) => format!("to {}", side.keyword()),
@@ -1576,7 +2065,75 @@ impl Value {
                 format!("repeats:{}", items.join(", "))
             }
             Value::Keywords(v) => format!("kws:{}", v.join(",")),
+            Value::Ratio(AspectRatio::Auto) => "ratio:auto".to_string(),
+            Value::Ratio(AspectRatio::Ratio(w, h)) => format!("ratio:{w}/{h}"),
+            Value::Tracks(v) => {
+                let items: Vec<String> = v
+                    .iter()
+                    .map(|t| match t {
+                        Track::Size(s) => track_size_text(s),
+                        Track::Repeat(n, list) => {
+                            let l: Vec<String> = list.iter().map(track_size_text).collect();
+                            format!("repeat({n}: {})", l.join(" "))
+                        }
+                    })
+                    .collect();
+                format!("tracks:{}", items.join(" "))
+            }
+            Value::GridLine(GridLine::Auto) => "line:auto".to_string(),
+            Value::GridLine(GridLine::Line(n)) => format!("line:{n}"),
+            Value::GridLine(GridLine::Span(n)) => format!("line:span {n}"),
+            Value::Url(u) => format!("url:{u}"),
+            Value::Slice(s) => {
+                let e: Vec<String> = s
+                    .edges
+                    .iter()
+                    .map(|l| {
+                        if l.pct != 0.0 {
+                            format!("{}%", l.pct)
+                        } else {
+                            format!("{}", l.px)
+                        }
+                    })
+                    .collect();
+                format!("slice:{}{}", e.join(" "), if s.fill { " fill" } else { "" })
+            }
+            Value::ImageWidths(w) => {
+                let e: Vec<String> = w
+                    .iter()
+                    .map(|x| match x {
+                        ImageWidth::Px(p) => format!("{p}px"),
+                        ImageWidth::Factor(f) => format!("{f}x"),
+                    })
+                    .collect();
+                format!("widths:{}", e.join(" "))
+            }
+            Value::ImageRepeats(r) => format!("irepeat:{} {}", r.x.keyword(), r.y.keyword()),
+            Value::Polygon(v) => {
+                let p: Vec<String> = v
+                    .iter()
+                    .map(|p| format!("{} {}", len_text(p.x), len_text(p.y)))
+                    .collect();
+                format!("polygon:{}", p.join(", "))
+            }
         }
+    }
+}
+
+fn breadth_text(b: &TrackBreadth) -> String {
+    match b {
+        TrackBreadth::Len(l) => len_text(*l),
+        TrackBreadth::Fr(f) => format!("{f}fr"),
+        TrackBreadth::Auto => "auto".into(),
+        TrackBreadth::MinContent => "min-content".into(),
+        TrackBreadth::MaxContent => "max-content".into(),
+    }
+}
+
+fn track_size_text(s: &TrackSize) -> String {
+    match s {
+        TrackSize::Breadth(b) => breadth_text(b),
+        TrackSize::MinMax(a, b) => format!("minmax({},{})", breadth_text(a), breadth_text(b)),
     }
 }
 

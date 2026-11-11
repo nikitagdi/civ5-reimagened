@@ -322,7 +322,9 @@ fn styles_research_ticks_are_a_repeating_gradient_with_a_token_stop() {
     let ticks = find(&dom, &["ticks"], None);
     let r = s.record_of(ticks.id, 0, 0).unwrap();
     assert_eq!(r.background_image.len(), 1);
-    let BgImage::Gradient(g) = &r.background_image[0];
+    let BgImage::Gradient(g) = &r.background_image[0] else {
+        panic!("a gradient layer");
+    };
     assert!(!g.conic && !g.repeating);
     assert_eq!(g.dir, GradDir::To(Side::Right));
     assert_eq!(g.stops.len(), 2);

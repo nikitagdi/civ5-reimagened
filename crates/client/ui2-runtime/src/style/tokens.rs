@@ -29,7 +29,7 @@ pub fn has_tokens(r: &StyleRecord) -> bool {
     .any(tok)
         || r.background_image
             .iter()
-            .any(|BgImage::Gradient(g)| g.stops.iter().any(|s| tok(&s.color)))
+            .any(|l| matches!(l, BgImage::Gradient(g) if g.stops.iter().any(|s| tok(&s.color))))
         || r.box_shadow.iter().any(|s| tok(&s.color))
         || r.text_shadow.iter().any(|s| tok(&s.color))
         || paint(&r.fill)

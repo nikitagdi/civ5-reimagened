@@ -29,4 +29,4 @@ pub use props::{
 };
 pub use schema_view::{SchemaView, TypeSig, resolve_path};
 #[cfg(feature = "profile")]
-pub use values::{Value, ValueError, parse_value};
+pub use values::{BgLayer, Value, ValueError, parse_value};
