@@ -444,6 +444,10 @@ struct App {
     milestones: Vec<&'static str>,
     /// The playtest's scripted player (`?test=1`).
     test_port: Option<Box<dyn crate::test_port::TestPort>>,
+    /// The replica digests the test port asked for so far, and the last one.
+    replica_digest: Option<(u64, Option<String>)>,
+    /// The player's options that follow the account (`civ5.options.*`): the choice of the game UI.
+    ui_kv: Rc<dyn platform::KeyValueStore>,
     /// `?golden=<url>`: one capture of a `golden` scene instead of the game.
     golden: GoldenState,
 }
@@ -599,21 +603,27 @@ impl App {
         let session = ui_host
             .needs_replica()
             .then(crate::session::GameSession::new);
-        // UI v2 (`?ui=v2[:skin]`, web): it loads while the classic UI is on the screen and takes it once ready.
-        if let (true, Some(crate::ui_host::UiChoice::V2 { skin }), Some(p)) =
-            (ui_host.has_game_ui(), &config.ui_choice, ui2)
-        {
-            tracing::info!(?skin, "UI v2 requested");
+        // UI v2 (web): registered next to the classic UI, it fetches nothing until it is asked for; then it loads
+        // while the classic UI is on the screen and takes it once ready.
+        if let (true, Some(p)) = (ui_host.has_game_ui(), ui2) {
             let c = Rc::clone(&clock);
             let mut v2 = crate::ui_host::v2::V2Frontend::new(
-                crate::ui_host::v2::V2Choice { skin: skin.clone() },
+                crate::ui_host::v2::V2Choice { skin: None },
                 v2_http,
                 Rc::new(move || c.now_ms_f64()),
                 p.scripts,
             );
             v2.set_background(p.background);
+            v2.set_text_input(p.text_input);
             ui_host.register(Box::new(v2));
-            ui_host.request(crate::ui_host::UiKind::V2);
+            ui_host.set_cold_wake(p.classic_cold);
+        }
+        // The game UI of the start: `?ui=` (this run only), else the player's choice, else the classic UI.
+        if ui_host.has_game_ui()
+            && let Some(choice) = crate::ui_host::start_choice(config.ui_choice.as_ref(), &*ui_kv)
+        {
+            tracing::info!(choice = %choice.value(), "the game UI of the start");
+            ui_host.ask(choice);
         }
         let start_ms = clock.now_ms();
         let showcase_mode = config.showcase || config.demo_skinned;
@@ -710,6 +720,8 @@ impl App {
             milestone_sink,
             milestones: Vec::new(),
             test_port,
+            replica_digest: None,
+            ui_kv,
             golden,
         }
     }
@@ -1089,6 +1101,9 @@ impl App {
                     self.gfx_polled_ms = 0;
                 }
                 UiAction::ToggleStats(on) => self.config.stats = on,
+                UiAction::DismissUiNotice => self.ui_host.dismiss_notice(),
+                // The settings' choice: now, and for the next games.
+                UiAction::SetUi(value) => self.set_ui(&value, true, None),
                 UiAction::SetPerfGroups(mask) => {
                     if let Some(r) = self.renderer.as_mut() {
                         r.set_disabled_groups(mask);
@@ -1711,6 +1726,14 @@ impl App {
                     if let Some(session) = self.session.as_mut() {
                         session.new_game();
                     }
+                    // A choice that came with the account during the game applies to the next one (`?ui=` stays).
+                    if self.config.ui_choice.is_none()
+                        && let Some(saved) = crate::ui_host::stored_choice(&*self.ui_kv)
+                        && self.ui_host.choice().as_ref() != Some(&saved)
+                    {
+                        tracing::info!(choice = %saved.value(), "the player's game UI for the next game");
+                        self.ui_host.ask(saved);
+                    }
                 }
                 // The view of a server session reaches the bridge by its `ViewChange` (4.10): only what
                 // changed since the last frame is converted.
@@ -2017,6 +2040,19 @@ impl App {
                             self.config.stats,
                             Some(session),
                         );
+                        // The game UIs to choose from, while the settings are open.
+                        if let Some(s) = views.settings.as_mut()
+                            && self.ui_host.has_game_ui()
+                        {
+                            s.interfaces = self.ui_host.options();
+                            s.interface =
+                                self.ui_host.choice().map(|c| c.value()).unwrap_or_default();
+                        }
+                        // A game UI failed: the notice says why and which one shows now.
+                        views.ui_notice = self
+                            .ui_host
+                            .notice(self.clock.now_ms_f64())
+                            .map(str::to_owned);
                         if m2_on && matches!(phase, ClientPhase::Playing) && terrain_ready {
                             // AC-S4: the game screen of the original UI has no egui panel of the game.
                             original_game_screen(&mut views);
@@ -2057,6 +2093,14 @@ impl App {
                             let live = renderer.terrain_live_stats();
                             snap.terrain_cells = Some((live.visible as u32, live.unpaged as u32));
                             (snap.map_units, snap.map_cities) = self.bridge.drawn();
+                            if self.ui_host.has_game_ui() {
+                                let mut ui = self.ui_host.test_view(
+                                    self.ui_kv.get(crate::ui_host::UI_KEY),
+                                    self.clock.now_ms_f64(),
+                                );
+                                ui.replica_digest = self.replica_digest.clone();
+                                snap.ui = Some(ui);
+                            }
                             port.publish(snap);
                         }
                     }
@@ -2357,6 +2401,26 @@ impl App {
         }
     }
 
+    /// Switches the game UI to `value` (`classic`, `v2` or `v2:<skin>`): the target prepares while the current one
+    /// stays on the screen and takes it once it is ready. `save`: kept as the player's choice (`civ5.options.ui`,
+    /// the settings window); `cold`: how the classic UI comes back from a sleep (`None`: as it is set).
+    fn set_ui(&mut self, value: &str, save: bool, cold: Option<bool>) {
+        let Some(choice) = crate::ui_host::UiChoice::parse(value).filter(|c| c.kind().is_some())
+        else {
+            tracing::warn!("set ui: {value:?} is not classic, v2 or v2:<skin>");
+            return;
+        };
+        if let Some(cold) = cold {
+            self.ui_host.set_cold_wake(cold);
+        }
+        if save {
+            crate::ui_host::save_choice(&*self.ui_kv, &choice);
+        }
+        if !self.ui_host.ask(choice) {
+            tracing::warn!("set ui: no game UI here shows {value:?}");
+        }
+    }
+
     /// The scripted player's actions (`?test=1`): the same screen actions and map clicks a player
     /// makes.
     fn apply_test_actions(&mut self) {
@@ -2405,6 +2469,19 @@ impl App {
                     if let Link::Net(n) = &mut self.net {
                         n.ui.quick_start(params);
                     }
+                }
+                Dispatch::SetUi { value, save, cold } => self.set_ui(&value, save, cold),
+                Dispatch::ReplicaDigest => {
+                    // Slow on a big game (the core hashes its whole state): only when the port asks.
+                    let value = self
+                        .session
+                        .as_ref()
+                        .and_then(crate::session::GameSession::replica)
+                        .and_then(|r| r.try_borrow_mut().ok().map(|mut r| r.digest()))
+                        .and_then(Result::ok)
+                        .map(|d| format!("{d:016x}"));
+                    let n = self.replica_digest.as_ref().map_or(0, |(n, _)| *n) + 1;
+                    self.replica_digest = Some((n, value));
                 }
                 Dispatch::Skip => tracing::warn!("test action not possible now"),
             }
@@ -2486,6 +2563,8 @@ fn original_game_screen(views: &mut Screens) {
         conn: views.conn.take(),
         // Opened from the performance panel (the original UI has no screen for it).
         settings: views.settings.take(),
+        // A game UI that failed tells why (the host's own notice, not a panel of the game).
+        ui_notice: views.ui_notice.take(),
         ..Screens::default()
     };
 }
@@ -2549,6 +2628,9 @@ fn settings_view(
         info,
         can_leave: session.is_some_and(|(_, _, playing)| playing),
         can_sign_out: session.is_some(),
+        // Filled by the caller from the UI host.
+        interfaces: Vec::new(),
+        interface: String::new(),
     })
 }
 
@@ -2588,6 +2670,8 @@ fn is_game_action(a: &UiAction) -> bool {
             | UiAction::SetPerfGroups(_)
             | UiAction::SendPerfReport
             | UiAction::MinimapPointer { .. }
+            | UiAction::DismissUiNotice
+            | UiAction::SetUi(_)
     )
 }
 

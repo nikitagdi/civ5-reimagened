@@ -156,9 +156,14 @@ pub trait Frontend {
     fn cursor_row(&self) -> Option<i32> {
         None
     }
-    /// The UI failed while it ran: the host gives the screen to another one.
-    fn failure(&self) -> Option<String> {
+    /// The UI failed while it ran (once per failure): the host gives the screen to the first frontend.
+    fn take_failure(&mut self) -> Option<String> {
         None
+    }
+    /// After a failure the UI prepares again on its own (UI v2 loads its fallback skin): the host gives it the
+    /// screen back once it is ready.
+    fn recovers(&self) -> bool {
+        false
     }
     /// The plots of every trade route and the `TradeConnection` index of each (`None`: not now).
     fn trade_paths(&self) -> Option<crate::m2::TradePaths> {
@@ -177,6 +182,18 @@ pub trait Frontend {
     fn sounds(&self) -> Option<&dyn UiSoundSource> {
         None
     }
+    /// The running skin (UI v2).
+    fn skin(&self) -> Option<String> {
+        None
+    }
+    /// The choice the host asks this frontend for (UI v2: the skin), before [`UiHost::request`]'s preparation.
+    fn choose(&mut self, _choice: &UiChoice) {}
+    /// The choices this frontend offers in the settings: `(value, label)`, `value` as [`UiChoice::value`].
+    fn options(&mut self) -> Vec<(String, String)> {
+        Vec::new()
+    }
+    /// The classic UI wakes up the cold way (its layer made again) instead of the warm one.
+    fn set_cold_wake(&mut self, _cold: bool) {}
 }
 
 /// The game UI chosen for this run (`?ui=`, `AppConfig::ui_choice`).
@@ -203,6 +220,62 @@ impl UiChoice {
             _ => None,
         }
     }
+
+    /// The value as `?ui=` and the setting write it.
+    pub fn value(&self) -> String {
+        match self {
+            UiChoice::Classic => "classic".into(),
+            UiChoice::V2 { skin: None } => "v2".into(),
+            UiChoice::V2 { skin: Some(s) } => format!("v2:{s}"),
+            UiChoice::Interim => "interim".into(),
+        }
+    }
+
+    /// The kind of frontend that shows it; `None` for the interim panels.
+    pub fn kind(&self) -> Option<UiKind> {
+        match self {
+            UiChoice::Classic => Some(UiKind::Classic),
+            UiChoice::V2 { .. } => Some(UiKind::V2),
+            UiChoice::Interim => None,
+        }
+    }
+}
+
+/// The player's choice of the game UI in the store (`classic`, `v2`, `v2:<skin>`); `civ5.options.*` keys follow the
+/// account.
+pub const UI_KEY: &str = "civ5.options.ui";
+
+/// The game UI to start with: `?ui=` (this run only, never written), else the player's stored choice, else `None`
+/// (the classic UI, the first registered). The interim panels are a page choice only, not a stored one; an unknown
+/// skin is resolved against the skin index later (the default skin) and the stored value stays as it is.
+pub fn start_choice(
+    param: Option<&UiChoice>,
+    kv: &dyn platform::KeyValueStore,
+) -> Option<UiChoice> {
+    if let Some(p) = param {
+        return Some(p.clone());
+    }
+    stored_choice(kv)
+}
+
+/// The player's stored choice (`None`: none, or a value this client does not know).
+pub fn stored_choice(kv: &dyn platform::KeyValueStore) -> Option<UiChoice> {
+    UiChoice::parse(&kv.get(UI_KEY)?).filter(|c| *c != UiChoice::Interim)
+}
+
+/// Keeps the player's choice (the settings window).
+pub fn save_choice(kv: &dyn platform::KeyValueStore, choice: &UiChoice) {
+    if *choice != UiChoice::Interim {
+        kv.set(UI_KEY, &choice.value());
+    }
+}
+
+/// The name of a kind in the playtest hooks.
+fn kind_name(kind: UiKind) -> &'static str {
+    match kind {
+        UiKind::Classic => "classic",
+        UiKind::V2 => "v2",
+    }
 }
 
 /// What the host counts per kind of frontend (playtest hooks, the one-active rule).
@@ -225,10 +298,29 @@ fn slot(kind: UiKind) -> usize {
     }
 }
 
+/// How long a requested UI may prepare while a game is played before the host gives up on it, ms.
+pub const SWITCH_TIMEOUT_MS: f64 = 10_000.0;
+
+/// How long the notice of a failed UI shows, ms.
+pub const NOTICE_MS: f64 = 12_000.0;
+
 /// A switch the host waits for: the target prepares while the old UI stays on the screen.
 struct Switch {
     to: usize,
+    /// The first step after the request.
     since_ms: Option<f64>,
+    /// The first step of the wait with a game being played (the timeout counts from here).
+    playing_since: Option<f64>,
+}
+
+impl Switch {
+    fn to(to: usize) -> Switch {
+        Switch {
+            to,
+            since_ms: None,
+            playing_since: None,
+        }
+    }
 }
 
 /// The registered game UIs and the one on the screen (R22: exactly one gets the frames and the input).
@@ -239,6 +331,10 @@ pub struct UiHost {
     active: Option<usize>,
     switch: Option<Switch>,
     counters: UiCounters,
+    /// The choice in force (the last one asked for); `None`: the default.
+    choice: Option<UiChoice>,
+    /// The notice of the last failure and when it came (ms).
+    notice: Option<(String, f64)>,
 }
 
 impl UiHost {
@@ -261,8 +357,35 @@ impl UiHost {
         let Some(to) = self.fronts.iter().position(|f| f.kind() == kind) else {
             return false;
         };
-        self.switch = (self.active != Some(to)).then_some(Switch { to, since_ms: None });
+        self.switch = (self.active != Some(to)).then(|| Switch::to(to));
         true
+    }
+
+    /// Asks for a choice: the frontend of its kind prepares and takes the screen once it is ready (see
+    /// [`request`](Self::request)). `false`: no registered frontend shows it.
+    pub fn ask(&mut self, choice: UiChoice) -> bool {
+        let Some(kind) = choice.kind() else {
+            return false;
+        };
+        let Some(f) = self.fronts.iter_mut().find(|f| f.kind() == kind) else {
+            return false;
+        };
+        f.choose(&choice);
+        self.request(kind);
+        self.choice = Some(choice);
+        true
+    }
+
+    /// The choices the registered frontends offer (settings): `(value, label)`.
+    pub fn options(&mut self) -> Vec<(String, String)> {
+        self.fronts.iter_mut().flat_map(|f| f.options()).collect()
+    }
+
+    /// The classic UI's way back after a sleep: cold (its layer made again) or warm (the default).
+    pub fn set_cold_wake(&mut self, cold: bool) {
+        for f in &mut self.fronts {
+            f.set_cold_wake(cold);
+        }
     }
 
     /// A game UI is registered (the interim game panels are off).
@@ -289,6 +412,43 @@ impl UiHost {
         &self.counters
     }
 
+    /// The choice in force: the last one asked for, else the frontend on the screen.
+    pub fn choice(&self) -> Option<UiChoice> {
+        self.choice.clone().or_else(|| match self.active_kind()? {
+            UiKind::Classic => Some(UiChoice::Classic),
+            UiKind::V2 => Some(UiChoice::V2 {
+                skin: self.active().and_then(|f| f.skin()),
+            }),
+        })
+    }
+
+    /// The playtest's view of the game UIs (`state().ui`) at `now_ms`; `saved` is the player's stored choice.
+    pub fn test_view(&self, saved: Option<String>, now_ms: f64) -> crate::test_port::TestUi {
+        let c = &self.counters;
+        crate::test_port::TestUi {
+            active: self.active_kind().map(kind_name),
+            choice: self.choice().map_or_else(String::new, |c| c.value()),
+            saved,
+            skin: self
+                .fronts
+                .iter()
+                .find(|f| f.kind() == UiKind::V2)
+                .and_then(|f| f.skin()),
+            switching: self.switching(),
+            switches: c.switches,
+            last_switch_ms: c.last_switch_ms.map(|ms| ms.max(0.0).round() as u64),
+            failed: c
+                .failed
+                .iter()
+                .map(|(k, why)| (kind_name(*k), why.clone()))
+                .collect(),
+            notice: self.notice(now_ms).map(str::to_owned),
+            frames: c.frames,
+            inputs: c.inputs,
+            replica_digest: None,
+        }
+    }
+
     /// `__civ5stats.counters`: `ui.active` (0 none, 1 classic, 2 UI v2), `ui.switching`, `ui.switches`,
     /// `ui.switch_ms`, and the frames and input events each kind got (`ui.frames.classic`, `ui.inputs.v2`, ...).
     pub fn publish(&self) {
@@ -312,15 +472,17 @@ impl UiHost {
         self.active.and_then(|i| self.fronts.get_mut(i))
     }
 
-    /// Before the frame: an active frontend that failed gives the screen back to the first one; a requested one
-    /// that is ready takes it, the old one goes to sleep (both in this frame, before any frame of either).
+    /// Before the frame: an active frontend that failed gives the screen back to the first one (and is asked for
+    /// again when it recovers on its own); a requested one that is ready takes it, the old one goes to sleep (both in
+    /// this frame, before any frame of either).
     pub fn step(&mut self, cx: &mut PrepareCx<'_>) {
         if let Some(a) = self.active
-            && let Some(why) = self.fronts[a].failure()
+            && let Some(why) = self.fronts[a].take_failure()
         {
             let kind = self.fronts[a].kind();
+            let recovers = self.fronts[a].recovers();
             tracing::warn!("the {kind:?} interface failed: {why}");
-            self.counters.failed.push((kind, why));
+            self.fail(kind, why, cx.now_ms, recovers);
             self.fronts[a].deactivate(cx);
             self.active = None;
             if self.switch.as_ref().is_some_and(|s| s.to == a) {
@@ -330,6 +492,28 @@ impl UiHost {
                 self.fronts[0].activate(cx);
                 self.active = Some(0);
             }
+            if recovers && a != 0 {
+                self.switch = Some(Switch::to(a));
+            }
+        }
+        // The timeout counts while a game is played and its replica is live: before, UI v2 waits for the game, not
+        // for itself.
+        if let Some(sw) = self.switch.as_mut()
+            && cx.playing
+            && cx.session.is_none_or(GameSession::live)
+        {
+            sw.playing_since.get_or_insert(cx.now_ms);
+        }
+        if self.switch.as_ref().is_some_and(|s| {
+            s.playing_since
+                .is_some_and(|t0| cx.now_ms - t0 > SWITCH_TIMEOUT_MS)
+        }) && let Some(sw) = self.switch.take()
+        {
+            let kind = self.fronts[sw.to].kind();
+            let why = format!("it was not ready in {} s", SWITCH_TIMEOUT_MS / 1000.0);
+            tracing::warn!("the {kind:?} interface cannot be used, the current one stays: {why}");
+            self.fail(kind, why, cx.now_ms, false);
+            return;
         }
         let Some(sw) = self.switch.as_mut() else {
             return;
@@ -358,10 +542,38 @@ impl UiHost {
                 tracing::warn!(
                     "the {kind:?} interface cannot be used, the current one stays: {why}"
                 );
-                self.counters.failed.push((kind, why));
+                self.fail(kind, why, cx.now_ms, false);
                 self.switch = None;
             }
         }
+    }
+
+    /// A UI failed: counted, and the player is told (the notice says whether it comes back by itself).
+    fn fail(&mut self, kind: UiKind, why: String, now_ms: f64, recovers: bool) {
+        let name = match kind {
+            UiKind::Classic => "The classic interface",
+            UiKind::V2 => "Interface v2",
+        };
+        let then = if recovers {
+            "Its default skin is loading; the classic interface shows meanwhile"
+        } else {
+            "The current interface stays"
+        };
+        self.notice = Some((format!("{name} failed: {why}. {then}."), now_ms));
+        self.counters.failed.push((kind, why));
+    }
+
+    /// The notice of the last failure while it shows ([`NOTICE_MS`]).
+    pub fn notice(&self, now_ms: f64) -> Option<&str> {
+        self.notice
+            .as_ref()
+            .filter(|(_, at)| now_ms - at < NOTICE_MS)
+            .map(|(text, _)| text.as_str())
+    }
+
+    /// The player closed the notice.
+    pub fn dismiss_notice(&mut self) {
+        self.notice = None;
     }
 
     /// The active frontend dispatches the core's UI events (the session must not drop them).
@@ -468,6 +680,7 @@ mod tests {
         ready: Rc<RefCell<Readiness>>,
         failed: Rc<RefCell<Option<String>>>,
         seen: Rc<RefCell<Seen>>,
+        recover: bool,
     }
 
     type Handles = (
@@ -477,6 +690,11 @@ mod tests {
     );
 
     fn fake(kind: UiKind) -> (Box<dyn Frontend>, Handles) {
+        fake_with(kind, false)
+    }
+
+    /// `recover`: after a failure it prepares again on its own.
+    fn fake_with(kind: UiKind, recover: bool) -> (Box<dyn Frontend>, Handles) {
         let ready = Rc::new(RefCell::new(Readiness::Loading { progress: None }));
         let failed = Rc::new(RefCell::new(None));
         let seen = Rc::new(RefCell::new(Seen::default()));
@@ -485,6 +703,7 @@ mod tests {
             ready: Rc::clone(&ready),
             failed: Rc::clone(&failed),
             seen: Rc::clone(&seen),
+            recover,
         };
         (Box::new(f), (ready, failed, seen))
     }
@@ -515,8 +734,11 @@ mod tests {
             self.seen.borrow_mut().nets += 1;
         }
         fn new_game(&mut self) {}
-        fn failure(&self) -> Option<String> {
-            self.failed.borrow().clone()
+        fn take_failure(&mut self) -> Option<String> {
+            self.failed.borrow_mut().take()
+        }
+        fn recovers(&self) -> bool {
+            self.recover
         }
     }
 
@@ -638,6 +860,181 @@ mod tests {
         assert_eq!(h.counters().failed.len(), 1);
     }
 
+    /// A frame with a game being played (the switch timeout counts).
+    fn frame_playing(h: &mut UiHost, now_ms: f64) {
+        let mut c = cx(now_ms);
+        c.playing = true;
+        h.step(&mut c);
+        h.on_frame(|f| f.frame_started(now_ms));
+    }
+
+    #[test]
+    fn a_frontend_that_recovers_gets_the_screen_back_once_it_is_ready() {
+        let mut h = UiHost::new();
+        let (classic, (_, _, cs)) = fake(UiKind::Classic);
+        let (v2, (ready, failed, vs)) = fake_with(UiKind::V2, true);
+        h.register(classic);
+        h.register(v2);
+        *ready.borrow_mut() = Readiness::Ready;
+        h.request(UiKind::V2);
+        frame(&mut h, 0.0);
+        assert_eq!(h.active_kind(), Some(UiKind::V2));
+        // The running skin breaks; its fallback loads while the classic UI shows.
+        *failed.borrow_mut() = Some("scripts: boom".into());
+        *ready.borrow_mut() = Readiness::Loading { progress: None };
+        frame(&mut h, 16.0);
+        assert_eq!(h.active_kind(), Some(UiKind::Classic));
+        assert!(h.switching(), "asked for again");
+        let notice = h.notice(16.0).expect("a notice").to_owned();
+        assert!(
+            notice.contains("scripts: boom") && notice.contains("classic"),
+            "{notice}"
+        );
+        frame(&mut h, 32.0);
+        assert_eq!(h.active_kind(), Some(UiKind::Classic));
+        *ready.borrow_mut() = Readiness::Ready;
+        frame(&mut h, 48.0);
+        assert_eq!(h.active_kind(), Some(UiKind::V2));
+        assert_eq!(h.counters().failed.len(), 1);
+        assert_eq!((cs.borrow().activations, vs.borrow().activations), (1, 2));
+        // The notice goes after a while, or when the player closes it.
+        assert!(h.notice(16.0 + NOTICE_MS).is_none());
+        assert!(h.notice(100.0).is_some());
+        h.dismiss_notice();
+        assert!(h.notice(100.0).is_none());
+    }
+
+    #[test]
+    fn a_switch_that_is_not_ready_in_10_s_of_play_is_given_up() {
+        let mut h = UiHost::new();
+        let (classic, _) = fake(UiKind::Classic);
+        let (v2, (_, _, vs)) = fake(UiKind::V2);
+        h.register(classic);
+        h.register(v2);
+        h.request(UiKind::V2);
+        // Before a game is played the wait does not count.
+        for t in 0..20 {
+            frame(&mut h, f64::from(t) * 1000.0);
+        }
+        assert!(h.switching());
+        frame_playing(&mut h, 20_000.0);
+        frame_playing(&mut h, 29_000.0);
+        assert!(h.switching());
+        frame_playing(&mut h, 30_001.0);
+        assert!(!h.switching());
+        assert_eq!(h.active_kind(), Some(UiKind::Classic));
+        assert_eq!(vs.borrow().activations, 0);
+        let failed = &h.counters().failed;
+        assert_eq!(failed.len(), 1);
+        assert!(failed[0].1.contains("10 s"), "{failed:?}");
+        assert!(h.notice(30_001.0).is_some_and(|n| n.contains("stays")));
+    }
+
+    #[test]
+    fn the_test_view_names_the_ui_on_the_screen_and_the_choice() {
+        let mut h = UiHost::new();
+        let (classic, _) = fake(UiKind::Classic);
+        let (v2, (ready, _, _)) = fake(UiKind::V2);
+        h.register(classic);
+        h.register(v2);
+        let v = h.test_view(None, 0.0);
+        assert_eq!((v.active, v.choice.as_str()), (Some("classic"), "classic"));
+        assert!(
+            !h.ask(UiChoice::Interim),
+            "the interim panels are no frontend"
+        );
+        let engraved = UiChoice::V2 {
+            skin: Some("engraved".into()),
+        };
+        assert!(h.ask(engraved.clone()));
+        frame(&mut h, 10.0);
+        let v = h.test_view(None, 0.0);
+        assert_eq!(v.active, Some("classic"));
+        assert!(v.switching);
+        *ready.borrow_mut() = Readiness::Ready;
+        frame(&mut h, 30.0);
+        let v = h.test_view(Some("v2".into()), 0.0);
+        assert_eq!(v.active, Some("v2"));
+        assert_eq!(v.choice, "v2:engraved");
+        assert_eq!(v.saved.as_deref(), Some("v2"));
+        assert_eq!((v.switches, v.last_switch_ms), (1, Some(20)));
+        assert_eq!(v.frames, [1, 1]);
+        assert_eq!(h.choice(), Some(engraved));
+    }
+
+    #[test]
+    fn the_start_choice_is_the_page_then_the_store_then_the_default() {
+        use platform::{KeyValueStore, MemoryStore};
+        let kv = MemoryStore::new();
+        let v2 = |s: &str| UiChoice::V2 {
+            skin: Some(s.into()),
+        };
+        assert_eq!(start_choice(None, &kv), None, "nothing: the classic UI");
+        save_choice(&kv, &v2("engraved"));
+        assert_eq!(kv.get(UI_KEY).as_deref(), Some("v2:engraved"));
+        assert_eq!(start_choice(None, &kv), Some(v2("engraved")));
+        // `?ui=` wins for this run and is not written.
+        assert_eq!(
+            start_choice(Some(&UiChoice::Classic), &kv),
+            Some(UiChoice::Classic)
+        );
+        assert_eq!(kv.get(UI_KEY).as_deref(), Some("v2:engraved"));
+        // A skin this build lacks is kept as it is (the index gives the default skin when it loads).
+        kv.set(UI_KEY, "v2:gilded");
+        assert_eq!(start_choice(None, &kv), Some(v2("gilded")));
+        assert_eq!(kv.get(UI_KEY).as_deref(), Some("v2:gilded"));
+        // Garbage and the interim panels are no stored choice.
+        for bad in ["v3", "interim", ""] {
+            kv.set(UI_KEY, bad);
+            assert_eq!(start_choice(None, &kv), None, "{bad:?}");
+        }
+        save_choice(&kv, &UiChoice::Interim);
+        assert_eq!(kv.get(UI_KEY).as_deref(), Some(""), "not written");
+        save_choice(&kv, &UiChoice::Classic);
+        assert_eq!(stored_choice(&kv), Some(UiChoice::Classic));
+    }
+
+    #[test]
+    fn a_choice_reaches_its_frontend_before_it_prepares() {
+        let mut h = UiHost::new();
+        let (classic, _) = fake(UiKind::Classic);
+        h.register(classic);
+        let chosen = Rc::new(RefCell::new(Vec::new()));
+        struct Picky(Rc<RefCell<Vec<UiChoice>>>);
+        impl Frontend for Picky {
+            fn kind(&self) -> UiKind {
+                UiKind::V2
+            }
+            fn needs_replica(&self) -> bool {
+                true
+            }
+            fn prepare(&mut self, _cx: &mut PrepareCx<'_>) -> Readiness {
+                Readiness::Ready
+            }
+            fn activate(&mut self, _cx: &mut PrepareCx<'_>) {}
+            fn deactivate(&mut self, _cx: &mut PrepareCx<'_>) {}
+            fn frame(&mut self, _cx: &mut FrameCx<'_>, _out: &mut UiDrawList) {}
+            fn input(&mut self, _cx: &mut InputCx<'_>, _ev: InputEvent) {}
+            fn new_game(&mut self) {}
+            fn choose(&mut self, choice: &UiChoice) {
+                self.0.borrow_mut().push(choice.clone());
+            }
+            fn options(&mut self) -> Vec<(String, String)> {
+                vec![("v2".into(), "UI v2".into())]
+            }
+        }
+        h.register(Box::new(Picky(Rc::clone(&chosen))));
+        let pick = UiChoice::V2 {
+            skin: Some("vellum".into()),
+        };
+        assert!(h.ask(pick.clone()));
+        assert_eq!(*chosen.borrow(), [pick]);
+        frame(&mut h, 0.0);
+        assert_eq!(h.active_kind(), Some(UiKind::V2));
+        // The settings list what the frontends offer; the fake classic offers nothing.
+        assert_eq!(h.options(), [("v2".to_owned(), "UI v2".to_owned())]);
+    }
+
     #[test]
     fn the_ui_param_is_read() {
         let v2 = |skin: Option<&str>| {
@@ -651,6 +1048,13 @@ mod tests {
         assert_eq!(UiChoice::parse("v2:engraved"), v2(Some("engraved")));
         for other in ["", "m1", "v3", "Classic", "v2;x"] {
             assert_eq!(UiChoice::parse(other), None, "{other:?}");
+        }
+        // The value reads back as itself.
+        for value in ["classic", "interim", "v2", "v2:engraved"] {
+            assert_eq!(
+                UiChoice::parse(value).map(|c| c.value()).as_deref(),
+                Some(value)
+            );
         }
     }
 }

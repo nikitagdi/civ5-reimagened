@@ -84,6 +84,16 @@ pub enum TestAction {
     Ui(UiAction),
     /// The quick start with these parameters (`RoomScript`), as the lobby's [Quick start] button runs it.
     QuickStart(RoomParams),
+    /// The game UI to switch to: `classic`, `v2` or `v2:<skin>` (`UiChoice::parse`). `save`: kept as the player's
+    /// choice, as the settings window does; `cold`: how the classic UI wakes up from now on (`true`: its layer is
+    /// made again; `None`: as it is set).
+    SetUi {
+        value: String,
+        save: bool,
+        cold: Option<bool>,
+    },
+    /// Computes the replica's digest (`Replica::digest`) in the next frame; `state().ui.replicaDigest` has it.
+    ReplicaDigest,
 }
 
 /// A failure the test port causes (only with a test port, `?test=1`).
@@ -117,6 +127,14 @@ pub enum Dispatch {
     Fault(Fault),
     /// A quick start of the server session.
     QuickStart(RoomParams),
+    /// A switch of the game UI (see [`TestAction::SetUi`]).
+    SetUi {
+        value: String,
+        save: bool,
+        cold: Option<bool>,
+    },
+    /// The replica's digest for the test port.
+    ReplicaDigest,
     /// Not possible now (a unit or city that is not on the map).
     Skip,
 }
@@ -172,8 +190,37 @@ impl TestAction {
             TestAction::Fault(f) => Dispatch::Fault(f),
             TestAction::Ui(a) => Dispatch::Ui(a),
             TestAction::QuickStart(p) => Dispatch::QuickStart(p),
+            TestAction::SetUi { value, save, cold } => Dispatch::SetUi { value, save, cold },
+            TestAction::ReplicaDigest => Dispatch::ReplicaDigest,
         }
     }
+}
+
+/// The game UIs as the playtest sees them (`state().ui`).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TestUi {
+    /// The game UI on the screen: "classic", "v2"; `None`: none (interim).
+    pub active: Option<&'static str>,
+    /// The choice in force: `classic`, `v2` or `v2:<skin>`.
+    pub choice: String,
+    /// The player's saved choice (`civ5.options.ui`), when there is one.
+    pub saved: Option<String>,
+    /// The running UI v2 skin.
+    pub skin: Option<String>,
+    /// A switch is under way.
+    pub switching: bool,
+    /// Switches done, and the last one's time from the request to the target's first frame, ms.
+    pub switches: u64,
+    pub last_switch_ms: Option<u64>,
+    /// Game UIs that failed ("classic", "v2") and why, oldest first.
+    pub failed: Vec<(&'static str, String)>,
+    /// The notice of the last failure while it shows.
+    pub notice: Option<String>,
+    /// Frames and input events each UI got: `[classic, v2]`.
+    pub frames: [u64; 2],
+    pub inputs: [u64; 2],
+    /// The replica digests computed for the port so far, and the last one (hex; `None`: no replica loaded).
+    pub replica_digest: Option<(u64, Option<String>)>,
 }
 
 /// One action button of the unit panel.
@@ -304,6 +351,8 @@ pub struct TestSnapshot {
     /// The unit and city models the render bridge gave the renderer, `[owner, id, x, y]` (set by the shell).
     pub map_units: Vec<[i32; 4]>,
     pub map_cities: Vec<[i32; 4]>,
+    /// The game UIs (set by the app when a game UI is registered).
+    pub ui: Option<TestUi>,
 }
 
 /// A row of the players panel.

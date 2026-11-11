@@ -1,0 +1,38 @@
+[
+  {
+    "api": "1.0",
+    "default": false,
+    "file": "badhash-e5e4765c2db8288f.ui2",
+    "hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "id": "badhash",
+    "themes": [
+      "dark",
+      "light"
+    ],
+    "title_key": "TXT_KEY_SKIN_BADHASH"
+  },
+  {
+    "api": "9.0",
+    "default": false,
+    "file": "api9-fcd058422c1e2029.ui2",
+    "hash": "fcd058422c1e20297b15afa56bb9a3d153c06ae02f2dc9e4dde18146f2a4faf3",
+    "id": "api9",
+    "themes": [
+      "dark",
+      "light"
+    ],
+    "title_key": "TXT_KEY_SKIN_API9"
+  },
+  {
+    "api": "1.0",
+    "default": true,
+    "file": "scriptfail-3f18dc1ad9edceb0.ui2",
+    "hash": "3f18dc1ad9edceb0f58e7f71fab882d4fa56555bedff60824264a48811fa1a2d",
+    "id": "scriptfail",
+    "themes": [
+      "dark",
+      "light"
+    ],
+    "title_key": "TXT_KEY_SKIN_SCRIPTFAIL"
+  }
+]

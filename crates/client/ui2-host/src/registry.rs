@@ -259,6 +259,7 @@ impl SkinRegistry {
         let entry = self
             .get(id)
             .ok_or_else(|| SkinLoadError::new(id, LoadFailure::UnknownSkin))?;
+        entry.check_api()?;
         let fail = |f| SkinLoadError::new(id, f);
         let pkg = Package::read(bytes).map_err(|e| fail(LoadFailure::Package(e)))?;
         let file = hash_hex(&pkg.hash());
@@ -280,7 +281,23 @@ impl SkinRegistry {
 }
 
 /// The script API version this client offers to skins.
-const SCRIPT_API: (u16, u16) = (1, 0);
+pub const SCRIPT_API: ApiVersion = ApiVersion { major: 1, minor: 0 };
+
+impl SkinEntry {
+    /// The index entry's script API against this client's ([`SCRIPT_API`], the same major version): a skin of
+    /// another major version is refused before it is downloaded.
+    pub fn check_api(&self) -> Result<(), SkinLoadError> {
+        if self.api.major == SCRIPT_API.major {
+            return Ok(());
+        }
+        Err(SkinLoadError::new(
+            self.id.as_str(),
+            LoadFailure::Incompatible(ui2_package::PackageError::Incompatible {
+                need: format!("script API {} (the client has {SCRIPT_API})", self.api),
+            }),
+        ))
+    }
+}
 
 /// The checks of a package against this client that do not need an index: versions (profile, model, script
 /// API), model paths and intents.
@@ -288,7 +305,7 @@ pub fn check_package(pkg: &Package) -> Result<(), LoadFailure> {
     pkg.check_compat(&ui2_package::Versions {
         profile: ui2_package::PROFILE_VERSION,
         model: ui2_model::r#gen::SCHEMA_VERSION,
-        api: SCRIPT_API,
+        api: (SCRIPT_API.major, SCRIPT_API.minor),
     })
     .map_err(LoadFailure::Incompatible)?;
     pkg.check_paths(Schema::v1())

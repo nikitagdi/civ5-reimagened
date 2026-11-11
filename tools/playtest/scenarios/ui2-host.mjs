@@ -3,12 +3,16 @@
 //   node tools/playtest/run.mjs --attach http://127.0.0.1:8790 --scenario ui2-host [--gfx webgl2] [--headed]
 // Without `--attach` (the local fixture server) the game's layer that UI v2 reads never comes up: the scenario says so.
 //
+// Also: the playtest hooks (`state().ui`, `ui2()`, `ui2Rects`, `digest('replica')`), switching v2 -> classic (warm)
+// -> v2 -> classic (cold) -> v2 on the fly, and broken skin packages (fixtures) on the classic page.
+//
 // Start: `?ui=v2:engraved&test=1&autostart=1&stats=1`; once the skin runs, the top strip's texts (read through
 // `__civ5test.ui2()`, never from pixels) show the gold, the science rate, the turn and the year that `state()` reports,
 // at the start (then a click on the map selects a unit: the unit panel shows its name and its Fortify button fortifies it
 // within 2 s) and again once the settler founded a city (through the test port's orders); `ui2.draws.hud` <= 5; no console errors. Then a page without `&ui=`: `ui2()` is null and no `ui2.*` pass ran
 // (`ui2.draws` absent or 0). Screenshot of the strip: <logs>/ui2-top.png.
 import { writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { openPage, act, until, state, appUrl } from "../lib/browser.mjs";
 import { DEV_PASSWORD } from "../lib/game.mjs";
 import { FOUND_CITY } from "../lib/policy.mjs";
@@ -151,6 +155,156 @@ async function unitPanel(page, numbers, check, shot) {
   check("Fortify: the unit is fortified within 2 s", after !== undefined && after !== before && ms <= 2000, `activity ${before} -> ${after} in ${ms} ms, title ${JSON.stringify(title)}`);
 }
 
+/**
+ * The playtest hooks of UI v2: `state().ui` names the UI on the screen and the choice; `ui2()` has the package, the
+ * model revision, the panels and the scripts; `ui2Rects` gives the strip's rectangles; `digest('replica')` is the same
+ * before and after UI-only actions (hover, a click on the strip) unless the server sent a batch in between.
+ */
+async function hooks(page, numbers, check) {
+  const st = await state(page);
+  numbers.ui = st?.ui ?? null;
+  check("state().ui: UI v2 on the screen, choice v2:engraved", st?.ui?.active === "v2" && st.ui.choice === "v2:engraved" && st.ui.skin === "engraved" && st.ui.switching === false,
+    JSON.stringify(st?.ui));
+  const p = await ui2(page);
+  numbers.ui2Hooks = { active: p?.active, pkg: p?.pkg, model: p?.model, panels: p?.panels?.length, scripts: p?.scripts };
+  check("ui2(): active, package hash, model revision, panels", p?.active === true && typeof p.pkg === "string" && p.pkg.length === 64 && p.model?.rev > 0 && Array.isArray(p.panels) && p.panels.length > 0 && p.panels.every((x) => x.status === "ok"),
+    JSON.stringify(numbers.ui2Hooks));
+  const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["top.yield.gold"])).catch((e) => String(e));
+  numbers.rects = Array.isArray(rects) ? rects.slice(0, 4) : rects;
+  check("ui2Rects(top.yield.gold): rectangles in CSS px", Array.isArray(rects) && rects.length > 0 && rects.every((r) => r.part === "top.yield.gold" && r.w > 0 && r.h > 0),
+    Array.isArray(rects) ? `${rects.length} rect(s), first ${JSON.stringify(rects[0])}` : String(rects));
+  const seq0 = (await state(page))?.net?.viewSeq;
+  const d0 = await page.evaluate(() => window.__civ5test.digest("replica")).catch((e) => `error ${e}`);
+  const vp = page.viewportSize() ?? { width: 1600, height: 900 };
+  for (const [x, y] of [[vp.width / 2, 14], [vp.width / 3, 14], [vp.width / 2, vp.height / 2]]) {
+    await page.mouse.move(x, y);
+    await sleep(100);
+  }
+  await page.mouse.click(vp.width / 2, 14);
+  await sleep(300);
+  const d1 = await page.evaluate(() => window.__civ5test.digest("replica")).catch((e) => `error ${e}`);
+  const seq1 = (await state(page))?.net?.viewSeq;
+  numbers.replicaDigest = { d0, d1, seq0, seq1 };
+  check("R17: UI-only actions leave the replica digest as it is", /^[0-9a-f]{16}$/.test(d0 ?? "") && (d0 === d1 || seq0 !== seq1), JSON.stringify(numbers.replicaDigest));
+}
+
+/** `__civ5stats.ui.lua_errors` of the classic UI (null before its stats came). */
+async function luaErrors(page) {
+  return page.evaluate(() => window.__civ5stats?.ui?.lua_errors ?? null).catch(() => null);
+}
+
+/** The client's attaches so far (a reconnect would add one). */
+async function attaches(page) {
+  return page.evaluate(() => {
+    const c = window.__civ5test.metrics().client;
+    return c ? c.attachedReplay + c.attachedFresh : null;
+  }).catch(() => null);
+}
+
+/**
+ * One switch: `setUi` with `opts`, then until `want` is on the screen and (for the classic UI) its layer ran again
+ * (`ui.classic.wake_ms` changed). Returns the host's switch time, the classic UI's wake-up time and the wall time.
+ */
+async function switchTo(page, value, want, opts = {}, waitMs = 30000) {
+  const before = await counters(page);
+  const t0 = Date.now();
+  await act(page, { kind: "setUi", value, ...opts });
+  const st = await until(page, (x) => x.ui?.active === want && !x.ui.switching, 30000, `${value} on the screen`);
+  let wakeMs = null;
+  if (want === "classic") {
+    const deadline = Date.now() + waitMs;
+    for (;;) {
+      const c = await counters(page);
+      if (typeof c["ui.classic.wake_ms"] === "number" && c["ui.classic.wake_ms"] !== before["ui.classic.wake_ms"]) {
+        wakeMs = c["ui.classic.wake_ms"];
+        break;
+      }
+      if (Date.now() > deadline) break;
+      await sleep(100);
+    }
+  }
+  return { value, switchMs: st.ui.lastSwitchMs, wakeMs, wallMs: Date.now() - t0, switches: st.ui.switches };
+}
+
+/**
+ * Switching on the fly (R21, R22): v2 -> classic (warm: the classic layer stays and the game is announced to it
+ * again) -> v2 -> classic (cold: a new layer) -> v2, each within 3 s (the warm way and UI v2's way back; the cold
+ * way is measured), the classic UI without new Lua errors after its sleep, the same connection all along, and the
+ * choice kept in `civ5.options.ui` only when saved (`?ui=` writes nothing).
+ */
+async function switching(page, numbers, check) {
+  const st0 = await state(page);
+  check("?ui= keeps nothing: civ5.options.ui is not written", st0?.ui?.saved === null, `${JSON.stringify(st0?.ui?.saved)}`);
+  const att0 = await attaches(page);
+  // The classic UI's layer may never have come up under UI v2 (it took the screen early): its first boot first.
+  const boot = await switchTo(page, "classic", "classic", {}, 180000);
+  numbers.classicBoot = boot;
+  check("classic: its layer runs", boot.wakeMs !== null, JSON.stringify(boot));
+  await sleep(2000);
+  const lua0 = await luaErrors(page);
+  await switchTo(page, "v2:engraved", "v2");
+  const runs = [];
+  runs.push(await switchTo(page, "classic", "classic"));
+  await sleep(3000);
+  const lua1 = await luaErrors(page);
+  const c1 = await counters(page);
+  await sleep(1500);
+  const c2 = await counters(page);
+  check("warm: the classic UI is back within 3 s", runs[0].switchMs <= 3000 && runs[0].wakeMs !== null && runs[0].switchMs + runs[0].wakeMs <= 3000, JSON.stringify(runs[0]));
+  check("warm: no Lua errors after the sleep", lua1 !== null && lua1 === (lua0 ?? 0), `${lua0} -> ${lua1}`);
+  check("warm: the classic UI runs, UI v2 sleeps", c2["ui.active"] === 1 && c2["ui.frames.v2"] === c1["ui.frames.v2"] && c2["ui.frames.classic"] > c1["ui.frames.classic"],
+    `active ${c2["ui.active"]}, v2 ${c1["ui.frames.v2"]} -> ${c2["ui.frames.v2"]}, classic ${c1["ui.frames.classic"]} -> ${c2["ui.frames.classic"]}`);
+  runs.push(await switchTo(page, "v2:engraved", "v2", { save: true }));
+  check("v2 is back within 3 s", runs[1].switchMs <= 3000, JSON.stringify(runs[1]));
+  const probe = await ui2(page);
+  check("v2 is back with its texts", probe?.active === true && partTexts(probe, "top.yield.gold").length > 0, `${probe?.active}`);
+  const st1 = await state(page);
+  check("the setting keeps the choice: civ5.options.ui == v2:engraved", st1.ui.saved === "v2:engraved", `${JSON.stringify(st1.ui.saved)}`);
+  runs.push(await switchTo(page, "classic", "classic", { cold: true }));
+  await sleep(3000);
+  const lua2 = await luaErrors(page);
+  check("cold: the classic UI is back, no Lua errors", runs[2].wakeMs !== null && lua2 === lua1, `${JSON.stringify(runs[2])}, lua ${lua1} -> ${lua2}`);
+  runs.push(await switchTo(page, "v2:engraved", "v2", { cold: false }));
+  check("v2 is back within 3 s (after the cold classic)", runs[3].switchMs <= 3000, JSON.stringify(runs[3]));
+  const att1 = await attaches(page);
+  check("the same connection: no new attach while switching", att0 !== null && att1 === att0, `${att0} -> ${att1}`);
+  check("one switch per request", runs[3].switches - runs[0].switches === 3, runs.map((r) => r.switches).join(","));
+  numbers.switching = { runs, lua: [lua0, lua1, lua2], attaches: [att0, att1] };
+}
+
+/** The broken skin packages of `crates/client/ui2-host/tests/fixtures` (`badhash`, `api9`, `scriptfail`). */
+const FIXTURES = fileURLToPath(new URL("../../../crates/client/ui2-host/tests/fixtures/", import.meta.url));
+
+/**
+ * Fatal skin failures (R4) on a page whose classic UI runs and whose UI v2 has not loaded yet: the page gets the fixture
+ * index instead of the build's. `v2:badhash` (another hash than its file) falls back to the default `scriptfail` (its
+ * script throws while it loads), which falls back to the classic UI with a notice; `v2:api9` (script API 9) is refused
+ * before its download. The classic UI stays on the screen, each failure is counted once, nothing is tried in a loop.
+ */
+async function brokenPackages(page, numbers, check) {
+  await page.route("**/ui2/skins.json", (r) => r.fulfill({ path: `${FIXTURES}skins.json`, contentType: "application/json" }));
+  await page.route(/\/ui2\/[a-z0-9]+-[0-9a-f]{16}\.ui2$/, (r) => r.fulfill({ path: `${FIXTURES}${r.request().url().split("/").pop()}` }));
+  const before = (await state(page))?.ui;
+  await act(page, { kind: "setUi", value: "v2:badhash" });
+  const t0 = Date.now();
+  let st = await until(page, (x) => (x.ui?.failed?.length ?? 0) > (before?.failed?.length ?? 0) && !x.ui.switching, 30000, "the broken skins refused");
+  const firstMs = Date.now() - t0;
+  // No loop: a few seconds later nothing more failed and the classic UI still has the screen.
+  await sleep(3000);
+  st = await state(page);
+  const failed = st.ui.failed.slice(before?.failed?.length ?? 0);
+  numbers.broken = { firstMs, failed, notice: st.ui.notice, switches: [before?.switches, st.ui.switches], probe: await ui2(page) };
+  check("broken package: back to the classic UI with a notice", st.ui.active === "classic" && typeof st.ui.notice === "string" && /failed/.test(st.ui.notice),
+    JSON.stringify({ active: st.ui.active, notice: st.ui.notice }));
+  check("broken package: badhash, then the default scriptfail, once each", failed.length === 1 && /scriptfail/.test(failed[0].why), JSON.stringify(failed));
+  check("broken package: no loop", st.ui.switches - (before?.switches ?? 0) <= 1 && !st.ui.switching, JSON.stringify(numbers.broken.switches));
+  await act(page, { kind: "setUi", value: "v2:api9" });
+  st = await until(page, (x) => x.ui.failed.length > (before?.failed?.length ?? 0) + 1 && !x.ui.switching, 15000, "api9 refused");
+  const last = st.ui.failed[st.ui.failed.length - 1];
+  numbers.broken.api9 = last;
+  check("api9: refused (script API 9.0), the classic UI stays", st.ui.active === "classic" && /9\.0/.test(last?.why ?? ""), JSON.stringify(last));
+}
+
 export async function run(ctx) {
   const o = ctx.opts;
   const started = Date.now();
@@ -218,6 +372,7 @@ export async function run(ctx) {
       }
     };
     await compare("start");
+    await hooks(b.page, result.numbers, check);
     await unitPanel(b.page, result.numbers, check, shot);
     // The settler founds a city through the test port's orders (the server's command, whichever UI is on the screen):
     // the classic UI sleeps under UI v2, so its Lua is not there to do it.
@@ -246,6 +401,7 @@ export async function run(ctx) {
     const c2 = await counters(b.page);
     check("one active UI: ui.active == 2 (UI v2)", c2["ui.active"] === 2, `${c2["ui.active"]}`);
     check("the classic UI sleeps: ui.frames.classic does not grow", typeof c["ui.frames.classic"] === "number" && c2["ui.frames.classic"] === c["ui.frames.classic"] && c2["ui.frames.v2"] > c["ui.frames.v2"], `classic ${c["ui.frames.classic"]} -> ${c2["ui.frames.classic"]}, v2 ${c["ui.frames.v2"]} -> ${c2["ui.frames.v2"]}`);
+    await switching(b.page, result.numbers, check);
     await shot("ui2-top");
   } catch (e) {
     error = e;
@@ -287,6 +443,13 @@ export async function run(ctx) {
     result.consoleErrors.push(...c.errors);
     const errs = appErrors(c.errors);
     check("no console errors (classic)", errs.length === 0, `${errs.length} error(s)${errs[0] ? `: ${errs[0]}` : ""}`);
+    if (!error) {
+      try {
+        await brokenPackages(c.page, result.numbers, check);
+      } catch (e) {
+        error = e;
+      }
+    }
     await c.close();
   }
 

@@ -22,6 +22,11 @@ pub struct ClassicFrontend {
     ui_press: crate::ui_press::UiPress,
     /// The layer went to sleep while it was up: the core's events it missed were dropped by the session.
     slept_with_layer: bool,
+    /// Wake up the cold way: the layer is made again (`?ui2classic=cold`); else the warm way, the layer stays and
+    /// takes the game as a new load.
+    cold_wake: bool,
+    /// When the last wake-up began (ms), until the layer runs again: `ui.classic.wake_ms` measures it.
+    woke_at: Option<f64>,
 }
 
 impl ClassicFrontend {
@@ -31,6 +36,8 @@ impl ClassicFrontend {
             m2: M2Ui::new(kv, ui_volume),
             ui_press: crate::ui_press::UiPress::default(),
             slept_with_layer: false,
+            cold_wake: false,
+            woke_at: None,
         }
     }
 }
@@ -57,17 +64,33 @@ impl Frontend for ClassicFrontend {
         }
     }
 
-    fn activate(&mut self, _cx: &mut PrepareCx<'_>) {
+    fn activate(&mut self, cx: &mut PrepareCx<'_>) {
+        // Measured from here to the layer's first frame (a layer that never came up boots in that time).
+        self.woke_at = Some(cx.now_ms);
         if std::mem::take(&mut self.slept_with_layer) {
-            // The layer missed the core's events while it slept: it is made again over the same replica (the cold
-            // way back; the warm one, announcing the units and cities to the old layer again, is not there yet).
-            tracing::info!("the classic UI wakes up: its layer is made again");
-            self.m2.restart_layer();
+            // The layer missed the core's events while it slept. The warm way keeps it and announces the game to
+            // it again as a new load; the cold way (on request, or without a layer to keep) makes it again.
+            // SIMPLIFIED(SIMP-267): the warm way announces every unit and city again, as after a snapshot load.
+            if !self.cold_wake && self.m2.force_resync() {
+                tracing::info!("the classic UI wakes up: the game is announced to its layer again");
+            } else {
+                tracing::info!("the classic UI wakes up: its layer is made again");
+                self.m2.restart_layer();
+            }
         }
     }
 
     fn deactivate(&mut self, _cx: &mut PrepareCx<'_>) {
         self.slept_with_layer = self.m2.layer().is_some();
+        self.woke_at = None;
+    }
+
+    fn set_cold_wake(&mut self, cold: bool) {
+        self.cold_wake = cold;
+    }
+
+    fn options(&mut self) -> Vec<(String, String)> {
+        vec![("classic".into(), "Classic".into())]
     }
 
     fn frame(&mut self, cx: &mut FrameCx<'_>, out: &mut UiDrawList) {
@@ -75,6 +98,15 @@ impl Frontend for ClassicFrontend {
         // The camera keys of `WorldView.lua` (SIMP-exe-560).
         for k in self.m2.take_camera_keys() {
             cx.map_controller.handle(&k, cx.camera);
+        }
+        // The wake-up is over once the layer ran a frame: from the activation to the end of that frame.
+        if self.m2.layer().is_some()
+            && self.m2.phase() == M2Phase::Running
+            && let Some(t0) = self.woke_at.take()
+        {
+            let ms = cx.clock.now_ms_f64() - t0;
+            render::perf::set_counter("ui.classic.wake_ms", ms);
+            tracing::info!(ms, cold = self.cold_wake, "the classic UI is back");
         }
     }
 

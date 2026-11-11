@@ -209,6 +209,14 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
             background: page::query_param("ui2bg")
                 .as_deref()
                 .and_then(client_app::parse_ui2_background),
+            // The skins' text fields type through a hidden textarea, added to the page when the first skin
+            // comes up.
+            text_input: Some(Box::new(|| match platform_web::WebTextInput::new() {
+                Some(t) => Box::new(t) as Box<dyn platform::ui2::TextInputBridge>,
+                None => Box::new(platform::ui2::NullTextInput),
+            })),
+            // `&ui2classic=cold`: the classic UI wakes up from under UI v2 with a new layer.
+            classic_cold: page::query_param("ui2classic").as_deref() == Some("cold"),
         }),
     };
     let config = AppConfig {
@@ -238,7 +246,8 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
             .and_then(|v| v.trim().parse::<f32>().ok())
             .map_or(0.5, |v| (v / 100.0).clamp(0.0, 1.0)),
         original_ui_m1: page::query_param("ui").as_deref() == Some("m1"),
-        // `&ui=classic|v2|v2:<skin>|interim`: the game UI of this run (not remembered). A UI v2 skin
+        // `&ui=classic|v2|v2:<skin>|interim`: the game UI of this run (not remembered; without it the player's
+        // choice of the settings, `civ5.options.ui`, else the classic UI). A UI v2 skin
         // (`ui2/skins.json` and its package, fetched relative to the page) takes the screen once it is up and a game
         // is played; one that cannot load leaves the classic UI.
         ui_choice: page::query_param("ui")

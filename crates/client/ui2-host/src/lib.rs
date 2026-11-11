@@ -27,7 +27,9 @@ pub mod v2;
 pub use error::{LoadFailure, SkinLoadError};
 pub use frame::{V2Frame, V2FrameReport};
 pub use input::{MAP_CLICK, map_click};
-pub use registry::{ApiVersion, Fallback, RegistryError, SkinEntry, SkinRegistry, hash_hex};
+pub use registry::{
+    ApiVersion, Fallback, RegistryError, SCRIPT_API, SkinEntry, SkinRegistry, hash_hex,
+};
 pub use scripts::SCRIPT_LANG;
 pub use sink::{HostNet, NetSink, Offline, refused};
 pub use ui2_actions::ActionEvent;

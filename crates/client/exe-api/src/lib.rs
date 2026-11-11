@@ -758,6 +758,20 @@ impl ExeApi {
         self.core.add_popup(info);
     }
 
+    /// The UI slept while the game went on (another game UI had the screen and the core's events were dropped): the
+    /// next [`dispatch`](Self::dispatch) takes the replica's game as a new load, the way a new snapshot is taken
+    /// (`invalidate_lua`, `setup_graphical`, the units and cities announced again, the turn events of a later turn).
+    /// Nothing happens before the first dispatch announced the game.
+    // SIMPLIFIED(SIMP-267): the classic UI that wakes up announces every unit and city again, as after a snapshot
+    // load, instead of getting the core's events while it sleeps.
+    pub fn force_resync(&self) {
+        let c = &self.core;
+        if c.generation.get().is_some() {
+            // No replica's generation is ever this one: the next dispatch sees a change.
+            c.generation.set(Some(u64::MAX));
+        }
+    }
+
     /// Once per frame: the replica's changes of generation, the engine events translated into `Events.*`, the FIFO
     /// handled, the dirty bits raised.
     pub fn dispatch(&mut self, rt: &Runtime) {

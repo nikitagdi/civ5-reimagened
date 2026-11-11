@@ -29,7 +29,11 @@
 //!   the next human turn (`wallMs`) and the time the rivals were seen moving (`aiMs`); on a server
 //!   session `client`: the counters of the client (`ClientStats`: diffs, `needKeyframe`, orders by
 //!   outcome, queries by kind, layer, ...) and the rings `rttMs` and `orderMs`.
-//! - `digest()`: FNV-1a 64 (hex) of the visible state (turn, the human's units and cities).
+//! - `digest()`: FNV-1a 64 (hex) of the visible state (turn, the human's units and cities); `digest('replica')`: a
+//!   promise of the replica's own digest (`Replica::digest`: UI v2 actions must leave it as it is).
+//! - The game UIs: `act({kind: 'setUi', value: 'classic' | 'v2' | 'v2:<skin>', save?, cold?})` switches,
+//!   `state().ui` (see [`ui_json`]) tells which one is on the screen, `ui2()` (see [`ui2_json`]) is UI v2 as of its
+//!   last frame, `ui2Rects(parts)` a promise of the rectangles of `data-part` elements.
 //! - `waitTurn(n, timeoutMs?)`: a promise of the state once turn `n` is the human's.
 //! - `trap(kind)`: kills the module on purpose (`page`, `workerPanic`, `workerTrap`), for the crash report.
 //! - `golden` (page with `&golden=<url>&capture=<name>`): once the frame is final,
@@ -190,6 +194,12 @@ pub fn install() -> Option<Box<dyn TestPort>> {
         let value: Value =
             serde_json::from_str(&text).map_err(|e| JsValue::from_str(&e.to_string()))?;
         let action = parse_action(&value).map_err(|e| JsValue::from_str(&e))?;
+        // A page that switches to UI v2 gets its probe (`ui2()`) from then on.
+        if let TestAction::SetUi { value, .. } = &action
+            && client_app::parse_ui2_param(Some(value)).is_some()
+        {
+            client_app::enable_ui2_probe();
+        }
         let mut s = s.borrow_mut();
         s.queue.push(action);
         s.asked += 1;
@@ -233,8 +243,27 @@ pub fn install() -> Option<Box<dyn TestPort>> {
     let digest = Closure::<dyn Fn() -> String>::new(move || {
         s.borrow().snapshot.as_ref().map(digest).unwrap_or_default()
     });
-    set("digest", digest.as_ref());
+    set("_digestVisible", digest.as_ref());
     digest.forget();
+    // `digest()`: the visible state's hash at once; `digest('replica')`: a promise of the replica's own digest
+    // (`Replica::digest`, slow on a big game), computed in the next frame.
+    let digest = js_sys::Function::new_with_args(
+        "kind, timeoutMs",
+        "const api = this;\n\
+         if (kind !== 'replica') return api._digestVisible();\n\
+         const c0 = api.state().ui?.replicaDigest?.count ?? 0, t0 = performance.now();\n\
+         api.act({ kind: 'replicaDigest' });\n\
+         return new Promise((ok, fail) => {\n\
+           const tick = () => {\n\
+             const d = api.state().ui?.replicaDigest;\n\
+             if (d && d.count > c0) return ok(d.value);\n\
+             if (performance.now() - t0 > (timeoutMs ?? 30000)) return fail(new Error('digest(replica) timed out'));\n\
+             setTimeout(tick, 50);\n\
+           };\n\
+           tick();\n\
+         });",
+    );
+    set("digest", &digest);
 
     let wait_turn = js_sys::Function::new_with_args(
         "n, timeoutMs",
@@ -261,6 +290,43 @@ pub fn install() -> Option<Box<dyn TestPort>> {
     });
     set("ui2", ui2.as_ref());
     ui2.forget();
+    // `ui2Rects(parts, timeoutMs?)`: a promise of the rectangles of the elements of the `data-part` names `parts`
+    // (`Runtime::dump_rects`, CSS px), from the next UI v2 frame.
+    let ask = Closure::<dyn Fn(JsValue) -> Result<f64, JsValue>>::new(|v: JsValue| {
+        let text: String = js_sys::JSON::stringify(&v)?.into();
+        let parts: Vec<String> = match serde_json::from_str::<Value>(&text) {
+            Ok(Value::String(s)) => vec![s],
+            Ok(Value::Array(a)) => a
+                .into_iter()
+                .filter_map(|x| x.as_str().map(str::to_owned))
+                .collect(),
+            _ => {
+                return Err(JsValue::from_str(
+                    "ui2Rects: parts are a name or a list of names",
+                ));
+            }
+        };
+        Ok(client_app::ask_ui2_rects(parts) as f64)
+    });
+    set("_ui2RectsAsk", ask.as_ref());
+    ask.forget();
+    let get = Closure::<dyn Fn(f64) -> JsValue>::new(|seq: f64| to_js(&ui2_rects_json(seq as u64)));
+    set("_ui2RectsGet", get.as_ref());
+    get.forget();
+    let rects = js_sys::Function::new_with_args(
+        "parts, timeoutMs",
+        "const api = this, seq = api._ui2RectsAsk(parts), t0 = performance.now();\n\
+         return new Promise((ok, fail) => {\n\
+           const tick = () => {\n\
+             const r = api._ui2RectsGet(seq);\n\
+             if (r !== null) return ok(r);\n\
+             if (performance.now() - t0 > (timeoutMs ?? 10000)) return fail(new Error('ui2Rects timed out (is UI v2 on the screen?)'));\n\
+             setTimeout(tick, 50);\n\
+           };\n\
+           tick();\n\
+         });",
+    );
+    set("ui2Rects", &rects);
 
     let trap = Closure::<dyn Fn(String)>::new(test_trap);
     set("trap", trap.as_ref());
@@ -414,6 +480,14 @@ fn parse_action(v: &Value) -> Result<TestAction, String> {
             Some("high") => QualityPreset::High,
             _ => return Err("act setQuality: `preset` is low, medium or high".to_owned()),
         })),
+        // The game UI (`classic`, `v2`, `v2:<skin>`); `save`: as the settings window keeps it; `cold`: the classic UI
+        // wakes up with a new layer.
+        "setUi" => TestAction::SetUi {
+            value: text("value").ok_or("act setUi: `value` is required")?,
+            save: flag("save"),
+            cold: v["cold"].as_bool(),
+        },
+        "replicaDigest" => TestAction::ReplicaDigest,
         "leaveGame" => TestAction::Ui(UiAction::LeaveGame),
         "toggleSettings" => TestAction::Ui(UiAction::ToggleSettings),
         "toggleStats" => {
@@ -624,8 +698,9 @@ fn net_json(n: &TestNet) -> Value {
     })
 }
 
-/// `ui2()`: `{state, skin, loadMs, frames, texts: [{part, text}], counters: {"ui2.*": n}}`; the counters are the
-/// renderer's and the frame's, as `__civ5stats` has them.
+/// `ui2()`: `{state, active, skin, pkg, loadMs, model: {rev}, frames, panels: [{id, owner, status, reason}],
+/// scripts: [{ctx, status, errors, restarts}], reload, texts: [{part, text}], counters: {"ui2.*": n}}`; the counters
+/// are the renderer's and the frame's, as `__civ5stats` has them. `reload` is null (no hot reload yet).
 fn ui2_json(p: &client_app::V2Probe) -> Value {
     let texts: Vec<Value> = p
         .texts
@@ -637,14 +712,75 @@ fn ui2_json(p: &client_app::V2Probe) -> Value {
         .filter(|(name, _)| name.starts_with("ui2."))
         .map(|(name, v)| (name, json!(v)))
         .collect();
+    let panels: Vec<Value> = p
+        .panels
+        .iter()
+        .map(|x| {
+            json!({
+                "id": x.name,
+                "owner": x.owner,
+                "status": if x.failed.is_some() { "placeholder" } else { "ok" },
+                "reason": x.failed,
+            })
+        })
+        .collect();
+    let scripts: Vec<Value> = p
+        .scripts
+        .iter()
+        .map(|s| json!({ "ctx": s.ctx, "status": s.status, "errors": s.errors, "restarts": s.restarts }))
+        .collect();
     json!({
         "state": p.state,
+        "active": p.active,
         "skin": p.skin,
+        "pkg": p.pkg,
         "loadMs": p.load_ms,
+        "model": { "rev": p.model_rev },
         "frames": p.frames,
+        "panels": panels,
+        "scripts": scripts,
+        "reload": null,
         "texts": texts,
         "counters": counters,
     })
+}
+
+/// `state().ui`: `{active, choice, saved, skin, switching, switches, lastSwitchMs, failed: [{ui, why}], notice,
+/// frames: {classic, v2}, inputs: {classic, v2}, replicaDigest: {count, value}}`.
+fn ui_json(u: &client_app::test_port::TestUi) -> Value {
+    json!({
+        "active": u.active,
+        "choice": u.choice,
+        "saved": u.saved,
+        "skin": u.skin,
+        "switching": u.switching,
+        "switches": u.switches,
+        "lastSwitchMs": u.last_switch_ms,
+        "failed": u.failed.iter().map(|(ui, why)| json!({ "ui": ui, "why": why })).collect::<Vec<_>>(),
+        "notice": u.notice,
+        "frames": { "classic": u.frames[0], "v2": u.frames[1] },
+        "inputs": { "classic": u.inputs[0], "v2": u.inputs[1] },
+        "replicaDigest": u.replica_digest.as_ref().map(|(count, value)| json!({ "count": count, "value": value })),
+    })
+}
+
+/// `_ui2Rects(seq)`: the rectangles of the answer `seq` (`[{part, node, keys, x, y, w, h}]`), null until the UI v2
+/// frame answered it.
+fn ui2_rects_json(seq: u64) -> Value {
+    match client_app::ui2_probe().and_then(|p| p.rects) {
+        Some((n, rects)) if n >= seq => Value::Array(
+            rects
+                .iter()
+                .map(|r| {
+                    json!({
+                        "part": r.part, "node": r.node, "keys": r.keys,
+                        "x": r.rect[0], "y": r.rect[1], "w": r.rect[2], "h": r.rect[3],
+                    })
+                })
+                .collect(),
+        ),
+        _ => Value::Null,
+    }
 }
 
 fn state_json(s: &Shared) -> Value {
@@ -740,6 +876,7 @@ fn snapshot_json(s: &TestSnapshot) -> Value {
         // The unit and city models the render bridge gave the renderer: [owner, id, x, y].
         "mapUnits": s.map_units,
         "mapCities": s.map_cities,
+        "ui": s.ui.as_ref().map(ui_json),
         "playersPanel": s.players_panel.as_ref().map(|p| json!({
             "open": p.open,
             "note": p.note,
