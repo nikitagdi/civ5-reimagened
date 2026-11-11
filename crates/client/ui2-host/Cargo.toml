@@ -1,0 +1,33 @@
+[package]
+name = "ui2-host"
+description = "UI v2 host side: the skin registry and the UI v2 instance (model, source, runtime, text, scene) with its frame"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "client"
+
+# No GPU and no browser bindings here: the application hands the scene to the renderer itself.
+[dependencies]
+ui2-package.workspace = true
+ui2-model.workspace = true
+ui2-text.workspace = true
+ui2-draw.workspace = true
+ui2-runtime.workspace = true
+ui2-source.workspace = true
+replica.workspace = true
+loc.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+# In-memory skin packages for the tests.
+ui2-runtime = { workspace = true, features = ["testkit"] }
+# `profile`: tests write binding expressions as text and parse them as the converter does.
+ui2-package = { workspace = true, features = ["write", "profile"] }
