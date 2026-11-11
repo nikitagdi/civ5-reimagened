@@ -36,6 +36,7 @@ pub mod script;
 pub mod select;
 pub mod skin;
 pub mod styles;
+pub mod verify;
 pub mod write;
 
 use std::collections::BTreeSet;

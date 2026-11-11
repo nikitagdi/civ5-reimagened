@@ -34,6 +34,18 @@ fn skin_dir(arg: &str) -> Option<PathBuf> {
     None
 }
 
+/// The first `[verify] states` entry of a skin.
+fn first_state(dir: &Path) -> Option<String> {
+    let text = std::fs::read_to_string(dir.join("skin.toml")).ok()?;
+    let t: toml::Table = text.parse().ok()?;
+    t.get("verify")?
+        .get("states")?
+        .as_array()?
+        .first()?
+        .as_str()
+        .map(str::to_string)
+}
+
 /// `web <web-dir>`: builds every skin under `skins/` and publishes the packages and `skins.json` into
 /// `<web-dir>/ui2/`.
 fn web(web_dir: &str) -> ExitCode {
@@ -121,14 +133,13 @@ fn main() -> ExitCode {
     let mut skin = None;
     let mut dump_ir = None;
     let mut from_ir = None;
+    let mut state = None;
     let mut it = args[1..].iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--dump-ir" => dump_ir = it.next().cloned(),
             "--from-ir" => from_ir = it.next().cloned(),
-            "--state" => {
-                it.next();
-            }
+            "--state" => state = it.next().cloned(),
             s if s.starts_with("--") => {
                 eprintln!("unknown option {s}\n{USAGE}");
                 return ExitCode::from(2);
@@ -198,8 +209,35 @@ fn main() -> ExitCode {
             report(&out.run)
         }
         "verify" => {
-            eprintln!("ui2-convert verify: not implemented yet (the layout check comes later)");
-            ExitCode::from(2)
+            let state = match state {
+                Some(s) => s,
+                None => match first_state(&dir) {
+                    Some(s) => s,
+                    None => {
+                        eprintln!("ui2-convert: skin.toml lists no [verify] states; pass --state");
+                        return ExitCode::from(2);
+                    }
+                },
+            };
+            match ui2_convert::verify::verify(&dir, &state) {
+                Ok(o) => {
+                    for l in o.report.lines() {
+                        println!("{l}");
+                    }
+                    if o.report.ok() {
+                        ExitCode::SUCCESS
+                    } else {
+                        ExitCode::from(1)
+                    }
+                }
+                Err(errs) => {
+                    for e in &errs {
+                        eprintln!("{e}\n");
+                    }
+                    eprintln!("ui2-convert: {} error(s)", errs.len());
+                    ExitCode::from(1)
+                }
+            }
         }
         other => {
             eprintln!("unknown command {other}\n{USAGE}");
