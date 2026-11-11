@@ -19,9 +19,11 @@
 // never on a hot path, so it is not boxed.
 #![allow(clippy::result_large_err)]
 
+pub mod bindings;
 pub mod check;
 pub mod errors;
 pub mod ir;
+pub mod l10n;
 pub mod node;
 pub mod plan;
 pub mod script;
@@ -165,6 +167,10 @@ pub struct Run {
     pub extracted_json: Option<Value>,
     /// The compiled styles.
     pub styles: Option<Compiled>,
+    /// The typed bindings.
+    pub bindings: Option<bindings::Bound>,
+    /// The texts and the glyph set.
+    pub texts: Option<l10n::Texts>,
     /// Every error, sorted once the run ends.
     pub errors: Vec<ConvError>,
 }
@@ -232,6 +238,28 @@ fn unexpanded(ir: &Ir) -> bool {
             || e.attr("data-bind-for").is_some()
             || e.attr("data-bind-if").is_some()
     })
+}
+
+/// Text the markup keeps as written (outside `data-l10n` and `data-bind-value` elements).
+fn static_text(dom: &ir::Dom, statics: &Statics) -> Vec<String> {
+    let mut out = Vec::new();
+    for &ix in &statics.ui {
+        let bound = std::iter::once(ix).chain(dom.ancestors(ix)).any(|a| {
+            let e = dom.elems[a];
+            e.attr("data-l10n").is_some() || e.attr("data-bind-value").is_some()
+        });
+        if bound {
+            continue;
+        }
+        for c in &dom.elems[ix].children {
+            if let ir::Node::Text(t) = c
+                && !t.ws
+            {
+                out.push(t.text.clone());
+            }
+        }
+    }
+    out
 }
 
 /// The properties the static pass already reported as written (E2 at a declaration).
@@ -326,6 +354,22 @@ pub fn check_skin(dir: &Path, input: Input) -> Run {
             Err(e) => run.errors.push(e),
         }
         run.plan = Some(p);
+
+        let schema = ui2_model::Schema::v1();
+        let (bound, errs) = bindings::check(&dom, &statics, &src.skin, schema);
+        run.errors.extend(errs);
+        let (samples, errs) = bindings::check_samples(&src.dir, &src.skin, schema);
+        run.errors.extend(errs);
+        let (texts, errs) = l10n::check(
+            &src.dir,
+            &src.skin,
+            &bound,
+            &samples,
+            &static_text(&dom, &statics),
+        );
+        run.errors.extend(errs);
+        run.bindings = Some(bound);
+        run.texts = Some(texts);
         run.statics = Some(statics);
     }
     if let Some(n) = node {
@@ -367,6 +411,25 @@ impl Run {
                 varied,
                 s.tokens.roots.len(),
                 s.tokens.aliases.len()
+            ));
+        }
+        if let Some(b) = &self.bindings {
+            out.push(format!(
+                "bindings: {} elements, {} model paths, {} intents, {} handlers, {} text keys used",
+                b.nodes.len(),
+                b.paths.len(),
+                b.intents.len(),
+                b.handlers.len(),
+                b.keys.len()
+            ));
+        }
+        if let Some(t) = &self.texts {
+            let cps: u32 = t.glyphs.codepoints().iter().map(|(a, b)| b - a + 1).sum();
+            out.push(format!(
+                "texts: {} language(s), {} code points to keep ({} outside the named ranges)",
+                t.langs.len(),
+                cps,
+                t.glyphs.extra.len()
             ));
         }
         out
