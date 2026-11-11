@@ -113,6 +113,17 @@ fn dim(l: LenAuto) -> Dimension {
     }
 }
 
+/// `flex-basis`. A zero length is a percentage: `flex: 1` computes to `flex-basis: 0%`, which behaves as
+/// `content` against a container of indefinite main size (a column without a height) and as zero
+/// otherwise; taffy does the same with a percentage. The record keeps no unit for zero, so an explicit
+/// `0px` is read the same way and keeps its content size in such a column, where Chrome collapses it.
+fn flex_basis(l: LenAuto) -> Dimension {
+    match l {
+        LenAuto::Len(l) if l.px == 0.0 && l.pct == 0.0 => Dimension::percent(0.0),
+        _ => dim(l),
+    }
+}
+
 fn max(l: LenNone) -> LengthPercentageAuto {
     match l {
         LenNone::None => LengthPercentageAuto::auto(),
@@ -267,7 +278,7 @@ pub fn taffy_style(r: &StyleRecord) -> Style {
             FlexWrap::Nowrap => TFlexWrap::NoWrap,
             FlexWrap::Wrap => TFlexWrap::Wrap,
         },
-        flex_basis: dim(r.flex_basis),
+        flex_basis: flex_basis(r.flex_basis),
         flex_grow: r.flex_grow,
         flex_shrink: r.flex_shrink,
         aspect_ratio: match r.aspect_ratio {
@@ -316,7 +327,11 @@ mod tests {
         assert_eq!(s.display, TDisplay::Flex);
         assert!(s.inset.left.is_auto(), "a static box ignores its insets");
         assert_eq!(s.size.width, Dimension::percent(0.62));
-        assert_eq!(s.flex_basis, Dimension::length(0.0));
+        assert_eq!(
+            s.flex_basis,
+            Dimension::percent(0.0),
+            "`flex: 1` has a 0% basis"
+        );
         assert_eq!(s.gap.width, LengthPercentage::length(4.0));
         assert_eq!(s.align_self, None);
     }
