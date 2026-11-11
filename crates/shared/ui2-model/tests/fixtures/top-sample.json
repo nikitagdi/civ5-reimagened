@@ -1,0 +1,56 @@
+{
+  "model": {
+    "meta": {
+      "schema": "1.0",
+      "source": "replica",
+      "live": true,
+      "catching_up": false,
+      "connected": true
+    },
+    "game": {
+      "turn": 87,
+      "year": 1250,
+      "year_text": { "k": "year.ad", "a": ["1250"] },
+      "era": { "id": 3, "name": "Medieval era" },
+      "me": "0:0",
+      "phase": "humans",
+      "mode": "simultaneous",
+      "winner": null
+    },
+    "top": {
+      "science_rate": 48,
+      "gold": 312,
+      "gold_rate": 21,
+      "happiness": 7,
+      "mood": "content",
+      "golden_age": { "active": false, "turns": 0, "progress": 412, "threshold": 650 },
+      "culture": 214,
+      "culture_rate": 31,
+      "policy_cost": 400,
+      "policy_turns": 6,
+      "faith": 140,
+      "faith_rate": 9,
+      "tourism": 4,
+      "resources": [
+        { "id": "0:1", "name": "Horses", "icon": "icon:RESOURCE_ATLAS:1", "available": 2, "used": 0, "total": 2 },
+        { "id": "0:2", "name": "Iron", "icon": "icon:RESOURCE_ATLAS:2", "available": 4, "used": 0, "total": 4 },
+        { "id": "0:3", "name": "Coal", "icon": "icon:RESOURCE_ATLAS:3", "available": 0, "used": 3, "total": 3 }
+      ],
+      "policies": [
+        { "id": 1, "name": "Tradition", "unlocked": true, "owned": 4, "total": 5 },
+        { "id": 2, "name": "Patronage", "unlocked": true, "owned": 1, "total": 5 }
+      ]
+    },
+    "research": {
+      "current": { "id": "0:41", "name": "Education", "icon": "icon:TECH_ATLAS:41", "turns": 3, "progress": 248, "cost": 400, "fraction": 0.62 },
+      "next": { "id": "0:42", "name": "Astronomy", "icon": "icon:TECH_ATLAS:42", "turns": null, "progress": 0, "cost": 520, "fraction": 0.0 },
+      "queue": [],
+      "options": [],
+      "known": true,
+      "blocked": false
+    }
+  },
+  "state": {},
+  "ui": {},
+  "anchors": {}
+}

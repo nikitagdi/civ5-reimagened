@@ -12,18 +12,21 @@ pub mod diff;
 #[path = "gen/mod.rs"]
 pub mod generated;
 pub mod model;
+pub mod sample;
 pub mod schema;
 pub mod state;
 pub mod store;
 mod umd1;
 pub mod value;
 pub mod watch;
+pub mod wire;
 
 pub use delta::{Cursor, FrameDelta, Keys, Op, Ops};
 pub use diff::{ListStep, diff_root, list_steps};
 /// The generated types, under the name the specs use (gen is a keyword in edition 2024).
 pub use generated as r#gen;
 pub use model::{Keyed, KeyedList, Model, Root};
+pub use sample::{Sample, SampleError};
 pub use schema::{
     EnumDef, EnumId, FieldDef, FieldId, FieldRef, IntentDef, ListType, PathEntry, Root as RootDef,
     RootId, RootKind, Scalar, Schema, SchemaError, StructDef, Type, TypeId, Version,
