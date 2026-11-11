@@ -10,6 +10,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod breaker;
 mod face;
 pub mod metrics;
 pub mod shape;
@@ -18,6 +19,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
+pub use breaker::{BreakOptions, Ellipsized, Line, LineHeight, LineSegment, Lines, TextMeasure};
 use face::Face;
 pub use metrics::LineMetrics;
 use shape::ShapeCache;
