@@ -48,9 +48,62 @@
       "options": [],
       "known": true,
       "blocked": false
+    },
+    "map": {
+      "cities": [],
+      "units": [
+        { "key": "0:7", "owner": "0:0", "color": 7216152, "color2": 14991438, "plot": { "x": 20, "y": 26 }, "icon": "icon:UNIT_FLAG_ATLAS:12", "hp_fraction": 1.0, "domain": "land", "mine": true, "waiting": true, "at_war": false, "cargo": false }
+      ]
+    },
+    "notes": [
+      { "id": "0:11", "category": "growth", "message": "The city of Novgorod has grown to size 8.", "summary": "Novgorod has grown to size 8", "turn": 86, "plot": { "x": 14, "y": 22 } },
+      { "id": "0:12", "category": "great_people", "message": "A Great Scientist has been born in Moscow.", "summary": "Great Scientist born in Moscow", "turn": 86, "plot": { "x": 21, "y": 25 } },
+      { "id": "0:13", "category": "diplomacy", "message": "Montezuma has denounced you.", "summary": "Montezuma denounced you", "turn": 87, "plot": null },
+      { "id": "0:14", "category": "military", "message": "Barbarians have been spotted near Kazan.", "summary": "Barbarians spotted near Kazan", "turn": 87, "plot": { "x": 27, "y": 19 } }
+    ],
+    "unit": {
+      "key": "0:7",
+      "name": "Bogatyr",
+      "type_name": "Knight",
+      "portrait": "",
+      "level": 2,
+      "xp": 12,
+      "strength": 20,
+      "ranged": 0,
+      "range": 0,
+      "moves": 2.0,
+      "max_moves": 4,
+      "hp": 100,
+      "max_hp": 100,
+      "hp_fraction": 1.0,
+      "domain": "land",
+      "activity": "awake",
+      "promotions": [],
+      "promotion_ready": true,
+      "actions": [
+        { "kind": "move", "enabled": true, "reason": null, "supported": true },
+        { "kind": "fortify", "enabled": true, "reason": null, "supported": true },
+        { "kind": "sleep", "enabled": true, "reason": null, "supported": true },
+        { "kind": "alert", "enabled": true, "reason": null, "supported": false },
+        { "kind": "pillage", "enabled": false, "reason": "Nothing to pillage here", "supported": false },
+        { "kind": "upgrade", "enabled": false, "reason": "Needs Chivalry", "supported": false },
+        { "kind": "disband", "enabled": true, "reason": null, "supported": true }
+      ],
+      "act": {
+        "move": { "shown": true, "enabled": true, "reason": null },
+        "fortify": { "shown": true, "enabled": true, "reason": null },
+        "sleep": { "shown": true, "enabled": true, "reason": null },
+        "alert": { "shown": true, "enabled": true, "reason": null },
+        "pillage": { "shown": true, "enabled": false, "reason": "Nothing to pillage here" },
+        "upgrade": { "shown": true, "enabled": false, "reason": "Needs Chivalry" },
+        "disband": { "shown": true, "enabled": true, "reason": null }
+      },
+      "pending": false
     }
   },
   "state": {},
-  "ui": {},
+  "ui": {
+    "selection": { "unit": "0:7", "city": null, "plot": { "x": 20, "y": 26 } }
+  },
   "anchors": {}
 }

@@ -1,0 +1,37 @@
+<div class="notes" data-part="notes">
+  <div class="list" data-part="notes.list">
+    <div class="note plate tl" data-bind-for="n:{{notes}}" data-bind-sort="{{n.turn}}" data-bind-sort-desc="{{true}}" data-on-click="intent note.activate(note: n.id)">
+      <div class="ic">
+        <svg class="i c-food" data-bind-if="{{n.category == 'growth'}}"><use href="#i-food"/></svg>
+        <svg class="i c-sci" data-bind-if="{{n.category == 'great_people'}}"><use href="#i-person"/></svg>
+        <svg class="i sec" data-bind-if="{{n.category == 'diplomacy'}}"><use href="#i-diplo"/></svg>
+        <svg class="i c-neg" data-bind-if="{{n.category == 'military'}}"><use href="#i-attack"/></svg>
+        <svg class="i c-prod" data-bind-if="{{n.category == 'production'}}"><use href="#i-prod"/></svg>
+        <svg class="i c-sci" data-bind-if="{{n.category == 'research'}}"><use href="#i-sci"/></svg>
+        <svg class="i c-cult" data-bind-if="{{n.category == 'policy'}}"><use href="#i-policy"/></svg>
+        <svg class="i c-faith" data-bind-if="{{n.category == 'religion'}}"><use href="#i-faith"/></svg>
+        <svg class="i sec" data-bind-if="{{n.category == 'other'}}"><use href="#i-star"/></svg>
+      </div>
+      <div class="tx">
+        <div class="msg" data-bind-value="{{n.summary}}">Novgorod has grown to size 8</div>
+        <div class="cat">
+          <span data-bind-if="{{n.category == 'growth'}}" data-l10n="note.cat.growth">City growth</span>
+          <span data-bind-if="{{n.category == 'great_people'}}" data-l10n="note.cat.great_people">Great people</span>
+          <span data-bind-if="{{n.category == 'diplomacy'}}" data-l10n="note.cat.diplomacy">Diplomacy</span>
+          <span data-bind-if="{{n.category == 'military'}}" data-l10n="note.cat.military">Military</span>
+          <span data-bind-if="{{n.category == 'production'}}" data-l10n="note.cat.production">Production</span>
+          <span data-bind-if="{{n.category == 'research'}}" data-l10n="note.cat.research">Research</span>
+          <span data-bind-if="{{n.category == 'policy'}}" data-l10n="note.cat.policy">Policies</span>
+          <span data-bind-if="{{n.category == 'religion'}}" data-l10n="note.cat.religion">Religion</span>
+          <span data-bind-if="{{n.category == 'other'}}" data-l10n="note.cat.other">Notice</span>
+        </div>
+      </div>
+      <button class="x" data-on-click="intent note.dismiss(note: n.id); stop"><svg class="i"><use href="#i-close"/></svg></button>
+    </div>
+  </div>
+  <button class="more" data-part="notes.log" data-hotkey="F7" data-on-click="intent screen.open(screen: 'notification_log')">
+    <span data-l10n="note.log">Notification log</span>
+    <span class="key" data-l10n="key.f7">F7</span>
+  </button>
+  <div class="right" data-part="notes.extra" data-slot="hud.right"></div>
+</div>
