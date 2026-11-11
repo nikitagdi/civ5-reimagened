@@ -10,7 +10,10 @@ pub use mod_manifest::{ModId, Version};
 ///
 /// 1.2: `ServerCtx::{share_terrain, unshare_terrain}` and the `world.share_terrain` capability: the cosmetic share of
 /// the ground of plots a seat has not revealed.
-pub const MOD_API_VERSION: Version = Version::new(1, 2, 0);
+///
+/// 1.3: the UI v2 for mods: the `ui` part and the `[ui]` manifest section, the `ui` capability, the catalogue of
+/// extension points (`UI_CATALOG`), and on the client `ClientCtx::ui_model` and `ClientMod::on_ui_intent`.
+pub const MOD_API_VERSION: Version = Version::new(1, 3, 0);
 
 /// A game player id, the same value the server actor and the protocol use (`protocol::PlayerId`).
 pub type PlayerId = i8;

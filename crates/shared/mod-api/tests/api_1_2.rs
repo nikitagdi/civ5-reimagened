@@ -61,7 +61,9 @@ fn host(caps: &[Cap]) -> MockCtx {
 
 #[test]
 fn the_api_is_1_2_with_the_share_capability() {
-    assert_eq!(MOD_API_VERSION, Version::new(1, 2, 0));
+    // Later minors only add (1.3: the UI v2 for mods), so a `^1.2` mod keeps loading.
+    assert!(MOD_API_VERSION >= Version::new(1, 2, 0));
+    assert_eq!(MOD_API_VERSION.major, 1);
     assert!(
         "^1.2"
             .parse::<mod_manifest::VersionReq>()
