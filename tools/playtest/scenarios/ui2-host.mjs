@@ -151,6 +151,39 @@ async function unitPanel(page, numbers, check, shot) {
   check("Fortify: the unit is fortified within 2 s", after !== undefined && after !== before && ms <= 2000, `activity ${before} -> ${after} in ${ms} ms, title ${JSON.stringify(title)}`);
 }
 
+/**
+ * The playtest hooks of UI v2: `state().ui` names the UI on the screen and the choice; `ui2()` has the package, the
+ * model revision, the panels and the scripts; `ui2Rects` gives the strip's rectangles; `digest('replica')` is the same
+ * before and after UI-only actions (hover, a click on the strip) unless the server sent a batch in between.
+ */
+async function hooks(page, numbers, check) {
+  const st = await state(page);
+  numbers.ui = st?.ui ?? null;
+  check("state().ui: UI v2 on the screen, choice v2:engraved", st?.ui?.active === "v2" && st.ui.choice === "v2:engraved" && st.ui.skin === "engraved" && st.ui.switching === false,
+    JSON.stringify(st?.ui));
+  const p = await ui2(page);
+  numbers.ui2Hooks = { active: p?.active, pkg: p?.pkg, model: p?.model, panels: p?.panels?.length, scripts: p?.scripts };
+  check("ui2(): active, package hash, model revision, panels", p?.active === true && typeof p.pkg === "string" && p.pkg.length === 64 && p.model?.rev > 0 && Array.isArray(p.panels) && p.panels.length > 0 && p.panels.every((x) => x.status === "ok"),
+    JSON.stringify(numbers.ui2Hooks));
+  const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["top.yield.gold"])).catch((e) => String(e));
+  numbers.rects = Array.isArray(rects) ? rects.slice(0, 4) : rects;
+  check("ui2Rects(top.yield.gold): rectangles in CSS px", Array.isArray(rects) && rects.length > 0 && rects.every((r) => r.part === "top.yield.gold" && r.w > 0 && r.h > 0),
+    Array.isArray(rects) ? `${rects.length} rect(s), first ${JSON.stringify(rects[0])}` : String(rects));
+  const seq0 = (await state(page))?.net?.viewSeq;
+  const d0 = await page.evaluate(() => window.__civ5test.digest("replica")).catch((e) => `error ${e}`);
+  const vp = page.viewportSize() ?? { width: 1600, height: 900 };
+  for (const [x, y] of [[vp.width / 2, 14], [vp.width / 3, 14], [vp.width / 2, vp.height / 2]]) {
+    await page.mouse.move(x, y);
+    await sleep(100);
+  }
+  await page.mouse.click(vp.width / 2, 14);
+  await sleep(300);
+  const d1 = await page.evaluate(() => window.__civ5test.digest("replica")).catch((e) => `error ${e}`);
+  const seq1 = (await state(page))?.net?.viewSeq;
+  numbers.replicaDigest = { d0, d1, seq0, seq1 };
+  check("R17: UI-only actions leave the replica digest as it is", /^[0-9a-f]{16}$/.test(d0 ?? "") && (d0 === d1 || seq0 !== seq1), JSON.stringify(numbers.replicaDigest));
+}
+
 export async function run(ctx) {
   const o = ctx.opts;
   const started = Date.now();
@@ -218,6 +251,7 @@ export async function run(ctx) {
       }
     };
     await compare("start");
+    await hooks(b.page, result.numbers, check);
     await unitPanel(b.page, result.numbers, check, shot);
     // The settler founds a city through the test port's orders (the server's command, whichever UI is on the screen):
     // the classic UI sleeps under UI v2, so its Lua is not there to do it.

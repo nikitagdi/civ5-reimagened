@@ -177,6 +177,10 @@ pub trait Frontend {
     fn sounds(&self) -> Option<&dyn UiSoundSource> {
         None
     }
+    /// The running skin (UI v2).
+    fn skin(&self) -> Option<String> {
+        None
+    }
 }
 
 /// The game UI chosen for this run (`?ui=`, `AppConfig::ui_choice`).
@@ -202,6 +206,33 @@ impl UiChoice {
             "interim" => Some(UiChoice::Interim),
             _ => None,
         }
+    }
+
+    /// The value as `?ui=` and the setting write it.
+    pub fn value(&self) -> String {
+        match self {
+            UiChoice::Classic => "classic".into(),
+            UiChoice::V2 { skin: None } => "v2".into(),
+            UiChoice::V2 { skin: Some(s) } => format!("v2:{s}"),
+            UiChoice::Interim => "interim".into(),
+        }
+    }
+
+    /// The kind of frontend that shows it; `None` for the interim panels.
+    pub fn kind(&self) -> Option<UiKind> {
+        match self {
+            UiChoice::Classic => Some(UiKind::Classic),
+            UiChoice::V2 { .. } => Some(UiKind::V2),
+            UiChoice::Interim => None,
+        }
+    }
+}
+
+/// The name of a kind in the playtest hooks.
+fn kind_name(kind: UiKind) -> &'static str {
+    match kind {
+        UiKind::Classic => "classic",
+        UiKind::V2 => "v2",
     }
 }
 
@@ -239,6 +270,8 @@ pub struct UiHost {
     active: Option<usize>,
     switch: Option<Switch>,
     counters: UiCounters,
+    /// The choice in force (the last one asked for); `None`: the default.
+    choice: Option<UiChoice>,
 }
 
 impl UiHost {
@@ -265,6 +298,19 @@ impl UiHost {
         true
     }
 
+    /// Asks for a choice: the frontend of its kind prepares and takes the screen once it is ready (see
+    /// [`request`](Self::request)). `false`: no registered frontend shows it.
+    pub fn ask(&mut self, choice: UiChoice) -> bool {
+        let Some(kind) = choice.kind() else {
+            return false;
+        };
+        if !self.request(kind) {
+            return false;
+        }
+        self.choice = Some(choice);
+        true
+    }
+
     /// A game UI is registered (the interim game panels are off).
     pub fn has_game_ui(&self) -> bool {
         !self.fronts.is_empty()
@@ -287,6 +333,43 @@ impl UiHost {
 
     pub fn counters(&self) -> &UiCounters {
         &self.counters
+    }
+
+    /// The choice in force: the last one asked for, else the frontend on the screen.
+    pub fn choice(&self) -> Option<UiChoice> {
+        self.choice.clone().or_else(|| match self.active_kind()? {
+            UiKind::Classic => Some(UiChoice::Classic),
+            UiKind::V2 => Some(UiChoice::V2 {
+                skin: self.active().and_then(|f| f.skin()),
+            }),
+        })
+    }
+
+    /// The playtest's view of the game UIs (`state().ui`); `saved` is the player's stored choice.
+    pub fn test_view(&self, saved: Option<String>) -> crate::test_port::TestUi {
+        let c = &self.counters;
+        crate::test_port::TestUi {
+            active: self.active_kind().map(kind_name),
+            choice: self.choice().map_or_else(String::new, |c| c.value()),
+            saved,
+            skin: self
+                .fronts
+                .iter()
+                .find(|f| f.kind() == UiKind::V2)
+                .and_then(|f| f.skin()),
+            switching: self.switching(),
+            switches: c.switches,
+            last_switch_ms: c.last_switch_ms.map(|ms| ms.max(0.0).round() as u64),
+            failed: c
+                .failed
+                .iter()
+                .map(|(k, why)| (kind_name(*k), why.clone()))
+                .collect(),
+            notice: None,
+            frames: c.frames,
+            inputs: c.inputs,
+            replica_digest: None,
+        }
     }
 
     /// `__civ5stats.counters`: `ui.active` (0 none, 1 classic, 2 UI v2), `ui.switching`, `ui.switches`,
@@ -639,6 +722,38 @@ mod tests {
     }
 
     #[test]
+    fn the_test_view_names_the_ui_on_the_screen_and_the_choice() {
+        let mut h = UiHost::new();
+        let (classic, _) = fake(UiKind::Classic);
+        let (v2, (ready, _, _)) = fake(UiKind::V2);
+        h.register(classic);
+        h.register(v2);
+        let v = h.test_view(None);
+        assert_eq!((v.active, v.choice.as_str()), (Some("classic"), "classic"));
+        assert!(
+            !h.ask(UiChoice::Interim),
+            "the interim panels are no frontend"
+        );
+        let engraved = UiChoice::V2 {
+            skin: Some("engraved".into()),
+        };
+        assert!(h.ask(engraved.clone()));
+        frame(&mut h, 10.0);
+        let v = h.test_view(None);
+        assert_eq!(v.active, Some("classic"));
+        assert!(v.switching);
+        *ready.borrow_mut() = Readiness::Ready;
+        frame(&mut h, 30.0);
+        let v = h.test_view(Some("v2".into()));
+        assert_eq!(v.active, Some("v2"));
+        assert_eq!(v.choice, "v2:engraved");
+        assert_eq!(v.saved.as_deref(), Some("v2"));
+        assert_eq!((v.switches, v.last_switch_ms), (1, Some(20)));
+        assert_eq!(v.frames, [1, 1]);
+        assert_eq!(h.choice(), Some(engraved));
+    }
+
+    #[test]
     fn the_ui_param_is_read() {
         let v2 = |skin: Option<&str>| {
             Some(UiChoice::V2 {
@@ -651,6 +766,13 @@ mod tests {
         assert_eq!(UiChoice::parse("v2:engraved"), v2(Some("engraved")));
         for other in ["", "m1", "v3", "Classic", "v2;x"] {
             assert_eq!(UiChoice::parse(other), None, "{other:?}");
+        }
+        // The value reads back as itself.
+        for value in ["classic", "interim", "v2", "v2:engraved"] {
+            assert_eq!(
+                UiChoice::parse(value).map(|c| c.value()).as_deref(),
+                Some(value)
+            );
         }
     }
 }

@@ -211,10 +211,118 @@ pub struct V2Probe {
     /// The text leaves in document order: the `data-part` name of the nearest element that has one, and the
     /// string.
     pub texts: Vec<(Option<String>, String)>,
+    /// UI v2 is the game UI on the screen (it is not asleep under the classic one).
+    pub active: bool,
+    /// The running package's hash (hex).
+    pub pkg: Option<String>,
+    /// The model store's revision after the last frame.
+    pub model_rev: u64,
+    /// The document's panels: the skin's parts and the mods' fragments.
+    pub panels: Vec<ProbePanel>,
+    /// The script contexts of the skin.
+    pub scripts: Vec<ProbeScript>,
+    /// The answer to the last [`ask_rects`]: its number and the rectangles.
+    pub rects: Option<(u64, Vec<ProbeRect>)>,
+}
+
+/// One panel as the probe shows it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProbePanel {
+    pub name: String,
+    /// The mod that mounted it; `None` for the skin's own.
+    pub owner: Option<String>,
+    /// Why it shows a placeholder; `None`: it works.
+    pub failed: Option<String>,
+}
+
+/// One script context as the probe shows it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProbeScript {
+    /// `skin` or `mod:<id>`.
+    pub ctx: String,
+    /// `starting`, `running`, `busy`, `restarting` or `disabled`.
+    pub status: &'static str,
+    pub errors: u64,
+    pub restarts: u64,
+}
+
+/// One rectangle of a `ui2Rects` dump (`Runtime::dump_rects`): the part it was asked for, the node and its keys,
+/// the box in CSS px.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProbeRect {
+    pub part: String,
+    pub node: String,
+    pub keys: String,
+    pub rect: [f32; 4],
 }
 
 thread_local! {
     static PROBE: RefCell<Option<V2Probe>> = const { RefCell::new(None) };
+    /// The parts a `ui2Rects` call asked for, with its number; answered by the next UI v2 frame.
+    static RECTS_ASKED: RefCell<Option<(u64, Vec<String>)>> = const { RefCell::new(None) };
+    static RECTS_SEQ: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Asks the next UI v2 frame for the rectangles of the elements of `parts` (`data-part` names); the answer comes in
+/// [`V2Probe::rects`] under the returned number.
+pub fn ask_rects(parts: Vec<String>) -> u64 {
+    let n = RECTS_SEQ.with(|s| {
+        s.set(s.get() + 1);
+        s.get()
+    });
+    RECTS_ASKED.with(|r| *r.borrow_mut() = Some((n, parts)));
+    n
+}
+
+/// The rectangles `ask_rects` asked for, from the running skin.
+fn answer_rects(ui: &V2Ui) -> Option<(u64, Vec<ProbeRect>)> {
+    let (n, parts) = RECTS_ASKED.with(|r| r.borrow_mut().take())?;
+    let mut out = Vec::new();
+    for part in parts {
+        for r in ui.runtime().dump_rects(Some(&part)) {
+            out.push(ProbeRect {
+                part: part.clone(),
+                node: r.node,
+                keys: r.keys,
+                rect: [r.x, r.y, r.w, r.h],
+            });
+        }
+    }
+    Some((n, out))
+}
+
+/// The probe's panels and scripts of `ui`.
+fn probe_parts(ui: &V2Ui) -> (Vec<ProbePanel>, Vec<ProbeScript>) {
+    let panels = ui
+        .runtime()
+        .panels()
+        .into_iter()
+        .map(|p| ProbePanel {
+            name: p.name,
+            owner: p.owner.map(|o| o.to_string()),
+            failed: p.failed,
+        })
+        .collect();
+    let scripts = ui
+        .script_status()
+        .map(|status| {
+            let stats = ui.script_stats().unwrap_or_default();
+            ProbeScript {
+                ctx: "skin".into(),
+                status: match status {
+                    ui2_host::ScriptStatus::Starting => "starting",
+                    ui2_host::ScriptStatus::Running => "running",
+                    ui2_host::ScriptStatus::Busy { .. } => "busy",
+                    ui2_host::ScriptStatus::Restarting => "restarting",
+                    ui2_host::ScriptStatus::Disabled { .. } => "disabled",
+                },
+                errors: stats.errors,
+                restarts: stats.restarts,
+            }
+        })
+        .into_iter()
+        .collect();
+    (panels, scripts)
 }
 
 /// Starts filling the probe (the test hooks call it once, at install).
@@ -690,13 +798,24 @@ impl V2Frontend {
         publish(&report, load_ms);
         if probe_on() {
             let texts = probe_texts(ui);
+            let (panels, scripts) = probe_parts(ui);
+            let rects = answer_rects(ui);
+            let pkg = ui2_host::hash_hex(&ui.package().hash());
             PROBE.with(|p| {
                 if let Some(p) = p.borrow_mut().as_mut() {
                     p.state = "running";
+                    p.active = true;
                     p.skin = Some(ui.skin_id().to_owned());
+                    p.pkg = Some(pkg);
                     p.load_ms = p.load_ms.or(load_ms);
                     p.frames += 1;
                     p.texts = texts;
+                    p.model_rev = report.model_revision;
+                    p.panels = panels;
+                    p.scripts = scripts;
+                    if rects.is_some() {
+                        p.rects = rects;
+                    }
                 }
             });
         }
@@ -792,6 +911,11 @@ impl Frontend for V2Frontend {
         if let Some(ui) = self.ui_mut() {
             ui.release_text_input();
         }
+        PROBE.with(|p| {
+            if let Some(p) = p.borrow_mut().as_mut() {
+                p.active = false;
+            }
+        });
     }
 
     /// The skin's frame; its scene goes to the renderer (`prepare_ui2`), the app's draw list gets nothing.
@@ -890,6 +1014,13 @@ impl Frontend for V2Frontend {
 
     fn failure(&self) -> Option<String> {
         matches!(self.stage, Stage::Classic).then(|| "no UI v2 skin can be used".to_owned())
+    }
+
+    fn skin(&self) -> Option<String> {
+        match &self.stage {
+            Stage::Running(ui) => Some(ui.skin_id().to_owned()),
+            _ => None,
+        }
     }
 
     fn sounds(&self) -> Option<&dyn UiSoundSource> {

@@ -444,6 +444,8 @@ struct App {
     milestones: Vec<&'static str>,
     /// The playtest's scripted player (`?test=1`).
     test_port: Option<Box<dyn crate::test_port::TestPort>>,
+    /// The replica digests the test port asked for so far, and the last one.
+    replica_digest: Option<(u64, Option<String>)>,
     /// `?golden=<url>`: one capture of a `golden` scene instead of the game.
     golden: GoldenState,
 }
@@ -614,7 +616,7 @@ impl App {
             v2.set_background(p.background);
             v2.set_text_input(p.text_input);
             ui_host.register(Box::new(v2));
-            ui_host.request(crate::ui_host::UiKind::V2);
+            ui_host.ask(crate::ui_host::UiChoice::V2 { skin: skin.clone() });
         }
         let start_ms = clock.now_ms();
         let showcase_mode = config.showcase || config.demo_skinned;
@@ -711,6 +713,7 @@ impl App {
             milestone_sink,
             milestones: Vec::new(),
             test_port,
+            replica_digest: None,
             golden,
         }
     }
@@ -2058,6 +2061,11 @@ impl App {
                             let live = renderer.terrain_live_stats();
                             snap.terrain_cells = Some((live.visible as u32, live.unpaged as u32));
                             (snap.map_units, snap.map_cities) = self.bridge.drawn();
+                            if self.ui_host.has_game_ui() {
+                                let mut ui = self.ui_host.test_view(None);
+                                ui.replica_digest = self.replica_digest.clone();
+                                snap.ui = Some(ui);
+                            }
                             port.publish(snap);
                         }
                     }
@@ -2358,6 +2366,19 @@ impl App {
         }
     }
 
+    /// Switches the game UI to `value` (`classic`, `v2` or `v2:<skin>`): the target prepares while the current one
+    /// stays on the screen and takes it once it is ready.
+    fn set_ui(&mut self, value: &str, _save: bool, _cold: Option<bool>) {
+        let Some(choice) = crate::ui_host::UiChoice::parse(value).filter(|c| c.kind().is_some())
+        else {
+            tracing::warn!("set ui: {value:?} is not classic, v2 or v2:<skin>");
+            return;
+        };
+        if !self.ui_host.ask(choice) {
+            tracing::warn!("set ui: no game UI here shows {value:?}");
+        }
+    }
+
     /// The scripted player's actions (`?test=1`): the same screen actions and map clicks a player
     /// makes.
     fn apply_test_actions(&mut self) {
@@ -2406,6 +2427,19 @@ impl App {
                     if let Link::Net(n) = &mut self.net {
                         n.ui.quick_start(params);
                     }
+                }
+                Dispatch::SetUi { value, save, cold } => self.set_ui(&value, save, Some(cold)),
+                Dispatch::ReplicaDigest => {
+                    // Slow on a big game (the core hashes its whole state): only when the port asks.
+                    let value = self
+                        .session
+                        .as_ref()
+                        .and_then(crate::session::GameSession::replica)
+                        .and_then(|r| r.try_borrow_mut().ok().map(|mut r| r.digest()))
+                        .and_then(Result::ok)
+                        .map(|d| format!("{d:016x}"));
+                    let n = self.replica_digest.as_ref().map_or(0, |(n, _)| *n) + 1;
+                    self.replica_digest = Some((n, value));
                 }
                 Dispatch::Skip => tracing::warn!("test action not possible now"),
             }
