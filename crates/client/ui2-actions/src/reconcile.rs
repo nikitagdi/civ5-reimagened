@@ -15,6 +15,7 @@ impl UiActions {
     pub fn reconcile(&mut self, store: &mut ModelStore, now_ms: u64) {
         self.tick(now_ms);
         self.state.expire(now_ms);
+        self.sweep_pending(store);
         reconcile_state(&mut self.state, store);
         self.publish(store);
     }

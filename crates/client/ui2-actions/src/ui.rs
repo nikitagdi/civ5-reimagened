@@ -24,6 +24,10 @@ pub struct UiState {
     toast_until: Vec<(i32, u64)>,
     /// Notifications the player dismissed (the source leaves them out of `notes`).
     pub(crate) dismissed: BTreeSet<Key>,
+    /// Orders waiting for an answer (the rows are in `ui.pending`).
+    pub(crate) entries: Vec<crate::pending::Entry>,
+    /// When the last chat line was sent.
+    pub(crate) last_chat_ms: Option<u64>,
 }
 
 impl UiState {

@@ -21,6 +21,10 @@ pub enum IntentError {
     Unexpected { intent: Arc<str>, arg: Arc<str> },
     #[error("intent `{intent}`: argument `{arg}` is given twice")]
     Duplicate { intent: Arc<str>, arg: Arc<str> },
+    #[error("intent `{intent}`: {why}")]
+    ModIntent { intent: Arc<str>, why: String },
+    #[error("intent `{intent}`: a mod may send only its own `mods.<id>.<name>` intents")]
+    ModCatalog { intent: Arc<str> },
     #[error("intent `{intent}`: argument `{arg}`: {msg}")]
     BadArg {
         intent: Arc<str>,
