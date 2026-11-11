@@ -26,6 +26,11 @@ mod ui_host {
 
 /// The page's `?ui=` value (web, before `run`): `v2` or `v2:<skin>` loads a UI v2 skin over the classic layer.
 pub use ui_host::v2::set_ui_param as set_ui2_param;
+/// The playtest hooks' view of UI v2 (`?test=1`).
+pub use ui_host::v2::{
+    V2Probe, enable_probe as enable_ui2_probe, parse_ui_param as parse_ui2_param,
+    probe as ui2_probe,
+};
 
 thread_local! {
     static TRACE: std::cell::Cell<(timeline::Level, f64)> =

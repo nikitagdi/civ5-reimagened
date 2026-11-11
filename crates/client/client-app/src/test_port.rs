@@ -260,6 +260,8 @@ pub struct TestSnapshot {
     pub lobby_error: Option<String>,
     pub turn: Option<i32>,
     pub year: Option<i32>,
+    /// The human's treasury and rates of the world's top bar: gold, gold per turn, science per turn.
+    pub top: Option<(i32, i32, i32)>,
     /// "human", "ai", "over".
     pub status: Option<&'static str>,
     /// The blocker's `EndTurnBlockingTypes` value and its target ("unit 3", "city 1", "plot 4,5").
@@ -830,6 +832,11 @@ fn section_name(s: interim_ui::screens::city_panel::BuildSection) -> &'static st
 fn world_part(s: &mut TestSnapshot, w: &WorldView) {
     s.turn = Some(w.turn);
     s.year = Some(w.year);
+    s.top = Some((
+        w.top_bar.gold,
+        w.top_bar.gold_per_turn,
+        w.top_bar.science_per_turn,
+    ));
     s.status = Some(match w.status {
         TurnStatus::HumanTurn => "human",
         TurnStatus::AiTurn { .. } => "ai",
