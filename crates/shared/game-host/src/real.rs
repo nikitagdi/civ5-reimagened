@@ -125,14 +125,25 @@ fn refusal_of(reason: gc::RejectReason, text: String) -> Refusal {
 // * The core has no limit of the queue length (the order list grows past its inline storage).
 
 /// The seat's city as the checks of a v15 queue order see it: the core's own answers (`Q_CITIES`,
-/// `Q_CITY_BUILDS`).
+/// `Q_CITY_BUILDS`, `Q_CITY_QUEUE`).
 #[derive(Debug, Clone)]
 pub(crate) struct QueueCity {
     pub id: i32,
     pub puppet: bool,
     /// The queue has a head (the production order of `Q_CITIES`).
     pub has_head: bool,
+    /// The length of the queue (`Q_CITY_QUEUE`); `None` for a core that does not answer that query, whose
+    /// slots past the end are then left to the core (it ignores them).
+    pub queue_len: Option<usize>,
     pub builds: Vec<gc::CityBuild>,
+}
+
+/// What the check of a `ResearchSet` knows: the rows of the technology table and the technologies the
+/// seat's team has (`Q_TECHS`; empty for a core that does not answer it).
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ResearchCheck {
+    pub techs: usize,
+    pub known: Vec<i16>,
 }
 
 /// A v15 order of the build queue or the research (protocol tags 20-24).
@@ -204,19 +215,25 @@ fn check_build(c: &QueueCity, order: i8, item: i16, adding: bool) -> Result<(), 
 }
 
 /// The net messages of a v15 order, or why the host refuses it (answered `Invalid`). `city`: the seat's
-/// city the order names (`None`: the seat has no such city); `techs`: the rows of the technology table.
+/// city the order names (`None`: the seat has no such city); `research`: the technology table and what the
+/// team has.
 ///
-/// Until the core answers a query of the whole queue, a slot past the end of a non-empty queue is not
-/// caught here; the core ignores it (see the notes above), so such an order changes nothing.
+/// A slot past the end of the queue is refused when the core told the queue's length (`Q_CITY_QUEUE`). A
+/// technology the team has is refused; one whose prerequisites are missing is not: `pushResearch` queues
+/// the prerequisites first, as the original tech tree does. A technology the civilization can never
+/// research is dropped by the core without a word (`CanEverResearch`), so such an order changes nothing.
 pub(crate) fn v15_net(
     cmd: &protocol::Command,
     city: Option<&QueueCity>,
-    techs: usize,
+    research: &ResearchCheck,
 ) -> Result<Vec<gc::replica::NetMessage>, String> {
     use protocol::Command as P;
     if let P::ResearchSet { tech, queue } = *cmd {
-        if tech < 0 || usize::try_from(tech).is_ok_and(|t| t >= techs) {
+        if tech < 0 || usize::try_from(tech).is_ok_and(|t| t >= research.techs) {
             return Err(format!("there is no technology {tech}"));
+        }
+        if research.known.contains(&tech) {
+            return Err(format!("technology {tech} is known already"));
         }
         // discover 0, no victim: the normal research choice; shift = add to the research queue.
         return Ok(vec![net(
@@ -240,6 +257,12 @@ pub(crate) fn v15_net(
         ));
     }
     let empty = || format!("city {id}: the build queue is empty");
+    // A slot the queue does not have (when the core told its length).
+    let past_end = |slot: i8| {
+        c.queue_len
+            .filter(|&n| usize::try_from(slot).is_ok_and(|s| s >= n))
+            .map(|n| format!("city {id}: no slot {slot} in a queue of {n}"))
+    };
     match *cmd {
         P::CityQueuePush {
             order, item, front, ..
@@ -254,6 +277,9 @@ pub(crate) fn v15_net(
             if !c.has_head {
                 return Err(empty());
             }
+            if let Some(e) = past_end(slot) {
+                return Err(e);
+            }
             Ok(vec![net("sendPopOrder", &[id, i32::from(slot)])?])
         }
         P::CityQueueMove { from, to, .. } => {
@@ -265,6 +291,9 @@ pub(crate) fn v15_net(
             }
             if !c.has_head {
                 return Err(empty());
+            }
+            if let Some(e) = past_end(from).or_else(|| past_end(to)) {
+                return Err(e);
             }
             // `swapOrder(n)` exchanges n and n + 1: walk the entry step by step, in one submit.
             let (from, to) = (i32::from(from), i32::from(to));
@@ -629,14 +658,26 @@ impl RealCore {
                     .catalog(gc::CatalogTable::Technologies)
                     .map_err(|e| Refusal::other(format!("Q_CATALOG technologies: {e}")))?
                     .len();
-                v15_net(cmd, None, techs)
+                // A core without `Q_TECHS` cannot say what the team has: the core's own rule then applies (a
+                // known technology changes nothing).
+                let known = self
+                    .game
+                    .techs(p)
+                    .map(|rows| {
+                        rows.iter()
+                            .filter(|t| t.status == gc::TechStatus::Have)
+                            .map(|t| t.tech)
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                v15_net(cmd, None, &ResearchCheck { techs, known })
             }
             P::CityQueuePush { city, .. }
             | P::CityQueuePop { city, .. }
             | P::CityQueueMove { city, .. }
             | P::CityReplaceHead { city, .. } => {
                 let c = self.queue_city(player, city)?;
-                v15_net(cmd, c.as_ref(), 0)
+                v15_net(cmd, c.as_ref(), &ResearchCheck::default())
             }
             _ => return Err(Refusal::other("not a v15 queue or research order")),
         }
@@ -670,12 +711,21 @@ impl RealCore {
             .game
             .city_builds(p, city)
             .map_err(|e| Refusal::other(format!("Q_CITY_BUILDS: {e}")))?;
+        // A core without `Q_CITY_QUEUE` (or one that fails on it) leaves the slots past the end to the core.
+        let queue_len = self.game.city_queue(p, city).ok().map(|q| q.len());
         Ok(Some(QueueCity {
             id: city,
             puppet: c.flags.puppet(),
             has_head: c.production_order.is_some(),
+            queue_len,
             builds,
         }))
+    }
+
+    /// The core itself, for read queries the host has no method for (tests and diagnostics: the UI v2 queries
+    /// `Q_CITY_QUEUE`, `Q_TECHS`, ...). Orders go through [`Core`], never through this.
+    pub fn gamecore_mut(&mut self) -> &mut gc::Game {
+        &mut self.game
     }
 
     /// Journal entries of a batch of core events, addressed (GH-R6).
@@ -1549,13 +1599,15 @@ mod tests {
         }
     }
 
-    /// City 7 builds warrior 2 (the head); it could train unit 3, build building 5, not building 6.
+    /// City 7 builds warrior 2 (the head of a queue of four); it could train unit 3, build building 5, not
+    /// building 6.
     fn city7() -> QueueCity {
         let on = ffi::GC_BUILD_F_ENABLED;
         QueueCity {
             id: 7,
             puppet: false,
             has_head: true,
+            queue_len: Some(4),
             builds: vec![
                 build(gc::OrderType::Train, 2, on | ffi::GC_BUILD_F_CURRENT),
                 build(gc::OrderType::Train, 3, on),
@@ -1567,7 +1619,20 @@ mod tests {
 
     /// `(name, leading args)` of the messages.
     fn plan(cmd: P, city: Option<&QueueCity>) -> Result<Vec<(&'static str, Vec<i32>)>, String> {
-        Ok(v15_net(&cmd, city, 80)?
+        plan_with(cmd, city, &[])
+    }
+
+    /// As [`plan`], with the technologies the team has.
+    fn plan_with(
+        cmd: P,
+        city: Option<&QueueCity>,
+        known: &[i16],
+    ) -> Result<Vec<(&'static str, Vec<i32>)>, String> {
+        let research = ResearchCheck {
+            techs: 80,
+            known: known.to_vec(),
+        };
+        Ok(v15_net(&cmd, city, &research)?
             .iter()
             .map(|m| (m.name(), m.args[..6].to_vec()))
             .collect())
@@ -1653,6 +1718,52 @@ mod tests {
         for tech in [-1, 80, 300] {
             assert!(plan(P::ResearchSet { tech, queue: false }, None).is_err());
         }
+    }
+
+    #[test]
+    fn a_technology_the_team_has_is_refused_and_a_locked_one_is_not() {
+        let known = [0i16, 1];
+        for queue in [false, true] {
+            assert!(
+                plan_with(P::ResearchSet { tech: 1, queue }, None, &known)
+                    .unwrap_err()
+                    .contains("known already")
+            );
+        }
+        // Tech 40 has prerequisites the team lacks: the core queues them first, the host lets it through.
+        assert_eq!(
+            plan_with(
+                P::ResearchSet {
+                    tech: 40,
+                    queue: false
+                },
+                None,
+                &known
+            ),
+            Ok(vec![("sendResearch", vec![40, 0, -1, 0, 0, 0])])
+        );
+    }
+
+    #[test]
+    fn a_slot_past_the_end_of_the_queue_is_refused_when_the_core_tells_its_length() {
+        let c = city7();
+        let pop = |slot| P::CityQueuePop { city: 7, slot };
+        let mv = |from, to| P::CityQueueMove { city: 7, from, to };
+        assert!(plan(pop(3), Some(&c)).is_ok());
+        assert!(plan(mv(3, 0), Some(&c)).is_ok());
+        for bad in [pop(4), pop(i8::MAX), mv(0, 4), mv(4, 0), mv(5, 9)] {
+            assert!(
+                plan(bad, Some(&c)).unwrap_err().contains("queue of 4"),
+                "{bad:?}"
+            );
+        }
+        // A core without `Q_CITY_QUEUE`: the core is left to ignore the slot.
+        let unknown = QueueCity {
+            queue_len: None,
+            ..city7()
+        };
+        assert!(plan(pop(9), Some(&unknown)).is_ok());
+        assert!(plan(mv(0, 9), Some(&unknown)).is_ok());
     }
 
     #[test]
