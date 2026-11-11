@@ -252,6 +252,9 @@ pub struct Node {
     pub(crate) binds: Range<u32>,
     /// Style properties set by bindings (`data-bind-style-*`), with the record they give.
     pub(crate) over: Option<Box<Overrides>>,
+    /// Scroll containers: how far the content is scrolled, CSS px (right and down are positive). Layout does
+    /// not depend on it; painting and hit-testing shift the children by it.
+    pub(crate) scroll: [f32; 2],
 }
 
 impl Node {
@@ -278,7 +281,13 @@ impl Node {
             ifc: None,
             binds: 0..0,
             over: None,
+            scroll: [0.0, 0.0],
         }
+    }
+
+    /// The scroll offset of a scroll container, CSS px (zero for other nodes).
+    pub fn scroll(&self) -> [f32; 2] {
+        self.scroll
     }
 
     /// The style properties bindings set on the node (`None` when there are none).

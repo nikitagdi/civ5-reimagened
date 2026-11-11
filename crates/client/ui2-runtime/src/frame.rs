@@ -120,7 +120,7 @@ impl Runtime {
         );
         let paint_ms = watch.lap();
         FrameOutput {
-            cursor: Cursor::Auto,
+            cursor: self.cursor(),
             errors: self.errors.take(),
             animating: false,
             stats: FrameStats {

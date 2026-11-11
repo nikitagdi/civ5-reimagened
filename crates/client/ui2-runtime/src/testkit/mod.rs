@@ -10,10 +10,10 @@ use std::sync::Arc;
 use ui2_package::profile::TypeSig;
 use ui2_package::profile::expr::Expr;
 use ui2_package::{
-    BindKind, Binding, BlobRef, BlobSection, Bound, Cond, ExprId, Face, FaceFamily, FontRoles,
-    ImageSrc, Img, ImgId, Kind, Layer, Lit, Manifest, Node, NodeKind, Package, PackageBuilder,
-    PackageError, Page, PageFormat, Seg, Sprite, StrId, StyleId, StyleRecord, StyleSet, StyleSetId,
-    Tag, Template, TemplateId, TextSrc, Tokens, Tool, TplId,
+    ARefId, BindKind, Binding, BlobRef, BlobSection, Bound, Cond, ExprId, Face, FaceFamily,
+    FontRoles, ImageSrc, Img, ImgId, Kind, Layer, Lit, Manifest, Node, NodeKind, NodeRef, Package,
+    PackageBuilder, PackageError, Page, PageFormat, Seg, Sprite, StrId, StyleId, StyleRecord,
+    StyleSet, StyleSetId, Tag, Template, TemplateId, TextSrc, Tokens, Tool, TplId,
 };
 
 /// A template node with its children, for [`Kit::template`].
@@ -24,7 +24,16 @@ pub struct TNode {
     part: Option<StrId>,
     flags: u16,
     binds: Vec<BindKind>,
+    extn: Vec<Extn>,
     children: Vec<TNode>,
+}
+
+/// What a node registers in the package's `EXTN` section.
+#[derive(Debug, Clone)]
+enum Extn {
+    Screen(String),
+    Hotkey(String, u8),
+    Tooltip(TemplateId),
 }
 
 impl TNode {
@@ -36,8 +45,32 @@ impl TNode {
             part: None,
             flags: 0,
             binds: Vec::new(),
+            extn: Vec::new(),
             children: Vec::new(),
         }
+    }
+
+    /// A picture of a game asset (`data-asset`), such as the minimap (`render:minimap`).
+    pub fn asset(aref: ARefId, style: StyleSetId) -> Self {
+        Self::new(NodeKind::Image(ImageSrc::Asset(aref)), style)
+    }
+
+    /// Makes the node the root of a screen (`data-screen="<id>"`).
+    pub fn screen(mut self, id: &str) -> Self {
+        self.extn.push(Extn::Screen(id.to_string()));
+        self
+    }
+
+    /// Binds a key to the node's click (`data-hotkey`): a `KeyboardEvent.code` and `hotkey_mods` bits.
+    pub fn hotkey(mut self, code: &str, mods: u8) -> Self {
+        self.extn.push(Extn::Hotkey(code.to_string(), mods));
+        self
+    }
+
+    /// Shows a tooltip template while the node is hovered (`data-tooltip`).
+    pub fn tooltip(mut self, template: TemplateId) -> Self {
+        self.extn.push(Extn::Tooltip(template));
+        self
     }
 
     /// A text leaf whose text is a template with inserts (`data-bind-value`).
@@ -100,7 +133,12 @@ impl TNode {
         self
     }
 
-    fn flatten(self, out: &mut Vec<Node>, binds: &mut Vec<(u32, BindKind)>) {
+    fn flatten(
+        self,
+        out: &mut Vec<Node>,
+        binds: &mut Vec<(u32, BindKind)>,
+        extn: &mut Vec<(u32, Extn)>,
+    ) {
         let at = out.len();
         out.push(Node {
             kind: self.kind,
@@ -110,8 +148,9 @@ impl TNode {
             flags: self.flags,
         });
         binds.extend(self.binds.into_iter().map(|b| (at as u32, b)));
+        extn.extend(self.extn.into_iter().map(|e| (at as u32, e)));
         for c in self.children {
-            c.flatten(out, binds);
+            c.flatten(out, binds, extn);
         }
         let size = (out.len() - at) as u32;
         out[at].subtree = size;
@@ -241,14 +280,38 @@ impl Kit {
         let name = self.b.str(name);
         let mut nodes = Vec::new();
         let mut binds = Vec::new();
+        let mut extn = Vec::new();
         for r in roots {
-            r.flatten(&mut nodes, &mut binds);
+            r.flatten(&mut nodes, &mut binds, &mut extn);
         }
         let tpl = self.b.template(Template { name, nodes });
         for (node, kind) in binds {
             self.b.binding(Binding { tpl, node, kind });
         }
+        for (node, e) in extn {
+            let at = NodeRef(tpl, node);
+            match e {
+                Extn::Screen(id) => self.b.screen(&id, at),
+                Extn::Hotkey(code, mods) => self.b.hotkey(&code, mods, at),
+                Extn::Tooltip(t) => self.b.tooltip(at, t),
+            }
+        }
         tpl
+    }
+
+    /// Adds a game asset reference (`render:minimap`); the id is provisional like string ids.
+    pub fn asset_ref(&mut self, name: &str) -> ARefId {
+        self.b.asset_ref(name)
+    }
+
+    /// Declares a catalogue intent the skin sends, with its argument types.
+    pub fn intent(&mut self, name: &str, args: Vec<TypeSig>) {
+        self.b.intent(name, args);
+    }
+
+    /// Declares a script handler markup calls.
+    pub fn handler(&mut self, name: &str) {
+        self.b.handler(name);
     }
 
     /// Adds an expression tree (`for`/`if` nodes and bindings refer to it).

@@ -166,8 +166,13 @@ impl<'a> Emitter<'a> {
                 base = at;
             }
         }
+        // A scroll container shifts the boxes it is the base of by its scroll offset.
         let origin = match base {
-            Some(b) => self.abs(b),
+            Some(b) => {
+                let o = self.abs(b);
+                let s = self.arena.get(b).map_or([0.0, 0.0], |bn| bn.scroll());
+                [o[0] - s[0], o[1] - s[1]]
+            }
             None => [0.0, 0.0],
         };
         let p = [origin[0] + loc.x, origin[1] + loc.y];
