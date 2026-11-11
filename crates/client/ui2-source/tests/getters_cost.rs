@@ -1,6 +1,6 @@
 //! Cost of every `GameRead` method on the real core, natively: the time of one call, median and maximum, on the
 //! late-huge game (a game of turn 150 with the biggest map). `cargo xtask web-selftest --scenario ui2-getters`
-//! measures the same in wasm; the two tables calibrate the source's read budget (`DEFAULT_READ_BUDGET`).
+//! measures the same in wasm; the wasm medians are the cost table of the frame budget (`src/cost.rs`).
 //!
 //! Ignored: it needs the real core (Linux/WSL, `GAMECORE_LIB_DIR_x86_64`) and the fixture of the replica test,
 //! written by `REPLICA_FIXTURE_OUT=<dir> cargo test -p replica --test real_replica -- --ignored late_huge`.

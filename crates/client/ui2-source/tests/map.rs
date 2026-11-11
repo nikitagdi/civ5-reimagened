@@ -336,30 +336,43 @@ fn the_turn_button_counts_the_same_units_as_the_flags() {
 
 #[test]
 fn the_read_budget_defers_whole_roots_to_the_next_frames() {
+    use ui2_model::r#gen::{Game, Research, Top};
+    // The model one unlimited frame writes.
+    let mut f = game();
+    let mut whole = Rig::new(session());
+    whole.frame(&mut f);
+
     let mut f = game();
     let mut rig = Rig::new(session());
+    // One cost unit: less than any read. Each frame makes one piece of work that reads (a catalog table, or a
+    // root), plus the roots whose reads are kept and whose tables are there, with no new trigger.
     rig.src.set_read_budget(1);
-    // The first frame reads the catalog and builds one root (the first of the queue: the top bar).
-    let stats = rig.frame(&mut f);
-    assert!(rig.store.get::<ui2_model::r#gen::Top>().is_some());
-    assert!(rig.store.get::<Map>().is_none());
-    let mut deferred = stats.deferred;
-    assert_eq!(deferred, 8);
-    // Then at least one root a frame (a root whose reads are kept costs nothing), each whole, with no new
-    // trigger.
     let mut frames = 0;
-    while deferred > 0 {
+    loop {
+        f.calls.clear();
         let stats = rig.frame(&mut f);
-        assert!(stats.deferred < deferred);
-        assert!(
-            stats.getter_calls <= 3,
-            "one root's reads: {}",
-            stats.getter_calls
-        );
-        deferred = stats.deferred;
         frames += 1;
+        assert!(stats.getter_calls <= 3, "one piece of work: {:?}", f.calls);
+        assert!(f.calls.iter().filter(|c| **c == "catalog").count() <= 1);
+        // A root is written whole and only once the catalog tables it names things from are read.
+        if let Some(m) = rig.store.get::<Map>() {
+            assert_eq!(Some(m), whole.store.get::<Map>(), "frame {frames}");
+        }
+        if let Some(t) = rig.store.get::<Top>() {
+            assert_eq!(Some(t), whole.store.get::<Top>(), "frame {frames}");
+        }
+        if let Some(g) = rig.store.get::<Game>() {
+            assert_eq!(Some(g), whole.store.get::<Game>(), "frame {frames}");
+        }
+        if let Some(r) = rig.store.get::<Research>() {
+            assert_eq!(Some(r), whole.store.get::<Research>(), "frame {frames}");
+        }
+        if stats.deferred == 0 {
+            break;
+        }
+        assert!(frames < 30, "never done");
     }
-    assert!((4..=8).contains(&frames), "{frames}");
+    assert!((9..=16).contains(&frames), "{frames}");
     assert_eq!(map(&rig).cities.len(), 5, "the map is whole");
     assert_eq!(notes(&rig).len(), 5);
     let n = f.call_count();
