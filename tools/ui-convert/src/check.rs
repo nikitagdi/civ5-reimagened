@@ -85,6 +85,11 @@ pub const SHORTHANDS: &[(&str, &[&str])] = &[
     ("border-radius", &["border-top-left-radius"]),
     ("background", &["background-color"]),
     ("background-position", &["background-position-x"]),
+    ("border-image", &["border-image-source"]),
+    ("grid-template", &["grid-template-rows"]),
+    ("grid-row", &["grid-row-start"]),
+    ("grid-column", &["grid-column-start"]),
+    ("grid-area", &["grid-row-start"]),
     ("outline", &["outline-style"]),
     ("font", &["font-size"]),
     ("font-variant", &["font-variant-numeric"]),
@@ -1035,6 +1040,16 @@ mod tests {
         assert!(known_property("user-select"));
         assert!(known_property("appearance"));
         assert!(known_property("list-style"));
+        for s in [
+            "border-image",
+            "grid-template",
+            "grid-row",
+            "grid-column",
+            "grid-area",
+        ] {
+            assert!(known_property(s), "{s}");
+        }
+        assert!(!known_property("grid-template-areas"));
         assert!(!known_property("float"));
         assert!(!known_property("animation"));
     }

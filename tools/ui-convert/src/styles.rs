@@ -61,6 +61,9 @@ pub struct NodeOut {
     pub vars: Vec<VarOut>,
     /// The beacon pass.
     pub beacon: BeaconOut,
+    /// The border box in CSS px (base state), for a node with a `clip-path` only.
+    #[serde(default)]
+    pub size: Option<[f32; 2]>,
 }
 
 /// One cell.
@@ -517,6 +520,7 @@ pub fn compile(
             table.push(row);
         }
         consistency(&mut cx, pn, &table);
+        clip_at_size(&mut cx, pn, &plan.cells, &reads, &table);
         // Drop the conditions that change no record.
         let mut keep: Vec<usize> = Vec::new();
         for bit in 0..n {
@@ -741,6 +745,41 @@ fn consistency(cx: &mut Cx, pn: &PlanNode, table: &[Vec<Read>]) {
                 prop,
                 format!("changes with {list}"),
             ));
+        }
+    }
+}
+
+/// A clip polygon passed the value parser's convexity check in its reference boxes; one that mixes px and %
+/// can still turn concave at the size the node really has. Checked in every cell at the node's border box
+/// (E2-022), for every variant.
+fn clip_at_size(
+    cx: &mut Cx,
+    pn: &PlanNode,
+    cells: &[[u32; 2]],
+    reads: &[&NodeOut],
+    table: &[Vec<Read>],
+) {
+    for ((r, row), view) in reads.iter().zip(table).zip(cells) {
+        let Some(size) = r.size else { continue };
+        let bad = row.iter().find(|x| {
+            !x.record.clip_path.is_empty()
+                && !ui2_package::style::convex_at(&x.record.clip_path, size)
+        });
+        if bad.is_some() {
+            cx.errs.push(err_node(
+                cx.dom,
+                pn.ix,
+                ui2_package::profile::values::codes::CONCAVE,
+                PropId::ClipPath.name(),
+                format!(
+                    "the clip polygon is not convex at the element's size {} x {} px (viewport {} x {})",
+                    size[0],
+                    size[1],
+                    view[0],
+                    view[1]
+                ),
+            ));
+            return;
         }
     }
 }

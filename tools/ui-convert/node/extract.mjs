@@ -7,7 +7,9 @@
 //            tokens:[name...], nodes:[{id, conds:[{up, kind, class?}...]}...]}
 //   -> {beacon, tokens:[{name, value, color}], cells:[{viewport, nodes:[{id, base:[...], extra:[...],
 //       off:[[name, value, initial]...], vars:[{mask, set:[[i, value]...]}...],
-//       beacon:{base:[[i, value]...], vars:[{mask, set:[[i, value]...]}...]}}]}]}
+//       beacon:{base:[[i, value]...], vars:[{mask, set:[[i, value]...]}...]}, size?:[w, h]}]}]}
+//
+// `size` (CSS px of the border box, base state) is there only for a node with a `clip-path`.
 //
 // Node ids are the ids of the scan IR: the page is loaded again and walked in the same order as
 // ir.mjs (elements and text nodes in document order, template contents included), so the same
@@ -196,6 +198,7 @@ export async function extractPage({ page, server, entry, req, state = "" }) {
   const all = props.map((_, i) => i);
   const beaconPick = req.beacon_props;
   const known = props.map((p) => p.name).concat(req.extra);
+  const clipAt = props.findIndex((p) => p.name === "clip-path");
 
   // Applies (on = true) or clears the conditions of `mask` for node `n`.
   const apply = async (n, mask, on) => {
@@ -238,7 +241,18 @@ export async function extractPage({ page, server, entry, req, state = "" }) {
         await apply(n, mask, false);
         vars.push({ mask, set: diff(base, vals, all) });
       }
-      out.push({ id: n.id, base, extra, off, vars });
+      const node = { id: n.id, base, extra, off, vars };
+      // A clipped node: the size of its border box (the clip polygon's reference box), so the converter can
+      // check the polygon at the size it has.
+      if (clipAt >= 0 && (base[clipAt] !== "none" || vars.some((v) => v.set.some(([i]) => i === clipAt)))) {
+        node.size = await page.evaluate((id) => {
+          const e = window.__ui2x.el(id);
+          if (e instanceof HTMLElement) return [e.offsetWidth, e.offsetHeight];
+          const r = e.getBoundingClientRect();
+          return [r.width, r.height];
+        }, n.id);
+      }
+      out.push(node);
     }
     cells.push({ viewport: [w, h], nodes: out });
   }

@@ -341,6 +341,75 @@ fn url_pictures_outside_the_skin_are_errors_at_the_declaration() {
     );
 }
 
+/// The shorthands `grid-template`, `grid-row`, `grid-column`, `grid-area` and `border-image` may be written;
+/// Chrome expands them into the profile's longhands.
+#[test]
+fn grid_and_border_image_shorthands_compile() {
+    if !chrome() {
+        return;
+    }
+    let dir = picture_skin(
+        "e2e-shorthands",
+        ".tile {\n  display: grid;\n  grid-template: 4px 4px / 4px 4px;\n  width: 8px;\n  height: 8px;\n}\n.frame {\n  width: 12px;\n  height: 12px;\n  grid-row: 1 / 2;\n  grid-column: 1;\n  border: 2px solid transparent;\n  border-image: url(\"../images/dot.png\") 1 / 2px stretch;\n}\n.flag {\n  width: 6px;\n  height: 4px;\n  grid-area: 2 / 1 / 3 / 3;\n}\n",
+    );
+    let run = check_skin(&dir, Input::Chrome);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(run.errors.is_empty(), "{:?}", run.errors);
+    let s = run.styles.as_ref().expect("styles");
+    assert!(
+        s.records
+            .iter()
+            .any(|r| r.grid_template_rows.len() == 2 && r.grid_template_columns.len() == 2)
+    );
+    assert!(s.records.iter().any(|r| {
+        r.border_image_source
+            .is_some_and(|p| s.strs.get(p) == "images/dot.png")
+    }));
+    use ui2_package::style::GridLine;
+    let lines = |r: &ui2_package::style::StyleRecord| {
+        [
+            r.grid_row_start,
+            r.grid_row_end,
+            r.grid_column_start,
+            r.grid_column_end,
+        ]
+    };
+    let all: Vec<[GridLine; 4]> = s.records.iter().map(lines).collect();
+    use GridLine::Line;
+    assert!(
+        all.contains(&[Line(2), Line(3), Line(1), Line(3)]),
+        "{all:?}"
+    );
+    assert!(
+        all.contains(&[Line(1), Line(2), Line(1), GridLine::Auto]),
+        "{all:?}"
+    );
+}
+
+/// A clip polygon that mixes px and % passes the parser in its reference boxes; at the element's own size it
+/// can be concave (E2-022 at the element).
+#[test]
+fn clip_polygons_are_convex_at_the_element_size() {
+    if !chrome() {
+        return;
+    }
+    let poly = "clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, calc(10px - 2%) 50%);";
+    let dir = picture_skin(
+        "e2e-clip",
+        &format!(
+            ".tile {{\n  width: 1000px;\n  height: 8px;\n  {poly}\n}}\n.frame {{\n  width: 12px;\n  height: 12px;\n  {poly}\n}}\n"
+        ),
+    );
+    let run = check_skin(&dir, Input::Chrome);
+    let _ = std::fs::remove_dir_all(&dir);
+    let got: Vec<String> = run
+        .errors
+        .iter()
+        .map(|e| format!("{} {}:{} {}", e.code, e.place.file, e.place.line, e.prop))
+        .collect();
+    assert_eq!(got, ["E2-022 index.html:14 clip-path"], "{:?}", run.errors);
+}
+
 /// The icons are mask sprites at scale 1 and 2 on A8 pages; no PNG, WebP or SVG file is inside.
 fn pictures_are_atlas_pages(pkg: &ui2_package::Package, bytes: &[u8]) {
     use ui2_package::PageFormat;
