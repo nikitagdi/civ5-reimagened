@@ -391,6 +391,12 @@ impl Kit {
         self.b.state_default(path, value);
     }
 
+    /// Adds a script file of the skin (`js/<name>.js`) and the model roots its scripts read.
+    pub fn script(&mut self, path: &str, code: &str, reads: &[&str]) {
+        self.b.script(path, code.as_bytes());
+        self.b.script_reads(reads);
+    }
+
     /// Adds a skin text (`lang` must be one of the kit's languages, `en_US` by default).
     pub fn l10n(&mut self, lang: &str, key: &str, template: &str) {
         self.b.l10n(lang, key, template);
@@ -494,7 +500,13 @@ impl Kit {
 
     /// Writes and reads the package.
     pub fn finish(self) -> Result<Arc<Package>, PackageError> {
+        self.finish_skin("kit")
+    }
+
+    /// Writes and reads the package as the skin `id`.
+    pub fn finish_skin(self, id: &str) -> Result<Arc<Package>, PackageError> {
         let mut manifest = Self::manifest();
+        manifest.id = id.into();
         manifest.languages = self.languages.clone();
         let bytes = self.b.finish(manifest)?;
         Package::read(Arc::from(bytes)).map(Arc::new)

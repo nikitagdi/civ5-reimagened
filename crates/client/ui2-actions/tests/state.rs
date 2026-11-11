@@ -256,6 +256,42 @@ fn a_reloaded_skin_keeps_what_still_fits() {
 }
 
 #[test]
+fn a_skin_state_starts_from_its_defaults_and_set_aside_values_win() {
+    let mut rig = Rig::new();
+    let defaults = vec![
+        ("state.count".to_string(), Value::I32(3)),
+        ("state.name".to_string(), s("Ann")),
+    ];
+    let errs = rig.actions.set_skin_with_defaults(
+        Some((id("a"), &frag(SKIN_A))),
+        &defaults,
+        &mut rig.store,
+    );
+    assert!(errs.is_empty(), "{errs:?}");
+    assert_eq!(rig.read("state.count"), Some(Value::I32(3)));
+    assert_eq!(rig.read("state.name"), Some(s("Ann")));
+    rig.ops(StateNs::Skin, &[op("state.name", s("Rex"))]);
+    // Reloaded: the player's value comes back over the default, the untouched one keeps the default.
+    rig.actions
+        .set_skin_with_defaults(Some((id("a"), &frag(SKIN_A))), &defaults, &mut rig.store);
+    assert_eq!(rig.read("state.name"), Some(s("Rex")));
+    assert_eq!(rig.read("state.count"), Some(Value::I32(3)));
+    // A default that does not fit its path is reported; the rest are written.
+    let bad = vec![
+        ("state.count".to_string(), s("three")),
+        ("state.name".to_string(), s("Ann")),
+    ];
+    let errs =
+        rig.actions
+            .set_skin_with_defaults(Some((id("b2"), &frag(SKIN_A))), &bad, &mut rig.store);
+    assert!(
+        matches!(&errs[..], [StateError::Store { path, .. }] if path == "state.count"),
+        "{errs:?}"
+    );
+    assert_eq!(rig.read("state.name"), Some(s("Ann")));
+}
+
+#[test]
 fn mod_state_is_set_aside_when_the_mod_is_switched_off() {
     let mut rig = Rig::new();
     let f = frag(SKIN_B);

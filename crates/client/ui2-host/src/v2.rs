@@ -155,8 +155,10 @@ impl V2Ui {
         let mut store = ModelStore::new(Schema::v1());
         // Skin settings stay in memory for the session until the device store is wired in.
         let mut actions = UiActions::new(Schema::v1(), Box::new(MemorySettings::default()));
-        // The `ui` root exists before the first frame.
+        // The `ui` root exists before the first frame, and the skin's own state with its defaults before the
+        // runtime and the scripts first look at it.
         actions.publish(&mut store);
+        crate::state::mount(&pkg, &mut actions, &mut store);
         // The skin's scripts start on that model; a script that fails while loading comes back from a later frame
         // as `V2FrameReport::fatal`.
         let scripts = match init.scripts {

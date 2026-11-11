@@ -172,12 +172,26 @@ impl UiActions {
         skin: Option<(SkinId, &Fragment)>,
         store: &mut ModelStore,
     ) -> Vec<StateError> {
+        self.set_skin_with_defaults(skin, &[], store)
+    }
+
+    /// [`set_skin`](Self::set_skin) for a skin whose state starts from values of its own (`defaults`: full
+    /// paths `state.<path>` and their values, as the skin's package declares them) rather than the zero values
+    /// of its types. The defaults are written after the mount and before what was set aside comes back, so a
+    /// value the player changed wins over the default. A default that does not fit its path is reported and
+    /// left at zero.
+    pub fn set_skin_with_defaults(
+        &mut self,
+        skin: Option<(SkinId, &Fragment)>,
+        defaults: &[(String, Value)],
+        store: &mut ModelStore,
+    ) -> Vec<StateError> {
         let old = self.active_skin.take().map(Keep::Skin);
         let new = skin.map(|(id, f)| (Keep::Skin(id), f));
         if let Some((Keep::Skin(id), _)) = &new {
             self.active_skin = Some(id.clone());
         }
-        let errors = self.remount(old, Namespace::State, new, store);
+        let errors = self.remount(old, Namespace::State, new, defaults, store);
         if !errors.is_empty() && !store.is_mounted(&Namespace::State) {
             self.active_skin = None;
         }
@@ -196,7 +210,7 @@ impl UiActions {
         let keep = Keep::Mod(id.clone());
         let ns = Namespace::ModState(id);
         let old = store.is_mounted(&ns).then(|| keep.clone());
-        self.remount(old, ns, fragment.map(|f| (keep, f)), store)
+        self.remount(old, ns, fragment.map(|f| (keep, f)), &[], store)
     }
 
     fn remount(
@@ -204,6 +218,7 @@ impl UiActions {
         old: Option<Keep>,
         ns: Namespace,
         new: Option<(Keep, &Fragment)>,
+        defaults: &[(String, Value)],
         store: &mut ModelStore,
     ) -> Vec<StateError> {
         let mut errors = Vec::new();
@@ -221,6 +236,14 @@ impl UiActions {
         if let Err(e) = store.mount(ns.clone(), fragment) {
             errors.push(StateError::Mount(e.to_string()));
             return errors;
+        }
+        for (path, value) in defaults {
+            if let Err(source) = store.writer(ns.owner()).set_value(path, value.clone()) {
+                errors.push(StateError::Store {
+                    path: path.clone(),
+                    source,
+                });
+            }
         }
         for leaf in self.saved.remove(&keep).unwrap_or_default() {
             restore_leaf(store, &ns, &leaf);

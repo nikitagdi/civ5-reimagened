@@ -120,6 +120,35 @@ pub fn scripted(files: &[(&str, &str)], reads: &[&str]) -> Arc<Package> {
     Arc::new(Package::read(Arc::from(bytes)).expect("readable"))
 }
 
+/// A skin `id` with a state of its own (`state.prod.sort`, default `sort`; `state.open`, default false), a part
+/// `sort` whose text is bound to `state.prod.sort`, and a script file when `script` is given (reading `top`).
+pub fn state_skin(id: &str, sort: &str, script: Option<&str>) -> Arc<Package> {
+    use ui2_package::Lit;
+    let mut kit = Kit::new();
+    kit.font("Fira Sans", 400, false, &fira());
+    kit.state_default("prod.sort", Lit::Str(sort.to_string()));
+    kit.state_default("open", Lit::Bool(false));
+    let mut cell = StyleRecord::initial();
+    cell.display = Display::Block;
+    cell.font_family = vec![kit.str("Fira Sans")];
+    cell.font_size = Len::px(14.0);
+    let cell = kit.record(cell);
+    let cell = kit.plain(cell);
+    let t = tpl(&mut kit, "by {{state.prod.sort}}");
+    let p = kit.str("sort");
+    kit.template(
+        "doc",
+        vec![
+            TNode::layer(Layer::Hud, cell)
+                .child(TNode::el(cell).part(p).child(TNode::bound_text(t, cell))),
+        ],
+    );
+    if let Some(code) = script {
+        kit.script("js/main.js", code, &["top"]);
+    }
+    kit.finish_skin(id).expect("package")
+}
+
 /// A network for the tests: orders are recorded and numbered, the session is plain data.
 #[derive(Default)]
 pub struct FakeNet {

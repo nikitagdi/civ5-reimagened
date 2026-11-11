@@ -22,6 +22,7 @@ pub mod input;
 pub mod registry;
 mod scripts;
 pub mod sink;
+mod state;
 pub mod v2;
 
 pub use error::{LoadFailure, SkinLoadError};
