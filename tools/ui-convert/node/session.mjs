@@ -69,7 +69,7 @@ export function createSession() {
       need(typeof entry === "string", "open: entry must be a string");
       const port = req.port ?? 0;
       need(Number.isInteger(port) && port >= 0 && port < 65536, "open: port must be an integer 0..65535");
-      for (const k of ["fonts_dir", "profile"]) need(req[k] == null || typeof req[k] === "string", `open: ${k} must be a string`);
+      for (const k of ["fonts_dir", "profile", "pkg_dir"]) need(req[k] == null || typeof req[k] === "string", `open: ${k} must be a string`);
       need(req.preview == null || typeof req.preview === "boolean", "open: preview must be a boolean");
       const root = path.resolve(req.skin_dir);
       if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) throw new ProtocolError("E9-004", `skin directory not found: ${req.skin_dir}`);
@@ -77,7 +77,13 @@ export function createSession() {
 
       // The preview script is injected only when asked for and present.
       const preview = req.preview === true && previewAvailable();
-      const server = await startServer({ root, port, preview, fontsDir: req.fonts_dir ? path.resolve(req.fonts_dir) : null });
+      const server = await startServer({
+        root,
+        port,
+        preview,
+        fontsDir: req.fonts_dir ? path.resolve(req.fonts_dir) : null,
+        pkgDir: req.pkg_dir ? path.resolve(req.pkg_dir) : null,
+      });
       let browser;
       try {
         browser = await launchChromium();

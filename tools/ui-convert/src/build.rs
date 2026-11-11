@@ -53,7 +53,36 @@ fn flags_hash() -> String {
     blake3::hash(text.as_bytes()).to_hex().to_string()
 }
 
-fn scripts(dir: &Path, run: &Run) -> (Vec<(String, Vec<u8>)>, Vec<ConvError>) {
+/// The checks of the pass that ran with the subsets served: every face loaded in Chromium (E5-004), and the
+/// glyph set is the one the subsets were made for.
+pub(crate) fn font_checks(run: &mut Run, ranges: &[(u32, u32)]) {
+    if let Some(s) = &run.scanned {
+        for f in &s.ir.fonts {
+            if f.status != "loaded" {
+                run.errors.push(ConvError::new(
+                    codes::FONT_LOAD,
+                    Place::default(),
+                    format!(
+                        "{} {} {}: status {} in Chromium",
+                        f.family, f.weight, f.style, f.status
+                    ),
+                ));
+            }
+        }
+    }
+    if let Some(t) = &run.texts
+        && t.glyphs.codepoints() != ranges
+    {
+        run.errors.push(ConvError::new(
+            codes::PROTOCOL,
+            Place::default(),
+            "the glyph set changed between the two passes",
+        ));
+    }
+}
+
+/// The skin's scripts (`[scripts] files`) with LF line ends.
+pub(crate) fn scripts(dir: &Path, run: &Run) -> (Vec<(String, Vec<u8>)>, Vec<ConvError>) {
     let mut out = Vec::new();
     let mut errs = Vec::new();
     let Some(src) = &run.source else {
@@ -121,29 +150,7 @@ pub fn build(dir: &Path, write_package: bool) -> BuildOut {
             fonts_dir: Some(fonts_dir),
         },
     );
-    if let Some(s) = &run.scanned {
-        for f in &s.ir.fonts {
-            if f.status != "loaded" {
-                run.errors.push(ConvError::new(
-                    codes::FONT_LOAD,
-                    Place::default(),
-                    format!(
-                        "{} {} {}: status {} in Chromium",
-                        f.family, f.weight, f.style, f.status
-                    ),
-                ));
-            }
-        }
-    }
-    if let Some(t) = &run.texts
-        && t.glyphs.codepoints() != ranges
-    {
-        run.errors.push(ConvError::new(
-            codes::PROTOCOL,
-            Place::default(),
-            "the glyph set changed between the two passes",
-        ));
-    }
+    font_checks(&mut run, &ranges);
     let (scr, e) = scripts(dir, &run);
     run.errors.extend(e);
 

@@ -132,6 +132,195 @@ fn engraved_builds_and_the_package_is_deterministic() {
     pictures_are_atlas_pages(&pkg, &a.bytes);
 }
 
+/// One HTTP GET on the loopback server: status, headers (names lower case) and body.
+fn http_get(base: &str, path: &str) -> (u16, Vec<(String, String)>, Vec<u8>) {
+    use std::io::{Read, Write};
+    let port: u16 = base
+        .trim_end_matches('/')
+        .rsplit(':')
+        .next()
+        .and_then(|p| p.parse().ok())
+        .expect("a port in the server URL");
+    let mut s = std::net::TcpStream::connect(("127.0.0.1", port)).expect("connect");
+    write!(
+        s,
+        "GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n"
+    )
+    .expect("request");
+    let mut raw = Vec::new();
+    s.read_to_end(&mut raw).expect("response");
+    let split = raw
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .expect("a header block");
+    let head = String::from_utf8_lossy(&raw[..split]).to_string();
+    let mut body = raw[split + 4..].to_vec();
+    let mut lines = head.lines();
+    let status: u16 = lines
+        .next()
+        .and_then(|l| l.split(' ').nth(1))
+        .and_then(|c| c.parse().ok())
+        .expect("a status line");
+    let headers: Vec<(String, String)> = lines
+        .filter_map(|l| l.split_once(':'))
+        .map(|(k, v)| (k.trim().to_ascii_lowercase(), v.trim().to_string()))
+        .collect();
+    if headers
+        .iter()
+        .any(|(k, v)| k == "transfer-encoding" && v == "chunked")
+    {
+        let mut out = Vec::new();
+        let mut rest = &body[..];
+        loop {
+            let eol = rest
+                .windows(2)
+                .position(|w| w == b"\r\n")
+                .expect("chunk size");
+            let n = usize::from_str_radix(String::from_utf8_lossy(&rest[..eol]).trim(), 16)
+                .expect("hex chunk size");
+            if n == 0 {
+                break;
+            }
+            out.extend_from_slice(&rest[eol + 2..eol + 2 + n]);
+            rest = &rest[eol + 2 + n + 2..];
+        }
+        body = out;
+    }
+    (status, headers, body)
+}
+
+fn header<'a>(h: &'a [(String, String)], name: &str) -> Option<&'a str> {
+    h.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str())
+}
+
+/// Watch mode on a copy of the skin: the package server answers `.rev`, `.ui2` and `.errors.json` with the
+/// cross-origin headers; a CSS edit gives a new `.rev` within 3 s (no client); an error keeps the package and
+/// its `.rev`; a script edit builds without Chromium. The test stops the session (Node, Chromium, server).
+#[test]
+fn watch_cycle() {
+    if !chrome() {
+        return;
+    }
+    use std::time::{Duration, Instant};
+    use ui2_convert::watch::{Change, POLL, WatchOpts, Watcher};
+    let root = std::env::temp_dir().join(format!("ui2-e2e-watch-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let skin = root.join("engraved");
+    copy_dir(&engraved(), &skin);
+    std::fs::create_dir_all(skin.join("scripts")).expect("mkdir");
+    std::fs::write(skin.join("scripts").join("watch.js"), "// watch test\n").expect("script");
+    let toml = std::fs::read_to_string(skin.join("skin.toml")).expect("skin.toml");
+    std::fs::write(
+        skin.join("skin.toml"),
+        format!("{toml}\n[scripts]\nfiles = [\"scripts/watch.js\"]\n"),
+    )
+    .expect("skin.toml");
+    let opts = WatchOpts {
+        port: 0,
+        out: Some(root.join("out")),
+    };
+    let (mut w, first) = Watcher::start(&skin, &opts).expect("the watch starts");
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        assert!(first.built, "{:?}", first.errors);
+        assert_eq!(first.rev, 1);
+        let base = w.url().to_string();
+        let get = |what: &str| http_get(&base, &format!("/pkg/engraved.{what}"));
+        let (status, h, body) = get("rev");
+        assert_eq!((status, body.as_slice()), (200, &b"1"[..]));
+        assert_eq!(header(&h, "access-control-allow-origin"), Some("*"));
+        assert_eq!(
+            header(&h, "cross-origin-resource-policy"),
+            Some("cross-origin")
+        );
+        let (status, _, bytes) = get("ui2");
+        assert_eq!(status, 200);
+        let one = ui2_package::Package::read(std::sync::Arc::from(bytes.as_slice()))
+            .expect("the served package reads")
+            .hash();
+        assert_eq!(get("errors.json").2, b"[]\n");
+
+        // Waits for the cycle the last edit causes.
+        fn next(w: &mut Watcher, since: Instant) -> (ui2_convert::watch::Cycle, Duration) {
+            loop {
+                if let Some(c) = w.poll() {
+                    return (c, since.elapsed());
+                }
+                assert!(since.elapsed() < Duration::from_secs(30), "no cycle");
+                std::thread::sleep(POLL);
+            }
+        }
+        let css = skin.join("css").join("hud.css");
+        let original = std::fs::read_to_string(&css).expect("hud.css");
+
+        // A CSS edit: a new package within 3 s.
+        let t = Instant::now();
+        std::fs::write(
+            &css,
+            format!("{original}\n.top .spacer {{\n  min-width: 1px;\n}}\n"),
+        )
+        .expect("edit");
+        let (c, took) = next(&mut w, t);
+        println!("css edit: {took:?} (cycle {} ms)", c.ms);
+        assert!(c.built, "{:?}", c.errors);
+        assert_eq!((c.change, c.rev), (Change::Full, 2));
+        assert!(took <= Duration::from_secs(3), "{took:?}");
+        assert_eq!(get("rev").2, b"2");
+        let two = ui2_package::Package::read(std::sync::Arc::from(get("ui2").2.as_slice()))
+            .expect("reads")
+            .hash();
+        assert_ne!(one, two);
+
+        // An error: the package and its number stay, the errors are served.
+        let t = Instant::now();
+        std::fs::write(&css, format!("{original}\n.top {{\n  float: right;\n}}\n")).expect("edit");
+        let (c, _) = next(&mut w, t);
+        assert!(!c.built);
+        assert_eq!(c.rev, 2);
+        assert!(
+            c.errors.iter().any(|e| e.code == "E2-010"),
+            "{:?}",
+            c.errors
+        );
+        assert_eq!(get("rev").2, b"2");
+        let errors: serde_json::Value =
+            serde_json::from_slice(&get("errors.json").2).expect("errors.json");
+        assert_eq!(errors[0]["code"], "E2-010");
+        assert_eq!(get("ui2").2, bytes_of(&w, two));
+
+        // Fixed again, then a script edit: built without Chromium.
+        let t = Instant::now();
+        std::fs::write(&css, &original).expect("restore");
+        let (c, _) = next(&mut w, t);
+        assert!(c.built && c.rev == 3, "{:?}", c.errors);
+        let t = Instant::now();
+        std::fs::write(
+            skin.join("scripts").join("watch.js"),
+            "// watch test, edited\n",
+        )
+        .expect("script edit");
+        let (c, took) = next(&mut w, t);
+        println!("script edit: {took:?} (cycle {} ms)", c.ms);
+        assert!(c.built, "{:?}", c.errors);
+        assert_eq!((c.change, c.rev), (Change::Scripts, 4));
+        assert_eq!(get("rev").2, b"4");
+    }));
+    let pkg_dir = w.pkg_dir();
+    w.close();
+    let _ = std::fs::remove_dir_all(&root);
+    if let Err(e) = result {
+        std::panic::resume_unwind(e);
+    }
+    assert!(pkg_dir.starts_with(&root));
+}
+
+/// The package file the watch serves, when its hash is `hash`.
+fn bytes_of(w: &ui2_convert::watch::Watcher, hash: ui2_package::PackageHash) -> Vec<u8> {
+    let bytes = std::fs::read(w.pkg_dir().join(format!("{}.ui2", w.id()))).expect("package file");
+    let read = ui2_package::Package::read(std::sync::Arc::from(bytes.as_slice())).expect("reads");
+    assert_eq!(read.hash(), hash);
+    bytes
+}
+
 /// A PNG of `w x h` straight RGBA pixels (stored deflate blocks: enough for a test picture).
 fn png(w: u32, h: u32, rgba: &[u8]) -> Vec<u8> {
     fn crc32(bytes: &[u8]) -> u32 {

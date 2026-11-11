@@ -41,6 +41,24 @@ use crate::styles::{BoxNode, Compiled};
 /// zstd level of font and picture blobs (deterministic for a fixed library version).
 pub const ZSTD_LEVEL: i32 = 19;
 
+/// A blob as a zstd frame of level [`ZSTD_LEVEL`]. The frame is a pure function of the bytes, so the frames
+/// of this process are kept by the blake3 of their input: watch mode rebuilds a package with the same fonts
+/// and pictures many times, and level 19 is slow.
+fn compress(raw: &[u8]) -> std::io::Result<Vec<u8>> {
+    use std::sync::{Mutex, OnceLock};
+    static FRAMES: OnceLock<Mutex<BTreeMap<[u8; 32], Vec<u8>>>> = OnceLock::new();
+    let key = *blake3::hash(raw).as_bytes();
+    let frames = FRAMES.get_or_init(|| Mutex::new(BTreeMap::new()));
+    if let Some(z) = frames.lock().ok().and_then(|m| m.get(&key).cloned()) {
+        return Ok(z);
+    }
+    let z = zstd::bulk::compress(raw, ZSTD_LEVEL)?;
+    if let Ok(mut m) = frames.lock() {
+        m.insert(key, z.clone());
+    }
+    Ok(z)
+}
+
 /// Tool versions for the manifest.
 #[derive(Debug, Clone, Default)]
 pub struct Tools {
@@ -618,7 +636,7 @@ pub fn write(inp: &Inputs) -> Result<Written, Vec<ConvError>> {
 
     // Pictures (their pages keep the order the packer made).
     for (page, raw) in &inp.pictures.pages {
-        let z = match zstd::bulk::compress(raw, ZSTD_LEVEL) {
+        let z = match compress(raw) {
             Ok(z) => z,
             Err(e) => {
                 errs.push(ConvError::new(
@@ -737,7 +755,7 @@ pub fn write(inp: &Inputs) -> Result<Written, Vec<ConvError>> {
     };
     let ranges = inp.texts.glyphs.codepoints();
     for f in inp.fonts {
-        let z = match zstd::bulk::compress(&f.bytes, ZSTD_LEVEL) {
+        let z = match compress(&f.bytes) {
             Ok(z) => z,
             Err(e) => {
                 errs.push(ConvError::new(

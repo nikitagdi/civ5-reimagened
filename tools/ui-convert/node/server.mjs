@@ -7,6 +7,11 @@
 //
 // Fonts: when `fontsDir` is given, a request whose path exists below it is served from there first
 // (the converter serves subset fonts this way). `preview: true` adds the preview script to every page.
+//
+// Packages (watch mode): when `pkgDir` is given, `GET /pkg/<id>.ui2`, `/pkg/<id>.rev` and
+// `/pkg/<id>.errors.json` are files of that folder (the converter writes them; `.rev` grows with every
+// package that built). These answers carry `Access-Control-Allow-Origin: *` and
+// `Cross-Origin-Resource-Policy: cross-origin`: the game page that polls them is cross-origin isolated.
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -90,7 +95,15 @@ export function annotateHtml(source, relPath, { preview = false } = {}) {
  * Starts the server. Resolves to { port, url, close(), requests(), styleBlocks(relPath), resolveFile(rel),
  * reset() }.
  */
-export async function startServer({ root, port = 0, fontsDir = null, preview = false }) {
+/** The content type of a package file name, or null when the name is not one (`<id>.ui2|rev|errors.json`). */
+export function pkgType(name) {
+  if (!/^[a-z][a-z0-9-]*\.(ui2|rev|errors\.json)$/.test(name)) return null;
+  if (name.endsWith(".ui2")) return "application/octet-stream";
+  if (name.endsWith(".rev")) return "text/plain; charset=utf-8";
+  return MIME[".json"];
+}
+
+export async function startServer({ root, port = 0, fontsDir = null, preview = false, pkgDir = null }) {
   const rootDir = path.resolve(root);
   const log = new Map(); // url path -> status of the last response
   const htmlCache = new Map(); // relPath -> { mtimeMs, html, styles }
@@ -114,16 +127,31 @@ export async function startServer({ root, port = 0, fontsDir = null, preview = f
 
   const server = http.createServer((req, res) => {
     let urlPath = "/";
+    let cors = false;
     const done = (status, body, type) => {
       log.set(urlPath, status);
-      res.writeHead(status, {
+      const headers = {
         "Content-Type": type || "text/plain; charset=utf-8",
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
-      });
+      };
+      if (cors) {
+        headers["Access-Control-Allow-Origin"] = "*";
+        headers["Cross-Origin-Resource-Policy"] = "cross-origin";
+      }
+      res.writeHead(status, headers);
       res.end(req.method === "HEAD" ? undefined : body);
     };
     try {
+      cors = pkgDir !== null && (req.url || "").startsWith("/pkg/");
+      if (cors && req.method === "OPTIONS") {
+        res.writeHead(204, {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, HEAD",
+          "Cross-Origin-Resource-Policy": "cross-origin",
+        });
+        return res.end();
+      }
       if (req.method !== "GET" && req.method !== "HEAD") return done(405, "method not allowed");
       // Reject foreign Host headers (DNS rebinding): only the loopback address is ours.
       const host = (req.headers.host || "").replace(/:\d+$/, "");
@@ -139,6 +167,13 @@ export async function startServer({ root, port = 0, fontsDir = null, preview = f
         return done(200, fs.readFileSync(PREVIEW_FILE), MIME[".js"]);
       }
       if (rel.startsWith("__ui2/")) return done(404, "not found");
+      if (cors) {
+        const name = rel.slice("pkg/".length);
+        const type = pkgType(name);
+        const full = type && path.join(pkgDir, name);
+        if (!full || !fs.existsSync(full)) return done(404, "no such package file");
+        return done(200, fs.readFileSync(full), type);
+      }
 
       let full = null;
       if (fontsDir) {

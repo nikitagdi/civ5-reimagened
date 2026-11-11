@@ -411,6 +411,35 @@ pub fn pictures(
     dom: &Dom,
     c: &Compiled,
 ) -> Result<Pictures, Vec<ConvError>> {
+    pictures_cached(node, skin_dir, dom, c, &mut RasterCache::default())
+}
+
+/// Chromium's rasters by request: the key is the blake3 of the raster request of one picture and of the
+/// files it reads, so a picture is drawn again only when its markup, size or file changed (watch mode).
+#[derive(Debug, Default)]
+pub struct RasterCache(BTreeMap<[u8; 32], Value>);
+
+fn raster_key(skin_dir: &std::path::Path, item: &Value) -> [u8; 32] {
+    let mut h = blake3::Hasher::new();
+    h.update(item.to_string().as_bytes());
+    for k in ["src1", "src2"] {
+        if let Some(f) = item.get(k).and_then(Value::as_str) {
+            let bytes = std::fs::read(skin_dir.join(f)).unwrap_or_default();
+            h.update(&(bytes.len() as u64).to_le_bytes());
+            h.update(&bytes);
+        }
+    }
+    *h.finalize().as_bytes()
+}
+
+/// [`pictures`] with the rasters of earlier runs kept in `cache`.
+pub fn pictures_cached(
+    node: &mut NodeClient,
+    skin_dir: &std::path::Path,
+    dom: &Dom,
+    c: &Compiled,
+    cache: &mut RasterCache,
+) -> Result<Pictures, Vec<ConvError>> {
     let (wants, of, mut errs) = wanted(dom, c);
     let elem = |id: u32| dom.by_id.get(&id).map(|&ix| dom.elems[ix]);
     // Pictures named by path: drawn at their natural size, which Chromium reads from the file.
@@ -461,14 +490,43 @@ pub fn pictures(
     }
     let mut rasters = Vec::new();
     if !items.is_empty() {
-        let answer = node
-            .call("raster", json!({ "items": items }))
-            .map_err(|e| vec![e])?;
-        let list = answer
-            .get("items")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
+        // Only the pictures whose request or files changed since the cache saw them go to Chromium.
+        let keys: Vec<[u8; 32]> = items.iter().map(|it| raster_key(skin_dir, it)).collect();
+        let todo: Vec<Value> = items
+            .iter()
+            .zip(&keys)
+            .filter(|(_, k)| !cache.0.contains_key(*k))
+            .map(|(it, _)| it.clone())
+            .collect();
+        if !todo.is_empty() {
+            let answer = node
+                .call("raster", json!({ "items": todo }))
+                .map_err(|e| vec![e])?;
+            let fresh = answer
+                .get("items")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            if fresh.len() != todo.len() {
+                return Err(vec![ConvError::new(
+                    codes::PROTOCOL,
+                    crate::errors::Place::default(),
+                    "raster: the answer has another number of items",
+                )]);
+            }
+            let mut fresh = fresh.into_iter();
+            for k in &keys {
+                if !cache.0.contains_key(k)
+                    && let Some(a) = fresh.next()
+                {
+                    cache.0.insert(*k, a);
+                }
+            }
+        }
+        let list: Vec<Value> = keys
+            .iter()
+            .map(|k| cache.0.get(k).cloned().unwrap_or(Value::Null))
+            .collect();
         let size_of = |a: &Value, k: &str| {
             a.get(k)
                 .and_then(Value::as_u64)

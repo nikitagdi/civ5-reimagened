@@ -5,6 +5,7 @@
 //! ui2-convert build  <skin> [--dump-ir <file>]   (the package in target/ui2/<id>/)
 //! ui2-convert verify <skin> [--state <name>]   (the runtime's layout against Chromium's)
 //! ui2-convert web    <web-dir>    (every skin of skins/ into <web-dir>/ui2/ with skins.json)
+//! ui2-convert watch  <skin> [--port <n>]   (the package server for hot reload, 127.0.0.1:8095)
 //! ```
 //!
 //! `<skin>` is a folder with `skin.toml` or the id of a folder under `skins/`. Errors go to
@@ -16,7 +17,7 @@ use std::process::ExitCode;
 
 use ui2_convert::{Input, Run, check_skin};
 
-const USAGE: &str = "usage: ui2-convert check <skin> [--dump-ir <file>] [--from-ir <file>]\n       ui2-convert build <skin>\n       ui2-convert verify <skin> [--state <name>]\n       ui2-convert web <web-dir>";
+const USAGE: &str = "usage: ui2-convert check <skin> [--dump-ir <file>] [--from-ir <file>]\n       ui2-convert build <skin>\n       ui2-convert verify <skin> [--state <name>]\n       ui2-convert web <web-dir>\n       ui2-convert watch <skin> [--port <n>]";
 
 /// The skin folder of an argument: an existing folder, or `skins/<id>` of the repository.
 fn skin_dir(arg: &str) -> Option<PathBuf> {
@@ -134,12 +135,20 @@ fn main() -> ExitCode {
     let mut dump_ir = None;
     let mut from_ir = None;
     let mut state = None;
+    let mut port = ui2_convert::watch::DEFAULT_PORT;
     let mut it = args[1..].iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--dump-ir" => dump_ir = it.next().cloned(),
             "--from-ir" => from_ir = it.next().cloned(),
             "--state" => state = it.next().cloned(),
+            "--port" => match it.next().and_then(|p| p.parse().ok()) {
+                Some(p) => port = p,
+                None => {
+                    eprintln!("--port takes a port number\n{USAGE}");
+                    return ExitCode::from(2);
+                }
+            },
             s if s.starts_with("--") => {
                 eprintln!("unknown option {s}\n{USAGE}");
                 return ExitCode::from(2);
@@ -235,6 +244,21 @@ fn main() -> ExitCode {
                         eprintln!("{e}\n");
                     }
                     eprintln!("ui2-convert: {} error(s)", errs.len());
+                    ExitCode::from(1)
+                }
+            }
+        }
+        "watch" => {
+            let opts = ui2_convert::watch::WatchOpts {
+                port,
+                ..Default::default()
+            };
+            match ui2_convert::watch::run(&dir, &opts) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(errs) => {
+                    for e in &errs {
+                        eprintln!("{e}\n");
+                    }
                     ExitCode::from(1)
                 }
             }
