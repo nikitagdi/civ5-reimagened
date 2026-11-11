@@ -1,0 +1,26 @@
+[package]
+name = "ui2-package"
+description = "UI v2 skin package: the C5UI2PKG container, its sections and the machine-readable UI profile"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+license.workspace = true
+repository.workspace = true
+
+[package.metadata.civ5]
+layer = "shared"
+
+[features]
+default = []
+# The package builder (tool side). Reading never needs it.
+write = []
+# The machine-readable UI profile (`profile/profile.toml`) and its parsers.
+profile = ["dep:toml"]
+
+[dependencies]
+serde.workspace = true
+postcard.workspace = true
+blake3.workspace = true
+thiserror.workspace = true
+toml = { workspace = true, optional = true }
