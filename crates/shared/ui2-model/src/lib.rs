@@ -14,6 +14,7 @@ pub mod generated;
 pub mod model;
 pub mod sample;
 pub mod schema;
+mod schema_view;
 pub mod state;
 pub mod store;
 mod umd1;

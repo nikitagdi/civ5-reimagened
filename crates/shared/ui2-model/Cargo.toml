@@ -16,3 +16,9 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 toml.workspace = true
+# `impl SchemaView for Schema`: shared to shared, no features, the package never depends back.
+ui2-package.workspace = true
+
+[dev-dependencies]
+# Tests build a package to check its paths against the real schema.
+ui2-package = { workspace = true, features = ["write"] }
