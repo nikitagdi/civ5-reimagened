@@ -2,7 +2,9 @@
 //!
 //! Every node instance with bindings owns a contiguous range of *rows* (`Node::binds`): one per scalar binding
 //! of its template node (`data-bind-value`, `data-l10n`, `data-bind-class-toggle`, `data-bind-style-*`,
-//! `data-bind-disabled`). A row knows what it reads (the [`deps::Slot`]s of its expressions) and is
+//! `data-bind-disabled`), and one per step of `data-on-*` that reads something (the arguments of `intent`
+//! and `call`, the value of `set`, the path of `toggle`): those rows only keep their values, which input
+//! reads when the event happens. A row knows what it reads (the [`deps::Slot`]s of its expressions) and is
 //! registered in the dependency [`deps::Index`] under each of them.
 //!
 //! Work is driven by two queues. New nodes are queued for the BIND pass by instantiation; the pass makes their
@@ -21,9 +23,10 @@ pub(crate) mod style;
 
 use std::sync::Arc;
 
-use ui2_model::{FrameDelta, Key, ModelStore, Op};
-use ui2_package::profile::expr::{Value, truthy};
-use ui2_package::{BindKind, ExprId, NodeKind, Package, PropId, StrId, TextSrc, TplId};
+use ui2_model::{FrameDelta, Key, ModelStore, Op, Scalar as MScalar, Type, Value as MValue};
+use ui2_package::profile::action::Action;
+use ui2_package::profile::expr::{Expr, Value, eval, truthy};
+use ui2_package::{BindKind, ExprId, NodeKind, NodeRef, Package, PropId, StrId, TextSrc, TplId};
 
 use crate::arena::{Arena, Dirty, NodeClass, NodeId, StateBits};
 use crate::error::{ErrorCode, ErrorSink, UiError};
@@ -46,6 +49,11 @@ pub(crate) enum RowKind {
     Disabled(ExprId),
     /// A style property.
     Style { prop: PropId, tpl: TplId },
+    /// The values a markup action needs (`data-on-*`): the arguments of an `intent` or `call`, the value of a
+    /// `set`, the current value of a `toggle`'s path. `bind` is the binding's index among the node's
+    /// bindings, `action` the step's index in it. Evaluated like any row (when what it reads changes) and
+    /// kept: an event reads the values as the player saw them, without the model at hand.
+    Action { bind: u16, action: u16 },
 }
 
 /// The last result of a row (a new result equal to it has no effect).
@@ -54,6 +62,72 @@ enum Out {
     Text(Arc<str>),
     Bool(bool),
     Style(Option<OverValue>),
+    Values(Vec<MValue>),
+}
+
+/// Whether a markup action reads anything (and so needs a row).
+fn action_reads(a: &Action) -> bool {
+    match a {
+        Action::Intent { args, .. } | Action::Call { args, .. } => !args.is_empty(),
+        Action::Set { .. } | Action::Toggle { .. } => true,
+        Action::Stop => false,
+    }
+}
+
+/// The step `action` of the event binding `bind` of a template node.
+pub(crate) fn action_of(pkg: &Package, tmpl: NodeRef, bind: u16, action: u16) -> Option<&Action> {
+    match &pkg.bindings_of(tmpl.0, tmpl.1).get(usize::from(bind))?.kind {
+        BindKind::Event { actions, .. } => actions.get(usize::from(action)),
+        _ => None,
+    }
+}
+
+/// An expression value as a model value of the type the receiver expects (when known).
+pub(crate) fn to_model(v: &Value, ty: Option<&Type>) -> MValue {
+    let ty = match ty {
+        Some(Type::Option(inner)) => Some(inner.as_ref()),
+        t => t,
+    };
+    let int_scalar = |t: Option<&Type>| {
+        matches!(
+            t,
+            Some(Type::Scalar(MScalar::I8 | MScalar::I16 | MScalar::I32))
+        )
+    };
+    match v {
+        Value::Null | Value::List(_) | Value::Struct => MValue::None,
+        Value::Bool(b) => MValue::Bool(*b),
+        Value::Int(i) => match ty {
+            Some(Type::Key(_)) => MValue::Key(Key(*i as u64)),
+            Some(Type::Scalar(MScalar::U32 | MScalar::Color)) => {
+                u32::try_from(*i).map_or(MValue::None, MValue::U32)
+            }
+            Some(Type::Scalar(MScalar::F32)) => MValue::F32(*i as f32),
+            Some(Type::Enum(_)) => u16::try_from(*i).map_or(MValue::None, MValue::Enum),
+            // Integers beyond `i32` are keys (the expression language sees keys as integers).
+            _ => i32::try_from(*i).map_or(MValue::Key(Key(*i as u64)), MValue::I32),
+        },
+        Value::Float(f) if int_scalar(ty) && f.fract() == 0.0 => MValue::I32(*f as i32),
+        Value::Float(f) => MValue::F32(*f as f32),
+        Value::Str(s) | Value::Text(s) => match ty {
+            Some(Type::Key(_)) => {
+                Key::parse_js(s).map_or(MValue::Str(s.as_str().into()), MValue::Key)
+            }
+            _ => MValue::Str(s.as_str().into()),
+        },
+        Value::Color(c) => MValue::U32(*c),
+    }
+}
+
+/// The value of an action argument: a bare model path gives the field as the model holds it (a key, an enum,
+/// a whole struct such as a plot); anything else is evaluated and converted to the expected type.
+fn arg_value(host: &mut Host<'_>, e: &Expr, ty: Option<&Type>) -> MValue {
+    if let Expr::Path(segs) = e
+        && let Slot::Field(f) = host.plan.lookup(&segs.join("."))
+    {
+        return host.raw(f);
+    }
+    to_model(&eval(e, host), ty)
 }
 
 #[derive(Debug)]
@@ -265,8 +339,18 @@ impl Binder {
             }
         }
         let r = node.tmpl();
-        for b in pkg.bindings_of(r.0, r.1) {
+        for (bi, b) in pkg.bindings_of(r.0, r.1).iter().enumerate() {
             match &b.kind {
+                BindKind::Event { actions, .. } => {
+                    for (ai, a) in actions.iter().enumerate() {
+                        if action_reads(a) {
+                            kinds.push(RowKind::Action {
+                                bind: bi as u16,
+                                action: ai as u16,
+                            });
+                        }
+                    }
+                }
                 BindKind::Text(tpl) => kinds.push(RowKind::Text(*tpl)),
                 BindKind::ClassToggle { class, cond } => kinds.push(RowKind::Class {
                     class: *class,
@@ -294,6 +378,26 @@ impl Binder {
         kinds
     }
 
+    /// The paths a row reads.
+    fn paths_of(pkg: &Package, tmpl: NodeRef, kind: &RowKind, out: &mut Vec<String>) {
+        if let RowKind::Action { bind, action } = kind {
+            match action_of(pkg, tmpl, *bind, *action) {
+                Some(Action::Intent { args, .. } | Action::Call { args, .. }) => {
+                    for a in args {
+                        deps::paths_of(&a.value, out);
+                    }
+                }
+                Some(Action::Set { value, .. }) => deps::paths_of(value, out),
+                Some(Action::Toggle { path }) => out.push(path.clone()),
+                Some(Action::Stop) | None => {}
+            }
+            return;
+        }
+        for e in Self::exprs_of(pkg, kind) {
+            deps::paths_of(e, out);
+        }
+    }
+
     /// The expressions a row evaluates.
     fn exprs_of<'a>(pkg: &'a Package, kind: &RowKind) -> Vec<&'a ui2_package::profile::expr::Expr> {
         let tpl_exprs = |t: TplId| {
@@ -312,6 +416,8 @@ impl Binder {
             RowKind::Class { cond: e, .. } | RowKind::Disabled(e) => {
                 pkg.expr(*e).into_iter().collect()
             }
+            // Read through `paths_of`: the expressions live in the binding's actions.
+            RowKind::Action { .. } => Vec::new(),
         }
     }
 
@@ -325,16 +431,18 @@ impl Binder {
             return;
         }
         let keys = instance_keys(arena, id);
+        let tmpl = arena.get(id).map(|n| n.tmpl());
         let count = kinds.len() as u32;
         let start = self.alloc(kinds.len());
         for (i, kind) in kinds.into_iter().enumerate() {
             let r = start + i as u32;
             let mut paths = Vec::new();
-            let exprs = Self::exprs_of(pkg, &kind);
             let mut localized = matches!(kind, RowKind::L10n { .. });
-            for e in &exprs {
-                deps::paths_of(e, &mut paths);
+            for e in Self::exprs_of(pkg, &kind) {
                 localized |= deps::calls_loc(e);
+            }
+            if let Some(tmpl) = tmpl {
+                Self::paths_of(pkg, tmpl, &kind, &mut paths);
             }
             let mut slots: Vec<Slot> = Vec::new();
             if let Some(plan) = self.plan.as_mut() {
@@ -415,9 +523,41 @@ impl Binder {
             return;
         };
         let pkg = cx.pkg;
+        let tmpl = arena.get(row.node).map(|n| n.tmpl());
         let mut host = Host::new(pkg, plan, cx.store, &row.keys, &self.loc);
         let mut problem: Option<(ErrorCode, String)> = None;
         let out = match &row.kind {
+            RowKind::Action { bind, action } => {
+                let act = tmpl.and_then(|t| action_of(pkg, t, *bind, *action));
+                Out::Values(match act {
+                    Some(Action::Intent { name, args }) => {
+                        let def = plan.schema.intents().iter().find(|d| d.name == *name);
+                        args.iter()
+                            .map(|a| {
+                                let ty = def
+                                    .zip(a.name.as_ref())
+                                    .and_then(|(d, n)| d.args.iter().find(|f| f.name == *n))
+                                    .map(|f| &f.ty);
+                                arg_value(&mut host, &a.value, ty)
+                            })
+                            .collect()
+                    }
+                    Some(Action::Call { args, .. }) => args
+                        .iter()
+                        .map(|a| arg_value(&mut host, &a.value, None))
+                        .collect(),
+                    Some(Action::Set { path, value }) => {
+                        let ty = plan.schema.resolve(path).ok().map(|f| f.ty);
+                        vec![arg_value(&mut host, value, ty.as_ref())]
+                    }
+                    Some(Action::Toggle { path }) => {
+                        let segs: Vec<String> = path.split('.').map(str::to_string).collect();
+                        let now = ui2_package::profile::expr::EvalHost::path(&mut host, &segs);
+                        vec![MValue::Bool(truthy(&now))]
+                    }
+                    Some(Action::Stop) | None => Vec::new(),
+                })
+            }
             RowKind::Text(tpl) => Out::Text(host.template(*tpl).into()),
             RowKind::L10n { key, args } => {
                 let values: Vec<Value> = args.iter().map(|e| host.expr(*e)).collect();
@@ -490,6 +630,22 @@ impl Binder {
             _ => {}
         }
         row.last = Some(out);
+    }
+
+    /// The values the row of a node's markup action holds (`rows` is the node's row range): `None` while it
+    /// was not evaluated yet, or when the action reads nothing.
+    pub fn action_values(
+        &self,
+        rows: std::ops::Range<u32>,
+        bind: u16,
+        action: u16,
+    ) -> Option<&[MValue]> {
+        rows.filter_map(|r| self.rows.get(r as usize)?.as_ref())
+            .find(|row| row.kind == RowKind::Action { bind, action })
+            .and_then(|row| match &row.last {
+                Some(Out::Values(v)) => Some(v.as_slice()),
+                _ => None,
+            })
     }
 
     /// The number of live rows.

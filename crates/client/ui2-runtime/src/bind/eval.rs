@@ -54,6 +54,19 @@ impl<'a> Host<'a> {
         }
     }
 
+    /// A field's value as the model holds it (keys stay keys, enums indices, structs whole); `None` when
+    /// absent.
+    pub fn raw(&self, f: ui2_model::FieldId) -> MValue {
+        let Some(entry) = self.plan.schema.paths().get(f.0 as usize) else {
+            return MValue::None;
+        };
+        let depth = entry.path.matches("[]").count().min(self.keys.len());
+        self.store
+            .value(f, &self.keys[..depth])
+            .cloned()
+            .unwrap_or(MValue::None)
+    }
+
     /// A model value as the expression language sees it: integers and keys are integers, enum values their
     /// names, colors `0xRRGGBBAA`, texts localized, a list its length.
     fn model_value(&self, ty: &Type, v: &MValue) -> Value {

@@ -21,13 +21,27 @@
 //!
 //! The cursor is the `cursor` of the node under the pointer ([`Runtime::cursor`], also in
 //! [`FrameOutput::cursor`](crate::FrameOutput::cursor)).
+//!
+//! What events ask for goes to the runtime's output ([`Runtime::drain_output`]): markup actions of
+//! `data-on-*` (`events`), the focus and Tab (`focus`), the keyboard with Enter, Space, Esc and
+//! `data-hotkey` (`hotkeys`), tooltips of `data-tooltip` (`tooltip`). Pointer events: `pointerdown` on the
+//! pressed node; on release `pointerup` on the node under the pointer, then `click` (left button) or
+//! `contextmenu` (right) on the nearest node holding both the pressed and the released node, and `dblclick`
+//! after a second click on one node within [`DOUBLE_CLICK_MS`]; `pointerenter`/`pointerleave` as the hover
+//! chain changes. A left press moves the focus to the nearest focusable node at or above the pressed one, or
+//! takes it from the UI (also a press in the world).
 
+mod events;
+mod focus;
 pub(crate) mod hit;
+mod hotkeys;
+mod tooltip;
 
 use std::sync::Arc;
 
 use glam::Vec2;
 use platform::{InputEvent, MouseButton, PointerEvent, PointerPhase, WheelDelta, WheelEvent};
+use ui2_package::profile::action::Event;
 use ui2_package::style::Cursor;
 use ui2_package::{ARefId, ImageSrc, NodeKind, NodeRef, Package};
 
@@ -40,6 +54,9 @@ pub const WHEEL_LINE_PX: f32 = 40.0;
 
 /// The asset reference of the minimap picture.
 pub const MINIMAP_ASSET: &str = "render:minimap";
+
+/// The longest time between two clicks on one node that makes a `dblclick`, ms.
+pub const DOUBLE_CLICK_MS: f64 = 500.0;
 
 /// Who takes an input event (see the [module docs](crate::input)).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -85,6 +102,12 @@ pub(crate) struct InputState {
     pub screens: Vec<(NodeRef, Arc<str>)>,
     /// The asset reference of the minimap picture, when the package has one.
     minimap: Option<ARefId>,
+    /// The node with keyboard focus.
+    pub focus: Option<NodeId>,
+    /// The last click: its node and time (for `dblclick`).
+    last_click: Option<(NodeId, f64)>,
+    /// The tooltip on screen.
+    pub tooltip: Option<tooltip::Tooltip>,
 }
 
 impl InputState {
@@ -170,7 +193,7 @@ impl Runtime {
         match ev {
             InputEvent::Pointer(p) => self.on_pointer(p, now_ms),
             InputEvent::Wheel(w) => self.on_wheel(w),
-            InputEvent::Key(k) => self.on_key(k, now_ms),
+            InputEvent::Key(k) => self.on_key(k),
             InputEvent::Text(_) => self.on_text(),
             InputEvent::Focused(false) => {
                 // The window lost the keyboard and the mouse: nothing stays pressed.
@@ -210,7 +233,7 @@ impl Runtime {
 
     fn on_pointer(&mut self, p: &PointerEvent, now_ms: f64) -> InputOutcome {
         if p.phase == PointerPhase::Left {
-            self.update_hover(None, now_ms);
+            self.update_hover(None);
             return match self.input.capture {
                 PointerCapture::Ui(_) => InputOutcome::Consumed,
                 _ => InputOutcome::PassToWorld,
@@ -218,15 +241,15 @@ impl Runtime {
         }
         let at = self.css(p.position.x, p.position.y);
         let hit = self.hit_at(at);
-        self.update_hover(hit.node, now_ms);
+        self.update_hover(hit.node);
         match p.phase {
-            PointerPhase::Down => self.on_down(p, &hit, at, now_ms),
+            PointerPhase::Down => self.on_down(p, &hit, at),
             PointerPhase::Up | PointerPhase::Cancel => self.on_up(p, &hit, at, now_ms),
             _ => self.captured_outcome(&hit, at),
         }
     }
 
-    fn on_down(&mut self, p: &PointerEvent, hit: &Hit, at: Vec2, now_ms: f64) -> InputOutcome {
+    fn on_down(&mut self, p: &PointerEvent, hit: &Hit, at: Vec2) -> InputOutcome {
         let bit = button_bit(p.button);
         let first = self.input.buttons == 0;
         self.input.buttons |= bit;
@@ -240,14 +263,14 @@ impl Runtime {
         }
         let Some(node) = hit.node else {
             self.input.capture = PointerCapture::World;
-            self.pointer_down_in_world(now_ms);
+            self.pointer_down_in_world();
             return InputOutcome::PassToWorld;
         };
         self.input.capture = PointerCapture::Ui(Some(node));
         if !self.disabled(node) {
             self.set_active(Some(node));
         }
-        self.pointer_down_on(node, p, now_ms);
+        self.pointer_down_on(node, p);
         if bit == 1 && self.is_minimap(node) {
             self.input.minimap_drag = true;
             return minimap_uv(hit.local, hit.size);
@@ -367,36 +390,101 @@ impl Runtime {
         self.input.active = chain;
     }
 
-    /// Moves the hover to the node under the pointer.
-    fn update_hover(&mut self, target: Option<NodeId>, _now_ms: f64) {
+    /// Moves the hover to the node under the pointer: `pointerleave` on the nodes that lost it, `pointerenter`
+    /// on those that got it (outermost first; neither bubbles), and the tooltip follows.
+    fn update_hover(&mut self, target: Option<NodeId>) {
         if target == self.input.target && self.hover.first().copied() == target {
             return;
         }
+        let old = self.hover.clone();
         self.input.target = target;
         self.set_hover(target);
+        let new = self.hover.clone();
+        for &id in old.iter().filter(|id| !new.contains(id)) {
+            self.dispatch_here(id, Event::Pointerleave);
+        }
+        for &id in new.iter().rev().filter(|id| !old.contains(id)) {
+            self.dispatch_here(id, Event::Pointerenter);
+        }
+        self.update_tooltip();
     }
 
-    // Markup actions, focus and keys come in the next part of input; these keep the pointer path complete.
+    /// A press in the world takes the focus from the UI.
+    fn pointer_down_in_world(&mut self) {
+        self.set_focus(None, false);
+    }
 
-    fn pointer_down_in_world(&mut self, _now_ms: f64) {}
+    /// A press on a node: the focus goes to the nearest focusable node at or above it (or leaves the UI), then
+    /// `pointerdown`.
+    fn pointer_down_on(&mut self, node: NodeId, p: &PointerEvent) {
+        if button_bit(p.button) == 1 {
+            let focus = self.focus_target(node);
+            self.set_focus(focus, false);
+        }
+        self.dispatch(node, Event::Pointerdown, false);
+    }
 
-    fn pointer_down_on(&mut self, _node: NodeId, _p: &PointerEvent, _now_ms: f64) {}
-
+    /// The release of a press that started on `pressed`, over `over`: `pointerup` on the node under the
+    /// pointer, then `click` (left button) or `contextmenu` (right button) on the nearest node that holds both
+    /// (as in browsers), and `dblclick` after a second click on the same node within [`DOUBLE_CLICK_MS`].
     fn pointer_up_on(
         &mut self,
-        _pressed: NodeId,
-        _over: Option<NodeId>,
-        _p: &PointerEvent,
-        _now_ms: f64,
+        pressed: NodeId,
+        over: Option<NodeId>,
+        p: &PointerEvent,
+        now_ms: f64,
     ) {
+        let Some(over) = over else {
+            return;
+        };
+        self.dispatch(over, Event::Pointerup, false);
+        let Some(target) = self.common_ancestor(pressed, over) else {
+            return;
+        };
+        match button_bit(p.button) {
+            1 => {
+                self.dispatch(target, Event::Click, false);
+                let double = self
+                    .input
+                    .last_click
+                    .is_some_and(|(n, t)| n == target && now_ms - t <= DOUBLE_CLICK_MS);
+                if double {
+                    self.input.last_click = None;
+                    self.dispatch(target, Event::Dblclick, false);
+                } else {
+                    self.input.last_click = Some((target, now_ms));
+                }
+            }
+            2 => self.dispatch(target, Event::Contextmenu, false),
+            _ => {}
+        }
     }
 
-    fn on_key(&mut self, _k: &platform::KeyEvent, _now_ms: f64) -> InputOutcome {
-        InputOutcome::PassToWorld
+    /// The nearest node that is `a` or an ancestor of it and also `b` or an ancestor of `b`.
+    fn common_ancestor(&self, a: NodeId, b: NodeId) -> Option<NodeId> {
+        let mut chain = Vec::new();
+        let mut at = Some(b);
+        while let Some(id) = at.filter(|&i| self.arena.contains(i)) {
+            chain.push(id);
+            at = self.arena.get(id).and_then(|n| n.parent());
+        }
+        let mut at = Some(a);
+        while let Some(id) = at.filter(|&i| self.arena.contains(i)) {
+            if chain.contains(&id) {
+                return Some(id);
+            }
+            at = self.arena.get(id).and_then(|n| n.parent());
+        }
+        None
     }
 
+    /// Text typed into the window: a focused text field's (the host's text bridge edits it).
     fn on_text(&mut self) -> InputOutcome {
-        InputOutcome::PassToWorld
+        if self.text_focus().is_some() {
+            InputOutcome::Consumed
+        } else {
+            InputOutcome::PassToWorld
+        }
     }
 }
 
