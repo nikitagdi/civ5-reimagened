@@ -161,6 +161,56 @@ fn a_failed_table_is_asked_again_after_the_game_changes() {
 }
 
 #[test]
+fn warm_up_makes_the_cold_calls_once_and_keeps_only_the_catalog() {
+    let mut f = game();
+    let mut whole = Rig::new(session());
+    whole.frame(&mut f);
+
+    let mut f = game();
+    let mut rig = Rig::new(session());
+    rig.src.set_read_budget(DEFAULT_FRAME_BUDGET);
+    let s = rig.src.warm_up(&mut f);
+    let mut expected = vec![
+        "game_info",
+        "top_bar",
+        "units",
+        "unit_actions",
+        "cities",
+        "city_builds",
+    ];
+    expected.extend(["catalog"; 8]);
+    assert_eq!(f.calls, expected);
+    assert_eq!(s.getter_calls, 14);
+    assert_eq!(
+        s.spent_units,
+        5 + 30 + 5 + 65 + 70 + 2070 + 1860,
+        "no budget: the cold calls and the whole catalog"
+    );
+    assert_eq!((s.roots_built, s.deferred), (0, 0), "nothing written");
+    assert!(rig.delta().is_none());
+
+    // The first frame reads no table and the game again (nothing of the game was kept): one frame, in budget.
+    f.calls.clear();
+    let s = rig.frame(&mut f);
+    assert!(!f.calls.contains(&"catalog"), "{:?}", f.calls);
+    assert!(f.calls.contains(&"top_bar"));
+    assert_eq!(s.deferred, 0);
+    assert!(s.spent_units <= DEFAULT_FRAME_BUDGET);
+    assert_eq!(rig.store.get::<Map>(), whole.store.get::<Map>());
+
+    // A new game forgets the catalog: a warm-up after the reset reads it again.
+    rig.src.reset();
+    f.calls.clear();
+    rig.src.warm_up(&mut f);
+    assert_eq!(f.calls.iter().filter(|c| **c == "catalog").count(), 8);
+    // Without units or cities of the seat there is nothing to warm for them.
+    let mut empty = FakeRead::new(0, 0);
+    let s = rig.src.warm_up(&mut empty);
+    assert_eq!(empty.calls, ["game_info", "top_bar", "units", "cities"]);
+    assert_eq!(s.getter_calls, 4);
+}
+
+#[test]
 fn the_first_root_of_a_frame_gets_all_its_reads() {
     let mut f = game();
     let mut rig = Rig::new(session());

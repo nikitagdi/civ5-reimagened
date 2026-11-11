@@ -219,6 +219,46 @@ impl UiSource {
         *self = UiSource::blank(self.schema_text.clone(), self.budget);
     }
 
+    /// Takes the core's slow first calls out of the frames. The first call of some reads after a core loads a
+    /// game costs far more than the frame budget assumes (the core fills its own caches: the top bar about 11 ms,
+    /// the game record 1.4 ms, a unit's actions 1.6 ms, a city's options 4.6 ms). This makes one call of each of
+    /// those (for the seat's first unit and first city, if any) and reads the catalog tables not read yet, with
+    /// no budget, and keeps only the catalog: the frames then start from warm caches and a ready catalog.
+    ///
+    /// For the host: call it once when a game is joined or loaded (the replica live, after
+    /// [`reset`](Self::reset) for a new game), at a moment that may take a few ms more, such as the load
+    /// screen; it is never called from [`frame`](Self::frame). It reads only; skipping it changes nothing but the
+    /// cost of the first frames. The stats count its reads and their cost units (the table's medians, not the
+    /// real cold time).
+    pub fn warm_up(&mut self, read: &mut dyn GameRead) -> SourceStats {
+        // What it reads of the game is not kept: the next frame's signals decide whether the game changed.
+        let mut cache = Cache::default();
+        let mut read = CountingRead::new(read, &mut cache, self.missing, UNLIMITED);
+        read.begin(true);
+        let seat = read.seat();
+        let _ = read.game_info();
+        let _ = read.top_bar();
+        if let Ok(units) = read.units()
+            && let Some(u) = units.iter().find(|u| u.owner.cast_unsigned() == seat)
+        {
+            let _ = read.unit_actions(u.id);
+        }
+        if let Ok(cities) = read.cities()
+            && let Some(c) = cities.iter().find(|c| c.owner.cast_unsigned() == seat)
+        {
+            let _ = read.city_builds(c.id);
+        }
+        if !self.catalog.complete() {
+            self.catalog.load(&mut read);
+        }
+        self.missing = read.missing;
+        SourceStats {
+            getter_calls: read.meter.calls,
+            spent_units: read.meter.spent,
+            ..SourceStats::default()
+        }
+    }
+
     /// One frame: rebuild what the signals ask for, write it, report the cost. `ui` is the UI's own root (owned by
     /// the actions module): the selected unit and the open production window come from it.
     pub fn frame(
