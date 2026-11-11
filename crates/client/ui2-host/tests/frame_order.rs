@@ -4,7 +4,11 @@
 //! - the intents are applied before the source, which reads the `ui` root they changed in the same frame;
 //! - `reconcile` runs after the source, on what the source wrote in the same frame, and before `take_frame`, so
 //!   its changes reach the runtime in that frame's delta;
-//! - a dismissed notification stays dismissed while the core has it.
+//! - a dismissed notification stays dismissed while the core has it;
+//! - the scripts' answers are drained before the markup's state and intents are applied, and their intents before
+//!   the host's; the frame's delta is posted to the worker after it was taken, in the same frame;
+//! - a skin without scripts starts no worker, and an idle frame sends a worker nothing;
+//! - a skin whose scripts fail while loading reports a fatal load error and stops its worker.
 
 mod support;
 
@@ -19,6 +23,7 @@ use ui2_host::{Env, ReplicaView, V2Frame, V2FrameReport, V2Init, V2Ui};
 use ui2_model::r#gen::{Note, Ui, Unit as UnitRoot};
 use ui2_model::wire::{Origin, WireIntent};
 use ui2_model::{Key, KeyedList, Value};
+use ui2_script::testing::MockScriptHost;
 
 fn ukey(id: u32) -> Key {
     Key::new(0, id)
@@ -55,13 +60,19 @@ struct Rig {
 impl Rig {
     /// A running skin over the game, after a first frame.
     fn new() -> Rig {
+        Rig::of(support::strip(), None)
+    }
+
+    /// A running skin of `pkg` whose scripts run on `scripts`, after a first frame.
+    fn of(pkg: Arc<ui2_package::Package>, scripts: Option<&MockScriptHost>) -> Rig {
         let ui = V2Ui::new(
-            support::strip(),
+            pkg,
             V2Init {
                 env: Env {
                     viewport_px: (1280, 720),
                     ..Env::default()
                 },
+                scripts: scripts.map(|h| Box::new(h.clone()) as Box<dyn platform::ScriptHost>),
                 ..V2Init::default()
             },
         )
@@ -324,4 +335,230 @@ fn intents_refused_for_their_form_are_counted_not_kept() {
     // Reported once, then the list is empty again.
     let r = rig.run(&[], &[]);
     assert_eq!(r.refused, 0);
+}
+
+// ---------------------------------------------------------------- scripts
+
+const READY: &str = r#"{"t":"ready","ctx":"skin","handlers":["sort"],"ms":1}"#;
+
+fn json(text: &str) -> serde_json::Value {
+    serde_json::from_str(text).unwrap_or_else(|e| panic!("{e}: {text}"))
+}
+
+/// The skin's worker after it said `ready` and a frame took that in; nothing posted is left.
+fn scripted_rig() -> (Rig, MockScriptHost, platform::WorkerId) {
+    let host = MockScriptHost::new();
+    let pkg = support::scripted(&[("js/hud.js", "ui.on('sort', () => {});")], &["top"]);
+    let mut rig = Rig::of(pkg, Some(&host));
+    let w = host.live()[0];
+    // The init, then the first frame's delta (the game loaded), which the worker reads after its files.
+    let posted: Vec<_> = host.take_posted().iter().map(|(_, t)| json(t)).collect();
+    let kinds: Vec<_> = posted.iter().map(|m| m["t"].clone()).collect();
+    assert_eq!(kinds, [json(r#""init""#), json(r#""frame""#)]);
+    host.reply(w, READY);
+    rig.run(&[], &[]);
+    assert_eq!(
+        rig.ui.script_status(),
+        Some(ui2_host::ScriptStatus::Running)
+    );
+    host.take_posted();
+    (rig, host, w)
+}
+
+/// The frames posted to the worker since the last call.
+fn frames(host: &MockScriptHost) -> Vec<serde_json::Value> {
+    host.take_posted()
+        .into_iter()
+        .map(|(_, t)| json(&t))
+        .filter(|m| m["t"] == "frame")
+        .collect()
+}
+
+#[test]
+fn a_skin_without_scripts_starts_no_worker_and_does_no_script_work() {
+    let host = MockScriptHost::new();
+    let mut rig = Rig::of(support::strip(), Some(&host));
+    assert!(
+        host.live().is_empty(),
+        "no worker for a skin without scripts"
+    );
+    assert_eq!(rig.ui.script_stats(), None);
+    for _ in 0..3 {
+        let r = rig.batch();
+        assert_eq!(r.scripts, None);
+        assert_eq!(r.js_main_ms, 0.0);
+        let c = r.counters();
+        assert!(
+            c.iter()
+                .filter(|(n, _)| n.starts_with("ui2.js."))
+                .all(|(_, v)| *v == 0.0),
+            "{c:?}"
+        );
+    }
+    assert!(host.take_posted().is_empty());
+}
+
+#[test]
+fn an_idle_frame_sends_the_worker_nothing() {
+    let (mut rig, host, _) = scripted_rig();
+    for _ in 0..3 {
+        let r = rig.run(&[], &[]);
+        assert_eq!(r.delta_ops, 0);
+        assert!(r.scripts.is_some());
+    }
+    assert!(host.take_posted().is_empty(), "no message without a change");
+}
+
+#[test]
+fn a_script_state_write_reaches_the_model_and_the_worker_in_the_frame_that_drains_it() {
+    let (mut rig, host, w) = scripted_rig();
+    host.reply(
+        w,
+        r#"{"t":"out","n":1,"ack":null,"state":[{"p":"ui.production.tab","v":"wonders"}]}"#,
+    );
+    // Not before the frame drains it.
+    assert_eq!(
+        rig.model_ui().production.tab,
+        ui2_model::r#gen::ProdTab::All
+    );
+    let r = rig.run(&[], &[]);
+    assert_eq!(
+        rig.model_ui().production.tab,
+        ui2_model::r#gen::ProdTab::Wonders,
+        "applied before the delta was taken"
+    );
+    assert!(r.delta_ops > 0, "the change is in this frame's delta");
+    // Posted after the delta was taken: the worker's frame carries this frame's revision and says the write was
+    // applied.
+    let sent = frames(&host);
+    assert_eq!(sent.len(), 1, "{sent:?}");
+    assert_eq!(sent[0]["model"][0], rig.ui.store().revision());
+    assert_eq!(sent[0]["applied"], 1);
+    let stats = r.scripts.clone().expect("scripts run");
+    assert_eq!(
+        (stats.posted, stats.received),
+        (3, 2),
+        "init and two frames; ready and the out"
+    );
+    let c = r.counters();
+    let get = |n: &str| c.iter().find(|(k, _)| *k == n).map(|(_, v)| *v);
+    assert_eq!(get("ui2.js.posted"), Some(3.0));
+    assert_eq!(get("ui2.js.received"), Some(2.0));
+    assert!(get("ui2.js.main_ms").is_some() && get("ui2.js.worker_ms").is_some());
+}
+
+#[test]
+fn script_intents_come_after_the_markups_and_before_the_hosts_and_the_source() {
+    let (mut rig, host, w) = scripted_rig();
+    // The script opens the menu and selects a unit; the host's intent of the same frame closes the menu. Applied in
+    // that order, the menu ends closed; the selected unit's root is built by the source of the same frame.
+    host.reply(
+        w,
+        &format!(
+            r#"{{"t":"out","n":1,"ack":null,"intents":[{{"name":"window.open","args":{{"window":"menu"}}}},{{"name":"unit.select","args":{{"unit":"{}"}}}}]}}"#,
+            ukey(1).to_js()
+        ),
+    );
+    let close = intent("window.close", vec![arg("window", text("menu"))]);
+    let r = rig.with(vec![close], &[]);
+    assert_eq!(r.intents, 3);
+    assert_eq!(r.refused, 0);
+    assert!(
+        !rig.model_ui().windows.menu.open,
+        "the host's close came last"
+    );
+    assert_eq!(rig.model_ui().selection.unit, Some(ukey(1)));
+    assert_eq!(rig.unit_root().map(|u| u.key), Some(ukey(1)));
+}
+
+#[test]
+fn script_settings_go_to_the_actions_module() {
+    let (mut rig, host, w) = scripted_rig();
+    host.reply(
+        w,
+        r#"{"t":"out","n":1,"ack":null,"settings":[{"key":"layout","value":{"a":1}},{"key":"bad key!","value":1}]}"#,
+    );
+    // The supervisor passes keys on as written; the actions module keeps the good one and refuses the other.
+    let r = rig.run(&[], &[]);
+    assert_eq!(r.refused, 1, "the key breaks the limits");
+}
+
+#[test]
+fn a_new_window_size_reaches_the_scripts_once() {
+    let (mut rig, host, _) = scripted_rig();
+    rig.ui.set_env(Env {
+        viewport_px: (1600, 900),
+        ..Env::default()
+    });
+    rig.run(&[], &[]);
+    let sent = frames(&host);
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0]["env"]["viewport"], json("[1600,900]"));
+    rig.run(&[], &[]);
+    assert!(frames(&host).is_empty());
+}
+
+#[test]
+fn island_commands_are_counted_as_dropped_until_the_runtime_takes_them() {
+    let (mut rig, host, w) = scripted_rig();
+    host.reply(
+        w,
+        r#"{"t":"out","n":1,"ack":null,"cmds":[{"island":"clock","key":"t","op":"text","value":"12:00"}]}"#,
+    );
+    assert_eq!(rig.run(&[], &[]).dropped_output, 1);
+}
+
+#[test]
+fn scripts_failing_to_load_are_a_fatal_load_error() {
+    let host = MockScriptHost::new();
+    let pkg = support::scripted(&[("js/hud.js", "x();")], &[]);
+    let mut rig = Rig::of(pkg, Some(&host));
+    let w = host.live()[0];
+    host.reply(
+        w,
+        r#"{"t":"fail","ctx":"skin","error":{"message":"x is not defined","file":"js/hud.js","line":1}}"#,
+    );
+    let r = rig.run(&[], &[]);
+    let fatal = r.fatal.expect("fatal");
+    assert_eq!(fatal.skin, "kit");
+    assert!(
+        matches!(&fatal.failure, ui2_host::LoadFailure::Scripts(why) if why.contains("x is not defined")),
+        "{fatal}"
+    );
+    assert!(host.live().is_empty(), "the worker is gone");
+    assert_eq!(r.scripts, None);
+    // Once: the next frames run without scripts.
+    let r = rig.run(&[], &[]);
+    assert_eq!(r.fatal, None);
+    assert_eq!(rig.ui.script_status(), None);
+}
+
+#[test]
+fn scripts_reading_unknown_model_paths_refuse_the_skin() {
+    let host = MockScriptHost::new();
+    let pkg = support::scripted(&[("js/hud.js", "")], &["top.nothing"]);
+    let e = V2Ui::new(
+        pkg,
+        V2Init {
+            scripts: Some(Box::new(host.clone())),
+            ..V2Init::default()
+        },
+    )
+    .err()
+    .expect("refused");
+    assert!(
+        matches!(e.failure, ui2_host::LoadFailure::Scripts(_)),
+        "{e}"
+    );
+    assert!(host.live().is_empty());
+}
+
+#[test]
+fn without_workers_the_skin_runs_on_its_markup() {
+    let host = MockScriptHost::new();
+    host.refuse_spawn(true);
+    let pkg = support::scripted(&[("js/hud.js", "")], &[]);
+    let mut rig = Rig::of(pkg, Some(&host));
+    let r = rig.run(&[], &[]);
+    assert_eq!((r.scripts, r.fatal), (None, None));
 }

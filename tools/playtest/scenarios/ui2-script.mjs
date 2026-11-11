@@ -92,6 +92,17 @@ export async function run(ctx) {
     check("the new worker runs the scripts on the current model", true);
     const restarts = await page.evaluate(() => window.__ui2self.answers.at(-1).stats.restarts);
     check("one restart is counted", restarts === 1, `${restarts}`);
+    const js = await page.evaluate(() => {
+      const c = (window.__civ5stats && window.__civ5stats.counters) || {};
+      return Object.fromEntries(Object.entries(c).filter(([k]) => k.startsWith("ui2.js.")));
+    });
+    check(
+      "the counters ui2.js.* are published",
+      ["main_ms", "worker_ms", "errors", "restarts"].every((k) => typeof js[`ui2.js.${k}`] === "number") &&
+        js["ui2.js.restarts"] === 1 &&
+        js["ui2.js.errors"] >= 2,
+      JSON.stringify(js),
+    );
     const gap = await page.evaluate(() => window.__ui2self.gaps());
     result.numbers.longestFrameGapMs = Math.round(gap);
     check("the page does not stall while the worker hangs", gap < 250, `${Math.round(gap)} ms between frames`);

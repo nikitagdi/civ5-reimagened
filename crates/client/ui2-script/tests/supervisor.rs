@@ -768,11 +768,45 @@ fn stop_ends_the_worker_and_its_answers() {
 }
 
 #[test]
+fn a_dropped_supervisor_ends_its_workers() {
+    let (sup, host, _store, w) = setup(&["top"]);
+    assert!(!sup.is_empty());
+    host.take_posted();
+    drop(sup);
+    assert_eq!(json(&host.take_posted()[0].1)["t"], "stop");
+    assert_eq!(host.terminated(), vec![w]);
+    assert!(host.live().is_empty());
+}
+
+#[test]
+fn stats_become_the_js_counters() {
+    let (mut sup, host, _store, w) = setup(&["top"]);
+    host.reply(w, r#"{"t":"ready","ctx":"skin","handlers":[],"ms":1}"#);
+    host.reply(w, r#"{"t":"out","n":1,"ack":null,"busy_ms":0.25}"#);
+    sup.drain(0.0);
+    let c = sup.stats().counters(1.5);
+    let get = |name: &str| {
+        c.iter()
+            .find(|(n, _)| *n == name)
+            .map(|(_, v)| *v)
+            .unwrap_or_else(|| panic!("{name}"))
+    };
+    assert_eq!(get("ui2.js.main_ms"), 1.5);
+    assert_eq!(get("ui2.js.worker_ms"), 0.25);
+    assert_eq!(get("ui2.js.posted"), 1.0, "the init");
+    assert_eq!(get("ui2.js.received"), 2.0);
+    assert_eq!(get("ui2.js.errors"), 0.0);
+    assert_eq!(get("ui2.js.restarts"), 0.0);
+    assert_eq!(get("ui2.js.contexts"), 1.0);
+}
+
+#[test]
 fn without_workers_start_is_refused() {
     let mut sup = ScriptSupervisor::new(Box::new(NullScriptHost));
     let r = start(&mut sup, &store(), ScriptCtxId::Skin, skin_bundle(&["top"]));
     assert_eq!(r, Err(ScriptError::Host(ScriptHostError::Unsupported)));
     assert_eq!(sup.stats().contexts, 0);
+    assert!(sup.is_empty());
 }
 
 #[test]

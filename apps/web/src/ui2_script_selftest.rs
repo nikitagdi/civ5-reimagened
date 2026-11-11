@@ -100,7 +100,9 @@ impl Ui2ScriptSelftest {
     /// One frame: take the workers' answers, apply their state writes, write `writes` (`[[path, value]]` of the
     /// model's game roots), send the delta and the queued events. Returns what was taken, as JSON.
     pub fn frame(&mut self, now_ms: f64, writes: &str) -> Result<String, JsValue> {
+        let t_drain = clock_ms();
         let out = self.sup.drain(now_ms);
+        let mut main_ms = clock_ms() - t_drain;
         {
             let mut w = self.store.writer(Owner::Skin);
             for (_, op) in &out.state_ops {
@@ -120,6 +122,7 @@ impl Ui2ScriptSelftest {
         }
         let delta = self.store.take_frame();
         let events = std::mem::take(&mut self.events);
+        let t_post = clock_ms();
         self.sup.post(
             now_ms,
             &FrameInput {
@@ -130,6 +133,9 @@ impl Ui2ScriptSelftest {
                 store: Some(&self.store),
             },
         );
+        main_ms += clock_ms() - t_post;
+        // The counters the game's frame publishes too (`ui2.js.*`), measured the same way.
+        platform_web::stats::set_counters(&self.sup.stats().counters(main_ms));
         Ok(report(&self.sup, &out).to_string())
     }
 
@@ -152,6 +158,13 @@ impl Ui2ScriptSelftest {
     pub fn stop(&mut self) {
         self.sup.stop(&ScriptCtxId::Skin);
     }
+}
+
+/// The page's clock, ms.
+fn clock_ms() -> f64 {
+    web_sys::window()
+        .and_then(|w| w.performance())
+        .map_or(0.0, |p| p.now())
 }
 
 fn status_name(s: Option<&ScriptStatus>) -> &'static str {

@@ -94,6 +94,32 @@ pub fn strip() -> Arc<Package> {
     strip_kit(&fira()).finish().expect("package")
 }
 
+/// A package of one empty HUD layer with script files (`(path, code)`) that read the model roots `reads`. The
+/// test kit writes no scripts, so this one is built with the package writer directly.
+pub fn scripted(files: &[(&str, &str)], reads: &[&str]) -> Arc<Package> {
+    use ui2_package::{Node, NodeKind, PackageBuilder, StyleSet, Template};
+    let mut b = PackageBuilder::new();
+    let record = b.style_record(StyleRecord::initial());
+    let style = b.style_set(StyleSet::plain(vec![record]));
+    let name = b.str("doc");
+    b.template(Template {
+        name,
+        nodes: vec![Node {
+            kind: NodeKind::Layer(Layer::Hud),
+            subtree: 1,
+            style,
+            part: None,
+            flags: 0,
+        }],
+    });
+    for (path, code) in files {
+        b.script(path, code.as_bytes());
+    }
+    b.script_reads(reads);
+    let bytes = b.finish(Kit::manifest()).expect("package");
+    Arc::new(Package::read(Arc::from(bytes)).expect("readable"))
+}
+
 /// A network for the tests: orders are recorded and numbered, the session is plain data.
 #[derive(Default)]
 pub struct FakeNet {

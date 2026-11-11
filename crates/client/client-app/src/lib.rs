@@ -26,6 +26,9 @@ mod ui_host {
 
 /// The page's `?ui=` value (web, before `run`): `v2` or `v2:<skin>` loads a UI v2 skin over the classic layer.
 pub use ui_host::v2::set_ui_param as set_ui2_param;
+pub use ui_host::v2::{
+    ScriptHostFactory as Ui2ScriptHostFactory, set_script_host as set_ui2_script_host,
+};
 
 thread_local! {
     static TRACE: std::cell::Cell<(timeline::Level, f64)> =

@@ -308,6 +308,24 @@ pub struct ScriptStats {
     pub worker_ms: f64,
 }
 
+impl ScriptStats {
+    /// The counters `ui2.js.*` of the stats overlay. `main_ms` is the main thread's time the host measured
+    /// around [`ScriptSupervisor::drain`] and [`ScriptSupervisor::post`] in the frame (the supervisor reads no
+    /// clock).
+    #[must_use]
+    pub fn counters(&self, main_ms: f64) -> [(&'static str, f64); 7] {
+        [
+            ("ui2.js.main_ms", main_ms),
+            ("ui2.js.worker_ms", self.worker_ms),
+            ("ui2.js.errors", self.errors as f64),
+            ("ui2.js.restarts", self.restarts as f64),
+            ("ui2.js.posted", self.posted as f64),
+            ("ui2.js.received", self.received as f64),
+            ("ui2.js.contexts", f64::from(self.contexts)),
+        ]
+    }
+}
+
 /// Why a context could not start.
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
 pub enum ScriptError {
