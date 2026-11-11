@@ -60,4 +60,8 @@ pub enum LoadFailure {
     /// The runtime cannot build the document.
     #[error("{0}")]
     Tree(String),
+    /// The skin's scripts cannot run: they are not text, read model paths this client does not have, or failed
+    /// while loading in their worker.
+    #[error("scripts: {0}")]
+    Scripts(String),
 }

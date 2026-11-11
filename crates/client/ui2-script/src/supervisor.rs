@@ -258,6 +258,13 @@ impl ScriptSupervisor {
         self.fatal.take()
     }
 
+    /// Whether no context exists (none was started, or all were stopped): [`drain`](Self::drain) and
+    /// [`post`](Self::post) have nothing to do.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.ctxs.is_empty()
+    }
+
     /// Counters for the stats overlay.
     #[must_use]
     pub fn stats(&self) -> ScriptStats {
@@ -628,6 +635,18 @@ impl ScriptSupervisor {
                 continue;
             }
             out.log.push((id.clone(), line));
+        }
+    }
+}
+
+impl Drop for ScriptSupervisor {
+    /// A supervisor that goes away (the skin is replaced, the UI falls back) takes its workers with it.
+    fn drop(&mut self) {
+        for c in &mut self.ctxs {
+            if let Some(w) = c.worker.take() {
+                let _ = self.host.post(w, proto::STOP);
+                self.host.terminate(w);
+            }
         }
     }
 }

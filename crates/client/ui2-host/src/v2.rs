@@ -8,17 +8,20 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
+use platform::ScriptHost;
 use ui2_actions::{MemorySettings, UiActions};
 use ui2_draw::Scene;
-use ui2_model::wire::WireIntent;
+use ui2_model::wire::{ScriptCtxId, WireIntent};
 use ui2_model::{ModelStore, Schema};
 use ui2_package::Package;
 use ui2_runtime::{Env, LoadError, NodeClass, Runtime, Services};
+use ui2_script::{ScriptStats, ScriptStatus};
 use ui2_source::UiSource;
 use ui2_text::TextEngine;
 
 use crate::error::{LoadFailure, SkinLoadError};
 use crate::registry::check_package;
+use crate::scripts::Scripts;
 
 /// The time budget of glyph rasterization per frame, ms.
 pub const RESOLVE_BUDGET_MS: f32 = 1.5;
@@ -27,7 +30,7 @@ pub const RESOLVE_BUDGET_MS: f32 = 1.5;
 pub type HostClock = Rc<dyn Fn() -> f64>;
 
 /// What a new UI v2 starts with.
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct V2Init {
     /// Window size, pixel density, UI scale and theme.
     pub env: Env,
@@ -35,6 +38,9 @@ pub struct V2Init {
     pub services: Services,
     /// Times the load and the frame's steps; without one every time is 0.
     pub clock: Option<HostClock>,
+    /// The workers the skin's scripts run in (the page's on the web). `None`, or a host that cannot start a
+    /// worker (`platform::NullScriptHost`): the skin works on its markup alone.
+    pub scripts: Option<Box<dyn ScriptHost>>,
 }
 
 /// What loading the skin cost.
@@ -114,6 +120,8 @@ pub struct V2Ui {
     pub(crate) queued: Vec<WireIntent>,
     pub(crate) skin: Skin,
     pub(crate) clock: Option<HostClock>,
+    /// The skin's scripts; `None` when the skin has none or they cannot run here (no script work in a frame).
+    pub(crate) scripts: Option<Scripts>,
     load: LoadStats,
     pub(crate) frames: u64,
 }
@@ -135,17 +143,24 @@ impl V2Ui {
             init.services.clone(),
             init.clock.as_ref(),
         )?;
+        let mut store = ModelStore::new(Schema::v1());
+        // Skin settings stay in memory for the session until the device store is wired in.
+        let mut actions = UiActions::new(Schema::v1(), Box::new(MemorySettings::default()));
+        // The `ui` root exists before the first frame.
+        actions.publish(&mut store);
+        // The skin's scripts start on that model; a script that fails while loading comes back from a later frame
+        // as `V2FrameReport::fatal`.
+        let scripts = match init.scripts {
+            Some(host) => Scripts::start(host, &pkg, &skin.runtime, &store, &mut actions)
+                .map_err(|f| SkinLoadError::new(pkg.manifest().id.as_str(), f))?,
+            None => None,
+        };
         let load = LoadStats {
             build_ms: (now() - t0) as f32,
             fonts: pkg.fonts().len(),
             nodes: skin.runtime.arena().len(),
             image_pages: pkg.images().pages.len(),
         };
-        let mut store = ModelStore::new(Schema::v1());
-        // Skin settings stay in memory for the session until the device store is wired in.
-        let mut actions = UiActions::new(Schema::v1(), Box::new(MemorySettings::default()));
-        // The `ui` root exists before the first frame.
-        actions.publish(&mut store);
         Ok(V2Ui {
             store,
             source: UiSource::new(Schema::v1()),
@@ -153,6 +168,7 @@ impl V2Ui {
             queued: Vec::new(),
             skin,
             clock: init.clock,
+            scripts,
             load,
             frames: 0,
         })
@@ -230,6 +246,18 @@ impl V2Ui {
     /// What loading the skin cost.
     pub fn load_stats(&self) -> LoadStats {
         self.load
+    }
+
+    /// The counters of the skin's scripts; `None` when none run.
+    pub fn script_stats(&self) -> Option<ScriptStats> {
+        self.scripts.as_ref().map(|s| s.sup.stats())
+    }
+
+    /// Where the skin's script context is; `None` when none runs.
+    pub fn script_status(&self) -> Option<ScriptStatus> {
+        self.scripts
+            .as_ref()
+            .and_then(|s| s.sup.status(&ScriptCtxId::Skin))
     }
 
     /// Frames run since the skin was loaded.

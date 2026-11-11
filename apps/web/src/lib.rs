@@ -238,6 +238,14 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
     // the original UI, which keeps running but neither draws nor gets input. A skin that cannot load leaves the
     // original UI as it is. Any other `&ui=` fetches nothing.
     client_app::set_ui2_param(page::query_param("ui").as_deref());
+    // A skin's scripts run in the page's workers (`ui2/host.js`), looked up when a skin loads; without them the
+    // skin works on its markup alone.
+    client_app::set_ui2_script_host(std::rc::Rc::new(
+        || match platform_web::WebScriptHost::detect() {
+            Some(h) => Box::new(h) as Box<dyn platform::ScriptHost>,
+            None => Box::new(platform::NullScriptHost),
+        },
+    ));
     // `?trace=off|coarse|fine`: the turn timeline (remembered for the next visits).
     client_app::set_trace(
         page::remembered_param("trace", "civ5.trace").as_deref(),

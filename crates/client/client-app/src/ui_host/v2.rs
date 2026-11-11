@@ -17,8 +17,12 @@
 //! last frame reported is shown with the game's cursors ([`cursor_row`]).
 //!
 //! Loading: the index `ui2/skins.json` and the chosen package are fetched relative to the page. Any failure (no
-//! index, a bad index, a package that is missing, damaged, of another hash, or that does not build) is a warning and
-//! a fallback: the default skin if another one failed, else the classic UI. Never a panic, never a retry loop.
+//! index, a bad index, a package that is missing, damaged, of another hash, or that does not build, or scripts that
+//! fail while loading) is a warning and a fallback: the default skin if another one failed, else the classic UI.
+//! Never a panic, never a retry loop.
+//!
+//! Scripts: the platform hands its script workers over with [`set_script_host`] before `run` (the web page's
+//! workers); without one a skin's scripts do not run (`NullScriptHost`) and the skin works on its markup.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -26,7 +30,9 @@ use std::sync::Arc;
 
 use client_core::ClientEvent;
 use draw_list::UiDrawList;
-use platform::{HttpClient, HttpError, HttpOp, HttpResponse, InputEvent};
+use platform::{
+    HttpClient, HttpError, HttpOp, HttpResponse, InputEvent, NullScriptHost, ScriptHost,
+};
 use protocol::GameId;
 use ui2_host::{
     ActionEvent, Cursor, Env, Fallback, HostClock, InputOutcome, MapButton, NetSink, ReplicaView,
@@ -116,8 +122,23 @@ pub fn parse_ui_param(value: Option<&str>) -> Option<V2Choice> {
     })
 }
 
+/// Makes the script host for a skin; each skin that loads gets a new one.
+pub type ScriptHostFactory = Rc<dyn Fn() -> Box<dyn ScriptHost>>;
+
 thread_local! {
     static CHOICE: RefCell<Option<V2Choice>> = const { RefCell::new(None) };
+    static SCRIPTS: RefCell<Option<ScriptHostFactory>> = const { RefCell::new(None) };
+}
+
+/// The platform's script workers for UI v2 skins, set before `run` (the web page's). Without it skins run their
+/// markup only.
+pub fn set_script_host(factory: ScriptHostFactory) {
+    SCRIPTS.with(|s| *s.borrow_mut() = Some(factory));
+}
+
+/// The factory set by [`set_script_host`], taken once by the app.
+fn take_script_host() -> Option<ScriptHostFactory> {
+    SCRIPTS.with(|s| s.borrow_mut().take())
 }
 
 /// The page's `?ui=` value, set before `run`: a UI v2 choice makes the app load a skin over the classic layer. Any
@@ -248,6 +269,8 @@ pub struct V2Host {
     mods: Option<Vec<Arc<str>>>,
     /// The cursor the last UI v2 frame reported.
     cursor: Cursor,
+    /// The script workers of each skin that loads; `None`: scripts do not run.
+    scripts: Option<ScriptHostFactory>,
 }
 
 impl V2Host {
@@ -270,6 +293,7 @@ impl V2Host {
             game: None,
             mods: None,
             cursor: Cursor::Auto,
+            scripts: take_script_host(),
         }
     }
 
@@ -423,12 +447,17 @@ impl V2Host {
                     .map_err(|e| e.to_string())
             })
             .and_then(|pkg| {
+                let scripts: Box<dyn ScriptHost> = match &self.scripts {
+                    Some(make) => make(),
+                    None => Box::new(NullScriptHost),
+                };
                 let init = V2Init {
                     env,
                     services: Services {
                         loc: self.loc.clone(),
                     },
                     clock: Some(Rc::clone(&self.clock)),
+                    scripts: Some(scripts),
                 };
                 V2Ui::new(pkg, init).map_err(|e| e.to_string())
             });
@@ -510,7 +539,7 @@ impl V2Host {
         let mut held = match replica.as_ref().map(|r| r.try_borrow_mut()) {
             Some(Ok(r)) => Some(r),
             // The layer holds the replica (it never does between frames): the last scene stays, the events wait.
-            Some(Err(_)) => return Some(ui),
+            Some(Err(_)) => return self.ui_mut(),
             None => None,
         };
         let steps: &[replica::ReplicaStep] = if held.is_some() { &steps } else { &[] };
@@ -559,7 +588,20 @@ impl V2Host {
                 }
             });
         }
-        Some(ui)
+        if !self.after_frame(&report) {
+            return None;
+        }
+        self.ui_mut()
+    }
+
+    /// What a frame's report means for the loading: scripts that failed while loading make the skin unusable, as
+    /// any load failure (the default skin, else the classic UI). `false`: no skin runs any more.
+    fn after_frame(&mut self, report: &V2FrameReport) -> bool {
+        if let Some(e) = &report.fatal {
+            let failure = e.failure.to_string();
+            self.stage = self.fall_back(&e.skin, &failure);
+        }
+        self.running()
     }
 }
 
@@ -1118,6 +1160,56 @@ mod tests {
         let r = frame(&mut h);
         assert_eq!(r.intents, 1, "the map click");
         assert_eq!(h.cursor_row(), None, "the world's cursor");
+    }
+
+    /// A package of one empty HUD layer with a script, with the id `kit`.
+    fn scripted_package() -> Arc<ui2_package::Package> {
+        use ui2_package::{Node, NodeKind, PackageBuilder, StyleSet, Template};
+        let mut b = PackageBuilder::new();
+        let record = b.style_record(StyleRecord::initial());
+        let style = b.style_set(StyleSet::plain(vec![record]));
+        let name = b.str("doc");
+        b.template(Template {
+            name,
+            nodes: vec![Node {
+                kind: NodeKind::Layer(Layer::Hud),
+                subtree: 1,
+                style,
+                part: None,
+                flags: 0,
+            }],
+        });
+        b.script("js/hud.js", b"x();");
+        let bytes = b.finish(Kit::manifest()).expect("package");
+        Arc::new(ui2_package::Package::read(Arc::from(bytes)).expect("readable"))
+    }
+
+    #[test]
+    fn scripts_that_fail_to_load_fall_back_like_any_load_failure() {
+        let workers = ui2_script::testing::MockScriptHost::new();
+        let w = workers.clone();
+        set_script_host(Rc::new(move || Box::new(w.clone()) as Box<dyn ScriptHost>));
+        let mut h = running(&scripted_package());
+        let worker = workers.live()[0];
+        workers.reply(
+            worker,
+            r#"{"t":"fail","ctx":"skin","error":{"message":"x is not defined"}}"#,
+        );
+        let r = frame(&mut h);
+        assert!(r.fatal.is_some(), "{r:?}");
+        assert!(!h.after_frame(&r));
+        assert_eq!(h.state(), V2State::Classic, "the only skin is broken");
+        assert!(workers.live().is_empty(), "its worker is gone");
+        assert!(h.classic_sink().is_none());
+    }
+
+    #[test]
+    fn without_a_script_host_a_skin_with_scripts_runs_on_markup() {
+        // No `set_script_host` on this thread: the null host refuses workers.
+        let mut h = running(&scripted_package());
+        let r = frame(&mut h);
+        assert_eq!((&r.scripts, r.fatal.is_some()), (&None, false));
+        assert!(h.after_frame(&r));
     }
 
     #[test]

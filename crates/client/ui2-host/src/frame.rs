@@ -2,16 +2,22 @@
 //!
 //! 1. the network's events of the frame → `UiActions::on_event` (answers settle waiting orders; a new game also
 //!    resets the source), then the game's mod set → `UiActions::set_mods` when it changed;
-//! 2. `Runtime::drain_output`;
-//! 3. the markup's state writes → `UiActions::state_ops`, then the intents of the markup and of the host (map
-//!    clicks) → `UiActions::apply`, orders leaving through the frame's [`HostNet`] sink; mod intents are taken
-//!    (no dispatcher consumes them yet);
+//! 2. `ScriptSupervisor::drain` (what the skin's worker answered since the last frame; a script that failed while
+//!    loading ends the frame's report as [`V2FrameReport::fatal`]), then `Runtime::drain_output`;
+//! 3. the state writes of the markup, then of the scripts → `UiActions::state_ops`; the scripts' settings writes
+//!    → `UiActions::settings_set`; the intents of the markup, of the scripts and of the host (map clicks) →
+//!    `UiActions::apply`, orders leaving through the frame's [`HostNet`] sink; mod intents are taken (no
+//!    dispatcher consumes them yet);
 //! 4. the source writes its roots from the replica, the session, and the actions module's `ui` root and
 //!    dismissed notes → `UiActions::reconcile` → `ModelStore::take_frame`;
-//! 5. `Runtime::apply_delta` → `Runtime::frame` → `Scene::resolve`.
+//! 5. `Runtime::apply_delta` → the scripts' island commands and switched-off contexts (the runtime has no island
+//!    or panel-stub call yet: they are counted and logged) → `Runtime::frame` → `Scene::resolve`;
+//! 6. `ScriptSupervisor::post` with the frame's delta, the markup's script events and a changed environment (the
+//!    supervisor sends nothing to a context with nothing new).
 //!
-//! `reconcile` runs in every frame, so every frame that took events settles what they decided. Scripts, mod
-//! panels, anchors and settings writes join the order when their modules arrive.
+//! `reconcile` runs in every frame, so every frame that took events settles what they decided. A script's state
+//! write reaches the model in the frame that drains it, and its worker's mirror with that frame's post. Mod
+//! panels and anchors join the order when their modules arrive.
 
 use std::sync::Arc;
 
@@ -22,8 +28,11 @@ use ui2_model::Owner;
 use ui2_model::wire::WireIntent;
 use ui2_package::style::Cursor;
 use ui2_runtime::{FrameStats, UiError};
+use ui2_script::{FrameInput, ScriptStats};
 use ui2_source::{ReplicaView, SourceFrame, SourceStats};
 
+use crate::error::{LoadFailure, SkinLoadError};
+use crate::scripts;
 use crate::sink::{HostNet, Offline};
 use crate::v2::{RESOLVE_BUDGET_MS, Skin, V2Ui};
 
@@ -69,8 +78,16 @@ pub struct V2FrameReport {
     pub intents: u32,
     /// Intents and state writes refused for their form (a mistake of the skin; each is logged).
     pub refused: u32,
-    /// Output dropped because nothing consumes it yet (script events, intents for mods).
+    /// Output dropped because nothing consumes it yet (script events without scripts, intents for mods, island
+    /// commands of scripts).
     pub dropped_output: u32,
+    /// The skin's scripts after the frame; `None` when none run.
+    pub scripts: Option<ScriptStats>,
+    /// Main-thread time of the scripts' steps (drain and post), ms (0 without a clock or scripts).
+    pub js_main_ms: f32,
+    /// The skin's scripts failed while loading: the skin cannot be used. The application falls back as for any
+    /// load failure; the scripts are already stopped.
+    pub fatal: Option<SkinLoadError>,
     /// Source step, ms (0 without a clock).
     pub source_ms: f32,
     /// Glyph resolve step, ms (0 without a clock).
@@ -83,7 +100,7 @@ impl V2FrameReport {
     /// The report as named counters (`ui2.*`) for the application's stats overlay.
     pub fn counters(&self) -> Vec<(&'static str, f64)> {
         let r = &self.runtime;
-        vec![
+        [
             ("ui2.cpu_ms", f64::from(self.cpu_ms)),
             ("ui2.source_ms", f64::from(self.source_ms)),
             ("ui2.runtime_ms", f64::from(r.cpu_ms)),
@@ -102,6 +119,14 @@ impl V2FrameReport {
             ("ui2.intents", f64::from(self.intents)),
             ("ui2.errors", self.errors.len() as f64),
         ]
+        .into_iter()
+        .chain(
+            self.scripts
+                .clone()
+                .unwrap_or_default()
+                .counters(f64::from(self.js_main_ms)),
+        )
+        .collect()
     }
 }
 
@@ -127,10 +152,10 @@ impl V2Ui {
             None => &mut offline,
         };
         let Skin {
+            pkg,
             runtime,
             text,
             scene,
-            ..
         } = &mut self.skin;
         scene.reset_frame_stats();
 
@@ -146,10 +171,21 @@ impl V2Ui {
             self.actions.set_mods(ids);
         }
 
-        // 2. What the markup asked since the last frame.
+        // 2. What the scripts answered and the markup asked since the last frame.
+        let t_drain = now();
+        let mut js = self.scripts.as_mut().map(|s| s.sup.drain(frame_ms));
+        let fatal = self
+            .scripts
+            .as_mut()
+            .and_then(|s| s.sup.take_fatal())
+            .map(|(_, why)| {
+                SkinLoadError::new(pkg.manifest().id.as_str(), LoadFailure::Scripts(why))
+            });
+        let mut js_main_ms = (now() - t_drain) as f32;
         let out = runtime.drain_output();
 
-        // 3. State writes, then intents; orders leave through the sink. Settings writes come from scripts only.
+        // 3. State writes (the markup's, then the scripts'), the scripts' settings, then intents; orders leave
+        //    through the sink.
         let mut refused = 0;
         for e in self
             .actions
@@ -159,6 +195,11 @@ impl V2Ui {
             refused += 1;
         }
         let mut intents: Vec<WireIntent> = out.intents;
+        if let Some(js) = js.as_mut() {
+            let skin = pkg.manifest().id.as_str();
+            refused += scripts::apply_writes(js, &mut self.actions, &mut self.store, skin).refused;
+            intents.extend(scripts::take_intents(js));
+        }
         intents.append(&mut self.queued);
         let applied = intents.len() as u32;
         self.actions
@@ -166,9 +207,10 @@ impl V2Ui {
         // The actions module logs each form error once; the list only needs emptying.
         refused += self.actions.take_form_errors().len() as u32;
         let mod_intents = self.actions.take_mod_intents();
-        let dropped_output = (out.script_events.len() + mod_intents.len()) as u32;
-        if dropped_output > 0 {
-            tracing::debug!(target: "ui2_host", dropped_output, "script events and mod intents have no consumer yet");
+        let script_events = out.script_events;
+        let mut dropped_output = mod_intents.len();
+        if self.scripts.is_none() {
+            dropped_output += script_events.len();
         }
 
         // 4. The source, then the actions module judges its state by what the source wrote, then the delta.
@@ -192,10 +234,25 @@ impl V2Ui {
             .reconcile(&mut self.store, self.source.notification_ids(), now_ms);
 
         // 5. The runtime and the glyphs.
-        let mut delta_ops = 0;
-        if let Some(d) = self.store.take_frame() {
-            delta_ops = d.ops.len() as u32;
-            runtime.apply_delta(&d, &self.store);
+        let delta = self.store.take_frame();
+        let delta_ops = delta.as_ref().map_or(0, |d| d.ops.len() as u32);
+        if let Some(d) = &delta {
+            runtime.apply_delta(d, &self.store);
+        }
+        if let Some(js) = &js {
+            // The runtime has no island commands and no panel stubs yet: islands keep their markup, and a
+            // switched-off context leaves its panels as they are.
+            dropped_output += js.island_cmds.len();
+            for ctx in &js.failed {
+                tracing::warn!(
+                    target: "ui2_host",
+                    "scripts of {} are switched off; their panels keep working on markup alone",
+                    ui2_script::ctx_name(ctx)
+                );
+            }
+        }
+        if dropped_output > 0 {
+            tracing::debug!(target: "ui2_host", dropped_output, "script events, mod intents or island commands have no consumer yet");
         }
         let out = runtime.frame(frame_ms, &self.store, text, scene);
         for e in &out.errors {
@@ -205,6 +262,26 @@ impl V2Ui {
         let t_resolve = now();
         scene.resolve(text, RESOLVE_BUDGET_MS);
         let resolve_ms = (now() - t_resolve) as f32;
+
+        // 6. The scripts get the frame: the delta they watch, their events, a new environment.
+        if fatal.is_some() {
+            // The skin cannot be used: its workers go now, the application falls back.
+            self.scripts = None;
+        }
+        if let Some(s) = self.scripts.as_mut() {
+            let t_post = now();
+            let env = s.env_change(runtime);
+            s.sup.post(
+                frame_ms,
+                &FrameInput {
+                    delta: delta.as_ref(),
+                    events: &script_events,
+                    env: env.as_ref(),
+                    store: Some(&self.store),
+                },
+            );
+            js_main_ms += (now() - t_post) as f32;
+        }
         self.frames += 1;
 
         V2FrameReport {
@@ -219,7 +296,14 @@ impl V2Ui {
             events: events.len() as u32,
             intents: applied,
             refused,
-            dropped_output,
+            dropped_output: dropped_output as u32,
+            scripts: self.scripts.as_ref().map(|s| s.sup.stats()),
+            js_main_ms: if self.scripts.is_some() {
+                js_main_ms
+            } else {
+                0.0
+            },
+            fatal,
             source_ms,
             resolve_ms,
             cpu_ms: (now() - t0) as f32,
