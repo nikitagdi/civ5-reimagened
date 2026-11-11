@@ -1,0 +1,4 @@
+# The font subsetter of the skin converter (tools/ui-convert/fonts/subset.py). The version is pinned:
+# the subset bytes go into the skin package, which is reproducible only with the same subsetter.
+# Install: python -m pip install --user -r tools/ui-convert/fonts/requirements.txt
+fonttools==4.62.1

@@ -80,6 +80,15 @@ pub mod codes {
     pub const SVG: &str = "E5-001";
     /// An icon reference outside the skin's sprite.
     pub const SVG_REF: &str = "E5-002";
+    /// A font face whose file is not a skin font of skin.toml.
+    pub const FONT_FILE: &str = "E5-003";
+    /// A font face that Chromium did not load.
+    pub const FONT_LOAD: &str = "E5-004";
+    /// A picture of the skin that cannot be rasterized.
+    pub const IMAGE: &str = "E5-005";
+
+    /// A package budget is exceeded.
+    pub const BUDGET: &str = "E8-001";
 
     /// Text that is not translated.
     pub const UNTRANSLATED: &str = "E6-001";
@@ -115,6 +124,10 @@ pub mod codes {
     pub const SKIN_DIR: &str = "E9-004";
     /// The preview script is missing: includes and bindings were not expanded.
     pub const PREVIEW: &str = "E9-005";
+    /// The font subsetter is missing or of another version.
+    pub const FONTTOOLS: &str = "E9-006";
+    /// The package could not be written.
+    pub const WRITE: &str = "E9-007";
 
     /// Every code of this list.
     pub const ALL: &[&str] = &[
@@ -146,6 +159,10 @@ pub mod codes {
         STATE_TYPE,
         SVG,
         SVG_REF,
+        FONT_FILE,
+        FONT_LOAD,
+        IMAGE,
+        BUDGET,
         UNTRANSLATED,
         L10N_MISSING,
         L10N_FILE,
@@ -162,6 +179,8 @@ pub mod codes {
         PROTOCOL,
         SKIN_DIR,
         PREVIEW,
+        FONTTOOLS,
+        WRITE,
     ];
 }
 

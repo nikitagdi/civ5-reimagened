@@ -20,8 +20,10 @@
 #![allow(clippy::result_large_err)]
 
 pub mod bindings;
+pub mod build;
 pub mod check;
 pub mod errors;
+pub mod fonts;
 pub mod ir;
 pub mod l10n;
 pub mod node;
@@ -31,6 +33,7 @@ pub mod script;
 pub mod select;
 pub mod skin;
 pub mod styles;
+pub mod write;
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -128,21 +131,40 @@ impl Scanned {
     }
 }
 
-/// Opens the skin in Chromium and scans the entry page.
-pub fn scan(node: &mut NodeClient, src: &Source) -> Result<Scanned, ConvError> {
+/// Options of a run.
+#[derive(Debug, Clone, Default)]
+pub struct Opts {
+    /// A folder the preview server serves font files from first (the subsets, under the paths the
+    /// stylesheets name).
+    pub fonts_dir: Option<PathBuf>,
+}
+
+/// Opens the skin in Chromium and scans the entry page. Returns the scan and the Chromium version.
+pub fn scan(
+    node: &mut NodeClient,
+    src: &Source,
+    opts: &Opts,
+) -> Result<(Scanned, String), ConvError> {
     // Node runs in its own folder: the skin folder goes over as an absolute path (it never reaches
     // an output).
     let dir = std::path::absolute(&src.dir)
         .unwrap_or_else(|_| src.dir.clone())
         .to_string_lossy()
         .to_string();
-    let opened = node.call(
-        "open",
-        json!({ "skin_dir": dir, "entry": src.skin.skin.entry, "preview": true }),
-    )?;
+    let mut open = json!({ "skin_dir": dir, "entry": src.skin.skin.entry, "preview": true });
+    if let Some(f) = &opts.fonts_dir {
+        let f = std::path::absolute(f).unwrap_or_else(|_| f.clone());
+        open["fonts_dir"] = json!(f.to_string_lossy());
+    }
+    let opened = node.call("open", open)?;
+    let chrome = opened
+        .get("chrome")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
     let preview = opened.get("preview") == Some(&Value::Bool(true));
     let json = node.call("scan", json!({ "state": src.skin.scan_state() }))?;
-    Scanned::from_json(json, preview)
+    Ok((Scanned::from_json(json, preview)?, chrome))
 }
 
 /// Where the page comes from.
@@ -174,6 +196,8 @@ pub struct Run {
     pub texts: Option<l10n::Texts>,
     /// Every error, sorted once the run ends.
     pub errors: Vec<ConvError>,
+    /// The Chromium version of the run (empty for a dump).
+    pub chrome: String,
 }
 
 impl Run {
@@ -277,6 +301,11 @@ fn statically_reported(errors: &[ConvError]) -> BTreeSet<String> {
 /// `check`: loads the manifest, scans the page (or reads a dump), runs the static checks, plans
 /// and extracts the styles and compiles them.
 pub fn check_skin(dir: &Path, input: Input) -> Run {
+    check_skin_with(dir, input, &Opts::default())
+}
+
+/// `check` with options.
+pub fn check_skin_with(dir: &Path, input: Input, opts: &Opts) -> Run {
     let mut run = Run::default();
     let src = match Source::load(dir) {
         Ok(s) => s,
@@ -296,7 +325,10 @@ pub fn check_skin(dir: &Path, input: Input) -> Run {
         }),
         Input::Chrome => match NodeClient::start() {
             Ok(mut n) => {
-                let s = scan(&mut n, &src);
+                let s = scan(&mut n, &src, opts).map(|(s, chrome)| {
+                    run.chrome = chrome;
+                    s
+                });
                 node = Some(n);
                 s
             }

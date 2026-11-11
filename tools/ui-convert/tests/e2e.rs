@@ -83,3 +83,50 @@ fn engraved_checks_run_in_chrome() {
         assert!(!e.code.starts_with("E9-00") || e.code == "E9-005", "{e}");
     }
 }
+
+fn engraved() -> PathBuf {
+    crate_dir()
+        .join("..")
+        .join("..")
+        .join("skins")
+        .join("engraved")
+}
+
+fn copy_dir(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).expect("mkdir");
+    for e in std::fs::read_dir(from).expect("read_dir").flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            copy_dir(&p, &to.join(e.file_name()));
+        } else {
+            std::fs::copy(&p, to.join(e.file_name())).expect("copy");
+        }
+    }
+}
+
+/// Two builds of the skin, and a build of a copy in another folder, give the same bytes.
+#[test]
+fn engraved_builds_and_the_package_is_deterministic() {
+    if !chrome() {
+        return;
+    }
+    let a = ui2_convert::build::build(&engraved(), true);
+    assert!(a.run.errors.is_empty(), "{:?}", a.run.errors);
+    let a = a.written.expect("package");
+    let b = ui2_convert::build::build(&engraved(), true)
+        .written
+        .expect("package");
+    assert_eq!(a.hash, b.hash);
+    assert_eq!(a.bytes, b.bytes);
+    let copy = std::env::temp_dir().join(format!("ui2-e2e-copy-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&copy);
+    copy_dir(&engraved(), &copy.join("engraved"));
+    let c = ui2_convert::build::build(&copy.join("engraved"), true);
+    let _ = std::fs::remove_dir_all(&copy);
+    assert!(c.run.errors.is_empty(), "{:?}", c.run.errors);
+    assert_eq!(c.written.expect("package").bytes, a.bytes);
+    assert_eq!(a.file_name, format!("engraved-{}.ui2", &a.hash[..16]));
+    // The package reads back.
+    let pkg = ui2_package::Package::read(std::sync::Arc::from(a.bytes.as_slice())).expect("read");
+    assert_eq!(pkg.fonts().len(), 3);
+}

@@ -7,7 +7,7 @@ longer fits and the test says so (dump the skin again).
 
 | File | Skin | How it was made |
 |---|---|---|
-| `top-strip.ir.json` | `skins/engraved` | `cargo xtask ui check engraved --dump-ir tools/ui-convert/tests/fixtures/top-strip.ir.json`: the page as the preview script expands it in extract mode (includes in place, every `if` drawn, one instance per `for`, node marks), sample state `hud`. Source positions point into the skin's own files (`index.html`, `parts/top.html`). |
+| `top-strip.ir.json` | `skins/engraved` | `cargo xtask ui check engraved --dump-ir tools/ui-convert/tests/fixtures/top-strip.ir.json`: the page as the preview script expands it in extract mode (includes in place, every `if` drawn, one instance per `for`, node marks), sample state `hud`, the font subsets served to the page (`check` runs the build's two passes). Source positions point into the skin's own files (`index.html`, `parts/top.html`). |
 | `layout.ir.json` | `layout/` | `cargo xtask ui check tools/ui-convert/tests/fixtures/layout --dump-ir tools/ui-convert/tests/fixtures/layout.ir.json`: anonymous boxes, `display: contents`, `order`. |
 
 The bad mockups under `tests/bad/` carry their dumps as `ir.json`; `tests/e2e.rs`

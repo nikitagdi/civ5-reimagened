@@ -3900,13 +3900,18 @@ dependencies = [
 name = "ui2-convert"
 version = "0.1.0"
 dependencies = [
+ "blake3",
  "loc",
  "postcard",
  "serde",
  "serde_json",
  "toml",
+ "ui2-draw",
  "ui2-model",
  "ui2-package",
+ "ui2-runtime",
+ "ui2-text",
+ "zstd",
 ]
 
 [[package]]
