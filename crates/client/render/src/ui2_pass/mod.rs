@@ -52,6 +52,8 @@ pub struct Ui2Stats {
     pub instances: u64,
     /// Bytes written to the GPU: instances, table segments, glyph pages, the frame constants.
     pub upload_bytes: u64,
+    /// Of `upload_bytes`: the transform and clip table segments (anchors moved by the camera land here).
+    pub table_bytes: u64,
     /// Layers whose instances were written (in full or in ranges).
     pub layers_uploaded: u32,
     /// Bytes of the glyph layers of the coverage array on the GPU.
@@ -66,7 +68,7 @@ pub struct Ui2Stats {
 
 impl Ui2Stats {
     /// Names as `__civ5stats.counters` and the stats table show them.
-    pub fn counters(&self) -> [(&'static str, u64); 11] {
+    pub fn counters(&self) -> [(&'static str, u64); 12] {
         let [map, hud, window, tooltip] = self.layer_draws.map(u64::from);
         [
             ("ui2.draws", u64::from(self.draws)),
@@ -76,6 +78,7 @@ impl Ui2Stats {
             ("ui2.draws.tooltip", tooltip),
             ("ui2.instances", self.instances),
             ("ui2.upload_bytes", self.upload_bytes),
+            ("ui2.table_bytes", self.table_bytes),
             ("ui2.layers_uploaded", u64::from(self.layers_uploaded)),
             ("ui2.atlas.glyph_mb", self.glyph_bytes >> 20),
             ("ui2.atlas.pages_mb", self.page_bytes >> 20),
@@ -621,7 +624,8 @@ impl Ui2Pass {
             stats.upload_bytes += std::mem::size_of::<FrameUniform>() as u64;
         }
 
-        stats.upload_bytes += self.upload_tables(queue, scene, full);
+        stats.table_bytes = self.upload_tables(queue, scene, full);
+        stats.upload_bytes += stats.table_bytes;
 
         let dirty = scene.take_glyph_dirty();
         let pages = scene.pages();

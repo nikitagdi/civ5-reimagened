@@ -619,6 +619,79 @@ mod tests {
         );
     }
 
+    fn fira() -> TextEngine {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../third_party/fonts/fira-sans/FiraSans-Regular.ttf");
+        let bytes =
+            std::fs::read(&path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+        let mut e = TextEngine::new();
+        e.load_face(FaceId(0), Arc::from(bytes)).expect("Fira Sans");
+        e
+    }
+
+    /// Test 5 of the render-layer design: the camera moves 200 banners. Only the anchor table changes: no chunk
+    /// is encoded, no instance byte changes, 32 bytes per anchor; the same placements again write nothing;
+    /// hidden banners keep their instances.
+    #[test]
+    fn moving_200_banners_writes_only_their_table_rows() {
+        let mut text = fira();
+        let mut scene = Scene::new(1.0);
+        let size = Vec2::new(1920.0, 1080.0);
+        let slots = map_banners(&mut scene, &mut text, FaceId(0), 200, size);
+        scene.resolve(&mut text, 1000.0);
+        assert_eq!(scene.stats().raster_deferred, 0);
+        // Four boxes and an icon per banner, and its text.
+        assert!(
+            scene.layer_instances(LayerId::Map).len() > 200 * 10,
+            "banners have their text"
+        );
+        let before: Vec<u8> = bytemuck::cast_slice(scene.layer_instances(LayerId::Map)).to_vec();
+        let revision = scene.layer_revision(LayerId::Map);
+        scene.take_layer_change(LayerId::Map);
+        scene.take_table_uploads();
+        scene.take_glyph_dirty();
+        scene.reset_frame_stats();
+
+        let place = |i: usize, dx: f32| AnchorXform {
+            pos: Vec2::new(dx + (i % 10) as f32 * 192.0, 30.0 + (i / 10) as f32 * 52.0),
+            scale: 1.0,
+            visible: !i.is_multiple_of(4),
+        };
+        for (i, slot) in slots.iter().enumerate() {
+            scene.set_anchor(*slot, place(i, 64.0));
+        }
+        let st = scene.stats();
+        assert_eq!(st.chunks_encoded, 0, "no chunk rebuilt");
+        assert_eq!(st.anchor_bytes, 200 * 32);
+        assert_eq!(
+            scene.take_layer_change(LayerId::Map),
+            crate::LayerChange::None
+        );
+        assert_eq!(scene.layer_revision(LayerId::Map), revision);
+        let after: &[u8] = bytemuck::cast_slice(scene.layer_instances(LayerId::Map));
+        assert_eq!(before, after, "no instance byte changed");
+        let segments = scene.take_table_uploads();
+        let bytes: usize = segments.iter().map(|s| s.bytes().len()).sum();
+        assert_eq!(bytes, 200 * 32);
+        assert!(
+            segments.iter().all(|s| s.row < 4),
+            "only the anchor rows of the table"
+        );
+        assert!(scene.take_glyph_dirty().is_empty());
+        // The hidden banners' records say so.
+        let rec = scene.tables().record(u32::from(slots[4].0));
+        assert_eq!(rec[1][2], 0.0);
+        assert_eq!(scene.tables().record(u32::from(slots[5].0))[1][2], 1.0);
+
+        // An idle frame: the host sets the same placements again.
+        scene.reset_frame_stats();
+        for (i, slot) in slots.iter().enumerate() {
+            scene.set_anchor(*slot, place(i, 64.0));
+        }
+        assert_eq!(scene.stats().anchor_bytes, 0);
+        assert!(scene.take_table_uploads().is_empty());
+    }
+
     #[test]
     fn banners_take_one_anchor_and_chunk_each() {
         let mut text = TextEngine::new();

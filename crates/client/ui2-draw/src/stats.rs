@@ -34,7 +34,7 @@ pub struct SceneStats {
     pub clips: usize,
     /// Since the start: transforms or clips that did not fit their table.
     pub table_overflow: u32,
-    /// Frame: bytes written to anchor records (32 per `set_anchor`).
+    /// Frame: bytes written to anchor records (32 per `set_anchor` that changed a placement).
     pub anchor_bytes: u32,
     /// Picture pages of the package in the coverage array (`A8`).
     pub mask_pages: usize,

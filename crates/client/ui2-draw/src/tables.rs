@@ -393,16 +393,20 @@ impl Tables {
         self.anchors_free.push(slot.0);
     }
 
-    /// Writes the anchor record: 2 texels (32 bytes).
-    pub fn set_anchor(&mut self, slot: AnchorSlot, a: AnchorXform) {
+    /// Writes the anchor record, 2 texels (32 bytes), when it differs from what the record holds. Returns
+    /// whether it was written (an unchanged placement uploads nothing).
+    pub fn set_anchor(&mut self, slot: AnchorSlot, a: AnchorXform) -> bool {
         if slot.0 == 0 || slot.0 >= ANCHOR_RECORDS {
-            return;
+            return false;
         }
         let vis = if a.visible { 1.0 } else { 0.0 };
-        self.write_record(
-            u32::from(slot.0),
-            [[a.scale, 0.0, 0.0, a.scale], [a.pos.x, a.pos.y, vis, 0.0]],
-        );
+        let texels = [[a.scale, 0.0, 0.0, a.scale], [a.pos.x, a.pos.y, vis, 0.0]];
+        let record = u32::from(slot.0);
+        if self.record(record) == texels {
+            return false;
+        }
+        self.write_record(record, texels);
+        true
     }
 
     /// True if [`Tables::take_dirty`] would return something.
@@ -489,6 +493,23 @@ mod tests {
         );
         assert_eq!(seg_bytes(&mut t), 32);
         assert_eq!(seg_bytes(&mut t), 0);
+        // The same placement again writes nothing.
+        let same = AnchorXform {
+            pos: Vec2::new(5.0, 6.0),
+            scale: 1.0,
+            visible: true,
+        };
+        assert!(!t.set_anchor(slots[7], same));
+        assert_eq!(seg_bytes(&mut t), 0);
+        // Hiding it writes its record again.
+        assert!(t.set_anchor(
+            slots[7],
+            AnchorXform {
+                visible: false,
+                ..same
+            }
+        ));
+        assert_eq!(seg_bytes(&mut t), 32);
     }
 
     #[test]

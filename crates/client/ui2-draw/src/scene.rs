@@ -189,6 +189,9 @@ impl Scene {
     /// Sets the items of a chunk in a layer (creating the chunk, appended after the layer's chunks, or replacing
     /// its items in place). Equal items leave everything untouched. A chunk id that lives in another layer is
     /// moved.
+    ///
+    /// Chunks are drawn in the order they were created; on the map layer that is the order of the anchors.
+    // SIMPLIFIED(SIMP-229): map anchors (banners) are drawn in creation order, not sorted by depth: a nearer banner can be drawn under a farther one
     pub fn set_chunk(&mut self, layer: LayerId, id: ChunkId, items: ChunkItems) {
         match self.chunks.remove(&id) {
             Some(old) if old.layer == layer && old.items == items && !old.stale => {
@@ -484,10 +487,13 @@ impl Scene {
         self.tables.free_anchor(slot);
     }
 
-    /// Writes the screen placement of an anchor: 32 bytes of the transform table, nothing else.
+    /// Writes the screen placement of an anchor: 32 bytes of the transform table, nothing else (no chunk is
+    /// encoded, no instance changes). A placement equal to the current one writes nothing, so the host may set
+    /// every anchor every frame. `visible: false` collapses the anchor's chunks to zero area in the vertex shader.
     pub fn set_anchor(&mut self, slot: AnchorSlot, xform: AnchorXform) {
-        self.tables.set_anchor(slot, xform);
-        self.frame.anchor_bytes += 32;
+        if self.tables.set_anchor(slot, xform) {
+            self.frame.anchor_bytes += 32;
+        }
     }
 
     // ----- what the GPU pass reads -----

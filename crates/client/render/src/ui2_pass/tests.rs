@@ -1630,6 +1630,77 @@ fn ui2_hud_and_200_banners_stay_within_the_draw_budget_and_idle_frames_upload_no
     );
 }
 
+/// Test 5 on the GPU: the camera moves the 200 banners of the map layer. Only their anchor rows of the table are
+/// uploaded (200 x 32 bytes), no instance and no chunk is encoded again; the banners are drawn at their new
+/// places and the hidden ones not at all; the same placements on the next frame upload nothing.
+#[test]
+fn ui2_moving_200_banners_uploads_only_their_anchor_rows() {
+    let size = (1920, 1080);
+    let Some(mut rig) = Rig::new("ui2_moving_200_banners", wgpu::Backends::PRIMARY, size) else {
+        return;
+    };
+    let mut text = engine();
+    let mut scene = Scene::new(1.0);
+    let (images, pages) = testkit::icon_pages();
+    scene.set_pages(&images, pages).expect("pages");
+    let anchors = testkit::map_banners(
+        &mut scene,
+        &mut text,
+        FIRA,
+        200,
+        Vec2::new(size.0 as f32, size.1 as f32),
+    );
+    scene.resolve(&mut text, 1000.0);
+    let _ = rig.frame(&mut scene);
+    let first = rig.pass.stats();
+    assert!(first.layers_uploaded >= 1);
+
+    let place = |i: usize| AnchorXform {
+        pos: Vec2::new(
+            100.0 + (i % 10) as f32 * 180.0,
+            40.0 + (i / 10) as f32 * 50.0,
+        ),
+        scale: 1.0,
+        visible: !i.is_multiple_of(4),
+    };
+    scene.reset_frame_stats();
+    for (i, slot) in anchors.iter().enumerate() {
+        scene.set_anchor(*slot, place(i));
+    }
+    assert_eq!(scene.stats().chunks_encoded, 0);
+    let img = rig.frame(&mut scene);
+    let s = rig.pass.stats();
+    assert_eq!(s.layers_uploaded, 0, "{s:?}");
+    assert_eq!(s.table_bytes, 200 * 32);
+    assert_eq!(s.upload_bytes, 200 * 32, "only the anchor rows: {s:?}");
+    assert_eq!(
+        s.layer_draws[LayerId::Map.index()],
+        first.layer_draws[LayerId::Map.index()]
+    );
+    for i in 0..200 {
+        // A point of the banner's brass tab, away from its rounded corner and its icon.
+        let p = place(i).pos + Vec2::new(-55.0, -12.0);
+        let got = rgb(&img, size.0, p.x as u32, p.y as u32);
+        if i.is_multiple_of(4) {
+            assert_eq!(got, [0, 0, 0], "banner {i} is hidden");
+        } else {
+            assert_eq!(got, testkit::BRASS.0[..3], "banner {i} at its new place");
+        }
+    }
+
+    // The camera did not move: the host sets the same placements, nothing is uploaded.
+    for (i, slot) in anchors.iter().enumerate() {
+        scene.set_anchor(*slot, place(i));
+    }
+    let _ = rig.frame(&mut scene);
+    let idle = rig.pass.stats();
+    assert_eq!(
+        (idle.upload_bytes, idle.layers_uploaded),
+        (0, 0),
+        "{idle:?}"
+    );
+}
+
 fn headless(test: &str) -> Option<crate::Renderer> {
     match block_on(crate::Renderer::new_headless(
         (64, 48),
