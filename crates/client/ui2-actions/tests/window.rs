@@ -313,15 +313,6 @@ fn text_forms_of_enums_and_keys_are_accepted() {
 }
 
 #[test]
-fn intents_without_a_route_yet_refuse_as_unsupported() {
-    let mut rig = Rig::new();
-    rig.send(vec![intent("note.dismiss", &[("note", window("0:1"))])], 0);
-    assert_eq!(rig.ui().errors.len(), 1);
-    assert_eq!(rig.ui().errors[0].why, RefuseWhy::Unsupported);
-    assert!(rig.sink.sent.is_empty());
-}
-
-#[test]
 fn the_recording_sink_numbers_orders_and_can_refuse() {
     use protocol::Command;
     use ui2_actions::{CameraReq, OrderSink, Refused, Sent};

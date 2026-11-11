@@ -148,6 +148,7 @@ impl UiState {
     fn new_game(&mut self) {
         self.entries.clear();
         self.dismissed.clear();
+        self.last_chat_ms = None;
         let old = self.ui().clone();
         *self.edit() = Ui {
             production: old.production,

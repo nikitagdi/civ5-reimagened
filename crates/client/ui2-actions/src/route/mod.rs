@@ -2,7 +2,9 @@
 //! toast; it never reads the replica, only the model the player sees.
 
 pub mod camera;
+pub mod chat;
 pub mod map;
+pub mod notes;
 pub mod production;
 pub mod research;
 pub mod turn;
