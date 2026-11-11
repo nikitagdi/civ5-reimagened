@@ -6,7 +6,8 @@
 // the space of the target (gamma space on a plain target, like the browser).
 //
 // Group 0: frame constants, the transform and clip table (`Rgba32Float`, read with `textureLoad` only, so it
-// needs no filtering), the coverage mask array (R8) and its sampler.
+// needs no filtering), the coverage array (R8: package mask pages, then glyph pages), the sampler of both
+// arrays, and the image array (RGBA8, premultiplied: the package's colour pages).
 
 struct Frame {
     // (2 / width, 2 / height): pixels to NDC.
@@ -20,9 +21,11 @@ struct Frame {
 @group(0) @binding(1) var tables: texture_2d<f32>;
 @group(0) @binding(2) var mask: texture_2d_array<f32>;
 @group(0) @binding(3) var mask_smp: sampler;
+@group(0) @binding(4) var image: texture_2d_array<f32>;
 
-// `KIND_SHADOW` (1) and `KIND_IMAGE` (2) are not drawn yet.
+// `KIND_SHADOW` (1) is not drawn yet.
 const KIND_BOX: u32 = 0u;
+const KIND_IMAGE: u32 = 2u;
 const KIND_MASK: u32 = 3u;
 
 const FLAG_FILL: u32 = 4u;
@@ -256,6 +259,16 @@ fn shade_mask(in: VsOut) -> vec4<f32> {
     return premul(in.fill) * cov;
 }
 
+// IMAGE: a premultiplied texel of a colour page times the tint (straight colour, its alpha an opacity), cut to
+// the rounded rectangle of the instance.
+fn shade_image(in: VsOut, px: f32) -> vec4<f32> {
+    let s = textureSampleLevel(image, mask_smp, in.uv, i32(in.prim.z), 0.0);
+    let tint = in.fill;
+    let half = in.size * 0.5;
+    let cover = inside(sd_rounded(in.local - half, half, in.radii), px);
+    return vec4<f32>(s.rgb * tint.rgb, s.a) * (tint.a * cover);
+}
+
 // Coverage of the clip: rounded rectangle and convex polygon, anti-aliased over one pixel of chunk space.
 fn clip_coverage(in: VsOut, w_rect: vec4<f32>, w0: vec4<f32>, w1: vec4<f32>) -> f32 {
     let e = in.clip_rect;
@@ -305,8 +318,10 @@ fn fs(in: VsOut) -> @location(0) vec4<f32> {
         case KIND_MASK: {
             c = shade_mask(in);
         }
-        // KIND_SHADOW and KIND_IMAGE (and 9-slice, drawn as images) come with the shadow, gradient and image
-        // tasks; until then they draw nothing.
+        case KIND_IMAGE: {
+            c = shade_image(in, px);
+        }
+        // KIND_SHADOW comes with the shadow task; until then it draws nothing.
         default: {}
     }
     return finish(c * clip_coverage(in, w_rect, w0, w1));

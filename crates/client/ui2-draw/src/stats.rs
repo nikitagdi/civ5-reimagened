@@ -34,4 +34,10 @@ pub struct SceneStats {
     pub table_overflow: u32,
     /// Frame: bytes written to anchor records (32 per `set_anchor`).
     pub anchor_bytes: u32,
+    /// Picture pages of the package in the coverage array (`A8`).
+    pub mask_pages: usize,
+    /// Picture pages of the package in the image array (`Rgba8`).
+    pub image_pages: usize,
+    /// Bytes of picture page pixels held for the GPU.
+    pub page_bytes: usize,
 }

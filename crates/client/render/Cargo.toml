@@ -27,3 +27,5 @@ tracing.workspace = true
 [dev-dependencies]
 # WGSL parser and validator for the tests of `shaders::catalog()` (the naga of wgpu, approved).
 naga.workspace = true
+# The picture page table the `Ui2` pass tests hand to `Scene::set_pages`.
+ui2-package.workspace = true

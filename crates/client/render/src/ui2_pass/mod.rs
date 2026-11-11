@@ -25,7 +25,7 @@ use ui2_draw::{LayerChange, LayerId, Scene};
 use crate::perf::gpu_mem::{Buf, Cluster, DeviceTrack, Tex};
 use crate::ui_pass::UiTarget;
 
-pub use gpu_atlas::{MIN_LAYERS, MaskArray};
+pub use gpu_atlas::{ImageArray, MIN_LAYERS, MaskArray, MaskSource};
 
 /// Smallest layer buffer; buffers grow by 1.5x from here.
 const MIN_BUFFER: u64 = 64 * 1024;
@@ -45,15 +45,17 @@ pub struct Ui2Stats {
     pub upload_bytes: u64,
     /// Layers whose instances were written (in full or in ranges).
     pub layers_uploaded: u32,
-    /// Bytes of the glyph mask array on the GPU.
+    /// Bytes of the glyph layers of the coverage array on the GPU.
     pub glyph_bytes: u64,
+    /// Bytes of the layers that hold the skin package's picture pages (coverage and image arrays).
+    pub page_bytes: u64,
     /// Draw calls skipped for an external texture the pass cannot bind yet.
     pub ext_missing: u32,
 }
 
 impl Ui2Stats {
     /// Names as `__civ5stats.counters` and the stats table show them.
-    pub fn counters(&self) -> [(&'static str, u64); 10] {
+    pub fn counters(&self) -> [(&'static str, u64); 11] {
         let [map, hud, window, tooltip] = self.layer_draws.map(u64::from);
         [
             ("ui2.draws", u64::from(self.draws)),
@@ -65,6 +67,7 @@ impl Ui2Stats {
             ("ui2.upload_bytes", self.upload_bytes),
             ("ui2.layers_uploaded", u64::from(self.layers_uploaded)),
             ("ui2.atlas.glyph_mb", self.glyph_bytes >> 20),
+            ("ui2.atlas.pages_mb", self.page_bytes >> 20),
             ("ui2.ext_missing", u64::from(self.ext_missing)),
         ]
     }
@@ -134,6 +137,9 @@ pub struct Ui2Pass {
     tables: Tex,
     tables_view: wgpu::TextureView,
     mask: MaskArray,
+    image: ImageArray,
+    /// `Pages::revision` of the package pages on the GPU.
+    pages_revision: u64,
     group: wgpu::BindGroup,
     layers: [LayerBuf; 4],
     ops: Vec<DrawOp>,
@@ -206,6 +212,16 @@ impl Ui2Pass {
                     binding: 3,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2Array,
+                        multisampled: false,
+                    },
                     count: None,
                 },
             ],
@@ -287,7 +303,15 @@ impl Ui2Pass {
         );
         let tables_view = tables.create_view(&wgpu::TextureViewDescriptor::default());
         let mask = MaskArray::new(device);
-        let group = Self::make_group(device, &layout, &uniform, &tables_view, &mask, &sampler);
+        let image = ImageArray::new(device);
+        let group = Self::make_group(
+            device,
+            &layout,
+            &uniform,
+            &tables_view,
+            [mask.view(), image.view()],
+            &sampler,
+        );
         Self {
             format,
             pipeline,
@@ -298,6 +322,8 @@ impl Ui2Pass {
             tables,
             tables_view,
             mask,
+            image,
+            pages_revision: 0,
             group,
             layers: Default::default(),
             ops: Vec::new(),
@@ -311,7 +337,7 @@ impl Ui2Pass {
         layout: &wgpu::BindGroupLayout,
         uniform: &wgpu::Buffer,
         tables: &wgpu::TextureView,
-        mask: &MaskArray,
+        [mask, image]: [&wgpu::TextureView; 2],
         sampler: &wgpu::Sampler,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -328,11 +354,15 @@ impl Ui2Pass {
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: wgpu::BindingResource::TextureView(mask.view()),
+                    resource: wgpu::BindingResource::TextureView(mask),
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
                     resource: wgpu::BindingResource::Sampler(sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::TextureView(image),
                 },
             ],
         })
@@ -384,21 +414,38 @@ impl Ui2Pass {
         stats.upload_bytes += self.upload_tables(queue, scene, full);
 
         let dirty = scene.take_glyph_dirty();
-        let (bytes, remade) = self
-            .mask
-            .sync(device, queue, scene.glyph_atlas(), &dirty, full);
-        stats.upload_bytes += bytes;
-        if remade {
+        let pages = scene.pages();
+        let pages_changed = pages.revision() != self.pages_revision;
+        self.pages_revision = pages.revision();
+        let src = MaskSource {
+            pages: pages.mask(),
+            pages_changed,
+            side: scene.mask_side(),
+            atlas: scene.glyph_atlas(),
+            dirty: &dirty,
+        };
+        let (mask_bytes, mask_remade) = self.mask.sync(device, queue, &src, full);
+        let (image_bytes, image_remade) = self.image.sync(
+            device,
+            queue,
+            pages.image(),
+            pages.image_side(),
+            pages_changed,
+            full,
+        );
+        stats.upload_bytes += mask_bytes + image_bytes;
+        if mask_remade || image_remade {
             self.group = Self::make_group(
                 device,
                 &self.layout,
                 &self.uniform,
                 &self.tables_view,
-                &self.mask,
+                [self.mask.view(), self.image.view()],
                 &self.sampler,
             );
         }
-        stats.glyph_bytes = self.mask.bytes();
+        stats.page_bytes = self.mask.page_bytes() + self.image.page_bytes();
+        stats.glyph_bytes = self.mask.bytes().saturating_sub(self.mask.page_bytes());
 
         self.ops.clear();
         for layer in LayerId::ALL {

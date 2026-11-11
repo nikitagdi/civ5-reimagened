@@ -9,8 +9,8 @@ use draw_list::UiDrawList;
 use glam::{Affine2, Vec2};
 use ui2_draw::instance::{ATTRIBUTES, INSTANCE_SIZE};
 use ui2_draw::{
-    AnchorXform, Border, BoxItem, ChunkBuilder, ChunkId, Clip, Color, FaceId, Fill, Glyphs, Item,
-    LayerId, Radii, Rect, Scene,
+    AnchorXform, Border, BoxItem, ChunkBuilder, ChunkId, Clip, Color, FaceId, Fill, Glyphs,
+    ImageItem, ImageRef, Item, LayerId, MaskItem, Radii, Rect, Scene,
 };
 use ui2_text::{RunStyle, TextEngine};
 
@@ -491,6 +491,150 @@ fn ui2_anchors_and_element_transforms_move_boxes() {
     );
     let img = rig.frame(&mut scene);
     assert!(img.chunks(4).all(|p| p[..3] == [0, 0, 0]));
+}
+
+/// A package page table: an `A8` page 32 x 32 (left half covered), an `Rgba8` page 16 x 16 (top half opaque red,
+/// bottom half blue at alpha 128, premultiplied).
+fn picture_pages() -> (ui2_package::Images, Vec<Arc<[u8]>>) {
+    use ui2_package::{BlobRef, BlobSection, Page, PageFormat};
+    let page = |format, size| Page {
+        format,
+        scale: 1,
+        size,
+        blob: BlobRef {
+            section: BlobSection::Imgs,
+            offset: 0,
+            len: 0,
+            raw_len: 0,
+            zstd: false,
+        },
+        blake3: [0; 32],
+    };
+    let mask: Vec<u8> = (0..32 * 32)
+        .map(|i| if i % 32 < 16 { 255 } else { 0 })
+        .collect();
+    let rgba: Vec<u8> = (0..16 * 16)
+        .flat_map(|i| {
+            if i / 16 < 8 {
+                [255, 0, 0, 255]
+            } else {
+                [0, 0, 128, 128]
+            }
+        })
+        .collect();
+    (
+        ui2_package::Images {
+            pages: vec![
+                page(ui2_package::PageFormat::A8, [32, 32]),
+                page(PageFormat::Rgba8, [16, 16]),
+            ],
+            imgs: Vec::new(),
+        },
+        vec![Arc::from(mask), Arc::from(rgba)],
+    )
+}
+
+fn pictures_on(test: &str, backends: wgpu::Backends) {
+    let Some(mut rig) = Rig::new(test, backends, (160, 80)) else {
+        return;
+    };
+    let mut text = engine();
+    let mut scene = Scene::new(1.0);
+    let (images, pages) = picture_pages();
+    scene.set_pages(&images, pages.clone()).expect("pages");
+    let whole = [0.0, 0.0, 1.0, 1.0];
+    let run = text
+        .shape(&RunStyle::new(FIRA, 14.0), "Hamburgefonstiv")
+        .expect("shape");
+    scene.set_chunk(
+        LayerId::Hud,
+        ChunkId(1),
+        chunk(vec![
+            Item::Mask(MaskItem {
+                rect: Rect::new(0.0, 0.0, 32.0, 32.0),
+                mask: ImageRef {
+                    layer: 0,
+                    uv: whole,
+                },
+                color: GREEN,
+                ..MaskItem::default()
+            }),
+            Item::Image(ImageItem {
+                rect: Rect::new(40.0, 0.0, 32.0, 32.0),
+                image: ImageRef {
+                    layer: 0,
+                    uv: whole,
+                },
+                ..ImageItem::default()
+            }),
+            Item::Image(ImageItem {
+                rect: Rect::new(80.0, 0.0, 32.0, 32.0),
+                image: ImageRef {
+                    layer: 0,
+                    uv: whole,
+                },
+                tint: Color::rgba(255, 255, 255, 128),
+                ..ImageItem::default()
+            }),
+            Item::Glyphs(Glyphs::from_run(&run, 1.0, 10.0, 60.0, WHITE)),
+        ]),
+    );
+    scene.resolve(&mut text, 1000.0);
+    let img = rig.frame(&mut scene);
+    let w = rig.size.0;
+    // The mask icon: the covered half in the paint colour, the other half empty.
+    assert_eq!(rgb(&img, w, 6, 16), [0, 255, 0]);
+    assert_eq!(rgb(&img, w, 26, 16), [0, 0, 0]);
+    // The picture: opaque red on top, half-transparent blue (premultiplied) over black below.
+    assert_eq!(rgb(&img, w, 56, 4), [255, 0, 0]);
+    let blue = rgb(&img, w, 56, 28);
+    assert_eq!(&blue[..2], &[0, 0]);
+    assert!((126..=130).contains(&blue[2]), "{blue:?}");
+    // The same picture at half opacity.
+    let red = rgb(&img, w, 96, 4);
+    assert!(
+        (126..=130).contains(&red[0]) && red[1..] == [0, 0],
+        "{red:?}"
+    );
+    // The glyphs moved one layer up (after the mask page) and still draw.
+    let ink: u64 = (46..64)
+        .flat_map(|y| (10..150).map(move |x| (x, y)))
+        .map(|(x, y)| u64::from(px(&img, w, x, y)[1]))
+        .sum();
+    assert!(ink > 255 * 100, "the line has ink: {ink}");
+    let s = rig.pass.stats();
+    assert_eq!(s.draws, 1, "pages, masks and glyphs share the draw");
+    assert!(s.page_bytes > 0 && s.glyph_bytes > 0);
+
+    // Idle frames, and the same pages again, upload nothing.
+    let _ = rig.frame(&mut scene);
+    assert_eq!(rig.pass.stats().upload_bytes, 0);
+    scene.set_pages(&images, pages).expect("same pages");
+    let _ = rig.frame(&mut scene);
+    let idle = rig.pass.stats();
+    assert_eq!((idle.upload_bytes, idle.layers_uploaded), (0, 0));
+
+    // Dropping the pages (a skin without pictures): the pictures make no instance any more.
+    scene
+        .set_pages(&ui2_package::Images::default(), Vec::new())
+        .expect("no pages");
+    let img = rig.frame(&mut scene);
+    assert_eq!(rgb(&img, w, 56, 4), [0, 0, 0]);
+    assert_eq!(rgb(&img, w, 96, 4), [0, 0, 0]);
+    assert_eq!(rig.pass.stats().page_bytes, 0);
+}
+
+#[test]
+fn ui2_draws_package_pictures_and_mask_icons() {
+    pictures_on(
+        "ui2_draws_package_pictures_and_mask_icons",
+        wgpu::Backends::PRIMARY,
+    );
+}
+
+#[test]
+fn ui2_draws_package_pictures_on_gl() {
+    pictures_on("ui2_draws_package_pictures_on_gl", wgpu::Backends::GL);
 }
 
 fn headless(test: &str) -> Option<crate::Renderer> {
