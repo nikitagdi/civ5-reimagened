@@ -9,7 +9,7 @@
 //! laid out by the text module. A leaf measures its lines at the width taffy offers and reports its first and
 //! last baselines (for `align-items: baseline`); the full layout pass also keeps the lines for paint and dumps.
 
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 
 use taffy::{
     AvailableSpace, BlockContext, CacheTree, Display, LayoutBlockContainer, LayoutContainingBlock,
@@ -19,9 +19,10 @@ use taffy::{
     compute_leaf_layout, compute_oof_layout, compute_root_layout,
 };
 use ui2_package::{StyleId, Styles};
-use ui2_text::{Lines, TextMeasure};
+use ui2_text::TextMeasure;
 
 use crate::arena::{Arena, HIDDEN_STYLE, LayoutSlot, NodeClass, NodeId, PLACEHOLDER_STYLE};
+use crate::text::ifc::Extent;
 use crate::text::{AnonItem, Ifc};
 
 /// The taffy style of each style record, plus the built-in styles of service nodes, placeholders and text
@@ -106,7 +107,7 @@ struct View<'a> {
 /// Where Chrome puts the anonymous flex item that wraps the text of a flex container: its size is the
 /// text's (stretched across in a column), its place follows `justify-content` on the main axis and
 /// `align-items` on the cross axis.
-fn anon_item(style: &Style, content: Size<f32>, lines: &Lines) -> AnonItem {
+fn anon_item(style: &Style, content: Size<f32>, lines: Extent) -> AnonItem {
     use taffy::{AlignItems, FlexDirection, JustifyContent};
     let row = matches!(
         style.flex_direction,
@@ -200,8 +201,8 @@ impl View<'_> {
         let ifc: Option<&Ifc> = self.arena.at(idx).and_then(|n| n.ifc.as_deref());
         let style = self.style(node);
         let text = self.text;
-        let baselines = Cell::new((None, None));
-        let kept: RefCell<Option<(Lines, f32)>> = RefCell::new(None);
+        // The extent of the lines measured, and the width they were broken at.
+        let kept: Cell<Option<(Extent, f32)>> = Cell::new(None);
         let mut output = compute_leaf_layout(
             inputs,
             style,
@@ -215,18 +216,15 @@ impl View<'_> {
                     AvailableSpace::MinContent => 0.0,
                     AvailableSpace::MaxContent => f32::INFINITY,
                 });
-                let lines = ifc.lines_at(text, width);
-                let first = Ifc::first_baseline(&lines);
-                let last = lines.lines.last().map(|l| l.top + l.baseline);
-                baselines.set((first, last));
-                let size = Size {
-                    width: known.width.unwrap_or(lines.width),
-                    height: known.height.unwrap_or(lines.height),
-                };
-                *kept.borrow_mut() = Some((lines, width));
-                size
+                let extent = ifc.extent_at(text, width);
+                kept.set(Some((extent, width)));
+                Size {
+                    width: known.width.unwrap_or(extent.width),
+                    height: known.height.unwrap_or(extent.height),
+                }
             },
         );
+        let kept = kept.get();
         let mut item = None;
         if ifc.is_some() {
             let inset = style
@@ -235,33 +233,33 @@ impl View<'_> {
                 + style
                     .border
                     .resolve_or_zero(inputs.parent_size.width, |_, _| 0.0);
-            let only_text = self.arena.at(idx).is_some_and(|n| {
-                n.children().iter().all(|&c| {
-                    self.arena
-                        .get(c)
-                        .is_some_and(|c| c.class() == NodeClass::Text)
-                })
-            });
             if style.display == Display::Flex
-                && only_text
-                && let Some((lines, _)) = kept.borrow().as_ref()
+                && let Some((extent, _)) = kept
+                && self.arena.at(idx).is_some_and(|n| {
+                    n.children().iter().all(|&c| {
+                        self.arena
+                            .get(c)
+                            .is_some_and(|c| c.class() == NodeClass::Text)
+                    })
+                })
             {
                 let content = Size {
                     width: (output.size.width - inset.left - inset.right).max(0.0),
                     height: (output.size.height - inset.top - inset.bottom).max(0.0),
                 };
-                item = Some(anon_item(style, content, lines));
+                item = Some(anon_item(style, content, extent));
             }
             let dy = item.map_or(0.0, |a: AnonItem| a.y);
-            let (first, last) = baselines.get();
+            let (first, last) = kept.map_or((None, None), |(e, _)| (e.first, e.last));
             output.baselines.first = first.map(|b| b + inset.top + dy);
             output.baselines.last = last.map(|b| b + inset.top + dy);
         }
         if inputs.run_mode == RunMode::PerformLayout
-            && let Some((lines, width)) = kept.into_inner()
+            && let Some((_, width)) = kept
             && let Some(ifc) = self.arena.at_mut(idx).and_then(|n| n.ifc.as_deref_mut())
         {
-            ifc.lines = lines;
+            // The lines for paint and dumps, from the memo of the measurement above.
+            ifc.lines = ifc.lines_at(text, width);
             ifc.width = width;
             ifc.item = item;
         }
