@@ -513,6 +513,8 @@ fn template_structure_is_checked() {
         name: body_name,
         nodes: nodes(&[div(1)]),
     });
+    // The loop's expressions must exist in the bindings table.
+    b.expr(ui2_package::profile::expr::Expr::Path(vec!["list".into()]));
     assert!(b.finish(manifest()).is_ok());
 
     // A leaf with children.
@@ -1038,4 +1040,669 @@ fn a_package_with_every_section_is_deterministic() {
 
 fn face_for(b: &mut PackageBuilder) {
     face(b, "Alegreya", 400, &pseudo_bytes(9, 8000));
+}
+
+// ---------------------------------------------------------------------------------------------
+// BIND, L10N, EXTN, SRCM
+
+mod common;
+
+use common::{MapView, parse_type};
+use ui2_package::profile::action::{Action, AnchorKind, Arg, ControlKind, Event};
+use ui2_package::profile::expr::{self, Expr};
+use ui2_package::profile::{SchemaView, TypeSig};
+use ui2_package::{
+    BindKind, Binding, ExprId, Lit, NodeRef, Scalar, Seg, SrcLoc, TplId, hotkey_mods,
+};
+
+fn e(src: &str) -> Expr {
+    expr::parse(src).unwrap_or_else(|err| panic!("{src}: {err}"))
+}
+
+fn manifest_langs() -> Manifest {
+    let mut m = manifest();
+    m.languages = vec!["en_US".into(), "ru_RU".into()];
+    m
+}
+
+fn ordered<T>(mut v: Vec<T>, reverse: bool) -> Vec<T> {
+    if reverse {
+        v.reverse();
+    }
+    v
+}
+
+fn node(tpl: u32, node: u32) -> NodeRef {
+    NodeRef(TemplateId(tpl), node)
+}
+
+/// A skin with a loop, a button with every kind of binding, a tooltip, and the sorted tables of
+/// the new sections filled in. `reverse` adds everything whose order must not matter backwards.
+fn bound_package(reverse: bool) -> PackageBuilder {
+    let mut b = PackageBuilder::new();
+    let plain = {
+        let id = b.style_record(StyleRecord::initial());
+        b.style_set(StyleSet::plain(vec![id]))
+    };
+    let turn = b.expr(e("game.turn"));
+    let big = b.expr(e("game.turn > 3"));
+    let list = b.expr(e("game.cities"));
+    let key = b.expr(e("c.id"));
+    assert_eq!(
+        b.expr(e("game.turn")),
+        turn,
+        "equal trees are one expression"
+    );
+    assert_eq!(
+        (turn, big, list, key),
+        (ExprId(0), ExprId(1), ExprId(2), ExprId(3))
+    );
+    let lit = b.str("Turn ");
+    let text = b.tpl(vec![Seg::Lit(lit), Seg::Expr(turn)]);
+    assert_eq!(b.tpl(vec![Seg::Lit(lit), Seg::Expr(turn)]), text);
+    assert_eq!(text, TplId(0));
+
+    let (doc, row, tip) = (b.str("doc"), b.str("row"), b.str("tip"));
+    let item = b.str("c");
+    let static_text = b.str("-");
+    let looped = NodeKind::For {
+        tpl: TemplateId(1),
+        item,
+        index: None,
+        list,
+        key,
+        virt: false,
+        sort: None,
+        sort_desc: None,
+        filter: None,
+    };
+    b.template(Template {
+        name: doc,
+        nodes: nodes(&[
+            (NodeKind::Layer(Layer::Hud), 5, plain, None, 0),
+            (NodeKind::Box { tag: Tag::Div }, 2, plain, None, 0),
+            (looped, 1, plain, None, 0),
+            (
+                NodeKind::Box { tag: Tag::Button },
+                1,
+                plain,
+                None,
+                node_flags::FOCUSABLE,
+            ),
+            (NodeKind::Text(TextSrc::Bound(text)), 1, plain, None, 0),
+        ]),
+    });
+    b.template(Template {
+        name: row,
+        nodes: nodes(&[
+            (NodeKind::Box { tag: Tag::Div }, 2, plain, None, 0),
+            (
+                NodeKind::Text(TextSrc::Static(static_text)),
+                1,
+                plain,
+                None,
+                0,
+            ),
+        ]),
+    });
+    b.template(Template {
+        name: tip,
+        nodes: nodes(&[(NodeKind::Box { tag: Tag::Div }, 1, plain, None, 0)]),
+    });
+
+    // Bindings are added out of node order on purpose.
+    let late = b.str("is-late");
+    let open = b.str("prod.open");
+    let t0 = TemplateId(0);
+    b.binding(Binding {
+        tpl: t0,
+        node: 4,
+        kind: BindKind::Text(text),
+    });
+    b.binding(Binding {
+        tpl: t0,
+        node: 4,
+        kind: BindKind::Fit { min: Some(10.0) },
+    });
+    b.binding(Binding {
+        tpl: t0,
+        node: 3,
+        kind: BindKind::ClassToggle {
+            class: late,
+            cond: big,
+        },
+    });
+    b.binding(Binding {
+        tpl: t0,
+        node: 3,
+        kind: BindKind::Event {
+            ev: Event::Click,
+            actions: vec![
+                Action::Toggle {
+                    path: "state.prod.open".into(),
+                },
+                Action::Call {
+                    name: "ping".into(),
+                    args: vec![Arg {
+                        name: None,
+                        value: e("game.turn"),
+                    }],
+                },
+                Action::Stop,
+            ],
+        },
+    });
+    b.binding(Binding {
+        tpl: t0,
+        node: 3,
+        kind: BindKind::Model(open),
+    });
+    b.binding(Binding {
+        tpl: t0,
+        node: 3,
+        kind: BindKind::Control {
+            kind: ControlKind::Checkbox,
+            value: None,
+            range: None,
+            options: None,
+        },
+    });
+    b.binding(Binding {
+        tpl: t0,
+        node: 2,
+        kind: BindKind::Anchor {
+            kind: AnchorKind::City,
+            id: key,
+        },
+    });
+
+    let paths = vec![
+        ("game.turn", TypeSig::Int),
+        ("game.cities", parse_type("list<struct game.cities[]>")),
+    ];
+    for (p, t) in ordered(paths, reverse) {
+        b.used_path(p, t);
+    }
+    b.intent(
+        "unit.action",
+        vec![
+            TypeSig::Key("unit".into()),
+            parse_type("enum(fortify|sleep)"),
+        ],
+    );
+    let states = vec![
+        (
+            "tabs",
+            Lit::List(vec![Scalar::Str("a".into()), Scalar::Str("b".into())]),
+        ),
+        ("prod.open", Lit::Bool(false)),
+        ("volume", Lit::Float(0.5)),
+    ];
+    for (p, l) in ordered(states, reverse) {
+        b.state_default(p, l);
+    }
+    for h in ordered(vec!["ping", "alpha"], reverse) {
+        b.handler(h);
+    }
+    let texts = vec![
+        ("en_US", "top.turn", "Turn {0}"),
+        ("ru_RU", "top.turn", "\u{425}\u{43e}\u{434} {0}"),
+        ("en_US", "top.next", "Next"),
+    ];
+    for (lang, k, v) in ordered(texts, reverse) {
+        b.l10n(lang, k, v);
+    }
+    let slots = vec![("mods", node(0, 1)), ("alpha.beta", node(0, 3))];
+    for (n, at) in ordered(slots, reverse) {
+        b.slot(n, at);
+    }
+    let parts = vec![("list", node(0, 1)), ("turn-button", node(0, 3))];
+    for (n, at) in ordered(parts, reverse) {
+        b.part(n, at);
+    }
+    b.screen("production", node(0, 0));
+    b.island("clock", node(0, 4), &[("minutes", 4), ("hours", 4)]);
+    let keys = vec![
+        ("KeyB", hotkey_mods::CTRL | hotkey_mods::SHIFT),
+        ("KeyB", 0),
+        ("F5", 0),
+    ];
+    for (code, mods) in ordered(keys, reverse) {
+        b.hotkey(code, mods, node(0, 3));
+    }
+    b.tooltip(node(0, 3), TemplateId(2));
+    let at = |file, line| SrcLoc { file, line, col: 3 };
+    let places = vec![
+        vec![at(1, 1), at(1, 2), at(1, 3), at(0, 4), at(0, 5)],
+        vec![at(1, 7), at(1, 8)],
+        vec![at(0, 9)],
+    ];
+    if reverse {
+        // The same files named in the other order, with the indices to match.
+        let swapped = places
+            .into_iter()
+            .map(|t| {
+                t.into_iter()
+                    .map(|l| SrcLoc {
+                        file: 1 - l.file,
+                        ..l
+                    })
+                    .collect()
+            })
+            .collect();
+        b.source_map(&["skin.html", "parts/top.html"], swapped);
+    } else {
+        b.source_map(&["parts/top.html", "skin.html"], places);
+    }
+    b
+}
+
+#[test]
+fn bind_sections_round_trip() {
+    let bytes = bound_package(false)
+        .finish(manifest_langs())
+        .expect("finish");
+    let pkg = read(&bytes).expect("read");
+
+    // Expressions and templates.
+    assert_eq!(pkg.expr(ExprId(1)), Some(&e("game.turn > 3")));
+    assert_eq!(pkg.expr(ExprId(9)), None);
+    let segs = pkg.tpl(TplId(0)).expect("template");
+    assert!(matches!(segs, [Seg::Lit(l), Seg::Expr(ExprId(0))] if pkg.str(*l) == Some("Turn ")));
+
+    // Bindings of a node keep their order; the nodes are in order.
+    let button = pkg.bindings_of(TemplateId(0), 3);
+    assert_eq!(button.len(), 4);
+    assert!(matches!(button[0].kind, BindKind::ClassToggle { .. }));
+    assert!(matches!(&button[1].kind, BindKind::Event { actions, .. } if actions.len() == 3));
+    assert!(matches!(button[2].kind, BindKind::Model(_)));
+    assert!(matches!(button[3].kind, BindKind::Control { .. }));
+    assert_eq!(pkg.bindings_of(TemplateId(0), 4).len(), 2);
+    assert_eq!(pkg.bindings_of(TemplateId(0), 2).len(), 1);
+    assert!(pkg.bindings_of(TemplateId(1), 0).is_empty());
+    let BindKind::ClassToggle { class, .. } = button[0].kind else {
+        panic!("class toggle");
+    };
+    assert_eq!(pkg.str(class), Some("is-late"));
+    let BindKind::Model(model) = button[2].kind else {
+        panic!("model");
+    };
+    assert_eq!(pkg.str(model), Some("prod.open"));
+
+    // The tables.
+    let paths: Vec<_> = pkg.used_paths().map(|(p, _)| p).collect();
+    assert_eq!(paths, ["game.cities", "game.turn"]);
+    let state: Vec<_> = pkg.state_defaults().map(|(p, _)| p).collect();
+    assert_eq!(state, ["prod.open", "tabs", "volume"]);
+    assert_eq!(
+        pkg.state_defaults()
+            .find(|(p, _)| *p == "tabs")
+            .and_then(|(_, l)| l.type_sig()),
+        Some(parse_type("list<str>"))
+    );
+    assert_eq!(pkg.handlers().collect::<Vec<_>>(), ["alpha", "ping"]);
+    assert_eq!(pkg.intents().count(), 1);
+
+    // Texts.
+    assert_eq!(pkg.languages(), ["en_US", "ru_RU"]);
+    assert_eq!(pkg.l10n("en_US", "top.turn"), Some("Turn {0}"));
+    assert_eq!(
+        pkg.l10n("ru_RU", "top.turn"),
+        Some("\u{425}\u{43e}\u{434} {0}")
+    );
+    assert_eq!(pkg.l10n("ru_RU", "top.next"), None);
+    assert_eq!(pkg.l10n("de_DE", "top.next"), None);
+    assert_eq!(pkg.l10n("en_US", "no.such.key"), None);
+
+    // Extension points.
+    assert_eq!(
+        pkg.slots().collect::<Vec<_>>(),
+        [("alpha.beta", node(0, 3)), ("mods", node(0, 1))]
+    );
+    assert_eq!(pkg.parts().count(), 2);
+    assert_eq!(
+        pkg.screens().collect::<Vec<_>>(),
+        [("production", node(0, 0))]
+    );
+    let island = &pkg.islands()[0];
+    assert_eq!(pkg.str(island.id), Some("clock"));
+    let keys: Vec<_> = island.keys.iter().map(|(k, n)| (pkg.str(*k), *n)).collect();
+    assert_eq!(keys, [(Some("hours"), 4), (Some("minutes"), 4)]);
+    let hotkeys: Vec<_> = pkg
+        .hotkeys()
+        .iter()
+        .map(|h| (pkg.str(h.code), h.mods))
+        .collect();
+    assert_eq!(
+        hotkeys,
+        [(Some("F5"), 0), (Some("KeyB"), 0), (Some("KeyB"), 5)]
+    );
+    assert_eq!(pkg.tooltips(), [(node(0, 3), TemplateId(2))]);
+
+    // Source places, whichever order the files were named in.
+    assert_eq!(pkg.source_loc(TemplateId(0), 0), Some(("skin.html", 1, 3)));
+    assert_eq!(
+        pkg.source_loc(TemplateId(0), 3),
+        Some(("parts/top.html", 4, 3))
+    );
+    assert_eq!(
+        pkg.source_loc(TemplateId(2), 0),
+        Some(("parts/top.html", 9, 3))
+    );
+    assert_eq!(pkg.source_loc(TemplateId(0), 9), None);
+}
+
+#[test]
+fn a_package_without_the_optional_sections_is_valid_and_empty() {
+    let bytes = PackageBuilder::new().finish(manifest()).expect("finish");
+    let pkg = read(&bytes).expect("read");
+    assert!(pkg.bindings().items.is_empty());
+    assert_eq!(pkg.slots().count(), 0);
+    assert_eq!(pkg.source_loc(TemplateId(0), 0), None);
+    assert_eq!(pkg.l10n("en_US", "x"), None);
+    assert_eq!(pkg.languages(), ["en_US"]);
+}
+
+#[test]
+fn bind_sections_are_deterministic_whatever_the_insertion_order() {
+    let a = bound_package(false).finish(manifest_langs()).expect("a");
+    assert_eq!(
+        a,
+        bound_package(false)
+            .finish(manifest_langs())
+            .expect("again")
+    );
+    let b = bound_package(true).finish(manifest_langs()).expect("b");
+    assert_eq!(a, b);
+    assert_eq!(read(&a).expect("a").hash(), read(&b).expect("b").hash());
+    // And a package with every section at once.
+    let build = |reverse| {
+        let mut b = bound_package(reverse);
+        face_for(&mut b);
+        page_and_images(&mut b, ["a.png", "icon/b.svg"]);
+        b.script("s.js", b"1");
+        b.asset_ref("portrait:x");
+        b.finish(manifest_langs()).expect("finish")
+    };
+    assert_eq!(build(false), build(true));
+}
+
+fn schema_for_paths() -> MapView {
+    MapView::default()
+        .ty("game.turn", "int")
+        .ty("game.cities", "list<struct game.cities[]>")
+        .ty("game.cities[].id", "key<city>")
+        .intent(
+            "unit.action",
+            &[("unit", "key<unit>"), ("action", "enum(fortify|sleep)")],
+        )
+}
+
+#[test]
+fn used_paths_and_intents_are_checked_against_the_schema() {
+    let bytes = bound_package(false)
+        .finish(manifest_langs())
+        .expect("finish");
+    let pkg = read(&bytes).expect("read");
+    pkg.check_paths(&schema_for_paths()).expect("same schema");
+
+    // A schema with more is fine.
+    let richer = schema_for_paths().ty("game.extra", "int");
+    pkg.check_paths(&richer).expect("a new field is compatible");
+
+    let incompatible = |view: &dyn SchemaView| {
+        matches!(
+            pkg.check_paths(view),
+            Err(PackageError::Incompatible { .. })
+        )
+    };
+    // A path that changed type.
+    assert!(incompatible(&schema_for_paths().ty("game.turn", "float")));
+    // A path that is gone.
+    let mut gone = schema_for_paths();
+    gone.types.remove("game.turn");
+    assert!(incompatible(&gone));
+    // A list whose element is another record.
+    assert!(incompatible(
+        &schema_for_paths().ty("game.cities", "list<struct other>")
+    ));
+    // An intent that changed its arguments, or is gone.
+    assert!(incompatible(
+        &schema_for_paths().intent("unit.action", &[("unit", "key<unit>")])
+    ));
+    let mut no_intent = schema_for_paths();
+    no_intent.intents.clear();
+    assert!(incompatible(&no_intent));
+}
+
+#[test]
+fn bad_data_for_the_new_sections_is_refused() {
+    let t0 = TemplateId(0);
+    let refused = |what: &str, change: &dyn Fn(&mut PackageBuilder)| {
+        let mut b = bound_package(false);
+        change(&mut b);
+        assert!(b.finish(manifest_langs()).is_err(), "{what}");
+    };
+    let bind = |tpl: TemplateId, node, kind| Binding { tpl, node, kind };
+    refused("a binding on a missing node", &|b| {
+        b.binding(bind(t0, 99, BindKind::HotkeyLabel));
+    });
+    refused("a binding in a missing template", &|b| {
+        b.binding(bind(TemplateId(9), 0, BindKind::HotkeyLabel));
+    });
+    refused("a template with a missing expression", &|b| {
+        let t = b.tpl(vec![Seg::Expr(ExprId(99))]);
+        b.binding(bind(t0, 0, BindKind::Text(t)));
+    });
+    refused("a binding with a missing template", &|b| {
+        b.binding(bind(t0, 0, BindKind::Text(TplId(99))));
+    });
+    refused("a condition that is not an expression", &|b| {
+        let class = b.str("x");
+        b.binding(bind(
+            t0,
+            0,
+            BindKind::ClassToggle {
+                class,
+                cond: ExprId(99),
+            },
+        ));
+    });
+    refused("an event without actions", &|b| {
+        b.binding(bind(
+            t0,
+            0,
+            BindKind::Event {
+                ev: Event::Click,
+                actions: vec![],
+            },
+        ));
+    });
+    refused("an action with a NaN", &|b| {
+        b.binding(bind(
+            t0,
+            0,
+            BindKind::Event {
+                ev: Event::Click,
+                actions: vec![Action::Set {
+                    path: "state.x".into(),
+                    value: Expr::Float(f64::NAN),
+                }],
+            },
+        ));
+    });
+    refused("a NaN in an expression", &|b| {
+        b.expr(Expr::Float(f64::INFINITY));
+    });
+    refused("an expression nested too deeply", &|b| {
+        let mut deep = Expr::Int(1);
+        for _ in 0..200 {
+            deep = Expr::Unary(expr::UnOp::Not, Box::new(deep));
+        }
+        b.expr(deep);
+    });
+    refused("a call with the wrong number of arguments", &|b| {
+        b.expr(Expr::Call(expr::Func::Clamp, vec![Expr::Int(1)]));
+    });
+    refused("a slider with an empty range", &|b| {
+        b.binding(bind(
+            t0,
+            3,
+            BindKind::Control {
+                kind: ControlKind::Slider,
+                value: None,
+                range: Some([1.0, 1.0, 1.0]),
+                options: None,
+            },
+        ));
+    });
+    refused("a fit that is not finite", &|b| {
+        b.binding(bind(
+            t0,
+            4,
+            BindKind::Fit {
+                min: Some(f32::NAN),
+            },
+        ));
+    });
+    refused("one path with two types", &|b| {
+        b.used_path("game.turn", TypeSig::Bool)
+    });
+    refused("one intent with two signatures", &|b| {
+        b.intent("unit.action", vec![])
+    });
+    refused("two defaults of one state path", &|b| {
+        b.state_default("volume", Lit::Float(0.7));
+    });
+    refused("an empty state list", &|b| {
+        b.state_default("e", Lit::List(vec![]))
+    });
+    refused("a state list of mixed scalars", &|b| {
+        b.state_default(
+            "m",
+            Lit::List(vec![Scalar::Int(1), Scalar::Str("x".into())]),
+        );
+    });
+    refused("a state float that is not finite", &|b| {
+        b.state_default("n", Lit::Float(f64::NAN));
+    });
+    refused("a text for a language the manifest lacks", &|b| {
+        b.l10n("de_DE", "k", "v")
+    });
+    refused("one text twice", &|b| b.l10n("en_US", "top.next", "Other"));
+    refused("a slot twice", &|b| b.slot("mods", node(0, 0)));
+    refused("a slot on a missing node", &|b| b.slot("x", node(0, 99)));
+    refused("a part in a missing template", &|b| b.part("x", node(9, 0)));
+    refused("a screen on a missing node", &|b| b.screen("x", node(1, 5)));
+    refused("an island twice", &|b| b.island("clock", node(0, 4), &[]));
+    refused("an island key on a missing node", &|b| {
+        b.island("other", node(0, 4), &[("k", 99)]);
+    });
+    refused("a hotkey with an unknown modifier", &|b| {
+        b.hotkey("KeyZ", 8, node(0, 3))
+    });
+    refused("a hotkey twice", &|b| b.hotkey("F5", 0, node(0, 3)));
+    refused("a tooltip with a missing template", &|b| {
+        b.tooltip(node(0, 4), TemplateId(9))
+    });
+    refused("a tooltip twice", &|b| b.tooltip(node(0, 3), TemplateId(1)));
+    let place = SrcLoc {
+        file: 0,
+        line: 1,
+        col: 1,
+    };
+    refused("a source map that misses nodes", &|b| {
+        b.source_map(&["a.html"], vec![vec![place]]);
+    });
+    refused("a source place in a missing file", &|b| {
+        let at = SrcLoc { file: 5, ..place };
+        b.source_map(&["a.html"], vec![vec![at; 5], vec![at; 2], vec![at]]);
+    });
+    for path in [
+        "/abs/skin.html",
+        "C:/skin.html",
+        "a\\b.html",
+        "../skin.html",
+        "",
+    ] {
+        refused("a source path of the build machine", &|b| {
+            b.source_map(&[path], vec![vec![place; 5], vec![place; 2], vec![place]]);
+        });
+    }
+}
+
+fn section_range(bytes: &[u8], tag: &[u8; 4]) -> Option<std::ops::Range<usize>> {
+    let count = u32::from_le_bytes(bytes[12..16].try_into().expect("count")) as usize;
+    (0..count).find_map(|i| {
+        let at = 16 + 16 * i;
+        if &bytes[at..at + 4] != tag {
+            return None;
+        }
+        let word = |o: usize| {
+            u32::from_le_bytes(bytes[at + o..at + o + 4].try_into().expect("word")) as usize
+        };
+        Some(word(8)..word(8) + word(12))
+    })
+}
+
+#[test]
+fn damaged_new_sections_are_refused_or_read_but_never_panic() {
+    let bytes = bound_package(false)
+        .finish(manifest_langs())
+        .expect("finish");
+    let mut refused = 0;
+    let mut total = 0;
+    for tag in [b"BIND", b"L10N", b"EXTN", b"SRCM"] {
+        let range = section_range(&bytes, tag).expect("section present");
+        assert!(!range.is_empty());
+        for i in range {
+            for bit in [0u8, 2, 5, 7] {
+                let mut damaged = bytes.clone();
+                damaged[i] ^= 1 << bit;
+                rehash(&mut damaged);
+                total += 1;
+                if read(&damaged).is_err() {
+                    refused += 1;
+                }
+            }
+        }
+    }
+    // Most flips break an index, a length or a variant; the rest are other valid values.
+    assert!(refused * 3 > total, "{refused} of {total}");
+    for n in 0..bytes.len() {
+        assert!(read(&bytes[..n]).is_err(), "prefix {n}");
+    }
+}
+
+#[test]
+fn nesting_that_would_overflow_the_stack_is_refused_when_decoding() {
+    use ui2_package::Bindings;
+    let mut deep = Expr::Int(1);
+    for _ in 0..expr::MAX_DEPTH + 20 {
+        deep = Expr::Unary(expr::UnOp::Neg, Box::new(deep));
+    }
+    let section = Bindings {
+        exprs: vec![deep],
+        ..Bindings::default()
+    };
+    let bytes = postcard::to_allocvec(&section).expect("encode");
+    assert!(postcard::from_bytes::<Bindings>(&bytes).is_err());
+
+    let mut ty = TypeSig::Int;
+    for _ in 0..100 {
+        ty = TypeSig::List(Box::new(ty));
+    }
+    let section = Bindings {
+        used_paths: vec![(StrId(0), ty)],
+        ..Bindings::default()
+    };
+    let bytes = postcard::to_allocvec(&section).expect("encode");
+    assert!(postcard::from_bytes::<Bindings>(&bytes).is_err());
+    // A type of ordinary depth decodes.
+    let ok = Bindings {
+        used_paths: vec![(StrId(0), parse_type("list<struct a.b[]>?"))],
+        ..Bindings::default()
+    };
+    let bytes = postcard::to_allocvec(&ok).expect("encode");
+    assert_eq!(postcard::from_bytes::<Bindings>(&bytes), Ok(ok));
 }

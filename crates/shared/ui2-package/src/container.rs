@@ -48,6 +48,14 @@ impl SectionTag {
     pub const STYL: SectionTag = SectionTag(*b"STYL");
     /// Color tokens and themes.
     pub const TOKN: SectionTag = SectionTag(*b"TOKN");
+    /// Bindings, expressions, intents and state.
+    pub const BIND: SectionTag = SectionTag(*b"BIND");
+    /// The skin's texts by language.
+    pub const L10N: SectionTag = SectionTag(*b"L10N");
+    /// Extension points, parts, screens, islands, hotkeys and tooltips.
+    pub const EXTN: SectionTag = SectionTag(*b"EXTN");
+    /// The source map.
+    pub const SRCM: SectionTag = SectionTag(*b"SRCM");
     /// Font faces.
     pub const FONT: SectionTag = SectionTag(*b"FONT");
     /// Picture pages and sprites.

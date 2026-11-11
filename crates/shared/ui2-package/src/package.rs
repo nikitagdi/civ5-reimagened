@@ -7,11 +7,17 @@ use ruzstd::decoding::FrameDecoder;
 
 use crate::container::{self, FLAG_REQUIRED, Layout, PackageHash, SectionTag};
 use crate::error::PackageError;
-use crate::ids::{ARefId, StrId, StyleSetId, TemplateId};
+use crate::ids::{ARefId, ExprId, NodeRef, StrId, StyleSetId, TemplateId, TplId};
+use crate::profile::expr::Expr;
+use crate::profile::{SchemaView, TypeSig, resolve_path};
+use crate::sections::bindings::{Binding, Bindings, Lit, Seg};
 use crate::sections::blobs::{
     self, ARefs, BlobRef, BlobSection, Face, Fonts, Images, Page, Scripts,
 };
+use crate::sections::extn::{Extn, Hotkey, Island};
+use crate::sections::l10n::L10n;
 use crate::sections::manifest::Manifest;
+use crate::sections::srcmap::SrcMap;
 use crate::sections::strings::StringTable;
 use crate::sections::styles::{StyleSet, Styles};
 use crate::sections::templates::{Template, Templates};
@@ -26,19 +32,26 @@ pub(crate) const KNOWN: &[SectionTag] = &[
     SectionTag::TMPL,
     SectionTag::STYL,
     SectionTag::TOKN,
+    SectionTag::BIND,
+    SectionTag::L10N,
+    SectionTag::EXTN,
+    SectionTag::SRCM,
     SectionTag::FONT,
     SectionTag::IMGS,
     SectionTag::SCRP,
     SectionTag::AREF,
 ];
 
-/// Sections every package carries (`IMGS`, `SCRP` and `AREF` only when the skin has any).
+/// Sections every package carries (`IMGS`, `SCRP`, `AREF` and `SRCM` only when the skin has any).
 pub(crate) const PRESENT: &[SectionTag] = &[
     SectionTag::MANI,
     SectionTag::STRS,
     SectionTag::TMPL,
     SectionTag::STYL,
     SectionTag::TOKN,
+    SectionTag::BIND,
+    SectionTag::L10N,
+    SectionTag::EXTN,
     SectionTag::FONT,
 ];
 
@@ -55,6 +68,10 @@ pub struct Package {
     templates: Templates,
     styles: Styles,
     tokens: Tokens,
+    bindings: Bindings,
+    l10n: L10n,
+    extn: Extn,
+    srcmap: Option<SrcMap>,
     fonts: Fonts,
     images: Images,
     scripts: Scripts,
@@ -130,6 +147,13 @@ impl Package {
         let templates: Templates = container::decode(SectionTag::TMPL, section(SectionTag::TMPL)?)?;
         let styles: Styles = container::decode(SectionTag::STYL, section(SectionTag::STYL)?)?;
         let tokens: Tokens = container::decode(SectionTag::TOKN, section(SectionTag::TOKN)?)?;
+        let bindings: Bindings = container::decode(SectionTag::BIND, section(SectionTag::BIND)?)?;
+        let l10n: L10n = container::decode(SectionTag::L10N, section(SectionTag::L10N)?)?;
+        let extn: Extn = container::decode(SectionTag::EXTN, section(SectionTag::EXTN)?)?;
+        let srcmap: Option<SrcMap> = match layout.payload(&bytes, SectionTag::SRCM) {
+            Some(p) => Some(container::decode(SectionTag::SRCM, p)?),
+            None => None,
+        };
 
         let (fonts, font_area): (Fonts, _) =
             blob_section(&layout, &bytes, SectionTag::FONT)?.unwrap_or_default();
@@ -152,6 +176,10 @@ impl Package {
             images: &images,
             scripts: &scripts,
             arefs: &arefs,
+            bindings: &bindings,
+            l10n: &l10n,
+            extn: &extn,
+            srcmap: srcmap.as_ref(),
             font_area: font_area.len(),
             image_area: image_area.len(),
             script_area: script_area.len(),
@@ -164,6 +192,10 @@ impl Package {
             templates,
             styles,
             tokens,
+            bindings,
+            l10n,
+            extn,
+            srcmap,
             fonts,
             images,
             scripts,
@@ -236,6 +268,141 @@ impl Package {
     /// The color tokens and themes.
     pub fn tokens(&self) -> &Tokens {
         &self.tokens
+    }
+
+    /// The bindings section as stored.
+    pub fn bindings(&self) -> &Bindings {
+        &self.bindings
+    }
+
+    /// One expression tree.
+    pub fn expr(&self, id: ExprId) -> Option<&Expr> {
+        self.bindings.exprs.get(id.index())
+    }
+
+    /// The pieces of one text template.
+    pub fn tpl(&self, id: TplId) -> Option<&[Seg]> {
+        self.bindings.tpls.get(id.index()).map(Vec::as_slice)
+    }
+
+    /// The bindings of one node, in the order they were written; empty when it has none.
+    pub fn bindings_of(&self, tpl: TemplateId, node: u32) -> &[Binding] {
+        let items = &self.bindings.items;
+        let key = |b: &Binding| (b.tpl.index(), b.node);
+        let from = items.partition_point(|b| key(b) < (tpl.index(), node));
+        let to = items.partition_point(|b| key(b) <= (tpl.index(), node));
+        &items[from..to]
+    }
+
+    /// The skin's state paths (without `state.`) with their default values, ascending.
+    pub fn state_defaults(&self) -> impl Iterator<Item = (&str, &Lit)> + '_ {
+        self.bindings
+            .state
+            .iter()
+            .filter_map(|(path, lit)| Some((self.str(*path)?, lit)))
+    }
+
+    /// The model paths the skin reads and the types it expects, ascending by path.
+    pub fn used_paths(&self) -> impl Iterator<Item = (&str, &TypeSig)> + '_ {
+        self.bindings
+            .used_paths
+            .iter()
+            .filter_map(|(path, ty)| Some((self.str(*path)?, ty)))
+    }
+
+    /// The catalogue intents the skin sends with their argument types.
+    pub fn intents(&self) -> impl Iterator<Item = (&str, &[TypeSig])> + '_ {
+        self.bindings
+            .intents
+            .iter()
+            .filter_map(|(name, args)| Some((self.str(*name)?, args.as_slice())))
+    }
+
+    /// The script handlers markup calls, ascending.
+    pub fn handlers(&self) -> impl Iterator<Item = &str> + '_ {
+        self.bindings.handlers.iter().filter_map(|h| self.str(*h))
+    }
+
+    /// The languages of the skin's texts; the first is the fallback.
+    pub fn languages(&self) -> &[String] {
+        &self.manifest.languages
+    }
+
+    /// The text template of a key in a language, `None` when either is unknown.
+    pub fn l10n(&self, lang: &str, key: &str) -> Option<&str> {
+        self.l10n.get(lang, self.str_id(key)?)
+    }
+
+    /// The extension points for mods and their nodes, ascending by name.
+    pub fn slots(&self) -> impl Iterator<Item = (&str, NodeRef)> + '_ {
+        self.named(&self.extn.slots)
+    }
+
+    /// The named parts and their nodes, ascending by name.
+    pub fn parts(&self) -> impl Iterator<Item = (&str, NodeRef)> + '_ {
+        self.named(&self.extn.parts)
+    }
+
+    /// The screens the skin implements and their root nodes, ascending by id.
+    pub fn screens(&self) -> impl Iterator<Item = (&str, NodeRef)> + '_ {
+        self.named(&self.extn.screens)
+    }
+
+    fn named<'a>(
+        &'a self,
+        list: &'a [(StrId, NodeRef)],
+    ) -> impl Iterator<Item = (&'a str, NodeRef)> + 'a {
+        list.iter()
+            .filter_map(|(n, node)| Some((self.str(*n)?, *node)))
+    }
+
+    /// The script islands, ascending by id.
+    pub fn islands(&self) -> &[Island] {
+        &self.extn.islands
+    }
+
+    /// The hotkeys, ascending by `(code, mods, node)`.
+    pub fn hotkeys(&self) -> &[Hotkey] {
+        &self.extn.hotkeys
+    }
+
+    /// The tooltip templates: the node that shows one and the template, ascending by node.
+    pub fn tooltips(&self) -> &[(NodeRef, TemplateId)] {
+        &self.extn.tooltips
+    }
+
+    /// Where a node came from in the skin's source: file, line, column. `None` without a map.
+    pub fn source_loc(&self, tpl: TemplateId, node: u32) -> Option<(&str, u32, u16)> {
+        let map = self.srcmap.as_ref()?;
+        let loc = map.templates.get(tpl.index())?.get(node as usize)?;
+        Some((
+            map.files.get(usize::from(loc.file))?.as_str(),
+            loc.line,
+            loc.col,
+        ))
+    }
+
+    /// Checks that every model path and intent the skin uses exists in the client's schema with
+    /// the same type. The host calls this before it replaces the running skin.
+    pub fn check_paths(&self, view: &dyn SchemaView) -> Result<(), PackageError> {
+        for (path, want) in self.used_paths() {
+            if resolve_path(view, path).as_ref() != Some(want) {
+                return Err(PackageError::Incompatible {
+                    need: format!("model path {path} of type {want}"),
+                });
+            }
+        }
+        for (name, want) in self.intents() {
+            let have = view
+                .intent(name)
+                .map(|args| args.into_iter().map(|(_, t)| t).collect::<Vec<_>>());
+            if have.as_deref() != Some(want) {
+                return Err(PackageError::Incompatible {
+                    need: format!("intent {name}"),
+                });
+            }
+        }
+        Ok(())
     }
 
     /// The font faces, for the text stack.

@@ -2,8 +2,12 @@
 
 use crate::container::SectionTag;
 use crate::error::PackageError;
+use crate::sections::bindings::Bindings;
 use crate::sections::blobs::{ARefs, Fonts, Images, Scripts};
+use crate::sections::extn::Extn;
+use crate::sections::l10n::L10n;
 use crate::sections::manifest::Manifest;
+use crate::sections::srcmap::SrcMap;
 use crate::sections::strings::StringTable;
 use crate::sections::styles::Styles;
 use crate::sections::templates::{Limits, Templates};
@@ -20,6 +24,10 @@ pub(crate) struct Parts<'a> {
     pub images: &'a Images,
     pub scripts: &'a Scripts,
     pub arefs: &'a ARefs,
+    pub bindings: &'a Bindings,
+    pub l10n: &'a L10n,
+    pub extn: &'a Extn,
+    pub srcmap: Option<&'a SrcMap>,
     pub font_area: usize,
     pub image_area: usize,
     pub script_area: usize,
@@ -39,13 +47,18 @@ pub(crate) fn check(p: &Parts<'_>) -> Result<(), PackageError> {
     let limits = Limits {
         strs,
         style_sets: p.styles.sets.len(),
-        // The tables of BIND are checked when that section exists.
-        exprs: usize::MAX,
-        tpls: usize::MAX,
+        exprs: p.bindings.exprs.len(),
+        tpls: p.bindings.tpls.len(),
         imgs: p.images.imgs.len(),
         arefs: p.arefs.items.len(),
     };
     p.templates.validate(SectionTag::TMPL, &limits)?;
+    p.bindings.validate(SectionTag::BIND, strs, p.templates)?;
+    p.l10n.validate(SectionTag::L10N, strs, p.manifest)?;
+    p.extn.validate(SectionTag::EXTN, strs, p.templates)?;
+    if let Some(map) = p.srcmap {
+        map.validate(SectionTag::SRCM, p.templates)?;
+    }
 
     // The themes of the manifest and of TOKN are the same list.
     let themes = &p.manifest.themes;

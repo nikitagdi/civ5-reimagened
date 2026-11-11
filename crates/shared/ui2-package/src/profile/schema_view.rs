@@ -3,9 +3,32 @@
 //! `ui2-model` implements `SchemaView` for its `Schema`; this crate only consumes it, so the
 //! dependency runs model to package and never back.
 
+use std::cell::Cell;
 use std::fmt;
 
-use serde::{Deserialize, Serialize};
+use serde::de::Error as _;
+use serde::{Deserialize, Deserializer, Serialize};
+
+/// The deepest nesting of a decoded type (`list<list<...>>`, `T??`). The schema has at most a few
+/// levels; the limit only keeps damaged bytes from overflowing the stack.
+const MAX_TYPE_DEPTH: usize = 16;
+
+thread_local! {
+    static TYPE_DEPTH: Cell<usize> = const { Cell::new(0) };
+}
+
+fn de_nested<'de, D: Deserializer<'de>>(d: D) -> Result<Box<TypeSig>, D::Error> {
+    TYPE_DEPTH.with(|depth| {
+        let level = depth.get();
+        if level >= MAX_TYPE_DEPTH {
+            return Err(D::Error::custom("type nested too deeply"));
+        }
+        depth.set(level + 1);
+        let result = TypeSig::deserialize(d);
+        depth.set(level);
+        result.map(Box::new)
+    })
+}
 
 /// The type of a model path or an expression.
 ///
@@ -29,11 +52,11 @@ pub enum TypeSig {
     /// One of the named values.
     Enum(Vec<String>),
     /// A list of the element type.
-    List(Box<TypeSig>),
+    List(#[serde(deserialize_with = "de_nested")] Box<TypeSig>),
     /// A record of the named type.
     Struct(String),
     /// A value that may be `null`.
-    Opt(Box<TypeSig>),
+    Opt(#[serde(deserialize_with = "de_nested")] Box<TypeSig>),
     /// A game asset reference.
     Asset,
 }
