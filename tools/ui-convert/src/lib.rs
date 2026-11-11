@@ -26,6 +26,7 @@ pub mod build;
 pub mod check;
 pub mod errors;
 pub mod fonts;
+pub mod index;
 pub mod ir;
 pub mod l10n;
 pub mod node;
@@ -35,6 +36,7 @@ pub mod script;
 pub mod select;
 pub mod skin;
 pub mod styles;
+pub mod verify;
 pub mod write;
 
 use std::collections::BTreeSet;

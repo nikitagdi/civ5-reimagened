@@ -34,9 +34,12 @@ toml.workspace = true
 # Font and picture blobs are zstd frames (level 19); package and cache keys are blake3.
 zstd.workspace = true
 blake3.workspace = true
-
-[dev-dependencies]
-# The end-to-end layout check runs the package in the runtime with the text engine (tool -> client).
+# `verify`: the package runs natively in the runtime with the text engine, and its rectangles are compared with
+# Chromium's (tool -> client).
 ui2-runtime.workspace = true
 ui2-text.workspace = true
 ui2-draw.workspace = true
+
+[dev-dependencies]
+# The written skin index must be accepted by the application's registry.
+ui2-host.workspace = true

@@ -3,7 +3,8 @@
 //! ```text
 //! ui2-convert check  <skin> [--dump-ir <file>] [--from-ir <file>]
 //! ui2-convert build  <skin> [--dump-ir <file>]   (the package in target/ui2/<id>/)
-//! ui2-convert verify <skin>        (not yet: layout check against the runtime)
+//! ui2-convert verify <skin> [--state <name>]   (the runtime's layout against Chromium's)
+//! ui2-convert web    <web-dir>    (every skin of skins/ into <web-dir>/ui2/ with skins.json)
 //! ```
 //!
 //! `<skin>` is a folder with `skin.toml` or the id of a folder under `skins/`. Errors go to
@@ -15,7 +16,7 @@ use std::process::ExitCode;
 
 use ui2_convert::{Input, Run, check_skin};
 
-const USAGE: &str = "usage: ui2-convert check <skin> [--dump-ir <file>] [--from-ir <file>]\n       ui2-convert build <skin>\n       ui2-convert verify <skin> [--state <name>]";
+const USAGE: &str = "usage: ui2-convert check <skin> [--dump-ir <file>] [--from-ir <file>]\n       ui2-convert build <skin>\n       ui2-convert verify <skin> [--state <name>]\n       ui2-convert web <web-dir>";
 
 /// The skin folder of an argument: an existing folder, or `skins/<id>` of the repository.
 fn skin_dir(arg: &str) -> Option<PathBuf> {
@@ -31,6 +32,80 @@ fn skin_dir(arg: &str) -> Option<PathBuf> {
         }
     }
     None
+}
+
+/// The first `[verify] states` entry of a skin.
+fn first_state(dir: &Path) -> Option<String> {
+    let text = std::fs::read_to_string(dir.join("skin.toml")).ok()?;
+    let t: toml::Table = text.parse().ok()?;
+    t.get("verify")?
+        .get("states")?
+        .as_array()?
+        .first()?
+        .as_str()
+        .map(str::to_string)
+}
+
+/// `web <web-dir>`: builds every skin under `skins/` and publishes the packages and `skins.json` into
+/// `<web-dir>/ui2/`.
+fn web(web_dir: &str) -> ExitCode {
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..");
+    let skins = repo.join("skins");
+    let mut ids: Vec<PathBuf> = match std::fs::read_dir(&skins) {
+        Ok(rd) => rd
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.join("skin.toml").is_file())
+            .collect(),
+        Err(e) => {
+            eprintln!("ui2-convert: cannot read {}: {e}", skins.display());
+            return ExitCode::from(2);
+        }
+    };
+    ids.sort();
+    let mut packages = Vec::new();
+    let mut failed = false;
+    for dir in &ids {
+        let out = ui2_convert::build::build(dir, true);
+        for e in &out.run.errors {
+            eprintln!("{e}\n");
+        }
+        match out.written {
+            Some(w) if out.run.errors.is_empty() => {
+                println!(
+                    "skin {}: {} ({} bytes)",
+                    dir.display(),
+                    w.file_name,
+                    w.bytes.len()
+                );
+                packages.push(out.out_dir.join(&w.file_name));
+            }
+            _ => {
+                eprintln!("ui2-convert: skin {} did not build", dir.display());
+                failed = true;
+            }
+        }
+    }
+    if failed {
+        return ExitCode::from(1);
+    }
+    match ui2_convert::index::publish(Path::new(web_dir), &packages) {
+        Ok(entries) => {
+            println!(
+                "ui2: {} skin(s) and {} in {}",
+                entries.len(),
+                ui2_convert::index::INDEX_FILE,
+                Path::new(web_dir)
+                    .join(ui2_convert::index::UI2_DIR)
+                    .display()
+            );
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("ui2-convert: {e}");
+            ExitCode::from(1)
+        }
+    }
 }
 
 fn report(run: &Run) -> ExitCode {
@@ -58,14 +133,13 @@ fn main() -> ExitCode {
     let mut skin = None;
     let mut dump_ir = None;
     let mut from_ir = None;
+    let mut state = None;
     let mut it = args[1..].iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--dump-ir" => dump_ir = it.next().cloned(),
             "--from-ir" => from_ir = it.next().cloned(),
-            "--state" => {
-                it.next();
-            }
+            "--state" => state = it.next().cloned(),
             s if s.starts_with("--") => {
                 eprintln!("unknown option {s}\n{USAGE}");
                 return ExitCode::from(2);
@@ -77,6 +151,9 @@ fn main() -> ExitCode {
         eprintln!("{USAGE}");
         return ExitCode::from(2);
     };
+    if cmd == "web" {
+        return web(&skin);
+    }
     let Some(dir) = skin_dir(&skin) else {
         eprintln!(
             "ui2-convert: `{skin}` is neither a folder with skin.toml nor a skin id under skins/"
@@ -132,8 +209,35 @@ fn main() -> ExitCode {
             report(&out.run)
         }
         "verify" => {
-            eprintln!("ui2-convert verify: not implemented yet (the layout check comes later)");
-            ExitCode::from(2)
+            let state = match state {
+                Some(s) => s,
+                None => match first_state(&dir) {
+                    Some(s) => s,
+                    None => {
+                        eprintln!("ui2-convert: skin.toml lists no [verify] states; pass --state");
+                        return ExitCode::from(2);
+                    }
+                },
+            };
+            match ui2_convert::verify::verify(&dir, &state) {
+                Ok(o) => {
+                    for l in o.report.lines() {
+                        println!("{l}");
+                    }
+                    if o.report.ok() {
+                        ExitCode::SUCCESS
+                    } else {
+                        ExitCode::from(1)
+                    }
+                }
+                Err(errs) => {
+                    for e in &errs {
+                        eprintln!("{e}\n");
+                    }
+                    eprintln!("ui2-convert: {} error(s)", errs.len());
+                    ExitCode::from(1)
+                }
+            }
         }
         other => {
             eprintln!("unknown command {other}\n{USAGE}");
