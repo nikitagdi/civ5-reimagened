@@ -235,3 +235,422 @@
   color: var(--bone-3);
   font-weight: 400;
 }
+
+/* ---------- notifications (right edge, newest on top) ---------- */
+.notes {
+  position: absolute;
+  right: 0;
+  top: 64px;
+  width: 328px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+/* Seven notes at most; older ones are cut at the bottom (the log has them all). */
+.notes .list {
+  width: 328px;
+  max-height: 444px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.note {
+  --c: 10px;
+  position: relative;
+  flex: none;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px 0 16px;
+  cursor: pointer;
+  transition: background-color 150ms var(--ease);
+}
+
+.note:hover {
+  background-color: var(--lacquer-2);
+}
+
+.note .ic {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background-color: var(--lacquer-0);
+  box-shadow: inset 0 0 0 1px var(--engrave);
+}
+
+.note .tx {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.note .msg {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--bone);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note .cat {
+  display: flex;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bone-3);
+}
+
+.note .x {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--bone-3);
+  opacity: 0;
+  transition: opacity 150ms var(--ease), background-color 150ms var(--ease);
+}
+
+.note:hover .x {
+  opacity: 1;
+}
+
+.note .x:hover {
+  color: var(--bone);
+  background-color: var(--lacquer-3);
+}
+
+.notes .more {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bone-3);
+  background-color: var(--lacquer);
+  box-shadow: inset 0 0 0 1px var(--engrave);
+  border-radius: 4px 0 0 4px;
+  pointer-events: auto;
+  transition: color 150ms var(--ease);
+}
+
+.notes .more:hover {
+  color: var(--bone);
+}
+
+.notes .more .key {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-bottom-width: 1px;
+  font-size: 11px;
+}
+
+/* Mod panels under the notes. */
+.notes .right {
+  width: 328px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* ---------- the selected unit (bottom left) ---------- */
+.unit {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 520px;
+  min-height: 212px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.unit .head {
+  display: flex;
+  gap: 16px;
+}
+
+/* The portrait is a game asset over a silhouette: without the asset the silhouette shows. */
+.portrait {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 4px;
+  background-color: var(--lacquer-0);
+  box-shadow: inset 0 0 0 1px var(--engrave);
+}
+
+.portrait .sil {
+  position: absolute;
+  left: 16px;
+  top: 20px;
+  width: 72px;
+  height: 84px;
+  color: var(--lacquer-3);
+}
+
+.portrait .pic {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 104px;
+  height: 104px;
+}
+
+.unit .info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.unit .title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.unit .title .nm {
+  font: 500 26px/30px var(--serif);
+  color: var(--bone);
+}
+
+.unit .title .ty {
+  font-size: 14px;
+  color: var(--bone-2);
+}
+
+.unit .title .state {
+  font-size: 12px;
+  color: var(--brass);
+}
+
+.unit .title .lvl {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--bone-3);
+}
+
+.stats {
+  display: flex;
+  border-top: 1px solid var(--engrave);
+  border-bottom: 1px solid var(--engrave);
+}
+
+.stat {
+  flex: 1 1 0px;
+  min-width: 0;
+  padding: 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat.sep {
+  padding-left: 12px;
+  box-shadow: inset 1px 0 0 var(--engrave);
+}
+
+.stat .k {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bone-3);
+}
+
+.stat .k svg.i {
+  width: 14px;
+  height: 14px;
+}
+
+.stat .v {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  line-height: 22px;
+  font-weight: 500;
+  color: var(--bone);
+  white-space: nowrap;
+}
+
+.stat .v .of,
+.stat .v .rng {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--bone-3);
+}
+
+.pips {
+  display: flex;
+  gap: 3px;
+}
+
+.pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  box-shadow: inset 0 0 0 1px var(--engrave-hi);
+}
+
+.pip.on {
+  background-color: var(--bone-2);
+  box-shadow: none;
+}
+
+.hpbar {
+  position: relative;
+  width: 40px;
+  height: 4px;
+  background-color: var(--lacquer-3);
+}
+
+.hpbar .fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background-color: var(--y-food);
+}
+
+.hpbar .fill.low {
+  background-color: var(--neg);
+}
+
+.promos {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 22px;
+  font-size: 13px;
+  color: var(--bone-2);
+  white-space: nowrap;
+}
+
+.promos .ready {
+  font-size: 12px;
+  color: var(--brass);
+}
+
+.promos .none {
+  color: var(--bone-3);
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background-color: var(--lacquer-2);
+  box-shadow: inset 0 0 0 1px var(--engrave);
+  font-size: 12px;
+  color: var(--bone);
+}
+
+.chip svg.i {
+  width: 12px;
+  height: 12px;
+  color: var(--bone-2);
+}
+
+/* One static button per order (the core says which are shown and enabled); rows wrap upwards. */
+.actions,
+.actions .acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.act {
+  position: relative;
+  width: 56px;
+  height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 6px;
+  color: var(--bone-2);
+  background-color: var(--lacquer-0);
+  box-shadow: inset 0 0 0 1px var(--engrave);
+  transition: background-color 150ms var(--ease), color 150ms var(--ease);
+}
+
+.act svg.i {
+  width: 18px;
+  height: 18px;
+}
+
+.act .lb {
+  font-size: 12px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.act .key {
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-bottom-width: 1px;
+  font-size: 11px;
+}
+
+.act:hover {
+  background-color: var(--lacquer-2);
+  color: var(--bone);
+}
+
+.act:focus-visible {
+  outline: 1px solid var(--brass);
+  outline-offset: -2px;
+}
+
+.act:disabled {
+  color: var(--engrave-hi);
+  background-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--lacquer-3);
+  cursor: default;
+}
+
+.act:disabled .key {
+  color: var(--engrave-hi);
+  border-color: var(--lacquer-3);
+}
+
+.act.gap {
+  margin-left: 8px;
+  width: 60px;
+}
+
+.act.danger:hover {
+  color: var(--neg);
+}

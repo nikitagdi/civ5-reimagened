@@ -82,6 +82,47 @@ svg.i.fill {
   stroke: none;
 }
 
+/* A keycap: the name of the key that does what its button does. */
+.key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--engrave);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background-color: var(--lacquer-0);
+  font: 500 12px/14px var(--sans);
+  color: var(--bone-2);
+  white-space: nowrap;
+}
+
+/* Plates: docked surfaces with one chamfered corner; the cut is drawn by a hairline across the corner. */
+.plate {
+  --c: 12px;
+  background-color: var(--lacquer);
+  box-shadow: inset 0 0 0 1px var(--engrave);
+  pointer-events: auto;
+}
+
+.plate.tl {
+  clip-path: polygon(var(--c) 0, 100% 0, 100% 100%, 0 100%, 0 var(--c));
+  background-image: linear-gradient(to top left, transparent calc(50% - 1px), var(--engrave) calc(50% - 1px), var(--engrave) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+  background-size: var(--c) var(--c);
+  background-position: top left;
+  background-repeat: no-repeat;
+}
+
+.plate.tr {
+  clip-path: polygon(0 0, calc(100% - var(--c)) 0, 100% var(--c), 100% 100%, 0 100%);
+  background-image: linear-gradient(to top right, transparent calc(50% - 1px), var(--engrave) calc(50% - 1px), var(--engrave) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+  background-size: var(--c) var(--c);
+  background-position: top right;
+  background-repeat: no-repeat;
+}
+
 .muted { color: var(--bone-3); }
 .sec { color: var(--bone-2); }
 .c-food { color: var(--y-food); }

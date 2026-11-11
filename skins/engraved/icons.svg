@@ -47,6 +47,7 @@
 <symbol id="i-build" viewBox="0 0 16 16"><path d="M2.5 14.5V6L8 2.5 13.5 6v8.5z"/><path d="M6.5 14.5v-4h3v4"/></symbol>
 <symbol id="i-wonder" viewBox="0 0 16 16"><path d="M1.5 14.5h13L8 2.5z"/><path d="M5 9h6M3.5 12h9"/></symbol>
 <symbol id="i-queue" viewBox="0 0 16 16"><path d="M2.5 4h11M2.5 8h11M2.5 12h7"/></symbol>
-<symbol id="i-star" viewBox="0 0 16 16"><path d="M8 1.8l1.8 3.9 4.2.5-3.1 2.9.8 4.2L8 11.2l-3.7 2.1.8-4.2L2 6.2l4.2-.5z"/></symbol>
+<symbol id="i-unit" viewBox="0 0 72 84"><path d="M36 6c-9 0-15 6-15 14v2l-3 3h6v4c0 8 5 15 12 15s12-7 12-15v-4h6l-3-3v-2c0-8-6-14-15-14z"/><path d="M6 84c1-16 11-27 30-27s29 11 30 27z"/></symbol>
+<symbol id="i-star"viewBox="0 0 16 16"><path d="M8 1.8l1.8 3.9 4.2.5-3.1 2.9.8 4.2L8 11.2l-3.7 2.1.8-4.2L2 6.2l4.2-.5z"/></symbol>
 </defs>
 </svg>
