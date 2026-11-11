@@ -5519,7 +5519,8 @@ impl Renderer {
                                     depth_slice: None,
                                     resolve_target: None,
                                     ops: wgpu::Operations {
-                                        load: wgpu::LoadOp::Load,
+                                        // Cleared with the scene's solid background, if it has one.
+                                        load: ui2.load_op(),
                                         store: wgpu::StoreOp::Store,
                                     },
                                 })],

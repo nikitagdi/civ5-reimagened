@@ -34,7 +34,7 @@ use ui2_draw::{LayerChange, LayerId, Scene};
 use crate::perf::gpu_mem::{Buf, Cluster, DeviceTrack, Tex};
 use crate::ui_pass::{UiExternal, UiTarget, UiTextures};
 
-pub use gpu_atlas::{ImageArray, MIN_LAYERS, MaskArray, MaskSource};
+pub use gpu_atlas::{ImageArray, MIN_LAYERS, MaskArray, MaskSource, glyph_room};
 
 /// Smallest layer buffer; buffers grow by 1.5x from here.
 const MIN_BUFFER: u64 = 64 * 1024;
@@ -52,6 +52,8 @@ pub struct Ui2Stats {
     pub instances: u64,
     /// Bytes written to the GPU: instances, table segments, glyph pages, the frame constants.
     pub upload_bytes: u64,
+    /// Of `upload_bytes`: the transform and clip table segments (anchors moved by the camera land here).
+    pub table_bytes: u64,
     /// Layers whose instances were written (in full or in ranges).
     pub layers_uploaded: u32,
     /// Bytes of the glyph layers of the coverage array on the GPU.
@@ -66,7 +68,7 @@ pub struct Ui2Stats {
 
 impl Ui2Stats {
     /// Names as `__civ5stats.counters` and the stats table show them.
-    pub fn counters(&self) -> [(&'static str, u64); 11] {
+    pub fn counters(&self) -> [(&'static str, u64); 12] {
         let [map, hud, window, tooltip] = self.layer_draws.map(u64::from);
         [
             ("ui2.draws", u64::from(self.draws)),
@@ -76,6 +78,7 @@ impl Ui2Stats {
             ("ui2.draws.tooltip", tooltip),
             ("ui2.instances", self.instances),
             ("ui2.upload_bytes", self.upload_bytes),
+            ("ui2.table_bytes", self.table_bytes),
             ("ui2.layers_uploaded", u64::from(self.layers_uploaded)),
             ("ui2.atlas.glyph_mb", self.glyph_bytes >> 20),
             ("ui2.atlas.pages_mb", self.page_bytes >> 20),
@@ -222,6 +225,8 @@ pub struct Ui2Pass {
     ops: Vec<DrawOp>,
     /// Nothing was uploaded yet: the first `prepare` writes everything the scene holds.
     fresh: bool,
+    /// The scene's solid background, as the clear value of the target.
+    clear: Option<wgpu::Color>,
     stats: Ui2Stats,
 }
 
@@ -463,6 +468,7 @@ impl Ui2Pass {
             layers: Default::default(),
             ops: Vec::new(),
             fresh: true,
+            clear: None,
             stats: Ui2Stats::default(),
         }
     }
@@ -581,9 +587,18 @@ impl Ui2Pass {
         self.stats
     }
 
-    /// True when `draw` has something to record; the pass is not opened otherwise.
+    /// True when `draw` has something to record or the frame is to be cleared; the pass is not opened otherwise.
     pub fn has_work(&self) -> bool {
-        !self.ops.is_empty()
+        !self.ops.is_empty() || self.clear.is_some()
+    }
+
+    /// How the pass opens its target: cleared with the scene's solid background (`Scene::set_background`, the
+    /// reference images of the UI alone), loaded otherwise (the UI over the frame).
+    pub fn load_op(&self) -> wgpu::LoadOp<wgpu::Color> {
+        match self.clear {
+            Some(c) => wgpu::LoadOp::Clear(c),
+            None => wgpu::LoadOp::Load,
+        }
     }
 
     /// Draw calls and triangles of the last `prepare`.
@@ -621,7 +636,11 @@ impl Ui2Pass {
             stats.upload_bytes += std::mem::size_of::<FrameUniform>() as u64;
         }
 
-        stats.upload_bytes += self.upload_tables(queue, scene, full);
+        self.clear = scene
+            .background()
+            .map(|c| clear_color(c, target.format.is_srgb()));
+        stats.table_bytes = self.upload_tables(queue, scene, full);
+        stats.upload_bytes += stats.table_bytes;
 
         let dirty = scene.take_glyph_dirty();
         let pages = scene.pages();
@@ -631,7 +650,7 @@ impl Ui2Pass {
             pages: pages.mask(),
             pages_changed,
             side: scene.mask_side(),
-            atlas: scene.glyph_atlas(),
+            glyphs: scene.glyphs(),
             dirty: &dirty,
         };
         let (mask_bytes, mask_remade) = self.mask.sync(device, queue, &src, full);
@@ -743,8 +762,9 @@ impl Ui2Pass {
             .sum()
     }
 
-    /// Writes a layer's instances when its revision changed: the changed ranges when the count stayed, the
-    /// whole layer otherwise. Returns the bytes written and whether anything was.
+    /// Writes a layer's instances when its revision changed: the changed ranges when the count stayed, the tail
+    /// from the first changed chunk when the count changed and the buffer has room, the whole layer otherwise.
+    /// Returns the bytes written and whether anything was.
     fn upload_layer(
         &mut self,
         device: &wgpu::Device,
@@ -757,8 +777,14 @@ impl Ui2Pass {
         let revision = scene.layer_revision(layer);
         let instances = scene.layer_instances(layer);
         let lb = &mut self.layers[layer.index()];
+        let fits = (instances.len() * INSTANCE_SIZE) as u64 <= lb.capacity && lb.buffer.is_some();
         let ranges = match change {
             LayerChange::Ranges(r) if !full && lb.len == instances.len() => Some(r),
+            // The instances before `start` are the ones the buffer holds: only the rest is written.
+            LayerChange::Tail(start) if !full && fits && start <= lb.len.min(instances.len()) => {
+                lb.len = instances.len();
+                Some(std::iter::once(start..instances.len()).collect())
+            }
             LayerChange::None if !full && lb.revision == revision => None,
             // A count change, a revision this buffer does not hold (another scene) or the first upload.
             _ => {
@@ -814,6 +840,27 @@ impl Ui2Pass {
             pass.set_vertex_buffer(0, buffer.slice(bytes));
             pass.draw(0..QUAD_VERTICES, 0..op.range.end - op.range.start);
         }
+    }
+}
+
+/// The clear value that stores sRGB colour `c` in a target: the colour itself in a plain target, its linear
+/// value in an sRGB one (which encodes on store).
+fn clear_color(c: ui2_draw::Color, srgb_target: bool) -> wgpu::Color {
+    let ch = |v: u8| {
+        let x = f64::from(v) / 255.0;
+        if !srgb_target {
+            x
+        } else if x <= 0.04045 {
+            x / 12.92
+        } else {
+            ((x + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    wgpu::Color {
+        r: ch(c.0[0]),
+        g: ch(c.0[1]),
+        b: ch(c.0[2]),
+        a: 1.0,
     }
 }
 

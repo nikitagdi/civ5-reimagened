@@ -272,7 +272,11 @@ impl Rig {
                         depth_slice: None,
                         resolve_target: None,
                         ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                            // Opaque black unless the scene has a solid background.
+                            load: match self.pass.load_op() {
+                                wgpu::LoadOp::Load => wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                                op => op,
+                            },
                             store: wgpu::StoreOp::Store,
                         },
                     })],
@@ -442,6 +446,145 @@ fn ui2_unchanged_frame_uploads_nothing_and_a_colour_change_patches_one_instance(
         patched.upload_bytes,
         (2 * INSTANCE_SIZE) as u64,
         "the chunk's range"
+    );
+}
+
+/// Partial upload: a chunk whose instance count changes uploads the layer from that chunk on; a layer that
+/// outgrows its buffer is written whole into a bigger one.
+#[test]
+fn ui2_a_count_change_uploads_the_tail_and_growth_rewrites_the_layer() {
+    let Some(mut rig) = Rig::new(
+        "ui2_count_change_uploads_the_tail",
+        wgpu::Backends::PRIMARY,
+        (64, 32),
+    ) else {
+        return;
+    };
+    let mut scene = Scene::new(1.0);
+    let row = |n: usize, x0: f32, c: Color| {
+        chunk(
+            (0..n)
+                .map(|i| {
+                    Item::Box(BoxItem::solid(
+                        Rect::new(x0 + 8.0 * i as f32, 0.0, 6.0, 6.0),
+                        c,
+                    ))
+                })
+                .collect(),
+        )
+    };
+    scene.set_chunk(LayerId::Hud, ChunkId(1), row(2, 0.0, BLUE));
+    scene.set_chunk(LayerId::Hud, ChunkId(2), row(1, 32.0, RED));
+    let _ = rig.frame(&mut scene);
+    // Chunk 2 grows: instances 2.. are written, chunk 1's are not.
+    scene.set_chunk(LayerId::Hud, ChunkId(2), row(3, 32.0, GREEN));
+    let img = rig.frame(&mut scene);
+    let s = rig.pass.stats();
+    assert_eq!(
+        (s.upload_bytes, s.layers_uploaded),
+        ((3 * INSTANCE_SIZE) as u64, 1)
+    );
+    assert_eq!(rgb(&img, 64, 2, 2), [0, 0, 255]);
+    assert_eq!(rgb(&img, 64, 50, 2), [0, 255, 0]);
+    // Chunk 2 shrinks to one instance: that one is written, the draw is shorter.
+    scene.set_chunk(LayerId::Hud, ChunkId(2), row(1, 32.0, GREEN));
+    let img = rig.frame(&mut scene);
+    let s = rig.pass.stats();
+    assert_eq!((s.upload_bytes, s.instances), (INSTANCE_SIZE as u64, 3));
+    assert_eq!(rgb(&img, 64, 50, 2), [0, 0, 0]);
+    // A chunk appended past the buffer's 64 KiB: a bigger buffer, written whole.
+    let many = MIN_BUFFER as usize / INSTANCE_SIZE + 10;
+    scene.set_chunk(
+        LayerId::Hud,
+        ChunkId(3),
+        row(many, 0.0, Color::rgba(0, 0, 0, 255)),
+    );
+    scene.set_chunk(LayerId::Hud, ChunkId(4), row(1, 16.0, YELLOW));
+    let img = rig.frame(&mut scene);
+    let s = rig.pass.stats();
+    assert_eq!(s.upload_bytes, ((3 + many + 1) * INSTANCE_SIZE) as u64);
+    assert!(rig.pass.layers[LayerId::Hud.index()].capacity > MIN_BUFFER);
+    assert_eq!(rgb(&img, 64, 18, 2), [255, 255, 0]);
+}
+
+/// Glyph eviction on the GPU: small glyph pages, 400 strings of their own sizes through one chunk while a label
+/// stays; the pages are cleared again and again and only dirty rectangles are uploaded. The last frame is the
+/// same, pixel for pixel, as the same chunks drawn by a fresh pass from a fresh scene.
+#[test]
+fn ui2_glyph_eviction_keeps_the_gpu_pages_right() {
+    let size = (200, 60);
+    let Some(mut rig) = Rig::new(
+        "ui2_glyph_eviction_keeps_the_gpu_pages_right",
+        wgpu::Backends::PRIMARY,
+        size,
+    ) else {
+        return;
+    };
+    let mut text = engine();
+    let cfg = ui2_text::AtlasConfig {
+        page_size: 128,
+        max_pages: 4,
+        padding: 1,
+        shelf_quantum: 4,
+    };
+    let line = |text: &mut TextEngine, s: &str, px: f32, y: f32| {
+        let run = text.shape(&RunStyle::new(FIRA, px), s).expect("shape");
+        chunk(vec![Item::Glyphs(Glyphs::from_run(
+            &run, 1.0, 4.0, y, WHITE,
+        ))])
+    };
+    let label = line(&mut text, "Science +42", 14.0, 20.0);
+    let mut scene = Scene::with_atlas(1.0, cfg);
+    scene.set_chunk(LayerId::Hud, ChunkId(1), label.clone());
+    let mut layers = Vec::new();
+    for i in 0..400u32 {
+        let c = line(
+            &mut text,
+            &format!("Tile {i} yields {}", i % 9),
+            11.0 + i as f32 * 0.01,
+            45.0,
+        );
+        scene.set_chunk(LayerId::Window, ChunkId(2), c);
+        scene.resolve(&mut text, 1000.0);
+        let _ = rig.frame(&mut scene);
+        layers.push(rig.pass.mask.layers());
+    }
+    let last = line(&mut text, "Last words", 13.0, 45.0);
+    scene.set_chunk(LayerId::Window, ChunkId(2), last.clone());
+    scene.resolve(&mut text, 1000.0);
+    let evicting = rig.frame(&mut scene);
+    assert!(
+        scene.glyphs().evictions() > 5,
+        "{}",
+        scene.glyphs().evictions()
+    );
+    assert_eq!(scene.stats().atlas_full, 0);
+    // The array grew 2, then 4 layers (powers of two), and never past the store's limit.
+    assert_eq!(*layers.last().unwrap(), 4);
+    assert!(
+        layers.windows(2).filter(|w| w[0] != w[1]).count() <= 2,
+        "{layers:?}"
+    );
+
+    let Some(mut fresh_rig) = Rig::new(
+        "ui2_glyph_eviction_reference",
+        wgpu::Backends::PRIMARY,
+        size,
+    ) else {
+        return;
+    };
+    let mut fresh = Scene::new(1.0);
+    fresh.set_chunk(LayerId::Hud, ChunkId(1), label);
+    fresh.set_chunk(LayerId::Window, ChunkId(2), last);
+    fresh.resolve(&mut text, 1000.0);
+    let reference = fresh_rig.frame(&mut fresh);
+    assert!(
+        reference.chunks(4).any(|p| p[0] == 255),
+        "the reference has text"
+    );
+    assert!(
+        evicting == reference,
+        "the evicting scene draws what a fresh one draws"
     );
 }
 
@@ -1491,9 +1634,84 @@ fn ui2_hud_and_200_banners_stay_within_the_draw_budget_and_idle_frames_upload_no
     );
 }
 
+/// Test 5 on the GPU: the camera moves the 200 banners of the map layer. Only their anchor rows of the table are
+/// uploaded (200 x 32 bytes), no instance and no chunk is encoded again; the banners are drawn at their new
+/// places and the hidden ones not at all; the same placements on the next frame upload nothing.
+#[test]
+fn ui2_moving_200_banners_uploads_only_their_anchor_rows() {
+    let size = (1920, 1080);
+    let Some(mut rig) = Rig::new("ui2_moving_200_banners", wgpu::Backends::PRIMARY, size) else {
+        return;
+    };
+    let mut text = engine();
+    let mut scene = Scene::new(1.0);
+    let (images, pages) = testkit::icon_pages();
+    scene.set_pages(&images, pages).expect("pages");
+    let anchors = testkit::map_banners(
+        &mut scene,
+        &mut text,
+        FIRA,
+        200,
+        Vec2::new(size.0 as f32, size.1 as f32),
+    );
+    scene.resolve(&mut text, 1000.0);
+    let _ = rig.frame(&mut scene);
+    let first = rig.pass.stats();
+    assert!(first.layers_uploaded >= 1);
+
+    let place = |i: usize| AnchorXform {
+        pos: Vec2::new(
+            100.0 + (i % 10) as f32 * 180.0,
+            40.0 + (i / 10) as f32 * 50.0,
+        ),
+        scale: 1.0,
+        visible: !i.is_multiple_of(4),
+    };
+    scene.reset_frame_stats();
+    for (i, slot) in anchors.iter().enumerate() {
+        scene.set_anchor(*slot, place(i));
+    }
+    assert_eq!(scene.stats().chunks_encoded, 0);
+    let img = rig.frame(&mut scene);
+    let s = rig.pass.stats();
+    assert_eq!(s.layers_uploaded, 0, "{s:?}");
+    assert_eq!(s.table_bytes, 200 * 32);
+    assert_eq!(s.upload_bytes, 200 * 32, "only the anchor rows: {s:?}");
+    assert_eq!(
+        s.layer_draws[LayerId::Map.index()],
+        first.layer_draws[LayerId::Map.index()]
+    );
+    for i in 0..200 {
+        // A point of the banner's brass tab, away from its rounded corner and its icon.
+        let p = place(i).pos + Vec2::new(-55.0, -12.0);
+        let got = rgb(&img, size.0, p.x as u32, p.y as u32);
+        if i.is_multiple_of(4) {
+            assert_eq!(got, [0, 0, 0], "banner {i} is hidden");
+        } else {
+            assert_eq!(got, testkit::BRASS.0[..3], "banner {i} at its new place");
+        }
+    }
+
+    // The camera did not move: the host sets the same placements, nothing is uploaded.
+    for (i, slot) in anchors.iter().enumerate() {
+        scene.set_anchor(*slot, place(i));
+    }
+    let _ = rig.frame(&mut scene);
+    let idle = rig.pass.stats();
+    assert_eq!(
+        (idle.upload_bytes, idle.layers_uploaded),
+        (0, 0),
+        "{idle:?}"
+    );
+}
+
 fn headless(test: &str) -> Option<crate::Renderer> {
+    headless_sized(test, (64, 48))
+}
+
+fn headless_sized(test: &str, size: (u32, u32)) -> Option<crate::Renderer> {
     match block_on(crate::Renderer::new_headless(
-        (64, 48),
+        size,
         crate::renderer::BackendPref::Auto,
     )) {
         Ok(r) => Some(r),
@@ -1579,4 +1797,110 @@ fn ui2_in_a_headless_frame_runs_only_when_prepared_and_under_the_original_ui() {
     assert!(!has_ui2_counters(&stats));
     assert_eq!(stats.draws, draws_without);
     assert_eq!(after.pixel(10, 10), before.pixel(10, 10));
+}
+
+/// The solid background of the golden hooks: the pass clears the target with it (the frame under UI v2 is gone),
+/// also when the scene has nothing to draw; without it the pass loads the target again.
+#[test]
+fn ui2_solid_background_clears_under_the_layers() {
+    let Some(mut rig) = Rig::new("ui2_solid_background", wgpu::Backends::PRIMARY, (32, 16)) else {
+        return;
+    };
+    let mut scene = Scene::new(1.0);
+    scene.set_background(Some(Color::rgba(0x20, 0x20, 0x20, 0)));
+    assert_eq!(
+        scene.background(),
+        Some(Color::rgba(0x20, 0x20, 0x20, 255)),
+        "opaque"
+    );
+    let img = rig.frame(&mut scene);
+    assert!(
+        rig.pass.has_work(),
+        "an empty scene with a background still opens the pass"
+    );
+    assert_eq!(rig.pass.stats().draws, 0);
+    assert!(img.chunks(4).all(|p| p == [0x20, 0x20, 0x20, 255]));
+
+    scene.set_chunk(
+        LayerId::Hud,
+        ChunkId(1),
+        chunk(vec![Item::Box(BoxItem::solid(
+            Rect::new(0.0, 0.0, 8.0, 8.0),
+            RED,
+        ))]),
+    );
+    let img = rig.frame(&mut scene);
+    assert_eq!(rgb(&img, 32, 4, 4), [255, 0, 0]);
+    assert_eq!(rgb(&img, 32, 20, 4), [0x20, 0x20, 0x20]);
+
+    scene.set_background(None);
+    let img = rig.frame(&mut scene);
+    assert!(matches!(rig.pass.load_op(), wgpu::LoadOp::Load));
+    assert_eq!(rgb(&img, 32, 20, 4), [0, 0, 0]);
+    // Through an sRGB target the clear value is linear, so that the stored byte is the colour's.
+    let c = clear_color(Color::rgba(0x20, 0x80, 0xff, 255), true);
+    assert!(
+        (c.r - 0.0144).abs() < 1e-3 && (c.g - 0.2158).abs() < 1e-3 && c.b == 1.0,
+        "{c:?}"
+    );
+    assert_eq!(
+        clear_color(Color::rgba(0x80, 0, 0, 255), false).r,
+        128.0 / 255.0
+    );
+}
+
+/// The golden frame: a headless renderer, the HUD of the reference mockup, frozen, on the solid background of
+/// the golden scenario (`#202020`). `read_frame(WithUi)` returns it: the strip's lacquer at the top, its text,
+/// the background where the HUD leaves the screen free (the world under it is cleared), every glyph rasterized
+/// in the one frame although the budget is zero.
+#[test]
+fn ui2_headless_frame_with_ui_holds_the_frozen_hud_on_its_background() {
+    let size = (1920, 1080);
+    let Some(mut r) = headless_sized("ui2_headless_frame_with_ui_holds_the_hud", size) else {
+        return;
+    };
+    let mut text = engine();
+    let mut scene = Scene::new(1.0);
+    scene.freeze(Some(0.0));
+    scene.set_background(Some(Color::rgba(0x20, 0x20, 0x20, 255)));
+    let (images, pages) = testkit::icon_pages();
+    scene.set_pages(&images, pages).expect("pages");
+    for (layer, id, items) in testkit::hud_a(&mut text, FIRA, 1.0) {
+        scene.set_chunk(layer, id, items);
+    }
+    scene.resolve(&mut text, 0.0);
+    assert_eq!(
+        scene.stats().raster_deferred,
+        0,
+        "a frozen scene rasterizes all its text at once"
+    );
+    assert!(scene.stats().raster_glyphs > 100);
+    r.prepare_ui2(&mut scene);
+    let img = frame_with(&mut r, &UiDrawList::new());
+    let near = |p: &[u8], c: [u8; 3]| p[..3].iter().zip(c).all(|(a, b)| a.abs_diff(b) <= 2);
+    let lacquer: [u8; 3] = testkit::LACQUER.0[..3].try_into().unwrap();
+    assert!(
+        near(img.pixel(960, 2), lacquer),
+        "the top strip: {:?}",
+        img.pixel(960, 2)
+    );
+    assert!(
+        near(img.pixel(960, 540), [0x20; 3]),
+        "the background: {:?}",
+        img.pixel(960, 540)
+    );
+    assert!(
+        near(img.pixel(1200, 700), [0x20; 3]),
+        "the background: {:?}",
+        img.pixel(1200, 700)
+    );
+    // Text of the strip: light pixels on the lacquer.
+    let light = (0..40)
+        .flat_map(|y| (0..size.0).map(move |x| (x, y)))
+        .filter(|&(x, y)| img.pixel(x, y)[0] > 180)
+        .count();
+    assert!(light > 50, "the strip's labels: {light} light pixels");
+    let stats = r.last_frame_stats().clone();
+    let row = ui2_row(&stats).expect("the pass ran");
+    assert!(row.draws >= 1 && row.draws <= 30, "{row:?}");
 }

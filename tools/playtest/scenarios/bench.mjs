@@ -13,6 +13,9 @@
 // or `cargo xtask bench --compare <baseline.json>`.
 //   cargo xtask playtest --scenario bench --headed --release [--bench-modes capped,uncapped] [--bench-units 1500]
 //     [--bench-cities 80] [--bench-turns 8] [--bench-phase-s 10] [--bench-size 1920x1080] [--bench-label name]
+// `CIV5_BENCH_UI=v2` (or `v2:<skin>`): the game runs with the new UI (`?ui=v2`, its map banners included) instead of
+// the interim panels; compare a run with it against one without (`cargo xtask bench --compare`) for the cost of the
+// UI v2 layers. The value is in `meta.ui` of the report.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -22,6 +25,12 @@ import { installProbe, now, drain, phaseRecord, frames, round, docState } from "
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PASSWORD = "dev";
+
+/** The `ui` parameter of the game page: `CIV5_BENCH_UI` (`v2`, `v2:<skin>`) or the interim panels. */
+export function benchUi(env = process.env) {
+  const v = (env.CIV5_BENCH_UI ?? "").trim();
+  return /^v2(:[A-Za-z0-9_-]+)?$/.test(v) ? { ui: v } : INTERIM;
+}
 
 /** The camera path: key, hold ms. A rectangle over the map at the normal pan speed, twice. */
 export const PAN_PATH = [["ArrowRight", 3000], ["ArrowDown", 2000], ["ArrowLeft", 3000], ["ArrowUp", 2000]];
@@ -141,9 +150,9 @@ async function runMode(ctx, mode) {
           /* storage blocked */
         }
       }, [o.lateNick, token]);
-      url = appUrl(o.lateUrl, popts, { ...INTERIM, nick: o.lateNick, stats: "1" });
+      url = appUrl(o.lateUrl, popts, { ...benchUi(), nick: o.lateNick, stats: "1" });
     } else {
-      url = appUrl(ctx.server.url, popts, { ...INTERIM, nick: `bench-${mode}`, autostart: "1", ai: String(o.benchAi ?? 6), size: "huge", seed: String(o.seed ?? 7), ...(o.benchStats === "0" ? {} : { stats: "1" }) });
+      url = appUrl(ctx.server.url, popts, { ...benchUi(), nick: `bench-${mode}`, autostart: "1", ai: String(o.benchAi ?? 6), size: "huge", seed: String(o.seed ?? 7), ...(o.benchStats === "0" ? {} : { stats: "1" }) });
     }
     // CIV5_BENCH_PROFILE=load: the V8 CPU profile of the whole load (page start to settled), `bench-<mode>-load.prof.txt`.
     const loadProf = (process.env.CIV5_BENCH_PROFILE ?? "").split(",").some((x) => x === "load" || x === "all");
@@ -384,6 +393,7 @@ export async function run(ctx) {
     profile: o.profile,
     preset: o.preset ?? "high",
     gfx: o.gfx ?? "default",
+    ui: benchUi().ui,
     size: o.benchSize ?? "1920x1080",
     host: { cpu: os.cpus()[0]?.model, cores: os.cpus().length, ramGb: Math.round(os.totalmem() / 2 ** 30), os: `${os.type()} ${os.release()}` },
     phaseS: o.benchPhaseS ?? 10,

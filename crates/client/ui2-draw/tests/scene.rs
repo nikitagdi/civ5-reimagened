@@ -107,7 +107,8 @@ fn count_change_rebuilds_the_layer_in_order() {
     s.take_layer_change(LayerId::Hud);
 
     s.set_chunk(LayerId::Hud, ChunkId(2), boxes(4, 22));
-    assert_eq!(s.take_layer_change(LayerId::Hud), LayerChange::Full);
+    // Chunk 1 keeps its place: the upload starts at chunk 2.
+    assert_eq!(s.take_layer_change(LayerId::Hud), LayerChange::Tail(1));
     assert_eq!(s.chunk_range(ChunkId(1)), Some(0..1));
     assert_eq!(s.chunk_range(ChunkId(2)), Some(1..5));
     assert_eq!(s.chunk_range(ChunkId(3)), Some(5..6));
@@ -119,7 +120,7 @@ fn count_change_rebuilds_the_layer_in_order() {
     assert_eq!(colors, vec![1, 22, 22, 22, 22, 3]);
 
     s.remove_chunk(ChunkId(2));
-    assert_eq!(s.take_layer_change(LayerId::Hud), LayerChange::Full);
+    assert_eq!(s.take_layer_change(LayerId::Hud), LayerChange::Tail(1));
     assert_eq!(s.chunk_range(ChunkId(3)), Some(1..2));
     assert!(s.chunk_instances(ChunkId(2)).is_none());
     let colors: Vec<u8> = s
@@ -128,6 +129,20 @@ fn count_change_rebuilds_the_layer_in_order() {
         .map(|i| i.colors[0][0])
         .collect();
     assert_eq!(colors, vec![1, 3]);
+
+    // A new chunk is appended: only its instances are new.
+    s.set_chunk(LayerId::Hud, ChunkId(4), boxes(2, 4));
+    assert_eq!(s.take_layer_change(LayerId::Hud), LayerChange::Tail(2));
+    // A patch before a count change widens the tail; a count change of the first chunk is the whole layer.
+    s.set_chunk(LayerId::Hud, ChunkId(3), boxes(1, 33));
+    s.set_chunk(LayerId::Hud, ChunkId(4), boxes(3, 4));
+    assert_eq!(s.take_layer_change(LayerId::Hud), LayerChange::Tail(1));
+    s.set_chunk(LayerId::Hud, ChunkId(1), boxes(2, 1));
+    assert_eq!(s.take_layer_change(LayerId::Hud), LayerChange::Full);
+    s.remove_chunk(ChunkId(1));
+    s.remove_chunk(ChunkId(3));
+    s.remove_chunk(ChunkId(4));
+    s.take_layer_change(LayerId::Hud);
 
     // A chunk with no instances neither changes the buffer nor the revision.
     let rev = s.layer_revision(LayerId::Hud);

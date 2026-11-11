@@ -20,19 +20,21 @@ pub struct SceneStats {
     pub raster_deferred: u32,
     /// Glyphs in the atlas.
     pub atlas_glyphs: usize,
-    /// Atlas pages in use.
+    /// Glyph pages made (the dynamic layers of the coverage array).
     pub atlas_pages: usize,
-    /// Atlas memory in bytes (pages in use).
+    /// Glyph page memory in bytes.
     pub atlas_bytes: usize,
-    /// Glyphs dropped because the atlas was full, since the start.
+    /// Glyphs that found no room in the glyph pages (each is retried a few frames later), since the start.
     pub atlas_full: u64,
+    /// Frame: glyph pages cleared to make room (`ui2.atlas.evictions`).
+    pub atlas_evictions: u32,
     /// Transform records and clips in use.
     pub xforms: usize,
     /// Clips in use.
     pub clips: usize,
     /// Since the start: transforms or clips that did not fit their table.
     pub table_overflow: u32,
-    /// Frame: bytes written to anchor records (32 per `set_anchor`).
+    /// Frame: bytes written to anchor records (32 per `set_anchor` that changed a placement).
     pub anchor_bytes: u32,
     /// Picture pages of the package in the coverage array (`A8`).
     pub mask_pages: usize,

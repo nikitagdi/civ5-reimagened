@@ -4,14 +4,14 @@
 //! otherwise the chunk is encoded again and compared with the instances it had. A layer keeps the instances of its
 //! chunks, in chunk order, in one contiguous vector; its revision grows only when those bytes change, and
 //! [`Scene::take_layer_change`] tells the GPU pass what to upload: nothing, the byte ranges of chunks that kept their
-//! instance count, or the whole buffer.
+//! instance count, the tail of the buffer from the first chunk whose count changed, or the whole buffer.
 
 use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
 use ui2_package::Images;
-use ui2_text::{AtlasConfig, DirtyRect, GlyphAtlas, TextEngine};
+use ui2_text::{AtlasConfig, DirtyRect, TextEngine};
 
 use crate::encode::{EncodeCtx, encode_chunk};
 use crate::glyphs::GlyphStore;
@@ -19,7 +19,9 @@ use crate::instance::Ui2Instance;
 use crate::pages::{ExtSlots, Pages};
 use crate::stats::SceneStats;
 use crate::tables::{TableSegment, Tables};
-use crate::{AnchorSlot, AnchorXform, ChunkId, ChunkItems, DrawError, ExtTexture, Item, LayerId};
+use crate::{
+    AnchorSlot, AnchorXform, ChunkId, ChunkItems, Color, DrawError, ExtTexture, Item, LayerId,
+};
 
 /// Estimated cost of rasterizing one glyph in milliseconds, used to turn a time budget into a glyph count when the
 /// scene has no clock (about 1.5 ms for the 235 glyphs of the HUD in wasm).
@@ -37,7 +39,10 @@ pub enum LayerChange {
     None,
     /// Chunks changed without changing the instance count: write these instance ranges (sorted, disjoint).
     Ranges(Vec<Range<usize>>),
-    /// The instance count changed: write the whole layer again.
+    /// The instance count changed: the instances before this index are the same as before, write the rest (and
+    /// the whole layer when the buffer has to grow).
+    Tail(usize),
+    /// Write the whole layer again (the first upload, or the count changed from the first chunk on).
     Full,
 }
 
@@ -60,6 +65,8 @@ struct Chunk {
     clips: Vec<u16>,
     exts: Vec<u16>,
     unresolved: u32,
+    /// Glyph pages its instances sample (bit per page).
+    glyph_pages: u8,
     revision: u64,
     offset: usize,
     len: usize,
@@ -81,13 +88,25 @@ impl Layer {
     fn mark(&mut self, range: Range<usize>) {
         match &mut self.change {
             LayerChange::Full => {}
+            LayerChange::Tail(t) => *t = (*t).min(range.start),
             LayerChange::None => self.change = LayerChange::Ranges(vec![range]),
             LayerChange::Ranges(r) => r.push(range),
         }
     }
 
-    fn mark_full(&mut self) {
-        self.change = LayerChange::Full;
+    /// Everything from instance `start` on changed (`0`: the whole layer).
+    fn mark_tail(&mut self, start: usize) {
+        let start = match &self.change {
+            LayerChange::Full => 0,
+            LayerChange::None => start,
+            LayerChange::Tail(t) => start.min(*t),
+            LayerChange::Ranges(r) => r.iter().map(|x| x.start).fold(start, usize::min),
+        };
+        self.change = if start == 0 {
+            LayerChange::Full
+        } else {
+            LayerChange::Tail(start)
+        };
     }
 }
 
@@ -98,6 +117,7 @@ struct Frame {
     raster_glyphs: u32,
     raster_ms: f64,
     anchor_bytes: u32,
+    evictions: u32,
 }
 
 fn same_bytes(a: &[Ui2Instance], b: &[Ui2Instance]) -> bool {
@@ -116,22 +136,31 @@ pub struct Scene {
     clock: Option<Clock>,
     overflow: u32,
     frame: Frame,
+    frozen: Option<f64>,
+    background: Option<Color>,
 }
 
 impl Scene {
     /// An empty scene for UI scale factor `k` (device pixels per CSS pixel).
     pub fn new(k: f32) -> Self {
+        Self::with_atlas(k, AtlasConfig::default())
+    }
+
+    /// An empty scene whose glyph pages have the layout `atlas` (tests use small pages to exercise eviction).
+    pub fn with_atlas(k: f32, atlas: AtlasConfig) -> Self {
         Self {
             k,
             chunks: HashMap::new(),
             layers: Default::default(),
             tables: Tables::new(),
-            glyphs: GlyphStore::new(AtlasConfig::default()),
+            glyphs: GlyphStore::new(atlas),
             pages: Pages::default(),
             exts: ExtSlots::default(),
             clock: None,
             overflow: 0,
             frame: Frame::default(),
+            frozen: None,
+            background: None,
         }
     }
 
@@ -142,6 +171,33 @@ impl Scene {
 
     pub(crate) fn now(&self) -> f64 {
         self.clock.as_ref().map_or(0.0, |c| c())
+    }
+
+    // ----- golden hooks -----
+
+    /// Freezes the scene at `t_ms` for reference images (`None` thaws it). A frozen scene is deterministic:
+    /// [`Scene::resolve`] rasterizes every queued glyph whatever the budget, so the frame shows all its text at
+    /// once, and [`Scene::frozen`] gives the time the runtime animates at (transitions stopped at their state at
+    /// `t_ms`, the text caret steady).
+    pub fn freeze(&mut self, t_ms: Option<f64>) {
+        self.frozen = t_ms.filter(|t| t.is_finite());
+    }
+
+    /// The time the scene is frozen at, if it is.
+    pub fn frozen(&self) -> Option<f64> {
+        self.frozen
+    }
+
+    /// A solid background under all layers (`None`: the world shows through). The pass clears the frame with it
+    /// before the map layer, so nothing drawn before UI v2 is visible: reference images of the UI alone. The
+    /// colour is drawn opaque.
+    pub fn set_background(&mut self, color: Option<Color>) {
+        self.background = color.map(|c| Color::rgba(c.0[0], c.0[1], c.0[2], 255));
+    }
+
+    /// The solid background, if one is set.
+    pub fn background(&self) -> Option<Color> {
+        self.background
     }
 
     /// The scale factor.
@@ -166,6 +222,9 @@ impl Scene {
     /// Sets the items of a chunk in a layer (creating the chunk, appended after the layer's chunks, or replacing
     /// its items in place). Equal items leave everything untouched. A chunk id that lives in another layer is
     /// moved.
+    ///
+    /// Chunks are drawn in the order they were created; on the map layer that is the order of the anchors.
+    // SIMPLIFIED(SIMP-229): map anchors (banners) are drawn in creation order, not sorted by depth: a nearer banner can be drawn under a farther one
     pub fn set_chunk(&mut self, layer: LayerId, id: ChunkId, items: ChunkItems) {
         match self.chunks.remove(&id) {
             Some(old) if old.layer == layer && old.items == items && !old.stale => {
@@ -217,6 +276,7 @@ impl Scene {
         for e in &ch.exts {
             self.exts.release(*e);
         }
+        self.glyphs.release_pages(ch.glyph_pages);
     }
 
     fn drop_chunk(&mut self, id: ChunkId, old: Chunk) {
@@ -224,7 +284,7 @@ impl Scene {
         let li = old.layer.index();
         self.layers[li].order.retain(|c| *c != id);
         if old.len > 0 {
-            self.rebuild_layer(li, None);
+            self.rebuild_layer(li, None, old.offset);
         }
     }
 
@@ -242,6 +302,7 @@ impl Scene {
             };
             encode_chunk(&items, &mut ctx)
         };
+        self.glyphs.retain_pages(enc.glyph_pages);
         // Release after acquiring, so that entries both versions use keep their records.
         if let Some(o) = &old {
             self.release(o);
@@ -258,6 +319,7 @@ impl Scene {
             clips: enc.clips,
             exts: enc.exts,
             unresolved: enc.unresolved,
+            glyph_pages: enc.glyph_pages,
             revision: old.as_ref().map_or(1, |o| o.revision + 1),
             offset: 0,
             len,
@@ -279,20 +341,31 @@ impl Scene {
                 self.chunks.insert(id, chunk);
             }
             old => {
-                if old.is_none() {
-                    self.layers[li].order.push(id);
-                    chunk.offset = self.layers[li].instances.len();
+                match &old {
+                    None => {
+                        self.layers[li].order.push(id);
+                        chunk.offset = self.layers[li].instances.len();
+                    }
+                    Some(o) => chunk.offset = o.offset,
                 }
+                // The instances before the chunk stay where they are.
+                let start = chunk.offset;
                 self.chunks.insert(id, chunk);
                 if old.is_some() || len > 0 {
-                    self.rebuild_layer(li, Some((id, &enc.instances)));
+                    self.rebuild_layer(li, Some((id, &enc.instances)), start);
                 }
             }
         }
     }
 
-    /// Concatenates the chunks of a layer again (`replace` supplies the new instances of one chunk).
-    fn rebuild_layer(&mut self, li: usize, replace: Option<(ChunkId, &[Ui2Instance])>) {
+    /// Concatenates the chunks of a layer again (`replace` supplies the new instances of one chunk); the instances
+    /// before `start` do not move.
+    fn rebuild_layer(
+        &mut self,
+        li: usize,
+        replace: Option<(ChunkId, &[Ui2Instance])>,
+        start: usize,
+    ) {
         let lay = &mut self.layers[li];
         let old = std::mem::take(&mut lay.instances);
         let mut new = Vec::with_capacity(old.len() + replace.map_or(0, |r| r.1.len()));
@@ -314,7 +387,7 @@ impl Scene {
         }
         lay.instances = new;
         lay.revision += 1;
-        lay.mark_full();
+        lay.mark_tail(start);
         lay.ops_stale = true;
     }
 
@@ -328,22 +401,59 @@ impl Scene {
     /// The budget is measured with the [`Clock`] of [`Scene::set_clock`]; without one it is converted to a glyph
     /// count at [`FALLBACK_MS_PER_GLYPH`] per glyph.
     pub fn resolve(&mut self, text: &mut TextEngine, budget_ms: f32) {
+        self.glyphs.begin_frame();
         self.reencode_stale();
-        let budget = f64::from(budget_ms);
-        let t0 = self.now();
-        let report = {
-            let clock = self.clock.as_ref();
-            self.glyphs.rasterize(text, |done| {
-                let spent = match clock {
-                    Some(c) => c() - t0,
-                    None => f64::from(done) * FALLBACK_MS_PER_GLYPH,
-                };
-                spent < budget
-            })
+        let budget = if self.frozen.is_some() {
+            f64::INFINITY
+        } else {
+            f64::from(budget_ms)
         };
-        self.frame.raster_glyphs += report.rasterized;
+        let t0 = self.now();
+        let mut done_before = 0u32;
+        let (mut placed, mut dropped) = (0u32, 0u32);
+        // Each round ends with the queue empty, the budget spent, or a page with glyphs in use cleared; at most
+        // one round per page clears a page in use.
+        for _ in 0..=self.glyphs.config().max_pages {
+            let report = {
+                let clock = self.clock.as_ref();
+                let base = done_before;
+                self.glyphs.rasterize(text, |done| {
+                    let spent = match clock {
+                        Some(c) => c() - t0,
+                        None => f64::from(base + done) * FALLBACK_MS_PER_GLYPH,
+                    };
+                    spent < budget
+                })
+            };
+            done_before += report.rasterized + report.dropped;
+            placed += report.rasterized;
+            dropped += report.dropped;
+            self.frame.evictions += report.evicted;
+            let Some(page) = report.live_page else {
+                break;
+            };
+            // The chunks that drew from the cleared page take their glyphs into its new contents.
+            let users: Vec<ChunkId> = self
+                .chunks
+                .iter()
+                .filter(|(_, c)| c.glyph_pages & (1 << page) != 0)
+                .map(|(id, _)| *id)
+                .collect();
+            for id in users {
+                self.reencode(id);
+            }
+            self.glyphs.drop_stash();
+            let spent = match &self.clock {
+                Some(c) => c() - t0,
+                None => f64::from(done_before) * FALLBACK_MS_PER_GLYPH,
+            };
+            if spent >= budget {
+                break;
+            }
+        }
+        self.frame.raster_glyphs += placed;
         self.frame.raster_ms += self.now() - t0;
-        if report.rasterized + report.dropped > 0 {
+        if placed + dropped > 0 {
             let waiting: Vec<ChunkId> = self
                 .chunks
                 .iter()
@@ -414,10 +524,13 @@ impl Scene {
         self.tables.free_anchor(slot);
     }
 
-    /// Writes the screen placement of an anchor: 32 bytes of the transform table, nothing else.
+    /// Writes the screen placement of an anchor: 32 bytes of the transform table, nothing else (no chunk is
+    /// encoded, no instance changes). A placement equal to the current one writes nothing, so the host may set
+    /// every anchor every frame. `visible: false` collapses the anchor's chunks to zero area in the vertex shader.
     pub fn set_anchor(&mut self, slot: AnchorSlot, xform: AnchorXform) {
-        self.tables.set_anchor(slot, xform);
-        self.frame.anchor_bytes += 32;
+        if self.tables.set_anchor(slot, xform) {
+            self.frame.anchor_bytes += 32;
+        }
     }
 
     // ----- what the GPU pass reads -----
@@ -516,27 +629,28 @@ impl Scene {
         &self.tables
     }
 
-    /// The glyph atlas pages.
-    pub fn glyph_atlas(&self) -> &GlyphAtlas {
-        self.glyphs.atlas()
-    }
-
     /// Atlas rectangles to upload since the last call.
     pub fn take_glyph_dirty(&mut self) -> Vec<DirtyRect> {
         self.glyphs.take_dirty()
     }
 
-    /// The glyph store.
+    /// The glyph store (pages, slots, counters).
     pub fn glyphs(&self) -> &GlyphStore {
         &self.glyphs
+    }
+
+    /// True once, after the first glyph that found no room in the glyph pages (every page was in use in the
+    /// last frames): the host logs it as an error. [`SceneStats::atlas_full`] keeps counting.
+    pub fn take_atlas_full_error(&mut self) -> bool {
+        self.glyphs.take_full_error()
     }
 
     // ----- counters -----
 
     /// A snapshot of the counters.
     pub fn stats(&self) -> SceneStats {
-        let atlas = self.glyphs.atlas().stats();
         let page = self.glyphs.page_size() as usize;
+        let pages = self.glyphs.page_count();
         let (xforms, clips) = self.tables.live();
         SceneStats {
             chunks: self.chunks.len(),
@@ -546,10 +660,11 @@ impl Scene {
             raster_glyphs: self.frame.raster_glyphs,
             raster_ms: self.frame.raster_ms as f32,
             raster_deferred: self.glyphs.pending_len() as u32,
-            atlas_glyphs: atlas.glyphs,
-            atlas_pages: atlas.pages,
-            atlas_bytes: atlas.pages * page * page,
+            atlas_glyphs: self.glyphs.glyph_count(),
+            atlas_pages: pages,
+            atlas_bytes: pages * page * page,
             atlas_full: self.glyphs.full_count(),
+            atlas_evictions: self.frame.evictions,
             xforms,
             clips,
             table_overflow: self.overflow,
