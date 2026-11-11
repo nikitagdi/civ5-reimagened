@@ -22,6 +22,8 @@ render.workspace = true
 interim-ui.workspace = true
 ui-client.workspace = true
 replica.workspace = true
+# UI v2 (`?ui=v2`): the skin registry and the UI v2 instance.
+ui2-host.workspace = true
 exe-api.workspace = true
 ui.workspace = true
 lua-sys.workspace = true
@@ -46,3 +48,6 @@ wire.workspace = true
 # Milestone N-1 (tests/n1_fixture.rs): the native transport against a scripted gateway on real sockets.
 platform-native.workspace = true
 tungstenite.workspace = true
+# In-memory UI v2 packages for the loading and fallback tests.
+ui2-runtime = { workspace = true, features = ["testkit"] }
+ui2-package.workspace = true

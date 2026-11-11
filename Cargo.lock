@@ -670,6 +670,9 @@ dependencies = [
  "tungstenite",
  "ui",
  "ui-client",
+ "ui2-host",
+ "ui2-package",
+ "ui2-runtime",
  "winit",
  "wire",
 ]

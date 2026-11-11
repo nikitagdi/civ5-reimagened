@@ -400,6 +400,8 @@ struct App {
     original_ui: Option<crate::original_ui::OriginalUi>,
     /// The original UI on the replica of a real game (M2), when `AppConfig::original_ui` is set.
     m2: Option<crate::m2::M2Ui>,
+    /// TEMP(T51): `?ui=v2[:skin]`, a UI v2 skin over `m2` (which then neither draws nor gets input).
+    v2: Option<crate::ui_host::v2::V2Host>,
     group_stats_sink: Option<crate::GroupStatsSink>,
     /// The page's own sign-in, lobby and room screens, when the platform has them (web).
     dom_ui: Option<crate::dom_ui::DomUi>,
@@ -576,6 +578,7 @@ impl App {
         let lobby_art = crate::lobby_art::LobbyArt::new(
             crate::asset_boot::assets_base_from_ws_url(&config.server_url),
         );
+        let v2_http = Rc::clone(&http);
         let assets = AssetsBoot::start(http, &config.server_url, config.manifest.as_deref());
         let showcase = Showcase::new(if config.demo_skinned {
             Source::SyntheticDemo
@@ -586,6 +589,12 @@ impl App {
             (config.original_ui && config.original_ui_m1).then(crate::original_ui::OriginalUi::m1);
         let m2 = (config.original_ui && !config.original_ui_m1 && matches!(net, Link::Net(_)))
             .then(|| crate::m2::M2Ui::new(Rc::clone(&ui_kv), config_ui_volume));
+        let v2 = crate::ui_host::v2::take_choice()
+            .filter(|_| m2.is_some())
+            .map(|choice| {
+                let c = Rc::clone(&clock);
+                crate::ui_host::v2::V2Host::new(choice, v2_http, Rc::new(move || c.now_ms_f64()))
+            });
         let start_ms = clock.now_ms();
         let showcase_mode = config.showcase || config.demo_skinned;
         // The controls of a server session read `base` plus the layer (NC-D13).
@@ -650,6 +659,7 @@ impl App {
             ui: UiDrawList::new(),
             original_ui,
             m2,
+            v2,
             group_stats_sink,
             dom_ui: ui_bridge.map(crate::dom_ui::DomUi::new),
             lobby_art,
@@ -1700,6 +1710,9 @@ impl App {
                     if let Some(m2) = self.m2.as_mut() {
                         m2.new_game();
                     }
+                    if let Some(ui) = self.v2.as_mut().and_then(|v| v.ui_mut()) {
+                        ui.reset_source();
+                    }
                 }
                 // The view of a server session reaches the bridge by its `ViewChange` (4.10): only what
                 // changed since the last frame is converted.
@@ -2090,6 +2103,11 @@ impl App {
                     Link::NetFailed(_) => None,
                 };
                 let s = w.inner_size();
+                // TEMP(T51): while a UI v2 skin runs, the classic layer draws into a list nobody submits.
+                let ui = match self.v2.as_mut().and_then(|v| v.classic_sink()) {
+                    Some(scratch) => scratch,
+                    None => &mut self.ui,
+                };
                 m2_frame(
                     m2,
                     (s.width, s.height),
@@ -2098,12 +2116,23 @@ impl App {
                         camera: &mut self.game_camera,
                         assets: self.assets.as_mut(),
                         clock: &self.clock,
-                        ui: &mut self.ui,
+                        ui,
                         renderer,
                         sink: self.group_stats_sink.as_ref(),
                     },
                     now,
                 );
+                // TEMP(T51): UI v2 reads the replica the classic layer just pumped; its scene is drawn this frame.
+                if let Some(v2) = self.v2.as_mut() {
+                    let env = ui2_host::Env {
+                        viewport_px: (s.width, s.height),
+                        dpr: w.scale_factor() as f32,
+                        ..ui2_host::Env::default()
+                    };
+                    if let Some(ui) = v2.frame(m2, env, self.clock.now_ms_f64()) {
+                        renderer.prepare_ui2(ui.scene_mut());
+                    }
+                }
                 // The camera keys of `WorldView.lua` (SIMP-exe-560).
                 for k in m2.take_camera_keys() {
                     self.map_controller.handle(&k, &mut self.game_camera);
@@ -2725,7 +2754,9 @@ impl App {
             InputEvent::Wheel(w) => Some(w.position),
             _ => None,
         };
-        if let Some(at) = at {
+        // TEMP(T51): while a UI v2 skin runs the classic layer gets no input.
+        let classic_input = !self.v2.as_ref().is_some_and(|v| v.running());
+        if let Some(at) = at.filter(|_| classic_input) {
             // `UI.GetMouseOverHex` and `SerialEventMouseOverHex` before the click reaches `WorldView.lua`.
             let ray = self.map_controller.ray_at(at, &self.game_camera);
             if let Some(p) = self.picker.pick(&self.bridge, &ray)
@@ -2742,7 +2773,7 @@ impl App {
         self.ui_press.observe(&ev);
         let press_moved = self.ui_press.moved(&ev);
         let ui_ev = ui_event_after_drag(&ev, self.map_controller.is_dragging() || press_moved);
-        let taken = self.m2.as_mut().is_some_and(|m2| m2.handle_input(&ui_ev));
+        let taken = classic_input && self.m2.as_mut().is_some_and(|m2| m2.handle_input(&ui_ev));
         // The map keeps following a held button over UI controls (a banner), or the drag would stall there.
         if taken
             && matches!(&ev, platform::InputEvent::Pointer(p) if p.phase == platform::PointerPhase::Move)
