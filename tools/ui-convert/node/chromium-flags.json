@@ -1,0 +1,7 @@
+{
+  "args": [
+    "--font-render-hinting=none",
+    "--enable-font-subpixel-positioning",
+    "--disable-lcd-text"
+  ]
+}
