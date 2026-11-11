@@ -4026,6 +4026,7 @@ dependencies = [
  "client-core",
  "protocol",
  "replica",
+ "serde_json",
  "tracing",
  "ui2-model",
 ]

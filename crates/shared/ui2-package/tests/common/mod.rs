@@ -2,6 +2,9 @@
 //! package's path checks.
 #![allow(dead_code)]
 
+pub mod mini;
+pub mod raw;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use ui2_package::profile::{SchemaView, TypeSig};

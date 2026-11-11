@@ -16,6 +16,7 @@ pub mod build;
 pub mod catalog;
 pub mod pending;
 pub mod session;
+pub mod static_source;
 pub mod trigger;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -30,6 +31,7 @@ use ui2_model::r#gen::{Meta, Turn, Ui};
 use ui2_model::{Key, ModelWriter, Root, Schema};
 
 pub use crate::session::SessionRead;
+pub use crate::static_source::StaticSource;
 
 use crate::catalog::Catalog;
 use crate::trigger::{Roots, Seen, SessionSeen, UiSeen};
