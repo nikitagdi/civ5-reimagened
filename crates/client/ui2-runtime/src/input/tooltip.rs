@@ -98,6 +98,8 @@ impl Runtime {
                 at,
                 key,
                 owner: None,
+                nodes: None,
+                own_chunk: false,
             },
         );
         // A first guess under the node (its containing block taken at the page origin), so that the placement

@@ -251,6 +251,8 @@ pub fn main_with(hooks: client_app::mod_hooks::ModHooks) -> anyhow::Result<()> {
         golden: None,
         original_ui: args.original_ui,
         original_ui_m1: false,
+        // The desktop has no UI v2.
+        ui_choice: None,
         ui_volume: 0.5,
         touch_device: false,
     };
@@ -289,6 +291,8 @@ pub fn main_with(hooks: client_app::mod_hooks::ModHooks) -> anyhow::Result<()> {
         // The native client draws the sign-in, lobby and room with egui.
         ui_bridge: None,
         pointer_lock_probe: None,
+        // UI v2 is web-only.
+        ui2: None,
     };
     // No mods: `run`, which also takes the debug hook of the environment; with mods: the hooks of the build.
     if hooks.is_empty() {

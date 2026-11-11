@@ -3,7 +3,7 @@
 
 use ui2_model::{Key, ModelStore, Scalar, Schema, Type, Value as MValue};
 use ui2_package::profile::expr::{EvalHost, Value, eval, render};
-use ui2_package::{Package, Seg, TplId};
+use ui2_package::{Seg, TplId};
 
 use crate::bind::deps::{Plan, Slot};
 use crate::loc::SkinLoc;
@@ -78,7 +78,7 @@ pub(crate) fn resolve_path<'v>(vars: &'v [Var], segs: &[String], buf: &mut Strin
 
 /// What an expression sees while it is evaluated for one binding row.
 pub(crate) struct Host<'a> {
-    pub pkg: &'a Package,
+    pub pkg: &'a crate::Pkg,
     pub plan: &'a Plan,
     pub store: &'a ModelStore,
     /// The loop variables in scope, outermost first.
@@ -93,7 +93,7 @@ pub(crate) struct Host<'a> {
 impl<'a> Host<'a> {
     /// A host for a row.
     pub fn new(
-        pkg: &'a Package,
+        pkg: &'a crate::Pkg,
         plan: &'a Plan,
         store: &'a ModelStore,
         vars: &'a [Var],

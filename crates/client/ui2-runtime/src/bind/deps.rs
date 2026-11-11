@@ -13,8 +13,8 @@
 use std::collections::HashMap;
 
 use ui2_model::{FieldId, Key, ModelStore, Namespace, PathEntry, Schema, Type};
+use ui2_package::Lit;
 use ui2_package::profile::expr::{Expr, Value};
-use ui2_package::{Lit, Package};
 
 /// What a path of an expression reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -62,7 +62,7 @@ pub(crate) struct Plan {
 
 impl Plan {
     /// An empty plan for a schema; paths are resolved on first use.
-    pub fn new(schema: &'static Schema, pkg: &Package) -> Self {
+    pub fn new(schema: &'static Schema, pkg: &crate::Pkg) -> Self {
         let mut state = Vec::new();
         let mut state_names = Vec::new();
         for (name, lit) in pkg.state_defaults() {

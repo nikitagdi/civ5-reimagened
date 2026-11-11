@@ -33,7 +33,7 @@ use ui2_model::wire::StateOp;
 use ui2_model::{Key, Scalar, Type, Value as MValue};
 use ui2_package::profile::action::{ControlKind, Event};
 use ui2_package::profile::expr::Value;
-use ui2_package::{BindKind, ExprId, NodeKind, NodeRef, Package, StrId};
+use ui2_package::{BindKind, ExprId, NodeKind, NodeRef, StrId};
 
 use crate::Runtime;
 use crate::arena::{NodeClass, NodeId};
@@ -77,7 +77,7 @@ pub(crate) struct Control {
     options: Option<ExprId>,
 }
 
-fn control_of(pkg: &Package, tmpl: NodeRef) -> Option<Control> {
+fn control_of(pkg: &crate::Pkg, tmpl: NodeRef) -> Option<Control> {
     let mut out: Option<Control> = None;
     let mut path = None;
     for b in pkg.bindings_of(tmpl.0, tmpl.1) {
@@ -97,7 +97,9 @@ fn control_of(pkg: &Package, tmpl: NodeRef) -> Option<Control> {
                 });
             }
             BindKind::Model(p) => {
-                path = pkg.str(*p).map(|s| Arc::<str>::from(format!("state.{s}")));
+                path = pkg
+                    .str(*p)
+                    .map(|s| Arc::<str>::from(pkg.state_path(tmpl.0, s)));
             }
             _ => {}
         }

@@ -1,5 +1,5 @@
-//! M2 on the core stub (native, no GPU): the mode boots from a built asset set that holds the `ui` set and the
-//! `gc:replica` game data, makes the replica core, and waits for the server's snapshot (there is no server here, so
+//! M2 on the core stub (native, no GPU): the game session and the mode boot from a built asset set that holds the
+//! `ui` set and the `gc:replica` game data, the session makes the replica core, and waits for the server's snapshot (there is no server here, so
 //! it stays in `Joining` and draws nothing); the context filter keeps the refused contexts empty and hidden.
 //! Skipped, with a message, without the built set (`CIV5_UI_ASSETS`: a folder `civ5-assets build --set ui --set
 //! game-data --out <dir>` wrote).
@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 use assets::{AssetLoader, HttpSource};
 use client_app::m2::{M2Env, M2Phase, M2Ui};
+use client_app::session::{GameSession, SessionEnv};
 use draw_list::UiDrawList;
 use platform::{Clock, HttpClient, HttpError, HttpOp, HttpResponse};
 use ui_client::{BootPlan, BootState, LayerConfig, LayerHooks, UiBoot, UiLayer};
@@ -76,9 +77,19 @@ fn m2_boots_makes_the_core_and_waits_for_the_snapshot() {
     let mut loader = loader(dir);
     let clock: Rc<dyn Clock> = Rc::new(Ticks(std::cell::Cell::new(0)));
     let mut m2 = M2Ui::new(Rc::new(platform::MemoryStore::default()), 1.0);
+    let mut session = GameSession::new();
     let mut list = UiDrawList::new();
     let mut now = 0u64;
     for _ in 0..2000 {
+        let step = session.frame(SessionEnv {
+            now_ms: now,
+            loader: Some(&mut loader),
+            net: None,
+            clock: &clock,
+            seat: 0,
+            seat_known: true,
+            drain_events: false,
+        });
         let env = M2Env {
             now_ms: now,
             loader: Some(&mut loader),
@@ -87,10 +98,9 @@ fn m2_boots_makes_the_core_and_waits_for_the_snapshot() {
             clock: &clock,
             seat: Default::default(),
             ai_turn: None,
-            seat_known: true,
             projection: None,
         };
-        let drawn = m2.begin_frame(env, &mut list);
+        let drawn = m2.begin_frame(env, &session, &step, &mut list);
         assert!(!drawn, "nothing is drawn before the game is live");
         assert_ne!(m2.phase(), M2Phase::Failed, "{:?}", m2.failure());
         if m2.phase() == M2Phase::Joining {

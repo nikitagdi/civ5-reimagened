@@ -14,7 +14,7 @@ pub mod select;
 pub mod tokens;
 
 use ui2_package::PropId;
-use ui2_package::style::{BgSize, ColorV, LenAuto, StyleRecord, TFn};
+use ui2_package::style::{BgSize, ColorV, Display, LenAuto, StyleRecord, TFn};
 use ui2_package::{StyleId, StyleSetId, Styles};
 
 use crate::Env;
@@ -35,6 +35,8 @@ pub enum OverValue {
     Transform(Vec<TFn>),
     /// Background sizes, one per layer (`background-size`).
     BgSize(Vec<BgSize>),
+    /// The box kind (`display`): a script island hides a node with `none`.
+    Display(Display),
 }
 
 /// The style properties bindings set on a node, on top of its selected record (like an inline style in
@@ -100,6 +102,7 @@ fn apply_over(r: &mut StyleRecord, prop: PropId, value: &OverValue) {
         (PropId::BackgroundColor, OverValue::Color(c)) => r.background_color = *c,
         (PropId::Transform, OverValue::Transform(t)) => r.transform = t.clone(),
         (PropId::BackgroundSize, OverValue::BgSize(s)) => r.background_size = s.clone(),
+        (PropId::Display, OverValue::Display(d)) => r.display = *d,
         _ => {}
     }
 }

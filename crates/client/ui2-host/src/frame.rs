@@ -17,7 +17,8 @@
 //!
 //! `reconcile` runs in every frame, so every frame that took events settles what they decided. A script's state
 //! write reaches the model in the frame that drains it, and its worker's mirror with that frame's post. Mod
-//! panels and anchors join the order when their modules arrive.
+//! panels join the order when their module arrives. The map anchors the runtime reported are kept; the application
+//! places them with its camera after the frame (`V2Ui::place_anchors`).
 
 use std::sync::Arc;
 
@@ -255,6 +256,14 @@ impl V2Ui {
             tracing::debug!(target: "ui2_host", dropped_output, "script events, mod intents or island commands have no consumer yet");
         }
         let out = runtime.frame(frame_ms, &self.store, text, scene);
+        // The map anchors and their objects, for the application to place (`V2Ui::place_anchors`).
+        for (id, kind, key) in &out.anchor_changes {
+            if *key == ui2_model::Value::None {
+                self.anchors.remove(id);
+            } else {
+                self.anchors.insert(*id, (*kind, key.clone()));
+            }
+        }
         for e in &out.errors {
             tracing::warn!(target: "ui2_host", "{e}");
         }
