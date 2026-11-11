@@ -1218,3 +1218,126 @@ fn a_move_holds_neither_the_end_of_turn_nor_a_save() {
     assert_eq!(p.exit_code(), Some(0), "the worker exits cleanly");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// The v15 queue and research orders on the real core: the host checks them and gives them to the core as the
+/// net messages of the city screen and the tech tree (`sendPushOrder` / `sendPopOrder` / `sendSwapOrder` /
+/// `sendResearch`), the pump after the order delivers them. The head of the build queue (`Q_CITIES`) and the
+/// research (`Q_TOP_BAR`) follow each step; this also pins the flags of `sendPushOrder` (ctrl appends, none
+/// puts the item in front of the head).
+#[test]
+fn queue_and_research_orders_change_the_city_queue_and_the_research() {
+    if !have_real_core() {
+        return;
+    }
+    let _one = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+    let mut p = Proc::start();
+    p.send(&ToWorker::Init(init(
+        setup("WORLDSIZE_DUEL", 2, 2),
+        WorkerConfig::default(),
+    )));
+    p.wait_msg("Ready", |m| matches!(m, WorkerMsg::Ready(_)));
+    p.wait_humans();
+    p.found_city(0);
+    let QueryAnswer::Cities(cities) = p.query(0, Query::Cities) else {
+        panic!("no cities")
+    };
+    let Some(city) = cities.iter().find(|c| c.owner == 0).map(|c| c.id) else {
+        eprintln!("skipped: seat 0 could not found a city at its start");
+        return;
+    };
+    let head = |p: &mut Proc| {
+        let QueryAnswer::Cities(cities) = p.query(0, Query::Cities) else {
+            panic!("no cities")
+        };
+        let c = cities.iter().find(|c| c.id == city).expect("the city");
+        (c.production_order, c.production_item)
+    };
+    let x = head(&mut p);
+    assert!(x.0 >= 0, "found_city gave the city a production");
+    let QueryAnswer::CityBuilds(builds) = p.query(0, Query::CityBuilds { city }) else {
+        panic!("no builds")
+    };
+    // Two units the city can train that are not its head.
+    let units: Vec<i16> = builds
+        .iter()
+        .filter(|b| b.order_type == 0 && b.flags.contains(protocol::CityBuildFlags::ENABLED))
+        .map(|b| b.item)
+        .filter(|i| x != (0, *i))
+        .collect();
+    assert!(units.len() >= 2, "two units to train: {builds:?}");
+    let (a, b) = ((0i8, units[0]), (0i8, units[1]));
+    let step = |p: &mut Proc, cmd: Command, want: (i8, i16)| {
+        assert_eq!(p.cmd(0, cmd), CommandOutcome::Applied, "{cmd:?}");
+        assert_eq!(head(p), want, "the head after {cmd:?}");
+    };
+    // [x] -> [x, a] -> [b, x, a] -> [x, a, b] -> [a, b] -> [x, b] -> [x] -> [].
+    let push = |item: (i8, i16), front| Command::CityQueuePush {
+        city,
+        order: item.0,
+        item: item.1,
+        front,
+    };
+    step(&mut p, push(a, false), x);
+    step(&mut p, push(b, true), b);
+    step(
+        &mut p,
+        Command::CityQueueMove {
+            city,
+            from: 0,
+            to: 2,
+        },
+        x,
+    );
+    step(&mut p, Command::CityQueuePop { city, slot: 0 }, a);
+    step(
+        &mut p,
+        Command::CityReplaceHead {
+            city,
+            order: x.0,
+            item: x.1,
+        },
+        x,
+    );
+    step(&mut p, Command::CityQueuePop { city, slot: 1 }, x);
+    step(&mut p, Command::CityQueuePop { city, slot: 0 }, (-1, -1));
+    // The host's own check: an empty queue has no slot 0.
+    assert!(matches!(
+        p.cmd(0, Command::CityQueuePop { city, slot: 0 }),
+        CommandOutcome::Rejected {
+            code: protocol::RejectCode::Invalid,
+            ..
+        }
+    ));
+    // Research: one of the first-tier technologies (rows 1-4, their only prerequisite is the starting one) that is
+    // not the current research (the start's automatic choice may have taken one) becomes the research now; another
+    // one with `queue` goes behind it and the research stays; an unknown one is refused.
+    let research = |p: &mut Proc| {
+        let QueryAnswer::TopBar(t) = p.query(0, Query::TopBar) else {
+            panic!("no top bar")
+        };
+        t.research_tech
+    };
+    let current = research(&mut p);
+    let mut first_tier = [1i16, 2, 3, 4].into_iter().filter(|t| *t != current);
+    let (now, later) = (first_tier.next().unwrap(), first_tier.next().unwrap());
+    let set = |tech, queue| Command::ResearchSet { tech, queue };
+    assert_eq!(p.cmd(0, set(now, false)), CommandOutcome::Applied);
+    assert_eq!(research(&mut p), now, "research {now} now (was {current})");
+    assert_eq!(p.cmd(0, set(later, true)), CommandOutcome::Applied);
+    assert_eq!(research(&mut p), now, "{later} waits behind {now}");
+    assert_eq!(p.cmd(0, set(later, false)), CommandOutcome::Applied);
+    assert_eq!(research(&mut p), later, "research {later} now");
+    assert!(matches!(
+        p.cmd(
+            0,
+            Command::ResearchSet {
+                tech: 9999,
+                queue: false
+            }
+        ),
+        CommandOutcome::Rejected {
+            code: protocol::RejectCode::Invalid,
+            ..
+        }
+    ));
+}

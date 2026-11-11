@@ -84,6 +84,10 @@ pub enum RefusalCode {
     /// `PUMP_FIRST`: a command waits for a pump or a unit / city of the seat is busy (a move the core still
     /// times, `CvUnit::IsBusy`); the worker pumps and gives the order again.
     PumpFirst,
+    /// The host's own check of an order failed before the core saw it (a v15 queue or research order that
+    /// names no own city, an item the city cannot start, a slot that is not in the queue, an unknown
+    /// technology); the worker answers `RejectCode::Invalid`.
+    Invalid,
     /// Any other reason; the text is the core's.
     Other,
 }
@@ -106,6 +110,11 @@ impl Refusal {
     /// Refusal with code `Other`.
     pub fn other(text: impl Into<String>) -> Self {
         Self::new(RefusalCode::Other, text)
+    }
+
+    /// Refusal with code `Invalid`: the host's check of the order failed.
+    pub fn invalid(text: impl Into<String>) -> Self {
+        Self::new(RefusalCode::Invalid, text)
     }
 }
 

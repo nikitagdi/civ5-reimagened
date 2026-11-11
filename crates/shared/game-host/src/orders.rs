@@ -129,6 +129,13 @@ fn is_unit_or_city_order(c: &Command) -> bool {
             | Command::CitySetProduction { .. }
             | Command::CityPurchase { .. }
             | Command::CityRangeAttack { .. }
+            // v15: the build queue and the research are orders of the seat too; the core refuses a net
+            // message of a player whose turn is complete, so the end of turn goes first here as well.
+            | Command::CityQueuePush { .. }
+            | Command::CityQueuePop { .. }
+            | Command::CityQueueMove { .. }
+            | Command::CityReplaceHead { .. }
+            | Command::ResearchSet { .. }
     )
 }
 
@@ -138,6 +145,7 @@ fn reject_code(r: &Refusal) -> RejectCode {
         RefusalCode::NotHuman => RejectCode::NotSeated,
         RefusalCode::NotYourTurn => RejectCode::NotYourTurn,
         RefusalCode::TurnEnded => RejectCode::TurnEnded,
+        RefusalCode::Invalid => RejectCode::Invalid,
         RefusalCode::AiRunning | RefusalCode::PumpFirst | RefusalCode::Other => RejectCode::Core,
     }
 }
@@ -311,7 +319,11 @@ impl<C: Core> Worker<C> {
         let city = match *cmd {
             Command::CitySetProduction { city, .. }
             | Command::CityPurchase { city, .. }
-            | Command::CityRangeAttack { city, .. } => Some(city),
+            | Command::CityRangeAttack { city, .. }
+            | Command::CityQueuePush { city, .. }
+            | Command::CityQueuePop { city, .. }
+            | Command::CityQueueMove { city, .. }
+            | Command::CityReplaceHead { city, .. } => Some(city),
             _ => None,
         };
         let entry = self.ordered.entry(player).or_insert(None);
@@ -502,5 +514,60 @@ impl<C: Core> Worker<C> {
                 Ok(same)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn v15_orders() -> [Command; 5] {
+        [
+            Command::CityQueuePush {
+                city: 1,
+                order: 0,
+                item: 2,
+                front: false,
+            },
+            Command::CityQueuePop { city: 1, slot: 0 },
+            Command::CityQueueMove {
+                city: 1,
+                from: 0,
+                to: 1,
+            },
+            Command::CityReplaceHead {
+                city: 1,
+                order: 0,
+                item: 2,
+            },
+            Command::ResearchSet {
+                tech: 3,
+                queue: false,
+            },
+        ]
+    }
+
+    /// A queue or research order after the seat's own end of turn takes the end back first, like any order of
+    /// a unit or a city.
+    #[test]
+    fn v15_orders_take_the_end_of_turn_back() {
+        for cmd in v15_orders() {
+            assert!(is_unit_or_city_order(&cmd), "{cmd:?}");
+        }
+        assert!(!is_unit_or_city_order(&Command::EndTurn { force: false }));
+        assert!(!is_unit_or_city_order(&Command::CancelEndTurn));
+    }
+
+    #[test]
+    fn the_host_s_own_check_is_answered_invalid_and_the_core_s_refusal_core() {
+        assert_eq!(
+            reject_code(&Refusal::invalid("no such slot")),
+            RejectCode::Invalid
+        );
+        assert_eq!(reject_code(&Refusal::other("rules")), RejectCode::Core);
+        assert_eq!(
+            reject_code(&Refusal::new(RefusalCode::TurnEnded, "over")),
+            RejectCode::TurnEnded
+        );
     }
 }

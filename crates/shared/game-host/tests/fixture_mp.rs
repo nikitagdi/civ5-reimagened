@@ -2700,44 +2700,172 @@ fn rejected_with(h: &Harness, p: PlayerId, id: CmdId, want: RejectCode) {
 
 // v15 orders
 
-/// The queue and research orders of protocol v15 reach the core and get its refusal, like any order the
-/// host cannot execute; the game is unchanged.
+/// The seat's first city.
+fn own_city(h: &Harness, p: PlayerId) -> i32 {
+    h.view(p)
+        .cities
+        .iter()
+        .find(|c| c.owner == p)
+        .expect("a city of the seat")
+        .id
+}
+
+/// Gives the order, runs the step and returns its final answer.
+fn order(h: &mut Harness, p: PlayerId, cmd: Command) -> CommandOutcome {
+    let id = h.cmd(p, cmd);
+    h.run();
+    h.last_outcome(p, id)
+}
+
+/// The queue and research orders of protocol v15: each is `Applied` after the view that shows it, the
+/// queue is the expected one and the head is the city's production in the seat's view.
 #[test]
-fn v15_queue_and_research_orders_are_refused_for_now() {
+fn v15_queue_and_research_orders_are_applied_and_the_view_shows_the_head() {
     let mut h = started(2, 1, false);
+    let city = own_city(&h, 0);
+    let queue = |h: &mut Harness| h.w.core_mut().city_queue(0, city).expect("the queue");
+    let head = |h: &Harness| {
+        let c = h.view(0).cities.iter().find(|c| c.id == city).unwrap();
+        (c.production_order, c.production_item)
+    };
+    let start = queue(&mut h);
+    assert_eq!(start.len(), 1);
+    let steps: [(Command, Vec<(i8, i16)>); 5] = [
+        // Monument (building 0) at the back, scout (unit 5) in front.
+        (
+            Command::CityQueuePush {
+                city,
+                order: 1,
+                item: 0,
+                front: false,
+            },
+            vec![start[0], (1, 0)],
+        ),
+        (
+            Command::CityQueuePush {
+                city,
+                order: 0,
+                item: 5,
+                front: true,
+            },
+            vec![(0, 5), start[0], (1, 0)],
+        ),
+        (
+            Command::CityQueueMove {
+                city,
+                from: 2,
+                to: 0,
+            },
+            vec![(1, 0), (0, 5), start[0]],
+        ),
+        (
+            Command::CityQueuePop { city, slot: 1 },
+            vec![(1, 0), start[0]],
+        ),
+        (
+            Command::CityReplaceHead {
+                city,
+                order: 0,
+                item: 3,
+            },
+            vec![(0, 3), start[0]],
+        ),
+    ];
+    for (cmd, want) in steps {
+        let id = h.cmd(0, cmd);
+        h.run();
+        assert_eq!(h.last_outcome(0, id), CommandOutcome::Applied, "{cmd:?}");
+        assert_eq!(queue(&mut h), want, "{cmd:?}");
+        assert_eq!(head(&h), want[0], "{cmd:?}");
+        // The answer comes in the frame of the view that shows it.
+        h.frame_of(0, id, &CommandOutcome::Applied);
+    }
+    assert_eq!(
+        order(
+            &mut h,
+            0,
+            Command::ResearchSet {
+                tech: 0,
+                queue: false
+            }
+        ),
+        CommandOutcome::Applied
+    );
+    assert_eq!(h.view(0).top_bar.research_tech, 0);
+    h.assert_in_sync();
+}
+
+/// What the check refuses is `Invalid` with a reason, and changes nothing.
+#[test]
+fn a_wrong_slot_city_item_or_tech_is_invalid() {
+    let mut h = started(2, 1, false);
+    let city = own_city(&h, 0);
     let before = h.view(0).clone();
-    let ids: Vec<_> = [
+    for cmd in [
+        Command::CityQueuePop { city, slot: 1 },
+        Command::CityQueuePop { city, slot: -1 },
+        Command::CityQueueMove {
+            city,
+            from: 0,
+            to: 3,
+        },
         Command::CityQueuePush {
-            city: 1,
+            city: 9999,
             order: 0,
-            item: 0,
+            item: 2,
             front: false,
         },
-        Command::CityQueuePop { city: 1, slot: 0 },
-        Command::CityQueueMove {
-            city: 1,
-            from: 1,
-            to: 0,
-        },
         Command::CityReplaceHead {
-            city: 1,
+            city,
             order: 0,
-            item: 0,
+            item: 99,
         },
         Command::ResearchSet {
-            tech: 0,
+            tech: 7,
             queue: true,
         },
-    ]
-    .into_iter()
-    .map(|c| h.cmd(0, c))
-    .collect();
-    h.run();
-    for id in ids {
-        rejected_with(&h, 0, id, RejectCode::Core);
+    ] {
+        let id = h.cmd(0, cmd);
+        h.run();
+        rejected_with(&h, 0, id, RejectCode::Invalid);
+        let CommandOutcome::Rejected { reason, .. } = h.last_outcome(0, id) else {
+            unreachable!()
+        };
+        assert!(!reason.is_empty(), "{cmd:?}");
     }
     assert_eq!(h.view(0), &before);
     h.assert_in_sync();
+}
+
+/// A queue order after the seat's own end of turn takes the end back first, as any city order.
+#[test]
+fn a_queue_order_after_the_own_end_of_turn_takes_the_end_back() {
+    let mut h = started(3, 1, false);
+    let city = own_city(&h, 0);
+    h.cmd(0, end_turn());
+    h.run();
+    assert!(h.finished(0));
+    let id = h.cmd(
+        0,
+        Command::CityQueuePush {
+            city,
+            order: 0,
+            item: 2,
+            front: false,
+        },
+    );
+    h.run();
+    assert_eq!(h.last_outcome(0, id), CommandOutcome::Applied);
+    assert!(!h.finished(0));
+    assert_eq!(h.w.core_mut().city_queue(0, city).map(|q| q.len()), Some(2));
+    // A refused one leaves the end of turn taken back too.
+    h.cmd(0, end_turn());
+    h.run();
+    assert!(h.finished(0));
+    let id = h.cmd(0, Command::CityQueuePop { city, slot: 9 });
+    h.run();
+    rejected_with(&h, 0, id, RejectCode::Invalid);
+    assert!(!h.finished(0));
 }
 
 #[test]

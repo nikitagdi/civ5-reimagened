@@ -580,6 +580,11 @@ struct Game {
     finished: BTreeSet<PlayerId>,
     /// Last unit id given to each player, so that ids of dead units are not used again.
     unit_seq: BTreeMap<PlayerId, i32>,
+    /// The build queue of a city behind its head (the head is the city's production order), by
+    /// `(owner, city id)`; `(order, item)` per entry. Absent: nothing behind the head.
+    queues: BTreeMap<(PlayerId, i32), Vec<(i8, i16)>>,
+    /// The research queue a seat chose (`ResearchSet`), first = researched now; absent: the default research.
+    research: BTreeMap<PlayerId, Vec<i16>>,
     /// Plots whose record changed for some team since the last `dirty_plots`.
     #[serde(skip)]
     dirty: BTreeSet<u32>,
@@ -716,6 +721,12 @@ impl FixtureCore {
         self.gallery
             .as_ref()
             .map(|g| map::Names::new(g, &seats::UNITS))
+    }
+
+    /// For tests: the whole build queue of a city of `player`, head first, as `(order, item)`; `None`: no
+    /// game or no such city.
+    pub fn city_queue(&self, player: PlayerId, city: i32) -> Option<Vec<(i8, i16)>> {
+        self.game.as_ref()?.queue_of(player, city)
     }
 
     /// The test hooks of `WorkerConfig.fixture_test`: a basis change at a turn, a fog leak in the units.
@@ -877,6 +888,8 @@ impl Core for FixtureCore {
             phase: GamePhase::Humans,
             finished: BTreeSet::new(),
             unit_seq: BTreeMap::new(),
+            queues: BTreeMap::new(),
+            research: BTreeMap::new(),
             dirty: BTreeSet::new(),
             events: Vec::new(),
             pending_wars: Vec::new(),
@@ -950,8 +963,12 @@ impl Core for FixtureCore {
     }
 
     fn command(&mut self, player: PlayerId, cmd: &Command) -> Result<(), Refusal> {
+        // The technologies of the catalog this game serves (one in the plain test world).
+        let techs = self
+            .gallery_names()
+            .map_or_else(|| seats::catalog().techs.len(), |n| n.techs.len());
         match self.game.as_mut() {
-            Some(g) => g.apply_command(player, cmd),
+            Some(g) => g.apply_command(player, cmd, techs),
             None => Err(Refusal::other("fixture: no game")),
         }
     }
@@ -1147,7 +1164,11 @@ impl Core for FixtureCore {
         let m = g
             .major(player)
             .ok_or_else(|| CoreError::failed(format!("fixture: no player {player}")))?;
-        Ok(seats::top_bar(g.turn, m))
+        let mut t = seats::top_bar(g.turn, m);
+        if let Some(&tech) = g.research.get(&player).and_then(|q| q.first()) {
+            t.research_tech = tech;
+        }
+        Ok(t)
     }
 
     fn notifications(&mut self, player: PlayerId) -> Result<Vec<NotificationView>, CoreError> {

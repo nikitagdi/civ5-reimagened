@@ -377,7 +377,7 @@ pub fn notification_view(n: &Notification) -> NotificationView {
 }
 
 /// `OrderTypes` of a protocol order number.
-fn order_of(v: i8) -> Result<OrderType, BuildError> {
+pub(crate) fn order_of(v: i8) -> Result<OrderType, BuildError> {
     match i32::from(v) {
         ffi::GC_ORDER_TRAIN => Ok(OrderType::Train),
         ffi::GC_ORDER_CONSTRUCT => Ok(OrderType::Construct),
@@ -447,14 +447,17 @@ pub fn core_command(cmd: &Command) -> Result<CoreCommand, BuildError> {
         Command::CancelEndTurn | Command::ProposePeace { .. } | Command::AnswerPeace { .. } => {
             return Err("the B1 host does not support this v3 command".into());
         }
-        // v15 queue and research orders: no core command maps to them yet; refused like any
-        // order this host cannot execute.
+        // v15 queue and research orders are not core commands: `RealCore` checks them and gives them
+        // to the core as the net messages of the original UI (`real.rs`, `v15_net`). Never mapped to
+        // another command here.
         Command::CityQueuePush { .. }
         | Command::CityQueuePop { .. }
         | Command::CityQueueMove { .. }
         | Command::CityReplaceHead { .. }
         | Command::ResearchSet { .. } => {
-            return Err("this host does not support the v15 queue and research orders yet".into());
+            return Err(
+                "the v15 queue and research orders are net messages, not core commands".into(),
+            );
         }
     })
 }
@@ -745,9 +748,10 @@ mod tests {
         );
     }
 
-    /// The v15 queue and research orders have no core command yet: refused, never mapped to another.
+    /// The v15 queue and research orders go to the core as net messages: no core command, never mapped to
+    /// another.
     #[test]
-    fn v15_orders_are_not_core_commands_yet() {
+    fn v15_orders_are_never_core_commands() {
         for cmd in [
             Command::CityQueuePush {
                 city: 1,
@@ -772,7 +776,7 @@ mod tests {
             },
         ] {
             let e = core_command(&cmd).unwrap_err();
-            assert!(e.contains("does not support"), "{cmd:?}: {e}");
+            assert!(e.contains("net messages"), "{cmd:?}: {e}");
         }
     }
 

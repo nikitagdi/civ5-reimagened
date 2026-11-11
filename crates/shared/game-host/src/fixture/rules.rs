@@ -20,9 +20,11 @@ use super::{Game, GamePhase};
 use crate::core::RefusalCode;
 use crate::core::{CoreError, CoreErrorKind, CoreEvent, CorePhase, CorePump, EventTarget, Refusal};
 
-/// Magic and version of the save of the test world.
+/// Magic and version of the save of the test world (4: the build queues and the research choice).
 pub const SAVE_MAGIC: &[u8; 4] = b"FIXT";
-pub const SAVE_VERSION: u16 = 3;
+pub const SAVE_VERSION: u16 = 4;
+/// Entries a build queue may hold: every slot must be addressable by the protocol's `i8`.
+pub const QUEUE_SLOTS: usize = 128;
 
 /// Moves a step costs (1/60 of a move).
 pub const MOVE_COST: i16 = 60;
@@ -74,6 +76,12 @@ pub fn production_cost(order: i8, item: i16) -> i32 {
 
 /// Recounts `production_needed` and `production_turns` of a city from its order and stored production.
 pub fn sync_production(c: &mut protocol::CityView) {
+    if c.production_order < 0 {
+        // An empty queue builds nothing.
+        c.production_needed = 0;
+        c.production_turns = -1;
+        return;
+    }
     c.production_needed = production_cost(c.production_order, c.production_item);
     let prod = i32::from(c.yields[1]).max(1);
     let left = (c.production_needed - c.production_stored).max(0);
@@ -95,6 +103,19 @@ fn pretty(type_name: &str) -> String {
 
 fn refuse<T>(text: impl AsRef<str>) -> Result<T, Refusal> {
     Err(Refusal::other(format!("fixture: {}", text.as_ref())))
+}
+
+/// The refusal of a v15 order whose check fails (`RejectCode::Invalid`, as the real host answers it).
+fn invalid<T>(text: impl AsRef<str>) -> Result<T, Refusal> {
+    Err(Refusal::invalid(format!("fixture: {}", text.as_ref())))
+}
+
+/// The index of a protocol slot in a queue of `len` entries.
+fn slot_index(slot: i8, len: usize) -> Result<usize, Refusal> {
+    match usize::try_from(slot) {
+        Ok(i) if i < len => Ok(i),
+        _ => invalid(format!("no slot {slot} in a queue of {len}")),
+    }
 }
 
 fn failed<T>(text: impl AsRef<str>) -> Result<T, CoreError> {
@@ -362,6 +383,13 @@ impl Game {
                 None,
             );
         }
+        // A chosen research that is known now leaves the seat's research queue.
+        for m in &self.majors {
+            if let Some(q) = self.research.get_mut(&m.player) {
+                q.retain(|&t| !seats::knows_tech(m, t));
+            }
+        }
+        self.research.retain(|_, q| !q.is_empty());
         self.repair_plots();
         self.apply_basis_hook();
         self.apply_owner_hook();
@@ -386,10 +414,25 @@ impl Game {
                 c.population += 1;
                 c.growth_turns = 5 + c.population;
             }
+            if c.production_order < 0 {
+                // An empty queue: nothing is built and nothing is stored.
+                sync_production(c);
+                continue;
+            }
             c.production_stored += i32::from(c.yields[1]);
             let needed = production_cost(c.production_order, c.production_item);
             if c.production_stored >= needed {
                 c.production_stored -= needed;
+                // The next entry of the queue, if any, follows what is done.
+                let key = (c.owner, c.id);
+                let next = self
+                    .queues
+                    .get_mut(&key)
+                    .filter(|r| !r.is_empty())
+                    .map(|r| r.remove(0));
+                if self.queues.get(&key).is_some_and(Vec::is_empty) {
+                    self.queues.remove(&key);
+                }
                 if c.production_order == ORDER_BUILDING {
                     if !c.buildings.contains(&c.production_item) {
                         c.buildings.push(c.production_item);
@@ -408,6 +451,11 @@ impl Game {
                         .unwrap_or("?");
                     built.push((c.owner, c.name.clone(), name.to_owned(), (c.x, c.y)));
                     spawn.push((c.owner, c.production_item, (c.x, c.y)));
+                }
+                // Without a queue a unit is trained again and a building gives way to a warrior (above).
+                if let Some((order, item)) = next {
+                    c.production_order = order;
+                    c.production_item = item;
                 }
             }
             sync_production(c);
@@ -598,8 +646,13 @@ impl Game {
 
     // ------------------------------------------------------------ orders
 
-    /// An order of a human (`Core::command`).
-    pub(super) fn apply_command(&mut self, player: PlayerId, cmd: &Command) -> Result<(), Refusal> {
+    /// An order of a human (`Core::command`); `techs`: the technologies of the catalog the game serves.
+    pub(super) fn apply_command(
+        &mut self,
+        player: PlayerId,
+        cmd: &Command,
+        techs: usize,
+    ) -> Result<(), Refusal> {
         if !self.is_human(player) {
             return Err(Refusal::new(
                 RefusalCode::NotHuman,
@@ -627,8 +680,158 @@ impl Game {
                 self.seat_may_order(player, true)?;
                 self.unit_order(player, order)
             }
+            Command::CityQueuePush { .. }
+            | Command::CityQueuePop { .. }
+            | Command::CityQueueMove { .. }
+            | Command::CityReplaceHead { .. }
+            | Command::ResearchSet { .. } => {
+                self.seat_may_order(player, true)?;
+                self.v15_order(player, cmd, techs)
+            }
             _ => refuse("command not supported"),
         }
+    }
+
+    /// The whole build queue of a city of `player`, head first; `None`: no such city.
+    pub(super) fn queue_of(&self, player: PlayerId, city: i32) -> Option<Vec<(i8, i16)>> {
+        let c = self
+            .cities
+            .iter()
+            .find(|c| c.id == city && c.owner == player)?;
+        let mut q = Vec::new();
+        if c.production_order >= 0 {
+            q.push((c.production_order, c.production_item));
+        }
+        q.extend(self.queues.get(&(player, city)).into_iter().flatten());
+        Some(q)
+    }
+
+    /// Sets the whole build queue of a city: the head becomes its production (none for an empty queue),
+    /// the rest is kept in `queues`.
+    fn set_queue(&mut self, player: PlayerId, city: i32, mut q: Vec<(i8, i16)>) {
+        let rest = if q.is_empty() {
+            Vec::new()
+        } else {
+            q.split_off(1)
+        };
+        if let Some(c) = self
+            .cities
+            .iter_mut()
+            .find(|c| c.id == city && c.owner == player)
+        {
+            (c.production_order, c.production_item) = q.first().copied().unwrap_or((-1, -1));
+            sync_production(c);
+        }
+        if rest.is_empty() {
+            self.queues.remove(&(player, city));
+        } else {
+            self.queues.insert((player, city), rest);
+        }
+    }
+
+    /// `(order, item)` may join the queue `others` (the entries it will stand with) of the city: a unit the
+    /// city trains, or a building it has neither built nor queued.
+    fn check_queue_item(
+        &self,
+        player: PlayerId,
+        city: i32,
+        others: &[(i8, i16)],
+        order: i8,
+        item: i16,
+    ) -> Result<(), Refusal> {
+        let Some(c) = self
+            .cities
+            .iter()
+            .find(|c| c.id == city && c.owner == player)
+        else {
+            return invalid(format!("player {player} has no city {city}"));
+        };
+        let ok = match order {
+            ORDER_UNIT => BUILD_UNITS.contains(&item),
+            ORDER_BUILDING => {
+                (0..seats::BUILDINGS.len() as i16).contains(&item)
+                    && !c.buildings.contains(&item)
+                    && !others.contains(&(order, item))
+            }
+            _ => false,
+        };
+        if ok {
+            Ok(())
+        } else {
+            invalid(format!(
+                "city {city} cannot queue order {order} item {item}"
+            ))
+        }
+    }
+
+    /// The v15 queue and research orders, with the checks the real host makes (`RefusalCode::Invalid`).
+    fn v15_order(&mut self, player: PlayerId, cmd: &Command, techs: usize) -> Result<(), Refusal> {
+        if let Command::ResearchSet { tech, queue } = *cmd {
+            if tech < 0 || usize::try_from(tech).is_ok_and(|t| t >= techs) {
+                return invalid(format!("there is no technology {tech}"));
+            }
+            if self
+                .major(player)
+                .is_some_and(|m| seats::knows_tech(m, tech))
+            {
+                return invalid(format!("technology {tech} is known already"));
+            }
+            let q = self.research.entry(player).or_default();
+            if !queue {
+                q.clear();
+            }
+            if !q.contains(&tech) {
+                q.push(tech);
+            }
+            return Ok(());
+        }
+        let city = match *cmd {
+            Command::CityQueuePush { city, .. }
+            | Command::CityQueuePop { city, .. }
+            | Command::CityQueueMove { city, .. }
+            | Command::CityReplaceHead { city, .. } => city,
+            _ => return refuse("command not supported"),
+        };
+        let Some(mut q) = self.queue_of(player, city) else {
+            return invalid(format!("player {player} has no city {city}"));
+        };
+        match *cmd {
+            Command::CityQueuePush {
+                order, item, front, ..
+            } => {
+                if q.len() >= QUEUE_SLOTS {
+                    return invalid(format!("the queue of city {city} is full"));
+                }
+                self.check_queue_item(player, city, &q, order, item)?;
+                if front {
+                    q.insert(0, (order, item));
+                } else {
+                    q.push((order, item));
+                }
+            }
+            Command::CityQueuePop { slot, .. } => {
+                let i = slot_index(slot, q.len())?;
+                q.remove(i);
+            }
+            Command::CityQueueMove { from, to, .. } => {
+                let (i, j) = (slot_index(from, q.len())?, slot_index(to, q.len())?);
+                if i == j {
+                    return invalid(format!("slot {from} is moved onto itself"));
+                }
+                let e = q.remove(i);
+                q.insert(j, e);
+            }
+            Command::CityReplaceHead { order, item, .. } => {
+                if q.is_empty() {
+                    return invalid(format!("the queue of city {city} is empty"));
+                }
+                self.check_queue_item(player, city, &q[1..], order, item)?;
+                q[0] = (order, item);
+            }
+            _ => return refuse("command not supported"),
+        }
+        self.set_queue(player, city, q);
+        Ok(())
     }
 
     /// The end of the seat's turn by the timer: no check of blockers or of whose turn it is.
@@ -857,6 +1060,8 @@ impl Game {
                 c.production_order = order;
                 c.production_item = item;
                 sync_production(c);
+                // As the core's CITY_SET_PRODUCTION (`pushOrder` with pop): the new item is the whole queue.
+                self.queues.remove(&(player, city));
                 Ok(())
             }
             Command::CityPurchase {
@@ -888,11 +1093,20 @@ impl Game {
                     return refuse("not enough gold");
                 }
                 c.buildings.push(item);
-                // What the city was building is done: it goes back to the default order.
+                // A bought building leaves the queue; what the city was building is done: the next entry of
+                // the queue follows, else the default order.
+                let rest = self.queues.entry((player, city)).or_default();
+                rest.retain(|e| *e != (order, item));
                 if c.production_order == order && c.production_item == item {
-                    c.production_order = ORDER_UNIT;
-                    c.production_item = U_WARRIOR;
+                    (c.production_order, c.production_item) = if rest.is_empty() {
+                        (ORDER_UNIT, U_WARRIOR)
+                    } else {
+                        rest.remove(0)
+                    };
                     sync_production(c);
+                }
+                if rest.is_empty() {
+                    self.queues.remove(&(player, city));
                 }
                 if let Some(m) = self.majors.iter_mut().find(|m| m.player == player) {
                     m.gold_spent += cost;
@@ -1421,8 +1635,18 @@ impl Game {
             .iter()
             .map(|t| entry(ORDER_UNIT, *t, true))
             .collect();
+        // As the core asks it: a building behind the head of the queue cannot be started again.
+        let queued = |b: i16| {
+            self.queues
+                .get(&(player, city))
+                .is_some_and(|r| r.contains(&(ORDER_BUILDING, b)))
+        };
         for b in 0..seats::BUILDINGS.len() as i16 {
-            out.push(entry(ORDER_BUILDING, b, !c.buildings.contains(&b)));
+            out.push(entry(
+                ORDER_BUILDING,
+                b,
+                !c.buildings.contains(&b) && !queued(b),
+            ));
         }
         Ok(out)
     }
@@ -1515,8 +1739,8 @@ impl Game {
 
     // ------------------------------------------------------------ save
 
-    /// The whole state of a safe point as the bytes of the core part of a save: magic `FIXT`, version 3,
-    /// postcard.
+    /// The whole state of a safe point as the bytes of the core part of a save: magic `FIXT`, version
+    /// [`SAVE_VERSION`], postcard.
     pub(super) fn encode(&self) -> Result<Vec<u8>, CoreError> {
         if self.phase != GamePhase::Humans {
             return failed("the AI is moving: not a safe point");
@@ -2485,6 +2709,179 @@ mod tests {
             next_turn(&mut plain);
         }
         assert_eq!(p1, basis(&mut plain));
+    }
+
+    fn code_of(r: Result<(), Refusal>) -> Option<RefusalCode> {
+        r.err().map(|e| e.code)
+    }
+
+    #[test]
+    fn the_build_queue_takes_pushes_pops_moves_and_a_new_head() {
+        let mut core = start(2, 0, TurnMode::Simultaneous);
+        let id = core.cities(0).unwrap()[0].id;
+        let q = |core: &FixtureCore| core.city_queue(0, id).unwrap();
+        assert_eq!(q(&core), vec![(ORDER_UNIT, U_WARRIOR)]);
+        let push = |order, item, front| Command::CityQueuePush {
+            city: id,
+            order,
+            item,
+            front,
+        };
+        core.command(0, &push(ORDER_BUILDING, 0, false)).unwrap();
+        core.command(0, &push(ORDER_UNIT, U_SCOUT, true)).unwrap();
+        assert_eq!(
+            q(&core),
+            vec![
+                (ORDER_UNIT, U_SCOUT),
+                (ORDER_UNIT, U_WARRIOR),
+                (ORDER_BUILDING, 0)
+            ]
+        );
+        // The head is the city's production.
+        let c = core.cities(0).unwrap()[0].clone();
+        assert_eq!(
+            (c.production_order, c.production_item),
+            (ORDER_UNIT, U_SCOUT)
+        );
+        // A queued building is no choice any more, and cannot be queued twice.
+        let monument = core
+            .city_builds(0, id)
+            .unwrap()
+            .into_iter()
+            .find(|b| b.order_type == ORDER_BUILDING && b.item == 0)
+            .unwrap();
+        assert!(!monument.flags.contains(CityBuildFlags::ENABLED));
+        assert_eq!(
+            code_of(core.command(0, &push(ORDER_BUILDING, 0, false))),
+            Some(RefusalCode::Invalid)
+        );
+        core.command(
+            0,
+            &Command::CityQueueMove {
+                city: id,
+                from: 2,
+                to: 0,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            q(&core),
+            vec![
+                (ORDER_BUILDING, 0),
+                (ORDER_UNIT, U_SCOUT),
+                (ORDER_UNIT, U_WARRIOR)
+            ]
+        );
+        core.command(0, &Command::CityQueuePop { city: id, slot: 1 })
+            .unwrap();
+        core.command(
+            0,
+            &Command::CityReplaceHead {
+                city: id,
+                order: ORDER_UNIT,
+                item: U_ARCHER,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            q(&core),
+            vec![(ORDER_UNIT, U_ARCHER), (ORDER_UNIT, U_WARRIOR)]
+        );
+        // Wrong slots, an unknown city, a move onto itself: `Invalid`, nothing changes.
+        for bad in [
+            Command::CityQueuePop { city: id, slot: 2 },
+            Command::CityQueuePop { city: id, slot: -1 },
+            Command::CityQueuePop { city: 99, slot: 0 },
+            Command::CityQueueMove {
+                city: id,
+                from: 0,
+                to: 5,
+            },
+            Command::CityQueueMove {
+                city: id,
+                from: 1,
+                to: 1,
+            },
+            push(ORDER_UNIT, 99, false),
+        ] {
+            assert_eq!(
+                code_of(core.command(0, &bad)),
+                Some(RefusalCode::Invalid),
+                "{bad:?}"
+            );
+        }
+        assert_eq!(
+            q(&core),
+            vec![(ORDER_UNIT, U_ARCHER), (ORDER_UNIT, U_WARRIOR)]
+        );
+        // The archer (30) is done and the warrior follows; an empty queue builds nothing.
+        for _ in 0..8 {
+            next_turn(&mut core);
+        }
+        assert_eq!(q(&core).first(), Some(&(ORDER_UNIT, U_WARRIOR)));
+        core.command(0, &Command::CityQueuePop { city: id, slot: 0 })
+            .unwrap();
+        assert!(q(&core).is_empty());
+        let c = core.cities(0).unwrap()[0].clone();
+        assert_eq!(c.production_order, -1);
+        let units = core.units(0).unwrap().len();
+        next_turn(&mut core);
+        assert_eq!(core.units(0).unwrap().len(), units);
+        assert_eq!(
+            code_of(core.command(
+                0,
+                &Command::CityReplaceHead {
+                    city: id,
+                    order: ORDER_UNIT,
+                    item: U_SCOUT
+                }
+            )),
+            Some(RefusalCode::Invalid)
+        );
+        // Set production replaces the whole queue; the queue goes into the save.
+        core.command(0, &push(ORDER_UNIT, U_SCOUT, false)).unwrap();
+        core.command(0, &push(ORDER_UNIT, U_WORKER, false)).unwrap();
+        let saved = core.save().unwrap();
+        let mut again = FixtureCore::new(false, false);
+        again.start(CoreStart::Load(&saved)).unwrap();
+        assert_eq!(q(&again), q(&core));
+        core.command(
+            0,
+            &Command::CitySetProduction {
+                city: id,
+                order: ORDER_UNIT,
+                item: U_SETTLER,
+            },
+        )
+        .unwrap();
+        assert_eq!(q(&core), vec![(ORDER_UNIT, U_SETTLER)]);
+    }
+
+    #[test]
+    fn a_research_choice_shows_in_the_top_bar_until_the_tech_is_known() {
+        let mut core = start(2, 0, TurnMode::Simultaneous);
+        let set = |tech, queue| Command::ResearchSet { tech, queue };
+        for bad in [set(-1, false), set(1, false), set(64, true)] {
+            assert_eq!(
+                code_of(core.command(0, &bad)),
+                Some(RefusalCode::Invalid),
+                "{bad:?}"
+            );
+        }
+        core.command(0, &set(0, false)).unwrap();
+        core.command(0, &set(0, true)).unwrap();
+        assert_eq!(g(&core).research.get(&0), Some(&vec![0]));
+        assert_eq!(core.top_bar(0).unwrap().research_tech, 0);
+        for _ in 0..8 {
+            next_turn(&mut core);
+        }
+        assert_eq!(core.players(0).unwrap()[0].art_techs, 1);
+        assert!(g(&core).research.is_empty());
+        assert_eq!(core.top_bar(0).unwrap().research_tech, -1);
+        assert_eq!(
+            code_of(core.command(0, &set(0, false))),
+            Some(RefusalCode::Invalid)
+        );
     }
 
     #[test]
