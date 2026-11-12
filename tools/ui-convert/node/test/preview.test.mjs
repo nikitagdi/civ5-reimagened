@@ -114,6 +114,8 @@ test("engraved: includes are expanded and the strip shows the mockup numbers", a
     assert.deepEqual(res.map((r) => [r.inst, r.v, r.off]), [["0:1", "2", false], ["0:2", "4", false], ["0:3", "0", true]]);
     assert.deepEqual(res.map((r) => r.asset), ["icon:RESOURCE_ATLAS:1", "icon:RESOURCE_ATLAS:2", "icon:RESOURCE_ATLAS:3"]);
     assert.ok(res.every((r) => r.src === "data:"), "assets show a placeholder, no request leaves");
+    // the chat field shows its placeholder, a skin text, as the runtime does
+    assert.equal(await page.evaluate(() => document.querySelector('[data-part="chat.field"] input').placeholder), "Message");
 
     const errors = await page.evaluate(() => window.__ui2preview.errors);
     assert.deepEqual(errors, []);

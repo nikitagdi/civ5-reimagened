@@ -1394,6 +1394,15 @@
         if (c.localName === "button" || c.localName === "input") c.toggleAttribute("disabled", off);
         else if (off) c.setAttribute("aria-disabled", "true");
       }
+      // The placeholder of a text field: a skin text, shown while the field is empty (the runtime does the same).
+      // Not in extract mode: the converter reads the key from the markup, and `placeholder` is not in the profile.
+      const placeholder = el.getAttribute("data-l10n-placeholder");
+      if (placeholder !== null && !extract()) {
+        if (!Object.prototype.hasOwnProperty.call(l10n, placeholder)) {
+          report(PV.L10N_MISSING, "error", el, "data-l10n-placeholder", "no text for the key " + JSON.stringify(placeholder) + " in l10n/" + cfg.lang + ".toml");
+          c.setAttribute("placeholder", placeholder);
+        } else c.setAttribute("placeholder", locText(placeholder, []));
+      }
       if (el.hasAttribute("data-hotkey-label")) {
         // The name of the key of the nearest data-hotkey (this element or an ancestor), as the runtime shows it.
         const owner = el.closest("[data-hotkey]");
