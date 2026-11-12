@@ -173,8 +173,8 @@ fn a_class_bound_in_the_first_frame_starts_no_transition() {
 
 /// A frozen scene gives the transitions their time: a transition half way when the scene is frozen holds
 /// there whatever the frame clock says, costs nothing after the frame that froze it and does not ask for
-/// frames; thawed, it runs on the frame clock again. A transition that starts in a frozen scene starts at
-/// the frozen time.
+/// frames; thawed, it runs on the frame clock again. A record that changes while the scene is frozen is shown
+/// at once (no transition starts).
 #[test]
 fn transitions_take_the_time_of_a_frozen_scene() {
     let mut rig = Rig::new();
@@ -201,17 +201,38 @@ fn transitions_take_the_time_of_a_frozen_scene() {
     assert!(!out.animating);
     assert_eq!(rig.shown(), (Color([200, 100, 0, 128]), 2.0));
 
-    // Leaving while frozen: the way back starts at the frozen time and holds its first values.
+    // Leaving while frozen: the record of the way back is shown at once and stays at any frozen time.
     rig.scene.freeze(Some(20_000.0));
     rig.rt.set_hover(None);
     let out = rig.frame(9100.0);
     assert!(!out.animating);
-    assert_eq!(rig.shown(), (Color([200, 100, 0, 128]), 2.0));
+    assert_eq!(rig.shown(), (Color([0, 0, 0, 255]), 1.0));
     rig.scene.freeze(Some(20_075.0));
     rig.frame(9200.0);
-    let (c, s) = rig.shown();
-    assert_eq!(c, mid.0, "half way back at the new frozen time");
-    assert!((s - 1.5).abs() < 1e-4, "{s}");
+    assert_eq!(rig.shown(), (Color([0, 0, 0, 255]), 1.0));
+}
+
+/// A scene frozen from the start (the reference images of `?ui2bg=`): a hover, and a hover that ends, show their
+/// records in the next frame. Before, the transition started at the frozen time and held its first values for ever:
+/// no hover, press or focus style ever showed in a frozen scene.
+#[test]
+fn a_frozen_scene_shows_a_new_hover_at_once() {
+    let mut rig = Rig::new();
+    rig.scene.freeze(Some(0.0));
+    let button = rig.button;
+    rig.rt.set_hover(Some(button));
+    let out = rig.frame(16.0);
+    assert!(!out.animating);
+    assert_eq!(
+        rig.shown(),
+        (Color([200, 100, 0, 128]), 2.0),
+        "the hover style"
+    );
+    rig.frame(32.0);
+    assert_eq!(rig.shown(), (Color([200, 100, 0, 128]), 2.0));
+    rig.rt.set_hover(None);
+    rig.frame(48.0);
+    assert_eq!(rig.shown(), (Color([0, 0, 0, 255]), 1.0), "back at once");
 }
 
 #[test]

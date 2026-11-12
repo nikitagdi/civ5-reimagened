@@ -305,6 +305,17 @@ impl Animator {
         }
     }
 
+    /// The nodes of `changes` take their selected records at once (a frozen scene): their running transitions end
+    /// and none starts.
+    pub fn settle(&mut self, changes: &[(NodeId, StyleRecord)]) {
+        let before = self.anims.len();
+        self.anims
+            .retain(|a| !changes.iter().any(|(id, _)| *id == a.node));
+        if self.anims.len() != before {
+            self.painted_at = None;
+        }
+    }
+
     /// Moves the animations to `now`: the animated records are built again and their chunks queued for paint;
     /// finished animations end (their nodes are painted once more with their selected record). Returns
     /// whether an animation still runs. Nothing is done without animations.
