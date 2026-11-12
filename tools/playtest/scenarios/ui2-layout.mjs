@@ -221,7 +221,7 @@ export async function run(ctx) {
       }
       // SAMPLE-MODE FAULT: the page's lobby (`#civ5-ui`, the sign-in form) stays over the canvas in the sample mode;
       // hidden for the picture only (the rectangles do not depend on it).
-      await b.page.addStyleTag({ content: "#civ5-ui{display:none!important}" }).catch(() => {});
+      await b.page.addStyleTag({ content: "body > :not(canvas){display:none!important}" }).catch(() => {});
       await b.page.screenshot({ path: path.join(o.logDir, `ui2-layout-${state}.png`) }).catch(() => {});
     }
   } catch (e) {

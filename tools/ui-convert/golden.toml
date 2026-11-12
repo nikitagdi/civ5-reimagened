@@ -19,6 +19,9 @@
 # (mean / over02): the frame moved by 1 px 0.0254 / 0.0506; the notification log button gone 0.0112 / 0.0230; one
 # digit of the turn number gone 0.0014 / 0.0018. `over02` catches all three; `mean` (as in tools/golden) none, so it
 # guards against large breakage only.
+# The full set G1-G12 (2026-11-12): every sample case recorded twice in fresh sessions differs by exactly 0 on both
+# backends; the game cases with the mod (G8-G10) differ by up to 0.0009 / 0.0017, the random nick of the game in the
+# helm's seats, which their declared noise covers.
 
 [threshold.mean]
 factor = 1.5
@@ -43,16 +46,20 @@ grow = 2
 skin = "engraved"
 # The solid background under the skin (`?ui2bg=`).
 background = "202020"
-# `game`: a live game (seed 7, turn 0, real-core server, `--attach`) with the world hidden under the solid
-# background. `sample`: the skin's sample model (`?ui2sample=<state>`, no game), once the client has that mode.
-source = "game"
+# `sample`: the skin's sample model (`?ui2sample=<state>`, no game): the content is the same in every run. `game`: a
+# live game (seed 7, turn 0, real-core server, `--attach`) with the world hidden under the solid background, for what
+# only a game has (the panels of mods).
+source = "sample"
 # Rendering backends; one reference per case and backend.
 backends = ["webgpu", "webgl2"]
 scale = 1.0
 
-# The cases. `id` is the number in the acceptance list of the screens; `name` names the files.
-# In the `game` source only the state `hud` exists (the game screen as it comes up, nothing opened).
-# A case may set `noise_mean` / `noise_over02` when its frames are known to vary; these measured 0, so none is set.
+# The cases. `id` is the number in the list of golden frames of the screens; `name` names the files.
+# In the `game` source only the state `hud` exists (the game screen as it comes up, nothing opened). Optional:
+# `hover = { part = "<data-part>", row = <n> }` puts the pointer on a part (or its n-th list instance, from 0);
+# `mods = "<id>"` plays the game with that mod (its server: `UI2_MODS_ATTACH`, else `--attach`);
+# `broken_mod = "<id>"` gives the page that mod's panels with a script that throws (the placeholder).
+# A case may set `noise_mean` / `noise_over02` when its frames are known to vary; none is set (see the calibration).
 
 [[case]]
 id = "G1"
@@ -61,7 +68,99 @@ state = "hud"
 viewport = [1920, 1200]
 
 [[case]]
+id = "G2"
+name = "production-1920x1200"
+state = "production"
+viewport = [1920, 1200]
+
+[[case]]
 id = "G3"
 name = "hud-1280x720"
 state = "hud"
 viewport = [1280, 720]
+
+[[case]]
+id = "G4"
+name = "hud-3440x1440"
+state = "hud"
+viewport = [3440, 1440]
+
+[[case]]
+id = "G5"
+name = "hud-5120x1440"
+state = "hud"
+viewport = [5120, 1440]
+
+[[case]]
+id = "G6"
+name = "production-1280x720"
+state = "production"
+viewport = [1280, 720]
+
+[[case]]
+id = "G7"
+name = "vellum-hud-1920x1200"
+skin = "vellum"
+state = "hud"
+viewport = [1920, 1200]
+
+# The mod's panel in the point it asks for (`hud.right`, which engraved has) and in the slot `mods` (vellum).
+[[case]]
+id = "G8"
+name = "hello-hud-right"
+source = "game"
+# A game's frames carry its random nick in the seats of the helm (measured 0.0009 / 0.0017 at most).
+noise_mean = 0.001
+noise_over02 = 0.002
+mods = "hello"
+state = "hud"
+viewport = [1920, 1200]
+
+[[case]]
+id = "G9"
+name = "vellum-hello-mods"
+source = "game"
+# A game's frames carry its random nick in the seats of the helm (measured 0.0009 / 0.0017 at most).
+noise_mean = 0.001
+noise_over02 = 0.002
+mods = "hello"
+skin = "vellum"
+state = "hud"
+viewport = [1920, 1200]
+
+# A panel whose mod script fails shows its placeholder.
+[[case]]
+id = "G10"
+name = "hello-placeholder"
+source = "game"
+# A game's frames carry its random nick in the seats of the helm (measured 0.0009 / 0.0017 at most).
+noise_mean = 0.001
+noise_over02 = 0.002
+mods = "hello"
+broken_mod = "hello"
+state = "hud"
+viewport = [1920, 1200]
+
+# Hover: a row of the production list (the fourth option), and the policies button of the top strip with its
+# tooltip (the skin gives the button no `data-tooltip` yet, so the frame shows the hover style alone).
+[[case]]
+id = "G11"
+name = "production-row-hover"
+state = "production"
+viewport = [1920, 1200]
+hover = { part = "production.list", row = 3 }
+
+[[case]]
+id = "G11"
+name = "policies-tooltip"
+state = "hud"
+viewport = [1920, 1200]
+hover = { part = "top.menu.policies" }
+
+# The player's scale of 150 %: 1280 x 720 CSS px at a device scale of 1.5.
+[[case]]
+id = "G12"
+name = "hud-1280x720-150"
+state = "hud"
+viewport = [1280, 720]
+scale = 1.5

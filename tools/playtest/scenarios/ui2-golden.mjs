@@ -14,14 +14,18 @@
 // reference, the FLIP of the two is the measured noise (`<case>-<backend>.json`), and the skin's source page in
 // Chromium with its sample (`<case>-chrome.png`) is saved next to it to be looked at once (never compared).
 //
-// Sources: `game` (today) signs in, starts a game (seed 7, turn 0) with `?ui=v2:<skin>&ui2bg=<hex>` and waits for the
-// skin; the state `hud` is the game screen as it comes up. `sample` opens `?ui2sample=<state>` with no game (the
-// client's sample mode; it needs no `--attach`).
+// Sources: `game` signs in, starts a game (seed 7, turn 0) with `?ui=v2:<skin>&ui2bg=<hex>` and waits for the skin;
+// the state `hud` is the game screen as it comes up (cases of one game that differ in the skin change it on the
+// screen). `sample` opens `?ui=v2:<skin>&ui2sample=<state>` with no game (the client's sample mode). A case may also
+// hover a part (`hover = { part, row }`: the centre of the part, or of its `row`-th list instance), play with mods
+// (`mods = "hello"`: the game's quick start takes them; `UI2_MODS_ATTACH` names the server that has them, else
+// `--attach`) and break a mod's script (`broken_mod = "hello"`: the mod's panels are converted again from
+// `examples/mods/<id>` with a script that throws, and the page gets that package instead of the server's).
 //
 // SIMPLIFIED(SIMP-216): golden frames of UI v2 have no world under the interface (a solid background), so transparency
 // and blending over the map are not checked.
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { openPage, act, until, appUrl } from "../lib/browser.mjs";
@@ -229,6 +233,10 @@ export function loadConfig(text, only = null) {
     if (!SOURCES.includes(x.source)) throw new Error(`${where}: source ${x.source}: want ${SOURCES.join(" or ")}`);
     if (!Array.isArray(x.viewport) || x.viewport.length !== 2 || !x.viewport.every((v) => Number.isInteger(v) && v > 0)) throw new Error(`${where}: viewport is [width, height]`);
     if (!(typeof x.scale === "number" && x.scale > 0)) throw new Error(`${where}: scale must be a positive number`);
+    if (x.hover !== undefined && !(typeof x.hover === "object" && typeof x.hover.part === "string" && (x.hover.row === undefined || Number.isInteger(x.hover.row)))) throw new Error(`${where}: hover is { part = "<data-part>", row = <n> }`);
+    for (const k of ["mods", "broken_mod"]) if (x[k] !== undefined && !(typeof x[k] === "string" && /^[a-z0-9_-]+$/.test(x[k]))) throw new Error(`${where}: ${k} is a mod id`);
+    if ((x.mods || x.broken_mod) && x.source !== "game") throw new Error(`${where}: mods play in a game: they need the game source`);
+    if (x.broken_mod && x.broken_mod !== x.mods) throw new Error(`${where}: broken_mod must be one of the case's mods`);
     const backends = x.backends ?? BACKENDS;
     for (const b of backends) if (!BACKENDS.includes(b)) throw new Error(`${where}: backend ${b}: want ${BACKENDS.join(" or ")}`);
     return { ...x, backends };
@@ -413,9 +421,105 @@ async function settledFrame(cdp) {
 }
 
 /**
- * One session: a fresh browser per group of cases that share the source, skin and background, the cases shot one
- * after another (the viewport and scale change on the same page). Returns [{ c, backend, file, pkg, settled }] and
- * the console errors.
+ * In the sample mode everything of the page but the canvas is hidden: the lobby's sign-in form (`#civ5-ui`) stays
+ * over the canvas there. The page keeps its server connection: without one the client draws its reconnecting
+ * notices on the canvas (each sample page signs in as a guest once and is refused, which a dev server counts against
+ * the address: about ten sample pages in ten minutes block password logins from it for ten minutes).
+ */
+const HIDE_LOBBY = "body > :not(canvas){display:none!important}";
+
+/** The instances of a list under a part (`ui2Rects` records): per instance key, the box of its largest record. */
+function rowsOf(rects) {
+  const by = new Map();
+  for (const r of rects) {
+    if (!r.keys || r.node.includes("#")) continue;
+    const best = by.get(r.keys);
+    if (!best || r.w * r.h > best.w * best.h) by.set(r.keys, r);
+  }
+  return [...by.values()].sort((a, b) => a.y - b.y || a.x - b.x);
+}
+
+/** Moves the pointer onto `hover` (a part, or its `row`-th list instance); returns where, or throws. */
+async function hoverPart(page, hover) {
+  const rects = await page.evaluate((p) => window.__civ5test.ui2Rects([p]), hover.part);
+  if (!Array.isArray(rects) || !rects.length) throw new Error(`hover: no part ${hover.part} on the screen`);
+  let box = rects[0];
+  if (hover.row !== undefined) {
+    // The innermost list when lists nest (the options of the production list's groups: keys `group/option`).
+    const all = rowsOf(rects);
+    const depth = Math.max(...all.map((r) => r.keys.split("/").length));
+    const rows = all.filter((r) => r.keys.split("/").length === depth);
+    box = rows[hover.row];
+    if (!box) throw new Error(`hover: ${hover.part} has ${rows.length} rows, not ${hover.row + 1}`);
+  }
+  const at = [box.x + Math.min(box.w / 2, 120), box.y + box.h / 2];
+  await page.mouse.move(at[0] - 3, at[1]);
+  await sleep(100);
+  await page.mouse.move(at[0], at[1]);
+  return at;
+}
+
+let broken = null;
+/**
+ * The fragment package of mod `id` with scripts that throw (built once per run): `{ file, hash, path }`. The mod's
+ * folder is copied to `<logs>/broken-<id>`, its UI scripts replaced, and `ui2-convert fragment` builds the package.
+ */
+function brokenFragment(id, logDir) {
+  if (broken) return broken;
+  const src = path.join(ROOT, "examples", "mods", id);
+  const dir = path.join(logDir, `broken-${id}`);
+  rmSync(dir, { recursive: true, force: true });
+  cpSync(src, dir, { recursive: true, filter: (f) => !/[\\/](target|node_modules)$/.test(f) });
+  const manifest = parseToml(readFileSync(path.join(dir, "mod.toml"), "utf8"));
+  for (const sc of manifest.ui?.scripts ?? []) writeFileSync(path.join(dir, sc), "// Broken on purpose: the panel must give way to its placeholder.\nthrow new Error(\"broken on purpose\");\n");
+  const out = path.join(dir, "out");
+  mkdirSync(out, { recursive: true });
+  const r = spawnSync("cargo", ["run", "-q", "-p", "ui2-convert", "--", "fragment", dir, "--out", out], { cwd: ROOT, encoding: "utf8" });
+  const m = /^ui2-fragment (\S+) ([0-9a-fA-F]+)\s*$/m.exec(r.stdout ?? "");
+  if (r.status !== 0 || !m) throw new Error(`ui2-convert fragment ${dir} failed: ${(r.stderr || r.stdout || "").trim().split("\n").pop()}`);
+  return (broken = { file: m[1], hash: m[2].toLowerCase(), path: path.join(out, m[1]) });
+}
+
+/** The page gets the broken package of mod `id` in place of the server's (the index entry and the file). */
+async function routeBroken(page, id, logDir) {
+  const b = brokenFragment(id, logDir);
+  await page.route("**/ui2/mods-ui.json", async (r) => {
+    const resp = await r.fetch();
+    const list = await resp.json();
+    for (const e of list) if (e.id === id) Object.assign(e, { file: `mods/${b.file}`, hash: b.hash });
+    await r.fulfill({ response: resp, json: list });
+  });
+  await page.route(`**/ui2/mods/${b.file}`, (r) => r.fulfill({ path: b.path, contentType: "application/octet-stream" }));
+  return b;
+}
+
+/** Waits until UI v2 runs `skin` (after a change on the screen). */
+async function skinIs(page, skin) {
+  const t0 = Date.now();
+  for (;;) {
+    const p = await ui2(page);
+    if (p?.state === "running" && p.skin === skin && p.frames > 10) return p;
+    if (Date.now() - t0 > 30000) throw new Error(`the skin ${skin} is not on the screen after 30 s: ${JSON.stringify({ skin: p?.skin, state: p?.state })}`);
+    await sleep(200);
+  }
+}
+
+/** Waits until the panels of the case's mod are up (or show their placeholder, for a broken mod). */
+async function modPanels(page, c) {
+  const t0 = Date.now();
+  for (;;) {
+    const p = await ui2(page);
+    const mine = (p?.panels ?? []).filter((x) => (x.owner ?? "").includes(c.mods));
+    if (mine.length && mine.every((x) => x.status === (c.broken_mod ? "placeholder" : "ok"))) return { ok: true, panels: mine };
+    if (Date.now() - t0 > 90000) return { ok: false, panels: p?.panels ?? null };
+    await sleep(250);
+  }
+}
+
+/**
+ * One session: a fresh browser per group of cases (the sample cases on one background share one; the game cases
+ * that share their mods share one game, the skin changing on the screen), the cases shot one after another (the
+ * viewport and scale change on the same page). Returns [{ c, backend, file, pkg, settled }] and the console errors.
  */
 async function session(ctx, cases, backend, outDir, tag, check) {
   const o = ctx.opts;
@@ -424,34 +528,52 @@ async function session(ctx, cases, backend, outDir, tag, check) {
   const errors = [];
   const groups = new Map();
   for (const c of cases) {
-    const k = c.source === "game" ? `${c.source}|${c.skin}|${c.background}` : c.name;
+    const k = c.source === "game" ? `game|${c.mods ?? ""}|${c.broken_mod ?? ""}|${c.background}` : `sample|${c.background}`;
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(c);
   }
   for (const group of groups.values()) {
     const first = group[0];
-    const label = `${tag} ${backend} ${first.source}:${first.skin}`;
+    const label = `${tag} ${backend} ${first.source}:${first.name}`;
+    const server = first.mods ? (process.env.UI2_MODS_ATTACH ?? base) : base;
     if (first.source === "game" && !o.attach) {
       for (const c of group) check(`${c.id} ${c.name} (${backend}): rendered`, false, "the game source needs --attach <url of a real-core server> (tools/playtest/m2/server.ps1)");
       continue;
     }
     const b = await openPage({ headed: o.headed, swiftshader: true, logDir: o.logDir, viewport: { width: first.viewport[0], height: first.viewport[1] }, consoleFile: `console-${tag}-${backend}-${first.name}.log` });
+    let current = null;
     try {
       const cdp = await b.page.context().newCDPSession(b.page);
       const gfx = { gfx: backend === "webgl2" ? "webgl2" : null };
-      const v2 = { ui: `v2:${first.skin}`, ui2bg: first.background.toLowerCase() };
+      let skin = null;
       for (const c of group) {
+        current = c;
         await setMetrics(cdp, c);
+        const v2 = { ui: `v2:${c.skin}`, ui2bg: c.background.toLowerCase() };
         if (c.source === "sample") {
-          await b.page.goto(appUrl(base, gfx, { ...v2, ui2sample: c.state }));
+          await b.page.goto(appUrl(server, gfx, { ...v2, ui2sample: c.state }));
           await skinUp(b.page);
-        } else if (c === first) {
+          // A client fault worked around: the lobby's sign-in form stays over the sample.
+          await b.page.addStyleTag({ content: HIDE_LOBBY });
+        } else {
           if (c.state !== "hud") throw new Error(`state ${c.state}: the game source has only hud (others need the sample source)`);
-          await enterGame(b.page, base, gfx, v2);
-          await skinUp(b.page);
-          // The pointer rests in the middle of the screen (the world), away from any hover style.
-          await b.page.mouse.move(c.viewport[0] / 2, c.viewport[1] / 2);
+          if (c === first) {
+            if (c.broken_mod) await routeBroken(b.page, c.broken_mod, o.logDir);
+            await enterGame(b.page, server, gfx, { ...v2, ...(c.mods ? { mods: c.mods } : {}) });
+            await skinUp(b.page);
+          } else if (skin !== c.skin) {
+            await act(b.page, { kind: "setUi", value: `v2:${c.skin}` });
+          }
+          await skinIs(b.page, c.skin);
+          if (c.mods) {
+            const m = await modPanels(b.page, c);
+            check(`${c.id} ${c.name} (${backend}, ${tag}): the mod's panels are ${c.broken_mod ? "placeholders" : "up"}`, m.ok, JSON.stringify(m.panels));
+          }
         }
+        skin = c.skin;
+        // The pointer rests in the middle of the screen (the world, or nothing), away from any hover style.
+        await b.page.mouse.move(c.viewport[0] / 2, c.viewport[1] / 2);
+        if (c.hover) await hoverPart(b.page, c.hover);
         const probe = await ui2(b.page);
         const { png, settled, tries } = await settledFrame(cdp);
         const file = path.join(outDir, `${c.name}-${backend}${tag === "ours" ? "" : `-${tag}`}.png`);
@@ -459,10 +581,17 @@ async function session(ctx, cases, backend, outDir, tag, check) {
         shots.push({ c, backend, file, pkg: probe?.pkg ?? null, settled, tries });
       }
     } catch (e) {
-      check(`${label}: session`, false, e.message.split("\n")[0]);
-      try { await b.page.screenshot({ path: path.join(o.logDir, `failure-${tag}-${backend}-${first.name}.png`) }); } catch { /* ignore */ }
+      check(`${label}: session (at ${current?.id} ${current?.name})`, false, e.message.split("\n")[0]);
+      try { await b.page.screenshot({ path: path.join(o.logDir, `failure-${tag}-${backend}-${current?.name ?? first.name}.png`) }); } catch { /* ignore */ }
     }
-    errors.push(...b.errors.filter((e) => !e.includes("/pkg-mt/")));
+    // A broken mod's scripts fail and are switched off, which the console says: that is the case, not an error. A
+    // mod script context that is not ready in time is checked on its own (it is not this scenario's subject).
+    const late = (e) => /\[mod:[\w-]+\].*(not ready after|switched off)/.test(e);
+    if (first.mods && !first.broken_mod) {
+      const n = b.errors.filter(late).length;
+      check(`${label}: the mod's script context starts in time (no "not ready" kill)`, n === 0, `${n} kill(s) or switch-off(s): ${b.errors.find(late) ?? ""}`);
+    }
+    errors.push(...b.errors.filter((e) => !e.includes("/pkg-mt/") && !late(e) && !(first.broken_mod && e.includes(`[mod:${first.broken_mod}]`))));
     await b.close();
   }
   return { shots, errors };
@@ -485,7 +614,9 @@ function skinFonts(skinRoot, dir) {
 async function chromeFrame(c, file) {
   const { startServer } = await import("../../ui-convert/node/server.mjs");
   const { launchChromium } = await import("../../ui-convert/node/chromium.mjs");
-  const skinRoot = path.join(ROOT, "skins", c.skin);
+  // A derived skin has no page of its own: the converter's merged folder of it is a plain skin.
+  let skinRoot = path.join(ROOT, "skins", c.skin);
+  if (!existsSync(path.join(skinRoot, "index.html"))) skinRoot = path.join(ROOT, "target", "ui2", "merged", c.skin);
   const fontsDir = path.join(path.dirname(file), `.fonts-${c.skin}`);
   skinFonts(skinRoot, fontsDir);
   const server = await startServer({ root: skinRoot, fontsDir, preview: true });
@@ -499,6 +630,28 @@ async function chromeFrame(c, file) {
     await page.evaluate(() => window.__ui2preview?.ready);
     await page.addStyleTag({ content: `html, body { background: #${c.background} !important; }` });
     await page.evaluate(() => document.fonts.ready);
+    if (c.hover) {
+      // The same part (or its `row`-th list instance) under the pointer.
+      const box = await page.evaluate(({ part, row }) => {
+        const el = document.querySelector(`[data-part="${part}"]`);
+        if (!el) return null;
+        let target = el;
+        if (row !== undefined) {
+          const seen = new Map();
+          const insts = [...el.querySelectorAll("[data-ui2-inst]")];
+          const depth = Math.max(...insts.map((n) => n.getAttribute("data-ui2-inst").split("/").length));
+          for (const n of insts) {
+            const k = n.getAttribute("data-ui2-inst");
+            if (k.split("/").length === depth && !seen.has(k)) seen.set(k, n);
+          }
+          target = [...seen.values()][row] ?? null;
+        }
+        const r = target?.getBoundingClientRect();
+        return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null;
+      }, c.hover);
+      if (box) await page.mouse.move(box.x + Math.min(box.w / 2, 120), box.y + box.h / 2);
+      await page.waitForTimeout(300);
+    }
     await page.screenshot({ path: file });
     return file;
   } finally {
@@ -548,7 +701,8 @@ export async function run(ctx) {
           const limits = Object.fromEntries(METRICS.map((m) => [m, limit(cfg.threshold[m], Math.max(noise[m], sa.c[`noise_${m}`] ?? 0))]));
           result.numbers.cases.push({ id: sa.c.id, name: sa.c.name, backend, ref, noise, limits, settled: [sa.settled, sb.settled], pkg: sa.pkg });
           check(`${name}: recorded twice, frames settled`, sa.settled && sb.settled, `noise mean ${noise.mean}, over02 ${noise.over02}, p95 ${noise.p95} over ${noise.pixels} px; limits ${JSON.stringify(limits)}; ${ref}`);
-          check(`${name}: the two recordings agree within the floor`, METRICS.every((m) => noise[m] <= cfg.threshold[m].floor), `noise ${JSON.stringify(noise)}`);
+          // Within the floor, or within the noise the case declares (a game's frames carry its random nick).
+          check(`${name}: the two recordings agree within the floor or the case's declared noise`, METRICS.every((m) => noise[m] <= Math.max(cfg.threshold[m].floor, sa.c[`noise_${m}`] ?? 0)), `noise ${JSON.stringify(noise)}`);
         }
       }
       // The Chrome frame of each case, once, to look at next to the references.
