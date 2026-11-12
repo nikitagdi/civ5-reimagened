@@ -347,8 +347,11 @@ function generate(turns) {
   return { snapshot: JSON.stringify(snapshot), deltas };
 }
 
+// The turns the workload and the GC pass run by default (the measurement of the spike). The world has more: a run
+// may take more turn samples (`turns`); the first `TURNS` deltas are the same either way (one generator stream).
 const TURNS = 20;
-const WORLD = generate(TURNS);
+const MAX_TURNS = 80;
+const WORLD = generate(MAX_TURNS);
 
 function initText(files) {
   return (
@@ -501,9 +504,9 @@ class Session {
   }
 }
 
-function turnEntries(turnMs) {
+function turnEntries(turnMs, turns = TURNS) {
   const e = [];
-  WORLD.deltas.forEach((d, i) => {
+  WORLD.deltas.slice(0, Math.min(turns, MAX_TURNS) * 4).forEach((d, i) => {
     const turn = Math.floor(i / 4);
     const tick = i % 4;
     e.push({ at: turn * turnMs + (tick * turnMs) / 4, kind: d.kind, model: d.text });
@@ -536,6 +539,9 @@ function summary(rec) {
     turnWork: dist(rec.turnWork),
     turnBusy: dist(rec.turnBusy),
     workerBusy: dist(rec.busy),
+    // The samples of the turn frames in order: which turns are the slow ones (the first after a cold start, or
+    // any).
+    seq: { turnBusy: rec.turnBusy.map(r2), turnWork: rec.turnWork.map(r2) },
     longestFrameMs: r2(rec.gaps.length ? Math.max(...rec.gaps) : null),
     frames: rec.gaps.length + 1,
     posts: rec.posts,
@@ -571,15 +577,39 @@ async function baseline() {
 
 // ---------------------------------------------------------------- the runs
 
+/**
+ * A diagnostic, off by default: `n` workers that keep a core busy for the whole workload, so the processor stays out
+ * of its idle states and low clocks between the turns. Comparing a run with them against one without tells a cost of
+ * the code from a cost of waking a core that has been idle for the 2 s between two turns.
+ */
+function spinners(n) {
+  const url = URL.createObjectURL(new Blob(["for (;;) {}"], { type: "text/javascript" }));
+  const ws = Array.from({ length: n }, () => new Worker(url));
+  return () => {
+    for (const w of ws) w.terminate();
+    URL.revokeObjectURL(url);
+  };
+}
+
 async function runWorkload(arm, o = {}) {
   const turnMs = o.turnMs ?? 2000;
   const idleMs = o.idleMs ?? 10000;
   const feedS = o.feedS ?? 10;
+  const stopSpin = o.spin ? spinners(o.spin) : null;
+  try {
+    return await workload(arm, o, turnMs, idleMs, feedS);
+  } finally {
+    if (stopSpin) stopSpin();
+  }
+}
+
+async function workload(arm, o, turnMs, idleMs, feedS) {
   const before = await baseline();
   const s = new Session(arm);
   const readyMs = await s.untilReady();
   const idle = await s.phase([], idleMs);
-  const turns = await s.phase(turnEntries(turnMs), TURNS * turnMs);
+  const nTurns = Math.min(o.turns ?? TURNS, MAX_TURNS);
+  const turns = await s.phase(turnEntries(turnMs, nTurns), nTurns * turnMs);
   const mem = await heap(arm, before);
   const feed = await s.phase(feedEntries(feedS, 10), feedS * 1000);
   const host = s.host.stats();
@@ -655,6 +685,8 @@ async function runRust(arm, o = {}) {
     // The probe: every `turnMs` all rows change.
     const res = (turn) => Array.from({ length: rows }, (_, i) => ({ id: "0:" + i, name: "Row " + i, icon: "icon:R:" + i, available: ((i * 7 + turn * 13) % 17) - 3, used: turn % 5, total: 20 }));
     const main = [];
+    // The probe turn each sample of `main` belongs to (1 = after the first delta was due).
+    const mainTurn = [];
     const turnMain = [];
     const busy = [];
     let posted = 0;
@@ -673,13 +705,14 @@ async function runRust(arm, o = {}) {
       lastPosted = r.stats.posted;
       if (sent || r.state.length || r.cmds || r.stats.worker_ms > 0) {
         main.push(ms);
+        mainTurn.push(n);
         if (sent && due) turnMain.push(ms);
       }
       if (r.stats.worker_ms > 0) busy.push(r.stats.worker_ms);
       posted = r.stats.posted;
       return n < turns || el < turns * turnMs + 1000;
     });
-    result.probe = { rows, turns, mainMs: dist(main), turnFrameMainMs: dist(turnMain), workerMs: dist(busy), posted };
+    result.probe = { rows, turns, mainMs: dist(main), turnFrameMainMs: dist(turnMain), workerMs: dist(busy), posted, seq: { mainMs: main.map(r2), mainTurn, workerMs: busy.map(r2) } };
     const stateN = () => JSON.parse(t.get("state.n"));
     result.echo = stateN();
 
@@ -725,6 +758,20 @@ async function runRust(arm, o = {}) {
   return result;
 }
 
+/** The smallest step of `performance.now()` seen on this page, ms (coarse when the page is not isolated). */
+function timerStep() {
+  let best = Infinity;
+  let last = performance.now();
+  for (let i = 0; i < 200000 && best > 0.0005; i++) {
+    const t = performance.now();
+    if (t !== last) {
+      best = Math.min(best, t - last);
+      last = t;
+    }
+  }
+  return r2(best);
+}
+
 window.__n6 = {
   info: async () => ({
     isolated: globalThis.crossOriginIsolated === true,
@@ -738,6 +785,7 @@ window.__n6 = {
     snapshotKB: r2(WORLD.snapshot.length / 1024),
     cores: navigator.hardwareConcurrency,
     userAgent: navigator.userAgent,
+    timerStepMs: timerStep(),
   }),
   emptyWorker: () => emptyWorkerBytes(JSON.parse(initText([]))),
   workload: runWorkload,

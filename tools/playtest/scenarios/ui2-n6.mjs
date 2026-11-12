@@ -13,7 +13,7 @@
 //   `ui2.js.main_ms`, then a handler that loops for 5 s (detection, kill, restart, the longest page frame).
 // The result carries the filled table and the decision of the rule; `pass` means the measurement ran cleanly, not
 // that the thresholds are met.
-import { statSync } from "node:fs";
+import { statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { openPage } from "../lib/browser.mjs";
 
@@ -61,6 +61,16 @@ export function gcPauses(buffer) {
   return by;
 }
 
+/** How many turns the workload and the Rust probe take (the spike's method: 20 each). */
+const SAMPLE = {
+  turns: Number(process.env.UI2_N6_TURNS ?? 20),
+  probeTurns: Number(process.env.UI2_N6_PROBE_TURNS ?? 20),
+  // Diagnostics, off by default: workers that keep cores busy during the workload (`UI2_N6_SPIN=<n>`), and a trace
+  // with the V8 CPU profiler of the worker arm's workload (`UI2_N6_PROFILE=1`, `<logs>/n6-worker-profile.json`).
+  spin: Number(process.env.UI2_N6_SPIN ?? 0),
+  profile: process.env.UI2_N6_PROFILE === "1",
+};
+
 const MB = (b) => (b === null || b === undefined ? null : Math.round((b / 1048576) * 100) / 100);
 const fmt = (v, unit = "") => (v === null || v === undefined ? "n/a" : `${v}${unit}`);
 
@@ -107,7 +117,10 @@ export async function run(ctx) {
     n.workload = {};
     for (const arm of ["worker", "main"]) {
       const before = await mainHeap();
-      const w = await page.evaluate((a) => window.__n6.workload(a), arm);
+      const traced = SAMPLE.profile && arm === "worker";
+      if (traced) await browser.startTracing(page, { categories: ["disabled-by-default-v8.cpu_profiler", "v8.execute", "devtools.timeline", "toplevel"] });
+      const w = await page.evaluate(([a, o]) => window.__n6.workload(a, o), [arm, { turns: SAMPLE.turns, spin: SAMPLE.spin }]);
+      if (traced) writeFileSync(path.join(o.logDir, "n6-worker-profile.json"), await browser.stopTracing());
       w.cdpMainHeapBefore = before;
       w.cdpMainHeapAfter = await mainHeap();
       n.workload[arm] = w;
@@ -117,7 +130,7 @@ export async function run(ctx) {
         JSON.stringify({ errors: [...w.turns.errors, ...w.feed.errors], logErrors: w.turns.logErrors + w.feed.logErrors, first: w.turns.firstLogError ?? w.feed.firstLogError, unanswered: w.turns.unanswered }),
       );
       check(`${arm}: idle sends nothing and calls no script`, w.idle.posts === 0 && w.idle.outs === 0, JSON.stringify(w.idle));
-      check(`${arm}: every turn and tick was answered`, w.turns.n3.n === 80, `${w.turns.n3.n} answered updates`);
+      check(`${arm}: every turn and tick was answered`, w.turns.n3.n === SAMPLE.turns * 4, `${w.turns.n3.n} answered updates`);
     }
 
     // ---- GC pauses: the turns again under a trace
@@ -132,7 +145,18 @@ export async function run(ctx) {
     // ---- the Rust supervisor over each host: probe and hang
     n.rust = {};
     for (const arm of ["worker", "main"]) {
-      n.rust[arm] = await page.evaluate((a) => window.__n6.rust(a), arm);
+      // With `UI2_N6_PROFILE=1` the page thread is profiled during the worker arm's probe (`<logs>/n6-probe.cpuprofile`).
+      const profiled = SAMPLE.profile && arm === "worker";
+      if (profiled) {
+        await cdp.send("Profiler.enable");
+        await cdp.send("Profiler.setSamplingInterval", { interval: 100 });
+        await cdp.send("Profiler.start");
+      }
+      n.rust[arm] = await page.evaluate(([a, o]) => window.__n6.rust(a, o), [arm, { turns: SAMPLE.probeTurns }]);
+      if (profiled) {
+        const { profile } = await cdp.send("Profiler.stop");
+        writeFileSync(path.join(o.logDir, "n6-probe.cpuprofile"), JSON.stringify(profile));
+      }
     }
     const hw = n.rust.worker.hang;
     check("worker: the hang is detected, the worker killed and running again", hw.detectMs !== null && hw.killMs !== null && hw.runningAgainMs !== null && hw.answersAfter, JSON.stringify(hw));
