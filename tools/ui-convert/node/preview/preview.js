@@ -76,7 +76,7 @@
   const E = {
     SYNTAX: "E4-001", UNKNOWN_FUNC: "E4-002", ARGC: "E4-003", ONE_EXPR: "E4-020", FOR: "E4-021",
     CLASS_TOGGLE: "E4-024", TEXT_SOURCE: "E4-036", IF_FOR: "E4-037", INCLUDE: "E1-027", UNCLOSED: "E4-013",
-    NOT_LIST: "E4-009", DUP_ATTR: "E1-026", HOTKEY: "E7-013",
+    NOT_LIST: "E4-009", DUP_ATTR: "E1-026", HOTKEY: "E7-013", TOOLTIP: "E7-006",
   };
   const PV = {
     INCLUDE_FAILED: "PV-001", INCLUDE_CYCLE: "PV-002", LOAD_FAILED: "PV-003", MODE: "PV-004",
@@ -1187,6 +1187,14 @@
 
     const isTemplateRoot = (el) => el.hasAttribute("data-bind-for") || el.hasAttribute("data-bind-if");
     const skipNumbering = (el) => NOT_NODES.has(el.localName) || el.hasAttribute("data-ui2-dev");
+    const isTooltipTemplate = (el) => el.localName === "template" && el.getAttribute("data-layer") === "tooltip";
+    // The one root element of a tooltip template (null, reported, when it has none or several).
+    function tooltipRoot(tpl) {
+      const roots = [...tpl.content.children];
+      if (roots.length === 1) return roots[0];
+      report(E.TOOLTIP, "error", tpl, "data-layer", "a tooltip template holds exactly one element");
+      return null;
+    }
 
     function numberDocument(body) {
       let nextTpl = 1;
@@ -1194,6 +1202,12 @@
         el.setAttribute("data-ui2-node", tpl + ":" + ctr.n++);
         if (el.localName === "svg") return;
         for (const c of el.children) {
+          // The root of a tooltip template is a template of its own, numbered where the <template> stands.
+          if (isTooltipTemplate(c)) {
+            const r = tooltipRoot(c);
+            if (r) visit(r, nextTpl++, { n: 0 });
+            continue;
+          }
           if (skipNumbering(c)) continue;
           if (isTemplateRoot(c)) visit(c, nextTpl++, { n: 0 });
           else visit(c, tpl, ctr);
@@ -1326,6 +1340,17 @@
     }
 
     function expandElement(el, out, scope, inst) {
+      if (isTooltipTemplate(el) && extract()) {
+        // Extract mode draws the root of a tooltip template in place of the <template>, so the converter reads its
+        // styles; the mark names the template. Its bindings read the model only (no loop variables).
+        const r = el.content.children.length === 1 ? el.content.children[0] : null;
+        if (!r) return;
+        const before = out.lastChild;
+        expandElement(r, out, null, "");
+        const drawn = out.lastChild;
+        if (drawn && drawn !== before && drawn.nodeType === 1) drawn.setAttribute("data-ui2-tooltip", el.id);
+        return;
+      }
       const p = bindingsOf(el);
       currentEl = el;
       if (p.forSpec) return expandFor(el, p, out, scope, inst);

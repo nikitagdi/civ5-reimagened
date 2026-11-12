@@ -305,14 +305,8 @@ pub fn compare(
         Services::default(),
     )
     .map_err(|e| format!("runtime: {e:?}"))?;
-    let mut store = ModelStore::new(Schema::v1());
-    mount_state(&mut store, skin_state)?;
-    sample
-        .apply(&mut store)
-        .map_err(|e| format!("sample {state}: {e:?}"))?;
-    sample
-        .apply_state(&mut store)
-        .map_err(|e| format!("sample {state}: {}", e.join("; ")))?;
+    let mut store =
+        sample_store(skin_state, &sample).map_err(|e| format!("sample {state}: {e}"))?;
     let mut scene = Scene::new(1.0);
     // The runtime makes the `for` and `if` bodies itself from the model (keyed instances in model order).
     if let Some(d) = store.take_frame() {
@@ -369,6 +363,19 @@ pub fn compare(
         }
     }
     Ok(report)
+}
+
+/// The model of a sample as the host has it when the skin loads: the skin's `[state]` mounted at `state.*` with
+/// its defaults, then the sample's model and its own state.
+pub fn sample_store(
+    skin_state: &BTreeMap<String, StateValue>,
+    sample: &Sample,
+) -> Result<ModelStore, String> {
+    let mut store = ModelStore::new(Schema::v1());
+    mount_state(&mut store, skin_state)?;
+    sample.apply(&mut store).map_err(|e| format!("{e:?}"))?;
+    sample.apply_state(&mut store).map_err(|e| e.join("; "))?;
+    Ok(store)
 }
 
 /// The skin's [state] as a model fragment: a struct type per dotted prefix (State0, State1, ...) and the

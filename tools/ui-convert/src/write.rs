@@ -168,6 +168,10 @@ struct Tb<'a> {
     errs: Vec<ConvError>,
     /// The part names the converter gives (a mod panel's root is named by its panel id), by IR id.
     parts: BTreeMap<u32, String>,
+    /// The tooltip templates by id.
+    tooltip_tpls: BTreeMap<String, u32>,
+    /// The nodes with `data-tooltip` and the id they name.
+    tooltip_refs: Vec<(NodeRef, String, u32)>,
 }
 
 impl Tb<'_> {
@@ -230,7 +234,9 @@ impl Tb<'_> {
                     return;
                 };
                 let e = self.inp.dom.elems[ix];
-                if numbering::is_template_root(e) {
+                if let Some(t) = &e.tooltip {
+                    self.tooltip_template(t, e, *set, children);
+                } else if numbering::is_template_root(e) {
                     self.service(tpl, nodes, locs, e, *set, children, parent_set);
                 } else {
                     self.element(tpl, nodes, locs, e, *set, children, false);
@@ -277,6 +283,30 @@ impl Tb<'_> {
             None
         }
         find(self.inp.dom.elems[0], id).unwrap_or_default()
+    }
+
+    /// The root of a tooltip template: a template of its own and no node of the parent's (the runtime instantiates
+    /// it in the tooltip layer while a node that names it is hovered).
+    fn tooltip_template(&mut self, id: &str, e: &Element, set: usize, children: &[BoxNode]) {
+        let body = self.next_tpl;
+        self.next_tpl += 1;
+        if self.numbers.get(&e.id) != Some(&(body, 0)) {
+            self.err(
+                e,
+                format!(
+                    "the tooltip root is template {body}, the numbering says {:?}",
+                    self.numbers.get(&e.id)
+                ),
+            );
+        }
+        if self.tooltip_tpls.insert(id.to_string(), body).is_some() {
+            self.err(e, format!("two tooltip templates have the id {id}"));
+        }
+        let mut bn = Vec::new();
+        let mut bl = Vec::new();
+        self.element(body, &mut bn, &mut bl, e, set, children, true);
+        self.templates
+            .insert(body, (format!("tooltip:{id}"), bn, bl));
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -467,6 +497,9 @@ impl Tb<'_> {
         }
         if let Some(isl) = &attrs.island {
             self.b.island(&isl.id, at, &[]);
+        }
+        if let Some(t) = &attrs.tooltip {
+            self.tooltip_refs.push((at, t.clone(), e.id));
         }
 
         // Bindings, in a fixed order.
@@ -692,6 +725,8 @@ pub fn write(inp: &Inputs) -> Result<Written, Vec<ConvError>> {
         files: Vec::new(),
         errs: Vec::new(),
         parts,
+        tooltip_tpls: BTreeMap::new(),
+        tooltip_refs: Vec::new(),
     };
     let mut doc = Vec::new();
     let mut locs = Vec::new();
@@ -699,6 +734,17 @@ pub fn write(inp: &Inputs) -> Result<Written, Vec<ConvError>> {
         tb.child(0, &mut doc, &mut locs, root, StyleSetId(0));
     }
     tb.templates.insert(0, ("document".to_string(), doc, locs));
+    // Tooltips: the templates are known once the whole tree is written (the tooltip layer comes last).
+    for (at, id, el) in std::mem::take(&mut tb.tooltip_refs) {
+        match tb.tooltip_tpls.get(&id) {
+            Some(&t) => tb.b.tooltip(at, TemplateId(t)),
+            None => {
+                if let Some(&ix) = inp.dom.by_id.get(&el) {
+                    tb.err(inp.dom.elems[ix], format!("no tooltip template {id}"));
+                }
+            }
+        }
+    }
     let Tb {
         mut b,
         templates,
