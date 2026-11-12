@@ -2,7 +2,452 @@
 
 A UI skin is a folder of plain HTML, CSS and a few classic scripts under `skins/<id>/`. It opens in an
 ordinary browser as a static mockup, and the skin converter turns it into a package (`<id>-<hash16>.ui2`) that
-the game client lays out and draws itself, without a browser engine. The first skin is `skins/engraved`.
+the game client lays out and draws itself, without a browser engine. The repository has two skins:
+`skins/engraved`, a full skin, and `skins/vellum`, a light one derived from it.
+
+The document has four parts. "Making a skin" takes you from an empty folder to a skin running in the game.
+"Converter" is the reference of the tool: what it accepts, its commands and its error codes. "Skin package"
+describes the file the converter writes. "Profile" is generated from the profile file and lists every element,
+property and error code.
+
+## Making a skin
+
+This part is written for someone who has not made a skin before. Read "Required tools" under "Converter" first and
+install what it lists. Run every command from the repository root.
+
+### Step by step: a skin called `tiny`
+
+The skin below has one strip with a number and a button. It is small on purpose; every file of it is shown.
+
+1. **Make the folder.** A skin is a folder `skins/<id>/`. The id is lower case letters, digits and `-`, starting with
+   a letter. Make `skins/tiny/` with the folders `css/`, `parts/`, `l10n/`, `sample/` and `dev/`.
+
+2. **Write `skin.toml`.** It names the skin, its fonts and what to check:
+
+   ```toml
+   [skin]
+   id = "tiny"
+   version = "0.1.0"
+   title = "skin.title"
+   entry = "index.html"
+   model = "1.0"
+   api = "1.0"
+
+   [fonts]
+   subset = ["latin"]
+   sans = "Fira Sans"
+
+   [fonts.files]
+   "fonts/FiraSans-Regular.ttf" = "third_party/fonts/fira-sans/FiraSans-Regular.ttf"
+
+   [verify]
+   states = ["hud"]
+   ```
+
+   `title` is a text key (step 6). `model` and `api` are the versions of the model schema and of the script API the
+   skin is written against. The key `[fonts.files]` is the path a stylesheet names for a font; the value is the
+   font file, counted from the repository root. A skin never ships font files of its own. `states` lists the
+   sample files the checks use (step 7).
+
+3. **Write the page, `index.html`.** The children of `body` are the four layer roots, in this order: `map`, `hud`,
+   `window`, `tooltip`. The page also has one element with `data-slot="mods"`, where panels of mods are mounted.
+   `data-include` pulls in a part file; `data-ui2-dev` marks what only the browser mockup needs.
+
+   ```html
+   <!doctype html>
+   <html lang="en">
+   <head>
+     <meta charset="utf-8">
+     <title>Tiny</title>
+     <link rel="stylesheet" href="css/tokens.css">
+     <link rel="stylesheet" href="css/base.css">
+     <link rel="stylesheet" href="dev/mockup.css" data-ui2-dev>
+   </head>
+   <body>
+     <div class="layer" data-layer="map"></div>
+     <div class="layer" data-layer="hud">
+       <div data-include="parts/top.html"></div>
+       <div class="mods" data-part="mods" data-slot="mods"></div>
+     </div>
+     <div class="layer" data-layer="window"></div>
+     <div class="layer" data-layer="tooltip"></div>
+   </body>
+   </html>
+   ```
+
+4. **Write a part, `parts/top.html`.** A part is a piece of markup that the page includes. It shows a text, a
+   number from the model and a button that sends an intent and has a hotkey:
+
+   ```html
+   <header class="top" data-part="top">
+     <span class="label" data-l10n="top.gold">Gold</span>
+     <span class="value" data-part="top.gold" data-bind-value="{{top.gold}}">312</span>
+     <button class="end" data-part="top.end-turn" data-hotkey="Enter" data-on-click="intent turn.primary()">
+       <span data-l10n="top.end">End turn</span>
+       <span class="key" data-hotkey-label>Enter</span>
+     </button>
+   </header>
+   ```
+
+   The text inside `data-l10n` and `data-bind-value` is only what the mockup shows in a browser. The game shows the
+   text of the key and the value of the model path.
+
+5. **Write the styles.** `css/tokens.css` holds the color tokens and the 17 `--ui-*` synonyms that every skin must
+   define (the list is in "Extension points and color synonyms" under "Profile 1.0"):
+
+   ```css
+   :root {
+     --paper: #1b1815;
+     --paper-2: #26221d;
+     --line: #4d4032;
+     --ink: #ebe2d2;
+     --ink-2: #b2a794;
+     --ink-3: #8a8072;
+     --brass: #c9a36a;
+     --brass-ink: #1b1815;
+     --red: #cf6f5c;
+
+     --ui-surface: var(--paper);
+     --ui-surface-2: var(--paper-2);
+     --ui-line: var(--line);
+     --ui-text: var(--ink);
+     --ui-text-2: var(--ink-2);
+     --ui-text-3: var(--ink-3);
+     --ui-accent: var(--brass);
+     --ui-accent-ink: var(--brass-ink);
+     --ui-negative: var(--red);
+     --ui-y-food: var(--ink);
+     --ui-y-prod: var(--ink);
+     --ui-y-gold: var(--brass);
+     --ui-y-sci: var(--ink);
+     --ui-y-cult: var(--ink);
+     --ui-y-faith: var(--ink);
+     --ui-y-happy: var(--ink);
+     --ui-y-tour: var(--ink);
+   }
+   ```
+
+   `css/base.css` loads the font, resets the page, makes the layer roots and styles the strip. The properties must
+   be in the profile; the page itself must have no background.
+
+   ```css
+   @font-face {
+     font-family: "Fira Sans";
+     font-style: normal;
+     font-weight: 400;
+     src: url("../fonts/FiraSans-Regular.ttf");
+   }
+
+   * { box-sizing: border-box; margin: 0; padding: 0; }
+
+   html, body { width: 100%; height: 100%; overflow: hidden; }
+
+   body { position: relative; font: 400 14px/20px "Fira Sans"; color: var(--ui-text); }
+
+   .layer { position: absolute; inset: 0; pointer-events: none; }
+
+   button {
+     appearance: none; border: 0; border-radius: 0; background-color: transparent;
+     color: inherit; font: inherit; cursor: pointer;
+   }
+
+   .top {
+     position: absolute; top: 0; left: 0; right: 0;
+     display: flex; align-items: center; gap: 12px;
+     height: 36px; padding: 0 12px;
+     background-color: var(--ui-surface);
+     pointer-events: auto;
+   }
+   .value { color: var(--ui-y-gold); }
+   .end {
+     display: flex; align-items: center; gap: 8px; height: 24px; padding: 0 10px;
+     background-color: var(--ui-accent); color: var(--ui-accent-ink);
+   }
+   .end:hover { background-color: var(--ui-text); }
+   .key { padding: 0 4px; border: 1px solid var(--ui-accent-ink); font-size: 12px; }
+   .mods { position: absolute; top: 44px; right: 12px; display: flex; gap: 8px; }
+   ```
+
+   `dev/mockup.css` is only for the browser: a flat page color that stands in for the world. It is linked with
+   `data-ui2-dev`, so the converter ignores it.
+
+   ```css
+   html, body { background-color: #0f0e0c; }
+   ```
+
+6. **Write the texts, `l10n/en_US.toml`.** Every visible text comes from a table like this one or from a binding:
+
+   ```toml
+   "skin.title" = "Tiny"
+   "top.gold" = "Gold"
+   "top.end" = "End turn"
+   ```
+
+7. **Write a sample, `sample/hud.json`.** A sample is a piece of the model written as JSON. The checks and the
+   browser preview use it instead of a game:
+
+   ```json
+   { "model": { "top": { "gold": 312 } } }
+   ```
+
+8. **Check it.**
+
+   ```
+   cargo xtask ui check tiny
+   ```
+
+   The command loads the skin in Chromium and compares it with the profile. It prints counts and then
+   `ui2-convert: no errors`, or errors with a file and a line (see "Error codes"). Fix them one by one.
+
+9. **Compare the layout, then build.**
+
+   ```
+   cargo xtask ui verify tiny
+   cargo xtask ui build tiny
+   ```
+
+   `verify` lays the package out with the game's runtime and compares it with Chromium at several window sizes; it
+   must end with `verify: layout matches Chrome`. `build` writes `target/ui2/tiny/tiny-<hash16>.ui2` and prints the
+   size of each section against the budget.
+
+10. **See it in a browser.** Run `cargo xtask ui watch tiny`. It prints the address of a preview page
+    (`http://127.0.0.1:8095/index.html` by default). The page shows the skin with its includes expanded and its
+    bindings filled from `sample/hud.json`. The tool keeps running and rebuilds on every save.
+    Opening `index.html` straight from the disk shows only the entry file, without the includes. Stop the tool
+    with Ctrl+C.
+
+11. **Run it in the game.** Start the development server with the skin watched:
+
+    ```
+    cargo xtask dev --ui-dev tiny
+    ```
+
+    The command also builds the web client with every skin of `skins/`. Open
+    `http://127.0.0.1:8080/?ui=v2:tiny&ui2dev=http://127.0.0.1:8095&ui2sample=hud`. The page runs the skin on its
+    sample, with no game. Without `&ui2sample=hud` you sign in and start a game as usual, and the skin shows the
+    game. Save a file of the skin, and the running page changes within a few seconds. The first build of the
+    watch runs Chromium and takes longer.
+
+12. **Ship it.** A skin under `skins/` goes into the web bundle with `cargo xtask build --only web` and into the
+    Docker context of `cargo xtask dist`. Set `default = true` in `[skin]` to make it the skin that `?ui=v2` picks.
+
+### Files of a skin
+
+| Path | What it is |
+|---|---|
+| `skin.toml` | The manifest (see below). |
+| `index.html` (or the `entry` file) | The page: the four layer roots and the `data-include` lines. |
+| `parts/` | Part files. The name is yours; a part may include other parts, but not itself. |
+| `css/` | Stylesheets, linked from the page. |
+| `icons.svg` | An icon sprite: `<symbol id="...">` elements. A part shows one with `<svg class="i"><use href="#name"/></svg>`. |
+| `l10n/<lang>.toml` | One text table per language, such as `en_US`. |
+| `sample/<state>.json` | Samples. |
+| `js/` or `scripts/` | Skin scripts, listed in `[scripts] files`. |
+| `dev/` | Files only for the browser, linked with `data-ui2-dev`. |
+| pictures | `png`, `webp` or `svg`; put a `name@2x.ext` beside `name.ext` for the 2x version. Give the element a size in CSS. |
+
+All paths are relative to the skin folder and may not leave it. A skin loads nothing from the network.
+
+### `skin.toml`
+
+Unknown keys are errors. Every table but `[skin]` is optional.
+
+| Table | Keys |
+|---|---|
+| `[skin]` | `id`; `version` (`major.minor.patch`); `title` (a text key); `entry` (default `index.html`); `model` and `api` (`major.minor`); `default` (true for the skin `?ui=v2` picks); `extends` (the id of a base skin, see "Derived skins"). |
+| `[fonts]` | `subset`: the character ranges every face keeps, from `latin`, `latin-ext`, `cyrillic`. `sans` and `display`: the family names of the font roles `ui-sans` and `ui-display`, which mod panels use. `[fonts.files]`: the path a stylesheet names for a font, mapped to a file under `third_party/fonts`. |
+| `[state]` | The skin's own state with defaults (see "Skin state"). |
+| `[themes]` | `default = "<name>"` and `<name> = { css = "themes/<name>.css" }`: other sets of values for the root color tokens. A theme file holds `:root { --token: color }` only. The package keeps the themes. |
+| `[scripts]` | `files`: classic scripts in the order they run. `reads`: the model roots the scripts read. |
+| `[verify]` | `states`: sample names; the first one is the sample the converter scans and `ui verify` uses unless you pass `--state`. `golden`: a list of `{ state, viewport = [w, h], scale }`; the converter only checks that the numbers are positive. |
+
+### Markup in short
+
+The full list of elements, attributes, properties and error codes is in "What it accepts" and in "Profile 1.0".
+This is what a skin author uses most.
+
+- **Layers.** `data-layer` is `map`, `hud`, `window` or `tooltip`. A layer root covers the screen and passes the
+  pointer through; each panel in it switches `pointer-events: auto` on, so a click beside a panel reaches the map.
+- **Parts (`data-part`).** A part name labels one element: `top.yield.gold`. It is a stable name for tools. The
+  layout check lists its worst differences by part, and the playtest finds elements by it. A name may be used once
+  in a skin. Names are lower case words, digits and `-`, joined by dots.
+- **Extension points (`data-slot`).** A slot is a place where something else can be mounted. The skin must have
+  `mods`. The skins here also have `hud.menu`, `hud.top.extra`, `hud.unit.actions`, `hud.minimap`, `hud.right` and
+  `window.production.detail`; the names are the skin's choice. A slot sits on a plain element, never on one with
+  `data-bind-if` or `data-bind-for`.
+- **Screens (`data-screen`).** A window of the skin is a child of the `window` layer with `data-screen="<id>"`; in
+  `skins/engraved` its `data-bind-if` reads `ui.windows.<id>.open`, so the intents `window.open` and
+  `window.close` show and hide it. Esc closes the topmost visible screen.
+- **Bindings.** `data-bind-value`, `data-bind-if`, `data-bind-for` with `data-bind-key`, `data-bind-sort` and
+  `data-bind-filter`, `data-bind-class-toggle`, `data-bind-style-<property>`, `data-bind-src`,
+  `data-bind-disabled`. An expression is written in `{{ }}` and is checked against the model schema when you
+  build: a path that does not exist, or a value of the wrong type, is an error at the element.
+- **Intents.** `data-on-click="intent turn.primary()"` asks the game to do something. The catalogue of intents,
+  their arguments and every model root and type is in `crates/shared/ui2-model/schema/ui-model.toml`; the checker
+  reads the same file. Arguments are written by name (`window.open(window: 'research')`) or all by position. One
+  attribute may hold several actions separated by `;`. The other actions are `set state.x = <expression>`,
+  `toggle state.x`, `call <name>(<args>)` (an event for the skin's script) and `stop`. The events are `click`,
+  `dblclick`, `contextmenu`, `pointerenter`, `pointerleave`, `pointerdown`, `pointerup`, `input`, `change`,
+  `submit`, `focus` and `blur`.
+- **Texts.** `data-l10n="<key>"` with `data-l10n-args` for the arguments, as in `"top.turns" = "{1_Num}
+  {1_Num: plural 1?turn; other?turns;}"`. A key is lower case words joined by dots.
+- **Less common attributes.** `data-asset="render:minimap"` shows a game asset (the element needs a size in CSS).
+  `data-tooltip="<id>"` names a `<template data-layer="tooltip" id="<id>">`. `data-control` makes a checkbox,
+  toggle, radio, slider or select that writes a state value named by `data-bind-model="state.x"`.
+  `data-anchor="city:{{ c.id }}"` (also `unit` and `plot`) pins an element to a map object; it goes on the node
+  with `data-bind-for`, in the `map` layer. `data-fit="shrink"` with `data-fit-min` shrinks text to fit.
+  `data-ui2-island` marks a part of the page that a script drives (see "Skin scripts"). `skins/engraved` uses
+  `data-asset` and does not use the others; the attribute grammar is in the profile file and its error texts are
+  in "Error codes".
+
+### Tokens
+
+A color token is a custom property on `:root` whose value is a color: `--brass: #c9a36a`. The color properties
+that the profile marks *token* may refer to a token with `var(--brass)`, and the package keeps the token names
+(section `TOKN`). The `--ui-*` synonyms are the same names in every skin, each defined as `var(--<token>)`. Mods
+read the synonyms and never define them, so a mod panel looks right in any skin. Only the values differ between
+skins: `skins/vellum/css/tokens.css` has the same names as `skins/engraved/css/tokens.css` with parchment colors.
+Other custom properties (a font stack, an easing curve, a size) are fine too: Chromium resolves them when you
+build.
+
+### Samples and states
+
+A sample is `sample/<state>.json`:
+
+```json
+{ "model": { "top": { "gold": 312 } }, "state": {}, "ui": {}, "anchors": { "city:3": [1320, 640] } }
+```
+
+- `model` has the model roots by name. A field you leave out takes its default; a field the schema does not have is
+  an error (E4-040). Numbers are numbers, text is a string or `{"k": "key", "a": ["arg"]}`, a key is
+  `"owner:id"`, an enum is the name of its value, an optional value is the value or `null`, a list is an array.
+- `state` writes the skin's own state; it may use only paths declared in `[state]` (E4-041).
+- `ui` writes the `ui` root: which windows are open, the focused row, and so on.
+- `anchors` gives the screen position of map objects for `data-anchor`.
+
+Make one sample per situation you want to check: `skins/engraved/sample` has the HUD, the HUD with a turn timer, the
+production window and the research window. The names are free; use `a-z`, `0-9`, `-` and `_`. They are used in
+four places: the converter scans the first state of `[verify] states`; `ui verify` lays out that state or the one
+you pass; the browser preview takes one with `?ui2state=<name>`; the game takes one with `?ui2sample=<name>`.
+The web build copies all samples next to the packages.
+
+### Skin state
+
+`[state]` declares values that belong to the skin and are not in the game: the sort order of a list, a hidden
+panel. A value is a bool, an integer, a float or a string, and its type is the type of the default. Dotted keys and
+inline tables make groups:
+
+```toml
+[state]
+prod = { sort = "order", hide_locked = false }
+```
+
+Each name is lower case letters, digits and `_`, starting with a letter. The converter refuses any other name
+(E1-001), because the game could not mount it. At run time the paths are `state.prod.sort` and so on. Markup
+writes them with `set` and `toggle` and reads them in bindings; scripts use `ui.state.get("prod.sort")` and
+`ui.state.set(...)`. A path that is not declared cannot be written. See "Delivery" for what happens to the state
+when the skin changes.
+
+### Skin scripts
+
+A skin script is a classic JavaScript file. List it in `[scripts] files` and name the model roots it reads in
+`reads`. It has one global, `ui`, and no `document`, `window`, network or storage (E1-008); `import` and `export` are
+errors (E1-007). It runs in a worker, so it never blocks a frame. Markup calls it with `call <name>(<args>)`; the
+script answers with `ui.on("<name>", fn)`. What `ui` has:
+
+| Call | What it does |
+|---|---|
+| `ui.on(name, fn)` | Handles a `call` of the markup. The event `ready` comes once, after the files ran. |
+| `ui.model.get(path)`, `ui.model.on(path, fn)`, `ui.model.onList(path, {add, change, remove})` | Reads the model, or watches a path or a list. Only inside `reads`. |
+| `ui.state.get(path)`, `.set(path, value)`, `.merge(path, obj)`, `.on(path, fn)` | The skin's state (no `state.` prefix), and the `ui.*` fields the schema lets scripts write. |
+| `ui.intent(name, args)` | Sends an intent. |
+| `ui.settings.get(key)`, `.set(key, value)`, `.remove(key)` | The skin's settings: JSON values the host keeps for it. |
+| `ui.timer.after(ms, fn)`, `.every(ms, fn)`, `.cancel(id)` | Timers. |
+| `ui.island(id).text(key, s)`, `.cls(key, name, on)`, `.style(key, prop, v)`, `.show(key, on)` | Drives a `data-ui2-island` part of the page by key. Bindings inside an island are errors (E4-035). |
+| `ui.log.info(...)`, `ui.log.warn(...)` | Logging; the rate is limited. |
+
+`skins/engraved/js/production.js` is a worked example: it moves the focus in the production list with the arrow
+keys and keeps the sort in the settings. A handler that throws is switched off alone. A script that fails to load
+takes the whole skin down, so guard calls that may not exist on a host. In `ui watch`, a change only to
+`scripts/*.js`, or only to `l10n/` and `sample/`, is built without Chromium; any other change runs the full cycle.
+
+### Hotkeys and their labels
+
+`data-hotkey="[Ctrl+][Alt+][Shift+]<KeyboardEvent.code>"` on an element makes the key click it: `KeyB`,
+`Ctrl+KeyB`, `F5`, `ArrowUp`, `Delete`. The key acts only while the element is shown and not disabled. The topmost
+layer wins (`window`, then `hud`, then `map`; the `tooltip` layer never takes keys), and a visible screen blocks the
+layers under the `window` layer. A text field has the keyboard first. A hotkey may not be inside a
+`data-bind-for` body, and one key may be used once per layer.
+
+`data-hotkey-label` on an element inside the one with `data-hotkey` fills it with the name of the key. The name
+is the skin's text `key.<code>` if the table has it, such as `"key.KeyB" = "B"` or `"key.Ctrl" = "Ctrl"`. Without
+one, it is the letter of `KeyX`, the digit of `DigitN`, or the code itself, and the modifiers come first:
+`Ctrl+Shift+B`. The text between the tags is a mockup text only. A label with no hotkey around it is an error
+(E7-013). Key names with the code's exact spelling matter: `key.F7`, not `key.f7`.
+
+### Preview shim and local server
+
+Two helpers make a skin work in a browser.
+
+- **The local server.** `cargo xtask ui watch <skin>` starts a server on `127.0.0.1` (port 8095, or `--port`). It
+  serves the skin folder and adds a preview script to every page: it expands `data-include`, numbers the nodes,
+  evaluates the bindings against `sample/<state>.json` and fills the texts from `l10n/<lang>.toml`. The page
+  accepts `?ui2state=<sample>`, `?ui2lang=<table>` and `?ui2mode=layout|extract|templates`; the default `layout`
+  shows the honest sample. Problems never stop the page: they are collected in `window.__ui2preview.errors`. The
+  same server answers `/pkg/<id>.ui2`, `/pkg/<id>.rev` and `/pkg/<id>.errors.json` for hot reload.
+- **The mockup shim.** `skins/_shim/ui2-shim.js` gives a skin's own scripts the `ui` object in a plain page, also
+  from `file://`. Add `<script src="<path>/apps/web/www/ui2/api.js" data-ui2-dev></script>` and the shim script
+  with `data-ui2-dev` before the skin's scripts. The shim re-renders only bindings to `state.*` and `ui.*`; lists
+  and other model bindings keep the static mockup. Intents go to the console and to `window.__ui2shim.intents`.
+  The sample comes from `window.__ui2sample`, a `<script type="application/json" data-ui2-sample>` element, or
+  `sample/<state>.json` (`?state=<name>`, served pages only). `?ui2shim=off` stops it.
+
+### Hot reload and page parameters
+
+`cargo xtask dev --ui-dev <skin>` runs `cargo xtask ui watch <skin>` on port 8095 next to the dev server (it
+accepts `--ui-dev=<skin>` too) and stops it when the dev server stops. The client page takes these parameters:
+
+| Parameter | Meaning |
+|---|---|
+| `ui=v2` or `ui=v2:<skin>` | Use UI v2, with the default skin or the named one. A skin the index does not know falls back to the default; a skin that fails to load falls back to the default skin, then to the classic UI, and is not tried again. |
+| `ui2dev=<url>` | The address of a watch server, such as `http://127.0.0.1:8095`. The client asks `/pkg/<id>.rev` twice a second and swaps in the new package in place. The model, the open windows and the skin's `state.*` stay (a value stays if its path and type are still declared). A failed build is shown as a notice and the running skin stays. |
+| `ui2sample=<state>` | Run on `sample/<state>.json` of the built skin instead of a game. The name is `a-z`, `0-9`, `-`, `_`, up to 64 characters. |
+| `ui2bg=<rrggbb>` | A solid background under the skin, and the clock of its transitions stopped, for reference images. |
+
+### Derived skins
+
+A skin with `extends = "<base>"` in `[skin]` holds only the files it changes. The base is the folder `skins/<base>`
+beside it. Every file of the base is there; a file of the derived skin replaces the one of the same path; a
+`l10n/<lang>.toml` of the derived skin is merged key by key, so it can carry only the keys it changes. Any table
+of `skin.toml` that the derived skin writes replaces the base table whole, and `[skin]` is always the derived
+skin's own (`default` is not inherited). A chain of bases may be 4 levels deep. All the commands take a derived
+skin like any other.
+
+`skins/vellum` is the example. Its `skin.toml` is the `[skin]` table with `extends = "engraved"`; its `css/tokens.css`
+has the parchment values for the token names of the base; its `l10n/en_US.toml` has the title. The layout, the
+scripts, the fonts, the state, the samples and `[verify]` are the base's.
+
+### Worked examples
+
+- `skins/engraved` is a full skin. `index.html` has the layers and includes the parts of `parts/`
+  (`top`, `notes`, `unit`, `helm`, `production`, `research`); `css/` has tokens, base, one file per area;
+  `icons.svg` is the sprite; `js/production.js` is the script; `sample/` has five samples; `[state]` holds the
+  production sort and filter.
+- `skins/vellum` is a derived skin: three small files.
+
+### Not supported
+
+- Anything outside the profile: tables and forms, `float`, `::before` and `::after`, structural and sibling
+  selectors, `@keyframes`, `prefers-color-scheme`, viewport units and any unit other than px (and `%` and `fr`
+  where the profile lists them), a page background.
+  Each gives an error with a file and a line.
+- Inline scripts, modules, and scripts that use the browser's objects.
+- Fallback fonts: a character that no font of the skin has is an error.
+- Text that is not in a text table or a binding, and the `title` attribute.
+- Lists in `[state]`, and state names that are not lower case snake case.
+- Layout comparison in `ui watch`; run `ui verify` for it.
+- A way to pick a theme at run time: the package keeps the themes, and no setting of the client selects one yet.
+- The desktop application. UI v2 skins run in the web client only (`?ui=v2`).
 
 ## Converter
 
@@ -43,7 +488,7 @@ generated from it.
 |---|---|
 | `cargo xtask ui check <skin>` | Runs every check (both Chromium passes, font subsets, pictures, budget) and writes no package. Exit code 1 with errors. `--dump-ir <file>` stores the scan for tests that run without a browser. |
 | `cargo xtask ui build <skin>` | The same, then writes `target/ui2/<id>/<id>-<hash16>.ui2`, `build.json` (section sizes and budget), `errors.json` and `ir.json`. Two builds of the same sources give the same bytes. |
-| `cargo xtask ui verify <skin> [--state <s>]` | Lays the package out with the game's own runtime and compares every element's rectangle with Chromium's at 1280x720, 1920x1200, 3440x1440 and 5120x1440; a difference over 0.5 px fails. The report lists the worst elements with their source place. |
+| `cargo xtask ui verify <skin> [--state <s>]` | Lays the package out with the game's own runtime and compares every element's rectangle with Chromium's at 1280x720, 1920x1200, 3440x1440 and 5120x1440 (and at 1280x720 with a pixel density of 1.5); a difference over 0.5 px fails. Without `--state` it uses the first `[verify] states` entry. The report lists the worst elements with their source place. |
 | `cargo xtask ui watch <skin> [--port 8095]` | Keeps Chromium and a local package server running (127.0.0.1 only) and rebuilds on every saved change. The client polls `/pkg/<id>.rev` when started with `?ui2dev=http://127.0.0.1:8095` and reloads the package; a broken edit keeps the last good package and serves the errors at `/pkg/<id>.errors.json`. |
 | `cargo xtask build --only web` | The web bundle; it builds every skin under `skins/` into `target/web/ui2/` with the index `ui2/skins.json`. |
 | `cargo xtask mods build --mods <file> --target web` | Also converts the panels of every mod with a `[ui]` section into one package of kind fragment, `ui2/mods/<id>-<version>-<hash16>.ui2`, listed in `ui2/mods-ui.json` (the converter's `fragment <mod dir> --out <dir>` command). A panel page follows the profile and the rules of a fragment: one root element, classes starting with `m-<mod id>-`, the `--ui-*` color tokens read and never defined, the font roles `ui-sans` and `ui-display` instead of font files, text written in the markup or bound (a mod has no text tables), at most 1 MB per fragment. |

@@ -1,0 +1,2 @@
+# stage: manifest (no page is scanned, so there is no ir.json)
+E1-001 skin.toml:0
