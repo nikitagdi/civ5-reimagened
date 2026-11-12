@@ -230,6 +230,35 @@ fn engraved_has_hud_right_and_vellum_leaves_it_out() {
     assert_eq!(slots("vellum"), vellum);
 }
 
+/// The four overview buttons of the top strip each open their own screen.
+#[test]
+fn engraved_overview_buttons_open_their_own_screens() {
+    if !chrome() {
+        return;
+    }
+    let out = ui2_convert::build::build(&engraved(), true);
+    assert!(out.run.errors.is_empty(), "{:?}", out.run.errors);
+    let bytes = out.written.expect("package").bytes;
+    let pkg = ui2_package::Package::read(std::sync::Arc::from(bytes.as_slice())).expect("read");
+    let parts: Vec<(String, ui2_package::NodeRef)> =
+        pkg.parts().map(|(n, at)| (n.to_string(), at)).collect();
+    for screen in ["economy", "military", "victory", "demographics"] {
+        let part = format!("top.menu.{screen}");
+        let at = parts
+            .iter()
+            .find(|(n, _)| *n == part)
+            .map(|(_, at)| *at)
+            .unwrap_or_else(|| panic!("no part {part}"));
+        let click = pkg
+            .bindings_of(at.0, at.1)
+            .iter()
+            .map(|b| format!("{:?}", b.kind))
+            .find(|k| k.contains("screen.open"))
+            .unwrap_or_else(|| panic!("{part} opens no screen"));
+        assert!(click.contains(&format!("\"{screen}\"")), "{part}: {click}");
+    }
+}
+
 /// The skin's tooltips: the policies button and the rows of the production list name tooltip templates; the
 /// package carries them, and hovering the node in the runtime shows the template with the model's values.
 #[test]

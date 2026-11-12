@@ -29,8 +29,9 @@ pub struct ClassicScreen {
     pub context: &'static str,
 }
 
-/// The screens the classic UI shows for UI v2: the tech tree (the top panel's science button) and the social
-/// policies (its culture button).
+/// The screens the classic UI shows for UI v2: the tech tree (the top panel's science button), the social
+/// policies (its culture button), and the economic, military, victory and demographics overviews (the menu of the
+/// diplomacy corner).
 pub const SCREENS: &[ClassicScreen] = &[
     ClassicScreen {
         id: ScreenId::TechTree,
@@ -41,6 +42,26 @@ pub const SCREENS: &[ClassicScreen] = &[
         id: ScreenId::Policies,
         popup: "{ Type = ButtonPopupTypes.BUTTONPOPUP_CHOOSEPOLICY }",
         context: "/InGame/SocialPolicyPopup",
+    },
+    ClassicScreen {
+        id: ScreenId::Economy,
+        popup: "{ Type = ButtonPopupTypes.BUTTONPOPUP_ECONOMIC_OVERVIEW }",
+        context: "/InGame/EconomicOverview",
+    },
+    ClassicScreen {
+        id: ScreenId::Military,
+        popup: "{ Type = ButtonPopupTypes.BUTTONPOPUP_MILITARY_OVERVIEW }",
+        context: "/InGame/MilitaryOverview",
+    },
+    ClassicScreen {
+        id: ScreenId::Victory,
+        popup: "{ Type = ButtonPopupTypes.BUTTONPOPUP_VICTORY_INFO }",
+        context: "/InGame/VictoryProgress",
+    },
+    ClassicScreen {
+        id: ScreenId::Demographics,
+        popup: "{ Type = ButtonPopupTypes.BUTTONPOPUP_DEMOGRAPHICS }",
+        context: "/InGame/Demographics",
     },
 ];
 
@@ -565,12 +586,28 @@ mod tests {
     }
 
     #[test]
-    fn the_table_has_the_tech_tree_and_the_policies() {
+    fn the_table_has_the_tech_tree_the_policies_and_the_four_overviews() {
         let ids: Vec<ScreenId> = SCREENS.iter().map(|s| s.id).collect();
-        assert_eq!(ids, [ScreenId::TechTree, ScreenId::Policies]);
+        assert_eq!(
+            ids,
+            [
+                ScreenId::TechTree,
+                ScreenId::Policies,
+                ScreenId::Economy,
+                ScreenId::Military,
+                ScreenId::Victory,
+                ScreenId::Demographics
+            ]
+        );
         for s in SCREENS {
             assert!(s.popup.contains("ButtonPopupTypes.BUTTONPOPUP_"), "{s:?}");
             assert!(s.context.starts_with("/InGame/"), "{s:?}");
+        }
+        // Each screen has its own popup and window.
+        for (i, a) in SCREENS.iter().enumerate() {
+            for b in &SCREENS[i + 1..] {
+                assert!(a.popup != b.popup && a.context != b.context, "{a:?} {b:?}");
+            }
         }
     }
 
