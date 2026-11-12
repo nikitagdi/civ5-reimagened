@@ -89,6 +89,7 @@ const SCENARIOS = {
   // UI v2 script workers without a game (page ui2-selftest.html): echo, hang, exception, CSP of the worker.
   "ui2-script": () => import("./scenarios/ui2-script.mjs"),
   "ui2-n6": () => import("./scenarios/ui2-n6.mjs"), // where skin scripts run: worker against main thread (page ui2/bench/bench.html)
+  "ui2-perf": () => import("./scenarios/ui2-perf.mjs"), // the UI v2 performance table over a live game: --attach <url of a real-core server>
 };
 /** The scenarios of `--scenario all` (perf is headed for real FPS numbers; headless it keeps them but enforces no FPS limit). */
 // Every scenario starts its game through the server (`?autostart=1`, net-client NC9); `saveload` uses the server's saves
