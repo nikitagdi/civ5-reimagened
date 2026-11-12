@@ -4,10 +4,12 @@
 //   window.__civ5ui2.spawn()          -> id (a number) of a new worker running `ui2/worker.js`; throws if the page
 //                                        cannot create workers
 //   window.__civ5ui2.post(id, text)   -> true if the worker exists; texts arrive in order
-//   window.__civ5ui2.drain(ids)       -> [[id, "msg" | "error", text], ...] of the workers `ids` since the last call,
+//   window.__civ5ui2.wire             2: the workers' messages of wire 2 (outs as bytes) reach `drain`
+//   window.__civ5ui2.drain(ids)       -> [[id, "msg" | "bin" | "error", data], ...] of the workers `ids` since the last call,
 //                                        oldest first; the other workers' messages stay queued (each script host of
 //                                        the wasm, the skin's and the mods', drains its own workers). Without `ids`:
-//                                        every worker's. ("error": the worker itself failed and is of no further use)
+//                                        every worker's. ("msg": a text; "bin": the bytes of a message of wire 2, a
+//                                        Uint8Array; "error": the worker itself failed and is of no further use)
 //   window.__civ5ui2.terminate(id)    stops the worker at once and drops its undrained messages
 //   window.__civ5ui2.live()           -> the time (`performance.now()`) up to which the page has taken in what the
 //                                        workers posted: a message posted before it is in the queue (or was
@@ -48,7 +50,8 @@
     spawn() {
       const id = next++;
       const w = new Worker(url);
-      w.onmessage = (e) => queue.push([id, "msg", String(e.data)]);
+      w.onmessage = (e) =>
+        queue.push(e.data instanceof ArrayBuffer ? [id, "bin", new Uint8Array(e.data)] : [id, "msg", String(e.data)]);
       w.onerror = (e) => {
         e.preventDefault();
         const where = e.filename ? " at " + e.filename + ":" + e.lineno : "";
@@ -58,6 +61,7 @@
       workers.set(id, w);
       return id;
     },
+    wire: 2,
     post(id, text) {
       const w = workers.get(id);
       if (!w) return false;

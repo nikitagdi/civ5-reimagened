@@ -139,6 +139,247 @@
     }
   }
 
+  // ---------------------------------------------------------------- outs as bytes
+  //
+  // Wire 2 (`init.wire`): the outs go as bytes (the main thread reads them without a JSON parser and without
+  // an object per island command); every other message stays a JSON text. An out:
+  //
+  //   u8 3 (out), u8 2 (wire), u8 flags (1: ack), u8 0, f64 n, f64 ack, f64 busy_ms,
+  //   u32 counts of state, intents, cmds, settings, log, then each list:
+  //   state    str path, str JSON value              intents  str name, str JSON args
+  //   cmds     u8 op, str island, str key, then: 0 text (str), 1 game text (str loc, u32 n, str * n),
+  //            2 cls (str name, u8 on), 3 style (str prop, str JSON value), 4 show (u8 on)
+  //   settings str key, opt str JSON value           log      u8 level (0 info, 1 warn, 2 error), str text,
+  //                                                           opt str file, u32 line (or 0xffffffff), opt str key
+  //   str = u32 byte length + UTF-8; opt str = a str, or u32 0xffffffff for null
+
+  const WIRE = 2;
+  const MSG_OUT = 3;
+  const NO = 0xffffffff;
+  const utf8 = typeof TextDecoder === "function" ? new TextDecoder() : null;
+
+  // Reads the bytes of a message.
+  function Reader(u8) {
+    this.u8 = u8;
+    this.dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    this.pos = 0;
+  }
+
+  Reader.prototype.byte = function () {
+    if (this.pos >= this.u8.length) throw new RangeError("the message ends early");
+    return this.u8[this.pos++];
+  };
+  Reader.prototype.u32 = function () {
+    const v = this.dv.getUint32(this.pos, true);
+    this.pos += 4;
+    return v;
+  };
+  Reader.prototype.f64 = function () {
+    const v = this.dv.getFloat64(this.pos, true);
+    this.pos += 8;
+    return v;
+  };
+  // A str written in place (u32 length + UTF-8).
+  Reader.prototype.text = function () {
+    const n = this.u32();
+    if (n === NO) return null;
+    const at = this.pos;
+    if (at + n > this.u8.length) throw new RangeError("the message ends early");
+    this.pos += n;
+    return n ? utf8.decode(this.u8.subarray(at, at + n)) : "";
+  };
+
+  // Writes outs into one buffer that grows and is kept; each message leaves as a copy of its bytes.
+  function Writer() {
+    this.buf = new Uint8Array(4096);
+    this.dv = new DataView(this.buf.buffer);
+    this.pos = 0;
+  }
+
+  Writer.prototype.room = function (n) {
+    if (this.pos + n <= this.buf.length) return;
+    let size = this.buf.length * 2;
+    while (size < this.pos + n) size *= 2;
+    const b = new Uint8Array(size);
+    b.set(this.buf.subarray(0, this.pos));
+    this.buf = b;
+    this.dv = new DataView(b.buffer);
+  };
+  Writer.prototype.byte = function (v) {
+    this.room(1);
+    this.buf[this.pos++] = v;
+  };
+  Writer.prototype.u32 = function (v) {
+    this.room(4);
+    this.dv.setUint32(this.pos, v, true);
+    this.pos += 4;
+  };
+  Writer.prototype.f64 = function (v) {
+    this.room(8);
+    this.dv.setFloat64(this.pos, v, true);
+    this.pos += 8;
+  };
+  // A text as UTF-8, its length first (a lone surrogate becomes U+FFFD).
+  Writer.prototype.str = function (s) {
+    const len = s.length;
+    this.room(4 + 3 * len);
+    const b = this.buf;
+    const at = this.pos;
+    let p = at + 4;
+    for (let i = 0; i < len; i++) {
+      let c = s.charCodeAt(i);
+      if (c < 0x80) {
+        b[p++] = c;
+      } else if (c < 0x800) {
+        b[p++] = 0xc0 | (c >> 6);
+        b[p++] = 0x80 | (c & 0x3f);
+      } else {
+        if (c >= 0xd800 && c <= 0xdfff) {
+          const d = i + 1 < len ? s.charCodeAt(i + 1) : 0;
+          if (c <= 0xdbff && d >= 0xdc00 && d <= 0xdfff) {
+            const cp = 0x10000 + ((c - 0xd800) << 10) + (d - 0xdc00);
+            b[p++] = 0xf0 | (cp >> 18);
+            b[p++] = 0x80 | ((cp >> 12) & 0x3f);
+            b[p++] = 0x80 | ((cp >> 6) & 0x3f);
+            b[p++] = 0x80 | (cp & 0x3f);
+            i++;
+            continue;
+          }
+          c = 0xfffd;
+        }
+        b[p++] = 0xe0 | (c >> 12);
+        b[p++] = 0x80 | ((c >> 6) & 0x3f);
+        b[p++] = 0x80 | (c & 0x3f);
+      }
+    }
+    this.dv.setUint32(at, p - at - 4, true);
+    this.pos = p;
+  };
+  Writer.prototype.opt = function (s) {
+    if (s === null || s === undefined) this.u32(NO);
+    else this.str(s);
+  };
+  Writer.prototype.take = function () {
+    const out = this.buf.slice(0, this.pos).buffer;
+    this.pos = 0;
+    return out;
+  };
+
+  const LEVELS = { info: 0, warn: 1, error: 2 };
+  const CMD_OPS = { text: 0, cls: 2, style: 3, show: 4 };
+
+  // The bytes of an out (the fields of the JSON out message; `ack` null for none).
+  function encodeOut(w, n, ack, o, busy) {
+    w.pos = 0;
+    w.byte(MSG_OUT);
+    w.byte(WIRE);
+    w.byte(ack === null || ack === undefined ? 0 : 1);
+    w.byte(0);
+    w.f64(n);
+    w.f64(ack === null || ack === undefined ? 0 : ack);
+    w.f64(busy);
+    w.u32(o.state.length);
+    w.u32(o.intents.length);
+    w.u32(o.cmds.length);
+    w.u32(o.settings.length);
+    w.u32(o.log.length);
+    for (const s of o.state) {
+      w.str(s.p);
+      w.str(JSON.stringify(s.v));
+    }
+    for (const i of o.intents) {
+      w.str(i.name);
+      w.str(JSON.stringify(i.args));
+    }
+    for (const c of o.cmds) {
+      const v = c.value;
+      const loc = c.op === "text" && v !== null && typeof v === "object";
+      w.byte(loc ? 1 : CMD_OPS[c.op]);
+      w.str(c.island);
+      w.str(c.key);
+      switch (c.op) {
+        case "text":
+          if (loc) {
+            w.str(v.loc);
+            w.u32(v.args.length);
+            for (const a of v.args) w.str(a);
+          } else {
+            w.str(v);
+          }
+          break;
+        case "cls":
+          w.str(c.name);
+          w.byte(c.on ? 1 : 0);
+          break;
+        case "style":
+          w.str(c.prop);
+          w.str(JSON.stringify(v));
+          break;
+        default:
+          w.byte(c.on ? 1 : 0);
+      }
+    }
+    for (const s of o.settings) {
+      w.str(s.key);
+      w.opt(s.value === null ? null : JSON.stringify(s.value));
+    }
+    for (const l of o.log) {
+      w.byte(LEVELS[l.level] ?? 0);
+      w.str(l.text);
+      w.opt(l.file);
+      w.u32(l.line === null || l.line === undefined ? NO : l.line);
+      w.opt(l.key === undefined ? null : l.key);
+    }
+    return w.take();
+  }
+
+  // An out from its bytes, as the JSON out message has it (tests, the bench).
+  function decodeOut(data) {
+    const u8 = data instanceof Uint8Array ? data : new Uint8Array(data);
+    const r = new Reader(u8);
+    if (r.byte() !== MSG_OUT || r.byte() !== WIRE) throw new Error("not an out of wire " + WIRE);
+    const flags = r.byte();
+    r.byte();
+    const n = r.f64();
+    const ack = r.f64();
+    const busy = r.f64();
+    const counts = [r.u32(), r.u32(), r.u32(), r.u32(), r.u32()];
+    const m = { t: "out", n, ack: flags & 1 ? ack : null, state: [], intents: [], cmds: [], settings: [], log: [], busy_ms: busy };
+    for (let i = 0; i < counts[0]; i++) m.state.push({ p: r.text(), v: JSON.parse(r.text()) });
+    for (let i = 0; i < counts[1]; i++) m.intents.push({ name: r.text(), args: JSON.parse(r.text()) });
+    for (let i = 0; i < counts[2]; i++) {
+      const op = r.byte();
+      const island = r.text();
+      const key = r.text();
+      if (op === 0) m.cmds.push({ island, key, op: "text", value: r.text() });
+      else if (op === 1) {
+        const loc = r.text();
+        const args = [];
+        for (let j = r.u32(); j > 0; j--) args.push(r.text());
+        m.cmds.push({ island, key, op: "text", value: { loc, args } });
+      } else if (op === 2) m.cmds.push({ island, key, op: "cls", name: r.text(), on: r.byte() === 1 });
+      else if (op === 3) m.cmds.push({ island, key, op: "style", prop: r.text(), value: JSON.parse(r.text()) });
+      else if (op === 4) m.cmds.push({ island, key, op: "show", on: r.byte() === 1 });
+      else throw new Error("bad island command " + op);
+    }
+    for (let i = 0; i < counts[3]; i++) {
+      const key = r.text();
+      const v = r.text();
+      m.settings.push({ key, value: v === null ? null : JSON.parse(v) });
+    }
+    for (let i = 0; i < counts[4]; i++) {
+      const level = ["info", "warn", "error"][r.byte()] || "info";
+      const text = r.text();
+      const file = r.text();
+      const line = r.u32();
+      const key = r.text();
+      const l = { level, text, file, line: line === NO ? null : line };
+      if (key !== null) l.key = key;
+      m.log.push(l);
+    }
+    return m;
+  }
+
   // ---------------------------------------------------------------- mirror
 
   function Mirror(tables, dev) {
@@ -152,17 +393,8 @@
     this.keysMade = null;
     this.slot = null;
     this.at = [];
-    // The last element looked up by key (see `walk`).
-    this.lastKeys = null;
-    this.lastKey = null;
-    this.lastAt = -1;
     this.parsed = new Map();
   }
-
-  Mirror.prototype.rootFor = function (path) {
-    const r = rootOf(path, this.t.rootNames);
-    return r !== null ? r : rootOf(path, Object.keys(this.roots));
-  };
 
   // A read path as its root and field names; the ones under a root of the tables are kept.
   Mirror.prototype.parse = function (path) {
@@ -238,17 +470,7 @@
       const s = steps[i];
       if (s === ELEM) {
         if (!Array.isArray(node)) throw new Error("model mirror out of step at " + e.path);
-        // The ops of a delta come grouped by element: the element of the last lookup is often the one.
-        const ks = keysOf(node);
-        const key = keys[ki];
-        let j;
-        if (ks === this.lastKeys && key === this.lastKey) j = this.lastAt;
-        else {
-          j = indexOfKey(ks, key);
-          this.lastKeys = ks;
-          this.lastKey = key;
-          this.lastAt = j;
-        }
+        const j = indexOfKey(keysOf(node), keys[ki]);
         if (j < 0) throw new Error("model mirror has no element " + keys[ki] + " at " + e.path);
         ki++;
         at[i] = j;
@@ -303,7 +525,6 @@
     } else {
       INDEX.delete(ks);
     }
-    this.lastKeys = null;
     return items;
   };
 
@@ -374,7 +595,6 @@
     this.revision = a[0];
     this.chain.length = 0;
     this.keysMade = null;
-    this.lastKeys = null;
     for (let i = 1; i < a.length; i++) {
       try {
         this.op(a[i]);
@@ -419,6 +639,8 @@
 
     let out = null;
     let outN = 0;
+    // Wire 2: the outs go as bytes when the supervisor reads them (`init.wire`) and the port can send them.
+    const writer = init.wire >= WIRE && typeof port.postBytes === "function" ? new Writer() : null;
     // State writes not yet seen in the model: full path -> {v, n} (n: the out that carries the write).
     const overlay = new Map();
     // Model subscriptions: {kind: "on" | "list", path, fn | h, last, live, label}.
@@ -605,9 +827,11 @@
     function flush(ack, t0) {
       if (ack === null && empty()) return;
       outN += 1;
-      const msg = Object.assign({ t: "out", n: outN, ack }, out, { busy_ms: now() - t0 });
+      const busy = now() - t0;
+      const o = out;
       out = fresh();
-      port.post(msg);
+      if (writer) port.postBytes(encodeOut(writer, outN, ack, o, busy));
+      else port.post(Object.assign({ t: "out", n: outN, ack }, o, { busy_ms: busy }));
     }
 
     const ui = {
@@ -837,8 +1061,10 @@
 
   global.__ui2api = {
     API,
+    WIRE,
     createContext,
     locate,
+    decodeOut,
     setLineOffset(n) {
       lineOffset = n;
     },

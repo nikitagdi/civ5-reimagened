@@ -4,7 +4,8 @@
 // (the Rust one of `Ui2ScriptSelftest`, or the bench's own loop) drives either arm unchanged. Here a "worker" is an
 // `api.js` context in the page itself: `post` handles the message at once, on the page's thread, so the skin's
 // handlers run inside the frame that posts; their answers wait in a queue for the next `drain`, as a worker's would.
-// The texts are the same JSON as on the worker path, so both arms pay the same encoding.
+// The messages are those of the worker path (JSON texts, the outs of wire 2 as bytes), so both arms pay the same
+// encoding.
 //
 // Nothing can interrupt a handler here: a script that hangs stalls the page until it returns.
 
@@ -53,6 +54,9 @@ export function createMainThreadHost() {
       post(m) {
         if (slot.alive) queue.push([id, "msg", JSON.stringify(m)]);
       },
+      postBytes(buf) {
+        if (slot.alive) queue.push([id, "bin", new Uint8Array(buf)]);
+      },
       now: clock,
     };
     const fail = (message, file, line) => {
@@ -82,6 +86,7 @@ export function createMainThreadHost() {
   }
 
   return {
+    wire: a.WIRE,
     spawn() {
       const id = next++;
       slots.set(id, { alive: true, ctx: null });

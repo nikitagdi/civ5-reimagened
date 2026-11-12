@@ -210,7 +210,7 @@ impl ScriptSupervisor {
         init: &ScriptInit,
     ) -> Result<WorkerId, ScriptError> {
         let worker = self.host.spawn()?;
-        let text = proto::encode_init(&ctx_name(ctx), bundle, init);
+        let text = proto::encode_init(&ctx_name(ctx), bundle, init, self.host.carries_bytes());
         if let Err(e) = self.host.post(worker, &text) {
             self.host.terminate(worker);
             return Err(e.into());
@@ -366,22 +366,26 @@ impl ScriptSupervisor {
                 continue;
             };
             self.stats.received += 1;
-            match ev {
-                ScriptHostEvent::Message(text) => match proto::decode(text) {
-                    Ok(msg) => self.on_message(i, now_ms, msg, &mut out),
-                    Err(e) => {
-                        self.stats.errors += 1;
-                        let c = &self.ctxs[i];
-                        if self.once.first(&c.id, "garbage") {
-                            out.log.push(c.line(
-                                LogLevel::Error,
-                                format!("sent a message it should not: {e}"),
-                            ));
-                        }
-                    }
-                },
+            let msg = match ev {
+                ScriptHostEvent::Message(text) => proto::decode(text),
+                // An out of wire 2.
+                ScriptHostEvent::Bytes(bytes) => proto::decode_bin(bytes),
                 ScriptHostEvent::Error(message) => {
                     self.fail(i, now_ms, format!("worker error: {message}"), &mut out);
+                    continue;
+                }
+            };
+            match msg {
+                Ok(msg) => self.on_message(i, now_ms, msg, &mut out),
+                Err(e) => {
+                    self.stats.errors += 1;
+                    let c = &self.ctxs[i];
+                    if self.once.first(&c.id, "garbage") {
+                        out.log.push(c.line(
+                            LogLevel::Error,
+                            format!("sent a message it should not: {e}"),
+                        ));
+                    }
                 }
             }
         }
@@ -632,6 +636,21 @@ impl ScriptSupervisor {
                 Ok(cmd) => out.island_cmds.push((id.clone(), cmd)),
                 Err(e) => out.log.push(c.line(LogLevel::Warn, e)),
             }
+        }
+        // An out of wire 2 brings its commands read already.
+        out.island_cmds.reserve(o.island_cmds.len());
+        for cmd in o.island_cmds {
+            if cmd.island.is_empty() || cmd.key.is_empty() {
+                out.log.push(c.line(
+                    LogLevel::Warn,
+                    format!(
+                        "island command `{}` dropped: it needs an island and a key",
+                        proto::op_name(&cmd.op)
+                    ),
+                ));
+                continue;
+            }
+            out.island_cmds.push((id.clone(), cmd));
         }
         for s in o.settings {
             let value = (!s.value.is_null()).then(|| s.value.to_string());

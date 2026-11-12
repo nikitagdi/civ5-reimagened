@@ -20,6 +20,8 @@ pub struct WorkerId(pub u32);
 pub enum ScriptHostEvent {
     /// A message the worker posted (a JSON text).
     Message(String),
+    /// A message the worker posted as bytes (a host that [carries bytes](ScriptHost::carries_bytes)).
+    Bytes(Vec<u8>),
     /// The worker itself failed: its loader could not be fetched or threw outside of any skin code. The
     /// worker is unusable afterwards; the owner terminates it.
     Error(String),
@@ -49,6 +51,12 @@ pub trait ScriptHost {
     /// # Errors
     /// The worker is unknown or was terminated.
     fn post(&mut self, worker: WorkerId, text: &str) -> Result<(), ScriptHostError>;
+
+    /// Whether the messages the workers post as bytes come back as [`ScriptHostEvent::Bytes`]. `false` (the
+    /// default): the host takes texts only.
+    fn carries_bytes(&self) -> bool {
+        false
+    }
 
     /// Append what the workers sent since the last call to `out`, oldest first.
     fn drain(&mut self, out: &mut Vec<(WorkerId, ScriptHostEvent)>);

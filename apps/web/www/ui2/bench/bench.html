@@ -13,7 +13,7 @@
                                       probe with its main-thread counter, then a handler that loops for 5 s
   `arm` is "worker" or "main". The model is a late game on a Huge map, generated here from a fixed seed with the
   generated schema tables (`ui2/model.gen.js`); deltas are UMD1 texts precomputed before a run, so the loop measures
-  the host and the scripts, not the generator.
+  the host and the scripts, not the generator. The outs come as bytes (wire 2), as the Rust supervisor reads them.
 -->
 <pre id="out">ui2 script host bench: loading</pre>
 <script src="../api.js"></script>
@@ -363,7 +363,7 @@ function initText(files) {
     JSON.stringify(READS) +
     ',"ns":{"state":"state"},"schema":' +
     JSON.stringify(SCHEMA) +
-    ',"dev":false}'
+    ',"wire":2,"dev":false}'
   );
 }
 
@@ -419,13 +419,14 @@ class Session {
     const t0 = performance.now();
     const q = this.host.drain();
     let turnAck = false;
-    for (const [id, kind, text] of q) {
+    for (const [id, kind, data] of q) {
       if (id !== this.id) continue;
       if (kind === "error") {
-        rec.errors.push(text);
+        rec.errors.push(data);
         continue;
       }
-      const m = JSON.parse(text);
+      // Wire 2 (`init.wire`): the outs come as bytes, `ready` and `fail` as JSON texts.
+      const m = kind === "bin" ? globalThis.__ui2api.decodeOut(data) : JSON.parse(data);
       if (m.t === "ready") this.ready = true;
       else if (m.t === "fail") rec.errors.push("fail: " + m.error.message);
       else if (m.t === "out") {

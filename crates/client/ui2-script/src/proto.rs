@@ -5,7 +5,7 @@
 //!
 //! | `t` | fields |
 //! |---|---|
-//! | `init` | `api`, `ctx`, `files: [{path, code}]`, `model` (UMD1 snapshot), `schema` (decoding tables, below), `reads` (watched prefixes), `ns: {state, intents}`, `settings: [[key, json text]]`, `env`, `limits`, `dev` |
+//! | `init` | `api`, `ctx`, `files: [{path, code}]`, `model` (UMD1 snapshot), `schema` (decoding tables, below), `reads` (watched prefixes), `ns: {state, intents}`, `settings: [[key, json text]]`, `env`, `limits`, `dev`, `wire` (2: the outs may go as bytes) |
 //! | `frame` | `seq`, `applied` (the last `out.n` applied before this frame's delta was taken), `model` (UMD1 delta or `null`), `events: [{name, arg, node}]`, `env` (only when it changed) |
 //! | `stop` | — |
 //!
@@ -21,6 +21,11 @@
 //! state (the skin's `state.*`, a mod's `modstate.<id>.*`) or `ui.<path>` for a `js` field of the `ui` root.
 //! An island command is `{island, key, op: "text", value}` (a string, or `{loc, args}`), `{.., op: "cls", name,
 //! on}`, `{.., op: "style", prop, value}` or `{.., op: "show", on}`.
+//!
+//! Wire 2: when the host takes byte messages, `init` says `wire: 2` and the worker sends its outs as bytes
+//! ([`decode_bin`]; the layout is written down in `ui2/api.js`, which writes it): the main thread reads them
+//! without a JSON parser and without a string per field. Every other message stays a JSON text, and a worker that
+//! does not know wire 2 goes on sending JSON outs.
 //!
 //! The `schema` of `init` lets the worker decode UMD1 without the generated module: `{hash, parts: [{base,
 //! roots: [[id, name, type]], enums: {name: [variant]}, types: {name: [[field, type]]}, paths: [[path, type,
@@ -64,8 +69,16 @@ fn env_json(env: &ScriptEnv) -> String {
     Json::Object(o).to_string()
 }
 
-/// The `init` text.
-pub(crate) fn encode_init(ctx: &str, bundle: &ScriptBundle, init: &ScriptInit) -> String {
+/// The wire of the outs as bytes (see the module).
+pub const WIRE_BYTES: u32 = 2;
+
+/// The `init` text; `bytes`: the host takes byte messages, the worker may send its outs as bytes.
+pub(crate) fn encode_init(
+    ctx: &str,
+    bundle: &ScriptBundle,
+    init: &ScriptInit,
+    bytes: bool,
+) -> String {
     let mut out = String::with_capacity(init.model_umd1.len() + 32 * 1024);
     let _ = write!(
         out,
@@ -116,6 +129,9 @@ pub(crate) fn encode_init(ctx: &str, bundle: &ScriptBundle, init: &ScriptInit) -
         out,
         ",\"limits\":{{\"slow_ms\":{SLOW_HANDLER_MS},\"log_per_s\":{LOG_LINES_PER_S},\"timer_min_ms\":{TIMER_MIN_MS}}}"
     );
+    if bytes {
+        let _ = write!(out, ",\"wire\":{WIRE_BYTES}");
+    }
     let _ = write!(out, ",\"dev\":{}}}", init.dev);
     out
 }
@@ -152,6 +168,9 @@ pub(crate) fn encode_frame(
     out.push('}');
     out
 }
+
+/// The kind of an out of wire 2.
+const MSG_OUT: u8 = 3;
 
 /// The `stop` text.
 pub(crate) const STOP: &str = "{\"t\":\"stop\"}";
@@ -269,6 +288,9 @@ pub struct OutMsg {
     pub settings: Vec<SettingMsg>,
     pub log: Vec<LogMsg>,
     pub busy_ms: f64,
+    /// The island commands of an out of wire 2, read straight into commands (`cmds` stays empty then).
+    #[serde(skip)]
+    pub island_cmds: Vec<IslandCmd>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -344,6 +366,203 @@ impl LogMsg {
 /// Not JSON, or not one of the message kinds.
 pub fn decode(text: &str) -> Result<FromWorker, String> {
     serde_json::from_str(text).map_err(|e| e.to_string())
+}
+
+/// Reads the bytes of an out of wire 2.
+struct Bytes<'a> {
+    b: &'a [u8],
+    at: usize,
+}
+
+const NO: u32 = u32::MAX;
+
+impl<'a> Bytes<'a> {
+    fn take(&mut self, n: usize) -> Result<&'a [u8], String> {
+        let end = self
+            .at
+            .checked_add(n)
+            .filter(|e| *e <= self.b.len())
+            .ok_or("the message ends early")?;
+        let s = &self.b[self.at..end];
+        self.at = end;
+        Ok(s)
+    }
+
+    fn u8(&mut self) -> Result<u8, String> {
+        Ok(self.take(1)?[0])
+    }
+
+    fn u32(&mut self) -> Result<u32, String> {
+        let s = self.take(4)?;
+        Ok(u32::from_le_bytes([s[0], s[1], s[2], s[3]]))
+    }
+
+    fn f64(&mut self) -> Result<f64, String> {
+        let mut a = [0; 8];
+        a.copy_from_slice(self.take(8)?);
+        Ok(f64::from_le_bytes(a))
+    }
+
+    fn text_len(&mut self, n: u32) -> Result<&'a str, String> {
+        std::str::from_utf8(self.take(n as usize)?).map_err(|e| e.to_string())
+    }
+
+    fn str(&mut self) -> Result<&'a str, String> {
+        let n = self.u32()?;
+        if n == NO {
+            return Err("a text is missing".into());
+        }
+        self.text_len(n)
+    }
+
+    fn opt(&mut self) -> Result<Option<&'a str>, String> {
+        match self.u32()? {
+            NO => Ok(None),
+            n => self.text_len(n).map(Some),
+        }
+    }
+
+    fn json(&mut self) -> Result<Json, String> {
+        serde_json::from_str(self.str()?).map_err(|e| e.to_string())
+    }
+
+    fn count(&mut self) -> Result<usize, String> {
+        // Each entry takes at least a byte: a count past the end is a broken message, not an allocation.
+        let n = self.u32()? as usize;
+        if n > self.b.len() - self.at {
+            return Err("the message ends early".into());
+        }
+        Ok(n)
+    }
+}
+
+/// An `Arc<str>` of `s`, the one of the last call when the text is the same (the commands of one island name
+/// it each time, and a key often takes two commands in a row).
+fn shared(last: &mut Option<Arc<str>>, s: &str) -> Arc<str> {
+    if let Some(a) = last
+        && **a == *s
+    {
+        return a.clone();
+    }
+    let a: Arc<str> = Arc::from(s);
+    *last = Some(a.clone());
+    a
+}
+
+/// Read a worker's message of wire 2 (an out; see `ui2/api.js` for the layout).
+///
+/// # Errors
+/// Not an out of wire 2, or broken.
+pub fn decode_bin(bytes: &[u8]) -> Result<FromWorker, String> {
+    let mut r = Bytes { b: bytes, at: 0 };
+    let (kind, wire) = (r.u8()?, r.u8()?);
+    if kind != MSG_OUT || u32::from(wire) != WIRE_BYTES {
+        return Err(format!("not an out of wire {WIRE_BYTES}: {kind}/{wire}"));
+    }
+    let flags = r.u8()?;
+    r.u8()?;
+    let n = r.f64()?;
+    let ack = r.f64()?;
+    let busy_ms = r.f64()?;
+    let mut o = OutMsg {
+        n: n as u64,
+        ack: (flags & 1 != 0).then_some(ack as u64),
+        busy_ms,
+        ..OutMsg::default()
+    };
+    let counts = [r.u32()?, r.u32()?, r.u32()?, r.u32()?, r.u32()?];
+    for _ in 0..counts[0] {
+        let p = r.str()?.to_string();
+        let v = r.json()?;
+        o.state.push(StateMsg { p, v });
+    }
+    for _ in 0..counts[1] {
+        let name = r.str()?.to_string();
+        let args = match r.json()? {
+            Json::Object(m) => m,
+            _ => return Err(format!("the args of intent `{name}` are not an object")),
+        };
+        o.intents.push(IntentMsg { name, args });
+    }
+    // A command takes at least 9 bytes: a count past that is a broken message, not an allocation.
+    o.island_cmds
+        .reserve((counts[2] as usize).min(bytes.len() / 9));
+    let (mut island, mut key) = (None, None);
+    for _ in 0..counts[2] {
+        let op = r.u8()?;
+        let isl = shared(&mut island, r.str()?);
+        let k = shared(&mut key, r.str()?);
+        let op = match op {
+            0 => IslandOp::Text(Value::Text(Text::Raw(Arc::from(r.str()?)))),
+            1 => {
+                let key = Arc::from(r.str()?);
+                let n = r.count()?;
+                let mut args = Vec::with_capacity(n);
+                for _ in 0..n {
+                    args.push(Arc::from(r.str()?));
+                }
+                IslandOp::Text(Value::Text(Text::Key { key, args }))
+            }
+            2 => {
+                let name = Arc::from(r.str()?);
+                IslandOp::Cls(name, r.u8()? != 0)
+            }
+            3 => {
+                let prop = Arc::from(r.str()?);
+                IslandOp::Style(prop, json_to_value(&r.json()?, None))
+            }
+            4 => IslandOp::Show(r.u8()? != 0),
+            other => return Err(format!("unknown island command {other}")),
+        };
+        o.island_cmds.push(IslandCmd {
+            island: isl,
+            key: k,
+            op,
+        });
+    }
+    for _ in 0..counts[3] {
+        let key = r.str()?.to_string();
+        let value = match r.opt()? {
+            Some(t) => serde_json::from_str(t).map_err(|e| e.to_string())?,
+            None => Json::Null,
+        };
+        o.settings.push(SettingMsg { key, value });
+    }
+    for _ in 0..counts[4] {
+        let level = match r.u8()? {
+            1 => "warn",
+            2 => "error",
+            _ => "info",
+        };
+        let text = r.str()?.to_string();
+        let file = r.opt()?.map(str::to_string);
+        let line = match r.u32()? {
+            NO => None,
+            l => Some(l),
+        };
+        let key = r.opt()?.map(str::to_string);
+        o.log.push(LogMsg {
+            level: level.into(),
+            text,
+            file,
+            line,
+            key,
+        });
+    }
+    if r.at != bytes.len() {
+        return Err("bytes after the end of the out".into());
+    }
+    Ok(FromWorker::Out(o))
+}
+
+/// The name of an island command's op, as the JSON out writes it.
+pub(crate) fn op_name(op: &IslandOp) -> &'static str {
+    match op {
+        IslandOp::Text(_) => "text",
+        IslandOp::Cls(..) => "cls",
+        IslandOp::Style(..) => "style",
+        IslandOp::Show(_) => "show",
+    }
 }
 
 impl IslandMsg {

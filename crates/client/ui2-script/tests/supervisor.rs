@@ -963,3 +963,74 @@ fn island_commands_settings_and_limits() {
         ]
     );
 }
+
+/// The out of `ui2/wire.test.mjs`: the JSON text of the old wire, then the bytes of wire 2.
+fn out_fixture() -> (String, Vec<u8>) {
+    let text = include_str!("data/out-wire2.txt");
+    let (json, hex) = text
+        .trim_end()
+        .split_once('\t')
+        .unwrap_or_else(|| panic!("fixture"));
+    let bytes = (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap_or_else(|e| panic!("{e}")))
+        .collect();
+    (json.to_string(), bytes)
+}
+
+/// Wire 2 when the host takes byte messages: `init` says so, the frames stay JSON texts, and an out of bytes
+/// gives the output the same out as JSON gives.
+#[test]
+fn wire_2_outs_read_like_json_outs() {
+    let run = |bytes: bool| {
+        let host = MockScriptHost::new();
+        host.carry_bytes(bytes);
+        let mut sup = ScriptSupervisor::new(Box::new(host.clone()));
+        let mut store = store();
+        start(&mut sup, &store, ScriptCtxId::Skin, skin_bundle(&["top"]))
+            .unwrap_or_else(|e| panic!("{e}"));
+        let w = host.live()[0];
+        let init = json(&host.take_posted()[0].1);
+        assert_eq!(init["wire"], if bytes { json("2") } else { Json::Null });
+        host.reply(w, r#"{"t":"ready","ctx":"skin","handlers":[],"ms":1}"#);
+        let _ = sup.drain(0.0);
+        let mut wr = store.writer(Owner::Source);
+        wr.set_value("top.gold", Value::I32(41))
+            .unwrap_or_else(|e| panic!("{e}"));
+        let delta = store.take_frame();
+        for _ in 0..7 {
+            sup.post(
+                1.0,
+                &FrameInput {
+                    delta: delta.as_ref(),
+                    ..FrameInput::default()
+                },
+            );
+        }
+        let posted = host.take_posted();
+        assert_eq!(posted.len(), 7);
+        assert_eq!(json(&posted[0].1)["t"], "frame");
+        (sup, host, w)
+    };
+    let (text, bytes) = out_fixture();
+    let (mut sup, host, w) = run(true);
+    host.reply_bytes(w, &bytes);
+    let from_bytes = sup.drain(2.0);
+    let (mut sup2, host2, w2) = run(false);
+    host2.reply(w2, &text);
+    let from_json = sup2.drain(2.0);
+    assert_eq!(from_bytes.island_cmds.len(), 7);
+    assert_eq!(from_bytes.island_cmds, from_json.island_cmds);
+    assert_eq!(from_bytes.state_ops, from_json.state_ops);
+    assert_eq!(from_bytes.intents, from_json.intents);
+    assert_eq!(from_bytes.settings, from_json.settings);
+    assert_eq!(from_bytes.log, from_json.log);
+    assert_eq!(from_bytes.log.len(), 2, "{:?}", from_bytes.log);
+    assert_eq!(sup.stats().worker_ms, sup2.stats().worker_ms);
+    // Broken bytes are a message the worker should not send, once.
+    host.reply_bytes(w, &bytes[..bytes.len() - 1]);
+    host.reply_bytes(w, &[3, 9]);
+    let out = sup.drain(3.0);
+    assert_eq!(out.log.len(), 1, "{:?}", out.log);
+    assert!(out.log[0].1.text.contains("should not"));
+}
