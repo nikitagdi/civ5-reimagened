@@ -139,6 +139,247 @@
     }
   }
 
+  // ---------------------------------------------------------------- outs as bytes
+  //
+  // Wire 2 (`init.wire`): the outs go as bytes (the main thread reads them without a JSON parser and without
+  // an object per island command); every other message stays a JSON text. An out:
+  //
+  //   u8 3 (out), u8 2 (wire), u8 flags (1: ack), u8 0, f64 n, f64 ack, f64 busy_ms,
+  //   u32 counts of state, intents, cmds, settings, log, then each list:
+  //   state    str path, str JSON value              intents  str name, str JSON args
+  //   cmds     u8 op, str island, str key, then: 0 text (str), 1 game text (str loc, u32 n, str * n),
+  //            2 cls (str name, u8 on), 3 style (str prop, str JSON value), 4 show (u8 on)
+  //   settings str key, opt str JSON value           log      u8 level (0 info, 1 warn, 2 error), str text,
+  //                                                           opt str file, u32 line (or 0xffffffff), opt str key
+  //   str = u32 byte length + UTF-8; opt str = a str, or u32 0xffffffff for null
+
+  const WIRE = 2;
+  const MSG_OUT = 3;
+  const NO = 0xffffffff;
+  const utf8 = typeof TextDecoder === "function" ? new TextDecoder() : null;
+
+  // Reads the bytes of a message.
+  function Reader(u8) {
+    this.u8 = u8;
+    this.dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    this.pos = 0;
+  }
+
+  Reader.prototype.byte = function () {
+    if (this.pos >= this.u8.length) throw new RangeError("the message ends early");
+    return this.u8[this.pos++];
+  };
+  Reader.prototype.u32 = function () {
+    const v = this.dv.getUint32(this.pos, true);
+    this.pos += 4;
+    return v;
+  };
+  Reader.prototype.f64 = function () {
+    const v = this.dv.getFloat64(this.pos, true);
+    this.pos += 8;
+    return v;
+  };
+  // A str written in place (u32 length + UTF-8).
+  Reader.prototype.text = function () {
+    const n = this.u32();
+    if (n === NO) return null;
+    const at = this.pos;
+    if (at + n > this.u8.length) throw new RangeError("the message ends early");
+    this.pos += n;
+    return n ? utf8.decode(this.u8.subarray(at, at + n)) : "";
+  };
+
+  // Writes outs into one buffer that grows and is kept; each message leaves as a copy of its bytes.
+  function Writer() {
+    this.buf = new Uint8Array(4096);
+    this.dv = new DataView(this.buf.buffer);
+    this.pos = 0;
+  }
+
+  Writer.prototype.room = function (n) {
+    if (this.pos + n <= this.buf.length) return;
+    let size = this.buf.length * 2;
+    while (size < this.pos + n) size *= 2;
+    const b = new Uint8Array(size);
+    b.set(this.buf.subarray(0, this.pos));
+    this.buf = b;
+    this.dv = new DataView(b.buffer);
+  };
+  Writer.prototype.byte = function (v) {
+    this.room(1);
+    this.buf[this.pos++] = v;
+  };
+  Writer.prototype.u32 = function (v) {
+    this.room(4);
+    this.dv.setUint32(this.pos, v, true);
+    this.pos += 4;
+  };
+  Writer.prototype.f64 = function (v) {
+    this.room(8);
+    this.dv.setFloat64(this.pos, v, true);
+    this.pos += 8;
+  };
+  // A text as UTF-8, its length first (a lone surrogate becomes U+FFFD).
+  Writer.prototype.str = function (s) {
+    const len = s.length;
+    this.room(4 + 3 * len);
+    const b = this.buf;
+    const at = this.pos;
+    let p = at + 4;
+    for (let i = 0; i < len; i++) {
+      let c = s.charCodeAt(i);
+      if (c < 0x80) {
+        b[p++] = c;
+      } else if (c < 0x800) {
+        b[p++] = 0xc0 | (c >> 6);
+        b[p++] = 0x80 | (c & 0x3f);
+      } else {
+        if (c >= 0xd800 && c <= 0xdfff) {
+          const d = i + 1 < len ? s.charCodeAt(i + 1) : 0;
+          if (c <= 0xdbff && d >= 0xdc00 && d <= 0xdfff) {
+            const cp = 0x10000 + ((c - 0xd800) << 10) + (d - 0xdc00);
+            b[p++] = 0xf0 | (cp >> 18);
+            b[p++] = 0x80 | ((cp >> 12) & 0x3f);
+            b[p++] = 0x80 | ((cp >> 6) & 0x3f);
+            b[p++] = 0x80 | (cp & 0x3f);
+            i++;
+            continue;
+          }
+          c = 0xfffd;
+        }
+        b[p++] = 0xe0 | (c >> 12);
+        b[p++] = 0x80 | ((c >> 6) & 0x3f);
+        b[p++] = 0x80 | (c & 0x3f);
+      }
+    }
+    this.dv.setUint32(at, p - at - 4, true);
+    this.pos = p;
+  };
+  Writer.prototype.opt = function (s) {
+    if (s === null || s === undefined) this.u32(NO);
+    else this.str(s);
+  };
+  Writer.prototype.take = function () {
+    const out = this.buf.slice(0, this.pos).buffer;
+    this.pos = 0;
+    return out;
+  };
+
+  const LEVELS = { info: 0, warn: 1, error: 2 };
+  const CMD_OPS = { text: 0, cls: 2, style: 3, show: 4 };
+
+  // The bytes of an out (the fields of the JSON out message; `ack` null for none).
+  function encodeOut(w, n, ack, o, busy) {
+    w.pos = 0;
+    w.byte(MSG_OUT);
+    w.byte(WIRE);
+    w.byte(ack === null || ack === undefined ? 0 : 1);
+    w.byte(0);
+    w.f64(n);
+    w.f64(ack === null || ack === undefined ? 0 : ack);
+    w.f64(busy);
+    w.u32(o.state.length);
+    w.u32(o.intents.length);
+    w.u32(o.cmds.length);
+    w.u32(o.settings.length);
+    w.u32(o.log.length);
+    for (const s of o.state) {
+      w.str(s.p);
+      w.str(JSON.stringify(s.v));
+    }
+    for (const i of o.intents) {
+      w.str(i.name);
+      w.str(JSON.stringify(i.args));
+    }
+    for (const c of o.cmds) {
+      const v = c.value;
+      const loc = c.op === "text" && v !== null && typeof v === "object";
+      w.byte(loc ? 1 : CMD_OPS[c.op]);
+      w.str(c.island);
+      w.str(c.key);
+      switch (c.op) {
+        case "text":
+          if (loc) {
+            w.str(v.loc);
+            w.u32(v.args.length);
+            for (const a of v.args) w.str(a);
+          } else {
+            w.str(v);
+          }
+          break;
+        case "cls":
+          w.str(c.name);
+          w.byte(c.on ? 1 : 0);
+          break;
+        case "style":
+          w.str(c.prop);
+          w.str(JSON.stringify(v));
+          break;
+        default:
+          w.byte(c.on ? 1 : 0);
+      }
+    }
+    for (const s of o.settings) {
+      w.str(s.key);
+      w.opt(s.value === null ? null : JSON.stringify(s.value));
+    }
+    for (const l of o.log) {
+      w.byte(LEVELS[l.level] ?? 0);
+      w.str(l.text);
+      w.opt(l.file);
+      w.u32(l.line === null || l.line === undefined ? NO : l.line);
+      w.opt(l.key === undefined ? null : l.key);
+    }
+    return w.take();
+  }
+
+  // An out from its bytes, as the JSON out message has it (tests, the bench).
+  function decodeOut(data) {
+    const u8 = data instanceof Uint8Array ? data : new Uint8Array(data);
+    const r = new Reader(u8);
+    if (r.byte() !== MSG_OUT || r.byte() !== WIRE) throw new Error("not an out of wire " + WIRE);
+    const flags = r.byte();
+    r.byte();
+    const n = r.f64();
+    const ack = r.f64();
+    const busy = r.f64();
+    const counts = [r.u32(), r.u32(), r.u32(), r.u32(), r.u32()];
+    const m = { t: "out", n, ack: flags & 1 ? ack : null, state: [], intents: [], cmds: [], settings: [], log: [], busy_ms: busy };
+    for (let i = 0; i < counts[0]; i++) m.state.push({ p: r.text(), v: JSON.parse(r.text()) });
+    for (let i = 0; i < counts[1]; i++) m.intents.push({ name: r.text(), args: JSON.parse(r.text()) });
+    for (let i = 0; i < counts[2]; i++) {
+      const op = r.byte();
+      const island = r.text();
+      const key = r.text();
+      if (op === 0) m.cmds.push({ island, key, op: "text", value: r.text() });
+      else if (op === 1) {
+        const loc = r.text();
+        const args = [];
+        for (let j = r.u32(); j > 0; j--) args.push(r.text());
+        m.cmds.push({ island, key, op: "text", value: { loc, args } });
+      } else if (op === 2) m.cmds.push({ island, key, op: "cls", name: r.text(), on: r.byte() === 1 });
+      else if (op === 3) m.cmds.push({ island, key, op: "style", prop: r.text(), value: JSON.parse(r.text()) });
+      else if (op === 4) m.cmds.push({ island, key, op: "show", on: r.byte() === 1 });
+      else throw new Error("bad island command " + op);
+    }
+    for (let i = 0; i < counts[3]; i++) {
+      const key = r.text();
+      const v = r.text();
+      m.settings.push({ key, value: v === null ? null : JSON.parse(v) });
+    }
+    for (let i = 0; i < counts[4]; i++) {
+      const level = ["info", "warn", "error"][r.byte()] || "info";
+      const text = r.text();
+      const file = r.text();
+      const line = r.u32();
+      const key = r.text();
+      const l = { level, text, file, line: line === NO ? null : line };
+      if (key !== null) l.key = key;
+      m.log.push(l);
+    }
+    return m;
+  }
+
   // ---------------------------------------------------------------- mirror
 
   function Mirror(tables, dev) {
@@ -146,20 +387,40 @@
     this.dev = dev;
     this.roots = Object.create(null);
     this.revision = 0;
+    // The copies the last op of the delta being applied made along its path, and the keys array its list op
+    // made (see `own`); empty between deltas.
+    this.chain = [];
+    this.keysMade = null;
+    this.slot = null;
+    this.at = [];
+    // The last element looked up by key (see `walk`).
+    this.lastKeys = null;
+    this.lastKey = null;
+    this.lastAt = -1;
+    this.parsed = new Map();
   }
 
-  Mirror.prototype.rootFor = function (path) {
-    const r = rootOf(path, this.t.rootNames);
-    return r !== null ? r : rootOf(path, Object.keys(this.roots));
+  // A read path as its root and field names; the ones under a root of the tables are kept.
+  Mirror.prototype.parse = function (path) {
+    let p = this.parsed.get(path);
+    if (p) return p;
+    let root = rootOf(path, this.t.rootNames);
+    const keep = root !== null;
+    if (!keep) root = rootOf(path, Object.keys(this.roots));
+    if (root === null) throw new Error("`" + path + "`: unknown model root");
+    const rest = path.slice(root.length);
+    p = { root, segs: rest ? rest.slice(1).split(".") : [] };
+    if (keep && this.parsed.size < 4096) this.parsed.set(path, p);
+    return p;
   };
 
   Mirror.prototype.get = function (path) {
-    const root = this.rootFor(path);
-    if (root === null) throw new Error("`" + path + "`: unknown model root");
-    let node = this.roots[root];
-    const rest = path.slice(root.length);
-    if (!rest) return node === undefined ? null : node;
-    for (const seg of rest.slice(1).split(".")) {
+    const p = this.parse(path);
+    let node = this.roots[p.root];
+    const segs = p.segs;
+    if (!segs.length) return node === undefined ? null : node;
+    for (let i = 0; i < segs.length; i++) {
+      const seg = segs[i];
       if (node === null || node === undefined) return null;
       if (Array.isArray(node)) {
         throw new TypeError("`" + path + "` goes through a list: read the list and look at its elements");
@@ -169,23 +430,82 @@
     return node === undefined ? null : node;
   };
 
-  function updateIn(node, steps, i, keys, ki, fn, path) {
-    if (i === steps.length) return fn(node);
-    const s = steps[i];
-    if (s === ELEM) {
-      if (!Array.isArray(node)) throw new Error("model mirror out of step at " + path);
-      const ks = keysOf(node);
-      const at = ks.indexOf(keys[ki]);
-      if (at < 0) throw new Error("model mirror has no element " + keys[ki] + " at " + path);
-      const copy = withKeys(node.slice(), ks);
-      copy[at] = updateIn(node[at], steps, i + 1, keys, ki + 1, fn, path);
-      return copy;
+  // The position of `key` in the keys `ks` of a list, or -1. A long list keeps an index by key (the keys array of
+  // a list is shared by its versions while no element is added, removed or moved).
+  const INDEX = new WeakMap();
+  const INDEX_MIN = 16;
+  const NONE = Object.freeze([]);
+
+  function indexOfKey(ks, key) {
+    if (ks.length < INDEX_MIN) return ks.indexOf(key);
+    let ix = INDEX.get(ks);
+    if (!ix) {
+      ix = new Map();
+      for (let i = ks.length - 1; i >= 0; i--) ix.set(ks[i], i);
+      INDEX.set(ks, ix);
     }
-    if (node === null || typeof node !== "object") throw new Error("model mirror out of step at " + path);
-    const copy = Object.assign({}, node);
-    copy[s] = updateIn(node[s], steps, i + 1, keys, ki, fn, path);
-    return copy;
+    const at = ix.get(key);
+    return at === undefined ? -1 : at;
   }
+
+  // The writes of one delta go to copies of the objects on their paths: what the delta did not touch keeps its
+  // identity, what it touched is new, and the model from before the delta is never written. The copies the
+  // last op made along its path (`this.chain`, by depth) are changed in place by the next op that goes the same
+  // way: the ops of a delta come grouped by element, so a container is copied about once per delta. A copy is
+  // reachable only from the copy above it, and the chain is emptied before each delta, so nothing a script has
+  // seen is ever changed.
+  Mirror.prototype.own = function (node, depth) {
+    const chain = this.chain;
+    if (depth < chain.length && chain[depth] === node) return node;
+    const copy = Array.isArray(node) ? withKeys(node.slice(), keysOf(node)) : Object.assign({}, node);
+    chain[depth] = copy;
+    return copy;
+  };
+
+  // The container that holds the last step of `e` (a root holder, an object or a list), made writable along the
+  // path. Returns the holder; `this.slot` is the step into it (a field name or an element index).
+  Mirror.prototype.walk = function (e, keys) {
+    const steps = e.steps;
+    const at = this.at;
+    // First the whole path is checked (an op that fails changes nothing), then made writable.
+    let node = this.roots[e.root];
+    let ki = 0;
+    for (let i = 0; i < steps.length; i++) {
+      const s = steps[i];
+      if (s === ELEM) {
+        if (!Array.isArray(node)) throw new Error("model mirror out of step at " + e.path);
+        // The ops of a delta come grouped by element: the element of the last lookup is often the one.
+        const ks = keysOf(node);
+        const key = keys[ki];
+        let j;
+        if (ks === this.lastKeys && key === this.lastKey) j = this.lastAt;
+        else {
+          j = indexOfKey(ks, key);
+          this.lastKeys = ks;
+          this.lastKey = key;
+          this.lastAt = j;
+        }
+        if (j < 0) throw new Error("model mirror has no element " + keys[ki] + " at " + e.path);
+        ki++;
+        at[i] = j;
+        node = node[j];
+      } else {
+        if (node === null || typeof node !== "object") throw new Error("model mirror out of step at " + e.path);
+        at[i] = s;
+        node = node[s];
+      }
+    }
+    let holder = this.roots;
+    let slot = e.root;
+    for (let i = 0; i < steps.length; i++) {
+      const next = this.own(holder[slot], i);
+      holder[slot] = next;
+      holder = next;
+      slot = at[i];
+    }
+    this.slot = slot;
+    return holder;
+  };
 
   Mirror.prototype.entry = function (id) {
     const e = this.t.paths.get(id);
@@ -193,15 +513,34 @@
     return e;
   };
 
-  Mirror.prototype.update = function (e, keys, fn) {
-    this.roots[e.root] = updateIn(this.roots[e.root], e.steps, 0, keys, 0, fn, e.path);
+  Mirror.prototype.set = function (e, keys, v) {
+    const holder = this.walk(e, keys);
+    holder[this.slot] = v;
   };
 
-  Mirror.prototype.listOp = function (e, keys, fn) {
-    this.update(e, keys, (list) => {
-      const old = Array.isArray(list) ? list : [];
-      return fn(old.slice(), keysOf(old).slice());
-    });
+  // The list at `e` made writable, with its keys: [items, keys]. A list that is not there starts empty.
+  Mirror.prototype.list = function (e, keys) {
+    const holder = this.walk(e, keys);
+    const slot = this.slot;
+    let items = holder[slot];
+    const depth = e.steps.length;
+    if (!Array.isArray(items)) {
+      items = withKeys([], []);
+      this.chain[depth] = items;
+    } else {
+      items = this.own(items, depth);
+    }
+    holder[slot] = items;
+    let ks = KEYS.get(items);
+    if (ks !== this.keysMade) {
+      ks = ks.slice();
+      this.keysMade = ks;
+      KEYS.set(items, ks);
+    } else {
+      INDEX.delete(ks);
+    }
+    this.lastKeys = null;
+    return items;
   };
 
   // One op of a UMD1 delta (see ui2-model `umd1.rs`).
@@ -210,45 +549,42 @@
       case 0: {
         const e = this.entry(o[1]);
         const v = decode(e.type, o[3], e.part);
-        this.update(e, o[2], () => v);
+        this.set(e, o[2], v);
         break;
       }
       case 1: {
         const e = this.entry(o[1]);
         const v = decode(["struct", e.type[1]], o[5], e.part);
-        this.listOp(e, o[2], (items, keys) => {
-          const at = Math.min(o[3], items.length);
-          items.splice(at, 0, v);
-          keys.splice(at, 0, o[4]);
-          return withKeys(items, keys);
-        });
+        const items = this.list(e, o[2]);
+        const keys = KEYS.get(items);
+        const at = Math.min(o[3], items.length);
+        items.splice(at, 0, v);
+        keys.splice(at, 0, o[4]);
         break;
       }
       case 2: {
         const e = this.entry(o[1]);
-        this.listOp(e, o[2], (items, keys) => {
-          const at = keys.indexOf(o[3]);
-          if (at >= 0) {
-            items.splice(at, 1);
-            keys.splice(at, 1);
-          }
-          return withKeys(items, keys);
-        });
+        const items = this.list(e, o[2]);
+        const keys = KEYS.get(items);
+        const at = keys.indexOf(o[3]);
+        if (at >= 0) {
+          items.splice(at, 1);
+          keys.splice(at, 1);
+        }
         break;
       }
       case 3: {
         const e = this.entry(o[1]);
-        this.listOp(e, o[2], (items, keys) => {
-          const at = keys.indexOf(o[3]);
-          if (at >= 0) {
-            const [v] = items.splice(at, 1);
-            keys.splice(at, 1);
-            const to = Math.min(o[4], items.length);
-            items.splice(to, 0, v);
-            keys.splice(to, 0, o[3]);
-          }
-          return withKeys(items, keys);
-        });
+        const items = this.list(e, o[2]);
+        const keys = KEYS.get(items);
+        const at = keys.indexOf(o[3]);
+        if (at >= 0) {
+          const [v] = items.splice(at, 1);
+          keys.splice(at, 1);
+          const to = Math.min(o[4], items.length);
+          items.splice(to, 0, v);
+          keys.splice(to, 0, o[3]);
+        }
         break;
       }
       case 4: {
@@ -272,6 +608,9 @@
     const a = typeof umd1 === "string" ? JSON.parse(umd1) : umd1;
     let error = null;
     this.revision = a[0];
+    this.chain.length = 0;
+    this.keysMade = null;
+    this.lastKeys = null;
     for (let i = 1; i < a.length; i++) {
       try {
         this.op(a[i]);
@@ -279,6 +618,8 @@
         if (!error) error = e;
       }
     }
+    this.chain.length = 0;
+    this.keysMade = null;
     if (this.dev) for (const k of Object.keys(this.roots)) deepFreeze(this.roots[k]);
     return error;
   };
@@ -314,6 +655,8 @@
 
     let out = null;
     let outN = 0;
+    // Wire 2: the outs go as bytes when the supervisor reads them (`init.wire`) and the port can send them.
+    const writer = init.wire >= WIRE && typeof port.postBytes === "function" ? new Writer() : null;
     // State writes not yet seen in the model: full path -> {v, n} (n: the out that carries the write).
     const overlay = new Map();
     // Model subscriptions: {kind: "on" | "list", path, fn | h, last, live, label}.
@@ -363,6 +706,14 @@
       line("error", "ui2.js: " + ctxName + " " + h.label + " disabled: " + msg + where + el, at.file, at.line, h.label + "|" + msg);
     }
 
+    // A handler call took `ms`: a slow one is reported once.
+    function timed(h, ms) {
+      if (ms > limits.slow_ms && !h.slow) {
+        h.slow = true;
+        line("warn", "ui2.js: " + ctxName + " " + h.label + " slow handler: " + Math.round(ms) + " ms", null, null, h.label + "|slow");
+      }
+    }
+
     // Call a handler; an exception switches it off for good, a slow call is reported once.
     function call(h, f, node) {
       if (!h.live) return;
@@ -373,11 +724,33 @@
         failed(h, e, node);
         return;
       }
-      const ms = now() - t0;
-      if (ms > limits.slow_ms && !h.slow) {
-        h.slow = true;
-        line("warn", "ui2.js: " + ctxName + " " + h.label + " slow handler: " + Math.round(ms) + " ms", null, null, h.label + "|slow");
+      timed(h, now() - t0);
+    }
+
+    // `call` of `fn` with `self` as `this` and two or three arguments, without a closure per call (a list
+    // subscription calls its handlers once per changed element).
+    function call2(h, fn, self, a, b) {
+      if (!h.live) return;
+      const t0 = now();
+      try {
+        fn.call(self, a, b);
+      } catch (e) {
+        failed(h, e, null);
+        return;
       }
+      timed(h, now() - t0);
+    }
+
+    function call3(h, fn, self, a, b, c) {
+      if (!h.live) return;
+      const t0 = now();
+      try {
+        fn.call(self, a, b, c);
+      } catch (e) {
+        failed(h, e, null);
+        return;
+      }
+      timed(h, now() - t0);
     }
 
     function checkRead(path, what) {
@@ -410,38 +783,47 @@
 
     function diffList(s, prev, cur) {
       const h = s.fn;
-      const before = new Map();
-      if (Array.isArray(prev)) {
-        const ks = keysOf(prev);
-        prev.forEach((v, i) => before.set(ks[i], v));
-      }
-      const after = new Set();
-      if (Array.isArray(cur)) {
+      // The same keys in the same order (only elements changed): element by element, nothing to look up.
+      if (Array.isArray(prev) && Array.isArray(cur) && keysOf(prev) === keysOf(cur)) {
         const ks = keysOf(cur);
-        cur.forEach((v, i) => {
-          const k = ks[i];
-          after.add(k);
-          if (!before.has(k)) {
-            if (h.add) call(s, () => h.add(k, v));
-          } else if (before.get(k) !== v && h.change) {
-            call(s, () => h.change(k, v, before.get(k)));
-          }
-        });
+        for (let i = 0; i < cur.length; i++) {
+          const v = cur[i];
+          const old = prev[i];
+          if (old !== v && h.change) call3(s, h.change, h, ks[i], v, old);
+        }
+        return;
+      }
+      // By key (the index of a long list's keys is kept with them, so the next delta finds this one's built).
+      const pv = Array.isArray(prev) ? prev : NONE;
+      const cv = Array.isArray(cur) ? cur : NONE;
+      const pk = pv === NONE ? NONE : keysOf(pv);
+      const ck = cv === NONE ? NONE : keysOf(cv);
+      for (let i = 0; i < cv.length; i++) {
+        const k = ck[i];
+        const v = cv[i];
+        const j = indexOfKey(pk, k);
+        if (j < 0) {
+          if (h.add) call2(s, h.add, h, k, v);
+        } else if (pv[j] !== v && h.change) {
+          call3(s, h.change, h, k, v, pv[j]);
+        }
       }
       if (h.remove) {
-        for (const [k, v] of before) if (!after.has(k)) call(s, () => h.remove(k, v));
+        for (let i = 0; i < pv.length; i++) if (indexOfKey(ck, pk[i]) < 0) call2(s, h.remove, h, pk[i], pv[i]);
       }
     }
 
     // After a batch: each subscription whose value changed is called once.
     function notify() {
-      for (const s of subs.slice()) {
+      const n = subs.length;
+      for (let i = 0; i < n; i++) {
+        const s = subs[i];
         if (!s.live) continue;
         const cur = mirror.get(s.path);
         if (cur === s.last) continue;
         const prev = s.last;
         s.last = cur;
-        if (s.kind === "on") call(s, () => s.fn(cur, prev));
+        if (s.kind === "on") call2(s, s.fn, s, cur, prev);
         else diffList(s, prev, cur);
       }
       for (let i = subs.length - 1; i >= 0; i--) if (!subs[i].live) subs.splice(i, 1);
@@ -461,9 +843,11 @@
     function flush(ack, t0) {
       if (ack === null && empty()) return;
       outN += 1;
-      const msg = Object.assign({ t: "out", n: outN, ack }, out, { busy_ms: now() - t0 });
+      const busy = now() - t0;
+      const o = out;
       out = fresh();
-      port.post(msg);
+      if (writer) port.postBytes(encodeOut(writer, outN, ack, o, busy));
+      else port.post(Object.assign({ t: "out", n: outN, ack }, o, { busy_ms: busy }));
     }
 
     const ui = {
@@ -530,9 +914,8 @@
       },
       island(id) {
         if (typeof id !== "string" || !id) throw new TypeError("ui.island(id): the id of a data-ui2-island");
-        const cmd = (key, op, more) => {
+        const checkKey = (key) => {
           if (typeof key !== "string" || !key) throw new TypeError("ui.island(" + id + "): the key of a data-ui2-key");
-          out.cmds.push(Object.assign({ island: id, key, op }, more));
         };
         const isl = {
           // `s`: a string, or {loc, args} for a game text with its arguments.
@@ -543,21 +926,26 @@
                 : s === null || s === undefined
                   ? ""
                   : String(s);
-            cmd(key, "text", { value });
+            checkKey(key);
+            out.cmds.push({ island: id, key, op: "text", value });
             return isl;
           },
           cls(key, name, on) {
             if (typeof name !== "string" || !name) throw new TypeError("ui.island(" + id + ").cls: a class name");
-            cmd(key, "cls", { name, on: on === undefined ? true : !!on });
+            checkKey(key);
+            out.cmds.push({ island: id, key, op: "cls", name, on: on === undefined ? true : !!on });
             return isl;
           },
           style(key, prop, value) {
             if (typeof prop !== "string" || !prop) throw new TypeError("ui.island(" + id + ").style: a property");
-            cmd(key, "style", { prop, value: value === undefined ? null : clone(value) });
+            const v = value === undefined ? null : clone(value);
+            checkKey(key);
+            out.cmds.push({ island: id, key, op: "style", prop, value: v });
             return isl;
           },
           show(key, on) {
-            cmd(key, "show", { on: on === undefined ? true : !!on });
+            checkKey(key);
+            out.cmds.push({ island: id, key, op: "show", on: on === undefined ? true : !!on });
             return isl;
           },
         };
@@ -649,6 +1037,52 @@
     if (init.roots) for (const k of Object.keys(init.roots)) mirror.roots[k] = init.roots[k];
     if (init.dev) for (const k of Object.keys(mirror.roots)) deepFreeze(mirror.roots[k]);
 
+    // The path of a frame is run on a copy of the snapshot before the first frame comes (the engine compiles
+    // code once it ran a few times; a first frame through cold code takes several times as long). Nothing of it
+    // is seen: its own mirror, a list handler that does nothing, an out that is not sent.
+    function warmUp() {
+      if (!writer || !Array.isArray(init.model)) return;
+      const m = new Mirror(tables, false);
+      m.apply(init.model);
+      // A set of each scalar field of the first elements of each list one level down, to the value it has.
+      const ops = [];
+      for (const e of tables.paths.values()) {
+        if (typeof e.type !== "string" || e.steps.length < 2 || e.steps[e.steps.length - 1] === ELEM) continue;
+        const at = e.steps.indexOf(ELEM);
+        if (at < 0 || e.steps.indexOf(ELEM, at + 1) >= 0) continue;
+        let node = m.roots[e.root];
+        for (let i = 0; i < at && node !== null && node !== undefined; i++) node = node[e.steps[i]];
+        if (!Array.isArray(node)) continue;
+        const ks = keysOf(node);
+        for (let i = 0; i < node.length && i < 64; i++) {
+          let v = node[i];
+          for (let j = at + 1; j < e.steps.length && v !== null && v !== undefined; j++) v = v[e.steps[j]];
+          if (v !== undefined) ops.push([0, e.id, [ks[i]], v]);
+        }
+      }
+      if (!ops.length) return;
+      // The lists outside lists, before and after each delta, through a list handler that does nothing.
+      const lists = [];
+      for (const e of tables.paths.values()) if (Array.isArray(e.type) && e.type[0] === "list" && e.steps.indexOf(ELEM) < 0) lists.push(e);
+      const listAt = (e) => {
+        let node = m.roots[e.root];
+        for (let i = 0; i < e.steps.length && node !== null && node !== undefined; i++) node = node[e.steps[i]];
+        return node;
+      };
+      const sub = { kind: "list", fn: { add() {}, change() {}, remove() {} }, live: true, slow: true, label: "" };
+      const resets = [1].concat(init.model.slice(1).filter((o) => o[0] === 4));
+      const sets = [2].concat(ops);
+      const o = fresh();
+      for (let round = 0; round < 8; round++) {
+        const before = lists.map(listAt);
+        m.apply(round === 0 ? resets : sets);
+        lists.forEach((e, i) => diffList(sub, before[i], listAt(e)));
+        o.cmds.push({ island: "warm", key: "k", op: "text", value: "" }, { island: "warm", key: "k", op: "show", on: true });
+        encodeOut(writer, 0, 0, o, 0);
+      }
+    }
+    warmUp();
+
     return {
       ui,
       receive(msg) {
@@ -689,8 +1123,10 @@
 
   global.__ui2api = {
     API,
+    WIRE,
     createContext,
     locate,
+    decodeOut,
     setLineOffset(n) {
       lineOffset = n;
     },

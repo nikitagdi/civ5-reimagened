@@ -5,7 +5,8 @@
 //!
 //! - `spawn() -> number`: a new worker running `ui2/worker.js`; throws when the page cannot create one;
 //! - `post(id, text) -> bool`: `false` for a worker that does not exist (any more);
-//! - `drain(ids) -> [[id, "msg" | "error", text], ...]`: what the workers `ids` sent since the last call, oldest first;
+//! - `wire` (optional): 2 when the workers' messages posted as bytes reach `drain`;
+//! - `drain(ids) -> [[id, "msg" | "bin" | "error", data], ...]`: what the workers `ids` sent since the last call, oldest first;
 //!   the other workers' messages stay queued. The page has one queue for every host (the skin's supervisor and the
 //!   mods' each have one), so a host drains only the workers it started;
 //! - `terminate(id)`: stops the worker at once and drops what it sent and was not drained;
@@ -14,7 +15,7 @@
 
 use std::cell::Cell;
 
-use js_sys::{Array, Function, Reflect};
+use js_sys::{Array, Function, Reflect, Uint8Array};
 use platform::{ScriptHost, ScriptHostError, ScriptHostEvent, WorkerId};
 use wasm_bindgen::{JsCast, JsValue};
 
@@ -29,6 +30,8 @@ pub struct WebScriptHost {
     terminate: Function,
     /// `live()`, when the page has it.
     live: Option<Function>,
+    /// The page's `wire` is 2: the workers' byte messages reach `drain`.
+    bytes: bool,
     /// The workers this host started and did not terminate: the ones whose messages it drains.
     own: Vec<u32>,
     /// One log line for the first failed `drain`, not one per frame.
@@ -55,6 +58,10 @@ impl WebScriptHost {
             drain: func("drain")?,
             terminate: func("terminate")?,
             live: func("live"),
+            bytes: Reflect::get(&api, &"wire".into())
+                .ok()
+                .and_then(|v| v.as_f64())
+                .is_some_and(|w| w >= 2.0),
             api,
             own: Vec::new(),
             warned: Cell::new(false),
@@ -62,17 +69,19 @@ impl WebScriptHost {
     }
 }
 
-/// One entry of `drain()`: `[id, kind, text]`.
+/// One entry of `drain()`: `[id, kind, data]`.
 fn entry(v: &JsValue) -> Option<(WorkerId, ScriptHostEvent)> {
     let a = v.dyn_ref::<Array>()?;
     let id = a
         .get(0)
         .as_f64()
         .filter(|n| *n >= 0.0 && *n <= f64::from(u32::MAX))? as u32;
-    let text = a.get(2).as_string().unwrap_or_default();
+    let data = a.get(2);
+    let text = || data.as_string().unwrap_or_default();
     let ev = match a.get(1).as_string().as_deref() {
-        Some("msg") => ScriptHostEvent::Message(text),
-        Some("error") => ScriptHostEvent::Error(text),
+        Some("msg") => ScriptHostEvent::Message(text()),
+        Some("bin") => ScriptHostEvent::Bytes(data.dyn_ref::<Uint8Array>()?.to_vec()),
+        Some("error") => ScriptHostEvent::Error(text()),
         _ => return None,
     };
     Some((WorkerId(id), ev))
@@ -104,6 +113,10 @@ impl ScriptHost for WebScriptHost {
             // worker will not see the message.
             Ok(_) | Err(_) => Err(ScriptHostError::NoWorker(worker)),
         }
+    }
+
+    fn carries_bytes(&self) -> bool {
+        self.bytes
     }
 
     fn drain(&mut self, out: &mut Vec<(WorkerId, ScriptHostEvent)>) {

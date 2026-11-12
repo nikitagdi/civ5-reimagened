@@ -12,6 +12,7 @@ struct State {
     live: Vec<WorkerId>,
     terminated: Vec<WorkerId>,
     posted: Vec<(WorkerId, String)>,
+    bytes: bool,
     inbox: Vec<(WorkerId, ScriptHostEvent)>,
     refuse_spawn: bool,
     delivered_until: Option<f64>,
@@ -49,6 +50,19 @@ impl MockScriptHost {
     /// Everything posted so far, and forget it.
     pub fn take_posted(&self) -> Vec<(WorkerId, String)> {
         std::mem::take(&mut self.state.borrow_mut().posted)
+    }
+
+    /// Take the workers' byte messages from now on (a page of wire 2); texts only by default.
+    pub fn carry_bytes(&self, on: bool) {
+        self.state.borrow_mut().bytes = on;
+    }
+
+    /// Queue a byte message from a worker for the next drain.
+    pub fn reply_bytes(&self, worker: WorkerId, bytes: &[u8]) {
+        self.state
+            .borrow_mut()
+            .inbox
+            .push((worker, ScriptHostEvent::Bytes(bytes.to_vec())));
     }
 
     /// Queue a message from a worker for the next drain.
@@ -93,6 +107,10 @@ impl ScriptHost for MockScriptHost {
         }
         s.posted.push((worker, text.to_string()));
         Ok(())
+    }
+
+    fn carries_bytes(&self) -> bool {
+        self.state.borrow().bytes
     }
 
     fn drain(&mut self, out: &mut Vec<(WorkerId, ScriptHostEvent)>) {

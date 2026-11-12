@@ -85,6 +85,10 @@
     post(msg) {
       post(JSON.stringify(msg));
     },
+    // An out of wire 2 (`init.wire`): its bytes change hands, no copy.
+    postBytes(buf) {
+      post(buf, [buf]);
+    },
     now: clock,
   };
   let ctx = null;
