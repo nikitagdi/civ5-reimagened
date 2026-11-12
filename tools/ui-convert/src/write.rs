@@ -531,6 +531,9 @@ impl Tb<'_> {
             let key = self.b.str(k);
             let args = attrs.l10n_args.iter().map(|a| self.expr(a)).collect();
             Some(TextSrc::L10n { key, args })
+        } else if attrs.hotkey_label {
+            // The runtime writes the key's name into this leaf (the markup's text only stands in for it).
+            Some(TextSrc::Static(self.b.str("")))
         } else {
             None
         };

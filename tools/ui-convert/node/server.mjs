@@ -11,6 +11,9 @@
 // List keys: `listKeys` (model path of a list -> its key field and kind, from the converter) is prepended to the
 // preview script as `window.__ui2keys`, so the preview keys loop instances as the runtime does.
 //
+// Skin state: the text of the folder's `skin.toml` (when there is one) is prepended to the preview script as
+// `window.__ui2skin = { toml }`: the preview mounts its `[state]` defaults under the sample's state.
+//
 // Virtual files: `virtualFiles` (relative path -> text) are served as if they were files of the folder, before the
 // folder's own files; the converter's fragment mode puts the page around a mod's panels there.
 //
@@ -190,7 +193,10 @@ export async function startServer({ root, port = 0, fontsDir = null, preview = f
         // The list keys of the model schema go in front of the script (no request of their own, so the page
         // loads the same files with and without them).
         const keys = listKeys ? `window.__ui2keys = ${JSON.stringify(listKeys)};\n` : "";
-        return done(200, keys + fs.readFileSync(PREVIEW_FILE, "utf8"), MIME[".js"]);
+        // The skin's skin.toml as it is now (its [state] defaults), read at every load of the script.
+        const toml = readText("skin.toml");
+        const skin = toml !== null ? `window.__ui2skin = ${JSON.stringify({ toml })};\n` : "";
+        return done(200, keys + skin + fs.readFileSync(PREVIEW_FILE, "utf8"), MIME[".js"]);
       }
       if (rel.startsWith("__ui2/")) return done(404, "not found");
       if (virtual.has(rel)) {

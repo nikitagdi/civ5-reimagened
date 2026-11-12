@@ -17,6 +17,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..", "..", "..", "..");
 const ENGRAVED = path.join(REPO, "skins", "engraved");
 const FIXTURE = path.join(HERE, "fixtures", "preview");
+const STATE_FIXTURE = path.join(HERE, "fixtures", "preview-state");
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ui2-preview-"));
 // The fonts the skin's @font-face rules name, taken from the repository's own font folder.
@@ -29,11 +30,13 @@ for (const [name, from] of [["FiraSans-Regular.ttf", "fira-sans/FiraSans-Regular
 let browser;
 let engraved;
 let fixture;
+let stateFixture;
 const external = [];
 
 before(async () => {
   engraved = await startServer({ root: ENGRAVED, fontsDir, preview: true });
   fixture = await startServer({ root: FIXTURE, preview: true });
+  stateFixture = await startServer({ root: STATE_FIXTURE, preview: true });
   browser = await launchChromium();
 });
 
@@ -41,6 +44,7 @@ after(async () => {
   await browser?.close();
   await engraved?.close();
   await fixture?.close();
+  await stateFixture?.close();
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 
@@ -197,6 +201,8 @@ test("fixture: nested includes, loops, sort, filter, keys, toggles, styles, l10n
     assert.equal(await text(page, "#who"), "Ann has 12");
     assert.equal(await text(page, "#when"), "4 things"); // a model text {k, a}
     assert.equal(await page.evaluate(() => !!document.querySelector("#empty")), false, "an empty for has no instance in layout mode");
+    // hotkey labels: the key of the nearest data-hotkey, the texts' `key.<name>` first, as the runtime names it
+    assert.deepEqual(await texts(page, "#hkf, #hkb, #hkd"), ["F", "Ctl+Shift+Б", "Delete"]);
 
     // the numbering rule, spelled out (see the header of preview.js); the dev element is not a node
     const nums = await page.evaluate(() => Object.fromEntries(["#outer", "#inner", "#deep", "#list", "#list > li", "#list > li > b", "#list i", "#on", "#off", "#bar", "#ico", "#cnt", "#who", "#when", "#dev", "#dev span"]
@@ -223,6 +229,7 @@ test("fixture: modes", async () => {
     assert.equal(await ex.evaluate(() => document.querySelector("#empty").getAttribute("data-ui2-inst")), "0");
     assert.equal(await text(ex, "#empty span"), "");
     assert.equal(await ex.evaluate(() => window.__ui2preview.mode), "extract");
+    assert.deepEqual(await texts(ex, "#hkf, #hkb, #hkd"), ["F", "Ctl+Shift+Б", "Delete"], "the converter reads the labels too");
 
     // templates: includes and numbers only, the mockup text stays, nothing is instantiated
     const tp = (await openPage(ctx, fixture, "index.html?ui2mode=templates")).page;
@@ -297,6 +304,9 @@ test("fixture: problems become error entries and never throw", async () => {
     assert.equal(byCode("PV-008").length, 1, "division by zero");
     assert.equal(byCode("PV-008")[0].level, "warn");
     assert.equal(byCode("PV-006").length, 1, "a transform that is not previewed");
+    assert.equal(byCode("E7-013").length, 1, "a hotkey label without a hotkey");
+    assert.equal(byCode("E7-013")[0].attr, "data-hotkey-label");
+    assert.equal(await text(page, "#nohk"), "");
     // the page still rendered what it could
     assert.equal(await text(page, "#bad"), "kept");
     assert.equal(await text(page, "#nokey"), "no.such");
@@ -333,5 +343,37 @@ test("session open({preview: true}): the scan sees the page after includes and b
     assert.deepEqual(ir.errors, []);
   } finally {
     await s.close();
+  }
+});
+
+// --- the skin state: skin.toml [state] defaults under the sample's state, as verify mounts them ---
+
+test("skin state: the defaults of skin.toml, then the sample's state over them", async () => {
+  // The server writes the file's text in front of the script; a folder without skin.toml gets nothing.
+  const script = await (await fetch(`${stateFixture.url}/__ui2/preview.js`)).text();
+  assert.match(script, /^window\.__ui2skin = \{"toml":"# The skin state/);
+  assert.doesNotMatch(await (await fetch(`${fixture.url}/__ui2/preview.js`)).text(), /^window\.__ui2skin/);
+
+  const ctx = await newContext();
+  try {
+    const shown = async (page) => ({
+      sort: await text(page, "#sort"), hide: await text(page, "#hide"), page: await text(page, "#page"),
+      zoom: await text(page, "#zoom"), win: await page.evaluate(() => !!document.querySelector("#win")),
+    });
+    // The sample sets prod.sort and windows.production; the rest of the group keeps its defaults.
+    const { page, problems } = await openPage(ctx, stateFixture, "index.html?ui2state=hud");
+    assert.deepEqual(await shown(page), { sort: "name", hide: "false", page: "2", zoom: "1.5", win: false });
+    // A sample without state sees the defaults only.
+    const bare = (await openPage(ctx, stateFixture, "index.html?ui2state=bare")).page;
+    assert.deepEqual(await shown(bare), { sort: "order", hide: "false", page: "2", zoom: "1.5", win: true });
+    // A rerender keeps the defaults under the new state, by name and as an object.
+    await page.evaluate(() => window.__ui2preview.rerender("bare"));
+    assert.deepEqual(await shown(page), await shown(bare));
+    await page.evaluate(() => window.__ui2preview.rerender({ model: {}, state: { prod: { page: 7 }, zoom: 3 } }));
+    assert.deepEqual(await shown(page), { sort: "order", hide: "false", page: "7", zoom: "3", win: true });
+    assert.deepEqual(await page.evaluate(() => window.__ui2preview.errors), []);
+    assert.deepEqual(problems, []);
+  } finally {
+    await ctx.close();
   }
 });

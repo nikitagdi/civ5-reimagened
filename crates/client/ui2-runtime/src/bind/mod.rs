@@ -2,7 +2,7 @@
 //!
 //! Every node instance with bindings owns a contiguous range of *rows* (`Node::binds`): one per scalar binding
 //! of its template node (`data-bind-value`, `data-l10n`, `data-bind-class-toggle`, `data-bind-style-*`,
-//! `data-bind-disabled`, `data-bind-model`, `data-bind-src`, `data-anchor`), and one per step of `data-on-*` that reads something (the arguments of `intent`
+//! `data-bind-disabled`, `data-bind-model`, `data-bind-src`, `data-anchor`, `data-hotkey-label`), and one per step of `data-on-*` that reads something (the arguments of `intent`
 //! and `call`, the value of `set`, the path of `toggle`): those rows only keep their values, which input
 //! reads when the event happens. A `for` node has one row for its list, an `if` node one for its condition;
 //! a sorted or filtered list also has one row per model item for its sort key and filter (see [`list`]).
@@ -50,6 +50,9 @@ pub(crate) enum RowKind {
     Text(TplId),
     /// A skin text (`data-l10n` with `data-l10n-args`).
     L10n { key: StrId, args: Vec<ExprId> },
+    /// The name of the key of the `data-hotkey` on the node or its nearest ancestor that has one
+    /// (`data-hotkey-label`): see [`hotkey_label`].
+    HotkeyLabel,
     /// A class on while the condition holds.
     Class { class: StrId, cond: ExprId },
     /// The disabled state.
@@ -568,7 +571,8 @@ impl Binder {
                         format!("{} cannot be bound in this runtime", prop.name()),
                     ));
                 }
-                // Controls, hotkey labels and fitting are handled by their own passes.
+                BindKind::HotkeyLabel => kinds.push(RowKind::HotkeyLabel),
+                // Controls and fitting are handled by their own passes.
                 _ => {}
             }
         }
@@ -623,9 +627,11 @@ impl Binder {
             | RowKind::Src(e)
             | RowKind::Anchor { id: e, .. } => pkg.expr(*e).into_iter().collect(),
             // Read through `reads_of` (actions) or the list's state (lists, items).
-            RowKind::Action { .. } | RowKind::Model(_) | RowKind::List | RowKind::Item => {
-                Vec::new()
-            }
+            RowKind::Action { .. }
+            | RowKind::Model(_)
+            | RowKind::List
+            | RowKind::Item
+            | RowKind::HotkeyLabel => Vec::new(),
         }
     }
 
@@ -683,7 +689,7 @@ impl Binder {
         let start = self.alloc(kinds.len());
         for (i, kind) in kinds.into_iter().enumerate() {
             let r = start + i as u32;
-            let mut localized = matches!(kind, RowKind::L10n { .. });
+            let mut localized = matches!(kind, RowKind::L10n { .. } | RowKind::HotkeyLabel);
             for e in Self::exprs_of(pkg, &kind) {
                 localized |= deps::calls_loc(e);
             }
@@ -909,6 +915,16 @@ impl Binder {
                     }
                 }
             }
+            RowKind::HotkeyLabel => match hotkey_of(arena, pkg, row.node) {
+                Some((code, mods)) => Out::Text(hotkey_label(pkg, &self.loc, code, mods).into()),
+                None => {
+                    problem = Some((
+                        ErrorCode::Bind,
+                        "a hotkey label without data-hotkey on it or an ancestor".to_string(),
+                    ));
+                    Out::Text("".into())
+                }
+            },
             RowKind::Class { cond, .. } | RowKind::Disabled(cond) | RowKind::Cond(cond) => {
                 Out::Bool(truthy(&host.expr(*cond)))
             }
@@ -949,7 +965,7 @@ impl Binder {
             return;
         }
         match (&row.kind, &out) {
-            (RowKind::Text(_) | RowKind::L10n { .. }, Out::Text(s)) => {
+            (RowKind::Text(_) | RowKind::L10n { .. } | RowKind::HotkeyLabel, Out::Text(s)) => {
                 if let Some(leaf) = text_target(arena, row.node) {
                     set_text(arena, leaf, s);
                 } else {
@@ -1066,6 +1082,52 @@ impl Binder {
     }
 }
 
+/// The key of a hotkey label: the `data-hotkey` of the node itself or of its nearest ancestor that has one,
+/// as its `KeyboardEvent.code` and `hotkey_mods` bits.
+fn hotkey_of<'p>(arena: &Arena, pkg: &'p crate::Pkg, node: NodeId) -> Option<(&'p str, u8)> {
+    let keys = pkg.hotkeys();
+    let mut at = Some(node);
+    while let Some(id) = at {
+        let n = arena.get(id)?;
+        if let Some(h) = keys.iter().find(|h| h.node == n.tmpl()) {
+            return Some((pkg.str(h.code)?, h.mods));
+        }
+        at = n.parent();
+    }
+    None
+}
+
+/// The name a key shows when the skin has no text `key.<code>` for it: the letter of `KeyA`..`KeyZ`, the
+/// digit of `Digit0`..`Digit9`, otherwise the code itself (`F5`, `Delete`, `ArrowUp`). The converter's preview
+/// names keys by the same rule.
+pub(crate) fn default_key_name(code: &str) -> &str {
+    code.strip_prefix("Key")
+        .or_else(|| code.strip_prefix("Digit"))
+        .filter(|rest| rest.chars().count() == 1)
+        .unwrap_or(code)
+}
+
+/// The text of a hotkey label (`data-hotkey-label`): the modifiers, then the key, joined by `+`
+/// (`Ctrl+Shift+B`). Each name is the skin's text `key.<name>` (`key.KeyB`, `key.Ctrl`, `key.Alt`,
+/// `key.Shift`) in the current language, or [`default_key_name`] (`Ctrl`, `Alt`, `Shift` for the modifiers)
+/// when the skin has none.
+pub(crate) fn hotkey_label(pkg: &crate::Pkg, loc: &SkinLoc, code: &str, mods: u8) -> String {
+    use ui2_package::hotkey_mods::{ALT, CTRL, SHIFT};
+    let name = |key: &str, default: &str| {
+        loc.skin_text(pkg, &format!("key.{key}"), &[])
+            .unwrap_or_else(|_| default.to_string())
+    };
+    let mut out = String::new();
+    for (bit, m) in [(CTRL, "Ctrl"), (ALT, "Alt"), (SHIFT, "Shift")] {
+        if mods & bit != 0 {
+            out.push_str(&name(m, m));
+            out.push('+');
+        }
+    }
+    out.push_str(&name(code, default_key_name(code)));
+    out
+}
+
 /// Writes a text leaf's string and queues it for shaping when it changed.
 pub(crate) fn set_text(arena: &mut Arena, leaf: NodeId, s: &Arc<str>) {
     let Some(n) = arena.get_mut(leaf) else {
@@ -1076,4 +1138,26 @@ pub(crate) fn set_text(arena: &mut Arena, leaf: NodeId, s: &Arc<str>) {
     }
     n.text = Some(Arc::clone(s));
     arena.mark(leaf, Dirty::TEXT);
+}
+
+#[cfg(test)]
+mod tests {
+    /// The same cases as the preview's test (`tools/ui-convert/node/test/expr.test.mjs`): both name keys alike.
+    #[test]
+    fn default_key_names_match_the_preview() {
+        let cases = [
+            ("KeyF", "F"),
+            ("KeyZ", "Z"),
+            ("Digit7", "7"),
+            ("Delete", "Delete"),
+            ("F5", "F5"),
+            ("ArrowUp", "ArrowUp"),
+            ("KeyAB", "KeyAB"),
+            ("Numpad1", "Numpad1"),
+            ("Enter", "Enter"),
+        ];
+        for (code, name) in cases {
+            assert_eq!(super::default_key_name(code), name, "{code}");
+        }
+    }
 }

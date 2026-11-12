@@ -144,21 +144,27 @@ pub(crate) fn reselect(
     }
     let element = node.class != NodeClass::Text;
     // Properties set by bindings stay on top of the new record.
-    if let Some(over) = node.over.as_mut() {
+    let (bits, display) = if let Some(over) = node.over.as_mut() {
         let rebuilt = Overrides::new(index.record(styles, new), std::mem::take(&mut over.props));
         let bits = diff(&over.record, &rebuilt.record);
         let old_record = std::mem::replace(&mut over.record, rebuilt.record.clone());
         **over = rebuilt;
+        let display = old_record.display != over.record.display;
         if element && !over.record.transitions.is_empty() {
             changed.push((id, old_record));
         }
-        return bits;
+        (bits, display)
+    } else {
+        let (a, b) = (index.record(styles, old), index.record(styles, new));
+        if element && !b.transitions.is_empty() {
+            changed.push((id, a.clone()));
+        }
+        (diff(a, b), a.display != b.display)
+    };
+    if element && display {
+        crate::text::display_changed(arena, id);
     }
-    let (a, b) = (index.record(styles, old), index.record(styles, new));
-    if element && !b.transitions.is_empty() {
-        changed.push((id, a.clone()));
-    }
-    diff(a, b)
+    bits
 }
 
 /// Queues for the style pass the dependents of `subject` whose condition kind `matches`. Stale dependents

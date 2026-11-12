@@ -1,0 +1,13 @@
+# The skin state of the fixture: defaults the preview mounts under every sample's state.
+
+[skin]
+id = "state-fixture"
+version = "0.1.0"
+title = "skin.title"
+model = "1.0"
+api = "1.0"
+
+[state]
+"windows.production" = false
+prod = { sort = "order", hide_locked = false, page = 2 }
+zoom = 1.5

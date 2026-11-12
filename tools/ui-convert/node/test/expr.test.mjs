@@ -238,6 +238,53 @@ test("TOML subset reads the skin's tables", () => {
   assert.deepEqual(t.errors.map((e) => e.line), [5, 6]);
 });
 
+test("hotkey labels: the runtime's default names, modifiers first, the skin's texts win", () => {
+  const cases = [["KeyF", "F"], ["KeyZ", "Z"], ["Digit7", "7"], ["Delete", "Delete"], ["F5", "F5"],
+    ["ArrowUp", "ArrowUp"], ["KeyAB", "KeyAB"], ["Numpad1", "Numpad1"], ["Enter", "Enter"]];
+  for (const [code, name] of cases) assert.equal(core.defaultKeyName(code), name, code);
+  const plain = (_k, fallback) => fallback;
+  assert.equal(core.hotkeyLabel("KeyF", plain), "F");
+  assert.equal(core.hotkeyLabel("Ctrl+Alt+Shift+Digit1", plain), "Ctrl+Alt+Shift+1");
+  const named = (k, fallback) => ({ KeyB: "Б", Shift: "Umschalt" })[k] ?? fallback;
+  assert.equal(core.hotkeyLabel("Shift+KeyB", named), "Umschalt+Б");
+});
+
+test("skin state: [state] of skin.toml as nested defaults, and the sample's state over them", () => {
+  const real = fs.readFileSync(fileURLToPath(new URL("../../../../skins/engraved/skin.toml", HERE)), "utf8");
+  const engraved = core.parseSkinState(real);
+  assert.deepEqual(engraved.errors, []);
+  assert.deepEqual(engraved.state.prod, { sort: "order", hide_locked: false });
+
+  // The converter's own test text: quoted dotted keys, inline tables, numbers; sub-tables; other tables skipped.
+  const t = core.parseSkinState([
+    "[skin]", 'id = "t"', "[state]", '"windows.production" = false # closed',
+    'prod = { sort = "name", page = { n = 2 } }', "zoom = 1.5", "big = 1_000", "neg = -3", "e = 1e2",
+    "[state.extra]", "on = true", "'lit.key' = 'a\\b'", "[fonts]", "x = 1",
+  ].join("\n"));
+  assert.deepEqual(t.errors, []);
+  const s = t.state;
+  assert.deepEqual(Object.keys(s).sort(), ["big", "e", "extra", "neg", "prod", "windows", "zoom"]);
+  assert.deepEqual(s.windows, { production: false });
+  assert.deepEqual(s.prod, { sort: "name", page: { n: 2 } });
+  assert.ok(s.zoom instanceof Flt && s.zoom.v === 1.5);
+  assert.ok(s.e instanceof Flt && s.e.v === 100);
+  assert.deepEqual([s.big, s.neg], [1000, -3]);
+  assert.deepEqual(s.extra, { on: true, lit: { key: "a\\b" } });
+
+  // What cannot be read is an error with its line; the rest of the table is kept.
+  const bad = core.parseSkinState('[state]\nok = 1\nlist = []\nok = 2\nx = { a = 1\ng = 1\ng.h = 2\n');
+  assert.deepEqual(bad.errors.map((e) => e.line), [3, 4, 5, 7]);
+  assert.deepEqual(bad.state, { ok: 1, g: 1 });
+
+  // The merge: a group is walked, any other value replaces; the arguments stay as they were.
+  const defaults = { prod: { sort: "order", hide_locked: false }, zoom: new Flt(1.5) };
+  const merged = core.mergeState(defaults, { prod: { sort: "name" }, extra: 1 });
+  assert.deepEqual(merged, { prod: { sort: "name", hide_locked: false }, zoom: new Flt(1.5), extra: 1 });
+  assert.deepEqual(defaults.prod, { sort: "order", hide_locked: false });
+  assert.deepEqual(core.mergeState(defaults, undefined), defaults);
+  assert.deepEqual(core.mergeState({ a: { b: 1 } }, { a: 5 }), { a: 5 });
+});
+
 test("text engine subset: {N}, the _Name comment, plural, the rest is reported", () => {
   const r = (tpl, ...args) => core.locRender(tpl, args);
   assert.equal(r("{1} next", "Astronomy").text, "Astronomy next");

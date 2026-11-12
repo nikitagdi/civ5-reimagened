@@ -1253,6 +1253,16 @@ impl Parser<'_> {
                 "an element with a text key has no child elements",
             );
         }
+        // A hotkey label's text is the name of its key: no other source, no child elements.
+        if self.out.hotkey_label
+            && (self.out.value.is_some() || self.out.l10n.is_some() || self.ctx.has_children)
+        {
+            self.fail(
+                codes::TEXT_SOURCE,
+                "data-hotkey-label",
+                "a hotkey label shows the key's name: no other text and no child elements",
+            );
+        }
 
         // Events.
         if let Some(name) = self.event_name.take() {
