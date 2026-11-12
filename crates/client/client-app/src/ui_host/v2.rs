@@ -1569,9 +1569,15 @@ impl Frontend for V2Frontend {
         self.on_screen = true;
     }
 
-    /// `ui2.assets.*`: the game pictures the skin named and found (`resolved`) or not (`missed`), and how many of
-    /// their textures the renderer holds (`resident`, of `textures`).
+    /// `ui2.assets.*`: whether the game's UI set the pictures come from is loaded (`set`: 1, else 0; until it is,
+    /// a game picture is not drawn and the skin's fallback shows), the game pictures the skin named and found
+    /// (`resolved`) or not (`missed`), and how many of their textures the renderer holds (`resident`, of
+    /// `textures`). A frame with `set` 1 and `resident` equal to `textures` shows every game picture it names.
     fn after_render(&mut self, r: &mut Renderer, _drawn: bool) {
+        render::perf::set_counter(
+            "ui2.assets.set",
+            f64::from(u8::from(self.icons.has_store())),
+        );
         let (resolved, missed) = self.icons.counts();
         let named = self.icons.named();
         let resident = named
