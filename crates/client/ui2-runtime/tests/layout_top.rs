@@ -5,16 +5,16 @@
 //! the `hud` sample (`chrome-rects.json`, `node/rects.mjs`). The converter's `tests/layout_top.rs` makes both
 //! again in Chromium and checks them the same way.
 //!
-//! List bindings are not in the runtime yet: the test instantiates the `for` and `if` bodies Chrome drew for
-//! the sample (an `if` Chrome shows, one `for` item per key of the dump, in the dump's order).
+//! The runtime instantiates the `for` and `if` bodies from the model itself; the comparison is the one of
+//! `ui2_convert::verify::compare` (the converter depends on the runtime, so the test cannot call it).
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use ui2_draw::Scene;
-use ui2_model::{Key, ModelStore, Sample, Schema};
-use ui2_package::{NodeKind, Package};
-use ui2_runtime::{Env, NodeClass, Runtime, Services, load_faces};
+use ui2_model::{ModelStore, Sample, Schema};
+use ui2_package::Package;
+use ui2_runtime::{Env, Runtime, Services, load_faces};
 use ui2_text::TextEngine;
 
 const TOLERANCE: f64 = 0.5;
@@ -71,44 +71,6 @@ fn fixture() -> (Arc<Package>, Vec<Dump>) {
     (pkg, dumps)
 }
 
-/// Instantiates the `for` and `if` bodies Chrome drew, until nothing is left to add.
-fn expand(rt: &mut Runtime, pkg: &Package, chrome: &[Rect]) {
-    let mut done = std::collections::BTreeSet::new();
-    loop {
-        let mut todo = Vec::new();
-        for id in rt.arena().preorder() {
-            let Some(n) = rt.node(id) else { continue };
-            if n.class() != NodeClass::Service || done.contains(&id) {
-                continue;
-            }
-            let r = n.tmpl();
-            let (body, list) = match &pkg.templates()[r.0.index()].nodes[r.1 as usize].kind {
-                NodeKind::For { tpl, .. } => (*tpl, true),
-                NodeKind::If { tpl, .. } => (*tpl, false),
-                _ => continue,
-            };
-            let root = format!("{}:0", body.0);
-            let keys: Vec<String> = chrome
-                .iter()
-                .filter(|c| c.0 == root)
-                .map(|c| c.1.clone())
-                .collect();
-            todo.push((id, list, keys));
-        }
-        if todo.is_empty() {
-            return;
-        }
-        for (id, list, keys) in todo {
-            done.insert(id);
-            for k in keys {
-                let key = list
-                    .then(|| Key::parse_js(k.rsplit('/').next().unwrap_or_default()).expect("key"));
-                rt.instantiate_body(id, key);
-            }
-        }
-    }
-}
-
 #[test]
 fn layout_top_strip_matches_chrome() {
     let (pkg, dumps) = fixture();
@@ -127,7 +89,12 @@ fn layout_top_strip_matches_chrome() {
         .expect("sample")
         .apply(&mut store)
         .expect("apply");
-    expand(&mut rt, &pkg, &dumps[0].2);
+    // The runtime makes the `for` and `if` bodies itself from the model (keyed instances in model order), as in
+    // the converter's `verify::compare` (the skin's `[state]` is empty for this fixture).
+    Sample::parse(Schema::v1(), &sample)
+        .expect("sample")
+        .apply_state(&mut store)
+        .expect("state");
     if let Some(d) = store.take_frame() {
         rt.apply_delta(&d, &store);
     }
