@@ -614,6 +614,8 @@ impl App {
                 p.scripts,
             );
             v2.set_background(p.background);
+            v2.set_dev(p.dev);
+            v2.set_sample(p.sample);
             v2.set_text_input(p.text_input);
             ui_host.register(Box::new(v2));
             ui_host.set_cold_wake(p.classic_cold);

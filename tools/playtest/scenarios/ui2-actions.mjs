@@ -10,8 +10,8 @@
 // 2. the city needs production: the dial opens the production window; the Worker row + Build now make the Worker the
 //    current production (window and `state()`); Add to queue puts a Warrior in the queue (the city queue order goes to
 //    the server; its answer clears the row's waiting mark); the queue's up arrow moves it to the front; ArrowDown moves
-//    the focus (the skin's script); a click on the Turns column head is recorded (`numbers.production.sortByTurns`),
-//    not checked: it writes the skin state `state.prod.sort`, which the host does not mount yet;
+//    the focus (the skin's script); a click on the Turns column head sorts the list by turns (`state.prod.sort`, the
+//    skin's own state, becomes "turns" in `ui2().ui.state` and the rows are reordered);
 // 3. research is needed: the dial opens the research window; a click on a technology makes it the current research
 //    (`research.current` in the top strip);
 // 4. the next turn: a click on the dial ends the turn; the turn number goes up by one in `state()` and on the dial.
@@ -286,12 +286,15 @@ async function production(page, check, n, shot) {
   const stepped = await waitUi(page, (q) => detailName(q) !== before, 3000);
   p.arrow = { before, after: detailName(stepped.probe), ms: stepped.ms };
   check("ArrowDown moves the focus to the next row (skin script)", stepped.ok, JSON.stringify(p.arrow));
-  // Sorting by turns (the Turns column head writes `state.prod.sort`). With two rows in the queue the column heads
-  // stand 300 px from the top. Recorded, not checked: the host does not mount the skin's state yet (see the report).
-  const listBefore = partTexts(await ui2(page), "production.list");
+  // Sorting by turns (the Turns column head writes `state.prod.sort`, the skin's own state the host mounts). With two
+  // rows in the queue the column heads stand 300 px from the top.
+  const probe0 = await ui2(page);
+  const listBefore = partTexts(probe0, "production.list");
+  const sortBefore = probe0?.ui?.state?.["prod.sort"];
   await page.mouse.click(720, 300);
-  const sorted = await waitUi(page, (q) => JSON.stringify(partTexts(q, "production.list")) !== JSON.stringify(listBefore), 3000);
-  p.sortByTurns = { changed: sorted.ok, ms: sorted.ms, sortHead: partTexts(sorted.probe, "production.sort") };
+  const sorted = await waitUi(page, (q) => q?.ui?.state?.["prod.sort"] === "turns" && JSON.stringify(partTexts(q, "production.list")) !== JSON.stringify(listBefore), 3000);
+  p.sortByTurns = { changed: sorted.ok, ms: sorted.ms, state: [sortBefore, sorted.probe?.ui?.state?.["prod.sort"]], sortHead: partTexts(sorted.probe, "production.sort") };
+  check("sorting by turns: state.prod.sort becomes 'turns' and the list is reordered", sortBefore === "order" && sorted.ok, JSON.stringify(p.sortByTurns));
   await shot("t122-production");
   // Close the window (Esc).
   await page.keyboard.press("Escape");

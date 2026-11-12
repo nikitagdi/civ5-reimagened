@@ -160,6 +160,11 @@ pub trait Frontend {
     fn take_failure(&mut self) -> Option<String> {
         None
     }
+    /// Something the player should be told that is not a failure of the UI (a skin change or a reload that could
+    /// not be done, a converter error in development): shown as the host's notice, once.
+    fn take_notice(&mut self) -> Option<String> {
+        None
+    }
     /// After a failure the UI prepares again on its own (UI v2 loads its fallback skin): the host gives it the
     /// screen back once it is ready.
     fn recovers(&self) -> bool {
@@ -476,6 +481,12 @@ impl UiHost {
     /// again when it recovers on its own); a requested one that is ready takes it, the old one goes to sleep (both in
     /// this frame, before any frame of either).
     pub fn step(&mut self, cx: &mut PrepareCx<'_>) {
+        for f in &mut self.fronts {
+            if let Some(text) = f.take_notice() {
+                tracing::warn!("{text}");
+                self.notice = Some((text, cx.now_ms));
+            }
+        }
         if let Some(a) = self.active
             && let Some(why) = self.fronts[a].take_failure()
         {

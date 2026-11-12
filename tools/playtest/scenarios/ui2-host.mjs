@@ -4,14 +4,15 @@
 // Without `--attach` (the local fixture server) the game's layer that UI v2 reads never comes up: the scenario says so.
 //
 // Also: the playtest hooks (`state().ui`, `ui2()`, `ui2Rects`, `digest('replica')`), switching v2 -> classic (warm)
-// -> v2 -> classic (cold) -> v2 on the fly, and broken skin packages (fixtures) on the classic page.
+// -> v2 -> classic (cold) -> v2 on the fly, a skin change on the screen (engraved -> the fixture skin `alt` ->
+// engraved) with an open window, and broken skin packages (fixtures) on the classic page.
 //
 // Start: `?ui=v2:engraved&test=1&autostart=1&stats=1`; once the skin runs, the top strip's texts (read through
 // `__civ5test.ui2()`, never from pixels) show the gold and the science rate, and the turn dial the turn and the year, that `state()` reports,
 // at the start (then a click on the map selects a unit: the unit panel shows its name and its Fortify button fortifies it
 // within 2 s) and again once the settler founded a city (through the test port's orders); `ui2.draws.hud` <= 5; no console errors. Then a page without `&ui=`: `ui2()` is null and no `ui2.*` pass ran
 // (`ui2.draws` absent or 0). Screenshot of the strip: <logs>/ui2-top.png.
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { openPage, act, until, state, appUrl } from "../lib/browser.mjs";
 import { DEV_PASSWORD } from "../lib/game.mjs";
@@ -276,6 +277,64 @@ async function switching(page, numbers, check) {
 const FIXTURES = fileURLToPath(new URL("../../../crates/client/ui2-host/tests/fixtures/", import.meta.url));
 
 /**
+ * The page's skin index gets a second skin, `alt` (`tests/fixtures/alt`: one bar, a skin state of its own), so the
+ * skin can change on the screen (the build has one skin). Call before the page loads.
+ */
+async function addAltSkin(page) {
+  const entry = JSON.parse(readFileSync(`${FIXTURES}alt/entry.json`, "utf8"));
+  await page.route("**/ui2/skins.json", async (r) => {
+    const resp = await r.fetch();
+    const list = await resp.json();
+    await r.fulfill({ response: resp, json: [...list.filter((e) => e.id !== "alt"), entry] });
+  });
+  await page.route(`**/ui2/${entry.file}`, (r) => r.fulfill({ path: `${FIXTURES}alt/${entry.file}` }));
+}
+
+/**
+ * A skin change on the screen (R2): with the menu window open (the strip's menu button), `setUi v2:alt` changes the skin
+ * within 1 s (`ui2().reload.appliedAt` on the page's clock), the window is still open, the new skin has its own state
+ * (`ui2().ui.state`), the connection is the same; back to `v2:engraved` (from the package cache), the window is still
+ * open and engraved's own state is back.
+ */
+async function skinChange(page, numbers, check) {
+  const rect = await page.evaluate(() => window.__civ5test.ui2Rects(["top.main-menu.button"])).catch(() => null);
+  const n = numbers.skinChange = { menuButton: Array.isArray(rect) ? rect[0] : rect };
+  if (Array.isArray(rect) && rect[0]) await page.mouse.click(rect[0].x + rect[0].w / 2, rect[0].y + rect[0].h / 2);
+  let p = null;
+  const t0 = Date.now();
+  while (Date.now() - t0 < 5000) {
+    p = await ui2(page);
+    if (p?.ui?.windows?.includes("menu")) break;
+    await sleep(100);
+  }
+  n.before = { skin: p?.skin, windows: p?.ui?.windows, state: p?.ui?.state };
+  check("skin change: the menu window is open before", p?.ui?.windows?.includes("menu"), JSON.stringify(n.before));
+  const att0 = await attaches(page);
+  const change = async (value, skin) => {
+    const pageT0 = await page.evaluate(() => performance.now());
+    const wall0 = Date.now();
+    await act(page, { kind: "setUi", value });
+    let q = null;
+    while (Date.now() - wall0 < 15000) {
+      q = await ui2(page);
+      if (q?.skin === skin && q?.reload?.skin === skin && q.reload.appliedAt > pageT0) break;
+      await sleep(50);
+    }
+    const st = await state(page);
+    return { skin: q?.skin, ms: q?.reload ? Math.round(q.reload.appliedAt - pageT0) : null, wallMs: Date.now() - wall0, windows: q?.ui?.windows, state: q?.ui?.state, active: st?.ui?.active, notice: st?.ui?.notice };
+  };
+  n.toAlt = await change("v2:alt", "alt");
+  check("skin change to alt within 1 s, UI v2 stays on the screen", n.toAlt.skin === "alt" && n.toAlt.ms !== null && n.toAlt.ms <= 1000 && n.toAlt.active === "v2", JSON.stringify(n.toAlt));
+  check("skin change: the menu window stays open", n.toAlt.windows?.includes("menu"), JSON.stringify(n.toAlt.windows));
+  check("skin change: alt has its own state", n.toAlt.state?.["prod.sort"] === "alt", JSON.stringify(n.toAlt.state));
+  n.back = await change("v2:engraved", "engraved");
+  check("back to engraved within 1 s (cached package), the window still open", n.back.skin === "engraved" && n.back.ms !== null && n.back.ms <= 1000 && n.back.windows?.includes("menu"), JSON.stringify(n.back));
+  check("back to engraved: its own state is back", n.back.state?.["prod.sort"] === n.before.state?.["prod.sort"] && n.before.state?.["prod.sort"] !== undefined, JSON.stringify({ before: n.before.state, after: n.back.state }));
+  const att1 = await attaches(page);
+  check("skin change: the same connection", att0 !== null && att1 === att0, `${att0} -> ${att1}`);
+}
+
+/**
  * Fatal skin failures (R4) on a page whose classic UI runs and whose UI v2 has not loaded yet: the page gets the fixture
  * index instead of the build's. `v2:badhash` (another hash than its file) falls back to the default `scriptfail` (its
  * script throws while it loads), which falls back to the classic UI with a notice; `v2:api9` (script API 9) is refused
@@ -329,6 +388,7 @@ export async function run(ctx) {
   };
   try {
     const t0 = Date.now();
+    await addAltSkin(b.page);
     await enterGame(b, base, o, { ui: "v2:engraved" }, "ui2v");
     let probe = null;
     for (;;) {
@@ -403,6 +463,7 @@ export async function run(ctx) {
     check("one active UI: ui.active == 2 (UI v2)", c2["ui.active"] === 2, `${c2["ui.active"]}`);
     check("the classic UI sleeps: ui.frames.classic does not grow", typeof c["ui.frames.classic"] === "number" && c2["ui.frames.classic"] === c["ui.frames.classic"] && c2["ui.frames.v2"] > c["ui.frames.v2"], `classic ${c["ui.frames.classic"]} -> ${c2["ui.frames.classic"]}, v2 ${c["ui.frames.v2"]} -> ${c2["ui.frames.v2"]}`);
     await switching(b.page, result.numbers, check);
+    await skinChange(b.page, result.numbers, check);
     await shot("ui2-top");
   } catch (e) {
     error = e;

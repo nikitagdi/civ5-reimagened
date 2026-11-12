@@ -217,6 +217,10 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
             })),
             // `&ui2classic=cold`: the classic UI wakes up from under UI v2 with a new layer.
             classic_cold: page::query_param("ui2classic").as_deref() == Some("cold"),
+            // `&ui2dev=<url>`: the running skin reloads from `cargo xtask ui watch` at that address.
+            dev: page::query_param("ui2dev").filter(|u| !u.trim().is_empty()),
+            // `&ui2sample=<state>`: the skin runs on its sample instead of a game.
+            sample: page::query_param("ui2sample").filter(|s| client_app::valid_ui2_sample(s)),
         }),
     };
     let config = AppConfig {

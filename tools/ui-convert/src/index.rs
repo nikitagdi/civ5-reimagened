@@ -60,6 +60,42 @@ pub fn entry_of(file: &str, bytes: &[u8]) -> Result<Entry, String> {
     })
 }
 
+/// The folder of the skins' samples inside `<web>/ui2/`: `sample/<id>/<state>.json`, what the client's sample
+/// mode (`?ui2sample=<state>`) plays.
+pub const SAMPLE_DIR: &str = "sample";
+
+/// Copies the samples (`<skin dir>/sample/*.json`) of each `(id, skin dir)` into `<web>/ui2/sample/<id>/`; the
+/// folder is made anew, so it holds the samples of these skins only. Returns how many were copied.
+pub fn publish_samples(web: &Path, skins: &[(String, PathBuf)]) -> Result<usize, String> {
+    let root = web.join(UI2_DIR).join(SAMPLE_DIR);
+    if root.exists() {
+        std::fs::remove_dir_all(&root)
+            .map_err(|e| format!("cannot clear {}: {e}", root.display()))?;
+    }
+    let mut n = 0;
+    for (id, dir) in skins {
+        let Ok(rd) = std::fs::read_dir(dir.join(SAMPLE_DIR)) else {
+            continue;
+        };
+        let out = root.join(id);
+        std::fs::create_dir_all(&out)
+            .map_err(|e| format!("cannot create {}: {e}", out.display()))?;
+        let mut files: Vec<PathBuf> = rd
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|x| x == "json"))
+            .collect();
+        files.sort();
+        for f in files {
+            let name = f.file_name().unwrap_or_default();
+            std::fs::copy(&f, out.join(name))
+                .map_err(|e| format!("cannot copy {}: {e}", f.display()))?;
+            n += 1;
+        }
+    }
+    Ok(n)
+}
+
 /// The text of `skins.json` for entries sorted by id.
 pub fn index_text(entries: &[Entry]) -> String {
     let mut list: Vec<&Entry> = entries.iter().collect();

@@ -153,8 +153,18 @@ assets do not count: the package only names them. A mod fragment has its own, sm
   hash in the file name makes every package safe to cache forever.
 - **Client.** The client reads the index, downloads the package of the chosen skin, checks that its hash is the
   one the index names, and runs the load checks above before it replaces the skin in use.
-- **Development.** `cargo xtask ui watch <skin>` serves the package being edited on 127.0.0.1; a client started
-  with `?ui2dev=<server>` polls it and reloads the skin when a new build appears.
+- **Development.** `cargo xtask ui watch <skin>` serves the package being edited on 127.0.0.1 (`cargo xtask dev
+  --ui-dev <skin>` starts it next to the dev server, on port 8095); a client started with
+  `?ui=v2:<skin>&ui2dev=<server>` asks for `/pkg/<id>.rev` twice a second and, when a new build appears, changes
+  the running skin to it in place: the model, the open windows and the skin's `state.*` stay (a value stays when
+  its path and type are still declared). A build that fails is shown as a notice; the running build stays.
+- **Sample mode.** `?ui=v2:<skin>&ui2sample=<state>` runs the skin on its `sample/<state>.json` instead of a game
+  (the web build copies the samples to `ui2/sample/<id>/`); `&ui2bg=<rrggbb>` puts a solid background under it
+  and stops the clock of its transitions, for reference images.
+- **Skin state.** The paths of `[state]` are mounted as the model's `state.*` with their defaults when the skin
+  loads: markup (`set`, `toggle`, controls) and scripts (`ui.state.*`) write them, bindings read them. A path the
+  skin did not declare cannot be written. Changing the skin sets the state aside; it comes back when that skin is
+  chosen again.
 - **Mod fragments.** The panels of a mod are a package of the same format with the kind "fragment", built by
   `cargo xtask mods build` into `ui2/mods/<id>-<version>-<hash16>.ui2` and listed in `ui2/mods-ui.json` with the
   mod's id, version, file, hash, UI API requirement and panels. A fragment has no fonts, themes or text tables:

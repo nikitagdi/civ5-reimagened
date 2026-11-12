@@ -97,6 +97,23 @@ impl UiActions {
         self.state.ui()
     }
 
+    /// Takes a whole `ui` root (the sample mode's `ui` part: an open window, a focus) as the module's own state.
+    ///
+    /// # Errors
+    /// The value is not a `ui` root of the schema; nothing changed.
+    pub fn adopt_ui(
+        &mut self,
+        value: ui2_model::Value,
+        store: &mut ModelStore,
+    ) -> Result<(), ui2_model::StoreError> {
+        self.publish(store);
+        store
+            .writer(ui2_model::Owner::Actions)
+            .set_value("ui", value)?;
+        self.state.resync(store);
+        Ok(())
+    }
+
     /// Write the `ui` root to the store if it changed (or was never written). The other entry points do this
     /// themselves; call it once at start so the root exists before the first frame.
     pub fn publish(&mut self, store: &mut ModelStore) {

@@ -699,8 +699,10 @@ fn net_json(n: &TestNet) -> Value {
 }
 
 /// `ui2()`: `{state, active, skin, pkg, loadMs, model: {rev}, frames, panels: [{id, owner, status, reason}],
-/// scripts: [{ctx, status, errors, restarts}], reload, texts: [{part, text}], counters: {"ui2.*": n}}`; the counters
-/// are the renderer's and the frame's, as `__civ5stats` has them. `reload` is null (no hot reload yet).
+/// scripts: [{ctx, status, errors, restarts}], reload: {rev, appliedAt, skin} | null, ui: {windows: [name],
+/// state: {path: value}}, texts: [{part, text}], counters: {"ui2.*": n}}`; the counters are the renderer's and the
+/// frame's, as `__civ5stats` has them. `reload` is the last skin change or hot reload on the screen (`appliedAt`:
+/// `performance.now()`); `ui.state` is the skin's own `state.*`.
 fn ui2_json(p: &client_app::V2Probe) -> Value {
     let texts: Vec<Value> = p
         .texts
@@ -739,7 +741,11 @@ fn ui2_json(p: &client_app::V2Probe) -> Value {
         "frames": p.frames,
         "panels": panels,
         "scripts": scripts,
-        "reload": null,
+        "reload": p.reload.as_ref().map(|r| json!({ "rev": r.rev, "appliedAt": r.applied_at, "skin": r.skin })),
+        "ui": {
+            "windows": p.windows,
+            "state": p.skin_state.iter().cloned().collect::<serde_json::Map<String, Value>>(),
+        },
         "texts": texts,
         "counters": counters,
     })

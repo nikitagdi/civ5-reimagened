@@ -35,8 +35,9 @@ use platform::{
 use protocol::GameId;
 use render::Renderer;
 use ui2_host::{
-    ActionEvent, Cursor, Env, Fallback, HostClock, InputOutcome, MapButton, NetSink, ReplicaView,
-    Services, SkinRegistry, V2Frame, V2FrameReport, V2Init, V2Ui,
+    ActionEvent, Cursor, DevEvent, DevReload, Env, Fallback, HostClock, InputOutcome, MapButton,
+    NetSink, PackageCache, ReplicaView, Services, SkinRegistry, V2Frame, V2FrameReport, V2Init,
+    V2Ui,
 };
 
 use crate::net::NetHandle;
@@ -140,6 +141,18 @@ pub struct Ui2Platform {
     /// `?ui2classic=cold`: the classic UI comes back from its sleep under UI v2 with a new layer (the cold way)
     /// instead of keeping its layer (the warm way, the default).
     pub classic_cold: bool,
+    /// `?ui2dev=<url>`: the watch server (`cargo xtask ui watch`) the running skin reloads from.
+    pub dev: Option<String>,
+    /// `?ui2sample=<state>`: the skin runs on its sample `sample/<state>.json` instead of a game.
+    pub sample: Option<String>,
+}
+
+/// A sample name `?ui2sample=` may give: `[a-z0-9_-]{1,64}` (it becomes part of a URL of the build).
+pub fn valid_sample(name: &str) -> bool {
+    (1..=64).contains(&name.len())
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
 }
 
 /// `?ui2bg=<rrggbb>` (an optional `#`): the colour, or `None` for anything else.
@@ -226,6 +239,54 @@ pub struct V2Probe {
     pub scripts: Vec<ProbeScript>,
     /// The answer to the last [`ask_rects`]: its number and the rectangles.
     pub rects: Option<(u64, Vec<ProbeRect>)>,
+    /// The game windows open in the UI's own state (`ui.windows.*`): `production`, `research`, `menu`, `chat`,
+    /// `notes_log`.
+    pub windows: Vec<&'static str>,
+    /// The skin's own state: each declared path (without `state.`) and its value as JSON.
+    pub skin_state: Vec<(String, serde_json::Value)>,
+    /// The skin changes and hot reloads done on the screen: how many, the last one's package hash and when it was
+    /// applied (the frontend's clock, ms).
+    pub reload: Option<ProbeReload>,
+}
+
+/// The last skin change or hot reload on the screen as the probe shows it (`ui2().reload`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProbeReload {
+    /// Changes and reloads applied so far (a hot reload's `.rev` when one came from the watch server).
+    pub rev: u64,
+    /// When the last one was applied (the frontend's clock, ms; on the web `performance.now()`).
+    pub applied_at: f64,
+    /// The skin it brought.
+    pub skin: String,
+}
+
+/// The open windows of the UI's state.
+fn probe_windows(ui: &V2Ui) -> Vec<&'static str> {
+    let w = &ui.actions().ui().windows;
+    [
+        ("production", w.production.open),
+        ("research", w.research.open),
+        ("menu", w.menu.open),
+        ("chat", w.chat.open),
+        ("notes_log", w.notes_log.open),
+    ]
+    .into_iter()
+    .filter_map(|(n, open)| open.then_some(n))
+    .collect()
+}
+
+/// A model value as JSON (the scalars a skin state has; anything else as its debug text).
+fn value_json(v: &ui2_host::ModelValue) -> serde_json::Value {
+    use ui2_host::ModelValue as V;
+    match v {
+        V::None => serde_json::Value::Null,
+        V::Bool(b) => (*b).into(),
+        V::I32(i) => (*i).into(),
+        V::U32(u) => (*u).into(),
+        V::F32(f) => f64::from(*f).into(),
+        V::Str(s) => s.as_ref().into(),
+        other => format!("{other:?}").into(),
+    }
 }
 
 /// One panel as the probe shows it.
@@ -387,6 +448,11 @@ enum Stage {
     Listed,
     /// Waiting for a skin's package.
     Package { id: String, op: Box<dyn HttpOp> },
+    /// A skin's package was read before in this session: it comes up in the next step, without a download.
+    Cached {
+        id: String,
+        pkg: Arc<ui2_host::SkinPackage>,
+    },
     /// The skin runs.
     Running(Box<V2Ui>),
     /// UI v2 is off for this session: the classic UI draws.
@@ -441,6 +507,28 @@ pub struct V2Frontend {
     off_reason: Option<String>,
     /// UI v2 has the screen (between `activate` and `deactivate`).
     on_screen: bool,
+    /// The skin packages read in this session (a skin chosen again is not downloaded again).
+    cache: PackageCache,
+    /// A skin change on the screen under way: the running skin stays until the new one is read and built.
+    swap: Option<Swap>,
+    /// A notice for the host (a skin change that could not be done).
+    notice: Option<String>,
+    /// The last skin change or reload done on the screen.
+    reloaded: Option<ProbeReload>,
+    /// `?ui2dev=<url>`: the watch server the running skin is reloaded from, and its poller once a skin runs.
+    dev_url: Option<String>,
+    dev: Option<DevReload>,
+    /// `?ui2sample=<state>`: the sample the skin runs on instead of a game; its download; whether it is applied.
+    sample_state: Option<String>,
+    sample_op: Option<Box<dyn HttpOp>>,
+    sample_on: bool,
+}
+
+/// A skin change on the screen: the skin asked for and its download (`None`: the package is in the cache).
+struct Swap {
+    id: String,
+    op: Option<Box<dyn HttpOp>>,
+    started_ms: f64,
 }
 
 impl V2Frontend {
@@ -476,6 +564,122 @@ impl V2Frontend {
             lost: None,
             off_reason: None,
             on_screen: false,
+            cache: PackageCache::default(),
+            swap: None,
+            notice: None,
+            reloaded: None,
+            dev_url: None,
+            dev: None,
+            sample_state: None,
+            sample_op: None,
+            sample_on: false,
+        }
+    }
+
+    /// `?ui2dev=<url>`: the running skin is reloaded from the watch server at `url` whenever it builds anew.
+    pub fn set_dev(&mut self, url: Option<String>) {
+        self.dev_url = url;
+        self.dev = None;
+    }
+
+    /// `?ui2sample=<state>`: the skin runs on its sample `ui2/sample/<skin>/<state>.json` of the build instead of a
+    /// game, and takes the screen without one.
+    pub fn set_sample(&mut self, state: Option<String>) {
+        self.sample_state = state;
+    }
+
+    /// The URL of a skin's sample in the web build.
+    fn sample_url(skin: &str, state: &str) -> String {
+        format!("ui2/sample/{skin}/{state}.json")
+    }
+
+    /// Takes the sample's download once it came: the running UI plays it from the next frame.
+    fn poll_sample(&mut self) {
+        let Some(op) = self.sample_op.as_mut() else {
+            return;
+        };
+        let Some(answer) = op.poll() else {
+            return;
+        };
+        self.sample_op = None;
+        let url = match &self.stage {
+            Stage::Running(ui) => {
+                Self::sample_url(ui.skin_id(), self.sample_state.as_deref().unwrap_or(""))
+            }
+            _ => return,
+        };
+        let text = body_of(&url, answer)
+            .and_then(|b| String::from_utf8(b).map_err(|_| format!("{url} is not UTF-8")));
+        let Stage::Running(ui) = &mut self.stage else {
+            return;
+        };
+        match text.and_then(|t| ui.set_sample(&t)) {
+            Ok(()) => {
+                tracing::info!(%url, "UI v2 runs on a sample");
+                self.sample_on = true;
+            }
+            Err(why) => {
+                self.notice = Some(format!("Interface v2: the sample cannot be used: {why}"));
+            }
+        }
+    }
+
+    /// The hot reload: what the watch server built since the last frame goes to the running skin.
+    fn poll_dev(&mut self) {
+        let Some(url) = self.dev_url.clone() else {
+            return;
+        };
+        let Stage::Running(ui) = &self.stage else {
+            return;
+        };
+        let id = self
+            .choice
+            .skin
+            .clone()
+            .unwrap_or_else(|| ui.skin_id().to_owned());
+        let dev = self.dev.get_or_insert_with(|| {
+            tracing::info!(%url, skin = %id, "UI v2 reloads the skin from the watch server");
+            DevReload::new(&url, &id)
+        });
+        let events = dev.poll(&*self.http, (self.clock)());
+        let make = self.scripts.clone();
+        for ev in events {
+            match ev {
+                DevEvent::Package { rev, pkg } => {
+                    let Stage::Running(ui) = &mut self.stage else {
+                        return;
+                    };
+                    let skin = pkg.manifest().id.clone();
+                    match ui.reload(
+                        pkg,
+                        make.as_ref()
+                            .map(|f| &**f as &dyn Fn() -> Box<dyn ScriptHost>),
+                    ) {
+                        Ok(applied) => {
+                            if applied {
+                                tracing::info!(rev, %skin, "UI v2: the skin was reloaded");
+                            }
+                            self.reloaded = Some(ProbeReload {
+                                rev,
+                                applied_at: (self.clock)(),
+                                skin,
+                            });
+                        }
+                        Err(e) => {
+                            self.notice = Some(format!(
+                                "Interface v2: build {rev} of skin {skin} cannot be used ({}); the running one stays",
+                                e.failure
+                            ));
+                        }
+                    }
+                }
+                DevEvent::Errors(line) => {
+                    self.notice = Some(format!("Interface v2: {line}"));
+                }
+                DevEvent::Unreachable(why) => {
+                    tracing::debug!("UI v2 dev: {why}");
+                }
+            }
         }
     }
 
@@ -566,7 +770,9 @@ impl V2Frontend {
             Stage::Idle => V2State::Idle,
             Stage::Listed => V2State::Listed,
             Stage::Index(_) => V2State::FetchingIndex,
-            Stage::Package { id, .. } => V2State::FetchingSkin(id.clone()),
+            Stage::Package { id, .. } | Stage::Cached { id, .. } => {
+                V2State::FetchingSkin(id.clone())
+            }
             Stage::Running(ui) => V2State::Running(ui.skin_id().to_owned()),
             Stage::Classic => V2State::Classic,
         }
@@ -622,6 +828,7 @@ impl V2Frontend {
                 None => Stage::Package { id, op },
                 Some(answer) => self.on_package(id, answer, env),
             },
+            Stage::Cached { id, pkg } => self.start_package(id, Ok(pkg), env),
             other => other,
         };
     }
@@ -671,9 +878,32 @@ impl V2Frontend {
             return self.fall_back(&id, &why);
         }
         let url = entry.path();
+        let hash = entry.hash.clone();
+        if let Some(pkg) = self.cache.get(&id, &hash) {
+            return Stage::Cached { id, pkg };
+        }
         tracing::info!(%url, "UI v2: fetching skin {id}");
         let op = self.http.get(&url);
         Stage::Package { id, op }
+    }
+
+    /// Reads and checks a downloaded package of skin `id` and keeps it in the cache.
+    fn open_package(
+        &mut self,
+        id: &str,
+        answer: Result<HttpResponse, HttpError>,
+    ) -> Result<Arc<ui2_host::SkinPackage>, String> {
+        let path = self
+            .registry
+            .get(id)
+            .map_or_else(|| id.to_owned(), ui2_host::SkinEntry::path);
+        let pkg = body_of(&path, answer).and_then(|bytes| {
+            self.registry
+                .open(id, Arc::from(bytes))
+                .map_err(|e| e.to_string())
+        })?;
+        self.cache.put(Arc::clone(&pkg));
+        Ok(pkg)
     }
 
     fn on_package(
@@ -682,31 +912,32 @@ impl V2Frontend {
         answer: Result<HttpResponse, HttpError>,
         env: Env,
     ) -> Stage {
-        let path = self
-            .registry
-            .get(&id)
-            .map_or_else(|| id.clone(), ui2_host::SkinEntry::path);
-        let built = body_of(&path, answer)
-            .and_then(|bytes| {
-                self.registry
-                    .open(&id, Arc::from(bytes))
-                    .map_err(|e| e.to_string())
-            })
-            .and_then(|pkg| {
-                let scripts: Box<dyn ScriptHost> = match &self.scripts {
-                    Some(make) => make(),
-                    None => Box::new(NullScriptHost),
-                };
-                let init = V2Init {
-                    env,
-                    services: Services {
-                        loc: self.loc.clone(),
-                    },
-                    clock: Some(Rc::clone(&self.clock)),
-                    scripts: Some(scripts),
-                };
-                V2Ui::new(pkg, init).map_err(|e| e.to_string())
-            });
+        let pkg = self.open_package(&id, answer);
+        self.start_package(id, pkg, env)
+    }
+
+    /// Brings up skin `id` from its package (or fails over).
+    fn start_package(
+        &mut self,
+        id: String,
+        pkg: Result<Arc<ui2_host::SkinPackage>, String>,
+        env: Env,
+    ) -> Stage {
+        let built = pkg.and_then(|pkg| {
+            let scripts: Box<dyn ScriptHost> = match &self.scripts {
+                Some(make) => make(),
+                None => Box::new(NullScriptHost),
+            };
+            let init = V2Init {
+                env,
+                services: Services {
+                    loc: self.loc.clone(),
+                },
+                clock: Some(Rc::clone(&self.clock)),
+                scripts: Some(scripts),
+            };
+            V2Ui::new(pkg, init).map_err(|e| e.to_string())
+        });
         match built {
             Ok(ui) => {
                 let ms = (self.clock)() - self.started_ms;
@@ -725,6 +956,11 @@ impl V2Frontend {
                 ui.set_text_bridge(bridge);
                 // A new skin over a game already up reads its slow first calls once too.
                 self.warm_due = true;
+                // The sample mode: the skin's sample comes next; the skin takes the screen once it played it.
+                if let Some(state) = &self.sample_state {
+                    self.sample_on = false;
+                    self.sample_op = Some(self.http.get(&Self::sample_url(&id, state)));
+                }
                 Stage::Running(Box::new(ui))
             }
             Err(why) => self.fall_back(&id, &why),
@@ -732,25 +968,37 @@ impl V2Frontend {
     }
 
     /// The host asks for UI v2 with `skin` (`None`: the index's default). A skin that is loading or running and is
-    /// not the one asked for is replaced while UI v2 is not on the screen (a skin change on the screen, keeping the
-    /// open windows, is not done here); after a failure, a skin of the index that did not fail is tried (the
-    /// player asked: no loop), and an index that could not be read is asked for again.
+    /// not the one asked for is replaced: while UI v2 is not on the screen, by loading the new one from scratch; on
+    /// the screen, by a skin change that keeps the model, the open windows and the UI's state ([`V2Ui::set_skin`];
+    /// the running skin stays until the new one is up). After a failure, a skin of the index that did not fail is
+    /// tried (the player asked: no loop), and an index that could not be read is asked for again.
     pub fn choose(&mut self, skin: Option<String>) {
         self.choice.skin = skin;
         let fits = |id: &str| self.choice.skin.as_deref().is_none_or(|w| w == id);
-        let restart = match &self.stage {
-            Stage::Running(ui) if !fits(ui.skin_id()) => {
-                if self.on_screen {
-                    tracing::warn!(
-                        "UI v2: skin {} is on the screen; changing it there is not supported yet",
-                        ui.skin_id()
-                    );
-                    false
-                } else {
-                    true
+        if let Stage::Running(ui) = &self.stage
+            && self.on_screen
+        {
+            let running = ui.skin_id().to_owned();
+            self.swap = None;
+            let target = self
+                .registry
+                .resolve(self.choice.skin.as_deref())
+                .map(|e| e.id.clone());
+            match target {
+                Some(id) if id != running => self.start_swap(id),
+                Some(_) => {}
+                None => {
+                    self.notice = Some(format!(
+                        "Interface v2: skin {} cannot be used; skin {running} stays",
+                        self.choice.skin.as_deref().unwrap_or("(default)")
+                    ));
                 }
             }
-            Stage::Package { id, .. } => !fits(id),
+            return;
+        }
+        let restart = match &self.stage {
+            Stage::Running(ui) => !fits(ui.skin_id()),
+            Stage::Package { id, .. } | Stage::Cached { id, .. } => !fits(id),
             Stage::Classic => true,
             _ => false,
         };
@@ -776,6 +1024,98 @@ impl V2Frontend {
             ui.release_text_input();
             if let Some(b) = ui.take_text_bridge() {
                 self.text_bridge = Some(b);
+            }
+        }
+    }
+
+    /// Starts a skin change on the screen: from the cache, else a download; the running skin stays meanwhile.
+    fn start_swap(&mut self, id: String) {
+        let started_ms = (self.clock)();
+        let Some(entry) = self.registry.get(&id) else {
+            return;
+        };
+        if let Err(e) = entry.check_api() {
+            self.registry.mark_broken(&id);
+            self.notice = Some(format!(
+                "Interface v2: skin {id} cannot be used ({})",
+                e.failure
+            ));
+            return;
+        }
+        let op = if self.cache.get(&id, &entry.hash.clone()).is_some() {
+            None
+        } else {
+            let url = entry.path();
+            tracing::info!(%url, "UI v2: fetching skin {id} to change to");
+            Some(self.http.get(&url))
+        };
+        self.swap = Some(Swap { id, op, started_ms });
+    }
+
+    /// Advances a skin change on the screen: once the package is read, the running UI changes its skin in place.
+    /// A skin that cannot be used is marked broken and the player is told; the running skin stays.
+    fn poll_swap(&mut self) {
+        let Some(mut swap) = self.swap.take() else {
+            return;
+        };
+        if !self.running() {
+            return;
+        }
+        let pkg = match swap.op.as_mut() {
+            None => {
+                let hash = self
+                    .registry
+                    .get(&swap.id)
+                    .map(|e| e.hash.clone())
+                    .unwrap_or_default();
+                self.cache
+                    .get(&swap.id, &hash)
+                    .ok_or_else(|| format!("skin {} left the cache", swap.id))
+            }
+            Some(op) => match op.poll() {
+                None => {
+                    self.swap = Some(swap);
+                    return;
+                }
+                Some(answer) => self.open_package(&swap.id, answer),
+            },
+        };
+        let make = self.scripts.clone();
+        let Stage::Running(ui) = &mut self.stage else {
+            return;
+        };
+        let changed = pkg.and_then(|pkg| {
+            ui.set_skin(
+                pkg,
+                make.as_ref()
+                    .map(|f| &**f as &dyn Fn() -> Box<dyn ScriptHost>),
+            )
+            .map_err(|e| e.failure.to_string())
+        });
+        match changed {
+            Ok(load) => {
+                let ms = (self.clock)() - swap.started_ms;
+                tracing::info!(
+                    skin = %swap.id,
+                    ms,
+                    build_ms = load.build_ms,
+                    nodes = load.nodes,
+                    "UI v2: the skin changed on the screen"
+                );
+                self.load_ms = Some(ms);
+                self.reloaded = Some(ProbeReload {
+                    rev: self.reloaded.as_ref().map_or(0, |r| r.rev) + 1,
+                    applied_at: (self.clock)(),
+                    skin: swap.id.clone(),
+                });
+            }
+            Err(why) => {
+                let running = ui.skin_id().to_owned();
+                self.registry.mark_broken(&swap.id);
+                self.notice = Some(format!(
+                    "Interface v2: skin {} cannot be used ({why}); skin {running} stays",
+                    swap.id
+                ));
             }
         }
     }
@@ -815,10 +1155,14 @@ impl V2Frontend {
         look: &mut Option<(i32, i32)>,
     ) -> Option<&mut V2Ui> {
         self.poll(env);
+        self.poll_swap();
+        self.poll_sample();
+        self.poll_dev();
         self.probe_stage();
         // The game is up once the replica is live in a game being played; it stays up until the game is left.
         self.note_game(Some(session), playing(net));
-        if !self.running() || !self.game_up {
+        // A skin on a sample runs without a game.
+        if !self.running() || !(self.game_up || self.sample_on) {
             return None;
         }
         // The replica and the localizer are the game session's.
@@ -875,6 +1219,7 @@ impl V2Frontend {
         // The core's slow first reads, once per game (joined, loaded or a new skin), after the frame and outside its
         // budget.
         if self.warm_due
+            && !self.sample_on
             && let Some(r) = held.as_deref_mut()
         {
             let view = ReplicaView::of(r);
@@ -903,6 +1248,13 @@ impl V2Frontend {
             let texts = probe_texts(ui);
             let (panels, scripts) = probe_parts(ui);
             let rects = answer_rects(ui);
+            let windows = probe_windows(ui);
+            let skin_state = ui
+                .skin_state()
+                .iter()
+                .map(|(p, v)| (p.clone(), value_json(v)))
+                .collect();
+            let reload = self.reloaded.clone();
             let pkg = ui2_host::hash_hex(&ui.package().hash());
             PROBE.with(|p| {
                 if let Some(p) = p.borrow_mut().as_mut() {
@@ -919,6 +1271,9 @@ impl V2Frontend {
                     if rects.is_some() {
                         p.rects = rects;
                     }
+                    p.windows = windows;
+                    p.skin_state = skin_state;
+                    p.reload = reload;
                 }
             });
         }
@@ -996,6 +1351,7 @@ impl Frontend for V2Frontend {
     /// failed when no skin can be used.
     fn prepare(&mut self, cx: &mut PrepareCx<'_>) -> Readiness {
         self.poll(env_of(cx.size, cx.dpr));
+        self.poll_sample();
         self.probe_stage();
         self.note_game(cx.session, cx.playing);
         match &self.stage {
@@ -1004,7 +1360,7 @@ impl Frontend for V2Frontend {
                     .clone()
                     .unwrap_or_else(|| "no UI v2 skin can be used".into()),
             ),
-            Stage::Running(_) if self.game_up => Readiness::Ready,
+            Stage::Running(_) if self.game_up || self.sample_on => Readiness::Ready,
             _ => Readiness::Loading { progress: None },
         }
     }
@@ -1040,8 +1396,11 @@ impl Frontend for V2Frontend {
             cx.now_ms,
             &mut look,
         ) {
-            // The map anchors follow their objects through the camera, as the classic UI's banners do.
-            if ui.anchor_count() > 0 {
+            // The map anchors follow their objects through the camera, as the classic UI's banners do; on a sample,
+            // they stand where the sample puts them.
+            if ui.sample_mode() {
+                ui.place_sample_anchors(cx.dpr);
+            } else if ui.anchor_count() > 0 {
                 let renderer: &Renderer = cx.renderer;
                 let (w, h) = cx.size;
                 let view_proj = cx.camera.view_proj(w as f32 / h.max(1) as f32);
@@ -1124,6 +1483,10 @@ impl Frontend for V2Frontend {
 
     fn take_failure(&mut self) -> Option<String> {
         self.lost.take()
+    }
+
+    fn take_notice(&mut self) -> Option<String> {
+        self.notice.take()
     }
 
     fn recovers(&self) -> bool {
@@ -1847,6 +2210,181 @@ mod tests {
             },
         );
         assert_eq!(settle(&mut h), V2State::Running("kit".into()));
+    }
+
+    /// A package of one text on the HUD layer, as the skin `id`.
+    fn named_package(id: &str) -> Arc<ui2_package::Package> {
+        let font = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../../third_party/fonts/fira-sans/FiraSans-Regular.ttf"),
+        )
+        .expect("the font of the tests");
+        let mut kit = Kit::new();
+        kit.font("Fira Sans", 400, false, &font);
+        let mut cell = StyleRecord::initial();
+        cell.display = Display::Block;
+        cell.font_family = vec![kit.str("Fira Sans")];
+        cell.font_size = Len::px(14.0);
+        let cell = kit.record(cell);
+        let cell = kit.plain(cell);
+        let text = kit.str(id);
+        kit.template(
+            "doc",
+            vec![TNode::layer(Layer::Hud, cell).child(TNode::text(text, cell))],
+        );
+        kit.finish_skin(id).expect("package")
+    }
+
+    #[test]
+    fn a_skin_change_on_the_screen_keeps_the_running_ui_and_reuses_read_packages() {
+        let (alpha, beta) = (named_package("alpha"), named_package("beta"));
+        let (ha, hb) = (
+            ui2_host::hash_hex(&alpha.hash()),
+            ui2_host::hash_hex(&beta.hash()),
+        );
+        let file = |id: &str, h: &str| format!("ui2/{id}-{}.ui2", &h[..16]);
+        let (mut h, http) = host(
+            FakeHttp::default()
+                .ok(
+                    INDEX_PATH,
+                    index(&[
+                        entry("alpha", &ha, true),
+                        entry("beta", &hb, false),
+                        entry("gamma", H1, false),
+                    ]),
+                )
+                .ok(&file("alpha", &ha), alpha.bytes().to_vec())
+                .ok(&file("beta", &hb), beta.bytes().to_vec())
+                .ok(&file("gamma", H1), beta.bytes().to_vec()),
+            None,
+        );
+        assert_eq!(settle(&mut h), V2State::Running("alpha".into()));
+        h.on_screen = true;
+        let ui = h.ui_mut().expect("running");
+        ui.push_intent(ui2_host::WireIntent {
+            name: Arc::from("window.toggle"),
+            args: vec![(
+                Arc::from("window"),
+                ui2_host::ModelValue::Str(Arc::from("menu")),
+            )],
+            origin: ui2_host::IntentOrigin::Script,
+        });
+        frame(&mut h);
+        let menu = |h: &mut V2Frontend| {
+            h.ui_mut()
+                .expect("running")
+                .actions()
+                .ui()
+                .windows
+                .menu
+                .open
+        };
+        assert!(menu(&mut h));
+
+        Frontend::choose(
+            &mut h,
+            &super::super::UiChoice::V2 {
+                skin: Some("beta".into()),
+            },
+        );
+        assert_eq!(
+            h.state(),
+            V2State::Running("alpha".into()),
+            "until beta is up"
+        );
+        h.poll_swap();
+        assert_eq!(h.state(), V2State::Running("beta".into()));
+        assert!(menu(&mut h), "the open window stays open");
+        frame(&mut h);
+        assert!(
+            h.ui_mut()
+                .expect("running")
+                .texts()
+                .contains(&"beta".to_owned())
+        );
+
+        // Back to alpha: read before, no download.
+        let asked = http.asked.borrow().len();
+        Frontend::choose(
+            &mut h,
+            &super::super::UiChoice::V2 {
+                skin: Some("alpha".into()),
+            },
+        );
+        h.poll_swap();
+        assert_eq!(h.state(), V2State::Running("alpha".into()));
+        assert_eq!(http.asked.borrow().len(), asked, "from the cache");
+        assert!(menu(&mut h));
+
+        // A skin whose file is not the index's: refused, the player is told, alpha stays.
+        Frontend::choose(
+            &mut h,
+            &super::super::UiChoice::V2 {
+                skin: Some("gamma".into()),
+            },
+        );
+        h.poll_swap();
+        assert_eq!(h.state(), V2State::Running("alpha".into()));
+        let notice = Frontend::take_notice(&mut h).expect("a notice");
+        assert!(
+            notice.contains("gamma") && notice.contains("alpha stays"),
+            "{notice}"
+        );
+        assert_eq!(
+            Frontend::take_failure(&mut h),
+            None,
+            "not a failure of UI v2"
+        );
+    }
+
+    #[test]
+    fn the_sample_mode_runs_without_a_game_and_the_watch_server_reloads_the_skin() {
+        let (alpha, rebuilt) = (named_package("alpha"), named_package("alpha"));
+        let ha = ui2_host::hash_hex(&alpha.hash());
+        let sample =
+            br#"{"model": {"top": {"gold": 7}}, "ui": {"windows": {"menu": {"open": true}}}}"#;
+        let dev = "http://127.0.0.1:8095";
+        let (mut h, _) = host(
+            FakeHttp::default()
+                .ok(INDEX_PATH, index(&[entry("alpha", &ha, true)]))
+                .ok(
+                    &format!("ui2/alpha-{}.ui2", &ha[..16]),
+                    alpha.bytes().to_vec(),
+                )
+                .ok("ui2/sample/alpha/hud.json", sample.to_vec())
+                .ok(&format!("{dev}/pkg/alpha.rev"), b"2".to_vec())
+                .ok(&format!("{dev}/pkg/alpha.errors.json"), b"[]".to_vec())
+                .ok(&format!("{dev}/pkg/alpha.ui2"), rebuilt.bytes().to_vec()),
+            Some("alpha"),
+        );
+        h.set_sample(Some("hud".into()));
+        h.set_dev(Some(format!("{dev}/")));
+        assert_eq!(settle(&mut h), V2State::Running("alpha".into()));
+        let mut cx = PrepareCx {
+            now_ms: 0.0,
+            size: (1280, 720),
+            dpr: 1.0,
+            session: None,
+            playing: false,
+        };
+        assert!(
+            matches!(Frontend::prepare(&mut h, &mut cx), Readiness::Ready),
+            "on its sample the skin needs no game"
+        );
+        let ui = h.ui_mut().expect("running");
+        assert!(ui.sample_mode());
+        assert!(ui.actions().ui().windows.menu.open, "the sample's ui part");
+        // The watch server: .rev and errors.json, then the package of build 2.
+        for _ in 0..4 {
+            h.poll_dev();
+        }
+        let r = h.reloaded.clone().expect("a reload");
+        assert_eq!((r.rev, r.skin.as_str()), (2, "alpha"));
+        assert!(
+            h.ui_mut().expect("running").sample_mode(),
+            "still on the sample"
+        );
+        assert_eq!(Frontend::take_notice(&mut h), None);
     }
 
     #[test]

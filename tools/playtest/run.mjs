@@ -57,6 +57,8 @@ const SCENARIOS = {
   // UI v2 orders through the skin (turn dial, production and research windows) and the server's answers: --attach.
   "ui2-actions": () => import("./scenarios/ui2-actions.mjs"),
   "ui2-golden": () => import("./scenarios/ui2-golden.mjs"), // UI v2 pixels against our own references (tools/ui-convert/golden.toml); --record writes them
+  // UI v2 hot reload: `ui watch` on a copy of the skin, the page in the sample mode (?ui2sample=hud&ui2dev=...).
+  "ui2-reload": () => import("./scenarios/ui2-reload.mjs"),
   "ui-sound": () => import("./scenarios/ui-sound.mjs"),
   "m3-city": () => import("./scenarios/m3-city.mjs"),
   "m4-diplo-trade": () => import("./scenarios/m4-diplo-trade.mjs"),
