@@ -540,6 +540,16 @@ impl Manifest {
             }
             _ => {}
         }
+        // The part exists from mod API 1.3: the requirement must not admit older hosts.
+        if self.has_part(Part::Ui) && self.api.admits_below(&Version::new(1, 3, 0)) {
+            return bad(
+                "mod.api",
+                format!(
+                    "the `ui` part needs mod API 1.3, but `{}` admits older versions; say `^1.3`",
+                    self.api
+                ),
+            );
+        }
 
         // Relations.
         for (table, key) in [

@@ -236,6 +236,23 @@ impl VersionReq {
     pub fn matches(&self, v: &Version) -> bool {
         self.comparators.iter().all(|c| c.matches(v))
     }
+
+    /// True when some version below `v` satisfies the requirement (`^1` admits 1.0.0, so it admits
+    /// versions below 1.3.0; `^1.3` does not).
+    pub fn admits_below(&self, v: &Version) -> bool {
+        let mut lo = Version::new(0, 0, 0);
+        let mut hi: Option<Version> = None;
+        for c in &self.comparators {
+            let (l, h) = c.bounds();
+            if let Some(l) = l {
+                lo = lo.max(l);
+            }
+            if let Some(h) = h {
+                hi = Some(hi.map_or(h, |x| x.min(h)));
+            }
+        }
+        lo < *v && hi.is_none_or(|h| lo < h)
+    }
 }
 
 impl fmt::Display for VersionReq {
