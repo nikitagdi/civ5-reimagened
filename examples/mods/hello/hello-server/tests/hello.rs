@@ -63,8 +63,8 @@ fn mod_toml_follows_the_example_contract() {
     assert_eq!((m.channels[0].id, m.channels[0].name.as_str()), (0, "echo"));
     let caps = Caps::from_manifest(&m).unwrap();
     assert!(caps.has(Cap::NetChannel));
-    // The server half uses `net.channel` only; the rest belong to the client half (hello-client).
-    assert_eq!(caps.iter().count(), 6);
+    // The server half uses `net.channel` only; the rest belong to the client half (hello-client) and its UI v2 panel.
+    assert_eq!(caps.iter().count(), 7);
 }
 
 #[test]

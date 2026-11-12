@@ -169,6 +169,11 @@ pub fn prepare_dev(
 ) -> Result<DevDist> {
     let (prepared, dist) = assemble(root, list, Mode::All)?;
     let web = build::build_web(root, &dist, false, false)?;
+    // The UI v2 panels of the mods and the skins they mount in (`&ui=v2` of the page); `CIV5_SKIP_UI2=1` skips both.
+    if super::ui::sections_count(&prepared) > 0 {
+        build::build_mod_panels(root, &prepared, &web)?;
+        crate::ui::web::build_skins(root, &web)?;
+    }
     let mods_dir = dist.dir.join("installed");
     let (manifest, config) = if wsl {
         // Built by `cargo run` inside WSL in the caller; the Windows server build would be for nothing.

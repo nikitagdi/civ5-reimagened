@@ -1,13 +1,20 @@
 //! The client half of `hello` on the headless host (`MockClientCtx`), built from the real `mod.toml`.
 
-use hello_client::{HOTKEY_CODE, HOTKEY_SAY, HelloClient, KV_LAST, KV_SAID, register};
+use hello_client::{
+    FIELD_COUNT, FIELD_LAST_FROM, FIELD_LAST_TEXT, HOTKEY_CODE, HOTKEY_SAY, HelloClient,
+    INTENT_SAY, KV_LAST, KV_SAID, register,
+};
 use hello_shared::{CH_ECHO, MOD_ID, Msg};
 use mod_api::{Cap, Caps, MOD_API_VERSION, Version};
-use mod_client::testing::MockClientCtx;
-use mod_client::{AttachInfo, ClientMod, ClientRegistry, ModDispatcher, ModInfo, UiDrawList};
-use mod_manifest::{Manifest, ModId, Part};
+use mod_client::testing::{MockClientCtx, MockUiModel};
+use mod_client::{
+    AttachInfo, ClientMod, ClientRegistry, ModDispatcher, ModInfo, UiDrawList, UiValue,
+};
+use mod_manifest::{Manifest, ModId, Part, UiFallback, UiMode};
 
 const MOD_TOML: &str = include_str!("../../mod.toml");
+const MODEL_TOML: &str = include_str!("../../ui/model.toml");
+const ECHO_HTML: &str = include_str!("../../ui/echo.html");
 
 fn manifest() -> Manifest {
     Manifest::parse(MOD_TOML).unwrap_or_else(|e| panic!("mod.toml: {e}"))
@@ -62,6 +69,7 @@ fn mod_toml_declares_the_client_half() {
         Cap::Hud,
         Cap::Kv,
         Cap::RenderPipeline,
+        Cap::Ui,
     ] {
         assert!(caps.has(c), "{c}");
     }
@@ -238,4 +246,112 @@ fn the_cube_stands_on_a_plot_of_the_local_player() {
     h.world.set_owner(2, 1, Some(1));
     m.hud(&mut h, &mut list);
     assert_eq!(m.home().get(), (2, 1));
+}
+
+#[test]
+fn mod_toml_declares_the_panel_in_hud_right() {
+    let m = manifest();
+    assert!(m.has_part(Part::Ui));
+    let ui = m.ui.as_ref().expect("[ui]");
+    assert_eq!(ui.model.as_deref(), Some("ui/model.toml"));
+    assert_eq!(ui.scripts, ["ui/hello.js"]);
+    assert_eq!(ui.panels.len(), 1);
+    let p = &ui.panels[0];
+    assert_eq!(
+        (p.id.as_str(), p.source.as_str(), p.point.as_str()),
+        ("echo", "ui/echo.html", "hud.right")
+    );
+    assert_eq!((p.mode, p.fallback), (UiMode::Append, UiFallback::Mods));
+    // The panel reads the fields the Rust half writes and sends the intent it answers.
+    for field in [FIELD_COUNT, FIELD_LAST_FROM, FIELD_LAST_TEXT] {
+        assert!(
+            MODEL_TOML
+                .lines()
+                .any(|l| l.split('=').next().map(str::trim) == Some(field)),
+            "ui/model.toml declares {field}"
+        );
+        assert!(
+            ECHO_HTML.contains(&format!("mods.hello.{field}")),
+            "{field}"
+        );
+    }
+    assert!(ECHO_HTML.contains(&format!("intent mods.hello.{INTENT_SAY}()")));
+}
+
+/// A host whose UI model knows the fields of `ui/model.toml`.
+fn ui_host() -> MockClientCtx {
+    let mut h = host();
+    h.ui.insert(
+        3,
+        MockUiModel::declared(&[FIELD_COUNT, FIELD_LAST_FROM, FIELD_LAST_TEXT]),
+    );
+    h
+}
+
+#[test]
+fn the_echo_fills_the_panel_and_its_button_says_hello() {
+    let mut d = game(manifest_caps());
+    let mut h = ui_host();
+    d.attach(&mut h);
+    // The server's count and an echo: "Echoes 7 / last: Bob: hello #1".
+    assert!(d.on_msg(&mut h, 3, CH_ECHO, None, &Msg::State { count: 6 }.encode()));
+    assert_eq!(h.ui_of(3).get(FIELD_COUNT), Some(&UiValue::Int(6)));
+    assert!(d.on_msg(&mut h, 3, CH_ECHO, Some(1), &echo(1, 7, "hello #1")));
+    let m = h.ui_of(3);
+    assert_eq!(m.get(FIELD_COUNT), Some(&UiValue::Int(7)));
+    assert_eq!(m.get(FIELD_LAST_FROM), Some(&UiValue::Str("Bob".into())));
+    assert_eq!(
+        m.get(FIELD_LAST_TEXT),
+        Some(&UiValue::Str("hello #1".into()))
+    );
+    assert!(!h.logged("not updated"), "every write fits the model");
+
+    // The button: the intent `mods.hello.say` reaches the mod as `say` and sends `Say` like the hotkey.
+    assert!(d.on_ui_intent(&mut h, 3, INTENT_SAY, &[]));
+    let sent = h.sent_on(3, CH_ECHO);
+    assert_eq!(sent.len(), 1);
+    assert_eq!(
+        Msg::decode(sent[0]).unwrap(),
+        Msg::Say {
+            text: "hello #1".into()
+        }
+    );
+    // Another intent name does nothing.
+    assert!(d.on_ui_intent(&mut h, 3, "other", &[]));
+    assert_eq!(h.sent_on(3, CH_ECHO).len(), 1);
+
+    // A speaker the replica names only later: the panel shows the nick once it is known.
+    assert!(d.on_msg(&mut h, 3, CH_ECHO, Some(5), &echo(5, 8, "hi")));
+    assert_eq!(
+        h.ui_of(3).get(FIELD_LAST_FROM),
+        Some(&UiValue::Str("PLAYER 5".into()))
+    );
+    h.world.add_player(5, "Eve");
+    let _ = d.frame(&mut h, 0.016);
+    assert_eq!(
+        h.ui_of(3).get(FIELD_LAST_FROM),
+        Some(&UiValue::Str("Eve".into()))
+    );
+    let writes = h.ui_of(3).ops.len();
+    let _ = d.frame(&mut h, 0.016);
+    assert_eq!(h.ui_of(3).ops.len(), writes, "nothing again while it stays");
+
+    // The classic HUD still draws (`hud()` is kept).
+    let mut list = UiDrawList::new();
+    d.hud(&mut h, &mut list);
+    assert_eq!(list.commands().len(), 1);
+}
+
+#[test]
+fn without_the_ui_capability_the_panel_is_left_alone() {
+    let caps = Caps::of(&[Cap::NetChannel, Cap::WorldRead, Cap::Hud]);
+    let mut d = game(caps);
+    let mut h = ui_host();
+    d.attach(&mut h);
+    assert!(d.on_msg(&mut h, 3, CH_ECHO, Some(1), &echo(1, 2, "hi")));
+    assert!(h.ui_of(3).ops.is_empty());
+    assert!(!h.logged("not updated"), "a missing UI v2 is not a warning");
+    // The dispatcher does not hand UI intents to a mod without `ui`.
+    assert!(!d.on_ui_intent(&mut h, 3, INTENT_SAY, &[]));
+    assert!(h.sent_on(3, CH_ECHO).is_empty());
 }

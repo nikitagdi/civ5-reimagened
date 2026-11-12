@@ -479,7 +479,7 @@ mod tests {
     fn a_set_without_ui_gets_an_empty_index_without_the_converter() {
         let s = Scratch::new();
         let p = check::prepare(
-            &repo().join("examples/mods/hello/mods.toml"),
+            &repo().join("tools/xtask/tests/fixtures/client-mod/mods.toml"),
             &s.0.join("work"),
         )
         .unwrap();

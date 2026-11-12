@@ -349,7 +349,8 @@ fn probe_on() -> bool {
 
 /// The text leaves of `ui`'s document with the part each one is in.
 fn probe_texts(ui: &V2Ui) -> Vec<(Option<String>, String)> {
-    let pkg = ui.package();
+    // The linked document: the skin's templates and those of the mods' panels.
+    let pkg = ui.runtime().doc();
     let arena = ui.runtime().arena();
     let part_of = |mut id| loop {
         let node = arena.get(id)?;

@@ -287,6 +287,15 @@ impl V2Mods {
             return;
         };
         let mut s = link.borrow_mut();
+        // Until the panels (and with them the models) are mounted the writes wait in the store, which records no
+        // changes meanwhile: the first frame after the mount takes a snapshot. (Without a way to fetch the panels there
+        // is nothing to wait for.)
+        if !self.mounted && self.http.is_some() {
+            if s.consumer() {
+                s.set_consumer(false);
+            }
+            return;
+        }
         if ui.frames() == 0 {
             // A new UI v2 (a skin built anew has an empty model): everything again.
             s.set_consumer(false);

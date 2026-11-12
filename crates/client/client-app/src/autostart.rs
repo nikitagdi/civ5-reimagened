@@ -16,7 +16,7 @@ pub const STEP_TIMEOUT_MS: u64 = 3_000;
 /// The room does not appear this long after `CreateRoom`: the script gives up.
 const ROOM_TIMEOUT_MS: u64 = 10_000;
 
-/// What the script is asked for (`size`, `ai`, `civ`, `seed`, `mode`).
+/// What the script is asked for (`size`, `ai`, `civ`, `seed`, `mode`, `mods`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RoomParams {
     /// A world size by id (`WORLDSIZE_DUEL`) or name (`Duel`), case does not matter. Default Duel.
@@ -31,6 +31,8 @@ pub struct RoomParams {
     /// `auto_choices`, the choices block END TURN as in the original. The original UI has the popups and sets it
     /// (`&manual=0` takes it back); the interim UI has no screens for them (SIMP-002), there the core decides.
     pub manual_choices: bool,
+    /// The installed mods to play with, by id (`&mods=hello`); an id the server does not list is left out.
+    pub mods: Vec<String>,
 }
 
 impl Default for RoomParams {
@@ -42,6 +44,7 @@ impl Default for RoomParams {
             seed: None,
             mode: TurnMode::Hybrid,
             manual_choices: false,
+            mods: Vec::new(),
         }
     }
 }
@@ -159,7 +162,15 @@ pub fn default_settings(
         },
         // SIMP-003: offers of the AI are declined.
         diplo_auto_decline: true,
-        mods: Vec::new(),
+        mods: params
+            .mods
+            .iter()
+            .filter(|id| choices.mods.iter().any(|m| same(&m.id, id)))
+            .map(|id| protocol::ModPick {
+                id: id.to_ascii_lowercase(),
+                req: "*".into(),
+            })
+            .collect(),
     })
 }
 
@@ -524,6 +535,36 @@ mod tests {
             "WORLDSIZE_DUEL"
         );
         assert!(default_settings(&LobbyChoices::default(), &RoomParams::default(), "a").is_err());
+    }
+
+    #[test]
+    fn the_quick_game_picks_the_installed_mods_it_is_asked_for() {
+        let mut c = choices();
+        c.mods = vec![protocol::InstalledModView {
+            id: "hello".into(),
+            version: "0.1.0".into(),
+            title: "Hello".into(),
+            sync: protocol::ModSync::Cosmetic,
+            client_required: false,
+        }];
+        let p = RoomParams {
+            mods: vec!["Hello".into(), "ghost".into()],
+            ..RoomParams::default()
+        };
+        let s = default_settings(&c, &p, "a").unwrap();
+        assert_eq!(
+            s.mods,
+            [protocol::ModPick {
+                id: "hello".into(),
+                req: "*".into()
+            }]
+        );
+        assert!(
+            default_settings(&c, &RoomParams::default(), "a")
+                .unwrap()
+                .mods
+                .is_empty()
+        );
     }
 
     #[test]

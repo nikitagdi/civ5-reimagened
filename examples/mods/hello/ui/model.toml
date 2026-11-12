@@ -1,0 +1,6 @@
+# The fields mods.hello.* the client half writes (`ClientCtx::ui_model`) and the panel reads.
+
+[root]
+count = "u32"      # echoes the server has counted
+last_from = "str"  # the nick of who said the last one
+last_text = "str"  # what they said
