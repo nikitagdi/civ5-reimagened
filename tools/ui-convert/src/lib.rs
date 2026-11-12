@@ -26,6 +26,7 @@ pub mod build;
 pub mod check;
 pub mod docs;
 pub mod errors;
+pub mod extends;
 pub mod fonts;
 pub mod fragment;
 pub mod index;

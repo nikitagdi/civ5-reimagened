@@ -157,6 +157,14 @@ fn web(web_dir: &str) -> ExitCode {
     let mut packages = Vec::new();
     let mut failed = false;
     for dir in &ids {
+        let dir = &match ui2_convert::extends::resolve(dir) {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("{e}\n");
+                failed = true;
+                continue;
+            }
+        };
         let out = ui2_convert::build::build(dir, true);
         for e in &out.run.errors {
             eprintln!("{e}\n");
@@ -266,6 +274,13 @@ fn main() -> ExitCode {
             "ui2-convert: `{skin}` is neither a folder with skin.toml nor a skin id under skins/"
         );
         return ExitCode::from(2);
+    };
+    let dir = match ui2_convert::extends::resolve(&dir) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("{e}\n");
+            return ExitCode::from(1);
+        }
     };
     match cmd.as_str() {
         "check" => {

@@ -1,0 +1,51 @@
+/* Vellum: the light parchment tokens. Same names as the engraved skin; only the values differ.
+   The token roles are the same, so "lacquer-0" is still the recessed surface, "lacquer-2" the raised one
+   and "bone" the main text colour, they are just parchment and ink here. */
+:root {
+  --lacquer-0: #ddd3bc;
+  --lacquer: #e9e1cf;
+  --lacquer-2: #f2ebdb;
+  --lacquer-3: #f8f3e6;
+  --engrave: #9c8a6a;
+  --engrave-hi: #7f6e51;
+  --bone: #2a241c;
+  --bone-2: #5b5040;
+  --bone-3: #6f6350;
+  --brass: #7a4b1e;
+  --brass-ink: #f6efe0;
+  --civ-red: #8a2a22;
+  --civ-yellow: #b88a1e;
+
+  --y-food: #567a3a;
+  --y-prod: #8f5d33;
+  --y-gold: #8a751a;
+  --y-sci: #4b73a0;
+  --y-cult: #7660a0;
+  --y-faith: #6f6b60;
+  --y-happy: #6f7d2c;
+  --y-tour: #9a5a85;
+  --neg: #a8472f;
+
+  /* Synonyms for mods (the same names in every skin). */
+  --ui-surface: var(--lacquer);
+  --ui-surface-2: var(--lacquer-2);
+  --ui-line: var(--engrave);
+  --ui-text: var(--bone);
+  --ui-text-2: var(--bone-2);
+  --ui-text-3: var(--bone-3);
+  --ui-accent: var(--brass);
+  --ui-accent-ink: var(--brass-ink);
+  --ui-negative: var(--neg);
+  --ui-y-food: var(--y-food);
+  --ui-y-prod: var(--y-prod);
+  --ui-y-gold: var(--y-gold);
+  --ui-y-sci: var(--y-sci);
+  --ui-y-cult: var(--y-cult);
+  --ui-y-faith: var(--y-faith);
+  --ui-y-happy: var(--y-happy);
+  --ui-y-tour: var(--y-tour);
+
+  --sans: "Fira Sans", system-ui, sans-serif;
+  --serif: "Alegreya", Georgia, serif;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
