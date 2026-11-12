@@ -16,7 +16,11 @@
 (function () {
   "use strict";
 
-  const egui = new URLSearchParams(location.search).get("egui") === "1";
+  const params = new URLSearchParams(location.search);
+  const egui = params.get("egui") === "1";
+  // The UI v2 sample mode (`?ui=v2[:skin]&ui2sample=<state>`, the same test as the client's `sample_mode`): the skin
+  // plays its sample with no server session, so the page never shows its sign-in, lobby or room over it.
+  const sampleMode = /^v2(:|$)/.test((params.get("ui") || "").trim()) && /^[a-z0-9_-]{1,64}$/.test(params.get("ui2sample") || "");
   const queue = [];
   const overlay = document.getElementById("civ5-ui");
   const main = document.getElementById("civ5-main");
@@ -24,7 +28,7 @@
   const state = { auth: false, main: false };
 
   function sync() {
-    const show = !egui && (state.auth || state.main);
+    const show = !egui && !sampleMode && (state.auth || state.main);
     overlay.hidden = !show;
     if (statusEl) statusEl.hidden = show;
     if (!show) hideTip();
@@ -1189,5 +1193,5 @@
 
   // The login page waits for a first sign-in when this browser never signed in (no remembered nick; the session cookie is
   // HttpOnly, so the page cannot see it: a returning visitor gets the form only if the app reports the login screen).
-  if (!egui && window.__civ5auth && !window.__civ5auth.mayHaveSession()) window.__civ5auth.show(null);
+  if (!egui && !sampleMode && window.__civ5auth && !window.__civ5auth.mayHaveSession()) window.__civ5auth.show(null);
 })();

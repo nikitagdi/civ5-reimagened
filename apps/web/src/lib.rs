@@ -140,6 +140,7 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
             page::create_canvas_behind(&input_canvas).map(wgpu::SurfaceTarget::Canvas)
         }
     });
+    let css_canvas = canvas.clone();
     let window_canvas = canvas;
     let stats = page::query_param("stats").as_deref() == Some("1");
     install_page_probes();
@@ -223,6 +224,8 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
             sample: page::query_param("ui2sample").filter(|s| client_app::valid_ui2_sample(s)),
             // `&ui2onmap=0`: the skin's city banners and unit flags are off (the bench's measure of the layer).
             map_off: page::query_param("ui2onmap").as_deref() == Some("0"),
+            // The canvas's CSS size: UI v2 lays out in it whatever size the backing store has.
+            css_size: Some(std::rc::Rc::new(move || page::css_size(&css_canvas))),
         }),
     };
     let config = AppConfig {
