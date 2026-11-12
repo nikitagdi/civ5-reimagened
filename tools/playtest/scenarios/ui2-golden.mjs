@@ -420,14 +420,6 @@ async function settledFrame(cdp) {
   return { png: last, settled: false, tries: 30 };
 }
 
-/**
- * In the sample mode everything of the page but the canvas is hidden: the lobby's sign-in form (`#civ5-ui`) stays
- * over the canvas there. The page keeps its server connection: without one the client draws its reconnecting
- * notices on the canvas (each sample page signs in as a guest once and is refused, which a dev server counts against
- * the address: about ten sample pages in ten minutes block password logins from it for ten minutes).
- */
-const HIDE_LOBBY = "body > :not(canvas){display:none!important}";
-
 /** The instances of a list under a part (`ui2Rects` records): per instance key, the box of its largest record. */
 function rowsOf(rects) {
   const by = new Map();
@@ -553,8 +545,6 @@ async function session(ctx, cases, backend, outDir, tag, check) {
         if (c.source === "sample") {
           await b.page.goto(appUrl(server, gfx, { ...v2, ui2sample: c.state }));
           await skinUp(b.page);
-          // A client fault worked around: the lobby's sign-in form stays over the sample.
-          await b.page.addStyleTag({ content: HIDE_LOBBY });
         } else {
           if (c.state !== "hud") throw new Error(`state ${c.state}: the game source has only hud (others need the sample source)`);
           if (c === first) {
