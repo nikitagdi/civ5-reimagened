@@ -657,6 +657,7 @@ pub fn write(inp: &Inputs) -> Result<Written, Vec<ConvError>> {
         .default
         .clone()
         .unwrap_or_else(|| "default".to_string());
+    // SIMPLIFIED(SIMP-301): only the default theme is compiled; a skin that lists other theme stylesheets is refused.
     if !inp.skin.themes.css.is_empty() {
         errs.push(ConvError::new(
             codes::SKIN_TOML,
