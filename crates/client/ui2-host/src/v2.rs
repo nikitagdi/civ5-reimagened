@@ -268,16 +268,35 @@ impl V2Ui {
     }
 
     /// In the sample mode: places the map anchors at the sample's points (CSS px, times `dpr`); an anchor the sample
-    /// does not name is hidden. Names are `city:<id>`, `unit:<id>` and `plot:<x>,<y>`.
+    /// does not name stands where the layout puts it, as on the skin's page in a browser (which has no map) and in
+    /// `ui-convert verify`. Names are `city:<id>`, `unit:<id>` and `plot:<x>,<y>`.
     pub fn place_sample_anchors(&mut self, dpr: f32) {
         let Some(points) = self.sample.as_ref().map(|s| s.anchors().clone()) else {
             return;
         };
-        self.place_anchors(|kind, key| {
-            let name = anchor_name(kind, key)?;
-            let (x, y) = points.get(&name)?;
-            Some((Vec2::new(x * dpr, y * dpr), 1.0))
-        });
+        if self.anchors.is_empty() {
+            return;
+        }
+        let runtime = &self.skin.runtime;
+        let placed: Vec<AnchorScreen> = self
+            .anchors
+            .iter()
+            .filter_map(|(&id, (kind, key))| {
+                let named = anchor_name(*kind, key).and_then(|name| points.get(&name).copied());
+                let pos = match named {
+                    Some((x, y)) => Vec2::new(x * dpr, y * dpr),
+                    None => runtime.anchor_layout_point(id)?,
+                };
+                Some(AnchorScreen {
+                    id,
+                    pos,
+                    scale: 1.0,
+                    visible: true,
+                })
+            })
+            .collect();
+        let Skin { runtime, scene, .. } = &mut self.skin;
+        runtime.set_anchor_screen(&placed, scene);
     }
 
     /// Changes the skin on the screen and keeps the rest of the UI: the model, the source, the actions module with

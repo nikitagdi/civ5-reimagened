@@ -78,6 +78,14 @@ pub fn canvas_by_id(id: &str) -> Option<HtmlCanvasElement> {
         .ok()
 }
 
+/// The size of `canvas` in CSS px (its layout box, not its backing store); `None` while it has none (not in the
+/// page, `display: none`).
+pub fn css_size(canvas: &HtmlCanvasElement) -> Option<(f32, f32)> {
+    let r = canvas.get_bounding_client_rect();
+    let (w, h) = (r.width() as f32, r.height() as f32);
+    (w >= 1.0 && h >= 1.0).then_some((w, h))
+}
+
 /// Canvas drawn *behind* `input_canvas` (WebGPU -> WebGL2 fallback: a `webgpu` canvas cannot yield `webgl2`).
 pub fn create_canvas_behind(input_canvas: &HtmlCanvasElement) -> Option<HtmlCanvasElement> {
     let document = web_sys::window()?.document()?;

@@ -24,6 +24,10 @@
   const $ = (id) => document.getElementById(id);
   const root = $("civ5-auth");
   if (!root) return;
+  // The UI v2 sample mode (`?ui=v2[:skin]&ui2sample=<state>`, as ui.js tests it) has no server session: the page asks
+  // the server nothing about signing in and never shows this page.
+  const query = new URLSearchParams(location.search);
+  const sampleMode = /^v2(:|$)/.test((query.get("ui") || "").trim()) && /^[a-z0-9_-]{1,64}$/.test(query.get("ui2sample") || "");
   const tabs = { login: $("tab-login"), register: $("tab-register") };
   const forms = { login: $("form-login"), register: $("form-register") };
   const appError = $("auth-app-error");
@@ -163,13 +167,14 @@
 
   const api = {
     /** Resolves when the migration is done; bootstrap.js waits for it before the app opens its socket. */
-    ready: adoptOld(),
+    ready: sampleMode ? Promise.resolve() : adoptOld(),
     /** True when this browser signed in before (the cookie itself is HttpOnly and cannot be asked). */
     mayHaveSession() {
       return !!store("get", NICK_KEY);
     },
     /** Shows the page; `view` is the app's LoginView or null (before the wasm loads). */
     show(view) {
+      if (sampleMode) return;
       loadInfo();
       root.hidden = false;
       window.__civ5ui.setAuthVisible(true);

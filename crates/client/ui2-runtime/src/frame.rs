@@ -214,7 +214,10 @@ impl Runtime {
             text_ms += watch.lap();
         }
         // Transitions: records that changed start them, running ones move to the frame time (paint only). A
-        // frozen scene gives the time instead: transitions hold their state at it, the caret holds still.
+        // frozen scene gives the time instead: transitions that ran when it froze hold their state at it, the caret
+        // holds still, and a record that changes while it is frozen is shown at once (a hover, a press or a focus
+        // shows its style as it ends, as a reference image of it needs; a transition started at the frozen time
+        // would show the old style for ever).
         let anim_ms = scene.frozen().unwrap_or(now_ms);
         let acx = crate::anim::AnimCtx {
             pkg: &self.pkg,
@@ -227,7 +230,11 @@ impl Runtime {
         // Nodes in their first frame take their records without transitions.
         restyled.retain(|(id, _)| !self.arena.is_fresh(*id));
         if !restyled.is_empty() {
-            self.anim.start(anim_ms, &self.arena, &acx, restyled);
+            if scene.frozen().is_some() {
+                self.anim.settle(&restyled);
+            } else {
+                self.anim.start(anim_ms, &self.arena, &acx, restyled);
+            }
         }
         self.arena.settle_fresh();
         // Nothing moves in a frozen scene: the host need not produce frames for the transitions.

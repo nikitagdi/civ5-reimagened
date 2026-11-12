@@ -414,8 +414,8 @@ accepts `--ui-dev=<skin>` too) and stops it when the dev server stops. The clien
 |---|---|
 | `ui=v2` or `ui=v2:<skin>` | Use UI v2, with the default skin or the named one. A skin the index does not know falls back to the default; a skin that fails to load falls back to the default skin, then to the classic UI, and is not tried again. |
 | `ui2dev=<url>` | The address of a watch server, such as `http://127.0.0.1:8095`. The client asks `/pkg/<id>.rev` twice a second and swaps in the new package in place. The model, the open windows and the skin's `state.*` stay (a value stays if its path and type are still declared). A failed build is shown as a notice and the running skin stays. |
-| `ui2sample=<state>` | Run on `sample/<state>.json` of the built skin instead of a game. The name is `a-z`, `0-9`, `-`, `_`, up to 64 characters. |
-| `ui2bg=<rrggbb>` | A solid background under the skin, and the clock of its transitions stopped, for reference images. |
+| `ui2sample=<state>` | Run on `sample/<state>.json` of the built skin instead of a game (with `ui=v2[:skin]`). The page then opens no server connection and shows no sign-in; map anchors the sample gives no point stand where the layout puts them. The name is `a-z`, `0-9`, `-`, `_`, up to 64 characters. |
+| `ui2bg=<rrggbb>` | A solid background under the skin, and the clock of its transitions stopped, for reference images: a style that changes (hover, press, focus) shows at once. |
 
 ### Derived skins
 
@@ -609,8 +609,10 @@ assets do not count: the package only names them. A mod fragment has its own, sm
   the running skin to it in place: the model, the open windows and the skin's `state.*` stay (a value stays when
   its path and type are still declared). A build that fails is shown as a notice; the running build stays.
 - **Sample mode.** `?ui=v2:<skin>&ui2sample=<state>` runs the skin on its `sample/<state>.json` instead of a game
-  (the web build copies the samples to `ui2/sample/<id>/`); `&ui2bg=<rrggbb>` puts a solid background under it
-  and stops the clock of its transitions, for reference images.
+  (the web build copies the samples to `ui2/sample/<id>/`), with no server connection and no sign-in; the map
+  anchors the sample places nowhere stand where the layout puts them, as on the skin's page in a browser.
+  `&ui2bg=<rrggbb>` puts a solid background under it and stops the clock of its transitions, for reference images
+  (a style that changes while it is stopped shows at once).
 - **Skin state.** The paths of `[state]` are mounted as the model's `state.*` with their defaults when the skin
   loads: markup (`set`, `toggle`, controls) and scripts (`ui.state.*`) write them, bindings read them. A path the
   skin did not declare cannot be written. Changing the skin sets the state aside; it comes back when that skin is

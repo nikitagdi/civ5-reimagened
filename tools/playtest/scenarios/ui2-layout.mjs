@@ -12,6 +12,10 @@
 // element of each part name, in document order, so both sides cover the same elements (the second and later city
 // banners of a sample are under no part the hook reaches; the native verify compares them).
 //
+// The sample mode itself is checked too: no sign-in request and no server connection over the whole run, no sign-in
+// form over the skin, and (state `production`, at the last viewport) the pointer's hover and a click's focus show on
+// a row of the production list.
+//
 // `UI2_LAYOUT_STATES` (comma list) picks samples, `UI2_LAYOUT_SKIN` the skin (default engraved). The font subsets
 // come from `target/ui2/<skin>/fonts` (`cargo xtask ui build <skin>`; built here when missing). Reports:
 // <logs>/ui2-layout.json (worst record per state and viewport), <logs>/ui2-layout-<state>-<WxH>[@dsf].txt (the 30
@@ -97,6 +101,48 @@ async function chromeSide(skin, fontsDir) {
   };
 }
 
+/**
+ * The pointer reaches the skin in the sample mode (on the reference background, a frozen scene): over a row of the
+ * production list its hover style shows, and a click leaves the focus style on it once the pointer has left.
+ * `viewport` is the one the page is at (the checks name it).
+ */
+async function pointerCheck(page, check, state, [[w, h], dsf]) {
+  const label = `${state} ${vpName([w, h], dsf)}`;
+  const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["production.list"], 20000));
+  const by = new Map();
+  for (const r of rects) {
+    if (!r.keys || r.node.includes("#")) continue;
+    const best = by.get(r.keys);
+    if (!best || r.w * r.h > best.w * best.h) by.set(r.keys, r);
+  }
+  const all = [...by.values()].sort((a, b) => a.y - b.y || a.x - b.x);
+  const depth = Math.max(...all.map((r) => r.keys.split("/").length));
+  // The fourth option (the golden hover case's row): not the sample's focused one.
+  const box = all.filter((r) => r.keys.split("/").length === depth)[3];
+  if (!box) {
+    check(`${label}: the pointer reaches the skin`, false, `the production list has no fourth row (${all.length} records)`);
+    return;
+  }
+  const clip = { x: box.x, y: box.y, width: box.w, height: box.h };
+  const at = [box.x + Math.min(box.w / 2, 120), box.y + box.h / 2];
+  const away = [2, h - 2];
+  const shot = async () => page.screenshot({ clip });
+  await page.mouse.move(...away);
+  await sleep(400);
+  const idle = await shot();
+  await page.mouse.move(at[0] - 3, at[1]);
+  await page.mouse.move(...at);
+  await sleep(400);
+  const hovered = await shot();
+  check(`${label}: a row of the production list shows its hover style under the pointer`, !idle.equals(hovered), `row ${JSON.stringify(box)}`);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.mouse.move(...away);
+  await sleep(400);
+  const focused = await shot();
+  check(`${label}: a click leaves the row focused`, !idle.equals(focused), `row ${JSON.stringify(box)}`);
+}
+
 /** Our records: `ui2Rects` of every part name, merged (a record may be under several parts). */
 async function ourRects(page, parts) {
   const rects = await page.evaluate((p) => window.__civ5test.ui2Rects(p, 20000), parts);
@@ -173,9 +219,13 @@ export async function run(ctx) {
     chrome = await chromeSide(skin, fontsDirOf(skin));
     b = await openPage({ headed: o.headed, logDir: o.logDir, viewport: { width: 1280, height: 720 }, consoleFile: "console-ui2-layout.log" });
     const cdp = await b.page.context().newCDPSession(b.page);
-    // The sample mode needs no server connection; without this the page signs in as a guest with no password again
-    // and again, which a dev server counts as failed logins and then refuses every login from this address.
-    await b.page.routeWebSocket(/.*/, (ws) => ws.close());
+    // The sample mode has no server session: no socket, no sign-in request (a dev server counts each refused guest
+    // sign-in against the address and soon refuses every login from it).
+    const signIn = [];
+    b.page.on("websocket", (ws) => signIn.push(`websocket ${ws.url()}`));
+    b.page.on("request", (r) => {
+      if (/\/api\/auth\//.test(r.url())) signIn.push(`${r.method()} ${new URL(r.url()).pathname}`);
+    });
     for (const state of states) {
       // One load per state; the viewports change on the same page.
       await cdp.send("Emulation.setDeviceMetricsOverride", { width: VIEWPORTS[0][0][0], height: VIEWPORTS[0][0][1], deviceScaleFactor: VIEWPORTS[0][1], mobile: false });
@@ -219,11 +269,18 @@ export async function run(ctx) {
         row.missing = row.missing.slice(0, 10);
         row.extra = row.extra.slice(0, 10);
       }
-      // SAMPLE-MODE FAULT: the page's lobby (`#civ5-ui`, the sign-in form) stays over the canvas in the sample mode;
-      // hidden for the picture only (the rectangles do not depend on it).
-      await b.page.addStyleTag({ content: "body > :not(canvas){display:none!important}" }).catch(() => {});
+      // Nothing of the page's lobby covers the skin: the sign-in form is not shown and the canvas takes the pointer.
+      const cover = await b.page.evaluate(() => {
+        const ui = document.getElementById("civ5-ui");
+        const at = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
+        return { shown: !!ui && !ui.hidden && getComputedStyle(ui).display !== "none", top: at ? `${at.tagName.toLowerCase()}#${at.id}` : null };
+      });
+      check(`${state}: no sign-in form over the sample`, !cover.shown && cover.top === "canvas#civ5-canvas", JSON.stringify(cover));
+      if (state === "production") await pointerCheck(b.page, check, state, VIEWPORTS[VIEWPORTS.length - 1]);
       await b.page.screenshot({ path: path.join(o.logDir, `ui2-layout-${state}.png`) }).catch(() => {});
     }
+    check("the sample mode makes no sign-in request and opens no server connection", signIn.length === 0,
+      `${signIn.length} request(s)${signIn.length ? `: ${[...new Set(signIn)].slice(0, 3).join(", ")}` : ""}`);
   } catch (e) {
     check("no scenario error", false, e.message.split("\n")[0]);
     result.error = e.stack ?? String(e);

@@ -41,6 +41,7 @@ features = [
     "CssStyleDeclaration",
     "DedicatedWorkerGlobalScope",
     "Document",
+    "DomRect",
     "Element",
     "ErrorEvent",
     "Headers",

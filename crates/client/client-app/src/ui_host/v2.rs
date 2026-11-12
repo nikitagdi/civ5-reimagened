@@ -130,6 +130,64 @@ pub type ScriptHostFactory = Rc<dyn Fn() -> Box<dyn ScriptHost>>;
 /// Makes the platform's text input for the skins' text fields; called once, when the first skin comes up.
 pub type TextInputFactory = Box<dyn FnOnce() -> Box<dyn TextInputBridge>>;
 
+/// The CSS size of the drawing surface as the platform knows it (web: the canvas's client size); `None` while it
+/// is not known.
+pub type CssSizeSource = Rc<dyn Fn() -> Option<(f32, f32)>>;
+
+/// The device pixels per CSS px UI v2 draws with on a surface of `surface` pixels: the surface's width over its CSS
+/// width when the platform gives that, else the window's scale factor.
+///
+/// The two differ when the surface is not CSS px times the scale factor: a browser may size the canvas's backing store
+/// in CSS px while `devicePixelRatio` is 1.5 (Chromium with an emulated device scale reports the canvas's device-pixel
+/// box in CSS px), and UI v2 laid out at the surface size over 1.5 then (853 x 480 CSS px for 1280 x 720). A ratio
+/// within 2 % of the scale factor is the scale factor (the device-pixel box is rounded).
+pub(crate) fn device_scale(surface: (u32, u32), window_scale: f32, css: Option<(f32, f32)>) -> f32 {
+    let window_scale = if window_scale.is_finite() && window_scale > 0.0 {
+        window_scale
+    } else {
+        1.0
+    };
+    let Some((css_w, _)) = css.filter(|(w, h)| *w >= 1.0 && *h >= 1.0) else {
+        return window_scale;
+    };
+    if surface.0 == 0 {
+        return window_scale;
+    }
+    let k = surface.0 as f32 / css_w;
+    if !k.is_finite() || k <= 0.0 || (k / window_scale - 1.0).abs() <= 0.02 {
+        window_scale
+    } else {
+        k
+    }
+}
+
+/// A window event in the window's pixels (CSS px times its scale factor, as the platform reports pointers) in the
+/// surface's pixels UI v2 works in: positions and pixel wheel deltas times `factor` (UI v2's device scale over the
+/// window's scale factor).
+pub(crate) fn to_surface_px(ev: &InputEvent, factor: f32) -> InputEvent {
+    let f = f64::from(factor);
+    let mut ev = ev.clone();
+    if (f - 1.0).abs() < 1e-6 {
+        return ev;
+    }
+    match &mut ev {
+        InputEvent::Pointer(p) => {
+            p.position.x *= f;
+            p.position.y *= f;
+        }
+        InputEvent::Wheel(w) => {
+            w.position.x *= f;
+            w.position.y *= f;
+            if let platform::WheelDelta::Pixels { x, y } = &mut w.delta {
+                *x *= f;
+                *y *= f;
+            }
+        }
+        _ => {}
+    }
+    ev
+}
+
 /// What UI v2 needs of the platform (`Services::ui2`).
 pub struct Ui2Platform {
     /// The script workers of each skin that loads; `None`: skins run their markup only.
@@ -148,6 +206,16 @@ pub struct Ui2Platform {
     /// `?ui2onmap=0`: the skin's map layer (city banners, unit flags) is off, for the cost of the layer in a bench:
     /// its anchors are never placed, so nothing of them is drawn or hit.
     pub map_off: bool,
+    /// The CSS size of the drawing surface (web: the canvas); UI v2 lays out in it and draws at the surface's
+    /// pixels per CSS px ([`device_scale`]). `None`: the window's scale factor.
+    pub css_size: Option<CssSizeSource>,
+}
+
+/// The sample mode is on: a sample (`?ui2sample=`) with UI v2 asked for (`?ui=v2[:skin]`). The page plays no game
+/// then: it opens no server connection (so it never signs in) and shows none of the session's screens (sign-in,
+/// lobby, room, loading, the connection notices).
+pub fn sample_mode(sample: Option<&str>, choice: Option<&super::UiChoice>) -> bool {
+    sample.is_some_and(valid_sample) && matches!(choice, Some(super::UiChoice::V2 { .. }))
 }
 
 /// A sample name `?ui2sample=` may give: `[a-z0-9_-]{1,64}` (it becomes part of a URL of the build).
@@ -555,6 +623,13 @@ pub struct V2Frontend {
     screen_req: Option<ui2_host::ScreenId>,
     /// The game's pictures for the skins, over the session's UI set.
     icons: super::game_icons::GameIcons,
+    /// The CSS size of the surface (see [`Ui2Platform::css_size`]).
+    css_size: Option<CssSizeSource>,
+    /// The device scale of the last frame over the window's scale factor: what turns the window's pointer pixels
+    /// into the surface's ([`to_surface_px`]).
+    input_factor: f32,
+    /// The device scale of the last frame.
+    k: f32,
 }
 
 /// A skin change on the screen: the skin asked for and its download (`None`: the package is in the cache).
@@ -611,7 +686,29 @@ impl V2Frontend {
             screens: Vec::new(),
             screen_req: None,
             icons: super::game_icons::GameIcons::default(),
+            css_size: None,
+            input_factor: 1.0,
+            k: 1.0,
         }
+    }
+
+    /// The CSS size of the surface (see [`Ui2Platform::css_size`]).
+    pub fn set_css_size(&mut self, source: Option<CssSizeSource>) {
+        self.css_size = source;
+    }
+
+    /// The environment of a frame on a surface of `size` pixels in a window of scale factor `window_scale`: the
+    /// device scale is [`device_scale`]'s; it is kept for the input of the frames that follow.
+    fn env(&mut self, size: (u32, u32), window_scale: f32) -> Env {
+        let css = self.css_size.as_ref().and_then(|f| f());
+        let k = device_scale(size, window_scale, css);
+        self.k = k;
+        self.input_factor = if window_scale.is_finite() && window_scale > 0.0 {
+            k / window_scale
+        } else {
+            1.0
+        };
+        env_of(size, k)
     }
 
     /// `?ui2dev=<url>`: the running skin is reloaded from the watch server at `url` whenever it builds anew.
@@ -765,7 +862,8 @@ impl V2Frontend {
     /// One window event, before the world sees it: `None` while no skin runs (the classic UI's path stays as it
     /// is), else who takes it. `now_ms` is the app's clock.
     pub fn route_input(&mut self, ev: &InputEvent, now_ms: f64) -> Option<InputOutcome> {
-        self.ui_mut().map(|ui| ui.handle_input(ev, now_ms))
+        let ev = to_surface_px(ev, self.input_factor);
+        self.ui_mut().map(|ui| ui.handle_input(&ev, now_ms))
     }
 
     /// A click the world took and the picker turned into the plot `cell`: a `map.click` for the next UI v2 frame.
@@ -1438,7 +1536,8 @@ impl Frontend for V2Frontend {
     /// Ready once the skin is up and a game is being played (the classic UI stays on the screen until then);
     /// failed when no skin can be used.
     fn prepare(&mut self, cx: &mut PrepareCx<'_>) -> Readiness {
-        self.poll(env_of(cx.size, cx.dpr));
+        let env = self.env(cx.size, cx.dpr);
+        self.poll(env);
         self.poll_sample();
         self.probe_stage();
         self.note_game(cx.session, cx.playing);
@@ -1510,7 +1609,8 @@ impl Frontend for V2Frontend {
 
     /// The skin's frame; its scene goes to the renderer (`prepare_ui2`), the app's draw list gets nothing.
     fn frame(&mut self, cx: &mut FrameCx<'_>, _out: &mut UiDrawList) {
-        let env = env_of(cx.size, cx.dpr);
+        let env = self.env(cx.size, cx.dpr);
+        let k = self.k;
         let mut look = None;
         let map_off = self.map_off;
         if let Some(ui) = self.run(
@@ -1524,7 +1624,7 @@ impl Frontend for V2Frontend {
             // The map anchors follow their objects through the camera, as the classic UI's banners do; on a sample,
             // they stand where the sample puts them.
             if ui.sample_mode() {
-                ui.place_sample_anchors(cx.dpr);
+                ui.place_sample_anchors(k);
             } else if ui.anchor_count() > 0 && map_off {
                 ui.place_anchors(|_, _| None);
             } else if ui.anchor_count() > 0 {
@@ -2193,6 +2293,73 @@ mod tests {
             button: (phase != platform::PointerPhase::Move).then_some(MouseButton::Left),
             modifiers: Modifiers::default(),
         })
+    }
+
+    #[test]
+    fn the_sample_mode_is_a_sample_with_ui_v2() {
+        use super::super::UiChoice;
+        let v2 = UiChoice::V2 { skin: None };
+        assert!(sample_mode(Some("hud"), Some(&v2)));
+        assert!(sample_mode(
+            Some("production"),
+            Some(&UiChoice::V2 {
+                skin: Some("vellum".into())
+            })
+        ));
+        assert!(!sample_mode(None, Some(&v2)), "no sample: a game");
+        assert!(!sample_mode(Some("hud"), None), "no ?ui=v2");
+        assert!(!sample_mode(Some("hud"), Some(&UiChoice::Classic)));
+        assert!(!sample_mode(Some("../x"), Some(&v2)), "not a sample name");
+    }
+
+    #[test]
+    fn the_device_scale_is_the_surface_over_its_css_size() {
+        // A browser at 150 % whose canvas backing store is CSS-sized (Chromium with an emulated device scale).
+        assert_eq!(device_scale((1280, 720), 1.5, Some((1280.0, 720.0))), 1.0);
+        // The usual 150 %: the backing store has the device pixels.
+        assert_eq!(device_scale((1920, 1080), 1.5, Some((1280.0, 720.0))), 1.5);
+        // The device-pixel box is rounded: the scale factor stands.
+        assert_eq!(device_scale((1919, 1080), 1.5, Some((1280.0, 720.0))), 1.5);
+        // No CSS size (native, or the canvas not laid out): the window's scale factor.
+        assert_eq!(device_scale((1920, 1080), 1.5, None), 1.5);
+        assert_eq!(device_scale((1920, 1080), 1.5, Some((0.0, 0.0))), 1.5);
+        assert_eq!(device_scale((0, 0), 2.0, Some((1280.0, 720.0))), 2.0);
+        assert_eq!(device_scale((800, 600), f32::NAN, None), 1.0);
+    }
+
+    /// 150 % with a CSS-sized backing store (1280 x 720 px for 1280 x 720 CSS px): the skin lays out in 1280 x 720
+    /// CSS px, not 853 x 480 (the surface over the window's scale factor), and the pointer, which the window reports
+    /// in CSS px times 1.5, still lands on the skin's boxes.
+    #[test]
+    fn at_150_percent_the_skin_lays_out_in_the_css_viewport_and_takes_the_pointer_there() {
+        use platform::PointerPhase::{Down, Move, Up};
+        let mut h = running(&button_package());
+        h.set_css_size(Some(Rc::new(|| Some((1280.0, 720.0)))));
+        let env = h.env((1280, 720), 1.5);
+        let css = (
+            env.viewport_px.0 as f32 / env.dpr,
+            env.viewport_px.1 as f32 / env.dpr,
+        );
+        assert_eq!(css, (1280.0, 720.0), "the CSS viewport");
+        h.ui_mut().expect("running").set_env(env);
+        frame(&mut h);
+        // The button is 10..110 x 10..50 CSS px: (50, 30) CSS px is (75, 45) in the window's pixels.
+        for (phase, t) in [(Move, 1.0), (Down, 2.0), (Up, 3.0)] {
+            assert_eq!(
+                h.route_input(&press(phase, 75.0, 45.0), t),
+                Some(InputOutcome::Consumed)
+            );
+        }
+        // (100, 60) CSS px is off the button; it is (100, 60) surface px and (150, 90) window px.
+        assert_eq!(
+            h.route_input(&press(Move, 150.0, 90.0), 4.0),
+            Some(InputOutcome::PassToWorld)
+        );
+        // A backing store with the device pixels: the window's scale factor, the pointer as the window gives it.
+        h.set_css_size(Some(Rc::new(|| Some((1280.0, 720.0)))));
+        let env = h.env((1920, 1080), 1.5);
+        assert_eq!((env.viewport_px, env.dpr), ((1920, 1080), 1.5));
+        assert_eq!(h.input_factor, 1.0);
     }
 
     #[test]

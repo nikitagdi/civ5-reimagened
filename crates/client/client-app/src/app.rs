@@ -103,6 +103,8 @@ struct NetLink {
     handle: NetHandle,
     ui: NetUi,
     started: bool,
+    /// The UI v2 sample mode ([`crate::ui_host::v2::sample_mode`]): the session never connects and shows no screen.
+    offline: bool,
     /// The phase of the last frame, for the milestones.
     phase_seen: Option<&'static str>,
     /// The game is attached and its first view and catalog are in (`ClientPhase::Playing`).
@@ -137,6 +139,10 @@ impl NetLink {
     /// One frame of the network, the events, the quick start script.
     fn update(&mut self, now_ms: u64) {
         use render::perf::slow::scope;
+        // The sample mode: no socket is ever opened, so no sign-in goes out.
+        if self.offline {
+            return;
+        }
         let s = scope("net.pump");
         if self.started {
             self.handle.pump(now_ms);
@@ -517,6 +523,14 @@ impl App {
         ));
         // The volume knobs the player saved: the main menu's music has its slider before a game runs the options menu.
         let saved_knobs = exe_api::m4_wog::stored_volume_knobs(&*ui_kv, config_ui_volume);
+        // `?ui=v2&ui2sample=<state>`: the skin plays its sample; the server is never asked anything.
+        let sample_offline = crate::ui_host::v2::sample_mode(
+            ui2.as_ref().and_then(|p| p.sample.as_deref()),
+            config.ui_choice.as_ref(),
+        );
+        if sample_offline {
+            tracing::info!("UI v2 sample mode: no server connection, no sign-in");
+        }
         let net = {
             let store: Box<dyn platform::KeyValueStore> = Box::new(SharedKv(shared_kv));
             // The nick of the page, else the one of the last login, else the default.
@@ -553,6 +567,7 @@ impl App {
                         handle,
                         ui,
                         started: false,
+                        offline: sample_offline,
                         phase_seen: None,
                         playing: false,
                         game_events: Vec::new(),
@@ -620,6 +635,7 @@ impl App {
             v2.set_dev(p.dev);
             v2.set_sample(p.sample);
             v2.set_map_off(p.map_off);
+            v2.set_css_size(p.css_size);
             v2.set_text_input(p.text_input);
             v2.set_mod_ui(Rc::clone(&mod_ui));
             ui_host.register(Box::new(v2));
@@ -1938,6 +1954,7 @@ impl App {
                     // screens read the view the controls take (`base` plus the layer) and the contexts.
                     Link::Net(n) => {
                         let phase = n.phase();
+                        let offline = n.offline;
                         let handle = n.handle.clone();
                         let ready =
                             self.bridge.terrain().is_some() && self.light_boot.map_may_draw();
@@ -2031,6 +2048,11 @@ impl App {
                             views
                         });
                         self.minimap_texture = texture;
+                        // The sample mode has no session: no sign-in page (the page is told "none"), no lobby, no
+                        // loading screen and no connection notice over the skin.
+                        if offline {
+                            views = sample_screens(views);
+                        }
                         let session = (
                             self.config.server_url.as_str(),
                             handle.with(|core| core.rtt_ms()),
@@ -2986,6 +3008,12 @@ impl App {
     }
 }
 
+/// The screens of a frame in the UI v2 sample mode: none of the session's (sign-in, lobby, room, loading, the
+/// connection strip and notices) stays; the frame adds its performance panel, settings and notices after.
+fn sample_screens(_session: Screens) -> Screens {
+    Screens::default()
+}
+
 /// Runs `f` with what the mods can see of the frame: the replica of the game (when a game is on and the core is free),
 /// the terrain sampler, the column grid of the cutout mask and the renderer's `ModGpu`.
 fn with_mod_info<R>(
@@ -3228,6 +3256,22 @@ mod original_game_screen_tests {
                 ..Screens::default()
             }
         );
+    }
+
+    /// The sample mode shows none of the session's screens: the page's sign-in form (`DomUi` is told "none") and
+    /// the canvas's loading and connection screens stay away from the skin.
+    #[test]
+    fn the_sample_mode_shows_no_screen_of_the_session() {
+        use interim_ui::screens::{loading::LoadingView, login::LoginView};
+        let views = Screens {
+            login: Some(LoginView::default()),
+            loading: Some(LoadingView::default()),
+            conn: Some(ConnView::default()),
+            notice: Some(Default::default()),
+            fatal: Some("Cannot connect".into()),
+            ..Screens::default()
+        };
+        assert_eq!(sample_screens(views), Screens::default());
     }
 }
 
