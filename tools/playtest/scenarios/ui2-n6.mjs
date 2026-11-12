@@ -34,7 +34,7 @@ const GC_EVENTS = new Set([
 ]);
 
 /** Peak and total GC pause per thread of the trace (main thread of the page, dedicated workers), ms. */
-function gcPauses(buffer) {
+export function gcPauses(buffer) {
   const trace = JSON.parse(buffer.toString("utf8"));
   const events = Array.isArray(trace) ? trace : trace.traceEvents;
   const names = new Map();
