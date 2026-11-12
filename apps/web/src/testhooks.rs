@@ -760,7 +760,7 @@ fn ui2_json(p: &client_app::V2Probe) -> Value {
 }
 
 /// `state().ui`: `{active, choice, saved, skin, switching, switches, lastSwitchMs, failed: [{ui, why}], notice,
-/// frames: {classic, v2}, inputs: {classic, v2}, replicaDigest: {count, value}}`.
+/// frames: {classic, v2}, inputs: {classic, v2}, replicaDigest: {count, value}, screen, screenShown}`.
 fn ui_json(u: &client_app::test_port::TestUi) -> Value {
     json!({
         "active": u.active,
@@ -775,6 +775,8 @@ fn ui_json(u: &client_app::test_port::TestUi) -> Value {
         "frames": { "classic": u.frames[0], "v2": u.frames[1] },
         "inputs": { "classic": u.inputs[0], "v2": u.inputs[1] },
         "replicaDigest": u.replica_digest.as_ref().map(|(count, value)| json!({ "count": count, "value": value })),
+        "screen": u.screen,
+        "screenShown": u.screen_shown,
     })
 }
 

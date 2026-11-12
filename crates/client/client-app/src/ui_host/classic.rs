@@ -12,8 +12,116 @@ use draw_list::UiDrawList;
 use platform::{InputEvent, KeyValueStore};
 use render::Renderer;
 
-use super::{FrameCx, Frontend, InputCx, PrepareCx, Readiness, Selection, UiKind, UiSoundSource};
+use super::{
+    FrameCx, Frontend, InputCx, PrepareCx, Readiness, ScreenClosed, ScreenId, Selection, UiKind,
+    UiSoundSource,
+};
 use crate::m2::{M2Phase, M2Ui};
+
+/// A screen of the game the classic UI shows for UI v2 (a skin without it): the popup event that opens it, as the
+/// original UI's own button sends it, and the context that is shown while it is up.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ClassicScreen {
+    pub id: ScreenId,
+    /// The `popupInfo` table of `Events.SerialEventGameMessagePopup`.
+    pub popup: &'static str,
+    /// The absolute path of the screen's context.
+    pub context: &'static str,
+}
+
+/// The screens the classic UI shows for UI v2: the tech tree (the top panel's science button) and the social
+/// policies (its culture button).
+pub const SCREENS: &[ClassicScreen] = &[
+    ClassicScreen {
+        id: ScreenId::TechTree,
+        popup: "{ Type = ButtonPopupTypes.BUTTONPOPUP_TECH_TREE, Data2 = -1 }",
+        context: "/InGame/TechTree",
+    },
+    ClassicScreen {
+        id: ScreenId::Policies,
+        popup: "{ Type = ButtonPopupTypes.BUTTONPOPUP_CHOOSEPOLICY }",
+        context: "/InGame/SocialPolicyPopup",
+    },
+];
+
+/// How long the classic layer may take to come up for a screen (its first boot under UI v2 is a cold one), ms.
+pub const SCREEN_LAYER_WAIT_MS: f64 = 60_000.0;
+/// How long a screen may take to show once its popup was sent, ms.
+pub const SCREEN_SHOW_WAIT_MS: f64 = 10_000.0;
+
+/// Where a screen opened for another UI is.
+#[derive(Debug, Clone, PartialEq)]
+struct ScreenVisit {
+    screen: ClassicScreen,
+    /// The first frame of the visit, the popup sent, the screen seen up (ms).
+    since: Option<f64>,
+    sent: Option<f64>,
+    shown: bool,
+    end: Option<ScreenClosed>,
+}
+
+/// What the layer looks like to a visit in one frame.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct LayerView {
+    pub now_ms: f64,
+    /// The layer runs (it dispatched this frame).
+    pub running: bool,
+    /// Whether the screen's context is shown (`None`: no layer or no such context).
+    pub shown: Option<bool>,
+}
+
+impl ScreenVisit {
+    fn new(screen: ClassicScreen) -> ScreenVisit {
+        ScreenVisit {
+            screen,
+            since: None,
+            sent: None,
+            shown: false,
+            end: None,
+        }
+    }
+
+    /// One frame after the layer's: sends the popup once the layer ran a frame (its wake-up announced the game to
+    /// it), then follows the context until it is shown and hidden again. `send` sends the popup (`false`: it could
+    /// not).
+    fn step(&mut self, v: LayerView, send: impl FnOnce(&ClassicScreen) -> bool) {
+        if self.end.is_some() {
+            return;
+        }
+        let since = *self.since.get_or_insert(v.now_ms);
+        let Some(sent) = self.sent else {
+            if !v.running {
+                if v.now_ms - since > SCREEN_LAYER_WAIT_MS {
+                    self.end = Some(ScreenClosed::Failed(
+                        "the classic interface did not come up".into(),
+                    ));
+                }
+                return;
+            }
+            if send(&self.screen) {
+                self.sent = Some(v.now_ms);
+            } else {
+                self.end = Some(ScreenClosed::Failed(
+                    "the classic interface did not take the popup".into(),
+                ));
+            }
+            return;
+        };
+        match v.shown {
+            Some(true) => self.shown = true,
+            _ if self.shown => self.end = Some(ScreenClosed::Closed),
+            other if v.now_ms - sent > SCREEN_SHOW_WAIT_MS => {
+                let why = if other.is_none() {
+                    "its window is not in the classic interface"
+                } else {
+                    "the classic interface did not open it"
+                };
+                self.end = Some(ScreenClosed::Failed(why.into()));
+            }
+            _ => {}
+        }
+    }
+}
 
 /// The classic UI: the M2 layer and the press tracking of its input.
 pub struct ClassicFrontend {
@@ -27,6 +135,8 @@ pub struct ClassicFrontend {
     cold_wake: bool,
     /// When the last wake-up began (ms), until the layer runs again: `ui.classic.wake_ms` measures it.
     woke_at: Option<f64>,
+    /// A screen shown for another UI.
+    visit: Option<ScreenVisit>,
 }
 
 impl ClassicFrontend {
@@ -38,6 +148,7 @@ impl ClassicFrontend {
             slept_with_layer: false,
             cold_wake: false,
             woke_at: None,
+            visit: None,
         }
     }
 }
@@ -83,6 +194,34 @@ impl Frontend for ClassicFrontend {
     fn deactivate(&mut self, _cx: &mut PrepareCx<'_>) {
         self.slept_with_layer = self.m2.layer().is_some();
         self.woke_at = None;
+        self.visit = None;
+    }
+
+    fn screens(&self) -> Vec<ScreenId> {
+        SCREENS.iter().map(|s| s.id).collect()
+    }
+
+    // SIMPLIFIED(SIMP-266): a screen UI v2's skin does not have (the tech tree, the social policies) is shown by the
+    // classic UI: the host gives it the screen while the screen is up and gives UI v2 the screen back after it.
+    fn open_screen(&mut self, s: ScreenId) -> bool {
+        if self.m2.phase() == M2Phase::Failed {
+            return false;
+        }
+        let Some(screen) = SCREENS.iter().find(|x| x.id == s) else {
+            return false;
+        };
+        self.visit = Some(ScreenVisit::new(*screen));
+        true
+    }
+
+    fn take_screen_closed(&mut self) -> Option<ScreenClosed> {
+        let end = self.visit.as_ref()?.end.clone()?;
+        self.visit = None;
+        Some(end)
+    }
+
+    fn screen_shown(&self) -> bool {
+        self.visit.as_ref().is_some_and(|v| v.shown)
     }
 
     fn set_cold_wake(&mut self, cold: bool) {
@@ -107,6 +246,20 @@ impl Frontend for ClassicFrontend {
             let ms = cx.clock.now_ms_f64() - t0;
             render::perf::set_counter("ui.classic.wake_ms", ms);
             tracing::info!(ms, cold = self.cold_wake, "the classic UI is back");
+        }
+        if let Some(visit) = self.visit.as_mut() {
+            let m2 = &self.m2;
+            let view = LayerView {
+                now_ms: cx.clock.now_ms_f64(),
+                running: m2.layer().is_some() && m2.phase() == M2Phase::Running,
+                shown: m2.context_shown(visit.screen.context),
+            };
+            visit.step(view, |s| {
+                m2.run_lua(
+                    "ui2-screen",
+                    &format!("Events.SerialEventGameMessagePopup({})", s.popup),
+                )
+            });
         }
     }
 
@@ -143,28 +296,20 @@ impl Frontend for ClassicFrontend {
         // The turn timeline's render settle (`c.render_settle`): the pages in view are all there.
         let live = renderer.terrain_live_stats();
         let pending = live.unbuilt + live.unpaged;
+        // (The textures its layer asks for come from the game session's UI set: the host uploads them.)
         self.m2.frame_done(
             drawn && pending == 0 && live.ring_unbuilt == 0 && live.ring_unpaged == 0,
             pending,
         );
-        let wanted = renderer.ui_textures_mut().take_wanted();
-        for tex in self.m2.resolve_textures(&wanted) {
-            let data = render::UiTextureData {
-                width: tex.width,
-                height: tex.height,
-                format: tex.format,
-                mips: vec![tex.bytes],
-                content: Some(tex.content),
-            };
-            if let Err(e) = renderer.ui_textures_mut().upload(tex.id, &data) {
-                tracing::warn!(texture = tex.id.0, "ui texture upload: {e}");
-            }
-        }
     }
 
     fn new_game(&mut self) {
         self.m2.new_game();
         self.slept_with_layer = false;
+        if let Some(v) = self.visit.as_mut() {
+            v.end
+                .get_or_insert(ScreenClosed::Failed("the game was left".into()));
+        }
     }
 
     fn turn_processing(&self) -> bool {
@@ -275,7 +420,6 @@ fn m2_frame(m2: &mut M2Ui, cx: &mut FrameCx<'_>, out: &mut UiDrawList) {
         renderer.minimap_view().map_or((0, 0), |(_, i)| i.size),
         has_map,
     );
-    m2.set_texture_profile(&renderer.platform_profile());
     m2.begin_frame(env, cx.session, cx.step, out);
     if let Some(on) = m2.take_grid() {
         renderer.set_grid_visible(on);
@@ -401,5 +545,76 @@ fn m2_input(
         cx.map_controller.handle(&ev, cx.camera);
         cx.map_controller.take_click();
         cx.map_controller.take_right_click();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn view(now_ms: f64, running: bool, shown: Option<bool>) -> LayerView {
+        LayerView {
+            now_ms,
+            running,
+            shown,
+        }
+    }
+
+    fn tree() -> ScreenVisit {
+        ScreenVisit::new(SCREENS[0])
+    }
+
+    #[test]
+    fn the_table_has_the_tech_tree_and_the_policies() {
+        let ids: Vec<ScreenId> = SCREENS.iter().map(|s| s.id).collect();
+        assert_eq!(ids, [ScreenId::TechTree, ScreenId::Policies]);
+        for s in SCREENS {
+            assert!(s.popup.contains("ButtonPopupTypes.BUTTONPOPUP_"), "{s:?}");
+            assert!(s.context.starts_with("/InGame/"), "{s:?}");
+        }
+    }
+
+    #[test]
+    fn the_popup_goes_once_the_layer_runs_and_the_visit_ends_when_the_screen_hides() {
+        let mut v = tree();
+        let mut sent = 0;
+        // The layer is not up yet (its first boot): nothing is sent.
+        v.step(view(0.0, false, None), |_| {
+            sent += 1;
+            true
+        });
+        assert_eq!((sent, v.sent), (0, None));
+        v.step(view(5000.0, true, Some(false)), |s| {
+            assert_eq!(s.id, ScreenId::TechTree);
+            sent += 1;
+            true
+        });
+        assert_eq!((sent, v.sent), (1, Some(5000.0)));
+        // Not shown yet in the frame it was sent; then shown; then closed.
+        v.step(view(5016.0, true, Some(false)), |_| unreachable!());
+        assert!(!v.shown && v.end.is_none());
+        v.step(view(5032.0, true, Some(true)), |_| unreachable!());
+        assert!(v.shown && v.end.is_none());
+        v.step(view(9000.0, true, Some(true)), |_| unreachable!());
+        assert!(v.end.is_none(), "it stays while it is up");
+        v.step(view(9016.0, true, Some(false)), |_| unreachable!());
+        assert_eq!(v.end, Some(ScreenClosed::Closed));
+    }
+
+    #[test]
+    fn a_visit_that_cannot_be_shown_ends_with_why() {
+        let mut v = tree();
+        v.step(view(0.0, false, None), |_| true);
+        v.step(view(SCREEN_LAYER_WAIT_MS + 1.0, false, None), |_| true);
+        assert!(matches!(&v.end, Some(ScreenClosed::Failed(w)) if w.contains("did not come up")));
+        let mut v = tree();
+        v.step(view(0.0, true, None), |_| false);
+        assert!(matches!(&v.end, Some(ScreenClosed::Failed(w)) if w.contains("popup")));
+        let mut v = tree();
+        v.step(view(0.0, true, Some(false)), |_| true);
+        v.step(view(SCREEN_SHOW_WAIT_MS - 1.0, true, Some(false)), |_| true);
+        assert!(v.end.is_none());
+        v.step(view(SCREEN_SHOW_WAIT_MS + 1.0, true, Some(false)), |_| true);
+        assert!(matches!(&v.end, Some(ScreenClosed::Failed(w)) if w.contains("did not open")));
     }
 }

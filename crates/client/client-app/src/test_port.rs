@@ -221,6 +221,9 @@ pub struct TestUi {
     pub inputs: [u64; 2],
     /// The replica digests computed for the port so far, and the last one (hex; `None`: no replica loaded).
     pub replica_digest: Option<(u64, Option<String>)>,
+    /// A screen of the game another UI shows for the one that asked for it (`tech_tree`), and whether it is up.
+    pub screen: Option<String>,
+    pub screen_shown: bool,
 }
 
 /// One action button of the unit panel.

@@ -525,6 +525,11 @@ pub struct V2Frontend {
     sample_on: bool,
     /// The mods' UI fields and intents (`mod_host::ModUiStore`).
     mod_ui: super::v2_mods::V2Mods,
+    /// The screens outside the skin another UI shows (the host's offer), and the one the last frame asked for.
+    screens: Vec<ui2_host::ScreenId>,
+    screen_req: Option<ui2_host::ScreenId>,
+    /// The game's pictures for the skins, over the session's UI set.
+    icons: super::game_icons::GameIcons,
 }
 
 /// A skin change on the screen: the skin asked for and its download (`None`: the package is in the cache).
@@ -577,6 +582,9 @@ impl V2Frontend {
             sample_op: None,
             sample_on: false,
             mod_ui: super::v2_mods::V2Mods::default(),
+            screens: Vec::new(),
+            screen_req: None,
+            icons: super::game_icons::GameIcons::default(),
         }
     }
 
@@ -963,6 +971,7 @@ impl V2Frontend {
                 self.load_ms = Some(ms);
                 let mut ui = ui;
                 ui.set_golden(self.background);
+                ui.set_asset_resolver(self.icons.resolver());
                 let bridge = self.text_bridge();
                 ui.set_text_bridge(bridge);
                 // A new skin over a game already up reads its slow first calls once too.
@@ -1176,7 +1185,8 @@ impl V2Frontend {
         if !self.running() || !(self.game_up || self.sample_on) {
             return None;
         }
-        // The replica and the localizer are the game session's.
+        // The replica, the localizer and the UI set the game's pictures come from are the game session's.
+        let new_icons = self.icons.set_store(session.ui_store());
         let loc = session.localizer();
         let new_loc = match (&loc, &self.loc) {
             (Some(a), Some(b)) => !Rc::ptr_eq(a, b),
@@ -1191,6 +1201,10 @@ impl V2Frontend {
         if new_loc && let Some(l) = &loc {
             ui.set_localizer(Rc::clone(l));
         }
+        // The UI set came (or changed): the pictures the skin could not find are painted again.
+        if new_icons {
+            ui.set_asset_resolver(self.icons.resolver());
+        }
         self.loc = loc;
         ui.set_env(env);
         let mut held = match replica.as_ref().map(|r| r.try_borrow_mut()) {
@@ -1203,9 +1217,10 @@ impl V2Frontend {
         let events = std::mem::take(&mut self.events);
         let mods = self.mods.take();
         self.mod_ui.before_frame(ui);
-        let (report, look_at) = match net {
+        let screens = &self.screens;
+        let (report, look_at, screen) = match net {
             Some(h) => h.with(|core| {
-                let mut sink = NetSink::new(core);
+                let mut sink = NetSink::new(core).with_screens(screens);
                 let report = ui.frame(V2Frame {
                     replica: held.as_deref_mut().map(ReplicaView::of),
                     steps,
@@ -1214,7 +1229,7 @@ impl V2Frontend {
                     mods,
                     now_ms,
                 });
-                (report, sink.look_at())
+                (report, sink.look_at(), sink.take_screen())
             }),
             None => {
                 let report = ui.frame(V2Frame {
@@ -1225,9 +1240,12 @@ impl V2Frontend {
                     mods,
                     now_ms,
                 });
-                (report, None)
+                (report, None, None)
             }
         };
+        if screen.is_some() {
+            self.screen_req = screen;
+        }
         // The core's slow first reads, once per game (joined, loaded or a new skin), after the frame and outside its
         // budget.
         if self.warm_due
@@ -1383,8 +1401,32 @@ impl Frontend for V2Frontend {
         self.on_screen = true;
     }
 
+    /// `ui2.assets.*`: the game pictures the skin named and found (`resolved`) or not (`missed`), and how many of
+    /// their textures the renderer holds (`resident`, of `textures`).
+    fn after_render(&mut self, r: &mut Renderer, _drawn: bool) {
+        let (resolved, missed) = self.icons.counts();
+        let named = self.icons.named();
+        let resident = named
+            .iter()
+            .filter(|&&id| r.ui_textures_mut().contains(draw_list::TextureId(id)))
+            .count();
+        render::perf::set_counter("ui2.assets.resolved", resolved as f64);
+        render::perf::set_counter("ui2.assets.missed", missed as f64);
+        render::perf::set_counter("ui2.assets.textures", named.len() as f64);
+        render::perf::set_counter("ui2.assets.resident", resident as f64);
+    }
+
+    fn offer_screens(&mut self, screens: &[ui2_host::ScreenId]) {
+        self.screens = screens.to_vec();
+    }
+
+    fn take_screen_request(&mut self) -> Option<ui2_host::ScreenId> {
+        self.screen_req.take()
+    }
+
     fn deactivate(&mut self, _cx: &mut PrepareCx<'_>) {
         self.on_screen = false;
+        self.screen_req = None;
         self.cursor = Cursor::Auto;
         self.mod_ui.sleep();
         // A focused text field of the skin lets the platform's input go while UI v2 sleeps.

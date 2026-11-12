@@ -18,7 +18,7 @@ use draw_list::UiDrawList;
 use exe_api::{ExeApi, ExeConfig, ExeHost, SavedGame, SeatInfo};
 use platform::{Clock, InputEvent, KeyValueStore};
 use replica::Replica;
-use ui_client::{BootPlan, BootState, LayerConfig, LayerHooks, Projector, UiBoot, UiLayer};
+use ui_client::{BootState, LayerConfig, LayerHooks, Projector, UiLayer};
 
 use crate::m2_highlights::{HexHighlights, TAPPED_EVENTS};
 use crate::net::NetHandle;
@@ -405,7 +405,6 @@ pub struct M2Stats {
 pub struct M2Ui {
     phase: M2Phase,
     failed: Option<String>,
-    ui_boot: UiBoot,
     /// The session's replica, as of the last frame (the session owns it).
     replica: Option<Rc<RefCell<Replica>>>,
     exe: Option<Rc<RefCell<ExeApi>>>,
@@ -432,7 +431,6 @@ pub struct M2Ui {
     last_frame_us: Cell<u64>,
     last_stats_ms: u64,
     stats: M2Stats,
-    unresolved: BTreeSet<u64>,
     /// The zoom level before the city view took the camera.
     saved_level: Option<f32>,
     /// Numbers of the `EndTurn` orders the UI's `sendTurnComplete` sent that have no final answer yet (the last few).
@@ -468,14 +466,6 @@ pub struct M2Ui {
 }
 
 impl M2Ui {
-    /// The variants the device takes, for the UI textures fetched from now on (the boot and the
-    /// background fetches); a phone gets their `Astc` variants.
-    pub fn set_texture_profile(&mut self, profile: &assets::PlatformProfile) {
-        if self.ui_boot.profile() != profile {
-            self.ui_boot.set_profile(profile.clone());
-        }
-    }
-
     /// `kv`: the page's store for the options and the user data; `ui_volume`: the page's `?volume=` (0..=1).
     pub fn new(kv: Rc<dyn KeyValueStore>, ui_volume: f32) -> M2Ui {
         let contexts = exe_api::m2_contexts();
@@ -486,7 +476,6 @@ impl M2Ui {
         M2Ui {
             phase: M2Phase::Loading,
             failed: None,
-            ui_boot: UiBoot::new(BootPlan::m2(contexts.clone())),
             replica: None,
             exe: None,
             host: Rc::new(M2Host {
@@ -535,7 +524,6 @@ impl M2Ui {
             last_frame_us: Cell::new(0),
             last_stats_ms: 0,
             stats: M2Stats::default(),
-            unresolved: BTreeSet::new(),
             saved_level: None,
             end_turn_orders: Vec::new(),
             chat_seen: 0,
@@ -943,10 +931,11 @@ impl M2Ui {
         if self.phase == M2Phase::Failed || size.0 == 0 || size.1 == 0 {
             return false;
         }
-        let Some(loader) = loader else {
+        // The game session fetches the UI set with the assets' loader.
+        if loader.is_none() {
             self.fail("the original UI needs the assets; there are none".into());
             return false;
-        };
+        }
         self.started_ms.get_or_insert(now_ms);
         self.clk = Some(Rc::clone(clock));
         *self.host.seat.borrow_mut() = seat;
@@ -959,8 +948,8 @@ impl M2Ui {
         );
         *self.projector.borrow_mut() = projection;
 
-        // 1. fetches
-        match self.ui_boot.update(loader) {
+        // 1. the UI set (the game session fetches it)
+        match session.ui_state() {
             BootState::Failed(m) => {
                 self.fail(format!("the ui set: {m}"));
                 return false;
@@ -995,14 +984,15 @@ impl M2Ui {
         let live = step.live;
         // 4. the UI layer, once the game is there
         if self.layer.is_none() {
-            let store_ready = matches!(self.ui_boot.update(loader), BootState::Ready);
+            let store = session.ui_store();
+            let store_ready = store.is_some();
             if live
-                && store_ready
+                && let Some(store) = store
                 && self.replica.is_some()
                 && !self.awaiting_game
                 && session.text_settled()
             {
-                self.make_layer(size, session.localizer());
+                self.make_layer(size, session.localizer(), store);
                 if self.phase == M2Phase::Failed {
                     return false;
                 }
@@ -1050,11 +1040,14 @@ impl M2Ui {
         }
     }
     /// `localizer`: the game session's (the texts of `LayerConfig::m2().lang`); `None` when they did not load.
-    fn make_layer(&mut self, size: (u32, u32), localizer: Option<Rc<loc::Localizer>>) {
+    /// `store`: the game session's UI set.
+    fn make_layer(
+        &mut self,
+        size: (u32, u32),
+        localizer: Option<Rc<loc::Localizer>>,
+        store: Rc<ui_client::UiStore>,
+    ) {
         let t0 = self.clk.as_ref().map_or(0.0, |c| c.now_ms_f64());
-        let Some(store) = self.ui_boot.store() else {
-            return;
-        };
         let Some(rep) = self.replica.clone() else {
             return;
         };
@@ -1247,31 +1240,6 @@ impl M2Ui {
         let t1 = self.clk.as_ref().map_or(0.0, |c| c.now_ms_f64());
         self.last_frame_us.set(((t1 - t0) * 1000.0).max(0.0) as u64);
         true
-    }
-
-    /// After the renderer drew: uploads what the frame asked for.
-    pub fn resolve_textures(
-        &mut self,
-        wanted: &[draw_list::TextureId],
-    ) -> Vec<ui_client::ReadyTexture> {
-        match &self.layer {
-            Some(l) => {
-                let r = l.resolve_textures(wanted);
-                for id in wanted
-                    .iter()
-                    .filter(|w| r.iter().all(|x| x.id != **w) && !l.store().is_loading(**w))
-                {
-                    if self.unresolved.insert(id.0) {
-                        tracing::warn!(
-                            texture = id.0,
-                            "the renderer wants a ui texture the set did not give"
-                        );
-                    }
-                }
-                r
-            }
-            None => Vec::new(),
-        }
     }
 
     /// `__civ5stats.{ui,replica,exe}`: refreshed about once a second.
@@ -1504,6 +1472,34 @@ impl M2Ui {
         }
     }
 
+    /// Runs a chunk of Lua in a context of its own in the layer (`name` names it in errors). `false`: there is no
+    /// layer, or the chunk failed (logged).
+    pub fn run_lua(&self, name: &str, code: &str) -> bool {
+        let Some(layer) = &self.layer else {
+            return false;
+        };
+        let chunk = format!("={name}");
+        let ran = layer
+            .core()
+            .runtime()
+            .create_context(name, |_, _| Ok(()))
+            .and_then(|ctx| ctx.lua().load(code).set_name(&chunk).exec());
+        if let Err(e) = &ran {
+            tracing::warn!("{name}: {e}");
+        }
+        ran.is_ok()
+    }
+
+    /// Whether the context at the absolute `path` (`/InGame/TechTree`) is shown; `None`: no layer, or no such
+    /// context.
+    pub fn context_shown(&self, path: &str) -> Option<bool> {
+        let shared = self.layer.as_ref()?.core().shared();
+        let id = shared.look_up(None, path)?;
+        // As the Lua's `IsHidden` reads it.
+        let hidden = shared.st.borrow().tree.get(id)?.has(ui::flags::HIDDEN);
+        Some(!hidden)
+    }
+
     /// The layer of this game is made again over the same replica once it is live (it missed the core's events
     /// while it did not run): what it left for the app goes as for a new game, without waiting for another game.
     pub fn restart_layer(&mut self) {
@@ -1541,7 +1537,6 @@ impl M2Ui {
         self.end_turn_orders.clear();
         self.saved_level = None;
         self.ring = None;
-        self.unresolved.clear();
         self.minimap_seen = (0, 0);
         self.minimap_map = false;
     }

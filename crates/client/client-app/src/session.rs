@@ -7,7 +7,10 @@
 //! - the game's texts (`ui:text:<lang>` and the set's `ui:tables`) and the localizer made of them ([`TextBoot`]);
 //! - the replica: made once the data is in and the seat of this client is known, fed by the network (replica
 //!   messages, bodies) and pumped each frame within a budget; the UI's messages to the server go out here;
-//! - the drain of the core's UI events while no game UI dispatches them (the queue is destructive and would grow).
+//! - the drain of the core's UI events while no game UI dispatches them (the queue is destructive and would grow);
+//! - the classic UI set (`ui:index`, the boot groups, then the textures asked for in the background: [`UiBoot`])
+//!   and the textures the renderer asks of it after each frame ([`GameSession::ui_textures`]): the classic layer
+//!   reads its files, and UI v2 its icon atlases, whichever UI is on the screen.
 //!
 //! [`GameSession::frame`] runs before the game UI's frame and reports what the pump did ([`SessionStep`]).
 
@@ -17,11 +20,13 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use assets::{AssetHandle, AssetLoader, AssetPoll, LogicalId};
+use draw_list::TextureId;
 use platform::Clock;
 use replica::{
     GameDataHost, GameFiles, GameSide, Outgoing, Replica, ReplicaMsg, ReplicaStep,
     State as ReplicaState, UiEvent,
 };
+use ui_client::{BootPlan, BootState, ReadyTexture, UiBoot, UiStore};
 
 use crate::net::NetHandle;
 
@@ -349,6 +354,13 @@ pub struct GameSession {
     /// The core's UI events dropped while no game UI dispatched them.
     drained: u64,
     events: Vec<UiEvent>,
+    /// The classic UI set and where its boot is.
+    ui_set: UiBoot,
+    ui_state: BootState,
+    /// Textures the renderer asked for that are on their way (answered by a later call), and those the set did not
+    /// have (logged once each).
+    tex_waiting: BTreeSet<TextureId>,
+    tex_unresolved: BTreeSet<u64>,
 }
 
 impl Default for GameSession {
@@ -372,7 +384,65 @@ impl GameSession {
             create_ms: 0.0,
             drained: 0,
             events: Vec::new(),
+            ui_set: UiBoot::new(BootPlan::m2(exe_api::m2_contexts())),
+            ui_state: BootState::Loading { done: 0, total: 0 },
+            tex_waiting: BTreeSet::new(),
+            tex_unresolved: BTreeSet::new(),
         }
+    }
+
+    /// The classic UI set, once it is loaded.
+    pub fn ui_store(&self) -> Option<Rc<UiStore>> {
+        self.ui_set.store()
+    }
+
+    /// Where the boot of the classic UI set is (as of the last frame).
+    pub fn ui_state(&self) -> &BootState {
+        &self.ui_state
+    }
+
+    /// The variants of the textures the device takes (`Renderer::platform_profile`), for the set's fetches from now
+    /// on: a phone gets their `Astc` variants.
+    pub fn set_ui_profile(&mut self, profile: &assets::PlatformProfile) {
+        if self.ui_set.profile() != profile {
+            self.ui_set.set_profile(profile.clone());
+        }
+    }
+
+    /// After the renderer drew: the textures of the set it asked for (`UiTextures::take_wanted`), ready to upload. A
+    /// texture that is on its way is kept and answered by a later call; one the set does not have is left out.
+    pub fn ui_textures(&mut self, wanted: &[TextureId]) -> Vec<ReadyTexture> {
+        let mut ids = std::mem::take(&mut self.tex_waiting);
+        ids.extend(wanted.iter().copied());
+        let Some(store) = self.ui_set.store() else {
+            // Before the set is in, every ask waits for it.
+            self.tex_waiting = ids;
+            return Vec::new();
+        };
+        let mut out = Vec::new();
+        for id in ids {
+            let Some(blob) = store.texture_blob(id) else {
+                if store.is_loading(id) {
+                    self.tex_waiting.insert(id);
+                } else if self.tex_unresolved.insert(id.0) {
+                    tracing::warn!(
+                        texture = id.0,
+                        "the renderer wants a ui texture the set did not give"
+                    );
+                }
+                continue;
+            };
+            let (format, bytes) = ui_client::upload_form(&blob, store.is_font_texture(id));
+            out.push(ReadyTexture {
+                id,
+                width: blob.width,
+                height: blob.height,
+                content: store.texture_content(id, &blob),
+                format,
+                bytes,
+            });
+        }
+        out
     }
 
     /// The replica, once the core is made.
@@ -430,6 +500,7 @@ impl GameSession {
         self.backlog.clear();
         self.resync_flush.clear();
         self.blob_wanted.clear();
+        self.tex_unresolved.clear();
     }
 
     /// One frame: the fetches, the network (replica messages and bodies in, the UI's messages out), the core once
@@ -452,6 +523,8 @@ impl GameSession {
         if let Some(loader) = loader {
             self.data.update(loader, now_ms);
             self.text.update(loader);
+            // The UI set and its background textures, whichever game UI is on the screen.
+            self.ui_state = self.ui_set.update(loader);
         }
         if let Some(m) = self.data.failed() {
             self.failed = Some(format!("the game data: {m}"));

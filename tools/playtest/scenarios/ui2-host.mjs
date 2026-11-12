@@ -4,19 +4,21 @@
 // Without `--attach` (the local fixture server) the game's layer that UI v2 reads never comes up: the scenario says so.
 //
 // Also: the playtest hooks (`state().ui`, `ui2()`, `ui2Rects`, `digest('replica')`), switching v2 -> classic (warm)
-// -> v2 -> classic (cold) -> v2 on the fly, a skin change on the screen (engraved -> the fixture skin `alt` ->
+// -> v2 -> classic (cold) -> v2 on the fly, the tech tree and the policies opened from the skin's strip through the
+// classic UI and closed back to UI v2, a skin change on the screen (engraved -> the fixture skin `alt` ->
 // engraved) with an open window, and broken skin packages (fixtures) on the classic page.
 //
 // Start: `?ui=v2:engraved&test=1&autostart=1&stats=1`; once the skin runs, the top strip's texts (read through
 // `__civ5test.ui2()`, never from pixels) show the gold and the science rate, and the turn dial the turn and the year, that `state()` reports,
-// at the start (then a click on the map selects a unit: the unit panel shows its name and its Fortify button fortifies it
-// within 2 s) and again once the settler founded a city (through the test port's orders); `ui2.draws.hud` <= 5; no console errors. Then a page without `&ui=`: `ui2()` is null and no `ui2.*` pass ran
+// at the start (then a click on the map selects a unit: the unit panel shows its name and the game's portrait of it, and its
+// Fortify button fortifies it within 2 s) and again once the settler founded a city (through the test port's orders); `ui2.draws.hud` <= 5; no console errors. Then a page without `&ui=`: `ui2()` is null and no `ui2.*` pass ran
 // (`ui2.draws` absent or 0). Screenshot of the strip: <logs>/ui2-top.png.
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { openPage, act, until, state, appUrl } from "../lib/browser.mjs";
 import { DEV_PASSWORD } from "../lib/game.mjs";
 import { FOUND_CITY } from "../lib/policy.mjs";
+import { uiDriver } from "../lib/ui-driver.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** How long the game's layer may take to come up (a cold boot on a software renderer is slow). */
@@ -116,6 +118,21 @@ async function unitPanel(page, numbers, check, shot) {
   check("unit selected: the panel shows its name", at && name.length > 0 && name.some((t) => mine.includes(t)),
     `title ${JSON.stringify(name)}, units ${JSON.stringify(mine)}`);
   if (!at) return;
+  // The unit's portrait (`icon:<atlas>:<index>` of the model) is a cell of the game's atlas texture: the resolver
+  // found it, the renderer holds the texture (fetched in the background) and no picture waits for its texture. The
+  // atlas table comes with the classic UI set, which a debug build loads in about a minute after the start.
+  let pc = {};
+  const pt0 = Date.now();
+  while (Date.now() - pt0 < 90000) {
+    pc = await counters(page);
+    if (pc["ui2.assets.resolved"] > 0 && pc["ui2.assets.resident"] > 0 && pc["ui2.assets.resident"] === pc["ui2.assets.textures"] && pc["ui2.ext_missing"] === 0) break;
+    await sleep(250);
+  }
+  numbers.portrait = { ms: Date.now() - pt0, counters: Object.fromEntries(Object.entries(pc).filter(([k]) => /^ui2\.(assets|ext_)/.test(k))) };
+  check("unit panel: the portrait is the game's picture (resolved, its texture resident, nothing waiting)",
+    pc["ui2.assets.resolved"] > 0 && pc["ui2.assets.resident"] > 0 && pc["ui2.assets.resident"] === pc["ui2.assets.textures"] && pc["ui2.ext_missing"] === 0,
+    JSON.stringify(numbers.portrait));
+  await sleep(500);
   await shot("ui2-unit");
   const unit = (st.units ?? []).find((u) => name.includes(u.name));
   const before = unit?.activity;
@@ -271,6 +288,58 @@ async function switching(page, numbers, check) {
   check("the same connection: no new attach while switching", att0 !== null && att1 === att0, `${att0} -> ${att1}`);
   check("one switch per request", runs[3].switches - runs[0].switches === 3, runs.map((r) => r.switches).join(","));
   numbers.switching = { runs, lua: [lua0, lua1, lua2], attaches: [att0, att1] };
+}
+
+/**
+ * Screens the skin does not have (R24, SIMP-266): the strip's tech tree and policies buttons open the classic UI's
+ * windows (the host hands the screen to the classic UI, `state().ui.screen` names the screen and `screenShown` says
+ * its window is up); the window's Close button (found in the classic screen dump, clicked with the mouse) closes it
+ * and UI v2 is back. Each hand-off within 1 s (the warm switch), no new Lua errors.
+ */
+async function screensViaClassic(b, numbers, check, shot) {
+  const page = b.page;
+  const ui = uiDriver(b);
+  const lua0 = await luaErrors(page);
+  const runs = [];
+  for (const [screen, part, ctx] of [["tech_tree", "top.menu.tech", "TechTree"], ["policies", "top.menu.policies", "SocialPolicyPopup"]]) {
+    const run = { screen };
+    runs.push(run);
+    const rect = await page.evaluate((p) => window.__civ5test.ui2Rects([p]), part).catch(() => null);
+    const r = Array.isArray(rect) ? rect[0] : null;
+    run.button = r;
+    if (!r) {
+      check(`screen ${screen}: the skin's button ${part} is there`, false, JSON.stringify(rect));
+      continue;
+    }
+    const t0 = Date.now();
+    await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2);
+    const up = await until(page, (x) => x.ui?.active === "classic" && x.ui.screen === screen && x.ui.screenShown && !x.ui.switching, 20000, `${screen} shown by the classic UI`).catch((e) => e);
+    run.openWallMs = Date.now() - t0;
+    run.openSwitchMs = up?.ui?.lastSwitchMs ?? null;
+    check(`screen ${screen}: the classic UI shows it`, up?.ui?.screenShown === true, JSON.stringify(up?.ui ?? String(up)));
+    if (!up?.ui?.screenShown) continue;
+    await sleep(1500);
+    await shot(`ui2-screen-${screen}`);
+    const close = await ui.find(`/${ctx}`, (x) => /\/CloseButton$/.test(x.path) && !x.disabled).catch(() => null);
+    run.close = close ? close.path : null;
+    const t1 = Date.now();
+    if (close) await ui.click(close);
+    else await page.keyboard.press("Escape");
+    const back = await until(page, (x) => x.ui?.active === "v2" && !x.ui.screen && !x.ui.switching, 20000, `UI v2 back after ${screen}`).catch((e) => e);
+    run.backWallMs = Date.now() - t1;
+    run.backSwitchMs = back?.ui?.lastSwitchMs ?? null;
+    check(`screen ${screen}: closed, UI v2 is back`, back?.ui?.active === "v2", JSON.stringify(back?.ui ?? String(back)));
+    // From the click to the window up, and from the Close click to UI v2 back (the host's own switch time is in
+    // `lastSwitchMs`; the classic UI is ready at once, its wake-up and the popup are in the wall time).
+    check(`screen ${screen}: each hand-off within 1 s`, run.openWallMs <= 1000 && back?.ui?.active === "v2" && run.backWallMs <= 1000,
+      `open ${run.openWallMs} ms (switch ${run.openSwitchMs}), back ${run.backWallMs} ms (switch ${run.backSwitchMs})`);
+    await sleep(1000);
+  }
+  const lua1 = await luaErrors(page);
+  check("screens: no new Lua errors", lua1 !== null && lua1 === (lua0 ?? 0), `${lua0} -> ${lua1}`);
+  const p = await ui2(page);
+  check("screens: UI v2 is back with its texts", p?.active === true && partTexts(p, "top.yield.gold").length > 0, `${p?.active}`);
+  numbers.screens = { runs, lua: [lua0, lua1] };
 }
 
 /** The broken skin packages of `crates/client/ui2-host/tests/fixtures` (`badhash`, `api9`, `scriptfail`). */
@@ -463,6 +532,7 @@ export async function run(ctx) {
     check("one active UI: ui.active == 2 (UI v2)", c2["ui.active"] === 2, `${c2["ui.active"]}`);
     check("the classic UI sleeps: ui.frames.classic does not grow", typeof c["ui.frames.classic"] === "number" && c2["ui.frames.classic"] === c["ui.frames.classic"] && c2["ui.frames.v2"] > c["ui.frames.v2"], `classic ${c["ui.frames.classic"]} -> ${c2["ui.frames.classic"]}, v2 ${c["ui.frames.v2"]} -> ${c2["ui.frames.v2"]}`);
     await switching(b.page, result.numbers, check);
+    await screensViaClassic(b, result.numbers, check, shot);
     await skinChange(b.page, result.numbers, check);
     await shot("ui2-top");
   } catch (e) {
