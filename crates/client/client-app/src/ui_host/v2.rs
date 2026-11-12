@@ -206,6 +206,9 @@ pub struct Ui2Platform {
     /// `?ui2onmap=0`: the skin's map layer (city banners, unit flags) is off, for the cost of the layer in a bench:
     /// its anchors are never placed, so nothing of them is drawn or hit.
     pub map_off: bool,
+    /// `?ui2samplepan=<CSS px per second>` (a bench of the map layer): in the sample mode the anchors go round a
+    /// circle at that speed, moved every frame as a panning camera moves a game's anchors.
+    pub sample_pan: Option<f32>,
     /// The CSS size of the drawing surface (web: the canvas); UI v2 lays out in it and draws at the surface's
     /// pixels per CSS px ([`device_scale`]). `None`: the window's scale factor.
     pub css_size: Option<CssSizeSource>,
@@ -602,6 +605,8 @@ pub struct V2Frontend {
     background: Option<[u8; 3]>,
     /// `?ui2onmap=0` (see [`Ui2Platform::map_off`]).
     map_off: bool,
+    /// `?ui2samplepan=` (see [`Ui2Platform::sample_pan`]).
+    sample_pan: Option<f32>,
     /// The platform's text input, made when the first skin comes up; the running skin holds it meanwhile.
     text_input: Option<TextInputFactory>,
     text_bridge: Option<Box<dyn TextInputBridge>>,
@@ -679,6 +684,7 @@ impl V2Frontend {
             game_up: false,
             background: None,
             map_off: false,
+            sample_pan: None,
             text_input: None,
             text_bridge: None,
             warm_due: true,
@@ -844,6 +850,11 @@ impl V2Frontend {
     /// `?ui2onmap=0`: the map layer of every skin is off (see [`Ui2Platform::map_off`]).
     pub fn set_map_off(&mut self, off: bool) {
         self.map_off = off;
+    }
+
+    /// `?ui2samplepan=`: the sample's anchors go round (see [`Ui2Platform::sample_pan`]).
+    pub fn set_sample_pan(&mut self, px_per_s: Option<f32>) {
+        self.sample_pan = px_per_s.filter(|v| v.is_finite() && *v > 0.0);
     }
 
     /// The platform's text input for the skins' text fields (made when the first skin comes up).
@@ -1517,6 +1528,14 @@ impl V2Frontend {
     }
 }
 
+/// Where `?ui2samplepan=<v>` has moved the sample's anchors at `now_ms`: round a circle of 150 CSS px at `v` CSS px
+/// per second.
+fn sample_pan_offset(px_per_s: f32, now_ms: f64) -> (f32, f32) {
+    const RADIUS: f32 = 150.0;
+    let angle = (now_ms / 1000.0) as f32 * px_per_s / RADIUS;
+    (RADIUS * angle.cos() - RADIUS, RADIUS * angle.sin())
+}
+
 /// The client core is in a game being played.
 pub(crate) fn playing(net: Option<&NetHandle>) -> bool {
     net.is_some_and(|n| {
@@ -1631,6 +1650,8 @@ impl Frontend for V2Frontend {
         let k = self.k;
         let mut look = None;
         let map_off = self.map_off;
+        let pan = self.sample_pan.map(|v| sample_pan_offset(v, cx.now_ms));
+        let clock = Rc::clone(&self.clock);
         if let Some(ui) = self.run(
             cx.session,
             &cx.step.steps,
@@ -1640,11 +1661,13 @@ impl Frontend for V2Frontend {
             &mut look,
         ) {
             // The map anchors follow their objects through the camera, as the classic UI's banners do; on a sample,
-            // they stand where the sample puts them.
-            if ui.sample_mode() {
-                ui.place_sample_anchors(k);
-            } else if ui.anchor_count() > 0 && map_off {
+            // they stand where the sample puts them (moved by a bench's pan). With the layer off nothing is placed.
+            // `ui2.place_ms`: the placement (the projection of every anchor), outside `ui2.cpu_ms`.
+            let t_place = clock();
+            if ui.anchor_count() > 0 && map_off {
                 ui.place_anchors(|_, _| None);
+            } else if ui.sample_mode() {
+                ui.place_sample_anchors_moved(k, pan.unwrap_or((0.0, 0.0)));
             } else if ui.anchor_count() > 0 {
                 let renderer: &Renderer = cx.renderer;
                 let (w, h) = cx.size;
@@ -1679,7 +1702,11 @@ impl Frontend for V2Frontend {
                     s.visible.then_some((s.pos, 1.0))
                 });
             }
+            // `ui2.prepare_ms`: the renderer takes the scene (the changed instances and tables for the GPU).
+            let t_prepare = clock();
+            render::perf::set_counter("ui2.place_ms", t_prepare - t_place);
             cx.renderer.prepare_ui2(ui.scene_mut());
+            render::perf::set_counter("ui2.prepare_ms", clock() - t_prepare);
         }
         if let Some((x, y)) = look {
             cx.camera.look_at(render::hexgrid::cell_center(x, y));
@@ -2928,5 +2955,20 @@ mod tests {
         assert_eq!(minimap_share(1.0), u16::MAX);
         assert_eq!(minimap_share(-1.0), 0);
         assert_eq!(minimap_share(2.0), u16::MAX);
+    }
+
+    /// `?ui2samplepan=`: the anchors start where the sample puts them and go round a circle of 150 CSS px.
+    #[test]
+    fn a_sample_pan_goes_round_from_the_sample_points() {
+        assert_eq!(sample_pan_offset(300.0, 0.0), (0.0, 0.0));
+        // A quarter of the circle (150 px x pi/2 at 300 px/s).
+        let quarter = 1000.0 * std::f64::consts::FRAC_PI_2 * 150.0 / 300.0;
+        let (x, y) = sample_pan_offset(300.0, quarter);
+        assert!(
+            (x + 150.0).abs() < 0.01 && (y - 150.0).abs() < 0.01,
+            "{x} {y}"
+        );
+        let (x, y) = sample_pan_offset(300.0, 4.0 * quarter);
+        assert!(x.abs() < 0.01 && y.abs() < 0.01, "round: {x} {y}");
     }
 }
