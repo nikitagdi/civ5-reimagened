@@ -504,6 +504,95 @@ fn watch_cycle() {
     assert!(pkg_dir.starts_with(&root));
 }
 
+/// A watch on a derived skin follows its source folders: a text file added to the derived folder (no Chromium)
+/// and a stylesheet edited in the base folder (a full cycle) each give a new package.
+#[test]
+fn watch_follows_the_folders_of_a_derived_skin() {
+    if !chrome() {
+        return;
+    }
+    use std::time::{Duration, Instant};
+    use ui2_convert::watch::{Change, POLL, WatchOpts, Watcher};
+    let root = std::env::temp_dir().join(format!("ui2-e2e-watch-derived-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let (base, own) = (root.join("engraved"), root.join("derived-w"));
+    copy_dir(&engraved(), &base);
+    std::fs::create_dir_all(&own).expect("mkdir");
+    std::fs::write(
+        own.join("skin.toml"),
+        "[skin]\nid = \"derived-w\"\nversion = \"0.1.0\"\ntitle = \"skin.title\"\nentry = \"index.html\"\n\
+         model = \"1.0\"\napi = \"1.0\"\nextends = \"engraved\"\n",
+    )
+    .expect("skin.toml");
+    let opts = WatchOpts {
+        port: 0,
+        out: Some(root.join("out")),
+    };
+    let (mut w, first) = Watcher::start(&own, &opts).expect("the watch starts");
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        assert!(first.built, "{:?}", first.errors);
+        assert_eq!(first.rev, 1);
+        let hash_of = |w: &Watcher| {
+            let bytes = std::fs::read(w.pkg_dir().join("derived-w.ui2")).expect("package file");
+            ui2_package::Package::read(std::sync::Arc::from(bytes.as_slice()))
+                .expect("reads")
+                .hash()
+        };
+        let one = hash_of(&w);
+        let next = |w: &mut Watcher| {
+            let t = Instant::now();
+            loop {
+                if let Some(c) = w.poll() {
+                    return (c, t.elapsed());
+                }
+                assert!(t.elapsed() < Duration::from_secs(30), "no cycle");
+                std::thread::sleep(POLL);
+            }
+        };
+
+        // A text file in the derived folder.
+        std::fs::create_dir_all(own.join("l10n")).expect("mkdir");
+        std::fs::write(
+            own.join("l10n").join("en_US.toml"),
+            "\"skin.title\" = \"Derived\"\n",
+        )
+        .expect("texts");
+        let (c, _) = next(&mut w);
+        assert!(c.built, "{:?}", c.errors);
+        assert_eq!((c.change, c.rev), (Change::Texts, 2));
+        let two = hash_of(&w);
+        assert_ne!(one, two);
+
+        // A stylesheet of the base folder.
+        let css = base.join("css").join("hud.css");
+        let text = std::fs::read_to_string(&css).expect("hud.css");
+        std::fs::write(
+            &css,
+            format!("{text}\n.top .spacer {{\n  min-width: 1px;\n}}\n"),
+        )
+        .expect("edit");
+        let (c, took) = next(&mut w);
+        assert!(c.built, "{:?}", c.errors);
+        assert_eq!((c.change, c.rev), (Change::Full, 3));
+        println!(
+            "base css edit: {took:?} (cycle {} ms, stages {:?})",
+            c.ms, c.stages
+        );
+        assert_ne!(two, hash_of(&w));
+    }));
+    w.close();
+    let _ = std::fs::remove_dir_all(&root);
+    let _ = std::fs::remove_dir_all(
+        ui2_convert::build::target_dir()
+            .join("ui2")
+            .join("merged")
+            .join("derived-w"),
+    );
+    if let Err(e) = result {
+        std::panic::resume_unwind(e);
+    }
+}
+
 /// The package file the watch serves, when its hash is `hash`.
 fn bytes_of(w: &ui2_convert::watch::Watcher, hash: ui2_package::PackageHash) -> Vec<u8> {
     let bytes = std::fs::read(w.pkg_dir().join(format!("{}.ui2", w.id()))).expect("package file");
