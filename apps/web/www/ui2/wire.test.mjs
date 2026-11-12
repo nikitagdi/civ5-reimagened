@@ -132,3 +132,18 @@ test("an out of wire 2 has the bytes the Rust supervisor reads", async () => {
   if (process.env.UPDATE_FIXTURES) writeFileSync(OUT_FIXTURE, text);
   assert.equal(read(OUT_FIXTURE, "utf8").replace(/\r\n/g, "\n"), text, "rerun with UPDATE_FIXTURES=1 after changing the format");
 });
+
+test("the warm-up before the first frame is not seen: nothing sent, the model and its identities as they were", () => {
+  const snapshot = [0, [5, SCHEMA.hash], [4, 0, [3, 1.5, 1, [["1:0", ["1:0", 2, "a", [["0:0", ["0:0", 7]]]]]], null]], [4, 1, [["0:0", ["0:0", "t", "i"]]]]];
+  const plain = context(SCHEMA, snapshot);
+  const warm = context(SCHEMA, snapshot, { bytes: true });
+  assert.deepEqual(warm.sent, []);
+  const top = warm.ctx.ui.model.get("top");
+  assert.deepEqual(JSON.parse(JSON.stringify(top)), JSON.parse(JSON.stringify(plain.ctx.ui.model.get("top"))));
+  const seen = [];
+  warm.ctx.ui.model.onList("top.res", { change: (k) => seen.push(k) });
+  warm.ctx.receive({ t: "frame", seq: 1, applied: 0, model: [1, [0, F["top.res[].n"], ["1:0"], 5]], events: [] });
+  assert.deepEqual(seen, ["1:0"]);
+  assert.equal(warm.ctx.ui.model.get("top.res")[0].subs, top.res[0].subs);
+  assert.equal(warm.sent.length, 1);
+});

@@ -393,6 +393,10 @@
     this.keysMade = null;
     this.slot = null;
     this.at = [];
+    // The last element looked up by key (see `walk`).
+    this.lastKeys = null;
+    this.lastKey = null;
+    this.lastAt = -1;
     this.parsed = new Map();
   }
 
@@ -470,7 +474,17 @@
       const s = steps[i];
       if (s === ELEM) {
         if (!Array.isArray(node)) throw new Error("model mirror out of step at " + e.path);
-        const j = indexOfKey(keysOf(node), keys[ki]);
+        // The ops of a delta come grouped by element: the element of the last lookup is often the one.
+        const ks = keysOf(node);
+        const key = keys[ki];
+        let j;
+        if (ks === this.lastKeys && key === this.lastKey) j = this.lastAt;
+        else {
+          j = indexOfKey(ks, key);
+          this.lastKeys = ks;
+          this.lastKey = key;
+          this.lastAt = j;
+        }
         if (j < 0) throw new Error("model mirror has no element " + keys[ki] + " at " + e.path);
         ki++;
         at[i] = j;
@@ -525,6 +539,7 @@
     } else {
       INDEX.delete(ks);
     }
+    this.lastKeys = null;
     return items;
   };
 
@@ -595,6 +610,7 @@
     this.revision = a[0];
     this.chain.length = 0;
     this.keysMade = null;
+    this.lastKeys = null;
     for (let i = 1; i < a.length; i++) {
       try {
         this.op(a[i]);
@@ -1020,6 +1036,52 @@
     }
     if (init.roots) for (const k of Object.keys(init.roots)) mirror.roots[k] = init.roots[k];
     if (init.dev) for (const k of Object.keys(mirror.roots)) deepFreeze(mirror.roots[k]);
+
+    // The path of a frame is run on a copy of the snapshot before the first frame comes (the engine compiles
+    // code once it ran a few times; a first frame through cold code takes several times as long). Nothing of it
+    // is seen: its own mirror, a list handler that does nothing, an out that is not sent.
+    function warmUp() {
+      if (!writer || !Array.isArray(init.model)) return;
+      const m = new Mirror(tables, false);
+      m.apply(init.model);
+      // A set of each scalar field of the first elements of each list one level down, to the value it has.
+      const ops = [];
+      for (const e of tables.paths.values()) {
+        if (typeof e.type !== "string" || e.steps.length < 2 || e.steps[e.steps.length - 1] === ELEM) continue;
+        const at = e.steps.indexOf(ELEM);
+        if (at < 0 || e.steps.indexOf(ELEM, at + 1) >= 0) continue;
+        let node = m.roots[e.root];
+        for (let i = 0; i < at && node !== null && node !== undefined; i++) node = node[e.steps[i]];
+        if (!Array.isArray(node)) continue;
+        const ks = keysOf(node);
+        for (let i = 0; i < node.length && i < 64; i++) {
+          let v = node[i];
+          for (let j = at + 1; j < e.steps.length && v !== null && v !== undefined; j++) v = v[e.steps[j]];
+          if (v !== undefined) ops.push([0, e.id, [ks[i]], v]);
+        }
+      }
+      if (!ops.length) return;
+      // The lists outside lists, before and after each delta, through a list handler that does nothing.
+      const lists = [];
+      for (const e of tables.paths.values()) if (Array.isArray(e.type) && e.type[0] === "list" && e.steps.indexOf(ELEM) < 0) lists.push(e);
+      const listAt = (e) => {
+        let node = m.roots[e.root];
+        for (let i = 0; i < e.steps.length && node !== null && node !== undefined; i++) node = node[e.steps[i]];
+        return node;
+      };
+      const sub = { kind: "list", fn: { add() {}, change() {}, remove() {} }, live: true, slow: true, label: "" };
+      const resets = [1].concat(init.model.slice(1).filter((o) => o[0] === 4));
+      const sets = [2].concat(ops);
+      const o = fresh();
+      for (let round = 0; round < 8; round++) {
+        const before = lists.map(listAt);
+        m.apply(round === 0 ? resets : sets);
+        lists.forEach((e, i) => diffList(sub, before[i], listAt(e)));
+        o.cmds.push({ island: "warm", key: "k", op: "text", value: "" }, { island: "warm", key: "k", op: "show", on: true });
+        encodeOut(writer, 0, 0, o, 0);
+      }
+    }
+    warmUp();
 
     return {
       ui,
