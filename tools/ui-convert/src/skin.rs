@@ -554,6 +554,7 @@ api = "1.0"
                     "prod.sort".to_string(),
                     StateValue::Str("order".to_string())
                 ),
+                ("top.menu".to_string(), StateValue::Bool(false)),
             ]
         );
         assert_eq!(skin.scripts.files, ["js/production.js"]);

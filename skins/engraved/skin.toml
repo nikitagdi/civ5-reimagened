@@ -21,10 +21,12 @@ display = "Alegreya"
 "fonts/Alegreya.ttf" = "third_party/fonts/alegreya/Alegreya[wght].ttf"
 
 # Skin state (state.*): how the production window sorts its options and whether it hides the locked ones; the chat
-# line being written and whether the choice of its addressee is open.
+# line being written and whether the choice of its addressee is open; whether the folded screen buttons of a narrow
+# top strip are open.
 [state]
 prod = { sort = "order", hide_locked = false }
 chat = { draft = "", pick = false }
+top = { menu = false }
 
 # The production window's script: arrow keys move the focus; the sort is kept in the settings.
 [scripts]

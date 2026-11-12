@@ -135,7 +135,7 @@
       "pending": false
     }
   },
-  "state": { "chat": { "draft": "See you at the river", "pick": true } },
+  "state": { "chat": { "draft": "See you at the river", "pick": true }, "top": { "menu": true } },
   "ui": {
     "selection": { "unit": "0:7", "city": null, "plot": { "x": 20, "y": 26 } },
     "chat": { "to": "player", "to_player": "0:1" }

@@ -1,11 +1,11 @@
 /* Engraved: the HUD. */
 
-/* The shared slot for mod panels: a column on the right above the unit panel. Panels stack upwards from its
-   bottom and switch their own pointer events on. */
+/* The shared slot for mod panels: a column on the right above the helm. Panels stack upwards from its bottom and
+   switch their own pointer events on. */
 .mods {
   position: absolute;
   right: 16px;
-  bottom: 200px;
+  bottom: 400px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -147,6 +147,17 @@
 
 .menus.menu-end {
   padding: 0 6px;
+}
+
+/* The screen buttons; a narrow strip folds them into one button (css/responsive.css). */
+.menus .drop {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.menus .fold {
+  display: none;
 }
 
 .mbtn {

@@ -14,15 +14,19 @@
     <button class="pick" data-part="top.research.pick" data-bind-if="{{research.current == null}}" data-on-click="intent window.open(window: 'research')"><span data-l10n="research.title">Choose research</span></button>
   </div>
 
-  <div class="grp menus sep" data-part="top.menu" data-slot="hud.menu">
-    <button class="mbtn" data-part="top.menu.tech" data-hotkey="F6" data-on-click="intent screen.open(screen: 'tech_tree')"><svg class="i"><use href="#i-tech"/></svg></button>
-    <button class="mbtn" data-part="top.menu.policies" data-hotkey="F5" data-on-click="intent screen.open(screen: 'policies')"><svg class="i"><use href="#i-policy"/></svg></button>
-    <button class="mbtn" data-part="top.menu.religion" data-on-click="intent screen.open(screen: 'religion')"><svg class="i"><use href="#i-religion"/></svg></button>
-    <button class="mbtn" data-part="top.menu.diplomacy" data-on-click="intent screen.open(screen: 'diplomacy')"><svg class="i"><use href="#i-diplo"/></svg></button>
-    <button class="mbtn" data-part="top.menu.economy" data-on-click="intent screen.open(screen: 'overview')"><svg class="i"><use href="#i-econ"/></svg></button>
-    <button class="mbtn" data-part="top.menu.military" data-on-click="intent screen.open(screen: 'overview')"><svg class="i"><use href="#i-military"/></svg></button>
-    <button class="mbtn" data-part="top.menu.victory" data-on-click="intent screen.open(screen: 'overview')"><svg class="i"><use href="#i-victory"/></svg></button>
-    <button class="mbtn" data-part="top.menu.demographics" data-on-click="intent screen.open(screen: 'overview')"><svg class="i"><use href="#i-demo"/></svg></button>
+  <div class="grp menus screens sep" data-part="top.menu" data-bind-class-toggle="open:{{state.top.menu}}">
+    <!-- A narrow strip shows this one button instead of the row below, which then opens under it. -->
+    <button class="mbtn fold" data-part="top.menu.fold" data-on-click="set state.top.menu = !state.top.menu"><svg class="i"><use href="#i-menu"/></svg></button>
+    <div class="drop" data-part="top.menu.list" data-slot="hud.menu">
+      <button class="mbtn" data-part="top.menu.tech" data-hotkey="F6" data-on-click="intent screen.open(screen: 'tech_tree')"><svg class="i"><use href="#i-tech"/></svg></button>
+      <button class="mbtn" data-part="top.menu.policies" data-hotkey="F5" data-on-click="intent screen.open(screen: 'policies')"><svg class="i"><use href="#i-policy"/></svg></button>
+      <button class="mbtn" data-part="top.menu.religion" data-on-click="intent screen.open(screen: 'religion')"><svg class="i"><use href="#i-religion"/></svg></button>
+      <button class="mbtn" data-part="top.menu.diplomacy" data-on-click="intent screen.open(screen: 'diplomacy')"><svg class="i"><use href="#i-diplo"/></svg></button>
+      <button class="mbtn" data-part="top.menu.economy" data-on-click="intent screen.open(screen: 'overview')"><svg class="i"><use href="#i-econ"/></svg></button>
+      <button class="mbtn" data-part="top.menu.military" data-on-click="intent screen.open(screen: 'overview')"><svg class="i"><use href="#i-military"/></svg></button>
+      <button class="mbtn" data-part="top.menu.victory" data-on-click="intent screen.open(screen: 'overview')"><svg class="i"><use href="#i-victory"/></svg></button>
+      <button class="mbtn" data-part="top.menu.demographics" data-on-click="intent screen.open(screen: 'overview')"><svg class="i"><use href="#i-demo"/></svg></button>
+    </div>
   </div>
 
   <div class="spacer" data-part="top.extra" data-slot="hud.top.extra"></div>
