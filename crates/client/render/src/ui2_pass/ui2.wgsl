@@ -26,15 +26,29 @@ struct Frame {
 @group(0) @binding(3) var mask_smp: sampler;
 @group(0) @binding(4) var image: texture_2d_array<f32>;
 
-// Group 1: the external texture of the draw (a game asset or the minimap; straight alpha) and the scale that maps
-// a picture's 0..1 onto the stored texture. Draws without one bind a placeholder they never sample.
+// Group 1: up to `EXT_SLOTS` external textures of the draw (game assets, the minimap; straight alpha), for each the
+// scene's slot that names it and the scale that maps a picture's 0..1 onto the stored texture. A picture finds its
+// texture by its slot (`ext` of the instance) in the vertex shader; one whose texture the draw has not (not loaded
+// yet) gets no area. Unused entries hold a placeholder and the slot `NO_SLOT`.
+const EXT_SLOTS: u32 = 8u;
+const NO_SLOT: u32 = 0xffffffffu;
+
 struct ExtParams {
-    uv_scale: vec2<f32>,
-    pad: vec2<f32>,
+    // xy: the UV scale of entry i.
+    uv_scale: array<vec4<f32>, 8>,
+    // The scene slot of entry i: component i % 4 of vector i / 4.
+    slots: array<vec4<u32>, 2>,
 }
 
-@group(1) @binding(0) var ext_tex: texture_2d<f32>;
-@group(1) @binding(1) var<uniform> ext: ExtParams;
+@group(1) @binding(0) var ext_tex0: texture_2d<f32>;
+@group(1) @binding(1) var ext_tex1: texture_2d<f32>;
+@group(1) @binding(2) var ext_tex2: texture_2d<f32>;
+@group(1) @binding(3) var ext_tex3: texture_2d<f32>;
+@group(1) @binding(4) var ext_tex4: texture_2d<f32>;
+@group(1) @binding(5) var ext_tex5: texture_2d<f32>;
+@group(1) @binding(6) var ext_tex6: texture_2d<f32>;
+@group(1) @binding(7) var ext_tex7: texture_2d<f32>;
+@group(1) @binding(8) var<uniform> ext: ExtParams;
 
 const KIND_BOX: u32 = 0u;
 const KIND_SHADOW: u32 = 1u;
@@ -97,7 +111,8 @@ struct VsOut {
     // c0..c3 as RGBA8 words.
     @location(4) @interpolate(flat) colors: vec4<u32>,
     @location(5) @interpolate(flat) border_color: vec4<f32>,
-    // The first meta word (kind, flags, layer, stops), the ellipse ratio's bits, the clip radius's bits, 0.
+    // The first meta word (kind, flags, layer, stops), the ellipse ratio's bits, the clip radius's bits, the entry of a
+    // picture's external texture in group 1.
     @location(6) @interpolate(flat) prim: vec4<u32>,
     // Distances to the clip rectangle's left, top, right, bottom edges (positive inside), chunk px.
     @location(7) clip_rect: vec4<f32>,
@@ -203,10 +218,22 @@ fn vs(@builtin(vertex_index) vi: u32, inst: Instance) -> VsOut {
     }
     let screen = anchor.m * chunk + anchor.t;
 
+    // A picture of an external texture: its entry in the draw's group 1.
+    var ext_entry = 0u;
+    if kind == KIND_IMAGE && (flags & FLAG_EXT) != 0u {
+        let slot = inst.words.z >> 16u;
+        ext_entry = EXT_SLOTS;
+        for (var j = 0u; j < EXT_SLOTS; j++) {
+            if ext.slots[j / 4u][j % 4u] == slot {
+                ext_entry = j;
+            }
+        }
+    }
+
     var o: VsOut;
     o.pos = vec4<f32>(screen.x * frame.to_ndc.x - 1.0, 1.0 - screen.y * frame.to_ndc.y, 0.0, 1.0);
-    if anchor.visible < 0.5 {
-        // A hidden anchor: zero area, off screen.
+    if anchor.visible < 0.5 || ext_entry == EXT_SLOTS {
+        // A hidden anchor, or a picture whose texture is not there: zero area, off screen.
         o.pos = vec4<f32>(-2.0, -2.0, 0.0, 1.0);
     }
     o.local_uv = vec4<f32>(local, mix(inst.uv.xy, inst.uv.zw, corner));
@@ -258,7 +285,7 @@ fn vs(@builtin(vertex_index) vi: u32, inst: Instance) -> VsOut {
             );
         }
     }
-    o.prim = vec4<u32>(inst.words.x, bitcast<u32>(ratio), bitcast<u32>(clip_radius), 0u);
+    o.prim = vec4<u32>(inst.words.x, bitcast<u32>(ratio), bitcast<u32>(clip_radius), ext_entry);
     return o;
 }
 
@@ -561,14 +588,45 @@ fn shade_mask(in: VsOut) -> vec4<f32> {
     return premul(unpack_color(in.colors.x)) * cov;
 }
 
-// IMAGE: a premultiplied texel of a colour page, or a straight one of the external texture, times the tint
+// A texel of external texture `entry` of the draw (level 0, so the branch needs no derivatives).
+fn sample_ext(entry: u32, uv: vec2<f32>) -> vec4<f32> {
+    switch entry {
+        case 0u: {
+            return textureSampleLevel(ext_tex0, mask_smp, uv, 0.0);
+        }
+        case 1u: {
+            return textureSampleLevel(ext_tex1, mask_smp, uv, 0.0);
+        }
+        case 2u: {
+            return textureSampleLevel(ext_tex2, mask_smp, uv, 0.0);
+        }
+        case 3u: {
+            return textureSampleLevel(ext_tex3, mask_smp, uv, 0.0);
+        }
+        case 4u: {
+            return textureSampleLevel(ext_tex4, mask_smp, uv, 0.0);
+        }
+        case 5u: {
+            return textureSampleLevel(ext_tex5, mask_smp, uv, 0.0);
+        }
+        case 6u: {
+            return textureSampleLevel(ext_tex6, mask_smp, uv, 0.0);
+        }
+        default: {
+            return textureSampleLevel(ext_tex7, mask_smp, uv, 0.0);
+        }
+    }
+}
+
+// IMAGE: a premultiplied texel of a colour page, or a straight one of an external texture, times the tint
 // (straight colour, its alpha an opacity), cut to the rounded rectangle of the instance.
 fn shade_image(in: VsOut, px: f32) -> vec4<f32> {
     let flags = (in.prim.x >> 8u) & 0xffu;
     let layer = i32((in.prim.x >> 16u) & 0xffu);
     var s = vec4<f32>(0.0);
     if (flags & FLAG_EXT) != 0u {
-        s = premul(textureSampleLevel(ext_tex, mask_smp, in.local_uv.zw * ext.uv_scale, 0.0));
+        let entry = min(in.prim.w, EXT_SLOTS - 1u);
+        s = premul(sample_ext(entry, in.local_uv.zw * ext.uv_scale[entry].xy));
     } else {
         s = textureSampleLevel(image, mask_smp, in.local_uv.zw, layer, 0.0);
     }

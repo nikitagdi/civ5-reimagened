@@ -14,7 +14,7 @@ use platform::ui2::{TextInputBridge, TextInputRequest};
 use replica::GameRead;
 use ui2_actions::{MemorySettings, UiActions};
 use ui2_draw::Scene;
-use ui2_draw::{Color, Vec2};
+use ui2_draw::{Color, LayerId, Vec2};
 use ui2_model::wire::{ScriptCtxId, WireIntent};
 use ui2_model::{ModelStore, Schema, Value};
 use ui2_package::Package;
@@ -601,6 +601,16 @@ impl V2Ui {
             .collect();
         let Skin { runtime, scene, .. } = &mut self.skin;
         runtime.set_anchor_screen(&placed, scene);
+    }
+
+    /// Switches the map layer (city banners, unit flags) on or off, for the cost of the layer in a bench
+    /// (`?ui2onmap=0`). Off, every anchor is hidden (nothing of it is hit) and the scene draws nothing of the layer;
+    /// the host calls it every frame, before it places the anchors (which it does not do while the layer is off).
+    pub fn set_map_shown(&mut self, shown: bool) {
+        if !shown {
+            self.place_anchors(|_, _| None);
+        }
+        self.skin.scene.set_layer_shown(LayerId::Map, shown);
     }
 
     /// Reference images (`?ui2bg=`): a solid background under the skin and the scene frozen at time 0, so a frame

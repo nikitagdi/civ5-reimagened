@@ -392,3 +392,34 @@ fn external_textures_split_ops_and_free_their_slots_with_the_chunk() {
     assert_eq!(s.ext_slots().live(), 0);
     assert_eq!(s.ext_texture(1), None);
 }
+
+/// A layer switched off (`?ui2onmap=0` for the map layer) has no draw call; its instances stay, and switching it on
+/// again gives the same draws without an upload.
+#[test]
+fn a_layer_switched_off_has_no_draw_and_keeps_its_instances() {
+    let mut s = Scene::new(1.0);
+    let slot = s.alloc_anchor().expect("an anchor");
+    let mut b = ChunkBuilder::new().anchor(slot);
+    b.push(Item::Box(BoxItem::solid(
+        Rect::new(0.0, 0.0, 10.0, 10.0),
+        Color::rgba(255, 0, 0, 255),
+    )));
+    s.set_chunk(LayerId::Map, ChunkId(1), b.build());
+    s.set_chunk(LayerId::Hud, ChunkId(2), boxes(2, 10));
+    let on = s.layer_ops(LayerId::Map).to_vec();
+    assert_eq!(on.len(), 1);
+    s.take_layer_change(LayerId::Map);
+    let revision = s.layer_revision(LayerId::Map);
+    assert!(s.layer_shown(LayerId::Map));
+
+    s.set_layer_shown(LayerId::Map, false);
+    assert!(!s.layer_shown(LayerId::Map));
+    assert!(s.layer_ops(LayerId::Map).is_empty());
+    assert_eq!(s.layer_ops(LayerId::Hud).len(), 1, "the other layers draw");
+    assert_eq!(s.layer_instances(LayerId::Map).len(), 1);
+
+    s.set_layer_shown(LayerId::Map, true);
+    assert_eq!(s.layer_ops(LayerId::Map), on.as_slice());
+    assert_eq!(s.take_layer_change(LayerId::Map), LayerChange::None);
+    assert_eq!(s.layer_revision(LayerId::Map), revision);
+}
