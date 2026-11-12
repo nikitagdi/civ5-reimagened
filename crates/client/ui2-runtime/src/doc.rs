@@ -508,7 +508,7 @@ impl Doc {
             && fstyles.media_h == self.skin.styles().media_h;
         let frag_cells = fstyles.cells();
         if frag_cells > 1 && !same_media {
-            // Limitation: a mod panel whose breakpoints differ from the skin's uses its first viewport cell at every size
+            // SIMPLIFIED(SIMP-294): a mod panel whose breakpoints differ from the skin's uses its first viewport cell at every window size.
             warnings.push(
                 "the fragment's breakpoints differ from the skin's; its first viewport cell is used".into(),
             );
@@ -583,7 +583,7 @@ impl Doc {
                         }
                         NodeKind::Text(TextSrc::Bound(x)) => *x = tp(*x),
                         NodeKind::Image(ImageSrc::Pkg(i) | ImageSrc::Icon { img: i, .. }) => {
-                            // Limitation: pictures inside a mod fragment are not drawn; the runtime has no texture pages of fragments
+                            // SIMPLIFIED(SIMP-293): pictures inside a mod fragment are not drawn (reported once per fragment): the runtime has no texture pages for fragments.
                             pictures = true;
                             *i = ImgId(u32::MAX);
                         }

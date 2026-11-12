@@ -357,6 +357,7 @@ impl<'a> Emitter<'a> {
                         }
                     });
                 }
+                // SIMPLIFIED(SIMP-286): an overflow clip under a transform that is not axis aligned is dropped (reported once): the clip is a rectangle and cannot follow a rotated box.
                 None => self.unsupported(id, "an overflow clip under a rotation"),
             }
         }
@@ -511,6 +512,7 @@ impl<'a> Emitter<'a> {
     /// intersected with the clips above.
     fn clip_with(&mut self, id: NodeId, s: &Inherit, xf: &Affine2, own: ClipRect) -> Option<Clip> {
         let Some(rect) = rect_through(xf, own.rect) else {
+            // SIMPLIFIED(SIMP-286): the clip of a shifted background tile is dropped under a transform that is not axis aligned (the tiles then show whole).
             self.unsupported(id, "a background tile clip under a rotation");
             return Self::clip_of(s);
         };
@@ -693,6 +695,7 @@ impl<'a> Emitter<'a> {
         } else {
             let own = ClipRect {
                 rect: clip,
+                // SIMPLIFIED(SIMP-284): the clip of a shifted background tile has one corner radius (the top left one) for all four corners.
                 radius: clip_radii.tl,
             };
             (Radii::ZERO, None, self.clip_with(id, s, &xf, own))
@@ -824,6 +827,7 @@ impl<'a> Emitter<'a> {
         } else {
             let own = ClipRect {
                 rect: clip,
+                // SIMPLIFIED(SIMP-284): the clip of a shifted background tile has one corner radius (the top left one) for all four corners.
                 radius: clip_radii.tl,
             };
             self.clip_with(id, s, &xf, own)
@@ -884,6 +888,7 @@ impl<'a> Emitter<'a> {
             };
             (w * k).max(0.0)
         });
+        // SIMPLIFIED(SIMP-281): a border image is a 9-slice whose pieces are only stretched (`repeat` and `round` are drawn as `stretch`, reported once) and it has no rounded corners.
         if r.border_image_repeat.x != ImageRepeat::Stretch
             || r.border_image_repeat.y != ImageRepeat::Stretch
         {
@@ -970,6 +975,7 @@ impl<'a> Emitter<'a> {
             .collect();
         if let Some(first) = colors.first() {
             border.color = self.color(*first, alpha);
+            // SIMPLIFIED(SIMP-285): the four sides of a border share one colour (the first side with a width); a browser mitres the corners between sides of different colours.
             if colors.iter().any(|c| c != first) {
                 self.unsupported(id, "a border with sides of different colors");
             }
@@ -984,6 +990,7 @@ impl<'a> Emitter<'a> {
             if color.is_transparent() {
                 continue;
             }
+            // SIMPLIFIED(SIMP-287): outer and inset box shadows follow circular corner radii; the shared ellipse ratio of the box (elliptic corners) is not applied to them.
             self.push(Item::Shadow(ShadowItem {
                 rect,
                 radii,
@@ -1062,6 +1069,7 @@ impl<'a> Emitter<'a> {
                 if sh.blur != 0.0 {
                     let color = self.color(sh.color, alpha);
                     if !color.is_transparent() && pad.is_drawable() {
+                        // SIMPLIFIED(SIMP-287): inset shadows follow circular inner radii, as the outer ones do (see above).
                         self.push(Item::InsetShadow(ShadowItem {
                             rect: pad,
                             radii: inner,
@@ -1137,8 +1145,7 @@ impl<'a> Emitter<'a> {
             let w = self.width(r.outline_width);
             let color = self.color(r.outline_color, alpha);
             if w > 0.0 && !color.is_transparent() {
-                // Painted right after the element's border, under its children (CSS paints outlines in the
-                // last phase of the stacking context).
+                // SIMPLIFIED(SIMP-283): the outline is painted right after the element's border, so the element's children paint over it; a browser paints outlines in the last phase of the stacking context, above the children.
                 let grow = (r.outline_offset.px * k).round() + w;
                 let orect = Rect::new(
                     rect.x - grow,
@@ -1397,8 +1404,7 @@ impl<'a> Emitter<'a> {
             self.field_rect(Rect::new(xa, top, xb - xa, height), sel, s, clip);
         }
         if let Some(run) = run {
-            // The placeholder is drawn in the field's color at half opacity: `::placeholder` rules are not
-            // baked into the package.
+            // SIMPLIFIED(SIMP-289): the placeholder of a text field is drawn in the field's own colour at half opacity; a `::placeholder` rule of the skin is not baked into the package, so its colour cannot be chosen.
             let shown = if view.placeholder {
                 Color([color.0[0], color.0[1], color.0[2], color.0[3] / 2])
             } else {

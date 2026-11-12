@@ -118,6 +118,7 @@ fn dim(l: LenAuto) -> Dimension {
 /// otherwise; taffy does the same with a percentage. The record keeps no unit for zero, so an explicit
 /// `0px` is read the same way and keeps its content size in such a column, where Chrome collapses it.
 fn flex_basis(l: LenAuto) -> Dimension {
+    // SIMPLIFIED(SIMP-292): an explicit `flex-basis: 0px` is read as `0%` (the style record keeps no unit for a zero length), so in a column of auto height it keeps its content size where a browser collapses it.
     match l {
         LenAuto::Len(l) if l.px == 0.0 && l.pct == 0.0 => Dimension::percent(0.0),
         _ => dim(l),

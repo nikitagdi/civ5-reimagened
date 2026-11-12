@@ -228,6 +228,7 @@ impl Runtime {
     }
 
     /// A left press on a node: on the focused field, the caret goes to the pressed place.
+    // SIMPLIFIED(SIMP-290): a press only places the caret: selecting by dragging, by a double click (a word) or by a triple click (a line) is not implemented here (the browser's own field selects with the keyboard, and the runtime draws that selection).
     pub(crate) fn field_press(&mut self, node: NodeId, local: Vec2) {
         let Some(e) = self.input.fields.edit.clone().filter(|e| e.node == node) else {
             return;

@@ -6,6 +6,7 @@
 //! content width (`Line::width`), and Chrome's text rects of a wrapped paragraph do not include them either: all 288
 //! measured lines match `width` and none match `width + hanging` (the spike's rule 6 text says the rect includes the
 //! space; its data does not). `Line::hanging` still reports the width of the hanging space. A word wider than the line overflows; there is no mid-word breaking.
+//! SIMPLIFIED(SIMP-225): lines break only at spaces and line feeds; the line breaking rules of Unicode (hyphens, CJK, soft hyphens) are not applied.
 //!
 //! Explicit line feeds always break. Leading spaces of a line are dropped (whitespace collapsing is the
 //! converter's job, rule 7: the text arrives collapsed). Several runs form one inline flow; a break opportunity

@@ -161,7 +161,7 @@ fn lerp_transform(a: &[TFn], b: &[TFn], t: f32) -> Vec<TFn> {
             .zip(&b)
             .all(|(x, y)| std::mem::discriminant(x) == std::mem::discriminant(y));
     if !same {
-        // Lists of different shapes switch at the midpoint (CSS would interpolate their matrices).
+        // SIMPLIFIED(SIMP-280): transform lists whose functions differ in kind or count are not blended: the value jumps from the old list to the new one at the midpoint of the transition (a browser interpolates the matrices).
         return if t < 0.5 { a } else { b };
     }
     a.iter()

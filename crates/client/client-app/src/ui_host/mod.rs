@@ -151,6 +151,7 @@ pub trait Frontend {
     /// Opens one of the game's screens when the skin has none (`false`: it cannot). The hand-off of a screen a
     /// skin lacks calls it; nothing does yet.
     #[allow(dead_code)]
+    // SIMPLIFIED(SIMP-266): no frontend opens such a screen yet (the hand-off from UI v2 to the classic UI is not built).
     fn open_screen(&mut self, _s: ScreenId) -> bool {
         false
     }

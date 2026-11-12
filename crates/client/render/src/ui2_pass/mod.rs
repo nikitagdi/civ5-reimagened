@@ -146,6 +146,7 @@ pub trait Ui2ExtTextures {
     /// The texture `id` for this frame: a serial that changes whenever the texture behind the id changes, its
     /// view, and the UV scale that maps the picture's 0..1 onto the stored texture. `None` while it is not
     /// available (a game asset not loaded yet is asked for here).
+    // SIMPLIFIED(SIMP-282): an external texture is sampled as straight RGBA8 colour; one stored as one or two channels (R8, RG8) is not interpreted, so it must be converted to RGBA before it is offered here.
     fn resolve(&mut self, id: u64) -> Option<(u64, &wgpu::TextureView, [f32; 2])>;
 }
 

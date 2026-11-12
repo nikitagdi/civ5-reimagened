@@ -254,6 +254,7 @@ fn valid_state_name(s: &str) -> bool {
 }
 
 /// The values of `[ui] state` by dotted path; a table nests (`filter = { kind = "all" }` is `filter.kind`).
+/// SIMPLIFIED(SIMP-296): the state of a mod panel holds only booleans, integers and strings (no floats or lists), at most 32 values.
 fn flatten_state(
     key: &str,
     prefix: &str,

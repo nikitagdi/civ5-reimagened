@@ -324,6 +324,7 @@ impl V2Mods {
     }
 
     /// The intents the frame of `ui` accepted for the mods go to the store, for the hook of the mods.
+    // SIMPLIFIED(SIMP-295): the mod hooks run before the UI frame, so an intent a mod panel raises reaches the mod's Rust half one frame late.
     pub(crate) fn after_frame(&mut self, ui: &mut V2Ui) {
         let intents = ui.take_mod_intents();
         let Some(link) = &self.link else {

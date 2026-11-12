@@ -82,6 +82,7 @@ impl OrderSink for NetSink<'_> {
     }
 
     /// No screen outside the skin can be opened from UI v2 yet: the caller tells the player so.
+    // SIMPLIFIED(SIMP-266): a screen the skin lacks is refused with a notice; the hand-off to the classic UI for the time of that screen is not built.
     fn open_screen(&mut self, _s: ScreenId) -> bool {
         false
     }
