@@ -184,6 +184,7 @@ export async function run(ctx) {
     await step2(alice.page, check, n);
     await chat(alice, bob, check, n, shot);
     await mapOff(alice, bob, check, n);
+    if (process.env.UI2_V1_PRESELECT === "1") n.preselect = await preselect(alice.page);
     await turnOne(alice, bob, check, n, shot);
     await step7(alice.page, check, n);
     await step8(alice, check, n, shot);
@@ -276,6 +277,19 @@ async function mapOff(alice, bob, check, n) {
   n.map = { alice: flagsA, bob: flagsB, bobAnchors: probeB?.anchors ?? null };
   check("map layer: alice's unit flags are on the screen", !!flagsA, JSON.stringify(flagsA));
   check("map layer: bob's flags are off with ?ui2onmap=0", flagsB === null, JSON.stringify(flagsB));
+}
+
+/**
+ * `UI2_V1_PRESELECT=1`: a click on the flag of one of alice's units selects it before step 3, as a click on the map
+ * does when it lands on a plot of hers. The turn dial then starts from a selected unit: what happens by chance when
+ * the click that ends the chat step lands on her units (it depends on the map).
+ */
+async function preselect(page) {
+  const flag = (await rectsOf(page, "unit-flag")).find((r) => r.w > 8 && r.h > 8) ?? null;
+  if (!flag) return { flag: null, title: [] };
+  await page.mouse.click(flag.x + flag.w / 2, flag.y + flag.h / 2);
+  const w = await waitUi(page, (p) => partTexts(p, "unit.title").length > 0, 5000);
+  return { flag: [flag.x, flag.y, flag.w, flag.h], title: partTexts(w.probe, "unit.title"), ms: w.ms };
 }
 
 /** The name the production window's detail column shows (the focused option). */
