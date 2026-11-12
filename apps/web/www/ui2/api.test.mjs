@@ -182,6 +182,62 @@ test("onList reports added, changed and removed elements by key", () => {
   assert.throws(() => ui.model.onList("top.res[].n", {}), /inside a list/);
 });
 
+test("many ops on one list in one delta: the model from before the delta stays as it was", () => {
+  const { ctx, ui } = context();
+  // A list of 32 elements.
+  const ids = Array.from({ length: 30 }, (_, i) => "0:" + (100 + i));
+  ctx.receive(frame([2, ...ids.map((id, i) => [1, 2, [], 2 + i, id, [id, i]])]));
+  const top0 = ui.model.get("top");
+  const res0 = ui.model.get("top.res");
+  const before = JSON.stringify(top0);
+  const keys0 = res0.map((r) => r.id);
+  const lists = [];
+  ui.model.onList("top.res", { change: (k, v, old) => lists.push([k, v.n, old.n]) });
+  // Many ops on the same list in one delta: element sets (twice on one), an insert, a removal, a move.
+  ctx.receive(
+    frame([
+      3,
+      [0, 4, ["0:105"], 50],
+      [0, 4, ["0:120"], 60],
+      [0, 4, ["0:105"], 51],
+      [1, 2, [], 0, "0:999", ["0:999", 7]],
+      [2, 2, [], "0:110"],
+      [3, 2, [], "0:129", 1],
+      [0, 4, ["0:129"], 70],
+      [0, 1, [], 77],
+    ]),
+  );
+  // Nothing the mirror held before the delta changed.
+  assert.equal(JSON.stringify(top0), before);
+  assert.deepEqual(res0.map((r) => r.id), keys0);
+  assert.equal(res0.length, 32);
+  // The new model has every op.
+  const res1 = ui.model.get("top.res");
+  assert.notEqual(res1, res0);
+  const n = Object.fromEntries(res1.map((r) => [r.id, r.n]));
+  assert.equal(n["0:105"], 51);
+  assert.equal(n["0:120"], 60);
+  assert.equal(n["0:129"], 70);
+  assert.equal(n["0:999"], 7);
+  assert.equal("0:110" in n, false);
+  assert.deepEqual(res1.slice(0, 3).map((r) => r.id), ["0:999", "0:129", "0:1"]);
+  assert.equal(res1.length, 32);
+  assert.equal(ui.model.get("top.gold"), 77);
+  // An element no op touched is the same object; a changed one is new.
+  assert.equal(res1.find((r) => r.id === "0:101"), res0.find((r) => r.id === "0:101"));
+  assert.notEqual(res1.find((r) => r.id === "0:105"), res0.find((r) => r.id === "0:105"));
+  assert.deepEqual(lists, [
+    ["0:129", 70, 29],
+    ["0:105", 51, 5],
+    ["0:120", 60, 20],
+  ]);
+  // The next delta does not change the model of this one either.
+  const res1Ids = JSON.stringify(res1);
+  ctx.receive(frame([4, [0, 4, ["0:101"], 9], [2, 2, [], "0:999"]]));
+  assert.equal(JSON.stringify(res1), res1Ids);
+  assert.equal(ui.model.get("top.res").find((r) => r.id === "0:101").n, 9);
+});
+
 test("an exception switches off only its own handler", () => {
   const { ctx, ui, sent } = context();
   let other = 0;
