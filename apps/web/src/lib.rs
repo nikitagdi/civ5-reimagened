@@ -224,6 +224,8 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
             sample: page::query_param("ui2sample").filter(|s| client_app::valid_ui2_sample(s)),
             // `&ui2onmap=0`: the skin's city banners and unit flags are off (the bench's measure of the layer).
             map_off: page::query_param("ui2onmap").as_deref() == Some("0"),
+            // `&ui2samplepan=<CSS px/s>`: on a sample, the map anchors go round as under a panning camera (a bench).
+            sample_pan: page::query_param("ui2samplepan").and_then(|v| v.parse::<f32>().ok()),
             // The canvas's CSS size: UI v2 lays out in it whatever size the backing store has.
             css_size: Some(std::rc::Rc::new(move || page::css_size(&css_canvas))),
         }),

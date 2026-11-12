@@ -16,7 +16,8 @@
 //
 // Sources: `game` signs in, starts a game (seed 7, turn 0) with `?ui=v2:<skin>&ui2bg=<hex>` and waits for the skin;
 // the state `hud` is the game screen as it comes up (cases of one game that differ in the skin change it on the
-// screen). `sample` opens `?ui=v2:<skin>&ui2sample=<state>` with no game (the client's sample mode). A case may also
+// screen), shot once the game's UI set has loaded and every game picture's texture is on the GPU (`ui2.assets.*`
+// of the probe): before that a unit flag shows its fallback mark, after it the unit's icon. `sample` opens `?ui=v2:<skin>&ui2sample=<state>` with no game (the client's sample mode). A case may also
 // hover a part (`hover = { part, row }`: the centre of the part, or of its `row`-th list instance), play with mods
 // (`mods = "hello"`: the game's quick start takes them; `UI2_MODS_ATTACH` names the server that has them, else
 // `--attach`) and break a mod's script (`broken_mod = "hello"`: the mod's panels are converted again from
@@ -496,6 +497,23 @@ async function skinIs(page, skin) {
   }
 }
 
+/**
+ * Waits until the game's pictures are drawn as they will stay: the game's UI set is loaded (`ui2.assets.set`), the
+ * skin has named its pictures and the renderer holds every texture they name (`ui2.assets.resident` ==
+ * `ui2.assets.textures`). Before that a unit flag shows its fallback mark instead of the unit's icon.
+ */
+async function gamePictures(page) {
+  const t0 = Date.now();
+  for (;;) {
+    const c = (await ui2(page))?.counters ?? {};
+    const set = c["ui2.assets.set"];
+    const textures = c["ui2.assets.textures"];
+    if (set === 1 && textures > 0 && c["ui2.assets.resident"] === textures) return { ms: Date.now() - t0, textures };
+    if (Date.now() - t0 > UP_MS) throw new Error(`the game's pictures are not drawn after ${UP_MS / 1000} s: ${JSON.stringify({ set, textures, resident: c["ui2.assets.resident"] })}`);
+    await sleep(250);
+  }
+}
+
 /** Waits until the panels of the case's mod are up (or show their placeholder, for a broken mod). */
 async function modPanels(page, c) {
   const t0 = Date.now();
@@ -559,6 +577,9 @@ async function session(ctx, cases, backend, outDir, tag, check) {
             const m = await modPanels(b.page, c);
             check(`${c.id} ${c.name} (${backend}, ${tag}): the mod's panels are ${c.broken_mod ? "placeholders" : "up"}`, m.ok, JSON.stringify(m.panels));
           }
+          // The game's pictures (unit flags, resources) come from the game's UI set, which loads after the skin:
+          // the frame is taken once the set is here and every picture's texture is on the GPU, not before.
+          await gamePictures(b.page);
         }
         skin = c.skin;
         // The pointer rests in the middle of the screen (the world, or nothing), away from any hover style.

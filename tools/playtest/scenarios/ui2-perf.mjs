@@ -1,6 +1,7 @@
 // `ui2-perf`: the performance table of UI v2 (`engraved` over a live game), in one run:
 //   cargo xtask --gamecore-lib <dir> playtest --scenario ui2-perf --attach <url of a real-core server> [--headed] [--release]
-//     [--late-url <url> --late-nick <nick> --late-token <file>] [--perf-idle-s 10]   (env UI2_PERF_TURNS: 20 turns)
+//     [--late-url <url> --late-nick <nick> --late-token <file>] [--perf-idle-s 10]   (env UI2_PERF_TURNS: 20 turns;
+//     env UI2_PERF_LATE_PARTNER=<nick>=<token file>: the late game's other human, whose turns a page of its own ends)
 // The numbers that count are taken headed, from a release bundle, at the machine's own console: a remote desktop
 // session changes the frame pacing and the GPU path. Every run labels itself (`meta`: headed, profile, remote session),
 // and the rows that depend on the GPU or the frame rate say "indicative" when the run is not of that kind.
@@ -10,9 +11,12 @@
 // - turns: `UI2_PERF_TURNS` (20) end turns (forced through the test port): `ui2.cpu_ms` of the frames that carried a model
 //   change (`ui2.model.ops` > 0) from the end turn until the new turn is on the dial, mean and peak;
 // - draw calls of the HUD: `ui2.draws.hud` (the renderer's count) and the draws of the `Ui2` row of `__civ5stats`;
-// - map banners: the frame rate with the map layer against `&ui2onmap=0`. Needs the skin's `map` layer: without it
-//   (no `ui2.draws.map`, no `city-banner` part) the row reports "not available" and is not a failure. With it, the
-//   heavy fixture scene (`CIV5_FIXTURE_HEAVY`, the bench's scene) when UI v2 runs there, else the live game;
+// - map banners: the frame rate, `ui2.cpu_ms` and the draw counts with the map layer against `&ui2onmap=0`, the camera
+//   zoomed out and panning, the city banners and unit flags on the screen counted. Needs the skin's `map` layer:
+//   without it (no `ui2.draws.map`, no `city-banner` part) the row reports "not available" and is not a failure. The
+//   scene is the late game of `--late-url` (hundreds of anchors), else the live game; with fewer than 150 anchors on
+//   the screen the FPS row is "not measured". (The bench's heavy fixture cannot serve: its core has no replica, which
+//   UI v2 reads.)
 // - reaction: the frame (counted in UI v2 frames) on which the dial shows the new turn after the replica has it;
 // - package: the skin package's size, `ui2.load_ms`, the client wasm (raw and brotli; the text stack's share is not
 //   measured here: it needs a build without it);
@@ -34,7 +38,6 @@ import { openPage, act, until, state, appUrl } from "../lib/browser.mjs";
 import { DEV_PASSWORD, moveAUnit } from "../lib/game.mjs";
 import { FOUND_CITY } from "../lib/policy.mjs";
 import { frames, pct, round } from "../lib/bench.mjs";
-import { startServer } from "../lib/server.mjs";
 import { gcPauses } from "./ui2-n6.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -77,9 +80,9 @@ function remoteSession() {
 }
 
 function stat(xs) {
-  if (!xs.length) return { n: 0, mean: null, p50: null, p95: null, max: null };
+  if (!xs.length) return { n: 0, mean: null, min: null, p50: null, p95: null, max: null };
   const s = xs.slice().sort((a, b) => a - b);
-  return { n: xs.length, mean: round(xs.reduce((a, b) => a + b, 0) / xs.length, 3), p50: round(pct(s, 50), 3), p95: round(pct(s, 95), 3), max: round(s[s.length - 1], 3) };
+  return { n: xs.length, mean: round(xs.reduce((a, b) => a + b, 0) / xs.length, 3), min: round(s[0], 3), p50: round(pct(s, 50), 3), p95: round(pct(s, 95), 3), max: round(s[s.length - 1], 3) };
 }
 
 /**
@@ -115,6 +118,14 @@ async function installSampler(page) {
               hud: num(c["ui2.draws.hud"] ?? r["ui2.draws.hud"]),
               map: num(c["ui2.draws.map"] ?? r["ui2.draws.map"]),
               draws: num(c["ui2.draws"] ?? r["ui2.draws"]),
+              // The source's cold reads after a load or a new turn (made outside the UI v2 frame, not in `cpu`).
+              warm: num(c["ui2.source.warm_turn_ms"]),
+              // The map anchors' placement and the renderer's take of the scene (outside `cpu`).
+              place: num(c["ui2.place_ms"]),
+              prepare: num(c["ui2.prepare_ms"]),
+              // The map anchors of the layer and those placed in view in the frame.
+              anchors: num(c["ui2.anchors"]),
+              shown: num(c["ui2.anchors.shown"]),
             };
             // The source's profile of the frame (µs per root and per kind of read, readable, pending roots, the
             // game's turn it read): only its non-zero entries.
@@ -354,8 +365,54 @@ async function settleBlockers(page) {
   return steps;
 }
 
-/** One forced end turn; resolves when the new turn is the human's and the dial shows it (or after 10 s more). */
-async function endTurn(page, o) {
+/**
+ * The late game's other human (`UI2_PERF_LATE_PARTNER=<nick>=<token file>`, with `--late-url`): a page of its own (the
+ * classic UI) that ends that seat's turn once per turn, so the turns of the measured seat are not held by a seat
+ * nobody plays. `null` without it.
+ */
+async function latePartner(o) {
+  const spec = process.env.UI2_PERF_LATE_PARTNER;
+  if (!o.lateUrl || !spec) return null;
+  const at = spec.indexOf("=");
+  const nick = spec.slice(0, at);
+  const token = readFileSync(spec.slice(at + 1), "utf8").trim();
+  const b = await openPage({ logDir: o.logDir, viewport: { width: 1024, height: 640 }, consoleFile: "console-late-partner.log" });
+  await b.page.addInitScript(([n, tok]) => {
+    try {
+      localStorage.setItem("civ5.nick", n);
+      localStorage.setItem(`civ5.token.${n}`, tok);
+    } catch {
+      /* storage blocked */
+    }
+  }, [nick, token]);
+  await b.page.goto(appUrl(o.lateUrl, o, { nick, ui: "classic" }));
+  await until(b.page, (x) => x.screen === "play" && x.net?.phase === "play" && x.turn !== null, 300000, `${nick} in the late game`);
+  let stop = false;
+  let ended = -1;
+  let turns = 0;
+  const loop = (async () => {
+    while (!stop) {
+      const s = await state(b.page).catch(() => null);
+      if (s && s.status === "human" && s.turn !== null && s.turn !== ended) {
+        await act(b.page, { kind: "endTurn", force: true }).catch(() => {});
+        ended = s.turn;
+        turns += 1;
+      }
+      await sleep(500);
+    }
+  })();
+  return {
+    nick,
+    turns: () => turns,
+    async stop() {
+      stop = true;
+      await loop;
+      await b.close();
+    },
+  };
+}
+
+/** One forced end turn; resolves when the new turn is the human's and the dial shows it (or after 10 s more). */async function endTurn(page, o) {
   const cur = (await state(page)).turn;
   const t0 = Date.now();
   await act(page, { kind: "endTurn", force: true });
@@ -467,59 +524,135 @@ async function mapLayer(page, rows) {
   return { present: drawn || banners > 0, drawn, banners };
 }
 
+/** Fewer anchors on the screen than this and the map layer's rows measure a scene that is not the one they are for. */
+const BANNERS_MIN = 150;
+/** Wheel steps out over the map before the banner arms of a game (the camera's far zoom shows more of the map). */
+const ZOOM_OUT_STEPS = 12;
+/** The sample scene of the map layer: this many city banners and as many unit flags, moving at this speed. */
+const SAMPLE_CITIES = 100;
+const SAMPLE_UNITS = 100;
+const SAMPLE_PAN = 300;
+
+/** The camera pans for `secs`: the arrow keys held in turn (right, down, left, up), so the anchors move every frame. */
+async function pan(page, secs) {
+  const keys = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"];
+  const end = Date.now() + secs * 1000;
+  for (let i = 0; Date.now() < end; i++) {
+    const k = keys[i % keys.length];
+    await page.keyboard.down(k);
+    await sleep(Math.min(1500, Math.max(0, end - Date.now())));
+    await page.keyboard.up(k);
+  }
+}
+
 /**
- * One arm of the banner comparison: a fresh page with `extra`, UI v2 running, then `secs` of animation-frame stamps
- * (no probe reads in between) and the count of the banners on the screen.
+ * The sample scene of the map layer: the skin's `hud` sample with `SAMPLE_CITIES` city banners and `SAMPLE_UNITS` unit
+ * flags (copies of its first city and unit, each with its own key and plot), placed on a grid over the viewport
+ * (`anchors`, CSS px).
  */
-async function fpsArm(base, o, extra, label, secs, viaQuickStart) {
+function mapSample() {
+  const s = JSON.parse(readFileSync(path.join(REPO, "skins", SKIN, "sample", "hud.json"), "utf8"));
+  const city0 = s.model.map.cities[0];
+  const unit0 = s.model.map.units[0];
+  const cols = 10;
+  const rowsN = Math.ceil(SAMPLE_CITIES / cols);
+  const cell = { w: (VP.width - 120) / cols, h: (VP.height - 160) / rowsN };
+  const at = (i, dx, dy) => [Math.round(60 + (i % cols) * cell.w + dx), Math.round(80 + Math.floor(i / cols) * cell.h + dy)];
+  s.anchors = {};
+  s.model.map.cities = Array.from({ length: SAMPLE_CITIES }, (_, i) => {
+    const key = `7:${i + 1}`;
+    s.anchors[`city:${i + 1}`] = at(i, 0, 0);
+    return { ...city0, key, name: `City ${i + 1}`, plot: { x: i % 80, y: Math.floor(i / 80) }, size: 1 + (i % 20), mine: i % 3 === 0, capital: i === 0 };
+  });
+  s.model.map.units = Array.from({ length: SAMPLE_UNITS }, (_, i) => {
+    const key = `7:${1000 + i}`;
+    s.anchors[`unit:${1000 + i}`] = at(i, 40, 34);
+    return { ...unit0, key, plot: { x: i % 80, y: 10 + Math.floor(i / 80) }, hp_fraction: ((i % 10) + 1) / 10, mine: i % 2 === 0, waiting: i % 5 === 0 };
+  });
+  return s;
+}
+
+/**
+ * One arm of the banner comparison: a fresh page, UI v2 running, then `secs` with the anchors moving: the frame
+ * stamps, `ui2.cpu_ms`, the placement (`ui2.place_ms`), the renderer's take of the scene (`ui2.prepare_ms`) and the
+ * draw counts of every UI v2 frame (the probe is read each frame, which costs the page a little), the anchors in view
+ * per frame (`ui2.anchors.shown`) and those of the layer. A game (`kind` "game", `extra` the page's query) is zoomed out and panned with the arrow
+ * keys; the sample scene (`kind` "sample") plays `mapSample()` in the sample mode, its anchors going round at
+ * `SAMPLE_PAN` CSS px/s (`?ui2samplepan=`), as under a panning camera.
+ */
+async function fpsArm(base, o, extra, label, secs, kind) {
   const b = await openPage({ headed: o.headed, uncapped: !!o.headed, logDir: o.logDir, viewport: VP, consoleFile: `console-${label}.log` });
   try {
-    if (viaQuickStart) await enterGame(b, base, { ...o, lateUrl: null }, extra, `pf${label.slice(0, 2)}`);
-    else await enterGame(b, base, o, extra, `pf${label.slice(0, 2)}`);
-    await waitRunning(b.page, UP_MS);
-    await sleep(5000);
+    if (kind === "sample") {
+      const body = JSON.stringify(mapSample());
+      await b.page.route(`**/ui2/sample/${SKIN}/map200.json`, (r) => r.fulfill({ body, contentType: "application/json" }));
+      await b.page.goto(appUrl(base, o, { ui: `v2:${SKIN}`, ui2sample: "map200", ui2samplepan: String(SAMPLE_PAN), stats: "1", ...extra }));
+      await waitRunning(b.page, UP_MS);
+      await sleep(3000);
+    } else {
+      await enterGame(b, base, o, extra, `pf${label.slice(0, 2)}`);
+      await waitRunning(b.page, UP_MS);
+      await sleep(5000);
+      await b.page.mouse.move(VP.width / 2, VP.height / 2);
+      for (let i = 0; i < ZOOM_OUT_STEPS; i++) {
+        await b.page.mouse.wheel(0, 400);
+        await sleep(150);
+      }
+      await sleep(3000);
+    }
     await installSampler(b.page);
-    const r = await sampled(b.page, false, () => sleep(secs * 1000));
-    const rects = await b.page.evaluate(() => window.__civ5test.ui2Rects(["city-banner"], 3000)).catch(() => null);
+    const r = await sampled(b.page, false, () => (kind === "sample" ? sleep(secs * 1000) : pan(b.page, secs)));
     const f = frames(r.ts, r.from, r.to);
-    return { label, fpsP50: f.fpsP50 ?? null, frameMsP50: f.frameMsP50 ?? null, frameMsP99: f.frameMsP99 ?? null, frames: f.frames, banners: Array.isArray(rects) ? rects.length : null, errors: b.errors.slice(0, 3) };
+    const of = (k) => stat(r.rows.map((x) => x[k]).filter((v) => v !== null));
+    const total = stat(r.rows.filter((x) => x.cpu !== null).map((x) => x.cpu + (x.place ?? 0) + (x.prepare ?? 0)));
+    return {
+      label,
+      fpsP50: f.fpsP50 ?? null,
+      frameMsP50: f.frameMsP50 ?? null,
+      frameMsP99: f.frameMsP99 ?? null,
+      frames: f.frames,
+      ui2Frames: r.rows.length,
+      cpu: of("cpu"),
+      place: of("place"),
+      prepare: of("prepare"),
+      total,
+      mapDraws: of("map"),
+      draws: of("draws"),
+      anchors: { layer: of("anchors").max, shown: of("shown") },
+      banners: of("shown").p50,
+      errors: b.errors.slice(0, 3),
+    };
   } finally {
     await b.close();
   }
 }
 
-/** The banner rows: the heavy fixture scene when UI v2 runs there, else the live game. */
+/**
+ * The banner rows: the map layer on and off (`?ui2onmap=0`), in the game (the late game of `--late-url`, else the live
+ * game) and in the sample scene of 200 anchors. The game comes first; when it has fewer than `BANNERS_MIN` anchors on
+ * the screen the rows are the sample scene's. (The heavy fixture scene of the bench, `CIV5_FIXTURE_HEAVY`, cannot serve:
+ * UI v2 reads the game through the replica and the fixture core has none; no snapshot is ever sent, the skin loads and
+ * waits for a game that never comes. The late save's humans see 1 city and a few units through the fog.)
+ */
 async function bannerCost(ctx, o, n) {
   const secs = o.perfIdleS ?? 10;
   const on = { ui: `v2:${SKIN}` };
   const off = { ui: `v2:${SKIN}`, ui2onmap: "0" };
-  if (o.server && o.assets && o.webRoot) {
-    let fixture = null;
-    try {
-      fixture = await startServer({
-        exe: o.server,
-        webRoot: path.resolve(o.webRoot),
-        assets: path.resolve(o.assets),
-        logDir: o.logDir,
-        env: { CIV5_FIXTURE_REVEAL_ALL: "1", CIV5_FIXTURE_HEAVY: `${o.benchUnits ?? 1500},${o.benchCities ?? 80}` },
-        crossOriginIsolation: !!o.threads,
-      });
-      const heavy = { ...on, size: "huge", ai: String(o.benchAi ?? 6) };
-      const a = await fpsArm(fixture.url, o, heavy, "banners-on", secs, true);
-      const b = await fpsArm(fixture.url, o, { ...heavy, ui2onmap: "0" }, "banners-off", secs, true);
-      n.bannerScene = "heavy fixture (CIV5_FIXTURE_HEAVY)";
-      return { on: a, off: b };
-    } catch (e) {
-      n.bannerFixture = `UI v2 does not run on the heavy fixture: ${String(e.message ?? e).split("\n")[0]}`;
-    } finally {
-      if (fixture) await fixture.stop();
-    }
-  }
   const base = o.attach ?? ctx.server?.url;
-  const a = await fpsArm(base, o, on, "banners-on", secs, false);
-  const b = await fpsArm(base, o, off, "banners-off", secs, false);
-  n.bannerScene = o.lateUrl ? "late game (live)" : "live game (few banners)";
-  return { on: a, off: b };
+  const game = {
+    scene: o.lateUrl ? `late game (${o.lateUrl})` : "live game (a fresh small game)",
+    on: await fpsArm(base, o, on, "banners-on", secs, "game"),
+    off: await fpsArm(base, o, off, "banners-off", secs, "game"),
+  };
+  const sample = {
+    scene: `sample scene (${SAMPLE_CITIES} city banners and ${SAMPLE_UNITS} unit flags of the ${SKIN} sample, moving at ${SAMPLE_PAN} CSS px/s; no world under them)`,
+    on: await fpsArm(base, o, {}, "banners-sample-on", secs, "sample"),
+    off: await fpsArm(base, o, { ui2onmap: "0" }, "banners-sample-off", secs, "sample"),
+  };
+  const enough = (game.on.banners ?? 0) >= BANNERS_MIN;
+  const use = enough ? game : sample;
+  n.bannerScene = enough ? game.scene : `${sample.scene}; the game had ${game.on.banners ?? "n/a"} anchors in view (${game.scene})`;
+  return { on: use.on, off: use.off, game, sample };
 }
 
 const fmt = (v, unit = "") => (v === null || v === undefined ? "n/a" : `${v}${unit}`);
@@ -563,6 +696,7 @@ export async function run(ctx) {
   const idleS = o.perfIdleS ?? 10;
   const appErrors = (errs) => errs.filter((e) => !e.includes("/pkg-mt/"));
   let error = null;
+  let partner = null;
   // Memory by realm right away (as `ui2-n6`): the renderer locked to the site, no wait for the next GC.
   const b = await openPage({
     headed: o.headed,
@@ -581,6 +715,7 @@ export async function run(ctx) {
     const probe = await waitRunning(page, UP_MS);
     n.toRunningMs = Date.now() - t0;
     n.loadMs = probe.loadMs ?? null;
+    partner = await latePartner(o);
     if (!o.lateUrl) {
       n.found = await foundCity(page);
       // The soldier steps out of the city: a soldier built there later would stack with it (a blocker of the turn
@@ -634,7 +769,7 @@ export async function run(ctx) {
       turns.push({ ...info, trail, worst: worst && { cpu: worst.cpu, source: worst.source, runtime: worst.runtime, ops: worst.ops, src: worst.src }, frames: r.rows.length, missed: missed(r.rows), changedFrames: changed.length, cpu: stat(cpu), allCpu: stat(r.rows.map((x) => x.cpu).filter((x) => x !== null)), reaction: re.nth });
     }
     const changedCpu = turnRows.filter((x) => (x.ops ?? 0) > 0).map((x) => x.cpu).filter((x) => x !== null);
-    n.turns = { list: turns, cpuChanged: stat(changedCpu), cpuAll: stat(turnRows.map((x) => x.cpu).filter((x) => x !== null)), hud: stat(turnRows.map((x) => x.hud).filter((x) => x !== null)) };
+    n.turns = { list: turns, cpuChanged: stat(changedCpu), cpuAll: stat(turnRows.map((x) => x.cpu).filter((x) => x !== null)), hud: stat(turnRows.map((x) => x.hud).filter((x) => x !== null)), coldReads: stat(turnRows.map((x) => x.warm).filter((x) => x !== null && x > 0)) };
     n.reaction = { list: reactions, worst: reactions.every((x) => x.nth !== null) ? Math.max(...reactions.map((x) => x.nth)) : null };
     n.js.turns = { worker: stat(turnRows.map((r) => r.jsWorker).filter((x) => x !== null)), main: stat(turnRows.map((r) => r.jsMain).filter((x) => x !== null)) };
 
@@ -664,6 +799,10 @@ export async function run(ctx) {
     error = e;
     n.lastProbe = await ui2(page);
     try { await page.screenshot({ path: path.join(o.logDir, "failure-ui2-perf.png"), timeout: 60000 }); } catch { /* none */ }
+  }
+  if (partner) {
+    n.partner = { nick: partner.nick, turnsEnded: partner.turns() };
+    await partner.stop().catch(() => {});
   }
   result.consoleErrors.push(...b.errors);
   const errs = appErrors(b.errors);
@@ -698,17 +837,38 @@ export async function run(ctx) {
     row("cpu", "turns measured", `${measured} of ${turnsN}`, `${turnsN}`, measured === turnsN, n.turnsStopped ? `stopped: ${n.turnsStopped}` : "");
     row("cpu", "turns: ui2.cpu_ms of the frames with a model change, mean", `${fmt(t.mean)} ms (${t.n} frames over ${measured} turns)`, `<= ${LIMITS.turnMeanMs} ms`, t.mean !== null && t.mean <= LIMITS.turnMeanMs, `${meta.scene}${indicative}`);
     row("cpu", "turns: same, peak", `${fmt(t.max)} ms (p95 ${fmt(t.p95)})`, `<= ${LIMITS.turnPeakMs} ms`, t.max !== null && t.max <= LIMITS.turnPeakMs, "the worst frame of all turns");
+    const cold = n.turns.coldReads;
+    row("cpu", "turns: the source's cold reads per new turn (ui2.source.warm_turn_ms, outside ui2.cpu_ms)", `mean ${fmt(cold.mean)} ms, max ${fmt(cold.max)} ms (${cold.n} new turns seen)`, "report", null, meta.scene);
     const hudMax = Math.max(n.hud.draws.max ?? -1, n.turns.hud.max ?? -1);
     row("draw", "HUD draw calls (ui2.draws.hud, max of idle and turns)", `${hudMax < 0 ? "n/a" : hudMax} (Ui2 pass row: ${fmt(n.hud.pass?.draws)} draws, ui2.draws ${fmt(n.hud.ui2Draws.max)})`, `<= ${LIMITS.hudDraws}`, hudMax >= 0 && hudMax <= LIMITS.hudDraws, "");
     if (n.banners?.on && n.banners?.off) {
       const on = n.banners.on.fpsP50;
       const off = n.banners.off.fpsP50;
       const drop = on !== null && off ? round(((off - on) / off) * 100, 1) : null;
-      row("draw", "map banners and flags: FPS drop against ?ui2onmap=0", `${fmt(drop, " %")} (${fmt(on)} vs ${fmt(off)} fps p50; ${fmt(n.banners.on.banners)} banners)`, `<= ${LIMITS.bannerFpsDropPct} %`, drop !== null && drop <= LIMITS.bannerFpsDropPct, `${n.bannerScene}${n.bannerFixture ? `; ${n.bannerFixture}` : ""}; ${o.headed ? "uncapped" : "headless: meaningless"}${indicative}`);
+      const a = n.banners.on.anchors;
+      const shown = `${fmt(a?.shown?.p50)} anchors in view (p50 over the frames; min ${fmt(a?.shown?.min ?? null)}, max ${fmt(a?.shown?.max)}) of ${fmt(a?.layer)} in the layer`;
+      // A scene with few anchors does not measure the layer: the row says so instead of passing.
+      const enough = (n.banners.on.banners ?? 0) >= BANNERS_MIN;
+      const scene = `${n.bannerScene}; anchors moving; ${o.headed ? "uncapped" : "headless: indicative only"}${indicative}`;
+      row("draw", "map banners and flags: FPS drop against ?ui2onmap=0", `${fmt(drop, " %")} (${fmt(on)} vs ${fmt(off)} fps p50); ${shown}`, `<= ${LIMITS.bannerFpsDropPct} %`, enough ? drop !== null && drop <= LIMITS.bannerFpsDropPct : null, enough ? scene : `not measured: fewer than ${BANNERS_MIN} anchors on the screen; ${scene}`);
+      const c1 = n.banners.on.cpu;
+      const c0 = n.banners.off.cpu;
+      const t1 = n.banners.on.total;
+      const t0 = n.banners.off.total;
+      const ms = (s) => `mean ${fmt(s.mean)}, p95 ${fmt(s.p95)}, max ${fmt(s.max)}`;
+      row("cpu", "map layer: CPU ms per UI v2 frame with the anchors moving, on / off", `on: ui2.cpu_ms ${ms(c1)}; placement ${ms(n.banners.on.place)}; renderer take ${ms(n.banners.on.prepare)}; sum ${ms(t1)} | off: ui2.cpu_ms ${ms(c0)}; sum ${ms(t0)} (${c1.n} / ${c0.n} frames)`, "report", null, `the layer's share (sum, mean): ${t1.mean !== null && t0.mean !== null ? round(t1.mean - t0.mean, 3) : "n/a"} ms; ${shown}; ${scene}`);
+      const g = n.banners.game;
+      if (g && g.on !== n.banners.on) {
+        const ga = g.on.anchors;
+        row("cpu", "map layer in the game (too few anchors to measure the layer): on / off", `${fmt(g.on.fpsP50)} / ${fmt(g.off.fpsP50)} fps p50; ui2.cpu_ms mean ${fmt(g.on.cpu.mean)} / ${fmt(g.off.cpu.mean)}; placement mean ${fmt(g.on.place.mean)} / ${fmt(g.off.place.mean)} ms; map draws ${fmt(g.on.mapDraws.max)} / ${fmt(g.off.mapDraws.max)}`, "report", null, `${fmt(ga?.shown?.p50)} anchors in view of ${fmt(ga?.layer)} in the layer; ${g.scene}; camera panning`);
+      }
+      row("draw", "map layer draw calls (ui2.draws.map) and all UI v2 draws, on / off", `map ${fmt(n.banners.on.mapDraws.max)} / ${fmt(n.banners.off.mapDraws.max)}, all ${fmt(n.banners.on.draws.max)} / ${fmt(n.banners.off.draws.max)} (max over the frames)`, "report", null, shown);
     } else {
       row("draw", "map banners and flags: FPS drop against ?ui2onmap=0", "not available", `<= ${LIMITS.bannerFpsDropPct} %`, null, n.banners?.notAvailable ?? n.banners?.error ?? "");
     }
-    row("reaction", "reaction: frame on which the dial shows the replica's new turn, worst", `${fmt(n.reaction.worst)} (per turn: ${n.reaction.list.map((x) => x.nth ?? "?").join(",")})`, `<= ${LIMITS.reactionFrame}`, n.reaction.worst !== null && n.reaction.worst <= LIMITS.reactionFrame, "1 = the same UI v2 frame");
+    // No turn measured, no reaction: n/a, not a pass.
+    const reacted = n.reaction.list.length > 0 && Number.isFinite(n.reaction.worst);
+    row("reaction", "reaction: frame on which the dial shows the replica's new turn, worst", `${reacted ? fmt(n.reaction.worst) : "n/a"} (per turn: ${n.reaction.list.map((x) => x.nth ?? "?").join(",")})`, `<= ${LIMITS.reactionFrame}`, reacted ? n.reaction.worst <= LIMITS.reactionFrame : null, reacted ? "1 = the same UI v2 frame" : "no turn was measured");
     row("size", "skin package size", n.pkg.bytes !== undefined ? `${MB(n.pkg.bytes)} MB (${n.pkg.file})` : `n/a (${n.pkg.error})`, "<= 3 MB", n.pkg.bytes !== undefined ? n.pkg.bytes <= LIMITS.packageBytes : null, "");
     row("size", "ui2.load_ms", fmt(n.loadMs, " ms"), `<= ${LIMITS.loadMs} ms`, typeof n.loadMs === "number" ? n.loadMs <= LIMITS.loadMs : null, `${meta.profile} bundle`);
     const wasm = Object.entries(n.wasm).map(([f, w]) => `${f} ${KB(w.bytes)} KB raw, ${KB(w.brotli)} KB brotli`).join("; ");

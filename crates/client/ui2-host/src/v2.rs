@@ -271,6 +271,13 @@ impl V2Ui {
     /// does not name stands where the layout puts it, as on the skin's page in a browser (which has no map) and in
     /// `ui-convert verify`. Names are `city:<id>`, `unit:<id>` and `plot:<x>,<y>`.
     pub fn place_sample_anchors(&mut self, dpr: f32) {
+        self.place_sample_anchors_moved(dpr, (0.0, 0.0));
+    }
+
+    /// [`place_sample_anchors`](Self::place_sample_anchors) with every anchor moved by `by` (CSS px): a bench moves
+    /// them a little every frame, as a panning camera moves the anchors of a game (`?ui2samplepan=`).
+    pub fn place_sample_anchors_moved(&mut self, dpr: f32, by: (f32, f32)) {
+        let by = Vec2::new(by.0 * dpr, by.1 * dpr);
         let Some(points) = self.sample.as_ref().map(|s| s.anchors().clone()) else {
             return;
         };
@@ -289,7 +296,7 @@ impl V2Ui {
                 };
                 Some(AnchorScreen {
                     id,
-                    pos,
+                    pos: pos + by,
                     scale: 1.0,
                     visible: true,
                 })

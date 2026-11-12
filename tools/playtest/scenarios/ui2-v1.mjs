@@ -29,7 +29,7 @@
 // Screenshots: <logs>/ui2-v1-*.png; the numbers: <logs>/ui2-v1.json.
 import { writeFileSync } from "node:fs";
 import { openPage, act, until, state, appUrl } from "../lib/browser.mjs";
-import { DEV_PASSWORD } from "../lib/game.mjs";
+import { DEV_PASSWORD, startRoom } from "../lib/game.mjs";
 import { attaches, switchTo, signed, yearText } from "./ui2-host.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -175,9 +175,9 @@ export async function run(ctx) {
     for (const slot of s.net.room.slots.filter((y) => y.who === "open")) await act(alice.page, { kind: "slot", index: slot.index, occupant: "closed" });
     await until(alice.page, (x) => x.net?.room?.slots.every((y) => y.who !== "open") && x.net.room.canStart === true, 15000, "Start is on");
     const t0 = Date.now();
-    await act(alice.page, { kind: "start" });
-    for (const b of [alice, bob]) await until(b.page, (x) => x.screen === "play" && x.net?.phase === "play" && x.turn !== null, 180000, `${b.nick} in the game`);
-    n.toRunningMs = await Promise.all([v2Up(alice), v2Up(bob)]).then(() => Date.now() - t0);
+    // A server that ran games just before may refuse the start for a while (`max_games`): waited out and reported.
+    n.start = await startRoom(alice.page, [[alice.nick, alice.page], [bob.nick, bob.page]]);
+    n.toRunningMs = await Promise.all([v2Up(alice), v2Up(bob)]).then(() => Date.now() - t0 - n.start.waitedMs);
     await sleep(2000);
 
     await step1(alice, bob, check, n);
@@ -304,8 +304,11 @@ async function focusRow(page, name) {
   for (let pass = 0; pass < 2; pass++) {
     for (const row of rowsOf(await rectsOf(page, "production.list"))) {
       if (row.cy > VP.height - 8) continue;
+      // The detail is read once UI v2 has drawn a few frames after the click: the one shown before the click (an
+      // earlier row's) must not pass for the clicked row's.
+      const f0 = (await ui2(page))?.frames ?? 0;
       await page.mouse.click(row.x + Math.min(120, row.w / 3), row.cy);
-      const p = await waitUi(page, (q) => want(detailName(q) ?? ""), 600);
+      const p = await waitUi(page, (q) => (q.frames ?? 0) >= f0 + 3 && want(detailName(q) ?? ""), 1500);
       if (p.ok) return { ...row, name: detailName(p.probe) };
     }
   }

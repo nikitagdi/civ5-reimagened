@@ -136,6 +136,11 @@ impl GameIcons {
         }
     }
 
+    /// Whether the set is here (pictures named from now on are found, or missing for good).
+    pub fn has_store(&self) -> bool {
+        self.store.borrow().is_some()
+    }
+
     /// The textures pictures named so far.
     pub fn named(&self) -> Vec<u64> {
         self.named.borrow().iter().copied().collect()
@@ -280,8 +285,10 @@ mod tests {
         let resolve = icons.resolver();
         assert_eq!(resolve("icon:UNIT_ATLAS_1:0"), None, "no set yet");
         assert!(!icons.set_store(None), "no change");
+        assert!(!icons.has_store());
         let s = store();
         assert!(icons.set_store(Some(Rc::clone(&s))), "the set came");
+        assert!(icons.has_store());
         assert!(!icons.set_store(Some(Rc::clone(&s))), "the same set");
         let img = resolve("icon:UNIT_ATLAS_1:0").expect("a picture");
         assert_eq!(img.uv, [0.0, 0.0, 0.125, 0.125]);

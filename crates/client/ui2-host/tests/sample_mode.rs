@@ -159,6 +159,21 @@ fn banners_the_sample_does_not_place_stand_where_the_layout_puts_them() {
             ],
             "the three banners as laid out (CSS px) at dpr {dpr}"
         );
+        // A bench's pan (`?ui2samplepan=`) moves every anchor by the same CSS px, at any device scale.
+        ui.place_sample_anchors_moved(dpr, (30.0, 12.5));
+        let mut moved: Vec<(f32, f32)> = ui
+            .runtime()
+            .dump_rects(None)
+            .iter()
+            .filter(|r| (r.w, r.h) == (40.0, 10.0))
+            .map(|r| (r.x, r.y))
+            .collect();
+        moved.sort_by(|a, b| a.1.total_cmp(&b.1));
+        assert_eq!(
+            moved,
+            vec![(30.0, 12.5), (30.0, 22.5), (30.0, 32.5)],
+            "moved by (30, 12.5) CSS px at dpr {dpr}"
+        );
     }
 }
 

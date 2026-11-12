@@ -391,13 +391,22 @@ impl ScriptSupervisor {
     }
 
     /// Ask the watchdog about every context: mark the busy ones, kill the hung ones.
+    ///
+    /// The waits count up to the time the page has taken in the workers' messages
+    /// ([`ScriptHost::delivered_until`]), not up to now: while the page holds the messages back (input and long
+    /// frames come first in a browser) an answer may be posted and not drained yet, and a worker is judged by
+    /// what it could have answered.
     fn watch(&mut self, now_ms: f64, out: &mut ScriptOutput) {
+        let seen = self
+            .host
+            .delivered_until()
+            .map_or(now_ms, |t| t.min(now_ms));
         for i in 0..self.ctxs.len() {
             let c = &mut self.ctxs[i];
             if c.off() || c.worker.is_none() {
                 continue;
             }
-            match c.wd.check(now_ms) {
+            match c.wd.check(seen) {
                 Verdict::Fine => {
                     if matches!(c.status, ScriptStatus::Busy { .. }) {
                         c.status = ScriptStatus::Running;
