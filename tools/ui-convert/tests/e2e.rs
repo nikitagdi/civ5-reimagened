@@ -1007,6 +1007,48 @@ fn a_static_disabled_button_is_recorded() {
     assert_eq!(disabled, [&Expr::Bool(true)]);
 }
 
+/// A bound `disabled` is a condition: the base record of the button is read enabled, whatever the binding gives
+/// on the page the converter reads (here it gives true), and `:disabled` is a variant over it.
+#[test]
+fn a_bound_disabled_button_has_an_enabled_base_record() {
+    if !chrome() {
+        return;
+    }
+    use ui2_package::style::ColorV;
+    let dir = picture_skin(
+        "e2e-bound-disabled",
+        ".b {\n  display: flex;\n  appearance: none;\n  border: 0;\n  padding: 0;\n  font: inherit;\n  color: inherit;\n  width: 8px;\n  height: 8px;\n  background-color: rgb(1, 2, 3);\n}\n.b:disabled {\n  background-color: rgb(200, 0, 0);\n}\n",
+    );
+    let html = std::fs::read_to_string(dir.join("index.html")).expect("index.html");
+    std::fs::write(
+        dir.join("index.html"),
+        html.replace(
+            "<div class=\"tile\"></div>",
+            "<button class=\"b\" data-bind-disabled=\"{{ui.production.focus == null}}\"></button>",
+        ),
+    )
+    .expect("index.html");
+    let out = ui2_convert::build::build(&dir, true);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(out.run.errors.is_empty(), "{:?}", out.run.errors);
+    let bytes = out.written.expect("package").bytes;
+    let pkg = ui2_package::Package::read(std::sync::Arc::from(bytes.as_slice())).expect("read");
+    let colors: Vec<ColorV> = pkg
+        .styles()
+        .records
+        .iter()
+        .map(|r| r.background_color)
+        .collect();
+    assert!(
+        colors.contains(&ColorV::Lit([1, 2, 3, 255])),
+        "the enabled base is recorded: {colors:?}"
+    );
+    assert!(
+        colors.contains(&ColorV::Lit([200, 0, 0, 255])),
+        "the disabled variant is recorded: {colors:?}"
+    );
+}
+
 /// A hotkey label (`data-hotkey-label` inside a node with `data-hotkey`) is written with its binding and one
 /// empty text leaf for the runtime to fill with the key's name; the mockup's text is not kept.
 #[test]

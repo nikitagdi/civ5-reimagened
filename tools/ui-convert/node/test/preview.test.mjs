@@ -230,6 +230,8 @@ test("fixture: modes", async () => {
     assert.equal(await text(ex, "#empty span"), "");
     assert.equal(await ex.evaluate(() => window.__ui2preview.mode), "extract");
     assert.deepEqual(await texts(ex, "#hkf, #hkb, #hkd"), ["F", "Ctl+Shift+Б", "Delete"], "the converter reads the labels too");
+    // a bound `disabled` is a condition the converter reads itself: the base values are read without it
+    assert.equal(await ex.evaluate(() => [document.querySelector("#on").disabled, document.querySelector("#off").disabled]).then((x) => x.join()), "false,false");
 
     // templates: includes and numbers only, the mockup text stays, nothing is instantiated
     const tp = (await openPage(ctx, fixture, "index.html?ui2mode=templates")).page;

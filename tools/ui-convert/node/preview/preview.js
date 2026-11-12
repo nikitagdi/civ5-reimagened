@@ -1387,7 +1387,9 @@
           c.setAttribute("src", ASSET_PLACEHOLDER);
         } else if (v !== "") c.setAttribute("src", v);
       }
-      if (p.disabled) {
+      // In extract mode a bound `disabled` is a condition the converter reads itself (the `:disabled` variant):
+      // the page keeps only the markup's own attribute, or the base values would be read disabled.
+      if (p.disabled && !extract()) {
         const off = truthy(ev(p.disabled, scope));
         if (c.localName === "button" || c.localName === "input") c.toggleAttribute("disabled", off);
         else if (off) c.setAttribute("aria-disabled", "true");
