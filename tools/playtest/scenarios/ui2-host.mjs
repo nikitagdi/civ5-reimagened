@@ -30,7 +30,7 @@ async function ui2(page) {
 }
 
 /** `__civ5stats.counters` (an object of name -> number), or {}. */
-async function counters(page) {
+export async function counters(page) {
   return page.evaluate(() => window.__civ5stats?.counters ?? {}).catch(() => ({}));
 }
 
@@ -44,12 +44,12 @@ function partTexts(probe, part) {
 }
 
 /** The year as the skin writes it (`year.bc` / `year.ad` of `l10n/en_US.toml`). */
-function yearText(year) {
+export function yearText(year) {
   return year < 0 ? `${-year} BC` : `${year} AD`;
 }
 
 /** `fmt.signed`: a sign before positive numbers. */
-function signed(n) {
+export function signed(n) {
   return n > 0 ? `+${n}` : `${n}`;
 }
 
@@ -207,12 +207,12 @@ async function hooks(page, numbers, check) {
 }
 
 /** `__civ5stats.ui.lua_errors` of the classic UI (null before its stats came). */
-async function luaErrors(page) {
+export async function luaErrors(page) {
   return page.evaluate(() => window.__civ5stats?.ui?.lua_errors ?? null).catch(() => null);
 }
 
 /** The client's attaches so far (a reconnect would add one). */
-async function attaches(page) {
+export async function attaches(page) {
   return page.evaluate(() => {
     const c = window.__civ5test.metrics().client;
     return c ? c.attachedReplay + c.attachedFresh : null;
@@ -223,7 +223,7 @@ async function attaches(page) {
  * One switch: `setUi` with `opts`, then until `want` is on the screen and (for the classic UI) its layer ran again
  * (`ui.classic.wake_ms` changed). Returns the host's switch time, the classic UI's wake-up time and the wall time.
  */
-async function switchTo(page, value, want, opts = {}, waitMs = 30000) {
+export async function switchTo(page, value, want, opts = {}, waitMs = 30000) {
   const before = await counters(page);
   const t0 = Date.now();
   await act(page, { kind: "setUi", value, ...opts });
