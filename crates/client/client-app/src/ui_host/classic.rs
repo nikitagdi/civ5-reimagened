@@ -296,23 +296,11 @@ impl Frontend for ClassicFrontend {
         // The turn timeline's render settle (`c.render_settle`): the pages in view are all there.
         let live = renderer.terrain_live_stats();
         let pending = live.unbuilt + live.unpaged;
+        // (The textures its layer asks for come from the game session's UI set: the host uploads them.)
         self.m2.frame_done(
             drawn && pending == 0 && live.ring_unbuilt == 0 && live.ring_unpaged == 0,
             pending,
         );
-        let wanted = renderer.ui_textures_mut().take_wanted();
-        for tex in self.m2.resolve_textures(&wanted) {
-            let data = render::UiTextureData {
-                width: tex.width,
-                height: tex.height,
-                format: tex.format,
-                mips: vec![tex.bytes],
-                content: Some(tex.content),
-            };
-            if let Err(e) = renderer.ui_textures_mut().upload(tex.id, &data) {
-                tracing::warn!(texture = tex.id.0, "ui texture upload: {e}");
-            }
-        }
     }
 
     fn new_game(&mut self) {
@@ -432,7 +420,6 @@ fn m2_frame(m2: &mut M2Ui, cx: &mut FrameCx<'_>, out: &mut UiDrawList) {
         renderer.minimap_view().map_or((0, 0), |(_, i)| i.size),
         has_map,
     );
-    m2.set_texture_profile(&renderer.platform_profile());
     m2.begin_frame(env, cx.session, cx.step, out);
     if let Some(on) = m2.take_grid() {
         renderer.set_grid_visible(on);

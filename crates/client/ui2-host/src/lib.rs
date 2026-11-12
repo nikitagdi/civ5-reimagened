@@ -38,6 +38,8 @@ pub use registry::{
 pub use scripts::SCRIPT_LANG;
 pub use sink::{HostNet, NetSink, Offline, refused};
 pub use ui2_actions::ActionEvent;
+/// The renderer's texture id a game picture names ([`ExtImage::texture`]).
+pub use ui2_draw::ExtTexture;
 /// The mouse button of a `map.click` (the model's enum, not the platform's).
 pub use ui2_model::generated::MouseButton as MapButton;
 /// The game's screens a skin may open (or ask the host for).
@@ -50,7 +52,7 @@ pub use ui2_model::{Key as ModelKey, Value as ModelValue};
 pub use ui2_package::Package as SkinPackage;
 pub use ui2_package::profile::action::AnchorKind;
 pub use ui2_package::style::Cursor;
-pub use ui2_runtime::{Env, InputOutcome, Services};
+pub use ui2_runtime::{AssetResolver, Env, ExtImage, InputOutcome, Services};
 pub use ui2_script::{ScriptStats, ScriptStatus};
 pub use ui2_source::ReplicaView;
 pub use v2::{HostClock, LoadStats, RESOLVE_BUDGET_MS, V2Init, V2Ui};

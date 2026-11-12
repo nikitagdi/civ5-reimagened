@@ -525,6 +525,8 @@ pub struct V2Frontend {
     /// The screens outside the skin another UI shows (the host's offer), and the one the last frame asked for.
     screens: Vec<ui2_host::ScreenId>,
     screen_req: Option<ui2_host::ScreenId>,
+    /// The game's pictures for the skins, over the session's UI set.
+    icons: super::game_icons::GameIcons,
 }
 
 /// A skin change on the screen: the skin asked for and its download (`None`: the package is in the cache).
@@ -578,6 +580,7 @@ impl V2Frontend {
             sample_on: false,
             screens: Vec::new(),
             screen_req: None,
+            icons: super::game_icons::GameIcons::default(),
         }
     }
 
@@ -957,6 +960,7 @@ impl V2Frontend {
                 self.load_ms = Some(ms);
                 let mut ui = ui;
                 ui.set_golden(self.background);
+                ui.set_asset_resolver(self.icons.resolver());
                 let bridge = self.text_bridge();
                 ui.set_text_bridge(bridge);
                 // A new skin over a game already up reads its slow first calls once too.
@@ -1170,7 +1174,8 @@ impl V2Frontend {
         if !self.running() || !(self.game_up || self.sample_on) {
             return None;
         }
-        // The replica and the localizer are the game session's.
+        // The replica, the localizer and the UI set the game's pictures come from are the game session's.
+        let new_icons = self.icons.set_store(session.ui_store());
         let loc = session.localizer();
         let new_loc = match (&loc, &self.loc) {
             (Some(a), Some(b)) => !Rc::ptr_eq(a, b),
@@ -1184,6 +1189,10 @@ impl V2Frontend {
         let ui = &mut **ui;
         if new_loc && let Some(l) = &loc {
             ui.set_localizer(Rc::clone(l));
+        }
+        // The UI set came (or changed): the pictures the skin could not find are painted again.
+        if new_icons {
+            ui.set_asset_resolver(self.icons.resolver());
         }
         self.loc = loc;
         ui.set_env(env);
@@ -1377,6 +1386,21 @@ impl Frontend for V2Frontend {
     fn activate(&mut self, _cx: &mut PrepareCx<'_>) {
         tracing::info!("UI v2 takes the screen; the classic UI sleeps");
         self.on_screen = true;
+    }
+
+    /// `ui2.assets.*`: the game pictures the skin named and found (`resolved`) or not (`missed`), and how many of
+    /// their textures the renderer holds (`resident`, of `textures`).
+    fn after_render(&mut self, r: &mut Renderer, _drawn: bool) {
+        let (resolved, missed) = self.icons.counts();
+        let named = self.icons.named();
+        let resident = named
+            .iter()
+            .filter(|&&id| r.ui_textures_mut().contains(draw_list::TextureId(id)))
+            .count();
+        render::perf::set_counter("ui2.assets.resolved", resolved as f64);
+        render::perf::set_counter("ui2.assets.missed", missed as f64);
+        render::perf::set_counter("ui2.assets.textures", named.len() as f64);
+        render::perf::set_counter("ui2.assets.resident", resident as f64);
     }
 
     fn offer_screens(&mut self, screens: &[ui2_host::ScreenId]) {

@@ -162,6 +162,8 @@ pub struct V2Ui {
     golden: Option<[u8; 3]>,
     /// The sample mode (`?ui2sample=`): a sample file writes the model instead of the replica source.
     pub(crate) sample: Option<StaticSource>,
+    /// Where the skins find the game's pictures; a new skin's runtime gets it too.
+    assets: Option<ui2_runtime::AssetResolver>,
 }
 
 impl V2Ui {
@@ -216,7 +218,15 @@ impl V2Ui {
             services: init.services,
             golden: None,
             sample: None,
+            assets: None,
         })
+    }
+
+    /// Where the skin finds the game's pictures (`data-bind-src` of an `icon:<atlas>:<index>`): kept for every
+    /// skin that comes after this one too.
+    pub fn set_asset_resolver(&mut self, resolver: ui2_runtime::AssetResolver) {
+        self.skin.runtime.set_asset_resolver(Rc::clone(&resolver));
+        self.assets = Some(resolver);
     }
 
     /// The sample mode (`?ui2sample=<state>`): the model comes from a sample file of the skin
@@ -324,6 +334,9 @@ impl V2Ui {
                 return Err(SkinLoadError::new(id.as_str(), f));
             }
         };
+        if let Some(r) = &self.assets {
+            skin.runtime.set_asset_resolver(Rc::clone(r));
+        }
         // The new runtime has seen no frame: it takes every root of the model as it is.
         skin.runtime
             .apply_delta(&self.store.snapshot(), &self.store);

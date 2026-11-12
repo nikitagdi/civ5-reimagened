@@ -10,8 +10,8 @@
 //
 // Start: `?ui=v2:engraved&test=1&autostart=1&stats=1`; once the skin runs, the top strip's texts (read through
 // `__civ5test.ui2()`, never from pixels) show the gold and the science rate, and the turn dial the turn and the year, that `state()` reports,
-// at the start (then a click on the map selects a unit: the unit panel shows its name and its Fortify button fortifies it
-// within 2 s) and again once the settler founded a city (through the test port's orders); `ui2.draws.hud` <= 5; no console errors. Then a page without `&ui=`: `ui2()` is null and no `ui2.*` pass ran
+// at the start (then a click on the map selects a unit: the unit panel shows its name and the game's portrait of it, and its
+// Fortify button fortifies it within 2 s) and again once the settler founded a city (through the test port's orders); `ui2.draws.hud` <= 5; no console errors. Then a page without `&ui=`: `ui2()` is null and no `ui2.*` pass ran
 // (`ui2.draws` absent or 0). Screenshot of the strip: <logs>/ui2-top.png.
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -118,6 +118,21 @@ async function unitPanel(page, numbers, check, shot) {
   check("unit selected: the panel shows its name", at && name.length > 0 && name.some((t) => mine.includes(t)),
     `title ${JSON.stringify(name)}, units ${JSON.stringify(mine)}`);
   if (!at) return;
+  // The unit's portrait (`icon:<atlas>:<index>` of the model) is a cell of the game's atlas texture: the resolver
+  // found it, the renderer holds the texture (fetched in the background) and no picture waits for its texture. The
+  // atlas table comes with the classic UI set, which a debug build loads in about a minute after the start.
+  let pc = {};
+  const pt0 = Date.now();
+  while (Date.now() - pt0 < 90000) {
+    pc = await counters(page);
+    if (pc["ui2.assets.resolved"] > 0 && pc["ui2.assets.resident"] > 0 && pc["ui2.assets.resident"] === pc["ui2.assets.textures"] && pc["ui2.ext_missing"] === 0) break;
+    await sleep(250);
+  }
+  numbers.portrait = { ms: Date.now() - pt0, counters: Object.fromEntries(Object.entries(pc).filter(([k]) => /^ui2\.(assets|ext_)/.test(k))) };
+  check("unit panel: the portrait is the game's picture (resolved, its texture resident, nothing waiting)",
+    pc["ui2.assets.resolved"] > 0 && pc["ui2.assets.resident"] > 0 && pc["ui2.assets.resident"] === pc["ui2.assets.textures"] && pc["ui2.ext_missing"] === 0,
+    JSON.stringify(numbers.portrait));
+  await sleep(500);
   await shot("ui2-unit");
   const unit = (st.units ?? []).find((u) => name.includes(u.name));
   const before = unit?.activity;

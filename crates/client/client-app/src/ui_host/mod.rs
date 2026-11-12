@@ -8,6 +8,7 @@
 //! Without a registered frontend (`?ui=interim`) the host is empty and the app's interim panels are the game screen.
 
 pub mod classic;
+pub mod game_icons;
 pub mod v2;
 
 use std::rc::Rc;
@@ -306,6 +307,25 @@ pub fn stored_choice(kv: &dyn platform::KeyValueStore) -> Option<UiChoice> {
 pub fn save_choice(kv: &dyn platform::KeyValueStore, choice: &UiChoice) {
     if *choice != UiChoice::Interim {
         kv.set(UI_KEY, &choice.value());
+    }
+}
+
+/// The textures the renderer asked for since the last call, from the session's UI set (the device's texture
+/// variants are the set's from now on).
+fn upload_ui_textures(r: &mut Renderer, session: &mut GameSession) {
+    session.set_ui_profile(&r.platform_profile());
+    let wanted = r.ui_textures_mut().take_wanted();
+    for tex in session.ui_textures(&wanted) {
+        let data = render::UiTextureData {
+            width: tex.width,
+            height: tex.height,
+            format: tex.format,
+            mips: vec![tex.bytes],
+            content: Some(tex.content),
+        };
+        if let Err(e) = r.ui_textures_mut().upload(tex.id, &data) {
+            tracing::warn!(texture = tex.id.0, "ui texture upload: {e}");
+        }
     }
 }
 
@@ -742,9 +762,19 @@ impl UiHost {
         }
     }
 
-    pub fn after_render(&mut self, r: &mut Renderer, drawn: bool) {
+    /// After the renderer drew: the active frontend's frame timing, then the textures the frame asked for, from the
+    /// game session's UI set (the classic layer's files and UI v2's game pictures alike).
+    pub fn after_render(
+        &mut self,
+        r: &mut Renderer,
+        drawn: bool,
+        session: Option<&mut GameSession>,
+    ) {
         if let Some(f) = self.active_mut() {
             f.after_render(r, drawn);
+        }
+        if let Some(session) = session {
+            upload_ui_textures(r, session);
         }
     }
 

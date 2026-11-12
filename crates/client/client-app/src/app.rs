@@ -2300,7 +2300,8 @@ impl App {
                 original.end_frame(renderer);
             }
             // The game UI's textures the frame asked for, and its frame timing.
-            self.ui_host.after_render(renderer, drawn);
+            self.ui_host
+                .after_render(renderer, drawn, self.session.as_mut());
             drop(_slow109);
             if drawn && !self.showcase_mode && self.bridge.terrain().is_some() {
                 let mut report = |name, what: &str| {
