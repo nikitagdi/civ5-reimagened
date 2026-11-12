@@ -8,11 +8,15 @@
 //! when the count stayed the same), and each draw call ([`ui2_draw::Op`]) binds a slice of it, so no base
 //! instance is needed (WebGL2 has none).
 //!
-//! Pictures of game assets and the minimap sample an external texture ([`ui2_draw::ExtTexture`]) bound as a
-//! second bind group; the scene already splits a layer's draws where the external texture changes, and that
-//! is the only split. [`Ui2ExtTextures`] resolves the ids every frame (the renderer's implementation asks the
-//! original UI's texture registry and loads missing assets through its wanted list); a group is made only when
-//! a texture is new or uploaded again.
+//! Pictures of game assets and the minimap sample external textures ([`ui2_draw::ExtTexture`]) bound as a
+//! second bind group of up to [`EXT_SLOTS`] textures; each picture finds its texture there by its slot. A layer
+//! is drawn in its own order (chunks in order, items in order) as consecutive instance ranges: a range grows over
+//! the scene's runs until it would need a texture more than the group holds, and only then a new draw starts. So
+//! a layer whose pictures come from at most [`EXT_SLOTS`] textures is one draw, the paint order is never changed,
+//! and the pixels are those of one draw per run. [`Ui2ExtTextures`] resolves the ids every frame (the renderer's
+//! implementation asks the original UI's texture registry and loads missing assets through its wanted list); a
+//! group is made only when a set of textures is new or one of them is uploaded again. A picture whose texture is
+//! not available gets no area in the vertex shader.
 //!
 //! [`Ui2Pass::prepare`] does every upload; [`Ui2Pass::draw`] only records. A frame without changes uploads
 //! nothing.
@@ -40,6 +44,11 @@ pub use gpu_atlas::{ImageArray, MIN_LAYERS, MaskArray, MaskSource, glyph_room};
 const MIN_BUFFER: u64 = 64 * 1024;
 /// Vertices of the quad of one instance.
 const QUAD_VERTICES: u32 = 6;
+/// External textures one draw binds (`EXT_SLOTS` in `ui2.wgsl`). With the coverage and image arrays that is 10
+/// sampled textures in the fragment stage, within the 16 of WebGL2.
+pub const EXT_SLOTS: usize = 8;
+/// The slot of an unused entry of the external texture group (`NO_SLOT` in `ui2.wgsl`).
+const NO_SLOT: u32 = u32::MAX;
 
 /// The counters of the last [`Ui2Pass::prepare`] (`ui2.*`).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -60,9 +69,9 @@ pub struct Ui2Stats {
     pub glyph_bytes: u64,
     /// Bytes of the layers that hold the skin package's picture pages (coverage and image arrays).
     pub page_bytes: u64,
-    /// Draw calls skipped for an external texture the pass cannot bind yet.
+    /// Runs of pictures of an external texture the pass cannot bind yet (drawn without area).
     pub ext_missing: u32,
-    /// Bind groups made for external textures (a new texture, or a new upload of one).
+    /// Bind groups made for sets of external textures (a new set, or a new upload of one of its textures).
     pub ext_groups_made: u32,
 }
 
@@ -141,6 +150,23 @@ struct DrawOp {
     ext: Option<usize>,
 }
 
+/// One entry of an external texture group: the scene slot pictures name it by, the texture id, its serial.
+type ExtKey = (u16, u64, u64);
+
+/// A texture of the draw being gathered: its key, view and UV scale.
+struct ExtEntry {
+    key: ExtKey,
+    view: wgpu::TextureView,
+    scale: [f32; 2],
+}
+
+/// The draw being gathered: consecutive instances of a layer and the external textures they sample.
+#[derive(Default)]
+struct Gather {
+    range: Option<Range<u32>>,
+    entries: Vec<ExtEntry>,
+}
+
 /// Where the pass finds the renderer's textures that pictures name by [`ui2_draw::ExtTexture`].
 pub trait Ui2ExtTextures {
     /// The texture `id` for this frame: a serial that changes whenever the texture behind the id changes, its
@@ -182,16 +208,33 @@ impl Ui2ExtTextures for RendererTextures<'_> {
     }
 }
 
+/// `ExtParams` of `ui2.wgsl`.
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq, Pod, Zeroable)]
 struct ExtUniform {
-    uv_scale: [f32; 2],
-    pad: [f32; 2],
+    /// xy: the UV scale of entry i.
+    uv_scale: [[f32; 4]; EXT_SLOTS],
+    /// The scene slot of each entry ([`NO_SLOT`]: unused).
+    slots: [u32; EXT_SLOTS],
 }
 
-/// The bind group of one external texture, made when its serial changes.
+impl ExtUniform {
+    fn of(entries: &[ExtEntry]) -> Self {
+        let mut u = ExtUniform {
+            uv_scale: [[1.0, 1.0, 0.0, 0.0]; EXT_SLOTS],
+            slots: [NO_SLOT; EXT_SLOTS],
+        };
+        for (i, e) in entries.iter().take(EXT_SLOTS).enumerate() {
+            u.uv_scale[i] = [e.scale[0], e.scale[1], 0.0, 0.0];
+            u.slots[i] = u32::from(e.key.0);
+        }
+        u
+    }
+}
+
+/// The bind group of a set of external textures (made when the set is new or one of its textures is uploaded
+/// again: the serial is part of the key).
 struct ExtGroup {
-    serial: u64,
     group: wgpu::BindGroup,
     _uniform: Buf,
 }
@@ -212,16 +255,21 @@ pub struct Ui2Pass {
     /// `Pages::revision` of the package pages on the GPU.
     pages_revision: u64,
     group: wgpu::BindGroup,
-    /// Group 1: an external texture and its UV scale.
+    /// Group 1: up to [`EXT_SLOTS`] external textures, their slots and UV scales.
     ext_layout: wgpu::BindGroupLayout,
-    /// Group 1 of draws without an external texture (a white texel).
+    /// Group 1 of draws without an external texture (white texels, no slot).
     ext_default: wgpu::BindGroup,
     _ext_white: Tex,
+    /// The placeholder of the unused entries of a group.
+    ext_white_view: wgpu::TextureView,
     _ext_default_uniform: Buf,
-    /// Groups of the external textures in use, by texture id.
-    ext_groups: HashMap<u64, ExtGroup>,
-    /// The groups this frame's draws bind (`DrawOp::ext`), with their texture ids.
-    ext_bound: Vec<(u64, wgpu::BindGroup)>,
+    /// Groups of the sets of external textures in use, by their entries.
+    ext_groups: HashMap<Vec<ExtKey>, ExtGroup>,
+    /// The groups this frame's draws bind (`DrawOp::ext`), with their entries.
+    ext_bound: Vec<(Vec<ExtKey>, wgpu::BindGroup)>,
+    /// Tests: one draw per run of the scene (the draws before batching), the reference of the batched pixels.
+    #[cfg(test)]
+    unbatched: bool,
     layers: [LayerBuf; 4],
     ops: Vec<DrawOp>,
     /// Nothing was uploaded yet: the first `prepare` writes everything the scene holds.
@@ -309,32 +357,32 @@ impl Ui2Pass {
                 },
             ],
         });
+        let mut ext_entries: Vec<wgpu::BindGroupLayoutEntry> = (0..EXT_SLOTS as u32)
+            .map(|binding| wgpu::BindGroupLayoutEntry {
+                binding,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                count: None,
+            })
+            .collect();
+        // The slots are read by the vertex shader (a picture finds its entry there), the scales by the fragment one.
+        ext_entries.push(wgpu::BindGroupLayoutEntry {
+            binding: EXT_SLOTS as u32,
+            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: wgpu::BufferSize::new(std::mem::size_of::<ExtUniform>() as u64),
+            },
+            count: None,
+        });
         let ext_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("ui2 external texture layout"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: wgpu::BufferSize::new(
-                            std::mem::size_of::<ExtUniform>() as u64
-                        ),
-                    },
-                    count: None,
-                },
-            ],
+            entries: &ext_entries,
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("ui2 pipeline layout"),
@@ -422,7 +470,7 @@ impl Ui2Pass {
             [mask.view(), image.view()],
             &sampler,
         );
-        // Draws without an external texture never sample group 1: a zeroed texel and uniform are enough.
+        // Draws without an external texture never sample group 1: a zeroed texel is enough, and no entry has a slot.
         let ext_white = device.tex(
             &wgpu::TextureDescriptor {
                 label: Some("ui2 no external texture"),
@@ -440,11 +488,13 @@ impl Ui2Pass {
             },
             Cluster::Ui,
         );
-        let ext_default_uniform = Self::ext_uniform(device);
+        let ext_white_view = ext_white.create_view(&wgpu::TextureViewDescriptor::default());
+        let ext_default_uniform = Self::ext_uniform(device, &ExtUniform::of(&[]));
         let ext_default = Self::make_ext_group(
             device,
             &ext_layout,
-            &ext_white.create_view(&wgpu::TextureViewDescriptor::default()),
+            &[],
+            &ext_white_view,
             &ext_default_uniform,
         );
         Self {
@@ -463,9 +513,12 @@ impl Ui2Pass {
             ext_layout,
             ext_default,
             _ext_white: ext_white,
+            ext_white_view,
             _ext_default_uniform: ext_default_uniform,
             ext_groups: HashMap::new(),
             ext_bound: Vec::new(),
+            #[cfg(test)]
+            unbatched: false,
             layers: Default::default(),
             ops: Vec::new(),
             fresh: true,
@@ -510,77 +563,106 @@ impl Ui2Pass {
         })
     }
 
-    fn ext_uniform(device: &wgpu::Device) -> Buf {
-        device.buf(
+    /// A uniform buffer holding `u` (written at creation).
+    fn ext_uniform(device: &wgpu::Device, u: &ExtUniform) -> Buf {
+        let buf = device.buf(
             &wgpu::BufferDescriptor {
-                label: Some("ui2 external texture uv"),
+                label: Some("ui2 external textures"),
                 size: std::mem::size_of::<ExtUniform>() as u64,
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                mapped_at_creation: false,
+                usage: wgpu::BufferUsages::UNIFORM,
+                mapped_at_creation: true,
             },
             Cluster::Ui,
-        )
+        );
+        // A buffer mapped at creation always has its range.
+        if let Ok(mut range) = buf.slice(..).get_mapped_range_mut() {
+            range.copy_from_slice(bytemuck::bytes_of(u));
+        }
+        buf.unmap();
+        buf
     }
 
+    /// The group of `entries` (the rest of the [`EXT_SLOTS`] textures are `white`).
     fn make_ext_group(
         device: &wgpu::Device,
         layout: &wgpu::BindGroupLayout,
-        view: &wgpu::TextureView,
+        entries: &[ExtEntry],
+        white: &wgpu::TextureView,
         uniform: &wgpu::Buffer,
     ) -> wgpu::BindGroup {
+        let mut bindings: Vec<wgpu::BindGroupEntry> = (0..EXT_SLOTS)
+            .map(|i| wgpu::BindGroupEntry {
+                binding: i as u32,
+                resource: wgpu::BindingResource::TextureView(
+                    entries.get(i).map_or(white, |e| &e.view),
+                ),
+            })
+            .collect();
+        bindings.push(wgpu::BindGroupEntry {
+            binding: EXT_SLOTS as u32,
+            resource: uniform.as_entire_binding(),
+        });
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("ui2 external texture group"),
             layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: uniform.as_entire_binding(),
-                },
-            ],
+            entries: &bindings,
         })
     }
 
-    /// The group of external texture `id` for this frame (made again when its serial changed), as an index
-    /// into `ext_bound`; `None` when the texture is not available. Returns the bytes written.
+    /// The group of the gathered draw's textures for this frame (made when the set is new or one of its textures
+    /// was uploaded again), as an index into `ext_bound`; `None` for a draw without external textures.
     fn bind_ext(
         &mut self,
         device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        id: u64,
-        textures: &mut dyn Ui2ExtTextures,
+        entries: &[ExtEntry],
         stats: &mut Ui2Stats,
     ) -> Option<usize> {
-        let (serial, view, scale) = textures.resolve(id)?;
-        let fresh = self.ext_groups.get(&id).is_some_and(|g| g.serial == serial);
-        if !fresh {
-            let uniform = Self::ext_uniform(device);
-            let u = ExtUniform {
-                uv_scale: scale,
-                pad: [0.0; 2],
-            };
-            queue.write_buffer(&uniform, 0, bytemuck::bytes_of(&u));
+        if entries.is_empty() {
+            return None;
+        }
+        let key: Vec<ExtKey> = entries.iter().map(|e| e.key).collect();
+        if let Some(i) = self.ext_bound.iter().position(|(bound, _)| *bound == key) {
+            return Some(i);
+        }
+        if !self.ext_groups.contains_key(&key) {
+            let uniform = Self::ext_uniform(device, &ExtUniform::of(entries));
             stats.upload_bytes += std::mem::size_of::<ExtUniform>() as u64;
             stats.ext_groups_made += 1;
-            let group = Self::make_ext_group(device, &self.ext_layout, view, &uniform);
+            let group = Self::make_ext_group(
+                device,
+                &self.ext_layout,
+                entries,
+                &self.ext_white_view,
+                &uniform,
+            );
             self.ext_groups.insert(
-                id,
+                key.clone(),
                 ExtGroup {
-                    serial,
                     group,
                     _uniform: uniform,
                 },
             );
         }
-        if let Some(i) = self.ext_bound.iter().position(|(bound, _)| *bound == id) {
-            return Some(i);
-        }
-        let group = self.ext_groups.get(&id)?.group.clone();
-        self.ext_bound.push((id, group));
+        let group = self.ext_groups.get(&key)?.group.clone();
+        self.ext_bound.push((key, group));
         Some(self.ext_bound.len() - 1)
+    }
+
+    /// Ends the gathered draw of layer `li`: records it with its group.
+    fn flush(&mut self, device: &wgpu::Device, li: usize, g: &mut Gather, stats: &mut Ui2Stats) {
+        let entries = std::mem::take(&mut g.entries);
+        let Some(range) = g.range.take() else {
+            return;
+        };
+        let ext = self.bind_ext(device, &entries, stats);
+        stats.draws += 1;
+        stats.layer_draws[li] += 1;
+        stats.instances += u64::from(range.end - range.start);
+        self.ops.push(DrawOp {
+            layer: li,
+            range,
+            ext,
+        });
     }
 
     /// The counters of the last `prepare`.
@@ -684,37 +766,53 @@ impl Ui2Pass {
             let (bytes, written) = self.upload_layer(device, queue, scene, layer, full);
             stats.upload_bytes += bytes;
             stats.layers_uploaded += u32::from(written);
+            // The scene's runs (instances by external texture, in paint order) gathered into as few draws as the
+            // texture group allows; a run of an external texture that is not available stays in the draw and gets
+            // no area in the vertex shader.
+            let mut g = Gather::default();
             let ops = scene.layer_ops(layer).to_vec();
             for op in ops {
                 if op.range.is_empty() {
                     continue;
                 }
-                // A draw of an external texture binds its group; one that is not available is skipped.
-                let ext = match scene.ext_texture(op.ext) {
+                let entry = match scene.ext_texture(op.ext) {
                     None if op.ext == 0 => None,
                     None => {
                         stats.ext_missing += 1;
-                        continue;
+                        None
                     }
-                    Some(t) => match self.bind_ext(device, queue, t.0, textures, &mut stats) {
-                        Some(i) => Some(i),
+                    Some(t) => match textures.resolve(t.0) {
+                        Some((serial, view, scale)) => Some(ExtEntry {
+                            key: (op.ext, t.0, serial),
+                            view: view.clone(),
+                            scale,
+                        }),
                         None => {
                             stats.ext_missing += 1;
-                            continue;
+                            None
                         }
                     },
                 };
-                stats.draws += 1;
-                stats.layer_draws[li] += 1;
-                stats.instances += u64::from(op.range.end - op.range.start);
-                self.ops.push(DrawOp {
-                    layer: li,
-                    range: op.range,
-                    ext,
+                #[cfg(test)]
+                if self.unbatched {
+                    self.flush(device, li, &mut g, &mut stats);
+                }
+                if let Some(e) = entry
+                    && !g.entries.iter().any(|x| x.key == e.key)
+                {
+                    if g.entries.len() == EXT_SLOTS {
+                        self.flush(device, li, &mut g, &mut stats);
+                    }
+                    g.entries.push(e);
+                }
+                g.range = Some(match g.range.take() {
+                    Some(r) => r.start..op.range.end,
+                    None => op.range.clone(),
                 });
             }
+            self.flush(device, li, &mut g, &mut stats);
         }
-        // Groups of textures no draw uses any more are dropped.
+        // Groups of texture sets no draw uses any more are dropped.
         let bound = &self.ext_bound;
         self.ext_groups
             .retain(|id, _| bound.iter().any(|(b, _)| b == id));

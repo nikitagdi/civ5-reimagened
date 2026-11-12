@@ -1705,10 +1705,11 @@ fn external_on(test: &str, backends: wgpu::Backends) {
     );
     assert_eq!(c(85), [255, 255, 255]);
     let s = rig.pass.stats();
-    // Runs: box | a | box box | a | b | scaled | (missing) | box. Only a texture change splits the draw.
-    assert_eq!(s.draws, 7, "{s:?}");
+    // Runs: box | a | box box | a | b | scaled | (missing) | box. The three textures fit one group: one draw, in
+    // which the picture whose texture is missing has no area.
+    assert_eq!(s.draws, 1, "{s:?}");
     assert_eq!(s.ext_missing, 1);
-    assert_eq!(s.ext_groups_made, 3);
+    assert_eq!(s.ext_groups_made, 1);
     assert!(rig.ext.asked.contains(&missing.0));
 
     // An idle frame makes no group and uploads nothing.
@@ -1716,23 +1717,23 @@ fn external_on(test: &str, backends: wgpu::Backends) {
     let idle = rig.pass.stats();
     assert_eq!(
         (idle.upload_bytes, idle.ext_groups_made, idle.draws),
-        (0, 0, 7)
+        (0, 0, 1)
     );
-    // A new upload of a texture makes its group again; the missing one arriving draws it.
+    // A new upload of a texture makes its group again; the missing one arriving draws it, in the same draw.
     rig.add_solid_ext(a.0, GREEN);
     rig.add_solid_ext(missing.0, RED);
     let img = rig.frame(&mut scene);
     assert_eq!(rgb(&img, w, 15, 5), [0, 255, 0]);
     assert_eq!(rgb(&img, w, 75, 5), [255, 0, 0]);
     let s = rig.pass.stats();
-    assert_eq!((s.ext_groups_made, s.ext_missing, s.draws), (2, 0, 8));
+    assert_eq!((s.ext_groups_made, s.ext_missing, s.draws), (1, 0, 1));
 }
 
 #[test]
-fn ui2_external_textures_split_the_batch_only_where_they_change() {
+fn ui2_external_textures_of_a_group_share_one_draw() {
     assert_eq!(ExtTexture::MINIMAP.0, draw_list::TextureId::MINIMAP.0);
     external_on(
-        "ui2_external_textures_split_the_batch_only_where_they_change",
+        "ui2_external_textures_of_a_group_share_one_draw",
         wgpu::Backends::PRIMARY,
     );
 }
@@ -2104,4 +2105,284 @@ fn ui2_headless_frame_with_ui_holds_the_frozen_hud_on_its_background() {
     let stats = r.last_frame_stats().clone();
     let row = ui2_row(&stats).expect("the pass ran");
     assert!(row.draws >= 1 && row.draws <= 30, "{row:?}");
+}
+
+// ----- batching of the map layer -----
+
+/// Size of the target of the batching tests.
+const BATCH_SIZE: (u32, u32) = (420, 210);
+
+/// Colours of the external textures of the batching tests (texture `k` is solid `ext_color(k)`).
+fn ext_color(k: usize) -> Color {
+    let k = k as u8;
+    Color::rgba(40 + k * 17, 200 - k * 13, 60 + k * 11, 255)
+}
+
+/// Texture `k` of the batching tests.
+fn batch_tex(k: usize) -> ExtTexture {
+    ExtTexture(0x600 + k as u64)
+}
+
+/// Where banner `i` of [`overlapping_banners`] stands: 20 per row, 20 px apart, so that each one covers the right
+/// part of its left neighbour.
+fn banner_at(i: usize) -> Vec2 {
+    Vec2::new(20.0 + 20.0 * (i % 20) as f32, 15.0 + 20.0 * (i / 20) as f32)
+}
+
+/// The body colour of banner `i`.
+fn banner_body(i: usize) -> Color {
+    if i.is_multiple_of(2) { RED } else { GREEN }
+}
+
+/// `n` banners on the map layer, each a chunk on its own anchor ([`banner_at`]): a body (30 x 20, red or green by
+/// parity), an icon of the package page, then, when `pics` is not empty, a picture of external texture
+/// `pics[i % pics.len()]` (12 x 12 at (-2, -8)), and a white bar over it all. A banner covers the right part of its
+/// left neighbour's picture: the paint order shows in the pixels.
+fn overlapping_banners(
+    scene: &mut Scene,
+    n: usize,
+    pics: &[ExtTexture],
+) -> Vec<ui2_draw::AnchorSlot> {
+    let (images, pages) = testkit::icon_pages();
+    scene.set_pages(&images, pages).expect("pages");
+    (0..n)
+        .map(|i| {
+            let slot = scene.alloc_anchor().expect("an anchor");
+            scene.set_anchor(
+                slot,
+                AnchorXform {
+                    pos: banner_at(i),
+                    scale: 1.0,
+                    visible: true,
+                },
+            );
+            let mut b = ChunkBuilder::new().anchor(slot);
+            b.push(Item::Box(BoxItem::solid(
+                Rect::new(-15.0, -10.0, 30.0, 20.0),
+                banner_body(i),
+            )));
+            b.push(Item::Mask(MaskItem {
+                rect: Rect::new(-13.0, -8.0, 8.0, 8.0),
+                mask: testkit::icon(0),
+                color: BLUE,
+                ..MaskItem::default()
+            }));
+            if !pics.is_empty() {
+                b.push(Item::Image(ImageItem {
+                    rect: Rect::new(-2.0, -8.0, 12.0, 12.0),
+                    image: ImageRef {
+                        layer: 0,
+                        uv: [0.0, 0.0, 1.0, 1.0],
+                    },
+                    external: Some(pics[i % pics.len()]),
+                    ..ImageItem::default()
+                }));
+            }
+            b.push(Item::Box(BoxItem::solid(
+                Rect::new(-15.0, 6.0, 30.0, 3.0),
+                WHITE,
+            )));
+            scene.set_chunk(LayerId::Map, ChunkId(1 + i as u32), b.build());
+            slot
+        })
+        .collect()
+}
+
+/// The 200 banners of the batching tests with `textures` distinct pictures (none: atlas only).
+fn batch_scene(rig: &mut Rig, textures: usize) -> Scene {
+    for k in 0..textures {
+        rig.add_solid_ext(batch_tex(k).0, ext_color(k));
+    }
+    let pics: Vec<ExtTexture> = (0..textures).map(batch_tex).collect();
+    let mut scene = Scene::new(1.0);
+    overlapping_banners(&mut scene, 200, &pics);
+    scene
+}
+
+/// Draws `scene` batched, then again with one draw per run of the scene (the draws before batching): the pixels
+/// must be equal. Returns the batched image and counters.
+fn batched_and_reference(rig: &mut Rig, scene: &mut Scene, what: &str) -> (Vec<u8>, Ui2Stats) {
+    rig.pass.unbatched = false;
+    let img = rig.frame(scene);
+    let s = rig.pass.stats();
+    rig.pass.unbatched = true;
+    let reference = rig.frame(scene);
+    let r = rig.pass.stats();
+    rig.pass.unbatched = false;
+    assert!(r.draws >= s.draws, "{what}: {r:?} against {s:?}");
+    let differ = img
+        .chunks(4)
+        .zip(reference.chunks(4))
+        .filter(|(a, b)| a != b)
+        .count();
+    assert_eq!(
+        differ, 0,
+        "{what}: pixels that differ from one draw per run ({} draws)",
+        r.draws
+    );
+    (img, s)
+}
+
+/// The paint order of the overlapping banners, analytically: each banner's picture (or body) shows where no later
+/// banner covers it, and the next banner's body covers its right part.
+fn check_banner_order(img: &[u8], n: usize, pic: impl Fn(usize) -> Option<Color>, what: &str) {
+    let w = BATCH_SIZE.0;
+    for i in 0..n {
+        let p = banner_at(i);
+        let (x, y) = (p.x as u32, p.y as u32);
+        let own = pic(i).unwrap_or(banner_body(i));
+        assert_eq!(
+            rgb(img, w, x + 2, y - 4),
+            own.0[..3],
+            "{what}: banner {i}'s picture"
+        );
+        assert_eq!(
+            rgb(img, w, x, y + 7),
+            [255, 255, 255],
+            "{what}: banner {i}'s bar"
+        );
+        if i % 20 != 19 && i + 1 < n {
+            assert_eq!(
+                rgb(img, w, x + 7, y - 4),
+                banner_body(i + 1).0[..3],
+                "{what}: banner {} covers banner {i}",
+                i + 1
+            );
+        }
+    }
+}
+
+fn map_batching_on(test: &str, backends: wgpu::Backends) {
+    let Some(mut rig) = Rig::new(test, backends, BATCH_SIZE) else {
+        return;
+    };
+    // (a) Atlas only: the 200 anchors are one draw.
+    let mut scene = batch_scene(&mut rig, 0);
+    let (img, s) = batched_and_reference(&mut rig, &mut scene, "atlas only");
+    assert_eq!(s.layer_draws[LayerId::Map.index()], 1, "{s:?}");
+    assert_eq!(s.instances, 600);
+    check_banner_order(&img, 200, |_| None, "atlas only");
+
+    // (b) Every anchor with a picture of the same external texture: one draw, not one per run (401 before).
+    let mut scene = batch_scene(&mut rig, 1);
+    let (img, s) = batched_and_reference(&mut rig, &mut scene, "one texture");
+    assert_eq!(s.layer_draws[LayerId::Map.index()], 1, "{s:?}");
+    assert_eq!((s.ext_missing, s.instances), (0, 800));
+    check_banner_order(&img, 200, |_| Some(ext_color(0)), "one texture");
+    // An idle frame makes no group and uploads nothing.
+    let _ = rig.frame(&mut scene);
+    let idle = rig.pass.stats();
+    assert_eq!(
+        (idle.upload_bytes, idle.ext_groups_made, idle.draws),
+        (0, 0, 1),
+        "{idle:?}"
+    );
+
+    // (c) Pictures of several textures, interleaved: within a group's textures still one draw.
+    let mut scene = batch_scene(&mut rig, 4);
+    let (img, s) = batched_and_reference(&mut rig, &mut scene, "four textures");
+    assert!(s.layer_draws[LayerId::Map.index()] <= 4 + 2, "{s:?}");
+    assert_eq!(s.layer_draws[LayerId::Map.index()], 1, "{s:?}");
+    check_banner_order(&img, 200, |i| Some(ext_color(i % 4)), "four textures");
+
+    // More textures than a group holds, in the worst order (each banner's texture differs from its 8 neighbours):
+    // a draw per 8 banners, the paint order still kept.
+    let mut scene = batch_scene(&mut rig, 12);
+    let (img, s) = batched_and_reference(&mut rig, &mut scene, "twelve textures");
+    assert_eq!(
+        s.layer_draws[LayerId::Map.index()],
+        200u32.div_ceil(EXT_SLOTS as u32),
+        "{s:?}"
+    );
+    check_banner_order(&img, 200, |i| Some(ext_color(i % 12)), "twelve textures");
+
+    // Moving the camera writes only the anchor rows, and the draws stay.
+    let slots: Vec<ui2_draw::AnchorSlot> = (0..200)
+        .map(|i| ui2_draw::AnchorSlot(i as u16 + 1))
+        .collect();
+    let mut scene = batch_scene(&mut rig, 1);
+    let _ = rig.frame(&mut scene);
+    scene.reset_frame_stats();
+    for (i, slot) in slots.iter().enumerate() {
+        scene.set_anchor(
+            *slot,
+            AnchorXform {
+                pos: banner_at(i) + Vec2::new(1.0, 0.0),
+                scale: 1.0,
+                visible: true,
+            },
+        );
+    }
+    assert_eq!(scene.stats().chunks_encoded, 0);
+    let _ = rig.frame(&mut scene);
+    let moved = rig.pass.stats();
+    assert_eq!(
+        (moved.layers_uploaded, moved.ext_groups_made),
+        (0, 0),
+        "{moved:?}"
+    );
+    assert_eq!(moved.upload_bytes, moved.table_bytes, "{moved:?}");
+    assert!(
+        moved.table_bytes > 0 && moved.table_bytes <= 200 * 32 * 2,
+        "{moved:?}"
+    );
+    assert_eq!(moved.layer_draws[LayerId::Map.index()], 1);
+}
+
+/// 200 anchors on the map layer: one draw for atlas content, and for pictures of external textures as long as a
+/// draw's texture group holds them; the pixels equal those of one draw per run, and the overlapping banners keep
+/// their paint order.
+#[test]
+fn ui2_200_anchors_batch_into_one_draw_with_the_pixels_of_one_draw_per_run() {
+    map_batching_on(
+        "ui2_200_anchors_batch_into_one_draw",
+        wgpu::Backends::PRIMARY,
+    );
+}
+
+#[test]
+fn ui2_200_anchors_batch_on_gl() {
+    map_batching_on("ui2_200_anchors_batch_on_gl", wgpu::Backends::GL);
+}
+
+/// `?ui2onmap=0`: the map layer switched off has no draw call and shows nothing; switched on again it draws the same
+/// without uploading its instances or anchors (only the group of its textures is made again).
+#[test]
+fn ui2_a_map_layer_switched_off_draws_nothing() {
+    let Some(mut rig) = Rig::new("ui2_map_layer_off", wgpu::Backends::PRIMARY, BATCH_SIZE) else {
+        return;
+    };
+    let mut scene = batch_scene(&mut rig, 1);
+    scene.set_chunk(
+        LayerId::Hud,
+        ChunkId(9000),
+        chunk(vec![Item::Box(BoxItem::solid(
+            Rect::new(0.0, 190.0, 10.0, 10.0),
+            YELLOW,
+        ))]),
+    );
+    let on = rig.frame(&mut scene);
+    let s = rig.pass.stats();
+    assert_eq!(s.layer_draws, [1, 1, 0, 0], "{s:?}");
+
+    scene.set_layer_shown(LayerId::Map, false);
+    let img = rig.frame(&mut scene);
+    let s = rig.pass.stats();
+    assert_eq!(s.layer_draws, [0, 1, 0, 0], "{s:?}");
+    assert_eq!((s.draws, s.instances), (1, 1));
+    let w = BATCH_SIZE.0;
+    assert_eq!(rgb(&img, w, 5, 195), [255, 255, 0], "the HUD draws");
+    let lit = img.chunks(4).filter(|p| p[..3] != [0, 0, 0]).count();
+    assert_eq!(lit, 100, "only the HUD's box");
+
+    scene.set_layer_shown(LayerId::Map, true);
+    let again = rig.frame(&mut scene);
+    let s = rig.pass.stats();
+    assert_eq!(
+        (s.layers_uploaded, s.table_bytes, s.ext_groups_made),
+        (0, 0, 1),
+        "{s:?}"
+    );
+    assert_eq!(s.layer_draws, [1, 1, 0, 0]);
+    assert!(again == on, "the same pixels as before");
 }
