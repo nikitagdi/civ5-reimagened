@@ -25,6 +25,7 @@ mod ui_host;
 
 /// The game UI chosen by the page (`?ui=`), and what UI v2 needs of the platform.
 pub use ui_host::UiChoice;
+pub use ui_host::v2::ProbeReload as Ui2ProbeReload;
 /// The playtest hooks' view of UI v2 (`?test=1`).
 pub use ui_host::v2::{
     ProbePanel as Ui2ProbePanel, ProbeRect as Ui2ProbeRect, ProbeScript as Ui2ProbeScript, V2Probe,
@@ -33,7 +34,7 @@ pub use ui_host::v2::{
 };
 pub use ui_host::v2::{
     ScriptHostFactory as Ui2ScriptHostFactory, Ui2Platform,
-    parse_background as parse_ui2_background,
+    parse_background as parse_ui2_background, valid_sample as valid_ui2_sample,
 };
 
 thread_local! {

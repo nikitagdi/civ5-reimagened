@@ -17,6 +17,7 @@
 #![forbid(unsafe_code)]
 
 pub mod cache;
+pub mod dev;
 pub mod error;
 pub mod frame;
 pub mod input;
@@ -27,6 +28,7 @@ mod state;
 pub mod v2;
 
 pub use cache::{PACKAGE_CACHE, PackageCache};
+pub use dev::{DevEvent, DevReload, POLL_MS as DEV_POLL_MS};
 pub use error::{LoadFailure, SkinLoadError};
 pub use frame::{V2Frame, V2FrameReport};
 pub use input::{MAP_CLICK, map_click};

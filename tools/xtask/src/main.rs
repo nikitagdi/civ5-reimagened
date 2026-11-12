@@ -1016,6 +1016,12 @@ fn cmd_dev(root: &Path, extra: &[String]) -> Result<()> {
         .filter(|a| *a != "--wsl" && *a != "--dev")
         .cloned()
         .collect();
+    // `--ui-dev <skin>`: `cargo xtask ui watch <skin>` runs next to the server for the page's `?ui2dev=`.
+    let (ui_dev, extra) = ui::take_value(&extra, "--ui-dev")?;
+    let _watch = match &ui_dev {
+        Some(skin) => Some(ui::spawn_watch(root, skin, ui::DEV_WATCH_PORT)?),
+        None => None,
+    };
     // `--mods <file>` (and `--mod-packs <dir>`): the dist of that list instead of the public server and client.
     // `--config <file>` is merged with `mods_dir` into a derived file; the caller's file is not written.
     let mods::dev::ModsArgs {
@@ -1881,7 +1887,7 @@ fn main() -> Result<()> {
         }
         _ => {
             println!(
-                "usage: cargo xtask <build [--only web|native] [--release]|check|test|deps|dev [--wsl] [--core fixture|real] [--state-dir <dir>] [--assets <dir>] [--listen <addr>]|run-desktop -- <args>|golden prep <S1|S2|S3|S4|restore>|exe-api-coverage --contexts <K1,K2,K3,core|file> [--assets <dir>] [--out <file>] [--strict]|shader-re <extract|validate [--all]>|assets [--game <dir>] [--out <dir>] [--set <name>] [--db <dir>]|gamecore [--out <dir>] [--target linux|wasm|wasm-mt|all] [--pgo]|web-selftest [--release] [--fixture <dir>] [--scenario tiny|small|late-huge|all]|bench [--compare <baseline.json>] [--no-compare] [playtest flags]|playtest [--scenario autoplay|saveload|smoke|fatal|simp|all] [--turns N] [--seed N] [--ai 1|2] [--headed] [--port N] [--assets <dir>]|dist [--skip-gamecore] [--pgo]|deploy --target <file.toml|name> [--dry-run] [--rollback] [--allow-core-change] [--assets <dir>] [--gamedata <dir>] [--tls internal] [--skip-dist] [--skip-smoke] [--pgo]|nettest [--scenario <id|a,b|quick|all>] [--quick|--full] [--wsl] [--core fixture|real] [--link none|proxy|netem] [--attach <url> [--admin-via docker:<ctx>:<ctr>]] [--acceptance] [--seed N] [--turns N] [--bots N] [--web-root <dir>] [--assets <dir>] [--bg-minutes N] [--out <dir>] [--verbose] [--release]>; build, check, test, dev, playtest, web-selftest accept --gamecore-lib <dir> (real gamecore archives in <dir>/linux, <dir>/wasm and <dir>/wasm-mt)"
+                "usage: cargo xtask <build [--only web|native] [--release]|check|test|deps|dev [--wsl] [--core fixture|real] [--state-dir <dir>] [--assets <dir>] [--listen <addr>] [--ui-dev <skin>]|run-desktop -- <args>|golden prep <S1|S2|S3|S4|restore>|exe-api-coverage --contexts <K1,K2,K3,core|file> [--assets <dir>] [--out <file>] [--strict]|shader-re <extract|validate [--all]>|assets [--game <dir>] [--out <dir>] [--set <name>] [--db <dir>]|gamecore [--out <dir>] [--target linux|wasm|wasm-mt|all] [--pgo]|web-selftest [--release] [--fixture <dir>] [--scenario tiny|small|late-huge|all]|bench [--compare <baseline.json>] [--no-compare] [playtest flags]|playtest [--scenario autoplay|saveload|smoke|fatal|simp|all] [--turns N] [--seed N] [--ai 1|2] [--headed] [--port N] [--assets <dir>]|dist [--skip-gamecore] [--pgo]|deploy --target <file.toml|name> [--dry-run] [--rollback] [--allow-core-change] [--assets <dir>] [--gamedata <dir>] [--tls internal] [--skip-dist] [--skip-smoke] [--pgo]|nettest [--scenario <id|a,b|quick|all>] [--quick|--full] [--wsl] [--core fixture|real] [--link none|proxy|netem] [--attach <url> [--admin-via docker:<ctx>:<ctr>]] [--acceptance] [--seed N] [--turns N] [--bots N] [--web-root <dir>] [--assets <dir>] [--bg-minutes N] [--out <dir>] [--verbose] [--release]>; build, check, test, dev, playtest, web-selftest accept --gamecore-lib <dir> (real gamecore archives in <dir>/linux, <dir>/wasm and <dir>/wasm-mt)"
             );
             bail!("unknown command: {cmd:?}");
         }

@@ -155,6 +155,7 @@ fn web(web_dir: &str) -> ExitCode {
     };
     ids.sort();
     let mut packages = Vec::new();
+    let mut samples = Vec::new();
     let mut failed = false;
     for dir in &ids {
         let out = ui2_convert::build::build(dir, true);
@@ -170,6 +171,10 @@ fn web(web_dir: &str) -> ExitCode {
                     w.bytes.len()
                 );
                 packages.push(out.out_dir.join(&w.file_name));
+                // `<id>-<hash16>.ui2`: the samples go under the skin's id.
+                if let Some((id, _)) = w.file_name.rsplit_once('-') {
+                    samples.push((id.to_string(), dir.clone()));
+                }
             }
             _ => {
                 eprintln!("ui2-convert: skin {} did not build", dir.display());
@@ -180,7 +185,9 @@ fn web(web_dir: &str) -> ExitCode {
     if failed {
         return ExitCode::from(1);
     }
-    match ui2_convert::index::publish(Path::new(web_dir), &packages) {
+    match ui2_convert::index::publish(Path::new(web_dir), &packages)
+        .and_then(|e| ui2_convert::index::publish_samples(Path::new(web_dir), &samples).map(|_| e))
+    {
         Ok(entries) => {
             println!(
                 "ui2: {} skin(s) and {} in {}",

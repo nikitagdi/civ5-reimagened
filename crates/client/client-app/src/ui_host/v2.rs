@@ -35,8 +35,9 @@ use platform::{
 use protocol::GameId;
 use render::Renderer;
 use ui2_host::{
-    ActionEvent, Cursor, Env, Fallback, HostClock, InputOutcome, MapButton, NetSink, PackageCache,
-    ReplicaView, Services, SkinRegistry, V2Frame, V2FrameReport, V2Init, V2Ui,
+    ActionEvent, Cursor, DevEvent, DevReload, Env, Fallback, HostClock, InputOutcome, MapButton,
+    NetSink, PackageCache, ReplicaView, Services, SkinRegistry, V2Frame, V2FrameReport, V2Init,
+    V2Ui,
 };
 
 use crate::net::NetHandle;
@@ -140,6 +141,18 @@ pub struct Ui2Platform {
     /// `?ui2classic=cold`: the classic UI comes back from its sleep under UI v2 with a new layer (the cold way)
     /// instead of keeping its layer (the warm way, the default).
     pub classic_cold: bool,
+    /// `?ui2dev=<url>`: the watch server (`cargo xtask ui watch`) the running skin reloads from.
+    pub dev: Option<String>,
+    /// `?ui2sample=<state>`: the skin runs on its sample `sample/<state>.json` instead of a game.
+    pub sample: Option<String>,
+}
+
+/// A sample name `?ui2sample=` may give: `[a-z0-9_-]{1,64}` (it becomes part of a URL of the build).
+pub fn valid_sample(name: &str) -> bool {
+    (1..=64).contains(&name.len())
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
 }
 
 /// `?ui2bg=<rrggbb>` (an optional `#`): the colour, or `None` for anything else.
@@ -502,6 +515,13 @@ pub struct V2Frontend {
     notice: Option<String>,
     /// The last skin change or reload done on the screen.
     reloaded: Option<ProbeReload>,
+    /// `?ui2dev=<url>`: the watch server the running skin is reloaded from, and its poller once a skin runs.
+    dev_url: Option<String>,
+    dev: Option<DevReload>,
+    /// `?ui2sample=<state>`: the sample the skin runs on instead of a game; its download; whether it is applied.
+    sample_state: Option<String>,
+    sample_op: Option<Box<dyn HttpOp>>,
+    sample_on: bool,
 }
 
 /// A skin change on the screen: the skin asked for and its download (`None`: the package is in the cache).
@@ -548,6 +568,118 @@ impl V2Frontend {
             swap: None,
             notice: None,
             reloaded: None,
+            dev_url: None,
+            dev: None,
+            sample_state: None,
+            sample_op: None,
+            sample_on: false,
+        }
+    }
+
+    /// `?ui2dev=<url>`: the running skin is reloaded from the watch server at `url` whenever it builds anew.
+    pub fn set_dev(&mut self, url: Option<String>) {
+        self.dev_url = url;
+        self.dev = None;
+    }
+
+    /// `?ui2sample=<state>`: the skin runs on its sample `ui2/sample/<skin>/<state>.json` of the build instead of a
+    /// game, and takes the screen without one.
+    pub fn set_sample(&mut self, state: Option<String>) {
+        self.sample_state = state;
+    }
+
+    /// The URL of a skin's sample in the web build.
+    fn sample_url(skin: &str, state: &str) -> String {
+        format!("ui2/sample/{skin}/{state}.json")
+    }
+
+    /// Takes the sample's download once it came: the running UI plays it from the next frame.
+    fn poll_sample(&mut self) {
+        let Some(op) = self.sample_op.as_mut() else {
+            return;
+        };
+        let Some(answer) = op.poll() else {
+            return;
+        };
+        self.sample_op = None;
+        let url = match &self.stage {
+            Stage::Running(ui) => {
+                Self::sample_url(ui.skin_id(), self.sample_state.as_deref().unwrap_or(""))
+            }
+            _ => return,
+        };
+        let text = body_of(&url, answer)
+            .and_then(|b| String::from_utf8(b).map_err(|_| format!("{url} is not UTF-8")));
+        let Stage::Running(ui) = &mut self.stage else {
+            return;
+        };
+        match text.and_then(|t| ui.set_sample(&t)) {
+            Ok(()) => {
+                tracing::info!(%url, "UI v2 runs on a sample");
+                self.sample_on = true;
+            }
+            Err(why) => {
+                self.notice = Some(format!("Interface v2: the sample cannot be used: {why}"));
+            }
+        }
+    }
+
+    /// The hot reload: what the watch server built since the last frame goes to the running skin.
+    fn poll_dev(&mut self) {
+        let Some(url) = self.dev_url.clone() else {
+            return;
+        };
+        let Stage::Running(ui) = &self.stage else {
+            return;
+        };
+        let id = self
+            .choice
+            .skin
+            .clone()
+            .unwrap_or_else(|| ui.skin_id().to_owned());
+        let dev = self.dev.get_or_insert_with(|| {
+            tracing::info!(%url, skin = %id, "UI v2 reloads the skin from the watch server");
+            DevReload::new(&url, &id)
+        });
+        let events = dev.poll(&*self.http, (self.clock)());
+        let make = self.scripts.clone();
+        for ev in events {
+            match ev {
+                DevEvent::Package { rev, pkg } => {
+                    let Stage::Running(ui) = &mut self.stage else {
+                        return;
+                    };
+                    let skin = pkg.manifest().id.clone();
+                    match ui.reload(
+                        pkg,
+                        make.as_ref()
+                            .map(|f| &**f as &dyn Fn() -> Box<dyn ScriptHost>),
+                    ) {
+                        Ok(applied) => {
+                            if applied {
+                                tracing::info!(rev, %skin, "UI v2: the skin was reloaded");
+                            }
+                            self.reloaded = Some(ProbeReload {
+                                rev,
+                                applied_at: (self.clock)(),
+                                skin,
+                            });
+                        }
+                        Err(e) => {
+                            self.notice = Some(format!(
+                                "Interface v2: build {rev} of skin {skin} cannot be used ({}); the running one stays",
+                                e.failure
+                            ));
+                        }
+                    }
+                }
+                DevEvent::Errors(line) => {
+                    self.notice = Some(format!("Interface v2: {line}"));
+                }
+                DevEvent::Unreachable(why) => {
+                    tracing::debug!("UI v2 dev: {why}");
+                }
+            }
         }
     }
 
@@ -824,6 +956,11 @@ impl V2Frontend {
                 ui.set_text_bridge(bridge);
                 // A new skin over a game already up reads its slow first calls once too.
                 self.warm_due = true;
+                // The sample mode: the skin's sample comes next; the skin takes the screen once it played it.
+                if let Some(state) = &self.sample_state {
+                    self.sample_on = false;
+                    self.sample_op = Some(self.http.get(&Self::sample_url(&id, state)));
+                }
                 Stage::Running(Box::new(ui))
             }
             Err(why) => self.fall_back(&id, &why),
@@ -1019,10 +1156,13 @@ impl V2Frontend {
     ) -> Option<&mut V2Ui> {
         self.poll(env);
         self.poll_swap();
+        self.poll_sample();
+        self.poll_dev();
         self.probe_stage();
         // The game is up once the replica is live in a game being played; it stays up until the game is left.
         self.note_game(Some(session), playing(net));
-        if !self.running() || !self.game_up {
+        // A skin on a sample runs without a game.
+        if !self.running() || !(self.game_up || self.sample_on) {
             return None;
         }
         // The replica and the localizer are the game session's.
@@ -1079,6 +1219,7 @@ impl V2Frontend {
         // The core's slow first reads, once per game (joined, loaded or a new skin), after the frame and outside its
         // budget.
         if self.warm_due
+            && !self.sample_on
             && let Some(r) = held.as_deref_mut()
         {
             let view = ReplicaView::of(r);
@@ -1210,6 +1351,7 @@ impl Frontend for V2Frontend {
     /// failed when no skin can be used.
     fn prepare(&mut self, cx: &mut PrepareCx<'_>) -> Readiness {
         self.poll(env_of(cx.size, cx.dpr));
+        self.poll_sample();
         self.probe_stage();
         self.note_game(cx.session, cx.playing);
         match &self.stage {
@@ -1218,7 +1360,7 @@ impl Frontend for V2Frontend {
                     .clone()
                     .unwrap_or_else(|| "no UI v2 skin can be used".into()),
             ),
-            Stage::Running(_) if self.game_up => Readiness::Ready,
+            Stage::Running(_) if self.game_up || self.sample_on => Readiness::Ready,
             _ => Readiness::Loading { progress: None },
         }
     }
@@ -1254,8 +1396,11 @@ impl Frontend for V2Frontend {
             cx.now_ms,
             &mut look,
         ) {
-            // The map anchors follow their objects through the camera, as the classic UI's banners do.
-            if ui.anchor_count() > 0 {
+            // The map anchors follow their objects through the camera, as the classic UI's banners do; on a sample,
+            // they stand where the sample puts them.
+            if ui.sample_mode() {
+                ui.place_sample_anchors(cx.dpr);
+            } else if ui.anchor_count() > 0 {
                 let renderer: &Renderer = cx.renderer;
                 let (w, h) = cx.size;
                 let view_proj = cx.camera.view_proj(w as f32 / h.max(1) as f32);
@@ -2190,6 +2335,56 @@ mod tests {
             None,
             "not a failure of UI v2"
         );
+    }
+
+    #[test]
+    fn the_sample_mode_runs_without_a_game_and_the_watch_server_reloads_the_skin() {
+        let (alpha, rebuilt) = (named_package("alpha"), named_package("alpha"));
+        let ha = ui2_host::hash_hex(&alpha.hash());
+        let sample =
+            br#"{"model": {"top": {"gold": 7}}, "ui": {"windows": {"menu": {"open": true}}}}"#;
+        let dev = "http://127.0.0.1:8095";
+        let (mut h, _) = host(
+            FakeHttp::default()
+                .ok(INDEX_PATH, index(&[entry("alpha", &ha, true)]))
+                .ok(
+                    &format!("ui2/alpha-{}.ui2", &ha[..16]),
+                    alpha.bytes().to_vec(),
+                )
+                .ok("ui2/sample/alpha/hud.json", sample.to_vec())
+                .ok(&format!("{dev}/pkg/alpha.rev"), b"2".to_vec())
+                .ok(&format!("{dev}/pkg/alpha.errors.json"), b"[]".to_vec())
+                .ok(&format!("{dev}/pkg/alpha.ui2"), rebuilt.bytes().to_vec()),
+            Some("alpha"),
+        );
+        h.set_sample(Some("hud".into()));
+        h.set_dev(Some(format!("{dev}/")));
+        assert_eq!(settle(&mut h), V2State::Running("alpha".into()));
+        let mut cx = PrepareCx {
+            now_ms: 0.0,
+            size: (1280, 720),
+            dpr: 1.0,
+            session: None,
+            playing: false,
+        };
+        assert!(
+            matches!(Frontend::prepare(&mut h, &mut cx), Readiness::Ready),
+            "on its sample the skin needs no game"
+        );
+        let ui = h.ui_mut().expect("running");
+        assert!(ui.sample_mode());
+        assert!(ui.actions().ui().windows.menu.open, "the sample's ui part");
+        // The watch server: .rev and errors.json, then the package of build 2.
+        for _ in 0..4 {
+            h.poll_dev();
+        }
+        let r = h.reloaded.clone().expect("a reload");
+        assert_eq!((r.rev, r.skin.as_str()), (2, "alpha"));
+        assert!(
+            h.ui_mut().expect("running").sample_mode(),
+            "still on the sample"
+        );
+        assert_eq!(Frontend::take_notice(&mut h), None);
     }
 
     #[test]

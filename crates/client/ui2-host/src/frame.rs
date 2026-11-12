@@ -221,21 +221,28 @@ impl V2Ui {
         let t_source = now();
         let source = {
             let mut w = self.store.writer(Owner::Source);
-            self.source.frame(
-                SourceFrame {
-                    replica,
-                    steps,
-                    session: net.session(),
-                    dismissed: self.actions.dismissed(),
-                    now_ms,
-                },
-                &mut w,
-                self.actions.ui(),
-            )
+            match self.sample.as_mut() {
+                // The sample mode: the sample's roots, once; nothing of a game is read.
+                Some(sample) => sample.write(&mut w),
+                None => self.source.frame(
+                    SourceFrame {
+                        replica,
+                        steps,
+                        session: net.session(),
+                        dismissed: self.actions.dismissed(),
+                        now_ms,
+                    },
+                    &mut w,
+                    self.actions.ui(),
+                ),
+            }
         };
         let source_ms = (now() - t_source) as f32;
-        self.actions
-            .reconcile(&mut self.store, self.source.notification_ids(), now_ms);
+        // A sample is a fixed picture: its windows and focus are not judged against a game.
+        if self.sample.is_none() {
+            self.actions
+                .reconcile(&mut self.store, self.source.notification_ids(), now_ms);
+        }
 
         // 5. The runtime and the glyphs.
         let delta = self.store.take_frame();
