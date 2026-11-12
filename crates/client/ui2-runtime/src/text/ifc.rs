@@ -7,8 +7,8 @@
 //!
 //! A text leaf gives one run per piece of its text: the game's markup (`[COLOR_X]...[ENDCOLOR]`) splits a
 //! string into pieces of different colors, `[NEWLINE]` is a line feed inside a piece. Runs are never shaped
-//! across a piece or an element boundary (a ligature or kerning pair across a `span` edge is lost, as the
-//! profile accepts).
+//! across a piece or an element boundary.
+//! SIMPLIFIED(SIMP-291): a ligature or a kerning pair across the edge of a `span` (or of a colour piece) is lost; a browser shapes the whole text of the inline root.
 
 use ui2_package::style::{ColorV, TextAlign};
 use ui2_text::{

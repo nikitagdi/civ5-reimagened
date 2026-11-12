@@ -22,6 +22,7 @@ pub struct UiPoint {
     pub id: &'static str,
     pub kind: PointKind,
     /// The point holds buttons (a menu group, a row of actions): a panel there should be a button.
+    /// SIMPLIFIED(SIMP-297): this flag is advice only; nothing checks that a panel at such a point is a button.
     pub buttons: bool,
     /// Every skin must implement it.
     pub required: bool,

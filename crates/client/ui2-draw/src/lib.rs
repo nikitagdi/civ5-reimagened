@@ -681,6 +681,8 @@ impl Glyphs {
 /// runtime hands the text's glyphs already moved by the shadow offset and in the shadow colour; the run is
 /// drawn under the text.
 ///
+/// SIMPLIFIED(SIMP-288): the text shadow blur is an approximation of the browser's Gaussian blur of the whole text layer: a separable Gaussian cut at `ceil(2 * sigma)` texels with at most 9 taps per axis, and a stretched pattern above a blur of 8 px.
+///
 /// How the blur is computed (an approximation of the browser's Gaussian blur of the whole text layer):
 /// - Each glyph is blurred on its own, from its own coverage in the glyph atlas, by the fragment shader. The
 ///   kernel is the separable Gaussian of standard deviation `sigma = blur / 2` sampled at whole atlas texels,

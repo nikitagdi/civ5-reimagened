@@ -71,7 +71,7 @@
           <button class="step down" data-part="production.down" data-hotkey="ArrowDown" data-on-click="call prod.step(1)"><svg class="i"><use href="#i-upgrade"/></svg></button>
         </div>
         <!-- The heads sort the list (state.prod.sort): Item in the game's order, Turns the fastest first (a second click goes back to the
-             game's order). Names are not a sort key: the profile sorts by numbers and plain strings, a name is a game text. -->
+             game's order). SIMPLIFIED(SIMP-299): there is no sort by name: the profile sorts by numbers and plain strings, a name is a game text. -->
         <div class="lhead" data-part="production.sort">
           <span class="c-ico"></span>
           <button class="c-nm sort" data-bind-class-toggle="on:{{state.prod.sort == 'order'}}" data-on-click="set state.prod.sort = 'order'"><span data-l10n="prod.col.item">Item</span><svg class="i arrow"><use href="#i-upgrade"/></svg></button>

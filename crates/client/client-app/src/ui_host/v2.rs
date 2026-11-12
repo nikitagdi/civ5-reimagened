@@ -1362,6 +1362,7 @@ pub(crate) fn playing(net: Option<&NetHandle>) -> bool {
 }
 
 fn env_of(size: (u32, u32), dpr: f32) -> Env {
+    // SIMPLIFIED(SIMP-298): the theme stays the skin's default (index 0): the player has no way to pick one of the skin's other themes while the game runs.
     Env {
         viewport_px: size,
         dpr,

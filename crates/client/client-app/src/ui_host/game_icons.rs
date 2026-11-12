@@ -20,6 +20,8 @@ use ui2_host::{AssetResolver, ExtImage, ExtTexture};
 /// The icon size a picture takes from an atlas that has several: the smallest one at least this big, else the
 /// biggest. The resolver does not know the size the skin draws the picture at; the portraits of the unit panel are
 /// about this big, and smaller pictures sample it down.
+// SIMPLIFIED(SIMP-300): one icon size per atlas (the smallest of at least 128 px) whatever size the skin draws the
+// picture at, instead of the atlas size nearest to the drawn size.
 pub const ICON_SIZE: u32 = 128;
 
 /// `icon:<ATLAS>:<index>`: the atlas and the index; `None` for any other name.
