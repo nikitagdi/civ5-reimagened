@@ -116,6 +116,12 @@ async function installSampler(page) {
               map: num(c["ui2.draws.map"] ?? r["ui2.draws.map"]),
               draws: num(c["ui2.draws"] ?? r["ui2.draws"]),
             };
+            // The source's profile of the frame (µs per root and per kind of read, readable, pending roots, the
+            // game's turn it read): only its non-zero entries.
+            const src = {};
+            for (const [k, v] of Object.entries(c)) if (k.startsWith("ui2.source.") && v) src[k.slice(11)] = v;
+            row.src = src;
+            row.step = num(c["ui2.replica.step"]);
             if (P.withState) {
               const s = window.__civ5test.state();
               row.turn = s?.turn ?? null;
@@ -620,7 +626,12 @@ export async function run(ctx) {
       const re = reaction(r.rows, info.turn + 1);
       reactions.push(re);
       const worst = r.rows.reduce((a, x) => ((x.cpu ?? -1) > (a?.cpu ?? -1) ? x : a), null);
-      turns.push({ ...info, worst: worst && { cpu: worst.cpu, source: worst.source, runtime: worst.runtime, ops: worst.ops }, frames: r.rows.length, missed: missed(r.rows), changedFrames: changed.length, cpu: stat(cpu), allCpu: stat(r.rows.map((x) => x.cpu).filter((x) => x !== null)), reaction: re.nth });
+      // The frames from the end turn until the dial shows the new turn, with what the source did in each (where
+      // a slow frame or a late dial comes from).
+      const trail = r.rows
+        .filter((x) => re.dialFrame !== null && x.f <= re.dialFrame && ((x.ops ?? 0) > 0 || (x.source ?? 0) > 0.05 || x.f >= (re.replicaFrame ?? Infinity)))
+        .map((x) => ({ f: x.f, turn: x.turn, dial: x.dial, step: x.step, ops: x.ops, cpu: x.cpu, source: x.source, src: x.src }));
+      turns.push({ ...info, trail, worst: worst && { cpu: worst.cpu, source: worst.source, runtime: worst.runtime, ops: worst.ops, src: worst.src }, frames: r.rows.length, missed: missed(r.rows), changedFrames: changed.length, cpu: stat(cpu), allCpu: stat(r.rows.map((x) => x.cpu).filter((x) => x !== null)), reaction: re.nth });
     }
     const changedCpu = turnRows.filter((x) => (x.ops ?? 0) > 0).map((x) => x.cpu).filter((x) => x !== null);
     n.turns = { list: turns, cpuChanged: stat(changedCpu), cpuAll: stat(turnRows.map((x) => x.cpu).filter((x) => x !== null)), hud: stat(turnRows.map((x) => x.hud).filter((x) => x !== null)) };

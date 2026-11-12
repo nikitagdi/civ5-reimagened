@@ -135,6 +135,7 @@ impl Rig {
             catching_up: false,
             generation: 1,
             applied_jseq: 0,
+            turn: None,
             read: Some(&mut self.game),
         };
         let r = self.ui.frame(V2Frame {

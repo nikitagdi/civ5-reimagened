@@ -599,17 +599,21 @@ fn the_open_window_does_not_share_a_frame() {
     assert_eq!(f.calls, ["city_builds", "city_queue"]);
     assert_eq!(stats.deferred, 0);
 
-    // Batches every frame: the window is not starved, it goes first every other frame.
+    // Batches every frame: the roots on screen are rebuilt in each, and the window is not starved: once it has
+    // waited `STALE_FRAMES` frames it gets its reads with them.
     let mut window_frames = 0;
     for _ in 0..6 {
         f.calls.clear();
         rig.batch(&mut f);
+        assert!(f.calls.contains(&"top_bar"), "{:?}", f.calls);
         if f.calls.contains(&"city_builds") {
             window_frames += 1;
-            assert!(!f.calls.contains(&"notifications"), "alone: {:?}", f.calls);
         }
     }
-    assert_eq!(window_frames, 3);
+    assert_eq!(
+        window_frames,
+        6 / (1 + usize::from(ui2_source::STALE_FRAMES))
+    );
 }
 
 #[test]

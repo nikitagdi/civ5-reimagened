@@ -56,17 +56,17 @@ fn a_batch_fits_the_budget_and_is_cut_between_whole_roots() {
     let mut f = game();
     let mut rig = Rig::new(session());
     rig.start(&mut f);
-    // A budget below the cost of the whole rebuild (590 units): the rebuild takes two frames.
-    rig.src.set_read_budget(450);
+    // A budget below the cost of the whole rebuild (830 units): the rebuild takes two frames.
+    rig.src.set_read_budget(700);
     let first = frame(&mut rig, &mut f, true);
-    assert!(first.spent_units <= 450, "{}", first.spent_units);
+    assert!(first.spent_units <= 700, "{}", first.spent_units);
     assert!(first.deferred > 0);
     assert!(rig.store.get::<Top>().is_some() && rig.store.get::<Research>().is_some());
     let mut frames = 1;
     let mut deferred = first.deferred;
     while deferred > 0 {
         let s = frame(&mut rig, &mut f, false);
-        assert!(s.spent_units <= 450, "{}", s.spent_units);
+        assert!(s.spent_units <= 700, "{}", s.spent_units);
         assert!(s.deferred < deferred, "progress every frame");
         deferred = s.deferred;
         frames += 1;
@@ -93,7 +93,7 @@ fn the_default_budget_rebuilds_the_reference_game_in_one_frame() {
     let s = frame(&mut rig, &mut f, true);
     assert_eq!(s.deferred, 0);
     assert!(s.spent_units <= DEFAULT_FRAME_BUDGET);
-    assert_eq!(s.spent_units, 590, "{:?}", f.calls);
+    assert_eq!(s.spent_units, 830, "{:?}", f.calls);
 }
 
 #[test]
@@ -183,7 +183,7 @@ fn warm_up_makes_the_cold_calls_once_and_keeps_only_the_catalog() {
     assert_eq!(s.getter_calls, 14);
     assert_eq!(
         s.spent_units,
-        5 + 30 + 5 + 65 + 70 + 2070 + 1860,
+        15 + 60 + 15 + 65 + 160 + 2070 + 1860,
         "no budget: the cold calls and the whole catalog"
     );
     assert_eq!((s.roots_built, s.deferred), (0, 0), "nothing written");
@@ -215,7 +215,8 @@ fn the_first_root_of_a_frame_gets_all_its_reads() {
     let mut f = game();
     let mut rig = Rig::new(session());
     rig.start(&mut f);
-    // Less than any read: each frame builds its first root, plus the roots whose reads are kept.
+    // Less than any read: the first frame builds the roots always on screen, the next one the longest waiting of the
+    // others, and then every root still waiting is stale and gets its reads.
     rig.src.set_read_budget(1);
     let mut s = frame(&mut rig, &mut f, true);
     let mut frames = 1;
@@ -224,6 +225,10 @@ fn the_first_root_of_a_frame_gets_all_its_reads() {
         s = frame(&mut rig, &mut f, false);
         frames += 1;
     }
-    assert!((4..=9).contains(&frames), "{frames}");
+    assert_eq!(
+        frames,
+        1 + usize::from(ui2_source::STALE_FRAMES),
+        "{frames}"
+    );
     assert_eq!(rig.store.get::<Map>().map(|m| m.cities.len()), Some(5));
 }

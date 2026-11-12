@@ -30,15 +30,16 @@ const LIBERTY: i16 = 1;
 
 /// Catalog tables read once per core.
 const CATALOG_TABLES: usize = 8;
-/// The reads of a rebuild once the catalog is known: the top bar with its two lists, the game record, the
-/// technologies, the units (turn), the notifications, the cities (map), the players. Shared records are read once.
+/// The reads of a rebuild once the catalog is known: the roots on screen first (the turn: the game record and the
+/// units; the game: the top bar's era; the top bar with its two lists), then the technologies, the notifications,
+/// the cities (map), the players. Shared records are read once.
 const REBUILD: [&str; 9] = [
+    "game_info",
+    "units",
     "top_bar",
     "player_resources",
     "policy_branches",
-    "game_info",
     "techs",
-    "units",
     "notifications",
     "cities",
     "players",
@@ -182,6 +183,7 @@ fn view<'a>(
         catching_up: false,
         generation,
         applied_jseq,
+        turn: None,
         read: Some(read),
     }
 }
@@ -548,9 +550,9 @@ fn a_core_without_the_ui2_queries_leaves_their_fields_empty_and_is_not_asked_aga
     assert_eq!(
         f.calls,
         vec![
-            "top_bar",
             "game_info",
             "units",
+            "top_bar",
             "notifications",
             "cities",
             "players"

@@ -97,6 +97,7 @@ impl Rig {
             catching_up: false,
             generation: self.generation,
             applied_jseq: self.jseq,
+            turn: None,
             read: Some(&mut self.game),
         };
         self.ui.frame(V2Frame {

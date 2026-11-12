@@ -6,9 +6,15 @@
 //! counted as 5. The per-id reads (`unit_actions`, `city_builds`...) are per call, that is per unit or per city;
 //! `city_builds` varies most (2070 median, 4570 max).
 //!
-//! The first call of some reads after a core loads is much slower than the median (the core fills its own caches):
-//! `top_bar` about 11 ms, `game_info` 1.4 ms, `unit_actions` 1.6 ms, `city_builds` 4.6 ms. The table does not
-//! count those spikes; a host takes them out of the frames with [`UiSource::warm_up`](crate::UiSource::warm_up).
+//! The weights of the warm reads were raised after a second measurement, of a fresh small game's turns (the
+//! profile of `ui2-perf` in the browser, `tests/turn_frames.rs` natively): where a read cost more there than the
+//! late game's median (`cities` 160 µs, `techs` up to 680 µs natively, `top_bar` 55 µs), the higher number.
+//!
+//! The first call of some reads after a core loads a snapshot is much slower than the median (the core fills its
+//! own caches), and a snapshot is loaded on every new turn: `top_bar` 3 to 5.6 ms on a small game (about 11 ms
+//! on the biggest), `game_info` 1.4 ms, `unit_actions` 1.6 ms, `city_builds` 4.6 ms. The table does not count
+//! those spikes; a host takes them out of the frames with [`UiSource::warm_up`](crate::UiSource::warm_up) once a
+//! game is joined and [`UiSource::warm_turn`](crate::UiSource::warm_turn) after each snapshot load.
 //!
 //! To measure again (after a change of the core or of a query): natively
 //! `UI2_GETTERS_FIXTURE=<dir>/late-huge cargo test -p ui2-source --test getters_cost -- --ignored --nocapture`
@@ -52,15 +58,15 @@ impl ReadKind {
     #[must_use]
     pub const fn cost(self) -> u32 {
         match self {
-            ReadKind::GameInfo => 5,
-            ReadKind::TopBar => 30,
+            ReadKind::GameInfo => 15,
+            ReadKind::TopBar => 60,
             ReadKind::Players => 70,
-            ReadKind::Notifications => 25,
-            ReadKind::Techs => 375,
-            ReadKind::PlayerResources => 5,
-            ReadKind::PolicyBranches => 5,
-            ReadKind::Units => 5,
-            ReadKind::Cities => 70,
+            ReadKind::Notifications => 30,
+            ReadKind::Techs => 450,
+            ReadKind::PlayerResources => 10,
+            ReadKind::PolicyBranches => 20,
+            ReadKind::Units => 15,
+            ReadKind::Cities => 160,
             ReadKind::UnitActions => 65,
             ReadKind::UnitPromotions => 5,
             ReadKind::CityQueue => 5,

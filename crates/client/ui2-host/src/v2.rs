@@ -205,9 +205,15 @@ impl V2Ui {
             nodes: skin.runtime.arena().len(),
             image_pages: pkg.images().pages.len(),
         };
+        let mut source = UiSource::new(Schema::v1());
+        if let Some(c) = &init.clock {
+            // The source's profile times its roots and reads with the host's clock.
+            let c = Rc::clone(c);
+            source.set_profile_clock(Box::new(move || c()));
+        }
         Ok(V2Ui {
             store,
-            source: UiSource::new(Schema::v1()),
+            source,
             actions,
             queued: Vec::new(),
             skin,
@@ -404,6 +410,16 @@ impl V2Ui {
     /// take a few ms more. Its reads count in the returned stats (`spent_units`: their cost units).
     pub fn warm_up(&mut self, read: &mut dyn GameRead) -> SourceStats {
         self.source.warm_up(read)
+    }
+
+    /// Makes the core's slow first reads after a snapshot load (`UiSource::warm_turn`: the top bar alone costs
+    /// the core several ms after each load): call it in the frame whose pump loaded a snapshot, right after the
+    /// pump and before [`frame`](Self::frame), as part of the load. Returns its stats and its measured time, ms
+    /// (0 without a clock).
+    pub fn warm_turn(&mut self, read: &mut dyn GameRead) -> (SourceStats, f64) {
+        let stats = self.source.warm_turn(read, self.actions.ui());
+        let us: f64 = self.source.profile().reads.iter().map(|c| c.us).sum();
+        (stats, us / 1000.0)
     }
 
     /// Changes the window size, pixel density, UI scale or theme; the next frame redoes what depends on it.
