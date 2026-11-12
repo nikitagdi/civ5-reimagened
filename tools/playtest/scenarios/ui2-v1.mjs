@@ -304,8 +304,11 @@ async function focusRow(page, name) {
   for (let pass = 0; pass < 2; pass++) {
     for (const row of rowsOf(await rectsOf(page, "production.list"))) {
       if (row.cy > VP.height - 8) continue;
+      // The detail is read once UI v2 has drawn a few frames after the click: the one shown before the click (an
+      // earlier row's) must not pass for the clicked row's.
+      const f0 = (await ui2(page))?.frames ?? 0;
       await page.mouse.click(row.x + Math.min(120, row.w / 3), row.cy);
-      const p = await waitUi(page, (q) => want(detailName(q) ?? ""), 600);
+      const p = await waitUi(page, (q) => (q.frames ?? 0) >= f0 + 3 && want(detailName(q) ?? ""), 1500);
       if (p.ok) return { ...row, name: detailName(p.probe) };
     }
   }
