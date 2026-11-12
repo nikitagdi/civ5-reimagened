@@ -137,8 +137,8 @@ pub fn current(c: &City, builds: &[CityBuild], catalog: &Catalog) -> Option<Prod
     })
 }
 
-/// The queue rows from `Q_CITY_QUEUE`, head first. The list is keyed by item: a second entry of the same item
-/// (two units of one type) is not shown.
+/// The queue rows from `Q_CITY_QUEUE`, head first. The list is keyed by slot, so a second entry of the same
+/// item (two units of one type) is a row of its own.
 #[must_use]
 pub fn queue(rows: &[CityOrder], builds: &[CityBuild], catalog: &Catalog) -> KeyedList<QueueRow> {
     let mut out = KeyedList::new();
