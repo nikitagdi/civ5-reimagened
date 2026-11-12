@@ -11,6 +11,7 @@
 use glam::{Affine2, Vec2};
 use ui2_package::style::{Display, Position};
 
+use crate::anchor::Anchors;
 use crate::arena::{Arena, NodeClass, NodeId};
 use crate::input::hit::transform_about;
 use crate::instantiate::{self, Source};
@@ -41,6 +42,8 @@ struct Ctx<'a, S: Source + ?Sized> {
     arena: &'a Arena,
     src: &'a S,
     index: &'a StyleIndex,
+    /// The map anchors and the device scale: a placed anchor is listed where the screen shows it.
+    anchors: Option<(&'a Anchors, f32)>,
     out: Vec<(NodeId, [f32; 4])>,
 }
 
@@ -69,6 +72,19 @@ impl<S: Source + ?Sized> Ctx<'_, S> {
         {
             return;
         }
+        // A map anchor the host placed: off the screen it is not listed; on it, its chunk's layout space goes
+        // where the host put it (an anchor not placed yet is listed as laid out).
+        let xf = match self.anchors {
+            Some((a, k)) => match a.shown(id) {
+                Some(false) => return,
+                Some(true) => match a.placement(id, Vec2::from(origin), k) {
+                    Some(p) => xf * p,
+                    None => return,
+                },
+                None => xf,
+            },
+            None => xf,
+        };
         let l = node.layout().unrounded;
         let abs = [origin[0] + l.location.x, origin[1] + l.location.y];
         // The node's own transform moves its box and everything inside it.
@@ -133,17 +149,20 @@ fn bounds(xf: &Affine2, r: [f32; 4]) -> [f32; 4] {
     [lo.x, lo.y, hi.x - lo.x, hi.y - lo.y]
 }
 
-/// The dump of the whole document, or of the subtree of one node. Sorted by node name, then keys.
+/// The dump of the whole document, or of the subtree of one node. Sorted by node name, then keys. With
+/// `anchors` (and the device scale), placed map anchors are listed where the screen shows them.
 pub(crate) fn dump<S: Source + ?Sized>(
     arena: &Arena,
     src: &S,
     index: &StyleIndex,
     under: Option<NodeId>,
+    anchors: Option<(&Anchors, f32)>,
 ) -> Vec<ElementRect> {
     let mut ctx = Ctx {
         arena,
         src,
         index,
+        anchors,
         out: Vec::new(),
     };
     for &root in arena.roots() {

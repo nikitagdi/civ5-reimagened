@@ -5,9 +5,15 @@
 // Steps (each one reported as checks; later steps of the acceptance join this file):
 // - chat: alice clicks the chat field, types a line and presses Enter; the line shows in bob's chat log (and in
 //   alice's own). The field writes the skin state `state.chat.draft`, which the send reads.
-// No console errors. Screenshots: <logs>/ui2-v1-chat-alice.png, ui2-v1-chat-bob.png.
+// - map (bob runs with `&ui2onmap=0`): alice's unit flags are on the screen (`ui2Rects(['unit-flag'])`), bob's are
+//   not, though his map layer has units: the switch turns the layer off for the bench.
+// - banner (step 4, the window): the turn dial selects alice's waiting units and her settler founds a city with its
+//   Found button; a click on her city's banner (`ui2Rects(['city-banner'])`, placed where the screen shows it)
+//   opens the production window of that city.
+// No console errors. Screenshots: <logs>/ui2-v1-chat-alice.png, ui2-v1-chat-bob.png, ui2-v1-banner.png,
+// ui2-v1-production.png.
 import { writeFileSync } from "node:fs";
-import { openPage, act, until, appUrl } from "../lib/browser.mjs";
+import { openPage, act, until, state, appUrl } from "../lib/browser.mjs";
 import { DEV_PASSWORD } from "../lib/game.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -110,7 +116,8 @@ export async function run(ctx) {
     await until(alice.page, (x) => x.net?.room?.name === roomName, 10000, "the room name");
     await act(alice.page, { kind: "roomSetting", field: "turnMode", value: "simultaneous" });
     await act(alice.page, { kind: "roomSetting", field: "minorCivs", value: 0 });
-    bob = await open(`v1b${stamp}`, {});
+    // Bob's map layer is off (`ui2onmap=0`).
+    bob = await open(`v1b${stamp}`, { ui2onmap: "0" });
     let s = await signIn(bob);
     s = await until(bob.page, (x) => x.net?.rooms?.some((r) => r.name === roomName), 15000, "the room in bob's list");
     await act(bob.page, { kind: "joinRoom", room: s.net.rooms.find((r) => r.name === roomName).id });
@@ -127,6 +134,8 @@ export async function run(ctx) {
     await sleep(2000);
 
     await chat(alice, bob, check, n, shot);
+    await mapOff(alice, bob, check, n);
+    await banner(alice, check, n, shot);
   } catch (e) {
     check("no scenario error", false, e.message);
     result.error = e.stack ?? String(e);
@@ -168,3 +177,67 @@ async function chat(alice, bob, check, n, shot) {
   await shot(bob, "chat-bob");
 }
 
+/** `?ui2onmap=0`: bob's map layer is off, alice's flags are on the screen. */
+async function mapOff(alice, bob, check, n) {
+  const a = await waitUi(alice.page, () => true, 0);
+  const flagsA = await partBox(alice.page, "unit-flag");
+  const flagsB = await partBox(bob.page, "unit-flag");
+  const probeB = await ui2(bob.page);
+  n.map = { alice: flagsA, bob: flagsB, bobAnchors: probeB?.anchors ?? null, aliceAnchors: a.probe?.anchors ?? null };
+  check("map layer: alice's unit flags are on the screen", !!flagsA, JSON.stringify(flagsA));
+  check("map layer: bob's flags are off with ?ui2onmap=0", flagsB === null, JSON.stringify(flagsB));
+}
+
+/** Step 4 (the window): alice founds a city through the skin; a click on its banner opens its production window. */
+async function banner(alice, check, n, shot) {
+  const page = alice.page;
+  const b = (n.banner = { orders: [] });
+  for (let guard = 0; guard < 16; guard++) {
+    const st = await state(page);
+    if ((st?.cities ?? []).length > 0) break;
+    const probe = await ui2(page);
+    const helm = partTexts(probe, "helm.state")[0] ?? null;
+    if (helm !== "Unit needs orders") {
+      b.orders.push(helm);
+      await sleep(500);
+      continue;
+    }
+    // The dial selects the waiting unit; its panel gives the order.
+    await clickPart(page, "helm.dial");
+    await waitUi(page, (p) => partTexts(p, "unit.title").length > 0, 5000);
+    let order = null;
+    for (const part of ["unit.act.found-city", "unit.act.fortify", "unit.act.sleep", "unit.act.skip"]) {
+      if (await clickPart(page, part)) {
+        order = part;
+        break;
+      }
+    }
+    b.orders.push(order);
+    if (!order) throw new Error("no order button for the selected unit");
+    await sleep(order === "unit.act.found-city" ? 2500 : 800);
+  }
+  const cities = (await state(page))?.cities ?? [];
+  b.cities = cities.length;
+  check("banner: alice founded a city through the unit panel", cities.length > 0, JSON.stringify(b.orders));
+  if (cities.length === 0) return;
+  // The banner comes up once the map layer has the city and the host placed it.
+  let box = null;
+  const t0 = Date.now();
+  while (!box && Date.now() - t0 < 15000) {
+    box = await partBox(page, "city-banner");
+    if (!box) await sleep(300);
+  }
+  b.box = box;
+  b.names = partTexts(await ui2(page), "city-banner");
+  check("banner: the city's banner is on the screen", !!box, `${JSON.stringify(box)} ${JSON.stringify(b.names)}`);
+  if (!box) return;
+  await shot(alice, "banner");
+  await page.mouse.click(box.cx, box.cy);
+  const open = await waitUi(page, (p) => partTexts(p, "production.head").length > 0, 5000);
+  b.window = { ms: open.ms, head: partTexts(open.probe, "production.head") };
+  check("banner: a click on alice's own banner opens the production window", open.ok, JSON.stringify(b.window));
+  await sleep(500);
+  await shot(alice, "production");
+  await page.keyboard.press("Escape");
+  await waitUi(page, (p) => partTexts(p, "production.head").length === 0, 3000);
+}

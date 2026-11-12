@@ -66,9 +66,15 @@
       ]
     },
     "map": {
-      "cities": [],
+      "cities": [
+        { "key": "0:1", "owner": "0:0", "color": 1847335167, "color2": 3837808383, "name": "Novgorod", "plot": { "x": 14, "y": 22 }, "size": 8, "capital": false, "mine": true, "visible": true, "puppet": false, "razing": false, "occupied": false, "resistance": false, "can_shoot": false, "strength": 18, "hp_fraction": 1.0, "growth_turns": 9, "production": { "item": "0:21", "name": "Longswordsman", "icon": "icon:UNIT_ATLAS:21", "turns": 2, "fraction": 0.64 } },
+        { "key": "0:2", "owner": "0:0", "color": 1847335167, "color2": 3837808383, "name": "Moscow", "plot": { "x": 21, "y": 25 }, "size": 14, "capital": true, "mine": true, "visible": true, "puppet": false, "razing": false, "occupied": false, "resistance": false, "can_shoot": true, "strength": 31, "hp_fraction": 0.75, "growth_turns": 4, "production": { "item": "1:5", "name": "Machu Picchu", "icon": "icon:WONDER_ATLAS:5", "turns": 6, "fraction": 0.43 } },
+        { "key": "0:3", "owner": "0:0", "color": 1847335167, "color2": 3837808383, "name": "Kazan", "plot": { "x": 27, "y": 19 }, "size": 5, "capital": false, "mine": true, "visible": true, "puppet": false, "razing": false, "occupied": false, "resistance": false, "can_shoot": false, "strength": 12, "hp_fraction": 1.0, "growth_turns": null, "production": null },
+        { "key": "1:4", "owner": "0:2", "color": 2686660863, "color2": 816998143, "name": "Tenochtitlan", "plot": { "x": 33, "y": 30 }, "size": 11, "capital": true, "mine": false, "visible": false, "puppet": false, "razing": false, "occupied": false, "resistance": false, "can_shoot": false, "strength": 25, "hp_fraction": 1.0, "growth_turns": null, "production": null }
+      ],
       "units": [
-        { "key": "0:7", "owner": "0:0", "color": 7216152, "color2": 14991438, "plot": { "x": 20, "y": 26 }, "icon": "icon:UNIT_FLAG_ATLAS:12", "hp_fraction": 1.0, "domain": "land", "mine": true, "waiting": true, "at_war": false, "cargo": false }
+        { "key": "0:7", "owner": "0:0", "color": 1847335167, "color2": 3837808383, "plot": { "x": 20, "y": 26 }, "icon": "icon:UNIT_FLAG_ATLAS:12", "hp_fraction": 1.0, "domain": "land", "mine": true, "waiting": true, "at_war": false, "cargo": false },
+        { "key": "1:9", "owner": "0:2", "color": 2686660863, "color2": 816998143, "plot": { "x": 22, "y": 27 }, "icon": "icon:UNIT_FLAG_ATLAS:3", "hp_fraction": 0.4, "domain": "sea", "mine": false, "waiting": false, "at_war": true, "cargo": false }
       ]
     },
     "notes": [
@@ -78,10 +84,10 @@
       { "id": "0:14", "category": "military", "message": "Barbarians have been spotted near Kazan.", "summary": "Barbarians spotted near Kazan", "turn": 87, "plot": { "x": 27, "y": 19 } }
     ],
     "players": [
-      { "id": "0:0", "leader": "Catherine", "civ": "Russia", "nick": "Catherine", "color": 7216152, "color2": 14991438, "human": true, "alive": true, "met": true, "at_war": false, "me": true },
-      { "id": "0:1", "leader": "Harun al-Rashid", "civ": "Arabia", "nick": null, "color": 3170880, "color2": 9419919, "human": true, "alive": true, "met": true, "at_war": false, "me": false },
-      { "id": "0:2", "leader": "Montezuma", "civ": "Aztec", "nick": "Montezuma", "color": 10494768, "color2": 3191398, "human": true, "alive": true, "met": true, "at_war": false, "me": false },
-      { "id": "0:3", "leader": "Ramesses", "civ": "Egypt", "nick": "Ramesses", "color": 15132390, "color2": 5524517, "human": false, "alive": true, "met": true, "at_war": false, "me": false }
+      { "id": "0:0", "leader": "Catherine", "civ": "Russia", "nick": "Catherine", "color": 1847335167, "color2": 3837808383, "human": true, "alive": true, "met": true, "at_war": false, "me": true },
+      { "id": "0:1", "leader": "Harun al-Rashid", "civ": "Arabia", "nick": null, "color": 811745535, "color2": 2411499519, "human": true, "alive": true, "met": true, "at_war": false, "me": false },
+      { "id": "0:2", "leader": "Montezuma", "civ": "Aztec", "nick": "Montezuma", "color": 2686660863, "color2": 816998143, "human": true, "alive": true, "met": true, "at_war": false, "me": false },
+      { "id": "0:3", "leader": "Ramesses", "civ": "Egypt", "nick": "Ramesses", "color": 3873892095, "color2": 1414276607, "human": false, "alive": true, "met": true, "at_war": false, "me": false }
     ],
     "chat": [
       { "seq": "0:1", "from": "Catherine", "from_player": "0:0", "to": "all", "text": "Good luck, all", "turn": 84, "mine": true },

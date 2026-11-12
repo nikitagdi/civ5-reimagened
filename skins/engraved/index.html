@@ -6,12 +6,15 @@
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/hud.css">
+  <link rel="stylesheet" href="css/onmap.css">
   <link rel="stylesheet" href="css/production.css">
   <link rel="stylesheet" href="css/research.css">
   <link rel="stylesheet" href="dev/mockup.css" data-ui2-dev>
 </head>
 <body>
-  <div class="layer" data-layer="map"></div>
+  <div class="layer" data-layer="map">
+    <div data-include="parts/onmap.html"></div>
+  </div>
   <div class="layer" data-layer="hud">
     <div data-include="icons.svg"></div>
     <div data-include="parts/top.html"></div>

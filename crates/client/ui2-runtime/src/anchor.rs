@@ -180,6 +180,12 @@ impl Anchors {
         )
     }
 
+    /// For a placed anchor's node: whether it is on the screen; `None` for a node that is no anchor or an
+    /// anchor the host has not placed yet.
+    pub fn shown(&self, node: NodeId) -> Option<bool> {
+        self.entry(node)?.screen.map(|(_, _, visible)| visible)
+    }
+
     /// Writes placements: the scene's anchor table and the placement hit-testing uses.
     pub fn set_screen(&mut self, upd: &[AnchorScreen], scene: &mut Scene) {
         for u in upd {

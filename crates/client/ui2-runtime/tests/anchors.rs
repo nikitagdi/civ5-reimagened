@@ -254,6 +254,34 @@ fn anchor_hit_test_follows_the_placement() {
 }
 
 #[test]
+fn anchor_rect_dump_follows_the_placement() {
+    let (mut rig, changes) = rig(2);
+    let ids: Vec<AnchorId> = changes.iter().map(|c| c.0).collect();
+    let boxes = |rig: &Rig| {
+        rig.rt
+            .dump_rects(None)
+            .into_iter()
+            .filter(|r| r.node.starts_with("1:"))
+            .map(|r| (r.keys, [r.x, r.y, r.w, r.h]))
+            .collect::<Vec<_>>()
+    };
+    // Not placed yet: as laid out around the layer's origin.
+    assert_eq!(boxes(&rig)[0].1, [-10.0, -10.0, 20.0, 10.0]);
+    // Placed: where the screen shows them (banner 1 around its point (130, 100)).
+    place(&mut rig, &ids, true);
+    let placed = boxes(&rig);
+    assert!(
+        placed.contains(&("0:1".to_string(), [120.0, 90.0, 20.0, 10.0])),
+        "{placed:?}"
+    );
+    // Off the screen: not listed.
+    place(&mut rig, &ids[..1], false);
+    let left = boxes(&rig);
+    assert!(left.iter().all(|(k, _)| k == "0:1"), "{left:?}");
+    assert!(!left.is_empty());
+}
+
+#[test]
 fn anchor_removed_items_free_their_anchors() {
     let (mut rig, changes) = rig(3);
     let ids: Vec<AnchorId> = changes.iter().map(|c| c.0).collect();

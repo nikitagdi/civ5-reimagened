@@ -1,0 +1,264 @@
+/* Engraved: city banners and unit flags on the map. Each is laid out around the origin of the map layer, which the
+   host moves to its object's point on the screen: a banner stands on the point, a flag is centred on it. */
+
+/* ---------- city banners ---------- */
+.city {
+  position: absolute;
+  left: -140px;
+  top: -76px;
+  width: 280px;
+  height: 76px;
+}
+
+/* The tab with the city's strength over the banner. */
+.city .str {
+  position: absolute;
+  left: 88px;
+  top: -30px;
+  width: 104px;
+  height: 34px;
+  padding-top: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 6px;
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%, 0 10px);
+  background-color: var(--lacquer);
+  box-shadow: inset 0 0 0 1px var(--engrave);
+  font: 500 14px/20px var(--sans);
+  color: var(--bone);
+  pointer-events: auto;
+}
+
+.city .str svg.i {
+  margin-top: 2px;
+  color: var(--bone-2);
+}
+
+.city .body {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 280px;
+  height: 76px;
+  display: flex;
+  overflow: hidden;
+  border-radius: 4px;
+  background-color: var(--lacquer);
+  box-shadow: inset 0 0 0 1px var(--engrave);
+  text-align: left;
+  pointer-events: auto;
+  transition: background-color 150ms var(--ease);
+}
+
+.city.mine .body:hover {
+  background-color: var(--lacquer-2);
+}
+
+.city.sel .body {
+  box-shadow: inset 0 0 0 1px var(--brass), 0 0 0 1px var(--brass);
+}
+
+.city.fog .body {
+  background-color: var(--lacquer-0);
+}
+
+/* The flank in the owner's colours: the size and the turns to grow. */
+.city .flank {
+  width: 56px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background-color: var(--civ-red);
+  color: var(--civ-yellow);
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.35);
+}
+
+.city .flank .size {
+  font: 500 30px/30px var(--serif);
+}
+
+.city .flank .grow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.city .flank .grow svg.i {
+  width: 12px;
+  height: 12px;
+}
+
+.city .main {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.city .name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  white-space: nowrap;
+}
+
+.city .name .nm {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 500 21px/26px var(--serif);
+  color: var(--bone);
+}
+
+.city .name .cap {
+  width: 14px;
+  height: 14px;
+  color: var(--civ-yellow);
+}
+
+.city .prod {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 18px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--bone-2);
+  white-space: nowrap;
+}
+
+.city .prod svg.i {
+  width: 14px;
+  height: 14px;
+  color: var(--y-prod);
+}
+
+.city .prod .what {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.city .prod .t {
+  flex: none;
+  margin-left: auto;
+  font-weight: 500;
+  color: var(--bone);
+}
+
+.city .prod.none {
+  color: var(--neg);
+}
+
+.city .scale {
+  height: 3px;
+}
+
+.city .scale .fill {
+  background-color: var(--y-prod);
+}
+
+/* The city's health, while it is damaged: a hairline at the bottom of the banner. */
+.city .hp {
+  position: absolute;
+  left: 56px;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background-color: var(--lacquer-3);
+}
+
+.city .hp .fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background-color: var(--neg);
+}
+
+/* ---------- unit flags ---------- */
+.uflag {
+  position: absolute;
+  left: -20px;
+  top: -28px;
+  width: 40px;
+  height: 48px;
+  pointer-events: auto;
+}
+
+.uflag:disabled {
+  cursor: default;
+}
+
+.uflag .hp {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 40px;
+  height: 4px;
+  background-color: var(--lacquer);
+  box-shadow: 0 0 0 1px var(--lacquer);
+}
+
+.uflag .hp .fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background-color: var(--y-food);
+}
+
+.uflag .hp .fill.low {
+  background-color: var(--neg);
+}
+
+/* The shield in the owner's colours; the game's icon of the unit over a mark of its domain. */
+.uflag .flag {
+  position: absolute;
+  left: 4px;
+  top: 8px;
+  width: 32px;
+  height: 40px;
+  padding-top: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  clip-path: polygon(0 0, 100% 0, 100% 72%, 50% 100%, 0 72%);
+  background-color: var(--civ-red);
+  color: var(--civ-yellow);
+}
+
+.uflag .flag .dom {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+.uflag .flag .pic {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 28px;
+  height: 28px;
+}
+
+.uflag.sel .flag {
+  box-shadow: inset 0 0 0 2px var(--brass);
+}
+
+.uflag.wait .hp {
+  box-shadow: 0 0 0 1px var(--brass);
+}
+
+.uflag.war .hp {
+  box-shadow: 0 0 0 1px var(--neg);
+}

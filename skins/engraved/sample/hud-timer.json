@@ -68,7 +68,7 @@
     "map": {
       "cities": [],
       "units": [
-        { "key": "0:7", "owner": "0:0", "color": 7216152, "color2": 14991438, "plot": { "x": 20, "y": 26 }, "icon": "icon:UNIT_FLAG_ATLAS:12", "hp_fraction": 1.0, "domain": "land", "mine": true, "waiting": true, "at_war": false, "cargo": false }
+        { "key": "0:7", "owner": "0:0", "color": 1847335167, "color2": 3837808383, "plot": { "x": 20, "y": 26 }, "icon": "icon:UNIT_FLAG_ATLAS:12", "hp_fraction": 1.0, "domain": "land", "mine": true, "waiting": true, "at_war": false, "cargo": false }
       ]
     },
     "notes": [

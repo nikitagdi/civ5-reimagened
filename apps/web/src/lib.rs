@@ -217,6 +217,8 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
             })),
             // `&ui2classic=cold`: the classic UI wakes up from under UI v2 with a new layer.
             classic_cold: page::query_param("ui2classic").as_deref() == Some("cold"),
+            // `&ui2onmap=0`: the skin's city banners and unit flags are off (the bench's measure of the layer).
+            map_off: page::query_param("ui2onmap").as_deref() == Some("0"),
         }),
     };
     let config = AppConfig {

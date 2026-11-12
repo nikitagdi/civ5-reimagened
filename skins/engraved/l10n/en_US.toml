@@ -61,6 +61,9 @@
 "chat.placeholder" = "Message"
 "chat.turn" = "T{1_Num}"
 
+# City banners on the map.
+"banner.choose" = "Choose production"
+
 # The production window.
 "prod.citizens" = "citizens"
 "prod.per_turn_long" = "production per turn"
