@@ -6,10 +6,10 @@
 //!    loading ends the frame's report as [`V2FrameReport::fatal`]), then `Runtime::drain_output`;
 //! 3. the state writes of the markup, then of the scripts → `UiActions::state_ops`; the scripts' settings writes
 //!    → `UiActions::settings_set`; the intents of the markup, of the scripts and of the host (map clicks) →
-//!    `UiActions::apply`, orders leaving through the frame's [`HostNet`] sink; mod intents are taken (no
-//!    dispatcher consumes them yet);
-//! 4. the source writes its roots from the replica, the session, and the actions module's `ui` root and
-//!    dismissed notes → `UiActions::reconcile` → `ModelStore::take_frame`;
+//!    `UiActions::apply`, orders leaving through the frame's [`HostNet`] sink; the mod intents it accepted are kept
+//!    for the application ([`V2Ui::take_mod_intents`](crate::V2Ui::take_mod_intents));
+//! 4. the writes of the mods' Rust halves (`Owner::Mod`, [`crate::mods`]), then the source writes its roots from
+//!    the replica, the session, and the actions module's `ui` root and dismissed notes → `UiActions::reconcile` → `ModelStore::take_frame`;
 //! 5. `Runtime::apply_delta` → the scripts' island commands (`Runtime::apply_island`; a refused one is logged and
 //!    reported with the frame's errors) → the panels of mods whose scripts were switched off show their
 //!    placeholder (`Runtime::set_panel_failed`) → `Runtime::frame` → the text bridge (the frame's request for the
@@ -18,14 +18,16 @@
 //!    supervisor sends nothing to a context with nothing new).
 //!
 //! `reconcile` runs in every frame, so every frame that took events settles what they decided. A script's state
-//! write reaches the model in the frame that drains it, and its worker's mirror with that frame's post. Mod
-//! panels join the order when their module arrives. The map anchors the runtime reported are kept; the application
+//! write reaches the model in the frame that drains it, and its worker's mirror with that frame's post. The mods'
+//! scripts run under a supervisor of their own ([`crate::mods`]): their answers join the skin's in step 2 and they
+//! get the frame after the skin's in step 6; a skin built anew gets the mods' panels again before its first frame.
+//! The map anchors the runtime reported are kept; the application
 //! places them with its camera after the frame (`V2Ui::place_anchors`).
 
 use std::sync::Arc;
 
 use replica::ReplicaStep;
-use ui2_actions::{ActionEvent, StateNs};
+use ui2_actions::ActionEvent;
 use ui2_draw::SceneStats;
 use ui2_model::Owner;
 use ui2_model::wire::ScriptCtxId;
@@ -82,7 +84,7 @@ pub struct V2FrameReport {
     pub intents: u32,
     /// Intents and state writes refused for their form (a mistake of the skin; each is logged).
     pub refused: u32,
-    /// Output dropped because nothing consumes it yet (script events without scripts, intents for mods).
+    /// Output dropped because nothing consumes it (script events without scripts).
     pub dropped_output: u32,
     /// The skin's scripts after the frame; `None` when none run.
     pub scripts: Option<ScriptStats>,
@@ -142,6 +144,8 @@ impl V2Ui {
         let now = || clock.as_ref().map_or(0.0, |c| c());
         let t0 = now();
         let now_ms = f.now_ms.max(0.0) as u64;
+        // A skin built anew gets the mods' panels again.
+        self.keep_mod_panels();
         let V2Frame {
             replica,
             steps,
@@ -172,12 +176,14 @@ impl V2Ui {
             self.actions.on_event(ev, now_ms);
         }
         if let Some(ids) = mods {
+            self.mods.table.clone_from(&ids);
             self.actions.set_mods(ids);
         }
 
         // 2. What the scripts answered and the markup asked since the last frame.
         let t_drain = now();
         let mut js = self.scripts.as_mut().map(|s| s.sup.drain(frame_ms));
+        self.mods.drain_scripts(frame_ms, &mut js);
         let fatal = self
             .scripts
             .as_mut()
@@ -191,14 +197,16 @@ impl V2Ui {
         // 3. State writes (the markup's, then the scripts'), the scripts' settings, then intents; orders leave
         //    through the sink.
         let mut refused = 0;
-        for e in self
-            .actions
-            .state_ops(StateNs::Skin, &out.state_writes, &mut self.store)
+        // A mod panel's writes (`modstate.<id>.*`) go to that mod's state.
+        for e in
+            crate::mods::markup_state_ops(&mut self.actions, &out.state_writes, &mut self.store)
         {
             tracing::warn!(target: "ui2_host", "state write refused: {e}");
             refused += 1;
         }
         let mut intents: Vec<WireIntent> = out.intents;
+        // A mod panel's `mods.<id>.*` intents carry the mod's origin.
+        self.mods.tag_markup(&mut intents);
         if let Some(js) = js.as_mut() {
             let skin = pkg.manifest().id.as_str();
             refused += scripts::apply_writes(js, &mut self.actions, &mut self.store, skin).refused;
@@ -210,14 +218,16 @@ impl V2Ui {
             .apply(&mut intents, &mut self.store, net.sink(), now_ms);
         // The actions module logs each form error once; the list only needs emptying.
         refused += self.actions.take_form_errors().len() as u32;
-        let mod_intents = self.actions.take_mod_intents();
+        self.mods.keep_intents(self.actions.take_mod_intents());
         let script_events = out.script_events;
-        let mut dropped_output = mod_intents.len();
-        if self.scripts.is_none() {
+        let mut dropped_output = 0;
+        if self.scripts.is_none() && !self.mods.has_scripts() {
             dropped_output += script_events.len();
         }
 
-        // 4. The source, then the actions module judges its state by what the source wrote, then the delta.
+        // 4. The mods' Rust halves' writes, the source, then the actions module judges its state by what the source
+        //    wrote, then the delta.
+        refused += self.mods.apply_writes(&mut self.store);
         let t_source = now();
         let source = {
             let mut w = self.store.writer(Owner::Source);
@@ -262,7 +272,7 @@ impl V2Ui {
             switch_off_mod_panels(runtime, &js.failed);
         }
         if dropped_output > 0 {
-            tracing::debug!(target: "ui2_host", dropped_output, "script events or mod intents have no consumer yet");
+            tracing::debug!(target: "ui2_host", dropped_output, "script events have no consumer");
         }
         let mut out = runtime.frame(frame_ms, &self.store, text, scene);
         // The text bridge: what the runtime asked of the focused field, then what the player typed since.
@@ -310,6 +320,13 @@ impl V2Ui {
             );
             js_main_ms += (now() - t_post) as f32;
         }
+        self.mods.post_scripts(
+            frame_ms,
+            runtime,
+            delta.as_ref(),
+            &script_events,
+            &self.store,
+        );
         self.frames += 1;
 
         V2FrameReport {
@@ -340,7 +357,8 @@ impl V2Ui {
 }
 
 /// The panels of each mod whose scripts were switched off show their placeholder (the mod's markup cannot work
-/// without its scripts); the skin's own panels and other mods' panels live on. Returns the panels switched off.
+/// without its scripts), and one in place of a skin's element gives the element back; the skin's own panels and
+/// other mods' panels live on. Returns the panels switched off.
 pub(crate) fn switch_off_mod_panels(runtime: &mut Runtime, failed: &[ScriptCtxId]) -> usize {
     let mut off = 0;
     for ctx in failed {
@@ -355,10 +373,16 @@ pub(crate) fn switch_off_mod_panels(runtime: &mut Runtime, failed: &[ScriptCtxId
         let reason = format!("the scripts of mod {m} were switched off");
         tracing::warn!(target: "ui2_host", "{reason}; its panels show a placeholder");
         for p in runtime.panels() {
-            if p.owner.as_deref() == Some(&**m) && p.failed.is_none() {
-                runtime.set_panel_failed(p.id, &reason);
-                off += 1;
+            if p.owner.as_deref() != Some(&**m) || p.failed.is_some() {
+                continue;
             }
+            // A panel in place of a skin's element gives the element back; the others show a placeholder.
+            if p.mode == Some(ui2_runtime::MountMode::Replace) {
+                runtime.unmount(p.id);
+            } else {
+                runtime.set_panel_failed(p.id, &reason);
+            }
+            off += 1;
         }
     }
     off

@@ -410,7 +410,8 @@ fn probe_on() -> bool {
 
 /// The text leaves of `ui`'s document with the part each one is in.
 fn probe_texts(ui: &V2Ui) -> Vec<(Option<String>, String)> {
-    let pkg = ui.package();
+    // The linked document: the skin's templates and those of the mods' panels.
+    let pkg = ui.runtime().doc();
     let arena = ui.runtime().arena();
     let part_of = |mut id| loop {
         let node = arena.get(id)?;
@@ -522,6 +523,8 @@ pub struct V2Frontend {
     sample_state: Option<String>,
     sample_op: Option<Box<dyn HttpOp>>,
     sample_on: bool,
+    /// The mods' UI fields and intents (`mod_host::ModUiStore`).
+    mod_ui: super::v2_mods::V2Mods,
 }
 
 /// A skin change on the screen: the skin asked for and its download (`None`: the package is in the cache).
@@ -573,6 +576,7 @@ impl V2Frontend {
             sample_state: None,
             sample_op: None,
             sample_on: false,
+            mod_ui: super::v2_mods::V2Mods::default(),
         }
     }
 
@@ -683,6 +687,12 @@ impl V2Frontend {
         }
     }
 
+    /// The store of the mods' UI fields the app shares with the hook of the mods (mod API 1.3).
+    pub fn set_mod_ui(&mut self, link: crate::mod_host::ModUiLink) {
+        self.mod_ui
+            .set_link(link, Rc::clone(&self.http), self.scripts.clone());
+    }
+
     /// Reference images: every skin that loads gets a solid background and a frozen scene.
     pub fn set_background(&mut self, background: Option<[u8; 3]>) {
         self.background = background;
@@ -741,6 +751,7 @@ impl V2Frontend {
     pub fn net_event(&mut self, ev: &ClientEvent) {
         if let ClientEvent::ModSet(set) = ev {
             self.mods = Some(mod_ids(set));
+            self.mod_ui.set_mods(set);
         }
         // The game is followed always; the events are kept only for a skin that is loading or loaded.
         let a = action_event(ev, &mut self.game);
@@ -1191,6 +1202,7 @@ impl V2Frontend {
         let steps: &[replica::ReplicaStep] = if held.is_some() { steps } else { &[] };
         let events = std::mem::take(&mut self.events);
         let mods = self.mods.take();
+        self.mod_ui.before_frame(ui);
         let (report, look_at) = match net {
             Some(h) => h.with(|core| {
                 let mut sink = NetSink::new(core);
@@ -1238,6 +1250,7 @@ impl V2Frontend {
                 );
             }
         }
+        self.mod_ui.after_frame(ui);
         // The camera eases to a plot the frame asked for, as the classic UI's `UI.LookAt` does.
         if look_at.is_some() {
             *look = look_at;
@@ -1373,6 +1386,7 @@ impl Frontend for V2Frontend {
     fn deactivate(&mut self, _cx: &mut PrepareCx<'_>) {
         self.on_screen = false;
         self.cursor = Cursor::Auto;
+        self.mod_ui.sleep();
         // A focused text field of the skin lets the platform's input go while UI v2 sleeps.
         if let Some(ui) = self.ui_mut() {
             ui.release_text_input();
@@ -1382,6 +1396,17 @@ impl Frontend for V2Frontend {
                 p.active = false;
             }
         });
+    }
+
+    /// A mod hides the game UI: no frame means no scene (the skin and the mods' panels), and a focused text field
+    /// lets the platform's input go.
+    fn suppressed(&mut self, on: bool) {
+        if on {
+            self.cursor = Cursor::Auto;
+            if let Some(ui) = self.ui_mut() {
+                ui.release_text_input();
+            }
+        }
     }
 
     /// The skin's frame; its scene goes to the renderer (`prepare_ui2`), the app's draw list gets nothing.

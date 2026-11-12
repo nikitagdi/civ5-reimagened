@@ -77,7 +77,8 @@ softly and the mod keeps running:
 | `net.channel` | Sending on the mod's declared channels |
 | `world.read` | Read-only facts about the map and owners (server) or the replica (client) |
 | `input.claim` | Hotkeys |
-| `hud` | A draw list on top of the game UI |
+| `hud` | A draw list on top of the game UI, whichever is active (classic or UI v2) |
+| `ui` | The mod's own fields of the UI v2 model and the intents of its panels (client, API 1.3) |
 | `render.pipeline` | A render system in the mod slot of the frame |
 | `camera`, `terrain.cutout` | A camera override, a mask that cuts holes in the terrain |
 | `world.bodies` | Publishing hit boxes, seeing those of the other mods and dealing hits to them (server, API 1.1) |
@@ -148,6 +149,16 @@ What 1.2 added (a 1.1 mod builds unchanged):
   client goes away (`on_detach`; share again in the next `on_attach`, which starts from nothing) or the game ends.
   The mock host lists what it would have sent (`MockCtx::terrain_shares`) and what a seat holds (`MockCtx::shared`).
 
+### A mod that owns the screen
+
+A client hook of a mod (a first-person mode, for example) can hide the game's interface while it holds the screen
+(`HookCtl::suppress_original_ui(true)`) and give it back when it leaves (`false`). While it is hidden, the active game
+UI of either kind gets no frame and no input: the classic UI draws nothing, UI v2 draws neither its skin nor the
+panels of the mods, and the game UI's cursor, movement path and trade routes are not shown. A focused text field of
+UI v2 lets the keyboard go. What the mods write into their UI v2 fields is kept and shows when the interface comes
+back. The HUD of the mods (`ClientMod::hud`, capability `hud`) is drawn after the game UI, on top of it, and still
+draws while the interface is hidden.
+
 ## Distribution workflow
 
 A mod is compiled into the server and the client, so an operator builds a distribution from a list of mods:
@@ -201,7 +212,10 @@ mod with an asset pack makes the client download it (`/mods/<hash>`) and check i
 
 `examples/mods/hello` is the smallest complete mod; see its [README](../examples/mods/hello/README.md). The
 server half counts `Say` messages and sends an `Echo` to everyone; the client half sends `Say` on **Alt+H**,
-shows the echo in a HUD panel and draws a cube from a render system, standing on a plot the player owns. Its tests are the model for yours:
+shows the echo in a HUD panel and draws a cube from a render system, standing on a plot the player owns. With UI v2
+its panel `echo` (`ui/echo.html` in the point `hud.right`) shows "Echoes N", the last echo and a **Say hello** button
+that sends `Say` too; the client half writes the panel's fields (`ui/model.toml`) and answers the button's intent.
+Its tests are the model for yours:
 
 - `hello-server/tests` run the server half on the mock host built from the real `mod.toml`;
 - `hello-client/tests` run the client half on `MockClientCtx`, and render the cube on a real device;

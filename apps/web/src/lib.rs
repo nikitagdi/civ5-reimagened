@@ -384,6 +384,16 @@ fn room_params(original_ui: bool) -> client_app::autostart::RoomParams {
         // the original UI, which blocks END TURN until they are made); no `auto_choices`. The default of the
         // original UI; the interim UI has no screens for them. `&manual=1` / `&manual=0` force it.
         manual_choices: manual_choices(original_ui),
+        // `&mods=hello,other`: the installed mods the quick game is played with.
+        mods: text("mods")
+            .map(|v| {
+                v.split(',')
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(String::from)
+                    .collect()
+            })
+            .unwrap_or_default(),
     }
 }
 

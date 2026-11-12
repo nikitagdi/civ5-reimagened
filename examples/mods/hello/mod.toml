@@ -1,21 +1,22 @@
 # The public example mod: a synced-cosmetic echo (D3, SPEC-mod-example-hello.md).
-# The client half (`client-rs`, hello-client, T37) is optional: a client without it plays and hears nothing of the mod.
+# The client half (`client-rs`, hello-client) is optional: a client without it plays and hears nothing of the mod.
+# The UI v2 panel (`ui`) shows the echoes in the HUD and says hello with a button; the classic UI keeps `hud()`.
 
 [mod]
 id      = "hello"
 name    = "Hello"
 version = "0.1.0"
-api     = "^1"
+api     = "^1.3"
 license = "MIT"
 authors = ["The civ5-reimagened authors"]
 sync    = "cosmetic"
 client  = "optional"
-parts   = ["server-rs", "client-rs"]
+parts   = ["server-rs", "client-rs", "ui"]
 
 [rust]
 server    = { crate = "hello-server", entry = "hello_server::register" }
 client    = { crate = "hello-client", entry = "hello_client::register" }
-caps      = ["net.channel", "world.read", "input.claim", "hud", "kv", "render.pipeline"]
+caps      = ["net.channel", "world.read", "input.claim", "hud", "kv", "render.pipeline", "ui"]
 state_max = 16
 
 [[channels]]
@@ -25,3 +26,15 @@ c2s_max = 512
 s2c_max = 1024
 rate    = "5/s"
 burst   = 10
+
+[ui]
+api     = "^1"
+model   = "ui/model.toml"
+scripts = ["ui/hello.js"]
+
+[[ui.panels]]
+id       = "echo"
+source   = "ui/echo.html"
+point    = "hud.right"
+mode     = "append"
+fallback = "mods"

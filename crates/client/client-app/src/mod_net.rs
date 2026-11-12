@@ -20,7 +20,9 @@ use platform::InputEvent;
 
 use crate::mod_assets::{PackEvent, PackSet, mods_base_from_ws_url};
 use crate::mod_hooks::{FrameInfo, HookCtl, HookEnv, ModHook};
-use crate::mod_host::{Env, HostState, HostView, KvSet, ModSystem, TerrainView};
+use crate::mod_host::{
+    Env, HostState, HostView, KvSet, ModSystem, ModUiLink, TerrainView, UiWriter,
+};
 
 /// The hook of the client mods built into this binary.
 pub struct ClientModsHook {
@@ -117,6 +119,28 @@ impl ClientModsHook {
         self.st.end_game();
     }
 
+    /// The intents of the mods' UI v2 panels and scripts since the last frame go to their Rust halves, in order (the
+    /// dispatcher gives them only to an enabled mod holding `ui`).
+    fn deliver_ui_intents(&mut self) {
+        let Some(intents) = self
+            .st
+            .ui
+            .as_ref()
+            .map(|u| u.link().borrow_mut().take_intents())
+        else {
+            return;
+        };
+        let Some(d) = self.net.dispatcher() else {
+            return;
+        };
+        for (idx, name, args) in intents {
+            let mut host = HostView::new(&mut self.st, Env::default());
+            if !d.on_ui_intent(&mut host, idx, &name, &args) {
+                tracing::debug!(mod_idx = idx, %name, "a UI intent for a mod that does not take it");
+            }
+        }
+    }
+
     /// Advances the pack downloads and acts on the ones that settled badly (T33).
     fn poll_packs(&mut self) {
         let Some(events) = self.st.packs.as_mut().map(PackSet::poll) else {
@@ -175,6 +199,10 @@ impl ModHook for ClientModsHook {
         self.st.kv = Some(KvSet::new(std::rc::Rc::clone(&env.kv)));
     }
 
+    fn bind_ui(&mut self, ui: &ModUiLink) {
+        self.st.ui = Some(UiWriter::new(std::rc::Rc::clone(ui)));
+    }
+
     fn configure_net(&self, cfg: &mut NetConfig) {
         self.net.configure(cfg);
     }
@@ -188,6 +216,9 @@ impl ModHook for ClientModsHook {
             }
             if let Some(kv) = self.st.kv.as_mut() {
                 kv.start(view);
+            }
+            if let Some(ui) = &self.st.ui {
+                ui.link().borrow_mut().start(view);
             }
             self.systems_pending = true;
         }
@@ -255,6 +286,10 @@ impl ModHook for ClientModsHook {
         if let Some(grid) = info.cutout_grid {
             self.st.cutout.grid = Some(grid);
         }
+        if let Some(ui) = &self.st.ui {
+            ui.link().borrow_mut().end_frame();
+        }
+        self.deliver_ui_intents();
         let Some(d) = self.net.dispatcher() else {
             return;
         };
@@ -492,6 +527,99 @@ mod tests {
         assert_eq!(lock, Some(false), "the pointer is let go");
         // Nothing is left to ask for.
         assert_eq!(h.frame(&info()), None);
+    }
+
+    // ---- the UI v2 fields and intents (API 1.3) ----
+
+    /// Counts the `say` intents of its panels into its UI field `count`.
+    struct Sayer {
+        seen: Rc<RefCell<Vec<String>>>,
+        count: i64,
+    }
+
+    impl ClientMod for Sayer {
+        fn attach(&mut self, cx: &mut dyn ClientCtx, _: &AttachInfo) {
+            // A mod without `ui` is refused (CapDenied).
+            if let Ok(ui) = cx.ui_model() {
+                ui.set("count", mod_client::UiValue::Int(0)).unwrap();
+            }
+        }
+
+        fn on_ui_intent(
+            &mut self,
+            cx: &mut dyn ClientCtx,
+            name: &str,
+            _args: &[(String, mod_client::UiValue)],
+        ) {
+            self.seen.borrow_mut().push(name.to_string());
+            self.count += 1;
+            cx.ui_model()
+                .unwrap()
+                .set("count", mod_client::UiValue::Int(self.count))
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn mod_ui_intents_reach_the_mod_with_ui_and_its_writes_reach_the_store() {
+        let seen: Rc<RefCell<Vec<String>>> = Rc::default();
+        let mut r = ClientRegistry::new();
+        for (id, caps) in [("hello", &[Cap::Ui][..]), ("mute", &[][..])] {
+            let s = Rc::clone(&seen);
+            r.add_built(
+                id,
+                ModBuild {
+                    version: Version::new(1, 0, 0),
+                    caps: Caps::of(caps),
+                    code_hash: [5; 16],
+                },
+                move || {
+                    Box::new(Sayer {
+                        seen: Rc::clone(&s),
+                        count: 0,
+                    })
+                },
+            );
+        }
+        let link: crate::mod_host::ModUiLink = Rc::default();
+        let mut hooks = ModHooks::new();
+        hooks.register(Box::new(ClientModsHook::new(r).unwrap()));
+        hooks.bind_ui(&link);
+        let view = |id: &str, idx| ModView {
+            id: id.into(),
+            version: "1.0.0".into(),
+            load_idx: idx,
+            sync: ModSync::Cosmetic,
+            client_required: false,
+            available: true,
+            pack: None,
+        };
+        hooks.net_event(&ClientEvent::ModSet(ModSetView {
+            modset_hash: 3,
+            mods: vec![view("hello", 0), view("mute", 1)],
+        }));
+        // `attach` wrote the field; a mod without `ui` could not.
+        assert_eq!(link.borrow().snapshot(0).len(), 1);
+        assert!(link.borrow().snapshot(1).is_empty());
+        {
+            let mut s = link.borrow_mut();
+            s.push_intent(0, "say".into(), Vec::new());
+            s.push_intent(1, "say".into(), Vec::new());
+            s.push_intent(9, "say".into(), Vec::new());
+        }
+        hooks.frame(&info());
+        assert_eq!(*seen.borrow(), ["say"], "only the mod holding `ui` sees it");
+        assert_eq!(
+            link.borrow().snapshot(0)[0],
+            crate::mod_host::ModUiOp::Set {
+                field: "count".into(),
+                value: mod_client::UiValue::Int(1)
+            }
+        );
+        assert!(link.borrow_mut().take_intents().is_empty());
+        // The game ends: the fields go.
+        hooks.net_event(&ClientEvent::Detached(protocol::DetachReason::Left));
+        assert!(link.borrow().snapshot(0).is_empty());
     }
 
     // ---- asset packs (T33) ----

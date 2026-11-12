@@ -501,6 +501,9 @@ impl App {
             server_url: config.server_url.clone(),
             kv: Rc::clone(&shared_kv),
         });
+        // The mods' UI v2 fields (mod API 1.3): written by the mods through their hook, read by UI v2.
+        let mod_ui: crate::mod_host::ModUiLink = Rc::default();
+        hooks.bind_ui(&mod_ui);
         // The graphics choices stay on the device: a store of their own, else the page's (not through the account).
         let device_kv: Rc<dyn platform::KeyValueStore> = match device_store {
             Some(store) => Rc::from(store),
@@ -617,6 +620,7 @@ impl App {
             v2.set_dev(p.dev);
             v2.set_sample(p.sample);
             v2.set_text_input(p.text_input);
+            v2.set_mod_ui(Rc::clone(&mod_ui));
             ui_host.register(Box::new(v2));
             ui_host.set_cold_wake(p.classic_cold);
         }
@@ -2120,6 +2124,8 @@ impl App {
                     }
                 }
             }
+            // A mod that owns the screen hides the game UI of either kind (client-hooks C3).
+            self.ui_host.set_suppressed(self.hooks.ui_suppressed());
             // A locked pointer has no cursor to show: the animated game cursor would bring it back.
             if let (Some(c), Some(w), false) = (&self.cursors, &self.window, self.pointer.engaged())
             {

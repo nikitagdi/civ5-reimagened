@@ -162,6 +162,8 @@ pub struct V2Ui {
     golden: Option<[u8; 3]>,
     /// The sample mode (`?ui2sample=`): a sample file writes the model instead of the replica source.
     pub(crate) sample: Option<StaticSource>,
+    /// The mods' side: their model writes, intents and panels (outlives a skin, like the model).
+    pub(crate) mods: crate::mods::Mods,
 }
 
 impl V2Ui {
@@ -216,6 +218,7 @@ impl V2Ui {
             services: init.services,
             golden: None,
             sample: None,
+            mods: crate::mods::Mods::default(),
         })
     }
 

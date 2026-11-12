@@ -187,6 +187,11 @@ pub trait ModHook {
     /// Called once by the app at its start with what only the app has (`HookEnv`).
     fn bind(&mut self, _env: &HookEnv) {}
 
+    /// Called once by the app at its start with the store of the mods' UI v2 fields, which UI v2 reads (mod API
+    /// 1.3, `ClientCtx::ui_model`); the intents of the mods' panels come back through it. Hooks that carry no mods
+    /// ignore it.
+    fn bind_ui(&mut self, _ui: &crate::mod_host::ModUiLink) {}
+
     /// A reason the game cannot be played with the mods this hook carries (a required mod lacks its pack), once. The
     /// app shows it and leaves the game.
     fn take_problem(&mut self) -> Option<String> {
@@ -288,6 +293,13 @@ impl ModHooks {
     pub fn bind(&mut self, env: &HookEnv) {
         for h in &mut self.hooks {
             h.bind(env);
+        }
+    }
+
+    /// Hands the store of the mods' UI v2 fields to the hooks (once, at the start of the app).
+    pub fn bind_ui(&mut self, ui: &crate::mod_host::ModUiLink) {
+        for h in &mut self.hooks {
+            h.bind_ui(ui);
         }
     }
 
@@ -571,5 +583,126 @@ mod tests {
         hooks.register(Box::new(Take(true, Rc::clone(&calls))));
         assert!(hooks.claim_input(&InputEvent::Focused(true)).taken);
         assert_eq!(*calls.borrow(), 2, "the third hook is not asked");
+    }
+
+    /// A game UI of either kind: counts its frames, inputs and suppressions, asks for cursor row 3.
+    struct Front {
+        kind: crate::ui_host::UiKind,
+        seen: Rc<RefCell<[u32; 3]>>,
+    }
+
+    impl crate::ui_host::Frontend for Front {
+        fn kind(&self) -> crate::ui_host::UiKind {
+            self.kind
+        }
+        fn needs_replica(&self) -> bool {
+            false
+        }
+        fn prepare(
+            &mut self,
+            _cx: &mut crate::ui_host::PrepareCx<'_>,
+        ) -> crate::ui_host::Readiness {
+            crate::ui_host::Readiness::Ready
+        }
+        fn activate(&mut self, _cx: &mut crate::ui_host::PrepareCx<'_>) {}
+        fn deactivate(&mut self, _cx: &mut crate::ui_host::PrepareCx<'_>) {}
+        fn frame(&mut self, _cx: &mut crate::ui_host::FrameCx<'_>, _out: &mut UiDrawList) {}
+        fn input(&mut self, _cx: &mut crate::ui_host::InputCx<'_>, _ev: InputEvent) {}
+        fn new_game(&mut self) {}
+        fn frame_started(&mut self, _now_ms: f64) {
+            self.seen.borrow_mut()[0] += 1;
+        }
+        fn cursor_row(&self) -> Option<i32> {
+            Some(3)
+        }
+        fn suppressed(&mut self, on: bool) {
+            self.seen.borrow_mut()[if on { 1 } else { 2 }] += 1;
+        }
+    }
+
+    /// Hides the game UI from the first click until Escape and draws its own HUD (one rectangle) every frame.
+    struct Owner;
+
+    impl ModHook for Owner {
+        fn claim_input(&mut self, event: &InputEvent, ctl: &mut HookCtl) -> bool {
+            match event {
+                InputEvent::Pointer(p) if p.phase == PointerPhase::Down => {
+                    ctl.suppress_original_ui(true);
+                    true
+                }
+                InputEvent::Key(k) if k.code.as_deref() == Some("Escape") => {
+                    ctl.suppress_original_ui(false);
+                    true
+                }
+                _ => false,
+            }
+        }
+
+        fn hud(&mut self, _info: &FrameInfo<'_>, list: &mut UiDrawList, _ctl: &mut HookCtl) {
+            list.add_filled_rect(glam::Vec2::ZERO, glam::Vec2::splat(8.0), [9, 9, 9, 255]);
+        }
+    }
+
+    #[test]
+    fn a_suppressing_mod_hides_the_game_ui_of_either_kind_and_its_hud_stays_on_top() {
+        use crate::ui_host::{PrepareCx, UiHost, UiKind};
+        for kind in [UiKind::Classic, UiKind::V2] {
+            let seen = Rc::new(RefCell::new([0; 3]));
+            let mut host = UiHost::new();
+            host.register(Box::new(Front {
+                kind,
+                seen: Rc::clone(&seen),
+            }));
+            let mut hooks = ModHooks::new();
+            hooks.register(Box::new(Owner));
+            // One frame as the app runs it: the suppression from the hooks, the game UI (it draws a rectangle of its
+            // own), then the mods' HUD after it.
+            let frame = |host: &mut UiHost, hooks: &mut ModHooks| {
+                host.set_suppressed(hooks.ui_suppressed());
+                host.step(&mut PrepareCx {
+                    now_ms: 0.0,
+                    size: (800, 600),
+                    dpr: 1.0,
+                    session: None,
+                    playing: false,
+                });
+                let mut list = UiDrawList::new();
+                let mut drew = false;
+                host.on_frame(|f| {
+                    f.frame_started(0.0);
+                    drew = true;
+                });
+                if drew {
+                    list.add_filled_rect(glam::Vec2::ZERO, glam::Vec2::splat(4.0), [1, 1, 1, 255]);
+                }
+                let game = list.vertices().len();
+                hooks.hud(&info(0.016), &mut list);
+                (game, list.vertices().len())
+            };
+            let (game, all) = frame(&mut host, &mut hooks);
+            assert!(
+                game > 0 && all > game,
+                "{kind:?}: the mod's HUD after the game UI"
+            );
+            assert_eq!(host.cursor_row(), Some(3));
+
+            hooks.claim_input(&events().remove(0));
+            assert!(hooks.ui_suppressed());
+            for _ in 0..3 {
+                let (game, all) = frame(&mut host, &mut hooks);
+                assert_eq!(game, 0, "{kind:?}: nothing of the game UI");
+                assert!(all > 0, "{kind:?}: the mod's HUD still draws");
+            }
+            assert_eq!(host.cursor_row(), None, "the game UI's cursor goes with it");
+            let mut inputs = 0;
+            host.on_input(|_| inputs += 1);
+            assert_eq!(inputs, 0, "{kind:?}: no input either");
+            assert_eq!(*seen.borrow(), [1, 1, 0], "{kind:?}: told once");
+
+            hooks.claim_input(&key("Escape", Key::Named(NamedKey::Escape)));
+            frame(&mut host, &mut hooks);
+            assert_eq!(*seen.borrow(), [2, 1, 1], "{kind:?}: back");
+            assert_eq!(host.cursor_row(), Some(3));
+        }
     }
 }

@@ -442,3 +442,44 @@ fn mod_islands_and_mount_errors() {
     assert_eq!(r.rt.arena().len(), nodes);
     r.assert_idle(3);
 }
+
+#[test]
+fn a_mounted_panel_takes_the_pointer_over_the_skins_node() {
+    use platform::{
+        InputEvent, Modifiers, MouseButton, PhysicalPosition, PointerEvent, PointerId, PointerKind,
+        PointerPhase,
+    };
+    let mut r = Rig::new();
+    let echo = r.mount("echo", "mods", MountMode::Append, 0);
+    r.frame();
+    let rect = r.rt.dump_rects(Some("echo"))[0].clone();
+    let (x, y) = (f64::from(rect.x + 4.0), f64::from(rect.y + 4.0));
+    // The panel is a chunk nested in the skin's chunk of `right`: the hit finds it, not the point under it.
+    let hit = r.rt.node_at(x, y).expect("a node");
+    let root = r.root(echo);
+    let mut at = Some(hit);
+    while at.is_some_and(|a| a != root) {
+        at = at.and_then(|a| r.rt.node(a)).and_then(|n| n.parent());
+    }
+    assert_eq!(at, Some(root), "the hit is in the panel");
+    for (phase, button) in [
+        (PointerPhase::Move, None),
+        (PointerPhase::Down, Some(MouseButton::Left)),
+        (PointerPhase::Up, Some(MouseButton::Left)),
+    ] {
+        r.rt.handle_input(
+            &InputEvent::Pointer(PointerEvent {
+                id: PointerId::MOUSE,
+                kind: PointerKind::Mouse,
+                phase,
+                position: PhysicalPosition { x, y },
+                button,
+                modifiers: Modifiers::default(),
+            }),
+            r.now,
+        );
+    }
+    let out = r.rt.drain_output();
+    let names: Vec<&str> = out.intents.iter().map(|i| &*i.name).collect();
+    assert_eq!(names, ["mods.hello.say"]);
+}

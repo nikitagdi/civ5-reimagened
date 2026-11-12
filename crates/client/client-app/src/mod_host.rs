@@ -18,6 +18,7 @@
 use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use client_core::NetHost;
 use draw_list::TextureId;
@@ -26,8 +27,8 @@ use mod_api::{Cap, LogLevel, MapShape, PlayerId, PlotClass, PlotIdx};
 use mod_assets::Pack;
 use mod_client::{
     ClientCtx, ClientHost, CtxError, CutoutGrid, CutoutMask, CutoutRegion, HotkeyTable, Hotkeys,
-    HudTextures, ModAssets, ModAudio, ModKv, ModTerrain, ModWorld, NamespacedKv, PlayOpts,
-    PlayerInfo, PlotView, ScreenInfo,
+    HudTextures, ModAssets, ModAudio, ModKv, ModTerrain, ModUiModel, ModWorld, NamespacedKv,
+    PlayOpts, PlayerInfo, PlotView, ScreenInfo, UiValue,
 };
 use mod_manifest::ModId;
 use platform::KeyValueStore;
@@ -516,6 +517,357 @@ impl RenderSystem for ModSystem {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// U2: the UI v2 model of mods (API 1.3)
+
+/// One write of a mod to its UI v2 fields `mods.<id>.*` (paths below the mod's root).
+#[derive(Debug, Clone, PartialEq)]
+pub enum ModUiOp {
+    Set {
+        field: String,
+        value: UiValue,
+    },
+    Put {
+        list: String,
+        key: i64,
+        rec: Vec<(String, UiValue)>,
+    },
+    Remove {
+        list: String,
+        key: i64,
+    },
+    Clear {
+        list: String,
+    },
+}
+
+/// Most writes one mod makes in one frame of the app; later ones are refused until the next frame.
+pub const UI_OPS_PER_FRAME: u32 = 1024;
+/// The longest string a mod writes, bytes.
+pub const UI_STR_MAX: usize = 1024;
+/// The most a mod keeps in its fields, bytes (names and values, roughly).
+pub const UI_BYTES_MAX: usize = 256 * 1024;
+/// Most intents of the panels waiting for the mods' Rust halves; later ones are dropped.
+const UI_INTENTS_MAX: usize = 256;
+
+/// The type check of a mod's writes, known once its model is mounted by UI v2 (`None` until then: the write is
+/// kept and checked when UI v2 applies it).
+pub type ModUiCheck = Box<dyn Fn(&ModUiOp) -> Result<(), String>>;
+
+/// What a mod keeps in its fields: the last value of each field and the records of each list.
+#[derive(Default)]
+struct ModUiData {
+    fields: BTreeMap<String, UiValue>,
+    lists: BTreeMap<String, BTreeMap<i64, Vec<(String, UiValue)>>>,
+    /// Bytes held, as [`UI_BYTES_MAX`] counts them.
+    bytes: usize,
+    /// Writes in this frame of the app.
+    ops: u32,
+}
+
+fn value_bytes(v: &UiValue) -> usize {
+    match v {
+        UiValue::Str(s) => 8 + s.len(),
+        _ => 8,
+    }
+}
+
+fn rec_bytes(rec: &[(String, UiValue)]) -> usize {
+    rec.iter()
+        .map(|(n, v)| n.len() + value_bytes(v))
+        .sum::<usize>()
+        + 8
+}
+
+/// An intent of a mod's UI v2 panels or script for its Rust half: the mod's load index, the name after
+/// `mods.<id>.`, the arguments.
+pub type ModUiIntent = (u16, String, Vec<(String, UiValue)>);
+
+/// The UI v2 fields the mods' Rust halves write (`ClientCtx::ui_model`), kept by load index whatever UI is active,
+/// and the intents of their panels on the way back.
+///
+/// The store keeps each mod's last values, so what a mod wrote while the classic UI was on the screen is there when
+/// UI v2 takes it: UI v2 starts with [`snapshot`](Self::snapshot) of every mod and then takes the writes of each
+/// frame with [`take_changes`](Self::take_changes). Writes are recorded as changes only while UI v2 takes them
+/// ([`set_consumer`](Self::set_consumer)); otherwise only the values are kept, so a long classic session costs no
+/// more than the values themselves.
+///
+/// Limits per mod: [`UI_OPS_PER_FRAME`] writes in a frame, strings up to [`UI_STR_MAX`] bytes, [`UI_BYTES_MAX`] in
+/// all. A write over a limit, or one the mod's model refuses ([`set_check`](Self::set_check)), is refused with
+/// `CtxError::Rejected` and changes nothing.
+#[derive(Default)]
+pub struct ModUiStore {
+    mods: BTreeMap<u16, ModUiData>,
+    /// The mods of the game's set: load index and id.
+    ids: BTreeMap<u16, Arc<str>>,
+    checks: BTreeMap<u16, ModUiCheck>,
+    consumer: bool,
+    changes: Vec<(u16, ModUiOp)>,
+    intents: Vec<ModUiIntent>,
+}
+
+/// The store shared by the hook of the mods (writes, intents to the mods) and UI v2 (reads, intents from the
+/// panels). Borrowed for one call at a time.
+pub type ModUiLink = Rc<std::cell::RefCell<ModUiStore>>;
+
+impl ModUiStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// A game's mod set: what the old one wrote goes, the mods of the set (available ones) are known by index.
+    pub fn start(&mut self, set: &ModSetView) {
+        self.end_game();
+        for m in set.mods.iter().filter(|m| m.available) {
+            self.ids.insert(m.load_idx, Arc::from(m.id.as_str()));
+        }
+    }
+
+    /// The game ended: every value, change, check and intent goes.
+    pub fn end_game(&mut self) {
+        self.mods.clear();
+        self.ids.clear();
+        self.checks.clear();
+        self.changes.clear();
+        self.intents.clear();
+    }
+
+    /// One mod is gone while the game goes on: its values go (UI v2 keeps what it showed until a snapshot).
+    pub fn release_mod(&mut self, idx: u16) {
+        self.mods.remove(&idx);
+        self.checks.remove(&idx);
+        self.changes.retain(|(i, _)| *i != idx);
+        self.intents.retain(|(i, _, _)| *i != idx);
+    }
+
+    /// The mods of the set by load index, in load order.
+    pub fn ids(&self) -> impl Iterator<Item = (u16, &Arc<str>)> + '_ {
+        self.ids.iter().map(|(i, id)| (*i, id))
+    }
+
+    /// The load index of a mod of the set.
+    pub fn idx_of(&self, id: &str) -> Option<u16> {
+        self.ids.iter().find(|(_, m)| &***m == id).map(|(i, _)| *i)
+    }
+
+    /// The type check of mod `idx`'s writes (UI v2 installs it once the mod's model is mounted).
+    pub fn set_check(&mut self, idx: u16, check: ModUiCheck) {
+        self.checks.insert(idx, check);
+    }
+
+    /// A new frame of the app: the per-frame write counts start again.
+    pub fn end_frame(&mut self) {
+        for d in self.mods.values_mut() {
+            d.ops = 0;
+        }
+    }
+
+    /// UI v2 takes the changes from now on (`true`; it takes a [`snapshot`](Self::snapshot) first) or stops taking
+    /// them (`false`; the changes kept so far go).
+    pub fn set_consumer(&mut self, on: bool) {
+        self.consumer = on;
+        self.changes.clear();
+    }
+
+    /// Whether UI v2 takes the changes.
+    pub fn consumer(&self) -> bool {
+        self.consumer
+    }
+
+    /// What mod `idx` holds, as the writes that make it from nothing: its fields, then each list emptied and filled.
+    pub fn snapshot(&self, idx: u16) -> Vec<ModUiOp> {
+        let Some(d) = self.mods.get(&idx) else {
+            return Vec::new();
+        };
+        let mut out: Vec<ModUiOp> = d
+            .fields
+            .iter()
+            .map(|(f, v)| ModUiOp::Set {
+                field: f.clone(),
+                value: v.clone(),
+            })
+            .collect();
+        for (list, recs) in &d.lists {
+            out.push(ModUiOp::Clear { list: list.clone() });
+            out.extend(recs.iter().map(|(k, rec)| ModUiOp::Put {
+                list: list.clone(),
+                key: *k,
+                rec: rec.clone(),
+            }));
+        }
+        out
+    }
+
+    /// The writes since the last call, in the order they were made, with the load index of the mod.
+    pub fn take_changes(&mut self) -> Vec<(u16, ModUiOp)> {
+        std::mem::take(&mut self.changes)
+    }
+
+    /// Bytes mod `idx` holds.
+    pub fn bytes(&self, idx: u16) -> usize {
+        self.mods.get(&idx).map_or(0, |d| d.bytes)
+    }
+
+    /// A write of mod `idx` (see the limits in the type's docs).
+    pub fn write(&mut self, idx: u16, op: ModUiOp) -> Result<(), CtxError> {
+        let reject = |why: String| Err(CtxError::Rejected(why));
+        let strs: Vec<(&str, &UiValue)> = match &op {
+            ModUiOp::Set { field, value } => vec![(field.as_str(), value)],
+            ModUiOp::Put { list, rec, .. } => rec
+                .iter()
+                .map(|(n, v)| (n.as_str(), v))
+                .chain([(list.as_str(), &UiValue::Null)])
+                .collect(),
+            _ => Vec::new(),
+        };
+        for (name, v) in strs {
+            if let UiValue::Str(s) = v
+                && s.len() > UI_STR_MAX
+            {
+                return reject(format!(
+                    "`{name}`: a string of {} bytes, at most {UI_STR_MAX}",
+                    s.len()
+                ));
+            }
+        }
+        if let Some(check) = self.checks.get(&idx) {
+            check(&op).map_err(CtxError::Rejected)?;
+        }
+        let d = self.mods.entry(idx).or_default();
+        if d.ops >= UI_OPS_PER_FRAME {
+            return reject(format!(
+                "more than {UI_OPS_PER_FRAME} UI writes in one frame"
+            ));
+        }
+        // The bytes after the write, then the write itself.
+        let after = match &op {
+            ModUiOp::Set { field, value } => {
+                let old = d
+                    .fields
+                    .get(field)
+                    .map_or(0, |v| field.len() + value_bytes(v));
+                d.bytes - old + field.len() + value_bytes(value)
+            }
+            ModUiOp::Put { list, key, rec } => {
+                let old = d
+                    .lists
+                    .get(list)
+                    .and_then(|l| l.get(key))
+                    .map_or(0, |r| rec_bytes(r));
+                let head = if d.lists.contains_key(list) {
+                    0
+                } else {
+                    list.len()
+                };
+                d.bytes - old + head + rec_bytes(rec)
+            }
+            _ => d.bytes,
+        };
+        if after > UI_BYTES_MAX {
+            return reject(format!(
+                "the mod's UI fields would hold {after} bytes, at most {UI_BYTES_MAX}"
+            ));
+        }
+        d.ops += 1;
+        match &op {
+            ModUiOp::Set { field, value } => {
+                d.fields.insert(field.clone(), value.clone());
+                d.bytes = after;
+            }
+            ModUiOp::Put { list, key, rec } => {
+                d.lists
+                    .entry(list.clone())
+                    .or_default()
+                    .insert(*key, rec.clone());
+                d.bytes = after;
+            }
+            ModUiOp::Remove { list, key } => {
+                if let Some(r) = d.lists.get_mut(list).and_then(|l| l.remove(key)) {
+                    d.bytes -= rec_bytes(&r);
+                }
+            }
+            ModUiOp::Clear { list } => {
+                if let Some(l) = d.lists.get_mut(list) {
+                    d.bytes -= l.values().map(|r| rec_bytes(r)).sum::<usize>();
+                    l.clear();
+                }
+            }
+        }
+        if self.consumer {
+            self.changes.push((idx, op));
+        }
+        Ok(())
+    }
+
+    /// An intent of mod `idx`'s panels or script for its Rust half (UI v2 checked whose it is).
+    pub fn push_intent(&mut self, idx: u16, name: String, args: Vec<(String, UiValue)>) {
+        if self.intents.len() >= UI_INTENTS_MAX {
+            tracing::warn!("too many UI intents for the mods in one frame; `{name}` is dropped");
+            return;
+        }
+        self.intents.push((idx, name, args));
+    }
+
+    /// The intents waiting for the mods' Rust halves, in order.
+    pub fn take_intents(&mut self) -> Vec<ModUiIntent> {
+        std::mem::take(&mut self.intents)
+    }
+}
+
+/// `ClientCtx::ui_model` of one call: the shared store, writing as the mod the call speaks for.
+pub struct UiWriter {
+    link: ModUiLink,
+    cur: u16,
+}
+
+impl UiWriter {
+    pub fn new(link: ModUiLink) -> Self {
+        Self { link, cur: 0 }
+    }
+
+    /// The shared store.
+    pub fn link(&self) -> &ModUiLink {
+        &self.link
+    }
+
+    fn write(&mut self, op: ModUiOp) -> Result<(), CtxError> {
+        self.link.borrow_mut().write(self.cur, op)
+    }
+}
+
+impl ModUiModel for UiWriter {
+    fn set(&mut self, field: &str, v: UiValue) -> Result<(), CtxError> {
+        self.write(ModUiOp::Set {
+            field: field.to_owned(),
+            value: v,
+        })
+    }
+
+    fn list_put(&mut self, list: &str, key: i64, rec: &[(&str, UiValue)]) -> Result<(), CtxError> {
+        self.write(ModUiOp::Put {
+            list: list.to_owned(),
+            key,
+            rec: rec
+                .iter()
+                .map(|(n, v)| ((*n).to_owned(), v.clone()))
+                .collect(),
+        })
+    }
+
+    fn list_remove(&mut self, list: &str, key: i64) -> Result<(), CtxError> {
+        self.write(ModUiOp::Remove {
+            list: list.to_owned(),
+            key,
+        })
+    }
+
+    fn list_clear(&mut self, list: &str) -> Result<(), CtxError> {
+        self.write(ModUiOp::Clear {
+            list: list.to_owned(),
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // The host
 
 /// What outlives a call.
@@ -532,6 +884,8 @@ pub struct HostState {
     pub alive: Rc<Cell<bool>>,
     /// The number the next render system of a mod gets (`SystemId::Mod`).
     pub next_system: u16,
+    /// The UI v2 fields of the mods (`ClientCtx::ui_model`); `None` until the app shares the store.
+    pub ui: Option<UiWriter>,
 }
 
 impl HostState {
@@ -546,6 +900,7 @@ impl HostState {
             hud: HudQueue::default(),
             alive: Rc::new(Cell::new(true)),
             next_system: 0,
+            ui: None,
         }
     }
 
@@ -556,6 +911,9 @@ impl HostState {
         }
         self.hotkeys.clear();
         self.hud.clear();
+        if let Some(u) = &self.ui {
+            u.link.borrow_mut().end_game();
+        }
         let mods: Vec<u16> = self.cutout.owners.keys().copied().collect();
         for m in mods {
             self.cutout.release_mod(m);
@@ -568,6 +926,9 @@ impl HostState {
     pub fn release_mod(&mut self, mod_idx: u16) {
         self.hotkeys.remove_mod(mod_idx);
         self.cutout.release_mod(mod_idx);
+        if let Some(u) = &self.ui {
+            u.link.borrow_mut().release_mod(mod_idx);
+        }
     }
 }
 
@@ -618,6 +979,9 @@ impl ClientHost for HostView<'_> {
         self.st.hud.select(mod_idx);
         self.st.audio.cur = mod_idx;
         self.st.audio.pack = self.st.packs.as_ref().and_then(|p| p.pack_of(mod_idx));
+        if let Some(u) = self.st.ui.as_mut() {
+            u.cur = mod_idx;
+        }
         self
     }
 }
@@ -701,6 +1065,14 @@ impl ClientCtx for HostView<'_> {
 
     fn request_pointer_lock(&mut self, lock: bool) -> Result<(), CtxError> {
         self.st.net.request_pointer_lock(lock)
+    }
+
+    fn ui_model(&mut self) -> Result<&mut dyn ModUiModel, CtxError> {
+        self.st
+            .ui
+            .as_mut()
+            .map(|u| u as &mut dyn ModUiModel)
+            .ok_or(CtxError::Unavailable("ui"))
     }
 }
 
@@ -837,6 +1209,182 @@ mod tests {
         assert!(h.upload_rgba8(1, 1, &[0; 4]).is_err());
         h.select(9);
         h.upload_rgba8(1, 1, &[0; 4]).unwrap();
+    }
+
+    fn ui_set(field: &str, v: UiValue) -> ModUiOp {
+        ModUiOp::Set {
+            field: field.into(),
+            value: v,
+        }
+    }
+
+    fn ui_store() -> ModUiStore {
+        let mut s = ModUiStore::new();
+        s.start(&ModSetView {
+            modset_hash: 1,
+            mods: vec![protocol::ModView {
+                id: "hello".into(),
+                version: "1.0.0".into(),
+                load_idx: 2,
+                sync: protocol::ModSync::Cosmetic,
+                client_required: false,
+                available: true,
+                pack: None,
+            }],
+        });
+        s
+    }
+
+    #[test]
+    fn mod_ui_store_keeps_values_under_the_classic_ui_and_ui_v2_starts_from_a_snapshot() {
+        let mut s = ui_store();
+        assert_eq!(s.idx_of("hello"), Some(2));
+        // No consumer (the classic UI): values are kept, no change is recorded.
+        s.write(2, ui_set("count", UiValue::Int(1))).unwrap();
+        s.write(2, ui_set("count", UiValue::Int(2))).unwrap();
+        let put = |k: i64, t: &str| ModUiOp::Put {
+            list: "echoes".into(),
+            key: k,
+            rec: vec![("text".into(), UiValue::Str(t.into()))],
+        };
+        s.write(2, put(1, "a")).unwrap();
+        s.write(2, put(2, "b")).unwrap();
+        s.write(
+            2,
+            ModUiOp::Remove {
+                list: "echoes".into(),
+                key: 1,
+            },
+        )
+        .unwrap();
+        assert!(s.take_changes().is_empty());
+        // UI v2 takes over: the snapshot is the last values.
+        s.set_consumer(true);
+        assert_eq!(
+            s.snapshot(2),
+            [
+                ui_set("count", UiValue::Int(2)),
+                ModUiOp::Clear {
+                    list: "echoes".into()
+                },
+                put(2, "b"),
+            ]
+        );
+        assert!(s.snapshot(7).is_empty());
+        // Then each frame's changes, in order.
+        s.write(2, ui_set("count", UiValue::Int(3))).unwrap();
+        assert_eq!(s.take_changes(), [(2, ui_set("count", UiValue::Int(3)))]);
+        assert!(s.take_changes().is_empty());
+        // Asleep again: changes go, values stay.
+        s.set_consumer(false);
+        s.write(2, ui_set("count", UiValue::Int(4))).unwrap();
+        assert!(s.take_changes().is_empty());
+        assert_eq!(s.snapshot(2)[0], ui_set("count", UiValue::Int(4)));
+        // A new set starts from nothing.
+        s.start(&ModSetView {
+            modset_hash: 2,
+            mods: Vec::new(),
+        });
+        assert!(s.snapshot(2).is_empty() && s.idx_of("hello").is_none());
+    }
+
+    #[test]
+    fn mod_ui_store_limits_writes_per_frame_strings_and_bytes() {
+        let mut s = ui_store();
+        let long = "x".repeat(UI_STR_MAX + 1);
+        let e = s.write(2, ui_set("last", UiValue::Str(long))).unwrap_err();
+        assert!(
+            matches!(&e, CtxError::Rejected(w) if w.contains("`last`")),
+            "{e:?}"
+        );
+        for i in 0..UI_OPS_PER_FRAME {
+            s.write(2, ui_set("count", UiValue::Int(i64::from(i))))
+                .unwrap();
+        }
+        assert!(
+            s.write(2, ui_set("count", UiValue::Int(0))).is_err(),
+            "over the frame's writes"
+        );
+        s.end_frame();
+        s.write(2, ui_set("count", UiValue::Int(0))).unwrap();
+        // Bytes: records of 1 KiB strings fill the 256 KiB; a removal makes room again.
+        let mut k = 0;
+        let rec = || vec![("text".to_string(), UiValue::Str("y".repeat(UI_STR_MAX)))];
+        let err = loop {
+            s.end_frame();
+            match s.write(
+                2,
+                ModUiOp::Put {
+                    list: "l".into(),
+                    key: k,
+                    rec: rec(),
+                },
+            ) {
+                Ok(()) => k += 1,
+                Err(e) => break e,
+            }
+        };
+        assert!(
+            matches!(&err, CtxError::Rejected(w) if w.contains("bytes")),
+            "{err:?}"
+        );
+        assert!(s.bytes(2) <= UI_BYTES_MAX && s.bytes(2) > UI_BYTES_MAX - 2 * UI_STR_MAX);
+        s.write(
+            2,
+            ModUiOp::Remove {
+                list: "l".into(),
+                key: 0,
+            },
+        )
+        .unwrap();
+        s.write(
+            2,
+            ModUiOp::Put {
+                list: "l".into(),
+                key: k,
+                rec: rec(),
+            },
+        )
+        .unwrap();
+        s.write(2, ModUiOp::Clear { list: "l".into() }).unwrap();
+        assert!(s.bytes(2) < 1024, "{}", s.bytes(2));
+        // The model's check refuses with the field's name.
+        s.set_check(
+            2,
+            Box::new(|op| match op {
+                ModUiOp::Set { field, .. } if field == "count" => Ok(()),
+                other => Err(format!("`{other:?}` does not fit")),
+            }),
+        );
+        assert!(s.write(2, ui_set("count", UiValue::Int(1))).is_ok());
+        assert!(s.write(2, ui_set("ghost", UiValue::Int(1))).is_err());
+    }
+
+    #[test]
+    fn mod_ui_writer_needs_the_store_and_writes_as_the_mod_of_the_call() {
+        let link: ModUiLink = Rc::new(std::cell::RefCell::new(ui_store()));
+        let mut st = HostState::new();
+        {
+            let mut view = HostView::new(&mut st, Env::default());
+            assert!(matches!(
+                view.ctx(2).ui_model(),
+                Err(CtxError::Unavailable("ui"))
+            ));
+        }
+        st.ui = Some(UiWriter::new(Rc::clone(&link)));
+        let mut view = HostView::new(&mut st, Env::default());
+        let cx = view.ctx(2);
+        cx.ui_model()
+            .unwrap()
+            .set("count", UiValue::Int(5))
+            .unwrap();
+        cx.ui_model()
+            .unwrap()
+            .list_put("echoes", 3, &[("text", UiValue::Str("hi".into()))])
+            .unwrap();
+        let s = link.borrow();
+        assert_eq!(s.snapshot(2)[0], ui_set("count", UiValue::Int(5)));
+        assert_eq!(s.snapshot(2).len(), 3);
     }
 
     #[test]

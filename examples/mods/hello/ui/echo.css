@@ -1,0 +1,21 @@
+/* The panel of hello: the skin's colors (`--ui-*`) and font role, its own sizes. */
+.m-hello-echo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  background-color: var(--ui-surface);
+  color: var(--ui-text);
+  font-family: ui-sans;
+  font-size: 13px;
+}
+
+.m-hello-say {
+  appearance: none;
+  border: 0;
+  margin-top: 4px;
+  padding: 2px 8px;
+  background-color: var(--ui-surface-2);
+  color: var(--ui-accent);
+  font: inherit;
+}

@@ -6,9 +6,15 @@
 //! before the frontends and does not depend on which one is active.
 //!
 //! Without a registered frontend (`?ui=interim`) the host is empty and the app's interim panels are the game screen.
+//!
+//! A mod that owns the screen (client-hooks C3, `HookCtl::suppress_original_ui`) hides the active game UI of either kind:
+//! while [`UiHost::set_suppressed`] is on the active frontend gets no frame and no input, so UI v2 draws nothing (its
+//! skin and the mods' panels with it) and the classic UI's draw list stays empty; its cursor, selection path and trade
+//! routes are not shown either. The mods' own `ClientMod::hud` is drawn after the game UI, over it, either way.
 
 pub mod classic;
 pub mod v2;
+mod v2_mods;
 
 use std::rc::Rc;
 
@@ -199,6 +205,9 @@ pub trait Frontend {
     }
     /// The classic UI wakes up the cold way (its layer made again) instead of the warm one.
     fn set_cold_wake(&mut self, _cold: bool) {}
+    /// A mod hid the game UI (`true`) or gave it back (`false`) while this frontend is active: what the UI holds of
+    /// the platform (a focused text field) is let go. Frames and input stop and start in the host.
+    fn suppressed(&mut self, _on: bool) {}
 }
 
 /// The game UI chosen for this run (`?ui=`, `AppConfig::ui_choice`).
@@ -340,6 +349,8 @@ pub struct UiHost {
     choice: Option<UiChoice>,
     /// The notice of the last failure and when it came (ms).
     notice: Option<(String, f64)>,
+    /// A mod owns the screen: the active frontend is hidden (no frame, no input).
+    suppressed: bool,
 }
 
 impl UiHost {
@@ -390,6 +401,19 @@ impl UiHost {
     pub fn set_cold_wake(&mut self, cold: bool) {
         for f in &mut self.fronts {
             f.set_cold_wake(cold);
+        }
+    }
+
+    /// A mod hides the game UI (`true`, client-hooks C3) or gives it back. The app calls it every frame with
+    /// `ModHooks::ui_suppressed`; the active frontend hears of a change.
+    pub fn set_suppressed(&mut self, on: bool) {
+        if self.suppressed == on {
+            return;
+        }
+        self.suppressed = on;
+        tracing::info!(on, "a mod hides the game interface");
+        if let Some(f) = self.active_mut() {
+            f.suppressed(on);
         }
     }
 
@@ -538,6 +562,9 @@ impl UiHost {
                     self.fronts[a].deactivate(cx);
                 }
                 self.fronts[to].activate(cx);
+                if self.suppressed {
+                    self.fronts[to].suppressed(true);
+                }
                 self.active = Some(to);
                 self.switch = None;
                 self.counters.switches += 1;
@@ -598,17 +625,17 @@ impl UiHost {
         }
     }
 
-    /// Runs `f` on the active frontend as its frame (counted).
-    fn on_frame(&mut self, f: impl FnOnce(&mut dyn Frontend)) {
-        if let Some(a) = self.active {
+    /// Runs `f` on the active frontend as its frame (counted), unless a mod hides the game UI.
+    pub(crate) fn on_frame(&mut self, f: impl FnOnce(&mut dyn Frontend)) {
+        if let Some(a) = self.active.filter(|_| !self.suppressed) {
             self.counters.frames[slot(self.fronts[a].kind())] += 1;
             f(&mut *self.fronts[a]);
         }
     }
 
-    /// Runs `f` on the active frontend as an input event (counted).
-    fn on_input(&mut self, f: impl FnOnce(&mut dyn Frontend)) {
-        if let Some(a) = self.active {
+    /// Runs `f` on the active frontend as an input event (counted), unless a mod hides the game UI.
+    pub(crate) fn on_input(&mut self, f: impl FnOnce(&mut dyn Frontend)) {
+        if let Some(a) = self.active.filter(|_| !self.suppressed) {
             self.counters.inputs[slot(self.fronts[a].kind())] += 1;
             f(&mut *self.fronts[a]);
         }
@@ -648,19 +675,27 @@ impl UiHost {
         self.active().is_some_and(|f| f.turn_processing())
     }
 
+    /// The active frontend, unless a mod hides the game UI.
+    fn shown(&self) -> Option<&dyn Frontend> {
+        self.active().filter(|_| !self.suppressed)
+    }
+
     pub fn cursor_row(&self) -> Option<i32> {
-        self.active().and_then(|f| f.cursor_row())
+        self.shown().and_then(|f| f.cursor_row())
     }
 
     pub fn trade_paths(&self) -> Option<crate::m2::TradePaths> {
-        self.active().and_then(|f| f.trade_paths())
+        self.shown().and_then(|f| f.trade_paths())
     }
 
     pub fn popup_route(&self) -> Option<exe_api::PopupRoute> {
-        self.active().and_then(|f| f.popup_route())
+        self.shown().and_then(|f| f.popup_route())
     }
 
     pub fn selection(&mut self, ring: Option<(i32, i32)>) -> Option<Selection> {
+        if self.suppressed {
+            return None;
+        }
         self.active_mut().and_then(|f| f.selection(ring))
     }
 

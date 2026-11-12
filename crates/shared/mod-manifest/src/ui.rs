@@ -6,6 +6,7 @@
 //! model = "ui/model.toml"       # fields mods.<id>.* that the Rust half writes
 //! reads = ["game.turn"]         # paths of the shared model the panels and the script read
 //! scripts = ["ui/hello.js"]     # the mod's script context
+//! state = { open = true }       # the panels' and the script's own state modstate.<id>.* (state.* in the panels)
 //!
 //! [[ui.panels]]
 //! id = "echo"
@@ -34,6 +35,18 @@ pub const UI_PANELS_MAX: usize = 16;
 pub const UI_SCRIPTS_MAX: usize = 8;
 /// The most shared model paths one mod reads.
 pub const UI_READS_MAX: usize = 32;
+/// The most values of a mod's UI state.
+pub const UI_STATE_MAX: usize = 32;
+/// The longest string default of a mod's UI state, bytes.
+pub const UI_STATE_STR_MAX: usize = 256;
+
+/// The default of one value of a mod's UI state (`[ui] state`): what its panels and script start with.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UiStateValue {
+    Bool(bool),
+    Int(i64),
+    Str(String),
+}
 
 /// How a panel joins its point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -114,6 +127,9 @@ pub struct UiSection {
     pub reads: Vec<String>,
     /// The script files of the mod's script context, in order.
     pub scripts: Vec<String>,
+    /// The mod's UI state `modstate.<id>.*` (`state.*` in its panels and script) with the defaults, by path
+    /// (`open`, `filter.kind`), ascending. Only the mod's panels and script see it; the skin does not.
+    pub state: Vec<(String, UiStateValue)>,
     /// The panels, in the order they are mounted.
     pub panels: Vec<UiPanel>,
 }
@@ -230,6 +246,60 @@ fn file_path(path: String, s: &str) -> Res<String> {
     Ok(s)
 }
 
+/// `[a-z_][a-z0-9_]*`: one segment of a state path.
+fn valid_state_name(s: &str) -> bool {
+    let mut c = s.chars();
+    c.next().is_some_and(|f| f.is_ascii_lowercase() || f == '_')
+        && c.all(|x| x.is_ascii_lowercase() || x.is_ascii_digit() || x == '_')
+}
+
+/// The values of `[ui] state` by dotted path; a table nests (`filter = { kind = "all" }` is `filter.kind`).
+fn flatten_state(
+    key: &str,
+    prefix: &str,
+    tbl: &toml::Table,
+    out: &mut Vec<(String, UiStateValue)>,
+) -> Res<()> {
+    for (k, v) in tbl {
+        let at = format!("{key}.{k}");
+        if !valid_state_name(k) {
+            return Err(ManifestError::invalid(
+                at,
+                "expected a name of a-z, 0-9 and '_' that does not start with a digit",
+            ));
+        }
+        let path = if prefix.is_empty() {
+            k.clone()
+        } else {
+            format!("{prefix}.{k}")
+        };
+        let value = match v {
+            Value::Boolean(b) => UiStateValue::Bool(*b),
+            Value::Integer(i) => UiStateValue::Int(*i),
+            Value::String(s) if s.len() <= UI_STATE_STR_MAX => UiStateValue::Str(s.clone()),
+            Value::String(_) => {
+                return Err(ManifestError::invalid(
+                    at,
+                    format!("a state string is at most {UI_STATE_STR_MAX} bytes"),
+                ));
+            }
+            Value::Table(inner) => {
+                flatten_state(&at, &path, inner, out)?;
+                continue;
+            }
+            other => return Err(wrong_type(&at, "bool, integer, string or table", other)),
+        };
+        out.push((path, value));
+        if out.len() > UI_STATE_MAX {
+            return Err(ManifestError::invalid(
+                at,
+                format!("a mod has at most {UI_STATE_MAX} state values"),
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn enum_value<T>(
     t: &mut Tbl<'_>,
     key: &'static str,
@@ -343,6 +413,17 @@ pub(crate) fn parse_ui(t: Option<Tbl<'_>>) -> Res<Option<UiSection>> {
         scripts.push(f);
     }
 
+    let state = match t.get("state") {
+        None => Vec::new(),
+        Some(Value::Table(tbl)) => {
+            let mut out = Vec::new();
+            flatten_state(&t.path_of("state"), "", tbl, &mut out)?;
+            out.sort_by(|a, b| a.0.cmp(&b.0));
+            out
+        }
+        Some(other) => return Err(wrong_type(&t.path_of("state"), "table", other)),
+    };
+
     let panels_path = t.path_of("panels");
     let items = match t.get("panels") {
         None => {
@@ -395,6 +476,7 @@ pub(crate) fn parse_ui(t: Option<Tbl<'_>>) -> Res<Option<UiSection>> {
         model,
         reads,
         scripts,
+        state,
         panels,
     }))
 }

@@ -1,0 +1,6 @@
+<link rel="stylesheet" href="echo.css">
+<div class="m-hello-echo">
+  <div class="m-hello-line" data-bind-value="Echoes {{ mods.hello.count }}">Echoes 0</div>
+  <div class="m-hello-line" data-bind-if="{{ mods.hello.count > 0 }}" data-bind-value="last: {{ mods.hello.last_from }}: {{ mods.hello.last_text }}">last: -</div>
+  <button class="m-hello-say" data-on-click="intent mods.hello.say()">Say hello</button>
+</div>

@@ -507,6 +507,14 @@ fn parse_action(v: &Value) -> Result<TestAction, String> {
                     platform_web::page::query_param("ui").as_deref() != Some("interim"),
                 )
             }),
+            mods: v["mods"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|m| m.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default(),
         }),
         other => return Err(format!("act: unknown kind {other:?}")),
     })
