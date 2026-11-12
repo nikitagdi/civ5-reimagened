@@ -92,7 +92,9 @@ pub(crate) fn game(read: &mut CountingRead<'_, '_>, cx: &Cx<'_>) -> Result<Game,
         None => None,
     };
     Ok(Game {
-        turn: info.turn,
+        // The server's turn state or a batch that ended the turn can name the new turn before its snapshot is
+        // loaded: the dial shows it at once, the rest of the record follows with the snapshot.
+        turn: shown_turn(info.turn, cx.journal_turn, ts),
         year: info.year,
         year_text: year_text(info.year),
         era,
@@ -101,6 +103,14 @@ pub(crate) fn game(read: &mut CountingRead<'_, '_>, cx: &Cx<'_>) -> Result<Game,
         mode: mode(ts, &info),
         winner,
     })
+}
+
+/// The turn the dial shows: the latest of the game record's, the replica journal's and the session's turn state's.
+#[must_use]
+pub fn shown_turn(record: i32, journal: Option<i32>, session: Option<&TurnState>) -> i32 {
+    record
+        .max(journal.unwrap_or(record))
+        .max(session.map_or(record, |t| t.turn))
 }
 
 /// The first player of a team, the way the winner is shown.

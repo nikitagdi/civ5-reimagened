@@ -488,6 +488,8 @@ pub struct Rig {
     /// The replica's generation and last batch as the next frame shows them.
     pub generation: u64,
     pub jseq: u64,
+    /// The turn the replica's journal reached, as the next frame shows it (ReplicaView::turn).
+    pub journal_turn: Option<i32>,
 }
 
 impl Rig {
@@ -504,6 +506,7 @@ impl Rig {
             now_ms: T0,
             generation: 1,
             jseq: 0,
+            journal_turn: None,
         }
     }
 
@@ -530,6 +533,7 @@ impl Rig {
             catching_up: false,
             generation: self.generation,
             applied_jseq: self.jseq,
+            turn: self.journal_turn,
             read: Some(read),
         };
         let mut w = self.store.writer(Owner::Source);

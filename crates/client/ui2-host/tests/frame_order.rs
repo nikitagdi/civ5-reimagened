@@ -100,6 +100,7 @@ impl Rig {
             catching_up: false,
             generation: 1,
             applied_jseq: self.jseq,
+            turn: None,
             read: Some(&mut self.game),
         };
         let r = self.ui.frame(V2Frame {
@@ -313,6 +314,7 @@ fn without_a_network_orders_are_refused_with_a_toast() {
         catching_up: false,
         generation: 1,
         applied_jseq: rig.jseq,
+        turn: None,
         read: Some(&mut rig.game),
     };
     rig.ui.frame(V2Frame {

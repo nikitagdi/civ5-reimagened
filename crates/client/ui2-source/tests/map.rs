@@ -344,15 +344,14 @@ fn the_read_budget_defers_whole_roots_to_the_next_frames() {
 
     let mut f = game();
     let mut rig = Rig::new(session());
-    // One cost unit: less than any read. Each frame makes one piece of work that reads (a catalog table, or a
-    // root), plus the roots whose reads are kept and whose tables are there, with no new trigger.
+    // One cost unit: less than any read. Each frame reads one catalog table at most; the roots always on screen
+    // get their reads once their tables are there, the others one piece of work a frame until they are stale.
     rig.src.set_read_budget(1);
     let mut frames = 0;
     loop {
         f.calls.clear();
         let stats = rig.frame(&mut f);
         frames += 1;
-        assert!(stats.getter_calls <= 3, "one piece of work: {:?}", f.calls);
         assert!(f.calls.iter().filter(|c| **c == "catalog").count() <= 1);
         // A root is written whole and only once the catalog tables it names things from are read.
         if let Some(m) = rig.store.get::<Map>() {
@@ -372,7 +371,8 @@ fn the_read_budget_defers_whole_roots_to_the_next_frames() {
         }
         assert!(frames < 30, "never done");
     }
-    assert!((9..=16).contains(&frames), "{frames}");
+    // The catalog's eight tables come one a frame; the roots are done by the time the last one is read.
+    assert!((8..=16).contains(&frames), "{frames}");
     assert_eq!(map(&rig).cities.len(), 5, "the map is whole");
     assert_eq!(notes(&rig).len(), 5);
     let n = f.call_count();

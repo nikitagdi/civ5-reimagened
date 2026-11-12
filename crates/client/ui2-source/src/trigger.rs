@@ -46,18 +46,24 @@ impl Roots {
     /// What a change of the session's turn state or seats rebuilds.
     pub const SESSION_TURN: Roots = Roots(Self::GAME.0 | Self::TURN.0);
 
-    /// The roots that need the replica's game, in the order a frame builds them (the budget queue).
+    /// The roots that need the replica's game, in the order a frame builds them (the budget queue): the
+    /// [`PRIORITY`](Self::PRIORITY) roots, then the others (a frame takes those the longest waiting first, ties in
+    /// this order).
     pub const QUEUE: [Roots; 9] = [
-        Self::TOP,
-        Self::RESEARCH,
-        Self::GAME,
         Self::TURN,
+        Self::GAME,
+        Self::TOP,
         Self::UNIT,
+        Self::RESEARCH,
         Self::NOTES,
         Self::MAP,
         Self::PLAYERS,
         Self::PRODUCTION,
     ];
+
+    /// The roots always on screen and cheap to build (the turn dial and button, the top strip, the selected
+    /// unit): built in the frame of their change with all their reads, whatever is left of the budget.
+    pub const PRIORITY: [Roots; 4] = [Self::TURN, Self::GAME, Self::TOP, Self::UNIT];
 
     #[must_use]
     pub const fn union(self, other: Roots) -> Roots {
@@ -84,6 +90,18 @@ impl Roots {
     pub const fn len(self) -> u32 {
         self.0.count_ones()
     }
+
+    /// The set as bits (the constants above).
+    #[must_use]
+    pub const fn bits(self) -> u16 {
+        self.0
+    }
+
+    /// The bit number of a single root (its slot in per-root tables).
+    #[must_use]
+    pub const fn index(self) -> usize {
+        self.0.trailing_zeros() as usize
+    }
 }
 
 /// What the source remembers of the replica between frames.
@@ -93,6 +111,8 @@ pub struct Seen {
     pub catching_up: bool,
     pub generation: u64,
     pub applied_jseq: u64,
+    /// The game turn the replica's journal has reached ([crate::ReplicaView::turn]).
+    pub turn: Option<i32>,
 }
 
 impl Seen {
@@ -121,6 +141,10 @@ pub fn changes(prev: Option<&Seen>, now: &Seen, steps: &[ReplicaStep]) -> Roots 
     }
     if prev.applied_jseq != now.applied_jseq {
         roots = roots.union(Roots::GAME_DATA);
+    }
+    if prev.turn != now.turn {
+        // The journal moved to a new turn before its snapshot came: the turn number is shown at once.
+        roots = roots.union(Roots::SESSION_TURN);
     }
     for s in steps {
         match s {
@@ -224,6 +248,7 @@ mod tests {
             catching_up: false,
             generation,
             applied_jseq,
+            turn: None,
         }
     }
 

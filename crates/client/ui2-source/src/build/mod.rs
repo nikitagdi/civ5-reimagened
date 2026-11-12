@@ -21,6 +21,8 @@ pub(crate) struct Cx<'a> {
     pub session: &'a dyn SessionRead,
     pub now_ms: u64,
     pub catalog: &'a Catalog,
+    /// The turn the replica's journal reached ([crate::ReplicaView::turn]).
+    pub journal_turn: Option<i32>,
 }
 
 /// `part / whole` rounded to 1/1000; 0 when `whole` is not positive.
