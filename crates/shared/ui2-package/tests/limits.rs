@@ -19,7 +19,8 @@ use ui2_package::style::{Len, LenAuto};
 use ui2_package::{
     ARefId, ARefs, Bindings, Bound, Cond, CondKind, ExprId, Extn, Fonts, ImageSrc, Images, ImgId,
     L10n, Manifest, NodeKind, NodeRef, Package, PackageError, Scripts, SectionTag, SrcMap, StrId,
-    StyleId, StyleSetId, Styles, TemplateId, TextSrc, TokenId, Tokens, TplId, node_flags,
+    StyleField, StyleId, StylePatches, StyleSetId, Styles, TemplateId, TextSrc, TokenId, Tokens,
+    TplId, node_flags,
 };
 
 fn read(bytes: &[u8]) -> Result<Package, PackageError> {
@@ -61,6 +62,21 @@ fn the_base_package_is_accepted() {
     // Every section survives decode, re-encode and layout unchanged.
     assert_eq!(raw::assemble(&raw::split(&bytes)), bytes);
     assert!(read(&raw::with::<Styles>(&bytes, b"STYL", |_| {})).is_ok());
+}
+
+#[test]
+fn a_patch_must_start_from_an_earlier_record() {
+    // The mini package's second record is patch 0: record 1 of one whole record and one patch.
+    let ok = raw::with::<StylePatches>(&mini::build(), b"STYP", |p| {
+        assert_eq!(p.items.len(), 1);
+        assert_eq!(p.items[0].base, StyleId(0));
+    });
+    assert!(read(&ok).is_ok());
+    for base in [1, 2, 100_000] {
+        refused::<StylePatches>(b"STYP", "a base that is not earlier", |p| {
+            p.items[0].base = StyleId(base);
+        });
+    }
 }
 
 #[test]
@@ -133,8 +149,18 @@ fn a_nan_or_an_infinity() {
         s.records[0].opacity = f32::NAN
     });
     refused::<Styles>(b"STYL", "infinity in a record", |s| {
-        s.records[1].width = LenAuto::Len(Len::px(f32::INFINITY));
+        s.records[0].width = LenAuto::Len(Len::px(f32::INFINITY));
     });
+    // A patch brings the infinity: the expanded record is refused like any other.
+    let bytes = raw::with::<StylePatches>(&mini::build(), b"STYP", |p| {
+        p.items[0]
+            .fields
+            .push(StyleField::Width(LenAuto::Len(Len::px(f32::INFINITY))));
+    });
+    assert!(
+        matches!(read(&bytes), Err(PackageError::Invalid { at, .. }) if at == SectionTag::STYL),
+        "infinity in a patch"
+    );
     refused::<Styles>(b"STYL", "NaN breakpoint", |s| {
         s.media_w = vec![Bound {
             px: f32::NAN,

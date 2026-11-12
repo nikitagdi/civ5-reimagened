@@ -148,6 +148,7 @@ pub fn build(dir: &Path, write_package: bool) -> BuildOut {
         Input::Chrome,
         &Opts {
             fonts_dir: Some(fonts_dir),
+            ..Opts::default()
         },
     );
     font_checks(&mut run, &ranges);
@@ -212,6 +213,7 @@ pub fn pictures_of(run: &Run, fonts_dir: Option<&Path>) -> Result<Pictures, Vec<
     let mut node = crate::node::NodeClient::start().map_err(|e| vec![e])?;
     let opts = Opts {
         fonts_dir: fonts_dir.map(Path::to_path_buf),
+        ..Opts::default()
     };
     let r = crate::open(&mut node, src, &opts)
         .map_err(|e| vec![e])

@@ -103,7 +103,22 @@ test("extract: the same request gives the same bytes", async () => {
   assert.equal(a, b);
 });
 
+test("extract: a cell reads only the nodes it is asked to, the others keep an earlier cell", async () => {
+  const full = await session.extract(req);
+  const [menu, val, badge] = req.nodes.map((n) => n.id);
+  const part = await session.extract({ ...req, reread: [{ from: 0, nodes: [val] }] });
+  assert.deepEqual(part.cells[0], full.cells[0]);
+  const [m, v, b] = part.cells[1].nodes;
+  assert.deepEqual(m, { id: menu, from: 0 });
+  assert.deepEqual(b, { id: badge, from: 0 });
+  assert.deepEqual(v, full.cells[1].nodes[1]);
+  assert.equal(part.beacon, full.beacon);
+});
+
 test("extract: bad requests are refused", async () => {
   await assert.rejects(session.extract({ ...req, cells: [] }), /cells/);
   await assert.rejects(session.extract({ ...req, nodes: [{ id: 999999, conds: [] }] }), /does not exist/);
+  await assert.rejects(session.extract({ ...req, reread: [{ from: 1, nodes: [] }] }), /reread/);
+  await assert.rejects(session.extract({ ...req, reread: [{ from: 0, nodes: [999999] }] }), /reread/);
+  await assert.rejects(session.extract({ ...req, reread: [] }), /reread/);
 });

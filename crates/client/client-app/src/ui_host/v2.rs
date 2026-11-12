@@ -145,6 +145,9 @@ pub struct Ui2Platform {
     pub dev: Option<String>,
     /// `?ui2sample=<state>`: the skin runs on its sample `sample/<state>.json` instead of a game.
     pub sample: Option<String>,
+    /// `?ui2onmap=0`: the skin's map layer (city banners, unit flags) is off, for the cost of the layer in a bench:
+    /// its anchors are never placed, so nothing of them is drawn or hit.
+    pub map_off: bool,
 }
 
 /// A sample name `?ui2sample=` may give: `[a-z0-9_-]{1,64}` (it becomes part of a URL of the build).
@@ -166,12 +169,15 @@ pub fn parse_background(value: &str) -> Option<[u8; 3]> {
 }
 
 /// Where a map anchor's object is in the world: a city's banner or a unit's flag as the renderer hangs them, or
-/// the centre of a plot on the relief. `None`: not on the map (not seen, gone).
+/// the centre of a plot on the relief. `None`: not on the map (not seen, gone). A unit the renderer hangs no flag
+/// for (the units' own pipeline draws them without labels) hangs over its cell (`unit_cell`: the cell of the unit
+/// of an owner and an id, as the game shows it) at the height of the renderer's flags.
 fn anchor_point(
     kind: ui2_host::AnchorKind,
     key: &ui2_host::ModelValue,
     labels: &[render::entities::WorldLabel],
     terrain: Option<&render::terrain::TerrainSnapshot>,
+    unit_cell: &dyn Fn(i8, i32) -> Option<(i32, i32)>,
 ) -> Option<render::glam::Vec3> {
     use render::entities::LabelData;
     use ui2_host::{AnchorKind, ModelValue};
@@ -204,10 +210,27 @@ fn anchor_point(
         }
         AnchorKind::Unit => {
             let id = id()?;
-            labels.iter().find_map(|l| match &l.data {
-                LabelData::UnitFlag(f) if f.unit == id => Some(l.position),
-                _ => None,
-            })
+            labels
+                .iter()
+                .find_map(|l| match &l.data {
+                    LabelData::UnitFlag(f) if f.unit == id => Some(l.position),
+                    _ => None,
+                })
+                .or_else(|| {
+                    // The owner is the high half of the key.
+                    let ModelValue::Key(k) = key else {
+                        return None;
+                    };
+                    let owner = i8::try_from(k.0 >> 32).ok()?;
+                    let (x, y) = unit_cell(owner, id)?;
+                    let c = render::hexgrid::cell_center(x, y);
+                    let h = terrain.map_or(0.0, |t| render::terrain::terrain_height_at(t, c));
+                    Some(render::glam::Vec3::new(
+                        c.x,
+                        h + render::entities::labels::LABEL_HEIGHT,
+                        c.y,
+                    ))
+                })
         }
     }
 }
@@ -497,6 +520,8 @@ pub struct V2Frontend {
     game_up: bool,
     /// `?ui2bg=`: reference images (see [`Ui2Platform::background`]).
     background: Option<[u8; 3]>,
+    /// `?ui2onmap=0` (see [`Ui2Platform::map_off`]).
+    map_off: bool,
     /// The platform's text input, made when the first skin comes up; the running skin holds it meanwhile.
     text_input: Option<TextInputFactory>,
     text_bridge: Option<Box<dyn TextInputBridge>>,
@@ -566,6 +591,7 @@ impl V2Frontend {
             scripts,
             game_up: false,
             background: None,
+            map_off: false,
             text_input: None,
             text_bridge: None,
             warm_due: true,
@@ -704,6 +730,11 @@ impl V2Frontend {
     /// Reference images: every skin that loads gets a solid background and a frozen scene.
     pub fn set_background(&mut self, background: Option<[u8; 3]>) {
         self.background = background;
+    }
+
+    /// `?ui2onmap=0`: the map layer of every skin is off (see [`Ui2Platform::map_off`]).
+    pub fn set_map_off(&mut self, off: bool) {
+        self.map_off = off;
     }
 
     /// The platform's text input for the skins' text fields (made when the first skin comes up).
@@ -1456,6 +1487,7 @@ impl Frontend for V2Frontend {
     fn frame(&mut self, cx: &mut FrameCx<'_>, _out: &mut UiDrawList) {
         let env = env_of(cx.size, cx.dpr);
         let mut look = None;
+        let map_off = self.map_off;
         if let Some(ui) = self.run(
             cx.session,
             &cx.step.steps,
@@ -1468,6 +1500,8 @@ impl Frontend for V2Frontend {
             // they stand where the sample puts them.
             if ui.sample_mode() {
                 ui.place_sample_anchors(cx.dpr);
+            } else if ui.anchor_count() > 0 && map_off {
+                ui.place_anchors(|_, _| None);
             } else if ui.anchor_count() > 0 {
                 let renderer: &Renderer = cx.renderer;
                 let (w, h) = cx.size;
@@ -1479,8 +1513,23 @@ impl Frontend for V2Frontend {
                     .filter(|t| t.wrap_x())
                     .map(|t| render::hexgrid::HEX_WIDTH * t.width() as f32);
                 let labels = renderer.entity_labels();
+                // The cells of the units the game shows, for the flags the renderer hangs no label for.
+                let units: std::collections::HashMap<(i8, i32), (i32, i32)> = cx
+                    .net
+                    .and_then(|n| {
+                        n.with(|core| {
+                            core.shown().map(|w| {
+                                w.units
+                                    .iter()
+                                    .map(|u| ((u.owner, u.id), (i32::from(u.x), i32::from(u.y))))
+                                    .collect()
+                            })
+                        })
+                    })
+                    .unwrap_or_default();
+                let unit_cell = |owner: i8, id: i32| units.get(&(owner, id)).copied();
                 ui.place_anchors(|kind, key| {
-                    let world = anchor_point(kind, key, labels, terrain)?;
+                    let world = anchor_point(kind, key, labels, terrain, &unit_cell)?;
                     let s = render::entities::project_wrapped_label(
                         world, wrap, &view_proj, viewport, eye, terrain,
                     );
@@ -2594,23 +2643,52 @@ mod tests {
             },
         ];
         let key = |k: u64| ModelValue::Key(ui2_host::ModelKey(k));
+        let none = |_: i8, _: i32| None;
         assert_eq!(
-            anchor_point(AnchorKind::City, &key(7), &labels, None),
+            anchor_point(AnchorKind::City, &key(7), &labels, None, &none),
             Some(at)
         );
-        assert_eq!(anchor_point(AnchorKind::City, &key(8), &labels, None), None);
+        assert_eq!(
+            anchor_point(AnchorKind::City, &key(8), &labels, None, &none),
+            None
+        );
         // The id is the low 32 bits of the key.
         assert_eq!(
-            anchor_point(AnchorKind::Unit, &key((3 << 32) | 9), &labels, None),
+            anchor_point(AnchorKind::Unit, &key((3 << 32) | 9), &labels, None, &none),
             Some(at * 2.0)
         );
         let plot = ModelValue::Struct(vec![ModelValue::I32(2), ModelValue::I32(3)]);
         let c = render::hexgrid::cell_center(2, 3);
         assert_eq!(
-            anchor_point(AnchorKind::Plot, &plot, &labels, None),
+            anchor_point(AnchorKind::Plot, &plot, &labels, None, &none),
             Some(Vec3::new(c.x, 0.0, c.y))
         );
-        assert_eq!(anchor_point(AnchorKind::Plot, &key(1), &labels, None), None);
+        assert_eq!(
+            anchor_point(AnchorKind::Plot, &key(1), &labels, None, &none),
+            None
+        );
+        // A unit without a label of the renderer hangs over its cell (owner 3, id 10 stands on 2, 3).
+        let cells = |owner: i8, id: i32| (owner == 3 && id == 10).then_some((2, 3));
+        assert_eq!(
+            anchor_point(
+                AnchorKind::Unit,
+                &key((3 << 32) | 10),
+                &labels,
+                None,
+                &cells
+            ),
+            Some(Vec3::new(c.x, render::entities::labels::LABEL_HEIGHT, c.y))
+        );
+        assert_eq!(
+            anchor_point(
+                AnchorKind::Unit,
+                &key((2 << 32) | 10),
+                &labels,
+                None,
+                &cells
+            ),
+            None
+        );
     }
 
     #[test]

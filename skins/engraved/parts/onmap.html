@@ -1,0 +1,45 @@
+<!-- The map layer: one banner per city and one flag per unit, each placed on the screen at its object by the host
+     (data-anchor). A banner or flag is laid out once around the anchor's point (the origin of the layer). -->
+<div class="city" data-part="city-banner" data-bind-for="c:{{map.cities}}" data-anchor="city:{{c.key}}" data-bind-class-toggle="mine:{{c.mine}}; sel:{{c.key == ui.selection.city}}; fog:{{!c.visible}}">
+  <div class="str">
+    <svg class="i"><use href="#i-str"/></svg>
+    <span data-bind-value="{{c.strength}}">18</span>
+  </div>
+  <button class="body" data-bind-disabled="{{!c.mine}}" data-on-click="intent window.open(window: 'production', city: c.key)">
+    <div class="flank" data-bind-style-background-color="{{c.color}}" data-bind-style-color="{{c.color2}}">
+      <span class="size" data-bind-value="{{c.size}}">8</span>
+      <span class="grow" data-bind-if="{{c.growth_turns != null}}"><svg class="i"><use href="#i-food"/></svg><span data-bind-value="{{c.growth_turns}}">9</span></span>
+    </div>
+    <div class="main">
+      <div class="name">
+        <span class="nm" data-bind-value="{{c.name}}">Novgorod</span>
+        <svg class="i fill cap" data-bind-if="{{c.capital}}"><use href="#i-star"/></svg>
+      </div>
+      <div class="prod" data-bind-if="{{c.production != null}}">
+        <svg class="i"><use href="#i-prod"/></svg>
+        <span class="what" data-bind-value="{{c.production.name}}">Longswordsman</span>
+        <span class="t" data-bind-if="{{c.production.turns != null}}" data-bind-value="{{c.production.turns}}">2</span>
+      </div>
+      <div class="prod none" data-bind-if="{{c.mine && c.production == null}}">
+        <svg class="i"><use href="#i-prod"/></svg>
+        <span class="what" data-l10n="banner.choose">Choose production</span>
+      </div>
+      <div class="scale" data-bind-if="{{c.production != null}}">
+        <div class="fill" data-bind-style-width="{{c.production.fraction * 100}}%" style="width: 64%"></div>
+      </div>
+      <div class="hp" data-bind-if="{{c.hp_fraction < 1}}">
+        <div class="fill" data-bind-style-width="{{c.hp_fraction * 100}}%" style="width: 50%"></div>
+      </div>
+    </div>
+  </button>
+</div>
+
+<!-- SIMPLIFIED(SIMP-276): a unit flag is the unit's icon on its owner's colours with a health bar; no stack of the units on its plot and none of the original's status marks. -->
+<button class="uflag" data-part="unit-flag" data-bind-for="u:{{map.units}}" data-anchor="unit:{{u.key}}" data-bind-class-toggle="mine:{{u.mine}}; sel:{{u.key == ui.selection.unit}}; wait:{{u.mine && u.waiting}}; war:{{u.at_war}}" data-bind-disabled="{{!u.mine}}" data-on-click="intent unit.select(unit: u.key)">
+  <div class="hp"><div class="fill" data-bind-class-toggle="low:{{u.hp_fraction < 0.5}}" data-bind-style-width="{{u.hp_fraction * 100}}%" style="width: 100%"></div></div>
+  <div class="flag" data-bind-style-background-color="{{u.color}}" data-bind-style-color="{{u.color2}}">
+    <svg class="i dom" data-bind-if="{{u.domain == 'sea'}}"><use href="#i-ship"/></svg>
+    <svg class="i dom" data-bind-if="{{u.domain != 'sea'}}"><use href="#i-sword"/></svg>
+    <img class="pic" data-bind-src="{{u.icon}}">
+  </div>
+</button>

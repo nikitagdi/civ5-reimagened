@@ -1,4 +1,5 @@
-// One converter session: the local server, one Chromium page, and the network guard.
+// One converter session: the local server, one Chromium page (and the helper pages of the style extraction),
+// and the network guard.
 //
 // Network rule: the page may talk only to the local server of this session. Everything else (a fonts
 // CDN, another loopback port, WebSockets elsewhere) is aborted before it leaves the machine and is
@@ -14,7 +15,7 @@ import path from "node:path";
 import { launchChromium, chromiumFlags } from "./chromium.mjs";
 import { startServer, previewAvailable } from "./server.mjs";
 import { scanPage } from "./ir.mjs";
-import { extractPage } from "./extract.mjs";
+import { extractPage, extractWorkers } from "./extract.mjs";
 import { rasterItems } from "./raster.mjs";
 import { rectsOf } from "./rects.mjs";
 
@@ -102,7 +103,7 @@ export function createSession() {
       const guarded = (viewport, dsf) => newGuardedContext(browser, server, blocked, viewport, dsf);
       const context = await guarded({ width: 1920, height: 1080 }, 1);
       const page = await context.newPage();
-      st = { root, entry, server, browser, context, page, blocked, guarded, skin: path.basename(root) };
+      st = { root, entry, server, browser, context, page, helpers: [], blocked, guarded, skin: path.basename(root) };
       return { chrome: browser.version(), flags: chromiumFlags(), base_url: `${server.url}/`, preview };
     },
 
@@ -119,7 +120,10 @@ export function createSession() {
     /** Answers the converter's style plan (see extract.mjs) on the page of the last scan. */
     async extract(req = {}) {
       need(st, "extract: no open session");
-      const out = await extractPage({ page: st.page, server: st.server, entry: st.entry, req, state: st.state || "" });
+      // The helper pages stay open for the next cycle of watch mode.
+      while (st.helpers.length < extractWorkers() - 1) st.helpers.push(await st.context.newPage());
+      const pages = [st.page, ...st.helpers];
+      const out = await extractPage({ pages, server: st.server, entry: st.entry, req, state: st.state || "" });
       // Computed `url()` values carry the server's port, which changes per run: the answer names the server as
       // port 0, so stored answers stay the same (the converter maps such URLs back to skin paths).
       return JSON.parse(JSON.stringify(out).replaceAll(`${st.server.url}/`, "http://127.0.0.1:0/"));

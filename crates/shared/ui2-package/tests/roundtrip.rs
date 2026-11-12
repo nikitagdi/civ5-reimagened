@@ -358,6 +358,76 @@ fn building_twice_gives_the_same_bytes_and_hash() {
 }
 
 #[test]
+fn records_stored_as_patches_read_back_bit_for_bit() {
+    // Records that differ from each other in a few fields, one in the sign of a zero only.
+    let records: Vec<StyleRecord> = vec![
+        rec(|r| r.width = LenAuto::Len(Len::px(100.0))),
+        rec(|r| r.width = LenAuto::Len(Len::px(120.0))),
+        rec(|r| {
+            r.width = LenAuto::Len(Len::px(100.0));
+            r.margin_top = LenAuto::Len(Len::px(-0.0));
+        }),
+        rec(|r| {
+            r.width = LenAuto::Len(Len::px(120.0));
+            r.color = ColorV::Lit([1, 2, 3, 4]);
+            r.transitions = vec![Transition {
+                prop: PropId::Color,
+                dur_ms: 150.0,
+                delay_ms: 0.0,
+                ease: [0.0, 0.0, 1.0, 1.0],
+            }];
+        }),
+        StyleRecord::initial(),
+    ];
+    let mut b = PackageBuilder::new();
+    let ids: Vec<StyleId> = records.iter().map(|r| b.style_record(r.clone())).collect();
+    let set = b.style_set(StyleSet::plain(vec![ids[0]]));
+    let name = b.str("doc");
+    b.template(Template {
+        name,
+        nodes: vec![Node {
+            kind: NodeKind::Layer(Layer::Hud),
+            subtree: 1,
+            style: set,
+            part: None,
+            flags: 0,
+        }],
+    });
+    let bytes = b.finish(manifest()).expect("finish");
+    let pkg = read(&bytes).expect("read");
+    assert_eq!(
+        pkg.format_minor(),
+        1,
+        "a package with patches is format 1.1"
+    );
+    assert_eq!(pkg.styles().records.len(), records.len());
+    for (i, (want, got)) in records.iter().zip(&pkg.styles().records).enumerate() {
+        assert_eq!(
+            postcard::to_allocvec(want).expect("encode"),
+            postcard::to_allocvec(got).expect("encode"),
+            "record {i}"
+        );
+    }
+    // A patch holds only what differs from its base: record 2 is record 0 with one margin.
+    let entries = common::raw::split(&bytes);
+    let styp = entries
+        .iter()
+        .find(|e| &e.tag == b"STYP")
+        .expect("STYP is written");
+    let patches: ui2_package::StylePatches = postcard::from_bytes(&styp.payload).expect("decode");
+    assert_eq!(patches.items.len(), records.len() - 1);
+    assert_eq!(patches.items[1].base, StyleId(0));
+    assert_eq!(patches.items[1].fields.len(), 1);
+    // One record: no `STYP`, a format 1.0 package.
+    let mut b = PackageBuilder::new();
+    let only = b.style_record(StyleRecord::initial());
+    b.style_set(StyleSet::plain(vec![only]));
+    let bytes = b.finish(manifest()).expect("finish");
+    assert_eq!(read(&bytes).expect("read").format_minor(), 0);
+    assert!(common::raw::split(&bytes).iter().all(|e| &e.tag != b"STYP"));
+}
+
+#[test]
 fn a_nan_in_a_record_is_refused() {
     let mut b = PackageBuilder::new();
     let id = b.style_record(rec(|r| r.opacity = f32::NAN));

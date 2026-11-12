@@ -29,6 +29,8 @@ pub struct Rule {
     pub selectors: Vec<SelInfo>,
     /// The declared properties (as written, lower case).
     pub props: Vec<String>,
+    /// The declared properties whose value is the keyword `inherit` (lower case).
+    pub inherit: Vec<String>,
     /// The media conditions the rule sits in.
     pub media: Vec<MediaCond>,
 }
@@ -65,6 +67,9 @@ pub struct Statics {
     pub cells: Cells,
     /// Custom properties of `:root` rules, in order.
     pub root_vars: Vec<RootVar>,
+    /// A custom property's value uses a viewport unit: a computed value that reads it may depend on the
+    /// viewport inside a cell.
+    pub viewport_vars: bool,
 }
 
 /// Properties a stylesheet may name although the style record has no field for them: they
@@ -795,6 +800,7 @@ fn items(cx: &mut Ctx, file: &str, list: &[CssItem], within: &[MediaCond]) {
                     && parsed[0].subject().root
                     && parsed[0].conds.is_empty();
                 let mut props = Vec::new();
+                let mut inherit = Vec::new();
                 for d in decls {
                     if let CssItem::Decl {
                         prop,
@@ -814,6 +820,9 @@ fn items(cx: &mut Ctx, file: &str, list: &[CssItem], within: &[MediaCond]) {
                             });
                         }
                         props.push(prop.to_ascii_lowercase());
+                        if value.trim().eq_ignore_ascii_case("inherit") {
+                            inherit.push(prop.to_ascii_lowercase());
+                        }
                     } else if let CssItem::Rule { line, col, .. }
                     | CssItem::Atrule { line, col, .. } = d
                     {
@@ -832,6 +841,7 @@ fn items(cx: &mut Ctx, file: &str, list: &[CssItem], within: &[MediaCond]) {
                     text: selector.clone(),
                     selectors: parsed,
                     props,
+                    inherit,
                     media: within.to_vec(),
                 });
             }
@@ -949,6 +959,9 @@ fn declaration(cx: &mut Ctx, place: &Place, selector: &str, prop: &str, value: &
     }
     if picture_longhand(&name).is_some() {
         pictures_as_written(cx, place, &subject, &name, value);
+    }
+    if name.starts_with("--") && viewport_unit(value).is_some() {
+        cx.out.viewport_vars = true;
     }
     if !name.starts_with("--")
         && let Some(unit) = viewport_unit(value)

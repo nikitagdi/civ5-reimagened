@@ -6,11 +6,16 @@
 "top.turns" = "{1_Num} {1_Num: plural 1?turn; other?turns;}"
 "top.next" = "{1} next"
 
-# Names of keys on keycaps.
+# Names of keys on the keycaps the markup names with data-l10n (the attribute takes lower-case keys only).
 "key.f7" = "F7"
 "key.enter" = "Enter"
 "key.escape" = "Esc"
-"key.shift" = "Shift"
+
+# Names of keys in hotkey labels (data-hotkey-label): the runtime looks up key.<code> with the exact
+# KeyboardEvent.code (key.Shift, key.Ctrl, key.Alt for the modifiers); a key without an entry shows its letter,
+# digit or code.
+"key.Shift" = "Shift"
+"key.Delete" = "Del"
 
 # Notifications.
 "note.log" = "Notification log"
@@ -54,6 +59,15 @@
 "act.pillage" = "Pillage"
 "act.upgrade" = "Upgrade"
 "act.disband" = "Delete"
+
+# Chat.
+"chat.to_all" = "To all"
+"chat.to" = "To {1}"
+"chat.placeholder" = "Message"
+"chat.turn" = "T{1_Num}"
+
+# City banners on the map.
+"banner.choose" = "Choose production"
 
 # The production window.
 "prod.citizens" = "citizens"

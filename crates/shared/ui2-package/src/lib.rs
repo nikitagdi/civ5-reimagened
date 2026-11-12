@@ -37,11 +37,13 @@ pub use sections::extn::{Extn, Hotkey, Island, hotkey_mods};
 pub use sections::l10n::{L10n, Lang};
 pub use sections::manifest::{FaceFamily, FontRoles, Kind, Manifest, Tool};
 pub use sections::srcmap::{SrcLoc, SrcMap};
-pub use sections::styles::{Bound, Cond, CondKind, MAX_CELLS, MAX_CONDS, StyleSet, Styles};
+pub use sections::styles::{
+    Bound, Cond, CondKind, MAX_CELLS, MAX_CONDS, StylePatch, StylePatches, StyleSet, Styles,
+};
 pub use sections::templates::{
     ImageSrc, Layer, Node, NodeKind, Template, Templates, TextSrc, node_flags,
 };
 pub use sections::tokens::{Theme, Tokens};
-pub use style::StyleRecord;
+pub use style::{StyleField, StyleRecord};
 #[cfg(feature = "write")]
 pub use write::PackageBuilder;

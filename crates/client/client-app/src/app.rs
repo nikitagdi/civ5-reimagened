@@ -619,6 +619,7 @@ impl App {
             v2.set_background(p.background);
             v2.set_dev(p.dev);
             v2.set_sample(p.sample);
+            v2.set_map_off(p.map_off);
             v2.set_text_input(p.text_input);
             v2.set_mod_ui(Rc::clone(&mod_ui));
             ui_host.register(Box::new(v2));

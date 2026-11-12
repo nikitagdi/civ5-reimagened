@@ -150,6 +150,7 @@
   },
   "state": { "prod": { "sort": "turns", "hide_locked": true } },
   "ui": {
+    "chat": { "to": "all", "to_player": null },
     "windows": {
       "production": { "open": true, "city": "0:1" }
     },

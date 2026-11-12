@@ -19,7 +19,7 @@ use crate::sections::l10n::L10n;
 use crate::sections::manifest::Manifest;
 use crate::sections::srcmap::SrcMap;
 use crate::sections::strings::StringTable;
-use crate::sections::styles::{StyleSet, Styles};
+use crate::sections::styles::{StylePatches, StyleSet, Styles};
 use crate::sections::templates::{Template, Templates};
 use crate::sections::tokens::Tokens;
 use crate::validate::{self, Parts};
@@ -31,6 +31,7 @@ pub(crate) const KNOWN: &[SectionTag] = &[
     SectionTag::STRS,
     SectionTag::TMPL,
     SectionTag::STYL,
+    SectionTag::STYP,
     SectionTag::TOKN,
     SectionTag::BIND,
     SectionTag::L10N,
@@ -145,7 +146,11 @@ impl Package {
         let manifest: Manifest = container::decode(SectionTag::MANI, section(SectionTag::MANI)?)?;
         let strings: StringTable = container::decode(SectionTag::STRS, section(SectionTag::STRS)?)?;
         let templates: Templates = container::decode(SectionTag::TMPL, section(SectionTag::TMPL)?)?;
-        let styles: Styles = container::decode(SectionTag::STYL, section(SectionTag::STYL)?)?;
+        let mut styles: Styles = container::decode(SectionTag::STYL, section(SectionTag::STYL)?)?;
+        if let Some(p) = layout.payload(&bytes, SectionTag::STYP) {
+            let patches: StylePatches = container::decode(SectionTag::STYP, p)?;
+            patches.expand(SectionTag::STYP, &mut styles)?;
+        }
         let tokens: Tokens = container::decode(SectionTag::TOKN, section(SectionTag::TOKN)?)?;
         let bindings: Bindings = container::decode(SectionTag::BIND, section(SectionTag::BIND)?)?;
         let l10n: L10n = container::decode(SectionTag::L10N, section(SectionTag::L10N)?)?;

@@ -1,0 +1,231 @@
+/* Engraved: the layout across window sizes. The base is 1920 x 1080 CSS px; the player's UI scale applies to the
+   viewport before these queries, so a scale of 150 % on 1920 x 1080 is laid out as 1280 x 720.
+   Breakpoints: width 1360, 1500, 2161 and 3457; height 900 and 1440 (at most 8 conditions and 16 cells). */
+
+/* ---------- a low window (1280 x 720, 1600 x 800): the compact HUD ---------- */
+@media (height < 900px) {
+  .top {
+    height: 40px;
+  }
+
+  .notes {
+    top: 56px;
+  }
+
+  /* Three notes at most. */
+  .notes .list {
+    max-height: 188px;
+  }
+
+  .pscreen {
+    top: 40px;
+  }
+
+  /* The unit panel: 440 x 180. */
+  .unit {
+    width: 440px;
+    min-height: 180px;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .unit .head {
+    gap: 12px;
+  }
+
+  .portrait {
+    width: 80px;
+    height: 80px;
+  }
+
+  /* A picture keeps its size in every cell: the silhouette moves up and is cut at the bottom. */
+  .portrait .sil {
+    left: 4px;
+    top: 8px;
+  }
+
+  .portrait .pic {
+    width: 80px;
+    height: 80px;
+  }
+
+  .unit .info {
+    gap: 4px;
+    padding-top: 0;
+  }
+
+  .unit .title .nm {
+    font-size: 22px;
+    line-height: 26px;
+  }
+
+  .stat {
+    padding: 3px 0;
+  }
+
+  .stat .v {
+    font-size: 16px;
+    line-height: 20px;
+  }
+
+  .promos {
+    height: 20px;
+  }
+
+  .act {
+    width: 48px;
+    height: 44px;
+    gap: 2px;
+  }
+
+  .act .lb {
+    font-size: 11px;
+    line-height: 13px;
+  }
+
+  .act.gap {
+    width: 52px;
+  }
+
+  .chat {
+    left: 452px;
+  }
+
+  /* The helm: the dial at 176 px (the 216 px dial scaled about its top right corner), the minimap 300 x 116. */
+  .helm {
+    width: 332px;
+    height: 324px;
+  }
+
+  .helm .side {
+    left: 12px;
+    top: 14px;
+    width: 136px;
+  }
+
+  .helm .st {
+    font-size: 14px;
+    line-height: 20px;
+    white-space: nowrap;
+  }
+
+  .helm .hint {
+    margin-top: 6px;
+  }
+
+  .helm .rule {
+    margin: 10px 0 8px;
+  }
+
+  /* Two players fit beside the smaller dial. */
+  .helm .seats {
+    max-height: 44px;
+  }
+
+  .dial {
+    transform: scale(0.814815);
+    transform-origin: 100% 0;
+  }
+
+  .minimap {
+    width: 300px;
+    height: 116px;
+  }
+
+  .minimap .mm {
+    width: 300px;
+    height: 116px;
+  }
+
+  .mods {
+    bottom: 332px;
+  }
+}
+
+/* ---------- a narrow window: the chat stands over the unit panel ---------- */
+@media (width < 1500px) {
+  .chat {
+    left: 0;
+    bottom: 232px;
+  }
+}
+
+@media (width < 1500px) and (height < 900px) {
+  .chat {
+    bottom: 188px;
+  }
+}
+
+/* ---------- narrower still: the yields without their changes, the screen buttons folded into one ---------- */
+@media (width < 1360px) {
+  .yields {
+    gap: 20px;
+  }
+
+  .yields .yield .d {
+    display: none;
+  }
+
+  .menus.screens {
+    position: relative;
+  }
+
+  .menus .fold {
+    display: flex;
+  }
+
+  .menus .drop {
+    display: none;
+  }
+
+  .menus.open .drop {
+    position: absolute;
+    left: 6px;
+    top: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 0 0 6px 6px;
+    background-color: var(--lacquer);
+    box-shadow: inset 0 0 0 1px var(--engrave);
+  }
+}
+
+/* ---------- a wide window (width at least 2.4 x height): the HUD in a zone 2.4 x height wide in the middle ---------- */
+/* The zone is 3456 px wide (2.4 x 1440, the height of the wide screens of the reference sizes); the breakpoints of
+   a skin are few, so it is not finer by height. Layout has no calc(): a panel stands at the middle of the window and
+   its margin moves it to its edge of the zone. */
+@media (width > 3456px) and (height >= 900px) {
+  .top {
+    left: 50%;
+    right: 50%;
+    margin-left: -1728px;
+    margin-right: -1728px;
+  }
+
+  .unit {
+    left: 50%;
+    margin-left: -1728px;
+  }
+
+  .chat {
+    left: 50%;
+    margin-left: -1196px;
+  }
+
+  .notes,
+  .helm {
+    right: 50%;
+    margin-right: -1728px;
+  }
+
+  .mods {
+    right: 50%;
+    margin-right: -1712px;
+  }
+
+  .pwin {
+    left: 50%;
+    margin-left: -1528px;
+  }}

@@ -12,6 +12,14 @@
 //! - **Cells.** The media breakpoints split each viewport axis; a cell is read at the lower end
 //!   of its interval (or one below the upper end, or 1920 x 1080 without breakpoints).
 //! - **Variants.** Every non-empty mask of `D(e)` in every cell, read with the conditions forced.
+//! - **What a cell changes.** Computed values depend on the viewport only through media rules (the
+//!   profile has no viewport units). A cell other than the first starts from the answer of an earlier
+//!   cell and reads again only the nodes a media rule that applies in one of the two cells and not in
+//!   the other can restyle: the elements
+//!   its selectors may match (under any of their conditions) and, when it declares an inherited or
+//!   custom property or one that shapes the children's computed values (`display` blockifies flex
+//!   and grid items), their descendants. Every other node keeps that answer. The earlier cell is the
+//!   one that leaves the fewest nodes to read (neighbouring cells differ by one breakpoint).
 //! - **Beacons.** The color custom properties of `:root` are replaced by marker colors in a second
 //!   pass; a value that turns into a marker came from that token.
 
@@ -123,6 +131,18 @@ pub struct Plan {
     pub aliases: Vec<(String, String)>,
     /// Extra computed values the element table requires (`appearance`, `list-style-type`).
     pub extra: Vec<String>,
+    /// For each cell after the first: what it reads again; the other nodes keep the answer of an earlier
+    /// cell.
+    pub reread: Vec<Reread>,
+}
+
+/// What one cell reads again.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Reread {
+    /// The earlier cell whose answer the other nodes keep.
+    pub from: usize,
+    /// The ids of the nodes the cell reads, plan order.
+    pub nodes: Vec<u32>,
 }
 
 /// Whether a declared property is inherited (so a condition on its rule reaches descendants).
@@ -383,6 +403,7 @@ pub fn plan(dom: &Dom, statics: &Statics) -> (Plan, Vec<ConvError>) {
         }
     }
 
+    let reread = rereads(dom, statics, &matcher, &nodes, &cell_list);
     let plan = Plan {
         media_w,
         media_h,
@@ -391,10 +412,86 @@ pub fn plan(dom: &Dom, statics: &Statics) -> (Plan, Vec<ConvError>) {
         tokens,
         aliases,
         extra: extra.into_iter().collect(),
+        reread,
     };
     (plan, errs)
 }
 
+/// Whether a property of an element changes the computed values of its children although it is not
+/// inherited: `display` (a flex or grid container blockifies its items, through `display: contents`
+/// too) and `justify-items` (`legacy` reaches the children).
+fn shapes_children(name: &str) -> bool {
+    matches!(name, "display" | "justify-items" | "place-items")
+}
+
+/// What each cell after the first reads: see the module documentation. A cell starts from the earlier
+/// cell that leaves it the fewest nodes to read (ties: the earliest). Conservative where the static
+/// pass cannot tell: a custom property with a viewport unit makes every node differ, and an `inherit`
+/// of a property that is not inherited lets every media rule reach the descendants of what it matches.
+fn rereads(
+    dom: &Dom,
+    statics: &Statics,
+    matcher: &Matcher,
+    nodes: &[PlanNode],
+    cells: &[[u32; 2]],
+) -> Vec<Reread> {
+    let all: BTreeSet<usize> = (0..nodes.len()).collect();
+    let reaches_down = statics
+        .rules
+        .iter()
+        .any(|r| r.inherit.iter().any(|p| !inherited(p)));
+    // Per media rule: the plan nodes it can restyle.
+    let mut reach: Vec<(&[ui2_package::profile::media::MediaCond], BTreeSet<usize>)> = Vec::new();
+    for rule in statics.rules.iter().filter(|r| !r.media.is_empty()) {
+        let spreads = reaches_down
+            || rule
+                .props
+                .iter()
+                .any(|p| inherited(p) || shapes_children(p));
+        let mut matched: BTreeSet<Ix> = BTreeSet::new();
+        for sel in &rule.selectors {
+            for ix in 0..dom.elems.len() {
+                if matcher.select(sel, sel.static_part.len() - 1, ix).is_some() {
+                    matched.insert(ix);
+                }
+            }
+        }
+        let set = nodes
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| {
+                matched.contains(&n.ix)
+                    || (spreads && dom.ancestors(n.ix).any(|a| matched.contains(&a)))
+            })
+            .map(|(i, _)| i)
+            .collect();
+        reach.push((&rule.media, set));
+    }
+    let between = |a: usize, b: usize| -> BTreeSet<usize> {
+        if statics.viewport_vars {
+            return all.clone();
+        }
+        let mut out = BTreeSet::new();
+        for (media, set) in &reach {
+            if statics.cells.applies(media, a) != statics.cells.applies(media, b) {
+                out.extend(set.iter().copied());
+            }
+        }
+        out
+    };
+    (1..cells.len())
+        .map(|cell| {
+            let (from, read) = (0..cell)
+                .map(|from| (from, between(from, cell)))
+                .min_by_key(|(from, read)| (read.len(), *from))
+                .unwrap_or((0, all.clone()));
+            Reread {
+                from,
+                nodes: read.into_iter().map(|i| nodes[i].id).collect(),
+            }
+        })
+        .collect()
+}
 impl Plan {
     /// The properties in `PropId` order with their read API.
     pub fn props() -> Vec<(PropId, Api)> {
@@ -425,21 +522,39 @@ impl Plan {
                 })
             })
             .collect();
-        json!({
+        let mut req = json!({
             "cells": self.cells,
             "props": props,
             "beacon_props": beacon,
             "extra": self.extra,
             "tokens": self.tokens,
             "nodes": nodes,
-        })
+        });
+        // Only a skin with breakpoints has cells to restrict (a stored extraction of one cell stays valid).
+        if !self.reread.is_empty() {
+            let list: Vec<Value> = self
+                .reread
+                .iter()
+                .map(|r| json!({ "from": r.from, "nodes": r.nodes }))
+                .collect();
+            req["reread"] = Value::Array(list);
+        }
+        req
     }
 
     /// The number of (node, cell, mask) reads the plan asks for.
     pub fn reads(&self) -> usize {
+        let again: BTreeMap<u32, usize> =
+            self.reread
+                .iter()
+                .flat_map(|r| &r.nodes)
+                .fold(BTreeMap::new(), |mut m, id| {
+                    *m.entry(*id).or_default() += 1;
+                    m
+                });
         self.nodes
             .iter()
-            .map(|n| self.cells.len() * select::variants(n.conds.len()))
+            .map(|n| (1 + again.get(&n.id).copied().unwrap_or(0)) * select::variants(n.conds.len()))
             .sum()
     }
 }

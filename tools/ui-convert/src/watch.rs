@@ -420,6 +420,7 @@ impl Watcher {
     fn opts(&self) -> Opts {
         Opts {
             fonts_dir: Some(self.out.join("fonts")),
+            ..Opts::default()
         }
     }
 

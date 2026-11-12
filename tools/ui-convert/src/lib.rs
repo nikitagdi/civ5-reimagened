@@ -153,6 +153,9 @@ pub struct Opts {
     /// A folder the preview server serves font files from first (the subsets, under the paths the
     /// stylesheets name).
     pub fonts_dir: Option<PathBuf>,
+    /// Every viewport cell reads every node, instead of keeping an earlier cell's answer for the nodes no
+    /// media rule can change between the two (the test of that reuse compares both).
+    pub full_cells: bool,
 }
 
 /// The list keys of the model schema for the preview: schema path of every list (`top.resources`,
@@ -486,7 +489,10 @@ pub fn check_source(src: Source, input: Input, opts: &Opts) -> Run {
         if scanned.preview {
             run.errors.extend(numbering::check(&dom).1);
         }
-        let (p, errs) = plan::plan(&dom, &statics);
+        let (mut p, errs) = plan::plan(&dom, &statics);
+        if opts.full_cells {
+            p.reread.clear();
+        }
         run.errors.extend(errs);
         sw.mark(&mut run.stages, "static checks and plan");
         let request = p.request();

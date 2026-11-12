@@ -63,15 +63,70 @@ pub struct NodeOut {
     /// The border box in CSS px (base state), for a node with a `clip-path` only.
     #[serde(default)]
     pub size: Option<[f32; 2]>,
+    /// The cell did not read the node again (no media rule that differs between the two cells can reach
+    /// it): the values are those of this earlier cell, `size` is the cell's own.
+    #[serde(skip)]
+    pub from: Option<usize>,
 }
 
 /// One cell.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(from = "CellAnswer")]
 pub struct CellOut {
     /// The viewport read.
     pub viewport: [u32; 2],
     /// The nodes, in plan order.
     pub nodes: Vec<NodeOut>,
+}
+
+/// A node of a cell as Chrome answers it: read, or "as in the first cell".
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
+enum NodeAnswer {
+    Read(NodeOut),
+    Kept {
+        id: u32,
+        from: usize,
+        #[serde(default)]
+        size: Option<[f32; 2]>,
+    },
+}
+
+/// A cell as Chrome answers it; [`Extracted`] fills in the nodes it did not read.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+struct CellAnswer {
+    viewport: [u32; 2],
+    nodes: Vec<NodeAnswer>,
+}
+
+impl From<CellAnswer> for CellOut {
+    /// A node the cell did not read is kept as a stub (`from`, its id and size) until the answer is filled.
+    fn from(c: CellAnswer) -> Self {
+        let nodes = c
+            .nodes
+            .into_iter()
+            .map(|n| match n {
+                NodeAnswer::Read(n) => n,
+                NodeAnswer::Kept { id, from, size } => NodeOut {
+                    id,
+                    base: Vec::new(),
+                    extra: Vec::new(),
+                    off: Vec::new(),
+                    vars: Vec::new(),
+                    beacon: BeaconOut {
+                        base: Vec::new(),
+                        vars: Vec::new(),
+                    },
+                    size,
+                    from: Some(from),
+                },
+            })
+            .collect();
+        CellOut {
+            viewport: c.viewport,
+            nodes,
+        }
+    }
 }
 
 /// A custom property of `:root` as Chrome computed it.
@@ -85,8 +140,10 @@ pub struct TokenOut {
     pub color: Option<String>,
 }
 
-/// The answer to the plan.
+/// The answer to the plan. Every cell lists every node: a node a cell did not read holds the values of the
+/// earlier cell it names (`NodeOut::from`).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(try_from = "ExtractedAnswer")]
 pub struct Extracted {
     /// The red channel of the beacon colors.
     pub beacon: u8,
@@ -94,6 +151,48 @@ pub struct Extracted {
     pub tokens: Vec<TokenOut>,
     /// The cells.
     pub cells: Vec<CellOut>,
+}
+
+#[derive(Deserialize)]
+struct ExtractedAnswer {
+    beacon: u8,
+    tokens: Vec<TokenOut>,
+    cells: Vec<CellOut>,
+}
+
+impl TryFrom<ExtractedAnswer> for Extracted {
+    type Error = String;
+
+    /// Fills every node a cell did not read with the answer of the earlier cell it names.
+    fn try_from(a: ExtractedAnswer) -> Result<Self, Self::Error> {
+        let mut cells = a.cells;
+        for ci in 0..cells.len() {
+            let (done, rest) = cells.split_at_mut(ci);
+            for (i, n) in rest[0].nodes.iter_mut().enumerate() {
+                let Some(from) = n.from else { continue };
+                let Some(f) = done
+                    .get(from)
+                    .and_then(|c| c.nodes.get(i))
+                    .filter(|f| f.id == n.id)
+                else {
+                    return Err(format!(
+                        "cell {ci} keeps node {} of cell {from}, which is not an earlier cell with that node",
+                        n.id
+                    ));
+                };
+                *n = NodeOut {
+                    size: n.size,
+                    from: Some(from),
+                    ..f.clone()
+                };
+            }
+        }
+        Ok(Extracted {
+            beacon: a.beacon,
+            tokens: a.tokens,
+            cells,
+        })
+    }
 }
 
 /// A string table for the ids inside records and sets (`T31` re-interns them in the builder).
@@ -282,6 +381,7 @@ impl Beacon {
 }
 
 /// What reading one node produced in one (cell, mask).
+#[derive(Clone)]
 struct Read {
     record: StyleRecord,
     contents: bool,
@@ -293,6 +393,22 @@ struct Cx<'a> {
     strs: Strs,
     errs: Vec<ConvError>,
     static_props: &'a BTreeSet<String>,
+    /// The values parsed so far, per property: most strings repeat over nodes, cells and variants.
+    parsed: Vec<std::collections::HashMap<String, Value>>,
+}
+
+impl Cx<'_> {
+    /// `parse_value`, remembered for the strings that parse.
+    fn parse(&mut self, p: PropId, s: &str) -> Result<Value, ui2_package::profile::ValueError> {
+        if let Some(v) = self.parsed.get(p.index()).and_then(|m| m.get(s)) {
+            return Ok(v.clone());
+        }
+        let v = parse_value(p, s)?;
+        if let Some(m) = self.parsed.get_mut(p.index()) {
+            m.insert(s.to_string(), v.clone());
+        }
+        Ok(v)
+    }
 }
 
 const TRANSITIONS: [PropId; 4] = [
@@ -339,7 +455,7 @@ impl Cx<'_> {
                 }
                 continue;
             }
-            let v = match parse_value(p, s) {
+            let v = match self.parse(p, s) {
                 Ok(v) => v,
                 Err(ve) => {
                     self.errs.push(err_node(
@@ -353,7 +469,7 @@ impl Cx<'_> {
                 }
             };
             let v = match beacon.get(&i).filter(|_| token_capable(p)) {
-                Some(bs) => match parse_value(p, bs) {
+                Some(bs) => match self.parse(p, bs) {
                     Ok(bv) => self.beacon.apply(v, &bv),
                     Err(_) => v,
                 },
@@ -497,6 +613,7 @@ pub fn compile(
         strs: Strs::default(),
         errs: Vec::new(),
         static_props,
+        parsed: vec![std::collections::HashMap::new(); PropId::ALL.len()],
     };
     let mut c = Compiled {
         media_w: plan.media_w.clone(),
@@ -557,6 +674,12 @@ pub fn compile(
         // table[cell][mask]
         let mut table: Vec<Vec<Read>> = Vec::new();
         for r in &reads {
+            // A node the cell did not read again has the values of an earlier cell: the same records.
+            if let Some(row) = r.from.and_then(|from| table.get(from)) {
+                let row = row.clone();
+                table.push(row);
+                continue;
+            }
             let mut row = Vec::new();
             for mask in 0..(1u32 << n) {
                 let vals = values(r, mask);
@@ -978,5 +1101,40 @@ mod tests {
             skin_pictures(v).err().as_deref(),
             Some("http://example.com/nine.png")
         );
+    }
+
+    #[test]
+    fn styles_a_node_a_cell_keeps_takes_the_earlier_answer() {
+        let read = |id: u32, top: &str| {
+            serde_json::json!({ "id": id, "base": [top], "extra": [], "off": [],
+                "vars": [], "beacon": { "base": [], "vars": [] } })
+        };
+        let answer = |third: serde_json::Value| {
+            serde_json::json!({ "beacon": 1, "tokens": [], "cells": [
+                { "viewport": [1000, 800], "nodes": [read(4, "1px"), read(9, "2px")] },
+                { "viewport": [1600, 800], "nodes": [read(4, "3px"), { "id": 9, "from": 0, "size": [10.0, 20.0] }] },
+                { "viewport": [1600, 900], "nodes": [third, { "id": 9, "from": 1 }] },
+            ]})
+        };
+        let out: Extracted =
+            serde_json::from_value(answer(serde_json::json!({ "id": 4, "from": 1 })))
+                .expect("parses");
+        let n = |c: usize, i: usize| &out.cells[c].nodes[i];
+        assert_eq!(n(1, 1).base, ["2px"]);
+        assert_eq!((n(1, 1).from, n(1, 1).size), (Some(0), Some([10.0, 20.0])));
+        // A chain: cell 2 keeps cell 1, which kept cell 0; the size is the cell's own.
+        assert_eq!(
+            (n(2, 1).base.as_slice(), n(2, 1).size),
+            (&["2px".to_string()][..], None)
+        );
+        assert_eq!(
+            (n(2, 0).base.as_slice(), n(2, 0).from),
+            (&["3px".to_string()][..], Some(1))
+        );
+        assert_eq!(n(0, 0).from, None);
+        // Only an earlier cell can be kept.
+        let bad =
+            serde_json::from_value::<Extracted>(answer(serde_json::json!({ "id": 4, "from": 2 })));
+        assert!(bad.is_err());
     }
 }

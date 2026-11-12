@@ -119,6 +119,38 @@ fn engraved_checks_run_in_chrome() {
     }
 }
 
+/// A cell of the skin reads only the nodes a media rule can change against an earlier cell; reading every
+/// node in every cell compiles to the same styles.
+#[test]
+fn engraved_cells_keep_what_media_rules_do_not_change() {
+    if !chrome() {
+        return;
+    }
+    let run = |full_cells| {
+        let opts = ui2_convert::Opts {
+            full_cells,
+            ..ui2_convert::Opts::default()
+        };
+        ui2_convert::check_skin_with(&engraved(), Input::Chrome, &opts)
+    };
+    let (reuse, full) = (run(false), run(true));
+    let plan = reuse.plan.as_ref().expect("plan");
+    assert!(plan.cells.len() > 1, "the skin has breakpoints");
+    assert!(
+        plan.reread
+            .iter()
+            .any(|r| r.nodes.len() < plan.nodes.len() / 2),
+        "the cells read less than every node"
+    );
+    assert!(full.plan.as_ref().expect("plan").reread.is_empty());
+    assert_eq!(reuse.errors, full.errors);
+    assert!(reuse.styles.is_some());
+    assert!(
+        reuse.styles == full.styles,
+        "the reuse between cells changed the styles"
+    );
+}
+
 fn engraved() -> PathBuf {
     crate_dir()
         .join("..")
