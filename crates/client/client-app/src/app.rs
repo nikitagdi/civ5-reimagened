@@ -2122,6 +2122,8 @@ impl App {
                     }
                 }
             }
+            // A mod that owns the screen hides the game UI of either kind (client-hooks C3).
+            self.ui_host.set_suppressed(self.hooks.ui_suppressed());
             // A locked pointer has no cursor to show: the animated game cursor would bring it back.
             if let (Some(c), Some(w), false) = (&self.cursors, &self.window, self.pointer.engaged())
             {

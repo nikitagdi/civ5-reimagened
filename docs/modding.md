@@ -149,6 +149,16 @@ What 1.2 added (a 1.1 mod builds unchanged):
   client goes away (`on_detach`; share again in the next `on_attach`, which starts from nothing) or the game ends.
   The mock host lists what it would have sent (`MockCtx::terrain_shares`) and what a seat holds (`MockCtx::shared`).
 
+### A mod that owns the screen
+
+A client hook of a mod (a first-person mode, for example) can hide the game's interface while it holds the screen
+(`HookCtl::suppress_original_ui(true)`) and give it back when it leaves (`false`). While it is hidden, the active game
+UI of either kind gets no frame and no input: the classic UI draws nothing, UI v2 draws neither its skin nor the
+panels of the mods, and the game UI's cursor, movement path and trade routes are not shown. A focused text field of
+UI v2 lets the keyboard go. What the mods write into their UI v2 fields is kept and shows when the interface comes
+back. The HUD of the mods (`ClientMod::hud`, capability `hud`) is drawn after the game UI, on top of it, and still
+draws while the interface is hidden.
+
 ## Distribution workflow
 
 A mod is compiled into the server and the client, so an operator builds a distribution from a list of mods:

@@ -1042,6 +1042,17 @@ impl Frontend for V2Frontend {
         });
     }
 
+    /// A mod hides the game UI: no frame means no scene (the skin and the mods' panels), and a focused text field
+    /// lets the platform's input go.
+    fn suppressed(&mut self, on: bool) {
+        if on {
+            self.cursor = Cursor::Auto;
+            if let Some(ui) = self.ui_mut() {
+                ui.release_text_input();
+            }
+        }
+    }
+
     /// The skin's frame; its scene goes to the renderer (`prepare_ui2`), the app's draw list gets nothing.
     fn frame(&mut self, cx: &mut FrameCx<'_>, _out: &mut UiDrawList) {
         let env = env_of(cx.size, cx.dpr);
