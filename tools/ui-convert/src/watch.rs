@@ -24,6 +24,9 @@
 //! Layout is not verified
 //! in watch mode.
 //!
+//! A derived skin (`[skin] extends`) is watched through its source folders (its own and the bases): a change in
+//! any of them lays the merged folder out again, and then the usual cycle runs on it.
+//!
 //! Package files are replaced through a temporary file and a rename, the `.rev` last, so a client that sees
 //! a new number reads the package that goes with it.
 
@@ -131,6 +134,19 @@ struct ScanState {
 /// File name -> (modified, length).
 type Snapshot = BTreeMap<String, (SystemTime, u64)>;
 
+/// The snapshot of several source folders at once: the keys are `<index>:<path>`.
+fn snapshot_all(dirs: &[PathBuf]) -> Snapshot {
+    let mut out = Snapshot::new();
+    for (i, d) in dirs.iter().enumerate() {
+        out.extend(
+            snapshot(d)
+                .into_iter()
+                .map(|(k, v)| (format!("{i}:{k}"), v)),
+        );
+    }
+    out
+}
+
 fn snapshot(dir: &Path) -> Snapshot {
     fn walk(root: &Path, dir: &Path, out: &mut Snapshot) {
         let Ok(rd) = std::fs::read_dir(dir) else {
@@ -184,7 +200,11 @@ fn replace(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 
 /// A running watch: the open session and the state of the last cycles.
 pub struct Watcher {
+    /// The folder the cycles read (the merged folder of a derived skin).
     dir: PathBuf,
+    /// The skin folder as given, and the folders the polls look at (the skin's own and its bases).
+    origin: PathBuf,
+    sources: Vec<PathBuf>,
     id: String,
     out: PathBuf,
     node: Option<NodeClient>,
@@ -200,7 +220,8 @@ pub struct Watcher {
 impl Watcher {
     /// Opens the session on the skin folder, starts the server and runs the first full cycle (its result is
     /// the second value; a skin with errors still starts, at `.rev` 0).
-    pub fn start(dir: &Path, opts: &WatchOpts) -> Result<(Watcher, Cycle), Vec<ConvError>> {
+    pub fn start(origin: &Path, opts: &WatchOpts) -> Result<(Watcher, Cycle), Vec<ConvError>> {
+        let dir = &crate::extends::resolve(origin).map_err(|e| vec![e])?;
         let src = Source::load(dir)?;
         let id = src.skin.skin.id.clone();
         let out = opts
@@ -245,17 +266,20 @@ impl Watcher {
             .map_err(|e| vec![e])?;
         let mut w = Watcher {
             dir: dir.to_path_buf(),
+            origin: origin.to_path_buf(),
+            sources: crate::extends::sources(origin),
             id,
             out,
             node: Some(node),
             opened: Opened::from_answer(&answer),
             rev: 0,
-            files: snapshot(dir),
+            files: Vec::new().into_iter().collect(),
             fonts: None,
             scan: None,
             rasters: RasterCache::default(),
             stages: Vec::new(),
         };
+        w.files = snapshot_all(&w.sources);
         let first = w.cycle(Change::Full);
         Ok((w, first))
     }
@@ -282,7 +306,7 @@ impl Watcher {
 
     /// Looks at the skin folder once; when it changed (and stayed the same for one more poll), runs a cycle.
     pub fn poll(&mut self) -> Option<Cycle> {
-        let now = snapshot(&self.dir);
+        let now = snapshot_all(&self.sources);
         if now == self.files {
             return None;
         }
@@ -290,7 +314,7 @@ impl Watcher {
         let mut last = now;
         loop {
             std::thread::sleep(POLL);
-            let again = snapshot(&self.dir);
+            let again = snapshot_all(&self.sources);
             if again == last {
                 break;
             }
@@ -298,8 +322,41 @@ impl Watcher {
         }
         let list = changed(&self.files, &last);
         self.files = last;
-        let change = classify(list.iter().map(String::as_str));
+        let change = classify(
+            list.iter()
+                .map(|k| k.split_once(':').map_or(&**k, |(_, p)| p)),
+        );
+        if self.dir != self.origin
+            && let Err(e) = crate::extends::resolve(&self.origin)
+        {
+            return Some(self.failed(change, vec![e]));
+        }
         Some(self.cycle(change))
+    }
+
+    /// A cycle that stopped before building (the derived skin could not be laid out): the last package stays,
+    /// the errors are served.
+    fn failed(&mut self, change: Change, mut errors: Vec<ConvError>) -> Cycle {
+        errors::sort(&mut errors);
+        let text = errors::to_json(&errors);
+        if let Err(e) = replace(
+            &self.pkg_dir().join(format!("{}.errors.json", self.id)),
+            text.as_bytes(),
+        ) {
+            errors.push(ConvError::new(
+                codes::WRITE,
+                Place::default(),
+                e.to_string(),
+            ));
+        }
+        Cycle {
+            change,
+            rev: self.rev,
+            built: false,
+            ms: 0,
+            errors,
+            stages: Vec::new(),
+        }
     }
 
     /// Runs one cycle of the given kind (a no-Chromium kind without the scan of a full cycle runs in full).
@@ -563,7 +620,7 @@ pub fn run(dir: &Path, opts: &WatchOpts) -> Result<(), Vec<ConvError>> {
         w.url(),
         w.id(),
         w.url(),
-        Source::load(dir)
+        Source::load(&w.dir)
             .map(|s| s.skin.skin.entry)
             .unwrap_or_default()
     );

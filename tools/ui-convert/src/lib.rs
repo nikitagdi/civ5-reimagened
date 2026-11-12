@@ -99,6 +99,15 @@ impl Source {
             )]
         })?;
         let skin = Skin::parse(&text.replace("\r\n", "\n"))?;
+        if let Some(base) = &skin.skin.extends {
+            return Err(vec![ConvError::new(
+                codes::SKIN_DIR,
+                Place::file("skin.toml"),
+                format!(
+                    "the skin extends `{base}`: pass the folder that extends::resolve made, not the skin's own"
+                ),
+            )]);
+        }
         if !dir.join(&skin.skin.entry).is_file() {
             return Err(vec![ConvError::new(
                 codes::SKIN_DIR,

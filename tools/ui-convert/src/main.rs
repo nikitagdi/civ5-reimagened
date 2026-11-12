@@ -282,6 +282,22 @@ fn main() -> ExitCode {
         );
         return ExitCode::from(2);
     };
+    if cmd == "watch" {
+        // The watch lays a derived skin out itself, again after each change in its folders.
+        let opts = ui2_convert::watch::WatchOpts {
+            port,
+            ..Default::default()
+        };
+        return match ui2_convert::watch::run(&dir, &opts) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(errs) => {
+                for e in &errs {
+                    eprintln!("{e}\n");
+                }
+                ExitCode::from(1)
+            }
+        };
+    }
     let dir = match ui2_convert::extends::resolve(&dir) {
         Ok(d) => d,
         Err(e) => {
@@ -364,21 +380,6 @@ fn main() -> ExitCode {
                         eprintln!("{e}\n");
                     }
                     eprintln!("ui2-convert: {} error(s)", errs.len());
-                    ExitCode::from(1)
-                }
-            }
-        }
-        "watch" => {
-            let opts = ui2_convert::watch::WatchOpts {
-                port,
-                ..Default::default()
-            };
-            match ui2_convert::watch::run(&dir, &opts) {
-                Ok(()) => ExitCode::SUCCESS,
-                Err(errs) => {
-                    for e in &errs {
-                        eprintln!("{e}\n");
-                    }
                     ExitCode::from(1)
                 }
             }
