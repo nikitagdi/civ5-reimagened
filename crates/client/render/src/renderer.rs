@@ -4049,11 +4049,13 @@ impl Renderer {
             format: self.view_format,
             size: (self.config.width, self.config.height),
         };
-        // Pictures of game assets and the minimap come from the textures of the original UI.
+        // Pictures of game assets and the minimap come from the textures of the original UI. A minimap without a
+        // map is not there (the picture draws nothing, as a picture not loaded yet), not a black rectangle.
+        let shows_map = self.world.minimap.shows_map();
         let mut textures = crate::ui2_pass::RendererTextures {
             textures: &mut self.ui_textures,
             external: UiExternal {
-                minimap: minimap_of(&self.layers, &self.targets),
+                minimap: minimap_of(&self.layers, &self.targets).filter(|_| shows_map),
             },
         };
         self.ui2
