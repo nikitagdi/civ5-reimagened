@@ -142,10 +142,27 @@ pub trait Frontend {
     fn turn_processing(&self) -> bool {
         false
     }
-    /// Opens one of the game's screens when the skin has none (`false`: it cannot). The hand-off of a screen a
-    /// skin lacks calls it; nothing does yet.
-    #[allow(dead_code)]
+    /// The game's screens this UI can show for another one whose own screens lack them (the classic UI's popups).
+    fn screens(&self) -> Vec<ScreenId> {
+        Vec::new()
+    }
+    /// The screens the other registered UIs can show (called on every registration).
+    fn offer_screens(&mut self, _screens: &[ScreenId]) {}
+    /// A screen this UI asked another one to show since the last call (UI v2: `screen.open` of an offered screen).
+    fn take_screen_request(&mut self) -> Option<ScreenId> {
+        None
+    }
+    /// Opens one of [`screens`](Self::screens) once this UI has the screen (`false`: it cannot). The screen is
+    /// shown until [`take_screen_closed`](Self::take_screen_closed) says it went.
     fn open_screen(&mut self, _s: ScreenId) -> bool {
+        false
+    }
+    /// The screen [`open_screen`](Self::open_screen) opened was closed, or could not be shown (once).
+    fn take_screen_closed(&mut self) -> Option<ScreenClosed> {
+        None
+    }
+    /// The screen [`open_screen`](Self::open_screen) opened is on the screen now.
+    fn screen_shown(&self) -> bool {
         false
     }
     /// The UI dispatches the core's UI events itself while it is active (the session then leaves them).
@@ -199,6 +216,23 @@ pub trait Frontend {
     }
     /// The classic UI wakes up the cold way (its layer made again) instead of the warm one.
     fn set_cold_wake(&mut self, _cold: bool) {}
+}
+
+/// How a screen shown for another UI ended.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ScreenClosed {
+    /// The player closed it.
+    Closed,
+    /// It could not be shown, and why.
+    Failed(String),
+}
+
+/// A screen of the game shown by another UI for the one on the screen (a skin without the screen): the host hands
+/// the screen to `via` for it and gives it back to `back` once it is closed.
+struct ScreenTrip {
+    screen: ScreenId,
+    via: usize,
+    back: usize,
 }
 
 /// The game UI chosen for this run (`?ui=`, `AppConfig::ui_choice`).
@@ -340,6 +374,8 @@ pub struct UiHost {
     choice: Option<UiChoice>,
     /// The notice of the last failure and when it came (ms).
     notice: Option<(String, f64)>,
+    /// A screen another UI shows for the one that asked for it.
+    trip: Option<ScreenTrip>,
 }
 
 impl UiHost {
@@ -353,6 +389,14 @@ impl UiHost {
         self.fronts.push(f);
         if self.active.is_none() {
             self.active = Some(self.fronts.len() - 1);
+        }
+        // Each UI learns which screens the others can show for it.
+        for i in 0..self.fronts.len() {
+            let others: Vec<ScreenId> = (0..self.fronts.len())
+                .filter(|&j| j != i)
+                .flat_map(|j| self.fronts[j].screens())
+                .collect();
+            self.fronts[i].offer_screens(&others);
         }
     }
 
@@ -376,6 +420,8 @@ impl UiHost {
             return false;
         };
         f.choose(&choice);
+        // The player's choice ends a screen shown for another UI: closing it no longer switches back.
+        self.trip = None;
         self.request(kind);
         self.choice = Some(choice);
         true
@@ -451,6 +497,11 @@ impl UiHost {
             frames: c.frames,
             inputs: c.inputs,
             replica_digest: None,
+            screen: self.trip.as_ref().map(|t| t.screen.as_str().to_owned()),
+            screen_shown: self
+                .trip
+                .as_ref()
+                .is_some_and(|t| self.active == Some(t.via) && self.fronts[t.via].screen_shown()),
         }
     }
 
@@ -506,7 +557,9 @@ impl UiHost {
             if recovers && a != 0 {
                 self.switch = Some(Switch::to(a));
             }
+            self.trip = None;
         }
+        self.step_screens(cx.now_ms);
         // The timeout counts while a game is played and its replica is live: before, UI v2 waits for the game, not
         // for itself.
         if let Some(sw) = self.switch.as_mut()
@@ -524,6 +577,7 @@ impl UiHost {
             let why = format!("it was not ready in {} s", SWITCH_TIMEOUT_MS / 1000.0);
             tracing::warn!("the {kind:?} interface cannot be used, the current one stays: {why}");
             self.fail(kind, why, cx.now_ms, false);
+            self.trip = None;
             return;
         }
         let Some(sw) = self.switch.as_mut() else {
@@ -555,6 +609,63 @@ impl UiHost {
                 );
                 self.fail(kind, why, cx.now_ms, false);
                 self.switch = None;
+                self.trip = None;
+            }
+        }
+    }
+
+    /// Screens shown by another UI (SIMP-266): a screen the active UI asked for goes to the UI that offers it, which
+    /// takes the screen and opens it; once it is closed, the UI that asked gets the screen back.
+    fn step_screens(&mut self, now_ms: f64) {
+        if let Some(t) = &self.trip {
+            if self.active == Some(t.via) && self.switch.is_none() {
+                let (via, back, screen) = (t.via, t.back, t.screen);
+                if let Some(end) = self.fronts[via].take_screen_closed() {
+                    self.trip = None;
+                    if let ScreenClosed::Failed(why) = end {
+                        tracing::warn!(screen = screen.as_str(), "the screen was not shown: {why}");
+                        self.notice = Some((
+                            format!("The {} screen cannot be shown: {why}.", screen.as_str()),
+                            now_ms,
+                        ));
+                    }
+                    if self.active != Some(back) {
+                        self.switch = Some(Switch::to(back));
+                    }
+                }
+            }
+            return;
+        }
+        let Some(a) = self.active else {
+            return;
+        };
+        let Some(screen) = self.fronts[a].take_screen_request() else {
+            return;
+        };
+        if self.switch.is_some() {
+            // Another switch is under way (the player's): the request goes.
+            return;
+        }
+        let via =
+            (0..self.fronts.len()).find(|&i| i != a && self.fronts[i].screens().contains(&screen));
+        match via {
+            Some(via) if self.fronts[via].open_screen(screen) => {
+                tracing::info!(
+                    screen = screen.as_str(),
+                    "a screen of the skin is shown by another interface"
+                );
+                self.trip = Some(ScreenTrip {
+                    screen,
+                    via,
+                    back: a,
+                });
+                self.switch = Some(Switch::to(via));
+            }
+            _ => {
+                self.notice = Some((
+                    format!("The {} screen cannot be shown now.", screen.as_str()),
+                    now_ms,
+                ));
             }
         }
     }
@@ -1044,6 +1155,153 @@ mod tests {
         assert_eq!(h.active_kind(), Some(UiKind::V2));
         // The settings list what the frontends offer; the fake classic offers nothing.
         assert_eq!(h.options(), [("v2".to_owned(), "UI v2".to_owned())]);
+    }
+
+    /// What the screen fakes share: the screens asked for and opened, how the open one ended.
+    #[derive(Default)]
+    struct Screens {
+        offered: Vec<ScreenId>,
+        ask: Option<ScreenId>,
+        opened: Vec<ScreenId>,
+        end: Option<ScreenClosed>,
+    }
+
+    /// A UI that shows screens for others (`shows`) or asks for them, always ready.
+    struct ScreenFake {
+        kind: UiKind,
+        shows: Vec<ScreenId>,
+        s: Rc<RefCell<Screens>>,
+    }
+
+    impl Frontend for ScreenFake {
+        fn kind(&self) -> UiKind {
+            self.kind
+        }
+        fn needs_replica(&self) -> bool {
+            true
+        }
+        fn prepare(&mut self, _cx: &mut PrepareCx<'_>) -> Readiness {
+            Readiness::Ready
+        }
+        fn activate(&mut self, _cx: &mut PrepareCx<'_>) {}
+        fn deactivate(&mut self, _cx: &mut PrepareCx<'_>) {}
+        fn frame(&mut self, _cx: &mut FrameCx<'_>, _out: &mut UiDrawList) {}
+        fn input(&mut self, _cx: &mut InputCx<'_>, _ev: InputEvent) {}
+        fn new_game(&mut self) {}
+        fn screens(&self) -> Vec<ScreenId> {
+            self.shows.clone()
+        }
+        fn offer_screens(&mut self, screens: &[ScreenId]) {
+            if self.shows.is_empty() {
+                self.s.borrow_mut().offered = screens.to_vec();
+            }
+        }
+        fn take_screen_request(&mut self) -> Option<ScreenId> {
+            if self.shows.is_empty() {
+                self.s.borrow_mut().ask.take()
+            } else {
+                None
+            }
+        }
+        fn open_screen(&mut self, s: ScreenId) -> bool {
+            let ok = self.shows.contains(&s);
+            if ok {
+                self.s.borrow_mut().opened.push(s);
+            }
+            ok
+        }
+        fn take_screen_closed(&mut self) -> Option<ScreenClosed> {
+            if self.shows.is_empty() {
+                None
+            } else {
+                self.s.borrow_mut().end.take()
+            }
+        }
+    }
+
+    /// The classic UI (showing the tech tree and the policies) and UI v2 on the screen.
+    fn screen_host() -> (UiHost, Rc<RefCell<Screens>>) {
+        let s = Rc::new(RefCell::new(Screens::default()));
+        let mut h = UiHost::new();
+        h.register(Box::new(ScreenFake {
+            kind: UiKind::Classic,
+            shows: vec![ScreenId::TechTree, ScreenId::Policies],
+            s: Rc::clone(&s),
+        }));
+        h.register(Box::new(ScreenFake {
+            kind: UiKind::V2,
+            shows: Vec::new(),
+            s: Rc::clone(&s),
+        }));
+        assert!(h.ask(UiChoice::V2 { skin: None }));
+        frame(&mut h, 0.0);
+        assert_eq!(h.active_kind(), Some(UiKind::V2));
+        (h, s)
+    }
+
+    #[test]
+    fn a_screen_the_skin_lacks_is_shown_by_the_classic_ui_and_v2_comes_back_after_it() {
+        let (mut h, s) = screen_host();
+        assert_eq!(
+            s.borrow().offered,
+            [ScreenId::TechTree, ScreenId::Policies],
+            "UI v2 learns what the classic UI shows"
+        );
+        s.borrow_mut().ask = Some(ScreenId::TechTree);
+        frame(&mut h, 16.0);
+        assert_eq!(
+            h.active_kind(),
+            Some(UiKind::Classic),
+            "switched in one frame"
+        );
+        assert_eq!(s.borrow().opened, [ScreenId::TechTree]);
+        let v = h.test_view(None, 16.0);
+        assert_eq!(v.screen.as_deref(), Some("tech_tree"));
+        assert_eq!(v.choice, "v2", "the choice in force stays UI v2");
+        // The screen stays while it is up: the classic UI keeps the screen.
+        for t in 2..5 {
+            frame(&mut h, f64::from(t) * 16.0);
+        }
+        assert_eq!(h.active_kind(), Some(UiKind::Classic));
+        s.borrow_mut().end = Some(ScreenClosed::Closed);
+        frame(&mut h, 100.0);
+        assert_eq!(h.active_kind(), Some(UiKind::V2), "closed: UI v2 is back");
+        assert!(h.test_view(None, 100.0).screen.is_none());
+        assert!(h.notice(100.0).is_none());
+        assert_eq!(h.counters().switches, 3);
+        // A screen that could not be shown comes back with a notice.
+        s.borrow_mut().ask = Some(ScreenId::Policies);
+        frame(&mut h, 200.0);
+        s.borrow_mut().end = Some(ScreenClosed::Failed("it did not open".into()));
+        frame(&mut h, 216.0);
+        assert_eq!(h.active_kind(), Some(UiKind::V2));
+        assert!(
+            h.notice(216.0)
+                .is_some_and(|n| n.contains("policies") && n.contains("did not open")),
+            "{:?}",
+            h.notice(216.0)
+        );
+    }
+
+    #[test]
+    fn a_screen_nobody_shows_gives_a_notice_and_the_player_s_choice_ends_a_trip() {
+        let (mut h, s) = screen_host();
+        s.borrow_mut().ask = Some(ScreenId::Diplomacy);
+        frame(&mut h, 16.0);
+        assert_eq!(h.active_kind(), Some(UiKind::V2));
+        assert!(s.borrow().opened.is_empty());
+        assert!(h.notice(16.0).is_some_and(|n| n.contains("diplomacy")));
+        // The player asks for the classic UI while it shows a screen: closing it no longer brings UI v2 back.
+        s.borrow_mut().ask = Some(ScreenId::Policies);
+        frame(&mut h, 32.0);
+        assert_eq!(h.active_kind(), Some(UiKind::Classic));
+        assert!(h.ask(UiChoice::Classic));
+        s.borrow_mut().end = Some(ScreenClosed::Closed);
+        for t in 3..6 {
+            frame(&mut h, f64::from(t) * 16.0);
+        }
+        assert_eq!(h.active_kind(), Some(UiKind::Classic));
+        assert!(h.test_view(None, 96.0).screen.is_none());
     }
 
     #[test]

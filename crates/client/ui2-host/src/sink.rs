@@ -40,15 +40,34 @@ pub fn refused(r: OrderRefused) -> Refused {
 pub struct NetSink<'a> {
     core: &'a mut ClientCore,
     camera: Vec<CameraReq>,
+    /// The screens outside the skin the application can open (another game UI shows them).
+    screens: &'a [ScreenId],
+    /// The screen the frame asked for, the last one wins.
+    screen: Option<ScreenId>,
 }
 
 impl<'a> NetSink<'a> {
-    /// A sink over the core the application lends for this frame.
+    /// A sink over the core the application lends for this frame; it opens no screen outside the skin.
     pub fn new(core: &'a mut ClientCore) -> NetSink<'a> {
         NetSink {
             core,
             camera: Vec::new(),
+            screens: &[],
+            screen: None,
         }
+    }
+
+    /// The screens the application can open for the skin (`screen.open` of one of them is taken, the others are
+    /// refused).
+    #[must_use]
+    pub fn with_screens(mut self, screens: &'a [ScreenId]) -> NetSink<'a> {
+        self.screens = screens;
+        self
+    }
+
+    /// The screen the frame asked the application to open, taken once.
+    pub fn take_screen(&mut self) -> Option<ScreenId> {
+        self.screen.take()
     }
 
     /// The camera requests of the frame, oldest first, taken once.
@@ -81,9 +100,15 @@ impl OrderSink for NetSink<'_> {
         self.camera.push(req);
     }
 
-    /// No screen outside the skin can be opened from UI v2 yet: the caller tells the player so.
-    fn open_screen(&mut self, _s: ScreenId) -> bool {
-        false
+    /// A screen the application can open is kept for it ([`take_screen`](Self::take_screen)); any other is
+    /// refused and the caller tells the player so.
+    fn open_screen(&mut self, s: ScreenId) -> bool {
+        if self.screens.contains(&s) {
+            self.screen = Some(s);
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -221,10 +246,24 @@ mod tests {
     }
 
     #[test]
-    fn no_screen_opens_outside_the_skin_yet() {
+    fn only_the_screens_the_application_offers_are_taken() {
         let mut core = core();
         let mut sink = NetSink::new(&mut core);
-        assert!(!sink.open_screen(ScreenId::Policies));
+        assert!(!sink.open_screen(ScreenId::Policies), "none offered");
+        assert_eq!(sink.take_screen(), None);
+        drop(sink);
+        let offered = [ScreenId::TechTree, ScreenId::Policies];
+        let mut sink = NetSink::new(&mut core).with_screens(&offered);
+        assert!(!sink.open_screen(ScreenId::Diplomacy));
+        assert_eq!(sink.take_screen(), None);
+        assert!(sink.open_screen(ScreenId::TechTree));
+        assert!(sink.open_screen(ScreenId::Policies));
+        assert_eq!(
+            sink.take_screen(),
+            Some(ScreenId::Policies),
+            "the last one wins"
+        );
+        assert_eq!(sink.take_screen(), None, "taken once");
         assert!(!Offline.open_screen(ScreenId::Policies));
     }
 

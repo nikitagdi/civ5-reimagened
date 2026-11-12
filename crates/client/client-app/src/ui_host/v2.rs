@@ -522,6 +522,9 @@ pub struct V2Frontend {
     sample_state: Option<String>,
     sample_op: Option<Box<dyn HttpOp>>,
     sample_on: bool,
+    /// The screens outside the skin another UI shows (the host's offer), and the one the last frame asked for.
+    screens: Vec<ui2_host::ScreenId>,
+    screen_req: Option<ui2_host::ScreenId>,
 }
 
 /// A skin change on the screen: the skin asked for and its download (`None`: the package is in the cache).
@@ -573,6 +576,8 @@ impl V2Frontend {
             sample_state: None,
             sample_op: None,
             sample_on: false,
+            screens: Vec::new(),
+            screen_req: None,
         }
     }
 
@@ -1191,9 +1196,10 @@ impl V2Frontend {
         let steps: &[replica::ReplicaStep] = if held.is_some() { steps } else { &[] };
         let events = std::mem::take(&mut self.events);
         let mods = self.mods.take();
-        let (report, look_at) = match net {
+        let screens = &self.screens;
+        let (report, look_at, screen) = match net {
             Some(h) => h.with(|core| {
-                let mut sink = NetSink::new(core);
+                let mut sink = NetSink::new(core).with_screens(screens);
                 let report = ui.frame(V2Frame {
                     replica: held.as_deref_mut().map(ReplicaView::of),
                     steps,
@@ -1202,7 +1208,7 @@ impl V2Frontend {
                     mods,
                     now_ms,
                 });
-                (report, sink.look_at())
+                (report, sink.look_at(), sink.take_screen())
             }),
             None => {
                 let report = ui.frame(V2Frame {
@@ -1213,9 +1219,12 @@ impl V2Frontend {
                     mods,
                     now_ms,
                 });
-                (report, None)
+                (report, None, None)
             }
         };
+        if screen.is_some() {
+            self.screen_req = screen;
+        }
         // The core's slow first reads, once per game (joined, loaded or a new skin), after the frame and outside its
         // budget.
         if self.warm_due
@@ -1370,8 +1379,17 @@ impl Frontend for V2Frontend {
         self.on_screen = true;
     }
 
+    fn offer_screens(&mut self, screens: &[ui2_host::ScreenId]) {
+        self.screens = screens.to_vec();
+    }
+
+    fn take_screen_request(&mut self) -> Option<ui2_host::ScreenId> {
+        self.screen_req.take()
+    }
+
     fn deactivate(&mut self, _cx: &mut PrepareCx<'_>) {
         self.on_screen = false;
+        self.screen_req = None;
         self.cursor = Cursor::Auto;
         // A focused text field of the skin lets the platform's input go while UI v2 sleeps.
         if let Some(ui) = self.ui_mut() {

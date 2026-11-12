@@ -1504,6 +1504,34 @@ impl M2Ui {
         }
     }
 
+    /// Runs a chunk of Lua in a context of its own in the layer (`name` names it in errors). `false`: there is no
+    /// layer, or the chunk failed (logged).
+    pub fn run_lua(&self, name: &str, code: &str) -> bool {
+        let Some(layer) = &self.layer else {
+            return false;
+        };
+        let chunk = format!("={name}");
+        let ran = layer
+            .core()
+            .runtime()
+            .create_context(name, |_, _| Ok(()))
+            .and_then(|ctx| ctx.lua().load(code).set_name(&chunk).exec());
+        if let Err(e) = &ran {
+            tracing::warn!("{name}: {e}");
+        }
+        ran.is_ok()
+    }
+
+    /// Whether the context at the absolute `path` (`/InGame/TechTree`) is shown; `None`: no layer, or no such
+    /// context.
+    pub fn context_shown(&self, path: &str) -> Option<bool> {
+        let shared = self.layer.as_ref()?.core().shared();
+        let id = shared.look_up(None, path)?;
+        // As the Lua's `IsHidden` reads it.
+        let hidden = shared.st.borrow().tree.get(id)?.has(ui::flags::HIDDEN);
+        Some(!hidden)
+    }
+
     /// The layer of this game is made again over the same replica once it is live (it missed the core's events
     /// while it did not run): what it left for the app goes as for a new game, without waiting for another game.
     pub fn restart_layer(&mut self) {
