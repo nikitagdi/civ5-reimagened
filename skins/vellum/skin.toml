@@ -1,0 +1,11 @@
+# Vellum: the second skin. The layout, scripts, texts and samples are the engraved skin's (`extends`); this folder
+# holds only what differs: the design tokens (css/tokens.css). Fonts, state, scripts and [verify] come from the base.
+
+[skin]
+id = "vellum"
+version = "0.1.0"
+title = "skin.title"
+entry = "index.html"
+model = "1.0"
+api = "1.0"
+extends = "engraved"
