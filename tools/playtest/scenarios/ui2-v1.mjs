@@ -93,6 +93,22 @@ export async function clickPart(page, part) {
   return b;
 }
 
+/**
+ * Clicks a part, then polls `ui2()` until UI v2 has drawn `frames` frames after the click and `pred(probe)` holds.
+ * The probe is what UI v2 published after its last frame: read right after the click it may still be the picture
+ * from before the click (the unit panel of the unit selected before, say), so a test of it alone can pass on the old
+ * picture. The frame count (`probe.frames`) is the signal that the click has been through a frame. It is read after
+ * the click has returned (the button is up): UI v2 draws frames while the click is on its way (four of them were seen
+ * between a count read before the click and the first probe after it, the old picture still on), and the click is
+ * taken in the frame after the button went up.
+ */
+async function clickThen(page, part, pred, ms, frames = 2) {
+  const box = await clickPart(page, part);
+  const f0 = (await ui2(page))?.frames ?? 0;
+  const w = await waitUi(page, (p) => (p.frames ?? 0) >= f0 + frames && pred(p), ms);
+  return { ...w, box, f0 };
+}
+
 /** The instances of a list under a part: per instance key, the box of its largest record, top to bottom. */
 function rowsOf(rects) {
   const by = new Map();
@@ -288,7 +304,8 @@ async function preselect(page) {
   const flag = (await rectsOf(page, "unit-flag")).find((r) => r.w > 8 && r.h > 8) ?? null;
   if (!flag) return { flag: null, title: [] };
   await page.mouse.click(flag.x + flag.w / 2, flag.y + flag.h / 2);
-  const w = await waitUi(page, (p) => partTexts(p, "unit.title").length > 0, 5000);
+  const f0 = (await ui2(page))?.frames ?? 0;
+  const w = await waitUi(page, (p) => (p.frames ?? 0) >= f0 + 2 && partTexts(p, "unit.title").length > 0, 5000);
   return { flag: [flag.x, flag.y, flag.w, flag.h], title: partTexts(w.probe, "unit.title"), ms: w.ms };
 }
 
@@ -340,13 +357,15 @@ async function turnOne(alice, bob, check, n, shot) {
   const page = alice.page;
   const done = { unit: false, city: false, production: false, research: false, turn: false };
   n.helm = [];
+  // A unit may already be selected here (the click that gave the keyboard back to the game after the chat lands on
+  // the map and selects whatever of alice's stands on that plot): the dial then goes on to the next waiting unit.
+  n.selectedBefore = partTexts(await ui2(page), "unit.title");
   for (let guard = 0; guard < 30 && !done.turn; guard++) {
     const probe = await ui2(page);
     const st = helmState(probe);
     n.helm.push(st);
     if (st === "Unit needs orders") {
-      await clickPart(page, "helm.dial");
-      const sel = await waitUi(page, (p) => partTexts(p, "unit.title").length > 0 && partsOf(p, "unit.act.").length > 0, 5000);
+      const sel = await clickThen(page, "helm.dial", (p) => partTexts(p, "unit.title").length > 0 && partsOf(p, "unit.act.").length > 0, 5000);
       const title = partTexts(sel.probe, "unit.title");
       const acts = partsOf(sel.probe, "unit.act.");
       if (acts.includes("unit.act.found-city") && !done.city) {
@@ -393,8 +412,7 @@ async function endTurnBy(b) {
     const st = helmState(await ui2(page));
     seen.push(st);
     if (st === "Unit needs orders") {
-      await clickPart(page, "helm.dial");
-      const sel = await waitUi(page, (p) => partsOf(p, "unit.act.").length > 0, 5000);
+      const sel = await clickThen(page, "helm.dial", (p) => partsOf(p, "unit.act.").length > 0, 5000);
       const acts = partsOf(sel.probe, "unit.act.");
       const pick = ["unit.act.sleep", "unit.act.fortify", "unit.act.skip"].find((a) => acts.includes(a));
       if (!pick) break;
