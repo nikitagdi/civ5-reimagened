@@ -228,4 +228,16 @@ impl Runtime {
     pub fn anchor_count(&self) -> usize {
         self.anchors.len()
     }
+
+    /// The screen point (device px) that shows an anchor where the layout put it, as a page in a browser shows the
+    /// skin without a map: the origin of its chunk's containing block. Placed there at scale 1, the anchor's boxes
+    /// are drawn, hit and listed at their laid-out places. `None` for an anchor that is not live.
+    pub fn anchor_layout_point(&self, id: AnchorId) -> Option<Vec2> {
+        let key = self.anchors.ids.get(&id)?;
+        let node = self.anchors.by_node.get(key)?.node;
+        let loc = self.arena.get(node)?.layout().unrounded.location;
+        let mut geo = crate::input::hit::Geo::new(&self.arena, &self.pkg, &self.style_index);
+        let origin = geo.abs(node) - Vec2::new(loc.x, loc.y);
+        Some(origin * self.style_env.scale.k)
+    }
 }
