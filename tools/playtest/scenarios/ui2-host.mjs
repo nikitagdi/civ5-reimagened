@@ -203,7 +203,7 @@ async function hooks(page, numbers, check) {
   const d1 = await page.evaluate(() => window.__civ5test.digest("replica")).catch((e) => `error ${e}`);
   const seq1 = (await state(page))?.net?.viewSeq;
   numbers.replicaDigest = { d0, d1, seq0, seq1 };
-  check("R17: UI-only actions leave the replica digest as it is", /^[0-9a-f]{16}$/.test(d0 ?? "") && (d0 === d1 || seq0 !== seq1), JSON.stringify(numbers.replicaDigest));
+  check("UI-only actions leave the replica digest as it is", /^[0-9a-f]{16}$/.test(d0 ?? "") && (d0 === d1 || seq0 !== seq1), JSON.stringify(numbers.replicaDigest));
 }
 
 /** `__civ5stats.ui.lua_errors` of the classic UI (null before its stats came). */
@@ -245,7 +245,7 @@ async function switchTo(page, value, want, opts = {}, waitMs = 30000) {
 }
 
 /**
- * Switching on the fly (R21, R22): v2 -> classic (warm: the classic layer stays and the game is announced to it
+ * Switching on the fly: v2 -> classic (warm: the classic layer stays and the game is announced to it
  * again) -> v2 -> classic (cold: a new layer) -> v2, each within 3 s (the warm way and UI v2's way back; the cold
  * way is measured), the classic UI without new Lua errors after its sleep, the same connection all along, and the
  * choice kept in `civ5.options.ui` only when saved (`?ui=` writes nothing).
@@ -291,7 +291,7 @@ async function switching(page, numbers, check) {
 }
 
 /**
- * Screens the skin does not have (R24, SIMP-266): the strip's tech tree and policies buttons open the classic UI's
+ * Screens the skin does not have: the strip's tech tree and policies buttons open the classic UI's
  * windows (the host hands the screen to the classic UI, `state().ui.screen` names the screen and `screenShown` says
  * its window is up); the window's Close button (found in the classic screen dump, clicked with the mouse) closes it
  * and UI v2 is back. Each hand-off within 1 s (the warm switch), no new Lua errors.
@@ -360,7 +360,7 @@ async function addAltSkin(page) {
 }
 
 /**
- * A skin change on the screen (R2): with the menu window open (the strip's menu button), `setUi v2:alt` changes the skin
+ * A skin change on the screen: with the menu window open (the strip's menu button), `setUi v2:alt` changes the skin
  * within 1 s (`ui2().reload.appliedAt` on the page's clock), the window is still open, the new skin has its own state
  * (`ui2().ui.state`), the connection is the same; back to `v2:engraved` (from the package cache), the window is still
  * open and engraved's own state is back.
@@ -404,7 +404,7 @@ async function skinChange(page, numbers, check) {
 }
 
 /**
- * Fatal skin failures (R4) on a page whose classic UI runs and whose UI v2 has not loaded yet: the page gets the fixture
+ * Fatal skin failures on a page whose classic UI runs and whose UI v2 has not loaded yet: the page gets the fixture
  * index instead of the build's. `v2:badhash` (another hash than its file) falls back to the default `scriptfail` (its
  * script throws while it loads), which falls back to the classic UI with a notice; `v2:api9` (script API 9) is refused
  * before its download. The classic UI stays on the screen, each failure is counted once, nothing is tried in a loop.

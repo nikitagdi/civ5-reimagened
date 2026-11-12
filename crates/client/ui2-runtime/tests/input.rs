@@ -1,4 +1,4 @@
-//! Input (test 8 of the runtime spec): hit-testing through layers, stacking, transforms, clips and
+//! Input: hit-testing through layers, stacking, transforms, clips and
 //! `pointer-events`; hover, active and the cursor; pointer capture; the wheel over scroll containers; modal
 //! screens of the `window` layer; the minimap. Then markup actions (`intent` with its arguments, `set`,
 //! `toggle`, `call`, `stop`, bubbling), focus and Tab, Enter and Space, Esc, `data-hotkey` by layer, and

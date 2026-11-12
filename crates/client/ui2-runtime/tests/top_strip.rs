@@ -1,6 +1,6 @@
 //! The top strip through the frame as the host runs it: `drain_output`, `take_frame` → `apply_delta`,
-//! `frame`, `Scene::resolve`. Once settled, frames without model changes do no work (test 7 of the runtime
-//! spec): no layout, no draw list, no binding, no shaping, and the scene encodes nothing.
+//! `frame`, `Scene::resolve`. Once settled, frames without model changes do no work: no layout, no draw
+//! list, no binding, no shaping, and the scene encodes nothing.
 
 mod support;
 

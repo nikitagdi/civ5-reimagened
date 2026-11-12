@@ -3,7 +3,7 @@
 //! Chrome decides the cascade; the package keeps the answers. A node has a `StyleSet`: a table of
 //! records indexed by the viewport cell (breakpoints) and a mask of the node's dynamic conditions
 //! (`:hover`, a class toggled by a binding, ...). The runtime only looks records up: it never
-//! matches a selector (decision L33).
+//! matches a selector.
 
 use serde::{Deserialize, Serialize};
 

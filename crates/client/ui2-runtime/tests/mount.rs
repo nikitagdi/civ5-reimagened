@@ -1,4 +1,4 @@
-//! Mod fragments in the skin's extension points (test 9 of the runtime spec and the mount rules): panels
+//! Mod fragments in the skin's extension points (and the mount rules): panels
 //! append in order, a broken binding is reported once in 100 frames, a failed panel shows a placeholder while
 //! its neighbours live on, `Replace` hides the skin's node, a mod's colors and fonts are the skin's, its
 //! `state.*` is its own, and idle frames do no work with panels mounted.

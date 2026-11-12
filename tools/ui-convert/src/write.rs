@@ -869,7 +869,7 @@ pub fn write(inp: &Inputs) -> Result<Written, Vec<ConvError>> {
     })
 }
 
-/// The N4 budget of a package: (what, bytes, limit).
+/// The size budget of a package: (what, bytes, limit).
 pub fn budget(sections: &[(String, u32)]) -> Vec<(&'static str, u64, u64)> {
     let of = |t: &str| {
         sections

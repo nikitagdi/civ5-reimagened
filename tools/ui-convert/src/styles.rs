@@ -195,7 +195,7 @@ impl TryFrom<ExtractedAnswer> for Extracted {
     }
 }
 
-/// A string table for the ids inside records and sets (`T31` re-interns them in the builder).
+/// A string table for the ids inside records and sets (the builder re-interns them).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Strs {
     /// The strings, in order of first use.

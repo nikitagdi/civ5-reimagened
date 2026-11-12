@@ -1,4 +1,4 @@
-//! `ui_flip <ref.rgba> <test.rgba> <width> <height> <heat.rgba> [<mask.r8>]` (B4 M5, AC-S2): the LDR-FLIP of two raw
+//! `ui_flip <ref.rgba> <test.rgba> <width> <height> <heat.rgba> [<mask.r8>]`: the LDR-FLIP of two raw
 //! RGBA8 frames of the same size (the original's golden against our frame). Prints `mean=<f> p95=<f> over02=<share of
 //! pixels with error > 0.2> pixels=<n>` and writes the error map as a heat map (RGBA8, `tools/playtest/lib/flip.mjs`
 //! makes the PNG). With a mask (one byte per pixel), the numbers cover the pixels whose mask byte is not 0 only (the

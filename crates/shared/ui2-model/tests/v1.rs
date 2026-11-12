@@ -2,7 +2,7 @@
 
 use ui2_model::{RootKind, RootShape, Scalar, Schema, Type};
 
-/// Every path that the schema spec lists for these roots, with the type it must have.
+/// Every path that the v1 schema lists for these roots, with the type it must have.
 const PATHS: &[(&str, &str)] = &[
     ("meta.schema", "str"),
     ("meta.source", "Source"),

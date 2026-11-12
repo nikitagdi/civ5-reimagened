@@ -1,11 +1,11 @@
-// `ui2-n6`: where UI v2 skin scripts run, measured. The page `ui2/bench/bench.html` runs one skin workload (the HUD of
-// mockup A in draft form over a generated late game on a Huge map: 200 city banners, 150 notifications, the production
+// `ui2-n6`: where UI v2 skin scripts run, measured. The page `ui2/bench/bench.html` runs one skin workload
+// (a HUD skin in draft form over a generated late game on a Huge map: 200 city banners, 150 notifications, the production
 // window with 40 options and the skin's own sort) on two hosts with the same contract: the production Web Worker
 // (`ui2/host.js`) and the page's main thread (`ui2/bench/main-arm.js`). Per arm:
 // - idle: 10 s without changes: no message, no script call;
 // - turns: 20 turn deltas 2 s apart, each followed by three timer ticks: main-thread time of the frames that post or
 //   drain (the worker arm's overhead; the main arm's scripts included), the worker's handler time (`busy_ms`), and
-//   the frames between a delta and the answer that acknowledges it (N3: at most one);
+//   the frames between a delta and the answer that acknowledges it (at most one);
 // - feed: 10 filter events a second for 10 s;
 // - heap after the turns (`measureUserAgentSpecificMemory`, by realm: needs the cross-origin isolated page, `--threads`);
 // - GC pauses: the turns again, fast, under a trace (`v8`, `devtools.timeline`), peak pause per thread;
@@ -223,7 +223,7 @@ function table(n) {
   const share = (x) => (x.n ? Math.round((x.withinOne / x.n) * 10000) / 100 : null);
   const n3m = share(m.turns.n3);
   const n3w = Math.min(share(w.turns.n3) ?? 100, share(w.feed.n3) ?? 100);
-  row("N3: updates answered within 1 frame, %", fmt(n3m), fmt(n3w), ">= 99", n3m === null ? null : n3m >= 99, n3w >= 99, "frames between the delta's post and the drain of its acknowledging answer");
+  row("updates answered within 1 frame, %", fmt(n3m), fmt(n3w), ">= 99", n3m === null ? null : n3m >= 99, n3w >= 99, "frames between the delta's post and the drain of its acknowledging answer");
   const hm = n.rust.main.hang;
   const hw = n.rust.worker.hang;
   const hangOk = (h) => h.detectMs !== null && h.detectMs <= 400 && h.runningAgainMs !== null && h.runningAgainMs <= 1500 && h.longestFrameMs !== null && h.longestFrameMs <= 33;
@@ -239,16 +239,16 @@ function table(n) {
   return rows;
 }
 
-/** The decision rule of the spec. */
+/** The decision rule between the two hosts. */
 function decide(rows) {
   const by = Object.fromEntries(rows.map((r) => [r.metric.split(",")[0], r]));
   const workerFails = rows.filter((r) => r.okWorker === false).map((r) => r.metric);
   const n6 = ["JS in a frame with changes", "heap", "GC peak pause", "skin JS"];
-  const mainPassesN6 = n6.every((k) => by[k]?.okMain !== false);
+  const mainPassesScripts = n6.every((k) => by[k]?.okMain !== false);
   if (!workerFails.length) return { rule: 1, text: "worker: every threshold is met (the preliminary choice stands)", workerFails };
-  const onlyOverheadOrN3 = workerFails.every((m) => /overhead|N3/.test(m));
-  if (onlyOverheadOrN3 && mainPassesN6) {
-    return { rule: 2, text: `main thread passes N6 and the worker misses only ${workerFails.join("; ")}: a question to the operator (the main thread cannot interrupt a hung script)`, workerFails };
+  const onlyOverheadOrAnswers = workerFails.every((m) => /overhead|updates answered/.test(m));
+  if (onlyOverheadOrAnswers && mainPassesScripts) {
+    return { rule: 2, text: `main thread passes the script budgets and the worker misses only ${workerFails.join("; ")}: a question for the maintainer (the main thread cannot interrupt a hung script)`, workerFails };
   }
-  return { rule: 3, text: `the worker misses ${workerFails.join("; ")}${mainPassesN6 ? "" : " and the main thread misses N6 too"}: cut the skin budgets and measure again`, workerFails };
+  return { rule: 3, text: `the worker misses ${workerFails.join("; ")}${mainPassesScripts ? "" : " and the main thread misses the script budgets too"}: cut the skin budgets and measure again`, workerFails };
 }

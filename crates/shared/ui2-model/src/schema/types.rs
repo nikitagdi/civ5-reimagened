@@ -170,7 +170,7 @@ pub struct EnumDef {
     pub variants: Vec<String>,
 }
 
-/// An intent: a named command with typed arguments (see the actions spec).
+/// An intent: a named command with typed arguments.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IntentDef {
     pub name: String,

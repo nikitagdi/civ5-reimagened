@@ -18,7 +18,7 @@ pub use command::{Command, CommandError, PurchaseWith, RawCommand};
 pub use event::{AutoChoiceKind, GameEvent, MessageSource, MessageType};
 pub use game::{Game, GameError, PumpResult};
 /// The core's error, the payload of [`GameError::Core`]: re-exported so that crates which may not link
-/// `gamecore-sys` (rule R10) can tell "not implemented in this core" from other failures.
+/// `gamecore-sys` (a layer rule) can tell "not implemented in this core" from other failures.
 pub use gamecore_sys::GcError;
 pub use gamecore_sys::IMPLEMENTATION;
 pub use host::{HostServices, LogLevel};

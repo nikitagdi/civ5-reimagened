@@ -6,7 +6,7 @@
 //! while the replica follows the journal.
 //!
 //! The record types are `gamecore`'s; they are re-exported here because a client crate other than `replica` may
-//! not depend on `gamecore` (rule R10).
+//! not depend on `gamecore` (a layer rule).
 
 pub use gamecore::{
     Activity, BuildFlags, CatalogEntry, CatalogTable, City, CityBuild, CityFlags, CityOrder,

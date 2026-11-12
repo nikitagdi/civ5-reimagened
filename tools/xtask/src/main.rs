@@ -500,7 +500,7 @@ fn build_dist_web(
 /// the case `replica_load` in headless Chromium (`tools/web-selftest/run.mjs`): the scripted replica of the
 /// fixture (made by `cargo test -p replica --test real_replica` with `REPLICA_FIXTURE_OUT=<dir>` on Linux/WSL)
 /// joins on a snapshot, applies the journal, changes turns by snapshot and by patch, and its digest must equal the
-/// server's after each step. The report (the metrics of AC-G4 in the browser) is printed. The scenario `ui2-getters`
+/// server's after each step. The report (the load and memory metrics in the browser) is printed. The scenario `ui2-getters`
 /// instead times every `GameRead` method of the real core on the late-huge fixture (`--seat` joins as that seat,
 /// `--out` writes the table as JSON). The scenario `ui2-r17` runs the replica-untouched test of the UI v2 source
 /// and actions on the wasm core (the `small` fixture, else `tiny`; `--seat` as above).
@@ -851,7 +851,7 @@ fn check_gateway_without_brain(root: &Path) -> Result<()> {
     Ok(())
 }
 
-/// R17: the library code of the UI v2 crates (`crates/{client,shared}/ui2-*/src`) calls no writer of the replica
+/// The library code of the UI v2 crates (`crates/{client,shared}/ui2-*/src`) calls no writer of the replica
 /// (`Replica::{engine_mut, post_net, on_msg, pump, blob}`); the crates without a `replica` dependency cannot.
 fn check_ui2_reads_replica_only(root: &Path) -> Result<()> {
     fn walk(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
@@ -897,7 +897,7 @@ fn check_ui2_reads_replica_only(root: &Path) -> Result<()> {
     let bad =
         checks::replica_writes_in_ui2(texts.iter().map(|(p, t)| (p.as_str(), t.as_str())), &names);
     if !bad.is_empty() {
-        bail!("UI v2 changes the replica (R17):\n  {}", bad.join("\n  "));
+        bail!("UI v2 changes the replica:\n  {}", bad.join("\n  "));
     }
     println!("UI v2 reads the replica only: ok ({})", names.join(", "));
     Ok(())
@@ -967,7 +967,7 @@ fn cmd_check(root: &Path) -> Result<()> {
         check_gateway_without_brain(root),
     );
     step(
-        "UI v2 reads the replica only (R17)",
+        "UI v2 reads the replica only",
         check_ui2_reads_replica_only(root),
     );
     step("gamecore ABI header", check_gc_header(root));

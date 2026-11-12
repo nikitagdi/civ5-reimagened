@@ -1,5 +1,5 @@
 //! Non-cargo checks: `.wasm` imports, forbidden game files (S8), the gamecore ABI header copy and the
-//! gateway without a brain (GH-D2), the UI v2 crates that only read the replica (R17).
+//! gateway without a brain (GH-D2), the UI v2 crates that only read the replica.
 
 use anyhow::{Result, bail};
 
@@ -187,7 +187,7 @@ pub fn depends_on_replica(manifest: &str) -> bool {
     false
 }
 
-/// R17: lines of the library code of the UI v2 crates that call a writer of the replica
+/// Lines of the library code of the UI v2 crates that call a writer of the replica
 /// (`Replica::{engine_mut, post_net, on_msg, pump, blob}`). `files` are `(path relative to the repository root,
 /// text)`; only `crates/{client,shared}/ui2-*/src/` of the crates named in `replica_crates` (the ones that depend
 /// on `replica`, see [`depends_on_replica`]) are looked at: a crate without that dependency cannot hold a replica,

@@ -172,7 +172,7 @@ named_enum! {
 }
 
 named_enum! {
-    /// An element of the profile (HTML section 2 of the profile spec).
+    /// An element of the profile (the HTML part of the profile).
     Tag {
         Html => "html",
         Head => "head",
