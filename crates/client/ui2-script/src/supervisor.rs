@@ -243,6 +243,11 @@ impl ScriptSupervisor {
             .map(|c| c.status.clone())
     }
 
+    /// Every context and where it is, in the order they were started.
+    pub fn contexts(&self) -> impl Iterator<Item = (ScriptCtxId, ScriptStatus)> + '_ {
+        self.ctxs.iter().map(|c| (c.id.clone(), c.status.clone()))
+    }
+
     /// The names a context's scripts gave to `ui.on`, as reported in `ready`.
     #[must_use]
     pub fn handlers(&self, ctx: &ScriptCtxId) -> &[String] {
