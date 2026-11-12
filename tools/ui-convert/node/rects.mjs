@@ -81,7 +81,9 @@ function dumpInPage() {
     if (r.right <= right + 1 / 64 + 0.001) return r;
     const probe = document.createElement("span");
     probe.textContent = "…";
-    probe.style.cssText = `position:absolute;left:0;top:0;white-space:pre;font:${cs.font};letter-spacing:${cs.letterSpacing};font-variant-numeric:${cs.fontVariantNumeric}`;
+    // The font by its parts: the `font` shorthand serialises to "" when a longhand it cannot express (such as
+    // `font-variant-numeric`) is set, and the probe would then measure in the body's font.
+    probe.style.cssText = `position:absolute;left:0;top:0;white-space:pre;font-family:${cs.fontFamily};font-size:${cs.fontSize};font-weight:${cs.fontWeight};font-style:${cs.fontStyle};font-stretch:${cs.fontStretch};letter-spacing:${cs.letterSpacing};font-variant-numeric:${cs.fontVariantNumeric}`;
     document.body.appendChild(probe);
     const ell = probe.getBoundingClientRect().width;
     probe.remove();

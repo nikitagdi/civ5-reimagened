@@ -459,7 +459,8 @@ impl Runtime {
     }
 
     /// The rectangles of the laid-out boxes and text leaves, in the converter's rectangle dump format: the
-    /// whole document, or the subtree of the first node with a `data-part` name (empty when there is none).
+    /// whole document, or the subtree of the first node with a `data-part` name (empty when there is none). A map
+    /// anchor the host placed is listed where the screen shows it, one off the screen not at all.
     pub fn dump_rects(&self, part: Option<&str>) -> Vec<ElementRect> {
         let under = match part {
             Some(name) => match self.find_part(name) {
@@ -468,6 +469,12 @@ impl Runtime {
             },
             None => None,
         };
-        debug::dump(&self.arena, &*self.pkg, &self.style_index, under)
+        debug::dump(
+            &self.arena,
+            &*self.pkg,
+            &self.style_index,
+            under,
+            Some((&self.anchors, self.style_env.scale.k)),
+        )
     }
 }

@@ -15,7 +15,8 @@
 //     [--bench-cities 80] [--bench-turns 8] [--bench-phase-s 10] [--bench-size 1920x1080] [--bench-label name]
 // `CIV5_BENCH_UI=v2` (or `v2:<skin>`): the game runs with the new UI (`?ui=v2`, its map banners included) instead of
 // the interim panels; compare a run with it against one without (`cargo xtask bench --compare`) for the cost of the
-// UI v2 layers. The value is in `meta.ui` of the report.
+// UI v2 layers. The value is in `meta.ui` of the report. `CIV5_BENCH_UI2ONMAP=0` with it turns the skin's map layer (city
+// banners, unit flags) off (`&ui2onmap=0`): a run with it against one without is the cost of that layer.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -26,10 +27,11 @@ import { installProbe, now, drain, phaseRecord, frames, round, docState } from "
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PASSWORD = "dev";
 
-/** The `ui` parameter of the game page: `CIV5_BENCH_UI` (`v2`, `v2:<skin>`) or the interim panels. */
+/** The `ui` parameter of the game page: `CIV5_BENCH_UI` (`v2`, `v2:<skin>`) or the interim panels; `ui2onmap` with it. */
 export function benchUi(env = process.env) {
   const v = (env.CIV5_BENCH_UI ?? "").trim();
-  return /^v2(:[A-Za-z0-9_-]+)?$/.test(v) ? { ui: v } : INTERIM;
+  if (!/^v2(:[A-Za-z0-9_-]+)?$/.test(v)) return INTERIM;
+  return env.CIV5_BENCH_UI2ONMAP === "0" ? { ui: v, ui2onmap: "0" } : { ui: v };
 }
 
 /** The camera path: key, hold ms. A rectangle over the map at the normal pan speed, twice. */

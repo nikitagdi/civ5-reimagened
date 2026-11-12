@@ -1,0 +1,144 @@
+{
+  "model": {
+    "meta": {
+      "schema": "1.0",
+      "source": "replica",
+      "live": true,
+      "catching_up": false,
+      "connected": true
+    },
+    "game": {
+      "turn": 87,
+      "year": 1250,
+      "year_text": { "k": "year.ad", "a": ["1250"] },
+      "era": { "id": 3, "name": "Medieval era" },
+      "me": "0:0",
+      "phase": "humans",
+      "mode": "simultaneous",
+      "winner": null
+    },
+    "top": {
+      "science_rate": 48,
+      "gold": 312,
+      "gold_rate": 21,
+      "happiness": 7,
+      "mood": "content",
+      "golden_age": { "active": false, "turns": 0, "progress": 412, "threshold": 650 },
+      "culture": 214,
+      "culture_rate": 31,
+      "policy_cost": 400,
+      "policy_turns": 6,
+      "faith": 140,
+      "faith_rate": 9,
+      "tourism": 4,
+      "resources": [
+        { "id": "0:1", "name": "Horses", "icon": "icon:RESOURCE_ATLAS:1", "available": 2, "used": 0, "total": 2 },
+        { "id": "0:2", "name": "Iron", "icon": "icon:RESOURCE_ATLAS:2", "available": 4, "used": 0, "total": 4 },
+        { "id": "0:3", "name": "Coal", "icon": "icon:RESOURCE_ATLAS:3", "available": 0, "used": 3, "total": 3 }
+      ],
+      "policies": [
+        { "id": 1, "name": "Tradition", "unlocked": true, "owned": 4, "total": 5 },
+        { "id": 2, "name": "Patronage", "unlocked": true, "owned": 1, "total": 5 }
+      ]
+    },
+    "research": {
+      "current": { "id": "0:41", "name": "Education", "icon": "icon:TECH_ATLAS:41", "turns": 3, "progress": 248, "cost": 400, "fraction": 0.62 },
+      "next": { "id": "0:42", "name": "Astronomy", "icon": "icon:TECH_ATLAS:42", "turns": null, "progress": 0, "cost": 520, "fraction": 0.0 },
+      "queue": [],
+      "options": [],
+      "known": true,
+      "blocked": false
+    },
+    "turn": {
+      "state": "unit_needs_orders",
+      "blocker": null,
+      "units_waiting": 5,
+      "finished": false,
+      "can_cancel": false,
+      "timer": null,
+      "ready": 3,
+      "humans": 4,
+      "seats": [
+        { "player": "0:0", "name": "Catherine", "me": true, "finished": false, "may_act": true, "online": true },
+        { "player": "0:1", "name": "Harun al-Rashid", "me": false, "finished": true, "may_act": true, "online": true },
+        { "player": "0:2", "name": "Montezuma", "me": false, "finished": true, "may_act": true, "online": true },
+        { "player": "0:3", "name": "Ramesses", "me": false, "finished": true, "may_act": true, "online": true }
+      ]
+    },
+    "map": {
+      "cities": [
+        { "key": "0:1", "owner": "0:0", "color": 1847335167, "color2": 3837808383, "name": "Novgorod", "plot": { "x": 14, "y": 22 }, "size": 8, "capital": false, "mine": true, "visible": true, "puppet": false, "razing": false, "occupied": false, "resistance": false, "can_shoot": false, "strength": 18, "hp_fraction": 1.0, "growth_turns": 9, "production": { "item": "0:21", "name": "Longswordsman", "icon": "icon:UNIT_ATLAS:21", "turns": 2, "fraction": 0.64 } },
+        { "key": "0:2", "owner": "0:0", "color": 1847335167, "color2": 3837808383, "name": "Moscow", "plot": { "x": 21, "y": 25 }, "size": 14, "capital": true, "mine": true, "visible": true, "puppet": false, "razing": false, "occupied": false, "resistance": false, "can_shoot": true, "strength": 31, "hp_fraction": 0.75, "growth_turns": 4, "production": { "item": "1:5", "name": "Machu Picchu", "icon": "icon:WONDER_ATLAS:5", "turns": 6, "fraction": 0.43 } },
+        { "key": "0:3", "owner": "0:0", "color": 1847335167, "color2": 3837808383, "name": "Kazan", "plot": { "x": 27, "y": 19 }, "size": 5, "capital": false, "mine": true, "visible": true, "puppet": false, "razing": false, "occupied": false, "resistance": false, "can_shoot": false, "strength": 12, "hp_fraction": 1.0, "growth_turns": null, "production": null },
+        { "key": "1:4", "owner": "0:2", "color": 2686660863, "color2": 816998143, "name": "Tenochtitlan", "plot": { "x": 33, "y": 30 }, "size": 11, "capital": true, "mine": false, "visible": false, "puppet": false, "razing": false, "occupied": false, "resistance": false, "can_shoot": false, "strength": 25, "hp_fraction": 1.0, "growth_turns": null, "production": null }
+      ],
+      "units": [
+        { "key": "0:7", "owner": "0:0", "color": 1847335167, "color2": 3837808383, "plot": { "x": 20, "y": 26 }, "icon": "icon:UNIT_FLAG_ATLAS:12", "hp_fraction": 1.0, "domain": "land", "mine": true, "waiting": true, "at_war": false, "cargo": false },
+        { "key": "1:9", "owner": "0:2", "color": 2686660863, "color2": 816998143, "plot": { "x": 22, "y": 27 }, "icon": "icon:UNIT_FLAG_ATLAS:3", "hp_fraction": 0.4, "domain": "sea", "mine": false, "waiting": false, "at_war": true, "cargo": false }
+      ]
+    },
+    "notes": [
+      { "id": "0:11", "category": "growth", "message": "The city of Novgorod has grown to size 8.", "summary": "Novgorod has grown to size 8", "turn": 86, "plot": { "x": 14, "y": 22 } },
+      { "id": "0:12", "category": "great_people", "message": "A Great Scientist has been born in Moscow.", "summary": "Great Scientist born in Moscow", "turn": 86, "plot": { "x": 21, "y": 25 } },
+      { "id": "0:13", "category": "diplomacy", "message": "Montezuma has denounced you.", "summary": "Montezuma denounced you", "turn": 87, "plot": null },
+      { "id": "0:14", "category": "military", "message": "Barbarians have been spotted near Kazan.", "summary": "Barbarians spotted near Kazan", "turn": 87, "plot": { "x": 27, "y": 19 } }
+    ],
+    "players": [
+      { "id": "0:0", "leader": "Catherine", "civ": "Russia", "nick": "Catherine", "color": 1847335167, "color2": 3837808383, "human": true, "alive": true, "met": true, "at_war": false, "me": true },
+      { "id": "0:1", "leader": "Harun al-Rashid", "civ": "Arabia", "nick": null, "color": 811745535, "color2": 2411499519, "human": true, "alive": true, "met": true, "at_war": false, "me": false },
+      { "id": "0:2", "leader": "Montezuma", "civ": "Aztec", "nick": "Montezuma", "color": 2686660863, "color2": 816998143, "human": true, "alive": true, "met": true, "at_war": false, "me": false },
+      { "id": "0:3", "leader": "Ramesses", "civ": "Egypt", "nick": "Ramesses", "color": 3873892095, "color2": 1414276607, "human": false, "alive": true, "met": true, "at_war": false, "me": false }
+    ],
+    "chat": [
+      { "seq": "0:1", "from": "Catherine", "from_player": "0:0", "to": "all", "text": "Good luck, all", "turn": 84, "mine": true },
+      { "seq": "0:2", "from": "Ramesses", "from_player": "0:3", "to": "all", "text": "The river is mine", "turn": 85, "mine": false },
+      { "seq": "0:3", "from": "Harun al-Rashid", "from_player": "0:1", "to": "player", "text": "Open borders for ten gold a turn? Our offer holds while all caravans wait by the wells", "turn": 86, "mine": false },
+      { "seq": "0:4", "from": "Montezuma", "from_player": "0:2", "to": "all", "text": "Done here, waiting on Ramesses", "turn": 87, "mine": false }
+    ],
+    "unit": {
+      "key": "0:7",
+      "name": "Bogatyr",
+      "type_name": "Knight",
+      "portrait": "",
+      "level": 2,
+      "xp": 12,
+      "strength": 20,
+      "ranged": 0,
+      "range": 0,
+      "moves": 2.0,
+      "max_moves": 4,
+      "hp": 100,
+      "max_hp": 100,
+      "hp_fraction": 1.0,
+      "domain": "land",
+      "activity": "awake",
+      "promotions": [],
+      "promotion_ready": true,
+      "actions": [
+        { "kind": "move", "enabled": true, "reason": null, "supported": true },
+        { "kind": "fortify", "enabled": true, "reason": null, "supported": true },
+        { "kind": "sleep", "enabled": true, "reason": null, "supported": true },
+        { "kind": "alert", "enabled": true, "reason": null, "supported": false },
+        { "kind": "pillage", "enabled": false, "reason": "Nothing to pillage here", "supported": false },
+        { "kind": "upgrade", "enabled": false, "reason": "Needs Chivalry", "supported": false },
+        { "kind": "disband", "enabled": true, "reason": null, "supported": true }
+      ],
+      "act": {
+        "move": { "shown": true, "enabled": true, "reason": null },
+        "fortify": { "shown": true, "enabled": true, "reason": null },
+        "sleep": { "shown": true, "enabled": true, "reason": null },
+        "alert": { "shown": true, "enabled": true, "reason": null },
+        "pillage": { "shown": true, "enabled": false, "reason": "Nothing to pillage here" },
+        "upgrade": { "shown": true, "enabled": false, "reason": "Needs Chivalry" },
+        "disband": { "shown": true, "enabled": true, "reason": null }
+      },
+      "pending": false
+    }
+  },
+  "state": { "chat": { "draft": "See you at the river", "pick": true }, "top": { "menu": true } },
+  "ui": {
+    "selection": { "unit": "0:7", "city": null, "plot": { "x": 20, "y": 26 } },
+    "chat": { "to": "player", "to_player": "0:1" }
+  },
+  "anchors": {}
+}

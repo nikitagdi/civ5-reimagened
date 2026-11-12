@@ -547,11 +547,14 @@ api = "1.0"
         assert_eq!(
             skin.state.into_iter().collect::<Vec<_>>(),
             [
+                ("chat.draft".to_string(), StateValue::Str(String::new())),
+                ("chat.pick".to_string(), StateValue::Bool(false)),
                 ("prod.hide_locked".to_string(), StateValue::Bool(false)),
                 (
                     "prod.sort".to_string(),
                     StateValue::Str("order".to_string())
                 ),
+                ("top.menu".to_string(), StateValue::Bool(false)),
             ]
         );
         assert_eq!(skin.scripts.files, ["js/production.js"]);
@@ -561,6 +564,7 @@ api = "1.0"
             [
                 "hud",
                 "hud-timer",
+                "hud-chat",
                 "production",
                 "production-sorted",
                 "research"

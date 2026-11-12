@@ -221,6 +221,8 @@ pub fn start_with(mut hooks: client_app::mod_hooks::ModHooks) {
             dev: page::query_param("ui2dev").filter(|u| !u.trim().is_empty()),
             // `&ui2sample=<state>`: the skin runs on its sample instead of a game.
             sample: page::query_param("ui2sample").filter(|s| client_app::valid_ui2_sample(s)),
+            // `&ui2onmap=0`: the skin's city banners and unit flags are off (the bench's measure of the layer).
+            map_off: page::query_param("ui2onmap").as_deref() == Some("0"),
         }),
     };
     let config = AppConfig {

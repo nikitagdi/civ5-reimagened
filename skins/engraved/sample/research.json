@@ -195,6 +195,7 @@
   },
   "state": {},
   "ui": {
+    "chat": { "to": "all", "to_player": null },
     "windows": {
       "research": {
         "open": true

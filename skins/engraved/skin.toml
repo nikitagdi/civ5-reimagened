@@ -20,9 +20,13 @@ display = "Alegreya"
 "fonts/FiraSans-Medium.ttf" = "third_party/fonts/fira-sans/FiraSans-Medium.ttf"
 "fonts/Alegreya.ttf" = "third_party/fonts/alegreya/Alegreya[wght].ttf"
 
-# Skin state (state.*): how the production window sorts its options and whether it hides the locked ones.
+# Skin state (state.*): how the production window sorts its options and whether it hides the locked ones; the chat
+# line being written and whether the choice of its addressee is open; whether the folded screen buttons of a narrow
+# top strip are open.
 [state]
 prod = { sort = "order", hide_locked = false }
+chat = { draft = "", pick = false }
+top = { menu = false }
 
 # The production window's script: arrow keys move the focus; the sort is kept in the settings.
 [scripts]
@@ -30,5 +34,5 @@ files = ["js/production.js"]
 reads = ["production"]
 
 [verify]
-states = ["hud", "hud-timer", "production", "production-sorted", "research"]
+states = ["hud", "hud-timer", "hud-chat", "production", "production-sorted", "research"]
 golden = [{ state = "hud", viewport = [1920, 1080], scale = 1.0 }]
