@@ -1,0 +1,59 @@
+/* Engraved: tooltips (the tooltip layer). The runtime puts a tooltip's root under the hovered node by `left`/`top`;
+   the root is positioned absolutely in the layer. */
+
+.tip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 264px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--bone-2);
+  background-color: var(--lacquer-0);
+  box-shadow: inset 0 0 0 1px var(--engrave-hi), 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.tip .th {
+  font-weight: 500;
+  color: var(--bone);
+}
+
+.tip .tl {
+  color: var(--bone-2);
+}
+
+.tip .tl.lk {
+  color: var(--bone-3);
+}
+
+.tip .trow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.tip .trow .n {
+  font-weight: 500;
+  color: var(--bone);
+}
+
+.tip .trow.off {
+  color: var(--bone-3);
+}
+
+.tip .trow.off .n {
+  color: var(--bone-3);
+}
+
+.tip .tgrp,
+.tip .topt {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

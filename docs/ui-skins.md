@@ -292,12 +292,15 @@ This is what a skin author uses most.
 - **Texts.** `data-l10n="<key>"` with `data-l10n-args` for the arguments, as in `"top.turns" = "{1_Num}
   {1_Num: plural 1?turn; other?turns;}"`. A key is lower case words joined by dots.
 - **Less common attributes.** `data-asset="render:minimap"` shows a game asset (the element needs a size in CSS).
-  `data-tooltip="<id>"` names a `<template data-layer="tooltip" id="<id>">`. `data-control` makes a checkbox,
+  `data-tooltip="<id>"` names a `<template data-layer="tooltip" id="<id>">`, a child of the `tooltip` layer root
+  that holds exactly one element; while the node is hovered the runtime shows that element in the tooltip layer
+  under the node. Its bindings read the model and the skin state, not the loop variables of the node: a row of a
+  list names its item through `ui.*` (the production rows set `ui.production.hover`). `data-control` makes a checkbox,
   toggle, radio, slider or select that writes a state value named by `data-bind-model="state.x"`.
   `data-anchor="city:{{ c.id }}"` (also `unit` and `plot`) pins an element to a map object; it goes on the node
   with `data-bind-for`, in the `map` layer. `data-fit="shrink"` with `data-fit-min` shrinks text to fit.
   `data-ui2-island` marks a part of the page that a script drives (see "Skin scripts"). `skins/engraved` uses
-  `data-asset` and does not use the others; the attribute grammar is in the profile file and its error texts are
+  `data-asset` and `data-tooltip` (`parts/tips.html`) and not the others; the attribute grammar is in the profile file and its error texts are
   in "Error codes".
 
 ### Tokens

@@ -48,3 +48,5 @@ mod-api.workspace = true
 [dev-dependencies]
 # The written skin index must be accepted by the application's registry.
 ui2-host.workspace = true
+# Pointer events for the tooltips of the built skin.
+platform.workspace = true

@@ -145,6 +145,13 @@
 "turn.ready_of" = "{1_Num} of {2_Num}"
 "turn.you" = "you"
 
+# Tooltips: the policies button of the top strip, a row of the production list.
+"tip.policies.title" = "Social policies"
+"tip.policies.next" = "Next policy in {1_Num} {1_Num: plural 1?turn; other?turns;}"
+"tip.policies.owned" = "{1_Num} of {2_Num}"
+"tip.option.cost" = "{1_Num} production"
+"tip.option.hint" = "Click to see it in detail"
+
 # Year line of the turn dial (the model gives the key and the year).
 "year.ad" = "{1} AD"
 "year.bc" = "{1} BC"
