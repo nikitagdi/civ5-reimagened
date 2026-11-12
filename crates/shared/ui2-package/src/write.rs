@@ -30,7 +30,7 @@ use crate::sections::l10n::{L10n, Lang};
 use crate::sections::manifest::Manifest;
 use crate::sections::srcmap::{SrcLoc, SrcMap};
 use crate::sections::strings::StrPool;
-use crate::sections::styles::{Bound, StyleSet, Styles};
+use crate::sections::styles::{Bound, StylePatches, StyleSet, Styles};
 use crate::sections::templates::{Template, Templates};
 use crate::sections::tokens::{Theme, Tokens};
 use crate::style::StyleRecord;
@@ -461,6 +461,11 @@ impl PackageBuilder {
         for s in &mut styles.sets {
             s.remap(&remap);
         }
+        // Every record after the first is stored as a patch of an earlier one (`STYP`); a package
+        // of one record has no `STYP` and stays a format 1.0 package.
+        let (whole, patches) = StylePatches::split(std::mem::take(&mut styles.records))
+            .map_err(|e| PackageError::build(format!("encoding failed: {e}")))?;
+        styles.records = whole;
         let mut tokens = self.tokens;
         tokens.remap(&remap);
 
@@ -584,6 +589,9 @@ impl PackageBuilder {
             section(SectionTag::L10N, postcard::to_allocvec(&l10n))?,
             section(SectionTag::EXTN, postcard::to_allocvec(&extn))?,
         ];
+        if !patches.items.is_empty() {
+            sections.push(section(SectionTag::STYP, postcard::to_allocvec(&patches))?);
+        }
         if let Some(map) = &srcmap {
             sections.push(OutSection {
                 tag: SectionTag::SRCM,

@@ -49,11 +49,13 @@ pub fn range_of(bytes: &[u8], tag: &[u8; 4]) -> std::ops::Range<usize> {
 
 /// Writes a file: header, table, sections 8-aligned in the given order, zero padding, hash. The
 /// order is not sorted and nothing is checked, so a test can lay out what the reader must refuse.
+/// The format minor is the writer's: 1 with a `STYP` section, else 0.
 pub fn assemble(entries: &[Entry]) -> Vec<u8> {
+    let minor = u16::from(entries.iter().any(|e| &e.tag == b"STYP"));
     let mut out = Vec::new();
     out.extend_from_slice(b"C5UI2PKG");
     out.extend_from_slice(&1u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
+    out.extend_from_slice(&minor.to_le_bytes());
     out.extend_from_slice(&(entries.len() as u32).to_le_bytes());
     let mut offset = HEADER + ENTRY * entries.len();
     let mut starts = Vec::new();

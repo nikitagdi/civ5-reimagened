@@ -19,8 +19,9 @@ use crate::error::PackageError;
 pub const MAGIC: [u8; 8] = *b"C5UI2PKG";
 /// Format major written and understood by this crate.
 pub const FORMAT_MAJOR: u16 = 1;
-/// Format minor written by this crate.
-pub const FORMAT_MINOR: u16 = 0;
+/// The newest format minor this crate reads and writes. A written package names the lowest minor
+/// that has every section it holds: 0, or 1 when it has `STYP`.
+pub const FORMAT_MINOR: u16 = 1;
 /// Most sections one package may hold.
 pub const MAX_SECTIONS: usize = 32;
 /// The reader's hard size limit (the converter enforces the much smaller skin budget).
@@ -46,6 +47,8 @@ impl SectionTag {
     pub const TMPL: SectionTag = SectionTag(*b"TMPL");
     /// Baked styles.
     pub const STYL: SectionTag = SectionTag(*b"STYL");
+    /// Style records stored as patches of earlier records (format minor 1).
+    pub const STYP: SectionTag = SectionTag(*b"STYP");
     /// Color tokens and themes.
     pub const TOKN: SectionTag = SectionTag(*b"TOKN");
     /// Bindings, expressions, intents and state.
@@ -224,8 +227,17 @@ pub(crate) struct OutSection {
     pub payload: Vec<u8>,
 }
 
+/// The lowest format minor that has every section of `tags`.
+#[cfg(feature = "write")]
+fn minor_of(tags: impl Iterator<Item = SectionTag>) -> u16 {
+    tags.map(|t| u16::from(t == SectionTag::STYP))
+        .max()
+        .unwrap_or(0)
+}
+
 /// Lays the sections out in ascending tag order, 8-aligned, zero padded, and appends the hash.
-/// The result is a pure function of the sections.
+/// The header names the lowest format minor that has every section. The result is a pure
+/// function of the sections.
 #[cfg(feature = "write")]
 pub(crate) fn assemble(mut sections: Vec<OutSection>) -> Result<Vec<u8>, PackageError> {
     sections.sort_by_key(|s| s.tag);
@@ -240,7 +252,7 @@ pub(crate) fn assemble(mut sections: Vec<OutSection>) -> Result<Vec<u8>, Package
     let mut out = Vec::with_capacity(table_end);
     out.extend_from_slice(&MAGIC);
     out.extend_from_slice(&FORMAT_MAJOR.to_le_bytes());
-    out.extend_from_slice(&FORMAT_MINOR.to_le_bytes());
+    out.extend_from_slice(&minor_of(sections.iter().map(|s| s.tag)).to_le_bytes());
     out.extend_from_slice(&(sections.len() as u32).to_le_bytes());
     let mut offset = table_end;
     let mut offsets = Vec::with_capacity(sections.len());

@@ -834,7 +834,35 @@ macro_rules! style_record {
             pub transitions: Vec<Transition>,
         }
 
+        /// One field of a `StyleRecord` with its value: what a stored patch (`STYP`) changes in
+        /// its base record. The variants follow the fields in declaration order.
+        #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+        pub enum StyleField {
+            $(
+                #[doc = concat!("`", stringify!($prop), "`.")]
+                $prop($ty),
+            )*
+            /// The baked transitions.
+            Transitions(Vec<Transition>),
+        }
+
         impl StyleRecord {
+            /// Every field of the record with its value, in declaration order.
+            pub fn fields(&self) -> Vec<StyleField> {
+                vec![
+                    $(StyleField::$prop(self.$field.clone()),)*
+                    StyleField::Transitions(self.transitions.clone()),
+                ]
+            }
+
+            /// Sets one field.
+            pub fn apply(&mut self, field: StyleField) {
+                match field {
+                    $(StyleField::$prop(v) => self.$field = v,)*
+                    StyleField::Transitions(v) => self.transitions = v,
+                }
+            }
+
             /// Which properties each field holds. A test keeps it equal to `PropId::ALL` and to
             /// the rows of `profile.toml`.
             pub const FIELDS: &'static [(&'static str, &'static [PropId])] = &[

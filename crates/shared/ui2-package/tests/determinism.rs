@@ -58,8 +58,8 @@ fn the_file_is_laid_out_by_the_rules() {
     }
     // Every section of the format is there.
     for tag in [
-        *b"MANI", *b"STRS", *b"TMPL", *b"STYL", *b"TOKN", *b"BIND", *b"L10N", *b"EXTN", *b"SRCM",
-        *b"FONT", *b"IMGS", *b"SCRP", *b"AREF",
+        *b"MANI", *b"STRS", *b"TMPL", *b"STYL", *b"STYP", *b"TOKN", *b"BIND", *b"L10N", *b"EXTN",
+        *b"SRCM", *b"FONT", *b"IMGS", *b"SCRP", *b"AREF",
     ] {
         assert!(entries.iter().any(|e| e.tag == tag), "{}", SectionTag(tag));
     }

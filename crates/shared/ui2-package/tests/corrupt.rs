@@ -20,8 +20,8 @@ fn corrupt(at: Option<[u8; 4]>) -> PackageError {
     }
 }
 
-const STRUCTURAL: [&[u8; 4]; 9] = [
-    b"MANI", b"STRS", b"TMPL", b"STYL", b"TOKN", b"BIND", b"L10N", b"EXTN", b"SRCM",
+const STRUCTURAL: [&[u8; 4]; 10] = [
+    b"MANI", b"STRS", b"TMPL", b"STYL", b"STYP", b"TOKN", b"BIND", b"L10N", b"EXTN", b"SRCM",
 ];
 const BLOBS: [&[u8; 4]; 3] = [b"FONT", b"IMGS", b"SCRP"];
 
@@ -54,7 +54,7 @@ fn a_flipped_bit_in_any_section_breaks_the_hash() {
 fn a_flipped_bit_in_the_header_the_table_or_the_tail_is_refused() {
     let bytes = mini::build();
     let body = bytes.len() - HASH;
-    for i in (0..HEADER + ENTRY * 13).chain(body..bytes.len()) {
+    for i in (0..HEADER + ENTRY * 14).chain(body..bytes.len()) {
         for bit in 0..8 {
             let mut damaged = bytes.clone();
             damaged[i] ^= 1 << bit;

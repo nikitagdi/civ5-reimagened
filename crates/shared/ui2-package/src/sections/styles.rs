@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::container::SectionTag;
 use crate::error::PackageError;
 use crate::ids::{StrId, StyleId};
-use crate::style::{Finite, StyleRecord};
+use crate::style::{Finite, StyleField, StyleRecord};
 
 /// Most dynamic conditions one node may depend on.
 pub const MAX_CONDS: usize = 4;
@@ -95,6 +95,115 @@ pub struct Styles {
     pub records: Vec<StyleRecord>,
     /// The sets, in order of first use.
     pub sets: Vec<StyleSet>,
+}
+
+/// One record of `STYP`: an earlier record with some fields replaced.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StylePatch {
+    /// The record it starts from; always an earlier record (a smaller id than this one's).
+    pub base: StyleId,
+    /// The fields that differ from the base, in declaration order.
+    pub fields: Vec<StyleField>,
+}
+
+/// The section `STYP` (format minor 1): records stored as patches of earlier records. A package
+/// with breakpoints holds many records that differ from another one in a few fields (a node in
+/// another viewport cell, a hover variant); storing them whole repeats the rest. Record ids
+/// count the records of `STYL` first and then these, in order: patch `i` is record
+/// `STYL.records.len() + i`. The reader expands every patch into a whole record, so `Styles`
+/// (and the runtime) never sees the difference.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct StylePatches {
+    /// The patches, in record order.
+    pub items: Vec<StylePatch>,
+}
+
+impl StylePatches {
+    /// Expands the patches into whole records appended to `styles.records`. A base that is not
+    /// an earlier record is `Invalid`.
+    pub(crate) fn expand(self, at: SectionTag, styles: &mut Styles) -> Result<(), PackageError> {
+        styles.records.reserve(self.items.len());
+        for (i, p) in self.items.into_iter().enumerate() {
+            let Some(base) = styles.records.get(p.base.index()) else {
+                return Err(PackageError::invalid(
+                    at,
+                    format!(
+                        "patch {i}: the base record {} is not an earlier record",
+                        p.base.0
+                    ),
+                ));
+            };
+            let mut r = base.clone();
+            for f in p.fields {
+                r.apply(f);
+            }
+            styles.records.push(r);
+        }
+        Ok(())
+    }
+
+    /// Splits whole records into the first record (kept in `STYL`) and patches of the rest. Each
+    /// later record is a patch of the earlier record that leaves the fewest bytes to store; the
+    /// result is a pure function of the records. Fields compare by their encoded bytes, so a patch
+    /// restores a record bit for bit (`-0.0` stays `-0.0`).
+    #[cfg(feature = "write")]
+    pub(crate) fn split(
+        mut records: Vec<StyleRecord>,
+    ) -> Result<(Vec<StyleRecord>, StylePatches), postcard::Error> {
+        let mut enc: Vec<Vec<Vec<u8>>> = Vec::with_capacity(records.len());
+        for r in &records {
+            let fields = r.fields();
+            let mut row = Vec::with_capacity(fields.len());
+            for f in &fields {
+                row.push(postcard::to_allocvec(f)?);
+            }
+            enc.push(row);
+        }
+        // A cheap stand-in per field for the search; the patch itself compares the bytes.
+        let hash = |b: &[u8]| {
+            b.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, &x| {
+                (h ^ u64::from(x)).wrapping_mul(0x0100_0000_01b3)
+            })
+        };
+        let keys: Vec<Vec<(u64, u32)>> = enc
+            .iter()
+            .map(|row| row.iter().map(|f| (hash(f), f.len() as u32)).collect())
+            .collect();
+        let mut patches = StylePatches::default();
+        for i in 1..records.len() {
+            let mine = &keys[i];
+            let mut best = (u64::MAX, 0usize);
+            for (j, theirs) in keys.iter().enumerate().take(i) {
+                let mut cost = 0u64;
+                for (a, b) in mine.iter().zip(theirs) {
+                    if a.0 != b.0 {
+                        cost += u64::from(a.1);
+                        if cost > best.0 {
+                            break;
+                        }
+                    }
+                }
+                // Ties go to the nearest earlier record.
+                if cost <= best.0 {
+                    best = (cost, j);
+                }
+            }
+            let j = best.1;
+            let fields = records[i]
+                .fields()
+                .into_iter()
+                .zip(enc[i].iter().zip(&enc[j]))
+                .filter(|(_, (a, b))| a != b)
+                .map(|(f, _)| f)
+                .collect();
+            patches.items.push(StylePatch {
+                base: StyleId(j as u32),
+                fields,
+            });
+        }
+        records.truncate(1);
+        Ok((records, patches))
+    }
 }
 
 fn axis_index(bounds: &[Bound], v: f32) -> usize {
