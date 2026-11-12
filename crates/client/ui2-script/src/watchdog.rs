@@ -6,6 +6,11 @@
 //! (loading includes fetching the loader, so it gets longer). [`MAX_FAILURES`] kills or failed loads within
 //! [`FAILURE_WINDOW_MS`] switch the context off until the skin changes.
 //!
+//! The supervisor asks it at the time up to which the page has taken in the workers' messages
+//! (`ScriptHost::delivered_until`), not at the frame's time: a browser holds those messages back while it has
+//! input to handle and long frames (typing into a field over 150 ms frames held them for seconds), and an answer
+//! that was posted in time must not count as missing.
+//!
 //! SIMPLIFIED(SIMP-262): a hanging handler is seen only by the missing acknowledgement of its frame (250 ms, then
 //! the worker is killed and restarted), not by the time of the call itself: a worker cannot interrupt a handler
 //! without being killed.

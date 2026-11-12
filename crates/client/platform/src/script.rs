@@ -56,6 +56,16 @@ pub trait ScriptHost {
     /// Stop a worker at once, even in the middle of a long call. Unknown ids are ignored. Events of the worker
     /// that were not drained yet are dropped.
     fn terminate(&mut self, worker: WorkerId);
+
+    /// The time (the app's clock, ms) up to which the page has taken in what the workers posted: an answer a
+    /// worker posted before it is in the next [`drain`](Self::drain) (or an earlier one). The page's main
+    /// thread may hold the workers' messages back for seconds while it has input to handle and long frames
+    /// (a browser runs input and rendering first), so a frame unanswered at the drain is not proof that the
+    /// worker did not answer; a watchdog counts the wait up to this time. `None` (the default): the host
+    /// takes in every message at once, so the wait counts up to now.
+    fn delivered_until(&self) -> Option<f64> {
+        None
+    }
 }
 
 /// The host of a platform without script workers (the native client): every start is refused.

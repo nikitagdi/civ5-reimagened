@@ -647,6 +647,64 @@ fn a_hung_worker_is_killed_and_restarted_from_a_snapshot() {
     assert_eq!(json(&host.take_posted()[0].1)["seq"], 1);
 }
 
+/// While the page holds the workers' messages back (it has input to handle and long frames: a browser runs
+/// those first), an answer the worker posted in time is not drained yet. The wait counts up to the time the page
+/// took messages in (`delivered_until`), not up to now: an idle skin is not killed as hung. A worker that does
+/// hang is still killed once the page has taken in messages past its deadline.
+#[test]
+fn a_worker_is_not_killed_for_answers_the_page_has_not_taken_in() {
+    let (mut sup, host, mut store, w) = setup(&["top"]);
+    ready(&mut sup, &host, w, 0.0);
+    let d = gold(&mut store, 5);
+    sup.post(
+        10.0,
+        &FrameInput {
+            delta: Some(&d),
+            ..FrameInput::default()
+        },
+    );
+    host.take_posted();
+    let killed = |out: &ui2_script::ScriptOutput| {
+        out.log
+            .iter()
+            .any(|(_, l)| l.text.starts_with("ui2.js: skin killed"))
+    };
+    // 1.5 s later the page has taken in what was posted up to 200 ms only (typing over long frames).
+    host.set_delivered_until(Some(200.0));
+    let out = sup.drain(10.0 + KILL_AFTER_MS + 500.0);
+    assert!(!killed(&out), "{:?}", out.log);
+    assert!(host.terminated().is_empty());
+    assert_eq!(sup.status(&ScriptCtxId::Skin), Some(ScriptStatus::Running));
+    // The page catches up: the answer was there all along.
+    host.set_delivered_until(Some(1600.0));
+    host.reply(w, r#"{"t":"out","n":1,"ack":1}"#);
+    let out = sup.drain(1700.0);
+    assert!(!killed(&out), "{:?}", out.log);
+    assert_eq!(sup.status(&ScriptCtxId::Skin), Some(ScriptStatus::Running));
+    // A frame the worker never answers: not killed while the page has taken in less than the deadline's worth...
+    let d = gold(&mut store, 6);
+    sup.post(
+        1710.0,
+        &FrameInput {
+            delta: Some(&d),
+            ..FrameInput::default()
+        },
+    );
+    host.take_posted();
+    host.set_delivered_until(Some(2600.0));
+    let out = sup.drain(3000.0);
+    assert!(!killed(&out), "{:?}", out.log);
+    // ...and killed once the page has taken in everything posted up to the deadline without its answer.
+    host.set_delivered_until(Some(2710.0));
+    let out = sup.drain(3016.0);
+    assert!(killed(&out), "{:?}", out.log);
+    assert_eq!(host.terminated(), vec![w]);
+    assert_eq!(
+        sup.status(&ScriptCtxId::Skin),
+        Some(ScriptStatus::Restarting)
+    );
+}
+
 #[test]
 fn three_kills_in_a_minute_switch_the_context_off() {
     let (mut sup, host, mut store, w) = setup(&["top"]);

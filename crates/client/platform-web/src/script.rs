@@ -8,7 +8,9 @@
 //! - `drain(ids) -> [[id, "msg" | "error", text], ...]`: what the workers `ids` sent since the last call, oldest first;
 //!   the other workers' messages stay queued. The page has one queue for every host (the skin's supervisor and the
 //!   mods' each have one), so a host drains only the workers it started;
-//! - `terminate(id)`: stops the worker at once and drops what it sent and was not drained.
+//! - `terminate(id)`: stops the worker at once and drops what it sent and was not drained;
+//! - `live() -> number | null` (optional): the time (`performance.now()`, the app's clock) up to which the page has
+//!   taken in what the workers posted (see `ScriptHost::delivered_until`).
 
 use std::cell::Cell;
 
@@ -25,6 +27,8 @@ pub struct WebScriptHost {
     post: Function,
     drain: Function,
     terminate: Function,
+    /// `live()`, when the page has it.
+    live: Option<Function>,
     /// The workers this host started and did not terminate: the ones whose messages it drains.
     own: Vec<u32>,
     /// One log line for the first failed `drain`, not one per frame.
@@ -50,6 +54,7 @@ impl WebScriptHost {
             post: func("post")?,
             drain: func("drain")?,
             terminate: func("terminate")?,
+            live: func("live"),
             api,
             own: Vec::new(),
             warned: Cell::new(false),
@@ -118,6 +123,14 @@ impl ScriptHost for WebScriptHost {
                 }
             }
         }
+    }
+
+    fn delivered_until(&self) -> Option<f64> {
+        let live = self.live.as_ref()?;
+        live.call0(&self.api)
+            .ok()
+            .and_then(|v| v.as_f64())
+            .filter(|t| t.is_finite())
     }
 
     fn terminate(&mut self, worker: WorkerId) {

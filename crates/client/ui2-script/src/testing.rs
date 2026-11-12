@@ -14,6 +14,7 @@ struct State {
     posted: Vec<(WorkerId, String)>,
     inbox: Vec<(WorkerId, ScriptHostEvent)>,
     refuse_spawn: bool,
+    delivered_until: Option<f64>,
 }
 
 /// A host without workers: posted texts are kept, replies are queued by the test.
@@ -58,6 +59,12 @@ impl MockScriptHost {
             .push((worker, ScriptHostEvent::Message(text.to_string())));
     }
 
+    /// What [`ScriptHost::delivered_until`] answers from now on (`None`: now, the default): a page that holds
+    /// the workers' messages back answers the time up to which it took them in.
+    pub fn set_delivered_until(&self, at: Option<f64>) {
+        self.state.borrow_mut().delivered_until = at;
+    }
+
     /// Queue an error of a worker for the next drain.
     pub fn error(&self, worker: WorkerId, message: &str) {
         self.state
@@ -92,6 +99,10 @@ impl ScriptHost for MockScriptHost {
         let mut s = self.state.borrow_mut();
         let live = s.live.clone();
         out.extend(s.inbox.drain(..).filter(|(w, _)| live.contains(w)));
+    }
+
+    fn delivered_until(&self) -> Option<f64> {
+        self.state.borrow().delivered_until
     }
 
     fn terminate(&mut self, worker: WorkerId) {
