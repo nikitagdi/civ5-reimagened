@@ -82,6 +82,8 @@ struct Layer {
     change: LayerChange,
     ops: Vec<Op>,
     ops_stale: bool,
+    /// Switched off ([`Scene::set_layer_shown`]): no draw call, the instances stay.
+    hidden: bool,
 }
 
 impl Layer {
@@ -563,9 +565,24 @@ impl Scene {
         }
     }
 
-    /// The draw calls of a layer: instance runs by external texture.
+    /// Switches a layer on or off. A layer that is off has no draw call ([`Scene::layer_ops`] is empty) and costs the
+    /// GPU nothing; its chunks, instances and anchors stay as they are, so switching it on again uploads nothing.
+    /// The host switches the map layer off for `?ui2onmap=0`.
+    pub fn set_layer_shown(&mut self, layer: LayerId, shown: bool) {
+        self.layers[layer.index()].hidden = !shown;
+    }
+
+    /// Whether a layer is on (the default).
+    pub fn layer_shown(&self, layer: LayerId) -> bool {
+        !self.layers[layer.index()].hidden
+    }
+
+    /// The draw calls of a layer: instance runs by external texture (none while the layer is off).
     pub fn layer_ops(&mut self, layer: LayerId) -> &[Op] {
         let lay = &mut self.layers[layer.index()];
+        if lay.hidden {
+            return &[];
+        }
         if lay.ops_stale {
             lay.ops.clear();
             let mut start = 0usize;

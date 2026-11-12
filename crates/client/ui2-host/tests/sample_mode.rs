@@ -64,7 +64,7 @@ fn the_strip_shows_the_sample_without_a_game() {
 fn banners() -> std::sync::Arc<ui2_package::Package> {
     use ui2_package::profile::action::AnchorKind;
     use ui2_package::profile::expr::parse;
-    use ui2_package::style::{Display, Len, LenAuto, StyleRecord};
+    use ui2_package::style::{ColorV, Display, Len, LenAuto, StyleRecord};
     use ui2_package::{BindKind, Layer, NodeKind, TemplateId, node_flags};
     use ui2_runtime::testkit::{Kit, TNode};
 
@@ -74,6 +74,7 @@ fn banners() -> std::sync::Arc<ui2_package::Package> {
     let mut banner = layer.clone();
     banner.width = LenAuto::Len(Len::px(40.0));
     banner.height = LenAuto::Len(Len::px(10.0));
+    banner.background_color = ColorV::Lit([200, 0, 0, 255]);
     let (layer, banner) = (kit.record(layer), kit.record(banner));
     let (layer, banner) = (kit.plain(layer), kit.plain(banner));
     let list = kit.expr(parse("top.resources").expect("list"));
@@ -185,4 +186,63 @@ fn a_sample_that_does_not_fit_the_model_is_refused() {
         .expect_err("refused");
     assert!(err.contains("top"), "{err}");
     assert!(!ui.sample_mode());
+}
+
+/// `?ui2onmap=0`: with the map layer off, the scene draws nothing of it (no draw call, though its banners keep their
+/// instances) and no anchor is shown; on again, the banners draw.
+#[test]
+fn the_map_layer_switched_off_has_no_draw_call() {
+    use ui2_draw::LayerId;
+    let resource = |id: u32| serde_json::json!({ "id": format!("0:{id}"), "name": format!("r{id}"), "icon": "icon:R:1", "available": 1, "used": 0, "total": 1 });
+    let sample = serde_json::json!({
+        "model": { "top": { "resources": [resource(1), resource(2), resource(3)] } },
+        "anchors": {}
+    });
+    let mut ui = V2Ui::new(
+        banners(),
+        V2Init {
+            env: Env {
+                viewport_px: (1280, 720),
+                ..Env::default()
+            },
+            ..V2Init::default()
+        },
+    )
+    .expect("the skin loads");
+    ui.set_sample(&sample.to_string())
+        .expect("the sample reads");
+    frame(&mut ui, 16.0);
+    ui.set_map_shown(true);
+    ui.place_sample_anchors(1.0);
+    assert_eq!(ui.anchor_count(), 3);
+    assert_eq!(
+        ui.scene().layer_instances(LayerId::Map).len(),
+        3,
+        "one box per banner"
+    );
+    assert!(!ui.scene_mut().layer_ops(LayerId::Map).is_empty());
+
+    for now in [32.0, 48.0] {
+        frame(&mut ui, now);
+        ui.set_map_shown(false);
+        assert!(!ui.scene().layer_shown(LayerId::Map));
+        assert!(
+            ui.scene_mut().layer_ops(LayerId::Map).is_empty(),
+            "no draw call"
+        );
+        assert_eq!(ui.scene().layer_instances(LayerId::Map).len(), 3);
+        let shown = ui
+            .runtime()
+            .dump_rects(None)
+            .iter()
+            .filter(|r| (r.w, r.h) == (40.0, 10.0))
+            .count();
+        assert_eq!(shown, 0, "no anchor is shown");
+    }
+
+    frame(&mut ui, 64.0);
+    ui.set_map_shown(true);
+    ui.place_sample_anchors(1.0);
+    assert!(ui.scene().layer_shown(LayerId::Map));
+    assert!(!ui.scene_mut().layer_ops(LayerId::Map).is_empty());
 }

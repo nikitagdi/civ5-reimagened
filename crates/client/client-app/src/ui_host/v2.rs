@@ -1666,8 +1666,10 @@ impl Frontend for V2Frontend {
             // `ui2.anchors`: the anchors of the layer; `ui2.anchors.shown`: those placed in view this frame.
             let t_place = clock();
             let shown = std::cell::Cell::new(0usize);
-            if ui.anchor_count() > 0 && map_off {
-                ui.place_anchors(|_, _| None);
+            // Off (`?ui2onmap=0`), the layer has no draw call, in a game and on a sample alike.
+            ui.set_map_shown(!map_off);
+            if map_off {
+                // Nothing is placed: `set_map_shown` hid every anchor.
             } else if ui.sample_mode() {
                 ui.place_sample_anchors_moved(k, pan.unwrap_or((0.0, 0.0)));
                 shown.set(ui.anchor_count());
