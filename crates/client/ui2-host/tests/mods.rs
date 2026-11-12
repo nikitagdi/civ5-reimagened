@@ -182,6 +182,46 @@ fn panels_go_to_their_points_in_load_order_else_to_mods_or_nowhere() {
 }
 
 #[test]
+fn a_mod_that_is_gone_from_the_set_loses_its_model_and_the_others_keep_theirs() {
+    use ui2_host::mods::MODEL_FILE;
+    use ui2_host::{ModValue, ModWrite, ModelValue};
+    let model = "[root]\ncount = \"i32\"\n";
+    let with_model = |id: &str, panel_id: &str| {
+        let pkg = fragment(id, &[panel_id], (1, 0), &[(MODEL_FILE, model)]);
+        mod_ui(
+            id,
+            pkg,
+            "^1",
+            vec![panel(panel_id, "hud.right", false, true)],
+        )
+    };
+    let mut ui = V2Ui::new(skin(), V2Init::default()).expect("ui");
+    ui.mount_mods(vec![with_model("alpha", "a1"), with_model("beta", "b1")]);
+    for id in ["alpha", "beta"] {
+        ui.queue_mod_writes(
+            id,
+            [ModWrite::Set {
+                field: "count".into(),
+                value: ModValue::Int(2),
+            }],
+        );
+    }
+    frame(&mut ui, Some(vec![Arc::from("alpha"), Arc::from("beta")]));
+    let count = |ui: &V2Ui, id: &str| match ui.mod_model_value(id) {
+        Some(ModelValue::Struct(f)) => Some(matches!(f[0], ModelValue::I32(2))),
+        _ => None,
+    };
+    assert_eq!(count(&ui, "alpha"), Some(true));
+    assert_eq!(count(&ui, "beta"), Some(true));
+
+    ui.mount_mods(vec![with_model("alpha", "a1")]);
+    frame(&mut ui, Some(vec![Arc::from("alpha")]));
+    assert!(ui.mod_model_value("beta").is_none(), "beta is gone");
+    assert!(ui.mod_model_check("beta").is_none());
+    assert_eq!(count(&ui, "alpha"), Some(true), "alpha keeps its value");
+}
+
+#[test]
 fn a_mod_for_another_ui_api_shows_one_placeholder_line_in_mods() {
     let mut ui = V2Ui::new(skin(), V2Init::default()).expect("ui");
     let gamma = fragment("gamma", &["g1"], (2, 0), &[]);

@@ -647,6 +647,7 @@ impl V2Ui {
     /// go first; the models and the state stay.
     pub fn mount_mods(&mut self, uis: Vec<ModUi>) -> Vec<ModMount> {
         self.unmount_mod_panels();
+        self.unmount_gone_mods(&uis);
         let mut prepared = Vec::with_capacity(uis.len());
         for ui in uis {
             let refused = self.prepare_mod(&ui).err();
@@ -659,6 +660,26 @@ impl V2Ui {
         self.mods.uis = prepared;
         self.mods.mounted_in = Some(Arc::clone(&self.skin.pkg));
         out
+    }
+
+    /// The mods of the last mount that are not in `uis` go: their model `mods.<id>`, their script state (set
+    /// aside by the actions module, it comes back if the mod does) and their script context.
+    fn unmount_gone_mods(&mut self, uis: &[ModUi]) {
+        let gone: Vec<Arc<str>> = self
+            .mods
+            .uis
+            .iter()
+            .map(|(m, _)| Arc::clone(&m.id))
+            .filter(|id| !uis.iter().any(|u| u.id == *id))
+            .collect();
+        for id in gone {
+            self.store.unmount(&Namespace::Mod(Arc::clone(&id)));
+            self.actions.set_mod_state(&id, None, &mut self.store);
+            if let Some(s) = self.mods.scripts.as_mut() {
+                s.sup.stop(&ScriptCtxId::Mod(Arc::clone(&id)));
+            }
+            self.mods.writes.retain(|(w, _)| *w != id);
+        }
     }
 
     /// The mod panels go (a replaced element of the skin comes back).
