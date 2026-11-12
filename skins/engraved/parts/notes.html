@@ -33,5 +33,7 @@
     <span data-l10n="note.log">Notification log</span>
     <span class="key" data-l10n="key.f7">F7</span>
   </button>
-  <div class="right" data-part="notes.extra" data-slot="hud.right"></div>
+  <!-- The column under the notifications: the mount point hud.right in its own file, so a derived skin can leave
+       the point out (by its own parts/notes-extra.html) and keep the rest of the notes. -->
+  <div data-include="parts/notes-extra.html"></div>
 </div>

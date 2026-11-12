@@ -199,6 +199,37 @@ fn engraved_builds_and_the_package_is_deterministic() {
     pictures_are_atlas_pages(&pkg, &a.bytes);
 }
 
+/// The mount points of the two skins: engraved has every point of the catalogue; vellum, derived from it, leaves
+/// out `hud.right`, so a mod panel that asks for it stands in `mods` there.
+#[test]
+fn engraved_has_hud_right_and_vellum_leaves_it_out() {
+    if !chrome() {
+        return;
+    }
+    let slots = |skin: &str| {
+        let dir =
+            ui2_convert::extends::resolve(&engraved().join("..").join(skin)).expect("resolve");
+        let out = ui2_convert::build::build(&dir, true);
+        assert!(out.run.errors.is_empty(), "{skin}: {:?}", out.run.errors);
+        let bytes = out.written.expect("package").bytes;
+        let pkg = ui2_package::Package::read(std::sync::Arc::from(bytes.as_slice())).expect("read");
+        pkg.slots().map(|(s, _)| s.to_string()).collect::<Vec<_>>()
+    };
+    let all = [
+        "hud.chat",
+        "hud.menu",
+        "hud.minimap",
+        "hud.right",
+        "hud.top.extra",
+        "hud.unit.actions",
+        "mods",
+        "window.production.detail",
+    ];
+    assert_eq!(slots("engraved"), all);
+    let vellum: Vec<&str> = all.into_iter().filter(|s| *s != "hud.right").collect();
+    assert_eq!(slots("vellum"), vellum);
+}
+
 /// The cases of the text probe (`tests/fixtures/text-probe`): the `data-part` names under `probe.`. Each sits at
 /// its own top inside the probe box, so a difference in one case does not move the others.
 const PROBE_CASES: &[&str] = &[

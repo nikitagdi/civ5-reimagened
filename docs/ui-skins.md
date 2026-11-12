@@ -424,7 +424,9 @@ skin's own (`default` is not inherited). A chain of bases may be 4 levels deep. 
 skin like any other.
 
 `skins/vellum` is the example. Its `skin.toml` is the `[skin]` table with `extends = "engraved"`; its `css/tokens.css`
-has the parchment values for the token names of the base; its `l10n/en_US.toml` has the title. The layout, the
+has the parchment values for the token names of the base; its `l10n/en_US.toml` has the title; its
+`parts/notes-extra.html` replaces the base's column under the notifications with one that is not the mount point
+`hud.right`, so a mod panel that asks for that point stands in `mods` under vellum. The rest of the layout, the
 scripts, the fonts, the state, the samples and `[verify]` are the base's.
 
 ### Worked examples
@@ -433,7 +435,7 @@ scripts, the fonts, the state, the samples and `[verify]` are the base's.
   (`top`, `notes`, `unit`, `helm`, `production`, `research`); `css/` has tokens, base, one file per area;
   `icons.svg` is the sprite; `js/production.js` is the script; `sample/` has five samples; `[state]` holds the
   production sort and filter.
-- `skins/vellum` is a derived skin: three small files.
+- `skins/vellum` is a derived skin: four small files.
 
 ### Not supported
 

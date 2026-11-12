@@ -1,6 +1,8 @@
 # Vellum: the second skin. The layout, scripts and samples are the engraved skin's (`extends`); this folder
-# holds only what differs: the design tokens (css/tokens.css) and the title (l10n/en_US.toml, merged key by key
-# into the base's texts). Fonts, state, scripts and [verify] come from the base.
+# holds only what differs: the design tokens (css/tokens.css), the title (l10n/en_US.toml, merged key by key
+# into the base's texts) and the column under the notifications without the mount point hud.right
+# (parts/notes-extra.html: mod panels for that point stand in the shared slot mods). Fonts, state, scripts and
+# [verify] come from the base.
 
 [skin]
 id = "vellum"
