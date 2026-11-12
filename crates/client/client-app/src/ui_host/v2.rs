@@ -1214,6 +1214,31 @@ impl V2Frontend {
             None => None,
         };
         let steps: &[replica::ReplicaStep] = if held.is_some() { steps } else { &[] };
+        // What the replica's pump did in this frame, for the performance report (the source's change signal).
+        render::perf::set_counter("ui2.replica.step", replica_step_code(steps));
+        // A snapshot loaded in this frame's pump (a join, a resync, every new turn): the core's slow first reads
+        // after a load (the top bar alone costs it several ms) are made now, as part of the load, not inside the
+        // UI's frame.
+        let loaded = steps.iter().any(|s| {
+            matches!(
+                s,
+                replica::ReplicaStep::Loaded { .. } | replica::ReplicaStep::TurnSwitched { .. }
+            )
+        });
+        let mut warm_ms = 0.0;
+        if loaded
+            && !self.sample_on
+            && let Some(r) = held.as_deref_mut()
+        {
+            let view = ReplicaView::of(r);
+            if view.state == replica::State::Live
+                && !view.catching_up
+                && let Some(read) = view.read
+            {
+                warm_ms = ui.warm_turn(read).1;
+            }
+        }
+        render::perf::set_counter("ui2.source.warm_turn_ms", warm_ms);
         let events = std::mem::take(&mut self.events);
         let mods = self.mods.take();
         self.mod_ui.before_frame(ui);
@@ -1597,6 +1622,21 @@ impl Frontend for V2Frontend {
 }
 /// The counters of a frame go to `__civ5stats.counters`; the renderer adds its own `ui2.*` (draws per layer,
 /// instances, uploads) after `prepare_ui2`, so the report's instance count is left to it.
+/// The weightiest step of the replica's pump in a frame, as a number: 0 idle, 1 working, 2 a batch applied, 3 a
+/// snapshot loaded, 4 the turn switched, 5 resyncing.
+fn replica_step_code(steps: &[replica::ReplicaStep]) -> f64 {
+    use replica::ReplicaStep as S;
+    let code = |s: &S| match s {
+        S::Idle => 0,
+        S::Working => 1,
+        S::Applied { .. } => 2,
+        S::Loaded { .. } => 3,
+        S::TurnSwitched { .. } => 4,
+        S::Resyncing => 5,
+    };
+    f64::from(steps.iter().map(code).max().unwrap_or(0))
+}
+
 fn publish(report: &V2FrameReport, load_ms: Option<f64>) {
     if let Some(ms) = load_ms {
         render::perf::set_counter("ui2.load_ms", ms);

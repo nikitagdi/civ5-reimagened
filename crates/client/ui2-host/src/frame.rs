@@ -35,7 +35,7 @@ use ui2_model::wire::WireIntent;
 use ui2_package::style::Cursor;
 use ui2_runtime::{FrameStats, Runtime, UiError};
 use ui2_script::{FrameInput, ScriptStats};
-use ui2_source::{ReplicaView, SourceFrame, SourceStats};
+use ui2_source::{ReplicaView, SourceFrame, SourceProfile, SourceStats};
 
 use crate::error::{LoadFailure, SkinLoadError};
 use crate::scripts;
@@ -64,6 +64,8 @@ pub struct V2Frame<'a> {
 pub struct V2FrameReport {
     /// The source's work.
     pub source: SourceStats,
+    /// Where the source's work went: per root and per kind of read (µs with the host's clock).
+    pub source_profile: SourceProfile,
     /// Operations of the model frame handed to the runtime (0: no model frame).
     pub delta_ops: u32,
     /// The model revision after the frame.
@@ -126,6 +128,7 @@ impl V2FrameReport {
             ("ui2.errors", self.errors.len() as f64),
         ]
         .into_iter()
+        .chain(self.source_profile.counters())
         .chain(
             self.scripts
                 .clone()
@@ -331,6 +334,11 @@ impl V2Ui {
 
         V2FrameReport {
             source,
+            source_profile: if self.sample.is_none() {
+                self.source.profile().clone()
+            } else {
+                SourceProfile::default()
+            },
             delta_ops,
             model_revision: self.store.revision(),
             runtime: out.stats,
