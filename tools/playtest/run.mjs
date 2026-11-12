@@ -60,8 +60,11 @@ const SCENARIOS = {
   // UI v2 hot reload: `ui watch` on a copy of the skin, the page in the sample mode (?ui2sample=hud&ui2dev=...).
   "ui2-reload": () => import("./scenarios/ui2-reload.mjs"),
   "ui2-mods": () => import("./scenarios/ui2-mods.mjs"),
-  // UI v2 acceptance of the engraved skin's screens (two clients in one game): --attach.
+  // UI v2 acceptance of the engraved skin's screens (two clients in one game): --attach; UI2_MODS=hello against a
+  // server with the mod adds the mod panel's step.
   "ui2-v1": () => import("./scenarios/ui2-v1.mjs"),
+  // UI v2 layout in the browser (sample mode) against the skin's page in Chrome, every part at the reference sizes.
+  "ui2-layout": () => import("./scenarios/ui2-layout.mjs"),
   "ui-sound": () => import("./scenarios/ui-sound.mjs"),
   "m3-city": () => import("./scenarios/m3-city.mjs"),
   "m4-diplo-trade": () => import("./scenarios/m4-diplo-trade.mjs"),
