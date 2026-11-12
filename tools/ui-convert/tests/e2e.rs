@@ -384,6 +384,83 @@ fn engraved_tooltips_show_while_hovered() {
     }
 }
 
+/// The header of the production window shows the city's name: the text stands inside the header. (The banner
+/// rules of the map layer once matched the header's `.city` too and moved the name out of the window.)
+#[test]
+fn engraved_production_header_shows_the_city() {
+    if !chrome() {
+        return;
+    }
+    use std::sync::Arc;
+    use ui2_model::{Sample, Schema};
+    use ui2_runtime::{Env, Runtime, Services};
+
+    for skin in ["engraved", "vellum"] {
+        let dir =
+            ui2_convert::extends::resolve(&engraved().join("..").join(skin)).expect("resolve");
+        let out = ui2_convert::build::build(&dir, true);
+        assert!(out.run.errors.is_empty(), "{skin}: {:?}", out.run.errors);
+        let src = out.run.source.clone().expect("source");
+        let bytes = out.written.expect("package").bytes;
+        let pkg = Arc::new(ui2_package::Package::read(Arc::from(bytes.as_slice())).expect("read"));
+        let sample = std::fs::read_to_string(engraved().join("sample").join("production.json"))
+            .expect("sample");
+        let sample = Sample::parse(Schema::v1(), &sample).expect("sample");
+        let mut store = ui2_convert::verify::sample_store(&src.skin.state, &sample).expect("store");
+        let mut engine = ui2_text::TextEngine::new();
+        ui2_runtime::load_faces(&pkg, &mut engine).expect("fonts");
+        let env = Env {
+            viewport_px: (1920, 1200),
+            dpr: 1.0,
+            ui_scale: 1.0,
+            theme: 0,
+        };
+        let mut rt = Runtime::new(pkg.clone(), env, Services::default()).expect("runtime");
+        let mut scene = ui2_draw::Scene::new(1.0);
+        if let Some(d) = store.take_frame() {
+            rt.apply_delta(&d, &store);
+        }
+        rt.frame(0.0, &store, &mut engine, &mut scene);
+
+        // The element whose text leaf is the city's name, under the header.
+        let head = rt.find_part("production.head").expect("production.head");
+        let mut stack = vec![head];
+        let mut city = None;
+        while let Some(n) = stack.pop() {
+            let node = rt.node(n).expect("node");
+            if node.text() == Some("Moscow") {
+                city = node.parent();
+                break;
+            }
+            stack.extend(node.children().iter().copied());
+        }
+        let label = |n| {
+            let at = rt.node(n).expect("node").tmpl();
+            format!("{}:{}", at.0.0, at.1)
+        };
+        let rects = rt.dump_rects(None);
+        let rect = |n| {
+            let l = label(n);
+            rects
+                .iter()
+                .find(|r| r.node == l)
+                .unwrap_or_else(|| panic!("{skin}: no rect for {l}"))
+        };
+        let r = rect(city.expect("the city's name in the header"));
+        let h = rect(head);
+        assert!(
+            r.w > 0.0
+                && r.x >= h.x
+                && r.y >= h.y
+                && r.x + r.w <= h.x + h.w
+                && r.y + r.h <= h.y + h.h,
+            "{skin}: the city's name {:?} is outside the header {:?}",
+            [r.x, r.y, r.w, r.h],
+            [h.x, h.y, h.w, h.h]
+        );
+    }
+}
+
 /// The cases of the text probe (`tests/fixtures/text-probe`): the `data-part` names under `probe.`. Each sits at
 /// its own top inside the probe box, so a difference in one case does not move the others.
 const PROBE_CASES: &[&str] = &[
