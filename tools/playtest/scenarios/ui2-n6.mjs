@@ -89,6 +89,9 @@ export async function run(ctx) {
       angle: b.args.find((a) => a.startsWith("--use-angle")) ?? (o.headed ? "default (headed)" : null),
       cpuPin: b.cpuPin,
     };
+    // The times below are per thread: on a hybrid CPU a browser left to the scheduler may run the page or a worker on
+    // an efficiency core for the whole run, and the numbers are not comparable with a pinned run.
+    if (b.cpuPin?.pinned === 0) console.log(`ui2-n6: no browser process was pinned to the performance cores (${b.cpuPin.exe}): the times are not comparable`);
     // Not a failure of the measurement: without memory by realm the worker's heap is not attributed (the table says so).
     n.memoryByRealm = { isolated: n.info.isolated, measure: n.info.measure, whyNot: n.info.whyNot };
 

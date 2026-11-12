@@ -2,7 +2,7 @@
 // The browsers are Playwright's own (`%LOCALAPPDATA%\ms-playwright`, revision of the pinned
 // version); CHROMIUM_PATH points at another executable.
 import { execFile } from "node:child_process";
-import { createWriteStream } from "node:fs";
+import { createWriteStream, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
@@ -30,6 +30,29 @@ export function pinPerformanceCores(exe) {
       } else resolve({ skip: out || String(err?.message ?? "no output") });
     });
   });
+}
+
+/**
+ * The executable whose processes the browser of `openPage` runs in. Playwright starts a headless Chromium from its
+ * separate headless shell (`chromium_headless_shell-<rev>/.../chrome-headless-shell.exe`), not from the
+ * `chrome.exe` that `chromium.executablePath()` names; pinning that one would pin no process of a headless run.
+ * `CHROMIUM_PATH` is used as it is.
+ * @param {boolean} headed
+ */
+export function launchedExecutable(headed) {
+  if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
+  const full = chromium.executablePath();
+  return headed ? full : (headlessShellOf(full) ?? full);
+}
+
+/** The headless shell of the same Playwright revision as the full Chromium `full`, or null when it is not installed. */
+export function headlessShellOf(full) {
+  const m = /^(.*[\\/])chromium-(\d+)[\\/]chrome-([a-z0-9-]+)[\\/]/i.exec(full);
+  if (!m) return null;
+  const [, base, rev, platform] = m;
+  const name = process.platform === "win32" ? "chrome-headless-shell.exe" : "chrome-headless-shell";
+  const shell = path.join(`${base}chromium_headless_shell-${rev}`, `chrome-headless-shell-${platform}`, name);
+  return existsSync(shell) ? shell : null;
 }
 
 /** Features always disabled: Windows occlusion tracking (a covered window counts as hidden), the intensive wake-up
@@ -97,9 +120,9 @@ export async function openPage(o) {
   const page = await context.newPage();
   // The performance cores for every process of this browser; again at each load (a navigation can start a new
   // renderer process). `cpuPin` holds the last result.
-  const exe = process.env.CHROMIUM_PATH || chromium.executablePath();
+  const exe = launchedExecutable(!!o.headed);
   const handle = { cpuPin: null };
-  const pin = async () => (handle.cpuPin = await pinPerformanceCores(exe));
+  const pin = async () => (handle.cpuPin = { exe: path.basename(exe), ...(await pinPerformanceCores(exe)) });
   await pin();
   page.on("load", () => {
     pin().catch(() => {});
