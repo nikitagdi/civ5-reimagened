@@ -29,6 +29,12 @@ fn build_stage(dir: &Path) -> bool {
         .any(|l| l.trim().starts_with("# stage: build"))
 }
 
+/// The stored scan of a mockup; empty for one whose `skin.toml` is refused before any page is scanned (it has no
+/// `ir.json`).
+fn stored_scan(dir: &Path) -> String {
+    std::fs::read_to_string(dir.join("ir.json")).unwrap_or_default()
+}
+
 fn expected(dir: &Path) -> Vec<String> {
     let text = std::fs::read_to_string(dir.join("expect.txt")).expect("expect.txt");
     let mut v: Vec<String> = text
@@ -57,9 +63,9 @@ fn got(run: &ui2_convert::Run) -> Vec<String> {
 #[test]
 fn bad_mockups_give_the_expected_codes() {
     let dirs = bad_dirs();
-    assert_eq!(dirs.len(), 43, "the whole set of bad mockups is present");
+    assert_eq!(dirs.len(), 44, "the whole set of bad mockups is present");
     for dir in dirs {
-        let ir = std::fs::read_to_string(dir.join("ir.json")).expect("ir.json");
+        let ir = stored_scan(&dir);
         let run = check_skin(&dir, Input::Dump(&ir));
         let want = if build_stage(&dir) {
             Vec::new()
@@ -83,7 +89,7 @@ fn bad_mockups_give_the_expected_codes() {
 #[test]
 fn error_texts_carry_no_machine_paths() {
     for dir in bad_dirs() {
-        let ir = std::fs::read_to_string(dir.join("ir.json")).expect("ir.json");
+        let ir = stored_scan(&dir);
         let run = check_skin(&dir, Input::Dump(&ir));
         let all = ui2_convert::errors::to_json(&run.errors);
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))

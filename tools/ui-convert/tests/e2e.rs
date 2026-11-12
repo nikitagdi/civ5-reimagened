@@ -40,7 +40,7 @@ fn bad_mockups() {
         .filter(|p| p.join("expect.txt").is_file())
         .collect();
     dirs.sort();
-    assert_eq!(dirs.len(), 43, "the whole set of bad mockups is present");
+    assert_eq!(dirs.len(), 44, "the whole set of bad mockups is present");
     let mut failures = Vec::new();
     for dir in dirs {
         let out = ui2_convert::build::build(&dir, false);
@@ -73,8 +73,10 @@ fn bad_mockups() {
                     .join("\n")
             ));
         }
-        let stored = std::fs::read_to_string(dir.join("ir.json")).expect("ir.json");
-        if run.dump().as_deref() != Some(stored.as_str()) {
+        // A mockup whose skin.toml is refused is never scanned: it has no ir.json.
+        let stored = std::fs::read_to_string(dir.join("ir.json")).unwrap_or_default();
+        let unscanned = stored.is_empty() && run.dump().is_none();
+        if !unscanned && run.dump().as_deref() != Some(stored.as_str()) {
             failures.push(format!(
                 "{name:?}: the stored ir.json is stale; regenerate it with `ui2-convert check <dir> --dump-ir <dir>/ir.json`"
             ));

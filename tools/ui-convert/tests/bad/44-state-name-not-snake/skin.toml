@@ -1,0 +1,9 @@
+[skin]
+id = "bad"
+version = "0.1.0"
+title = "skin.title"
+model = "1.0"
+api = "1.0"
+
+[state]
+zoomLevel = 1

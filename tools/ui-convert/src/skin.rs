@@ -343,15 +343,16 @@ fn flatten_state(
         } else {
             format!("{prefix}.{k}")
         };
+        // The host mounts the paths as a model fragment, whose names are lower-case snake case; a name the
+        // model refuses would leave the whole skin state unmounted at run time.
         let ok_name = path.split('.').all(|seg| {
             let mut b = seg.bytes();
-            b.next()
-                .is_some_and(|c| c == b'_' || c.is_ascii_alphabetic())
-                && b.all(|c| c == b'_' || c.is_ascii_alphanumeric())
+            b.next().is_some_and(|c| c.is_ascii_lowercase())
+                && b.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'_')
         });
         if !ok_name {
             errs.push(bad(format!(
-                "[state] `{path}`: a state path is identifiers separated by dots"
+                "[state] `{path}`: a state path is lower-case snake case names (a-z, 0-9, _; the first a letter) separated by dots"
             )));
             continue;
         }
@@ -595,6 +596,10 @@ api = "1.0"
     fn bad_manifests_are_reported() {
         let errs = Skin::parse(&format!("{MIN}\n[state]\nlist = []\n")).unwrap_err();
         assert_eq!(errs[0].code, codes::STATE_TYPE);
+        for name in ["Zoom", "_zoom", "a.B", "1x", "a-b", "a..b"] {
+            let errs = Skin::parse(&format!("{MIN}\n[state]\n\"{name}\" = 1\n")).unwrap_err();
+            assert_eq!(errs[0].code, codes::SKIN_TOML, "{name}");
+        }
         let errs = Skin::parse(&MIN.replace("id = \"t\"", "id = \"T x\"")).unwrap_err();
         assert_eq!(errs[0].code, codes::SKIN_TOML);
         let errs = Skin::parse(&format!("{MIN}\n[skin2]\n")).unwrap_err();
