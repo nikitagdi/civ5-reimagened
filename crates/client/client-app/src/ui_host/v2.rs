@@ -1663,11 +1663,14 @@ impl Frontend for V2Frontend {
             // The map anchors follow their objects through the camera, as the classic UI's banners do; on a sample,
             // they stand where the sample puts them (moved by a bench's pan). With the layer off nothing is placed.
             // `ui2.place_ms`: the placement (the projection of every anchor), outside `ui2.cpu_ms`.
+            // `ui2.anchors`: the anchors of the layer; `ui2.anchors.shown`: those placed in view this frame.
             let t_place = clock();
+            let shown = std::cell::Cell::new(0usize);
             if ui.anchor_count() > 0 && map_off {
                 ui.place_anchors(|_, _| None);
             } else if ui.sample_mode() {
                 ui.place_sample_anchors_moved(k, pan.unwrap_or((0.0, 0.0)));
+                shown.set(ui.anchor_count());
             } else if ui.anchor_count() > 0 {
                 let renderer: &Renderer = cx.renderer;
                 let (w, h) = cx.size;
@@ -1699,9 +1702,12 @@ impl Frontend for V2Frontend {
                     let s = render::entities::project_wrapped_label(
                         world, wrap, &view_proj, viewport, eye, terrain,
                     );
+                    shown.set(shown.get() + usize::from(s.visible));
                     s.visible.then_some((s.pos, 1.0))
                 });
             }
+            render::perf::set_counter("ui2.anchors", ui.anchor_count() as f64);
+            render::perf::set_counter("ui2.anchors.shown", shown.get() as f64);
             // `ui2.prepare_ms`: the renderer takes the scene (the changed instances and tables for the GPU).
             let t_prepare = clock();
             render::perf::set_counter("ui2.place_ms", t_prepare - t_place);
