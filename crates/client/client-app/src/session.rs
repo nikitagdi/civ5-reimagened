@@ -602,7 +602,7 @@ impl GameSession {
                 None => r.blob_failed(hash),
             }
         }
-        // The UI's messages go out; what cannot be sent now stays (AC-G2).
+        // The UI's messages go out; what cannot be sent now stays.
         let mut out = std::mem::take(&mut self.resync_flush);
         out.extend(r.take_outgoing());
         let turn_now = r.turn();

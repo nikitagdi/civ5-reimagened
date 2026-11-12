@@ -11,7 +11,7 @@ export function loadPlaywright() {
   return req("playwright");
 }
 
-/** Pinned Chromium flags (SPEC determinism table). */
+/** Pinned Chromium flags (the determinism table of the converter). */
 export function chromiumFlags() {
   return JSON.parse(fs.readFileSync(new URL("chromium-flags.json", HERE), "utf8")).args;
 }

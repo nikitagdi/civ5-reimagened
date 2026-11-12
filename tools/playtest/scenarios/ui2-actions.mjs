@@ -15,8 +15,8 @@
 // 3. research is needed: the dial opens the research window; a click on a technology makes it the current research
 //    (`research.current` in the top strip);
 // 4. the next turn: a click on the dial ends the turn; the turn number goes up by one in `state()` and on the dial.
-// No console errors. Screenshots: <logs>/t118-helm.png (the helm at the next turn), <logs>/t122-production.png,
-// <logs>/t122-research.png.
+// No console errors. Screenshots: <logs>/helm.png (the helm at the next turn), <logs>/production.png,
+// <logs>/research.png.
 //
 // Clicks go where the skin's layout puts things at 1600 x 900 (the same layout the converter checks against Chrome):
 // the helm is the bottom right 400 x 392 plate, the dial a 216 px circle 8 px in from its top right corner; the
@@ -186,7 +186,7 @@ export async function run(ctx) {
       } else if (st === "Next turn") {
         // 4. The dial ends the turn: +1 in the game and on the dial.
         const before = (await state(page)).turn;
-        await shot("t118-helm");
+        await shot("helm");
         await page.mouse.click(DIAL.x, DIAL.y);
         let after = before;
         const tEnd = Date.now();
@@ -200,7 +200,7 @@ export async function run(ctx) {
         check("dial click ends the turn: state().turn +1", after === before + 1, `turn ${before} -> ${after} in ${n.turn.ms} ms`);
         check("the dial shows the new turn", dial.ok, JSON.stringify(n.turn.dial));
         await sleep(1500);
-        await shot("t118-helm-next");
+        await shot("helm-next");
         done.turn = true;
       } else if (st === "Waiting for players" || st === "Other civilizations move" || st === "Turn ended" || st === null) {
         await sleep(500);
@@ -295,7 +295,7 @@ async function production(page, check, n, shot) {
   const sorted = await waitUi(page, (q) => q?.ui?.state?.["prod.sort"] === "turns" && JSON.stringify(partTexts(q, "production.list")) !== JSON.stringify(listBefore), 3000);
   p.sortByTurns = { changed: sorted.ok, ms: sorted.ms, state: [sortBefore, sorted.probe?.ui?.state?.["prod.sort"]], sortHead: partTexts(sorted.probe, "production.sort") };
   check("sorting by turns: state.prod.sort becomes 'turns' and the list is reordered", sortBefore === "order" && sorted.ok, JSON.stringify(p.sortByTurns));
-  await shot("t122-production");
+  await shot("production");
   // Close the window (Esc).
   await page.keyboard.press("Escape");
   await waitUi(page, (q) => partTexts(q, "production.head").length === 0, 3000);
@@ -311,7 +311,7 @@ async function research(b, check, n, shot) {
   // Without the window the turn cannot go on, and nothing else can choose: the classic UI (and its Lua) sleeps under
   // UI v2, and the test port has no research order.
   if (!open.ok) throw new Error("the research window did not open");
-  await shot("t122-research");
+  await shot("research");
   const first = r.list[0];
   // A line "Now <research>" stands under the header while something is researched.
   const now = partTexts(open.probe, "research.window").includes("Now") ? 36 : 0;

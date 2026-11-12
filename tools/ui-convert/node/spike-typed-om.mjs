@@ -28,7 +28,7 @@ const G = {
   svg: { svg: true },
 };
 
-// property -> [group, [values...]]. Values are representative for the profile (SPEC-ui-profile section 4).
+// property -> [group, [values...]]. Values are representative for the profile.
 const LEN = ["12px", "50%", "auto", "calc(50% - 8px)", "2em", "1.5rem", "0", "calc(2em + 4px)"];
 const LEN0 = ["12px", "50%", "0", "calc(50% - 8px)", "2em"];
 const PROPS = {

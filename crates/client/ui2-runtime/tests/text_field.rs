@@ -1,4 +1,4 @@
-//! Text fields (test 8 of the runtime spec, the text field part): focus asks the host's text bridge for the
+//! Text fields (the text field part): focus asks the host's text bridge for the
 //! field; typing, paste, selection and composition come back as the bridge's state and are written to the
 //! model path and drawn (text, selection, underline, caret); Enter, Escape and Tab; a model change of the
 //! focused field's text; a press that moves the caret; the caret blinks with a chunk rebuild and nothing

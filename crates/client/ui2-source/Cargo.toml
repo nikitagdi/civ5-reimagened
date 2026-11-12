@@ -11,7 +11,7 @@ repository.workspace = true
 [package.metadata.civ5]
 layer = "client"
 
-# The core is reached only through `replica`'s read facade (rule R10): no direct `gamecore` here. The session
+# The core is reached only through `replica`'s read facade (a layer rule): no direct `gamecore` here. The session
 # (connection, seats, turn state, chat) is read from `client-core` through the `SessionRead` trait.
 [dependencies]
 replica.workspace = true

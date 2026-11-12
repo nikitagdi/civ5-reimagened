@@ -391,7 +391,7 @@ impl Switch {
     }
 }
 
-/// The registered game UIs and the one on the screen (R22: exactly one gets the frames and the input).
+/// The registered game UIs and the one on the screen (exactly one gets the frames and the input).
 #[derive(Default)]
 pub struct UiHost {
     fronts: Vec<Box<dyn Frontend>>,
@@ -661,7 +661,7 @@ impl UiHost {
         }
     }
 
-    /// Screens shown by another UI (SIMP-266): a screen the active UI asked for goes to the UI that offers it, which
+    /// Screens shown by another UI: a screen the active UI asked for goes to the UI that offers it, which
     /// takes the screen and opens it; once it is closed, the UI that asked gets the screen back.
     fn step_screens(&mut self, now_ms: f64) {
         if let Some(t) = &self.trip {

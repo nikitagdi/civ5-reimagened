@@ -426,7 +426,7 @@ fn m2_frame(m2: &mut M2Ui, cx: &mut FrameCx<'_>, out: &mut UiDrawList) {
     }
     m2.set_camera_moving(camera.is_following() || camera.is_gliding());
     if let Some((x, y)) = m2.take_look_at() {
-        // Every `lookAt` of the exe sets a target the camera eases to (night answers 1b); the exe has
+        // Every `lookAt` of the exe sets a target the camera eases to; the exe has
         // no jump for CAMERALOOKAT_IMMEDIATE either, only StartupGame teleports.
         // SIMPLIFIED(SIMP-exe-750): UI.LookAt's type argument is ignored: CITY_ZOOM_IN/OUT and SHRINE_ZOOM_IN
         // (heights 500/700/800) keep the player's height, IMMEDIATE eases like NORMAL (as in the exe)

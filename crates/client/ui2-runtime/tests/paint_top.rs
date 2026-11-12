@@ -563,7 +563,7 @@ fn paint_text_shadows() {
     }
 }
 
-/// Test 7 of the runtime spec: once settled, frames without changes do not touch the scene.
+/// Once settled, frames without changes do not touch the scene.
 #[test]
 fn paint_empty_frames_leave_the_scene_untouched() {
     let (mut s, _) = strip([1920, 1200], 1.0);

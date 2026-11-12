@@ -1,4 +1,4 @@
-//! Controls (test 8 of the runtime spec, `data-control`): a click and the keyboard on each of button,
+//! Controls (`data-control`): a click and the keyboard on each of button,
 //! checkbox, toggle, radio, slider and select give `StateOp`s for the model path (and `input` / `change`
 //! events); the model's value marks checked controls; idle frames stay free.
 

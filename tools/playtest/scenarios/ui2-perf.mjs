@@ -591,7 +591,7 @@ export async function run(ctx) {
     // The page settles: the first frames after the start and the city.
     await sleep(5000);
 
-    // ---- N1 idle
+    // ---- idle
     const idle = await sampled(page, false, () => sleep(idleS * 1000));
     const idleCpu = idle.rows.map((r) => r.cpu).filter((x) => x !== null);
     n.idle = { cpu: stat(idleCpu), framesSeen: idle.rows.length, framesMissed: missed(idle.rows), withModelChange: idle.rows.filter((r) => (r.ops ?? 0) > 0).length, fps: frames(idle.ts, idle.from, idle.to) };
@@ -599,7 +599,7 @@ export async function run(ctx) {
     n.map = await mapLayer(page, idle.rows);
     n.js = { idle: { worker: stat(idle.rows.map((r) => r.jsWorker).filter((x) => x !== null)), main: stat(idle.rows.map((r) => r.jsMain).filter((x) => x !== null)) } };
 
-    // ---- N1 turns, N3 (the replica's turn and the dial per frame)
+    // ---- turns, reaction (the replica's turn and the dial per frame)
     const turns = [];
     const turnRows = [];
     const reactions = [];
@@ -638,7 +638,7 @@ export async function run(ctx) {
     n.reaction = { list: reactions, worst: reactions.every((x) => x.nth !== null) ? Math.max(...reactions.map((x) => x.nth)) : null };
     n.js.turns = { worker: stat(turnRows.map((r) => r.jsWorker).filter((x) => x !== null)), main: stat(turnRows.map((r) => r.jsMain).filter((x) => x !== null)) };
 
-    // ---- N6 heap and GC: memory by realm after the turns; a trace of a few more turns.
+    // ---- heap and GC: memory by realm after the turns; a trace of a few more turns.
     n.js.heap = await scriptHeap(page);
     try {
       await b.browser.startTracing(page, { categories: ["devtools.timeline", "v8", "disabled-by-default-v8.gc"] });
@@ -669,7 +669,7 @@ export async function run(ctx) {
   const errs = appErrors(b.errors);
   await b.close();
 
-  // ---- N2 banners: only with the skin's map layer.
+  // ---- banners: only with the skin's map layer.
   if (!error) {
     if (n.map?.present) {
       try {
@@ -682,7 +682,7 @@ export async function run(ctx) {
     }
   }
 
-  // ---- N4 sizes (from the bundle the page was served from, when it is this tree's)
+  // ---- sizes (from the bundle the page was served from, when it is this tree's)
   const webRoot = path.resolve(o.webRoot ?? "target/web");
   n.pkg = packageInfo(webRoot);
   n.wasm = wasmInfo(webRoot);
@@ -692,35 +692,35 @@ export async function run(ctx) {
   if (!error) {
     const indicative = meta.kind.startsWith("indicative") ? " (indicative)" : "";
     const i = n.idle.cpu;
-    row("N1", "idle: ui2.cpu_ms p95 over the frames", `${fmt(i.p95)} ms (p50 ${fmt(i.p50)}, max ${fmt(i.max)}; ${i.n} frames, ${n.idle.framesMissed} unseen)`, `<= ${LIMITS.idleP95Ms} ms`, i.p95 !== null && i.p95 <= LIMITS.idleP95Ms, `${idleS} s; frames with a model change: ${n.idle.withModelChange}${indicative}`);
+    row("cpu", "idle: ui2.cpu_ms p95 over the frames", `${fmt(i.p95)} ms (p50 ${fmt(i.p50)}, max ${fmt(i.max)}; ${i.n} frames, ${n.idle.framesMissed} unseen)`, `<= ${LIMITS.idleP95Ms} ms`, i.p95 !== null && i.p95 <= LIMITS.idleP95Ms, `${idleS} s; frames with a model change: ${n.idle.withModelChange}${indicative}`);
     const t = n.turns.cpuChanged;
     const measured = n.turns.list.length;
-    row("N1", "turns measured", `${measured} of ${turnsN}`, `${turnsN}`, measured === turnsN, n.turnsStopped ? `stopped: ${n.turnsStopped}` : "");
-    row("N1", "turns: ui2.cpu_ms of the frames with a model change, mean", `${fmt(t.mean)} ms (${t.n} frames over ${measured} turns)`, `<= ${LIMITS.turnMeanMs} ms`, t.mean !== null && t.mean <= LIMITS.turnMeanMs, `${meta.scene}${indicative}`);
-    row("N1", "turns: same, peak", `${fmt(t.max)} ms (p95 ${fmt(t.p95)})`, `<= ${LIMITS.turnPeakMs} ms`, t.max !== null && t.max <= LIMITS.turnPeakMs, "the worst frame of all turns");
+    row("cpu", "turns measured", `${measured} of ${turnsN}`, `${turnsN}`, measured === turnsN, n.turnsStopped ? `stopped: ${n.turnsStopped}` : "");
+    row("cpu", "turns: ui2.cpu_ms of the frames with a model change, mean", `${fmt(t.mean)} ms (${t.n} frames over ${measured} turns)`, `<= ${LIMITS.turnMeanMs} ms`, t.mean !== null && t.mean <= LIMITS.turnMeanMs, `${meta.scene}${indicative}`);
+    row("cpu", "turns: same, peak", `${fmt(t.max)} ms (p95 ${fmt(t.p95)})`, `<= ${LIMITS.turnPeakMs} ms`, t.max !== null && t.max <= LIMITS.turnPeakMs, "the worst frame of all turns");
     const hudMax = Math.max(n.hud.draws.max ?? -1, n.turns.hud.max ?? -1);
-    row("N2", "HUD draw calls (ui2.draws.hud, max of idle and turns)", `${hudMax < 0 ? "n/a" : hudMax} (Ui2 pass row: ${fmt(n.hud.pass?.draws)} draws, ui2.draws ${fmt(n.hud.ui2Draws.max)})`, `<= ${LIMITS.hudDraws}`, hudMax >= 0 && hudMax <= LIMITS.hudDraws, "");
+    row("draw", "HUD draw calls (ui2.draws.hud, max of idle and turns)", `${hudMax < 0 ? "n/a" : hudMax} (Ui2 pass row: ${fmt(n.hud.pass?.draws)} draws, ui2.draws ${fmt(n.hud.ui2Draws.max)})`, `<= ${LIMITS.hudDraws}`, hudMax >= 0 && hudMax <= LIMITS.hudDraws, "");
     if (n.banners?.on && n.banners?.off) {
       const on = n.banners.on.fpsP50;
       const off = n.banners.off.fpsP50;
       const drop = on !== null && off ? round(((off - on) / off) * 100, 1) : null;
-      row("N2", "map banners and flags: FPS drop against ?ui2onmap=0", `${fmt(drop, " %")} (${fmt(on)} vs ${fmt(off)} fps p50; ${fmt(n.banners.on.banners)} banners)`, `<= ${LIMITS.bannerFpsDropPct} %`, drop !== null && drop <= LIMITS.bannerFpsDropPct, `${n.bannerScene}${n.bannerFixture ? `; ${n.bannerFixture}` : ""}; ${o.headed ? "uncapped" : "headless: meaningless"}${indicative}`);
+      row("draw", "map banners and flags: FPS drop against ?ui2onmap=0", `${fmt(drop, " %")} (${fmt(on)} vs ${fmt(off)} fps p50; ${fmt(n.banners.on.banners)} banners)`, `<= ${LIMITS.bannerFpsDropPct} %`, drop !== null && drop <= LIMITS.bannerFpsDropPct, `${n.bannerScene}${n.bannerFixture ? `; ${n.bannerFixture}` : ""}; ${o.headed ? "uncapped" : "headless: meaningless"}${indicative}`);
     } else {
-      row("N2", "map banners and flags: FPS drop against ?ui2onmap=0", "not available", `<= ${LIMITS.bannerFpsDropPct} %`, null, n.banners?.notAvailable ?? n.banners?.error ?? "");
+      row("draw", "map banners and flags: FPS drop against ?ui2onmap=0", "not available", `<= ${LIMITS.bannerFpsDropPct} %`, null, n.banners?.notAvailable ?? n.banners?.error ?? "");
     }
-    row("N3", "reaction: frame on which the dial shows the replica's new turn, worst", `${fmt(n.reaction.worst)} (per turn: ${n.reaction.list.map((x) => x.nth ?? "?").join(",")})`, `<= ${LIMITS.reactionFrame}`, n.reaction.worst !== null && n.reaction.worst <= LIMITS.reactionFrame, "1 = the same UI v2 frame");
-    row("N4", "skin package size", n.pkg.bytes !== undefined ? `${MB(n.pkg.bytes)} MB (${n.pkg.file})` : `n/a (${n.pkg.error})`, "<= 3 MB", n.pkg.bytes !== undefined ? n.pkg.bytes <= LIMITS.packageBytes : null, "");
-    row("N4", "ui2.load_ms", fmt(n.loadMs, " ms"), `<= ${LIMITS.loadMs} ms`, typeof n.loadMs === "number" ? n.loadMs <= LIMITS.loadMs : null, `${meta.profile} bundle`);
+    row("reaction", "reaction: frame on which the dial shows the replica's new turn, worst", `${fmt(n.reaction.worst)} (per turn: ${n.reaction.list.map((x) => x.nth ?? "?").join(",")})`, `<= ${LIMITS.reactionFrame}`, n.reaction.worst !== null && n.reaction.worst <= LIMITS.reactionFrame, "1 = the same UI v2 frame");
+    row("size", "skin package size", n.pkg.bytes !== undefined ? `${MB(n.pkg.bytes)} MB (${n.pkg.file})` : `n/a (${n.pkg.error})`, "<= 3 MB", n.pkg.bytes !== undefined ? n.pkg.bytes <= LIMITS.packageBytes : null, "");
+    row("size", "ui2.load_ms", fmt(n.loadMs, " ms"), `<= ${LIMITS.loadMs} ms`, typeof n.loadMs === "number" ? n.loadMs <= LIMITS.loadMs : null, `${meta.profile} bundle`);
     const wasm = Object.entries(n.wasm).map(([f, w]) => `${f} ${KB(w.bytes)} KB raw, ${KB(w.brotli)} KB brotli`).join("; ");
-    row("N4", "client wasm (the text stack's share: report only)", wasm || "n/a", "report", null, "the share of the text stack needs a build without it (not measured here)");
+    row("size", "client wasm (the text stack's share: report only)", wasm || "n/a", "report", null, "the share of the text stack needs a build without it (not measured here)");
     const jw = Math.max(n.js.idle.worker.p95 ?? -1, n.js.turns.worker.p95 ?? -1);
     const jm = Math.max(n.js.idle.main.p95 ?? -1, n.js.turns.main.p95 ?? -1);
     const scripts = (n.js.counters?.["ui2.js.contexts"] ?? 0) > 0;
-    row("N6", "JS in a frame, p95 (ui2.js.worker_ms / ui2.js.main_ms)", scripts ? `${fmt(jw < 0 ? null : jw)} / ${fmt(jm < 0 ? null : jm)} ms (turn max ${fmt(n.js.turns.worker.max)} / ${fmt(n.js.turns.main.max)})` : "no script context", `<= ${LIMITS.jsFrameMs} ms`, scripts ? jw <= LIMITS.jsFrameMs && jm <= LIMITS.jsFrameMs : null, `contexts ${fmt(n.js.counters?.["ui2.js.contexts"])}, posted ${fmt(n.js.counters?.["ui2.js.posted"])}, errors ${fmt(n.js.counters?.["ui2.js.errors"])}, restarts ${fmt(n.js.counters?.["ui2.js.restarts"])}`);
-    row("N6", "script heap", n.js.heap?.bytes ? `${MB(n.js.heap.bytes)} MB` : `n/a (${n.js.heap?.why})`, `<= ${LIMITS.heapMb} MB`, n.js.heap?.bytes ? MB(n.js.heap.bytes) <= LIMITS.heapMb : null, "memory by realm of the ui2 worker");
+    row("script", "JS in a frame, p95 (ui2.js.worker_ms / ui2.js.main_ms)", scripts ? `${fmt(jw < 0 ? null : jw)} / ${fmt(jm < 0 ? null : jm)} ms (turn max ${fmt(n.js.turns.worker.max)} / ${fmt(n.js.turns.main.max)})` : "no script context", `<= ${LIMITS.jsFrameMs} ms`, scripts ? jw <= LIMITS.jsFrameMs && jm <= LIMITS.jsFrameMs : null, `contexts ${fmt(n.js.counters?.["ui2.js.contexts"])}, posted ${fmt(n.js.counters?.["ui2.js.posted"])}, errors ${fmt(n.js.counters?.["ui2.js.errors"])}, restarts ${fmt(n.js.counters?.["ui2.js.restarts"])}`);
+    row("script", "script heap", n.js.heap?.bytes ? `${MB(n.js.heap.bytes)} MB` : `n/a (${n.js.heap?.why})`, `<= ${LIMITS.heapMb} MB`, n.js.heap?.bytes ? MB(n.js.heap.bytes) <= LIMITS.heapMb : null, "memory by realm of the ui2 worker");
     const gc = n.js.gc?.worker?.peakMs ?? null;
-    row("N6", "GC peak pause, dedicated workers", gc === null ? `n/a (${n.js.gc?.error ?? "no GC event"})` : `${gc} ms (page thread ${fmt(n.js.gc?.main?.peakMs)} ms)`, `<= ${LIMITS.gcMs} ms`, gc === null ? null : gc <= LIMITS.gcMs, `trace of ${n.js.gcOver ?? "3 turns"}; the game's own workers are dedicated workers too`);
-    row("N6", "skin JS size", `${KB(n.skinJs)} KB`, `<= ${LIMITS.jsKb} KB`, KB(n.skinJs) <= LIMITS.jsKb, `skins/${SKIN}/js`);
+    row("script", "GC peak pause, dedicated workers", gc === null ? `n/a (${n.js.gc?.error ?? "no GC event"})` : `${gc} ms (page thread ${fmt(n.js.gc?.main?.peakMs)} ms)`, `<= ${LIMITS.gcMs} ms`, gc === null ? null : gc <= LIMITS.gcMs, `trace of ${n.js.gcOver ?? "3 turns"}; the game's own workers are dedicated workers too`);
+    row("script", "skin JS size", `${KB(n.skinJs)} KB`, `<= ${LIMITS.jsKb} KB`, KB(n.skinJs) <= LIMITS.jsKb, `skins/${SKIN}/js`);
     for (const r of rows) if (r.verdict !== "n/a") check(`${r.id} ${r.metric}`, r.verdict === "pass", `${r.value} (limit ${r.limit})${r.note ? `; ${r.note}` : ""}`);
   }
   n.table = rows;

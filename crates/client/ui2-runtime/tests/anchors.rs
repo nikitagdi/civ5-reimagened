@@ -1,4 +1,4 @@
-//! Map anchors (test 10 of the runtime spec): banners of a `for` in the map layer, each a chunk placed by an
+//! Map anchors: banners of a `for` in the map layer, each a chunk placed by an
 //! anchor slot; placing them moves nothing but the scene's anchor table.
 
 mod support;
