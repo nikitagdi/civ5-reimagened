@@ -233,6 +233,7 @@ pub fn verify(skin_dir: &Path, state: &str) -> Result<Outcome, Vec<ConvError>> {
     let mut node = crate::node::NodeClient::start().map_err(|e| vec![e])?;
     let opts = crate::Opts {
         fonts_dir: Some(out.out_dir.join("fonts")),
+        ..crate::Opts::default()
     };
     let mut dumps = Vec::new();
     let got = crate::open(&mut node, src, &opts)
