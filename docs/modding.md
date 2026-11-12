@@ -192,7 +192,8 @@ show none of this; a mod keeps its `hud` for them.
 ### The `[ui]` section
 
 A mod with panels lists the part `ui` in `parts` and has a `[ui]` section (the manifest is refused if only one of
-the two is there). Say `api = "^1.3"`: 1.3 is the first mod API that has the part. A mod that writes fields or answers
+the two is there). The `[mod] api` requirement must be `^1.3` or narrower: 1.3 is the first mod API that has the
+part, and a requirement that admits older versions (`^1`, `*`) is refused. A mod that writes fields or answers
 intents also declares the capability `ui` and has a `client-rs` part. This is the section of the example:
 
 ```toml

@@ -893,6 +893,22 @@ fn ui_minimal_section_parses_without_rust() {
 }
 
 #[test]
+fn ui_part_needs_mod_api_1_3() {
+    for api in ["^1", "^1.2", "*", ">=1.0", "~1.2", "=1.2", "<2"] {
+        let src = UI_MIN.replacen("api     = \"^1.3\"", &format!("api     = \"{api}\""), 1);
+        let e = parse_err(&src);
+        assert_eq!(e.path(), Some("mod.api"), "{api}: {e}");
+        assert!(e.to_string().contains("1.3"), "{e}");
+    }
+    for api in ["^1.3", "~1.3", ">=1.3", "^1.4", "=1.3.0"] {
+        let src = UI_MIN.replacen("api     = \"^1.3\"", &format!("api     = \"{api}\""), 1);
+        Manifest::parse(&src).unwrap_or_else(|e| panic!("{api}: {e}"));
+    }
+    // A mod without the part keeps `^1`.
+    assert!(Manifest::parse(FULL).is_ok());
+}
+
+#[test]
 fn ui_part_and_section_go_together() {
     // The part without the section.
     let no_section = UI_MIN.split("[ui]").next().unwrap().to_string();
