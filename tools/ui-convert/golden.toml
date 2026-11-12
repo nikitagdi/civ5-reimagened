@@ -142,7 +142,7 @@ state = "hud"
 viewport = [1920, 1200]
 
 # Hover: a row of the production list (the fourth option), and the policies button of the top strip with its
-# tooltip (the skin gives the button no `data-tooltip` yet, so the frame shows the hover style alone).
+# tooltip. Both nodes have a tooltip now: references recorded before tooltips existed must be recorded again.
 [[case]]
 id = "G11"
 name = "production-row-hover"

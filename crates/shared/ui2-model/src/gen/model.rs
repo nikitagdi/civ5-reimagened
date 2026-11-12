@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 0);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0xe95962b6690db8ed;
+pub const SCHEMA_HASH: u64 = 0x899e7e5a99497c3d;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -3036,7 +3036,7 @@ impl crate::model::Model for QueueRow {
 
 impl crate::model::Keyed for QueueRow {
     fn key(&self) -> crate::value::Key {
-        self.item
+        crate::value::Key::from_i32(i32::from(self.slot))
     }
 }
 

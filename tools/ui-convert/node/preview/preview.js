@@ -26,8 +26,10 @@
 //   state: the sample file name, default "hud". lang: the table file name, default "en_US".
 //   root: the URL of the skin root (default: the origin root for http, the page folder for file:).
 //
-// Numbering. A template is the document (everything below <body>, <body> itself is not a node) or the
-// subtree of an element with data-bind-for or data-bind-if. An element's number is its preorder index
+// Numbering. A template is the document (everything below <body>, <body> itself is not a node), the
+// subtree of an element with data-bind-for or data-bind-if, or the one root element of a
+// <template data-layer="tooltip"> (numbered where the <template> stands; extract mode draws it there, marked
+// data-ui2-tooltip, and the other modes leave it in the <template>). An element's number is its preorder index
 // among the elements of its own template; the root of a nested template belongs to that template (as
 // element 0), not to its parent. Templates are numbered in the order their roots appear in the
 // document, the document being 0. <svg> is a node but its content is not; <script>, <style>,
@@ -76,7 +78,7 @@
   const E = {
     SYNTAX: "E4-001", UNKNOWN_FUNC: "E4-002", ARGC: "E4-003", ONE_EXPR: "E4-020", FOR: "E4-021",
     CLASS_TOGGLE: "E4-024", TEXT_SOURCE: "E4-036", IF_FOR: "E4-037", INCLUDE: "E1-027", UNCLOSED: "E4-013",
-    NOT_LIST: "E4-009", DUP_ATTR: "E1-026", HOTKEY: "E7-013",
+    NOT_LIST: "E4-009", DUP_ATTR: "E1-026", HOTKEY: "E7-013", TOOLTIP: "E7-006",
   };
   const PV = {
     INCLUDE_FAILED: "PV-001", INCLUDE_CYCLE: "PV-002", LOAD_FAILED: "PV-003", MODE: "PV-004",
@@ -1187,6 +1189,14 @@
 
     const isTemplateRoot = (el) => el.hasAttribute("data-bind-for") || el.hasAttribute("data-bind-if");
     const skipNumbering = (el) => NOT_NODES.has(el.localName) || el.hasAttribute("data-ui2-dev");
+    const isTooltipTemplate = (el) => el.localName === "template" && el.getAttribute("data-layer") === "tooltip";
+    // The one root element of a tooltip template (null, reported, when it has none or several).
+    function tooltipRoot(tpl) {
+      const roots = [...tpl.content.children];
+      if (roots.length === 1) return roots[0];
+      report(E.TOOLTIP, "error", tpl, "data-layer", "a tooltip template holds exactly one element");
+      return null;
+    }
 
     function numberDocument(body) {
       let nextTpl = 1;
@@ -1194,6 +1204,12 @@
         el.setAttribute("data-ui2-node", tpl + ":" + ctr.n++);
         if (el.localName === "svg") return;
         for (const c of el.children) {
+          // The root of a tooltip template is a template of its own, numbered where the <template> stands.
+          if (isTooltipTemplate(c)) {
+            const r = tooltipRoot(c);
+            if (r) visit(r, nextTpl++, { n: 0 });
+            continue;
+          }
           if (skipNumbering(c)) continue;
           if (isTemplateRoot(c)) visit(c, nextTpl++, { n: 0 });
           else visit(c, tpl, ctr);
@@ -1326,6 +1342,17 @@
     }
 
     function expandElement(el, out, scope, inst) {
+      if (isTooltipTemplate(el) && extract()) {
+        // Extract mode draws the root of a tooltip template in place of the <template>, so the converter reads its
+        // styles; the mark names the template. Its bindings read the model only (no loop variables).
+        const r = el.content.children.length === 1 ? el.content.children[0] : null;
+        if (!r) return;
+        const before = out.lastChild;
+        expandElement(r, out, null, "");
+        const drawn = out.lastChild;
+        if (drawn && drawn !== before && drawn.nodeType === 1) drawn.setAttribute("data-ui2-tooltip", el.id);
+        return;
+      }
       const p = bindingsOf(el);
       currentEl = el;
       if (p.forSpec) return expandFor(el, p, out, scope, inst);
@@ -1387,10 +1414,21 @@
           c.setAttribute("src", ASSET_PLACEHOLDER);
         } else if (v !== "") c.setAttribute("src", v);
       }
-      if (p.disabled) {
+      // In extract mode a bound `disabled` is a condition the converter reads itself (the `:disabled` variant):
+      // the page keeps only the markup's own attribute, or the base values would be read disabled.
+      if (p.disabled && !extract()) {
         const off = truthy(ev(p.disabled, scope));
         if (c.localName === "button" || c.localName === "input") c.toggleAttribute("disabled", off);
         else if (off) c.setAttribute("aria-disabled", "true");
+      }
+      // The placeholder of a text field: a skin text, shown while the field is empty (the runtime does the same).
+      // Not in extract mode: the converter reads the key from the markup, and `placeholder` is not in the profile.
+      const placeholder = el.getAttribute("data-l10n-placeholder");
+      if (placeholder !== null && !extract()) {
+        if (!Object.prototype.hasOwnProperty.call(l10n, placeholder)) {
+          report(PV.L10N_MISSING, "error", el, "data-l10n-placeholder", "no text for the key " + JSON.stringify(placeholder) + " in l10n/" + cfg.lang + ".toml");
+          c.setAttribute("placeholder", placeholder);
+        } else c.setAttribute("placeholder", locText(placeholder, []));
       }
       if (el.hasAttribute("data-hotkey-label")) {
         // The name of the key of the nearest data-hotkey (this element or an ancestor), as the runtime shows it.

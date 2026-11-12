@@ -1,6 +1,6 @@
 {
 "version": "1.0",
-"hash": "e95962b6690db8ed",
+"hash": "899e7e5a99497c3d",
 "roots": [
 {"name":"meta","type":"Meta","field":0,"owner":"source"},
 {"name":"game","type":"Game","field":6,"owner":"source"},
@@ -57,7 +57,7 @@
 {"name":"Turn","fields":[{"name":"state","type":"TurnUi"},{"name":"blocker","type":"Blocker?"},{"name":"units_waiting","type":"i32"},{"name":"finished","type":"bool"},{"name":"can_cancel","type":"bool"},{"name":"timer","type":"Timer?"},{"name":"ready","type":"i32"},{"name":"humans","type":"i32"},{"name":"seats","type":"list<Seat>","key":"player"}]},
 {"name":"Unit","fields":[{"name":"key","type":"key<unit>"},{"name":"name","type":"str"},{"name":"type_name","type":"text"},{"name":"portrait","type":"asset"},{"name":"level","type":"i16"},{"name":"xp","type":"i16"},{"name":"strength","type":"i16"},{"name":"ranged","type":"i16"},{"name":"range","type":"i16"},{"name":"moves","type":"f32"},{"name":"max_moves","type":"i16"},{"name":"hp","type":"i16"},{"name":"max_hp","type":"i16"},{"name":"hp_fraction","type":"f32"},{"name":"domain","type":"Domain"},{"name":"activity","type":"Activity"},{"name":"promotions","type":"list<Promo>","key":"id"},{"name":"promotion_ready","type":"bool"},{"name":"actions","type":"list<UnitActionRow>","key":"kind"},{"name":"act","type":"UnitActs"},{"name":"pending","type":"bool"}]},
 {"name":"Map","fields":[{"name":"cities","type":"list<CityBanner>","key":"key"},{"name":"units","type":"list<UnitFlag>","key":"key"}]},
-{"name":"Production","fields":[{"name":"city","type":"key<city>"},{"name":"name","type":"str"},{"name":"capital","type":"bool"},{"name":"size","type":"i16"},{"name":"rate","type":"i32"},{"name":"overflow","type":"i32?"},{"name":"gold","type":"i32"},{"name":"faith","type":"i32"},{"name":"current","type":"ProdNow?"},{"name":"queue_known","type":"bool"},{"name":"queue","type":"list<QueueRow>","key":"item"},{"name":"groups","type":"list<OptGroup>","key":"kind"},{"name":"detail","type":"Detail?"}]},
+{"name":"Production","fields":[{"name":"city","type":"key<city>"},{"name":"name","type":"str"},{"name":"capital","type":"bool"},{"name":"size","type":"i16"},{"name":"rate","type":"i32"},{"name":"overflow","type":"i32?"},{"name":"gold","type":"i32"},{"name":"faith","type":"i32"},{"name":"current","type":"ProdNow?"},{"name":"queue_known","type":"bool"},{"name":"queue","type":"list<QueueRow>","key":"slot"},{"name":"groups","type":"list<OptGroup>","key":"kind"},{"name":"detail","type":"Detail?"}]},
 {"name":"Ui","fields":[{"name":"selection","type":"Selection"},{"name":"map_mode","type":"MapMode"},{"name":"windows","type":"Windows"},{"name":"production","type":"UiProduction"},{"name":"chat","type":"UiChat"},{"name":"pending","type":"list<Pending>","key":"seq"},{"name":"turn_pending","type":"TurnPending"},{"name":"errors","type":"list<Toast>","key":"seq"}]}
 ],
 "enums": [
@@ -400,7 +400,7 @@
 {"path":"production.current.turns","type":"i16?"},
 {"path":"production.current.fraction","type":"f32"},
 {"path":"production.queue_known","type":"bool"},
-{"path":"production.queue","type":"list<QueueRow>","list_key":"item"},
+{"path":"production.queue","type":"list<QueueRow>","list_key":"slot"},
 {"path":"production.queue[].slot","type":"i32"},
 {"path":"production.queue[].item","type":"key<item>"},
 {"path":"production.queue[].name","type":"text"},

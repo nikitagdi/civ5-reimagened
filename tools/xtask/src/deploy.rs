@@ -235,9 +235,14 @@ fn build_dist_into(
         Some((_, dist, _)) => crate::mods::build::build_web(root, dist, true, true)?,
         None => build_web_threads(root, true)?,
     };
-    // The UI v2 skin packages and their index (`web/ui2/`) are built here, before the image context: the image
-    // has no Node, Chromium or Python (`CIV5_SKIP_UI2=1` leaves them out).
-    crate::ui::web::build_skins(root, &web)?;
+    // The UI v2 skin packages and their index (`web/ui2/`), and the panels of the mods, are built here, before the
+    // image context: the image has no Node, Chromium or Python (`CIV5_SKIP_UI2=1` leaves them out).
+    build_ui2(
+        &web,
+        mod_dist.as_ref().map(|(p, _, _)| p),
+        &mut |p, web| crate::mods::build::build_mod_panels(root, p, web).map(|_| ()),
+        &mut |web| crate::ui::web::build_skins(root, web),
+    )?;
 
     if out.exists() {
         std::fs::remove_dir_all(out).with_context(|| format!("clearing {}", out.display()))?;
@@ -270,6 +275,20 @@ fn build_dist_into(
     )?;
     println!("dist: {}", out.display());
     Ok(())
+}
+
+/// The UI v2 files of a dist's web bundle (`web/ui2/`): with mods, the panels of the mods (`mods-ui.json` and the
+/// fragment packages) first, then the skin packages, in the order `cargo xtask mods dev` builds them.
+fn build_ui2(
+    web: &Path,
+    mods: Option<&crate::mods::check::Prepared>,
+    panels: &mut dyn FnMut(&crate::mods::check::Prepared, &Path) -> Result<()>,
+    skins: &mut dyn FnMut(&Path) -> Result<()>,
+) -> Result<()> {
+    if let Some(p) = mods {
+        panels(p, web)?;
+    }
+    skins(web)
 }
 
 /// `cargo build --release -p server --target x86_64-unknown-linux-gnu`; the path of the binary.
@@ -1606,6 +1625,44 @@ mod tests {
         assert_eq!(t["mods_dir"].as_str(), Some(IMAGE_MODS_DIR));
         assert!(t["worker"].get("mods_dir").is_none());
         assert_eq!(dist_server_toml(common, false), common);
+    }
+
+    /// A dist with mods ships the UI v2 panels of its mods (`web/ui2/mods-ui.json` and the fragments), built
+    /// before the skins; a dist without mods builds the skins only.
+    #[test]
+    fn a_dist_with_mods_builds_their_panels_then_the_skins() {
+        let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+            .to_path_buf();
+        let work = std::env::temp_dir().join(format!("xtask-dist-ui2-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&work);
+        let prepared = crate::mods::check::prepare(
+            &repo.join("tools/xtask/tests/fixtures/ui-mod/mods.toml"),
+            &work.join("work"),
+        )
+        .unwrap();
+        let web = work.join("web");
+        let calls = std::cell::RefCell::new(Vec::new());
+        let mut panels = |p: &crate::mods::check::Prepared, w: &Path| {
+            assert_eq!(w, web.as_path());
+            calls
+                .borrow_mut()
+                .push(format!("panels of {} mod(s)", p.mods.len()));
+            Ok(())
+        };
+        let mut skins = |w: &Path| {
+            assert_eq!(w, web.as_path());
+            calls.borrow_mut().push("skins".to_string());
+            Ok(())
+        };
+        build_ui2(&web, Some(&prepared), &mut panels, &mut skins).unwrap();
+        assert_eq!(*calls.borrow(), ["panels of 1 mod(s)", "skins"]);
+        calls.borrow_mut().clear();
+        build_ui2(&web, None, &mut panels, &mut skins).unwrap();
+        assert_eq!(*calls.borrow(), ["skins"]);
+        let _ = std::fs::remove_dir_all(&work);
     }
 
     #[test]

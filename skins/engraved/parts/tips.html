@@ -1,0 +1,34 @@
+<!-- Tooltips (data-tooltip names one of these templates). The runtime makes an instance in the tooltip layer while
+     the node is hovered and puts it under the node; its bindings read the model, not the loop variables of the
+     node, so a list row names its item through ui.* (the production rows set ui.production.hover). -->
+<template data-layer="tooltip" id="tip-policies">
+  <div class="tip" data-part="tip.policies">
+    <div class="th" data-l10n="tip.policies.title">Social policies</div>
+    <div class="tl" data-bind-if="{{top.policy_turns != null}}" data-l10n="tip.policies.next" data-l10n-args="{{top.policy_turns}}">Next policy in 6 turns</div>
+    <div class="trow" data-bind-for="b:{{top.policies}}" data-bind-class-toggle="off:{{!b.unlocked}}">
+      <span class="nm" data-bind-value="{{b.name}}">Tradition</span>
+      <span class="n" data-l10n="tip.policies.owned" data-l10n-args="{{b.owned}}, {{b.total}}">4 of 5</span>
+    </div>
+  </div>
+</template>
+
+<template data-layer="tooltip" id="tip-option">
+  <div class="tip" data-part="tip.option">
+    <div class="tgrp" data-bind-for="g:{{production.groups}}">
+      <div class="topt" data-bind-for="o:{{g.options}}" data-bind-filter="{{o.item == ui.production.hover}}">
+        <div class="th" data-bind-value="{{o.name}}">Settler</div>
+        <div class="tl" data-bind-if="{{o.enabled && o.effect != null}}" data-bind-value="{{o.effect}}">Founds a city; growth halts while built</div>
+        <div class="tl lk" data-bind-if="{{!o.enabled && o.locked_reason != null}}" data-bind-value="{{o.locked_reason}}">Needs Banking</div>
+        <div class="trow">
+          <span data-l10n="prod.cost">Cost</span>
+          <span class="n" data-l10n="tip.option.cost" data-l10n-args="{{o.cost}}">106 production</span>
+        </div>
+        <div class="trow" data-bind-if="{{o.turns != null}}">
+          <span data-l10n="prod.col.turns">Turns</span>
+          <span class="n" data-bind-value="{{o.turns}}">4</span>
+        </div>
+        <div class="tl" data-l10n="tip.option.hint">Click to see it in detail</div>
+      </div>
+    </div>
+  </div>
+</template>

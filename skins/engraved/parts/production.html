@@ -95,7 +95,7 @@
               <span class="cnt" data-bind-value="{{g.count}}">9</span>
               <div class="rule"></div>
             </div>
-            <div class="lrow" data-bind-for="o:{{g.options}}" data-bind-sort="{{state.prod.sort == 'turns' ? o.turns : o.order}}" data-bind-filter="{{!state.prod.hide_locked || o.enabled}}" data-bind-class-toggle="lock:{{!o.enabled}}; sel:{{ui.production.focus == o.item}}" data-on-pointerenter="set ui.production.hover = o.item" data-on-click="set ui.production.focus = o.item">
+            <div class="lrow" data-bind-for="o:{{g.options}}" data-bind-sort="{{state.prod.sort == 'turns' ? o.turns : o.order}}" data-bind-filter="{{!state.prod.hide_locked || o.enabled}}" data-bind-class-toggle="lock:{{!o.enabled}}; sel:{{ui.production.focus == o.item}}" data-tooltip="tip-option" data-on-pointerenter="set ui.production.hover = o.item" data-on-click="set ui.production.focus = o.item">
               <div class="c-ico"><img class="oi" data-bind-src="{{o.icon}}"></div>
               <div class="c-nm">
                 <span class="nm" data-bind-value="{{o.name}}">Settler</span>

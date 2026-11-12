@@ -395,7 +395,7 @@ gold = "i32"
 faith = "i32"
 current = "ProdNow?"
 queue_known = "bool"
-queue = { list = "QueueRow", key = "item" }
+queue = { list = "QueueRow", key = "slot" }
 groups = { list = "OptGroup", key = "kind" }
 detail = "Detail?"
 

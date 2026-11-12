@@ -235,6 +235,11 @@ impl Minimap {
         self.counters
     }
 
+    /// Whether the target shows a map: without one it is only cleared to the fog's black.
+    pub fn shows_map(&self) -> bool {
+        self.camera.is_some()
+    }
+
     /// The view the minimap shows (`None` without a map).
     pub fn view(&self) -> Option<&ViewRect> {
         self.camera.as_ref().map(MinimapCamera::main)

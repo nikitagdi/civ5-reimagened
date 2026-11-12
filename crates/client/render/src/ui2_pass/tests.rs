@@ -1974,6 +1974,32 @@ fn ui2_in_a_headless_frame_runs_only_when_prepared_and_under_the_original_ui() {
     assert_eq!(after.pixel(10, 10), before.pixel(10, 10));
 }
 
+/// The minimap target exists from the first frame on, cleared to black; while it shows no map the picture of the
+/// minimap draws nothing, so the box under it stays as the skin draws it.
+#[test]
+fn ui2_minimap_without_a_map_draws_nothing() {
+    let Some(mut r) = headless("ui2_minimap_without_a_map_draws_nothing") else {
+        return;
+    };
+    r.clear_terrain();
+    let mut scene = Scene::new(1.0);
+    scene.set_chunk(
+        LayerId::Hud,
+        ChunkId(1),
+        chunk(vec![
+            Item::Box(BoxItem::solid(Rect::new(0.0, 0.0, 20.0, 20.0), GREEN)),
+            ext_picture(0.0, ExtTexture::MINIMAP),
+        ]),
+    );
+    for _ in 0..3 {
+        r.prepare_ui2(&mut scene);
+        let img = frame_with(&mut r, &UiDrawList::new());
+        assert_eq!(&img.pixel(5, 5)[..3], &[0, 255, 0]);
+    }
+    assert!(r.minimap_view().is_some(), "the target exists");
+    assert_eq!(r.ui2_stats().ext_missing, 1);
+}
+
 /// The solid background of the golden hooks: the pass clears the target with it (the frame under UI v2 is gone),
 /// also when the scene has nothing to draw; without it the pass loads the target again.
 #[test]

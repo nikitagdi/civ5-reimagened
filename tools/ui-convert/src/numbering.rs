@@ -1,8 +1,9 @@
 //! Node numbering: the one rule the preview script, the package templates and the runtime's node labels share.
 //!
-//! A template is the document (everything below `<body>`; `<body>` itself is not a node) or the subtree of an
-//! element with `data-bind-for` or `data-bind-if`; that element is node 0 of its own template, not a node of
-//! the parent's. An element's number is its preorder index among the elements of its template. Templates are
+//! A template is the document (everything below `<body>`; `<body>` itself is not a node), the subtree of an
+//! element with `data-bind-for` or `data-bind-if`, or the one root element of a `<template data-layer="tooltip">`
+//! (numbered where the `<template>` stands); that element is node 0 of its own template, not a node of the
+//! parent's. An element's number is its preorder index among the elements of its template. Templates are
 //! numbered in the order their roots appear in the document, the document being 0. `<svg>` is a node, its
 //! content is not; `script style template link meta` and everything under `data-ui2-dev` are not nodes. A text
 //! leaf is `#k` after its parent element's label: the k-th text node the converter keeps as a leaf.
@@ -22,9 +23,9 @@ use crate::ir::{Dom, Element, Ix};
 /// Tags that are never nodes.
 pub const NOT_NODES: &[&str] = &["script", "style", "template", "link", "meta"];
 
-/// Whether an element is a template root.
+/// Whether an element is a template root: a loop or condition body, or the root of a tooltip template.
 pub fn is_template_root(e: &Element) -> bool {
-    e.attr("data-bind-for").is_some() || e.attr("data-bind-if").is_some()
+    e.attr("data-bind-for").is_some() || e.attr("data-bind-if").is_some() || e.tooltip.is_some()
 }
 
 /// Whether an element (as a child of a node) is skipped by the numbering.

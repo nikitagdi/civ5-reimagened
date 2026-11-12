@@ -199,6 +199,191 @@ fn engraved_builds_and_the_package_is_deterministic() {
     pictures_are_atlas_pages(&pkg, &a.bytes);
 }
 
+/// The mount points of the two skins: engraved has every point of the catalogue; vellum, derived from it, leaves
+/// out `hud.right`, so a mod panel that asks for it stands in `mods` there.
+#[test]
+fn engraved_has_hud_right_and_vellum_leaves_it_out() {
+    if !chrome() {
+        return;
+    }
+    let slots = |skin: &str| {
+        let dir =
+            ui2_convert::extends::resolve(&engraved().join("..").join(skin)).expect("resolve");
+        let out = ui2_convert::build::build(&dir, true);
+        assert!(out.run.errors.is_empty(), "{skin}: {:?}", out.run.errors);
+        let bytes = out.written.expect("package").bytes;
+        let pkg = ui2_package::Package::read(std::sync::Arc::from(bytes.as_slice())).expect("read");
+        pkg.slots().map(|(s, _)| s.to_string()).collect::<Vec<_>>()
+    };
+    let all = [
+        "hud.chat",
+        "hud.menu",
+        "hud.minimap",
+        "hud.right",
+        "hud.top.extra",
+        "hud.unit.actions",
+        "mods",
+        "window.production.detail",
+    ];
+    assert_eq!(slots("engraved"), all);
+    let vellum: Vec<&str> = all.into_iter().filter(|s| *s != "hud.right").collect();
+    assert_eq!(slots("vellum"), vellum);
+}
+
+/// The four overview buttons of the top strip each open their own screen.
+#[test]
+fn engraved_overview_buttons_open_their_own_screens() {
+    if !chrome() {
+        return;
+    }
+    let out = ui2_convert::build::build(&engraved(), true);
+    assert!(out.run.errors.is_empty(), "{:?}", out.run.errors);
+    let bytes = out.written.expect("package").bytes;
+    let pkg = ui2_package::Package::read(std::sync::Arc::from(bytes.as_slice())).expect("read");
+    let parts: Vec<(String, ui2_package::NodeRef)> =
+        pkg.parts().map(|(n, at)| (n.to_string(), at)).collect();
+    for screen in ["economy", "military", "victory", "demographics"] {
+        let part = format!("top.menu.{screen}");
+        let at = parts
+            .iter()
+            .find(|(n, _)| *n == part)
+            .map(|(_, at)| *at)
+            .unwrap_or_else(|| panic!("no part {part}"));
+        let click = pkg
+            .bindings_of(at.0, at.1)
+            .iter()
+            .map(|b| format!("{:?}", b.kind))
+            .find(|k| k.contains("screen.open"))
+            .unwrap_or_else(|| panic!("{part} opens no screen"));
+        assert!(click.contains(&format!("\"{screen}\"")), "{part}: {click}");
+    }
+}
+
+/// The skin's tooltips: the policies button and the rows of the production list name tooltip templates; the
+/// package carries them, and hovering the node in the runtime shows the template with the model's values.
+#[test]
+fn engraved_tooltips_show_while_hovered() {
+    if !chrome() {
+        return;
+    }
+    use platform::{
+        InputEvent, Modifiers, PhysicalPosition, PointerEvent, PointerId, PointerKind, PointerPhase,
+    };
+    use std::sync::Arc;
+    use ui2_model::{Owner, Sample, Schema};
+    use ui2_runtime::{Env, Runtime, Services};
+
+    let out = ui2_convert::build::build(&engraved(), true);
+    assert!(out.run.errors.is_empty(), "{:?}", out.run.errors);
+    let src = out.run.source.clone().expect("source");
+    let bytes = out.written.expect("package").bytes;
+    let pkg = Arc::new(ui2_package::Package::read(Arc::from(bytes.as_slice())).expect("read"));
+    assert_eq!(pkg.tooltips().len(), 2, "{:?}", pkg.tooltips());
+    let tip_names: Vec<&str> = pkg
+        .tooltips()
+        .iter()
+        .filter_map(|(_, t)| pkg.template(*t).and_then(|t| pkg.str(t.name)))
+        .collect();
+    assert_eq!(tip_names, ["tooltip:tip-policies", "tooltip:tip-option"]);
+
+    // The texts of the tooltip on screen after the pointer moved to the centre of `rect`.
+    let hover = |state: &str, at: &dyn Fn(&Runtime) -> [f32; 4]| -> Vec<String> {
+        let sample =
+            std::fs::read_to_string(engraved().join("sample").join(format!("{state}.json")))
+                .expect("sample");
+        let sample = Sample::parse(Schema::v1(), &sample).expect("sample");
+        let mut store = ui2_convert::verify::sample_store(&src.skin.state, &sample).expect("store");
+        let mut engine = ui2_text::TextEngine::new();
+        ui2_runtime::load_faces(&pkg, &mut engine).expect("fonts");
+        let env = Env {
+            viewport_px: (1920, 1200),
+            dpr: 1.0,
+            ui_scale: 1.0,
+            theme: 0,
+        };
+        let mut rt = Runtime::new(pkg.clone(), env, Services::default()).expect("runtime");
+        let mut scene = ui2_draw::Scene::new(1.0);
+        if let Some(d) = store.take_frame() {
+            rt.apply_delta(&d, &store);
+        }
+        rt.frame(0.0, &store, &mut engine, &mut scene);
+        assert!(rt.tooltip().is_none());
+        let [x, y, w, h] = at(&rt);
+        rt.handle_input(
+            &InputEvent::Pointer(PointerEvent {
+                id: PointerId::MOUSE,
+                kind: PointerKind::Mouse,
+                phase: PointerPhase::Move,
+                position: PhysicalPosition {
+                    x: f64::from(x + w / 2.0),
+                    y: f64::from(y + h / 2.0),
+                },
+                button: None,
+                modifiers: Modifiers::default(),
+            }),
+            1.0,
+        );
+        // What the host does with the writes of the markup (`set ui.production.hover = o.item`).
+        let writes = rt.drain_output().state_writes;
+        for op in writes {
+            let owner = if op.path.starts_with("ui.") {
+                Owner::Actions
+            } else {
+                Owner::Skin
+            };
+            store
+                .writer(owner)
+                .set_value(&op.path, op.value)
+                .expect("write");
+        }
+        if let Some(d) = store.take_frame() {
+            rt.apply_delta(&d, &store);
+        }
+        rt.frame(16.0, &store, &mut engine, &mut scene);
+        rt.frame(32.0, &store, &mut engine, &mut scene);
+        let root = rt.tooltip().expect("a tooltip is shown");
+        let mut texts = Vec::new();
+        let mut stack = vec![root];
+        while let Some(n) = stack.pop() {
+            let node = rt.node(n).expect("node");
+            if let Some(t) = node.text() {
+                texts.push(t.to_string());
+            }
+            stack.extend(node.children().iter().rev().copied());
+        }
+        let errors = rt.take_errors();
+        assert!(errors.is_empty(), "{errors:?}");
+        texts
+    };
+    let rect = |r: &ui2_runtime::ElementRect| [r.x, r.y, r.w, r.h];
+    let policies = hover("hud", &|rt| {
+        rect(&rt.dump_rects(Some("top.menu.policies"))[0])
+    });
+    for want in [
+        "Social policies",
+        "Tradition",
+        "4 of 5",
+        "Patronage",
+        "1 of 5",
+    ] {
+        assert!(policies.iter().any(|t| t == want), "{want} in {policies:?}");
+    }
+    // The second row of the list: Worker.
+    let row = pkg.tooltips()[1].0;
+    let label = format!("{}:{}", row.0.0, row.1);
+    let option = hover("production", &|rt| {
+        let rows: Vec<_> = rt
+            .dump_rects(None)
+            .into_iter()
+            .filter(|r| r.node == label)
+            .collect();
+        rect(&rows[1])
+    });
+    for want in ["Worker", "Builds tile improvements", "70 production"] {
+        assert!(option.iter().any(|t| t == want), "{want} in {option:?}");
+    }
+}
+
 /// The cases of the text probe (`tests/fixtures/text-probe`): the `data-part` names under `probe.`. Each sits at
 /// its own top inside the probe box, so a difference in one case does not move the others.
 const PROBE_CASES: &[&str] = &[
@@ -1005,6 +1190,48 @@ fn a_static_disabled_button_is_recorded() {
         })
         .collect();
     assert_eq!(disabled, [&Expr::Bool(true)]);
+}
+
+/// A bound `disabled` is a condition: the base record of the button is read enabled, whatever the binding gives
+/// on the page the converter reads (here it gives true), and `:disabled` is a variant over it.
+#[test]
+fn a_bound_disabled_button_has_an_enabled_base_record() {
+    if !chrome() {
+        return;
+    }
+    use ui2_package::style::ColorV;
+    let dir = picture_skin(
+        "e2e-bound-disabled",
+        ".b {\n  display: flex;\n  appearance: none;\n  border: 0;\n  padding: 0;\n  font: inherit;\n  color: inherit;\n  width: 8px;\n  height: 8px;\n  background-color: rgb(1, 2, 3);\n}\n.b:disabled {\n  background-color: rgb(200, 0, 0);\n}\n",
+    );
+    let html = std::fs::read_to_string(dir.join("index.html")).expect("index.html");
+    std::fs::write(
+        dir.join("index.html"),
+        html.replace(
+            "<div class=\"tile\"></div>",
+            "<button class=\"b\" data-bind-disabled=\"{{ui.production.focus == null}}\"></button>",
+        ),
+    )
+    .expect("index.html");
+    let out = ui2_convert::build::build(&dir, true);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(out.run.errors.is_empty(), "{:?}", out.run.errors);
+    let bytes = out.written.expect("package").bytes;
+    let pkg = ui2_package::Package::read(std::sync::Arc::from(bytes.as_slice())).expect("read");
+    let colors: Vec<ColorV> = pkg
+        .styles()
+        .records
+        .iter()
+        .map(|r| r.background_color)
+        .collect();
+    assert!(
+        colors.contains(&ColorV::Lit([1, 2, 3, 255])),
+        "the enabled base is recorded: {colors:?}"
+    );
+    assert!(
+        colors.contains(&ColorV::Lit([200, 0, 0, 255])),
+        "the disabled variant is recorded: {colors:?}"
+    );
 }
 
 /// A hotkey label (`data-hotkey-label` inside a node with `data-hotkey`) is written with its binding and one

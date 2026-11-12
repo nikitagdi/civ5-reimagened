@@ -105,6 +105,10 @@ pub struct Element {
     /// The preview's instance keys.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inst: Option<String>,
+    /// The id of the tooltip template this element is the root of (the preview's extract mode draws the root in
+    /// place of its `<template data-layer="tooltip">`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tooltip: Option<String>,
     /// The attributes in DOM order (internal ones removed).
     #[serde(default)]
     pub attrs: Vec<(String, String)>,

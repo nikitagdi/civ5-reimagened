@@ -369,7 +369,7 @@ fn roots_owners_and_enums() {
     assert_eq!(key("chat").as_deref(), Some("seq"));
     assert_eq!(key("map.cities").as_deref(), Some("key"));
     assert_eq!(key("unit.actions").as_deref(), Some("kind"));
-    assert_eq!(key("production.queue").as_deref(), Some("item"));
+    assert_eq!(key("production.queue").as_deref(), Some("slot"));
     assert_eq!(key("production.groups").as_deref(), Some("kind"));
     assert_eq!(key("production.groups[].options").as_deref(), Some("item"));
     assert_eq!(key("production.detail.compare").as_deref(), Some("city"));

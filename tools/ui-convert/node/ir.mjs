@@ -2,7 +2,7 @@
 //
 //   IR = { version, state, entry, viewport:[w,h], compat, title, dom, sheets, fonts, resources, errors }
 //
-//   dom      element tree. Element:  { type:"element", id, tag, ns?, src?, mark?, inst?, attrs:[[name,value]...],
+//   dom      element tree. Element:  { type:"element", id, tag, ns?, src?, mark?, inst?, tooltip?, attrs:[[name,value]...],
 //            natural?:[w,h], anon?, children:[...] }. Text: { type:"text", id, text, ws?, anon? }.
 //            ids are assigned in document order over elements and text nodes. Text is exactly what the DOM
 //            holds (NBSP stays U+00A0). ws marks text made only of ASCII whitespace (collapsible).
@@ -25,7 +25,7 @@ export const IR_VERSION = 1;
 /** Runs inside the page. Must be self-contained (it is serialized). */
 function extractInPage() {
   let nextId = 0;
-  const INTERNAL = new Set(["data-ui2-src", "data-ui2-node", "data-ui2-inst", "data-ui2-asset"]);
+  const INTERNAL = new Set(["data-ui2-src", "data-ui2-node", "data-ui2-inst", "data-ui2-asset", "data-ui2-tooltip"]);
   const SVG_NS = "http://www.w3.org/2000/svg";
   const isWs = (s) => !/[^ \t\n\r\f]/.test(s);
   const INLINE_DISPLAY = new Set(["inline", "inline-block", "inline-flex", "inline-grid", "inline-table"]);
@@ -87,6 +87,9 @@ function extractInPage() {
     if (mark) ir.mark = mark;
     const inst = el.getAttribute("data-ui2-inst");
     if (inst) ir.inst = inst;
+    // The root of a tooltip template, drawn in place of its <template> by the preview's extract mode.
+    const tooltip = el.getAttribute("data-ui2-tooltip");
+    if (tooltip) ir.tooltip = tooltip;
     ir.attrs = [];
     for (const a of el.attributes) if (!INTERNAL.has(a.name)) ir.attrs.push([a.name, a.value]);
     if (el.localName === "img" && el.naturalWidth > 0) ir.natural = [el.naturalWidth, el.naturalHeight];

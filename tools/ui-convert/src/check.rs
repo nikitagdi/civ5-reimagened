@@ -558,6 +558,22 @@ fn registry(cx: &mut Ctx, skin_page: bool) {
         }
         let e = dom.elems[ix];
         let ident = identity(e);
+        // The root of a tooltip template, drawn in place of its <template> on the page the converter reads.
+        if let Some(t) = &e.tooltip {
+            tooltips.insert(t.clone());
+            let in_layer = dom.parent[ix].is_some_and(|p| {
+                dom.elems[p].attr("data-layer") == Some("tooltip")
+                    && dom.parent[p].is_some_and(|b| dom.elems[b].tag == "body")
+            });
+            if !in_layer {
+                cx.err_at(
+                    ix,
+                    codes::TOOLTIP_REF,
+                    "",
+                    format!("the tooltip template `{t}` is not a child of the tooltip layer root"),
+                );
+            }
+        }
         if let Some(id) = e.attr("id") {
             ids.entry(id.to_string()).or_default().insert(ident.clone());
             first.entry(format!("id {id}")).or_insert(ix);
