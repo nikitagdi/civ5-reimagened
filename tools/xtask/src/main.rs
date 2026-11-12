@@ -1232,7 +1232,8 @@ fn flag_value(args: &[String], flag: &str) -> Result<Option<String>> {
 /// Forwards to the `golden` tool: `cargo xtask golden prep S1|S2|S3|S4|restore ...`.
 fn cmd_golden(root: &Path, args: &[String]) -> Result<()> {
     let mut c = cargo();
-    c.args(["run", "-p", "golden", "--release", "--"])
+    // The crate has more binaries (`ui_flip`, `import_c5sv`): name the tool's own.
+    c.args(["run", "-p", "golden", "--bin", "golden", "--release", "--"])
         .args(args);
     run(root, c)
 }
