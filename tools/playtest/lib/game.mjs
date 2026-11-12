@@ -22,6 +22,42 @@ export async function startServerGame(page, ctx, p) {
   return signInAndWait(page, ctx, p.nick);
 }
 
+/** The server's refusal of a start while it runs as many games as it may (`max_games`, 4 by default). */
+export const TOO_MANY_GAMES = "too many games are running";
+
+/**
+ * The host (`host`, a page in its room with Start on) starts the game; resolves when every page of `players` is in it,
+ * with `{ ms, refusals, waitedMs }`. A game stays up for 5 minutes after its last player left, so a server that ran
+ * a few short games just before (earlier scenarios, quick starts) refuses the start with "too many games are running"
+ * (`state().net.room.error`, the room screen stays): the start is asked again every 10 s for up to `busyMs` and the
+ * wait is in the result. Any other refusal throws at once with the server's words, not after a timeout.
+ * @param {import("playwright").Page} host
+ * @param {Array<[string, import("playwright").Page]>} players `[label, page]` of everyone who must get into the game
+ */
+export async function startRoom(host, players, { timeoutMs = 180000, busyMs = 360000 } = {}) {
+  const t0 = Date.now();
+  let refusals = 0;
+  let waitedMs = 0;
+  for (;;) {
+    const before = (await until(host, () => true, 5000, "the room")).net?.room?.error ?? null;
+    await act(host, { kind: "start" });
+    // A refusal shows in the room for 8 s (`ERROR_SHOW_MS` of the client), so it has gone before the next ask.
+    const s = await until(host, (x) => x.screen !== "room" || ((x.net?.room?.error ?? null) !== null && x.net.room.error !== before), timeoutMs, "the game starting");
+    const error = s.screen === "room" ? s.net?.room?.error ?? null : null;
+    if (error === TOO_MANY_GAMES && Date.now() - t0 < busyMs) {
+      refusals += 1;
+      const w = Date.now();
+      await new Promise((r) => setTimeout(r, 10000));
+      waitedMs += Date.now() - w;
+      continue;
+    }
+    if (error) throw new Error(`the server refused the start: ${error}${refusals ? ` (after ${refusals} refusal(s), ${Math.round(waitedMs / 1000)} s)` : ""}`);
+    break;
+  }
+  for (const [label, page] of players) await until(page, (x) => x.screen === "play" && x.net?.phase === "play" && x.turn !== null, timeoutMs, `${label} in the game`);
+  return { ms: Date.now() - t0, refusals, waitedMs };
+}
+
 /** After a page load with `autostart`: the sign-in window if it shows, then the first human turn on the map. */
 export async function signInAndWait(page, ctx, nick) {
   const o = ctx.opts;

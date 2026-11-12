@@ -9,7 +9,7 @@
 // Checks: ui.lua_errors == 0 on both clients, replica.diverged == 0, the chat line arrived, the minimap click moved the
 // camera. Screenshots go to the log dir.
 import { openPage, act, until, appUrl } from "../lib/browser.mjs";
-import { DEV_PASSWORD } from "../lib/game.mjs";
+import { DEV_PASSWORD, startRoom } from "../lib/game.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -125,11 +125,12 @@ export async function run(ctx) {
     for (const slot of s.net.room.slots.filter((y) => y.who === "open")) await act(alice.page, { kind: "slot", index: slot.index, occupant: "closed" });
     await until(alice.page, (x) => x.net?.room?.slots.every((y) => y.who !== "open") && x.net.room.canStart === true, 15000, "Start is on");
     const t0 = Date.now();
-    await act(alice.page, { kind: "start" });
-    for (const [nick, b] of [[nickA, alice], [nickB, bob]]) await until(b.page, (x) => x.screen === "play" && x.net?.phase === "play" && x.turn !== null, 120000, `${nick} in the game`);
+    // A server that ran games just before may refuse the start for a while (`max_games`): waited out and reported.
+    const start = await startRoom(alice.page, [[nickA, alice.page], [nickB, bob.page]], { timeoutMs: 120000 });
+    result.numbers.start = start;
     const stA = await m2Up(alice, nickA);
     const stB = await m2Up(bob, nickB);
-    result.numbers.toUiMs = Date.now() - t0;
+    result.numbers.toUiMs = Date.now() - t0 - start.waitedMs;
     await sleep(5000);
     await shot(alice, "01-alice-start");
     await shot(bob, "01-bob-start");
