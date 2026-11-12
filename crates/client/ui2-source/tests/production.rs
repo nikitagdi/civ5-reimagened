@@ -432,6 +432,48 @@ fn a_batch_rebuilds_the_open_window() {
     assert_eq!(f.calls.iter().filter(|c| **c == "city_builds").count(), 1);
 }
 
+/// The queue rows are keyed by slot: two entries of one item (two units of one type) are two rows.
+#[test]
+fn a_queue_with_two_equal_items_shows_both_rows() {
+    let mut f = reference();
+    let order = |slot, item, turns| CityOrder {
+        slot,
+        order: OrderType::Train,
+        item,
+        turns: Some(turns),
+        needed: 160,
+    };
+    f.queues.insert(
+        MOSCOW,
+        vec![
+            order(0, MUSKETMAN, 4),
+            order(1, MUSKETMAN, 8),
+            order(2, MUSKETMAN, 12),
+        ],
+    );
+    let mut rig = Rig::new(session());
+    rig.start(&mut f);
+    open(&mut rig, MOSCOW);
+    rig.frame(&mut f);
+    let p = production(&rig).expect("open");
+    assert!(p.queue_known);
+    let rows: Vec<(i32, Option<i16>, bool)> =
+        p.queue.iter().map(|r| (r.slot, r.turns, r.first)).collect();
+    assert_eq!(
+        rows,
+        [
+            (0, Some(4), true),
+            (1, Some(8), false),
+            (2, Some(12), false)
+        ]
+    );
+    assert!(
+        p.queue
+            .iter()
+            .all(|r| r.item == item(OrderType::Train, MUSKETMAN))
+    );
+}
+
 #[test]
 fn a_core_without_the_queue_shows_the_head_only() {
     let mut f = reference();
