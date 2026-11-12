@@ -514,3 +514,31 @@ Every code the converter and the profile's parsers report, with the text it prin
 | E9-007 | package not written | a converter bug or a file system problem: the package builder refused the data or the output folder is not writable |
 
 <!-- profile: end -->
+
+## Mount points and tokens for mod panels
+
+A mod's panels (see [Mods](modding.md#panels-in-ui-v2)) attach to a point by its id, never by the classes of a skin.
+The catalogue is `mod_api::UI_CATALOG`; its own version, the UI API, is 1.0. A minor version only adds points and
+tokens. Renaming or removing one is a major version.
+
+| Point | Kind | Holds |
+|---|---|---|
+| `mods` | stack | The shared slot. Every skin must have it; panels whose point a skin lacks land here |
+| `hud.top.extra` | stack | The free space of the top bar |
+| `hud.menu` | stack | The menu group of the top bar; panels here should be buttons |
+| `hud.right` | stack | The column under the notifications |
+| `hud.unit.actions` | stack | The orders of the selected unit; panels here should be buttons |
+| `window.production.detail` | stack | The detail side of the production window |
+| `hud.minimap` | single | The minimap; a panel may replace it |
+| `hud.chat` | single | The chat; a panel may replace it |
+
+A skin marks a point with `data-slot="<id>"` on one element, as it does `mods`. A skin may leave out any point
+except `mods`. A stack takes the panels after the element's own children, in load order of the mods. A single point is
+one element of the skin that a panel may replace (`mode = "replace"`, one mod per point). A panel for a point the
+skin lacks goes to `mods`, or is dropped when the panel says `fallback = "none"`.
+
+The color tokens a panel may read as `var(--ui-*)` are the 17 color synonyms every skin defines (the list under
+"Extension points and color synonyms" above): `--ui-surface`, `--ui-surface-2`, `--ui-line`, `--ui-text`,
+`--ui-text-2`, `--ui-text-3`, `--ui-accent`, `--ui-accent-ink`, `--ui-negative`, `--ui-y-food`, `--ui-y-prod`,
+`--ui-y-gold`, `--ui-y-sci`, `--ui-y-cult`, `--ui-y-faith`, `--ui-y-happy` and `--ui-y-tour`. A panel reads them and
+never defines them. Its text uses the font roles `ui-sans` and `ui-display`.
