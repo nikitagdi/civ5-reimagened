@@ -26,8 +26,10 @@
 //   state: the sample file name, default "hud". lang: the table file name, default "en_US".
 //   root: the URL of the skin root (default: the origin root for http, the page folder for file:).
 //
-// Numbering. A template is the document (everything below <body>, <body> itself is not a node) or the
-// subtree of an element with data-bind-for or data-bind-if. An element's number is its preorder index
+// Numbering. A template is the document (everything below <body>, <body> itself is not a node), the
+// subtree of an element with data-bind-for or data-bind-if, or the one root element of a
+// <template data-layer="tooltip"> (numbered where the <template> stands; extract mode draws it there, marked
+// data-ui2-tooltip, and the other modes leave it in the <template>). An element's number is its preorder index
 // among the elements of its own template; the root of a nested template belongs to that template (as
 // element 0), not to its parent. Templates are numbered in the order their roots appear in the
 // document, the document being 0. <svg> is a node but its content is not; <script>, <style>,
