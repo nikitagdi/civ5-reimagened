@@ -548,6 +548,15 @@ impl V2Ui {
             .and_then(|s| s.sup.status(&ScriptCtxId::Skin))
     }
 
+    /// The mods' script contexts and where each is, in the order they were started.
+    pub fn mod_script_status(&self) -> Vec<(ScriptCtxId, ScriptStatus)> {
+        self.mods
+            .scripts
+            .as_ref()
+            .map(|s| s.sup.contexts().collect())
+            .unwrap_or_default()
+    }
+
     /// Frames run since the skin was loaded.
     pub fn frames(&self) -> u64 {
         self.frames

@@ -11,8 +11,10 @@
 //  3. The turn dial selects a waiting unit: the unit panel shows its name; the F key fortifies it within 2 s.
 //  4. A click on alice's own city banner (`ui2Rects(['city-banner'])`) opens the production window; the Worker row
 //     and Build now (Choose while the city builds nothing) make the Worker the current production (window and
-//     `state()`); Add to queue puts a Warrior in the queue (the server's answer clears the row's waiting mark); the
-//     queue's up arrow moves it to the front.
+//     `state()`); Add to queue puts a Warrior (or the unique unit of the civilisation that replaces it) in the
+//     queue (the server's answer clears the row's waiting mark); the queue's up arrow moves it to the front; a
+//     second one makes two equal items, shown as two rows. Hovering a row of the list shows its tooltip (name,
+//     cost), and so does the strip's policies button.
 //  5. Choose research (the dial): a click on a technology makes it the current research (the top strip).
 //  6. A click on the dial ends the turn: the turn goes up by one in `state()` and on the dial.
 //  7. `setUi classic` and back, each within 3 s (after the classic UI's first boot, which is measured); the same
@@ -293,18 +295,25 @@ async function openByBanner(page) {
   return { ...w, box };
 }
 
-/** Clicks the rows of the production list one by one until the detail names `name`; the row or null. */
+/**
+ * Clicks the rows of the production list one by one until the detail names `name` (a name, or a test of the name);
+ * the row with the `name` it found, or null.
+ */
 async function focusRow(page, name) {
+  const want = typeof name === "function" ? name : (n) => n === name;
   for (let pass = 0; pass < 2; pass++) {
     for (const row of rowsOf(await rectsOf(page, "production.list"))) {
       if (row.cy > VP.height - 8) continue;
       await page.mouse.click(row.x + Math.min(120, row.w / 3), row.cy);
-      const p = await waitUi(page, (q) => detailName(q) === name, 600);
-      if (p.ok) return row;
+      const p = await waitUi(page, (q) => want(detailName(q) ?? ""), 600);
+      if (p.ok) return { ...row, name: detailName(p.probe) };
     }
   }
   return null;
 }
+
+/** The civilisation's warrior: `Warrior`, or the unique unit that replaces it (`Maori Warrior`, `Jaguar`, ...). */
+const WARRIOR = (n) => /Warrior$/.test(n) || ["Jaguar", "Brute"].includes(n);
 
 /**
  * Steps 3 to 6 on alice's client: the turn dial leads through the first turn (units waiting for orders, the city's
@@ -428,12 +437,14 @@ async function step4(alice, check, n, shot) {
   check("4. Build now: the game builds it (state().cities: an item, the window's turns)",
     built.ok && cities.some((c) => c.productionItem >= 0 && p.current.texts.includes(String(c.productionTurns))), JSON.stringify(p.current.cities));
   // Warrior + Add to queue.
-  const warrior = await focusRow(page, "Warrior");
+  const warrior = await focusRow(page, WARRIOR);
+  const wn = warrior?.name;
+  p.warrior = wn ?? null;
   if (!warrior) {
     check("4. Add to queue: a Warrior row", false, "no Warrior row in the list");
   } else {
     await clickPart(page, "production.to-back");
-    const queued = await waitUi(page, (q) => partTexts(q, "production.queue").includes("Warrior") && !partTexts(q, "production.list").includes("Waiting"), 5000);
+    const queued = await waitUi(page, (q) => partTexts(q, "production.queue").includes(wn) && !partTexts(q, "production.list").includes("Waiting"), 5000);
     p.queue = { ms: queued.ms, texts: partTexts(queued.probe, "production.queue") };
     check("4. Add to queue: the Warrior is in the queue, the waiting mark cleared by the server's answer", queued.ok, JSON.stringify(p.queue));
     // The up arrow of the Warrior's row: the left one of the two small buttons at the right end of the row.
@@ -451,14 +462,41 @@ async function step4(alice, check, n, shot) {
     if (up) await page.mouse.click(up.x + up.w / 2, up.y + up.h / 2);
     const moved = await waitUi(page, (q) => {
       const t = partTexts(q, "production.queue");
-      return t.indexOf("Warrior") >= 0 && t.indexOf("Worker") >= 0 && t.indexOf("Warrior") < t.indexOf("Worker");
+      return t.indexOf(wn) >= 0 && t.indexOf("Worker") >= 0 && t.indexOf(wn) < t.indexOf("Worker");
     }, 5000);
     p.afterUp = { ms: moved.ms, texts: partTexts(moved.probe, "production.queue") };
     check("4. the queue's up arrow moves the Warrior to the front", !!up && moved.ok, JSON.stringify(p.afterUp));
+    // A second Warrior: two equal items in the queue are two rows (the queue is keyed by slot, not by item).
+    const rows0 = rowsOf(await rectsOf(page, "production.queue")).length;
+    const again = await focusRow(page, wn);
+    if (again) await clickPart(page, "production.to-back");
+    const two = await waitUi(page, (q) => partTexts(q, "production.queue").filter((t) => t === wn).length === 2 && !partTexts(q, "production.list").includes("Waiting"), 5000);
+    const rows1 = rowsOf(await rectsOf(page, "production.queue")).length;
+    p.twoEqual = { ms: two.ms, texts: partTexts(two.probe, "production.queue"), rows: [rows0, rows1] };
+    check("4. two equal items in the queue show as two rows", !!again && two.ok && rows1 === rows0 + 1, JSON.stringify(p.twoEqual));
+  }
+  // The tooltip of a production row: the hovered option's name and its cost.
+  const tipRow = (await focusRow(page, "Worker")) ?? null;
+  if (tipRow) {
+    await page.mouse.move(tipRow.x + Math.min(120, tipRow.w / 3), tipRow.cy);
+    const tip = await waitUi(page, (q) => partTexts(q, "tip.option").includes("Worker"), 3000);
+    p.rowTip = { ms: tip.ms, texts: partTexts(tip.probe, "tip.option") };
+    check("4. a production row shows its tooltip while hovered", tip.ok && p.rowTip.texts.some((t) => / production$/.test(t)), JSON.stringify(p.rowTip));
+    await shot(alice, "production-tooltip");
+  } else {
+    check("4. a production row shows its tooltip while hovered", false, "no Worker row to hover");
   }
   await shot(alice, "production");
   await page.keyboard.press("Escape");
   await waitUi(page, (q) => partTexts(q, "production.head").length === 0, 3000);
+  // The tooltip of the strip's policies button.
+  const pol = await partBox(page, "top.menu.policies");
+  if (pol) await page.mouse.move(pol.cx, pol.cy);
+  const ptip = await waitUi(page, (q) => partTexts(q, "tip.policies").length > 0, 3000);
+  p.policiesTip = { ms: ptip.ms, texts: partTexts(ptip.probe, "tip.policies") };
+  check("4. the policies button shows its tooltip while hovered", !!pol && ptip.ok && p.policiesTip.texts.includes("Social policies"), JSON.stringify(p.policiesTip));
+  await shot(alice, "policies-tooltip");
+  await page.mouse.move(VP.width / 2, VP.height / 2);
 }
 
 /** 5. Choose research: the dial opens the research window; a click on the first technology makes it current. */

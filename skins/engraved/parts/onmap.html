@@ -1,6 +1,6 @@
 <!-- The map layer: one banner per city and one flag per unit, each placed on the screen at its object by the host
      (data-anchor). A banner or flag is laid out once around the anchor's point (the origin of the layer). -->
-<div class="city" data-part="city-banner" data-bind-for="c:{{map.cities}}" data-anchor="city:{{c.key}}" data-bind-class-toggle="mine:{{c.mine}}; sel:{{c.key == ui.selection.city}}; fog:{{!c.visible}}">
+<div class="banner" data-part="city-banner" data-bind-for="c:{{map.cities}}" data-anchor="city:{{c.key}}" data-bind-class-toggle="mine:{{c.mine}}; sel:{{c.key == ui.selection.city}}; fog:{{!c.visible}}">
   <div class="str">
     <svg class="i"><use href="#i-str"/></svg>
     <span data-bind-value="{{c.strength}}">18</span>

@@ -4,9 +4,10 @@
 // Without `--attach` (the local fixture server) the game's layer that UI v2 reads never comes up: the scenario says so.
 //
 // Also: the playtest hooks (`state().ui`, `ui2()`, `ui2Rects`, `digest('replica')`), switching v2 -> classic (warm)
-// -> v2 -> classic (cold) -> v2 on the fly, the tech tree and the policies opened from the skin's strip through the
-// classic UI and closed back to UI v2, a skin change on the screen (engraved -> the fixture skin `alt` ->
-// engraved) with an open window, and broken skin packages (fixtures) on the classic page.
+// -> v2 -> classic (cold) -> v2 on the fly, the tech tree, the policies and the four overviews (economy, military,
+// victory, demographics) opened from the skin's strip through the classic UI and closed back to UI v2, a skin
+// change on the screen (engraved -> the fixture skin `alt` -> engraved) with an open window, and broken skin
+// packages (fixtures) on the classic page.
 //
 // Start: `?ui=v2:engraved&test=1&autostart=1&stats=1`; once the skin runs, the top strip's texts (read through
 // `__civ5test.ui2()`, never from pixels) show the gold and the science rate, and the turn dial the turn and the year, that `state()` reports,
@@ -291,7 +292,7 @@ async function switching(page, numbers, check) {
 }
 
 /**
- * Screens the skin does not have: the strip's tech tree and policies buttons open the classic UI's
+ * Screens the skin does not have: the strip's tech tree, policies and overview buttons open the classic UI's
  * windows (the host hands the screen to the classic UI, `state().ui.screen` names the screen and `screenShown` says
  * its window is up); the window's Close button (found in the classic screen dump, clicked with the mouse) closes it
  * and UI v2 is back. Each hand-off within 1 s (the warm switch), no new Lua errors.
@@ -301,7 +302,15 @@ async function screensViaClassic(b, numbers, check, shot) {
   const ui = uiDriver(b);
   const lua0 = await luaErrors(page);
   const runs = [];
-  for (const [screen, part, ctx] of [["tech_tree", "top.menu.tech", "TechTree"], ["policies", "top.menu.policies", "SocialPolicyPopup"]]) {
+  const screens = [
+    ["tech_tree", "top.menu.tech", "TechTree"],
+    ["policies", "top.menu.policies", "SocialPolicyPopup"],
+    ["economy", "top.menu.economy", "EconomicOverview"],
+    ["military", "top.menu.military", "MilitaryOverview"],
+    ["victory", "top.menu.victory", "VictoryProgress"],
+    ["demographics", "top.menu.demographics", "Demographics"],
+  ];
+  for (const [screen, part, ctx] of screens) {
     const run = { screen };
     runs.push(run);
     const rect = await page.evaluate((p) => window.__civ5test.ui2Rects([p]), part).catch(() => null);

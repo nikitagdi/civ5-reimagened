@@ -2,7 +2,7 @@
    host moves to its object's point on the screen: a banner stands on the point, a flag is centred on it. */
 
 /* ---------- city banners ---------- */
-.city {
+.banner {
   position: absolute;
   left: -140px;
   top: -76px;
@@ -11,7 +11,7 @@
 }
 
 /* The tab with the city's strength over the banner. */
-.city .str {
+.banner .str {
   position: absolute;
   left: 88px;
   top: -30px;
@@ -30,12 +30,12 @@
   pointer-events: auto;
 }
 
-.city .str svg.i {
+.banner .str svg.i {
   margin-top: 2px;
   color: var(--bone-2);
 }
 
-.city .body {
+.banner .body {
   position: absolute;
   left: 0;
   top: 0;
@@ -51,20 +51,20 @@
   transition: background-color 150ms var(--ease);
 }
 
-.city.mine .body:hover {
+.banner.mine .body:hover {
   background-color: var(--lacquer-2);
 }
 
-.city.sel .body {
+.banner.sel .body {
   box-shadow: inset 0 0 0 1px var(--brass), 0 0 0 1px var(--brass);
 }
 
-.city.fog .body {
+.banner.fog .body {
   background-color: var(--lacquer-0);
 }
 
 /* The flank in the owner's colours: the size and the turns to grow. */
-.city .flank {
+.banner .flank {
   width: 56px;
   flex: none;
   display: flex;
@@ -77,11 +77,11 @@
   box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.35);
 }
 
-.city .flank .size {
+.banner .flank .size {
   font: 500 30px/30px var(--serif);
 }
 
-.city .flank .grow {
+.banner .flank .grow {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -89,12 +89,12 @@
   line-height: 16px;
 }
 
-.city .flank .grow svg.i {
+.banner .flank .grow svg.i {
   width: 12px;
   height: 12px;
 }
 
-.city .main {
+.banner .main {
   flex: 1;
   min-width: 0;
   padding: 8px 12px;
@@ -103,7 +103,7 @@
   gap: 4px;
 }
 
-.city .name {
+.banner .name {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -111,7 +111,7 @@
   white-space: nowrap;
 }
 
-.city .name .nm {
+.banner .name .nm {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -119,13 +119,13 @@
   color: var(--bone);
 }
 
-.city .name .cap {
+.banner .name .cap {
   width: 14px;
   height: 14px;
   color: var(--civ-yellow);
 }
 
-.city .prod {
+.banner .prod {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -136,39 +136,39 @@
   white-space: nowrap;
 }
 
-.city .prod svg.i {
+.banner .prod svg.i {
   width: 14px;
   height: 14px;
   color: var(--y-prod);
 }
 
-.city .prod .what {
+.banner .prod .what {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.city .prod .t {
+.banner .prod .t {
   flex: none;
   margin-left: auto;
   font-weight: 500;
   color: var(--bone);
 }
 
-.city .prod.none {
+.banner .prod.none {
   color: var(--neg);
 }
 
-.city .scale {
+.banner .scale {
   height: 3px;
 }
 
-.city .scale .fill {
+.banner .scale .fill {
   background-color: var(--y-prod);
 }
 
 /* The city's health, while it is damaged: a hairline at the bottom of the banner. */
-.city .hp {
+.banner .hp {
   position: absolute;
   left: 56px;
   right: 0;
@@ -177,7 +177,7 @@
   background-color: var(--lacquer-3);
 }
 
-.city .hp .fill {
+.banner .hp .fill {
   position: absolute;
   left: 0;
   top: 0;

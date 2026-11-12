@@ -458,25 +458,37 @@ fn probe_parts(ui: &V2Ui) -> (Vec<ProbePanel>, Vec<ProbeScript>) {
             failed: p.failed,
         })
         .collect();
-    let scripts = ui
+    let name = |status: &ui2_host::ScriptStatus| match status {
+        ui2_host::ScriptStatus::Starting => "starting",
+        ui2_host::ScriptStatus::Running => "running",
+        ui2_host::ScriptStatus::Busy { .. } => "busy",
+        ui2_host::ScriptStatus::Restarting => "restarting",
+        ui2_host::ScriptStatus::Disabled { .. } => "disabled",
+    };
+    let mut scripts: Vec<ProbeScript> = ui
         .script_status()
         .map(|status| {
             let stats = ui.script_stats().unwrap_or_default();
             ProbeScript {
                 ctx: "skin".into(),
-                status: match status {
-                    ui2_host::ScriptStatus::Starting => "starting",
-                    ui2_host::ScriptStatus::Running => "running",
-                    ui2_host::ScriptStatus::Busy { .. } => "busy",
-                    ui2_host::ScriptStatus::Restarting => "restarting",
-                    ui2_host::ScriptStatus::Disabled { .. } => "disabled",
-                },
+                status: name(&status),
                 errors: stats.errors,
                 restarts: stats.restarts,
             }
         })
         .into_iter()
         .collect();
+    // The mods' contexts (their counters are the mods' supervisor's, not per context: left at 0).
+    scripts.extend(
+        ui.mod_script_status()
+            .into_iter()
+            .map(|(ctx, status)| ProbeScript {
+                ctx: ui2_host::ctx_name(&ctx),
+                status: name(&status),
+                errors: 0,
+                restarts: 0,
+            }),
+    );
     (panels, scripts)
 }
 

@@ -1505,12 +1505,14 @@ fn two_mods_replacing_one_ui_point_show_a_problem_and_cannot_start() {
             ("side", "client", &ui("hud.right", "append")),
         ],
     );
-    // The helper writes `parts = ["assets"]` and `api = "^1"`: these mods have the `ui` part.
+    // The helper writes `parts = ["assets"]` and `api = "^1"`: these mods have the `ui` part, which needs the mod
+    // API 1.3 or later.
     for id in ["map-a", "map-b", "side"] {
         let p = mods.join(id).join("mod.toml");
         let text = std::fs::read_to_string(&p)
             .unwrap()
-            .replace("parts=[\"assets\"]", "parts=[\"ui\"]");
+            .replace("parts=[\"assets\"]", "parts=[\"ui\"]")
+            .replace("api=\"^1\"\nlicense", "api=\"^1.3\"\nlicense");
         std::fs::write(&p, text).unwrap();
     }
     let dir = mods.clone();

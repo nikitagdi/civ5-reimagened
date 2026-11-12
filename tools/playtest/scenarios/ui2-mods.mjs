@@ -5,7 +5,8 @@
 //
 // A quick game with `&mods=hello` and `&ui=v2:engraved`: the panel `echo` stands in `hud.right` and reads "Echoes N";
 // a click on its **Say hello** button sends `Say` through the mod's Rust half, the server's echo comes back and the
-// panel shows "Echoes N+1" and "last: <nick>: hello #1". Screenshots: <logs>/ui2-mods-*.png.
+// panel shows "Echoes N+1" and "last: <nick>: hello #1". The mod's script context (`mod:hello` in `ui2().scripts`) runs:
+// its worker answered `ready` and was never killed. Screenshots: <logs>/ui2-mods-*.png.
 import { openPage, act, until, appUrl } from "../lib/browser.mjs";
 import { DEV_PASSWORD } from "../lib/game.mjs";
 
@@ -61,6 +62,17 @@ export async function run(ctx) {
     result.numbers.rects = rects;
     const r = Array.isArray(rects) ? rects[0] : null;
     check("the panel has a box", r && r.w > 0 && r.h > 0, JSON.stringify(rects));
+    // The mod's script context (`hello.js`) says it is ready: the worker answered, and the answer reached the mods'
+    // supervisor (not the skin's, which drains its own workers). A context still starting after 10 s is killed.
+    const t2 = Date.now();
+    let modCtx = null;
+    while (Date.now() - t2 < 20000) {
+      modCtx = ((await ui2(b.page))?.scripts ?? []).find((s) => s.ctx === "mod:hello") ?? null;
+      if (modCtx?.status === "running") break;
+      await sleep(200);
+    }
+    result.numbers.modScriptReadyMs = modCtx?.status === "running" ? Date.now() - t2 : null;
+    check("the mod's script context runs (ready, never killed)", modCtx?.status === "running" && !b.errors.some((e) => /\[mod:hello\].*(not ready after|killed|switched off)/.test(e)), JSON.stringify(modCtx));
     await shot("ui2-mods-before");
     if (r) {
       const n = Number((before.find((t) => t.startsWith("Echoes ")) ?? "Echoes 0").slice(7));

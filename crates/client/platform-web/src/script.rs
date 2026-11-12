@@ -5,7 +5,9 @@
 //!
 //! - `spawn() -> number`: a new worker running `ui2/worker.js`; throws when the page cannot create one;
 //! - `post(id, text) -> bool`: `false` for a worker that does not exist (any more);
-//! - `drain() -> [[id, "msg" | "error", text], ...]`: what the workers sent since the last call, oldest first;
+//! - `drain(ids) -> [[id, "msg" | "error", text], ...]`: what the workers `ids` sent since the last call, oldest first;
+//!   the other workers' messages stay queued. The page has one queue for every host (the skin's supervisor and the
+//!   mods' each have one), so a host drains only the workers it started;
 //! - `terminate(id)`: stops the worker at once and drops what it sent and was not drained.
 
 use std::cell::Cell;
@@ -23,6 +25,8 @@ pub struct WebScriptHost {
     post: Function,
     drain: Function,
     terminate: Function,
+    /// The workers this host started and did not terminate: the ones whose messages it drains.
+    own: Vec<u32>,
     /// One log line for the first failed `drain`, not one per frame.
     warned: Cell<bool>,
 }
@@ -47,6 +51,7 @@ impl WebScriptHost {
             drain: func("drain")?,
             terminate: func("terminate")?,
             api,
+            own: Vec::new(),
             warned: Cell::new(false),
         })
     }
@@ -74,10 +79,13 @@ impl ScriptHost for WebScriptHost {
             .spawn
             .call0(&self.api)
             .map_err(|e| ScriptHostError::Spawn(js_error_text(&e)))?;
-        id.as_f64()
+        let id = id
+            .as_f64()
             .filter(|n| *n >= 0.0 && *n <= f64::from(u32::MAX))
             .map(|n| WorkerId(n as u32))
-            .ok_or_else(|| ScriptHostError::Spawn(format!("the page gave no worker id: {id:?}")))
+            .ok_or_else(|| ScriptHostError::Spawn(format!("the page gave no worker id: {id:?}")))?;
+        self.own.push(id.0);
+        Ok(id)
     }
 
     fn post(&mut self, worker: WorkerId, text: &str) -> Result<(), ScriptHostError> {
@@ -94,7 +102,11 @@ impl ScriptHost for WebScriptHost {
     }
 
     fn drain(&mut self, out: &mut Vec<(WorkerId, ScriptHostEvent)>) {
-        match self.drain.call0(&self.api) {
+        if self.own.is_empty() {
+            return;
+        }
+        let ids: Array = self.own.iter().map(|id| JsValue::from(*id)).collect();
+        match self.drain.call1(&self.api, &ids) {
             Ok(list) => {
                 if let Some(list) = list.dyn_ref::<Array>() {
                     out.extend(list.iter().filter_map(|v| entry(&v)));
@@ -109,6 +121,7 @@ impl ScriptHost for WebScriptHost {
     }
 
     fn terminate(&mut self, worker: WorkerId) {
+        self.own.retain(|id| *id != worker.0);
         if let Err(e) = self.terminate.call1(&self.api, &JsValue::from(worker.0)) {
             tracing::warn!(
                 "ui2 script workers: terminate {} failed: {}",

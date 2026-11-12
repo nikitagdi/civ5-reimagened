@@ -55,6 +55,6 @@ pub use ui2_package::Package as SkinPackage;
 pub use ui2_package::profile::action::AnchorKind;
 pub use ui2_package::style::Cursor;
 pub use ui2_runtime::{AssetResolver, Env, ExtImage, InputOutcome, Services};
-pub use ui2_script::{ScriptStats, ScriptStatus};
+pub use ui2_script::{ScriptStats, ScriptStatus, ctx_name};
 pub use ui2_source::ReplicaView;
 pub use v2::{HostClock, LoadStats, RESOLVE_BUDGET_MS, V2Init, V2Ui};
