@@ -146,6 +146,17 @@
     this.dev = dev;
     this.roots = Object.create(null);
     this.revision = 0;
+    // The copies the last op of the delta being applied made along its path, and the keys array its list op
+    // made (see `own`); empty between deltas.
+    this.chain = [];
+    this.keysMade = null;
+    this.slot = null;
+    this.at = [];
+    // The last element looked up by key (see `walk`).
+    this.lastKeys = null;
+    this.lastKey = null;
+    this.lastAt = -1;
+    this.parsed = new Map();
   }
 
   Mirror.prototype.rootFor = function (path) {
@@ -153,13 +164,27 @@
     return r !== null ? r : rootOf(path, Object.keys(this.roots));
   };
 
-  Mirror.prototype.get = function (path) {
-    const root = this.rootFor(path);
+  // A read path as its root and field names; the ones under a root of the tables are kept.
+  Mirror.prototype.parse = function (path) {
+    let p = this.parsed.get(path);
+    if (p) return p;
+    let root = rootOf(path, this.t.rootNames);
+    const keep = root !== null;
+    if (!keep) root = rootOf(path, Object.keys(this.roots));
     if (root === null) throw new Error("`" + path + "`: unknown model root");
-    let node = this.roots[root];
     const rest = path.slice(root.length);
-    if (!rest) return node === undefined ? null : node;
-    for (const seg of rest.slice(1).split(".")) {
+    p = { root, segs: rest ? rest.slice(1).split(".") : [] };
+    if (keep && this.parsed.size < 4096) this.parsed.set(path, p);
+    return p;
+  };
+
+  Mirror.prototype.get = function (path) {
+    const p = this.parse(path);
+    let node = this.roots[p.root];
+    const segs = p.segs;
+    if (!segs.length) return node === undefined ? null : node;
+    for (let i = 0; i < segs.length; i++) {
+      const seg = segs[i];
       if (node === null || node === undefined) return null;
       if (Array.isArray(node)) {
         throw new TypeError("`" + path + "` goes through a list: read the list and look at its elements");
@@ -169,23 +194,82 @@
     return node === undefined ? null : node;
   };
 
-  function updateIn(node, steps, i, keys, ki, fn, path) {
-    if (i === steps.length) return fn(node);
-    const s = steps[i];
-    if (s === ELEM) {
-      if (!Array.isArray(node)) throw new Error("model mirror out of step at " + path);
-      const ks = keysOf(node);
-      const at = ks.indexOf(keys[ki]);
-      if (at < 0) throw new Error("model mirror has no element " + keys[ki] + " at " + path);
-      const copy = withKeys(node.slice(), ks);
-      copy[at] = updateIn(node[at], steps, i + 1, keys, ki + 1, fn, path);
-      return copy;
+  // The position of `key` in the keys `ks` of a list, or -1. A long list keeps an index by key (the keys array of
+  // a list is shared by its versions while no element is added, removed or moved).
+  const INDEX = new WeakMap();
+  const INDEX_MIN = 16;
+  const NONE = Object.freeze([]);
+
+  function indexOfKey(ks, key) {
+    if (ks.length < INDEX_MIN) return ks.indexOf(key);
+    let ix = INDEX.get(ks);
+    if (!ix) {
+      ix = new Map();
+      for (let i = ks.length - 1; i >= 0; i--) ix.set(ks[i], i);
+      INDEX.set(ks, ix);
     }
-    if (node === null || typeof node !== "object") throw new Error("model mirror out of step at " + path);
-    const copy = Object.assign({}, node);
-    copy[s] = updateIn(node[s], steps, i + 1, keys, ki, fn, path);
-    return copy;
+    const at = ix.get(key);
+    return at === undefined ? -1 : at;
   }
+
+  // The writes of one delta go to copies of the objects on their paths: what the delta did not touch keeps its
+  // identity, what it touched is new, and the model from before the delta is never written. The copies the
+  // last op made along its path (`this.chain`, by depth) are changed in place by the next op that goes the same
+  // way: the ops of a delta come grouped by element, so a container is copied about once per delta. A copy is
+  // reachable only from the copy above it, and the chain is emptied before each delta, so nothing a script has
+  // seen is ever changed.
+  Mirror.prototype.own = function (node, depth) {
+    const chain = this.chain;
+    if (depth < chain.length && chain[depth] === node) return node;
+    const copy = Array.isArray(node) ? withKeys(node.slice(), keysOf(node)) : Object.assign({}, node);
+    chain[depth] = copy;
+    return copy;
+  };
+
+  // The container that holds the last step of `e` (a root holder, an object or a list), made writable along the
+  // path. Returns the holder; `this.slot` is the step into it (a field name or an element index).
+  Mirror.prototype.walk = function (e, keys) {
+    const steps = e.steps;
+    const at = this.at;
+    // First the whole path is checked (an op that fails changes nothing), then made writable.
+    let node = this.roots[e.root];
+    let ki = 0;
+    for (let i = 0; i < steps.length; i++) {
+      const s = steps[i];
+      if (s === ELEM) {
+        if (!Array.isArray(node)) throw new Error("model mirror out of step at " + e.path);
+        // The ops of a delta come grouped by element: the element of the last lookup is often the one.
+        const ks = keysOf(node);
+        const key = keys[ki];
+        let j;
+        if (ks === this.lastKeys && key === this.lastKey) j = this.lastAt;
+        else {
+          j = indexOfKey(ks, key);
+          this.lastKeys = ks;
+          this.lastKey = key;
+          this.lastAt = j;
+        }
+        if (j < 0) throw new Error("model mirror has no element " + keys[ki] + " at " + e.path);
+        ki++;
+        at[i] = j;
+        node = node[j];
+      } else {
+        if (node === null || typeof node !== "object") throw new Error("model mirror out of step at " + e.path);
+        at[i] = s;
+        node = node[s];
+      }
+    }
+    let holder = this.roots;
+    let slot = e.root;
+    for (let i = 0; i < steps.length; i++) {
+      const next = this.own(holder[slot], i);
+      holder[slot] = next;
+      holder = next;
+      slot = at[i];
+    }
+    this.slot = slot;
+    return holder;
+  };
 
   Mirror.prototype.entry = function (id) {
     const e = this.t.paths.get(id);
@@ -193,15 +277,34 @@
     return e;
   };
 
-  Mirror.prototype.update = function (e, keys, fn) {
-    this.roots[e.root] = updateIn(this.roots[e.root], e.steps, 0, keys, 0, fn, e.path);
+  Mirror.prototype.set = function (e, keys, v) {
+    const holder = this.walk(e, keys);
+    holder[this.slot] = v;
   };
 
-  Mirror.prototype.listOp = function (e, keys, fn) {
-    this.update(e, keys, (list) => {
-      const old = Array.isArray(list) ? list : [];
-      return fn(old.slice(), keysOf(old).slice());
-    });
+  // The list at `e` made writable, with its keys: [items, keys]. A list that is not there starts empty.
+  Mirror.prototype.list = function (e, keys) {
+    const holder = this.walk(e, keys);
+    const slot = this.slot;
+    let items = holder[slot];
+    const depth = e.steps.length;
+    if (!Array.isArray(items)) {
+      items = withKeys([], []);
+      this.chain[depth] = items;
+    } else {
+      items = this.own(items, depth);
+    }
+    holder[slot] = items;
+    let ks = KEYS.get(items);
+    if (ks !== this.keysMade) {
+      ks = ks.slice();
+      this.keysMade = ks;
+      KEYS.set(items, ks);
+    } else {
+      INDEX.delete(ks);
+    }
+    this.lastKeys = null;
+    return items;
   };
 
   // One op of a UMD1 delta (see ui2-model `umd1.rs`).
@@ -210,45 +313,42 @@
       case 0: {
         const e = this.entry(o[1]);
         const v = decode(e.type, o[3], e.part);
-        this.update(e, o[2], () => v);
+        this.set(e, o[2], v);
         break;
       }
       case 1: {
         const e = this.entry(o[1]);
         const v = decode(["struct", e.type[1]], o[5], e.part);
-        this.listOp(e, o[2], (items, keys) => {
-          const at = Math.min(o[3], items.length);
-          items.splice(at, 0, v);
-          keys.splice(at, 0, o[4]);
-          return withKeys(items, keys);
-        });
+        const items = this.list(e, o[2]);
+        const keys = KEYS.get(items);
+        const at = Math.min(o[3], items.length);
+        items.splice(at, 0, v);
+        keys.splice(at, 0, o[4]);
         break;
       }
       case 2: {
         const e = this.entry(o[1]);
-        this.listOp(e, o[2], (items, keys) => {
-          const at = keys.indexOf(o[3]);
-          if (at >= 0) {
-            items.splice(at, 1);
-            keys.splice(at, 1);
-          }
-          return withKeys(items, keys);
-        });
+        const items = this.list(e, o[2]);
+        const keys = KEYS.get(items);
+        const at = keys.indexOf(o[3]);
+        if (at >= 0) {
+          items.splice(at, 1);
+          keys.splice(at, 1);
+        }
         break;
       }
       case 3: {
         const e = this.entry(o[1]);
-        this.listOp(e, o[2], (items, keys) => {
-          const at = keys.indexOf(o[3]);
-          if (at >= 0) {
-            const [v] = items.splice(at, 1);
-            keys.splice(at, 1);
-            const to = Math.min(o[4], items.length);
-            items.splice(to, 0, v);
-            keys.splice(to, 0, o[3]);
-          }
-          return withKeys(items, keys);
-        });
+        const items = this.list(e, o[2]);
+        const keys = KEYS.get(items);
+        const at = keys.indexOf(o[3]);
+        if (at >= 0) {
+          const [v] = items.splice(at, 1);
+          keys.splice(at, 1);
+          const to = Math.min(o[4], items.length);
+          items.splice(to, 0, v);
+          keys.splice(to, 0, o[3]);
+        }
         break;
       }
       case 4: {
@@ -272,6 +372,9 @@
     const a = typeof umd1 === "string" ? JSON.parse(umd1) : umd1;
     let error = null;
     this.revision = a[0];
+    this.chain.length = 0;
+    this.keysMade = null;
+    this.lastKeys = null;
     for (let i = 1; i < a.length; i++) {
       try {
         this.op(a[i]);
@@ -279,6 +382,8 @@
         if (!error) error = e;
       }
     }
+    this.chain.length = 0;
+    this.keysMade = null;
     if (this.dev) for (const k of Object.keys(this.roots)) deepFreeze(this.roots[k]);
     return error;
   };
@@ -363,6 +468,14 @@
       line("error", "ui2.js: " + ctxName + " " + h.label + " disabled: " + msg + where + el, at.file, at.line, h.label + "|" + msg);
     }
 
+    // A handler call took `ms`: a slow one is reported once.
+    function timed(h, ms) {
+      if (ms > limits.slow_ms && !h.slow) {
+        h.slow = true;
+        line("warn", "ui2.js: " + ctxName + " " + h.label + " slow handler: " + Math.round(ms) + " ms", null, null, h.label + "|slow");
+      }
+    }
+
     // Call a handler; an exception switches it off for good, a slow call is reported once.
     function call(h, f, node) {
       if (!h.live) return;
@@ -373,11 +486,33 @@
         failed(h, e, node);
         return;
       }
-      const ms = now() - t0;
-      if (ms > limits.slow_ms && !h.slow) {
-        h.slow = true;
-        line("warn", "ui2.js: " + ctxName + " " + h.label + " slow handler: " + Math.round(ms) + " ms", null, null, h.label + "|slow");
+      timed(h, now() - t0);
+    }
+
+    // `call` of `fn` with `self` as `this` and two or three arguments, without a closure per call (a list
+    // subscription calls its handlers once per changed element).
+    function call2(h, fn, self, a, b) {
+      if (!h.live) return;
+      const t0 = now();
+      try {
+        fn.call(self, a, b);
+      } catch (e) {
+        failed(h, e, null);
+        return;
       }
+      timed(h, now() - t0);
+    }
+
+    function call3(h, fn, self, a, b, c) {
+      if (!h.live) return;
+      const t0 = now();
+      try {
+        fn.call(self, a, b, c);
+      } catch (e) {
+        failed(h, e, null);
+        return;
+      }
+      timed(h, now() - t0);
     }
 
     function checkRead(path, what) {
@@ -410,38 +545,47 @@
 
     function diffList(s, prev, cur) {
       const h = s.fn;
-      const before = new Map();
-      if (Array.isArray(prev)) {
-        const ks = keysOf(prev);
-        prev.forEach((v, i) => before.set(ks[i], v));
-      }
-      const after = new Set();
-      if (Array.isArray(cur)) {
+      // The same keys in the same order (only elements changed): element by element, nothing to look up.
+      if (Array.isArray(prev) && Array.isArray(cur) && keysOf(prev) === keysOf(cur)) {
         const ks = keysOf(cur);
-        cur.forEach((v, i) => {
-          const k = ks[i];
-          after.add(k);
-          if (!before.has(k)) {
-            if (h.add) call(s, () => h.add(k, v));
-          } else if (before.get(k) !== v && h.change) {
-            call(s, () => h.change(k, v, before.get(k)));
-          }
-        });
+        for (let i = 0; i < cur.length; i++) {
+          const v = cur[i];
+          const old = prev[i];
+          if (old !== v && h.change) call3(s, h.change, h, ks[i], v, old);
+        }
+        return;
+      }
+      // By key (the index of a long list's keys is kept with them, so the next delta finds this one's built).
+      const pv = Array.isArray(prev) ? prev : NONE;
+      const cv = Array.isArray(cur) ? cur : NONE;
+      const pk = pv === NONE ? NONE : keysOf(pv);
+      const ck = cv === NONE ? NONE : keysOf(cv);
+      for (let i = 0; i < cv.length; i++) {
+        const k = ck[i];
+        const v = cv[i];
+        const j = indexOfKey(pk, k);
+        if (j < 0) {
+          if (h.add) call2(s, h.add, h, k, v);
+        } else if (pv[j] !== v && h.change) {
+          call3(s, h.change, h, k, v, pv[j]);
+        }
       }
       if (h.remove) {
-        for (const [k, v] of before) if (!after.has(k)) call(s, () => h.remove(k, v));
+        for (let i = 0; i < pv.length; i++) if (indexOfKey(ck, pk[i]) < 0) call2(s, h.remove, h, pk[i], pv[i]);
       }
     }
 
     // After a batch: each subscription whose value changed is called once.
     function notify() {
-      for (const s of subs.slice()) {
+      const n = subs.length;
+      for (let i = 0; i < n; i++) {
+        const s = subs[i];
         if (!s.live) continue;
         const cur = mirror.get(s.path);
         if (cur === s.last) continue;
         const prev = s.last;
         s.last = cur;
-        if (s.kind === "on") call(s, () => s.fn(cur, prev));
+        if (s.kind === "on") call2(s, s.fn, s, cur, prev);
         else diffList(s, prev, cur);
       }
       for (let i = subs.length - 1; i >= 0; i--) if (!subs[i].live) subs.splice(i, 1);
@@ -530,9 +674,8 @@
       },
       island(id) {
         if (typeof id !== "string" || !id) throw new TypeError("ui.island(id): the id of a data-ui2-island");
-        const cmd = (key, op, more) => {
+        const checkKey = (key) => {
           if (typeof key !== "string" || !key) throw new TypeError("ui.island(" + id + "): the key of a data-ui2-key");
-          out.cmds.push(Object.assign({ island: id, key, op }, more));
         };
         const isl = {
           // `s`: a string, or {loc, args} for a game text with its arguments.
@@ -543,21 +686,26 @@
                 : s === null || s === undefined
                   ? ""
                   : String(s);
-            cmd(key, "text", { value });
+            checkKey(key);
+            out.cmds.push({ island: id, key, op: "text", value });
             return isl;
           },
           cls(key, name, on) {
             if (typeof name !== "string" || !name) throw new TypeError("ui.island(" + id + ").cls: a class name");
-            cmd(key, "cls", { name, on: on === undefined ? true : !!on });
+            checkKey(key);
+            out.cmds.push({ island: id, key, op: "cls", name, on: on === undefined ? true : !!on });
             return isl;
           },
           style(key, prop, value) {
             if (typeof prop !== "string" || !prop) throw new TypeError("ui.island(" + id + ").style: a property");
-            cmd(key, "style", { prop, value: value === undefined ? null : clone(value) });
+            const v = value === undefined ? null : clone(value);
+            checkKey(key);
+            out.cmds.push({ island: id, key, op: "style", prop, value: v });
             return isl;
           },
           show(key, on) {
-            cmd(key, "show", { on: on === undefined ? true : !!on });
+            checkKey(key);
+            out.cmds.push({ island: id, key, op: "show", on: on === undefined ? true : !!on });
             return isl;
           },
         };
