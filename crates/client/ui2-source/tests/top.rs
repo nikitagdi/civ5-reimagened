@@ -2,18 +2,18 @@
 //! write. The UI v2 queries fill tourism, the strategic resources, the policy branches and the research queue; a
 //! core without them leaves those at the schema's defaults.
 
-use replica::testing::{FakeRead, catalog_entry};
-use replica::{
-    CatalogTable, GameStatus, Player, PlayerFlags, PlayerResource, PolicyBranchState, ReadError,
-    ReplicaStep, ResourceUsage, State, TechState, TechStatus,
-};
 use ui2_model::r#gen::{
     EraRef, Game, GoldenAge, Meta, Mood, Phase, PolicyBranch, Research, Resource, Tech, Top,
     TurnMode, Ui,
 };
 use ui2_model::{AssetRef, Key, KeyedList, ModelStore, Owner, Schema, Text};
+use ui2_source::read::{
+    CatalogTable, GameStatus, Player, PlayerFlags, PlayerResource, PolicyBranchState, ReadError,
+    ResourceUsage, TechState, TechStatus,
+};
 use ui2_source::session::testing::FakeSession;
-use ui2_source::{ReplicaView, SourceFrame, SourceStats, UiSource};
+use ui2_source::testing::{FakeRead, catalog_entry};
+use ui2_source::{SourceFrame, SourceStats, UiSource, WorldView};
 
 const MEDIEVAL: i16 = 2;
 const EDUCATION: i16 = 20;
@@ -172,18 +172,20 @@ fn tech(id: i16, name: &str, icon: i16, turns: Option<i16>, progress: i32) -> Te
     }
 }
 
-fn view<'a>(
-    state: State,
-    generation: u64,
-    applied_jseq: u64,
-    read: &'a mut FakeRead,
-) -> ReplicaView<'a> {
-    ReplicaView {
-        state,
+use ui2_source::testing::{Change as ReplicaStep, State};
+
+struct View<'a> {
+    revision: u64,
+    live: bool,
+    catching_up: bool,
+    read: Option<&'a mut FakeRead>,
+}
+
+fn view(state: State, generation: u64, revision: u64, read: &mut FakeRead) -> View<'_> {
+    View {
+        revision: generation * 1_000_000 + revision,
+        live: state == State::Live,
         catching_up: false,
-        generation,
-        applied_jseq,
-        turn: None,
         read: Some(read),
     }
 }
@@ -208,16 +210,16 @@ impl Rig {
         }
     }
 
-    fn frame<'a>(
-        &mut self,
-        replica: Option<ReplicaView<'a>>,
-        steps: &'a [ReplicaStep],
-    ) -> SourceStats {
+    fn frame<'a>(&mut self, view: Option<View<'a>>, _steps: &'a [ReplicaStep]) -> SourceStats {
         let mut w = self.store.writer(Owner::Source);
         self.src.frame(
             SourceFrame {
-                replica,
-                steps,
+                world: view.filter(|v| v.live && !v.catching_up).and_then(|v| {
+                    v.read.map(|read| WorldView {
+                        revision: v.revision,
+                        read,
+                    })
+                }),
                 session: &self.session,
                 dismissed: &std::collections::BTreeSet::new(),
                 now_ms: 0,
@@ -429,7 +431,7 @@ fn a_replica_that_cannot_be_read_defers_and_marks_meta() {
     assert!(
         rig.store
             .get::<Meta>()
-            .is_some_and(|m| m.live && m.catching_up)
+            .is_some_and(|m| !m.live && !m.catching_up)
     );
 
     // Live again with no new signal: the deferred roots are built once.
@@ -478,7 +480,7 @@ fn research_blocker_ai_phase_and_the_winner() {
     let mut f = mockup();
     f.info.blocker = 1;
     f.info.status = GameStatus::AiRunning;
-    f.info.turn_mode = Some(replica::TurnMode::Hybrid);
+    f.info.turn_mode = Some(ui2_source::read::TurnMode::Hybrid);
     f.info.year = -2000;
     let mut rig = Rig::new();
     rig.frame(Some(view(State::Live, 1, 0, &mut f)), &[]);

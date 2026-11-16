@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use replica::{Activity, ReadError, Unit, UnitAction, UnitRow};
+use crate::read::{Activity, ReadError, Unit, UnitAction, UnitRow};
 use ui2_model::r#gen::{Act, Pending, Promo, UnitActionKind, UnitActionRow, UnitActs};
 use ui2_model::{Key, KeyedList};
 

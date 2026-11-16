@@ -180,6 +180,8 @@ async function unitPanel(page, numbers, check, shot) {
  * before and after UI-only actions (hover, a click on the strip) unless the server sent a batch in between.
  */
 async function hooks(page, numbers, check) {
+  const loads = (await counters(page))["client.core.loads"];
+  check("UI v2 loaded no client-side core", loads === 0, String(loads));
   const st = await state(page);
   numbers.ui = st?.ui ?? null;
   check("state().ui: UI v2 on the screen, choice v2:engraved", st?.ui?.active === "v2" && st.ui.choice === "v2:engraved" && st.ui.skin === "engraved" && st.ui.switching === false,
@@ -204,7 +206,7 @@ async function hooks(page, numbers, check) {
   const d1 = await page.evaluate(() => window.__civ5test.digest("replica")).catch((e) => `error ${e}`);
   const seq1 = (await state(page))?.net?.viewSeq;
   numbers.replicaDigest = { d0, d1, seq0, seq1 };
-  check("UI-only actions leave the replica digest as it is", /^[0-9a-f]{16}$/.test(d0 ?? "") && (d0 === d1 || seq0 !== seq1), JSON.stringify(numbers.replicaDigest));
+  check("UI-only actions keep the replica absent", d0 === null && d1 === null && (await counters(page))["client.core.loads"] === 0, JSON.stringify(numbers.replicaDigest));
 }
 
 /** `__civ5stats.ui.lua_errors` of the classic UI (null before its stats came). */

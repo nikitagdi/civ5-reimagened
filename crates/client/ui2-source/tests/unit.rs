@@ -5,13 +5,13 @@
 mod common;
 
 use common::*;
-use replica::testing::catalog_entry;
-use replica::{CatalogTable, ReadError, UnitAction};
 use ui2_model::r#gen::{
     Act, Activity, Domain, Pending, Promo, Unit, UnitActionKind, UnitActionRow,
 };
 use ui2_model::{AssetRef, Key, KeyedList, Text};
 use ui2_source::pending::unit_target;
+use ui2_source::read::{CatalogTable, ReadError, UnitAction};
+use ui2_source::testing::catalog_entry;
 
 const SHOCK_I: i16 = 5;
 const DRILL_I: i16 = 8;
@@ -44,7 +44,7 @@ fn knight_actions() -> Vec<UnitAction> {
     ]
 }
 
-fn reference() -> replica::testing::FakeRead {
+fn reference() -> ui2_source::testing::FakeRead {
     let mut f = game();
     f.actions.insert(BOGATYR, knight_actions());
     f.actions
@@ -86,7 +86,7 @@ fn select(rig: &mut Rig, owner: i8, id: i32) {
     ));
 }
 
-fn ui2_calls(f: &replica::testing::FakeRead) -> Vec<&'static str> {
+fn ui2_calls(f: &ui2_source::testing::FakeRead) -> Vec<&'static str> {
     f.calls
         .iter()
         .copied()

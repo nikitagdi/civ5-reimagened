@@ -1334,6 +1334,7 @@ impl App {
     /// Keeps the unit panel's actions and the cities' strike buttons in step with the selection and
     /// the newest `World`.
     fn sync_panels(&mut self) {
+        let v2 = self.ui_host.active_kind() == Some(crate::ui_host::UiKind::V2);
         match &mut self.net {
             Link::Net(n) if n.playing => {
                 let (play, unit_panel, production) =
@@ -1341,7 +1342,7 @@ impl App {
                 n.handle.with(|core| {
                     // The focus goes to the server when it changed (NC-D7); the contexts come back with
                     // the view.
-                    if let Some(world) = core.shown() {
+                    if !v2 && let Some(world) = core.shown() {
                         let plan = play.focus_plan(world);
                         core.set_focus(&plan);
                     }
@@ -2186,6 +2187,10 @@ impl App {
                             seat: seat.as_ref().map_or(0, |s| s.local_id),
                             seat_known: seat.is_some(),
                             drain_events: !self.ui_host.dispatches_core_events(),
+                            replica_needed: self.ui_host.needs_replica()
+                                || (self.ui_host.active_kind()
+                                    == Some(crate::ui_host::UiKind::Classic)
+                                    && session.has_replica()),
                         })
                     }
                     _ => crate::session::SessionStep::default(),

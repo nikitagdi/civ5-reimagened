@@ -6,12 +6,12 @@
 mod common;
 
 use common::*;
-use replica::testing::{FakeRead, catalog_entry};
-use replica::{BuildFlags, CatalogTable, CityBuild, CityOrder, OrderType, ReadError};
 use ui2_model::r#gen::{ItemKind, Opt, Pending, ProdNow, Production, QueueRow};
 use ui2_model::{AssetRef, Key, KeyedList, Text};
 use ui2_source::DEFAULT_FRAME_BUDGET;
 use ui2_source::pending::option_target;
+use ui2_source::read::{BuildFlags, CatalogTable, CityBuild, CityOrder, OrderType, ReadError};
+use ui2_source::testing::{FakeRead, catalog_entry};
 
 // `GC_BUILD_F_*`
 const WONDER: u16 = 0x0001;

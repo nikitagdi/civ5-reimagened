@@ -51,8 +51,8 @@ impl Rig {
         let mut w = self.store.writer(Owner::Source);
         src.frame(
             SourceFrame {
-                replica: None,
-                steps: &[],
+                world: None,
+
                 session: &self.session,
                 dismissed: &BTreeSet::new(),
                 now_ms: 0,

@@ -853,7 +853,7 @@ fn check_gateway_without_brain(root: &Path) -> Result<()> {
 
 /// The library code of the UI v2 crates (`crates/{client,shared}/ui2-*/src`) calls no writer of the replica
 /// (`Replica::{engine_mut, post_net, on_msg, pump, blob}`); the crates without a `replica` dependency cannot.
-fn check_ui2_reads_replica_only(root: &Path) -> Result<()> {
+fn check_ui2_replica_isolation(root: &Path) -> Result<()> {
     fn walk(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
         for entry in std::fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
             let path = entry?.path();
@@ -875,6 +875,9 @@ fn check_ui2_reads_replica_only(root: &Path) -> Result<()> {
                 continue;
             };
             let manifest = std::fs::read_to_string(dir.join("Cargo.toml")).unwrap_or_default();
+            if checks::depends_on_replica(&manifest) {
+                bail!("UI v2 cannot depend on replica: {}", name);
+            }
             if checks::depends_on_replica(&manifest) && dir.join("src").is_dir() {
                 walk(&dir.join("src"), &mut paths)?;
                 crates.push(name);
@@ -899,7 +902,7 @@ fn check_ui2_reads_replica_only(root: &Path) -> Result<()> {
     if !bad.is_empty() {
         bail!("UI v2 changes the replica:\n  {}", bad.join("\n  "));
     }
-    println!("UI v2 reads the replica only: ok ({})", names.join(", "));
+    println!("UI v2 replica isolation: ok ({})", names.join(", "));
     Ok(())
 }
 
@@ -966,10 +969,7 @@ fn cmd_check(root: &Path) -> Result<()> {
         "gateway without a brain (GH-D2)",
         check_gateway_without_brain(root),
     );
-    step(
-        "UI v2 reads the replica only",
-        check_ui2_reads_replica_only(root),
-    );
+    step("UI v2 replica isolation", check_ui2_replica_isolation(root));
     step("gamecore ABI header", check_gc_header(root));
     step("wasm imports", check_wasm_imports(root));
 

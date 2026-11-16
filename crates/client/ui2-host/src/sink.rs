@@ -18,6 +18,10 @@ use ui2_source::SessionRead;
 /// What one frame of UI v2 needs of the network: a sink for orders and the session to read. The source reads
 /// the session after the actions module used the sink, never both at once.
 pub trait HostNet {
+    /// The network core supplying the optimistic shown world and read-only queries.
+    fn core(&mut self) -> Option<&mut ClientCore> {
+        None
+    }
     /// Where orders, chat lines and camera requests go.
     fn sink(&mut self) -> &mut dyn OrderSink;
     /// The client session the source reads (connection, seat, turn state, chat).
@@ -113,6 +117,9 @@ impl OrderSink for NetSink<'_> {
 }
 
 impl HostNet for NetSink<'_> {
+    fn core(&mut self) -> Option<&mut ClientCore> {
+        Some(self.core)
+    }
     fn sink(&mut self) -> &mut dyn OrderSink {
         self
     }

@@ -5,15 +5,15 @@
 mod common;
 
 use common::*;
-use replica::UnitAction;
 use ui2_model::r#gen::{Game, Map, Research, Top, Turn, Unit};
 use ui2_source::build::entity_key;
 use ui2_source::profile::ROOT_COUNTERS;
+use ui2_source::read::UnitAction;
 use ui2_source::trigger::Roots;
 use ui2_source::{DEFAULT_FRAME_BUDGET, STALE_FRAMES};
 
 /// The reference game with the Knight selected and its orders.
-fn selected() -> (replica::testing::FakeRead, Rig) {
+fn selected() -> (ui2_source::testing::FakeRead, Rig) {
     let mut f = game();
     f.actions.insert(
         BOGATYR,

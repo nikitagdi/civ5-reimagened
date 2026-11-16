@@ -1,7 +1,9 @@
 //! The roots `top` (the top bar) and `research` (the current research, the research queue and the choices).
 
-use replica::TopBarFlags;
-use replica::{PlayerResource, PolicyBranchState, ReadError, ResourceUsage, TechState, TechStatus};
+use crate::read::TopBarFlags;
+use crate::read::{
+    PlayerResource, PolicyBranchState, ReadError, ResourceUsage, TechState, TechStatus,
+};
 use ui2_model::r#gen::{GoldenAge, Mood, PolicyBranch, Research, Resource, Tech, Top};
 use ui2_model::{Key, Keyed, KeyedList};
 

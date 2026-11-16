@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use replica::{Player, ReadError};
+use crate::read::{Player, ReadError};
 use ui2_model::KeyedList;
 use ui2_model::r#gen::PlayerRow;
 
@@ -16,7 +16,7 @@ pub fn listed(p: &Player) -> bool {
     !(p.flags.minor() || p.flags.barbarian() || p.flags.observer())
 }
 
-/// One row of the list. `seat` is the replica's player.
+/// One row of the list. `seat` is the world's player.
 #[must_use]
 pub fn row(p: &Player, seat: u8) -> PlayerRow {
     PlayerRow {
@@ -48,10 +48,30 @@ pub fn rows(players: &[Player], seat: u8) -> KeyedList<PlayerRow> {
 }
 
 /// `players` from `Q_PLAYERS`.
-pub(crate) fn players(read: &mut CountingRead<'_, '_>) -> Result<KeyedList<PlayerRow>, ReadError> {
+pub(crate) fn players(
+    read: &mut CountingRead<'_, '_>,
+    session: &dyn crate::SessionRead,
+) -> Result<KeyedList<PlayerRow>, ReadError> {
     let seat = read.seat();
     let players = read.players()?;
-    Ok(rows(&players, seat))
+    let mut result = rows(&players, seat).into_vec();
+    for row in &mut result {
+        if let Some(view) = session
+            .seats()
+            .iter()
+            .find(|s| player_key(s.player) == row.id)
+        {
+            row.nick = match &view.control {
+                protocol::SeatControl::Human { nick } => Some(Arc::from(nick.as_str())),
+                _ => None,
+            };
+        }
+    }
+    let mut rows = KeyedList::new();
+    for row in result {
+        let _ = rows.try_push(row);
+    }
+    Ok(rows)
 }
 
 /// The player with an id, from a `Q_PLAYERS` reply.

@@ -2,11 +2,10 @@
 //! frame's.
 //!
 //! The comparisons are a handful of integers and a few small values; nothing here reads the game. A root marked
-//! here stays pending until it can be built (the replica live and caught up), then it is built once, however
+//! here stays pending until it can be built (the world live and caught up), then it is built once, however
 //! many signals came meanwhile.
 
 use protocol::{PlayerId, SeatView, TurnState};
-use replica::{ReplicaStep, State};
 use ui2_model::r#gen::{Pending, Timer, Ui, WinCity};
 use ui2_model::{Key, KeyedList};
 
@@ -31,7 +30,7 @@ impl Roots {
     pub const CHAT: Roots = Roots(1 << 8);
     pub const UNIT: Roots = Roots(1 << 9);
     pub const PRODUCTION: Roots = Roots(1 << 10);
-    /// Every root built from the replica's game: what a journal batch or a new snapshot rebuilds.
+    /// Every root built from the world's game: what a journal batch or a new snapshot rebuilds.
     pub const GAME_DATA: Roots = Roots(
         Self::GAME.0
             | Self::TOP.0
@@ -46,7 +45,7 @@ impl Roots {
     /// What a change of the session's turn state or seats rebuilds.
     pub const SESSION_TURN: Roots = Roots(Self::GAME.0 | Self::TURN.0);
 
-    /// The roots that need the replica's game, in the order a frame builds them (the budget queue): the
+    /// The roots that need the world's game, in the order a frame builds them (the budget queue): the
     /// [`PRIORITY`](Self::PRIORITY) roots, then the others (a frame takes those the longest waiting first, ties in
     /// this order).
     pub const QUEUE: [Roots; 9] = [
@@ -104,57 +103,20 @@ impl Roots {
     }
 }
 
-/// What the source remembers of the replica between frames.
+/// The last world revision read by the source.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Seen {
-    pub state: State,
-    pub catching_up: bool,
-    pub generation: u64,
-    pub applied_jseq: u64,
-    /// The game turn the replica's journal has reached ([crate::ReplicaView::turn]).
-    pub turn: Option<i32>,
+    pub revision: u64,
 }
 
-impl Seen {
-    /// The game may be read now: the replica follows the journal and has no batches waiting.
-    #[must_use]
-    pub fn readable(&self) -> bool {
-        self.state == State::Live && !self.catching_up
-    }
-}
-
-/// The roots the replica's signals of this frame ask to rebuild.
-///
-/// - a first look at a replica, a new generation (snapshot load, resync) or a `Loaded`/`TurnSwitched` step:
-///   everything;
-/// - a new applied batch (`applied_jseq` moved, or an `Applied` step): every game-data root, since the core does
-///   not say what a batch changed;
-/// - otherwise nothing.
+/// A new shown-world revision invalidates the game-data roots.
 #[must_use]
-pub fn changes(prev: Option<&Seen>, now: &Seen, steps: &[ReplicaStep]) -> Roots {
-    let Some(prev) = prev else {
-        return Roots::GAME_DATA;
-    };
-    let mut roots = Roots::NONE;
-    if prev.generation != now.generation {
-        roots = roots.union(Roots::GAME_DATA);
+pub fn changes(prev: Option<&Seen>, now: &Seen) -> Roots {
+    if prev == Some(now) {
+        Roots::NONE
+    } else {
+        Roots::GAME_DATA
     }
-    if prev.applied_jseq != now.applied_jseq {
-        roots = roots.union(Roots::GAME_DATA);
-    }
-    if prev.turn != now.turn {
-        // The journal moved to a new turn before its snapshot came: the turn number is shown at once.
-        roots = roots.union(Roots::SESSION_TURN);
-    }
-    for s in steps {
-        match s {
-            ReplicaStep::Loaded { .. }
-            | ReplicaStep::TurnSwitched { .. }
-            | ReplicaStep::Applied { .. } => roots = roots.union(Roots::GAME_DATA),
-            ReplicaStep::Idle | ReplicaStep::Working | ReplicaStep::Resyncing => {}
-        }
-    }
-    roots
 }
 
 /// What the source remembers of the session between frames. A value is cloned only when it changed.
@@ -189,6 +151,14 @@ impl SessionSeen {
             roots = roots.union(Roots::SESSION_TURN);
         }
         if self.seats.as_slice() != s.seats() {
+            if self
+                .seats
+                .iter()
+                .map(|s| (s.player, &s.control))
+                .ne(s.seats().iter().map(|s| (s.player, &s.control)))
+            {
+                roots = roots.union(Roots::PLAYERS);
+            }
             self.seats = s.seats().to_vec();
             roots = roots.union(Roots::TURN);
         }
@@ -242,39 +212,12 @@ impl UiSeen {
 mod tests {
     use super::*;
 
-    fn seen(generation: u64, applied_jseq: u64) -> Seen {
-        Seen {
-            state: State::Live,
-            catching_up: false,
-            generation,
-            applied_jseq,
-            turn: None,
-        }
-    }
-
     #[test]
-    fn nothing_changed_is_no_root() {
-        let a = seen(1, 7);
-        assert_eq!(changes(Some(&a), &a, &[]), Roots::NONE);
-        assert_eq!(
-            changes(Some(&a), &a, &[ReplicaStep::Idle, ReplicaStep::Working]),
-            Roots::NONE
-        );
-    }
-
-    #[test]
-    fn every_signal_rebuilds_the_game_data() {
-        let a = seen(1, 7);
-        assert_eq!(changes(None, &a, &[]), Roots::GAME_DATA);
-        assert_eq!(changes(Some(&a), &seen(2, 7), &[]), Roots::GAME_DATA);
-        assert_eq!(changes(Some(&a), &seen(1, 8), &[]), Roots::GAME_DATA);
-        for step in [
-            ReplicaStep::Loaded { turn: 3 },
-            ReplicaStep::TurnSwitched { turn: 4 },
-            ReplicaStep::Applied { jseq: 8 },
-        ] {
-            assert_eq!(changes(Some(&a), &a, &[step]), Roots::GAME_DATA, "{step:?}");
-        }
+    fn revisions_trigger_once() {
+        let a = Seen { revision: 7 };
+        assert_eq!(changes(None, &a), Roots::GAME_DATA);
+        assert_eq!(changes(Some(&a), &a), Roots::NONE);
+        assert_eq!(changes(Some(&a), &Seen { revision: 8 }), Roots::GAME_DATA);
     }
 
     #[test]

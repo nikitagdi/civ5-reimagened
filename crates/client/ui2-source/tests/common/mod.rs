@@ -5,15 +5,15 @@
 use std::collections::BTreeSet;
 
 use protocol::{Conn, SeatControl, SeatTurn, SeatView, TimerState, TurnMode, TurnPhase, TurnState};
-use replica::testing::{FakeRead, catalog_entry};
-use replica::{
-    Activity, CatalogTable, City, CityFlags, Notification, OrderType, Player, PlayerFlags,
-    ReplicaStep, State, Unit, UnitFlags,
-};
 use ui2_model::r#gen::Ui;
 use ui2_model::{FrameDelta, Key, ModelStore, Owner, Schema};
+use ui2_source::read::{
+    Activity, CatalogTable, City, CityFlags, Notification, OrderType, Player, PlayerFlags, Unit,
+    UnitFlags,
+};
 use ui2_source::session::testing::FakeSession;
-use ui2_source::{ReplicaView, SourceFrame, SourceStats, UiSource};
+use ui2_source::testing::{FakeRead, catalog_entry};
+use ui2_source::{SourceFrame, SourceStats, UiSource, WorldView};
 
 // `GC_PLAYER_F_*`
 pub const ALIVE: u16 = 0x0001;
@@ -315,7 +315,7 @@ pub fn cities() -> Vec<City> {
 }
 
 /// The catalog tables the roots name things with.
-pub fn catalogs() -> Vec<(CatalogTable, Vec<replica::CatalogEntry>)> {
+pub fn catalogs() -> Vec<(CatalogTable, Vec<ui2_source::read::CatalogEntry>)> {
     vec![
         (
             CatalogTable::Units,
@@ -488,7 +488,7 @@ pub struct Rig {
     /// The replica's generation and last batch as the next frame shows them.
     pub generation: u64,
     pub jseq: u64,
-    /// The turn the replica's journal reached, as the next frame shows it (ReplicaView::turn).
+    /// The turn the replica's journal reached, as the next frame shows it (WorldView::turn).
     pub journal_turn: Option<i32>,
 }
 
@@ -526,21 +526,21 @@ impl Rig {
         &mut self,
         state: State,
         read: &mut FakeRead,
-        steps: &[ReplicaStep],
+        _steps: &[ReplicaStep],
     ) -> SourceStats {
-        let view = ReplicaView {
-            state,
-            catching_up: false,
-            generation: self.generation,
-            applied_jseq: self.jseq,
-            turn: self.journal_turn,
-            read: Some(read),
+        if let Some(turn) = self.journal_turn
+            && let Some(state) = self.session.turn.as_mut()
+        {
+            state.turn = state.turn.max(turn);
+        }
+        let view = WorldView {
+            revision: (self.generation) * 1_000_000 + (self.jseq),
+            read,
         };
         let mut w = self.store.writer(Owner::Source);
         self.src.frame(
             SourceFrame {
-                replica: Some(view),
-                steps,
+                world: (state == State::Live).then_some(view),
                 session: &self.session,
                 dismissed: &self.dismissed,
                 now_ms: self.now_ms,
@@ -562,3 +562,5 @@ impl Rig {
         read.calls.clear();
     }
 }
+
+use ui2_source::testing::{Change as ReplicaStep, State};

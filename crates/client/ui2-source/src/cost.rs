@@ -1,28 +1,9 @@
-//! What one read of the game costs, in cost units, and the frame budget counted in them.
+//! Conservative work weights for HUD projection reads and the per-frame rebuild budget.
 //!
-//! One cost unit is one microsecond of the browser build. Each number is the median time of one call of that
-//! `GameRead` method in wasm (release), measured on a game of turn 150 on the biggest map, as the player with the
-//! most cities; native code is 1.0 to 1.3 times faster, so the same numbers serve both. Medians below 5 µs are
-//! counted as 5. The per-id reads (`unit_actions`, `city_builds`...) are per call, that is per unit or per city;
-//! `city_builds` varies most (2070 median, 4570 max).
-//!
-//! The weights of the warm reads were raised after a second measurement, of a fresh small game's turns (the
-//! profile of `ui2-perf` in the browser, `tests/turn_frames.rs` natively): where a read cost more there than the
-//! late game's median (`cities` 160 µs, `techs` up to 680 µs natively, `top_bar` 55 µs), the higher number.
-//!
-//! The first call of some reads after a core loads a snapshot is much slower than the median (the core fills its
-//! own caches), and a snapshot is loaded on every new turn: `top_bar` 3 to 5.6 ms on a small game (about 11 ms
-//! on the biggest), `game_info` 1.4 ms, `unit_actions` 1.6 ms, `city_builds` 4.6 ms. The table does not count
-//! those spikes; a host takes them out of the frames with [`UiSource::warm_up`](crate::UiSource::warm_up) once a
-//! game is joined and [`UiSource::warm_turn`](crate::UiSource::warm_turn) after each snapshot load.
-//!
-//! To measure again (after a change of the core or of a query): natively
-//! `UI2_GETTERS_FIXTURE=<dir>/late-huge cargo test -p ui2-source --test getters_cost -- --ignored --nocapture`
-//! (see `tests/getters_cost.rs`), in wasm `cargo xtask web-selftest --scenario ui2-getters`; take the wasm medians.
-//!
-//! A read answered from the source's own cache costs nothing.
+//! These retain the historical query weights so budget and priority guarantees stay stable while
+//! the inputs move to synchronized records. Cached reads consume no additional units.
 
-use replica::CatalogTable;
+use crate::read::CatalogTable;
 
 /// The cost units one frame of the source may spend: 1.5 ms of reads. `u32::MAX` means no limit.
 pub const DEFAULT_FRAME_BUDGET: u32 = 1500;

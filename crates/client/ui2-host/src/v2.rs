@@ -11,7 +11,6 @@ use std::sync::Arc;
 
 use platform::ScriptHost;
 use platform::ui2::{TextInputBridge, TextInputRequest};
-use replica::GameRead;
 use ui2_actions::{MemorySettings, UiActions};
 use ui2_draw::Scene;
 use ui2_draw::{Color, LayerId, Vec2};
@@ -21,6 +20,7 @@ use ui2_package::Package;
 use ui2_package::profile::action::AnchorKind;
 use ui2_runtime::{AnchorId, AnchorScreen, Env, LoadError, NodeClass, Runtime, Services};
 use ui2_script::{ScriptStats, ScriptStatus};
+use ui2_source::read::GameRead;
 use ui2_source::{SourceStats, StaticSource, UiSource};
 use ui2_text::TextEngine;
 
@@ -142,6 +142,9 @@ fn fatal(e: LoadError) -> String {
 pub struct V2Ui {
     pub(crate) store: ModelStore,
     pub(crate) source: UiSource,
+    pub(crate) world_source: ui2_source::world::WorldSource,
+    pub(crate) hud_extras: Box<dyn ui2_source::world::HudExtras>,
+    pub(crate) extras_revision: u64,
     /// The UI's own state and the way out for orders; lives as long as the model, across skins.
     pub(crate) actions: UiActions,
     /// Intents from outside the markup (map clicks), applied with the markup's in the next frame.
@@ -214,6 +217,9 @@ impl V2Ui {
         Ok(V2Ui {
             store,
             source,
+            world_source: Default::default(),
+            hud_extras: Box::new(ui2_source::world::NoHudExtras),
+            extras_revision: 0,
             actions,
             queued: Vec::new(),
             skin,
@@ -431,6 +437,18 @@ impl V2Ui {
         }
     }
 
+    /// Routes a protocol query answer to the HUD's outstanding requests.
+    pub fn query_result(&mut self, id: u32, answer: &protocol::QueryAnswer) {
+        self.world_source.answer(id, answer);
+    }
+
+    /// Supplies additional HUD facts from a server screen.
+    pub fn set_hud_extras(&mut self, extras: Box<dyn ui2_source::world::HudExtras>) {
+        self.extras_revision = extras.revision();
+        self.hud_extras = extras;
+        self.source.extras_changed();
+    }
+
     /// Makes the core's slow first reads once, outside the frames (`UiSource::warm_up`): call it once when a game
     /// is joined or loaded and after [`reset_source`](Self::reset_source) for a new game, at a moment that may
     /// take a few ms more. Its reads count in the returned stats (`spent_units`: their cost units).
@@ -474,6 +492,7 @@ impl V2Ui {
 
     /// A new game or a new core: the next frame rebuilds every root of the model from the replica.
     pub fn reset_source(&mut self) {
+        self.world_source.reset();
         self.source.reset();
     }
 

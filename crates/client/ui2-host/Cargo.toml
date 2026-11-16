@@ -23,7 +23,6 @@ ui2-actions.workspace = true
 ui2-script.workspace = true
 client-core.workspace = true
 protocol.workspace = true
-replica.workspace = true
 loc.workspace = true
 platform.workspace = true
 serde.workspace = true
@@ -32,6 +31,7 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+wire.workspace = true
 # In-memory skin packages for the tests.
 ui2-runtime = { workspace = true, features = ["testkit"] }
 # `profile`: tests write binding expressions as text and parse them as the converter does.
