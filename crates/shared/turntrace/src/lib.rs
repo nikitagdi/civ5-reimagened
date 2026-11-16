@@ -377,8 +377,12 @@ impl Summary {
     }
 }
 
-/// The union length of intervals clipped to `[lo, hi]` (overlaps counted once).
+/// The union length of intervals clipped to `[lo, hi]` (overlaps counted once). An empty window (`hi <= lo`) gives 0:
+/// a turn whose AI phase or pack came before the last END_TURN (AI work done when a sleeping game wakes) has one.
 fn union_len(mut v: Vec<(u64, u64)>, lo: u64, hi: u64) -> u64 {
+    if hi <= lo {
+        return 0;
+    }
     v.retain(|&(a, b)| b > a);
     for iv in &mut v {
         iv.0 = iv.0.clamp(lo, hi);
@@ -827,6 +831,31 @@ mod tests {
         assert_eq!(t.find("w.check_batch").unwrap().arg("jseq"), Some(7));
         assert_eq!(t.find("w.end_turn").unwrap().kind, Kind::Mark);
         assert_eq!(t.trace_id(), "936:126");
+    }
+
+    /// A game woken from a save: the AI phase and the pack of the wake come before the human's END_TURN in the same
+    /// turn's trace. The windows after the last END_TURN are empty; the summary must not panic.
+    #[test]
+    fn ai_and_pack_before_the_last_end_turn_do_not_panic() {
+        let c = Manual::new();
+        let mut r = rec(&c, Level::Coarse);
+        let t0 = r.now_us();
+        c.step(400_000);
+        r.span(215, "w.ai", "core", t0, 400_000, &[("slices", 3)]);
+        let p0 = r.now_us();
+        c.step(50_000);
+        r.span(215, "w.pack", "pack", p0, 50_000, &[("bytes", 1000)]);
+        c.step(10_000_000);
+        r.mark(215, "w.end_turn", "core", &[("player", 7), ("cmd", 41)]);
+        c.step(1000);
+        let q = r.begin(215, "w.apply", "core");
+        c.step(2000);
+        r.end(q, &[("cmd", 41)]);
+        let t = r.close_turn(215).expect("a trace");
+        let s = summarize(&t);
+        assert_eq!(s.server_ai_us, 0);
+        assert_eq!(s.order_us, 0);
+        assert_eq!(union_len(vec![(5, 9)], 8, 3), 0);
     }
 
     #[test]
