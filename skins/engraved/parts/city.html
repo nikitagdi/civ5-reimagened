@@ -9,7 +9,7 @@
     </header>
     <!-- SIMPLIFIED(SIMP-359): Compact panels omit collapsible groups and segmented next-turn scales; foreign-city inspection and full yield/GP previews remain follow-up work. -->
     <aside class="city-side city-left">
-      <div class="city-section city-line"><b data-l10n="city.production">Production</b><button data-bind-disabled="{{city.view_only}}" data-on-click="intent window.open(window: 'production', city: city.map_city)" data-l10n="banner.choose">Choose production</button><span data-bind-value="{{city.production.rate}}"></span></div>
+      <div class="city-section city-line"><b data-l10n="city.production">Production</b><button data-part="city.choose-production" data-bind-disabled="{{city.view_only}}" data-on-click="intent window.open(window: 'production', city: city.map_city)" data-l10n="banner.choose">Choose production</button><span data-bind-value="{{city.production.rate}}"></span></div>
       <div class="city-current" data-bind-if="{{city.production.current != null}}">
         <b data-part="city.current" data-bind-value="{{city.production.current.name}}"></b>
         <div class="city-bar"><i data-bind-style-width="{{city.production.current.needed > 0 ? city.production.current.stored / city.production.current.needed * 100 : 0}}%"></i></div>

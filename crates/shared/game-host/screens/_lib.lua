@@ -1,6 +1,8 @@
 -- Helpers shared by built-in data scripts. Scripts always receive the seat explicitly.
 function array(values) return setmetatable(values or {}, { __screen_array = true }) end
 function L(key, ...)
+    -- Rows without a text column (no help, no title) read as empty text.
+    if key == nil then return "" end
     if Locale and Locale.ConvertTextKey then return Locale.ConvertTextKey(key, ...) end
     error("server localization is unavailable")
 end

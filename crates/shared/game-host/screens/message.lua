@@ -12,13 +12,13 @@ local function root(player,args)
     local e = context(args)
     if not e or e.id ~= args.a then
         return {id=args.a or -1, kind="text", width="narrow", art_anchor="center",
-            text="No matching message event is pending for this seat", button=L("TXT_KEY_OK"),
+            text="No matching message event is pending for this seat", button="OK",
             facts=array(), available=false, resolved=false}
     end
     local r = {id=e.id, kind=e.kind, width=e.width or "medium", civ=e.civ, kicker=e.kicker,
         title=e.title, art=e.art, art_anchor=e.art_anchor or "center", icon=e.icon,
         band=e.band, quote=e.quote, text=e.text, facts_title=e.facts_title,
-        facts=e.facts or array(), button=e.button or L("TXT_KEY_OK"), available=true, resolved=e.resolved or false}
+        facts=e.facts or array(), button=e.button or "OK", available=true, resolved=e.resolved or false}
     if e.kind == "wonder" then
         local building = GameInfo.Buildings[e.data1]
         assert(building, "Unknown wonder")

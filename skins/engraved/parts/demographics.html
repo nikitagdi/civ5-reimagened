@@ -215,23 +215,3 @@
 </div>
 </section>
 </div>
-<template id="demographics-unit-tip" data-layer="tooltip">
-<div class="demographics-tip">
-<div data-bind-for="r:{{demographics.rows}}" data-bind-filter="{{r.key == state.demographics.hover}}">
-<span data-l10n="demographics.tip_people" data-bind-if="{{r.unit_key == 'people'}}">
-</span>
-<span data-l10n="demographics.tip_million_bushels" data-bind-if="{{r.unit_key == 'million_bushels'}}">
-</span>
-<span data-l10n="demographics.tip_million_tons" data-bind-if="{{r.unit_key == 'million_tons'}}">
-</span>
-<span data-l10n="demographics.tip_million_gold" data-bind-if="{{r.unit_key == 'million_gold'}}">
-</span>
-<span data-l10n="demographics.tip_square_km" data-bind-if="{{r.unit_key == 'square_km'}}">
-</span>
-<span data-l10n="demographics.tip_soldiers" data-bind-if="{{r.unit_key == 'soldiers'}}">
-</span>
-<span data-l10n="demographics.tip_percent" data-bind-if="{{r.unit_key == 'percent'}}">
-</span>
-</div>
-</div>
-</template>

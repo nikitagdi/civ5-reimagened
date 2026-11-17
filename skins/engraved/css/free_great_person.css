@@ -17,7 +17,7 @@
 .free_great_person-person > b { font: 500 24px/30px var(--serif); }
 .free_great_person-ability { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--engrave); font-size: 13px; }
 .free_great_person-footer { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-top: 1px solid var(--engrave); font-size: 12px; color: var(--bone-3); }
-.free_great_person-primary { padding: 12px 20px; background: var(--brass); color: var(--brass-ink); border-radius: 4px; }
+.free_great_person-primary { display: block; padding: 12px 20px; background: var(--brass); color: var(--brass-ink); border-radius: 4px; }
 .free_great_person-primary:disabled { opacity: .4; }
 @media (height < 900px) { .free_great_person-window { height: 600px; } }
 

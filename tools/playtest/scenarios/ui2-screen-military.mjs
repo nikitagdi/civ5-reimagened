@@ -33,7 +33,8 @@ export async function run({ server, opts }) {
     const expected = ((await state(page)).units ?? []).find(u => u.name === name);
     if (!expected) throw new Error('military row has no own unit');
     if (!await clickPart(page, 'military.unit-row')) throw new Error('unit row missing');
-    await until(page, s => s.selectedUnit === expected.id, 10000, 'unit selected on map');
+    // The v2 selection is local to the UI model (`ui.selection`); the unit panel shows the selected unit's name.
+    await waitFor(page, p => texts(p, 'unit.title').includes(name), 'unit panel shows the selected unit');
     check('clicking a row selects its unit', true);
     await page.keyboard.press('Escape');
     await waitFor(page, p => !p.ui.windows.includes('military'), 'closed overview');

@@ -49,6 +49,7 @@ fn real_techs_catalog_and_research_actions() {
         0,
     );
     let mut h = common::H::with(worker, outs);
+    h.found_city(0); // research is closed until the first city exists
     let root = query(&mut h, 1);
     assert!(root["techs"].as_array().unwrap().len() > 50);
     let id = root["techs"]

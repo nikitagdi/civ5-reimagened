@@ -38,7 +38,7 @@ return {
                 r.details[#r.details+1]={key=key,label=L(label),value=text}
             end
         end
-        setting("map_size","TXT_KEY_MAP_SIZE",GameInfo.Worlds[Map.GetWorldSize()])
+        setting("map_size","Map size",GameInfo.Worlds[Map.GetWorldSize()])
         setting("difficulty","TXT_KEY_HANDICAP",GameInfo.HandicapInfos[p:GetHandicapType()])
         setting("speed","TXT_KEY_GAME_SPEED",GameInfo.GameSpeeds[Game.GetGameSpeedType()])
         for v in GameInfo.Victories() do

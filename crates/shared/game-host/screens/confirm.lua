@@ -67,7 +67,7 @@ local function model(player, e)
             -- SIMPLIFIED(SIMP-390): replaying warned orders and leaving a session need host operations outside the screen channel.
             reason = "This decision requires a session or confirmed-order handler"
         end
-        r.choices = array({choice(1,"no",L("TXT_KEY_NO"),true), choice(0,"yes",L("TXT_KEY_YES"),false,reason)})
+        r.choices = array({choice(1,"no",L("TXT_KEY_NO_BUTTON"),true), choice(0,"yes",L("TXT_KEY_YES_BUTTON"),false,reason)})
     end
     return r
 end

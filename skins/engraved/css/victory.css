@@ -12,7 +12,7 @@
 .victory-ledger h2 { font: 500 13px/18px var(--sans); }
 .victory-ledger-row { padding: 0 24px; height: 28px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--bone-2); box-shadow: inset 0 -1px 0 var(--engrave); }
 .victory-ledger-row .victory-value { margin-left: auto; font-weight: 500; color: var(--bone); }
-.victory-button { margin: 12px 24px; padding: 10px 16px; background: var(--lacquer-2); border-radius: 4px; box-shadow: inset 0 0 0 1px var(--engrave); font-size: 12px; }
+.victory-button { display: block; margin: 12px 24px; padding: 10px 16px; background: var(--lacquer-2); border-radius: 4px; box-shadow: inset 0 0 0 1px var(--engrave); font-size: 12px; }
 .victory-main, .victory-summary { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .victory-quadrants { flex: 1; min-height: 0; display: flex; }
 .victory-quadrant { flex: 1; min-width: 0; padding: 8px 24px 16px; box-shadow: inset -1px -1px 0 var(--engrave); font-size: 13px; color: var(--bone-2); }

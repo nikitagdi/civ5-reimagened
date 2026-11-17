@@ -357,7 +357,7 @@ fn catalog_runtime() -> Screens {
             Eras={[0]={Description='Ancient'}},Leader_Traits=rows({}),Worlds={[0]={Description='Duel'}},
             HandicapInfos={[0]={Description='Prince'}},GameSpeeds={[0]={Description='Quick'}},
             Victories=rows({}),GameOptions=rows({}),
-            HistoricRankings=rows({{ID=1,HistoricalLeader='Lower',Score=10},{ID=2,HistoricalLeader='Higher',Score=100}})}
+            HistoricRankings=rows({{ID=1,HistoricalLeader='Lower',LeaderScore=10},{ID=2,HistoricalLeader='Higher',LeaderScore=100}})}
         GameInfo.GameOptions.GAMEOPTION_QUICK_COMBAT={ID=0}
         GameInfo.GameOptions.GAMEOPTION_QUICK_MOVEMENT={ID=1}
         local p=Players[0]

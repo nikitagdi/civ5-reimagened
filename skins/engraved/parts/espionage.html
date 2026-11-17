@@ -224,19 +224,3 @@
 </div>
 </section>
 </div>
-<template id="espionage-agent-tip" data-layer="tooltip">
-<div class="espionage-tip">
-<div data-bind-for="a:{{espionage.agents}}" data-bind-filter="{{a.id == state.espionage.hover_agent}}">
-<span class="espionage-value" data-bind-value="{{a.view_reason}}" >
-</span>
-<span class="espionage-value" data-bind-value="{{a.coup_reason}}" >
-</span>
-<div data-bind-if="{{a.coup != null}}">
-<span class="espionage-value" data-bind-value="{{a.coup.chance_pct}}" >
-</span>
-<span class="espionage-value" data-bind-value="{{a.coup.ally}}" >
-</span>
-</div>
-</div>
-</div>
-</template>

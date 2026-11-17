@@ -3,7 +3,7 @@
   <div class="advisor-head"><div class="advisor-titles"><span class="advisor-kicker" data-bind-if="{{advisor != null}}" data-bind-value="{{advisor.civ.name}}"></span><span class="advisor-title" data-l10n="advisor.title"></span></div></div>
   <div class="advisor-body" data-bind-if="{{advisor == null}}" data-l10n="advisor.loading"></div>
   <div class="advisor-content" data-bind-if="{{advisor != null}}">
-   <div class="advisor-kicker" data-part="advisor.reason" data-bind-value="{{advisor.reason}}"></div>
+   <div class="advisor-kicker advisor-reason" data-part="advisor.reason" data-bind-value="{{advisor.reason}}"></div>
    <div class="advisor-grid"><div class="advisor-cell" data-bind-for="r:{{advisor.roles}}" data-bind-filter="{{r.key == 'economic'}}">
     <div class="advisor-role"><img class="advisor-icon" data-bind-src="{{r.portrait}}"><div class="advisor-role-title"><span class="advisor-name" data-part="advisor.economic.role" data-bind-value="{{r.name}}"></span><span class="advisor-kicker" data-bind-value="{{r.role}}"></span></div>
      <button class="advisor-arrow" data-bind-disabled="{{state.advisor.economic == 0}}" data-l10n="advisor.previous" data-on-click="set state.advisor.economic = state.advisor.economic &gt; 0 ? state.advisor.economic - 1 : 0"></button>

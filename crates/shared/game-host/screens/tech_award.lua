@@ -13,8 +13,8 @@ local function unlocks(player, tech)
     local civ = GameInfo.Civilizations[Players[player]:GetCivilizationType()]
     for _, spec in ipairs({{"Units", "unit", "UnitClass", "Civilization_UnitClassOverrides", "UnitType"},
         {"Buildings", "building", "BuildingClass", "Civilization_BuildingClassOverrides", "BuildingType"},
-        {"Projects", "project"}, {"Builds", "improvement"}}) do
-        for item in GameInfo[spec[1]]{PrereqTech = tech.Type} do
+        {"Projects", "project", nil, nil, nil, "TechPrereq"}, {"Builds", "improvement"}}) do
+        for item in GameInfo[spec[1]]{[spec[6] or "PrereqTech"] = tech.Type} do
             local chosen = item
             if spec[4] then
                 for override in GameInfo[spec[4]]{CivilizationType = civ.Type} do
@@ -23,7 +23,7 @@ local function unlocks(player, tech)
                     end
                 end
             end
-            if chosen and chosen.PrereqTech == tech.Type and not seen[chosen.Type] then
+            if chosen and chosen[spec[6] or "PrereqTech"] == tech.Type and not seen[chosen.Type] then
                 seen[chosen.Type] = true
                 local kind = spec[2]
                 if kind == "building" then
@@ -31,7 +31,7 @@ local function unlocks(player, tech)
                     if class and (class.MaxGlobalInstances or -1) > 0 then kind = "wonder" end
                 end
                 if #out < 5 then out[#out + 1] = {idx = #out, key = chosen.Type, kind = kind,
-                    name = L(chosen.Description), icon = icon(chosen.IconAtlas, chosen.PortraitIndex)} end
+                    name = L(chosen.Description), icon = icon(chosen.IconAtlas, chosen.PortraitIndex or chosen.IconIndex)} end
             end
         end
     end
@@ -51,7 +51,7 @@ return {
                 end
             end
         end
-        local quote, author = tech.Quote and L(tech.Quote), nil
+        local quote, author = tech.Quote and (L(tech.Quote):gsub("%[TAB%]", "")), nil
         if quote then
             local body, by = quote:gsub(string.char(226, 128, 148), "--"):match("^(.-)%[NEWLINE%]%s*%-+%s*(.+)$")
             if body then quote, author = body, by end

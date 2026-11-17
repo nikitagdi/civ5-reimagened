@@ -2,7 +2,7 @@
 .congress-window { position: relative; width: 1320px; max-width: 96%; height: 880px; max-height: 94%; display: flex; flex-direction: column; background: #1b1815; border: 1px solid #4d4032; border-radius: 4px; color: #ebe2d2; overflow: hidden; }
 .congress-head { display: flex; align-items: center; gap: 16px; padding: 16px 24px; min-height: 70px; border-bottom: 1px solid #4d4032; flex-shrink: 0; }
 .congress-head h1, .congress-head h2 { font-family: 'Alegreya'; font-size: 28px; font-weight: 500; margin: 0; flex: 1; }
-.congress-window button { appearance: none; padding: 8px 16px; border: 1px solid #4d4032; border-radius: 4px; color: #ebe2d2; background: #26221d; cursor: pointer; text-align: left; }
+.congress-window button { display: block; appearance: none; padding: 8px 16px; border: 1px solid #4d4032; border-radius: 4px; color: #ebe2d2; background: #26221d; cursor: pointer; text-align: left; }
 .congress-window button:hover { border-color: #c9a36a; }
 .congress-window button:disabled { opacity: .45; cursor: not-allowed; }
 .congress-window button:focus-visible { outline: 1px solid #c9a36a; outline-offset: -3px; }
@@ -40,7 +40,7 @@
 .congress-confirm { width: 480px; max-width: 90%; padding: 24px; background: #1b1815; border: 1px solid #c9a36a; }
 .congress-confirm h2 { font-family: 'Alegreya'; font-size: 24px; font-weight: 500; margin: 0; }
 .congress-confirm p { font-size: 13px; line-height: 20px; color: #b2a794; }
-.congress-confirm input { appearance: none; width: 100%; height: 36px; padding: 8px; background: #14120f; border: 1px solid #4d4032; color: #ebe2d2; }
+.congress-confirm input { display: block; appearance: none; width: 100%; height: 36px; padding: 8px; background: #14120f; border: 1px solid #4d4032; color: #ebe2d2; }
 .congress-splash, .congress-project { padding: 24px; overflow-y: auto; scrollbar-width: none; }
 .congress-splash h2, .congress-project h2 { font-family: 'Alegreya'; font-size: 28px; font-weight: 500; }
 .congress-era-columns, .congress-project-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }

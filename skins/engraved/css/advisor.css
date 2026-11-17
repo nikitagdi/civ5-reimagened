@@ -10,6 +10,7 @@
 .advisor-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--engrave); font-size: 13px; color: var(--bone-2); }
 .advisor-value { color: var(--brass); }
 .advisor-foot { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 16px 20px; border-top: 1px solid var(--engrave); flex-wrap: wrap; }
+.advisor-reason { padding: 8px 20px; }
 .advisor-note { flex: 1; font-size: 12px; color: var(--bone-3); }
 .advisor-button { appearance: none; min-height: 40px; min-width: 140px; padding: 8px 16px; border: 1px solid var(--engrave); border-radius: 6px; background: var(--lacquer-2); color: var(--bone); font: 500 14px/20px var(--sans); }
 .advisor-button.advisor-primary { background: var(--brass); color: var(--brass-ink); }

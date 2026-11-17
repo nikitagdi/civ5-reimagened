@@ -305,7 +305,8 @@ async function production(page, check, n, shot) {
 async function research(b, check, n, shot) {
   const page = b.page;
   await page.mouse.click(DIAL.x, DIAL.y);
-  const open = await waitUi(page, (p) => partTexts(p, "research.list").length > 0, 5000);
+  // The window opens before the HUD service answers for the new focus: wait for real rows, not the empty-state line.
+  const open = await waitUi(page, (p) => partTexts(p, "research.list").length > 0 && !partTexts(p, "research.list").includes("Nothing can be researched now"), 5000);
   const r = n.research = { list: partTexts(open.probe, "research.list") };
   check("dial on 'Choose research' opens the research window", open.ok, `${open.ms} ms`);
   // Without the window the turn cannot go on, and nothing else can choose: the classic UI (and its Lua) sleeps under

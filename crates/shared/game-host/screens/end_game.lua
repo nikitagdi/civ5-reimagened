@@ -40,7 +40,7 @@ return {
         table.sort(r.players,function(a,b) if a.score==b.score then return a.id<b.id end return a.score>b.score end)
         if GameInfo.HistoricRankings then
             for h in GameInfo.HistoricRankings() do
-                r.ranking.rows[#r.ranking.rows+1]={id=h.ID,name=L(h.HistoricalLeader),threshold=h.Score,me=false,quote=h.Quote and L(h.Quote)}
+                r.ranking.rows[#r.ranking.rows+1]={id=h.ID,name=L(h.HistoricalLeader),threshold=h.LeaderScore,me=false,quote=h.LeaderQuote and L(h.LeaderQuote)}
             end
             table.sort(r.ranking.rows,function(a,b) return a.threshold>b.threshold end)
             for _,row in ipairs(r.ranking.rows) do

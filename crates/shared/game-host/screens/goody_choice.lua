@@ -35,7 +35,7 @@ return {
         for goody in GameInfo.GoodyHuts() do
             if p:CanGetGoody(plot,goody.ID,u) then
                 r.rewards[#r.rewards+1]={id=goody.ID,key=goody.Type,icon=icon(goody.IconAtlas,goody.PortraitIndex),
-                    parts=array({{id=0,text=L(goody.Description)}})}
+                    parts=array({{id=0,text=L(goody.ChooseDescription or goody.Description)}})}
             end
         end
         if #r.rewards==0 then r.reason="There are no eligible rewards for this explorer" end

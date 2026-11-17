@@ -347,25 +347,3 @@
 </div>
 </section>
 </div>
-<template id="victory-proposal-tip" data-layer="tooltip">
-<div class="victory-tip">
-<div data-bind-for="p:{{victory.proposals.items}}" data-bind-filter="{{p.key == state.victory.hover}}">
-<div data-bind-for="r:{{p.reasons}}">
-<span data-l10n="victory.reason_type_active" data-bind-if="{{r.key == 'type_active'}}">
-</span>
-<span data-l10n="victory.reason_type_unavailable" data-bind-if="{{r.key == 'type_unavailable'}}">
-</span>
-<span data-l10n="victory.reason_cooldown" data-bind-if="{{r.key == 'cooldown'}}">
-</span>
-<span data-l10n="victory.reason_wait_next_turn" data-bind-if="{{r.key == 'wait_next_turn'}}">
-</span>
-<span data-l10n="victory.reason_own_active" data-bind-if="{{r.key == 'own_active'}}">
-</span>
-<span data-l10n="victory.reason_other_active" data-bind-if="{{r.key == 'other_active'}}">
-</span>
-<span class="victory-value" data-bind-value="{{r.turn}}" >
-</span>
-</div>
-</div>
-</div>
-</template>

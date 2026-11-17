@@ -3,6 +3,7 @@
 // runs before additional event-window skins have been integrated.
 import { openPage, act, until, appUrl } from "../lib/browser.mjs";
 import { DEV_PASSWORD } from "../lib/game.mjs";
+import { techCards } from "../lib/tech-screen.mjs";
 import { counters } from "./ui2-host.mjs";
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -54,14 +55,7 @@ export async function run({ server, opts }) {
     check("reconnect retains the same queue entry", true);
     const catalog = await waitFor(page, p => texts(p, "techs.status").includes("available"), "available technology");
     const index = texts(catalog, "techs.status").indexOf("available");
-    const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["techs.row"]));
-    const byKey = new Map();
-    for (const rect of rects) {
-      if (!rect.keys || rect.node.includes("#")) continue;
-      const old = byKey.get(rect.keys);
-      if (!old || rect.w * rect.h > old.w * old.h) byKey.set(rect.keys, rect);
-    }
-    const row = [...byKey.values()].sort((a, b) => a.y - b.y || a.x - b.x)[index];
+    const row = (await techCards(page))[index];
     if (!row) throw new Error("available technology has no row geometry");
     await page.mouse.click(row.x + row.w / 2, row.y + row.h / 2);
     await waitFor(page, p => p?.ui?.popup && p.ui.popup.id > decisionId && !p.ui.popup.decision && p.ui.popup_count === 1, "successful action closes the decision and advances the queue");

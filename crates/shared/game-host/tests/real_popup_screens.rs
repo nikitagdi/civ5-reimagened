@@ -1,24 +1,14 @@
 //! Popup roots on a real game; event answer paths are covered by the Lua event fixtures.
+//! One test: the real core allows a single game per process, so every screen is probed on the same worker.
 use game_host::Worker;
 use protocol::{Command, CommandOutcome, Query, QueryAnswer, Start, ToWorker, WorkerMsg};
 #[path = "common/real.rs"]
 mod common;
 
-fn probe(screen: &str, action: Option<&str>) {
-    if gamecore::IMPLEMENTATION != "lekmod" {
-        eprintln!("skipped: linked gamecore is the stub");
-        return;
-    }
-    let (worker, outs) = Worker::new(
-        common::real_core(),
-        common::init(Start::New(common::setup()), ""),
-        0,
-    );
-    let mut h = common::H::with(worker, outs);
-    h.found_city(0);
+fn probe(h: &mut common::H, qid: u64, screen: &str, action: Option<&str>) {
     h.send(ToWorker::Query {
         player: 0,
-        qid: 99,
+        qid,
         q: Query::Screen {
             screen: screen.into(),
             args: vec![],
@@ -31,13 +21,13 @@ fn probe(screen: &str, action: Option<&str>) {
         .flat_map(|f| &f.msgs)
         .find_map(|m| match m {
             WorkerMsg::QueryResult {
-                qid: 99,
+                qid: id,
                 answer: QueryAnswer::Screen { json, .. },
-            } => Some(json),
+            } if *id == qid => Some(json),
             WorkerMsg::QueryResult {
-                qid: 99,
+                qid: id,
                 answer: QueryAnswer::Error { reason },
-            } => panic!("{screen}: {reason}"),
+            } if *id == qid => panic!("{screen}: {reason}"),
             _ => None,
         })
         .expect("screen answer");
@@ -62,40 +52,34 @@ fn probe(screen: &str, action: Option<&str>) {
         }
     }
 }
-#[test]
-fn confirm() {
-    probe("confirm", Some("choose"));
-}
 
 #[test]
-fn message() {
-    probe("message", Some("ok"));
-}
-
-#[test]
-fn goody_choice() {
-    probe("goody_choice", Some("take"));
-}
-
-#[test]
-fn notification_log() {
-    probe("notification_log", None);
-}
-
-#[test]
-fn game_menu() {
-    probe("game_menu", Some("save"));
-    for action in ["exit", "set_quick", "set_email", "set_autosave"] {
-        probe("game_menu", Some(action));
+fn popup_screens_answer_and_refuse_without_events() {
+    if gamecore::IMPLEMENTATION != "lekmod" {
+        eprintln!("skipped: linked gamecore is the stub");
+        return;
     }
-}
-
-#[test]
-fn end_game() {
-    probe("end_game", Some("continue"));
-    probe("end_game", Some("exit"));
-}
-#[test]
-fn advisor() {
-    probe("advisor", None);
+    let (worker, outs) = Worker::new(
+        common::real_core(),
+        common::init(Start::New(common::setup()), ""),
+        0,
+    );
+    let mut h = common::H::with(worker, outs);
+    h.found_city(0);
+    let mut qid = 100;
+    let mut next = || {
+        qid += 1;
+        qid
+    };
+    probe(&mut h, next(), "confirm", Some("choose"));
+    probe(&mut h, next(), "message", Some("ok"));
+    probe(&mut h, next(), "goody_choice", Some("take"));
+    probe(&mut h, next(), "notification_log", None);
+    probe(&mut h, next(), "game_menu", Some("save"));
+    for action in ["exit", "set_quick", "set_email", "set_autosave"] {
+        probe(&mut h, next(), "game_menu", Some(action));
+    }
+    probe(&mut h, next(), "end_game", Some("continue"));
+    probe(&mut h, next(), "end_game", Some("exit"));
+    probe(&mut h, next(), "advisor", None);
 }

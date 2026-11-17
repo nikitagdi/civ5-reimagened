@@ -324,6 +324,9 @@ async function openByBanner(page) {
   }
   if (!box) return { ok: false, box, ms: Date.now() - t0 };
   await page.mouse.click(box.cx, box.cy);
+  // The banner opens the full city screen; its production chooser opens the production window.
+  const city = await waitUi(page, (p) => partTexts(p, "city.name").length > 0, 5000);
+  if (city.ok) await clickPart(page, "city.choose-production");
   const w = await waitUi(page, (p) => partTexts(p, "production.head").length > 0, 5000);
   return { ...w, box };
 }
@@ -526,11 +529,14 @@ async function step4(alice, check, n, shot) {
   await shot(alice, "production");
   await page.keyboard.press("Escape");
   await waitUi(page, (q) => partTexts(q, "production.head").length === 0, 3000);
+  // The production window was opened from the city screen: a second Escape returns to the map.
+  await page.keyboard.press("Escape");
+  await waitUi(page, (q) => partTexts(q, "city.name").length === 0, 3000);
   // The tooltip of the strip's policies button.
   const pol = await partBox(page, "top.menu.policies");
   if (pol) await page.mouse.move(pol.cx, pol.cy);
   const ptip = await waitUi(page, (q) => partTexts(q, "tip.policies").length > 0, 3000);
-  p.policiesTip = { ms: ptip.ms, texts: partTexts(ptip.probe, "tip.policies") };
+  p.policiesTip = { ms: ptip.ms, texts: partTexts(ptip.probe, "tip.policies"), windows: ptip.probe?.ui?.windows };
   check("4. the policies button shows its tooltip while hovered", !!pol && ptip.ok && p.policiesTip.texts.includes("Social policies"), JSON.stringify(p.policiesTip));
   await shot(alice, "policies-tooltip");
   await page.mouse.move(VP.width / 2, VP.height / 2);

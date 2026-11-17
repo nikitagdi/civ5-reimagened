@@ -5,8 +5,8 @@ import { DEV_PASSWORD } from "../lib/game.mjs";
 import { clickPart } from "./ui2-v1.mjs";
 
 const texts = (p, part) => (p?.texts ?? []).filter(t => t.part === part).map(t => t.text);
-async function waitFor(page, predicate, description) {
-  const deadline = Date.now() + 30000;
+async function waitFor(page, predicate, description, timeout = 30000) {
+  const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
     const probe = await page.evaluate(() => window.__civ5test.ui2());
     if (predicate(probe)) return probe;
@@ -20,8 +20,8 @@ export async function run({ server, opts }) {
   const browser = await openPage({ headed: opts.headed, logDir: opts.logDir, viewport: { width: 1366, height: 768 }, consoleFile: "ui2-screen-religion_overview.log" });
   try {
     const page = browser.page;
-    const nick = "religion_overview-test";
-    await page.goto(appUrl(server.url, opts, { ui: "v2:engraved", nick, manual: "1" }));
+    const nick = `religion_overview-test${Date.now() % 1000000}`; // a fresh game, not a prepared seat
+    await page.goto(appUrl(server.url, opts, { ui: "v2:engraved", nick, autostart: "1", ai: "2", size: "small", seed: "7", mode: "simultaneous", manual: "1" }));
     const first = await until(page, s => s.screen === "login" || s.screen === "play", 90000, "login or game");
     if (first.screen === "login") await act(page, { kind: "login", nick, password: DEV_PASSWORD });
     await until(page, s => s.screen === "play" && s.turn !== null, 90000, "prepared game");
