@@ -24,3 +24,8 @@
 @media (height < 900px) { .tech_award-window { max-height: 94%; } .tech_award-hero { padding: 16px 24px; } }
 
 .tech_award-screen { pointer-events: auto; }
+
+.tech_award-tile { width: 144px; min-height: 124px; justify-content: flex-start; }
+.tech_award-unlock-name { white-space: normal; overflow: visible; line-height: 18px; }
+.tech_award-kind { text-align: center; }
+.tech_award-head, .tech_award-foot { flex-shrink: 0; }

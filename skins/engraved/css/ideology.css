@@ -22,3 +22,15 @@
 .ideology-tenet { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-bottom: 1px solid var(--engrave); }
 
 .ideology-screen { pointer-events: auto; }
+
+.ideology-head { padding: 16px 24px; }
+.ideology-head > button { margin-left: auto; }
+.ideology-cards { gap: 16px; padding: 0 20px 20px; }
+.ideology-card { padding: 16px; gap: 12px; }
+.ideology-crest { height: 140px; }
+.ideology-adopters { min-height: 40px; font-size: 13px; }
+.ideology-victories { font-size: 12px; gap: 8px; }
+.ideology-victories > span { padding: 3px 6px; border: 1px solid var(--engrave); }
+.ideology-card .ideology-choose-control, .ideology-dialog .ideology-confirm-control { background: var(--brass); color: var(--brass-ink); }
+.ideology-button:disabled { opacity: .5; }
+@media (height < 900px) { .ideology-window { gap: 12px; } .ideology-crest { height: 100px; } .ideology-icon { width: 72px; height: 72px; } }

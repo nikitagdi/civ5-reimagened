@@ -3,10 +3,10 @@
     <div class="policies-head">
       <span class="policies-title" data-l10n="policies.title">Social policies</span>
       <span data-bind-if="{{policies.player_title != null}}" data-bind-value="{{policies.player_title}}"></span>
-      <button class="policies-tab" data-on-click="set state.policies.tab = 'policies'" data-l10n="policies.tab">Policies</button>
-      <button class="policies-tab" data-on-click="set state.policies.tab = 'ideology'" data-l10n="policies.ideology">Ideology</button>
+      <button class="policies-tab" data-bind-class-toggle="policies-active:{{state.policies.tab == 'policies' || (state.policies.tab == '' && policies.open_tab == 'policies')}}" data-on-click="set state.policies.tab = 'policies'" data-l10n="policies.tab">Policies</button>
+      <button class="policies-tab" data-bind-class-toggle="policies-active:{{state.policies.tab == 'ideology' || (state.policies.tab == '' && policies.open_tab == 'ideology')}}" data-on-click="set state.policies.tab = 'ideology'" data-l10n="policies.ideology">Ideology</button>
       <button class="policies-tab" data-on-click="set state.policies.expanded = !state.policies.expanded" data-l10n="policies.expanded">Expanded view</button>
-      <button class="policies-tab" data-part="policies.close" data-on-click="intent window.close(window: 'policies')" data-l10n="policies.close">Close</button>
+      <button class="policies-tab policies-close-control" data-part="policies.close" data-on-click="intent window.close(window: 'policies')" data-l10n="policies.close">Close</button>
     </div>
     <div class="policies-band">
       <span data-l10n="policies.culture">Culture</span><b data-bind-value="{{policies.culture.stored}}"></b>
@@ -18,15 +18,15 @@
     <div class="policies-meter"><div class="policies-fill" data-bind-style-width="{{min(1, policies.culture.stored / max(1, policies.culture.next_cost)) * 100}}%"></div><div class="policies-ticks" data-bind-if="{{policies.culture.per_turn > 0}}" data-bind-style-background-size="{{policies.culture.per_turn / max(1, policies.culture.next_cost) * 100}}% 100%"></div></div>
     <div class="policies-grid" data-bind-if="{{state.policies.tab == 'policies' || (state.policies.tab == '' && policies.open_tab == 'policies')}}">
       <div class="policies-card" data-bind-for="b:{{policies.branches}}" data-bind-class-toggle="policies-blocked:{{b.state == 'blocked'}}; policies-era-locked:{{b.state == 'era_locked'}}">
-        <div class="policies-card-head"><b data-part="policies.name" data-bind-value="{{b.name}}"></b><span data-part="policies.status" data-bind-value="{{b.state}}"></span><span data-l10n="policies.count" data-l10n-args="{{b.adopted}}, {{b.total}}">Adopted policies</span></div>
+        <div class="policies-card-head"><b data-part="policies.name" data-bind-value="{{b.name}}"></b><span data-part="policies.status" ><span data-bind-if="{{b.state == 'opened'}}" data-l10n="policies.state.opened">Opened</span><span data-bind-if="{{b.state == 'complete'}}" data-l10n="policies.state.complete">Complete</span><span data-bind-if="{{b.state == 'closed'}}" data-l10n="policies.state.closed">Not adopted</span><span data-bind-if="{{b.state == 'era_locked'}}" data-l10n="policies.state.era_locked">Requires a later era</span><span data-bind-if="{{b.state == 'blocked'}}" data-l10n="policies.state.blocked">Blocked</span></span><span data-l10n="policies.count" data-l10n-args="{{b.adopted}}, {{b.total}}">Adopted policies</span></div>
         <div class="policies-effects"><span data-bind-value="{{b.opener}}"></span><span data-bind-value="{{b.finisher}}"></span></div>
         <div class="policies-tree" data-bind-class-toggle="policies-expanded:{{state.policies.expanded}}">
           <button class="policies-policy" data-part="policies.policy" data-bind-for="p:{{b.policies}}" data-bind-class-toggle="policies-adopted:{{p.state == 'adopted'}}; policies-available:{{p.state == 'available'}}" data-bind-disabled="{{p.state != 'available'}}" data-tooltip="policies-tip" data-on-pointerenter="set state.policies.hover = p.id" data-on-click="set state.policies.confirm = p.id; set state.policies.kind = 'adopt_policy'; set state.policies.name = p.name">
-            <span data-bind-value="{{p.name}}"></span><span data-bind-if="{{state.policies.expanded}}" data-bind-value="{{p.effect}}"></span>
+            <img class="policies-icon" data-bind-src="{{p.icon}}"><span data-bind-value="{{p.name}}"></span><span data-bind-if="{{state.policies.expanded}}" data-bind-value="{{p.effect}}"></span>
           </button>
         </div>
         <span class="policies-reason" data-part="policies.reason" data-bind-if="{{b.reason != null}}" data-bind-value="{{b.reason}}"></span>
-        <button class="policies-button" data-part="policies.unlock" data-bind-disabled="{{!b.can_unlock}}" data-on-click="set state.policies.confirm = b.id; set state.policies.kind = 'unlock_branch'; set state.policies.name = b.name" data-bind-value="{{b.name}}"></button>
+        <button class="policies-button" data-part="policies.unlock" data-bind-disabled="{{!b.can_unlock}}" data-on-click="set state.policies.confirm = b.id; set state.policies.kind = 'unlock_branch'; set state.policies.name = b.name" data-l10n="policies.open_branch" data-l10n-args="{{b.name}}"></button>
       </div>
       <div class="policies-card"><b data-l10n="policies.ideology">Ideology</b><span data-bind-if="{{policies.ideology == null}}" data-l10n="policies.no_ideology">Reach the required era or build three factories to choose an ideology.</span><button class="policies-button" data-on-click="set state.policies.tab = 'ideology'" data-l10n="policies.open_ideology">Open ideology</button></div>
     </div>
@@ -57,7 +57,7 @@
     <div class="policies-overlay" data-bind-if="{{state.policies.confirm >= 0}}">
       <div class="policies-dialog"><b class="policies-title" data-bind-if="{{state.policies.kind == 'unlock_branch'}}" data-l10n="policies.confirm_branch" data-l10n-args="{{state.policies.name}}">Open this branch?</b><b class="policies-title" data-bind-if="{{state.policies.kind != 'unlock_branch'}}" data-l10n="policies.confirm" data-l10n-args="{{state.policies.name}}">Adopt this choice?</b>
         <div data-bind-for="b:{{policies.branches}}" data-bind-filter="{{state.policies.kind == 'unlock_branch' && b.id == state.policies.confirm}}"><span data-l10n="policies.disables">Opening this branch disables these branches:</span><span class="policies-reason" data-bind-for="d:{{b.disables}}" data-bind-value="{{d.name}}"></span></div>
-        <button class="policies-button" data-part="policies.confirm" data-bind-hotkey="'Enter'" data-on-click="intent screen.act(screen: 'policies', action: state.policies.kind, a: state.policies.confirm); set state.policies.confirm = -1; set state.policies.tenet_level = 0" data-l10n="policies.yes">Confirm</button>
+        <button class="policies-button policies-confirm-control" data-part="policies.confirm" data-bind-hotkey="'Enter'" data-on-click="intent screen.act(screen: 'policies', action: state.policies.kind, a: state.policies.confirm); set state.policies.confirm = -1; set state.policies.tenet_level = 0" data-l10n="policies.yes">Confirm</button>
         <button class="policies-button" data-on-click="set state.policies.confirm = -1" data-l10n="policies.cancel">Cancel</button>
       </div>
     </div>

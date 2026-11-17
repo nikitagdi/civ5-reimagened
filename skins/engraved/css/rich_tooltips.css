@@ -7,3 +7,9 @@
 .rich_tooltips-value { color: var(--bone); text-align: right; min-width: 0; }
 .rich_tooltips-reason { color: var(--bone-3); font-size: 12px; }
 @media (height < 900px) { .rich_tooltips { max-height: 480px; } }
+
+.rich_tooltips { width: 448px; max-width: 94%; }
+.rich_tooltips-title { white-space: normal; line-height: 26px; }
+.rich_tooltips-line { line-height: 18px; padding: 4px 0; }
+.rich_tooltips-value { max-width: 72%; }
+.rich_tooltips-portrait { border-radius: 24px; }

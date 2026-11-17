@@ -32,7 +32,7 @@ religion_overview = { tab = "mine", world_sort = "name", world_desc = false, bel
 free_gp = { selected = -1 }
 city_rename = { draft = "", valid = false, touched = false, why = "" }
 city_list = { sort = "population", desc = true }
-city = { hover_kind = "", buy_tiles = false, sell = -1, hover = -1, queue_mode = 0, repeat_order = false }
+city = { hover_yield = "", tiles_open = false, hover_kind = "", buy_tiles = false, sell = -1, hover = -1, queue_mode = 0, repeat_order = false }
 tech_award = { hover = "" }
 tech_panel = { open = false, last_id = -1, last_name = "", done = false }
 techs = { hover = -1, x = 0.0 }

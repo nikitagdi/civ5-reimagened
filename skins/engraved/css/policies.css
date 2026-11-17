@@ -45,3 +45,19 @@
 .policies-feedback { position: absolute; left: 32px; bottom: 8px; max-width: 75%; max-height: 100px; overflow-y: auto; scrollbar-width: none; padding: 6px 12px; color: var(--neg); background: var(--lacquer); font-size: 12px; }
 
 .policies-screen { pointer-events: auto; }
+
+.policies-head { min-height: 64px; padding: 8px 24px; }
+.policies-head > .policies-close-control { margin-left: auto; }
+.policies-tab { align-self: stretch; border-bottom: 2px solid transparent; }
+.policies-active { color: var(--bone); border-bottom-color: var(--brass); }
+.policies-card-head { flex-wrap: wrap; align-items: baseline; }
+.policies-card-head b { flex: 1; }
+.policies-card-head > span { max-width: 100%; }
+.policies-tree { gap: 6px; }
+.policies-policy { width: 46%; display: flex; align-items: center; gap: 4px; text-align: left; }
+.policies-icon { width: 24px; height: 24px; flex-shrink: 0; }
+.policies-dialog .policies-confirm-control { background: var(--brass); color: var(--brass-ink); }
+.policies-button:disabled { border-color: var(--engrave); opacity: .65; }
+.policies-reason { line-height: 16px; }
+.policies-feedback { pointer-events: auto; }
+@media (height < 900px) { .policies-grid { padding: 12px; gap: 8px; } .policies-card { gap: 8px; padding: 10px; } }

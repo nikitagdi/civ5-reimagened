@@ -3,6 +3,15 @@ export const run = context => scenario(context,"ui2-screen-city",async ({page,ci
   await openScreen(page,"city",city);
   const before = await waitFor(page,p => texts(p,"city.name").length && texts(p,"city.option").length,"real city catalog");
   check("server city rows appear",texts(before,"city.option").length > 0);
+  if (process.env.UI2_SHOT) { await new Promise(r => setTimeout(r, 20000)); await page.screenshot({ path: process.env.UI2_SHOT }); }
+  check("city focus captions are localized", texts(before,"city.focus").includes("Default focus"));
+  check("yield grid has readable captions", texts(before,"city.yields").includes("Food"));
+  check("tile ledger starts collapsed", before.ui.state["city.tiles_open"] === false);
+  await clickPart(page,"city.tiles-toggle");
+  const tiles = await waitFor(page,p => p.ui.state["city.tiles_open"] === true && texts(p,"city.tiles").includes("City center"),"localized tile ledger");
+  check("tile ledger expands with localized states", texts(tiles,"city.tiles").includes("City center"));
+  await clickPart(page,"city.tiles-toggle");
+  await waitFor(page,p => p.ui.state["city.tiles_open"] === false,"tile ledger collapses");
   const count = texts(before,"city.queue").length;
   // The dump of a part covers only the subtree of its first element: ask for the scroll area that holds every option
   // row and keep the option buttons (keys "group/option", one 32 px row each).

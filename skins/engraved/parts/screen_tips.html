@@ -2,3 +2,29 @@
 <template data-layer="tooltip" id="policies-tip"><div class="policies-tip" data-bind-if="{{policies != null}}"><div data-bind-for="b:{{policies.branches}}"><div data-bind-for="p:{{b.policies}}" data-bind-filter="{{p.id == state.policies.hover}}"><b data-bind-value="{{p.name}}"></b><p data-bind-value="{{p.effect}}"></p><p data-bind-if="{{p.reason != null}}" data-bind-value="{{p.reason}}"></p></div></div></div></template>
 <template data-layer="tooltip" id="religion-symbol-tip"><div class="religion-tip" data-bind-if="{{religion != null}}"><div data-bind-for="s:{{religion.symbols}}" data-bind-filter="{{s.id == state.religion.hover}}"><b data-bind-value="{{s.name}}"></b><p data-bind-value="{{s.tooltip}}"></p><span data-bind-if="{{s.founder != null}}" data-bind-value="{{s.founder}}"></span></div></div></template>
 <template data-layer="tooltip" id="religion-overview-prophet-tip"><div class="religion_overview-tip" data-bind-if="{{religion_overview != null}}" data-bind-value="{{religion_overview.faith.prophet_tooltip}}"></div></template>
+
+<template data-layer="tooltip" id="city-yield-tip">
+  <div class="city-tip" data-bind-if="{{city != null}}">
+    <div data-bind-for="y:{{city.yields}}" data-bind-filter="{{y.key == state.city.hover_yield}}">
+      <div class="city-tip-row" data-bind-for="b:{{y.breakdown}}"><span data-bind-value="{{b.label}}"></span><b data-bind-value="{{fmt.signed(b.value)}}"></b></div>
+    </div>
+  </div>
+</template>
+<template data-layer="tooltip" id="city-tile-tip">
+  <div class="city-tip" data-bind-if="{{city != null}}">
+    <div data-bind-for="t:{{city.tiles}}" data-bind-filter="{{t.index == state.city.hover}}">
+      <span data-l10n="city.tiles">City tiles</span>
+      <span data-bind-if="{{t.other_city != null}}" data-bind-value="{{t.other_city}}"></span>
+      <span data-bind-if="{{t.buy_reason != null}}" data-bind-value="{{t.buy_reason}}"></span>
+      <span data-bind-if="{{t.border_next}}" data-l10n="city.next_border">Next border tile</span>
+    </div>
+  </div>
+</template>
+<template data-layer="tooltip" id="city-gp-tip">
+  <div class="city-tip" data-bind-if="{{city != null}}">
+    <div data-bind-for="p:{{city.great_people}}" data-bind-filter="{{p.key == state.city.hover_yield}}">
+      <b data-bind-value="{{p.name}}"></b>
+      <div class="city-tip-row" data-bind-for="m:{{p.modifiers}}"><span data-bind-value="{{m.label}}"></span><b data-bind-value="{{fmt.signed(m.value)}}"></b></div>
+    </div>
+  </div>
+</template>

@@ -55,8 +55,8 @@ export async function run({ server, opts }) {
     }, attached, { timeout: 30000 });
     await waitFor(page, p => p?.ui?.popup?.id === decisionId && p.ui.popup_count === 2 && p.ui.windows.includes("techs"), "decision after reconnect");
     check("reconnect retains the same queue entry", true);
-    const catalog = await waitFor(page, p => texts(p, "techs.status").includes("available"), "available technology");
-    const index = texts(catalog, "techs.status").indexOf("available");
+    const catalog = await waitFor(page, p => texts(p, "techs.status").includes("Available"), "available technology");
+    const index = texts(catalog, "techs.status").indexOf("Available");
     const row = (await techCards(page))[index];
     if (!row) throw new Error("available technology has no row geometry");
     await page.mouse.click(row.x + row.w / 2, row.y + row.h / 2);

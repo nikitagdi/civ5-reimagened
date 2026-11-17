@@ -7,7 +7,7 @@ export async function run({server,opts}) {
     if (!await clickPart(page,"tech-panel.toggle")) throw new Error("Lead must include parts/tech_panel.html in the HUD layer");
     if (!await clickPart(page,"tech-panel.choose")) await clickPart(page,"tech-panel.current");
     const root=await waitTech(page,p=>texts(p,"techs.name").length>50,"real technology rows");
-    const index=texts(root,"techs.status").indexOf("available");
+    const index=texts(root,"techs.status").indexOf("Available");
     const name=texts(root,"techs.name")[index];
     if (index<0) throw new Error("No available research");
     const row=(await techCards(page))[index];

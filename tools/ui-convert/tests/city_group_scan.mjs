@@ -8,9 +8,10 @@ const names = ["city", "city_list", "city_rename", "city_captured", "free_great_
 const part = n => readFileSync(new URL(`../../../skins/engraved/parts/${n}.html`, import.meta.url), "utf8");
 const source = `<html><head><title>Engraved</title></head><body><div data-layer="map"></div><div data-layer="hud"><div data-slot="mods" data-part="mods"></div></div><div data-layer="window">${names.map(part).join("\n")}</div><div data-layer="tooltip">${part("city_tips")}</div></body></html>`;
 let id = 0;
-function element(n) {
+function element(n, svg = false) {
   if (!n.tagName) return null;
-  return { type: "element", id: id++, tag: n.tagName, src: "city-group.html:1:1", attrs: (n.attrs || []).map(a => [a.name, a.value]), children: (n.content?.childNodes || n.childNodes || []).map(element).filter(Boolean) };
+  svg = svg || n.tagName === "svg";
+  return { ...(svg ? { ns: "svg" } : {}), type: "element", id: id++, tag: n.tagName, src: "city-group.html:1:1", attrs: (n.attrs || []).map(a => [a.name, a.value]), children: (n.content?.childNodes || n.childNodes || []).map(child => element(child, svg)).filter(Boolean) };
 }
 const dom = element(parse(source).childNodes.find(n => n.tagName === "html"));
 function simplify(n) {

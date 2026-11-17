@@ -35,8 +35,9 @@ export async function run({ server, opts }) {
     if (!await clickPart(page, "top.menu.tech")) throw new Error("technology HUD button is missing");
     const before = await waitFor(page, p => texts(p, "techs.name").length > 50, "server technology catalog");
     check("techs window contains the full real catalog", before.ui.windows.includes("techs"));
+    check("full-screen tree suppresses HUD panels", ["top.research", "notes.log", "tech-panel", "helm"].every(part => texts(before, part).length === 0));
     const statuses = texts(before, "techs.status");
-    const index = statuses.indexOf("available");
+    const index = statuses.indexOf("Available");
     if (index < 0) throw new Error("no available technology in new game");
     const name = texts(before, "techs.name")[index];
     const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["techs.list"])); // the dump covers only the subtree of the first element of a part, so ask for the list that holds all rows; it also holds era headers and links: keep the 232 x 68 px cards
@@ -50,11 +51,12 @@ export async function run({ server, opts }) {
     const row = rows[index];
     if (!row) throw new Error("available technology has no row geometry");
     await page.mouse.click(row.x + row.w / 2, row.y + row.h / 2);
-    await waitFor(page, p => texts(p, "techs.status")[index] === "current" && texts(p, "top.research").includes(name), "research action and refreshed server data");
+    await waitFor(page, p => texts(p, "techs.status")[index] === "Researching", "research action and refreshed server data");
     check("picking a technology changes server research", true);
     await page.keyboard.press("Escape");
     await waitFor(page, p => !p.ui.windows.includes("techs"), "Escape closes techs");
-    check("Escape closes the registered window", true);
+    await waitFor(page, p => texts(p, "top.research").includes(name), "HUD research after closing tree");
+    check("Escape closes the registered window and restores updated HUD", true);
     // The test hook sends an intent as a skin's click does.
     await page.evaluate(() => window.__civ5test.ui2Intent({ name: "window.open", args: { window: "techs" } }));
     await waitFor(page, p => p.ui.windows.includes("techs"), "ui2Intent opens techs");

@@ -22,3 +22,14 @@
 @media (height < 900px) { .free_great_person-window { height: 600px; } }
 
 .free_great_person-screen { pointer-events: auto; }
+
+.free_great_person-screen { top: 48px; }
+.free_great_person-window { max-width: 94%; }
+.free_great_person-columns { grid-template-columns: minmax(0,1fr) 280px; }
+.free_great_person-row { padding: 8px 16px; }
+.free_great_person-row button { display: grid; grid-template-columns: 40px minmax(0,1fr); gap: 2px 12px; align-items: center; }
+.free_great_person-icon { width: 40px; height: 40px; grid-row: span 2; border-radius: 20px; }
+.free_great_person-detail-icon { width: 48px; height: 48px; }
+.free_great_person-reason { display: block; padding-left: 52px; line-height: 16px; }
+.free_great_person-row button:disabled { opacity: .65; }
+.free_great_person-header, .free_great_person-footer, .free_great_person-instructions { flex-shrink: 0; }

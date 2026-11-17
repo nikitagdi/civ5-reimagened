@@ -19,3 +19,13 @@
 .pantheon-dialog { width: 520px; max-width: 90%; max-height: 90%; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 16px; padding: 24px; background: var(--lacquer); border: 1px solid var(--engrave); }
 
 .pantheon-screen { pointer-events: auto; }
+
+.pantheon-window { min-height: 0; }
+.pantheon-head { padding: 14px 24px; flex-shrink: 0; }
+.pantheon-head p { margin: 4px 0 0; line-height: 18px; }
+.pantheon-label { gap: 3px; }
+.pantheon-row { min-height: 56px; padding: 8px 20px; border-bottom: 1px solid var(--engrave); }
+.pantheon-row:disabled { color: var(--bone-3); cursor: default; }
+.pantheon-row:disabled:hover { border-left-color: transparent; }
+.pantheon-footer { flex-shrink: 0; }
+.pantheon-dialog .pantheon-confirm-control { background: var(--brass); color: var(--brass-ink); }

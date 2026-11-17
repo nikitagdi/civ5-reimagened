@@ -29,3 +29,15 @@
 .religion_overview-tip { width: 300px; padding: 14px; color: var(--bone); background: var(--lacquer); border: 1px solid var(--engrave); }
 
 .religion_overview-screen { pointer-events: auto; }
+
+.religion_overview-head { padding: 14px 24px; min-height: 56px; flex-shrink: 0; }
+.religion_overview-head > .religion_overview-button { margin-left: auto; }
+.religion_overview-sort { padding: 8px 4px; border-bottom: 2px solid transparent; }
+.religion_overview-active { border-bottom-color: var(--brass); color: var(--bone); }
+.religion_overview-summary { gap: 10px; padding: 20px 24px; }
+.religion_overview-summary > b { color: var(--y-faith); }
+.religion_overview-belief { gap: 4px; padding: 14px 24px; line-height: 18px; }
+.religion_overview-income { padding: 6px 0; }
+.religion_overview-option { padding: 8px 12px; font-size: 13px; }
+.religion_overview-button:disabled { color: var(--bone-3); opacity: .5; }
+.religion_overview-footer { flex-shrink: 0; }

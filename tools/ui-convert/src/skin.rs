@@ -556,9 +556,14 @@ api = "1.0"
                     "city.hover_kind".to_string(),
                     StateValue::Str("".to_string())
                 ),
+                (
+                    "city.hover_yield".to_string(),
+                    StateValue::Str("".to_string())
+                ),
                 ("city.queue_mode".to_string(), StateValue::Int(0)),
                 ("city.repeat_order".to_string(), StateValue::Bool(false)),
                 ("city.sell".to_string(), StateValue::Int(-1)),
+                ("city.tiles_open".to_string(), StateValue::Bool(false)),
                 ("city_list.desc".to_string(), StateValue::Bool(true)),
                 (
                     "city_list.sort".to_string(),

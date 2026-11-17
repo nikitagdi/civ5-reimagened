@@ -33,13 +33,15 @@
   </div>
   <div class="layer" data-layer="hud">
     <div data-include="icons.svg"></div>
-    <div data-include="parts/top.html"></div>
-    <div data-include="parts/notes.html"></div>
-    <div data-include="parts/unit.html"></div>
-    <div data-include="parts/chat.html"></div>
-    <div data-include="parts/helm.html"></div>
-    <div data-include="parts/tech_panel.html"></div>
-    <div class="mods" data-part="mods" data-slot="mods"></div>
+    <div data-bind-if="{{!ui.windows.techs.open}}">
+      <div data-include="parts/top.html"></div>
+      <div data-include="parts/notes.html"></div>
+      <div data-include="parts/unit.html"></div>
+      <div data-include="parts/chat.html"></div>
+      <div data-include="parts/helm.html"></div>
+      <div data-include="parts/tech_panel.html"></div>
+      <div class="mods" data-part="mods" data-slot="mods"></div>
+    </div>
   </div>
   <div class="layer" data-layer="window">
     <div data-include="parts/research.html"></div>

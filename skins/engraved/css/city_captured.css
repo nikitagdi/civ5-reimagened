@@ -17,3 +17,11 @@
 .city_captured-footer button:disabled { opacity: .4; }
 
 .city_captured-screen { pointer-events: auto; }
+
+.city_captured-window { max-width: 94%; }
+.city_captured-scroll { padding: 16px 20px; gap: 10px; }
+.city_captured-option { padding: 14px 16px; gap: 4px; }
+.city_captured-option button { width: 100%; font-size: 14px; line-height: 20px; }
+.city_captured-option button:disabled { opacity: .65; }
+.city_captured-reason { line-height: 16px; }
+.city_captured-footer, .city_captured-header, .city_captured-loot { flex-shrink: 0; }

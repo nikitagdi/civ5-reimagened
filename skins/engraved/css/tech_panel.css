@@ -15,3 +15,7 @@
 .tech_panel-done { display: block; color: var(--y-food); padding: 8px 0; }
 .tech_panel-choose { padding: 10px 16px; text-align: left; background: var(--brass); color: var(--brass-ink); border-radius: 4px; }
 @media (width < 1500px) { .tech_panel { width: 320px; } }
+
+.tech_panel-current { text-align: left; }
+.tech_panel-current:hover { background: var(--lacquer-2); }
+.tech_panel-tabs button:hover { color: var(--bone); }

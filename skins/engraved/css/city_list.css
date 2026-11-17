@@ -24,3 +24,12 @@
 @media (width < 1500px) { .city_list-panel { pointer-events: auto; width: 600px; max-height: 48%; } .city_list-head, .city_list-row { grid-template-columns: 100px 1fr 72px 170px; gap: 8px; } }
 
 .city_list-screen { pointer-events: auto; }
+
+.city_list-growth { display: grid; grid-template-columns: 28px 1fr; gap: 2px 6px; }
+.city_list-growth b { grid-row: span 2; }
+.city_list-growth > span { color: var(--bone-3); font-size: 11px; }
+.city_list-name { font-size: 17px; }
+.city_list-icon { width: 28px; height: 28px; flex-shrink: 0; }
+.city_list-production { align-items: center; }
+.city_list-panel .city_list-active { color: var(--brass); }
+.city_list-head { color: var(--bone-3); }

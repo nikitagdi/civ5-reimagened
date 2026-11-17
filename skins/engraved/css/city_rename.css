@@ -11,3 +11,11 @@
 .city_rename-footer button:disabled { opacity: .4; }
 
 .city_rename-screen { pointer-events: auto; }
+
+.city_rename-window { max-width: 94%; }
+.city_rename-header { flex-wrap: wrap; font-size: 24px; line-height: 28px; }
+.city_rename-name { font: 400 13px/18px var(--sans); color: var(--bone-3); }
+.city_rename-input { min-height: 44px; }
+.city_rename-invalid { border-color: var(--neg); }
+.city_rename-body > span { font-size: 13px; line-height: 18px; }
+.city_rename-footer button { min-width: 112px; padding: 10px 16px; }

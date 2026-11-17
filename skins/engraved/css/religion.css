@@ -31,3 +31,17 @@
 .religion-tip { width: 300px; padding: 14px; background: var(--lacquer); border: 1px solid var(--engrave); color: var(--bone); }
 
 .religion-screen { pointer-events: auto; }
+
+.religion-head { padding: 14px 24px; min-height: 56px; }
+.religion-head > button { margin-left: auto; }
+.religion-symbols { gap: 4px; padding: 10px 16px; flex-shrink: 0; }
+.religion-symbol { min-width: 72px; border: 1px solid transparent; }
+.religion-symbol.religion-selected { border-color: var(--brass); background: var(--lacquer-2); }
+.religion-symbol:hover { background: var(--lacquer-2); }
+.religion-slot { gap: 8px; min-height: 144px; }
+.religion-slot .religion-button { text-align: left; }
+.religion-slot p { font-size: 13px; line-height: 18px; margin: 0; }
+.religion-footer .religion-finish-control, .religion-dialog .religion-confirm-control { background: var(--brass); color: var(--brass-ink); }
+.religion-button:disabled { opacity: .5; }
+.religion-footer, .religion-head { flex-shrink: 0; }
+@media (height < 900px) { .religion-main { padding: 16px; gap: 12px; } .religion-side { padding: 16px; } .religion-slot { padding: 12px; min-height: 124px; } }
