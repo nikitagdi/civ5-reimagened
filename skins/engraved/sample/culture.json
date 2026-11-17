@@ -1,0 +1,3535 @@
+{
+  "model": {
+    "culture": {
+      "player": {
+        "id": 0,
+        "name": "Catherine",
+        "civ_name": "Russia",
+        "civ": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": 1847335167,
+        "color_fg": 3837808383,
+        "leader": "leader:LEADER_CATHERINE"
+      },
+      "summary": {
+        "works": 20,
+        "slots": 34,
+        "tourism": 148,
+        "influential_on": 2,
+        "influential_of": 7
+      },
+      "antiquity": {
+        "sites": 4,
+        "hidden": 2
+      },
+      "columns": [
+        {
+          "key": "BUILDINGCLASS_PALACE",
+          "building": "building:BUILDING_PALACE",
+          "name": "Palace",
+          "slot_type": "art_artifact",
+          "slots": 1,
+          "tooltip": "Palace: 1 slot for art or artifact"
+        },
+        {
+          "key": "BUILDINGCLASS_AMPHITHEATER",
+          "building": "building:BUILDING_AMPHITHEATER",
+          "name": "Amphitheater",
+          "slot_type": "literature",
+          "slots": 1,
+          "tooltip": "Amphitheater: 1 slot for writing"
+        },
+        {
+          "key": "BUILDINGCLASS_OPERA_HOUSE",
+          "building": "building:BUILDING_OPERA_HOUSE",
+          "name": "Opera House",
+          "slot_type": "music",
+          "slots": 1,
+          "tooltip": "Opera House: 1 slot for music"
+        },
+        {
+          "key": "BUILDINGCLASS_MUSEUM",
+          "building": "building:BUILDING_MUSEUM",
+          "name": "Museum",
+          "slot_type": "art_artifact",
+          "slots": 2,
+          "tooltip": "Museum: 2 slots for art or artifact"
+        },
+        {
+          "key": "BUILDINGCLASS_BROADCAST_TOWER",
+          "building": "building:BUILDING_BROADCAST_TOWER",
+          "name": "Broadcast Tower",
+          "slot_type": "music",
+          "slots": 1,
+          "tooltip": "Broadcast Tower: 1 slot for music"
+        },
+        {
+          "key": "BUILDINGCLASS_NATIONAL_EPIC",
+          "building": "building:BUILDING_NATIONAL_EPIC",
+          "name": "National Epic",
+          "slot_type": "literature",
+          "slots": 1,
+          "tooltip": "National Epic: 1 slot for writing"
+        },
+        {
+          "key": "BUILDINGCLASS_HERMITAGE",
+          "building": "building:BUILDING_HERMITAGE",
+          "name": "Hermitage",
+          "slot_type": "art_artifact",
+          "slots": 3,
+          "tooltip": "Hermitage: 3 slots for art or artifact"
+        },
+        {
+          "key": "BUILDINGCLASS_OXFORD_UNIVERSITY",
+          "building": "building:BUILDING_OXFORD_UNIVERSITY",
+          "name": "Oxford University",
+          "slot_type": "literature",
+          "slots": 2,
+          "tooltip": "Oxford University: 2 slots for writing"
+        }
+      ],
+      "cities": [
+        {
+          "id": 8193,
+          "name": "Moscow",
+          "capital": true,
+          "puppet": false,
+          "occupied": false,
+          "health": null,
+          "culture": 46,
+          "tourism": 41,
+          "tourism_tooltip": "Base tourism 41\nGreat works: +20\nLandmarks and wonders: +21",
+          "works": 10,
+          "slots_free": 2,
+          "slots_tooltip": "10 great work slots filled\n2 great work slots available",
+          "cells": [
+            {
+              "column": "BUILDINGCLASS_PALACE",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 8389632,
+                  "slot_type": "art_artifact",
+                  "work": {
+                    "id": 148,
+                    "name": "The Ninth Wave",
+                    "class": "art",
+                    "creator": "Ivan Aivazovsky",
+                    "civ_name": "Russia",
+                    "civ": "civ:CIVILIZATION_RUSSIA",
+                    "color_bg": 1847335167,
+                    "color_fg": 3837808383,
+                    "era": "Industrial",
+                    "tooltip": "The Ninth Wave\nGreat Work of Art\nIvan Aivazovsky, Russia, Industrial era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_AMPHITHEATER",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 8389824,
+                  "slot_type": "literature",
+                  "work": {
+                    "id": 140,
+                    "name": "Eugene Onegin",
+                    "class": "writing",
+                    "creator": "Alexander Pushkin",
+                    "civ_name": "Russia",
+                    "civ": "civ:CIVILIZATION_RUSSIA",
+                    "color_bg": 1847335167,
+                    "color_fg": 3837808383,
+                    "era": "Industrial",
+                    "tooltip": "Eugene Onegin\nGreat Work of Writing\nAlexander Pushkin, Russia, Industrial era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_OPERA_HOUSE",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 8389720,
+                  "slot_type": "music",
+                  "work": {
+                    "id": 157,
+                    "name": "1812 Overture",
+                    "class": "music",
+                    "creator": "Pyotr Tchaikovsky",
+                    "civ_name": "Russia",
+                    "civ": "civ:CIVILIZATION_RUSSIA",
+                    "color_bg": 1847335167,
+                    "color_fg": 3837808383,
+                    "era": "Industrial",
+                    "tooltip": "1812 Overture\nGreat Work of Music\nPyotr Tchaikovsky, Russia, Industrial era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_MUSEUM",
+              "state": "built",
+              "theme_bonus": 4,
+              "theme_tooltip": "Theming +4 culture and tourism: two artifacts or two works of art from the same era by different civilizations.",
+              "slots": [
+                {
+                  "id": 8389724,
+                  "slot_type": "art_artifact",
+                  "work": {
+                    "id": 155,
+                    "name": "Battle relic",
+                    "class": "artifact",
+                    "creator": null,
+                    "civ_name": "Arabia",
+                    "civ": "civ:CIVILIZATION_ARABIA",
+                    "color_bg": 795556607,
+                    "color_fg": 3655583487,
+                    "era": "Medieval",
+                    "tooltip": "Battle relic\nArtifact\nExcavated, Arabia, Medieval era\n+2 culture, +2 tourism",
+                    "viewable": false
+                  }
+                },
+                {
+                  "id": 8389725,
+                  "slot_type": "art_artifact",
+                  "work": {
+                    "id": 156,
+                    "name": "Battle relic",
+                    "class": "artifact",
+                    "creator": null,
+                    "civ_name": "Aztecs",
+                    "civ": "civ:CIVILIZATION_AZTEC",
+                    "color_bg": 1512317695,
+                    "color_fg": 1655942655,
+                    "era": "Medieval",
+                    "tooltip": "Battle relic\nArtifact\nExcavated, Aztecs, Medieval era\n+2 culture, +2 tourism",
+                    "viewable": false
+                  }
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_BROADCAST_TOWER",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 8389736,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_NATIONAL_EPIC",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 8389876,
+                  "slot_type": "literature",
+                  "work": {
+                    "id": 141,
+                    "name": "War and Peace",
+                    "class": "writing",
+                    "creator": "Leo Tolstoy",
+                    "civ_name": "Russia",
+                    "civ": "civ:CIVILIZATION_RUSSIA",
+                    "color_bg": 1847335167,
+                    "color_fg": 3837808383,
+                    "era": "Industrial",
+                    "tooltip": "War and Peace\nGreat Work of Writing\nLeo Tolstoy, Russia, Industrial era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_HERMITAGE",
+              "state": "built",
+              "theme_bonus": 0,
+              "theme_tooltip": "Theming +6 culture and tourism: three works of art from the same era by three different civilizations.",
+              "slots": [
+                {
+                  "id": 8389896,
+                  "slot_type": "art_artifact",
+                  "work": {
+                    "id": 149,
+                    "name": "Trinity",
+                    "class": "art",
+                    "creator": "Andrei Rublev",
+                    "civ_name": "Russia",
+                    "civ": "civ:CIVILIZATION_RUSSIA",
+                    "color_bg": 1847335167,
+                    "color_fg": 3837808383,
+                    "era": "Medieval",
+                    "tooltip": "Trinity\nGreat Work of Art\nAndrei Rublev, Russia, Medieval era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                },
+                {
+                  "id": 8389897,
+                  "slot_type": "art_artifact",
+                  "work": {
+                    "id": 150,
+                    "name": "The Saviour",
+                    "class": "art",
+                    "creator": "Andrei Rublev",
+                    "civ_name": "Russia",
+                    "civ": "civ:CIVILIZATION_RUSSIA",
+                    "color_bg": 1847335167,
+                    "color_fg": 3837808383,
+                    "era": "Medieval",
+                    "tooltip": "The Saviour\nGreat Work of Art\nAndrei Rublev, Russia, Medieval era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                },
+                {
+                  "id": 8389898,
+                  "slot_type": "art_artifact",
+                  "work": {
+                    "id": 151,
+                    "name": "Ivan the Terrible and His Son",
+                    "class": "art",
+                    "creator": "Ilya Repin",
+                    "civ_name": "Russia",
+                    "civ": "civ:CIVILIZATION_RUSSIA",
+                    "color_bg": 1847335167,
+                    "color_fg": 3837808383,
+                    "era": "Industrial",
+                    "tooltip": "Ivan the Terrible and His Son\nGreat Work of Art\nIlya Repin, Russia, Industrial era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_OXFORD_UNIVERSITY",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            }
+          ],
+          "extra": [
+            {
+              "key": "BUILDINGCLASS_SISTINE_CHAPEL",
+              "building": "building:BUILDING_SISTINE_CHAPEL",
+              "name": "Sistine Chapel",
+              "theme_bonus": 0,
+              "theme_tooltip": "Theming +4 culture and tourism: two works of art from the same era by different civilizations.",
+              "slots": [
+                {
+                  "id": 8390036,
+                  "slot_type": "art_artifact",
+                  "work": {
+                    "id": 152,
+                    "name": "Bust of Nefertiti",
+                    "class": "art",
+                    "creator": "Thutmose",
+                    "civ_name": "Egypt",
+                    "civ": "civ:CIVILIZATION_EGYPT",
+                    "color_bg": 1262123775,
+                    "color_fg": 3923550463,
+                    "era": "Ancient",
+                    "tooltip": "Bust of Nefertiti\nGreat Work of Art\nThutmose, Egypt, Ancient era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                },
+                {
+                  "id": 8390037,
+                  "slot_type": "art_artifact",
+                  "work": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 16386,
+          "name": "St. Petersburg",
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health": null,
+          "culture": 34,
+          "tourism": 22,
+          "tourism_tooltip": "Base tourism 22\nGreat works: +10\nLandmarks and wonders: +12",
+          "works": 5,
+          "slots_free": 2,
+          "slots_tooltip": "5 great work slots filled\n2 great work slots available",
+          "cells": [
+            {
+              "column": "BUILDINGCLASS_PALACE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_AMPHITHEATER",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 16779456,
+                  "slot_type": "literature",
+                  "work": {
+                    "id": 142,
+                    "name": "Dead Souls",
+                    "class": "writing",
+                    "creator": "Nikolai Gogol",
+                    "civ_name": "Russia",
+                    "civ": "civ:CIVILIZATION_RUSSIA",
+                    "color_bg": 1847335167,
+                    "color_fg": 3837808383,
+                    "era": "Industrial",
+                    "tooltip": "Dead Souls\nGreat Work of Writing\nNikolai Gogol, Russia, Industrial era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_OPERA_HOUSE",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 16779352,
+                  "slot_type": "music",
+                  "work": {
+                    "id": 158,
+                    "name": "Swan Lake",
+                    "class": "music",
+                    "creator": "Pyotr Tchaikovsky",
+                    "civ_name": "Russia",
+                    "civ": "civ:CIVILIZATION_RUSSIA",
+                    "color_bg": 1847335167,
+                    "color_fg": 3837808383,
+                    "era": "Industrial",
+                    "tooltip": "Swan Lake\nGreat Work of Music\nPyotr Tchaikovsky, Russia, Industrial era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_MUSEUM",
+              "state": "built",
+              "theme_bonus": 0,
+              "theme_tooltip": "Theming +4 culture and tourism: two artifacts or two works of art from the same era by different civilizations.",
+              "slots": [
+                {
+                  "id": 16779356,
+                  "slot_type": "art_artifact",
+                  "work": {
+                    "id": 153,
+                    "name": "Barge Haulers on the Volga",
+                    "class": "art",
+                    "creator": "Ilya Repin",
+                    "civ_name": "Russia",
+                    "civ": "civ:CIVILIZATION_RUSSIA",
+                    "color_bg": 1847335167,
+                    "color_fg": 3837808383,
+                    "era": "Industrial",
+                    "tooltip": "Barge Haulers on the Volga\nGreat Work of Art\nIlya Repin, Russia, Industrial era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                },
+                {
+                  "id": 16779357,
+                  "slot_type": "art_artifact",
+                  "work": {
+                    "id": 154,
+                    "name": "The Hay Wain",
+                    "class": "art",
+                    "creator": "John Constable",
+                    "civ_name": "England",
+                    "civ": "civ:CIVILIZATION_ENGLAND",
+                    "color_bg": 3873494271,
+                    "color_fg": 2317295615,
+                    "era": "Industrial",
+                    "tooltip": "The Hay Wain\nGreat Work of Art\nJohn Constable, England, Industrial era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_BROADCAST_TOWER",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 16779368,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_NATIONAL_EPIC",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_HERMITAGE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_OXFORD_UNIVERSITY",
+              "state": "built",
+              "theme_bonus": 0,
+              "theme_tooltip": "Theming +4 culture and tourism: two works of writing from the same era.",
+              "slots": [
+                {
+                  "id": 16779516,
+                  "slot_type": "literature",
+                  "work": {
+                    "id": 143,
+                    "name": "Crime and Punishment",
+                    "class": "writing",
+                    "creator": "Fyodor Dostoevsky",
+                    "civ_name": "Russia",
+                    "civ": "civ:CIVILIZATION_RUSSIA",
+                    "color_bg": 1847335167,
+                    "color_fg": 3837808383,
+                    "era": "Industrial",
+                    "tooltip": "Crime and Punishment\nGreat Work of Writing\nFyodor Dostoevsky, Russia, Industrial era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                },
+                {
+                  "id": 16779517,
+                  "slot_type": "literature",
+                  "work": null
+                }
+              ]
+            }
+          ],
+          "extra": []
+        },
+        {
+          "id": 24579,
+          "name": "Novgorod",
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health": null,
+          "culture": 21,
+          "tourism": 8,
+          "tourism_tooltip": "Base tourism 8\nGreat works: +4\nLandmarks and wonders: +4",
+          "works": 2,
+          "slots_free": 2,
+          "slots_tooltip": "2 great work slots filled\n2 great work slots available",
+          "cells": [
+            {
+              "column": "BUILDINGCLASS_PALACE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_AMPHITHEATER",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 25169088,
+                  "slot_type": "literature",
+                  "work": {
+                    "id": 144,
+                    "name": "Fathers and Sons",
+                    "class": "writing",
+                    "creator": "Ivan Turgenev",
+                    "civ_name": "Russia",
+                    "civ": "civ:CIVILIZATION_RUSSIA",
+                    "color_bg": 1847335167,
+                    "color_fg": 3837808383,
+                    "era": "Industrial",
+                    "tooltip": "Fathers and Sons\nGreat Work of Writing\nIvan Turgenev, Russia, Industrial era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_OPERA_HOUSE",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 25168984,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_MUSEUM",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": "Theming +4 culture and tourism: two artifacts or two works of art from the same era by different civilizations.",
+              "slots": [
+                {
+                  "id": 25168988,
+                  "slot_type": "art_artifact",
+                  "work": null
+                },
+                {
+                  "id": 25168989,
+                  "slot_type": "art_artifact",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_BROADCAST_TOWER",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 25169000,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_NATIONAL_EPIC",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_HERMITAGE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_OXFORD_UNIVERSITY",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            }
+          ],
+          "extra": [
+            {
+              "key": "BUILDINGCLASS_GREAT_LIBRARY",
+              "building": "building:BUILDING_GREAT_LIBRARY",
+              "name": "Great Library",
+              "theme_bonus": 0,
+              "theme_tooltip": "Theming +4 culture and tourism: two works of writing from different civilizations.",
+              "slots": [
+                {
+                  "id": 25169204,
+                  "slot_type": "literature",
+                  "work": {
+                    "id": 145,
+                    "name": "Muqaddimah",
+                    "class": "writing",
+                    "creator": "Ibn Khaldun",
+                    "civ_name": "Arabia",
+                    "civ": "civ:CIVILIZATION_ARABIA",
+                    "color_bg": 795556607,
+                    "color_fg": 3655583487,
+                    "era": "Medieval",
+                    "tooltip": "Muqaddimah\nGreat Work of Writing\nIbn Khaldun, Arabia, Medieval era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                },
+                {
+                  "id": 25169205,
+                  "slot_type": "literature",
+                  "work": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 32772,
+          "name": "Kazan",
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health": null,
+          "culture": 14,
+          "tourism": 2,
+          "tourism_tooltip": "Base tourism 2\nGreat works: +0\nLandmarks and wonders: +2",
+          "works": 0,
+          "slots_free": 1,
+          "slots_tooltip": "0 great work slots filled\n1 great work slots available",
+          "cells": [
+            {
+              "column": "BUILDINGCLASS_PALACE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_AMPHITHEATER",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 33558720,
+                  "slot_type": "literature",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_OPERA_HOUSE",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 33558616,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_MUSEUM",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": "Theming +4 culture and tourism: two artifacts or two works of art from the same era by different civilizations.",
+              "slots": [
+                {
+                  "id": 33558620,
+                  "slot_type": "art_artifact",
+                  "work": null
+                },
+                {
+                  "id": 33558621,
+                  "slot_type": "art_artifact",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_BROADCAST_TOWER",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 33558632,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_NATIONAL_EPIC",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_HERMITAGE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_OXFORD_UNIVERSITY",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            }
+          ],
+          "extra": []
+        },
+        {
+          "id": 40965,
+          "name": "Rostov",
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health": null,
+          "culture": 17,
+          "tourism": 7,
+          "tourism_tooltip": "Base tourism 7\nGreat works: +4\nLandmarks and wonders: +3",
+          "works": 2,
+          "slots_free": 0,
+          "slots_tooltip": "2 great work slots filled\n0 great work slots available",
+          "cells": [
+            {
+              "column": "BUILDINGCLASS_PALACE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_AMPHITHEATER",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 41948352,
+                  "slot_type": "literature",
+                  "work": {
+                    "id": 146,
+                    "name": "The Tale of Genji",
+                    "class": "writing",
+                    "creator": "Murasaki Shikibu",
+                    "civ_name": "Japan",
+                    "civ": "civ:CIVILIZATION_JAPAN",
+                    "color_bg": 3090492415,
+                    "color_fg": 4075809023,
+                    "era": "Medieval",
+                    "tooltip": "The Tale of Genji\nGreat Work of Writing\nMurasaki Shikibu, Japan, Medieval era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_OPERA_HOUSE",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 41948248,
+                  "slot_type": "music",
+                  "work": {
+                    "id": 159,
+                    "name": "Night on Bald Mountain",
+                    "class": "music",
+                    "creator": "Modest Mussorgsky",
+                    "civ_name": "Russia",
+                    "civ": "civ:CIVILIZATION_RUSSIA",
+                    "color_bg": 1847335167,
+                    "color_fg": 3837808383,
+                    "era": "Industrial",
+                    "tooltip": "Night on Bald Mountain\nGreat Work of Music\nModest Mussorgsky, Russia, Industrial era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_MUSEUM",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": "Theming +4 culture and tourism: two artifacts or two works of art from the same era by different civilizations.",
+              "slots": [
+                {
+                  "id": 41948252,
+                  "slot_type": "art_artifact",
+                  "work": null
+                },
+                {
+                  "id": 41948253,
+                  "slot_type": "art_artifact",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_BROADCAST_TOWER",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 41948264,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_NATIONAL_EPIC",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_HERMITAGE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_OXFORD_UNIVERSITY",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            }
+          ],
+          "extra": []
+        },
+        {
+          "id": 49158,
+          "name": "Vladimir",
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health": null,
+          "culture": 11,
+          "tourism": 2,
+          "tourism_tooltip": "Base tourism 2\nGreat works: +0\nLandmarks and wonders: +2",
+          "works": 0,
+          "slots_free": 1,
+          "slots_tooltip": "0 great work slots filled\n1 great work slots available",
+          "cells": [
+            {
+              "column": "BUILDINGCLASS_PALACE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_AMPHITHEATER",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 50337984,
+                  "slot_type": "literature",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_OPERA_HOUSE",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 50337880,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_MUSEUM",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": "Theming +4 culture and tourism: two artifacts or two works of art from the same era by different civilizations.",
+              "slots": [
+                {
+                  "id": 50337884,
+                  "slot_type": "art_artifact",
+                  "work": null
+                },
+                {
+                  "id": 50337885,
+                  "slot_type": "art_artifact",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_BROADCAST_TOWER",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 50337896,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_NATIONAL_EPIC",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_HERMITAGE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_OXFORD_UNIVERSITY",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            }
+          ],
+          "extra": []
+        },
+        {
+          "id": 57351,
+          "name": "Smolensk",
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health": null,
+          "culture": 6,
+          "tourism": 1,
+          "tourism_tooltip": "Base tourism 1\nGreat works: +0\nLandmarks and wonders: +1",
+          "works": 0,
+          "slots_free": 0,
+          "slots_tooltip": "0 great work slots filled\n0 great work slots available",
+          "cells": [
+            {
+              "column": "BUILDINGCLASS_PALACE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_AMPHITHEATER",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 58727616,
+                  "slot_type": "literature",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_OPERA_HOUSE",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 58727512,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_MUSEUM",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": "Theming +4 culture and tourism: two artifacts or two works of art from the same era by different civilizations.",
+              "slots": [
+                {
+                  "id": 58727516,
+                  "slot_type": "art_artifact",
+                  "work": null
+                },
+                {
+                  "id": 58727517,
+                  "slot_type": "art_artifact",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_BROADCAST_TOWER",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 58727528,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_NATIONAL_EPIC",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_HERMITAGE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_OXFORD_UNIVERSITY",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            }
+          ],
+          "extra": []
+        },
+        {
+          "id": 65544,
+          "name": "Yaroslavl",
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health": null,
+          "culture": 15,
+          "tourism": 3,
+          "tourism_tooltip": "Base tourism 3\nGreat works: +0\nLandmarks and wonders: +3",
+          "works": 0,
+          "slots_free": 4,
+          "slots_tooltip": "0 great work slots filled\n4 great work slots available",
+          "cells": [
+            {
+              "column": "BUILDINGCLASS_PALACE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_AMPHITHEATER",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 67117248,
+                  "slot_type": "literature",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_OPERA_HOUSE",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 67117144,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_MUSEUM",
+              "state": "built",
+              "theme_bonus": 0,
+              "theme_tooltip": "Theming +4 culture and tourism: two artifacts or two works of art from the same era by different civilizations.",
+              "slots": [
+                {
+                  "id": 67117148,
+                  "slot_type": "art_artifact",
+                  "work": null
+                },
+                {
+                  "id": 67117149,
+                  "slot_type": "art_artifact",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_BROADCAST_TOWER",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 67117160,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_NATIONAL_EPIC",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_HERMITAGE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_OXFORD_UNIVERSITY",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            }
+          ],
+          "extra": []
+        },
+        {
+          "id": 73737,
+          "name": "Tver",
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health": null,
+          "culture": 9,
+          "tourism": 1,
+          "tourism_tooltip": "Base tourism 1\nGreat works: +0\nLandmarks and wonders: +1",
+          "works": 0,
+          "slots_free": 1,
+          "slots_tooltip": "0 great work slots filled\n1 great work slots available",
+          "cells": [
+            {
+              "column": "BUILDINGCLASS_PALACE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_AMPHITHEATER",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 75506880,
+                  "slot_type": "literature",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_OPERA_HOUSE",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 75506776,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_MUSEUM",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": "Theming +4 culture and tourism: two artifacts or two works of art from the same era by different civilizations.",
+              "slots": [
+                {
+                  "id": 75506780,
+                  "slot_type": "art_artifact",
+                  "work": null
+                },
+                {
+                  "id": 75506781,
+                  "slot_type": "art_artifact",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_BROADCAST_TOWER",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 75506792,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_NATIONAL_EPIC",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_HERMITAGE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_OXFORD_UNIVERSITY",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            }
+          ],
+          "extra": []
+        },
+        {
+          "id": 81930,
+          "name": "Pskov",
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health": null,
+          "culture": 7,
+          "tourism": 1,
+          "tourism_tooltip": "Base tourism 1\nGreat works: +0\nLandmarks and wonders: +1",
+          "works": 0,
+          "slots_free": 0,
+          "slots_tooltip": "0 great work slots filled\n0 great work slots available",
+          "cells": [
+            {
+              "column": "BUILDINGCLASS_PALACE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_AMPHITHEATER",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 83896512,
+                  "slot_type": "literature",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_OPERA_HOUSE",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 83896408,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_MUSEUM",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": "Theming +4 culture and tourism: two artifacts or two works of art from the same era by different civilizations.",
+              "slots": [
+                {
+                  "id": 83896412,
+                  "slot_type": "art_artifact",
+                  "work": null
+                },
+                {
+                  "id": 83896413,
+                  "slot_type": "art_artifact",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_BROADCAST_TOWER",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 83896424,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_NATIONAL_EPIC",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_HERMITAGE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_OXFORD_UNIVERSITY",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            }
+          ],
+          "extra": []
+        },
+        {
+          "id": 90123,
+          "name": "Memphis",
+          "capital": false,
+          "puppet": false,
+          "occupied": true,
+          "health": 0.31,
+          "culture": 5,
+          "tourism": 4,
+          "tourism_tooltip": "Base tourism 4\nGreat works: +2\nLandmarks and wonders: +2",
+          "works": 1,
+          "slots_free": 0,
+          "slots_tooltip": "1 great work slots filled\n0 great work slots available",
+          "cells": [
+            {
+              "column": "BUILDINGCLASS_PALACE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_AMPHITHEATER",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 92286144,
+                  "slot_type": "literature",
+                  "work": {
+                    "id": 147,
+                    "name": "The Maxims of Ptahhotep",
+                    "class": "writing",
+                    "creator": "Ptahhotep",
+                    "civ_name": "Egypt",
+                    "civ": "civ:CIVILIZATION_EGYPT",
+                    "color_bg": 1262123775,
+                    "color_fg": 3923550463,
+                    "era": "Ancient",
+                    "tooltip": "The Maxims of Ptahhotep\nGreat Work of Writing\nPtahhotep, Egypt, Ancient era\n+2 culture, +2 tourism",
+                    "viewable": true
+                  }
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_OPERA_HOUSE",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 92286040,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_MUSEUM",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": "Theming +4 culture and tourism: two artifacts or two works of art from the same era by different civilizations.",
+              "slots": [
+                {
+                  "id": 92286044,
+                  "slot_type": "art_artifact",
+                  "work": null
+                },
+                {
+                  "id": 92286045,
+                  "slot_type": "art_artifact",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_BROADCAST_TOWER",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 92286056,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_NATIONAL_EPIC",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_HERMITAGE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_OXFORD_UNIVERSITY",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            }
+          ],
+          "extra": []
+        },
+        {
+          "id": 98316,
+          "name": "Medina",
+          "capital": false,
+          "puppet": true,
+          "occupied": false,
+          "health": null,
+          "culture": 8,
+          "tourism": 1,
+          "tourism_tooltip": "Base tourism 1\nGreat works: +0\nLandmarks and wonders: +1",
+          "works": 0,
+          "slots_free": 1,
+          "slots_tooltip": "0 great work slots filled\n1 great work slots available",
+          "cells": [
+            {
+              "column": "BUILDINGCLASS_PALACE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_AMPHITHEATER",
+              "state": "built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 100675776,
+                  "slot_type": "literature",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_OPERA_HOUSE",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 100675672,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_MUSEUM",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": "Theming +4 culture and tourism: two artifacts or two works of art from the same era by different civilizations.",
+              "slots": [
+                {
+                  "id": 100675676,
+                  "slot_type": "art_artifact",
+                  "work": null
+                },
+                {
+                  "id": 100675677,
+                  "slot_type": "art_artifact",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_BROADCAST_TOWER",
+              "state": "not_built",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": [
+                {
+                  "id": 100675688,
+                  "slot_type": "music",
+                  "work": null
+                }
+              ]
+            },
+            {
+              "column": "BUILDINGCLASS_NATIONAL_EPIC",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_HERMITAGE",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            },
+            {
+              "column": "BUILDINGCLASS_OXFORD_UNIVERSITY",
+              "state": "none",
+              "theme_bonus": null,
+              "theme_tooltip": null,
+              "slots": []
+            }
+          ],
+          "extra": []
+        }
+      ],
+      "swap": {
+        "offers": [
+          {
+            "class": "writing",
+            "class_id": 3,
+            "work": {
+              "id": 144,
+              "name": "Fathers and Sons",
+              "class": "writing",
+              "creator": "Ivan Turgenev",
+              "civ_name": "Russia",
+              "civ": "civ:CIVILIZATION_RUSSIA",
+              "color_bg": 1847335167,
+              "color_fg": 3837808383,
+              "era": "Industrial",
+              "tooltip": "Fathers and Sons\nGreat Work of Writing\nIvan Turgenev, Russia, Industrial era\n+2 culture, +2 tourism",
+              "viewable": true,
+              "location": "Novgorod, Amphitheater",
+              "theme_bonus": null
+            },
+            "options": [
+              {
+                "id": 140,
+                "name": "Eugene Onegin",
+                "class": "writing",
+                "creator": "Alexander Pushkin",
+                "civ_name": "Russia",
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "era": "Industrial",
+                "tooltip": "Eugene Onegin\nGreat Work of Writing\nAlexander Pushkin, Russia, Industrial era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "Moscow, Amphitheater",
+                "theme_bonus": null
+              },
+              {
+                "id": 141,
+                "name": "War and Peace",
+                "class": "writing",
+                "creator": "Leo Tolstoy",
+                "civ_name": "Russia",
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "era": "Industrial",
+                "tooltip": "War and Peace\nGreat Work of Writing\nLeo Tolstoy, Russia, Industrial era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "Moscow, National Epic",
+                "theme_bonus": null
+              },
+              {
+                "id": 142,
+                "name": "Dead Souls",
+                "class": "writing",
+                "creator": "Nikolai Gogol",
+                "civ_name": "Russia",
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "era": "Industrial",
+                "tooltip": "Dead Souls\nGreat Work of Writing\nNikolai Gogol, Russia, Industrial era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "St. Petersburg, Amphitheater",
+                "theme_bonus": null
+              },
+              {
+                "id": 143,
+                "name": "Crime and Punishment",
+                "class": "writing",
+                "creator": "Fyodor Dostoevsky",
+                "civ_name": "Russia",
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "era": "Industrial",
+                "tooltip": "Crime and Punishment\nGreat Work of Writing\nFyodor Dostoevsky, Russia, Industrial era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "St. Petersburg, Oxford University",
+                "theme_bonus": 0
+              },
+              {
+                "id": 144,
+                "name": "Fathers and Sons",
+                "class": "writing",
+                "creator": "Ivan Turgenev",
+                "civ_name": "Russia",
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "era": "Industrial",
+                "tooltip": "Fathers and Sons\nGreat Work of Writing\nIvan Turgenev, Russia, Industrial era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "Novgorod, Amphitheater",
+                "theme_bonus": null
+              },
+              {
+                "id": 145,
+                "name": "Muqaddimah",
+                "class": "writing",
+                "creator": "Ibn Khaldun",
+                "civ_name": "Arabia",
+                "civ": "civ:CIVILIZATION_ARABIA",
+                "color_bg": 795556607,
+                "color_fg": 3655583487,
+                "era": "Medieval",
+                "tooltip": "Muqaddimah\nGreat Work of Writing\nIbn Khaldun, Arabia, Medieval era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "Novgorod, Great Library",
+                "theme_bonus": 0
+              },
+              {
+                "id": 146,
+                "name": "The Tale of Genji",
+                "class": "writing",
+                "creator": "Murasaki Shikibu",
+                "civ_name": "Japan",
+                "civ": "civ:CIVILIZATION_JAPAN",
+                "color_bg": 3090492415,
+                "color_fg": 4075809023,
+                "era": "Medieval",
+                "tooltip": "The Tale of Genji\nGreat Work of Writing\nMurasaki Shikibu, Japan, Medieval era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "Rostov, Amphitheater",
+                "theme_bonus": null
+              },
+              {
+                "id": 147,
+                "name": "The Maxims of Ptahhotep",
+                "class": "writing",
+                "creator": "Ptahhotep",
+                "civ_name": "Egypt",
+                "civ": "civ:CIVILIZATION_EGYPT",
+                "color_bg": 1262123775,
+                "color_fg": 3923550463,
+                "era": "Ancient",
+                "tooltip": "The Maxims of Ptahhotep\nGreat Work of Writing\nPtahhotep, Egypt, Ancient era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "Memphis, Amphitheater",
+                "theme_bonus": null
+              }
+            ]
+          },
+          {
+            "class": "art",
+            "class_id": 1,
+            "work": {
+              "id": 153,
+              "name": "Barge Haulers on the Volga",
+              "class": "art",
+              "creator": "Ilya Repin",
+              "civ_name": "Russia",
+              "civ": "civ:CIVILIZATION_RUSSIA",
+              "color_bg": 1847335167,
+              "color_fg": 3837808383,
+              "era": "Industrial",
+              "tooltip": "Barge Haulers on the Volga\nGreat Work of Art\nIlya Repin, Russia, Industrial era\n+2 culture, +2 tourism",
+              "viewable": true,
+              "location": "St. Petersburg, Museum",
+              "theme_bonus": 0
+            },
+            "options": [
+              {
+                "id": 148,
+                "name": "The Ninth Wave",
+                "class": "art",
+                "creator": "Ivan Aivazovsky",
+                "civ_name": "Russia",
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "era": "Industrial",
+                "tooltip": "The Ninth Wave\nGreat Work of Art\nIvan Aivazovsky, Russia, Industrial era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "Moscow, Palace",
+                "theme_bonus": null
+              },
+              {
+                "id": 149,
+                "name": "Trinity",
+                "class": "art",
+                "creator": "Andrei Rublev",
+                "civ_name": "Russia",
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "era": "Medieval",
+                "tooltip": "Trinity\nGreat Work of Art\nAndrei Rublev, Russia, Medieval era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "Moscow, Hermitage",
+                "theme_bonus": 0
+              },
+              {
+                "id": 150,
+                "name": "The Saviour",
+                "class": "art",
+                "creator": "Andrei Rublev",
+                "civ_name": "Russia",
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "era": "Medieval",
+                "tooltip": "The Saviour\nGreat Work of Art\nAndrei Rublev, Russia, Medieval era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "Moscow, Hermitage",
+                "theme_bonus": 0
+              },
+              {
+                "id": 151,
+                "name": "Ivan the Terrible and His Son",
+                "class": "art",
+                "creator": "Ilya Repin",
+                "civ_name": "Russia",
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "era": "Industrial",
+                "tooltip": "Ivan the Terrible and His Son\nGreat Work of Art\nIlya Repin, Russia, Industrial era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "Moscow, Hermitage",
+                "theme_bonus": 0
+              },
+              {
+                "id": 152,
+                "name": "Bust of Nefertiti",
+                "class": "art",
+                "creator": "Thutmose",
+                "civ_name": "Egypt",
+                "civ": "civ:CIVILIZATION_EGYPT",
+                "color_bg": 1262123775,
+                "color_fg": 3923550463,
+                "era": "Ancient",
+                "tooltip": "Bust of Nefertiti\nGreat Work of Art\nThutmose, Egypt, Ancient era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "Moscow, Sistine Chapel",
+                "theme_bonus": 0
+              },
+              {
+                "id": 153,
+                "name": "Barge Haulers on the Volga",
+                "class": "art",
+                "creator": "Ilya Repin",
+                "civ_name": "Russia",
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "era": "Industrial",
+                "tooltip": "Barge Haulers on the Volga\nGreat Work of Art\nIlya Repin, Russia, Industrial era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "St. Petersburg, Museum",
+                "theme_bonus": 0
+              },
+              {
+                "id": 154,
+                "name": "The Hay Wain",
+                "class": "art",
+                "creator": "John Constable",
+                "civ_name": "England",
+                "civ": "civ:CIVILIZATION_ENGLAND",
+                "color_bg": 3873494271,
+                "color_fg": 2317295615,
+                "era": "Industrial",
+                "tooltip": "The Hay Wain\nGreat Work of Art\nJohn Constable, England, Industrial era\n+2 culture, +2 tourism",
+                "viewable": true,
+                "location": "St. Petersburg, Museum",
+                "theme_bonus": 0
+              }
+            ]
+          },
+          {
+            "class": "artifact",
+            "class_id": 2,
+            "work": null,
+            "options": [
+              {
+                "id": 155,
+                "name": "Battle relic",
+                "class": "artifact",
+                "creator": null,
+                "civ_name": "Arabia",
+                "civ": "civ:CIVILIZATION_ARABIA",
+                "color_bg": 795556607,
+                "color_fg": 3655583487,
+                "era": "Medieval",
+                "tooltip": "Battle relic\nArtifact\nExcavated, Arabia, Medieval era\n+2 culture, +2 tourism",
+                "viewable": false,
+                "location": "Moscow, Museum",
+                "theme_bonus": 4
+              },
+              {
+                "id": 156,
+                "name": "Battle relic",
+                "class": "artifact",
+                "creator": null,
+                "civ_name": "Aztecs",
+                "civ": "civ:CIVILIZATION_AZTEC",
+                "color_bg": 1512317695,
+                "color_fg": 1655942655,
+                "era": "Medieval",
+                "tooltip": "Battle relic\nArtifact\nExcavated, Aztecs, Medieval era\n+2 culture, +2 tourism",
+                "viewable": false,
+                "location": "Moscow, Museum",
+                "theme_bonus": 4
+              }
+            ]
+          }
+        ],
+        "partners": [
+          {
+            "id": 1,
+            "name": "Harun al-Rashid",
+            "civ_name": "Arabia",
+            "civ": "civ:CIVILIZATION_ARABIA",
+            "color_bg": 795556607,
+            "color_fg": 3655583487,
+            "leader": "leader:LEADER_HARUN_AL_RASHID",
+            "human": true,
+            "writing": {
+              "id": 300,
+              "name": "The Book of Healing",
+              "class": "writing",
+              "creator": "Ibn Sina",
+              "civ_name": "Arabia",
+              "civ": "civ:CIVILIZATION_ARABIA",
+              "color_bg": 795556607,
+              "color_fg": 3655583487,
+              "era": "Medieval",
+              "tooltip": "The Book of Healing\nGreat Work of Writing\nIbn Sina, Arabia, Medieval era\n+2 culture, +2 tourism",
+              "viewable": true
+            },
+            "art": null,
+            "artifact": {
+              "id": 301,
+              "name": "Ruins relic",
+              "class": "artifact",
+              "creator": null,
+              "civ_name": "Arabia",
+              "civ": "civ:CIVILIZATION_ARABIA",
+              "color_bg": 795556607,
+              "color_fg": 3655583487,
+              "era": "Ancient",
+              "tooltip": "Ruins relic\nArtifact\nExcavated, Arabia, Ancient era\n+2 culture, +2 tourism",
+              "viewable": false
+            }
+          },
+          {
+            "id": 2,
+            "name": "Montezuma",
+            "civ_name": "Aztecs",
+            "civ": "civ:CIVILIZATION_AZTEC",
+            "color_bg": 1512317695,
+            "color_fg": 1655942655,
+            "leader": "leader:LEADER_MONTEZUMA",
+            "human": true,
+            "writing": null,
+            "art": {
+              "id": 302,
+              "name": "Sun Stone",
+              "class": "art",
+              "creator": "Mexica sculptors",
+              "civ_name": "Aztecs",
+              "civ": "civ:CIVILIZATION_AZTEC",
+              "color_bg": 1512317695,
+              "color_fg": 1655942655,
+              "era": "Renaissance",
+              "tooltip": "Sun Stone\nGreat Work of Art\nMexica sculptors, Aztecs, Renaissance era\n+2 culture, +2 tourism",
+              "viewable": true
+            },
+            "artifact": {
+              "id": 303,
+              "name": "Battle relic",
+              "class": "artifact",
+              "creator": null,
+              "civ_name": "Aztecs",
+              "civ": "civ:CIVILIZATION_AZTEC",
+              "color_bg": 1512317695,
+              "color_fg": 1655942655,
+              "era": "Medieval",
+              "tooltip": "Battle relic\nArtifact\nExcavated, Aztecs, Medieval era\n+2 culture, +2 tourism",
+              "viewable": false
+            }
+          },
+          {
+            "id": 4,
+            "name": "Pedro II",
+            "civ_name": "Brazil",
+            "civ": "civ:CIVILIZATION_BRAZIL",
+            "color_bg": 3383900927,
+            "color_fg": 609233663,
+            "leader": "leader:LEADER_PEDRO",
+            "human": false,
+            "writing": {
+              "id": 304,
+              "name": "Dom Casmurro",
+              "class": "writing",
+              "creator": "Machado de Assis",
+              "civ_name": "Brazil",
+              "civ": "civ:CIVILIZATION_BRAZIL",
+              "color_bg": 3383900927,
+              "color_fg": 609233663,
+              "era": "Industrial",
+              "tooltip": "Dom Casmurro\nGreat Work of Writing\nMachado de Assis, Brazil, Industrial era\n+2 culture, +2 tourism",
+              "viewable": true
+            },
+            "art": {
+              "id": 305,
+              "name": "Independence or Death",
+              "class": "art",
+              "creator": "Pedro Américo",
+              "civ_name": "Brazil",
+              "civ": "civ:CIVILIZATION_BRAZIL",
+              "color_bg": 3383900927,
+              "color_fg": 609233663,
+              "era": "Industrial",
+              "tooltip": "Independence or Death\nGreat Work of Art\nPedro Américo, Brazil, Industrial era\n+2 culture, +2 tourism",
+              "viewable": true
+            },
+            "artifact": null
+          },
+          {
+            "id": 3,
+            "name": "Ramesses II",
+            "civ_name": "Egypt",
+            "civ": "civ:CIVILIZATION_EGYPT",
+            "color_bg": 1262123775,
+            "color_fg": 3923550463,
+            "leader": "leader:LEADER_RAMESSES",
+            "human": true,
+            "writing": {
+              "id": 306,
+              "name": "Book of the Dead",
+              "class": "writing",
+              "creator": "Scribe Ani",
+              "civ_name": "Egypt",
+              "civ": "civ:CIVILIZATION_EGYPT",
+              "color_bg": 1262123775,
+              "color_fg": 3923550463,
+              "era": "Ancient",
+              "tooltip": "Book of the Dead\nGreat Work of Writing\nScribe Ani, Egypt, Ancient era\n+2 culture, +2 tourism",
+              "viewable": true
+            },
+            "art": {
+              "id": 307,
+              "name": "Colossi of Memnon",
+              "class": "art",
+              "creator": "Amenhotep son of Hapu",
+              "civ_name": "Egypt",
+              "civ": "civ:CIVILIZATION_EGYPT",
+              "color_bg": 1262123775,
+              "color_fg": 3923550463,
+              "era": "Ancient",
+              "tooltip": "Colossi of Memnon\nGreat Work of Art\nAmenhotep son of Hapu, Egypt, Ancient era\n+2 culture, +2 tourism",
+              "viewable": true
+            },
+            "artifact": null
+          },
+          {
+            "id": 5,
+            "name": "Elizabeth",
+            "civ_name": "England",
+            "civ": "civ:CIVILIZATION_ENGLAND",
+            "color_bg": 3873494271,
+            "color_fg": 2317295615,
+            "leader": "leader:LEADER_ELIZABETH",
+            "human": false,
+            "writing": {
+              "id": 308,
+              "name": "Hamlet",
+              "class": "writing",
+              "creator": "William Shakespeare",
+              "civ_name": "England",
+              "civ": "civ:CIVILIZATION_ENGLAND",
+              "color_bg": 3873494271,
+              "color_fg": 2317295615,
+              "era": "Renaissance",
+              "tooltip": "Hamlet\nGreat Work of Writing\nWilliam Shakespeare, England, Renaissance era\n+2 culture, +2 tourism",
+              "viewable": true
+            },
+            "art": null,
+            "artifact": {
+              "id": 309,
+              "name": "City relic",
+              "class": "artifact",
+              "creator": null,
+              "civ_name": "England",
+              "civ": "civ:CIVILIZATION_ENGLAND",
+              "color_bg": 3873494271,
+              "color_fg": 2317295615,
+              "era": "Medieval",
+              "tooltip": "City relic\nArtifact\nExcavated, England, Medieval era\n+2 culture, +2 tourism",
+              "viewable": false
+            }
+          },
+          {
+            "id": 6,
+            "name": "Oda Nobunaga",
+            "civ_name": "Japan",
+            "civ": "civ:CIVILIZATION_JAPAN",
+            "color_bg": 3090492415,
+            "color_fg": 4075809023,
+            "leader": "leader:LEADER_ODA_NOBUNAGA",
+            "human": false,
+            "writing": null,
+            "art": {
+              "id": 310,
+              "name": "The Great Wave off Kanagawa",
+              "class": "art",
+              "creator": "Katsushika Hokusai",
+              "civ_name": "Japan",
+              "civ": "civ:CIVILIZATION_JAPAN",
+              "color_bg": 3090492415,
+              "color_fg": 4075809023,
+              "era": "Industrial",
+              "tooltip": "The Great Wave off Kanagawa\nGreat Work of Art\nKatsushika Hokusai, Japan, Industrial era\n+2 culture, +2 tourism",
+              "viewable": true
+            },
+            "artifact": {
+              "id": 311,
+              "name": "Camp relic",
+              "class": "artifact",
+              "creator": null,
+              "civ_name": "Japan",
+              "civ": "civ:CIVILIZATION_JAPAN",
+              "color_bg": 3090492415,
+              "color_fg": 4075809023,
+              "era": "Medieval",
+              "tooltip": "Camp relic\nArtifact\nExcavated, Japan, Medieval era\n+2 culture, +2 tourism",
+              "viewable": false
+            }
+          }
+        ]
+      },
+      "victory": {
+        "rows": [
+          {
+            "id": 0,
+            "name": "Catherine",
+            "civ_name": "Russia",
+            "civ": "civ:CIVILIZATION_RUSSIA",
+            "color_bg": 1847335167,
+            "color_fg": 3837808383,
+            "leader": "leader:LEADER_CATHERINE",
+            "you": true,
+            "influential_on": 2,
+            "influential_of": 7,
+            "tourism": 148,
+            "ideology": "order",
+            "ideology_name": "Order",
+            "opinion": "Content",
+            "opinion_tooltip": "The people are content with Order.\nNo other ideology exerts more pressure on Russia.",
+            "opinion_unhappiness": 0,
+            "opinion_unhappiness_tooltip": "No unhappiness from public opinion.",
+            "excess_happiness": 12
+          },
+          {
+            "id": 1,
+            "name": "Harun al-Rashid",
+            "civ_name": "Arabia",
+            "civ": "civ:CIVILIZATION_ARABIA",
+            "color_bg": 795556607,
+            "color_fg": 3655583487,
+            "leader": "leader:LEADER_HARUN_AL_RASHID",
+            "you": false,
+            "influential_on": 1,
+            "influential_of": 7,
+            "tourism": 126,
+            "ideology": "freedom",
+            "ideology_name": "Freedom",
+            "opinion": "Content",
+            "opinion_tooltip": "The people are content with Freedom.\nNo other ideology exerts more pressure on Arabia.",
+            "opinion_unhappiness": 0,
+            "opinion_unhappiness_tooltip": "No unhappiness from public opinion.",
+            "excess_happiness": 18
+          },
+          {
+            "id": 2,
+            "name": "Montezuma",
+            "civ_name": "Aztecs",
+            "civ": "civ:CIVILIZATION_AZTEC",
+            "color_bg": 1512317695,
+            "color_fg": 1655942655,
+            "leader": "leader:LEADER_MONTEZUMA",
+            "you": false,
+            "influential_on": 0,
+            "influential_of": 7,
+            "tourism": 64,
+            "ideology": "autocracy",
+            "ideology_name": "Autocracy",
+            "opinion": "Dissidents",
+            "opinion_tooltip": "The people of Aztecs prefer Freedom.\nPressure for Freedom: 18 (Arabia, Egypt, Brazil)\nPressure for Autocracy: 7\nSwitching ideology would end the unrest.",
+            "opinion_unhappiness": 4,
+            "opinion_unhappiness_tooltip": "4 unhappiness from public opinion (dissidents).",
+            "excess_happiness": 3
+          },
+          {
+            "id": 3,
+            "name": "Ramesses II",
+            "civ_name": "Egypt",
+            "civ": "civ:CIVILIZATION_EGYPT",
+            "color_bg": 1262123775,
+            "color_fg": 3923550463,
+            "leader": "leader:LEADER_RAMESSES",
+            "you": false,
+            "influential_on": 1,
+            "influential_of": 7,
+            "tourism": 97,
+            "ideology": "freedom",
+            "ideology_name": "Freedom",
+            "opinion": "Content",
+            "opinion_tooltip": "The people are content with Freedom.\nNo other ideology exerts more pressure on Egypt.",
+            "opinion_unhappiness": 0,
+            "opinion_unhappiness_tooltip": "No unhappiness from public opinion.",
+            "excess_happiness": 9
+          },
+          {
+            "id": 4,
+            "name": "Pedro II",
+            "civ_name": "Brazil",
+            "civ": "civ:CIVILIZATION_BRAZIL",
+            "color_bg": 3383900927,
+            "color_fg": 609233663,
+            "leader": "leader:LEADER_PEDRO",
+            "you": false,
+            "influential_on": 3,
+            "influential_of": 7,
+            "tourism": 171,
+            "ideology": "freedom",
+            "ideology_name": "Freedom",
+            "opinion": "Content",
+            "opinion_tooltip": "The people are content with Freedom.\nNo other ideology exerts more pressure on Brazil.",
+            "opinion_unhappiness": 0,
+            "opinion_unhappiness_tooltip": "No unhappiness from public opinion.",
+            "excess_happiness": 22
+          },
+          {
+            "id": 5,
+            "name": "Elizabeth",
+            "civ_name": "England",
+            "civ": "civ:CIVILIZATION_ENGLAND",
+            "color_bg": 3873494271,
+            "color_fg": 2317295615,
+            "leader": "leader:LEADER_ELIZABETH",
+            "you": false,
+            "influential_on": 0,
+            "influential_of": 7,
+            "tourism": 52,
+            "ideology": "order",
+            "ideology_name": "Order",
+            "opinion": "Civil resistance",
+            "opinion_tooltip": "The people of England prefer Freedom.\nPressure for Freedom: 18 (Arabia, Egypt, Brazil)\nPressure for Order: 7\nSwitching ideology would end the unrest.",
+            "opinion_unhappiness": 9,
+            "opinion_unhappiness_tooltip": "9 unhappiness from public opinion (civil resistance).",
+            "excess_happiness": -2
+          },
+          {
+            "id": 6,
+            "name": "Oda Nobunaga",
+            "civ_name": "Japan",
+            "civ": "civ:CIVILIZATION_JAPAN",
+            "color_bg": 3090492415,
+            "color_fg": 4075809023,
+            "leader": "leader:LEADER_ODA_NOBUNAGA",
+            "you": false,
+            "influential_on": 0,
+            "influential_of": 7,
+            "tourism": 41,
+            "ideology": "none",
+            "ideology_name": null,
+            "opinion": null,
+            "opinion_tooltip": null,
+            "opinion_unhappiness": null,
+            "opinion_unhappiness_tooltip": null,
+            "excess_happiness": 6
+          }
+        ]
+      },
+      "influence": {
+        "sources": [
+          {
+            "id": 0,
+            "name": "Catherine",
+            "civ_name": "Russia",
+            "civ": "civ:CIVILIZATION_RUSSIA",
+            "color_bg": 1847335167,
+            "color_fg": 3837808383,
+            "leader": "leader:LEADER_CATHERINE",
+            "tourism": 148,
+            "rows": [
+              {
+                "id": 1,
+                "known": true,
+                "civ": "civ:CIVILIZATION_ARABIA",
+                "color_bg": 795556607,
+                "color_fg": 3655583487,
+                "level": "popular",
+                "level_name": "Popular",
+                "share": 0.74,
+                "level_tooltip": "Russia has 74% of Arabia's lifetime culture as tourism.\nNext level: Influential at 100%.\nSpies 50% faster; conquering their cities causes less unrest.",
+                "tourism_accum": 18419,
+                "culture_accum": 24890,
+                "bars_tooltip": "Tourism of Russia on Arabia: 18,419\nLifetime culture of Arabia: 24,890",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 185,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": 34,
+                "trend_tooltip": "At this rate influential in 34 turns.",
+                "civ_name": "Arabia",
+                "name": "Harun al-Rashid"
+              },
+              {
+                "id": 2,
+                "known": true,
+                "civ": "civ:CIVILIZATION_AZTEC",
+                "color_bg": 1512317695,
+                "color_fg": 1655942655,
+                "level": "influential",
+                "level_name": "Influential",
+                "share": 1.28,
+                "level_tooltip": "Russia has 128% of Aztecs's lifetime culture as tourism.\nNext level: Dominant at 200%.\nCounts towards culture victory; their cities resist less when conquered.",
+                "tourism_accum": 22950,
+                "culture_accum": 17930,
+                "bars_tooltip": "Tourism of Russia on Aztecs: 22,950\nLifetime culture of Aztecs: 17,930",
+                "modifier_pct": 40,
+                "modifier_tooltip": "Open borders +25%\nTrade route +15%\nShared religion 0%",
+                "per_turn": 207,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": null,
+                "trend_tooltip": "Already influential.",
+                "civ_name": "Aztecs",
+                "name": "Montezuma"
+              },
+              {
+                "id": 4,
+                "known": true,
+                "civ": "civ:CIVILIZATION_BRAZIL",
+                "color_bg": 3383900927,
+                "color_fg": 609233663,
+                "level": "exotic",
+                "level_name": "Exotic",
+                "share": 0.18,
+                "level_tooltip": "Russia has 18% of Brazil's lifetime culture as tourism.\nNext level: Familiar at 30%.\nTrade routes to them +1 tourism.",
+                "tourism_accum": 6246,
+                "culture_accum": 34700,
+                "bars_tooltip": "Tourism of Russia on Brazil: 6,246\nLifetime culture of Brazil: 34,700",
+                "modifier_pct": 0,
+                "modifier_tooltip": "No tourism modifiers.",
+                "per_turn": 148,
+                "trend": "rising_slowly",
+                "trend_name": "Rising slowly",
+                "turns_to_influential": 188,
+                "trend_tooltip": "At this rate influential in 188 turns.",
+                "civ_name": "Brazil",
+                "name": "Pedro II"
+              },
+              {
+                "id": 3,
+                "known": true,
+                "civ": "civ:CIVILIZATION_EGYPT",
+                "color_bg": 1262123775,
+                "color_fg": 3923550463,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.41,
+                "level_tooltip": "Russia has 41% of Egypt's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 9881,
+                "culture_accum": 24100,
+                "bars_tooltip": "Tourism of Russia on Egypt: 9,881\nLifetime culture of Egypt: 24,100",
+                "modifier_pct": 10,
+                "modifier_tooltip": "Open borders 0%\nTrade route 0%\nShared religion +10%",
+                "per_turn": 163,
+                "trend": "rising_slowly",
+                "trend_name": "Rising slowly",
+                "turns_to_influential": 87,
+                "trend_tooltip": "At this rate influential in 87 turns.",
+                "civ_name": "Egypt",
+                "name": "Ramesses II"
+              },
+              {
+                "id": 5,
+                "known": true,
+                "civ": "civ:CIVILIZATION_ENGLAND",
+                "color_bg": 3873494271,
+                "color_fg": 2317295615,
+                "level": "dominant",
+                "level_name": "Dominant",
+                "share": 2.14,
+                "level_tooltip": "Russia has 214% of England's lifetime culture as tourism.\nCounts towards culture victory; their cities do not resist conquest.",
+                "tourism_accum": 19795,
+                "culture_accum": 9250,
+                "bars_tooltip": "Tourism of Russia on England: 19,795\nLifetime culture of England: 9,250",
+                "modifier_pct": 50,
+                "modifier_tooltip": "Open borders +25%\nTrade route +15%\nShared religion +10%",
+                "per_turn": 222,
+                "trend": null,
+                "trend_name": null,
+                "turns_to_influential": null,
+                "trend_tooltip": null,
+                "civ_name": "England",
+                "name": "Elizabeth"
+              },
+              {
+                "id": 6,
+                "known": true,
+                "civ": "civ:CIVILIZATION_JAPAN",
+                "color_bg": 3090492415,
+                "color_fg": 4075809023,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.33,
+                "level_tooltip": "Russia has 33% of Japan's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 5405,
+                "culture_accum": 16380,
+                "bars_tooltip": "Tourism of Russia on Japan: 5,405\nLifetime culture of Japan: 16,380",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 176,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": 61,
+                "trend_tooltip": "At this rate influential in 61 turns.",
+                "civ_name": "Japan",
+                "name": "Oda Nobunaga"
+              },
+              {
+                "id": 7,
+                "known": false,
+                "civ": null,
+                "color_bg": null,
+                "color_fg": null,
+                "level": "unknown",
+                "level_name": "Unknown",
+                "share": 0.06,
+                "level_tooltip": "Russia has 6% of Unmet civilization's lifetime culture as tourism.\nNext level: Exotic at 10%.\nNo bonuses yet.",
+                "tourism_accum": 756,
+                "culture_accum": null,
+                "bars_tooltip": "Tourism of Russia on Unmet civilization: 756\nLifetime culture of Unmet civilization: unknown",
+                "modifier_pct": 0,
+                "modifier_tooltip": "No tourism modifiers.",
+                "per_turn": 0,
+                "trend": "static",
+                "trend_name": "Static",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": null,
+                "name": null
+              }
+            ]
+          },
+          {
+            "id": 1,
+            "name": "Harun al-Rashid",
+            "civ_name": "Arabia",
+            "civ": "civ:CIVILIZATION_ARABIA",
+            "color_bg": 795556607,
+            "color_fg": 3655583487,
+            "leader": "leader:LEADER_HARUN_AL_RASHID",
+            "tourism": 126,
+            "rows": [
+              {
+                "id": 0,
+                "known": true,
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "level": "unknown",
+                "level_name": "Unknown",
+                "share": 0,
+                "level_tooltip": "Arabia has 0% of Russia's lifetime culture as tourism.\nNext level: Exotic at 10%.\nNo bonuses yet.",
+                "tourism_accum": 0,
+                "culture_accum": 31400,
+                "bars_tooltip": "Tourism of Arabia on Russia: 0\nLifetime culture of Russia: 31,400",
+                "modifier_pct": 10,
+                "modifier_tooltip": "Open borders 0%\nTrade route 0%\nShared religion +10%",
+                "per_turn": 104,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": 108,
+                "trend_tooltip": "At this rate influential in 108 turns.",
+                "civ_name": "Russia",
+                "name": "Catherine"
+              },
+              {
+                "id": 2,
+                "known": true,
+                "civ": "civ:CIVILIZATION_AZTEC",
+                "color_bg": 1512317695,
+                "color_fg": 1655942655,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.45,
+                "level_tooltip": "Arabia has 45% of Aztecs's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 8069,
+                "culture_accum": 17930,
+                "bars_tooltip": "Tourism of Arabia on Aztecs: 8,069\nLifetime culture of Aztecs: 17,930",
+                "modifier_pct": 40,
+                "modifier_tooltip": "Open borders +25%\nTrade route +15%\nShared religion 0%",
+                "per_turn": 145,
+                "trend": "static",
+                "trend_name": "Static",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Aztecs",
+                "name": "Montezuma"
+              },
+              {
+                "id": 3,
+                "known": true,
+                "civ": "civ:CIVILIZATION_EGYPT",
+                "color_bg": 1262123775,
+                "color_fg": 3923550463,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.46,
+                "level_tooltip": "Arabia has 46% of Egypt's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 11086,
+                "culture_accum": 24100,
+                "bars_tooltip": "Tourism of Arabia on Egypt: 11,086\nLifetime culture of Egypt: 24,100",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 150,
+                "trend": "rising_slowly",
+                "trend_name": "Rising slowly",
+                "turns_to_influential": 49,
+                "trend_tooltip": "At this rate influential in 49 turns.",
+                "civ_name": "Egypt",
+                "name": "Ramesses II"
+              },
+              {
+                "id": 4,
+                "known": true,
+                "civ": "civ:CIVILIZATION_BRAZIL",
+                "color_bg": 3383900927,
+                "color_fg": 609233663,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.32,
+                "level_tooltip": "Arabia has 32% of Brazil's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 11104,
+                "culture_accum": 34700,
+                "bars_tooltip": "Tourism of Arabia on Brazil: 11,104\nLifetime culture of Brazil: 34,700",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 92,
+                "trend": "rising_slowly",
+                "trend_name": "Rising slowly",
+                "turns_to_influential": 102,
+                "trend_tooltip": "At this rate influential in 102 turns.",
+                "civ_name": "Brazil",
+                "name": "Pedro II"
+              },
+              {
+                "id": 5,
+                "known": true,
+                "civ": "civ:CIVILIZATION_ENGLAND",
+                "color_bg": 3873494271,
+                "color_fg": 2317295615,
+                "level": "influential",
+                "level_name": "Influential",
+                "share": 1.28,
+                "level_tooltip": "Arabia has 128% of England's lifetime culture as tourism.\nNext level: Dominant at 200%.\nCounts towards culture victory; their cities resist less when conquered.",
+                "tourism_accum": 11840,
+                "culture_accum": 9250,
+                "bars_tooltip": "Tourism of Arabia on England: 11,840\nLifetime culture of England: 9,250",
+                "modifier_pct": 40,
+                "modifier_tooltip": "Open borders +25%\nTrade route +15%\nShared religion 0%",
+                "per_turn": 97,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": null,
+                "trend_tooltip": "Already influential.",
+                "civ_name": "England",
+                "name": "Elizabeth"
+              },
+              {
+                "id": 6,
+                "known": true,
+                "civ": "civ:CIVILIZATION_JAPAN",
+                "color_bg": 3090492415,
+                "color_fg": 4075809023,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.44,
+                "level_tooltip": "Arabia has 44% of Japan's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 7207,
+                "culture_accum": 16380,
+                "bars_tooltip": "Tourism of Arabia on Japan: 7,207\nLifetime culture of Japan: 16,380",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 137,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": 89,
+                "trend_tooltip": "At this rate influential in 89 turns.",
+                "civ_name": "Japan",
+                "name": "Oda Nobunaga"
+              },
+              {
+                "id": 7,
+                "known": false,
+                "civ": null,
+                "color_bg": null,
+                "color_fg": null,
+                "level": "popular",
+                "level_name": "Popular",
+                "share": 0.78,
+                "level_tooltip": "Arabia has 78% of Unmet civilization's lifetime culture as tourism.\nNext level: Influential at 100%.\nSpies 50% faster; conquering their cities causes less unrest.",
+                "tourism_accum": 9828,
+                "culture_accum": null,
+                "bars_tooltip": "Tourism of Arabia on Unmet civilization: 9,828\nLifetime culture of Unmet civilization: unknown",
+                "modifier_pct": 10,
+                "modifier_tooltip": "Open borders 0%\nTrade route 0%\nShared religion +10%",
+                "per_turn": 114,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": 120,
+                "trend_tooltip": "At this rate influential in 120 turns.",
+                "civ_name": null,
+                "name": null
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "name": "Montezuma",
+            "civ_name": "Aztecs",
+            "civ": "civ:CIVILIZATION_AZTEC",
+            "color_bg": 1512317695,
+            "color_fg": 1655942655,
+            "leader": "leader:LEADER_MONTEZUMA",
+            "tourism": 64,
+            "rows": [
+              {
+                "id": 0,
+                "known": true,
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "level": "exotic",
+                "level_name": "Exotic",
+                "share": 0.28,
+                "level_tooltip": "Aztecs has 28% of Russia's lifetime culture as tourism.\nNext level: Familiar at 30%.\nTrade routes to them +1 tourism.",
+                "tourism_accum": 8792,
+                "culture_accum": 31400,
+                "bars_tooltip": "Tourism of Aztecs on Russia: 8,792\nLifetime culture of Russia: 31,400",
+                "modifier_pct": 10,
+                "modifier_tooltip": "Open borders 0%\nTrade route 0%\nShared religion +10%",
+                "per_turn": 61,
+                "trend": "falling",
+                "trend_name": "Falling",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Russia",
+                "name": "Catherine"
+              },
+              {
+                "id": 1,
+                "known": true,
+                "civ": "civ:CIVILIZATION_ARABIA",
+                "color_bg": 795556607,
+                "color_fg": 3655583487,
+                "level": "exotic",
+                "level_name": "Exotic",
+                "share": 0.25,
+                "level_tooltip": "Aztecs has 25% of Arabia's lifetime culture as tourism.\nNext level: Familiar at 30%.\nTrade routes to them +1 tourism.",
+                "tourism_accum": 6223,
+                "culture_accum": 24890,
+                "bars_tooltip": "Tourism of Aztecs on Arabia: 6,223\nLifetime culture of Arabia: 24,890",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 73,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": 125,
+                "trend_tooltip": "At this rate influential in 125 turns.",
+                "civ_name": "Arabia",
+                "name": "Harun al-Rashid"
+              },
+              {
+                "id": 3,
+                "known": true,
+                "civ": "civ:CIVILIZATION_EGYPT",
+                "color_bg": 1262123775,
+                "color_fg": 3923550463,
+                "level": "unknown",
+                "level_name": "Unknown",
+                "share": 0.05,
+                "level_tooltip": "Aztecs has 5% of Egypt's lifetime culture as tourism.\nNext level: Exotic at 10%.\nNo bonuses yet.",
+                "tourism_accum": 1205,
+                "culture_accum": 24100,
+                "bars_tooltip": "Tourism of Aztecs on Egypt: 1,205\nLifetime culture of Egypt: 24,100",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 64,
+                "trend": "static",
+                "trend_name": "Static",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Egypt",
+                "name": "Ramesses II"
+              },
+              {
+                "id": 4,
+                "known": true,
+                "civ": "civ:CIVILIZATION_BRAZIL",
+                "color_bg": 3383900927,
+                "color_fg": 609233663,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.36,
+                "level_tooltip": "Aztecs has 36% of Brazil's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 12492,
+                "culture_accum": 34700,
+                "bars_tooltip": "Tourism of Aztecs on Brazil: 12,492\nLifetime culture of Brazil: 34,700",
+                "modifier_pct": 40,
+                "modifier_tooltip": "Open borders +25%\nTrade route +15%\nShared religion 0%",
+                "per_turn": 47,
+                "trend": "falling",
+                "trend_name": "Falling",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Brazil",
+                "name": "Pedro II"
+              },
+              {
+                "id": 5,
+                "known": true,
+                "civ": "civ:CIVILIZATION_ENGLAND",
+                "color_bg": 3873494271,
+                "color_fg": 2317295615,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.31,
+                "level_tooltip": "Aztecs has 31% of England's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 2868,
+                "culture_accum": 9250,
+                "bars_tooltip": "Tourism of Aztecs on England: 2,868\nLifetime culture of England: 9,250",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 80,
+                "trend": "static",
+                "trend_name": "Static",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "England",
+                "name": "Elizabeth"
+              },
+              {
+                "id": 6,
+                "known": true,
+                "civ": "civ:CIVILIZATION_JAPAN",
+                "color_bg": 3090492415,
+                "color_fg": 4075809023,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.44,
+                "level_tooltip": "Aztecs has 44% of Japan's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 7207,
+                "culture_accum": 16380,
+                "bars_tooltip": "Tourism of Aztecs on Japan: 7,207\nLifetime culture of Japan: 16,380",
+                "modifier_pct": 10,
+                "modifier_tooltip": "Open borders 0%\nTrade route 0%\nShared religion +10%",
+                "per_turn": 56,
+                "trend": "falling",
+                "trend_name": "Falling",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Japan",
+                "name": "Oda Nobunaga"
+              },
+              {
+                "id": 7,
+                "known": false,
+                "civ": null,
+                "color_bg": null,
+                "color_fg": null,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.31,
+                "level_tooltip": "Aztecs has 31% of Unmet civilization's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 3906,
+                "culture_accum": null,
+                "bars_tooltip": "Tourism of Aztecs on Unmet civilization: 3,906\nLifetime culture of Unmet civilization: unknown",
+                "modifier_pct": 10,
+                "modifier_tooltip": "Open borders 0%\nTrade route 0%\nShared religion +10%",
+                "per_turn": 65,
+                "trend": "static",
+                "trend_name": "Static",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": null,
+                "name": null
+              }
+            ]
+          },
+          {
+            "id": 3,
+            "name": "Ramesses II",
+            "civ_name": "Egypt",
+            "civ": "civ:CIVILIZATION_EGYPT",
+            "color_bg": 1262123775,
+            "color_fg": 3923550463,
+            "leader": "leader:LEADER_RAMESSES",
+            "tourism": 97,
+            "rows": [
+              {
+                "id": 0,
+                "known": true,
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.52,
+                "level_tooltip": "Egypt has 52% of Russia's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 16328,
+                "culture_accum": 31400,
+                "bars_tooltip": "Tourism of Egypt on Russia: 16,328\nLifetime culture of Russia: 31,400",
+                "modifier_pct": 40,
+                "modifier_tooltip": "Open borders +25%\nTrade route +15%\nShared religion 0%",
+                "per_turn": 95,
+                "trend": "falling",
+                "trend_name": "Falling",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Russia",
+                "name": "Catherine"
+              },
+              {
+                "id": 1,
+                "known": true,
+                "civ": "civ:CIVILIZATION_ARABIA",
+                "color_bg": 795556607,
+                "color_fg": 3655583487,
+                "level": "popular",
+                "level_name": "Popular",
+                "share": 0.73,
+                "level_tooltip": "Egypt has 73% of Arabia's lifetime culture as tourism.\nNext level: Influential at 100%.\nSpies 50% faster; conquering their cities causes less unrest.",
+                "tourism_accum": 18170,
+                "culture_accum": 24890,
+                "bars_tooltip": "Tourism of Egypt on Arabia: 18,170\nLifetime culture of Arabia: 24,890",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 98,
+                "trend": "rising_slowly",
+                "trend_name": "Rising slowly",
+                "turns_to_influential": 81,
+                "trend_tooltip": "At this rate influential in 81 turns.",
+                "civ_name": "Arabia",
+                "name": "Harun al-Rashid"
+              },
+              {
+                "id": 2,
+                "known": true,
+                "civ": "civ:CIVILIZATION_AZTEC",
+                "color_bg": 1512317695,
+                "color_fg": 1655942655,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.59,
+                "level_tooltip": "Egypt has 59% of Aztecs's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 10579,
+                "culture_accum": 17930,
+                "bars_tooltip": "Tourism of Egypt on Aztecs: 10,579\nLifetime culture of Aztecs: 17,930",
+                "modifier_pct": 10,
+                "modifier_tooltip": "Open borders 0%\nTrade route 0%\nShared religion +10%",
+                "per_turn": 109,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": 50,
+                "trend_tooltip": "At this rate influential in 50 turns.",
+                "civ_name": "Aztecs",
+                "name": "Montezuma"
+              },
+              {
+                "id": 4,
+                "known": true,
+                "civ": "civ:CIVILIZATION_BRAZIL",
+                "color_bg": 3383900927,
+                "color_fg": 609233663,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.5,
+                "level_tooltip": "Egypt has 50% of Brazil's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 17350,
+                "culture_accum": 34700,
+                "bars_tooltip": "Tourism of Egypt on Brazil: 17,350\nLifetime culture of Brazil: 34,700",
+                "modifier_pct": 10,
+                "modifier_tooltip": "Open borders 0%\nTrade route 0%\nShared religion +10%",
+                "per_turn": 91,
+                "trend": "static",
+                "trend_name": "Static",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Brazil",
+                "name": "Pedro II"
+              },
+              {
+                "id": 5,
+                "known": true,
+                "civ": "civ:CIVILIZATION_ENGLAND",
+                "color_bg": 3873494271,
+                "color_fg": 2317295615,
+                "level": "influential",
+                "level_name": "Influential",
+                "share": 1.48,
+                "level_tooltip": "Egypt has 148% of England's lifetime culture as tourism.\nNext level: Dominant at 200%.\nCounts towards culture victory; their cities resist less when conquered.",
+                "tourism_accum": 13690,
+                "culture_accum": 9250,
+                "bars_tooltip": "Tourism of Egypt on England: 13,690\nLifetime culture of England: 9,250",
+                "modifier_pct": 0,
+                "modifier_tooltip": "No tourism modifiers.",
+                "per_turn": 116,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": null,
+                "trend_tooltip": "Already influential.",
+                "civ_name": "England",
+                "name": "Elizabeth"
+              },
+              {
+                "id": 6,
+                "known": true,
+                "civ": "civ:CIVILIZATION_JAPAN",
+                "color_bg": 3090492415,
+                "color_fg": 4075809023,
+                "level": "unknown",
+                "level_name": "Unknown",
+                "share": 0.07,
+                "level_tooltip": "Egypt has 7% of Japan's lifetime culture as tourism.\nNext level: Exotic at 10%.\nNo bonuses yet.",
+                "tourism_accum": 1147,
+                "culture_accum": 16380,
+                "bars_tooltip": "Tourism of Egypt on Japan: 1,147\nLifetime culture of Japan: 16,380",
+                "modifier_pct": 0,
+                "modifier_tooltip": "No tourism modifiers.",
+                "per_turn": 72,
+                "trend": "static",
+                "trend_name": "Static",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Japan",
+                "name": "Oda Nobunaga"
+              },
+              {
+                "id": 7,
+                "known": false,
+                "civ": null,
+                "color_bg": null,
+                "color_fg": null,
+                "level": "popular",
+                "level_name": "Popular",
+                "share": 0.85,
+                "level_tooltip": "Egypt has 85% of Unmet civilization's lifetime culture as tourism.\nNext level: Influential at 100%.\nSpies 50% faster; conquering their cities causes less unrest.",
+                "tourism_accum": 10710,
+                "culture_accum": null,
+                "bars_tooltip": "Tourism of Egypt on Unmet civilization: 10,710\nLifetime culture of Unmet civilization: unknown",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 76,
+                "trend": "falling",
+                "trend_name": "Falling",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": null,
+                "name": null
+              }
+            ]
+          },
+          {
+            "id": 4,
+            "name": "Pedro II",
+            "civ_name": "Brazil",
+            "civ": "civ:CIVILIZATION_BRAZIL",
+            "color_bg": 3383900927,
+            "color_fg": 609233663,
+            "leader": "leader:LEADER_PEDRO",
+            "tourism": 171,
+            "rows": [
+              {
+                "id": 0,
+                "known": true,
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.39,
+                "level_tooltip": "Brazil has 39% of Russia's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 12246,
+                "culture_accum": 31400,
+                "bars_tooltip": "Tourism of Brazil on Russia: 12,246\nLifetime culture of Russia: 31,400",
+                "modifier_pct": 0,
+                "modifier_tooltip": "No tourism modifiers.",
+                "per_turn": 214,
+                "trend": "rising_slowly",
+                "trend_name": "Rising slowly",
+                "turns_to_influential": 126,
+                "trend_tooltip": "At this rate influential in 126 turns.",
+                "civ_name": "Russia",
+                "name": "Catherine"
+              },
+              {
+                "id": 1,
+                "known": true,
+                "civ": "civ:CIVILIZATION_ARABIA",
+                "color_bg": 795556607,
+                "color_fg": 3655583487,
+                "level": "popular",
+                "level_name": "Popular",
+                "share": 0.76,
+                "level_tooltip": "Brazil has 76% of Arabia's lifetime culture as tourism.\nNext level: Influential at 100%.\nSpies 50% faster; conquering their cities causes less unrest.",
+                "tourism_accum": 18916,
+                "culture_accum": 24890,
+                "bars_tooltip": "Tourism of Brazil on Arabia: 18,916\nLifetime culture of Arabia: 24,890",
+                "modifier_pct": 40,
+                "modifier_tooltip": "Open borders +25%\nTrade route +15%\nShared religion 0%",
+                "per_turn": 198,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": 53,
+                "trend_tooltip": "At this rate influential in 53 turns.",
+                "civ_name": "Arabia",
+                "name": "Harun al-Rashid"
+              },
+              {
+                "id": 2,
+                "known": true,
+                "civ": "civ:CIVILIZATION_AZTEC",
+                "color_bg": 1512317695,
+                "color_fg": 1655942655,
+                "level": "influential",
+                "level_name": "Influential",
+                "share": 1.01,
+                "level_tooltip": "Brazil has 101% of Aztecs's lifetime culture as tourism.\nNext level: Dominant at 200%.\nCounts towards culture victory; their cities resist less when conquered.",
+                "tourism_accum": 18109,
+                "culture_accum": 17930,
+                "bars_tooltip": "Tourism of Brazil on Aztecs: 18,109\nLifetime culture of Aztecs: 17,930",
+                "modifier_pct": 0,
+                "modifier_tooltip": "No tourism modifiers.",
+                "per_turn": 120,
+                "trend": "falling",
+                "trend_name": "Falling",
+                "turns_to_influential": null,
+                "trend_tooltip": "Already influential.",
+                "civ_name": "Aztecs",
+                "name": "Montezuma"
+              },
+              {
+                "id": 3,
+                "known": true,
+                "civ": "civ:CIVILIZATION_EGYPT",
+                "color_bg": 1262123775,
+                "color_fg": 3923550463,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.52,
+                "level_tooltip": "Brazil has 52% of Egypt's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 12532,
+                "culture_accum": 24100,
+                "bars_tooltip": "Tourism of Brazil on Egypt: 12,532\nLifetime culture of Egypt: 24,100",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 170,
+                "trend": "falling",
+                "trend_name": "Falling",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Egypt",
+                "name": "Ramesses II"
+              },
+              {
+                "id": 5,
+                "known": true,
+                "civ": "civ:CIVILIZATION_ENGLAND",
+                "color_bg": 3873494271,
+                "color_fg": 2317295615,
+                "level": "influential",
+                "level_name": "Influential",
+                "share": 1.41,
+                "level_tooltip": "Brazil has 141% of England's lifetime culture as tourism.\nNext level: Dominant at 200%.\nCounts towards culture victory; their cities resist less when conquered.",
+                "tourism_accum": 13043,
+                "culture_accum": 9250,
+                "bars_tooltip": "Tourism of Brazil on England: 13,043\nLifetime culture of England: 9,250",
+                "modifier_pct": 40,
+                "modifier_tooltip": "Open borders +25%\nTrade route +15%\nShared religion 0%",
+                "per_turn": 144,
+                "trend": "falling",
+                "trend_name": "Falling",
+                "turns_to_influential": null,
+                "trend_tooltip": "Already influential.",
+                "civ_name": "England",
+                "name": "Elizabeth"
+              },
+              {
+                "id": 6,
+                "known": true,
+                "civ": "civ:CIVILIZATION_JAPAN",
+                "color_bg": 3090492415,
+                "color_fg": 4075809023,
+                "level": "influential",
+                "level_name": "Influential",
+                "share": 1.22,
+                "level_tooltip": "Brazil has 122% of Japan's lifetime culture as tourism.\nNext level: Dominant at 200%.\nCounts towards culture victory; their cities resist less when conquered.",
+                "tourism_accum": 19984,
+                "culture_accum": 16380,
+                "bars_tooltip": "Tourism of Brazil on Japan: 19,984\nLifetime culture of Japan: 16,380",
+                "modifier_pct": 0,
+                "modifier_tooltip": "No tourism modifiers.",
+                "per_turn": 170,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": null,
+                "trend_tooltip": "Already influential.",
+                "civ_name": "Japan",
+                "name": "Oda Nobunaga"
+              },
+              {
+                "id": 7,
+                "known": false,
+                "civ": null,
+                "color_bg": null,
+                "color_fg": null,
+                "level": "unknown",
+                "level_name": "Unknown",
+                "share": 0,
+                "level_tooltip": "Brazil has 0% of Unmet civilization's lifetime culture as tourism.\nNext level: Exotic at 10%.\nNo bonuses yet.",
+                "tourism_accum": 0,
+                "culture_accum": null,
+                "bars_tooltip": "Tourism of Brazil on Unmet civilization: 0\nLifetime culture of Unmet civilization: unknown",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 214,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": 23,
+                "trend_tooltip": "At this rate influential in 23 turns.",
+                "civ_name": null,
+                "name": null
+              }
+            ]
+          },
+          {
+            "id": 5,
+            "name": "Elizabeth",
+            "civ_name": "England",
+            "civ": "civ:CIVILIZATION_ENGLAND",
+            "color_bg": 3873494271,
+            "color_fg": 2317295615,
+            "leader": "leader:LEADER_ELIZABETH",
+            "tourism": 52,
+            "rows": [
+              {
+                "id": 0,
+                "known": true,
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "level": "popular",
+                "level_name": "Popular",
+                "share": 0.77,
+                "level_tooltip": "England has 77% of Russia's lifetime culture as tourism.\nNext level: Influential at 100%.\nSpies 50% faster; conquering their cities causes less unrest.",
+                "tourism_accum": 24178,
+                "culture_accum": 31400,
+                "bars_tooltip": "Tourism of England on Russia: 24,178\nLifetime culture of Russia: 31,400",
+                "modifier_pct": 40,
+                "modifier_tooltip": "Open borders +25%\nTrade route +15%\nShared religion 0%",
+                "per_turn": 54,
+                "trend": "falling",
+                "trend_name": "Falling",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Russia",
+                "name": "Catherine"
+              },
+              {
+                "id": 1,
+                "known": true,
+                "civ": "civ:CIVILIZATION_ARABIA",
+                "color_bg": 795556607,
+                "color_fg": 3655583487,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.58,
+                "level_tooltip": "England has 58% of Arabia's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 14436,
+                "culture_accum": 24890,
+                "bars_tooltip": "Tourism of England on Arabia: 14,436\nLifetime culture of Arabia: 24,890",
+                "modifier_pct": 0,
+                "modifier_tooltip": "No tourism modifiers.",
+                "per_turn": 43,
+                "trend": "static",
+                "trend_name": "Static",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Arabia",
+                "name": "Harun al-Rashid"
+              },
+              {
+                "id": 2,
+                "known": true,
+                "civ": "civ:CIVILIZATION_AZTEC",
+                "color_bg": 1512317695,
+                "color_fg": 1655942655,
+                "level": "familiar",
+                "level_name": "Familiar",
+                "share": 0.48,
+                "level_tooltip": "England has 48% of Aztecs's lifetime culture as tourism.\nNext level: Popular at 60%.\nSpies steal techs 25% faster; trade routes +2 tourism.",
+                "tourism_accum": 8606,
+                "culture_accum": 17930,
+                "bars_tooltip": "Tourism of England on Aztecs: 8,606\nLifetime culture of Aztecs: 17,930",
+                "modifier_pct": 40,
+                "modifier_tooltip": "Open borders +25%\nTrade route +15%\nShared religion 0%",
+                "per_turn": 58,
+                "trend": "falling",
+                "trend_name": "Falling",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Aztecs",
+                "name": "Montezuma"
+              },
+              {
+                "id": 3,
+                "known": true,
+                "civ": "civ:CIVILIZATION_EGYPT",
+                "color_bg": 1262123775,
+                "color_fg": 3923550463,
+                "level": "popular",
+                "level_name": "Popular",
+                "share": 0.61,
+                "level_tooltip": "England has 61% of Egypt's lifetime culture as tourism.\nNext level: Influential at 100%.\nSpies 50% faster; conquering their cities causes less unrest.",
+                "tourism_accum": 14701,
+                "culture_accum": 24100,
+                "bars_tooltip": "Tourism of England on Egypt: 14,701\nLifetime culture of Egypt: 24,100",
+                "modifier_pct": 0,
+                "modifier_tooltip": "No tourism modifiers.",
+                "per_turn": 40,
+                "trend": "static",
+                "trend_name": "Static",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Egypt",
+                "name": "Ramesses II"
+              },
+              {
+                "id": 4,
+                "known": true,
+                "civ": "civ:CIVILIZATION_BRAZIL",
+                "color_bg": 3383900927,
+                "color_fg": 609233663,
+                "level": "popular",
+                "level_name": "Popular",
+                "share": 0.78,
+                "level_tooltip": "England has 78% of Brazil's lifetime culture as tourism.\nNext level: Influential at 100%.\nSpies 50% faster; conquering their cities causes less unrest.",
+                "tourism_accum": 27066,
+                "culture_accum": 34700,
+                "bars_tooltip": "Tourism of England on Brazil: 27,066\nLifetime culture of Brazil: 34,700",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 64,
+                "trend": "falling",
+                "trend_name": "Falling",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Brazil",
+                "name": "Pedro II"
+              },
+              {
+                "id": 6,
+                "known": true,
+                "civ": "civ:CIVILIZATION_JAPAN",
+                "color_bg": 3090492415,
+                "color_fg": 4075809023,
+                "level": "unknown",
+                "level_name": "Unknown",
+                "share": 0.03,
+                "level_tooltip": "England has 3% of Japan's lifetime culture as tourism.\nNext level: Exotic at 10%.\nNo bonuses yet.",
+                "tourism_accum": 491,
+                "culture_accum": 16380,
+                "bars_tooltip": "Tourism of England on Japan: 491\nLifetime culture of Japan: 16,380",
+                "modifier_pct": 40,
+                "modifier_tooltip": "Open borders +25%\nTrade route +15%\nShared religion 0%",
+                "per_turn": 67,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": 135,
+                "trend_tooltip": "At this rate influential in 135 turns.",
+                "civ_name": "Japan",
+                "name": "Oda Nobunaga"
+              },
+              {
+                "id": 7,
+                "known": false,
+                "civ": null,
+                "color_bg": null,
+                "color_fg": null,
+                "level": "popular",
+                "level_name": "Popular",
+                "share": 0.65,
+                "level_tooltip": "England has 65% of Unmet civilization's lifetime culture as tourism.\nNext level: Influential at 100%.\nSpies 50% faster; conquering their cities causes less unrest.",
+                "tourism_accum": 8190,
+                "culture_accum": null,
+                "bars_tooltip": "Tourism of England on Unmet civilization: 8,190\nLifetime culture of Unmet civilization: unknown",
+                "modifier_pct": 0,
+                "modifier_tooltip": "No tourism modifiers.",
+                "per_turn": 59,
+                "trend": "static",
+                "trend_name": "Static",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": null,
+                "name": null
+              }
+            ]
+          },
+          {
+            "id": 6,
+            "name": "Oda Nobunaga",
+            "civ_name": "Japan",
+            "civ": "civ:CIVILIZATION_JAPAN",
+            "color_bg": 3090492415,
+            "color_fg": 4075809023,
+            "leader": "leader:LEADER_ODA_NOBUNAGA",
+            "tourism": 41,
+            "rows": [
+              {
+                "id": 0,
+                "known": true,
+                "civ": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "level": "popular",
+                "level_name": "Popular",
+                "share": 0.75,
+                "level_tooltip": "Japan has 75% of Russia's lifetime culture as tourism.\nNext level: Influential at 100%.\nSpies 50% faster; conquering their cities causes less unrest.",
+                "tourism_accum": 23550,
+                "culture_accum": 31400,
+                "bars_tooltip": "Tourism of Japan on Russia: 23,550\nLifetime culture of Russia: 31,400",
+                "modifier_pct": 0,
+                "modifier_tooltip": "No tourism modifiers.",
+                "per_turn": 39,
+                "trend": "static",
+                "trend_name": "Static",
+                "turns_to_influential": null,
+                "trend_tooltip": "Not getting closer to influential.",
+                "civ_name": "Russia",
+                "name": "Catherine"
+              },
+              {
+                "id": 1,
+                "known": true,
+                "civ": "civ:CIVILIZATION_ARABIA",
+                "color_bg": 795556607,
+                "color_fg": 3655583487,
+                "level": "popular",
+                "level_name": "Popular",
+                "share": 0.75,
+                "level_tooltip": "Japan has 75% of Arabia's lifetime culture as tourism.\nNext level: Influential at 100%.\nSpies 50% faster; conquering their cities causes less unrest.",
+                "tourism_accum": 18668,
+                "culture_accum": 24890,
+                "bars_tooltip": "Tourism of Japan on Arabia: 18,668\nLifetime culture of Arabia: 24,890",
+                "modifier_pct": 10,
+                "modifier_tooltip": "Open borders 0%\nTrade route 0%\nShared religion +10%",
+                "per_turn": 44,
+                "trend": "rising_slowly",
+                "trend_name": "Rising slowly",
+                "turns_to_influential": 108,
+                "trend_tooltip": "At this rate influential in 108 turns.",
+                "civ_name": "Arabia",
+                "name": "Harun al-Rashid"
+              },
+              {
+                "id": 2,
+                "known": true,
+                "civ": "civ:CIVILIZATION_AZTEC",
+                "color_bg": 1512317695,
+                "color_fg": 1655942655,
+                "level": "exotic",
+                "level_name": "Exotic",
+                "share": 0.28,
+                "level_tooltip": "Japan has 28% of Aztecs's lifetime culture as tourism.\nNext level: Familiar at 30%.\nTrade routes to them +1 tourism.",
+                "tourism_accum": 5020,
+                "culture_accum": 17930,
+                "bars_tooltip": "Tourism of Japan on Aztecs: 5,020\nLifetime culture of Aztecs: 17,930",
+                "modifier_pct": 10,
+                "modifier_tooltip": "Open borders 0%\nTrade route 0%\nShared religion +10%",
+                "per_turn": 34,
+                "trend": "rising_slowly",
+                "trend_name": "Rising slowly",
+                "turns_to_influential": 57,
+                "trend_tooltip": "At this rate influential in 57 turns.",
+                "civ_name": "Aztecs",
+                "name": "Montezuma"
+              },
+              {
+                "id": 3,
+                "known": true,
+                "civ": "civ:CIVILIZATION_EGYPT",
+                "color_bg": 1262123775,
+                "color_fg": 3923550463,
+                "level": "popular",
+                "level_name": "Popular",
+                "share": 0.84,
+                "level_tooltip": "Japan has 84% of Egypt's lifetime culture as tourism.\nNext level: Influential at 100%.\nSpies 50% faster; conquering their cities causes less unrest.",
+                "tourism_accum": 20244,
+                "culture_accum": 24100,
+                "bars_tooltip": "Tourism of Japan on Egypt: 20,244\nLifetime culture of Egypt: 24,100",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 50,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": 130,
+                "trend_tooltip": "At this rate influential in 130 turns.",
+                "civ_name": "Egypt",
+                "name": "Ramesses II"
+              },
+              {
+                "id": 4,
+                "known": true,
+                "civ": "civ:CIVILIZATION_BRAZIL",
+                "color_bg": 3383900927,
+                "color_fg": 609233663,
+                "level": "exotic",
+                "level_name": "Exotic",
+                "share": 0.17,
+                "level_tooltip": "Japan has 17% of Brazil's lifetime culture as tourism.\nNext level: Familiar at 30%.\nTrade routes to them +1 tourism.",
+                "tourism_accum": 5899,
+                "culture_accum": 34700,
+                "bars_tooltip": "Tourism of Japan on Brazil: 5,899\nLifetime culture of Brazil: 34,700",
+                "modifier_pct": 0,
+                "modifier_tooltip": "No tourism modifiers.",
+                "per_turn": 41,
+                "trend": "rising_slowly",
+                "trend_name": "Rising slowly",
+                "turns_to_influential": 87,
+                "trend_tooltip": "At this rate influential in 87 turns.",
+                "civ_name": "Brazil",
+                "name": "Pedro II"
+              },
+              {
+                "id": 5,
+                "known": true,
+                "civ": "civ:CIVILIZATION_ENGLAND",
+                "color_bg": 3873494271,
+                "color_fg": 2317295615,
+                "level": "popular",
+                "level_name": "Popular",
+                "share": 0.66,
+                "level_tooltip": "Japan has 66% of England's lifetime culture as tourism.\nNext level: Influential at 100%.\nSpies 50% faster; conquering their cities causes less unrest.",
+                "tourism_accum": 6105,
+                "culture_accum": 9250,
+                "bars_tooltip": "Tourism of Japan on England: 6,105\nLifetime culture of England: 9,250",
+                "modifier_pct": 10,
+                "modifier_tooltip": "Open borders 0%\nTrade route 0%\nShared religion +10%",
+                "per_turn": 33,
+                "trend": "rising",
+                "trend_name": "Rising",
+                "turns_to_influential": 74,
+                "trend_tooltip": "At this rate influential in 74 turns.",
+                "civ_name": "England",
+                "name": "Elizabeth"
+              },
+              {
+                "id": 7,
+                "known": false,
+                "civ": null,
+                "color_bg": null,
+                "color_fg": null,
+                "level": "exotic",
+                "level_name": "Exotic",
+                "share": 0.14,
+                "level_tooltip": "Japan has 14% of Unmet civilization's lifetime culture as tourism.\nNext level: Familiar at 30%.\nTrade routes to them +1 tourism.",
+                "tourism_accum": 1764,
+                "culture_accum": null,
+                "bars_tooltip": "Tourism of Japan on Unmet civilization: 1,764\nLifetime culture of Unmet civilization: unknown",
+                "modifier_pct": 25,
+                "modifier_tooltip": "Open borders +25%\nTrade route 0%\nShared religion 0%",
+                "per_turn": 43,
+                "trend": "rising_slowly",
+                "trend_name": "Rising slowly",
+                "turns_to_influential": 81,
+                "trend_tooltip": "At this rate influential in 81 turns.",
+                "civ_name": null,
+                "name": null
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "ui": {
+    "windows": {
+      "culture": {
+        "open": true
+      }
+    }
+  }
+}

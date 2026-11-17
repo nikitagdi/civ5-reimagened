@@ -1,0 +1,76 @@
+{
+  "model": {
+    "city_state": {
+      "view": "liberate",
+      "player_id": 0,
+      "player_gold": 312,
+      "minor": {
+        "id": 27,
+        "key": "player:27",
+        "team_id": 27,
+        "name": "Ragusa",
+        "emblem": "civ:MINOR_CIV_RAGUSA",
+        "color_bg": 3487620351,
+        "color_fg": 525296639,
+        "name_color": 2411976447,
+        "trait": "maritime",
+        "trait_name": "Maritime",
+        "trait_tooltip": "",
+        "personality": "friendly",
+        "personality_name": "Friendly",
+        "personality_tooltip": "",
+        "has_capital": false,
+        "capital_plot": null
+      },
+      "speech": null,
+      "status": null,
+      "ally": null,
+      "protectors": [],
+      "enemies": [],
+      "can_bully": false,
+      "bully_text": "",
+      "bonuses": [],
+      "resources": [],
+      "resources_exported_text": "",
+      "quests": [],
+      "no_quests_text": "",
+      "threat_barbarians": false,
+      "threat_barbarians_text": "",
+      "threat_proxy_war": false,
+      "threat_proxy_war_text": "",
+      "actions": null,
+      "gifts": null,
+      "tribute": null,
+      "enter_land": null,
+      "liberate": {
+        "city_id": 131,
+        "city_key": "city:0:131",
+        "city_name": "Ragusa",
+        "captured_from": "Montezuma",
+        "subtitle": "Captured from Montezuma, founded by the city-state of Ragusa",
+        "text": "You took a city that a city-state founded. Return it to its people, keep it as a puppet, or annex it.",
+        "preview": [
+          {
+            "key": "ally",
+            "icon": "status:ALLY",
+            "text": "Ragusa comes back as a city-state and becomes your ally"
+          },
+          {
+            "key": "influence",
+            "icon": "status:INFLUENCE",
+            "text": "Influence with Ragusa is set to 105"
+          }
+        ],
+        "can_puppet": true,
+        "annex_text": "Fully yours; occupied until it has a courthouse"
+      }
+    }
+  },
+  "ui": {
+    "windows": {
+      "city_state": {
+        "open": true
+      }
+    }
+  }
+}

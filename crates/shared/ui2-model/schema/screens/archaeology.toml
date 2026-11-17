@@ -1,0 +1,67 @@
+[enum]
+ArchaeologyStatus = ["idle", "pending"]
+ArchaeologyKind = ["battle_ranged", "battle_melee", "barbarian_camp", "ancient_ruins", "razed_city", "writing"]
+ArchaeologyRole = ["attacker", "defender", "plunderer", "conqueror", "founder", "author"]
+ArchaeologyChoiceKind = ["artifact", "landmark", "writing", "culture"]
+
+[type.ArchaeologyPlot]
+x = "i32"
+y = "i32"
+
+[type.ArchaeologyPlayer]
+id = "i32"
+name = "text"
+civ_name = "text"
+civ = "asset"
+leader = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.ArchaeologyParticipant]
+role = "ArchaeologyRole"
+role_name = "text"
+civ_name = "text"
+civ = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.ArchaeologyWork]
+name = "text"
+type = "str"
+type_id = "i32"
+creator = "text"
+civ_name = "text"
+
+[type.ArchaeologyFind]
+kind = "ArchaeologyKind"
+kind_name = "text"
+era = "text"
+participants = { list = "ArchaeologyParticipant", key = "role" }
+work = "ArchaeologyWork?"
+
+[type.ArchaeologyChoice]
+id = "i32"
+kind = "ArchaeologyChoiceKind"
+title = "text"
+description = "text"
+civ_name = "text?"
+civ = "asset?"
+color_bg = "color?"
+color_fg = "color?"
+diplomacy = "text?"
+culture = "i32?"
+enabled = "bool"
+reason = "text?"
+
+[model.archaeology]
+_optional = true
+status = "ArchaeologyStatus"
+reason = "text?"
+unit_id = "i32"
+archaeologist = "asset"
+plot = "ArchaeologyPlot?"
+near_city = "text"
+player = "ArchaeologyPlayer"
+find = "ArchaeologyFind?"
+no_slot_warning = "text?"
+choices = { list = "ArchaeologyChoice", key = "id" }

@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 1);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x861afcd87ed44c0a;
+pub const SCHEMA_HASH: u64 = 0x2b990df168781d35;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -1424,15 +1424,21 @@ pub enum WindowId {
     Menu = 2,
     Chat = 3,
     NotesLog = 4,
-    Techs = 5,
+    Archaeology = 5,
+    CityState = 6,
+    Congress = 7,
+    Culture = 8,
+    GreatWork = 9,
+    MpVote = 10,
+    Techs = 11,
 }
 
 impl WindowId {
     /// The names, indexed by the discriminant.
-    pub const NAMES: [&'static str; 6] = ["production", "research", "menu", "chat", "notes_log", "techs"];
+    pub const NAMES: [&'static str; 12] = ["production", "research", "menu", "chat", "notes_log", "archaeology", "city_state", "congress", "culture", "great_work", "mp_vote", "techs"];
 
     /// Every variant, in declaration order.
-    pub const ALL: &'static [WindowId] = &[WindowId::Production, WindowId::Research, WindowId::Menu, WindowId::Chat, WindowId::NotesLog, WindowId::Techs];
+    pub const ALL: &'static [WindowId] = &[WindowId::Production, WindowId::Research, WindowId::Menu, WindowId::Chat, WindowId::NotesLog, WindowId::Archaeology, WindowId::CityState, WindowId::Congress, WindowId::Culture, WindowId::GreatWork, WindowId::MpVote, WindowId::Techs];
 
     /// The schema name of the variant (the same as [`name`](Self::name)).
     #[must_use]
@@ -1449,7 +1455,13 @@ impl WindowId {
             2 => Some(WindowId::Menu),
             3 => Some(WindowId::Chat),
             4 => Some(WindowId::NotesLog),
-            5 => Some(WindowId::Techs),
+            5 => Some(WindowId::Archaeology),
+            6 => Some(WindowId::CityState),
+            7 => Some(WindowId::Congress),
+            8 => Some(WindowId::Culture),
+            9 => Some(WindowId::GreatWork),
+            10 => Some(WindowId::MpVote),
+            11 => Some(WindowId::Techs),
             _ => None,
         }
     }
@@ -1469,6 +1481,12 @@ impl WindowId {
             "menu" => Some(WindowId::Menu),
             "chat" => Some(WindowId::Chat),
             "notes_log" => Some(WindowId::NotesLog),
+            "archaeology" => Some(WindowId::Archaeology),
+            "city_state" => Some(WindowId::CityState),
+            "congress" => Some(WindowId::Congress),
+            "culture" => Some(WindowId::Culture),
+            "great_work" => Some(WindowId::GreatWork),
+            "mp_vote" => Some(WindowId::MpVote),
             "techs" => Some(WindowId::Techs),
             _ => None,
         }
@@ -1494,7 +1512,7 @@ impl crate::model::Model for WindowId {
         match v {
             crate::value::Value::Enum(n) => WindowId::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
                 value: *n,
-                count: 6,
+                count: 12,
             }),
             other => Err(crate::value::ValueError::mismatch("enum", other)),
         }
@@ -1818,6 +1836,3330 @@ impl crate::model::Model for BuyWith {
             crate::value::Value::Enum(n) => BuyWith::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
                 value: *n,
                 count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum ArchaeologyStatus {
+    #[default]
+    Idle = 0,
+    Pending = 1,
+}
+
+impl ArchaeologyStatus {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["idle", "pending"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [ArchaeologyStatus] = &[ArchaeologyStatus::Idle, ArchaeologyStatus::Pending];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<ArchaeologyStatus> {
+        match v {
+            0 => Some(ArchaeologyStatus::Idle),
+            1 => Some(ArchaeologyStatus::Pending),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<ArchaeologyStatus> {
+        match s {
+            "idle" => Some(ArchaeologyStatus::Idle),
+            "pending" => Some(ArchaeologyStatus::Pending),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for ArchaeologyStatus {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => ArchaeologyStatus::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum ArchaeologyKind {
+    #[default]
+    BattleRanged = 0,
+    BattleMelee = 1,
+    BarbarianCamp = 2,
+    AncientRuins = 3,
+    RazedCity = 4,
+    Writing = 5,
+}
+
+impl ArchaeologyKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 6] = ["battle_ranged", "battle_melee", "barbarian_camp", "ancient_ruins", "razed_city", "writing"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [ArchaeologyKind] = &[ArchaeologyKind::BattleRanged, ArchaeologyKind::BattleMelee, ArchaeologyKind::BarbarianCamp, ArchaeologyKind::AncientRuins, ArchaeologyKind::RazedCity, ArchaeologyKind::Writing];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<ArchaeologyKind> {
+        match v {
+            0 => Some(ArchaeologyKind::BattleRanged),
+            1 => Some(ArchaeologyKind::BattleMelee),
+            2 => Some(ArchaeologyKind::BarbarianCamp),
+            3 => Some(ArchaeologyKind::AncientRuins),
+            4 => Some(ArchaeologyKind::RazedCity),
+            5 => Some(ArchaeologyKind::Writing),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<ArchaeologyKind> {
+        match s {
+            "battle_ranged" => Some(ArchaeologyKind::BattleRanged),
+            "battle_melee" => Some(ArchaeologyKind::BattleMelee),
+            "barbarian_camp" => Some(ArchaeologyKind::BarbarianCamp),
+            "ancient_ruins" => Some(ArchaeologyKind::AncientRuins),
+            "razed_city" => Some(ArchaeologyKind::RazedCity),
+            "writing" => Some(ArchaeologyKind::Writing),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for ArchaeologyKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => ArchaeologyKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 6,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum ArchaeologyRole {
+    #[default]
+    Attacker = 0,
+    Defender = 1,
+    Plunderer = 2,
+    Conqueror = 3,
+    Founder = 4,
+    Author = 5,
+}
+
+impl ArchaeologyRole {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 6] = ["attacker", "defender", "plunderer", "conqueror", "founder", "author"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [ArchaeologyRole] = &[ArchaeologyRole::Attacker, ArchaeologyRole::Defender, ArchaeologyRole::Plunderer, ArchaeologyRole::Conqueror, ArchaeologyRole::Founder, ArchaeologyRole::Author];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<ArchaeologyRole> {
+        match v {
+            0 => Some(ArchaeologyRole::Attacker),
+            1 => Some(ArchaeologyRole::Defender),
+            2 => Some(ArchaeologyRole::Plunderer),
+            3 => Some(ArchaeologyRole::Conqueror),
+            4 => Some(ArchaeologyRole::Founder),
+            5 => Some(ArchaeologyRole::Author),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<ArchaeologyRole> {
+        match s {
+            "attacker" => Some(ArchaeologyRole::Attacker),
+            "defender" => Some(ArchaeologyRole::Defender),
+            "plunderer" => Some(ArchaeologyRole::Plunderer),
+            "conqueror" => Some(ArchaeologyRole::Conqueror),
+            "founder" => Some(ArchaeologyRole::Founder),
+            "author" => Some(ArchaeologyRole::Author),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for ArchaeologyRole {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => ArchaeologyRole::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 6,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum ArchaeologyChoiceKind {
+    #[default]
+    Artifact = 0,
+    Landmark = 1,
+    Writing = 2,
+    Culture = 3,
+}
+
+impl ArchaeologyChoiceKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["artifact", "landmark", "writing", "culture"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [ArchaeologyChoiceKind] = &[ArchaeologyChoiceKind::Artifact, ArchaeologyChoiceKind::Landmark, ArchaeologyChoiceKind::Writing, ArchaeologyChoiceKind::Culture];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<ArchaeologyChoiceKind> {
+        match v {
+            0 => Some(ArchaeologyChoiceKind::Artifact),
+            1 => Some(ArchaeologyChoiceKind::Landmark),
+            2 => Some(ArchaeologyChoiceKind::Writing),
+            3 => Some(ArchaeologyChoiceKind::Culture),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<ArchaeologyChoiceKind> {
+        match s {
+            "artifact" => Some(ArchaeologyChoiceKind::Artifact),
+            "landmark" => Some(ArchaeologyChoiceKind::Landmark),
+            "writing" => Some(ArchaeologyChoiceKind::Writing),
+            "culture" => Some(ArchaeologyChoiceKind::Culture),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for ArchaeologyChoiceKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => ArchaeologyChoiceKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityStateView {
+    #[default]
+    Diplo = 0,
+    EnterLand = 1,
+    Liberate = 2,
+}
+
+impl CityStateView {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["diplo", "enter_land", "liberate"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityStateView] = &[CityStateView::Diplo, CityStateView::EnterLand, CityStateView::Liberate];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityStateView> {
+        match v {
+            0 => Some(CityStateView::Diplo),
+            1 => Some(CityStateView::EnterLand),
+            2 => Some(CityStateView::Liberate),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityStateView> {
+        match s {
+            "diplo" => Some(CityStateView::Diplo),
+            "enter_land" => Some(CityStateView::EnterLand),
+            "liberate" => Some(CityStateView::Liberate),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityStateView {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityStateView::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityStateMinorTrait {
+    #[default]
+    Cultural = 0,
+    Militaristic = 1,
+    Maritime = 2,
+    Mercantile = 3,
+    Religious = 4,
+}
+
+impl CityStateMinorTrait {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 5] = ["cultural", "militaristic", "maritime", "mercantile", "religious"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityStateMinorTrait] = &[CityStateMinorTrait::Cultural, CityStateMinorTrait::Militaristic, CityStateMinorTrait::Maritime, CityStateMinorTrait::Mercantile, CityStateMinorTrait::Religious];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityStateMinorTrait> {
+        match v {
+            0 => Some(CityStateMinorTrait::Cultural),
+            1 => Some(CityStateMinorTrait::Militaristic),
+            2 => Some(CityStateMinorTrait::Maritime),
+            3 => Some(CityStateMinorTrait::Mercantile),
+            4 => Some(CityStateMinorTrait::Religious),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityStateMinorTrait> {
+        match s {
+            "cultural" => Some(CityStateMinorTrait::Cultural),
+            "militaristic" => Some(CityStateMinorTrait::Militaristic),
+            "maritime" => Some(CityStateMinorTrait::Maritime),
+            "mercantile" => Some(CityStateMinorTrait::Mercantile),
+            "religious" => Some(CityStateMinorTrait::Religious),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityStateMinorTrait {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityStateMinorTrait::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 5,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityStateMinorPersonality {
+    #[default]
+    Friendly = 0,
+    Neutral = 1,
+    Hostile = 2,
+    Irrational = 3,
+}
+
+impl CityStateMinorPersonality {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["friendly", "neutral", "hostile", "irrational"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityStateMinorPersonality] = &[CityStateMinorPersonality::Friendly, CityStateMinorPersonality::Neutral, CityStateMinorPersonality::Hostile, CityStateMinorPersonality::Irrational];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityStateMinorPersonality> {
+        match v {
+            0 => Some(CityStateMinorPersonality::Friendly),
+            1 => Some(CityStateMinorPersonality::Neutral),
+            2 => Some(CityStateMinorPersonality::Hostile),
+            3 => Some(CityStateMinorPersonality::Irrational),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityStateMinorPersonality> {
+        match s {
+            "friendly" => Some(CityStateMinorPersonality::Friendly),
+            "neutral" => Some(CityStateMinorPersonality::Neutral),
+            "hostile" => Some(CityStateMinorPersonality::Hostile),
+            "irrational" => Some(CityStateMinorPersonality::Irrational),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityStateMinorPersonality {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityStateMinorPersonality::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityStateSpeechKind {
+    #[default]
+    GreetingFirst = 0,
+    Greeting = 1,
+    NewQuest = 2,
+    PeaceMade = 3,
+    GoldTribute = 4,
+    UnitTribute = 5,
+    GoldGift = 6,
+    Pledge = 7,
+    PledgeRevoked = 8,
+    PeaceFriend = 9,
+    PeaceNeutral = 10,
+    War = 11,
+    WarNoPeace = 12,
+}
+
+impl CityStateSpeechKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 13] = ["greeting_first", "greeting", "new_quest", "peace_made", "gold_tribute", "unit_tribute", "gold_gift", "pledge", "pledge_revoked", "peace_friend", "peace_neutral", "war", "war_no_peace"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityStateSpeechKind] = &[CityStateSpeechKind::GreetingFirst, CityStateSpeechKind::Greeting, CityStateSpeechKind::NewQuest, CityStateSpeechKind::PeaceMade, CityStateSpeechKind::GoldTribute, CityStateSpeechKind::UnitTribute, CityStateSpeechKind::GoldGift, CityStateSpeechKind::Pledge, CityStateSpeechKind::PledgeRevoked, CityStateSpeechKind::PeaceFriend, CityStateSpeechKind::PeaceNeutral, CityStateSpeechKind::War, CityStateSpeechKind::WarNoPeace];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityStateSpeechKind> {
+        match v {
+            0 => Some(CityStateSpeechKind::GreetingFirst),
+            1 => Some(CityStateSpeechKind::Greeting),
+            2 => Some(CityStateSpeechKind::NewQuest),
+            3 => Some(CityStateSpeechKind::PeaceMade),
+            4 => Some(CityStateSpeechKind::GoldTribute),
+            5 => Some(CityStateSpeechKind::UnitTribute),
+            6 => Some(CityStateSpeechKind::GoldGift),
+            7 => Some(CityStateSpeechKind::Pledge),
+            8 => Some(CityStateSpeechKind::PledgeRevoked),
+            9 => Some(CityStateSpeechKind::PeaceFriend),
+            10 => Some(CityStateSpeechKind::PeaceNeutral),
+            11 => Some(CityStateSpeechKind::War),
+            12 => Some(CityStateSpeechKind::WarNoPeace),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityStateSpeechKind> {
+        match s {
+            "greeting_first" => Some(CityStateSpeechKind::GreetingFirst),
+            "greeting" => Some(CityStateSpeechKind::Greeting),
+            "new_quest" => Some(CityStateSpeechKind::NewQuest),
+            "peace_made" => Some(CityStateSpeechKind::PeaceMade),
+            "gold_tribute" => Some(CityStateSpeechKind::GoldTribute),
+            "unit_tribute" => Some(CityStateSpeechKind::UnitTribute),
+            "gold_gift" => Some(CityStateSpeechKind::GoldGift),
+            "pledge" => Some(CityStateSpeechKind::Pledge),
+            "pledge_revoked" => Some(CityStateSpeechKind::PledgeRevoked),
+            "peace_friend" => Some(CityStateSpeechKind::PeaceFriend),
+            "peace_neutral" => Some(CityStateSpeechKind::PeaceNeutral),
+            "war" => Some(CityStateSpeechKind::War),
+            "war_no_peace" => Some(CityStateSpeechKind::WarNoPeace),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityStateSpeechKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityStateSpeechKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 13,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityStateStatusKind {
+    #[default]
+    Ally = 0,
+    Friend = 1,
+    PermanentWar = 2,
+    NoPeace = 3,
+    War = 4,
+    Afraid = 5,
+    Angry = 6,
+    Neutral = 7,
+}
+
+impl CityStateStatusKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 8] = ["ally", "friend", "permanent_war", "no_peace", "war", "afraid", "angry", "neutral"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityStateStatusKind] = &[CityStateStatusKind::Ally, CityStateStatusKind::Friend, CityStateStatusKind::PermanentWar, CityStateStatusKind::NoPeace, CityStateStatusKind::War, CityStateStatusKind::Afraid, CityStateStatusKind::Angry, CityStateStatusKind::Neutral];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityStateStatusKind> {
+        match v {
+            0 => Some(CityStateStatusKind::Ally),
+            1 => Some(CityStateStatusKind::Friend),
+            2 => Some(CityStateStatusKind::PermanentWar),
+            3 => Some(CityStateStatusKind::NoPeace),
+            4 => Some(CityStateStatusKind::War),
+            5 => Some(CityStateStatusKind::Afraid),
+            6 => Some(CityStateStatusKind::Angry),
+            7 => Some(CityStateStatusKind::Neutral),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityStateStatusKind> {
+        match s {
+            "ally" => Some(CityStateStatusKind::Ally),
+            "friend" => Some(CityStateStatusKind::Friend),
+            "permanent_war" => Some(CityStateStatusKind::PermanentWar),
+            "no_peace" => Some(CityStateStatusKind::NoPeace),
+            "war" => Some(CityStateStatusKind::War),
+            "afraid" => Some(CityStateStatusKind::Afraid),
+            "angry" => Some(CityStateStatusKind::Angry),
+            "neutral" => Some(CityStateStatusKind::Neutral),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityStateStatusKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityStateStatusKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 8,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityStateStatusStyle {
+    #[default]
+    War = 0,
+    Ally = 1,
+    Friend = 2,
+    Bully = 3,
+    Negative = 4,
+    Neutral = 5,
+}
+
+impl CityStateStatusStyle {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 6] = ["war", "ally", "friend", "bully", "negative", "neutral"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityStateStatusStyle] = &[CityStateStatusStyle::War, CityStateStatusStyle::Ally, CityStateStatusStyle::Friend, CityStateStatusStyle::Bully, CityStateStatusStyle::Negative, CityStateStatusStyle::Neutral];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityStateStatusStyle> {
+        match v {
+            0 => Some(CityStateStatusStyle::War),
+            1 => Some(CityStateStatusStyle::Ally),
+            2 => Some(CityStateStatusStyle::Friend),
+            3 => Some(CityStateStatusStyle::Bully),
+            4 => Some(CityStateStatusStyle::Negative),
+            5 => Some(CityStateStatusStyle::Neutral),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityStateStatusStyle> {
+        match s {
+            "war" => Some(CityStateStatusStyle::War),
+            "ally" => Some(CityStateStatusStyle::Ally),
+            "friend" => Some(CityStateStatusStyle::Friend),
+            "bully" => Some(CityStateStatusStyle::Bully),
+            "negative" => Some(CityStateStatusStyle::Negative),
+            "neutral" => Some(CityStateStatusStyle::Neutral),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityStateStatusStyle {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityStateStatusStyle::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 6,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityStateStatusScaleSide {
+    #[default]
+    Positive = 0,
+    Negative = 1,
+    Zero = 2,
+}
+
+impl CityStateStatusScaleSide {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["positive", "negative", "zero"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityStateStatusScaleSide] = &[CityStateStatusScaleSide::Positive, CityStateStatusScaleSide::Negative, CityStateStatusScaleSide::Zero];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityStateStatusScaleSide> {
+        match v {
+            0 => Some(CityStateStatusScaleSide::Positive),
+            1 => Some(CityStateStatusScaleSide::Negative),
+            2 => Some(CityStateStatusScaleSide::Zero),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityStateStatusScaleSide> {
+        match s {
+            "positive" => Some(CityStateStatusScaleSide::Positive),
+            "negative" => Some(CityStateStatusScaleSide::Negative),
+            "zero" => Some(CityStateStatusScaleSide::Zero),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityStateStatusScaleSide {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityStateStatusScaleSide::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityStateAllyKind {
+    #[default]
+    None = 0,
+    You = 1,
+    Civ = 2,
+    Unknown = 3,
+}
+
+impl CityStateAllyKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["none", "you", "civ", "unknown"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityStateAllyKind] = &[CityStateAllyKind::None, CityStateAllyKind::You, CityStateAllyKind::Civ, CityStateAllyKind::Unknown];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityStateAllyKind> {
+        match v {
+            0 => Some(CityStateAllyKind::None),
+            1 => Some(CityStateAllyKind::You),
+            2 => Some(CityStateAllyKind::Civ),
+            3 => Some(CityStateAllyKind::Unknown),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityStateAllyKind> {
+        match s {
+            "none" => Some(CityStateAllyKind::None),
+            "you" => Some(CityStateAllyKind::You),
+            "civ" => Some(CityStateAllyKind::Civ),
+            "unknown" => Some(CityStateAllyKind::Unknown),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityStateAllyKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityStateAllyKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityStateResourcesKind {
+    #[default]
+    Strategic = 0,
+    Luxury = 1,
+}
+
+impl CityStateResourcesKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["strategic", "luxury"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityStateResourcesKind] = &[CityStateResourcesKind::Strategic, CityStateResourcesKind::Luxury];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityStateResourcesKind> {
+        match v {
+            0 => Some(CityStateResourcesKind::Strategic),
+            1 => Some(CityStateResourcesKind::Luxury),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityStateResourcesKind> {
+        match s {
+            "strategic" => Some(CityStateResourcesKind::Strategic),
+            "luxury" => Some(CityStateResourcesKind::Luxury),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityStateResourcesKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityStateResourcesKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityStateActionsPledgeState {
+    #[default]
+    CanPledge = 0,
+    Pledged = 1,
+}
+
+impl CityStateActionsPledgeState {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["can_pledge", "pledged"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityStateActionsPledgeState] = &[CityStateActionsPledgeState::CanPledge, CityStateActionsPledgeState::Pledged];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityStateActionsPledgeState> {
+        match v {
+            0 => Some(CityStateActionsPledgeState::CanPledge),
+            1 => Some(CityStateActionsPledgeState::Pledged),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityStateActionsPledgeState> {
+        match s {
+            "can_pledge" => Some(CityStateActionsPledgeState::CanPledge),
+            "pledged" => Some(CityStateActionsPledgeState::Pledged),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityStateActionsPledgeState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityStateActionsPledgeState::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityStateEnterLandOwnerKind {
+    #[default]
+    CityState = 0,
+    Civ = 1,
+}
+
+impl CityStateEnterLandOwnerKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["city_state", "civ"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityStateEnterLandOwnerKind] = &[CityStateEnterLandOwnerKind::CityState, CityStateEnterLandOwnerKind::Civ];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityStateEnterLandOwnerKind> {
+        match v {
+            0 => Some(CityStateEnterLandOwnerKind::CityState),
+            1 => Some(CityStateEnterLandOwnerKind::Civ),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityStateEnterLandOwnerKind> {
+        match s {
+            "city_state" => Some(CityStateEnterLandOwnerKind::CityState),
+            "civ" => Some(CityStateEnterLandOwnerKind::Civ),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityStateEnterLandOwnerKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityStateEnterLandOwnerKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressView {
+    #[default]
+    League = 0,
+    Splash = 1,
+    Project = 2,
+}
+
+impl CongressView {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["league", "splash", "project"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressView] = &[CongressView::League, CongressView::Splash, CongressView::Project];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressView> {
+        match v {
+            0 => Some(CongressView::League),
+            1 => Some(CongressView::Splash),
+            2 => Some(CongressView::Project),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressView> {
+        match s {
+            "league" => Some(CongressView::League),
+            "splash" => Some(CongressView::Splash),
+            "project" => Some(CongressView::Project),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressView {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressView::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressLeagueAbsentReason {
+    #[default]
+    Disabled = 0,
+    NotFounded = 1,
+}
+
+impl CongressLeagueAbsentReason {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["disabled", "not_founded"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressLeagueAbsentReason] = &[CongressLeagueAbsentReason::Disabled, CongressLeagueAbsentReason::NotFounded];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressLeagueAbsentReason> {
+        match v {
+            0 => Some(CongressLeagueAbsentReason::Disabled),
+            1 => Some(CongressLeagueAbsentReason::NotFounded),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressLeagueAbsentReason> {
+        match s {
+            "disabled" => Some(CongressLeagueAbsentReason::Disabled),
+            "not_founded" => Some(CongressLeagueAbsentReason::NotFounded),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressLeagueAbsentReason {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressLeagueAbsentReason::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressLeaguePhase {
+    #[default]
+    Between = 0,
+    Session = 1,
+}
+
+impl CongressLeaguePhase {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["between", "session"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressLeaguePhase] = &[CongressLeaguePhase::Between, CongressLeaguePhase::Session];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressLeaguePhase> {
+        match v {
+            0 => Some(CongressLeaguePhase::Between),
+            1 => Some(CongressLeaguePhase::Session),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressLeaguePhase> {
+        match s {
+            "between" => Some(CongressLeaguePhase::Between),
+            "session" => Some(CongressLeaguePhase::Session),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressLeaguePhase {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressLeaguePhase::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressLeagueMode {
+    #[default]
+    View = 0,
+    Propose = 1,
+    Vote = 2,
+}
+
+impl CongressLeagueMode {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["view", "propose", "vote"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressLeagueMode] = &[CongressLeagueMode::View, CongressLeagueMode::Propose, CongressLeagueMode::Vote];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressLeagueMode> {
+        match v {
+            0 => Some(CongressLeagueMode::View),
+            1 => Some(CongressLeagueMode::Propose),
+            2 => Some(CongressLeagueMode::Vote),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressLeagueMode> {
+        match s {
+            "view" => Some(CongressLeagueMode::View),
+            "propose" => Some(CongressLeagueMode::Propose),
+            "vote" => Some(CongressLeagueMode::Vote),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressLeagueMode {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressLeagueMode::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressLeagueProposalsVoteKind {
+    #[default]
+    YesNo = 0,
+    Elect = 1,
+}
+
+impl CongressLeagueProposalsVoteKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["yes_no", "elect"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressLeagueProposalsVoteKind] = &[CongressLeagueProposalsVoteKind::YesNo, CongressLeagueProposalsVoteKind::Elect];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressLeagueProposalsVoteKind> {
+        match v {
+            0 => Some(CongressLeagueProposalsVoteKind::YesNo),
+            1 => Some(CongressLeagueProposalsVoteKind::Elect),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressLeagueProposalsVoteKind> {
+        match s {
+            "yes_no" => Some(CongressLeagueProposalsVoteKind::YesNo),
+            "elect" => Some(CongressLeagueProposalsVoteKind::Elect),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressLeagueProposalsVoteKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressLeagueProposalsVoteKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressLeagueProposalsKind {
+    #[default]
+    Enact = 0,
+    Repeal = 1,
+}
+
+impl CongressLeagueProposalsKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["enact", "repeal"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressLeagueProposalsKind] = &[CongressLeagueProposalsKind::Enact, CongressLeagueProposalsKind::Repeal];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressLeagueProposalsKind> {
+        match v {
+            0 => Some(CongressLeagueProposalsKind::Enact),
+            1 => Some(CongressLeagueProposalsKind::Repeal),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressLeagueProposalsKind> {
+        match s {
+            "enact" => Some(CongressLeagueProposalsKind::Enact),
+            "repeal" => Some(CongressLeagueProposalsKind::Repeal),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressLeagueProposalsKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressLeagueProposalsKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressLeagueProposalsState {
+    #[default]
+    Yea = 0,
+    Nay = 1,
+    Abstain = 2,
+    Postponed = 3,
+    Pending = 4,
+}
+
+impl CongressLeagueProposalsState {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 5] = ["yea", "nay", "abstain", "postponed", "pending"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressLeagueProposalsState] = &[CongressLeagueProposalsState::Yea, CongressLeagueProposalsState::Nay, CongressLeagueProposalsState::Abstain, CongressLeagueProposalsState::Postponed, CongressLeagueProposalsState::Pending];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressLeagueProposalsState> {
+        match v {
+            0 => Some(CongressLeagueProposalsState::Yea),
+            1 => Some(CongressLeagueProposalsState::Nay),
+            2 => Some(CongressLeagueProposalsState::Abstain),
+            3 => Some(CongressLeagueProposalsState::Postponed),
+            4 => Some(CongressLeagueProposalsState::Pending),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressLeagueProposalsState> {
+        match s {
+            "yea" => Some(CongressLeagueProposalsState::Yea),
+            "nay" => Some(CongressLeagueProposalsState::Nay),
+            "abstain" => Some(CongressLeagueProposalsState::Abstain),
+            "postponed" => Some(CongressLeagueProposalsState::Postponed),
+            "pending" => Some(CongressLeagueProposalsState::Pending),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressLeagueProposalsState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressLeagueProposalsState::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 5,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressLeagueSlotsKind {
+    #[default]
+    Enact = 0,
+    Repeal = 1,
+}
+
+impl CongressLeagueSlotsKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["enact", "repeal"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressLeagueSlotsKind] = &[CongressLeagueSlotsKind::Enact, CongressLeagueSlotsKind::Repeal];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressLeagueSlotsKind> {
+        match v {
+            0 => Some(CongressLeagueSlotsKind::Enact),
+            1 => Some(CongressLeagueSlotsKind::Repeal),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressLeagueSlotsKind> {
+        match s {
+            "enact" => Some(CongressLeagueSlotsKind::Enact),
+            "repeal" => Some(CongressLeagueSlotsKind::Repeal),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressLeagueSlotsKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressLeagueSlotsKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressLeagueChoicesRepealNeeds {
+    #[default]
+    None = 0,
+    Civ = 1,
+    Luxury = 2,
+    Religion = 3,
+}
+
+impl CongressLeagueChoicesRepealNeeds {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["none", "civ", "luxury", "religion"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressLeagueChoicesRepealNeeds] = &[CongressLeagueChoicesRepealNeeds::None, CongressLeagueChoicesRepealNeeds::Civ, CongressLeagueChoicesRepealNeeds::Luxury, CongressLeagueChoicesRepealNeeds::Religion];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressLeagueChoicesRepealNeeds> {
+        match v {
+            0 => Some(CongressLeagueChoicesRepealNeeds::None),
+            1 => Some(CongressLeagueChoicesRepealNeeds::Civ),
+            2 => Some(CongressLeagueChoicesRepealNeeds::Luxury),
+            3 => Some(CongressLeagueChoicesRepealNeeds::Religion),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressLeagueChoicesRepealNeeds> {
+        match s {
+            "none" => Some(CongressLeagueChoicesRepealNeeds::None),
+            "civ" => Some(CongressLeagueChoicesRepealNeeds::Civ),
+            "luxury" => Some(CongressLeagueChoicesRepealNeeds::Luxury),
+            "religion" => Some(CongressLeagueChoicesRepealNeeds::Religion),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressLeagueChoicesRepealNeeds {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressLeagueChoicesRepealNeeds::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressLeagueChoicesRepealKind {
+    #[default]
+    Enact = 0,
+    Repeal = 1,
+}
+
+impl CongressLeagueChoicesRepealKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["enact", "repeal"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressLeagueChoicesRepealKind] = &[CongressLeagueChoicesRepealKind::Enact, CongressLeagueChoicesRepealKind::Repeal];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressLeagueChoicesRepealKind> {
+        match v {
+            0 => Some(CongressLeagueChoicesRepealKind::Enact),
+            1 => Some(CongressLeagueChoicesRepealKind::Repeal),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressLeagueChoicesRepealKind> {
+        match s {
+            "enact" => Some(CongressLeagueChoicesRepealKind::Enact),
+            "repeal" => Some(CongressLeagueChoicesRepealKind::Repeal),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressLeagueChoicesRepealKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressLeagueChoicesRepealKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressLeagueChoicesEnactNeeds {
+    #[default]
+    None = 0,
+    Civ = 1,
+    Luxury = 2,
+    Religion = 3,
+}
+
+impl CongressLeagueChoicesEnactNeeds {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["none", "civ", "luxury", "religion"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressLeagueChoicesEnactNeeds] = &[CongressLeagueChoicesEnactNeeds::None, CongressLeagueChoicesEnactNeeds::Civ, CongressLeagueChoicesEnactNeeds::Luxury, CongressLeagueChoicesEnactNeeds::Religion];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressLeagueChoicesEnactNeeds> {
+        match v {
+            0 => Some(CongressLeagueChoicesEnactNeeds::None),
+            1 => Some(CongressLeagueChoicesEnactNeeds::Civ),
+            2 => Some(CongressLeagueChoicesEnactNeeds::Luxury),
+            3 => Some(CongressLeagueChoicesEnactNeeds::Religion),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressLeagueChoicesEnactNeeds> {
+        match s {
+            "none" => Some(CongressLeagueChoicesEnactNeeds::None),
+            "civ" => Some(CongressLeagueChoicesEnactNeeds::Civ),
+            "luxury" => Some(CongressLeagueChoicesEnactNeeds::Luxury),
+            "religion" => Some(CongressLeagueChoicesEnactNeeds::Religion),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressLeagueChoicesEnactNeeds {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressLeagueChoicesEnactNeeds::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressLeagueChoicesEnactKind {
+    #[default]
+    Enact = 0,
+    Repeal = 1,
+}
+
+impl CongressLeagueChoicesEnactKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["enact", "repeal"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressLeagueChoicesEnactKind] = &[CongressLeagueChoicesEnactKind::Enact, CongressLeagueChoicesEnactKind::Repeal];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressLeagueChoicesEnactKind> {
+        match v {
+            0 => Some(CongressLeagueChoicesEnactKind::Enact),
+            1 => Some(CongressLeagueChoicesEnactKind::Repeal),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressLeagueChoicesEnactKind> {
+        match s {
+            "enact" => Some(CongressLeagueChoicesEnactKind::Enact),
+            "repeal" => Some(CongressLeagueChoicesEnactKind::Repeal),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressLeagueChoicesEnactKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressLeagueChoicesEnactKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressLeagueChoicesUnavailableNeeds {
+    #[default]
+    None = 0,
+    Civ = 1,
+    Luxury = 2,
+    Religion = 3,
+}
+
+impl CongressLeagueChoicesUnavailableNeeds {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["none", "civ", "luxury", "religion"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressLeagueChoicesUnavailableNeeds] = &[CongressLeagueChoicesUnavailableNeeds::None, CongressLeagueChoicesUnavailableNeeds::Civ, CongressLeagueChoicesUnavailableNeeds::Luxury, CongressLeagueChoicesUnavailableNeeds::Religion];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressLeagueChoicesUnavailableNeeds> {
+        match v {
+            0 => Some(CongressLeagueChoicesUnavailableNeeds::None),
+            1 => Some(CongressLeagueChoicesUnavailableNeeds::Civ),
+            2 => Some(CongressLeagueChoicesUnavailableNeeds::Luxury),
+            3 => Some(CongressLeagueChoicesUnavailableNeeds::Religion),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressLeagueChoicesUnavailableNeeds> {
+        match s {
+            "none" => Some(CongressLeagueChoicesUnavailableNeeds::None),
+            "civ" => Some(CongressLeagueChoicesUnavailableNeeds::Civ),
+            "luxury" => Some(CongressLeagueChoicesUnavailableNeeds::Luxury),
+            "religion" => Some(CongressLeagueChoicesUnavailableNeeds::Religion),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressLeagueChoicesUnavailableNeeds {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressLeagueChoicesUnavailableNeeds::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressLeagueChoicesUnavailableKind {
+    #[default]
+    Enact = 0,
+    Repeal = 1,
+}
+
+impl CongressLeagueChoicesUnavailableKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["enact", "repeal"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressLeagueChoicesUnavailableKind] = &[CongressLeagueChoicesUnavailableKind::Enact, CongressLeagueChoicesUnavailableKind::Repeal];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressLeagueChoicesUnavailableKind> {
+        match v {
+            0 => Some(CongressLeagueChoicesUnavailableKind::Enact),
+            1 => Some(CongressLeagueChoicesUnavailableKind::Repeal),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressLeagueChoicesUnavailableKind> {
+        match s {
+            "enact" => Some(CongressLeagueChoicesUnavailableKind::Enact),
+            "repeal" => Some(CongressLeagueChoicesUnavailableKind::Repeal),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressLeagueChoicesUnavailableKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressLeagueChoicesUnavailableKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CongressSplashKind {
+    #[default]
+    Founded = 0,
+    NewEra = 1,
+}
+
+impl CongressSplashKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["founded", "new_era"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CongressSplashKind] = &[CongressSplashKind::Founded, CongressSplashKind::NewEra];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CongressSplashKind> {
+        match v {
+            0 => Some(CongressSplashKind::Founded),
+            1 => Some(CongressSplashKind::NewEra),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CongressSplashKind> {
+        match s {
+            "founded" => Some(CongressSplashKind::Founded),
+            "new_era" => Some(CongressSplashKind::NewEra),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CongressSplashKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CongressSplashKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CultureWorkClass {
+    #[default]
+    Writing = 0,
+    Art = 1,
+    Artifact = 2,
+    Music = 3,
+}
+
+impl CultureWorkClass {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["writing", "art", "artifact", "music"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CultureWorkClass] = &[CultureWorkClass::Writing, CultureWorkClass::Art, CultureWorkClass::Artifact, CultureWorkClass::Music];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CultureWorkClass> {
+        match v {
+            0 => Some(CultureWorkClass::Writing),
+            1 => Some(CultureWorkClass::Art),
+            2 => Some(CultureWorkClass::Artifact),
+            3 => Some(CultureWorkClass::Music),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CultureWorkClass> {
+        match s {
+            "writing" => Some(CultureWorkClass::Writing),
+            "art" => Some(CultureWorkClass::Art),
+            "artifact" => Some(CultureWorkClass::Artifact),
+            "music" => Some(CultureWorkClass::Music),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CultureWorkClass {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CultureWorkClass::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CultureSlotType {
+    #[default]
+    ArtArtifact = 0,
+    Literature = 1,
+    Music = 2,
+}
+
+impl CultureSlotType {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["art_artifact", "literature", "music"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CultureSlotType] = &[CultureSlotType::ArtArtifact, CultureSlotType::Literature, CultureSlotType::Music];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CultureSlotType> {
+        match v {
+            0 => Some(CultureSlotType::ArtArtifact),
+            1 => Some(CultureSlotType::Literature),
+            2 => Some(CultureSlotType::Music),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CultureSlotType> {
+        match s {
+            "art_artifact" => Some(CultureSlotType::ArtArtifact),
+            "literature" => Some(CultureSlotType::Literature),
+            "music" => Some(CultureSlotType::Music),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CultureSlotType {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CultureSlotType::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CultureCellState {
+    #[default]
+    Built = 0,
+    NotBuilt = 1,
+    None = 2,
+}
+
+impl CultureCellState {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["built", "not_built", "none"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CultureCellState] = &[CultureCellState::Built, CultureCellState::NotBuilt, CultureCellState::None];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CultureCellState> {
+        match v {
+            0 => Some(CultureCellState::Built),
+            1 => Some(CultureCellState::NotBuilt),
+            2 => Some(CultureCellState::None),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CultureCellState> {
+        match s {
+            "built" => Some(CultureCellState::Built),
+            "not_built" => Some(CultureCellState::NotBuilt),
+            "none" => Some(CultureCellState::None),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CultureCellState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CultureCellState::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CultureIdeology {
+    #[default]
+    None = 0,
+    Freedom = 1,
+    Order = 2,
+    Autocracy = 3,
+}
+
+impl CultureIdeology {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["none", "freedom", "order", "autocracy"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CultureIdeology] = &[CultureIdeology::None, CultureIdeology::Freedom, CultureIdeology::Order, CultureIdeology::Autocracy];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CultureIdeology> {
+        match v {
+            0 => Some(CultureIdeology::None),
+            1 => Some(CultureIdeology::Freedom),
+            2 => Some(CultureIdeology::Order),
+            3 => Some(CultureIdeology::Autocracy),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CultureIdeology> {
+        match s {
+            "none" => Some(CultureIdeology::None),
+            "freedom" => Some(CultureIdeology::Freedom),
+            "order" => Some(CultureIdeology::Order),
+            "autocracy" => Some(CultureIdeology::Autocracy),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CultureIdeology {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CultureIdeology::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CultureLevel {
+    #[default]
+    Unknown = 0,
+    Exotic = 1,
+    Familiar = 2,
+    Popular = 3,
+    Influential = 4,
+    Dominant = 5,
+}
+
+impl CultureLevel {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 6] = ["unknown", "exotic", "familiar", "popular", "influential", "dominant"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CultureLevel] = &[CultureLevel::Unknown, CultureLevel::Exotic, CultureLevel::Familiar, CultureLevel::Popular, CultureLevel::Influential, CultureLevel::Dominant];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CultureLevel> {
+        match v {
+            0 => Some(CultureLevel::Unknown),
+            1 => Some(CultureLevel::Exotic),
+            2 => Some(CultureLevel::Familiar),
+            3 => Some(CultureLevel::Popular),
+            4 => Some(CultureLevel::Influential),
+            5 => Some(CultureLevel::Dominant),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CultureLevel> {
+        match s {
+            "unknown" => Some(CultureLevel::Unknown),
+            "exotic" => Some(CultureLevel::Exotic),
+            "familiar" => Some(CultureLevel::Familiar),
+            "popular" => Some(CultureLevel::Popular),
+            "influential" => Some(CultureLevel::Influential),
+            "dominant" => Some(CultureLevel::Dominant),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CultureLevel {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CultureLevel::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 6,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CultureTrend {
+    #[default]
+    Falling = 0,
+    Static = 1,
+    RisingSlowly = 2,
+    Rising = 3,
+}
+
+impl CultureTrend {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["falling", "static", "rising_slowly", "rising"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CultureTrend] = &[CultureTrend::Falling, CultureTrend::Static, CultureTrend::RisingSlowly, CultureTrend::Rising];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CultureTrend> {
+        match v {
+            0 => Some(CultureTrend::Falling),
+            1 => Some(CultureTrend::Static),
+            2 => Some(CultureTrend::RisingSlowly),
+            3 => Some(CultureTrend::Rising),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CultureTrend> {
+        match s {
+            "falling" => Some(CultureTrend::Falling),
+            "static" => Some(CultureTrend::Static),
+            "rising_slowly" => Some(CultureTrend::RisingSlowly),
+            "rising" => Some(CultureTrend::Rising),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CultureTrend {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CultureTrend::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum GreatWorkClass {
+    #[default]
+    Writing = 0,
+    Art = 1,
+    Music = 2,
+    Artifact = 3,
+}
+
+impl GreatWorkClass {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["writing", "art", "music", "artifact"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [GreatWorkClass] = &[GreatWorkClass::Writing, GreatWorkClass::Art, GreatWorkClass::Music, GreatWorkClass::Artifact];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<GreatWorkClass> {
+        match v {
+            0 => Some(GreatWorkClass::Writing),
+            1 => Some(GreatWorkClass::Art),
+            2 => Some(GreatWorkClass::Music),
+            3 => Some(GreatWorkClass::Artifact),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<GreatWorkClass> {
+        match s {
+            "writing" => Some(GreatWorkClass::Writing),
+            "art" => Some(GreatWorkClass::Art),
+            "music" => Some(GreatWorkClass::Music),
+            "artifact" => Some(GreatWorkClass::Artifact),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for GreatWorkClass {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => GreatWorkClass::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum MpVoteView {
+    #[default]
+    Proposal = 0,
+    Concede = 1,
+    DiploVote = 2,
+}
+
+impl MpVoteView {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["proposal", "concede", "diplo_vote"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [MpVoteView] = &[MpVoteView::Proposal, MpVoteView::Concede, MpVoteView::DiploVote];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<MpVoteView> {
+        match v {
+            0 => Some(MpVoteView::Proposal),
+            1 => Some(MpVoteView::Concede),
+            2 => Some(MpVoteView::DiploVote),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<MpVoteView> {
+        match s {
+            "proposal" => Some(MpVoteView::Proposal),
+            "concede" => Some(MpVoteView::Concede),
+            "diplo_vote" => Some(MpVoteView::DiploVote),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for MpVoteView {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => MpVoteView::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum MpVoteProposalKind {
+    #[default]
+    Kick = 0,
+    Concede = 1,
+    Scrap = 2,
+    Remap = 3,
+}
+
+impl MpVoteProposalKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["kick", "concede", "scrap", "remap"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [MpVoteProposalKind] = &[MpVoteProposalKind::Kick, MpVoteProposalKind::Concede, MpVoteProposalKind::Scrap, MpVoteProposalKind::Remap];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<MpVoteProposalKind> {
+        match v {
+            0 => Some(MpVoteProposalKind::Kick),
+            1 => Some(MpVoteProposalKind::Concede),
+            2 => Some(MpVoteProposalKind::Scrap),
+            3 => Some(MpVoteProposalKind::Remap),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<MpVoteProposalKind> {
+        match s {
+            "kick" => Some(MpVoteProposalKind::Kick),
+            "concede" => Some(MpVoteProposalKind::Concede),
+            "scrap" => Some(MpVoteProposalKind::Scrap),
+            "remap" => Some(MpVoteProposalKind::Remap),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for MpVoteProposalKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => MpVoteProposalKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum MpVoteProposalStatus {
+    #[default]
+    Open = 0,
+    Passed = 1,
+    Failed = 2,
+}
+
+impl MpVoteProposalStatus {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["open", "passed", "failed"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [MpVoteProposalStatus] = &[MpVoteProposalStatus::Open, MpVoteProposalStatus::Passed, MpVoteProposalStatus::Failed];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<MpVoteProposalStatus> {
+        match v {
+            0 => Some(MpVoteProposalStatus::Open),
+            1 => Some(MpVoteProposalStatus::Passed),
+            2 => Some(MpVoteProposalStatus::Failed),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<MpVoteProposalStatus> {
+        match s {
+            "open" => Some(MpVoteProposalStatus::Open),
+            "passed" => Some(MpVoteProposalStatus::Passed),
+            "failed" => Some(MpVoteProposalStatus::Failed),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for MpVoteProposalStatus {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => MpVoteProposalStatus::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum MpVoteProposalMyVote {
+    #[default]
+    None = 0,
+    Yes = 1,
+    No = 2,
+}
+
+impl MpVoteProposalMyVote {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["none", "yes", "no"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [MpVoteProposalMyVote] = &[MpVoteProposalMyVote::None, MpVoteProposalMyVote::Yes, MpVoteProposalMyVote::No];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<MpVoteProposalMyVote> {
+        match v {
+            0 => Some(MpVoteProposalMyVote::None),
+            1 => Some(MpVoteProposalMyVote::Yes),
+            2 => Some(MpVoteProposalMyVote::No),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<MpVoteProposalMyVote> {
+        match s {
+            "none" => Some(MpVoteProposalMyVote::None),
+            "yes" => Some(MpVoteProposalMyVote::Yes),
+            "no" => Some(MpVoteProposalMyVote::No),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for MpVoteProposalMyVote {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => MpVoteProposalMyVote::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum MpVoteTeamsPlayersVote {
+    #[default]
+    None = 0,
+    Hidden = 1,
+    Yes = 2,
+    No = 3,
+}
+
+impl MpVoteTeamsPlayersVote {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["none", "hidden", "yes", "no"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [MpVoteTeamsPlayersVote] = &[MpVoteTeamsPlayersVote::None, MpVoteTeamsPlayersVote::Hidden, MpVoteTeamsPlayersVote::Yes, MpVoteTeamsPlayersVote::No];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<MpVoteTeamsPlayersVote> {
+        match v {
+            0 => Some(MpVoteTeamsPlayersVote::None),
+            1 => Some(MpVoteTeamsPlayersVote::Hidden),
+            2 => Some(MpVoteTeamsPlayersVote::Yes),
+            3 => Some(MpVoteTeamsPlayersVote::No),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<MpVoteTeamsPlayersVote> {
+        match s {
+            "none" => Some(MpVoteTeamsPlayersVote::None),
+            "hidden" => Some(MpVoteTeamsPlayersVote::Hidden),
+            "yes" => Some(MpVoteTeamsPlayersVote::Yes),
+            "no" => Some(MpVoteTeamsPlayersVote::No),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for MpVoteTeamsPlayersVote {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => MpVoteTeamsPlayersVote::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
             }),
             other => Err(crate::value::ValueError::mismatch("enum", other)),
         }
@@ -3575,6 +6917,12 @@ impl crate::model::Model for WinCity {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Windows {
+    pub archaeology: WinArgs,
+    pub city_state: WinArgs,
+    pub congress: WinArgs,
+    pub culture: WinArgs,
+    pub great_work: WinArgs,
+    pub mp_vote: WinArgs,
     pub techs: WinArgs,
     pub production: WinCity,
     pub research: Win,
@@ -3587,22 +6935,40 @@ impl crate::model::Model for Windows {
     fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
         let base = at.field;
         at.field = base.child(0);
-        crate::model::Model::diff(&self.techs, &old.techs, at, out);
+        crate::model::Model::diff(&self.archaeology, &old.archaeology, at, out);
         at.field = base.child(4);
+        crate::model::Model::diff(&self.city_state, &old.city_state, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.congress, &old.congress, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.culture, &old.culture, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.great_work, &old.great_work, at, out);
+        at.field = base.child(20);
+        crate::model::Model::diff(&self.mp_vote, &old.mp_vote, at, out);
+        at.field = base.child(24);
+        crate::model::Model::diff(&self.techs, &old.techs, at, out);
+        at.field = base.child(28);
         crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(7);
+        at.field = base.child(31);
         crate::model::Model::diff(&self.research, &old.research, at, out);
-        at.field = base.child(9);
+        at.field = base.child(33);
         crate::model::Model::diff(&self.menu, &old.menu, at, out);
-        at.field = base.child(11);
+        at.field = base.child(35);
         crate::model::Model::diff(&self.chat, &old.chat, at, out);
-        at.field = base.child(13);
+        at.field = base.child(37);
         crate::model::Model::diff(&self.notes_log, &old.notes_log, at, out);
         at.field = base;
     }
 
     fn to_value(&self) -> crate::value::Value {
         crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.archaeology),
+            crate::model::Model::to_value(&self.city_state),
+            crate::model::Model::to_value(&self.congress),
+            crate::model::Model::to_value(&self.culture),
+            crate::model::Model::to_value(&self.great_work),
+            crate::model::Model::to_value(&self.mp_vote),
             crate::model::Model::to_value(&self.techs),
             crate::model::Model::to_value(&self.production),
             crate::model::Model::to_value(&self.research),
@@ -3613,14 +6979,20 @@ impl crate::model::Model for Windows {
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(6)?;
+        let f = v.as_struct(12)?;
         Ok(Windows {
-            techs: crate::model::Model::from_value(&f[0])?,
-            production: crate::model::Model::from_value(&f[1])?,
-            research: crate::model::Model::from_value(&f[2])?,
-            menu: crate::model::Model::from_value(&f[3])?,
-            chat: crate::model::Model::from_value(&f[4])?,
-            notes_log: crate::model::Model::from_value(&f[5])?,
+            archaeology: crate::model::Model::from_value(&f[0])?,
+            city_state: crate::model::Model::from_value(&f[1])?,
+            congress: crate::model::Model::from_value(&f[2])?,
+            culture: crate::model::Model::from_value(&f[3])?,
+            great_work: crate::model::Model::from_value(&f[4])?,
+            mp_vote: crate::model::Model::from_value(&f[5])?,
+            techs: crate::model::Model::from_value(&f[6])?,
+            production: crate::model::Model::from_value(&f[7])?,
+            research: crate::model::Model::from_value(&f[8])?,
+            menu: crate::model::Model::from_value(&f[9])?,
+            chat: crate::model::Model::from_value(&f[10])?,
+            notes_log: crate::model::Model::from_value(&f[11])?,
         })
     }
 }
@@ -3787,6 +7159,4570 @@ impl crate::model::Model for Toast {
 impl crate::model::Keyed for Toast {
     fn key(&self) -> crate::value::Key {
         crate::value::Key::from_i32(i32::from(self.seq))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ArchaeologyPlot {
+    pub x: i32,
+    pub y: i32,
+}
+
+impl crate::model::Model for ArchaeologyPlot {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.x, &old.x, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.y, &old.y, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.x),
+            crate::model::Model::to_value(&self.y),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(ArchaeologyPlot {
+            x: crate::model::Model::from_value(&f[0])?,
+            y: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ArchaeologyPlayer {
+    pub id: i32,
+    pub name: crate::value::Text,
+    pub civ_name: crate::value::Text,
+    pub civ: crate::value::AssetRef,
+    pub leader: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+}
+
+impl crate::model::Model for ArchaeologyPlayer {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.leader, &old.leader, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.leader),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(ArchaeologyPlayer {
+            id: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            civ_name: crate::model::Model::from_value(&f[2])?,
+            civ: crate::model::Model::from_value(&f[3])?,
+            leader: crate::model::Model::from_value(&f[4])?,
+            color_bg: crate::model::Model::from_value(&f[5])?,
+            color_fg: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ArchaeologyParticipant {
+    pub role: ArchaeologyRole,
+    pub role_name: crate::value::Text,
+    pub civ_name: crate::value::Text,
+    pub civ: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+}
+
+impl crate::model::Model for ArchaeologyParticipant {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.role, &old.role, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.role_name, &old.role_name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.role),
+            crate::model::Model::to_value(&self.role_name),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(ArchaeologyParticipant {
+            role: crate::model::Model::from_value(&f[0])?,
+            role_name: crate::model::Model::from_value(&f[1])?,
+            civ_name: crate::model::Model::from_value(&f[2])?,
+            civ: crate::model::Model::from_value(&f[3])?,
+            color_bg: crate::model::Model::from_value(&f[4])?,
+            color_fg: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for ArchaeologyParticipant {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_enum(self.role as u16)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ArchaeologyWork {
+    pub name: crate::value::Text,
+    pub r#type: ::std::sync::Arc<str>,
+    pub type_id: i32,
+    pub creator: crate::value::Text,
+    pub civ_name: crate::value::Text,
+}
+
+impl crate::model::Model for ArchaeologyWork {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.r#type, &old.r#type, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.type_id, &old.type_id, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.creator, &old.creator, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.r#type),
+            crate::model::Model::to_value(&self.type_id),
+            crate::model::Model::to_value(&self.creator),
+            crate::model::Model::to_value(&self.civ_name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(ArchaeologyWork {
+            name: crate::model::Model::from_value(&f[0])?,
+            r#type: crate::model::Model::from_value(&f[1])?,
+            type_id: crate::model::Model::from_value(&f[2])?,
+            creator: crate::model::Model::from_value(&f[3])?,
+            civ_name: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ArchaeologyFind {
+    pub kind: ArchaeologyKind,
+    pub kind_name: crate::value::Text,
+    pub era: crate::value::Text,
+    pub participants: crate::model::KeyedList<ArchaeologyParticipant>,
+    pub work: Option<ArchaeologyWork>,
+}
+
+impl crate::model::Model for ArchaeologyFind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.kind_name, &old.kind_name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.era, &old.era, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.participants, &old.participants, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.work, &old.work, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.kind_name),
+            crate::model::Model::to_value(&self.era),
+            crate::model::Model::to_value(&self.participants),
+            crate::model::Model::to_value(&self.work),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(ArchaeologyFind {
+            kind: crate::model::Model::from_value(&f[0])?,
+            kind_name: crate::model::Model::from_value(&f[1])?,
+            era: crate::model::Model::from_value(&f[2])?,
+            participants: crate::model::Model::from_value(&f[3])?,
+            work: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ArchaeologyChoice {
+    pub id: i32,
+    pub kind: ArchaeologyChoiceKind,
+    pub title: crate::value::Text,
+    pub description: crate::value::Text,
+    pub civ_name: Option<crate::value::Text>,
+    pub civ: Option<crate::value::AssetRef>,
+    pub color_bg: Option<u32>,
+    pub color_fg: Option<u32>,
+    pub diplomacy: Option<crate::value::Text>,
+    pub culture: Option<i32>,
+    pub enabled: bool,
+    pub reason: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for ArchaeologyChoice {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.title, &old.title, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.description, &old.description, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.diplomacy, &old.diplomacy, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.culture, &old.culture, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.title),
+            crate::model::Model::to_value(&self.description),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.diplomacy),
+            crate::model::Model::to_value(&self.culture),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(12)?;
+        Ok(ArchaeologyChoice {
+            id: crate::model::Model::from_value(&f[0])?,
+            kind: crate::model::Model::from_value(&f[1])?,
+            title: crate::model::Model::from_value(&f[2])?,
+            description: crate::model::Model::from_value(&f[3])?,
+            civ_name: crate::model::Model::from_value(&f[4])?,
+            civ: crate::model::Model::from_value(&f[5])?,
+            color_bg: crate::model::Model::from_value(&f[6])?,
+            color_fg: crate::model::Model::from_value(&f[7])?,
+            diplomacy: crate::model::Model::from_value(&f[8])?,
+            culture: crate::model::Model::from_value(&f[9])?,
+            enabled: crate::model::Model::from_value(&f[10])?,
+            reason: crate::model::Model::from_value(&f[11])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for ArchaeologyChoice {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateMinor {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub team_id: i32,
+    pub name: crate::value::Text,
+    pub emblem: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+    pub name_color: u32,
+    pub r#trait: CityStateMinorTrait,
+    pub trait_name: crate::value::Text,
+    pub trait_tooltip: crate::value::Text,
+    pub personality: CityStateMinorPersonality,
+    pub personality_name: crate::value::Text,
+    pub personality_tooltip: crate::value::Text,
+    pub has_capital: bool,
+    pub capital_plot: Option<i32>,
+    pub capital_location: Option<Plot>,
+}
+
+impl crate::model::Model for CityStateMinor {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.team_id, &old.team_id, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.name_color, &old.name_color, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.r#trait, &old.r#trait, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.trait_name, &old.trait_name, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.trait_tooltip, &old.trait_tooltip, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.personality, &old.personality, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.personality_name, &old.personality_name, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.personality_tooltip, &old.personality_tooltip, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.has_capital, &old.has_capital, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.capital_plot, &old.capital_plot, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.capital_location, &old.capital_location, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.team_id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.name_color),
+            crate::model::Model::to_value(&self.r#trait),
+            crate::model::Model::to_value(&self.trait_name),
+            crate::model::Model::to_value(&self.trait_tooltip),
+            crate::model::Model::to_value(&self.personality),
+            crate::model::Model::to_value(&self.personality_name),
+            crate::model::Model::to_value(&self.personality_tooltip),
+            crate::model::Model::to_value(&self.has_capital),
+            crate::model::Model::to_value(&self.capital_plot),
+            crate::model::Model::to_value(&self.capital_location),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(17)?;
+        Ok(CityStateMinor {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            team_id: crate::model::Model::from_value(&f[2])?,
+            name: crate::model::Model::from_value(&f[3])?,
+            emblem: crate::model::Model::from_value(&f[4])?,
+            color_bg: crate::model::Model::from_value(&f[5])?,
+            color_fg: crate::model::Model::from_value(&f[6])?,
+            name_color: crate::model::Model::from_value(&f[7])?,
+            r#trait: crate::model::Model::from_value(&f[8])?,
+            trait_name: crate::model::Model::from_value(&f[9])?,
+            trait_tooltip: crate::model::Model::from_value(&f[10])?,
+            personality: crate::model::Model::from_value(&f[11])?,
+            personality_name: crate::model::Model::from_value(&f[12])?,
+            personality_tooltip: crate::model::Model::from_value(&f[13])?,
+            has_capital: crate::model::Model::from_value(&f[14])?,
+            capital_plot: crate::model::Model::from_value(&f[15])?,
+            capital_location: crate::model::Model::from_value(&f[16])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateSpeech {
+    pub kind: CityStateSpeechKind,
+    pub text: crate::value::Text,
+    pub caption: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateSpeech {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.caption, &old.caption, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.text),
+            crate::model::Model::to_value(&self.caption),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CityStateSpeech {
+            kind: crate::model::Model::from_value(&f[0])?,
+            text: crate::model::Model::from_value(&f[1])?,
+            caption: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateStatus {
+    pub kind: CityStateStatusKind,
+    pub style: CityStateStatusStyle,
+    pub label: crate::value::Text,
+    pub influence: i32,
+    pub per_turn: f32,
+    pub resting_point: i32,
+    pub at_rest: bool,
+    pub at_war: bool,
+    pub war_turns: i32,
+    pub war_threshold: i32,
+    pub friend_threshold: i32,
+    pub ally_threshold: i32,
+    pub scale_side: CityStateStatusScaleSide,
+    pub scale_fill_pct: f32,
+    pub scale_marker_pct: f32,
+    pub friend_tick_pct: f32,
+}
+
+impl crate::model::Model for CityStateStatus {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.style, &old.style, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.influence, &old.influence, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.per_turn, &old.per_turn, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.resting_point, &old.resting_point, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.at_rest, &old.at_rest, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.at_war, &old.at_war, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.war_turns, &old.war_turns, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.war_threshold, &old.war_threshold, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.friend_threshold, &old.friend_threshold, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.ally_threshold, &old.ally_threshold, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.scale_side, &old.scale_side, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.scale_fill_pct, &old.scale_fill_pct, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.scale_marker_pct, &old.scale_marker_pct, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.friend_tick_pct, &old.friend_tick_pct, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.style),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.influence),
+            crate::model::Model::to_value(&self.per_turn),
+            crate::model::Model::to_value(&self.resting_point),
+            crate::model::Model::to_value(&self.at_rest),
+            crate::model::Model::to_value(&self.at_war),
+            crate::model::Model::to_value(&self.war_turns),
+            crate::model::Model::to_value(&self.war_threshold),
+            crate::model::Model::to_value(&self.friend_threshold),
+            crate::model::Model::to_value(&self.ally_threshold),
+            crate::model::Model::to_value(&self.scale_side),
+            crate::model::Model::to_value(&self.scale_fill_pct),
+            crate::model::Model::to_value(&self.scale_marker_pct),
+            crate::model::Model::to_value(&self.friend_tick_pct),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(16)?;
+        Ok(CityStateStatus {
+            kind: crate::model::Model::from_value(&f[0])?,
+            style: crate::model::Model::from_value(&f[1])?,
+            label: crate::model::Model::from_value(&f[2])?,
+            influence: crate::model::Model::from_value(&f[3])?,
+            per_turn: crate::model::Model::from_value(&f[4])?,
+            resting_point: crate::model::Model::from_value(&f[5])?,
+            at_rest: crate::model::Model::from_value(&f[6])?,
+            at_war: crate::model::Model::from_value(&f[7])?,
+            war_turns: crate::model::Model::from_value(&f[8])?,
+            war_threshold: crate::model::Model::from_value(&f[9])?,
+            friend_threshold: crate::model::Model::from_value(&f[10])?,
+            ally_threshold: crate::model::Model::from_value(&f[11])?,
+            scale_side: crate::model::Model::from_value(&f[12])?,
+            scale_fill_pct: crate::model::Model::from_value(&f[13])?,
+            scale_marker_pct: crate::model::Model::from_value(&f[14])?,
+            friend_tick_pct: crate::model::Model::from_value(&f[15])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateAlly {
+    pub kind: CityStateAllyKind,
+    pub player_id: Option<i32>,
+    pub name: crate::value::Text,
+    pub emblem: Option<crate::value::AssetRef>,
+    pub color_bg: Option<u32>,
+    pub color_fg: Option<u32>,
+    pub influence: Option<i32>,
+    pub influence_to_overtake: Option<i32>,
+    pub ally_turns: Option<i32>,
+    pub marriage: bool,
+    pub refuses_bribes: bool,
+    pub tooltip: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateAlly {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.influence, &old.influence, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.influence_to_overtake, &old.influence_to_overtake, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.ally_turns, &old.ally_turns, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.marriage, &old.marriage, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.refuses_bribes, &old.refuses_bribes, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.tooltip, &old.tooltip, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.influence),
+            crate::model::Model::to_value(&self.influence_to_overtake),
+            crate::model::Model::to_value(&self.ally_turns),
+            crate::model::Model::to_value(&self.marriage),
+            crate::model::Model::to_value(&self.refuses_bribes),
+            crate::model::Model::to_value(&self.tooltip),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(12)?;
+        Ok(CityStateAlly {
+            kind: crate::model::Model::from_value(&f[0])?,
+            player_id: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            emblem: crate::model::Model::from_value(&f[3])?,
+            color_bg: crate::model::Model::from_value(&f[4])?,
+            color_fg: crate::model::Model::from_value(&f[5])?,
+            influence: crate::model::Model::from_value(&f[6])?,
+            influence_to_overtake: crate::model::Model::from_value(&f[7])?,
+            ally_turns: crate::model::Model::from_value(&f[8])?,
+            marriage: crate::model::Model::from_value(&f[9])?,
+            refuses_bribes: crate::model::Model::from_value(&f[10])?,
+            tooltip: crate::model::Model::from_value(&f[11])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateProtectors {
+    pub key: ::std::sync::Arc<str>,
+    pub player_id: i32,
+    pub name: crate::value::Text,
+    pub is_you: bool,
+    pub emblem: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+}
+
+impl crate::model::Model for CityStateProtectors {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.is_you, &old.is_you, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.is_you),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(CityStateProtectors {
+            key: crate::model::Model::from_value(&f[0])?,
+            player_id: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            is_you: crate::model::Model::from_value(&f[3])?,
+            emblem: crate::model::Model::from_value(&f[4])?,
+            color_bg: crate::model::Model::from_value(&f[5])?,
+            color_fg: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityStateProtectors {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateEnemies {
+    pub key: ::std::sync::Arc<str>,
+    pub player_id: i32,
+    pub name: crate::value::Text,
+    pub is_you: bool,
+    pub emblem: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+}
+
+impl crate::model::Model for CityStateEnemies {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.is_you, &old.is_you, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.is_you),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(CityStateEnemies {
+            key: crate::model::Model::from_value(&f[0])?,
+            player_id: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            is_you: crate::model::Model::from_value(&f[3])?,
+            emblem: crate::model::Model::from_value(&f[4])?,
+            color_bg: crate::model::Model::from_value(&f[5])?,
+            color_fg: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityStateEnemies {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateBonuses {
+    pub key: ::std::sync::Arc<str>,
+    pub kind: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub text: crate::value::Text,
+    pub short: crate::value::Text,
+    pub next_in: Option<i32>,
+}
+
+impl crate::model::Model for CityStateBonuses {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.short, &old.short, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.next_in, &old.next_in, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.text),
+            crate::model::Model::to_value(&self.short),
+            crate::model::Model::to_value(&self.next_in),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(CityStateBonuses {
+            key: crate::model::Model::from_value(&f[0])?,
+            kind: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            text: crate::model::Model::from_value(&f[3])?,
+            short: crate::model::Model::from_value(&f[4])?,
+            next_in: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityStateBonuses {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateResources {
+    pub key: ::std::sync::Arc<str>,
+    pub icon: crate::value::AssetRef,
+    pub name: crate::value::Text,
+    pub count: i32,
+    pub kind: CityStateResourcesKind,
+    pub exported: bool,
+}
+
+impl crate::model::Model for CityStateResources {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.count, &old.count, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.exported, &old.exported, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.count),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.exported),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(CityStateResources {
+            key: crate::model::Model::from_value(&f[0])?,
+            icon: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            count: crate::model::Model::from_value(&f[3])?,
+            kind: crate::model::Model::from_value(&f[4])?,
+            exported: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityStateResources {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateQuests {
+    pub key: ::std::sync::Arc<str>,
+    pub r#type: ::std::sync::Arc<str>,
+    pub icon: crate::value::AssetRef,
+    pub title: crate::value::Text,
+    pub detail: crate::value::Text,
+    pub tooltip: crate::value::Text,
+    pub turns_left: Option<i32>,
+    pub plot: Option<i32>,
+    pub can_locate: bool,
+    pub contest_you: Option<i32>,
+    pub contest_leader: Option<i32>,
+    pub contest_leader_name: Option<crate::value::Text>,
+    pub contest_you_lead: Option<bool>,
+}
+
+impl crate::model::Model for CityStateQuests {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.r#type, &old.r#type, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.title, &old.title, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.detail, &old.detail, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.tooltip, &old.tooltip, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.turns_left, &old.turns_left, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.plot, &old.plot, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.can_locate, &old.can_locate, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.contest_you, &old.contest_you, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.contest_leader, &old.contest_leader, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.contest_leader_name, &old.contest_leader_name, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.contest_you_lead, &old.contest_you_lead, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.r#type),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.title),
+            crate::model::Model::to_value(&self.detail),
+            crate::model::Model::to_value(&self.tooltip),
+            crate::model::Model::to_value(&self.turns_left),
+            crate::model::Model::to_value(&self.plot),
+            crate::model::Model::to_value(&self.can_locate),
+            crate::model::Model::to_value(&self.contest_you),
+            crate::model::Model::to_value(&self.contest_leader),
+            crate::model::Model::to_value(&self.contest_leader_name),
+            crate::model::Model::to_value(&self.contest_you_lead),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(13)?;
+        Ok(CityStateQuests {
+            key: crate::model::Model::from_value(&f[0])?,
+            r#type: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            title: crate::model::Model::from_value(&f[3])?,
+            detail: crate::model::Model::from_value(&f[4])?,
+            tooltip: crate::model::Model::from_value(&f[5])?,
+            turns_left: crate::model::Model::from_value(&f[6])?,
+            plot: crate::model::Model::from_value(&f[7])?,
+            can_locate: crate::model::Model::from_value(&f[8])?,
+            contest_you: crate::model::Model::from_value(&f[9])?,
+            contest_leader: crate::model::Model::from_value(&f[10])?,
+            contest_leader_name: crate::model::Model::from_value(&f[11])?,
+            contest_you_lead: crate::model::Model::from_value(&f[12])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityStateQuests {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateActionsPeace {
+    pub visible: bool,
+    pub enabled: bool,
+    pub turns: i32,
+    pub reason: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateActionsPeace {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.visible, &old.visible, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.visible),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(CityStateActionsPeace {
+            visible: crate::model::Model::from_value(&f[0])?,
+            enabled: crate::model::Model::from_value(&f[1])?,
+            turns: crate::model::Model::from_value(&f[2])?,
+            reason: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateActionsWar {
+    pub visible: bool,
+    pub enabled: bool,
+    pub reason: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateActionsWar {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.visible, &old.visible, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.visible),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CityStateActionsWar {
+            visible: crate::model::Model::from_value(&f[0])?,
+            enabled: crate::model::Model::from_value(&f[1])?,
+            reason: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateActionsGifts {
+    pub visible: bool,
+    pub enabled: bool,
+}
+
+impl crate::model::Model for CityStateActionsGifts {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.visible, &old.visible, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.visible),
+            crate::model::Model::to_value(&self.enabled),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(CityStateActionsGifts {
+            visible: crate::model::Model::from_value(&f[0])?,
+            enabled: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateActionsTribute {
+    pub visible: bool,
+    pub enabled: bool,
+    pub subtitle: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateActionsTribute {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.visible, &old.visible, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.subtitle, &old.subtitle, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.visible),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.subtitle),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CityStateActionsTribute {
+            visible: crate::model::Model::from_value(&f[0])?,
+            enabled: crate::model::Model::from_value(&f[1])?,
+            subtitle: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateActionsPledge {
+    pub visible: bool,
+    pub state: CityStateActionsPledgeState,
+    pub enabled: bool,
+    pub turns: i32,
+    pub reason: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateActionsPledge {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.visible, &old.visible, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.state, &old.state, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.visible),
+            crate::model::Model::to_value(&self.state),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(CityStateActionsPledge {
+            visible: crate::model::Model::from_value(&f[0])?,
+            state: crate::model::Model::from_value(&f[1])?,
+            enabled: crate::model::Model::from_value(&f[2])?,
+            turns: crate::model::Model::from_value(&f[3])?,
+            reason: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateActionsUnitSpawning {
+    pub visible: bool,
+    pub on: bool,
+    pub subtitle: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateActionsUnitSpawning {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.visible, &old.visible, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.on, &old.on, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.subtitle, &old.subtitle, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.visible),
+            crate::model::Model::to_value(&self.on),
+            crate::model::Model::to_value(&self.subtitle),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CityStateActionsUnitSpawning {
+            visible: crate::model::Model::from_value(&f[0])?,
+            on: crate::model::Model::from_value(&f[1])?,
+            subtitle: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateActionsBuyout {
+    pub visible: bool,
+    pub enabled: bool,
+    pub cost: i32,
+    pub reason: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateActionsBuyout {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.visible, &old.visible, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.cost, &old.cost, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.visible),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.cost),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(CityStateActionsBuyout {
+            visible: crate::model::Model::from_value(&f[0])?,
+            enabled: crate::model::Model::from_value(&f[1])?,
+            cost: crate::model::Model::from_value(&f[2])?,
+            reason: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateActions {
+    pub peace: CityStateActionsPeace,
+    pub war: CityStateActionsWar,
+    pub gifts: CityStateActionsGifts,
+    pub tribute: CityStateActionsTribute,
+    pub pledge: CityStateActionsPledge,
+    pub unit_spawning: CityStateActionsUnitSpawning,
+    pub buyout: CityStateActionsBuyout,
+}
+
+impl crate::model::Model for CityStateActions {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.peace, &old.peace, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.war, &old.war, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.gifts, &old.gifts, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.tribute, &old.tribute, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.pledge, &old.pledge, at, out);
+        at.field = base.child(22);
+        crate::model::Model::diff(&self.unit_spawning, &old.unit_spawning, at, out);
+        at.field = base.child(26);
+        crate::model::Model::diff(&self.buyout, &old.buyout, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.peace),
+            crate::model::Model::to_value(&self.war),
+            crate::model::Model::to_value(&self.gifts),
+            crate::model::Model::to_value(&self.tribute),
+            crate::model::Model::to_value(&self.pledge),
+            crate::model::Model::to_value(&self.unit_spawning),
+            crate::model::Model::to_value(&self.buyout),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(CityStateActions {
+            peace: crate::model::Model::from_value(&f[0])?,
+            war: crate::model::Model::from_value(&f[1])?,
+            gifts: crate::model::Model::from_value(&f[2])?,
+            tribute: crate::model::Model::from_value(&f[3])?,
+            pledge: crate::model::Model::from_value(&f[4])?,
+            unit_spawning: crate::model::Model::from_value(&f[5])?,
+            buyout: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateGiftsGold {
+    pub key: ::std::sync::Arc<str>,
+    pub index: i32,
+    pub amount: i32,
+    pub influence: i32,
+    pub enabled: bool,
+    pub reason: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateGiftsGold {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.index, &old.index, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.amount, &old.amount, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.influence, &old.influence, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.index),
+            crate::model::Model::to_value(&self.amount),
+            crate::model::Model::to_value(&self.influence),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(CityStateGiftsGold {
+            key: crate::model::Model::from_value(&f[0])?,
+            index: crate::model::Model::from_value(&f[1])?,
+            amount: crate::model::Model::from_value(&f[2])?,
+            influence: crate::model::Model::from_value(&f[3])?,
+            enabled: crate::model::Model::from_value(&f[4])?,
+            reason: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityStateGiftsGold {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateGiftsUnit {
+    pub enabled: bool,
+    pub influence_min: i32,
+    pub influence_max: i32,
+    pub travel_turns: i32,
+    pub reason: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateGiftsUnit {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.influence_min, &old.influence_min, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.influence_max, &old.influence_max, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.travel_turns, &old.travel_turns, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.influence_min),
+            crate::model::Model::to_value(&self.influence_max),
+            crate::model::Model::to_value(&self.travel_turns),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(CityStateGiftsUnit {
+            enabled: crate::model::Model::from_value(&f[0])?,
+            influence_min: crate::model::Model::from_value(&f[1])?,
+            influence_max: crate::model::Model::from_value(&f[2])?,
+            travel_turns: crate::model::Model::from_value(&f[3])?,
+            reason: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateGiftsImprovement {
+    pub enabled: bool,
+    pub cost: i32,
+    pub reason: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateGiftsImprovement {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.cost, &old.cost, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.cost),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CityStateGiftsImprovement {
+            enabled: crate::model::Model::from_value(&f[0])?,
+            cost: crate::model::Model::from_value(&f[1])?,
+            reason: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateGifts {
+    pub gold: crate::model::KeyedList<CityStateGiftsGold>,
+    pub gold_hint: crate::value::Text,
+    pub unit: CityStateGiftsUnit,
+    pub improvement: CityStateGiftsImprovement,
+}
+
+impl crate::model::Model for CityStateGifts {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.gold, &old.gold, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.gold_hint, &old.gold_hint, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.unit, &old.unit, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.improvement, &old.improvement, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.gold),
+            crate::model::Model::to_value(&self.gold_hint),
+            crate::model::Model::to_value(&self.unit),
+            crate::model::Model::to_value(&self.improvement),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(CityStateGifts {
+            gold: crate::model::Model::from_value(&f[0])?,
+            gold_hint: crate::model::Model::from_value(&f[1])?,
+            unit: crate::model::Model::from_value(&f[2])?,
+            improvement: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateTributeGold {
+    pub enabled: bool,
+    pub amount: i32,
+    pub influence_loss: i32,
+    pub reason: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateTributeGold {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.amount, &old.amount, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.influence_loss, &old.influence_loss, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.amount),
+            crate::model::Model::to_value(&self.influence_loss),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(CityStateTributeGold {
+            enabled: crate::model::Model::from_value(&f[0])?,
+            amount: crate::model::Model::from_value(&f[1])?,
+            influence_loss: crate::model::Model::from_value(&f[2])?,
+            reason: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateTributeUnit {
+    pub enabled: bool,
+    pub unit_name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub influence_loss: i32,
+    pub reason: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateTributeUnit {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.unit_name, &old.unit_name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.influence_loss, &old.influence_loss, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.unit_name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.influence_loss),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(CityStateTributeUnit {
+            enabled: crate::model::Model::from_value(&f[0])?,
+            unit_name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            influence_loss: crate::model::Model::from_value(&f[3])?,
+            reason: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateTribute {
+    pub pressure: Option<i32>,
+    pub pressure_gold_needed: Option<i32>,
+    pub pressure_unit_needed: Option<i32>,
+    pub tooltip: crate::value::Text,
+    pub gold: CityStateTributeGold,
+    pub unit: CityStateTributeUnit,
+    pub confirm_influence_after: i32,
+    pub confirm_status_after: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateTribute {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.pressure, &old.pressure, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.pressure_gold_needed, &old.pressure_gold_needed, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.pressure_unit_needed, &old.pressure_unit_needed, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.tooltip, &old.tooltip, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.gold, &old.gold, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.unit, &old.unit, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.confirm_influence_after, &old.confirm_influence_after, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.confirm_status_after, &old.confirm_status_after, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.pressure),
+            crate::model::Model::to_value(&self.pressure_gold_needed),
+            crate::model::Model::to_value(&self.pressure_unit_needed),
+            crate::model::Model::to_value(&self.tooltip),
+            crate::model::Model::to_value(&self.gold),
+            crate::model::Model::to_value(&self.unit),
+            crate::model::Model::to_value(&self.confirm_influence_after),
+            crate::model::Model::to_value(&self.confirm_status_after),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(CityStateTribute {
+            pressure: crate::model::Model::from_value(&f[0])?,
+            pressure_gold_needed: crate::model::Model::from_value(&f[1])?,
+            pressure_unit_needed: crate::model::Model::from_value(&f[2])?,
+            tooltip: crate::model::Model::from_value(&f[3])?,
+            gold: crate::model::Model::from_value(&f[4])?,
+            unit: crate::model::Model::from_value(&f[5])?,
+            confirm_influence_after: crate::model::Model::from_value(&f[6])?,
+            confirm_status_after: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateEnterLand {
+    pub owner_name: crate::value::Text,
+    pub owner_kind: CityStateEnterLandOwnerKind,
+    pub owner_team_id: i32,
+    pub subtitle: crate::value::Text,
+    pub unit_id: i32,
+    pub unit_name: crate::value::Text,
+    pub plot: i32,
+    pub queue: bool,
+    pub text: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateEnterLand {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.owner_name, &old.owner_name, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.owner_kind, &old.owner_kind, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.owner_team_id, &old.owner_team_id, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.subtitle, &old.subtitle, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.unit_id, &old.unit_id, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.unit_name, &old.unit_name, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.plot, &old.plot, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.queue, &old.queue, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.owner_name),
+            crate::model::Model::to_value(&self.owner_kind),
+            crate::model::Model::to_value(&self.owner_team_id),
+            crate::model::Model::to_value(&self.subtitle),
+            crate::model::Model::to_value(&self.unit_id),
+            crate::model::Model::to_value(&self.unit_name),
+            crate::model::Model::to_value(&self.plot),
+            crate::model::Model::to_value(&self.queue),
+            crate::model::Model::to_value(&self.text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(9)?;
+        Ok(CityStateEnterLand {
+            owner_name: crate::model::Model::from_value(&f[0])?,
+            owner_kind: crate::model::Model::from_value(&f[1])?,
+            owner_team_id: crate::model::Model::from_value(&f[2])?,
+            subtitle: crate::model::Model::from_value(&f[3])?,
+            unit_id: crate::model::Model::from_value(&f[4])?,
+            unit_name: crate::model::Model::from_value(&f[5])?,
+            plot: crate::model::Model::from_value(&f[6])?,
+            queue: crate::model::Model::from_value(&f[7])?,
+            text: crate::model::Model::from_value(&f[8])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateLiberatePreview {
+    pub key: ::std::sync::Arc<str>,
+    pub icon: crate::value::AssetRef,
+    pub text: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateLiberatePreview {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CityStateLiberatePreview {
+            key: crate::model::Model::from_value(&f[0])?,
+            icon: crate::model::Model::from_value(&f[1])?,
+            text: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityStateLiberatePreview {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStateLiberate {
+    pub city_id: i32,
+    pub city_key: ::std::sync::Arc<str>,
+    pub city_name: crate::value::Text,
+    pub captured_from: crate::value::Text,
+    pub subtitle: crate::value::Text,
+    pub text: crate::value::Text,
+    pub preview: crate::model::KeyedList<CityStateLiberatePreview>,
+    pub can_puppet: bool,
+    pub annex_text: crate::value::Text,
+}
+
+impl crate::model::Model for CityStateLiberate {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.city_id, &old.city_id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.city_key, &old.city_key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.city_name, &old.city_name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.captured_from, &old.captured_from, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.subtitle, &old.subtitle, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.preview, &old.preview, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.can_puppet, &old.can_puppet, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.annex_text, &old.annex_text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.city_id),
+            crate::model::Model::to_value(&self.city_key),
+            crate::model::Model::to_value(&self.city_name),
+            crate::model::Model::to_value(&self.captured_from),
+            crate::model::Model::to_value(&self.subtitle),
+            crate::model::Model::to_value(&self.text),
+            crate::model::Model::to_value(&self.preview),
+            crate::model::Model::to_value(&self.can_puppet),
+            crate::model::Model::to_value(&self.annex_text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(9)?;
+        Ok(CityStateLiberate {
+            city_id: crate::model::Model::from_value(&f[0])?,
+            city_key: crate::model::Model::from_value(&f[1])?,
+            city_name: crate::model::Model::from_value(&f[2])?,
+            captured_from: crate::model::Model::from_value(&f[3])?,
+            subtitle: crate::model::Model::from_value(&f[4])?,
+            text: crate::model::Model::from_value(&f[5])?,
+            preview: crate::model::Model::from_value(&f[6])?,
+            can_puppet: crate::model::Model::from_value(&f[7])?,
+            annex_text: crate::model::Model::from_value(&f[8])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeagueMembersTooltipStances {
+    pub key: ::std::sync::Arc<str>,
+    pub resolution: crate::value::Text,
+    pub stance: crate::value::Text,
+    pub strength: crate::value::Text,
+    pub good: Option<bool>,
+}
+
+impl crate::model::Model for CongressLeagueMembersTooltipStances {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.resolution, &old.resolution, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.stance, &old.stance, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.strength, &old.strength, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.good, &old.good, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.resolution),
+            crate::model::Model::to_value(&self.stance),
+            crate::model::Model::to_value(&self.strength),
+            crate::model::Model::to_value(&self.good),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(CongressLeagueMembersTooltipStances {
+            key: crate::model::Model::from_value(&f[0])?,
+            resolution: crate::model::Model::from_value(&f[1])?,
+            stance: crate::model::Model::from_value(&f[2])?,
+            strength: crate::model::Model::from_value(&f[3])?,
+            good: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressLeagueMembersTooltipStances {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeagueMembersTooltip {
+    pub delegates_membership: i32,
+    pub delegates_city_states: i32,
+    pub goals: crate::value::Text,
+    pub ideology: crate::value::Text,
+    pub ideology_same: bool,
+    pub diplomat_in: crate::value::Text,
+    pub stances: crate::model::KeyedList<CongressLeagueMembersTooltipStances>,
+}
+
+impl crate::model::Model for CongressLeagueMembersTooltip {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.delegates_membership, &old.delegates_membership, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.delegates_city_states, &old.delegates_city_states, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.goals, &old.goals, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.ideology, &old.ideology, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.ideology_same, &old.ideology_same, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.diplomat_in, &old.diplomat_in, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.stances, &old.stances, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.delegates_membership),
+            crate::model::Model::to_value(&self.delegates_city_states),
+            crate::model::Model::to_value(&self.goals),
+            crate::model::Model::to_value(&self.ideology),
+            crate::model::Model::to_value(&self.ideology_same),
+            crate::model::Model::to_value(&self.diplomat_in),
+            crate::model::Model::to_value(&self.stances),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(CongressLeagueMembersTooltip {
+            delegates_membership: crate::model::Model::from_value(&f[0])?,
+            delegates_city_states: crate::model::Model::from_value(&f[1])?,
+            goals: crate::model::Model::from_value(&f[2])?,
+            ideology: crate::model::Model::from_value(&f[3])?,
+            ideology_same: crate::model::Model::from_value(&f[4])?,
+            diplomat_in: crate::model::Model::from_value(&f[5])?,
+            stances: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeagueMembers {
+    pub details: crate::value::Text,
+    pub key: ::std::sync::Arc<str>,
+    pub player_id: i32,
+    pub name: crate::value::Text,
+    pub nick: Option<crate::value::Text>,
+    pub civ_name: crate::value::Text,
+    pub portrait: crate::value::AssetRef,
+    pub emblem: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+    pub is_you: bool,
+    pub is_host: bool,
+    pub is_human: bool,
+    pub delegates: i32,
+    pub delegates_left: Option<i32>,
+    pub delegates_spent: Option<i32>,
+    pub can_propose: bool,
+    pub our_diplomat: bool,
+    pub tooltip: Option<CongressLeagueMembersTooltip>,
+}
+
+impl crate::model::Model for CongressLeagueMembers {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.details, &old.details, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.nick, &old.nick, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.is_you, &old.is_you, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.is_host, &old.is_host, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.is_human, &old.is_human, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.delegates, &old.delegates, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.delegates_left, &old.delegates_left, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.delegates_spent, &old.delegates_spent, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.can_propose, &old.can_propose, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.our_diplomat, &old.our_diplomat, at, out);
+        at.field = base.child(18);
+        crate::model::Model::diff(&self.tooltip, &old.tooltip, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.details),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.nick),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.is_you),
+            crate::model::Model::to_value(&self.is_host),
+            crate::model::Model::to_value(&self.is_human),
+            crate::model::Model::to_value(&self.delegates),
+            crate::model::Model::to_value(&self.delegates_left),
+            crate::model::Model::to_value(&self.delegates_spent),
+            crate::model::Model::to_value(&self.can_propose),
+            crate::model::Model::to_value(&self.our_diplomat),
+            crate::model::Model::to_value(&self.tooltip),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(19)?;
+        Ok(CongressLeagueMembers {
+            details: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            player_id: crate::model::Model::from_value(&f[2])?,
+            name: crate::model::Model::from_value(&f[3])?,
+            nick: crate::model::Model::from_value(&f[4])?,
+            civ_name: crate::model::Model::from_value(&f[5])?,
+            portrait: crate::model::Model::from_value(&f[6])?,
+            emblem: crate::model::Model::from_value(&f[7])?,
+            color_bg: crate::model::Model::from_value(&f[8])?,
+            color_fg: crate::model::Model::from_value(&f[9])?,
+            is_you: crate::model::Model::from_value(&f[10])?,
+            is_host: crate::model::Model::from_value(&f[11])?,
+            is_human: crate::model::Model::from_value(&f[12])?,
+            delegates: crate::model::Model::from_value(&f[13])?,
+            delegates_left: crate::model::Model::from_value(&f[14])?,
+            delegates_spent: crate::model::Model::from_value(&f[15])?,
+            can_propose: crate::model::Model::from_value(&f[16])?,
+            our_diplomat: crate::model::Model::from_value(&f[17])?,
+            tooltip: crate::model::Model::from_value(&f[18])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressLeagueMembers {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeagueProposalsCandidate {
+    pub key: ::std::sync::Arc<str>,
+    pub player_id: i32,
+    pub name: crate::value::Text,
+    pub nick: Option<crate::value::Text>,
+    pub civ_name: crate::value::Text,
+    pub portrait: crate::value::AssetRef,
+    pub emblem: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+    pub is_you: bool,
+}
+
+impl crate::model::Model for CongressLeagueProposalsCandidate {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.nick, &old.nick, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.is_you, &old.is_you, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.nick),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.is_you),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(10)?;
+        Ok(CongressLeagueProposalsCandidate {
+            key: crate::model::Model::from_value(&f[0])?,
+            player_id: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            nick: crate::model::Model::from_value(&f[3])?,
+            civ_name: crate::model::Model::from_value(&f[4])?,
+            portrait: crate::model::Model::from_value(&f[5])?,
+            emblem: crate::model::Model::from_value(&f[6])?,
+            color_bg: crate::model::Model::from_value(&f[7])?,
+            color_fg: crate::model::Model::from_value(&f[8])?,
+            is_you: crate::model::Model::from_value(&f[9])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeagueProposalsCandidates {
+    pub key: ::std::sync::Arc<str>,
+    pub player_id: i32,
+    pub name: crate::value::Text,
+    pub nick: Option<crate::value::Text>,
+    pub civ_name: crate::value::Text,
+    pub portrait: crate::value::AssetRef,
+    pub emblem: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+    pub is_you: bool,
+    pub enabled: bool,
+    pub reason: crate::value::Text,
+}
+
+impl crate::model::Model for CongressLeagueProposalsCandidates {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.nick, &old.nick, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.is_you, &old.is_you, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.nick),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.is_you),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(12)?;
+        Ok(CongressLeagueProposalsCandidates {
+            key: crate::model::Model::from_value(&f[0])?,
+            player_id: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            nick: crate::model::Model::from_value(&f[3])?,
+            civ_name: crate::model::Model::from_value(&f[4])?,
+            portrait: crate::model::Model::from_value(&f[5])?,
+            emblem: crate::model::Model::from_value(&f[6])?,
+            color_bg: crate::model::Model::from_value(&f[7])?,
+            color_fg: crate::model::Model::from_value(&f[8])?,
+            is_you: crate::model::Model::from_value(&f[9])?,
+            enabled: crate::model::Model::from_value(&f[10])?,
+            reason: crate::model::Model::from_value(&f[11])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressLeagueProposalsCandidates {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeagueProposalsBy {
+    pub key: ::std::sync::Arc<str>,
+    pub player_id: i32,
+    pub name: crate::value::Text,
+    pub nick: Option<crate::value::Text>,
+    pub civ_name: crate::value::Text,
+    pub portrait: crate::value::AssetRef,
+    pub emblem: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+    pub is_you: bool,
+}
+
+impl crate::model::Model for CongressLeagueProposalsBy {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.nick, &old.nick, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.is_you, &old.is_you, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.nick),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.is_you),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(10)?;
+        Ok(CongressLeagueProposalsBy {
+            key: crate::model::Model::from_value(&f[0])?,
+            player_id: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            nick: crate::model::Model::from_value(&f[3])?,
+            civ_name: crate::model::Model::from_value(&f[4])?,
+            portrait: crate::model::Model::from_value(&f[5])?,
+            emblem: crate::model::Model::from_value(&f[6])?,
+            color_bg: crate::model::Model::from_value(&f[7])?,
+            color_fg: crate::model::Model::from_value(&f[8])?,
+            is_you: crate::model::Model::from_value(&f[9])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeagueProposals {
+    pub postponed: bool,
+    pub vote_kind: CongressLeagueProposalsVoteKind,
+    pub candidate: Option<CongressLeagueProposalsCandidate>,
+    pub candidates: crate::model::KeyedList<CongressLeagueProposalsCandidates>,
+    pub can_up: bool,
+    pub can_down: bool,
+    pub project_icon: Option<crate::value::AssetRef>,
+    pub key: ::std::sync::Arc<str>,
+    pub kind: CongressLeagueProposalsKind,
+    pub resolution_id: i32,
+    pub resolution_type: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub param_name: Option<crate::value::Text>,
+    pub by: Option<CongressLeagueProposalsBy>,
+    pub effect: crate::value::Text,
+    pub description: crate::value::Text,
+    pub my_votes: i32,
+    pub state: CongressLeagueProposalsState,
+    pub state_label: crate::value::Text,
+}
+
+impl crate::model::Model for CongressLeagueProposals {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.postponed, &old.postponed, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.vote_kind, &old.vote_kind, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.candidate, &old.candidate, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.candidates, &old.candidates, at, out);
+        at.field = base.child(26);
+        crate::model::Model::diff(&self.can_up, &old.can_up, at, out);
+        at.field = base.child(27);
+        crate::model::Model::diff(&self.can_down, &old.can_down, at, out);
+        at.field = base.child(28);
+        crate::model::Model::diff(&self.project_icon, &old.project_icon, at, out);
+        at.field = base.child(29);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(30);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(31);
+        crate::model::Model::diff(&self.resolution_id, &old.resolution_id, at, out);
+        at.field = base.child(32);
+        crate::model::Model::diff(&self.resolution_type, &old.resolution_type, at, out);
+        at.field = base.child(33);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(34);
+        crate::model::Model::diff(&self.param_name, &old.param_name, at, out);
+        at.field = base.child(35);
+        crate::model::Model::diff(&self.by, &old.by, at, out);
+        at.field = base.child(46);
+        crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base.child(47);
+        crate::model::Model::diff(&self.description, &old.description, at, out);
+        at.field = base.child(48);
+        crate::model::Model::diff(&self.my_votes, &old.my_votes, at, out);
+        at.field = base.child(49);
+        crate::model::Model::diff(&self.state, &old.state, at, out);
+        at.field = base.child(50);
+        crate::model::Model::diff(&self.state_label, &old.state_label, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.postponed),
+            crate::model::Model::to_value(&self.vote_kind),
+            crate::model::Model::to_value(&self.candidate),
+            crate::model::Model::to_value(&self.candidates),
+            crate::model::Model::to_value(&self.can_up),
+            crate::model::Model::to_value(&self.can_down),
+            crate::model::Model::to_value(&self.project_icon),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.resolution_id),
+            crate::model::Model::to_value(&self.resolution_type),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.param_name),
+            crate::model::Model::to_value(&self.by),
+            crate::model::Model::to_value(&self.effect),
+            crate::model::Model::to_value(&self.description),
+            crate::model::Model::to_value(&self.my_votes),
+            crate::model::Model::to_value(&self.state),
+            crate::model::Model::to_value(&self.state_label),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(19)?;
+        Ok(CongressLeagueProposals {
+            postponed: crate::model::Model::from_value(&f[0])?,
+            vote_kind: crate::model::Model::from_value(&f[1])?,
+            candidate: crate::model::Model::from_value(&f[2])?,
+            candidates: crate::model::Model::from_value(&f[3])?,
+            can_up: crate::model::Model::from_value(&f[4])?,
+            can_down: crate::model::Model::from_value(&f[5])?,
+            project_icon: crate::model::Model::from_value(&f[6])?,
+            key: crate::model::Model::from_value(&f[7])?,
+            kind: crate::model::Model::from_value(&f[8])?,
+            resolution_id: crate::model::Model::from_value(&f[9])?,
+            resolution_type: crate::model::Model::from_value(&f[10])?,
+            name: crate::model::Model::from_value(&f[11])?,
+            param_name: crate::model::Model::from_value(&f[12])?,
+            by: crate::model::Model::from_value(&f[13])?,
+            effect: crate::model::Model::from_value(&f[14])?,
+            description: crate::model::Model::from_value(&f[15])?,
+            my_votes: crate::model::Model::from_value(&f[16])?,
+            state: crate::model::Model::from_value(&f[17])?,
+            state_label: crate::model::Model::from_value(&f[18])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressLeagueProposals {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeagueEffects {
+    pub key: ::std::sync::Arc<str>,
+    pub icon: crate::value::AssetRef,
+    pub text: crate::value::Text,
+    pub since_turn: Option<i32>,
+}
+
+impl crate::model::Model for CongressLeagueEffects {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.since_turn, &old.since_turn, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.text),
+            crate::model::Model::to_value(&self.since_turn),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(CongressLeagueEffects {
+            key: crate::model::Model::from_value(&f[0])?,
+            icon: crate::model::Model::from_value(&f[1])?,
+            text: crate::model::Model::from_value(&f[2])?,
+            since_turn: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressLeagueEffects {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeagueSlots {
+    pub key: ::std::sync::Arc<str>,
+    pub index: i32,
+    pub filled: bool,
+    pub kind: Option<CongressLeagueSlotsKind>,
+    pub resolution_id: Option<i32>,
+    pub resolution_type: Option<::std::sync::Arc<str>>,
+    pub param: i32,
+    pub name: crate::value::Text,
+    pub param_name: Option<crate::value::Text>,
+    pub effect: crate::value::Text,
+}
+
+impl crate::model::Model for CongressLeagueSlots {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.index, &old.index, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.filled, &old.filled, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.resolution_id, &old.resolution_id, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.resolution_type, &old.resolution_type, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.param, &old.param, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.param_name, &old.param_name, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.index),
+            crate::model::Model::to_value(&self.filled),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.resolution_id),
+            crate::model::Model::to_value(&self.resolution_type),
+            crate::model::Model::to_value(&self.param),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.param_name),
+            crate::model::Model::to_value(&self.effect),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(10)?;
+        Ok(CongressLeagueSlots {
+            key: crate::model::Model::from_value(&f[0])?,
+            index: crate::model::Model::from_value(&f[1])?,
+            filled: crate::model::Model::from_value(&f[2])?,
+            kind: crate::model::Model::from_value(&f[3])?,
+            resolution_id: crate::model::Model::from_value(&f[4])?,
+            resolution_type: crate::model::Model::from_value(&f[5])?,
+            param: crate::model::Model::from_value(&f[6])?,
+            name: crate::model::Model::from_value(&f[7])?,
+            param_name: crate::model::Model::from_value(&f[8])?,
+            effect: crate::model::Model::from_value(&f[9])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressLeagueSlots {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeagueChoicesRepeal {
+    pub needs: CongressLeagueChoicesRepealNeeds,
+    pub enabled: bool,
+    pub reason: crate::value::Text,
+    pub params: crate::model::KeyedList<CongressLeagueChoicesEnactParams>,
+    pub key: ::std::sync::Arc<str>,
+    pub kind: CongressLeagueChoicesRepealKind,
+    pub id: i32,
+    pub name: crate::value::Text,
+    pub effect: crate::value::Text,
+    pub description: crate::value::Text,
+}
+
+impl crate::model::Model for CongressLeagueChoicesRepeal {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.needs, &old.needs, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.params, &old.params, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(18);
+        crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base.child(19);
+        crate::model::Model::diff(&self.description, &old.description, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.needs),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.params),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.effect),
+            crate::model::Model::to_value(&self.description),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(10)?;
+        Ok(CongressLeagueChoicesRepeal {
+            needs: crate::model::Model::from_value(&f[0])?,
+            enabled: crate::model::Model::from_value(&f[1])?,
+            reason: crate::model::Model::from_value(&f[2])?,
+            params: crate::model::Model::from_value(&f[3])?,
+            key: crate::model::Model::from_value(&f[4])?,
+            kind: crate::model::Model::from_value(&f[5])?,
+            id: crate::model::Model::from_value(&f[6])?,
+            name: crate::model::Model::from_value(&f[7])?,
+            effect: crate::model::Model::from_value(&f[8])?,
+            description: crate::model::Model::from_value(&f[9])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressLeagueChoicesRepeal {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeagueChoicesEnactParams {
+    pub key: ::std::sync::Arc<str>,
+    pub value: i32,
+    pub name: crate::value::Text,
+    pub sub: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub emblem: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+    pub enabled: bool,
+    pub reason: crate::value::Text,
+}
+
+impl crate::model::Model for CongressLeagueChoicesEnactParams {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.sub, &old.sub, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.value),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.sub),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(10)?;
+        Ok(CongressLeagueChoicesEnactParams {
+            key: crate::model::Model::from_value(&f[0])?,
+            value: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            sub: crate::model::Model::from_value(&f[3])?,
+            icon: crate::model::Model::from_value(&f[4])?,
+            emblem: crate::model::Model::from_value(&f[5])?,
+            color_bg: crate::model::Model::from_value(&f[6])?,
+            color_fg: crate::model::Model::from_value(&f[7])?,
+            enabled: crate::model::Model::from_value(&f[8])?,
+            reason: crate::model::Model::from_value(&f[9])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressLeagueChoicesEnactParams {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeagueChoicesEnact {
+    pub needs: CongressLeagueChoicesEnactNeeds,
+    pub enabled: bool,
+    pub reason: crate::value::Text,
+    pub params: crate::model::KeyedList<CongressLeagueChoicesEnactParams>,
+    pub key: ::std::sync::Arc<str>,
+    pub kind: CongressLeagueChoicesEnactKind,
+    pub id: i32,
+    pub name: crate::value::Text,
+    pub effect: crate::value::Text,
+    pub description: crate::value::Text,
+}
+
+impl crate::model::Model for CongressLeagueChoicesEnact {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.needs, &old.needs, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.params, &old.params, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(18);
+        crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base.child(19);
+        crate::model::Model::diff(&self.description, &old.description, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.needs),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.params),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.effect),
+            crate::model::Model::to_value(&self.description),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(10)?;
+        Ok(CongressLeagueChoicesEnact {
+            needs: crate::model::Model::from_value(&f[0])?,
+            enabled: crate::model::Model::from_value(&f[1])?,
+            reason: crate::model::Model::from_value(&f[2])?,
+            params: crate::model::Model::from_value(&f[3])?,
+            key: crate::model::Model::from_value(&f[4])?,
+            kind: crate::model::Model::from_value(&f[5])?,
+            id: crate::model::Model::from_value(&f[6])?,
+            name: crate::model::Model::from_value(&f[7])?,
+            effect: crate::model::Model::from_value(&f[8])?,
+            description: crate::model::Model::from_value(&f[9])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressLeagueChoicesEnact {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeagueChoicesUnavailable {
+    pub needs: CongressLeagueChoicesUnavailableNeeds,
+    pub enabled: bool,
+    pub reason: crate::value::Text,
+    pub params: crate::model::KeyedList<CongressLeagueChoicesEnactParams>,
+    pub key: ::std::sync::Arc<str>,
+    pub kind: CongressLeagueChoicesUnavailableKind,
+    pub id: i32,
+    pub name: crate::value::Text,
+    pub effect: crate::value::Text,
+    pub description: crate::value::Text,
+}
+
+impl crate::model::Model for CongressLeagueChoicesUnavailable {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.needs, &old.needs, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.params, &old.params, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(18);
+        crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base.child(19);
+        crate::model::Model::diff(&self.description, &old.description, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.needs),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.params),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.effect),
+            crate::model::Model::to_value(&self.description),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(10)?;
+        Ok(CongressLeagueChoicesUnavailable {
+            needs: crate::model::Model::from_value(&f[0])?,
+            enabled: crate::model::Model::from_value(&f[1])?,
+            reason: crate::model::Model::from_value(&f[2])?,
+            params: crate::model::Model::from_value(&f[3])?,
+            key: crate::model::Model::from_value(&f[4])?,
+            kind: crate::model::Model::from_value(&f[5])?,
+            id: crate::model::Model::from_value(&f[6])?,
+            name: crate::model::Model::from_value(&f[7])?,
+            effect: crate::model::Model::from_value(&f[8])?,
+            description: crate::model::Model::from_value(&f[9])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressLeagueChoicesUnavailable {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeagueChoices {
+    pub repeal: crate::model::KeyedList<CongressLeagueChoicesRepeal>,
+    pub enact: crate::model::KeyedList<CongressLeagueChoicesEnact>,
+    pub unavailable: crate::model::KeyedList<CongressLeagueChoicesUnavailable>,
+    pub unavailable_count: i32,
+}
+
+impl crate::model::Model for CongressLeagueChoices {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.repeal, &old.repeal, at, out);
+        at.field = base.child(21);
+        crate::model::Model::diff(&self.enact, &old.enact, at, out);
+        at.field = base.child(42);
+        crate::model::Model::diff(&self.unavailable, &old.unavailable, at, out);
+        at.field = base.child(63);
+        crate::model::Model::diff(&self.unavailable_count, &old.unavailable_count, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.repeal),
+            crate::model::Model::to_value(&self.enact),
+            crate::model::Model::to_value(&self.unavailable),
+            crate::model::Model::to_value(&self.unavailable_count),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(CongressLeagueChoices {
+            repeal: crate::model::Model::from_value(&f[0])?,
+            enact: crate::model::Model::from_value(&f[1])?,
+            unavailable: crate::model::Model::from_value(&f[2])?,
+            unavailable_count: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressLeague {
+    pub rename_reason: Option<crate::value::Text>,
+    pub exists: bool,
+    pub absent_reason: Option<CongressLeagueAbsentReason>,
+    pub absent_text: crate::value::Text,
+    pub id: i32,
+    pub name: crate::value::Text,
+    pub is_un: bool,
+    pub art: crate::value::AssetRef,
+    pub can_rename: bool,
+    pub phase: CongressLeaguePhase,
+    pub session_label: crate::value::Text,
+    pub special_session: bool,
+    pub turns_to_session: i32,
+    pub diplo_victory_enabled: bool,
+    pub turns_to_world_leader_vote: Option<i32>,
+    pub delegates_to_win: Option<i32>,
+    pub mode: CongressLeagueMode,
+    pub members: crate::model::KeyedList<CongressLeagueMembers>,
+    pub proposals: crate::model::KeyedList<CongressLeagueProposals>,
+    pub effects: crate::model::KeyedList<CongressLeagueEffects>,
+    pub delegates_total: i32,
+    pub delegates_free: Option<i32>,
+    pub can_reset_votes: bool,
+    pub slots: crate::model::KeyedList<CongressLeagueSlots>,
+    pub choices: Option<CongressLeagueChoices>,
+    pub can_submit_proposals: bool,
+    pub submit_reason: crate::value::Text,
+}
+
+impl crate::model::Model for CongressLeague {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.rename_reason, &old.rename_reason, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.exists, &old.exists, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.absent_reason, &old.absent_reason, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.absent_text, &old.absent_text, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.is_un, &old.is_un, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.art, &old.art, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.can_rename, &old.can_rename, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.phase, &old.phase, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.session_label, &old.session_label, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.special_session, &old.special_session, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.turns_to_session, &old.turns_to_session, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.diplo_victory_enabled, &old.diplo_victory_enabled, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.turns_to_world_leader_vote, &old.turns_to_world_leader_vote, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.delegates_to_win, &old.delegates_to_win, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.mode, &old.mode, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.members, &old.members, at, out);
+        at.field = base.child(49);
+        crate::model::Model::diff(&self.proposals, &old.proposals, at, out);
+        at.field = base.child(101);
+        crate::model::Model::diff(&self.effects, &old.effects, at, out);
+        at.field = base.child(106);
+        crate::model::Model::diff(&self.delegates_total, &old.delegates_total, at, out);
+        at.field = base.child(107);
+        crate::model::Model::diff(&self.delegates_free, &old.delegates_free, at, out);
+        at.field = base.child(108);
+        crate::model::Model::diff(&self.can_reset_votes, &old.can_reset_votes, at, out);
+        at.field = base.child(109);
+        crate::model::Model::diff(&self.slots, &old.slots, at, out);
+        at.field = base.child(120);
+        crate::model::Model::diff(&self.choices, &old.choices, at, out);
+        at.field = base.child(185);
+        crate::model::Model::diff(&self.can_submit_proposals, &old.can_submit_proposals, at, out);
+        at.field = base.child(186);
+        crate::model::Model::diff(&self.submit_reason, &old.submit_reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.rename_reason),
+            crate::model::Model::to_value(&self.exists),
+            crate::model::Model::to_value(&self.absent_reason),
+            crate::model::Model::to_value(&self.absent_text),
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.is_un),
+            crate::model::Model::to_value(&self.art),
+            crate::model::Model::to_value(&self.can_rename),
+            crate::model::Model::to_value(&self.phase),
+            crate::model::Model::to_value(&self.session_label),
+            crate::model::Model::to_value(&self.special_session),
+            crate::model::Model::to_value(&self.turns_to_session),
+            crate::model::Model::to_value(&self.diplo_victory_enabled),
+            crate::model::Model::to_value(&self.turns_to_world_leader_vote),
+            crate::model::Model::to_value(&self.delegates_to_win),
+            crate::model::Model::to_value(&self.mode),
+            crate::model::Model::to_value(&self.members),
+            crate::model::Model::to_value(&self.proposals),
+            crate::model::Model::to_value(&self.effects),
+            crate::model::Model::to_value(&self.delegates_total),
+            crate::model::Model::to_value(&self.delegates_free),
+            crate::model::Model::to_value(&self.can_reset_votes),
+            crate::model::Model::to_value(&self.slots),
+            crate::model::Model::to_value(&self.choices),
+            crate::model::Model::to_value(&self.can_submit_proposals),
+            crate::model::Model::to_value(&self.submit_reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(27)?;
+        Ok(CongressLeague {
+            rename_reason: crate::model::Model::from_value(&f[0])?,
+            exists: crate::model::Model::from_value(&f[1])?,
+            absent_reason: crate::model::Model::from_value(&f[2])?,
+            absent_text: crate::model::Model::from_value(&f[3])?,
+            id: crate::model::Model::from_value(&f[4])?,
+            name: crate::model::Model::from_value(&f[5])?,
+            is_un: crate::model::Model::from_value(&f[6])?,
+            art: crate::model::Model::from_value(&f[7])?,
+            can_rename: crate::model::Model::from_value(&f[8])?,
+            phase: crate::model::Model::from_value(&f[9])?,
+            session_label: crate::model::Model::from_value(&f[10])?,
+            special_session: crate::model::Model::from_value(&f[11])?,
+            turns_to_session: crate::model::Model::from_value(&f[12])?,
+            diplo_victory_enabled: crate::model::Model::from_value(&f[13])?,
+            turns_to_world_leader_vote: crate::model::Model::from_value(&f[14])?,
+            delegates_to_win: crate::model::Model::from_value(&f[15])?,
+            mode: crate::model::Model::from_value(&f[16])?,
+            members: crate::model::Model::from_value(&f[17])?,
+            proposals: crate::model::Model::from_value(&f[18])?,
+            effects: crate::model::Model::from_value(&f[19])?,
+            delegates_total: crate::model::Model::from_value(&f[20])?,
+            delegates_free: crate::model::Model::from_value(&f[21])?,
+            can_reset_votes: crate::model::Model::from_value(&f[22])?,
+            slots: crate::model::Model::from_value(&f[23])?,
+            choices: crate::model::Model::from_value(&f[24])?,
+            can_submit_proposals: crate::model::Model::from_value(&f[25])?,
+            submit_reason: crate::model::Model::from_value(&f[26])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressSplashThisEra {
+    pub key: ::std::sync::Arc<str>,
+    pub icon: crate::value::AssetRef,
+    pub text: crate::value::Text,
+}
+
+impl crate::model::Model for CongressSplashThisEra {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CongressSplashThisEra {
+            key: crate::model::Model::from_value(&f[0])?,
+            icon: crate::model::Model::from_value(&f[1])?,
+            text: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressSplashThisEra {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressSplashNextEra {
+    pub key: ::std::sync::Arc<str>,
+    pub icon: crate::value::AssetRef,
+    pub text: crate::value::Text,
+}
+
+impl crate::model::Model for CongressSplashNextEra {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CongressSplashNextEra {
+            key: crate::model::Model::from_value(&f[0])?,
+            icon: crate::model::Model::from_value(&f[1])?,
+            text: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressSplashNextEra {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressSplash {
+    pub kind: CongressSplashKind,
+    pub first_session: bool,
+    pub art: crate::value::AssetRef,
+    pub caption: crate::value::Text,
+    pub title: crate::value::Text,
+    pub description: crate::value::Text,
+    pub this_era_title: crate::value::Text,
+    pub this_era: crate::model::KeyedList<CongressSplashThisEra>,
+    pub next_era_title: crate::value::Text,
+    pub next_era: crate::model::KeyedList<CongressSplashNextEra>,
+}
+
+impl crate::model::Model for CongressSplash {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.first_session, &old.first_session, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.art, &old.art, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.caption, &old.caption, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.title, &old.title, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.description, &old.description, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.this_era_title, &old.this_era_title, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.this_era, &old.this_era, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.next_era_title, &old.next_era_title, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.next_era, &old.next_era, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.first_session),
+            crate::model::Model::to_value(&self.art),
+            crate::model::Model::to_value(&self.caption),
+            crate::model::Model::to_value(&self.title),
+            crate::model::Model::to_value(&self.description),
+            crate::model::Model::to_value(&self.this_era_title),
+            crate::model::Model::to_value(&self.this_era),
+            crate::model::Model::to_value(&self.next_era_title),
+            crate::model::Model::to_value(&self.next_era),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(10)?;
+        Ok(CongressSplash {
+            kind: crate::model::Model::from_value(&f[0])?,
+            first_session: crate::model::Model::from_value(&f[1])?,
+            art: crate::model::Model::from_value(&f[2])?,
+            caption: crate::model::Model::from_value(&f[3])?,
+            title: crate::model::Model::from_value(&f[4])?,
+            description: crate::model::Model::from_value(&f[5])?,
+            this_era_title: crate::model::Model::from_value(&f[6])?,
+            this_era: crate::model::Model::from_value(&f[7])?,
+            next_era_title: crate::model::Model::from_value(&f[8])?,
+            next_era: crate::model::Model::from_value(&f[9])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressProjectTiers {
+    pub key: ::std::sync::Arc<str>,
+    pub tier: i32,
+    pub title: crate::value::Text,
+    pub threshold: Option<i32>,
+    pub reward: crate::value::Text,
+}
+
+impl crate::model::Model for CongressProjectTiers {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.tier, &old.tier, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.title, &old.title, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.threshold, &old.threshold, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.reward, &old.reward, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.tier),
+            crate::model::Model::to_value(&self.title),
+            crate::model::Model::to_value(&self.threshold),
+            crate::model::Model::to_value(&self.reward),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(CongressProjectTiers {
+            key: crate::model::Model::from_value(&f[0])?,
+            tier: crate::model::Model::from_value(&f[1])?,
+            title: crate::model::Model::from_value(&f[2])?,
+            threshold: crate::model::Model::from_value(&f[3])?,
+            reward: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressProjectTiers {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressProjectRankingAwards {
+    pub key: ::std::sync::Arc<str>,
+    pub tier: crate::value::Text,
+}
+
+impl crate::model::Model for CongressProjectRankingAwards {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.tier, &old.tier, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.tier),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(CongressProjectRankingAwards {
+            key: crate::model::Model::from_value(&f[0])?,
+            tier: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressProjectRankingAwards {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressProjectRanking {
+    pub civ_name: crate::value::Text,
+    pub key: ::std::sync::Arc<str>,
+    pub rank: i32,
+    pub player_id: i32,
+    pub known: bool,
+    pub is_you: bool,
+    pub name: crate::value::Text,
+    pub sub: crate::value::Text,
+    pub portrait: crate::value::AssetRef,
+    pub emblem: crate::value::AssetRef,
+    pub color_bg: Option<u32>,
+    pub color_fg: Option<u32>,
+    pub contribution: i32,
+    pub contribution_pct: f32,
+    pub tier: i32,
+    pub awards: crate::model::KeyedList<CongressProjectRankingAwards>,
+    pub awards_tooltip: crate::value::Text,
+}
+
+impl crate::model::Model for CongressProjectRanking {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.rank, &old.rank, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.known, &old.known, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.is_you, &old.is_you, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.sub, &old.sub, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.contribution, &old.contribution, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.contribution_pct, &old.contribution_pct, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.tier, &old.tier, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.awards, &old.awards, at, out);
+        at.field = base.child(18);
+        crate::model::Model::diff(&self.awards_tooltip, &old.awards_tooltip, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.rank),
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.known),
+            crate::model::Model::to_value(&self.is_you),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.sub),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.contribution),
+            crate::model::Model::to_value(&self.contribution_pct),
+            crate::model::Model::to_value(&self.tier),
+            crate::model::Model::to_value(&self.awards),
+            crate::model::Model::to_value(&self.awards_tooltip),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(17)?;
+        Ok(CongressProjectRanking {
+            civ_name: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            rank: crate::model::Model::from_value(&f[2])?,
+            player_id: crate::model::Model::from_value(&f[3])?,
+            known: crate::model::Model::from_value(&f[4])?,
+            is_you: crate::model::Model::from_value(&f[5])?,
+            name: crate::model::Model::from_value(&f[6])?,
+            sub: crate::model::Model::from_value(&f[7])?,
+            portrait: crate::model::Model::from_value(&f[8])?,
+            emblem: crate::model::Model::from_value(&f[9])?,
+            color_bg: crate::model::Model::from_value(&f[10])?,
+            color_fg: crate::model::Model::from_value(&f[11])?,
+            contribution: crate::model::Model::from_value(&f[12])?,
+            contribution_pct: crate::model::Model::from_value(&f[13])?,
+            tier: crate::model::Model::from_value(&f[14])?,
+            awards: crate::model::Model::from_value(&f[15])?,
+            awards_tooltip: crate::model::Model::from_value(&f[16])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CongressProjectRanking {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CongressProject {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub art: crate::value::AssetRef,
+    pub completed: bool,
+    pub description: crate::value::Text,
+    pub tiers: crate::model::KeyedList<CongressProjectTiers>,
+    pub ranking: crate::model::KeyedList<CongressProjectRanking>,
+}
+
+impl crate::model::Model for CongressProject {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.art, &old.art, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.completed, &old.completed, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.description, &old.description, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.tiers, &old.tiers, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.ranking, &old.ranking, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.art),
+            crate::model::Model::to_value(&self.completed),
+            crate::model::Model::to_value(&self.description),
+            crate::model::Model::to_value(&self.tiers),
+            crate::model::Model::to_value(&self.ranking),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(CongressProject {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            art: crate::model::Model::from_value(&f[3])?,
+            completed: crate::model::Model::from_value(&f[4])?,
+            description: crate::model::Model::from_value(&f[5])?,
+            tiers: crate::model::Model::from_value(&f[6])?,
+            ranking: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureCiv {
+    pub id: i32,
+    pub name: crate::value::Text,
+    pub civ_name: crate::value::Text,
+    pub civ: crate::value::AssetRef,
+    pub leader: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+}
+
+impl crate::model::Model for CultureCiv {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.leader, &old.leader, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.leader),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(CultureCiv {
+            id: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            civ_name: crate::model::Model::from_value(&f[2])?,
+            civ: crate::model::Model::from_value(&f[3])?,
+            leader: crate::model::Model::from_value(&f[4])?,
+            color_bg: crate::model::Model::from_value(&f[5])?,
+            color_fg: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureWork {
+    pub id: i32,
+    pub name: crate::value::Text,
+    pub class: CultureWorkClass,
+    pub creator: Option<crate::value::Text>,
+    pub civ_name: crate::value::Text,
+    pub civ: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+    pub era: crate::value::Text,
+    pub tooltip: crate::value::Text,
+    pub viewable: bool,
+    pub location: Option<crate::value::Text>,
+    pub theme_bonus: Option<i32>,
+}
+
+impl crate::model::Model for CultureWork {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.class, &old.class, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.creator, &old.creator, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.era, &old.era, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.tooltip, &old.tooltip, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.viewable, &old.viewable, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.location, &old.location, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.theme_bonus, &old.theme_bonus, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.class),
+            crate::model::Model::to_value(&self.creator),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.era),
+            crate::model::Model::to_value(&self.tooltip),
+            crate::model::Model::to_value(&self.viewable),
+            crate::model::Model::to_value(&self.location),
+            crate::model::Model::to_value(&self.theme_bonus),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(13)?;
+        Ok(CultureWork {
+            id: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            class: crate::model::Model::from_value(&f[2])?,
+            creator: crate::model::Model::from_value(&f[3])?,
+            civ_name: crate::model::Model::from_value(&f[4])?,
+            civ: crate::model::Model::from_value(&f[5])?,
+            color_bg: crate::model::Model::from_value(&f[6])?,
+            color_fg: crate::model::Model::from_value(&f[7])?,
+            era: crate::model::Model::from_value(&f[8])?,
+            tooltip: crate::model::Model::from_value(&f[9])?,
+            viewable: crate::model::Model::from_value(&f[10])?,
+            location: crate::model::Model::from_value(&f[11])?,
+            theme_bonus: crate::model::Model::from_value(&f[12])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CultureWork {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureSlot {
+    pub id: i32,
+    pub slot_type: CultureSlotType,
+    pub work: Option<CultureWork>,
+}
+
+impl crate::model::Model for CultureSlot {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.slot_type, &old.slot_type, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.work, &old.work, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.slot_type),
+            crate::model::Model::to_value(&self.work),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CultureSlot {
+            id: crate::model::Model::from_value(&f[0])?,
+            slot_type: crate::model::Model::from_value(&f[1])?,
+            work: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CultureSlot {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureColumn {
+    pub key: ::std::sync::Arc<str>,
+    pub building: crate::value::AssetRef,
+    pub name: crate::value::Text,
+    pub slot_type: CultureSlotType,
+    pub slots: i32,
+    pub tooltip: crate::value::Text,
+}
+
+impl crate::model::Model for CultureColumn {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.building, &old.building, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.slot_type, &old.slot_type, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.slots, &old.slots, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.tooltip, &old.tooltip, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.building),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.slot_type),
+            crate::model::Model::to_value(&self.slots),
+            crate::model::Model::to_value(&self.tooltip),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(CultureColumn {
+            key: crate::model::Model::from_value(&f[0])?,
+            building: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            slot_type: crate::model::Model::from_value(&f[3])?,
+            slots: crate::model::Model::from_value(&f[4])?,
+            tooltip: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CultureColumn {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureCell {
+    pub column: ::std::sync::Arc<str>,
+    pub state: CultureCellState,
+    pub theme_bonus: Option<i32>,
+    pub theme_tooltip: Option<crate::value::Text>,
+    pub slots: crate::model::KeyedList<CultureSlot>,
+}
+
+impl crate::model::Model for CultureCell {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.column, &old.column, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.state, &old.state, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.theme_bonus, &old.theme_bonus, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.theme_tooltip, &old.theme_tooltip, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.slots, &old.slots, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.column),
+            crate::model::Model::to_value(&self.state),
+            crate::model::Model::to_value(&self.theme_bonus),
+            crate::model::Model::to_value(&self.theme_tooltip),
+            crate::model::Model::to_value(&self.slots),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(CultureCell {
+            column: crate::model::Model::from_value(&f[0])?,
+            state: crate::model::Model::from_value(&f[1])?,
+            theme_bonus: crate::model::Model::from_value(&f[2])?,
+            theme_tooltip: crate::model::Model::from_value(&f[3])?,
+            slots: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CultureCell {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.column)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureExtra {
+    pub key: ::std::sync::Arc<str>,
+    pub building: crate::value::AssetRef,
+    pub name: crate::value::Text,
+    pub theme_bonus: Option<i32>,
+    pub theme_tooltip: Option<crate::value::Text>,
+    pub slots: crate::model::KeyedList<CultureSlot>,
+}
+
+impl crate::model::Model for CultureExtra {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.building, &old.building, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.theme_bonus, &old.theme_bonus, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.theme_tooltip, &old.theme_tooltip, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.slots, &old.slots, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.building),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.theme_bonus),
+            crate::model::Model::to_value(&self.theme_tooltip),
+            crate::model::Model::to_value(&self.slots),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(CultureExtra {
+            key: crate::model::Model::from_value(&f[0])?,
+            building: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            theme_bonus: crate::model::Model::from_value(&f[3])?,
+            theme_tooltip: crate::model::Model::from_value(&f[4])?,
+            slots: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CultureExtra {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureCity {
+    pub id: i32,
+    pub name: crate::value::Text,
+    pub capital: bool,
+    pub puppet: bool,
+    pub occupied: bool,
+    pub health: Option<f32>,
+    pub culture: i32,
+    pub tourism: i32,
+    pub tourism_tooltip: crate::value::Text,
+    pub works: i32,
+    pub slots_free: i32,
+    pub slots_tooltip: crate::value::Text,
+    pub cells: crate::model::KeyedList<CultureCell>,
+    pub extra: crate::model::KeyedList<CultureExtra>,
+}
+
+impl crate::model::Model for CultureCity {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.capital, &old.capital, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.puppet, &old.puppet, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.occupied, &old.occupied, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.health, &old.health, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.culture, &old.culture, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.tourism, &old.tourism, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.tourism_tooltip, &old.tourism_tooltip, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.works, &old.works, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.slots_free, &old.slots_free, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.slots_tooltip, &old.slots_tooltip, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.cells, &old.cells, at, out);
+        at.field = base.child(34);
+        crate::model::Model::diff(&self.extra, &old.extra, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.capital),
+            crate::model::Model::to_value(&self.puppet),
+            crate::model::Model::to_value(&self.occupied),
+            crate::model::Model::to_value(&self.health),
+            crate::model::Model::to_value(&self.culture),
+            crate::model::Model::to_value(&self.tourism),
+            crate::model::Model::to_value(&self.tourism_tooltip),
+            crate::model::Model::to_value(&self.works),
+            crate::model::Model::to_value(&self.slots_free),
+            crate::model::Model::to_value(&self.slots_tooltip),
+            crate::model::Model::to_value(&self.cells),
+            crate::model::Model::to_value(&self.extra),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(14)?;
+        Ok(CultureCity {
+            id: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            capital: crate::model::Model::from_value(&f[2])?,
+            puppet: crate::model::Model::from_value(&f[3])?,
+            occupied: crate::model::Model::from_value(&f[4])?,
+            health: crate::model::Model::from_value(&f[5])?,
+            culture: crate::model::Model::from_value(&f[6])?,
+            tourism: crate::model::Model::from_value(&f[7])?,
+            tourism_tooltip: crate::model::Model::from_value(&f[8])?,
+            works: crate::model::Model::from_value(&f[9])?,
+            slots_free: crate::model::Model::from_value(&f[10])?,
+            slots_tooltip: crate::model::Model::from_value(&f[11])?,
+            cells: crate::model::Model::from_value(&f[12])?,
+            extra: crate::model::Model::from_value(&f[13])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CultureCity {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureOffer {
+    pub class: CultureWorkClass,
+    pub class_id: i32,
+    pub work: Option<CultureWork>,
+    pub options: crate::model::KeyedList<CultureWork>,
+}
+
+impl crate::model::Model for CultureOffer {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.class, &old.class, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.class_id, &old.class_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.work, &old.work, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.options, &old.options, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.class),
+            crate::model::Model::to_value(&self.class_id),
+            crate::model::Model::to_value(&self.work),
+            crate::model::Model::to_value(&self.options),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(CultureOffer {
+            class: crate::model::Model::from_value(&f[0])?,
+            class_id: crate::model::Model::from_value(&f[1])?,
+            work: crate::model::Model::from_value(&f[2])?,
+            options: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CultureOffer {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_enum(self.class as u16)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CulturePartner {
+    pub id: i32,
+    pub name: crate::value::Text,
+    pub civ_name: crate::value::Text,
+    pub civ: crate::value::AssetRef,
+    pub leader: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+    pub human: bool,
+    pub writing: Option<CultureWork>,
+    pub art: Option<CultureWork>,
+    pub artifact: Option<CultureWork>,
+}
+
+impl crate::model::Model for CulturePartner {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.leader, &old.leader, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.human, &old.human, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.writing, &old.writing, at, out);
+        at.field = base.child(22);
+        crate::model::Model::diff(&self.art, &old.art, at, out);
+        at.field = base.child(36);
+        crate::model::Model::diff(&self.artifact, &old.artifact, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.leader),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.human),
+            crate::model::Model::to_value(&self.writing),
+            crate::model::Model::to_value(&self.art),
+            crate::model::Model::to_value(&self.artifact),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(11)?;
+        Ok(CulturePartner {
+            id: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            civ_name: crate::model::Model::from_value(&f[2])?,
+            civ: crate::model::Model::from_value(&f[3])?,
+            leader: crate::model::Model::from_value(&f[4])?,
+            color_bg: crate::model::Model::from_value(&f[5])?,
+            color_fg: crate::model::Model::from_value(&f[6])?,
+            human: crate::model::Model::from_value(&f[7])?,
+            writing: crate::model::Model::from_value(&f[8])?,
+            art: crate::model::Model::from_value(&f[9])?,
+            artifact: crate::model::Model::from_value(&f[10])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CulturePartner {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureSwap {
+    pub offers: crate::model::KeyedList<CultureOffer>,
+    pub partners: crate::model::KeyedList<CulturePartner>,
+}
+
+impl crate::model::Model for CultureSwap {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.offers, &old.offers, at, out);
+        at.field = base.child(31);
+        crate::model::Model::diff(&self.partners, &old.partners, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.offers),
+            crate::model::Model::to_value(&self.partners),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(CultureSwap {
+            offers: crate::model::Model::from_value(&f[0])?,
+            partners: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureVictoryRow {
+    pub id: i32,
+    pub name: crate::value::Text,
+    pub civ_name: crate::value::Text,
+    pub civ: crate::value::AssetRef,
+    pub leader: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+    pub you: bool,
+    pub influential_on: i32,
+    pub influential_of: i32,
+    pub tourism: i32,
+    pub ideology: CultureIdeology,
+    pub ideology_name: Option<crate::value::Text>,
+    pub opinion: Option<crate::value::Text>,
+    pub opinion_tooltip: Option<crate::value::Text>,
+    pub opinion_unhappiness: Option<i32>,
+    pub opinion_unhappiness_tooltip: Option<crate::value::Text>,
+    pub excess_happiness: i32,
+}
+
+impl crate::model::Model for CultureVictoryRow {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.leader, &old.leader, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.you, &old.you, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.influential_on, &old.influential_on, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.influential_of, &old.influential_of, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.tourism, &old.tourism, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.ideology, &old.ideology, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.ideology_name, &old.ideology_name, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.opinion, &old.opinion, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.opinion_tooltip, &old.opinion_tooltip, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.opinion_unhappiness, &old.opinion_unhappiness, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.opinion_unhappiness_tooltip, &old.opinion_unhappiness_tooltip, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.excess_happiness, &old.excess_happiness, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.leader),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.you),
+            crate::model::Model::to_value(&self.influential_on),
+            crate::model::Model::to_value(&self.influential_of),
+            crate::model::Model::to_value(&self.tourism),
+            crate::model::Model::to_value(&self.ideology),
+            crate::model::Model::to_value(&self.ideology_name),
+            crate::model::Model::to_value(&self.opinion),
+            crate::model::Model::to_value(&self.opinion_tooltip),
+            crate::model::Model::to_value(&self.opinion_unhappiness),
+            crate::model::Model::to_value(&self.opinion_unhappiness_tooltip),
+            crate::model::Model::to_value(&self.excess_happiness),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(18)?;
+        Ok(CultureVictoryRow {
+            id: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            civ_name: crate::model::Model::from_value(&f[2])?,
+            civ: crate::model::Model::from_value(&f[3])?,
+            leader: crate::model::Model::from_value(&f[4])?,
+            color_bg: crate::model::Model::from_value(&f[5])?,
+            color_fg: crate::model::Model::from_value(&f[6])?,
+            you: crate::model::Model::from_value(&f[7])?,
+            influential_on: crate::model::Model::from_value(&f[8])?,
+            influential_of: crate::model::Model::from_value(&f[9])?,
+            tourism: crate::model::Model::from_value(&f[10])?,
+            ideology: crate::model::Model::from_value(&f[11])?,
+            ideology_name: crate::model::Model::from_value(&f[12])?,
+            opinion: crate::model::Model::from_value(&f[13])?,
+            opinion_tooltip: crate::model::Model::from_value(&f[14])?,
+            opinion_unhappiness: crate::model::Model::from_value(&f[15])?,
+            opinion_unhappiness_tooltip: crate::model::Model::from_value(&f[16])?,
+            excess_happiness: crate::model::Model::from_value(&f[17])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CultureVictoryRow {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureVictory {
+    pub rows: crate::model::KeyedList<CultureVictoryRow>,
+}
+
+impl crate::model::Model for CultureVictory {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.rows, &old.rows, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.rows),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(1)?;
+        Ok(CultureVictory {
+            rows: crate::model::Model::from_value(&f[0])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureInfluenceRow {
+    pub id: i32,
+    pub known: bool,
+    pub name: Option<crate::value::Text>,
+    pub civ_name: Option<crate::value::Text>,
+    pub civ: Option<crate::value::AssetRef>,
+    pub color_bg: Option<u32>,
+    pub color_fg: Option<u32>,
+    pub level: CultureLevel,
+    pub level_name: crate::value::Text,
+    pub level_tooltip: crate::value::Text,
+    pub share: f32,
+    pub tourism_accum: i32,
+    pub culture_accum: Option<i32>,
+    pub bars_tooltip: crate::value::Text,
+    pub modifier_pct: i32,
+    pub modifier_tooltip: crate::value::Text,
+    pub per_turn: i32,
+    pub trend: Option<CultureTrend>,
+    pub trend_name: Option<crate::value::Text>,
+    pub trend_tooltip: Option<crate::value::Text>,
+    pub turns_to_influential: Option<i32>,
+}
+
+impl crate::model::Model for CultureInfluenceRow {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.known, &old.known, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.level, &old.level, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.level_name, &old.level_name, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.level_tooltip, &old.level_tooltip, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.share, &old.share, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.tourism_accum, &old.tourism_accum, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.culture_accum, &old.culture_accum, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.bars_tooltip, &old.bars_tooltip, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.modifier_pct, &old.modifier_pct, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.modifier_tooltip, &old.modifier_tooltip, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.per_turn, &old.per_turn, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.trend, &old.trend, at, out);
+        at.field = base.child(18);
+        crate::model::Model::diff(&self.trend_name, &old.trend_name, at, out);
+        at.field = base.child(19);
+        crate::model::Model::diff(&self.trend_tooltip, &old.trend_tooltip, at, out);
+        at.field = base.child(20);
+        crate::model::Model::diff(&self.turns_to_influential, &old.turns_to_influential, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.known),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.level),
+            crate::model::Model::to_value(&self.level_name),
+            crate::model::Model::to_value(&self.level_tooltip),
+            crate::model::Model::to_value(&self.share),
+            crate::model::Model::to_value(&self.tourism_accum),
+            crate::model::Model::to_value(&self.culture_accum),
+            crate::model::Model::to_value(&self.bars_tooltip),
+            crate::model::Model::to_value(&self.modifier_pct),
+            crate::model::Model::to_value(&self.modifier_tooltip),
+            crate::model::Model::to_value(&self.per_turn),
+            crate::model::Model::to_value(&self.trend),
+            crate::model::Model::to_value(&self.trend_name),
+            crate::model::Model::to_value(&self.trend_tooltip),
+            crate::model::Model::to_value(&self.turns_to_influential),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(21)?;
+        Ok(CultureInfluenceRow {
+            id: crate::model::Model::from_value(&f[0])?,
+            known: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            civ_name: crate::model::Model::from_value(&f[3])?,
+            civ: crate::model::Model::from_value(&f[4])?,
+            color_bg: crate::model::Model::from_value(&f[5])?,
+            color_fg: crate::model::Model::from_value(&f[6])?,
+            level: crate::model::Model::from_value(&f[7])?,
+            level_name: crate::model::Model::from_value(&f[8])?,
+            level_tooltip: crate::model::Model::from_value(&f[9])?,
+            share: crate::model::Model::from_value(&f[10])?,
+            tourism_accum: crate::model::Model::from_value(&f[11])?,
+            culture_accum: crate::model::Model::from_value(&f[12])?,
+            bars_tooltip: crate::model::Model::from_value(&f[13])?,
+            modifier_pct: crate::model::Model::from_value(&f[14])?,
+            modifier_tooltip: crate::model::Model::from_value(&f[15])?,
+            per_turn: crate::model::Model::from_value(&f[16])?,
+            trend: crate::model::Model::from_value(&f[17])?,
+            trend_name: crate::model::Model::from_value(&f[18])?,
+            trend_tooltip: crate::model::Model::from_value(&f[19])?,
+            turns_to_influential: crate::model::Model::from_value(&f[20])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CultureInfluenceRow {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureSource {
+    pub id: i32,
+    pub name: crate::value::Text,
+    pub civ_name: crate::value::Text,
+    pub civ: crate::value::AssetRef,
+    pub leader: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+    pub tourism: i32,
+    pub rows: crate::model::KeyedList<CultureInfluenceRow>,
+}
+
+impl crate::model::Model for CultureSource {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.leader, &old.leader, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.tourism, &old.tourism, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.rows, &old.rows, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.leader),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.tourism),
+            crate::model::Model::to_value(&self.rows),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(9)?;
+        Ok(CultureSource {
+            id: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            civ_name: crate::model::Model::from_value(&f[2])?,
+            civ: crate::model::Model::from_value(&f[3])?,
+            leader: crate::model::Model::from_value(&f[4])?,
+            color_bg: crate::model::Model::from_value(&f[5])?,
+            color_fg: crate::model::Model::from_value(&f[6])?,
+            tourism: crate::model::Model::from_value(&f[7])?,
+            rows: crate::model::Model::from_value(&f[8])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CultureSource {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureInfluence {
+    pub sources: crate::model::KeyedList<CultureSource>,
+}
+
+impl crate::model::Model for CultureInfluence {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.sources, &old.sources, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.sources),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(1)?;
+        Ok(CultureInfluence {
+            sources: crate::model::Model::from_value(&f[0])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureSummary {
+    pub works: i32,
+    pub slots: i32,
+    pub tourism: i32,
+    pub influential_on: i32,
+    pub influential_of: i32,
+}
+
+impl crate::model::Model for CultureSummary {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.works, &old.works, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.slots, &old.slots, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.tourism, &old.tourism, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.influential_on, &old.influential_on, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.influential_of, &old.influential_of, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.works),
+            crate::model::Model::to_value(&self.slots),
+            crate::model::Model::to_value(&self.tourism),
+            crate::model::Model::to_value(&self.influential_on),
+            crate::model::Model::to_value(&self.influential_of),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(CultureSummary {
+            works: crate::model::Model::from_value(&f[0])?,
+            slots: crate::model::Model::from_value(&f[1])?,
+            tourism: crate::model::Model::from_value(&f[2])?,
+            influential_on: crate::model::Model::from_value(&f[3])?,
+            influential_of: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CultureAntiquity {
+    pub sites: i32,
+    pub hidden: i32,
+}
+
+impl crate::model::Model for CultureAntiquity {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.sites, &old.sites, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.hidden, &old.hidden, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.sites),
+            crate::model::Model::to_value(&self.hidden),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(CultureAntiquity {
+            sites: crate::model::Model::from_value(&f[0])?,
+            hidden: crate::model::Model::from_value(&f[1])?,
+        })
     }
 }
 
@@ -4280,6 +12216,746 @@ impl crate::model::Model for HudUnit {
             id: crate::model::Model::from_value(&f[0])?,
             promotions: crate::model::Model::from_value(&f[1])?,
             actions: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct MpVoteProposalSubject {
+    pub player_id: i32,
+    pub nick: crate::value::Text,
+    pub leader: crate::value::Text,
+    pub civ_name: crate::value::Text,
+    pub portrait: crate::value::AssetRef,
+    pub emblem: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+}
+
+impl crate::model::Model for MpVoteProposalSubject {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.nick, &old.nick, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.leader, &old.leader, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.nick),
+            crate::model::Model::to_value(&self.leader),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(MpVoteProposalSubject {
+            player_id: crate::model::Model::from_value(&f[0])?,
+            nick: crate::model::Model::from_value(&f[1])?,
+            leader: crate::model::Model::from_value(&f[2])?,
+            civ_name: crate::model::Model::from_value(&f[3])?,
+            portrait: crate::model::Model::from_value(&f[4])?,
+            emblem: crate::model::Model::from_value(&f[5])?,
+            color_bg: crate::model::Model::from_value(&f[6])?,
+            color_fg: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct MpVoteProposalAuthor {
+    pub player_id: i32,
+    pub nick: crate::value::Text,
+    pub leader: crate::value::Text,
+    pub civ_name: crate::value::Text,
+    pub portrait: crate::value::AssetRef,
+    pub emblem: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+}
+
+impl crate::model::Model for MpVoteProposalAuthor {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.nick, &old.nick, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.leader, &old.leader, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.nick),
+            crate::model::Model::to_value(&self.leader),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(MpVoteProposalAuthor {
+            player_id: crate::model::Model::from_value(&f[0])?,
+            nick: crate::model::Model::from_value(&f[1])?,
+            leader: crate::model::Model::from_value(&f[2])?,
+            civ_name: crate::model::Model::from_value(&f[3])?,
+            portrait: crate::model::Model::from_value(&f[4])?,
+            emblem: crate::model::Model::from_value(&f[5])?,
+            color_bg: crate::model::Model::from_value(&f[6])?,
+            color_fg: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct MpVoteProposalWaiting {
+    pub key: ::std::sync::Arc<str>,
+    pub nick: crate::value::Text,
+}
+
+impl crate::model::Model for MpVoteProposalWaiting {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.nick, &old.nick, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.nick),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(MpVoteProposalWaiting {
+            key: crate::model::Model::from_value(&f[0])?,
+            nick: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for MpVoteProposalWaiting {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct MpVoteProposal {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub kind: MpVoteProposalKind,
+    pub kind_label: crate::value::Text,
+    pub title: crate::value::Text,
+    pub subject: Option<MpVoteProposalSubject>,
+    pub author: MpVoteProposalAuthor,
+    pub author_known: bool,
+    pub ends_turn: i32,
+    pub turns_left: i32,
+    pub voters: i32,
+    pub yes: i32,
+    pub needed: Option<i32>,
+    pub still_needed: Option<i32>,
+    pub show_counts: bool,
+    pub yes_pct: Option<f32>,
+    pub needed_pct: Option<f32>,
+    pub waiting_count: i32,
+    pub waiting: crate::model::KeyedList<MpVoteProposalWaiting>,
+    pub waiting_text: crate::value::Text,
+    pub status: MpVoteProposalStatus,
+    pub status_text: crate::value::Text,
+    pub can_vote: bool,
+    pub my_vote: MpVoteProposalMyVote,
+    pub vote_reason: crate::value::Text,
+    pub secret: bool,
+}
+
+impl crate::model::Model for MpVoteProposal {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.kind_label, &old.kind_label, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.title, &old.title, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.subject, &old.subject, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.author, &old.author, at, out);
+        at.field = base.child(23);
+        crate::model::Model::diff(&self.author_known, &old.author_known, at, out);
+        at.field = base.child(24);
+        crate::model::Model::diff(&self.ends_turn, &old.ends_turn, at, out);
+        at.field = base.child(25);
+        crate::model::Model::diff(&self.turns_left, &old.turns_left, at, out);
+        at.field = base.child(26);
+        crate::model::Model::diff(&self.voters, &old.voters, at, out);
+        at.field = base.child(27);
+        crate::model::Model::diff(&self.yes, &old.yes, at, out);
+        at.field = base.child(28);
+        crate::model::Model::diff(&self.needed, &old.needed, at, out);
+        at.field = base.child(29);
+        crate::model::Model::diff(&self.still_needed, &old.still_needed, at, out);
+        at.field = base.child(30);
+        crate::model::Model::diff(&self.show_counts, &old.show_counts, at, out);
+        at.field = base.child(31);
+        crate::model::Model::diff(&self.yes_pct, &old.yes_pct, at, out);
+        at.field = base.child(32);
+        crate::model::Model::diff(&self.needed_pct, &old.needed_pct, at, out);
+        at.field = base.child(33);
+        crate::model::Model::diff(&self.waiting_count, &old.waiting_count, at, out);
+        at.field = base.child(34);
+        crate::model::Model::diff(&self.waiting, &old.waiting, at, out);
+        at.field = base.child(37);
+        crate::model::Model::diff(&self.waiting_text, &old.waiting_text, at, out);
+        at.field = base.child(38);
+        crate::model::Model::diff(&self.status, &old.status, at, out);
+        at.field = base.child(39);
+        crate::model::Model::diff(&self.status_text, &old.status_text, at, out);
+        at.field = base.child(40);
+        crate::model::Model::diff(&self.can_vote, &old.can_vote, at, out);
+        at.field = base.child(41);
+        crate::model::Model::diff(&self.my_vote, &old.my_vote, at, out);
+        at.field = base.child(42);
+        crate::model::Model::diff(&self.vote_reason, &old.vote_reason, at, out);
+        at.field = base.child(43);
+        crate::model::Model::diff(&self.secret, &old.secret, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.kind_label),
+            crate::model::Model::to_value(&self.title),
+            crate::model::Model::to_value(&self.subject),
+            crate::model::Model::to_value(&self.author),
+            crate::model::Model::to_value(&self.author_known),
+            crate::model::Model::to_value(&self.ends_turn),
+            crate::model::Model::to_value(&self.turns_left),
+            crate::model::Model::to_value(&self.voters),
+            crate::model::Model::to_value(&self.yes),
+            crate::model::Model::to_value(&self.needed),
+            crate::model::Model::to_value(&self.still_needed),
+            crate::model::Model::to_value(&self.show_counts),
+            crate::model::Model::to_value(&self.yes_pct),
+            crate::model::Model::to_value(&self.needed_pct),
+            crate::model::Model::to_value(&self.waiting_count),
+            crate::model::Model::to_value(&self.waiting),
+            crate::model::Model::to_value(&self.waiting_text),
+            crate::model::Model::to_value(&self.status),
+            crate::model::Model::to_value(&self.status_text),
+            crate::model::Model::to_value(&self.can_vote),
+            crate::model::Model::to_value(&self.my_vote),
+            crate::model::Model::to_value(&self.vote_reason),
+            crate::model::Model::to_value(&self.secret),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(26)?;
+        Ok(MpVoteProposal {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            kind: crate::model::Model::from_value(&f[2])?,
+            kind_label: crate::model::Model::from_value(&f[3])?,
+            title: crate::model::Model::from_value(&f[4])?,
+            subject: crate::model::Model::from_value(&f[5])?,
+            author: crate::model::Model::from_value(&f[6])?,
+            author_known: crate::model::Model::from_value(&f[7])?,
+            ends_turn: crate::model::Model::from_value(&f[8])?,
+            turns_left: crate::model::Model::from_value(&f[9])?,
+            voters: crate::model::Model::from_value(&f[10])?,
+            yes: crate::model::Model::from_value(&f[11])?,
+            needed: crate::model::Model::from_value(&f[12])?,
+            still_needed: crate::model::Model::from_value(&f[13])?,
+            show_counts: crate::model::Model::from_value(&f[14])?,
+            yes_pct: crate::model::Model::from_value(&f[15])?,
+            needed_pct: crate::model::Model::from_value(&f[16])?,
+            waiting_count: crate::model::Model::from_value(&f[17])?,
+            waiting: crate::model::Model::from_value(&f[18])?,
+            waiting_text: crate::model::Model::from_value(&f[19])?,
+            status: crate::model::Model::from_value(&f[20])?,
+            status_text: crate::model::Model::from_value(&f[21])?,
+            can_vote: crate::model::Model::from_value(&f[22])?,
+            my_vote: crate::model::Model::from_value(&f[23])?,
+            vote_reason: crate::model::Model::from_value(&f[24])?,
+            secret: crate::model::Model::from_value(&f[25])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct MpVoteTeamsPlayers {
+    pub key: ::std::sync::Arc<str>,
+    pub player_id: i32,
+    pub nick: crate::value::Text,
+    pub leader: crate::value::Text,
+    pub civ_name: crate::value::Text,
+    pub portrait: crate::value::AssetRef,
+    pub emblem: crate::value::AssetRef,
+    pub color_bg: Option<u32>,
+    pub color_fg: Option<u32>,
+    pub score: Option<i32>,
+    pub is_you: bool,
+    pub is_human: bool,
+    pub is_observer: bool,
+    pub connected: Option<bool>,
+    pub known: bool,
+    pub at_war: bool,
+    pub eligible: bool,
+    pub vote: MpVoteTeamsPlayersVote,
+    pub vote_label: crate::value::Text,
+    pub note: crate::value::Text,
+}
+
+impl crate::model::Model for MpVoteTeamsPlayers {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.nick, &old.nick, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.leader, &old.leader, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.score, &old.score, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.is_you, &old.is_you, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.is_human, &old.is_human, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.is_observer, &old.is_observer, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.connected, &old.connected, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.known, &old.known, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.at_war, &old.at_war, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.eligible, &old.eligible, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.vote, &old.vote, at, out);
+        at.field = base.child(18);
+        crate::model::Model::diff(&self.vote_label, &old.vote_label, at, out);
+        at.field = base.child(19);
+        crate::model::Model::diff(&self.note, &old.note, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.nick),
+            crate::model::Model::to_value(&self.leader),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.score),
+            crate::model::Model::to_value(&self.is_you),
+            crate::model::Model::to_value(&self.is_human),
+            crate::model::Model::to_value(&self.is_observer),
+            crate::model::Model::to_value(&self.connected),
+            crate::model::Model::to_value(&self.known),
+            crate::model::Model::to_value(&self.at_war),
+            crate::model::Model::to_value(&self.eligible),
+            crate::model::Model::to_value(&self.vote),
+            crate::model::Model::to_value(&self.vote_label),
+            crate::model::Model::to_value(&self.note),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(20)?;
+        Ok(MpVoteTeamsPlayers {
+            key: crate::model::Model::from_value(&f[0])?,
+            player_id: crate::model::Model::from_value(&f[1])?,
+            nick: crate::model::Model::from_value(&f[2])?,
+            leader: crate::model::Model::from_value(&f[3])?,
+            civ_name: crate::model::Model::from_value(&f[4])?,
+            portrait: crate::model::Model::from_value(&f[5])?,
+            emblem: crate::model::Model::from_value(&f[6])?,
+            color_bg: crate::model::Model::from_value(&f[7])?,
+            color_fg: crate::model::Model::from_value(&f[8])?,
+            score: crate::model::Model::from_value(&f[9])?,
+            is_you: crate::model::Model::from_value(&f[10])?,
+            is_human: crate::model::Model::from_value(&f[11])?,
+            is_observer: crate::model::Model::from_value(&f[12])?,
+            connected: crate::model::Model::from_value(&f[13])?,
+            known: crate::model::Model::from_value(&f[14])?,
+            at_war: crate::model::Model::from_value(&f[15])?,
+            eligible: crate::model::Model::from_value(&f[16])?,
+            vote: crate::model::Model::from_value(&f[17])?,
+            vote_label: crate::model::Model::from_value(&f[18])?,
+            note: crate::model::Model::from_value(&f[19])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for MpVoteTeamsPlayers {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct MpVoteTeams {
+    pub key: ::std::sync::Arc<str>,
+    pub label: crate::value::Text,
+    pub multi: bool,
+    pub players: crate::model::KeyedList<MpVoteTeamsPlayers>,
+}
+
+impl crate::model::Model for MpVoteTeams {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.multi, &old.multi, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.players, &old.players, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.multi),
+            crate::model::Model::to_value(&self.players),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(MpVoteTeams {
+            key: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            multi: crate::model::Model::from_value(&f[2])?,
+            players: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for MpVoteTeams {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct MpVoteConcedeCandidates {
+    pub key: ::std::sync::Arc<str>,
+    pub player_id: i32,
+    pub nick: crate::value::Text,
+    pub leader: crate::value::Text,
+    pub civ_name: crate::value::Text,
+    pub portrait: crate::value::AssetRef,
+    pub emblem: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+    pub team_label: crate::value::Text,
+    pub is_human: bool,
+    pub sub: crate::value::Text,
+    pub score_text: crate::value::Text,
+}
+
+impl crate::model::Model for MpVoteConcedeCandidates {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.nick, &old.nick, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.leader, &old.leader, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.team_label, &old.team_label, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.is_human, &old.is_human, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.sub, &old.sub, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.score_text, &old.score_text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.nick),
+            crate::model::Model::to_value(&self.leader),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.team_label),
+            crate::model::Model::to_value(&self.is_human),
+            crate::model::Model::to_value(&self.sub),
+            crate::model::Model::to_value(&self.score_text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(13)?;
+        Ok(MpVoteConcedeCandidates {
+            key: crate::model::Model::from_value(&f[0])?,
+            player_id: crate::model::Model::from_value(&f[1])?,
+            nick: crate::model::Model::from_value(&f[2])?,
+            leader: crate::model::Model::from_value(&f[3])?,
+            civ_name: crate::model::Model::from_value(&f[4])?,
+            portrait: crate::model::Model::from_value(&f[5])?,
+            emblem: crate::model::Model::from_value(&f[6])?,
+            color_bg: crate::model::Model::from_value(&f[7])?,
+            color_fg: crate::model::Model::from_value(&f[8])?,
+            team_label: crate::model::Model::from_value(&f[9])?,
+            is_human: crate::model::Model::from_value(&f[10])?,
+            sub: crate::model::Model::from_value(&f[11])?,
+            score_text: crate::model::Model::from_value(&f[12])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for MpVoteConcedeCandidates {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct MpVoteConcede {
+    pub candidates: crate::model::KeyedList<MpVoteConcedeCandidates>,
+    pub empty_text: crate::value::Text,
+}
+
+impl crate::model::Model for MpVoteConcede {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.candidates, &old.candidates, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.empty_text, &old.empty_text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.candidates),
+            crate::model::Model::to_value(&self.empty_text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(MpVoteConcede {
+            candidates: crate::model::Model::from_value(&f[0])?,
+            empty_text: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct MpVoteDiploVoteCandidates {
+    pub key: ::std::sync::Arc<str>,
+    pub player_id: i32,
+    pub nick: crate::value::Text,
+    pub leader: crate::value::Text,
+    pub civ_name: crate::value::Text,
+    pub portrait: crate::value::AssetRef,
+    pub emblem: crate::value::AssetRef,
+    pub color_bg: u32,
+    pub color_fg: u32,
+    pub team_label: crate::value::Text,
+    pub is_human: bool,
+    pub sub: crate::value::Text,
+    pub score_text: crate::value::Text,
+}
+
+impl crate::model::Model for MpVoteDiploVoteCandidates {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.nick, &old.nick, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.leader, &old.leader, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.team_label, &old.team_label, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.is_human, &old.is_human, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.sub, &old.sub, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.score_text, &old.score_text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.nick),
+            crate::model::Model::to_value(&self.leader),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+            crate::model::Model::to_value(&self.team_label),
+            crate::model::Model::to_value(&self.is_human),
+            crate::model::Model::to_value(&self.sub),
+            crate::model::Model::to_value(&self.score_text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(13)?;
+        Ok(MpVoteDiploVoteCandidates {
+            key: crate::model::Model::from_value(&f[0])?,
+            player_id: crate::model::Model::from_value(&f[1])?,
+            nick: crate::model::Model::from_value(&f[2])?,
+            leader: crate::model::Model::from_value(&f[3])?,
+            civ_name: crate::model::Model::from_value(&f[4])?,
+            portrait: crate::model::Model::from_value(&f[5])?,
+            emblem: crate::model::Model::from_value(&f[6])?,
+            color_bg: crate::model::Model::from_value(&f[7])?,
+            color_fg: crate::model::Model::from_value(&f[8])?,
+            team_label: crate::model::Model::from_value(&f[9])?,
+            is_human: crate::model::Model::from_value(&f[10])?,
+            sub: crate::model::Model::from_value(&f[11])?,
+            score_text: crate::model::Model::from_value(&f[12])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for MpVoteDiploVoteCandidates {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct MpVoteDiploVote {
+    pub blocking: bool,
+    pub candidates: crate::model::KeyedList<MpVoteDiploVoteCandidates>,
+}
+
+impl crate::model::Model for MpVoteDiploVote {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.blocking, &old.blocking, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.candidates, &old.candidates, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.blocking),
+            crate::model::Model::to_value(&self.candidates),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(MpVoteDiploVote {
+            blocking: crate::model::Model::from_value(&f[0])?,
+            candidates: crate::model::Model::from_value(&f[1])?,
         })
     }
 }
@@ -5045,15 +13721,15 @@ impl crate::model::Model for Ui {
         crate::model::Model::diff(&self.map_mode, &old.map_mode, at, out);
         at.field = base.child(7);
         crate::model::Model::diff(&self.windows, &old.windows, at, out);
-        at.field = base.child(23);
+        at.field = base.child(47);
         crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(27);
+        at.field = base.child(51);
         crate::model::Model::diff(&self.chat, &old.chat, at, out);
-        at.field = base.child(30);
+        at.field = base.child(54);
         crate::model::Model::diff(&self.pending, &old.pending, at, out);
-        at.field = base.child(35);
+        at.field = base.child(59);
         crate::model::Model::diff(&self.turn_pending, &old.turn_pending, at, out);
-        at.field = base.child(36);
+        at.field = base.child(60);
         crate::model::Model::diff(&self.errors, &old.errors, at, out);
         at.field = base;
     }
@@ -5082,6 +13758,426 @@ impl crate::model::Model for Ui {
             pending: crate::model::Model::from_value(&f[5])?,
             turn_pending: crate::model::Model::from_value(&f[6])?,
             errors: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Archaeology {
+    pub status: ArchaeologyStatus,
+    pub reason: Option<crate::value::Text>,
+    pub unit_id: i32,
+    pub archaeologist: crate::value::AssetRef,
+    pub plot: Option<ArchaeologyPlot>,
+    pub near_city: crate::value::Text,
+    pub player: ArchaeologyPlayer,
+    pub find: Option<ArchaeologyFind>,
+    pub no_slot_warning: Option<crate::value::Text>,
+    pub choices: crate::model::KeyedList<ArchaeologyChoice>,
+}
+
+impl crate::model::Model for Archaeology {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.status, &old.status, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.unit_id, &old.unit_id, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.archaeologist, &old.archaeologist, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.plot, &old.plot, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.near_city, &old.near_city, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.player, &old.player, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.find, &old.find, at, out);
+        at.field = base.child(33);
+        crate::model::Model::diff(&self.no_slot_warning, &old.no_slot_warning, at, out);
+        at.field = base.child(34);
+        crate::model::Model::diff(&self.choices, &old.choices, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.status),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.unit_id),
+            crate::model::Model::to_value(&self.archaeologist),
+            crate::model::Model::to_value(&self.plot),
+            crate::model::Model::to_value(&self.near_city),
+            crate::model::Model::to_value(&self.player),
+            crate::model::Model::to_value(&self.find),
+            crate::model::Model::to_value(&self.no_slot_warning),
+            crate::model::Model::to_value(&self.choices),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(10)?;
+        Ok(Archaeology {
+            status: crate::model::Model::from_value(&f[0])?,
+            reason: crate::model::Model::from_value(&f[1])?,
+            unit_id: crate::model::Model::from_value(&f[2])?,
+            archaeologist: crate::model::Model::from_value(&f[3])?,
+            plot: crate::model::Model::from_value(&f[4])?,
+            near_city: crate::model::Model::from_value(&f[5])?,
+            player: crate::model::Model::from_value(&f[6])?,
+            find: crate::model::Model::from_value(&f[7])?,
+            no_slot_warning: crate::model::Model::from_value(&f[8])?,
+            choices: crate::model::Model::from_value(&f[9])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityState {
+    pub view: CityStateView,
+    pub player_id: i32,
+    pub player_gold: i32,
+    pub minor: Option<CityStateMinor>,
+    pub speech: Option<CityStateSpeech>,
+    pub status: Option<CityStateStatus>,
+    pub ally: Option<CityStateAlly>,
+    pub protectors: crate::model::KeyedList<CityStateProtectors>,
+    pub enemies: crate::model::KeyedList<CityStateEnemies>,
+    pub can_bully: bool,
+    pub bully_text: crate::value::Text,
+    pub bonuses: crate::model::KeyedList<CityStateBonuses>,
+    pub resources: crate::model::KeyedList<CityStateResources>,
+    pub resources_exported_text: crate::value::Text,
+    pub quests: crate::model::KeyedList<CityStateQuests>,
+    pub no_quests_text: crate::value::Text,
+    pub threat_barbarians: bool,
+    pub threat_barbarians_text: crate::value::Text,
+    pub threat_proxy_war: bool,
+    pub threat_proxy_war_text: crate::value::Text,
+    pub actions: Option<CityStateActions>,
+    pub gifts: Option<CityStateGifts>,
+    pub tribute: Option<CityStateTribute>,
+    pub enter_land: Option<CityStateEnterLand>,
+    pub liberate: Option<CityStateLiberate>,
+    pub reason: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for CityState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.view, &old.view, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.player_gold, &old.player_gold, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.minor, &old.minor, at, out);
+        at.field = base.child(23);
+        crate::model::Model::diff(&self.speech, &old.speech, at, out);
+        at.field = base.child(27);
+        crate::model::Model::diff(&self.status, &old.status, at, out);
+        at.field = base.child(44);
+        crate::model::Model::diff(&self.ally, &old.ally, at, out);
+        at.field = base.child(57);
+        crate::model::Model::diff(&self.protectors, &old.protectors, at, out);
+        at.field = base.child(65);
+        crate::model::Model::diff(&self.enemies, &old.enemies, at, out);
+        at.field = base.child(73);
+        crate::model::Model::diff(&self.can_bully, &old.can_bully, at, out);
+        at.field = base.child(74);
+        crate::model::Model::diff(&self.bully_text, &old.bully_text, at, out);
+        at.field = base.child(75);
+        crate::model::Model::diff(&self.bonuses, &old.bonuses, at, out);
+        at.field = base.child(82);
+        crate::model::Model::diff(&self.resources, &old.resources, at, out);
+        at.field = base.child(89);
+        crate::model::Model::diff(&self.resources_exported_text, &old.resources_exported_text, at, out);
+        at.field = base.child(90);
+        crate::model::Model::diff(&self.quests, &old.quests, at, out);
+        at.field = base.child(104);
+        crate::model::Model::diff(&self.no_quests_text, &old.no_quests_text, at, out);
+        at.field = base.child(105);
+        crate::model::Model::diff(&self.threat_barbarians, &old.threat_barbarians, at, out);
+        at.field = base.child(106);
+        crate::model::Model::diff(&self.threat_barbarians_text, &old.threat_barbarians_text, at, out);
+        at.field = base.child(107);
+        crate::model::Model::diff(&self.threat_proxy_war, &old.threat_proxy_war, at, out);
+        at.field = base.child(108);
+        crate::model::Model::diff(&self.threat_proxy_war_text, &old.threat_proxy_war_text, at, out);
+        at.field = base.child(109);
+        crate::model::Model::diff(&self.actions, &old.actions, at, out);
+        at.field = base.child(141);
+        crate::model::Model::diff(&self.gifts, &old.gifts, at, out);
+        at.field = base.child(160);
+        crate::model::Model::diff(&self.tribute, &old.tribute, at, out);
+        at.field = base.child(178);
+        crate::model::Model::diff(&self.enter_land, &old.enter_land, at, out);
+        at.field = base.child(188);
+        crate::model::Model::diff(&self.liberate, &old.liberate, at, out);
+        at.field = base.child(201);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.view),
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.player_gold),
+            crate::model::Model::to_value(&self.minor),
+            crate::model::Model::to_value(&self.speech),
+            crate::model::Model::to_value(&self.status),
+            crate::model::Model::to_value(&self.ally),
+            crate::model::Model::to_value(&self.protectors),
+            crate::model::Model::to_value(&self.enemies),
+            crate::model::Model::to_value(&self.can_bully),
+            crate::model::Model::to_value(&self.bully_text),
+            crate::model::Model::to_value(&self.bonuses),
+            crate::model::Model::to_value(&self.resources),
+            crate::model::Model::to_value(&self.resources_exported_text),
+            crate::model::Model::to_value(&self.quests),
+            crate::model::Model::to_value(&self.no_quests_text),
+            crate::model::Model::to_value(&self.threat_barbarians),
+            crate::model::Model::to_value(&self.threat_barbarians_text),
+            crate::model::Model::to_value(&self.threat_proxy_war),
+            crate::model::Model::to_value(&self.threat_proxy_war_text),
+            crate::model::Model::to_value(&self.actions),
+            crate::model::Model::to_value(&self.gifts),
+            crate::model::Model::to_value(&self.tribute),
+            crate::model::Model::to_value(&self.enter_land),
+            crate::model::Model::to_value(&self.liberate),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(26)?;
+        Ok(CityState {
+            view: crate::model::Model::from_value(&f[0])?,
+            player_id: crate::model::Model::from_value(&f[1])?,
+            player_gold: crate::model::Model::from_value(&f[2])?,
+            minor: crate::model::Model::from_value(&f[3])?,
+            speech: crate::model::Model::from_value(&f[4])?,
+            status: crate::model::Model::from_value(&f[5])?,
+            ally: crate::model::Model::from_value(&f[6])?,
+            protectors: crate::model::Model::from_value(&f[7])?,
+            enemies: crate::model::Model::from_value(&f[8])?,
+            can_bully: crate::model::Model::from_value(&f[9])?,
+            bully_text: crate::model::Model::from_value(&f[10])?,
+            bonuses: crate::model::Model::from_value(&f[11])?,
+            resources: crate::model::Model::from_value(&f[12])?,
+            resources_exported_text: crate::model::Model::from_value(&f[13])?,
+            quests: crate::model::Model::from_value(&f[14])?,
+            no_quests_text: crate::model::Model::from_value(&f[15])?,
+            threat_barbarians: crate::model::Model::from_value(&f[16])?,
+            threat_barbarians_text: crate::model::Model::from_value(&f[17])?,
+            threat_proxy_war: crate::model::Model::from_value(&f[18])?,
+            threat_proxy_war_text: crate::model::Model::from_value(&f[19])?,
+            actions: crate::model::Model::from_value(&f[20])?,
+            gifts: crate::model::Model::from_value(&f[21])?,
+            tribute: crate::model::Model::from_value(&f[22])?,
+            enter_land: crate::model::Model::from_value(&f[23])?,
+            liberate: crate::model::Model::from_value(&f[24])?,
+            reason: crate::model::Model::from_value(&f[25])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Congress {
+    pub view: CongressView,
+    pub player_id: i32,
+    pub league: Option<CongressLeague>,
+    pub splash: Option<CongressSplash>,
+    pub project: Option<CongressProject>,
+}
+
+impl crate::model::Model for Congress {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.view, &old.view, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.league, &old.league, at, out);
+        at.field = base.child(190);
+        crate::model::Model::diff(&self.splash, &old.splash, at, out);
+        at.field = base.child(207);
+        crate::model::Model::diff(&self.project, &old.project, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.view),
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.league),
+            crate::model::Model::to_value(&self.splash),
+            crate::model::Model::to_value(&self.project),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(Congress {
+            view: crate::model::Model::from_value(&f[0])?,
+            player_id: crate::model::Model::from_value(&f[1])?,
+            league: crate::model::Model::from_value(&f[2])?,
+            splash: crate::model::Model::from_value(&f[3])?,
+            project: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Culture {
+    pub player: CultureCiv,
+    pub summary: CultureSummary,
+    pub antiquity: Option<CultureAntiquity>,
+    pub columns: crate::model::KeyedList<CultureColumn>,
+    pub cities: crate::model::KeyedList<CultureCity>,
+    pub swap: CultureSwap,
+    pub victory: CultureVictory,
+    pub influence: CultureInfluence,
+}
+
+impl crate::model::Model for Culture {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.player, &old.player, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.summary, &old.summary, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.antiquity, &old.antiquity, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.columns, &old.columns, at, out);
+        at.field = base.child(24);
+        crate::model::Model::diff(&self.cities, &old.cities, at, out);
+        at.field = base.child(82);
+        crate::model::Model::diff(&self.swap, &old.swap, at, out);
+        at.field = base.child(165);
+        crate::model::Model::diff(&self.victory, &old.victory, at, out);
+        at.field = base.child(185);
+        crate::model::Model::diff(&self.influence, &old.influence, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.player),
+            crate::model::Model::to_value(&self.summary),
+            crate::model::Model::to_value(&self.antiquity),
+            crate::model::Model::to_value(&self.columns),
+            crate::model::Model::to_value(&self.cities),
+            crate::model::Model::to_value(&self.swap),
+            crate::model::Model::to_value(&self.victory),
+            crate::model::Model::to_value(&self.influence),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(Culture {
+            player: crate::model::Model::from_value(&f[0])?,
+            summary: crate::model::Model::from_value(&f[1])?,
+            antiquity: crate::model::Model::from_value(&f[2])?,
+            columns: crate::model::Model::from_value(&f[3])?,
+            cities: crate::model::Model::from_value(&f[4])?,
+            swap: crate::model::Model::from_value(&f[5])?,
+            victory: crate::model::Model::from_value(&f[6])?,
+            influence: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct GreatWork {
+    pub id: i32,
+    pub r#type: ::std::sync::Arc<str>,
+    pub class: GreatWorkClass,
+    pub class_name: crate::value::Text,
+    pub artist: Option<crate::value::Text>,
+    pub from_dig: bool,
+    pub name: crate::value::Text,
+    pub quote: Option<crate::value::Text>,
+    pub civ_name: crate::value::Text,
+    pub era: crate::value::Text,
+    pub image: crate::value::AssetRef,
+    pub image_reason: Option<crate::value::Text>,
+    pub location: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for GreatWork {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.r#type, &old.r#type, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.class, &old.class, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.class_name, &old.class_name, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.artist, &old.artist, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.from_dig, &old.from_dig, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.quote, &old.quote, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.era, &old.era, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.image, &old.image, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.image_reason, &old.image_reason, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.location, &old.location, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.r#type),
+            crate::model::Model::to_value(&self.class),
+            crate::model::Model::to_value(&self.class_name),
+            crate::model::Model::to_value(&self.artist),
+            crate::model::Model::to_value(&self.from_dig),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.quote),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.era),
+            crate::model::Model::to_value(&self.image),
+            crate::model::Model::to_value(&self.image_reason),
+            crate::model::Model::to_value(&self.location),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(13)?;
+        Ok(GreatWork {
+            id: crate::model::Model::from_value(&f[0])?,
+            r#type: crate::model::Model::from_value(&f[1])?,
+            class: crate::model::Model::from_value(&f[2])?,
+            class_name: crate::model::Model::from_value(&f[3])?,
+            artist: crate::model::Model::from_value(&f[4])?,
+            from_dig: crate::model::Model::from_value(&f[5])?,
+            name: crate::model::Model::from_value(&f[6])?,
+            quote: crate::model::Model::from_value(&f[7])?,
+            civ_name: crate::model::Model::from_value(&f[8])?,
+            era: crate::model::Model::from_value(&f[9])?,
+            image: crate::model::Model::from_value(&f[10])?,
+            image_reason: crate::model::Model::from_value(&f[11])?,
+            location: crate::model::Model::from_value(&f[12])?,
         })
     }
 }
@@ -5124,6 +14220,73 @@ impl crate::model::Model for Hud {
             top: crate::model::Model::from_value(&f[1])?,
             city: crate::model::Model::from_value(&f[2])?,
             unit: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct MpVote {
+    pub view: MpVoteView,
+    pub player_id: i32,
+    pub open_count: i32,
+    pub human_count: i32,
+    pub proposal: Option<MpVoteProposal>,
+    pub teams: crate::model::KeyedList<MpVoteTeams>,
+    pub concede: Option<MpVoteConcede>,
+    pub diplo_vote: Option<MpVoteDiploVote>,
+    pub reason: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for MpVote {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.view, &old.view, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.player_id, &old.player_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.open_count, &old.open_count, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.human_count, &old.human_count, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.proposal, &old.proposal, at, out);
+        at.field = base.child(49);
+        crate::model::Model::diff(&self.teams, &old.teams, at, out);
+        at.field = base.child(74);
+        crate::model::Model::diff(&self.concede, &old.concede, at, out);
+        at.field = base.child(90);
+        crate::model::Model::diff(&self.diplo_vote, &old.diplo_vote, at, out);
+        at.field = base.child(106);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.view),
+            crate::model::Model::to_value(&self.player_id),
+            crate::model::Model::to_value(&self.open_count),
+            crate::model::Model::to_value(&self.human_count),
+            crate::model::Model::to_value(&self.proposal),
+            crate::model::Model::to_value(&self.teams),
+            crate::model::Model::to_value(&self.concede),
+            crate::model::Model::to_value(&self.diplo_vote),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(9)?;
+        Ok(MpVote {
+            view: crate::model::Model::from_value(&f[0])?,
+            player_id: crate::model::Model::from_value(&f[1])?,
+            open_count: crate::model::Model::from_value(&f[2])?,
+            human_count: crate::model::Model::from_value(&f[3])?,
+            proposal: crate::model::Model::from_value(&f[4])?,
+            teams: crate::model::Model::from_value(&f[5])?,
+            concede: crate::model::Model::from_value(&f[6])?,
+            diplo_vote: crate::model::Model::from_value(&f[7])?,
+            reason: crate::model::Model::from_value(&f[8])?,
         })
     }
 }
@@ -5203,8 +14366,32 @@ impl crate::model::Root for Ui {
     const NAME: &'static str = "ui";
 }
 
+impl crate::model::Root for Option<Archaeology> {
+    const NAME: &'static str = "archaeology";
+}
+
+impl crate::model::Root for Option<CityState> {
+    const NAME: &'static str = "city_state";
+}
+
+impl crate::model::Root for Option<Congress> {
+    const NAME: &'static str = "congress";
+}
+
+impl crate::model::Root for Option<Culture> {
+    const NAME: &'static str = "culture";
+}
+
+impl crate::model::Root for Option<GreatWork> {
+    const NAME: &'static str = "great_work";
+}
+
 impl crate::model::Root for Option<Hud> {
     const NAME: &'static str = "hud";
+}
+
+impl crate::model::Root for Option<MpVote> {
+    const NAME: &'static str = "mp_vote";
 }
 
 impl crate::model::Root for Option<Techs> {
@@ -5231,24 +14418,42 @@ pub fn put_root(
         "chat" => crate::model::put_value::<crate::model::KeyedList<ChatRow>>(w, v),
         "production" => crate::model::put_value::<Option<Production>>(w, v),
         "ui" => crate::model::put_value::<Ui>(w, v),
+        "archaeology" => crate::model::put_value::<Option<Archaeology>>(w, v),
+        "city_state" => crate::model::put_value::<Option<CityState>>(w, v),
+        "congress" => crate::model::put_value::<Option<Congress>>(w, v),
+        "culture" => crate::model::put_value::<Option<Culture>>(w, v),
+        "great_work" => crate::model::put_value::<Option<GreatWork>>(w, v),
         "hud" => crate::model::put_value::<Option<Hud>>(w, v),
+        "mp_vote" => crate::model::put_value::<Option<MpVote>>(w, v),
         "techs" => crate::model::put_value::<Option<Techs>>(w, v),
         _ => return None,
     })
 }
 
-pub const WINDOW_SCREEN_NAMES: &[&str] = &["techs"];
+pub const WINDOW_SCREEN_NAMES: &[&str] = &["archaeology", "city_state", "congress", "culture", "great_work", "mp_vote", "techs"];
 
-pub const SCREEN_NAMES: &[&str] = &["hud", "techs"];
+pub const SCREEN_NAMES: &[&str] = &["archaeology", "city_state", "congress", "culture", "great_work", "hud", "mp_vote", "techs"];
 impl Windows {
     pub fn remote(&self, name: &str) -> Option<&WinArgs> {
         Some(match name {
+            "archaeology" => &self.archaeology,
+            "city_state" => &self.city_state,
+            "congress" => &self.congress,
+            "culture" => &self.culture,
+            "great_work" => &self.great_work,
+            "mp_vote" => &self.mp_vote,
             "techs" => &self.techs,
             _ => return None,
         })
     }
     pub fn remote_mut(&mut self, name: &str) -> Option<&mut WinArgs> {
         Some(match name {
+            "archaeology" => &mut self.archaeology,
+            "city_state" => &mut self.city_state,
+            "congress" => &mut self.congress,
+            "culture" => &mut self.culture,
+            "great_work" => &mut self.great_work,
+            "mp_vote" => &mut self.mp_vote,
             "techs" => &mut self.techs,
             _ => return None,
         })

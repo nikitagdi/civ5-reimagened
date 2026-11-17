@@ -1,0 +1,71 @@
+{
+  "model": {
+    "congress": {
+      "view": "splash",
+      "player_id": 0,
+      "league": null,
+      "splash": {
+        "kind": "new_era",
+        "first_session": false,
+        "art": "ui-tx:LEAGUE_SPLASH_UN",
+        "caption": "World Congress, turn 214",
+        "title": "The United Nations is founded",
+        "description": "The World Congress becomes the United Nations. Sessions now elect a World Leader: the first civilization to gather enough delegates in that vote wins a diplomatic victory.",
+        "this_era_title": "This era: United Nations",
+        "this_era": [
+          {
+            "key": "t1",
+            "icon": "ui:DELEGATES",
+            "text": "4 delegates for each member civilization"
+          },
+          {
+            "key": "t2",
+            "icon": "ui:HOST",
+            "text": "The host gets +2 delegates"
+          },
+          {
+            "key": "t3",
+            "icon": "ui:CITY_STATE",
+            "text": "+2 delegates for each allied city-state"
+          },
+          {
+            "key": "t4",
+            "icon": "ui:VICTORY",
+            "text": "World Leader vote every 30 turns; 28 delegates win"
+          }
+        ],
+        "next_era_title": "Next: Information era sessions",
+        "next_era": [
+          {
+            "key": "n1",
+            "icon": "ui:DELEGATES",
+            "text": "5 delegates for each member civilization"
+          },
+          {
+            "key": "n2",
+            "icon": "ui:HOST",
+            "text": "The host gets +2 delegates"
+          },
+          {
+            "key": "n3",
+            "icon": "ui:CITY_STATE",
+            "text": "+2 delegates for each allied city-state"
+          },
+          {
+            "key": "n4",
+            "icon": "ui:ERA",
+            "text": "Starts when half of all civilizations reach the Information era"
+          }
+        ]
+      },
+      "project": null
+    }
+  },
+  "ui": {
+    "windows": {
+      "congress": {
+        "open": true
+      }
+    }
+  }
+}

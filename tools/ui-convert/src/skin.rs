@@ -548,8 +548,68 @@ api = "1.0"
         assert_eq!(
             skin.state.into_iter().collect::<Vec<_>>(),
             [
+                ("archaeology.confirm".to_string(), StateValue::Int(0)),
                 ("chat.draft".to_string(), StateValue::Str(String::new())),
                 ("chat.pick".to_string(), StateValue::Bool(false)),
+                (
+                    "congress.choice".to_string(),
+                    StateValue::Str(String::new())
+                ),
+                (
+                    "congress.confirm".to_string(),
+                    StateValue::Str("none".to_string())
+                ),
+                (
+                    "congress.picker".to_string(),
+                    StateValue::Str("none".to_string())
+                ),
+                ("congress.rename".to_string(), StateValue::Bool(false)),
+                (
+                    "congress.rename_text".to_string(),
+                    StateValue::Str(String::new())
+                ),
+                ("congress.slot".to_string(), StateValue::Int(0)),
+                ("congress.tip".to_string(), StateValue::Str(String::new())),
+                (
+                    "cs.confirm".to_string(),
+                    StateValue::Str("none".to_string())
+                ),
+                ("cs.menu".to_string(), StateValue::Str("main".to_string())),
+                ("cs.tip".to_string(), StateValue::Str(String::new())),
+                (
+                    "culture.click_mode".to_string(),
+                    StateValue::Str("move".to_string())
+                ),
+                ("culture.offer".to_string(), StateValue::Int(-1)),
+                ("culture.own_work".to_string(), StateValue::Int(-1)),
+                (
+                    "culture.pair_label".to_string(),
+                    StateValue::Str(String::new())
+                ),
+                ("culture.pair_partner".to_string(), StateValue::Int(-1)),
+                ("culture.pair_work".to_string(), StateValue::Int(-1)),
+                ("culture.pick".to_string(), StateValue::Int(-1)),
+                (
+                    "culture.reason".to_string(),
+                    StateValue::Str("Pick a work from another civilization.".to_string())
+                ),
+                (
+                    "culture.slot_type".to_string(),
+                    StateValue::Str(String::new())
+                ),
+                (
+                    "culture.sort_cities".to_string(),
+                    StateValue::Str("id".to_string())
+                ),
+                ("culture.source".to_string(), StateValue::Int(-1)),
+                (
+                    "culture.tab".to_string(),
+                    StateValue::Str("yours".to_string())
+                ),
+                ("culture.tip".to_string(), StateValue::Str(String::new())),
+                ("culture.x".to_string(), StateValue::Int(0)),
+                ("culture.y".to_string(), StateValue::Int(0)),
+                ("mp_vote.pending".to_string(), StateValue::Bool(false)),
                 ("prod.hide_locked".to_string(), StateValue::Bool(false)),
                 (
                     "prod.sort".to_string(),
@@ -558,7 +618,17 @@ api = "1.0"
                 ("top.menu".to_string(), StateValue::Bool(false)),
             ]
         );
-        assert_eq!(skin.scripts.files, ["js/production.js"]);
+        assert_eq!(
+            skin.scripts.files,
+            [
+                "js/production.js",
+                "js/culture.js",
+                "js/archaeology.js",
+                "js/city_state.js",
+                "js/congress.js",
+                "js/mp_vote.js"
+            ]
+        );
         // The first state is the one the converter scans with.
         assert_eq!(
             skin.verify.states,
@@ -568,7 +638,24 @@ api = "1.0"
                 "hud-chat",
                 "production",
                 "production-sorted",
-                "research"
+                "research",
+                "techs",
+                "culture",
+                "great_work",
+                "archaeology",
+                "archaeology--writing",
+                "city_state",
+                "city_state--enter",
+                "city_state--liberate",
+                "congress",
+                "congress--propose",
+                "congress--splash",
+                "congress--project",
+                "congress--empty",
+                "mp_vote",
+                "mp_vote--result",
+                "mp_vote--concede",
+                "mp_vote--diplo"
             ]
         );
         assert_eq!(skin.verify.golden[0].viewport, [1920, 1080]);

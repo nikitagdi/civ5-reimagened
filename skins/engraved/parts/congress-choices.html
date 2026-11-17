@@ -1,0 +1,17 @@
+<h3 data-l10n="congress.repeal"></h3>
+<div class="congress-choice" data-bind-for="choice:{{congress.league.choices.repeal}}">
+  <button data-bind-disabled="{{!choice.enabled}}" data-on-click="call congress.pick(choice.key)"><strong data-bind-value="{{choice.name}}"></strong><span data-bind-value="{{choice.effect}}"></span><span data-bind-value="{{choice.reason}}"></span></button>
+  <div class="congress-params" data-bind-if="{{state.congress.choice == choice.key &amp;&amp; state.congress.picker != 'browse'}}"><button data-bind-for="param:{{choice.params}}" data-bind-disabled="{{!param.enabled}}" data-on-click="intent screen.act(screen: 'congress', action: 'propose_set', a: state.congress.slot, b: choice.kind == 'repeal' ? 1 : 0, c: choice.id, d: param.value); set state.congress.picker = 'none'"><span data-bind-value="{{param.name}}"></span><span data-bind-value="{{param.reason}}"></span></button></div>
+</div>
+
+<h3 data-l10n="congress.enact"></h3>
+<div class="congress-choice" data-bind-for="choice:{{congress.league.choices.enact}}">
+  <button data-bind-disabled="{{!choice.enabled}}" data-on-click="call congress.pick(choice.key)"><strong data-bind-value="{{choice.name}}"></strong><span data-bind-value="{{choice.effect}}"></span><span data-bind-value="{{choice.reason}}"></span></button>
+  <div class="congress-params" data-bind-if="{{state.congress.choice == choice.key &amp;&amp; state.congress.picker != 'browse'}}"><button data-bind-for="param:{{choice.params}}" data-bind-disabled="{{!param.enabled}}" data-on-click="intent screen.act(screen: 'congress', action: 'propose_set', a: state.congress.slot, b: choice.kind == 'repeal' ? 1 : 0, c: choice.id, d: param.value); set state.congress.picker = 'none'"><span data-bind-value="{{param.name}}"></span><span data-bind-value="{{param.reason}}"></span></button></div>
+</div>
+
+<h3 data-l10n="congress.unavailable"></h3>
+<div class="congress-choice" data-bind-for="choice:{{congress.league.choices.unavailable}}">
+  <button data-bind-disabled="{{!choice.enabled}}" data-on-click="call congress.pick(choice.key)"><strong data-bind-value="{{choice.name}}"></strong><span data-bind-value="{{choice.effect}}"></span><span data-bind-value="{{choice.reason}}"></span></button>
+  <div class="congress-params" data-bind-if="{{state.congress.choice == choice.key &amp;&amp; state.congress.picker != 'browse'}}"><button data-bind-for="param:{{choice.params}}" data-bind-disabled="{{!param.enabled}}" data-on-click="intent screen.act(screen: 'congress', action: 'propose_set', a: state.congress.slot, b: choice.kind == 'repeal' ? 1 : 0, c: choice.id, d: param.value); set state.congress.picker = 'none'"><span data-bind-value="{{param.name}}"></span><span data-bind-value="{{param.reason}}"></span></button></div>
+</div>

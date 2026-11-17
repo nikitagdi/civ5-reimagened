@@ -21,11 +21,53 @@ export type ProdTab = "all" | "units" | "buildings" | "wonders" | "other";
 export type TurnPending = "none" | "ending" | "cancelling";
 export type ToastKind = "refused" | "rejected" | "lost";
 export type RefuseWhy = "unsupported" | "no_screen" | "no_unit" | "action_unavailable" | "not_your_city" | "option_unavailable" | "cannot_buy" | "bad_slot" | "tech_unavailable" | "cannot_end_turn" | "cannot_cancel" | "chat_empty" | "chat_too_long" | "chat_rate" | "no_connection" | "no_game" | "too_many" | "turn_changed" | "too_big" | "core" | "turn_ended" | "not_your_turn" | "restarting" | "invalid" | "expired" | "not_seated" | "other";
-export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "techs";
+export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "archaeology" | "city_state" | "congress" | "culture" | "great_work" | "mp_vote" | "techs";
 export type ScreenId = "tech_tree" | "policies" | "religion" | "diplomacy" | "overview" | "notification_log" | "economy" | "military" | "victory" | "demographics" | "chat";
 export type MouseButton = "left" | "right";
 export type PushAt = "back" | "front";
 export type BuyWith = "gold" | "faith";
+export type ArchaeologyStatus = "idle" | "pending";
+export type ArchaeologyKind = "battle_ranged" | "battle_melee" | "barbarian_camp" | "ancient_ruins" | "razed_city" | "writing";
+export type ArchaeologyRole = "attacker" | "defender" | "plunderer" | "conqueror" | "founder" | "author";
+export type ArchaeologyChoiceKind = "artifact" | "landmark" | "writing" | "culture";
+export type CityStateView = "diplo" | "enter_land" | "liberate";
+export type CityStateMinorTrait = "cultural" | "militaristic" | "maritime" | "mercantile" | "religious";
+export type CityStateMinorPersonality = "friendly" | "neutral" | "hostile" | "irrational";
+export type CityStateSpeechKind = "greeting_first" | "greeting" | "new_quest" | "peace_made" | "gold_tribute" | "unit_tribute" | "gold_gift" | "pledge" | "pledge_revoked" | "peace_friend" | "peace_neutral" | "war" | "war_no_peace";
+export type CityStateStatusKind = "ally" | "friend" | "permanent_war" | "no_peace" | "war" | "afraid" | "angry" | "neutral";
+export type CityStateStatusStyle = "war" | "ally" | "friend" | "bully" | "negative" | "neutral";
+export type CityStateStatusScaleSide = "positive" | "negative" | "zero";
+export type CityStateAllyKind = "none" | "you" | "civ" | "unknown";
+export type CityStateResourcesKind = "strategic" | "luxury";
+export type CityStateActionsPledgeState = "can_pledge" | "pledged";
+export type CityStateEnterLandOwnerKind = "city_state" | "civ";
+export type CongressView = "league" | "splash" | "project";
+export type CongressLeagueAbsentReason = "disabled" | "not_founded";
+export type CongressLeaguePhase = "between" | "session";
+export type CongressLeagueMode = "view" | "propose" | "vote";
+export type CongressLeagueProposalsVoteKind = "yes_no" | "elect";
+export type CongressLeagueProposalsKind = "enact" | "repeal";
+export type CongressLeagueProposalsState = "yea" | "nay" | "abstain" | "postponed" | "pending";
+export type CongressLeagueSlotsKind = "enact" | "repeal";
+export type CongressLeagueChoicesRepealNeeds = "none" | "civ" | "luxury" | "religion";
+export type CongressLeagueChoicesRepealKind = "enact" | "repeal";
+export type CongressLeagueChoicesEnactNeeds = "none" | "civ" | "luxury" | "religion";
+export type CongressLeagueChoicesEnactKind = "enact" | "repeal";
+export type CongressLeagueChoicesUnavailableNeeds = "none" | "civ" | "luxury" | "religion";
+export type CongressLeagueChoicesUnavailableKind = "enact" | "repeal";
+export type CongressSplashKind = "founded" | "new_era";
+export type CultureWorkClass = "writing" | "art" | "artifact" | "music";
+export type CultureSlotType = "art_artifact" | "literature" | "music";
+export type CultureCellState = "built" | "not_built" | "none";
+export type CultureIdeology = "none" | "freedom" | "order" | "autocracy";
+export type CultureLevel = "unknown" | "exotic" | "familiar" | "popular" | "influential" | "dominant";
+export type CultureTrend = "falling" | "static" | "rising_slowly" | "rising";
+export type GreatWorkClass = "writing" | "art" | "music" | "artifact";
+export type MpVoteView = "proposal" | "concede" | "diplo_vote";
+export type MpVoteProposalKind = "kick" | "concede" | "scrap" | "remap";
+export type MpVoteProposalStatus = "open" | "passed" | "failed";
+export type MpVoteProposalMyVote = "none" | "yes" | "no";
+export type MpVoteTeamsPlayersVote = "none" | "hidden" | "yes" | "no";
 export type TechsStatus = "researched" | "current" | "available" | "queued" | "locked";
 
 export interface Plot {
@@ -301,6 +343,12 @@ export interface WinCity {
 }
 
 export interface Windows {
+  readonly archaeology: WinArgs;
+  readonly city_state: WinArgs;
+  readonly congress: WinArgs;
+  readonly culture: WinArgs;
+  readonly great_work: WinArgs;
+  readonly mp_vote: WinArgs;
   readonly techs: WinArgs;
   readonly production: WinCity;
   readonly research: Win;
@@ -332,6 +380,776 @@ export interface Toast {
   readonly kind: ToastKind;
   readonly why: RefuseWhy;
   readonly detail: string | null;
+}
+
+export interface ArchaeologyPlot {
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface ArchaeologyPlayer {
+  readonly id: number;
+  readonly name: Text;
+  readonly civ_name: Text;
+  readonly civ: string;
+  readonly leader: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface ArchaeologyParticipant {
+  readonly role: ArchaeologyRole;
+  readonly role_name: Text;
+  readonly civ_name: Text;
+  readonly civ: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface ArchaeologyWork {
+  readonly name: Text;
+  readonly type: string;
+  readonly type_id: number;
+  readonly creator: Text;
+  readonly civ_name: Text;
+}
+
+export interface ArchaeologyFind {
+  readonly kind: ArchaeologyKind;
+  readonly kind_name: Text;
+  readonly era: Text;
+  readonly participants: ArchaeologyParticipant[];
+  readonly work: ArchaeologyWork | null;
+}
+
+export interface ArchaeologyChoice {
+  readonly id: number;
+  readonly kind: ArchaeologyChoiceKind;
+  readonly title: Text;
+  readonly description: Text;
+  readonly civ_name: Text | null;
+  readonly civ: string | null;
+  readonly color_bg: number | null;
+  readonly color_fg: number | null;
+  readonly diplomacy: Text | null;
+  readonly culture: number | null;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+}
+
+export interface CityStateMinor {
+  readonly id: number;
+  readonly key: string;
+  readonly team_id: number;
+  readonly name: Text;
+  readonly emblem: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly name_color: number;
+  readonly trait: CityStateMinorTrait;
+  readonly trait_name: Text;
+  readonly trait_tooltip: Text;
+  readonly personality: CityStateMinorPersonality;
+  readonly personality_name: Text;
+  readonly personality_tooltip: Text;
+  readonly has_capital: boolean;
+  readonly capital_plot: number | null;
+  readonly capital_location: Plot | null;
+}
+
+export interface CityStateSpeech {
+  readonly kind: CityStateSpeechKind;
+  readonly text: Text;
+  readonly caption: Text;
+}
+
+export interface CityStateStatus {
+  readonly kind: CityStateStatusKind;
+  readonly style: CityStateStatusStyle;
+  readonly label: Text;
+  readonly influence: number;
+  readonly per_turn: number;
+  readonly resting_point: number;
+  readonly at_rest: boolean;
+  readonly at_war: boolean;
+  readonly war_turns: number;
+  readonly war_threshold: number;
+  readonly friend_threshold: number;
+  readonly ally_threshold: number;
+  readonly scale_side: CityStateStatusScaleSide;
+  readonly scale_fill_pct: number;
+  readonly scale_marker_pct: number;
+  readonly friend_tick_pct: number;
+}
+
+export interface CityStateAlly {
+  readonly kind: CityStateAllyKind;
+  readonly player_id: number | null;
+  readonly name: Text;
+  readonly emblem: string | null;
+  readonly color_bg: number | null;
+  readonly color_fg: number | null;
+  readonly influence: number | null;
+  readonly influence_to_overtake: number | null;
+  readonly ally_turns: number | null;
+  readonly marriage: boolean;
+  readonly refuses_bribes: boolean;
+  readonly tooltip: Text;
+}
+
+export interface CityStateProtectors {
+  readonly key: string;
+  readonly player_id: number;
+  readonly name: Text;
+  readonly is_you: boolean;
+  readonly emblem: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface CityStateEnemies {
+  readonly key: string;
+  readonly player_id: number;
+  readonly name: Text;
+  readonly is_you: boolean;
+  readonly emblem: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface CityStateBonuses {
+  readonly key: string;
+  readonly kind: Text;
+  readonly icon: string;
+  readonly text: Text;
+  readonly short: Text;
+  readonly next_in: number | null;
+}
+
+export interface CityStateResources {
+  readonly key: string;
+  readonly icon: string;
+  readonly name: Text;
+  readonly count: number;
+  readonly kind: CityStateResourcesKind;
+  readonly exported: boolean;
+}
+
+export interface CityStateQuests {
+  readonly key: string;
+  readonly type: string;
+  readonly icon: string;
+  readonly title: Text;
+  readonly detail: Text;
+  readonly tooltip: Text;
+  readonly turns_left: number | null;
+  readonly plot: number | null;
+  readonly can_locate: boolean;
+  readonly contest_you: number | null;
+  readonly contest_leader: number | null;
+  readonly contest_leader_name: Text | null;
+  readonly contest_you_lead: boolean | null;
+}
+
+export interface CityStateActionsPeace {
+  readonly visible: boolean;
+  readonly enabled: boolean;
+  readonly turns: number;
+  readonly reason: Text;
+}
+
+export interface CityStateActionsWar {
+  readonly visible: boolean;
+  readonly enabled: boolean;
+  readonly reason: Text;
+}
+
+export interface CityStateActionsGifts {
+  readonly visible: boolean;
+  readonly enabled: boolean;
+}
+
+export interface CityStateActionsTribute {
+  readonly visible: boolean;
+  readonly enabled: boolean;
+  readonly subtitle: Text;
+}
+
+export interface CityStateActionsPledge {
+  readonly visible: boolean;
+  readonly state: CityStateActionsPledgeState;
+  readonly enabled: boolean;
+  readonly turns: number;
+  readonly reason: Text;
+}
+
+export interface CityStateActionsUnitSpawning {
+  readonly visible: boolean;
+  readonly on: boolean;
+  readonly subtitle: Text;
+}
+
+export interface CityStateActionsBuyout {
+  readonly visible: boolean;
+  readonly enabled: boolean;
+  readonly cost: number;
+  readonly reason: Text;
+}
+
+export interface CityStateActions {
+  readonly peace: CityStateActionsPeace;
+  readonly war: CityStateActionsWar;
+  readonly gifts: CityStateActionsGifts;
+  readonly tribute: CityStateActionsTribute;
+  readonly pledge: CityStateActionsPledge;
+  readonly unit_spawning: CityStateActionsUnitSpawning;
+  readonly buyout: CityStateActionsBuyout;
+}
+
+export interface CityStateGiftsGold {
+  readonly key: string;
+  readonly index: number;
+  readonly amount: number;
+  readonly influence: number;
+  readonly enabled: boolean;
+  readonly reason: Text;
+}
+
+export interface CityStateGiftsUnit {
+  readonly enabled: boolean;
+  readonly influence_min: number;
+  readonly influence_max: number;
+  readonly travel_turns: number;
+  readonly reason: Text;
+}
+
+export interface CityStateGiftsImprovement {
+  readonly enabled: boolean;
+  readonly cost: number;
+  readonly reason: Text;
+}
+
+export interface CityStateGifts {
+  readonly gold: CityStateGiftsGold[];
+  readonly gold_hint: Text;
+  readonly unit: CityStateGiftsUnit;
+  readonly improvement: CityStateGiftsImprovement;
+}
+
+export interface CityStateTributeGold {
+  readonly enabled: boolean;
+  readonly amount: number;
+  readonly influence_loss: number;
+  readonly reason: Text;
+}
+
+export interface CityStateTributeUnit {
+  readonly enabled: boolean;
+  readonly unit_name: Text;
+  readonly icon: string;
+  readonly influence_loss: number;
+  readonly reason: Text;
+}
+
+export interface CityStateTribute {
+  readonly pressure: number | null;
+  readonly pressure_gold_needed: number | null;
+  readonly pressure_unit_needed: number | null;
+  readonly tooltip: Text;
+  readonly gold: CityStateTributeGold;
+  readonly unit: CityStateTributeUnit;
+  readonly confirm_influence_after: number;
+  readonly confirm_status_after: Text;
+}
+
+export interface CityStateEnterLand {
+  readonly owner_name: Text;
+  readonly owner_kind: CityStateEnterLandOwnerKind;
+  readonly owner_team_id: number;
+  readonly subtitle: Text;
+  readonly unit_id: number;
+  readonly unit_name: Text;
+  readonly plot: number;
+  readonly queue: boolean;
+  readonly text: Text;
+}
+
+export interface CityStateLiberatePreview {
+  readonly key: string;
+  readonly icon: string;
+  readonly text: Text;
+}
+
+export interface CityStateLiberate {
+  readonly city_id: number;
+  readonly city_key: string;
+  readonly city_name: Text;
+  readonly captured_from: Text;
+  readonly subtitle: Text;
+  readonly text: Text;
+  readonly preview: CityStateLiberatePreview[];
+  readonly can_puppet: boolean;
+  readonly annex_text: Text;
+}
+
+export interface CongressLeagueMembersTooltipStances {
+  readonly key: string;
+  readonly resolution: Text;
+  readonly stance: Text;
+  readonly strength: Text;
+  readonly good: boolean | null;
+}
+
+export interface CongressLeagueMembersTooltip {
+  readonly delegates_membership: number;
+  readonly delegates_city_states: number;
+  readonly goals: Text;
+  readonly ideology: Text;
+  readonly ideology_same: boolean;
+  readonly diplomat_in: Text;
+  readonly stances: CongressLeagueMembersTooltipStances[];
+}
+
+export interface CongressLeagueMembers {
+  readonly details: Text;
+  readonly key: string;
+  readonly player_id: number;
+  readonly name: Text;
+  readonly nick: Text | null;
+  readonly civ_name: Text;
+  readonly portrait: string;
+  readonly emblem: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly is_you: boolean;
+  readonly is_host: boolean;
+  readonly is_human: boolean;
+  readonly delegates: number;
+  readonly delegates_left: number | null;
+  readonly delegates_spent: number | null;
+  readonly can_propose: boolean;
+  readonly our_diplomat: boolean;
+  readonly tooltip: CongressLeagueMembersTooltip | null;
+}
+
+export interface CongressLeagueProposalsCandidate {
+  readonly key: string;
+  readonly player_id: number;
+  readonly name: Text;
+  readonly nick: Text | null;
+  readonly civ_name: Text;
+  readonly portrait: string;
+  readonly emblem: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly is_you: boolean;
+}
+
+export interface CongressLeagueProposalsCandidates {
+  readonly key: string;
+  readonly player_id: number;
+  readonly name: Text;
+  readonly nick: Text | null;
+  readonly civ_name: Text;
+  readonly portrait: string;
+  readonly emblem: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly is_you: boolean;
+  readonly enabled: boolean;
+  readonly reason: Text;
+}
+
+export interface CongressLeagueProposalsBy {
+  readonly key: string;
+  readonly player_id: number;
+  readonly name: Text;
+  readonly nick: Text | null;
+  readonly civ_name: Text;
+  readonly portrait: string;
+  readonly emblem: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly is_you: boolean;
+}
+
+export interface CongressLeagueProposals {
+  readonly postponed: boolean;
+  readonly vote_kind: CongressLeagueProposalsVoteKind;
+  readonly candidate: CongressLeagueProposalsCandidate | null;
+  readonly candidates: CongressLeagueProposalsCandidates[];
+  readonly can_up: boolean;
+  readonly can_down: boolean;
+  readonly project_icon: string | null;
+  readonly key: string;
+  readonly kind: CongressLeagueProposalsKind;
+  readonly resolution_id: number;
+  readonly resolution_type: string;
+  readonly name: Text;
+  readonly param_name: Text | null;
+  readonly by: CongressLeagueProposalsBy | null;
+  readonly effect: Text;
+  readonly description: Text;
+  readonly my_votes: number;
+  readonly state: CongressLeagueProposalsState;
+  readonly state_label: Text;
+}
+
+export interface CongressLeagueEffects {
+  readonly key: string;
+  readonly icon: string;
+  readonly text: Text;
+  readonly since_turn: number | null;
+}
+
+export interface CongressLeagueSlots {
+  readonly key: string;
+  readonly index: number;
+  readonly filled: boolean;
+  readonly kind: CongressLeagueSlotsKind | null;
+  readonly resolution_id: number | null;
+  readonly resolution_type: string | null;
+  readonly param: number;
+  readonly name: Text;
+  readonly param_name: Text | null;
+  readonly effect: Text;
+}
+
+export interface CongressLeagueChoicesRepeal {
+  readonly needs: CongressLeagueChoicesRepealNeeds;
+  readonly enabled: boolean;
+  readonly reason: Text;
+  readonly params: CongressLeagueChoicesEnactParams[];
+  readonly key: string;
+  readonly kind: CongressLeagueChoicesRepealKind;
+  readonly id: number;
+  readonly name: Text;
+  readonly effect: Text;
+  readonly description: Text;
+}
+
+export interface CongressLeagueChoicesEnactParams {
+  readonly key: string;
+  readonly value: number;
+  readonly name: Text;
+  readonly sub: Text;
+  readonly icon: string;
+  readonly emblem: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly enabled: boolean;
+  readonly reason: Text;
+}
+
+export interface CongressLeagueChoicesEnact {
+  readonly needs: CongressLeagueChoicesEnactNeeds;
+  readonly enabled: boolean;
+  readonly reason: Text;
+  readonly params: CongressLeagueChoicesEnactParams[];
+  readonly key: string;
+  readonly kind: CongressLeagueChoicesEnactKind;
+  readonly id: number;
+  readonly name: Text;
+  readonly effect: Text;
+  readonly description: Text;
+}
+
+export interface CongressLeagueChoicesUnavailable {
+  readonly needs: CongressLeagueChoicesUnavailableNeeds;
+  readonly enabled: boolean;
+  readonly reason: Text;
+  readonly params: CongressLeagueChoicesEnactParams[];
+  readonly key: string;
+  readonly kind: CongressLeagueChoicesUnavailableKind;
+  readonly id: number;
+  readonly name: Text;
+  readonly effect: Text;
+  readonly description: Text;
+}
+
+export interface CongressLeagueChoices {
+  readonly repeal: CongressLeagueChoicesRepeal[];
+  readonly enact: CongressLeagueChoicesEnact[];
+  readonly unavailable: CongressLeagueChoicesUnavailable[];
+  readonly unavailable_count: number;
+}
+
+export interface CongressLeague {
+  readonly rename_reason: Text | null;
+  readonly exists: boolean;
+  readonly absent_reason: CongressLeagueAbsentReason | null;
+  readonly absent_text: Text;
+  readonly id: number;
+  readonly name: Text;
+  readonly is_un: boolean;
+  readonly art: string;
+  readonly can_rename: boolean;
+  readonly phase: CongressLeaguePhase;
+  readonly session_label: Text;
+  readonly special_session: boolean;
+  readonly turns_to_session: number;
+  readonly diplo_victory_enabled: boolean;
+  readonly turns_to_world_leader_vote: number | null;
+  readonly delegates_to_win: number | null;
+  readonly mode: CongressLeagueMode;
+  readonly members: CongressLeagueMembers[];
+  readonly proposals: CongressLeagueProposals[];
+  readonly effects: CongressLeagueEffects[];
+  readonly delegates_total: number;
+  readonly delegates_free: number | null;
+  readonly can_reset_votes: boolean;
+  readonly slots: CongressLeagueSlots[];
+  readonly choices: CongressLeagueChoices | null;
+  readonly can_submit_proposals: boolean;
+  readonly submit_reason: Text;
+}
+
+export interface CongressSplashThisEra {
+  readonly key: string;
+  readonly icon: string;
+  readonly text: Text;
+}
+
+export interface CongressSplashNextEra {
+  readonly key: string;
+  readonly icon: string;
+  readonly text: Text;
+}
+
+export interface CongressSplash {
+  readonly kind: CongressSplashKind;
+  readonly first_session: boolean;
+  readonly art: string;
+  readonly caption: Text;
+  readonly title: Text;
+  readonly description: Text;
+  readonly this_era_title: Text;
+  readonly this_era: CongressSplashThisEra[];
+  readonly next_era_title: Text;
+  readonly next_era: CongressSplashNextEra[];
+}
+
+export interface CongressProjectTiers {
+  readonly key: string;
+  readonly tier: number;
+  readonly title: Text;
+  readonly threshold: number | null;
+  readonly reward: Text;
+}
+
+export interface CongressProjectRankingAwards {
+  readonly key: string;
+  readonly tier: Text;
+}
+
+export interface CongressProjectRanking {
+  readonly civ_name: Text;
+  readonly key: string;
+  readonly rank: number;
+  readonly player_id: number;
+  readonly known: boolean;
+  readonly is_you: boolean;
+  readonly name: Text;
+  readonly sub: Text;
+  readonly portrait: string;
+  readonly emblem: string;
+  readonly color_bg: number | null;
+  readonly color_fg: number | null;
+  readonly contribution: number;
+  readonly contribution_pct: number;
+  readonly tier: number;
+  readonly awards: CongressProjectRankingAwards[];
+  readonly awards_tooltip: Text;
+}
+
+export interface CongressProject {
+  readonly id: number;
+  readonly key: string;
+  readonly name: Text;
+  readonly art: string;
+  readonly completed: boolean;
+  readonly description: Text;
+  readonly tiers: CongressProjectTiers[];
+  readonly ranking: CongressProjectRanking[];
+}
+
+export interface CultureCiv {
+  readonly id: number;
+  readonly name: Text;
+  readonly civ_name: Text;
+  readonly civ: string;
+  readonly leader: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface CultureWork {
+  readonly id: number;
+  readonly name: Text;
+  readonly class: CultureWorkClass;
+  readonly creator: Text | null;
+  readonly civ_name: Text;
+  readonly civ: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly era: Text;
+  readonly tooltip: Text;
+  readonly viewable: boolean;
+  readonly location: Text | null;
+  readonly theme_bonus: number | null;
+}
+
+export interface CultureSlot {
+  readonly id: number;
+  readonly slot_type: CultureSlotType;
+  readonly work: CultureWork | null;
+}
+
+export interface CultureColumn {
+  readonly key: string;
+  readonly building: string;
+  readonly name: Text;
+  readonly slot_type: CultureSlotType;
+  readonly slots: number;
+  readonly tooltip: Text;
+}
+
+export interface CultureCell {
+  readonly column: string;
+  readonly state: CultureCellState;
+  readonly theme_bonus: number | null;
+  readonly theme_tooltip: Text | null;
+  readonly slots: CultureSlot[];
+}
+
+export interface CultureExtra {
+  readonly key: string;
+  readonly building: string;
+  readonly name: Text;
+  readonly theme_bonus: number | null;
+  readonly theme_tooltip: Text | null;
+  readonly slots: CultureSlot[];
+}
+
+export interface CultureCity {
+  readonly id: number;
+  readonly name: Text;
+  readonly capital: boolean;
+  readonly puppet: boolean;
+  readonly occupied: boolean;
+  readonly health: number | null;
+  readonly culture: number;
+  readonly tourism: number;
+  readonly tourism_tooltip: Text;
+  readonly works: number;
+  readonly slots_free: number;
+  readonly slots_tooltip: Text;
+  readonly cells: CultureCell[];
+  readonly extra: CultureExtra[];
+}
+
+export interface CultureOffer {
+  readonly class: CultureWorkClass;
+  readonly class_id: number;
+  readonly work: CultureWork | null;
+  readonly options: CultureWork[];
+}
+
+export interface CulturePartner {
+  readonly id: number;
+  readonly name: Text;
+  readonly civ_name: Text;
+  readonly civ: string;
+  readonly leader: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly human: boolean;
+  readonly writing: CultureWork | null;
+  readonly art: CultureWork | null;
+  readonly artifact: CultureWork | null;
+}
+
+export interface CultureSwap {
+  readonly offers: CultureOffer[];
+  readonly partners: CulturePartner[];
+}
+
+export interface CultureVictoryRow {
+  readonly id: number;
+  readonly name: Text;
+  readonly civ_name: Text;
+  readonly civ: string;
+  readonly leader: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly you: boolean;
+  readonly influential_on: number;
+  readonly influential_of: number;
+  readonly tourism: number;
+  readonly ideology: CultureIdeology;
+  readonly ideology_name: Text | null;
+  readonly opinion: Text | null;
+  readonly opinion_tooltip: Text | null;
+  readonly opinion_unhappiness: number | null;
+  readonly opinion_unhappiness_tooltip: Text | null;
+  readonly excess_happiness: number;
+}
+
+export interface CultureVictory {
+  readonly rows: CultureVictoryRow[];
+}
+
+export interface CultureInfluenceRow {
+  readonly id: number;
+  readonly known: boolean;
+  readonly name: Text | null;
+  readonly civ_name: Text | null;
+  readonly civ: string | null;
+  readonly color_bg: number | null;
+  readonly color_fg: number | null;
+  readonly level: CultureLevel;
+  readonly level_name: Text;
+  readonly level_tooltip: Text;
+  readonly share: number;
+  readonly tourism_accum: number;
+  readonly culture_accum: number | null;
+  readonly bars_tooltip: Text;
+  readonly modifier_pct: number;
+  readonly modifier_tooltip: Text;
+  readonly per_turn: number;
+  readonly trend: CultureTrend | null;
+  readonly trend_name: Text | null;
+  readonly trend_tooltip: Text | null;
+  readonly turns_to_influential: number | null;
+}
+
+export interface CultureSource {
+  readonly id: number;
+  readonly name: Text;
+  readonly civ_name: Text;
+  readonly civ: string;
+  readonly leader: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly tourism: number;
+  readonly rows: CultureInfluenceRow[];
+}
+
+export interface CultureInfluence {
+  readonly sources: CultureSource[];
+}
+
+export interface CultureSummary {
+  readonly works: number;
+  readonly slots: number;
+  readonly tourism: number;
+  readonly influential_on: number;
+  readonly influential_of: number;
+}
+
+export interface CultureAntiquity {
+  readonly sites: number;
+  readonly hidden: number;
 }
 
 export interface HudTech {
@@ -407,6 +1225,134 @@ export interface HudUnit {
   readonly id: number;
   readonly promotions: HudPromotion[];
   readonly actions: HudAction[];
+}
+
+export interface MpVoteProposalSubject {
+  readonly player_id: number;
+  readonly nick: Text;
+  readonly leader: Text;
+  readonly civ_name: Text;
+  readonly portrait: string;
+  readonly emblem: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface MpVoteProposalAuthor {
+  readonly player_id: number;
+  readonly nick: Text;
+  readonly leader: Text;
+  readonly civ_name: Text;
+  readonly portrait: string;
+  readonly emblem: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface MpVoteProposalWaiting {
+  readonly key: string;
+  readonly nick: Text;
+}
+
+export interface MpVoteProposal {
+  readonly id: number;
+  readonly key: string;
+  readonly kind: MpVoteProposalKind;
+  readonly kind_label: Text;
+  readonly title: Text;
+  readonly subject: MpVoteProposalSubject | null;
+  readonly author: MpVoteProposalAuthor;
+  readonly author_known: boolean;
+  readonly ends_turn: number;
+  readonly turns_left: number;
+  readonly voters: number;
+  readonly yes: number;
+  readonly needed: number | null;
+  readonly still_needed: number | null;
+  readonly show_counts: boolean;
+  readonly yes_pct: number | null;
+  readonly needed_pct: number | null;
+  readonly waiting_count: number;
+  readonly waiting: MpVoteProposalWaiting[];
+  readonly waiting_text: Text;
+  readonly status: MpVoteProposalStatus;
+  readonly status_text: Text;
+  readonly can_vote: boolean;
+  readonly my_vote: MpVoteProposalMyVote;
+  readonly vote_reason: Text;
+  readonly secret: boolean;
+}
+
+export interface MpVoteTeamsPlayers {
+  readonly key: string;
+  readonly player_id: number;
+  readonly nick: Text;
+  readonly leader: Text;
+  readonly civ_name: Text;
+  readonly portrait: string;
+  readonly emblem: string;
+  readonly color_bg: number | null;
+  readonly color_fg: number | null;
+  readonly score: number | null;
+  readonly is_you: boolean;
+  readonly is_human: boolean;
+  readonly is_observer: boolean;
+  readonly connected: boolean | null;
+  readonly known: boolean;
+  readonly at_war: boolean;
+  readonly eligible: boolean;
+  readonly vote: MpVoteTeamsPlayersVote;
+  readonly vote_label: Text;
+  readonly note: Text;
+}
+
+export interface MpVoteTeams {
+  readonly key: string;
+  readonly label: Text;
+  readonly multi: boolean;
+  readonly players: MpVoteTeamsPlayers[];
+}
+
+export interface MpVoteConcedeCandidates {
+  readonly key: string;
+  readonly player_id: number;
+  readonly nick: Text;
+  readonly leader: Text;
+  readonly civ_name: Text;
+  readonly portrait: string;
+  readonly emblem: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly team_label: Text;
+  readonly is_human: boolean;
+  readonly sub: Text;
+  readonly score_text: Text;
+}
+
+export interface MpVoteConcede {
+  readonly candidates: MpVoteConcedeCandidates[];
+  readonly empty_text: Text;
+}
+
+export interface MpVoteDiploVoteCandidates {
+  readonly key: string;
+  readonly player_id: number;
+  readonly nick: Text;
+  readonly leader: Text;
+  readonly civ_name: Text;
+  readonly portrait: string;
+  readonly emblem: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly team_label: Text;
+  readonly is_human: boolean;
+  readonly sub: Text;
+  readonly score_text: Text;
+}
+
+export interface MpVoteDiploVote {
+  readonly blocking: boolean;
+  readonly candidates: MpVoteDiploVoteCandidates[];
 }
 
 export interface TechsPrerequisite {
@@ -549,11 +1495,100 @@ export interface Ui {
   readonly errors: Toast[];
 }
 
+export interface Archaeology {
+  readonly status: ArchaeologyStatus;
+  readonly reason: Text | null;
+  readonly unit_id: number;
+  readonly archaeologist: string;
+  readonly plot: ArchaeologyPlot | null;
+  readonly near_city: Text;
+  readonly player: ArchaeologyPlayer;
+  readonly find: ArchaeologyFind | null;
+  readonly no_slot_warning: Text | null;
+  readonly choices: ArchaeologyChoice[];
+}
+
+export interface CityState {
+  readonly view: CityStateView;
+  readonly player_id: number;
+  readonly player_gold: number;
+  readonly minor: CityStateMinor | null;
+  readonly speech: CityStateSpeech | null;
+  readonly status: CityStateStatus | null;
+  readonly ally: CityStateAlly | null;
+  readonly protectors: CityStateProtectors[];
+  readonly enemies: CityStateEnemies[];
+  readonly can_bully: boolean;
+  readonly bully_text: Text;
+  readonly bonuses: CityStateBonuses[];
+  readonly resources: CityStateResources[];
+  readonly resources_exported_text: Text;
+  readonly quests: CityStateQuests[];
+  readonly no_quests_text: Text;
+  readonly threat_barbarians: boolean;
+  readonly threat_barbarians_text: Text;
+  readonly threat_proxy_war: boolean;
+  readonly threat_proxy_war_text: Text;
+  readonly actions: CityStateActions | null;
+  readonly gifts: CityStateGifts | null;
+  readonly tribute: CityStateTribute | null;
+  readonly enter_land: CityStateEnterLand | null;
+  readonly liberate: CityStateLiberate | null;
+  readonly reason: Text | null;
+}
+
+export interface Congress {
+  readonly view: CongressView;
+  readonly player_id: number;
+  readonly league: CongressLeague | null;
+  readonly splash: CongressSplash | null;
+  readonly project: CongressProject | null;
+}
+
+export interface Culture {
+  readonly player: CultureCiv;
+  readonly summary: CultureSummary;
+  readonly antiquity: CultureAntiquity | null;
+  readonly columns: CultureColumn[];
+  readonly cities: CultureCity[];
+  readonly swap: CultureSwap;
+  readonly victory: CultureVictory;
+  readonly influence: CultureInfluence;
+}
+
+export interface GreatWork {
+  readonly id: number;
+  readonly type: string;
+  readonly class: GreatWorkClass;
+  readonly class_name: Text;
+  readonly artist: Text | null;
+  readonly from_dig: boolean;
+  readonly name: Text;
+  readonly quote: Text | null;
+  readonly civ_name: Text;
+  readonly era: Text;
+  readonly image: string;
+  readonly image_reason: Text | null;
+  readonly location: Text | null;
+}
+
 export interface Hud {
   readonly research: HudResearch;
   readonly top: HudTop;
   readonly city: HudCity | null;
   readonly unit: HudUnit | null;
+}
+
+export interface MpVote {
+  readonly view: MpVoteView;
+  readonly player_id: number;
+  readonly open_count: number;
+  readonly human_count: number;
+  readonly proposal: MpVoteProposal | null;
+  readonly teams: MpVoteTeams[];
+  readonly concede: MpVoteConcede | null;
+  readonly diplo_vote: MpVoteDiploVote | null;
+  readonly reason: Text | null;
 }
 
 export interface Techs {
@@ -574,7 +1609,13 @@ export interface Model {
   readonly chat: ChatRow[];
   readonly production: Production | null;
   readonly ui: Ui;
+  readonly archaeology: Archaeology | null;
+  readonly city_state: CityState | null;
+  readonly congress: Congress | null;
+  readonly culture: Culture | null;
+  readonly great_work: GreatWork | null;
   readonly hud: Hud | null;
+  readonly mp_vote: MpVote | null;
   readonly techs: Techs | null;
 }
 

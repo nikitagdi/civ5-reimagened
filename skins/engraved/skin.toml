@@ -24,15 +24,20 @@ display = "Alegreya"
 # line being written and whether the choice of its addressee is open; whether the folded screen buttons of a narrow
 # top strip are open.
 [state]
+mp_vote = { pending = false }
+congress = { picker = "none", choice = "", slot = 0, confirm = "none", rename = false, rename_text = "", tip = "" }
+cs = { menu = "main", confirm = "none", tip = "" }
+archaeology = { confirm = 0 }
+culture = { tab = "yours", click_mode = "move", pick = -1, slot_type = "", sort_cities = "id", pair_partner = -1, pair_work = -1, own_work = -1, pair_label = "", reason = "Pick a work from another civilization.", source = -1, offer = -1, tip = "", x = 0, y = 0 }
 prod = { sort = "order", hide_locked = false }
 chat = { draft = "", pick = false }
 top = { menu = false }
 
 # The production window's script: arrow keys move the focus; the sort is kept in the settings.
 [scripts]
-files = ["js/production.js"]
-reads = ["production"]
+files = ["js/production.js", "js/culture.js", "js/archaeology.js", "js/city_state.js", "js/congress.js", "js/mp_vote.js"]
+reads = ["production", "culture", "archaeology", "city_state", "congress", "mp_vote", "ui", "unit", "turn"]
 
 [verify]
-states = ["hud", "hud-timer", "hud-chat", "production", "production-sorted", "research", "techs"]
+states = ["hud", "hud-timer", "hud-chat", "production", "production-sorted", "research", "techs", "culture", "great_work", "archaeology", "archaeology--writing", "city_state", "city_state--enter", "city_state--liberate", "congress", "congress--propose", "congress--splash", "congress--project", "congress--empty", "mp_vote", "mp_vote--result", "mp_vote--concede", "mp_vote--diplo"]
 golden = [{ state = "hud", viewport = [1920, 1080], scale = 1.0 }]

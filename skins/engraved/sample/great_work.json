@@ -1,0 +1,26 @@
+{
+  "model": {
+    "great_work": {
+      "id": 149,
+      "type": "GREAT_WORK_TRINITY",
+      "class": "art",
+      "class_name": "Great Work of Art",
+      "artist": "Andrei Rublev",
+      "from_dig": false,
+      "name": "Trinity",
+      "quote": null,
+      "civ_name": "Russia",
+      "era": "Medieval",
+      "image": "",
+      "location": "Hermitage, Moscow",
+      "image_reason": "This work's full-size image is unavailable in this skin."
+    }
+  },
+  "ui": {
+    "windows": {
+      "great_work": {
+        "open": true
+      }
+    }
+  }
+}
