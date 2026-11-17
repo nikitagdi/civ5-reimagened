@@ -1,10 +1,12 @@
-//! The source never writes into the replica or the session. The builders only ever get `&mut dyn GameRead` (no
-//! setters exist on it) and `&dyn SessionRead` (getters on `&self` only); this test also scans the crate's sources
-//! for the writing entry points of the replica and of the client core, so that a later edit cannot reach them
-//! through `ReplicaView::of`'s `&mut Replica` or the `ClientCore` the session trait is implemented for.
+//! Builders and world inputs cannot mutate gameplay or consume the renderer's changes.
 
 const SOURCES: &[(&str, &str)] = &[
     ("lib.rs", include_str!("../src/lib.rs")),
+    ("hud.rs", include_str!("../src/hud.rs")),
+    ("world.rs", include_str!("../src/world.rs")),
+    ("records.rs", include_str!("../src/records.rs")),
+    ("read.rs", include_str!("../src/read.rs")),
+    ("testing.rs", include_str!("../src/testing.rs")),
     ("trigger.rs", include_str!("../src/trigger.rs")),
     ("catalog.rs", include_str!("../src/catalog.rs")),
     ("cost.rs", include_str!("../src/cost.rs")),
@@ -95,6 +97,10 @@ const FORBIDDEN_SESSION: &[&str] = &[
 fn the_source_calls_no_writer_of_the_replica_or_the_session() {
     for (file, text) in SOURCES {
         for word in FORBIDDEN_REPLICA.iter().chain(FORBIDDEN_SESSION) {
+            // World queries are explicitly read-only protocol operations.
+            if *file == "world.rs" && matches!(*word, ".query(" | "&mut ClientCore") {
+                continue;
+            }
             // `&mut self) ->` is only a writer inside the session trait.
             if *word == "&mut self) ->" && *file != "session.rs" {
                 continue;

@@ -8,7 +8,7 @@
 //! as JSON lines. Returns early on the stub.
 //!
 //! ```text
-//! UI2_GETTERS_FIXTURE=<dir>/late-huge cargo test -p ui2-source --test getters_cost -- --ignored --nocapture
+//! UI2_GETTERS_FIXTURE=<dir>/late-huge cargo test -p client-app --test getters_cost -- --ignored --nocapture
 //! ```
 
 use std::path::{Path, PathBuf};

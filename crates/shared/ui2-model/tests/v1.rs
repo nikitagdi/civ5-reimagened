@@ -460,7 +460,7 @@ fn enums_of_the_model() {
         "WindowId",
         &["production", "research", "menu", "chat", "notes_log"]
             .into_iter()
-            .chain(ui2_model::generated::SCREEN_NAMES.iter().copied())
+            .chain(ui2_model::generated::WINDOW_SCREEN_NAMES.iter().copied())
             .collect::<Vec<_>>(),
     );
     eq("MouseButton", &["left", "right"]);
@@ -556,6 +556,7 @@ const INTENTS: &[(&str, &[&str])] = &[
             "b: i32?",
             "c: i32?",
             "d: i32?",
+            "text: str?",
         ],
     ),
 ];

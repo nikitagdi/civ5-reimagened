@@ -2,7 +2,7 @@
 //!
 //! While it loads, the classic UI stays on the screen: the host asks [`V2Frontend`] to prepare every frame and
 //! switches when the skin is up and a game is being played. From then on UI v2 is the only game UI that gets frames
-//! and input; the classic one sleeps. UI v2 reads the replica and the localizer of the game session.
+//! and input; the classic one sleeps. UI v2 reads the synchronized world and the localizer of the game session.
 //!
 //! The network: the host hands each of the core's events to [`V2Frontend`] (kept, as the actions module's events,
 //! until its next frame), and its frame runs inside one borrow of the core ([`NetSink`]). A camera request of the
@@ -36,8 +36,7 @@ use protocol::GameId;
 use render::Renderer;
 use ui2_host::{
     ActionEvent, Cursor, DevEvent, DevReload, Env, Fallback, HostClock, InputOutcome, MapButton,
-    NetSink, PackageCache, ReplicaView, Services, SkinRegistry, V2Frame, V2FrameReport, V2Init,
-    V2Ui,
+    NetSink, PackageCache, Services, SkinRegistry, V2Frame, V2FrameReport, V2Init, V2Ui,
 };
 
 use crate::net::NetHandle;
@@ -609,7 +608,7 @@ pub struct V2Frontend {
     cursor: Cursor,
     /// The script workers of each skin that loads; `None`: scripts do not run.
     scripts: Option<ScriptHostFactory>,
-    /// A game is up (its replica live while it is played); UI v2 runs no frame before.
+    /// A game is up (its synchronized world ready while it is played); UI v2 runs no frame before.
     game_up: bool,
     /// `?ui2bg=`: reference images (see [`Ui2Platform::background`]).
     background: Option<[u8; 3]>,
@@ -620,8 +619,6 @@ pub struct V2Frontend {
     /// The platform's text input, made when the first skin comes up; the running skin holds it meanwhile.
     text_input: Option<TextInputFactory>,
     text_bridge: Option<Box<dyn TextInputBridge>>,
-    /// The source's warm-up (`V2Ui::warm_up`) is due: a game was joined, loaded or left since the last one.
-    warm_due: bool,
     /// The running skin failed (for the host, once): why.
     lost: Option<String>,
     /// Why UI v2 is off, once no skin can be used.
@@ -697,7 +694,6 @@ impl V2Frontend {
             sample_pan: None,
             text_input: None,
             text_bridge: None,
-            warm_due: true,
             lost: None,
             off_reason: None,
             on_screen: false,
@@ -886,7 +882,6 @@ impl V2Frontend {
     /// The game was left: the next frame waits for the next game and rebuilds the model from it.
     pub fn new_game(&mut self) {
         self.game_up = false;
-        self.warm_due = true;
         if let Some(ui) = self.ui_mut() {
             ui.reset_source();
         }
@@ -919,6 +914,11 @@ impl V2Frontend {
     /// One event of the client core, in the order the app got them: kept for the next UI v2 frame. Nothing is
     /// kept once UI v2 is off for the session.
     pub fn net_event(&mut self, ev: &ClientEvent) {
+        if let ClientEvent::QueryResult { id, answer } = ev
+            && let Some(ui) = self.ui_mut()
+        {
+            ui.query_result(*id, answer);
+        }
         if let ClientEvent::ModSet(set) = ev {
             self.mods = Some(mod_ids(set));
             self.mod_ui.set_mods(set);
@@ -930,9 +930,6 @@ impl V2Frontend {
             return;
         }
         if let Some(a) = a {
-            if a == ActionEvent::NewGame {
-                self.warm_due = true;
-            }
             if self.events.len() >= MAX_EVENTS {
                 // UI v2 sleeps under the classic UI for a long time: no line per event.
                 tracing::debug!(
@@ -1136,8 +1133,6 @@ impl V2Frontend {
                 ui.set_asset_resolver(self.icons.resolver());
                 let bridge = self.text_bridge();
                 ui.set_text_bridge(bridge);
-                // A new skin over a game already up reads its slow first calls once too.
-                self.warm_due = true;
                 // The sample mode: the skin's sample comes next; the skin takes the screen once it played it.
                 if let Some(state) = &self.sample_state {
                     self.sample_on = false;
@@ -1321,7 +1316,7 @@ impl V2Frontend {
     }
 
     /// One frame after the classic layer's: advances the loading and, while a skin runs and the game's layer is up,
-    /// runs UI v2 on the replica and the network (`net`: the app's handle; `None` without a network) and publishes
+    /// runs UI v2 on the world and the network (`net`: the app's handle; `None` without a network) and publishes
     /// its counters. `Some`: the scene of the returned UI goes to the renderer (`prepare_ui2`) before it draws.
     ///
     /// The network handle is borrowed for the UI v2 frame only, in the app's frame: never inside a call into page
@@ -1330,7 +1325,6 @@ impl V2Frontend {
     pub(crate) fn run(
         &mut self,
         session: &GameSession,
-        steps: &[replica::ReplicaStep],
         net: Option<&NetHandle>,
         env: Env,
         now_ms: f64,
@@ -1341,20 +1335,19 @@ impl V2Frontend {
         self.poll_sample();
         self.poll_dev();
         self.probe_stage();
-        // The game is up once the replica is live in a game being played; it stays up until the game is left.
+        // The game is up once its synchronized world is ready; it stays up until the game is left.
         self.note_game(Some(session), playing(net));
         // A skin on a sample runs without a game.
         if !self.running() || !(self.game_up || self.sample_on) {
             return None;
         }
-        // The replica, the localizer and the UI set the game's pictures come from are the game session's.
+        // The localizer and the UI set supplying game pictures belong to the session.
         let new_icons = self.icons.set_store(session.ui_store());
         let loc = session.localizer();
         let new_loc = match (&loc, &self.loc) {
             (Some(a), Some(b)) => !Rc::ptr_eq(a, b),
             (a, b) => a.is_some() != b.is_some(),
         };
-        let replica = session.replica();
         let load_ms = self.load_ms.take();
         let Stage::Running(ui) = &mut self.stage else {
             return None;
@@ -1369,38 +1362,6 @@ impl V2Frontend {
         }
         self.loc = loc;
         ui.set_env(env);
-        let mut held = match replica.as_ref().map(|r| r.try_borrow_mut()) {
-            Some(Ok(r)) => Some(r),
-            // The layer holds the replica (it never does between frames): the last scene stays, the events wait.
-            Some(Err(_)) => return self.ui_mut(),
-            None => None,
-        };
-        let steps: &[replica::ReplicaStep] = if held.is_some() { steps } else { &[] };
-        // What the replica's pump did in this frame, for the performance report (the source's change signal).
-        render::perf::set_counter("ui2.replica.step", replica_step_code(steps));
-        // A snapshot loaded in this frame's pump (a join, a resync, every new turn): the core's slow first reads
-        // after a load (the top bar alone costs it several ms) are made now, as part of the load, not inside the
-        // UI's frame.
-        let loaded = steps.iter().any(|s| {
-            matches!(
-                s,
-                replica::ReplicaStep::Loaded { .. } | replica::ReplicaStep::TurnSwitched { .. }
-            )
-        });
-        let mut warm_ms = 0.0;
-        if loaded
-            && !self.sample_on
-            && let Some(r) = held.as_deref_mut()
-        {
-            let view = ReplicaView::of(r);
-            if view.state == replica::State::Live
-                && !view.catching_up
-                && let Some(read) = view.read
-            {
-                warm_ms = ui.warm_turn(read).1;
-            }
-        }
-        render::perf::set_counter("ui2.source.warm_turn_ms", warm_ms);
         let events = std::mem::take(&mut self.events);
         let mods = self.mods.take();
         self.mod_ui.before_frame(ui);
@@ -1409,8 +1370,7 @@ impl V2Frontend {
             Some(h) => h.with(|core| {
                 let mut sink = NetSink::new(core).with_screens(screens);
                 let report = ui.frame(V2Frame {
-                    replica: held.as_deref_mut().map(ReplicaView::of),
-                    steps,
+                    world: None,
                     net: Some(&mut sink),
                     events: &events,
                     mods,
@@ -1420,8 +1380,7 @@ impl V2Frontend {
             }),
             None => {
                 let report = ui.frame(V2Frame {
-                    replica: held.as_deref_mut().map(ReplicaView::of),
-                    steps,
+                    world: None,
                     net: None,
                     events: &events,
                     mods,
@@ -1432,28 +1391,6 @@ impl V2Frontend {
         };
         if screen.is_some() {
             self.screen_req = screen;
-        }
-        // The core's slow first reads, once per game (joined, loaded or a new skin), after the frame and outside its
-        // budget.
-        if self.warm_due
-            && !self.sample_on
-            && let Some(r) = held.as_deref_mut()
-        {
-            let view = ReplicaView::of(r);
-            if view.state == replica::State::Live
-                && !view.catching_up
-                && let Some(read) = view.read
-            {
-                let w = ui.warm_up(read);
-                self.warm_due = false;
-                render::perf::set_counter("ui2.source.warm_reads", f64::from(w.getter_calls));
-                render::perf::set_counter("ui2.source.warm_units", f64::from(w.spent_units));
-                tracing::info!(
-                    reads = w.getter_calls,
-                    units = w.spent_units,
-                    "UI v2: the source's first reads are warm"
-                );
-            }
         }
         self.mod_ui.after_frame(ui);
         // The camera eases to a plot the frame asked for, as the classic UI's `UI.LookAt` does.
@@ -1530,9 +1467,9 @@ impl V2Frontend {
         }
     }
 
-    /// The game is up once the replica is live in a game being played.
+    /// The game is up once its synchronized world is ready.
     fn note_game(&mut self, session: Option<&GameSession>, playing: bool) {
-        if session.is_some_and(GameSession::live) && playing {
+        if session.is_some() && playing {
             self.game_up = true;
         }
     }
@@ -1571,7 +1508,7 @@ impl Frontend for V2Frontend {
     }
 
     fn needs_replica(&self) -> bool {
-        true
+        false
     }
 
     /// Ready once the skin is up and a game is being played (the classic UI stays on the screen until then);
@@ -1662,14 +1599,7 @@ impl Frontend for V2Frontend {
         let map_off = self.map_off;
         let pan = self.sample_pan.map(|v| sample_pan_offset(v, cx.now_ms));
         let clock = Rc::clone(&self.clock);
-        if let Some(ui) = self.run(
-            cx.session,
-            &cx.step.steps,
-            cx.net,
-            env,
-            cx.now_ms,
-            &mut look,
-        ) {
+        if let Some(ui) = self.run(cx.session, cx.net, env, cx.now_ms, &mut look) {
             // The map anchors follow their objects through the camera, as the classic UI's banners do; on a sample,
             // they stand where the sample puts them (moved by a bench's pan). With the layer off nothing is placed.
             // `ui2.place_ms`: the placement (the projection of every anchor), outside `ui2.cpu_ms`.
@@ -1834,21 +1764,6 @@ impl Frontend for V2Frontend {
 }
 /// The counters of a frame go to `__civ5stats.counters`; the renderer adds its own `ui2.*` (draws per layer,
 /// instances, uploads) after `prepare_ui2`, so the report's instance count is left to it.
-/// The weightiest step of the replica's pump in a frame, as a number: 0 idle, 1 working, 2 a batch applied, 3 a
-/// snapshot loaded, 4 the turn switched, 5 resyncing.
-fn replica_step_code(steps: &[replica::ReplicaStep]) -> f64 {
-    use replica::ReplicaStep as S;
-    let code = |s: &S| match s {
-        S::Idle => 0,
-        S::Working => 1,
-        S::Applied { .. } => 2,
-        S::Loaded { .. } => 3,
-        S::TurnSwitched { .. } => 4,
-        S::Resyncing => 5,
-    };
-    f64::from(steps.iter().map(code).max().unwrap_or(0))
-}
-
 fn publish(report: &V2FrameReport, load_ms: Option<f64>) {
     if let Some(ms) = load_ms {
         render::perf::set_counter("ui2.load_ms", ms);
@@ -2201,8 +2116,7 @@ mod tests {
         assert!(h.load_ms.is_some_and(|ms| ms > 0.0));
         let ui = h.ui_mut().expect("running");
         let r = ui.frame(V2Frame {
-            replica: None,
-            steps: &[],
+            world: None,
             net: None,
             events: &[],
             mods: None,
@@ -2246,8 +2160,7 @@ mod tests {
         let pkg = kit.finish().expect("package");
         let mut ui = V2Ui::new(pkg, V2Init::default()).expect("ui");
         ui.frame(V2Frame {
-            replica: None,
-            steps: &[],
+            world: None,
             net: None,
             events: &[],
             mods: None,
@@ -2332,8 +2245,7 @@ mod tests {
 
     fn frame(h: &mut V2Frontend) -> V2FrameReport {
         let r = h.ui_mut().expect("running").frame(V2Frame {
-            replica: None,
-            steps: &[],
+            world: None,
             net: None,
             events: &[],
             mods: None,
@@ -2542,8 +2454,8 @@ mod tests {
         assert!(h.text_bridge.is_none(), "the skin holds it");
         assert!(h.ui_mut().expect("running").take_text_bridge().is_some());
         assert!(
-            h.warm_due,
-            "a new skin warms the source up once a game is read"
+            !h.needs_replica(),
+            "a new skin reads the synchronized world"
         );
     }
 

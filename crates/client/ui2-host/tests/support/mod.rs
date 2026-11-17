@@ -8,8 +8,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use replica::testing::FakeRead;
-use replica::{Activity, Notification, Unit, UnitFlags};
 use ui2_actions::{OrderSink, RecordingSink};
 use ui2_host::HostNet;
 use ui2_package::profile::TypeSig;
@@ -18,7 +16,9 @@ use ui2_package::style::{Display, Len, StyleRecord};
 use ui2_package::{Layer, Package};
 use ui2_runtime::testkit::{Kit, TNode, TplPiece};
 use ui2_source::SessionRead;
+use ui2_source::read::{Activity, Notification, Unit, UnitFlags};
 use ui2_source::session::testing::FakeSession;
+use ui2_source::testing::FakeRead;
 
 /// The face of the strip.
 pub fn fira() -> Vec<u8> {

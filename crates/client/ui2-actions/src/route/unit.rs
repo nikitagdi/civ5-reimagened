@@ -91,15 +91,6 @@ pub(crate) fn select_next(ctx: &mut Ctx<'_>) {
 /// A unit action. Move and ranged attack only set the map mode (the order goes with the click on a plot); the
 /// rest is one order.
 fn action(ctx: &mut Ctx<'_>, unit: Key, kind: UnitActionKind) {
-    // SIMPLIFIED(SIMP-250): alert, pillage and upgrade are shown with the availability the core reports but
-    // are never ordered: the protocol has no order for them. Original: all three are unit commands.
-    if matches!(
-        kind,
-        UnitActionKind::Alert | UnitActionKind::Pillage | UnitActionKind::Upgrade
-    ) {
-        ctx.refuse(RefuseWhy::Unsupported);
-        return;
-    }
     if validate::own_unit(ctx.model, unit).is_none() {
         ctx.refuse(RefuseWhy::NoUnit);
         return;
@@ -131,7 +122,19 @@ fn action(ctx: &mut Ctx<'_>, unit: Key, kind: UnitActionKind) {
         UnitActionKind::Cancel => Command::UnitCancel { unit: id },
         UnitActionKind::Disband => Command::UnitDisband { unit: id },
         UnitActionKind::Wake => Command::UnitWake { unit: id },
-        UnitActionKind::Alert | UnitActionKind::Pillage | UnitActionKind::Upgrade => return,
+        UnitActionKind::Alert | UnitActionKind::Pillage | UnitActionKind::Upgrade => {
+            Command::ScreenAction {
+                screen: "hud".into(),
+                action: match kind {
+                    UnitActionKind::Alert => "alert",
+                    UnitActionKind::Pillage => "pillage",
+                    _ => "upgrade",
+                }
+                .into(),
+                args: vec![("a".into(), i64::from(id))],
+                text: None,
+            }
+        }
     };
     ctx.send(cmd, "unit.action", unit_target(unit), None);
 }

@@ -291,7 +291,7 @@ fn wire_types_carry_plain_values() {
 fn window_and_screen_ids_round_trip_their_names() {
     assert_eq!(
         WindowId::ALL.len(),
-        5 + ui2_model::generated::SCREEN_NAMES.len()
+        5 + ui2_model::generated::WINDOW_SCREEN_NAMES.len()
     );
     assert_eq!(ScreenId::ALL.len(), 11);
     for w in WindowId::ALL {

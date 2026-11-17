@@ -1479,6 +1479,7 @@ fn samples() -> Pins {
             screen: "techs".into(),
             action: "research".into(),
             args: vec![("a".into(), 12), ("b".into(), 1)],
+            text: Some("New city".into()),
         },
     );
     p

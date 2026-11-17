@@ -19,6 +19,7 @@ fn remote_window_arguments_and_actions_use_the_normal_order_path() {
             ("action", s("research")),
             ("a", n(12)),
             ("b", n(1)),
+            ("text", s("New city \u{e9}")),
         ],
     );
     assert_eq!(
@@ -26,7 +27,8 @@ fn remote_window_arguments_and_actions_use_the_normal_order_path() {
         vec![Command::ScreenAction {
             screen: "techs".into(),
             action: "research".into(),
-            args: vec![("a".into(), 12), ("b".into(), 1)]
+            args: vec![("a".into(), 12), ("b".into(), 1)],
+            text: Some("New city \u{e9}".into()),
         }]
     );
     assert_eq!(r.actions.ui().pending.len(), 1);

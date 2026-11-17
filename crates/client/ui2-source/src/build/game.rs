@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
+use crate::read::{GameInfo, GameStatus, Player, ReadError};
 use protocol::{TurnPhase, TurnState};
-use replica::{GameInfo, GameStatus, Player, ReadError, State};
 use ui2_model::r#gen::{EraRef, Game, Meta, Phase, Source, TurnMode};
 use ui2_model::{Key, Text};
 
@@ -11,15 +11,15 @@ use crate::CountingRead;
 use crate::build::{Cx, player_key};
 use crate::trigger::Seen;
 
-/// `meta` from the replica's signals and the session's connection; reads nothing. `seen` is `None` when there is
+/// `meta` from the world's signals and the session's connection; reads nothing. `seen` is `None` when there is
 /// no replica.
 #[must_use]
 pub fn meta(schema: &Arc<str>, seen: Option<&Seen>, connected: bool) -> Meta {
     Meta {
         schema: schema.clone(),
-        source: Source::Replica,
-        live: seen.is_some_and(|s| s.state == State::Live),
-        catching_up: seen.is_some_and(|s| s.catching_up),
+        source: Source::Server,
+        live: seen.is_some(),
+        catching_up: false,
         connected,
     }
 }
@@ -45,7 +45,7 @@ pub fn phase(turn: Option<&TurnState>, info: &GameInfo) -> Phase {
         Some(TurnPhase::Humans) => Phase::Humans,
         Some(TurnPhase::GameOver { .. }) => Phase::GameOver,
         None if info.status == GameStatus::GameOver => Phase::GameOver,
-        None if info.status == GameStatus::AiRunning || info.phase == replica::Phase::Ai => {
+        None if info.status == GameStatus::AiRunning || info.phase == crate::read::Phase::Ai => {
             Phase::Ai
         }
         None => Phase::Humans,
@@ -59,8 +59,8 @@ pub fn mode(turn: Option<&TurnState>, info: &GameInfo) -> TurnMode {
         Some(protocol::TurnMode::Hybrid) => TurnMode::Hybrid,
         Some(protocol::TurnMode::Simultaneous) => TurnMode::Simultaneous,
         None => match info.turn_mode {
-            Some(replica::TurnMode::Hybrid) => TurnMode::Hybrid,
-            Some(replica::TurnMode::Simultaneous) | None => TurnMode::Simultaneous,
+            Some(crate::read::TurnMode::Hybrid) => TurnMode::Hybrid,
+            Some(crate::read::TurnMode::Simultaneous) | None => TurnMode::Simultaneous,
         },
     }
 }
@@ -94,7 +94,7 @@ pub(crate) fn game(read: &mut CountingRead<'_, '_>, cx: &Cx<'_>) -> Result<Game,
     Ok(Game {
         // The server's turn state or a batch that ended the turn can name the new turn before its snapshot is
         // loaded: the dial shows it at once, the rest of the record follows with the snapshot.
-        turn: shown_turn(info.turn, cx.journal_turn, ts),
+        turn: shown_turn(info.turn, None, ts),
         year: info.year,
         year_text: year_text(info.year),
         era,
@@ -105,7 +105,7 @@ pub(crate) fn game(read: &mut CountingRead<'_, '_>, cx: &Cx<'_>) -> Result<Game,
     })
 }
 
-/// The turn the dial shows: the latest of the game record's, the replica journal's and the session's turn state's.
+/// The turn the dial shows: the latest of the game record's, the world journal's and the session's turn state's.
 #[must_use]
 pub fn shown_turn(record: i32, journal: Option<i32>, session: Option<&TurnState>) -> i32 {
     record

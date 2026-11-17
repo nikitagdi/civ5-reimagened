@@ -20,6 +20,7 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
             screen: screen.to_owned(),
             action: action.to_owned(),
             args,
+            text: intent.text("text").map(str::to_owned),
         },
         "screen.act",
         screen.to_owned(),

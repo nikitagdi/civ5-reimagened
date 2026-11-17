@@ -1481,7 +1481,22 @@ mod tests {
             screen: "techs".into(),
             action: "research".into(),
             args: vec![("a".into(), 12), ("b".into(), 1)],
+            text: None,
         };
+        let with_text = Command::ScreenAction {
+            screen: "hud".into(),
+            action: "rename".into(),
+            args: vec![],
+            text: Some("City \u{e9}".into()),
+        };
+        rt(&Postcard, &with_text);
+        rt(&Json, &with_text);
+        let mut invalid = Postcard.encode(&with_text).unwrap();
+        *invalid.last_mut().unwrap() = 0xff;
+        assert!(
+            Postcard.decode::<Command>(&invalid).is_err(),
+            "invalid UTF-8 is rejected by the codec"
+        );
         assert_eq!(Postcard.encode(&query).unwrap()[0], 11);
         assert_eq!(Postcard.encode(&answer).unwrap()[0], 12);
         assert_eq!(Postcard.encode(&command).unwrap()[0], 25);

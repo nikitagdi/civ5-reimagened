@@ -16,13 +16,11 @@ use platform::{
     PointerPhase,
 };
 use protocol::Command;
-use replica::testing::FakeRead;
-use replica::{ReplicaStep, State};
 use support::{FakeNet, game};
 use ui2_actions::Sent;
 use ui2_host::{
-    Cursor, Env, InputOutcome, MAP_CLICK, MapButton, ReplicaView, V2Frame, V2FrameReport, V2Init,
-    V2Ui, map_click,
+    Cursor, Env, InputOutcome, MAP_CLICK, MapButton, V2Frame, V2FrameReport, V2Init, V2Ui,
+    WorldView, map_click,
 };
 use ui2_model::r#gen::Ui;
 use ui2_model::wire::Origin;
@@ -32,6 +30,8 @@ use ui2_package::profile::expr::parse;
 use ui2_package::style::{Len, LenAuto, Position, StyleRecord};
 use ui2_package::{BindKind, Layer, Package};
 use ui2_runtime::testkit::{Kit, TNode};
+use ui2_source::testing::Change as ReplicaStep;
+use ui2_source::testing::FakeRead;
 
 const TAKEN: InputOutcome = InputOutcome::Consumed;
 const WORLD: InputOutcome = InputOutcome::PassToWorld;
@@ -128,19 +128,14 @@ impl Rig {
         rig
     }
 
-    fn run(&mut self, steps: &[ReplicaStep]) -> V2FrameReport {
+    fn run(&mut self, _steps: &[ReplicaStep]) -> V2FrameReport {
         self.now += 16.0;
-        let view = ReplicaView {
-            state: State::Live,
-            catching_up: false,
-            generation: 1,
-            applied_jseq: 0,
-            turn: None,
-            read: Some(&mut self.game),
+        let view = WorldView {
+            revision: 1_000_000,
+            read: &mut self.game,
         };
         let r = self.ui.frame(V2Frame {
-            replica: Some(view),
-            steps,
+            world: Some(view),
             net: Some(&mut self.net),
             events: &[],
             mods: None,

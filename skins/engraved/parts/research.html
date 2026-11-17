@@ -28,6 +28,16 @@
       </div>
       <div class="none" data-bind-if="{{len(research.options) == 0}}" data-l10n="research.none">Nothing can be researched now</div>
     </div>
+    <div class="queued" data-bind-if="{{len(research.queue) > 0}}">
+      <div class="foot">Queued research</div>
+      <div class="rlist" data-part="research.queue">
+        <div class="rrow" data-bind-for="t:{{research.queue}}">
+          <img class="ti" data-bind-src="{{t.icon}}">
+          <span class="nm" data-bind-value="{{t.name}}"></span>
+          <span class="tn" data-bind-if="{{t.turns != null}}" data-l10n="top.turns" data-l10n-args="{{t.turns}}"></span>
+        </div>
+      </div>
+    </div>
     <div class="foot" data-l10n="research.hint">Click: research now. Right click: add to the queue.</div>
   </section>
 </div>

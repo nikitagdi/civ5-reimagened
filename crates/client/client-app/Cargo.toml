@@ -42,6 +42,9 @@ serde_json.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+ui2-source.workspace = true
+ui2-actions.workspace = true
+ui2-model.workspace = true
 # Tests build the fixture test world (the client itself has no host: R10).
 game-host.workspace = true
 wire.workspace = true

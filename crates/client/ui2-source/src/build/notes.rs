@@ -6,7 +6,7 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use replica::{Notification, ReadError};
+use crate::read::{Notification, ReadError};
 use ui2_model::r#gen::{Note, NoteCat, Plot};
 use ui2_model::{Key, KeyedList};
 

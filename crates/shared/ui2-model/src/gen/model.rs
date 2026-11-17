@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 1);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0xc1c790745ff17c2c;
+pub const SCHEMA_HASH: u64 = 0x861afcd87ed44c0a;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -3791,6 +3791,500 @@ impl crate::model::Keyed for Toast {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudTech {
+    pub id: i16,
+    pub status: i8,
+    pub queue: Option<i16>,
+    pub turns: Option<i16>,
+    pub progress: i32,
+    pub cost: i32,
+}
+
+impl crate::model::Model for HudTech {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.status, &old.status, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.queue, &old.queue, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.progress, &old.progress, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.cost, &old.cost, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.status),
+            crate::model::Model::to_value(&self.queue),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.progress),
+            crate::model::Model::to_value(&self.cost),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(HudTech {
+            id: crate::model::Model::from_value(&f[0])?,
+            status: crate::model::Model::from_value(&f[1])?,
+            queue: crate::model::Model::from_value(&f[2])?,
+            turns: crate::model::Model::from_value(&f[3])?,
+            progress: crate::model::Model::from_value(&f[4])?,
+            cost: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudTech {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudResearch {
+    pub techs: crate::model::KeyedList<HudTech>,
+}
+
+impl crate::model::Model for HudResearch {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.techs, &old.techs, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.techs),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(1)?;
+        Ok(HudResearch {
+            techs: crate::model::Model::from_value(&f[0])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudResource {
+    pub id: i16,
+    pub usage: i8,
+    pub available: i32,
+    pub used: i32,
+    pub total: i32,
+}
+
+impl crate::model::Model for HudResource {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.usage, &old.usage, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.available, &old.available, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.used, &old.used, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.total, &old.total, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.usage),
+            crate::model::Model::to_value(&self.available),
+            crate::model::Model::to_value(&self.used),
+            crate::model::Model::to_value(&self.total),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(HudResource {
+            id: crate::model::Model::from_value(&f[0])?,
+            usage: crate::model::Model::from_value(&f[1])?,
+            available: crate::model::Model::from_value(&f[2])?,
+            used: crate::model::Model::from_value(&f[3])?,
+            total: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudResource {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudPolicy {
+    pub id: i16,
+    pub name: crate::value::Text,
+    pub type_name: ::std::sync::Arc<str>,
+    pub unlocked: bool,
+    pub owned: i8,
+    pub total: i8,
+}
+
+impl crate::model::Model for HudPolicy {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.type_name, &old.type_name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.unlocked, &old.unlocked, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.owned, &old.owned, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.total, &old.total, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.type_name),
+            crate::model::Model::to_value(&self.unlocked),
+            crate::model::Model::to_value(&self.owned),
+            crate::model::Model::to_value(&self.total),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(HudPolicy {
+            id: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            type_name: crate::model::Model::from_value(&f[2])?,
+            unlocked: crate::model::Model::from_value(&f[3])?,
+            owned: crate::model::Model::from_value(&f[4])?,
+            total: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudPolicy {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudTop {
+    pub resources: crate::model::KeyedList<HudResource>,
+    pub policies: crate::model::KeyedList<HudPolicy>,
+    pub tourism: Option<i32>,
+}
+
+impl crate::model::Model for HudTop {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.resources, &old.resources, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.policies, &old.policies, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.tourism, &old.tourism, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.resources),
+            crate::model::Model::to_value(&self.policies),
+            crate::model::Model::to_value(&self.tourism),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(HudTop {
+            resources: crate::model::Model::from_value(&f[0])?,
+            policies: crate::model::Model::from_value(&f[1])?,
+            tourism: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudOrder {
+    pub slot: i32,
+    pub order: i8,
+    pub item: i16,
+    pub turns: Option<i16>,
+    pub needed: i32,
+}
+
+impl crate::model::Model for HudOrder {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.slot, &old.slot, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.order, &old.order, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.item, &old.item, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.needed, &old.needed, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.slot),
+            crate::model::Model::to_value(&self.order),
+            crate::model::Model::to_value(&self.item),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.needed),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(HudOrder {
+            slot: crate::model::Model::from_value(&f[0])?,
+            order: crate::model::Model::from_value(&f[1])?,
+            item: crate::model::Model::from_value(&f[2])?,
+            turns: crate::model::Model::from_value(&f[3])?,
+            needed: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudOrder {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.slot))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudBuildReason {
+    pub id: i32,
+    pub order: i8,
+    pub item: i16,
+    pub reason: crate::value::Text,
+}
+
+impl crate::model::Model for HudBuildReason {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.order, &old.order, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.item, &old.item, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.order),
+            crate::model::Model::to_value(&self.item),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(HudBuildReason {
+            id: crate::model::Model::from_value(&f[0])?,
+            order: crate::model::Model::from_value(&f[1])?,
+            item: crate::model::Model::from_value(&f[2])?,
+            reason: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudBuildReason {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudCity {
+    pub id: i32,
+    pub queue: crate::model::KeyedList<HudOrder>,
+    pub overflow: i32,
+    pub reasons: crate::model::KeyedList<HudBuildReason>,
+}
+
+impl crate::model::Model for HudCity {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.queue, &old.queue, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.overflow, &old.overflow, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.reasons, &old.reasons, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.queue),
+            crate::model::Model::to_value(&self.overflow),
+            crate::model::Model::to_value(&self.reasons),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(HudCity {
+            id: crate::model::Model::from_value(&f[0])?,
+            queue: crate::model::Model::from_value(&f[1])?,
+            overflow: crate::model::Model::from_value(&f[2])?,
+            reasons: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudPromotion {
+    pub id: i16,
+}
+
+impl crate::model::Model for HudPromotion {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(1)?;
+        Ok(HudPromotion {
+            id: crate::model::Model::from_value(&f[0])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudPromotion {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudAction {
+    pub id: i16,
+    pub enabled: bool,
+    pub reason: Option<crate::value::Text>,
+    pub cost: Option<i32>,
+}
+
+impl crate::model::Model for HudAction {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.cost, &old.cost, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.cost),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(HudAction {
+            id: crate::model::Model::from_value(&f[0])?,
+            enabled: crate::model::Model::from_value(&f[1])?,
+            reason: crate::model::Model::from_value(&f[2])?,
+            cost: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudAction {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudUnit {
+    pub id: i32,
+    pub promotions: crate::model::KeyedList<HudPromotion>,
+    pub actions: crate::model::KeyedList<HudAction>,
+}
+
+impl crate::model::Model for HudUnit {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.promotions, &old.promotions, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.actions, &old.actions, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.promotions),
+            crate::model::Model::to_value(&self.actions),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(HudUnit {
+            id: crate::model::Model::from_value(&f[0])?,
+            promotions: crate::model::Model::from_value(&f[1])?,
+            actions: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct TechsPrerequisite {
     pub id: i32,
 }
@@ -4593,6 +5087,48 @@ impl crate::model::Model for Ui {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+pub struct Hud {
+    pub research: HudResearch,
+    pub top: HudTop,
+    pub city: Option<HudCity>,
+    pub unit: Option<HudUnit>,
+}
+
+impl crate::model::Model for Hud {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.research, &old.research, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.top, &old.top, at, out);
+        at.field = base.child(23);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
+        at.field = base.child(37);
+        crate::model::Model::diff(&self.unit, &old.unit, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.research),
+            crate::model::Model::to_value(&self.top),
+            crate::model::Model::to_value(&self.city),
+            crate::model::Model::to_value(&self.unit),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(Hud {
+            research: crate::model::Model::from_value(&f[0])?,
+            top: crate::model::Model::from_value(&f[1])?,
+            city: crate::model::Model::from_value(&f[2])?,
+            unit: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Techs {
     pub techs: crate::model::KeyedList<TechsRow>,
 }
@@ -4667,6 +5203,10 @@ impl crate::model::Root for Ui {
     const NAME: &'static str = "ui";
 }
 
+impl crate::model::Root for Option<Hud> {
+    const NAME: &'static str = "hud";
+}
+
 impl crate::model::Root for Option<Techs> {
     const NAME: &'static str = "techs";
 }
@@ -4691,12 +5231,15 @@ pub fn put_root(
         "chat" => crate::model::put_value::<crate::model::KeyedList<ChatRow>>(w, v),
         "production" => crate::model::put_value::<Option<Production>>(w, v),
         "ui" => crate::model::put_value::<Ui>(w, v),
+        "hud" => crate::model::put_value::<Option<Hud>>(w, v),
         "techs" => crate::model::put_value::<Option<Techs>>(w, v),
         _ => return None,
     })
 }
 
-pub const SCREEN_NAMES: &[&str] = &["techs"];
+pub const WINDOW_SCREEN_NAMES: &[&str] = &["techs"];
+
+pub const SCREEN_NAMES: &[&str] = &["hud", "techs"];
 impl Windows {
     pub fn remote(&self, name: &str) -> Option<&WinArgs> {
         Some(match name {

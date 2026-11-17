@@ -93,7 +93,24 @@ impl RemoteRoots {
             {
                 errors.push(e);
             }
-            let Some(window) = ui.windows.remote(name).filter(|w| w.open) else {
+            let args = if *name == "hud" {
+                let city = if ui.windows.production.open {
+                    ui.windows.production.city.or(ui.selection.city)
+                } else {
+                    ui.selection.city
+                };
+                [("city", city), ("unit", ui.selection.unit)]
+                    .into_iter()
+                    .filter_map(|(name, key)| {
+                        key.map(|key| (name.into(), i64::from(key.0 as u32 as i32)))
+                    })
+                    .collect::<Vec<_>>()
+            } else if let Some(window) = ui.windows.remote(name).filter(|w| w.open) {
+                [("a", window.a), ("b", window.b)]
+                    .into_iter()
+                    .filter_map(|(k, v)| v.map(|v| (k.into(), i64::from(v))))
+                    .collect::<Vec<_>>()
+            } else {
                 if self.subscriptions.remove(*name).is_some()
                     && let Err(e) = put(writer, name, &Value::None)
                 {
@@ -102,10 +119,6 @@ impl RemoteRoots {
                 continue;
             };
             let s = self.subscriptions.entry((*name).into()).or_default();
-            let args = [("a", window.a), ("b", window.b)]
-                .into_iter()
-                .filter_map(|(k, v)| v.map(|v| (k.into(), i64::from(v))))
-                .collect::<Vec<_>>();
             if args != s.args {
                 s.args = args;
                 s.dirty = true;
@@ -114,6 +127,9 @@ impl RemoteRoots {
                 }
             }
             if !connected || !self.connected {
+                if let Err(e) = put(writer, name, &Value::None) {
+                    errors.push(e);
+                }
                 s.waiting = None;
                 s.revision = None;
             }
@@ -167,6 +183,86 @@ mod tests {
     use ui2_model::{ModelStore, Owner};
 
     #[test]
+    fn hud_is_always_subscribed_and_tracks_focus_refresh_outcomes_and_reconnects() {
+        use ui2_model::{Key, generated::Hud};
+        let mut remote = RemoteRoots::default();
+        let mut store = ModelStore::new(Schema::v1());
+        let mut ui = Ui::default();
+        assert!(ui.windows.remote("hud").is_none());
+        let mut queries = Vec::new();
+        let mut tick = |remote: &mut RemoteRoots,
+                        store: &mut ModelStore,
+                        ui: &Ui,
+                        now,
+                        revision,
+                        connected| {
+            remote.frame(
+                now,
+                revision,
+                connected,
+                ui,
+                &mut store.writer(Owner::Source),
+                |q| {
+                    queries.push(q);
+                    queries.len() as u32
+                },
+            )
+        };
+        tick(&mut remote, &mut store, &ui, 0, 1, true);
+        assert_eq!(remote.subscriptions["hud"].waiting, Some(1));
+        let answer = QueryAnswer::Screen {
+            screen: "hud".into(),
+            json: "{}".into(),
+        };
+        remote.answer(1, &answer, &mut store.writer(Owner::Source));
+        assert!(store.get::<Option<Hud>>().unwrap().is_some());
+        ui.selection.city = Some(Key::new(0, 3));
+        ui.selection.unit = Some(Key::new(0, 4));
+        tick(&mut remote, &mut store, &ui, 249, 1, true);
+        assert!(store.get::<Option<Hud>>().unwrap().is_none());
+        tick(&mut remote, &mut store, &ui, 250, 1, true);
+        assert_eq!(remote.subscriptions["hud"].waiting, Some(2));
+        ui.selection.unit = None;
+        tick(&mut remote, &mut store, &ui, 500, 2, true);
+        remote.answer(2, &answer, &mut store.writer(Owner::Source));
+        assert!(
+            store.get::<Option<Hud>>().unwrap().is_none(),
+            "stale focus is discarded"
+        );
+        tick(&mut remote, &mut store, &ui, 501, 2, true);
+        remote.answer(3, &answer, &mut store.writer(Owner::Source));
+        remote.invalidate("hud");
+        tick(&mut remote, &mut store, &ui, 751, 2, true);
+        assert_eq!(remote.subscriptions["hud"].waiting, Some(4));
+        tick(&mut remote, &mut store, &ui, 752, 2, false);
+        remote.answer(4, &answer, &mut store.writer(Owner::Source));
+        assert!(store.get::<Option<Hud>>().unwrap().is_none());
+        tick(&mut remote, &mut store, &ui, 1001, 2, true);
+        assert_eq!(remote.subscriptions["hud"].waiting, Some(5));
+        assert_eq!(
+            queries[0],
+            Query::Screen {
+                screen: "hud".into(),
+                args: vec![]
+            }
+        );
+        assert_eq!(
+            queries[1],
+            Query::Screen {
+                screen: "hud".into(),
+                args: vec![("city".into(), 3), ("unit".into(), 4)]
+            }
+        );
+        assert_eq!(
+            queries[2],
+            Query::Screen {
+                screen: "hud".into(),
+                args: vec![("city".into(), 3)]
+            }
+        );
+    }
+
+    #[test]
     fn subscription_throttles_and_discards_closed_window_answers() {
         let mut remote = RemoteRoots::default();
         let mut store = ModelStore::new(Schema::v1());
@@ -176,6 +272,9 @@ mod tests {
         let mut queries = Vec::new();
         let mut tick = |remote: &mut RemoteRoots, now, rev, ui: &Ui, store: &mut ModelStore| {
             remote.frame(now, rev, true, ui, &mut store.writer(Owner::Source), |q| {
+                if matches!(&q, Query::Screen { screen, .. } if screen == "hud") {
+                    return 0;
+                }
                 queries.push(q);
                 queries.len() as u32
             })
@@ -227,9 +326,18 @@ mod tests {
         let mut ui = Ui::default();
         ui.windows.techs.open = true;
         ui.windows.techs.a = Some(7);
-        remote.frame(0, 1, true, &ui, &mut store.writer(Owner::Source), |_| 1);
+        remote.frame(0, 1, true, &ui, &mut store.writer(Owner::Source), |q| {
+            if matches!(q, Query::Screen { screen, .. } if screen == "hud") {
+                0
+            } else {
+                1
+            }
+        });
         ui.windows.techs.a = Some(8);
-        remote.frame(250, 1, true, &ui, &mut store.writer(Owner::Source), |_| {
+        remote.frame(250, 1, true, &ui, &mut store.writer(Owner::Source), |q| {
+            if matches!(q, Query::Screen { screen, .. } if screen == "hud") {
+                return 0;
+            }
             panic!("previous request is still outstanding")
         });
         let answer = QueryAnswer::Screen {
@@ -243,6 +351,9 @@ mod tests {
         );
         assert!(store.get::<Option<Techs>>().unwrap().is_none());
         remote.frame(251, 1, true, &ui, &mut store.writer(Owner::Source), |q| {
+            if matches!(&q, Query::Screen { screen, .. } if screen == "hud") {
+                return 0;
+            }
             assert_eq!(
                 q,
                 Query::Screen {
@@ -285,7 +396,13 @@ mod tests {
                 true,
                 &ui,
                 &mut store.writer(Owner::Source),
-                |_| 1,
+                |q| {
+                    if matches!(q, Query::Screen { screen, .. } if screen == "hud") {
+                        0
+                    } else {
+                        1
+                    }
+                },
             );
             assert!(
                 remote

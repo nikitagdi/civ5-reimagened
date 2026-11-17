@@ -15,15 +15,15 @@ mod support;
 use std::sync::Arc;
 
 use protocol::{CmdId, Command, CommandOutcome};
-use replica::testing::FakeRead;
-use replica::{ReplicaStep, State};
 use support::{FakeNet, game};
 use ui2_actions::{ActionEvent, Sent};
-use ui2_host::{Env, ReplicaView, V2Frame, V2FrameReport, V2Init, V2Ui};
+use ui2_host::{Env, V2Frame, V2FrameReport, V2Init, V2Ui, WorldView};
 use ui2_model::r#gen::{Note, Ui, Unit as UnitRoot};
 use ui2_model::wire::{Origin, WireIntent};
 use ui2_model::{Key, KeyedList, Value};
 use ui2_script::testing::MockScriptHost;
+use ui2_source::testing::Change as ReplicaStep;
+use ui2_source::testing::FakeRead;
 
 fn ukey(id: u32) -> Key {
     Key::new(0, id)
@@ -93,19 +93,14 @@ impl Rig {
         rig
     }
 
-    fn run(&mut self, steps: &[ReplicaStep], events: &[ActionEvent]) -> V2FrameReport {
+    fn run(&mut self, _steps: &[ReplicaStep], events: &[ActionEvent]) -> V2FrameReport {
         self.now += 16.0;
-        let view = ReplicaView {
-            state: State::Live,
-            catching_up: false,
-            generation: 1,
-            applied_jseq: self.jseq,
-            turn: None,
-            read: Some(&mut self.game),
+        let view = WorldView {
+            revision: 1_000_000 + (self.jseq),
+            read: &mut self.game,
         };
         let r = self.ui.frame(V2Frame {
-            replica: Some(view),
-            steps,
+            world: Some(view),
             net: Some(&mut self.net),
             events,
             mods: None,
@@ -309,17 +304,12 @@ fn without_a_network_orders_are_refused_with_a_toast() {
             arg("plot", Value::Struct(vec![Value::I32(12), Value::I32(5)])),
         ],
     ));
-    let view = ReplicaView {
-        state: State::Live,
-        catching_up: false,
-        generation: 1,
-        applied_jseq: rig.jseq,
-        turn: None,
-        read: Some(&mut rig.game),
+    let view = WorldView {
+        revision: 1_000_000 + (rig.jseq),
+        read: &mut rig.game,
     };
     rig.ui.frame(V2Frame {
-        replica: Some(view),
-        steps: &[],
+        world: Some(view),
         net: None,
         events: &[],
         mods: None,
@@ -509,8 +499,7 @@ fn island_commands_go_to_the_runtime_and_a_refused_one_is_reported_once() {
     host.reply(w, out);
     rig.now += 16.0;
     let r = rig.ui.frame(V2Frame {
-        replica: None,
-        steps: &[],
+        world: None,
         net: Some(&mut rig.net),
         events: &[],
         mods: None,

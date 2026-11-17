@@ -143,12 +143,30 @@ fn the_unit_id_is_the_low_half_of_its_key() {
 }
 
 #[test]
-fn alert_pillage_and_upgrade_are_not_ordered() {
-    for name in ["alert", "pillage", "upgrade"] {
+fn alert_pillage_and_upgrade_use_validated_screen_actions() {
+    for (name, kind) in [
+        ("alert", UnitActionKind::Alert),
+        ("pillage", UnitActionKind::Pillage),
+        ("upgrade", UnitActionKind::Upgrade),
+    ] {
         let mut rig = rig_with_units();
+        rig.put(selected(1, &[(kind, true, true)]));
         rig.one("unit.action", &[("unit", kstr(1)), ("action", s(name))])
             .unwrap();
-        rig.assert_refused("unsupported");
+        assert_eq!(
+            rig.commands(),
+            vec![Command::ScreenAction {
+                screen: "hud".into(),
+                action: name.into(),
+                args: vec![("a".into(), 1)],
+                text: None,
+            }]
+        );
+        let mut rig = rig_with_units();
+        rig.put(selected(1, &[(kind, false, true)]));
+        rig.one("unit.action", &[("unit", kstr(1)), ("action", s(name))])
+            .unwrap();
+        rig.assert_refused("action_unavailable");
     }
 }
 

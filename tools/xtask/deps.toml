@@ -35,6 +35,7 @@ protocol_allowed = ["serde", "postcard", "serde_json", "thiserror"]
 mode = "deny"
 forbidden = ["game-host"]
 exceptions = []
+replica_free_prefixes = ["ui2-"]
 
 [[r10.direct]]
 target = "gamecore"

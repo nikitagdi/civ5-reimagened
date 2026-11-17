@@ -158,11 +158,21 @@ impl Graph {
         goal: impl Fn(&str) -> bool,
         avoid: impl Fn(&str) -> bool,
     ) -> Option<Vec<String>> {
+        self.find_path_edges(from, goal, avoid, false)
+    }
+
+    fn find_path_edges(
+        &self,
+        from: &str,
+        goal: impl Fn(&str) -> bool,
+        avoid: impl Fn(&str) -> bool,
+        with_build: bool,
+    ) -> Option<Vec<String>> {
         let mut prev: HashMap<&str, &str> = HashMap::new();
         let mut seen: BTreeSet<&str> = BTreeSet::from([from]);
         let mut q: VecDeque<&str> = VecDeque::from([from]);
         while let Some(cur) = q.pop_front() {
-            for next in self.direct(cur, false) {
+            for next in self.direct(cur, with_build) {
                 if avoid(next) || !seen.insert(next) {
                     continue;
                 }
@@ -222,6 +232,8 @@ pub struct R10 {
     pub exceptions: Vec<R10Exception>,
     #[serde(default)]
     pub direct: Vec<R10Direct>,
+    #[serde(default)]
+    pub replica_free_prefixes: Vec<String>,
 }
 
 /// A crate the client layers may name directly only from `allowed` crates.
@@ -658,6 +670,23 @@ pub fn r9(g: &Graph) -> Vec<Violation> {
 pub fn r10(g: &Graph, cfg: &DepsConfig) -> Vec<Violation> {
     let mut out = r10_reach(g, cfg);
     out.extend(r10_direct(g, cfg));
+    for (name, _) in g.workspace() {
+        if cfg
+            .r10
+            .replica_free_prefixes
+            .iter()
+            .any(|prefix| name.starts_with(prefix))
+            && let Some(path) = g.find_path_edges(name, |n| n == "replica", |_| false, true)
+        {
+            out.push(viol(
+                "R10",
+                format!(
+                    "UI crate must be independent of replica: {}",
+                    path.join(" -> ")
+                ),
+            ));
+        }
+    }
     out
 }
 
@@ -887,6 +916,7 @@ mod tests {
                     .map(String::from)
                     .to_vec(),
                 exceptions: Vec::new(),
+                replica_free_prefixes: vec!["ui2-".into()],
                 direct: vec![
                     R10Direct {
                         target: "gamecore".into(),
@@ -936,6 +966,22 @@ mod tests {
             shared: BTreeSet::from(["hello-shared".to_string()]),
         }];
         (g, mods)
+    }
+
+    #[test]
+    fn ui_crates_cannot_reach_a_replica_through_another_client_crate() {
+        let mut g = clean();
+        g.add("ui2-source", Some(Layer::Client));
+        g.add("replica", Some(Layer::Client));
+        g.edge("ui2-source", "client-core", EdgeKind::Normal);
+        assert!(r10(&g, &cfg()).is_empty());
+        g.edge("client-core", "replica", EdgeKind::Normal);
+        let violations = r10(&g, &cfg());
+        assert!(
+            violations
+                .iter()
+                .any(|v| v.message.contains("ui2-source -> client-core -> replica"))
+        );
     }
 
     #[test]

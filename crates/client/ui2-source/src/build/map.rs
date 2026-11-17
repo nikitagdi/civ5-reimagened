@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use replica::{City, Player, ReadError, Unit};
+use crate::read::{City, Player, ReadError, Unit};
 use ui2_model::r#gen::{BannerProd, CityBanner, Domain, Map, Plot, UnitFlag};
 
 use crate::CountingRead;

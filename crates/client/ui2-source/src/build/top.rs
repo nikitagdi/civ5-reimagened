@@ -1,7 +1,9 @@
 //! The roots `top` (the top bar) and `research` (the current research, the research queue and the choices).
 
-use replica::TopBarFlags;
-use replica::{PlayerResource, PolicyBranchState, ReadError, ResourceUsage, TechState, TechStatus};
+use crate::read::TopBarFlags;
+use crate::read::{
+    PlayerResource, PolicyBranchState, ReadError, ResourceUsage, TechState, TechStatus,
+};
 use ui2_model::r#gen::{GoldenAge, Mood, PolicyBranch, Research, Resource, Tech, Top};
 use ui2_model::{Key, Keyed, KeyedList};
 
@@ -52,7 +54,7 @@ fn keyed<T: Keyed>(rows: impl IntoIterator<Item = T>) -> KeyedList<T> {
 pub fn strategic_resources(rows: &[PlayerResource], catalog: &Catalog) -> KeyedList<Resource> {
     keyed(
         rows.iter()
-            .filter(|r| r.usage == ResourceUsage::Strategic)
+            .filter(|r| matches!(r.usage, ResourceUsage::Strategic | ResourceUsage::Luxury))
             .map(|r| {
                 let item = catalog.resource(r.resource);
                 Resource {

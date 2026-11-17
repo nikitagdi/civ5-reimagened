@@ -334,6 +334,81 @@ export interface Toast {
   readonly detail: string | null;
 }
 
+export interface HudTech {
+  readonly id: number;
+  readonly status: number;
+  readonly queue: number | null;
+  readonly turns: number | null;
+  readonly progress: number;
+  readonly cost: number;
+}
+
+export interface HudResearch {
+  readonly techs: HudTech[];
+}
+
+export interface HudResource {
+  readonly id: number;
+  readonly usage: number;
+  readonly available: number;
+  readonly used: number;
+  readonly total: number;
+}
+
+export interface HudPolicy {
+  readonly id: number;
+  readonly name: Text;
+  readonly type_name: string;
+  readonly unlocked: boolean;
+  readonly owned: number;
+  readonly total: number;
+}
+
+export interface HudTop {
+  readonly resources: HudResource[];
+  readonly policies: HudPolicy[];
+  readonly tourism: number | null;
+}
+
+export interface HudOrder {
+  readonly slot: number;
+  readonly order: number;
+  readonly item: number;
+  readonly turns: number | null;
+  readonly needed: number;
+}
+
+export interface HudBuildReason {
+  readonly id: number;
+  readonly order: number;
+  readonly item: number;
+  readonly reason: Text;
+}
+
+export interface HudCity {
+  readonly id: number;
+  readonly queue: HudOrder[];
+  readonly overflow: number;
+  readonly reasons: HudBuildReason[];
+}
+
+export interface HudPromotion {
+  readonly id: number;
+}
+
+export interface HudAction {
+  readonly id: number;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly cost: number | null;
+}
+
+export interface HudUnit {
+  readonly id: number;
+  readonly promotions: HudPromotion[];
+  readonly actions: HudAction[];
+}
+
 export interface TechsPrerequisite {
   readonly id: number;
 }
@@ -474,6 +549,13 @@ export interface Ui {
   readonly errors: Toast[];
 }
 
+export interface Hud {
+  readonly research: HudResearch;
+  readonly top: HudTop;
+  readonly city: HudCity | null;
+  readonly unit: HudUnit | null;
+}
+
 export interface Techs {
   readonly techs: TechsRow[];
 }
@@ -492,6 +574,7 @@ export interface Model {
   readonly chat: ChatRow[];
   readonly production: Production | null;
   readonly ui: Ui;
+  readonly hud: Hud | null;
   readonly techs: Techs | null;
 }
 

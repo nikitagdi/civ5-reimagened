@@ -10,7 +10,7 @@
 //! `UI2_R17_SEAT=<n>` joins as another seat. Without `UI2_R17_FIXTURE` the test prints `skipped` and passes.
 //!
 //! ```text
-//! UI2_R17_FIXTURE=<dir>/small cargo test -p ui2-source --test r17_replica_untouched -- --nocapture
+//! UI2_R17_FIXTURE=<dir>/small cargo test -p client-app --test r17_replica_untouched -- --nocapture
 //! ```
 
 use std::path::Path;

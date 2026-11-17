@@ -88,14 +88,13 @@
     <button class="act" data-part="unit.act.cancel" data-bind-if="{{unit.act.cancel.shown}}" data-bind-disabled="{{!unit.act.cancel.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'cancel')">
       <svg class="i"><use href="#i-close"/></svg><span class="lb" data-l10n="act.cancel">Cancel</span>
     </button>
-    <!-- SIMPLIFIED(SIMP-250): alert, pillage and upgrade are shown as the core reports them but stay disabled: no order exists for them yet. -->
-    <button class="act" data-part="unit.act.alert" data-bind-if="{{unit.act.alert.shown}}" disabled>
+    <button class="act" data-part="unit.act.alert" data-bind-if="{{unit.act.alert.shown}}" data-bind-disabled="{{!unit.act.alert.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'alert')">
       <svg class="i"><use href="#i-alert"/></svg><span class="lb" data-l10n="act.alert">Alert</span>
     </button>
-    <button class="act" data-part="unit.act.pillage" data-bind-if="{{unit.act.pillage.shown}}" disabled>
+    <button class="act" data-part="unit.act.pillage" data-bind-if="{{unit.act.pillage.shown}}" data-bind-disabled="{{!unit.act.pillage.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'pillage')">
       <svg class="i"><use href="#i-pillage"/></svg><span class="lb" data-l10n="act.pillage">Pillage</span>
     </button>
-    <button class="act" data-part="unit.act.upgrade" data-bind-if="{{unit.act.upgrade.shown}}" disabled>
+    <button class="act" data-part="unit.act.upgrade" data-bind-if="{{unit.act.upgrade.shown}}" data-bind-disabled="{{!unit.act.upgrade.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'upgrade')">
       <svg class="i"><use href="#i-upgrade"/></svg><span class="lb" data-l10n="act.upgrade">Upgrade</span>
     </button>
     <button class="act gap danger" data-part="unit.act.disband" data-hotkey="Delete" data-bind-if="{{unit.act.disband.shown}}" data-bind-disabled="{{!unit.act.disband.enabled}}" data-on-click="intent unit.action(unit: unit.key, action: 'disband')">

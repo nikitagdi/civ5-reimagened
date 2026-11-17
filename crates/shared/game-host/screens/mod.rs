@@ -4,7 +4,10 @@ mod runtime;
 pub(crate) use runtime::Screens;
 
 /// Names and sources compiled into the server. Add one entry per screen.
-pub const REGISTRY: &[(&str, &str)] = &[("techs", include_str!("techs.lua"))];
+pub const REGISTRY: &[(&str, &str)] = &[
+    ("techs", include_str!("techs.lua")),
+    ("hud", include_str!("hud.lua")),
+];
 
 use crate::core::Refusal;
 use crate::{Core, Worker};
@@ -51,6 +54,7 @@ impl<C: Core> Worker<C> {
             screen,
             action,
             args,
+            text,
         } = cmd
         else {
             return self.core.command(player, cmd);
@@ -58,7 +62,7 @@ impl<C: Core> Worker<C> {
         let result = (|| {
             let messages = self
                 .screen_runtime()?
-                .action(player, screen, action, args)
+                .action(player, screen, action, args, text.as_deref())
                 .map_err(|e| e.to_string())?;
             self.core
                 .replica()

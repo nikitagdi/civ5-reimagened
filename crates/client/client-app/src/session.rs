@@ -323,6 +323,8 @@ pub struct SessionEnv<'a> {
     pub seat_known: bool,
     /// No game UI dispatches the core's UI events this frame: the session drops them.
     pub drain_events: bool,
+    /// Only classic UI needs the local game engine.
+    pub replica_needed: bool,
 }
 
 /// What one session frame did.
@@ -349,6 +351,8 @@ pub struct GameSession {
     seat: i32,
     failed: Option<String>,
     live: bool,
+    classic_resync_due: bool,
+    core_loads: u64,
     /// Time spent in `gc_create` (ms), for the report.
     create_ms: f64,
     /// The core's UI events dropped while no game UI dispatched them.
@@ -381,6 +385,8 @@ impl GameSession {
             seat: 0,
             failed: None,
             live: false,
+            classic_resync_due: false,
+            core_loads: 0,
             create_ms: 0.0,
             drained: 0,
             events: Vec::new(),
@@ -443,6 +449,11 @@ impl GameSession {
             });
         }
         out
+    }
+
+    /// Whether classic UI has already created its engine.
+    pub fn has_replica(&self) -> bool {
+        self.replica.is_some()
     }
 
     /// The replica, once the core is made.
@@ -514,17 +525,47 @@ impl GameSession {
             seat,
             seat_known,
             drain_events,
+            replica_needed,
         } = env;
         let mut step = SessionStep::default();
-        if self.failed.is_some() {
-            return step;
-        }
         self.seat = seat;
         if let Some(loader) = loader {
-            self.data.update(loader, now_ms);
+            if replica_needed {
+                self.data.update(loader, now_ms);
+            }
             self.text.update(loader);
             // The UI set and its background textures, whichever game UI is on the screen.
             self.ui_state = self.ui_set.update(loader);
+        }
+        render::perf::set_counter("client.core.loads", self.core_loads as f64);
+        if !replica_needed {
+            self.classic_resync_due = true;
+            self.live = false;
+            if let Some(net) = net {
+                // Drain unused wire data without creating or reading the classic engine.
+                net.with_client(|c| {
+                    c.take_replica_msgs();
+                    c.poll_replica_blobs();
+                });
+            }
+            return step;
+        }
+        if self.failed.is_some() {
+            return step;
+        }
+        if self.classic_resync_due {
+            self.backlog.clear();
+            if let Some(net) = net {
+                net.with_client(|c| {
+                    c.take_replica_msgs();
+                });
+                if net
+                    .with(|core| core.send_gc_resync(0, None, 0, protocol::GcResyncReason::Gap))
+                    .is_ok()
+                {
+                    self.classic_resync_due = false;
+                }
+            }
         }
         if let Some(m) = self.data.failed() {
             self.failed = Some(format!("the game data: {m}"));
@@ -548,6 +589,8 @@ impl GameSession {
     fn make_replica(&mut self, clock: &Rc<dyn Clock>) {
         let t0 = clock.now_ms_f64();
         let host = GameDataHost::new(Arc::clone(&self.data.files));
+        self.core_loads += 1;
+        render::perf::set_counter("client.core.loads", self.core_loads as f64);
         match Replica::new(host, self.replica_seat()) {
             Ok(mut r) => {
                 r.set_clock(Box::new(SharedClock(Rc::clone(clock))));
@@ -749,6 +792,27 @@ mod tests {
     }
 
     #[test]
+    fn v2_does_not_create_a_core_even_when_classic_data_is_ready() {
+        let mut session = GameSession::new();
+        session.data.stage = Some(DataStage::Ready);
+        let clock: Rc<dyn Clock> = Rc::new(Zero);
+        let step = session.frame(SessionEnv {
+            now_ms: 0,
+            loader: None,
+            net: None,
+            clock: &clock,
+            seat: 0,
+            seat_known: true,
+            drain_events: true,
+            replica_needed: false,
+        });
+        assert_eq!(step, SessionStep::default());
+        assert!(session.replica.is_none());
+        assert_eq!(session.core_loads, 0);
+        assert!(session.classic_resync_due);
+    }
+
+    #[test]
     fn a_session_without_assets_waits_and_has_nothing() {
         let clock: Rc<dyn Clock> = Rc::new(Zero);
         let mut s = GameSession::new();
@@ -760,6 +824,7 @@ mod tests {
             seat: 0,
             seat_known: true,
             drain_events: true,
+            replica_needed: true,
         });
         assert_eq!(step, SessionStep::default());
         assert!(s.replica().is_none() && s.localizer().is_none());

@@ -564,6 +564,7 @@ pub enum Command {
         screen: String,
         action: String,
         args: Vec<(String, i64)>,
+        text: Option<String>,
     },
 }
 

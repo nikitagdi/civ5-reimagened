@@ -27,6 +27,10 @@ pub trait HostNet {
         0
     }
 
+    /// The network core supplying the optimistic shown world and read-only queries.
+    fn core(&mut self) -> Option<&mut ClientCore> {
+        None
+    }
     /// Where orders, chat lines and camera requests go.
     fn sink(&mut self) -> &mut dyn OrderSink;
     /// The client session the source reads (connection, seat, turn state, chat).
@@ -129,6 +133,9 @@ impl HostNet for NetSink<'_> {
         self.core.revision()
     }
 
+    fn core(&mut self) -> Option<&mut ClientCore> {
+        Some(self.core)
+    }
     fn sink(&mut self) -> &mut dyn OrderSink {
         self
     }

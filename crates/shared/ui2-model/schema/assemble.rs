@@ -17,7 +17,9 @@ pub fn assemble(base: &str, screens: &[(String, String)]) -> Result<String, Stri
                 "screen {name} must declare its optional model root"
             ));
         }
-        windows.push_str(&format!("{name} = \"WinArgs\"\n"));
+        if name != "hud" {
+            windows.push_str(&format!("{name} = \"WinArgs\"\n"));
+        }
         let mut in_enum = false;
         for line in text.lines() {
             if line.trim() == "[enum]" {
@@ -42,6 +44,7 @@ pub fn assemble(base: &str, screens: &[(String, String)]) -> Result<String, Stri
     let end = start + source[start..].find(']').ok_or("invalid WindowId enum")?;
     let names = screens
         .iter()
+        .filter(|(n, _)| n != "hud")
         .map(|(n, _)| format!(", \"{n}\""))
         .collect::<String>();
     source.insert_str(end, &names);

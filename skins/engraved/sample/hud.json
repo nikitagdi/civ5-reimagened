@@ -1,5 +1,6 @@
 {
   "model": {
+    "hud": {"research": {"techs": [{"id": 0,"status": 1,"queue": 0,"turns": 3,"progress": 20,"cost": 80},{"id": 1,"status": 1,"queue": 1,"turns": 5,"progress": 0,"cost": 100}]},"top": {"tourism": 4,"resources": [{"id": 0,"usage": 1,"available": 2,"used": 1,"total": 3},{"id": 1,"usage": 2,"available": 1,"used": 0,"total": 1}],"policies": [{"id": 0,"name": "Tradition","type_name": "POLICY_BRANCH_TRADITION","unlocked": true,"owned": 2,"total": 5}]},"city": {"id": 3,"overflow": 7,"queue": [{"slot": 0,"order": 0,"item": 2,"turns": 3,"needed": 60},{"slot": 1,"order": 1,"item": 4,"turns": 7,"needed": 100}],"reasons": [{"id": 65540,"order": 1,"item": 4,"reason": "Production requirements are not met in this city."}]},"unit": {"id": 4,"promotions": [{"id": 2}],"actions": [{"id": 101,"enabled": true},{"id": 102,"enabled": false,"reason": "No improvement"},{"id": 103,"enabled": true,"cost": 210}]}},
     "meta": {
       "schema": "1.0",
       "source": "replica",

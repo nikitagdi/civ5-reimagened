@@ -1418,7 +1418,8 @@ fn registered_screens_validate_and_research_changes() {
                 Command::ScreenAction {
                     screen: "techs".into(),
                     action: "research".into(),
-                    args: vec![("a".into(), chosen), ("b".into(), 0)]
+                    args: vec![("a".into(), chosen), ("b".into(), 0)],
+                    text: None,
                 }
             ),
             CommandOutcome::Applied

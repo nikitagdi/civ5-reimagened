@@ -8,17 +8,17 @@ mod support;
 use std::sync::Arc;
 use std::time::Instant;
 
-use replica::{ReplicaStep, State};
 use support::{FakeNet, game};
-use ui2_host::{Env, ReplicaView, V2Frame, V2Init, V2Ui};
+use ui2_host::{Env, V2Frame, V2Init, V2Ui, WorldView};
 use ui2_model::Value;
 use ui2_model::r#gen::Ui;
 use ui2_model::wire::{Origin, WireIntent};
 use ui2_script::testing::MockScriptHost;
+use ui2_source::testing::Change as ReplicaStep;
 
 struct Rig {
     ui: V2Ui,
-    game: replica::testing::FakeRead,
+    game: ui2_source::testing::FakeRead,
     net: FakeNet,
     now: f64,
 }
@@ -48,18 +48,13 @@ impl Rig {
         rig
     }
 
-    fn run(&mut self, steps: &[ReplicaStep]) {
+    fn run(&mut self, _steps: &[ReplicaStep]) {
         self.now += 16.0;
         let r = self.ui.frame(V2Frame {
-            replica: Some(ReplicaView {
-                state: State::Live,
-                catching_up: false,
-                generation: 1,
-                applied_jseq: 0,
-                turn: None,
-                read: Some(&mut self.game),
+            world: Some(WorldView {
+                revision: 1_000_000,
+                read: &mut self.game,
             }),
-            steps,
             net: Some(&mut self.net),
             events: &[],
             mods: None,

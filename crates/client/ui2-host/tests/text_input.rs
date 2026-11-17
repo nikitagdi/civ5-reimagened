@@ -76,8 +76,7 @@ fn package() -> std::sync::Arc<ui2_package::Package> {
 
 fn frame(ui: &mut V2Ui, now: f64) {
     let r = ui.frame(V2Frame {
-        replica: None,
-        steps: &[],
+        world: None,
         net: None,
         events: &[],
         mods: None,

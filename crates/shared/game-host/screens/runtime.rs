@@ -87,7 +87,18 @@ impl Screens {
         name: &str,
         action: &str,
         args: &[(String, i64)],
+        text: Option<&str>,
     ) -> lua_sys::Result<Vec<NetMessage>> {
+        if text.is_some_and(|s| s.len() > 256 || s.chars().any(char::is_control)) {
+            return Err(LuaError::msg("invalid screen action text"));
+        }
+        if args.iter().any(|(key, _)| key == "text") {
+            return Err(LuaError::msg("text is a reserved screen argument"));
+        }
+        let arguments = self.args(args)?;
+        if let Some(text) = text {
+            arguments.raw_set("text", text)?;
+        }
         let actions: Table = self.screen(name)?.get("actions")?;
         let function: Function = actions.get(action)?;
         let messages = Rc::new(RefCell::new(Vec::new()));
@@ -108,7 +119,7 @@ impl Screens {
                     Ok(())
                 }),
         )?;
-        function.call::<_, ()>((i32::from(player), self.args(args)?, net))?;
+        function.call::<_, ()>((i32::from(player), arguments, net))?;
         let result = messages.borrow().clone();
         self.lua.gc_collect()?;
         Ok(result)
@@ -206,16 +217,22 @@ mod tests {
             serde_json::from_str(&r.data(3, "test", &[("a".into(), 9)]).unwrap()).unwrap();
         assert_eq!(json, serde_json::json!({"player":3,"a":9,"empty":[]}));
         let messages = r
-            .action(3, "test", "research", &[("a".into(), 12), ("b".into(), 1)])
+            .action(
+                3,
+                "test",
+                "research",
+                &[("a".into(), 12), ("b".into(), 1)],
+                None,
+            )
             .unwrap();
         assert_eq!(
             messages,
             vec![NetMessage::new("sendResearch", &[12, 0, -1, 1]).unwrap()]
         );
-        assert!(r.action(3, "test", "forbidden", &[]).is_err());
-        assert!(r.action(3, "test", "fail", &[]).is_err());
+        assert!(r.action(3, "test", "forbidden", &[], None).is_err());
+        assert!(r.action(3, "test", "fail", &[], None).is_err());
         assert_eq!(
-            r.action(3, "test", "research", &[("a".into(), 2)])
+            r.action(3, "test", "research", &[("a".into(), 2)], None)
                 .unwrap()
                 .len(),
             1
@@ -246,6 +263,48 @@ mod tests {
     }
 
     #[test]
+    fn action_text_is_optional_utf8_bounded_and_free_of_controls() {
+        let r = runtime();
+        r.lua
+            .exec(
+                r#"
+            __screens.test.actions.text = function(player, args, net)
+                assert(args.text == expected_text)
+            end
+        "#,
+                "=text-test",
+            )
+            .unwrap();
+        r.action(3, "test", "text", &[], None).unwrap();
+        for value in ["", "New city", "\u{e9}", &"\u{e9}".repeat(128)] {
+            r.lua.globals().raw_set("expected_text", value).unwrap();
+            r.action(3, "test", "text", &[], Some(value)).unwrap();
+        }
+        for value in [
+            "\n",
+            "\r",
+            "\0",
+            "\t",
+            "\u{7f}",
+            "\u{85}",
+            &"x".repeat(257),
+            &"\u{e9}".repeat(129),
+        ] {
+            assert!(r.action(3, "test", "text", &[], Some(value)).is_err());
+        }
+        assert!(
+            r.action(3, "test", "text", &[("text".into(), 1)], None)
+                .is_err()
+        );
+        r.lua
+            .globals()
+            .raw_set("expected_text", "Valid again")
+            .unwrap();
+        r.action(3, "test", "text", &[], Some("Valid again"))
+            .unwrap();
+    }
+
+    #[test]
     fn built_in_scripts_only_read_and_emit_net_messages() {
         for (name, source) in super::super::REGISTRY {
             for forbidden in [
@@ -262,5 +321,74 @@ mod tests {
                 assert!(!source.contains(forbidden), "{name} uses {forbidden}");
             }
         }
+    }
+
+    #[test]
+    fn hud_script_matches_schema_scopes_focus_and_rechecks_action_availability() {
+        let r = runtime();
+        r.lua
+            .exec(include_str!("../tests/fixtures/hud_api.lua"), "=hud-api")
+            .unwrap();
+        let global: Json = serde_json::from_str(&r.data(3, "hud", &[]).unwrap()).unwrap();
+        assert!(global.get("city").is_none() && global.get("unit").is_none());
+        let json: Json = serde_json::from_str(
+            &r.data(3, "hud", &[("city".into(), 3), ("unit".into(), 4)])
+                .unwrap(),
+        )
+        .unwrap();
+        let sample = ui2_model::Sample::parse(
+            ui2_model::Schema::v1(),
+            &serde_json::json!({"model":{"hud":json}}).to_string(),
+        )
+        .unwrap();
+        let mut store = ui2_model::ModelStore::new(ui2_model::Schema::v1());
+        sample.apply(&mut store).unwrap();
+        let hud = store
+            .get::<Option<ui2_model::generated::Hud>>()
+            .unwrap()
+            .as_ref()
+            .unwrap();
+        let city = hud.city.as_ref().unwrap();
+        assert_eq!(city.queue.len(), 2);
+        assert_eq!(city.overflow, 7);
+        assert_eq!(city.reasons.len(), 1);
+        assert_eq!(
+            hud.research
+                .techs
+                .iter()
+                .map(|t| t.queue)
+                .collect::<Vec<_>>(),
+            [Some(0), Some(1)]
+        );
+        assert_eq!(hud.top.resources.len(), 2);
+        assert_eq!(hud.top.policies.iter().next().unwrap().owned, 1);
+        assert_eq!(hud.unit.as_ref().unwrap().promotions.len(), 1);
+        assert_eq!(
+            r.action(3, "hud", "alert", &[("a".into(), 4)], None)
+                .unwrap(),
+            [NetMessage::new("sendPushMission", &[4, 10, 0, 0, 0, 0]).unwrap()]
+        );
+        assert_eq!(
+            r.action(3, "hud", "upgrade", &[("a".into(), 4)], None)
+                .unwrap(),
+            [NetMessage::new("sendDoCommand", &[4, 12, 0, 0, 0]).unwrap()]
+        );
+        assert!(
+            r.action(3, "hud", "pillage", &[("a".into(), 4)], None)
+                .is_err()
+        );
+        for args in [vec![("city".into(), 3)], vec![("unit".into(), 4)]] {
+            assert!(r.data(1, "hud", &args).is_err());
+        }
+        assert!(
+            r.action(1, "hud", "alert", &[("a".into(), 4)], None)
+                .is_err()
+        );
+        assert!(r.action(3, "hud", "alert", &[], None).is_err());
+        r.lua.exec("hud_busy = true", "=busy").unwrap();
+        assert!(
+            r.action(3, "hud", "alert", &[("a".into(), 4)], None)
+                .is_err()
+        );
     }
 }

@@ -108,8 +108,7 @@ fn mod_ui(id: &str, pkg: Arc<Package>, api: &str, panels: Vec<ModPanel>) -> ModU
 
 fn frame(ui: &mut V2Ui, mods: Option<Vec<Arc<str>>>) -> V2FrameReport {
     ui.frame(V2Frame {
-        replica: None,
-        steps: &[],
+        world: None,
         net: None,
         events: &[],
         mods,

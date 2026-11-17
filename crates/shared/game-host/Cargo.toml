@@ -31,3 +31,4 @@ lua-sys.workspace = true
 [dev-dependencies]
 gamecore-sys.workspace = true
 lua-sys.workspace = true
+ui2-model.workspace = true

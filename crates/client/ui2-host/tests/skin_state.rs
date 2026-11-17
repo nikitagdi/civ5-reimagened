@@ -28,8 +28,7 @@ fn ui_of(pkg: std::sync::Arc<ui2_package::Package>, host: Option<&MockScriptHost
 fn frame(ui: &mut V2Ui, now: &mut f64) -> V2FrameReport {
     *now += 16.0;
     let r = ui.frame(V2Frame {
-        replica: None,
-        steps: &[],
+        world: None,
         net: None,
         events: &[],
         mods: None,

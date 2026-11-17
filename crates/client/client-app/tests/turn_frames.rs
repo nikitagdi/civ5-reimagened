@@ -16,9 +16,12 @@
 //! `UI2_TURN_FIXTURE` the test prints `skipped` and passes. Ignored by default, like the other benches.
 //!
 //! ```text
-//! UI2_TURN_FIXTURE=<dir>/small cargo test --release -p ui2-source --test turn_frames -- --ignored --nocapture
+//! UI2_TURN_FIXTURE=<dir>/small cargo test --release -p client-app --test turn_frames -- --ignored --nocapture
 //! ```
 
+#[path = "r17/bridge.rs"]
+mod bridge;
+use bridge::Bridge;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -35,7 +38,7 @@ use ui2_model::{ModelStore, Owner, Schema};
 use ui2_source::profile::{READ_NAMES, ROOT_COUNTERS};
 use ui2_source::session::testing::FakeSession;
 use ui2_source::trigger::Roots;
-use ui2_source::{DEFAULT_FRAME_BUDGET, ReplicaView, SourceFrame, SourceProfile, UiSource};
+use ui2_source::{DEFAULT_FRAME_BUDGET, SourceFrame, SourceProfile, UiSource, WorldView};
 
 type Files = HashMap<String, Vec<u8>>;
 
@@ -126,12 +129,13 @@ struct Run {
 impl Run {
     fn frame(&mut self, r: &mut Replica, step: ReplicaStep) -> &Row {
         let t0 = Instant::now();
+        let revision = r.generation() * 1_000_000 + r.applied_jseq();
+        let mut read = r.read().map(Bridge);
         let stats = {
             let mut w = self.store.writer(Owner::Source);
             self.src.frame(
                 SourceFrame {
-                    replica: Some(ReplicaView::of(r)),
-                    steps: std::slice::from_ref(&step),
+                    world: read.as_mut().map(|read| WorldView { revision, read }),
                     session: &self.session,
                     dismissed: &Default::default(),
                     now_ms: self.now,
@@ -323,7 +327,7 @@ fn the_source_over_real_turns() {
                 assert!(matches!(s, ReplicaStep::Loaded { .. }), "{s:?}");
                 // The host warms the source up once the game is joined, outside the frames.
                 let rd = r.read().expect("live");
-                let w = run.src.warm_up(rd);
+                let w = run.src.warm_up(&mut Bridge(rd));
                 println!(
                     "UI2TURN warm-up: {} reads, {:.0} us",
                     w.getter_calls,
@@ -381,7 +385,7 @@ fn the_source_over_real_turns() {
                 assert!(matches!(s, ReplicaStep::TurnSwitched { .. }), "{s:?}");
                 // The host takes the core's slow first reads after the load out of the frame, as part of the load.
                 let rd = r.read().expect("live");
-                let w = run.src.warm_turn(rd, &run.ui);
+                let w = run.src.warm_turn(&mut Bridge(rd), &run.ui);
                 println!(
                     "UI2TURN warm after the load of turn {turn}: {} reads, {:.0} us",
                     w.getter_calls,
