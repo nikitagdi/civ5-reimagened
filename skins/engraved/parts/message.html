@@ -1,0 +1,20 @@
+<div class="message-screen" data-part="message" data-screen="message" data-bind-if="{{ui.windows.message.open}}" data-esc="intent screen.act(screen: 'message', action: 'ok', a: ui.windows.message.a)">
+  <section class="message-window" data-bind-class-toggle="message-narrow:{{message != null &amp;&amp; message.width == 'narrow'}}; message-wide:{{message != null &amp;&amp; message.width == 'wide'}}">
+    <div class="message-body" data-bind-if="{{message == null}}" data-l10n="message.loading"></div>
+    <div class="message-content" data-bind-if="{{message != null}}">
+      <div class="message-head">
+        <img class="message-icon" data-bind-if="{{message.civ != null}}" data-bind-src="{{message.civ.icon}}" data-bind-style-background-color="{{message.civ.color_bg}}">
+        <div class="message-titles"><span class="message-kicker" data-bind-value="{{message.kicker}}"></span><span class="message-title" data-part="message.title" data-bind-value="{{message.title}}"></span></div>
+      </div>
+      <div class="message-body">
+        <img class="message-art" data-bind-if="{{message.art != null}}" data-bind-src="{{message.art}}">
+        <div class="message-band" data-bind-if="{{message.band != null}}"><b data-bind-value="{{message.band.name}}"></b><span data-bind-value="{{message.band.note}}"></span></div>
+        <div class="message-quote" data-bind-if="{{message.quote != null}}"><div data-bind-value="{{message.quote.text}}"></div><span class="message-by" data-bind-value="{{message.quote.by}}"></span></div>
+        <div class="message-prose" data-part="message.text" data-bind-value="{{message.text}}"></div>
+        <div class="message-kicker" data-bind-value="{{message.facts_title}}"></div>
+        <div><div class="message-row" data-bind-for="f:{{message.facts}}"><span data-bind-value="{{f.label}}"></span><b data-bind-value="{{f.value}}"></b><div class="message-yields"><span data-bind-for="y:{{f.yields}}"><b data-bind-value="{{y.value}}"></b><svg class="message-yield-icon" data-bind-if="{{y.yield == 'food'}}"><use href="#i-food"/></svg><svg class="message-yield-icon" data-bind-if="{{y.yield == 'production'}}"><use href="#i-prod"/></svg><svg class="message-yield-icon" data-bind-if="{{y.yield == 'gold'}}"><use href="#i-gold"/></svg><svg class="message-yield-icon" data-bind-if="{{y.yield == 'science'}}"><use href="#i-sci"/></svg><svg class="message-yield-icon" data-bind-if="{{y.yield == 'culture'}}"><use href="#i-cult"/></svg><svg class="message-yield-icon" data-bind-if="{{y.yield == 'faith'}}"><use href="#i-faith"/></svg><svg class="message-yield-icon" data-bind-if="{{y.yield == 'happiness'}}"><use href="#i-happy"/></svg><svg class="message-yield-icon" data-bind-if="{{y.yield == 'tourism'}}"><use href="#i-tour"/></svg><svg class="message-yield-icon" data-bind-if="{{y.yield == 'influence'}}"><use href="#i-star"/></svg></span></div></div></div>
+      </div>
+      <div class="message-foot"><button class="message-button message-primary" data-part="message.ok" data-bind-hotkey="'Enter'" data-bind-disabled="{{!message.available}}" data-bind-value="{{message.button}}" data-on-click="intent screen.act(screen: 'message', action: 'ok', a: message.id)"></button></div>
+    </div>
+  </section>
+</div>

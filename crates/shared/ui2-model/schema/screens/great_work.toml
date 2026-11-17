@@ -1,0 +1,18 @@
+[enum]
+GreatWorkClass = ["writing", "art", "music", "artifact"]
+
+[model.great_work]
+_optional = true
+id = "i32"
+type = "str"
+class = "GreatWorkClass"
+class_name = "text"
+artist = "text?"
+from_dig = "bool"
+name = "text"
+quote = "text?"
+civ_name = "text"
+era = "text"
+image = "asset"
+image_reason = "text?"
+location = "text?"

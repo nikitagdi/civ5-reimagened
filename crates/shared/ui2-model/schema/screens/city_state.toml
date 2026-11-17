@@ -1,0 +1,269 @@
+[enum]
+CityStateView = ["diplo", "enter_land", "liberate"]
+CityStateMinorTrait = ["cultural", "militaristic", "maritime", "mercantile", "religious"]
+CityStateMinorPersonality = ["friendly", "neutral", "hostile", "irrational"]
+CityStateSpeechKind = ["greeting_first", "greeting", "new_quest", "peace_made", "gold_tribute", "unit_tribute", "gold_gift", "pledge", "pledge_revoked", "peace_friend", "peace_neutral", "war", "war_no_peace"]
+CityStateStatusKind = ["ally", "friend", "permanent_war", "no_peace", "war", "afraid", "angry", "neutral"]
+CityStateStatusStyle = ["war", "ally", "friend", "bully", "negative", "neutral"]
+CityStateStatusScaleSide = ["positive", "negative", "zero"]
+CityStateAllyKind = ["none", "you", "civ", "unknown"]
+CityStateResourcesKind = ["strategic", "luxury"]
+CityStateActionsPledgeState = ["can_pledge", "pledged"]
+CityStateEnterLandOwnerKind = ["city_state", "civ"]
+
+[type.CityStateMinor]
+id = "i32"
+key = "str"
+team_id = "i32"
+name = "text"
+emblem = "asset"
+color_bg = "color"
+color_fg = "color"
+name_color = "color"
+trait = "CityStateMinorTrait"
+trait_name = "text"
+trait_tooltip = "text"
+personality = "CityStateMinorPersonality"
+personality_name = "text"
+personality_tooltip = "text"
+has_capital = "bool"
+capital_plot = "i32?"
+capital_location = "Plot?"
+
+[type.CityStateSpeech]
+kind = "CityStateSpeechKind"
+text = "text"
+caption = "text"
+
+[type.CityStateStatus]
+kind = "CityStateStatusKind"
+style = "CityStateStatusStyle"
+label = "text"
+influence = "i32"
+per_turn = "f32"
+resting_point = "i32"
+at_rest = "bool"
+at_war = "bool"
+war_turns = "i32"
+war_threshold = "i32"
+friend_threshold = "i32"
+ally_threshold = "i32"
+scale_side = "CityStateStatusScaleSide"
+scale_fill_pct = "f32"
+scale_marker_pct = "f32"
+friend_tick_pct = "f32"
+
+[type.CityStateAlly]
+kind = "CityStateAllyKind"
+player_id = "i32?"
+name = "text"
+emblem = "asset?"
+color_bg = "color?"
+color_fg = "color?"
+influence = "i32?"
+influence_to_overtake = "i32?"
+ally_turns = "i32?"
+marriage = "bool"
+refuses_bribes = "bool"
+tooltip = "text"
+
+[type.CityStateProtectors]
+key = "str"
+player_id = "i32"
+name = "text"
+is_you = "bool"
+emblem = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.CityStateEnemies]
+key = "str"
+player_id = "i32"
+name = "text"
+is_you = "bool"
+emblem = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.CityStateBonuses]
+key = "str"
+kind = "text"
+icon = "asset"
+text = "text"
+short = "text"
+next_in = "i32?"
+
+[type.CityStateResources]
+key = "str"
+icon = "asset"
+name = "text"
+count = "i32"
+kind = "CityStateResourcesKind"
+exported = "bool"
+
+[type.CityStateQuests]
+key = "str"
+type = "str"
+icon = "asset"
+title = "text"
+detail = "text"
+tooltip = "text"
+turns_left = "i32?"
+plot = "i32?"
+can_locate = "bool"
+contest_you = "i32?"
+contest_leader = "i32?"
+contest_leader_name = "text?"
+contest_you_lead = "bool?"
+
+[type.CityStateActionsPeace]
+visible = "bool"
+enabled = "bool"
+turns = "i32"
+reason = "text"
+
+[type.CityStateActionsWar]
+visible = "bool"
+enabled = "bool"
+reason = "text"
+
+[type.CityStateActionsGifts]
+visible = "bool"
+enabled = "bool"
+
+[type.CityStateActionsTribute]
+visible = "bool"
+enabled = "bool"
+subtitle = "text"
+
+[type.CityStateActionsPledge]
+visible = "bool"
+state = "CityStateActionsPledgeState"
+enabled = "bool"
+turns = "i32"
+reason = "text"
+
+[type.CityStateActionsUnitSpawning]
+visible = "bool"
+on = "bool"
+subtitle = "text"
+
+[type.CityStateActionsBuyout]
+visible = "bool"
+enabled = "bool"
+cost = "i32"
+reason = "text"
+
+[type.CityStateActions]
+peace = "CityStateActionsPeace"
+war = "CityStateActionsWar"
+gifts = "CityStateActionsGifts"
+tribute = "CityStateActionsTribute"
+pledge = "CityStateActionsPledge"
+unit_spawning = "CityStateActionsUnitSpawning"
+buyout = "CityStateActionsBuyout"
+
+[type.CityStateGiftsGold]
+key = "str"
+index = "i32"
+amount = "i32"
+influence = "i32"
+enabled = "bool"
+reason = "text"
+
+[type.CityStateGiftsUnit]
+enabled = "bool"
+influence_min = "i32"
+influence_max = "i32"
+travel_turns = "i32"
+reason = "text"
+
+[type.CityStateGiftsImprovement]
+enabled = "bool"
+cost = "i32"
+reason = "text"
+
+[type.CityStateGifts]
+gold = { list = "CityStateGiftsGold", key = "key" }
+gold_hint = "text"
+unit = "CityStateGiftsUnit"
+improvement = "CityStateGiftsImprovement"
+
+[type.CityStateTributeGold]
+enabled = "bool"
+amount = "i32"
+influence_loss = "i32"
+reason = "text"
+
+[type.CityStateTributeUnit]
+enabled = "bool"
+unit_name = "text"
+icon = "asset"
+influence_loss = "i32"
+reason = "text"
+
+[type.CityStateTribute]
+pressure = "i32?"
+pressure_gold_needed = "i32?"
+pressure_unit_needed = "i32?"
+tooltip = "text"
+gold = "CityStateTributeGold"
+unit = "CityStateTributeUnit"
+confirm_influence_after = "i32"
+confirm_status_after = "text"
+
+[type.CityStateEnterLand]
+owner_name = "text"
+owner_kind = "CityStateEnterLandOwnerKind"
+owner_team_id = "i32"
+subtitle = "text"
+unit_id = "i32"
+unit_name = "text"
+plot = "i32"
+queue = "bool"
+text = "text"
+
+[type.CityStateLiberatePreview]
+key = "str"
+icon = "asset"
+text = "text"
+
+[type.CityStateLiberate]
+city_id = "i32"
+city_key = "str"
+city_name = "text"
+captured_from = "text"
+subtitle = "text"
+text = "text"
+preview = { list = "CityStateLiberatePreview", key = "key" }
+can_puppet = "bool"
+annex_text = "text"
+
+[model.city_state]
+_optional = true
+view = "CityStateView"
+player_id = "i32"
+player_gold = "i32"
+minor = "CityStateMinor?"
+speech = "CityStateSpeech?"
+status = "CityStateStatus?"
+ally = "CityStateAlly?"
+protectors = { list = "CityStateProtectors", key = "key" }
+enemies = { list = "CityStateEnemies", key = "key" }
+can_bully = "bool"
+bully_text = "text"
+bonuses = { list = "CityStateBonuses", key = "key" }
+resources = { list = "CityStateResources", key = "key" }
+resources_exported_text = "text"
+quests = { list = "CityStateQuests", key = "key" }
+no_quests_text = "text"
+threat_barbarians = "bool"
+threat_barbarians_text = "text"
+threat_proxy_war = "bool"
+threat_proxy_war_text = "text"
+actions = "CityStateActions?"
+gifts = "CityStateGifts?"
+tribute = "CityStateTribute?"
+enter_land = "CityStateEnterLand?"
+liberate = "CityStateLiberate?"
+reason = "text?"

@@ -1,0 +1,17 @@
+<div class="goody-choice-screen" data-part="goody-choice" data-screen="goody_choice" data-bind-if="{{ui.windows.goody_choice.open}}" data-esc="none">
+ <section class="goody-choice-window">
+  <div class="goody-choice-head"><div class="goody-choice-titles"><span class="goody-choice-kicker" data-l10n="goody.explorer"></span><span class="goody-choice-title" data-l10n="goody.title"></span></div></div>
+  <div class="goody-choice-body" data-bind-if="{{goody_choice == null}}" data-l10n="goody.loading"></div>
+  <div class="goody-choice-content" data-bind-if="{{goody_choice != null}}">
+   <div class="goody-choice-body">
+    <div class="goody-choice-prose" data-part="goody-choice.reason" data-bind-value="{{goody_choice.reason}}"></div>
+    <div><button class="goody-choice-reward" data-part="goody-choice.reward" data-bind-for="r:{{goody_choice.rewards}}" data-bind-class-toggle="goody-choice-selected:{{state.goody.sel == r.id}}" data-on-click="set state.goody.sel = r.id">
+     <span class="goody-choice-radio"></span><img class="goody-choice-icon" data-bind-src="{{r.icon}}">
+     <span class="goody-choice-lines"><span class="goody-choice-parts"><span data-bind-for="p:{{r.parts}}"><span data-bind-value="{{p.text}}"></span><img class="goody-choice-small-icon" data-bind-if="{{p.icon != null}}" data-bind-src="{{p.icon}}"></span></span><span class="goody-choice-kicker" data-bind-value="{{r.sub}}"></span></span>
+    </button></div>
+   </div>
+   <div class="goody-choice-foot"><span class="goody-choice-note" data-bind-if="{{state.goody.sel &lt; 0}}" data-l10n="goody.pick"></span><span class="goody-choice-note" data-bind-if="{{state.goody.sel &gt;= 0}}" data-l10n="goody.required"></span><button class="goody-choice-button goody-choice-primary" data-part="goody-choice.take" data-bind-disabled="{{state.goody.sel &lt; 0}}" data-l10n="goody.take" data-tooltip="goody-reason" data-on-click="intent screen.act(screen: 'goody_choice', action: 'take', a: goody_choice.id, b: state.goody.sel)"></button></div>
+  </div>
+ </section>
+</div>
+<template id="goody-reason" data-layer="tooltip"><div class="goody-choice-tip" data-bind-if="{{state.goody.sel &lt; 0}}" data-l10n="goody.pick"></div></template>

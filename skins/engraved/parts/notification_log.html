@@ -1,0 +1,18 @@
+<div class="notification-log-screen" data-part="notification-log" data-screen="notification_log" data-esc="intent window.close(window: 'notification_log')" data-bind-if="{{ui.windows.notification_log.open}}">
+ <section class="notification-log-window">
+  <div class="notification-log-head"><div class="notification-log-titles"><span class="notification-log-kicker" data-bind-if="{{notification_log != null}}" data-bind-value="{{notification_log.total}}"></span><span class="notification-log-title" data-l10n="notification.log"></span></div><button class="notification-log-button" data-l10n="notification.close" data-on-click="intent window.close(window: 'notification_log')"></button></div>
+  <div class="notification-log-body" data-bind-if="{{notification_log == null}}" data-l10n="notification.loading"></div>
+  <div class="notification-log-content" data-bind-if="{{notification_log != null}}">
+   <div class="notification-log-body">
+    <div class="notification-log-prose" data-part="notification-log.empty" data-bind-if="{{len(notification_log.groups) == 0}}" data-l10n="notification.empty"></div>
+    <div data-bind-for="g:{{notification_log.groups}}">
+     <div class="notification-log-group"><span data-l10n="notification.turn"></span><b data-bind-value="{{g.turn}}"></b><span data-bind-value="{{g.count}}"></span><span class="notification-log-rule"></span></div>
+     <div><button class="notification-log-item" data-part="notification-log.item" data-bind-for="it:{{g.items}}" data-bind-disabled="{{!it.active}}" data-on-click="intent note.activate(note: it.id); intent window.close(window: 'notification_log')">
+      <img class="notification-log-icon" data-bind-src="{{it.icon}}"><span class="notification-log-lines"><span data-bind-value="{{it.text}}"></span><span class="notification-log-kicker" data-bind-value="{{it.category}}"></span></span><span class="notification-log-kicker" data-bind-if="{{!it.active}}" data-l10n="notification.dismissed"></span>
+     </button></div>
+    </div>
+   </div>
+   <div class="notification-log-foot"><span class="notification-log-note" data-l10n="notification.hint"></span><button class="notification-log-button notification-log-primary" data-part="notification-log.close" data-bind-hotkey="'Enter'" data-l10n="notification.close" data-on-click="intent window.close(window: 'notification_log')"></button></div>
+  </div>
+ </section>
+</div>

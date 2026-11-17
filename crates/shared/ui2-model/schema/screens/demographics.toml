@@ -1,0 +1,72 @@
+# Yield amounts are per turn; fractional values preserve hundredths from the game.
+[enum]
+DemographicsMetric = ["population", "food", "production", "gold", "land", "army", "approval", "literacy"]
+DemographicsUnit = ["people", "million_bushels", "million_tons", "million_gold", "square_km", "soldiers", "percent"]
+DemographicsRanking = ["food", "production", "gold", "science", "culture", "happiness", "wonders", "military_might", "influence", "city_tourism"]
+DemographicsPresenter = ["herodotus", "pliny", "livy", "tacitus", "gibbon", "bede", "toynbee"]
+
+[type.DemographicsPlayer]
+name = "str"
+civ_name = "str"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.DemographicsRowsBest]
+value = "i32"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+name = "str?"
+met = "bool"
+is_you = "bool"
+
+[type.DemographicsRowsWorst]
+value = "i32"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+name = "str?"
+met = "bool"
+is_you = "bool"
+
+[type.DemographicsRows]
+key = "DemographicsMetric"
+unit_key = "DemographicsUnit"
+rank = "i32"
+rank_shared = "bool"
+value = "i32"
+best = "DemographicsRowsBest"
+average = "i32"
+worst = "DemographicsRowsWorst"
+
+[type.DemographicsWhosWinningRows]
+row_key = "str"
+city = "str?"
+rank = "i32"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+is_you = "bool"
+met = "bool"
+leader_name = "str?"
+civ_name = "str?"
+leader_icon = "asset?"
+value = "f32"
+
+[type.DemographicsWhosWinning]
+presenter_key = "DemographicsPresenter"
+ranking_key = "DemographicsRanking"
+rows = { list = "DemographicsWhosWinningRows", key = "row_key" }
+
+[model.demographics]
+_optional = true
+player = "DemographicsPlayer"
+participants = "i32"
+humans_only = "bool"
+rows = { list = "DemographicsRows", key = "key" }
+whos_winning = "DemographicsWhosWinning?"

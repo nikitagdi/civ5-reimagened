@@ -1,0 +1,354 @@
+{
+  "model": {
+    "demographics": {
+      "player": {
+        "name": "Catherine",
+        "civ_name": "Russia",
+        "player": 0,
+        "icon": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": 1847335167,
+        "color_fg": 3837808383
+      },
+      "participants": 7,
+      "humans_only": false,
+      "rows": [
+        {
+          "key": "population",
+          "unit_key": "people",
+          "rank": 1,
+          "rank_shared": false,
+          "value": 21480000,
+          "best": {
+            "value": 21480000,
+            "player": 0,
+            "icon": "civ:CIVILIZATION_RUSSIA",
+            "color_bg": 1847335167,
+            "color_fg": 3837808383,
+            "name": "Russia",
+            "met": true,
+            "is_you": true
+          },
+          "average": 12940000,
+          "worst": {
+            "value": 4210000,
+            "player": 6,
+            "icon": "civ:CIVILIZATION_SIAM",
+            "color_bg": 3382847487,
+            "color_fg": 522869503,
+            "name": null,
+            "met": false,
+            "is_you": false
+          }
+        },
+        {
+          "key": "food",
+          "unit_key": "million_bushels",
+          "rank": 2,
+          "rank_shared": false,
+          "value": 486,
+          "best": {
+            "value": 512,
+            "player": 1,
+            "icon": "civ:CIVILIZATION_ARABIA",
+            "color_bg": 795556607,
+            "color_fg": 3655583487,
+            "name": "Arabia",
+            "met": true,
+            "is_you": false
+          },
+          "average": 371,
+          "worst": {
+            "value": 188,
+            "player": 6,
+            "icon": "civ:CIVILIZATION_SIAM",
+            "color_bg": 3382847487,
+            "color_fg": 522869503,
+            "name": null,
+            "met": false,
+            "is_you": false
+          }
+        },
+        {
+          "key": "production",
+          "unit_key": "million_tons",
+          "rank": 1,
+          "rank_shared": false,
+          "value": 551,
+          "best": {
+            "value": 551,
+            "player": 0,
+            "icon": "civ:CIVILIZATION_RUSSIA",
+            "color_bg": 1847335167,
+            "color_fg": 3837808383,
+            "name": "Russia",
+            "met": true,
+            "is_you": true
+          },
+          "average": 342,
+          "worst": {
+            "value": 201,
+            "player": 2,
+            "icon": "civ:CIVILIZATION_AZTEC",
+            "color_bg": 745499391,
+            "color_fg": 4038699263,
+            "name": "Aztec",
+            "met": true,
+            "is_you": false
+          }
+        },
+        {
+          "key": "gold",
+          "unit_key": "million_gold",
+          "rank": 3,
+          "rank_shared": false,
+          "value": 412,
+          "best": {
+            "value": 538,
+            "player": 1,
+            "icon": "civ:CIVILIZATION_ARABIA",
+            "color_bg": 795556607,
+            "color_fg": 3655583487,
+            "name": "Arabia",
+            "met": true,
+            "is_you": false
+          },
+          "average": 371,
+          "worst": {
+            "value": 148,
+            "player": 6,
+            "icon": "civ:CIVILIZATION_SIAM",
+            "color_bg": 3382847487,
+            "color_fg": 522869503,
+            "name": null,
+            "met": false,
+            "is_you": false
+          }
+        },
+        {
+          "key": "land",
+          "unit_key": "square_km",
+          "rank": 2,
+          "rank_shared": false,
+          "value": 3640000,
+          "best": {
+            "value": 4120000,
+            "player": 5,
+            "icon": "civ:CIVILIZATION_JAPAN",
+            "color_bg": 3907180799,
+            "color_fg": 2333743871,
+            "name": "Japan",
+            "met": true,
+            "is_you": false
+          },
+          "average": 2860000,
+          "worst": {
+            "value": 1540000,
+            "player": 3,
+            "icon": "civ:CIVILIZATION_EGYPT",
+            "color_bg": 1262123775,
+            "color_fg": 3923550463,
+            "name": "Egypt",
+            "met": true,
+            "is_you": false
+          }
+        },
+        {
+          "key": "army",
+          "unit_key": "soldiers",
+          "rank": 3,
+          "rank_shared": false,
+          "value": 1184000,
+          "best": {
+            "value": 2310000,
+            "player": 5,
+            "icon": "civ:CIVILIZATION_JAPAN",
+            "color_bg": 3907180799,
+            "color_fg": 2333743871,
+            "name": "Japan",
+            "met": true,
+            "is_you": false
+          },
+          "average": 1120000,
+          "worst": {
+            "value": 410000,
+            "player": 3,
+            "icon": "civ:CIVILIZATION_EGYPT",
+            "color_bg": 1262123775,
+            "color_fg": 3923550463,
+            "name": "Egypt",
+            "met": true,
+            "is_you": false
+          }
+        },
+        {
+          "key": "approval",
+          "unit_key": "percent",
+          "rank": 4,
+          "rank_shared": false,
+          "value": 59,
+          "best": {
+            "value": 81,
+            "player": 3,
+            "icon": "civ:CIVILIZATION_EGYPT",
+            "color_bg": 1262123775,
+            "color_fg": 3923550463,
+            "name": "Egypt",
+            "met": true,
+            "is_you": false
+          },
+          "average": 61,
+          "worst": {
+            "value": 34,
+            "player": 2,
+            "icon": "civ:CIVILIZATION_AZTEC",
+            "color_bg": 745499391,
+            "color_fg": 4038699263,
+            "name": "Aztec",
+            "met": true,
+            "is_you": false
+          }
+        },
+        {
+          "key": "literacy",
+          "unit_key": "percent",
+          "rank": 1,
+          "rank_shared": true,
+          "value": 78,
+          "best": {
+            "value": 78,
+            "player": 0,
+            "icon": "civ:CIVILIZATION_RUSSIA",
+            "color_bg": 1847335167,
+            "color_fg": 3837808383,
+            "name": "Russia",
+            "met": true,
+            "is_you": true
+          },
+          "average": 64,
+          "worst": {
+            "value": 41,
+            "player": 6,
+            "icon": "civ:CIVILIZATION_SIAM",
+            "color_bg": 3382847487,
+            "color_fg": 522869503,
+            "name": null,
+            "met": false,
+            "is_you": false
+          }
+        }
+      ],
+      "whos_winning": {
+        "presenter_key": "herodotus",
+        "ranking_key": "military_might",
+        "rows": [
+          {
+            "rank": 1,
+            "player": 5,
+            "icon": "civ:CIVILIZATION_JAPAN",
+            "color_bg": 3907180799,
+            "color_fg": 2333743871,
+            "is_you": false,
+            "met": true,
+            "leader_name": "Oda Nobunaga",
+            "civ_name": "Japan",
+            "leader_icon": "leader:LEADER_JAPAN",
+            "value": 2310,
+            "row_key": "5:-1"
+          },
+          {
+            "rank": 2,
+            "player": 0,
+            "icon": "civ:CIVILIZATION_RUSSIA",
+            "color_bg": 1847335167,
+            "color_fg": 3837808383,
+            "is_you": true,
+            "met": true,
+            "leader_name": "Catherine",
+            "civ_name": "Russia",
+            "leader_icon": "leader:LEADER_RUSSIA",
+            "value": 1184,
+            "row_key": "0:-1"
+          },
+          {
+            "rank": 3,
+            "player": 1,
+            "icon": "civ:CIVILIZATION_ARABIA",
+            "color_bg": 795556607,
+            "color_fg": 3655583487,
+            "is_you": false,
+            "met": true,
+            "leader_name": "Harun al-Rashid",
+            "civ_name": "Arabia",
+            "leader_icon": "leader:LEADER_ARABIA",
+            "value": 1102,
+            "row_key": "1:-1"
+          },
+          {
+            "rank": 4,
+            "player": 6,
+            "icon": "civ:CIVILIZATION_SIAM",
+            "color_bg": 3382847487,
+            "color_fg": 522869503,
+            "is_you": false,
+            "met": false,
+            "leader_name": null,
+            "civ_name": null,
+            "leader_icon": null,
+            "value": 868,
+            "row_key": "6:-1"
+          },
+          {
+            "rank": 5,
+            "player": 4,
+            "icon": "civ:CIVILIZATION_GERMANY",
+            "color_bg": 1247109375,
+            "color_fg": 3907178751,
+            "is_you": false,
+            "met": true,
+            "leader_name": "Bismarck",
+            "civ_name": "Germany",
+            "leader_icon": "leader:LEADER_GERMANY",
+            "value": 744,
+            "row_key": "4:-1"
+          },
+          {
+            "rank": 6,
+            "player": 2,
+            "icon": "civ:CIVILIZATION_AZTEC",
+            "color_bg": 745499391,
+            "color_fg": 4038699263,
+            "is_you": false,
+            "met": true,
+            "leader_name": "Montezuma",
+            "civ_name": "Aztec",
+            "leader_icon": "leader:LEADER_AZTEC",
+            "value": 512,
+            "row_key": "2:-1"
+          },
+          {
+            "rank": 7,
+            "player": 3,
+            "icon": "civ:CIVILIZATION_EGYPT",
+            "color_bg": 1262123775,
+            "color_fg": 3923550463,
+            "is_you": false,
+            "met": true,
+            "leader_name": "Ramesses II",
+            "civ_name": "Egypt",
+            "leader_icon": "leader:LEADER_EGYPT",
+            "value": 410,
+            "row_key": "3:-1"
+          }
+        ]
+      }
+    }
+  },
+  "ui": {
+    "windows": {
+      "demographics": {
+        "open": true,
+        "a": 1
+      }
+    }
+  }
+}

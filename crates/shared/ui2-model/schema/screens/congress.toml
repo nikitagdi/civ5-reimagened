@@ -1,0 +1,283 @@
+[enum]
+CongressView = ["league", "splash", "project"]
+CongressLeagueAbsentReason = ["disabled", "not_founded"]
+CongressLeaguePhase = ["between", "session"]
+CongressLeagueMode = ["view", "propose", "vote"]
+CongressLeagueProposalsVoteKind = ["yes_no", "elect"]
+CongressLeagueProposalsKind = ["enact", "repeal"]
+CongressLeagueProposalsState = ["yea", "nay", "abstain", "postponed", "pending"]
+CongressLeagueSlotsKind = ["enact", "repeal"]
+CongressLeagueChoicesRepealNeeds = ["none", "civ", "luxury", "religion"]
+CongressLeagueChoicesRepealKind = ["enact", "repeal"]
+CongressLeagueChoicesEnactNeeds = ["none", "civ", "luxury", "religion"]
+CongressLeagueChoicesEnactKind = ["enact", "repeal"]
+CongressLeagueChoicesUnavailableNeeds = ["none", "civ", "luxury", "religion"]
+CongressLeagueChoicesUnavailableKind = ["enact", "repeal"]
+CongressSplashKind = ["founded", "new_era"]
+
+[type.CongressLeagueMembersTooltipStances]
+key = "str"
+resolution = "text"
+stance = "text"
+strength = "text"
+good = "bool?"
+
+[type.CongressLeagueMembersTooltip]
+delegates_membership = "i32"
+delegates_city_states = "i32"
+goals = "text"
+ideology = "text"
+ideology_same = "bool"
+diplomat_in = "text"
+stances = { list = "CongressLeagueMembersTooltipStances", key = "key" }
+
+[type.CongressLeagueMembers]
+details = "text"
+key = "str"
+player_id = "i32"
+name = "text"
+nick = "text?"
+civ_name = "text"
+portrait = "asset"
+emblem = "asset"
+color_bg = "color"
+color_fg = "color"
+is_you = "bool"
+is_host = "bool"
+is_human = "bool"
+delegates = "i32"
+delegates_left = "i32?"
+delegates_spent = "i32?"
+can_propose = "bool"
+our_diplomat = "bool"
+tooltip = "CongressLeagueMembersTooltip?"
+
+[type.CongressLeagueProposalsCandidate]
+key = "str"
+player_id = "i32"
+name = "text"
+nick = "text?"
+civ_name = "text"
+portrait = "asset"
+emblem = "asset"
+color_bg = "color"
+color_fg = "color"
+is_you = "bool"
+
+[type.CongressLeagueProposalsCandidates]
+key = "str"
+player_id = "i32"
+name = "text"
+nick = "text?"
+civ_name = "text"
+portrait = "asset"
+emblem = "asset"
+color_bg = "color"
+color_fg = "color"
+is_you = "bool"
+enabled = "bool"
+reason = "text"
+
+[type.CongressLeagueProposalsBy]
+key = "str"
+player_id = "i32"
+name = "text"
+nick = "text?"
+civ_name = "text"
+portrait = "asset"
+emblem = "asset"
+color_bg = "color"
+color_fg = "color"
+is_you = "bool"
+
+[type.CongressLeagueProposals]
+postponed = "bool"
+vote_kind = "CongressLeagueProposalsVoteKind"
+candidate = "CongressLeagueProposalsCandidate?"
+candidates = { list = "CongressLeagueProposalsCandidates", key = "key" }
+can_up = "bool"
+can_down = "bool"
+project_icon = "asset?"
+key = "str"
+kind = "CongressLeagueProposalsKind"
+resolution_id = "i32"
+resolution_type = "str"
+name = "text"
+param_name = "text?"
+by = "CongressLeagueProposalsBy?"
+effect = "text"
+description = "text"
+my_votes = "i32"
+state = "CongressLeagueProposalsState"
+state_label = "text"
+
+[type.CongressLeagueEffects]
+key = "str"
+icon = "asset"
+text = "text"
+since_turn = "i32?"
+
+[type.CongressLeagueSlots]
+key = "str"
+index = "i32"
+filled = "bool"
+kind = "CongressLeagueSlotsKind?"
+resolution_id = "i32?"
+resolution_type = "str?"
+param = "i32"
+name = "text"
+param_name = "text?"
+effect = "text"
+
+[type.CongressLeagueChoicesRepeal]
+needs = "CongressLeagueChoicesRepealNeeds"
+enabled = "bool"
+reason = "text"
+params = { list = "CongressLeagueChoicesEnactParams", key = "key" }
+key = "str"
+kind = "CongressLeagueChoicesRepealKind"
+id = "i32"
+name = "text"
+effect = "text"
+description = "text"
+
+[type.CongressLeagueChoicesEnactParams]
+key = "str"
+value = "i32"
+name = "text"
+sub = "text"
+icon = "asset"
+emblem = "asset"
+color_bg = "color"
+color_fg = "color"
+enabled = "bool"
+reason = "text"
+
+[type.CongressLeagueChoicesEnact]
+needs = "CongressLeagueChoicesEnactNeeds"
+enabled = "bool"
+reason = "text"
+params = { list = "CongressLeagueChoicesEnactParams", key = "key" }
+key = "str"
+kind = "CongressLeagueChoicesEnactKind"
+id = "i32"
+name = "text"
+effect = "text"
+description = "text"
+
+[type.CongressLeagueChoicesUnavailable]
+needs = "CongressLeagueChoicesUnavailableNeeds"
+enabled = "bool"
+reason = "text"
+params = { list = "CongressLeagueChoicesEnactParams", key = "key" }
+key = "str"
+kind = "CongressLeagueChoicesUnavailableKind"
+id = "i32"
+name = "text"
+effect = "text"
+description = "text"
+
+[type.CongressLeagueChoices]
+repeal = { list = "CongressLeagueChoicesRepeal", key = "key" }
+enact = { list = "CongressLeagueChoicesEnact", key = "key" }
+unavailable = { list = "CongressLeagueChoicesUnavailable", key = "key" }
+unavailable_count = "i32"
+
+[type.CongressLeague]
+rename_reason = "text?"
+exists = "bool"
+absent_reason = "CongressLeagueAbsentReason?"
+absent_text = "text"
+id = "i32"
+name = "text"
+is_un = "bool"
+art = "asset"
+can_rename = "bool"
+phase = "CongressLeaguePhase"
+session_label = "text"
+special_session = "bool"
+turns_to_session = "i32"
+diplo_victory_enabled = "bool"
+turns_to_world_leader_vote = "i32?"
+delegates_to_win = "i32?"
+mode = "CongressLeagueMode"
+members = { list = "CongressLeagueMembers", key = "key" }
+proposals = { list = "CongressLeagueProposals", key = "key" }
+effects = { list = "CongressLeagueEffects", key = "key" }
+delegates_total = "i32"
+delegates_free = "i32?"
+can_reset_votes = "bool"
+slots = { list = "CongressLeagueSlots", key = "key" }
+choices = "CongressLeagueChoices?"
+can_submit_proposals = "bool"
+submit_reason = "text"
+
+[type.CongressSplashThisEra]
+key = "str"
+icon = "asset"
+text = "text"
+
+[type.CongressSplashNextEra]
+key = "str"
+icon = "asset"
+text = "text"
+
+[type.CongressSplash]
+kind = "CongressSplashKind"
+first_session = "bool"
+art = "asset"
+caption = "text"
+title = "text"
+description = "text"
+this_era_title = "text"
+this_era = { list = "CongressSplashThisEra", key = "key" }
+next_era_title = "text"
+next_era = { list = "CongressSplashNextEra", key = "key" }
+
+[type.CongressProjectTiers]
+key = "str"
+tier = "i32"
+title = "text"
+threshold = "i32?"
+reward = "text"
+
+[type.CongressProjectRankingAwards]
+key = "str"
+tier = "text"
+
+[type.CongressProjectRanking]
+civ_name = "text"
+key = "str"
+rank = "i32"
+player_id = "i32"
+known = "bool"
+is_you = "bool"
+name = "text"
+sub = "text"
+portrait = "asset"
+emblem = "asset"
+color_bg = "color?"
+color_fg = "color?"
+contribution = "i32"
+contribution_pct = "f32"
+tier = "i32"
+awards = { list = "CongressProjectRankingAwards", key = "key" }
+awards_tooltip = "text"
+
+[type.CongressProject]
+id = "i32"
+key = "str"
+name = "text"
+art = "asset"
+completed = "bool"
+description = "text"
+tiers = { list = "CongressProjectTiers", key = "key" }
+ranking = { list = "CongressProjectRanking", key = "key" }
+
+[model.congress]
+_optional = true
+view = "CongressView"
+player_id = "i32"
+league = "CongressLeague?"
+splash = "CongressSplash?"
+project = "CongressProject?"

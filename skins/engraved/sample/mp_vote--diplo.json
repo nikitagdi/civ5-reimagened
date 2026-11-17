@@ -1,0 +1,115 @@
+{
+  "model": {
+    "mp_vote": {
+      "view": "diplo_vote",
+      "player_id": 0,
+      "open_count": 0,
+      "human_count": 4,
+      "proposal": null,
+      "teams": [],
+      "concede": null,
+      "diplo_vote": {
+        "blocking": true,
+        "candidates": [
+          {
+            "key": "player:1",
+            "player_id": 1,
+            "nick": "",
+            "leader": "Harun al-Rashid",
+            "civ_name": "Arabia",
+            "portrait": "leader:LEADER_HARUN_AL_RASHID",
+            "emblem": "civ:CIVILIZATION_ARABIA",
+            "color_bg": 795556607,
+            "color_fg": 3655583487,
+            "team_label": "",
+            "is_human": true,
+            "sub": "Harun al-Rashid, Arabia",
+            "score_text": ""
+          },
+          {
+            "key": "player:2",
+            "player_id": 2,
+            "nick": "",
+            "leader": "Montezuma",
+            "civ_name": "Aztec",
+            "portrait": "leader:LEADER_MONTEZUMA",
+            "emblem": "civ:CIVILIZATION_AZTEC",
+            "color_bg": 1512317695,
+            "color_fg": 1655942655,
+            "team_label": "",
+            "is_human": true,
+            "sub": "Montezuma, Aztec",
+            "score_text": ""
+          },
+          {
+            "key": "player:3",
+            "player_id": 3,
+            "nick": "",
+            "leader": "Ramesses",
+            "civ_name": "Egypt",
+            "portrait": "leader:LEADER_RAMESSES",
+            "emblem": "civ:CIVILIZATION_EGYPT",
+            "color_bg": 1262123775,
+            "color_fg": 3923550463,
+            "team_label": "",
+            "is_human": true,
+            "sub": "Ramesses, Egypt",
+            "score_text": ""
+          },
+          {
+            "key": "player:4",
+            "player_id": 4,
+            "nick": "",
+            "leader": "Player",
+            "civ_name": "Germany",
+            "portrait": "leader:LEADER_BISMARCK",
+            "emblem": "civ:CIVILIZATION_GERMANY",
+            "color_bg": 1246581503,
+            "color_fg": 3907578111,
+            "team_label": "",
+            "is_human": false,
+            "sub": "Player, Germany, AI",
+            "score_text": ""
+          },
+          {
+            "key": "player:5",
+            "player_id": 5,
+            "nick": "",
+            "leader": "Player",
+            "civ_name": "Brazil",
+            "portrait": "leader:LEADER_PEDRO",
+            "emblem": "civ:CIVILIZATION_BRAZIL",
+            "color_bg": 1030433535,
+            "color_fg": 3838988031,
+            "team_label": "",
+            "is_human": false,
+            "sub": "Player, Brazil, AI",
+            "score_text": ""
+          },
+          {
+            "key": "player:6",
+            "player_id": 6,
+            "nick": "",
+            "leader": "Player",
+            "civ_name": "China",
+            "portrait": "leader:LEADER_WU_ZETIAN",
+            "emblem": "civ:CIVILIZATION_CHINA",
+            "color_bg": 526079487,
+            "color_fg": 3957510911,
+            "team_label": "",
+            "is_human": false,
+            "sub": "Player, China, AI",
+            "score_text": ""
+          }
+        ]
+      }
+    }
+  },
+  "ui": {
+    "windows": {
+      "mp_vote": {
+        "open": true
+      }
+    }
+  }
+}

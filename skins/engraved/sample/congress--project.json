@@ -1,0 +1,230 @@
+{
+  "model": {
+    "congress": {
+      "view": "project",
+      "player_id": 0,
+      "league": null,
+      "splash": null,
+      "project": {
+        "id": 0,
+        "key": "project:PROJECT_WORLDS_FAIR",
+        "name": "World’s Fair",
+        "art": "ui-tx:PROJECT_WORLDS_FAIR",
+        "completed": true,
+        "description": "Cities build the fair as a process: their production becomes contribution. When the total is reached, every civilization is ranked by what it gave.",
+        "tiers": [
+          {
+            "key": "gold",
+            "tier": 3,
+            "title": "Gold: the largest contribution",
+            "threshold": null,
+            "reward": "A free social policy"
+          },
+          {
+            "key": "silver",
+            "tier": 2,
+            "title": "Silver: at least 900",
+            "threshold": 900,
+            "reward": "+100% culture in all cities for 20 turns"
+          },
+          {
+            "key": "bronze",
+            "tier": 1,
+            "title": "Bronze: at least 300",
+            "threshold": 300,
+            "reward": "+33% culture in all cities for 10 turns"
+          }
+        ],
+        "ranking": [
+          {
+            "key": "player:2",
+            "rank": 1,
+            "player_id": 2,
+            "known": true,
+            "is_you": false,
+            "name": "Montezuma",
+            "sub": "Aztec",
+            "portrait": "leader:LEADER_MONTEZUMA",
+            "emblem": "civ:CIVILIZATION_AZTEC",
+            "color_bg": 1512317695,
+            "color_fg": 1655942655,
+            "contribution": 1840,
+            "contribution_pct": 100,
+            "tier": 3,
+            "awards": [
+              {
+                "key": "gold",
+                "tier": "gold"
+              },
+              {
+                "key": "silver",
+                "tier": "silver"
+              },
+              {
+                "key": "bronze",
+                "tier": "bronze"
+              }
+            ],
+            "awards_tooltip": "Gold: a free social policy. Silver: +100% culture for 20 turns. Bronze: +33% culture for 10 turns"
+          },
+          {
+            "key": "player:0",
+            "rank": 2,
+            "player_id": 0,
+            "known": true,
+            "is_you": true,
+            "name": "You",
+            "sub": "Russia",
+            "portrait": "leader:LEADER_CATHERINE",
+            "emblem": "civ:CIVILIZATION_RUSSIA",
+            "color_bg": 1847335167,
+            "color_fg": 3837808383,
+            "contribution": 1210,
+            "contribution_pct": 66,
+            "tier": 2,
+            "awards": [
+              {
+                "key": "silver",
+                "tier": "silver"
+              },
+              {
+                "key": "bronze",
+                "tier": "bronze"
+              }
+            ],
+            "awards_tooltip": "Silver: +100% culture for 20 turns. Bronze: +33% culture for 10 turns"
+          },
+          {
+            "key": "player:1",
+            "rank": 3,
+            "player_id": 1,
+            "known": true,
+            "is_you": false,
+            "name": "Harun al-Rashid",
+            "sub": "Arabia",
+            "portrait": "leader:LEADER_HARUN_AL_RASHID",
+            "emblem": "civ:CIVILIZATION_ARABIA",
+            "color_bg": 795556607,
+            "color_fg": 3655583487,
+            "contribution": 990,
+            "contribution_pct": 54,
+            "tier": 2,
+            "awards": [
+              {
+                "key": "silver",
+                "tier": "silver"
+              },
+              {
+                "key": "bronze",
+                "tier": "bronze"
+              }
+            ],
+            "awards_tooltip": "Silver: +100% culture for 20 turns. Bronze: +33% culture for 10 turns"
+          },
+          {
+            "key": "player:4",
+            "rank": 4,
+            "player_id": 4,
+            "known": true,
+            "is_you": false,
+            "name": "Bismarck",
+            "sub": "Germany",
+            "portrait": "leader:LEADER_BISMARCK",
+            "emblem": "civ:CIVILIZATION_GERMANY",
+            "color_bg": 1246581503,
+            "color_fg": 3907578111,
+            "contribution": 420,
+            "contribution_pct": 23,
+            "tier": 1,
+            "awards": [
+              {
+                "key": "bronze",
+                "tier": "bronze"
+              }
+            ],
+            "awards_tooltip": "Bronze: +33% culture for 10 turns"
+          },
+          {
+            "key": "player:5",
+            "rank": 5,
+            "player_id": 5,
+            "known": true,
+            "is_you": false,
+            "name": "Pedro II",
+            "sub": "Brazil",
+            "portrait": "leader:LEADER_PEDRO",
+            "emblem": "civ:CIVILIZATION_BRAZIL",
+            "color_bg": 1030433535,
+            "color_fg": 3838988031,
+            "contribution": 160,
+            "contribution_pct": 9,
+            "tier": 0,
+            "awards": [],
+            "awards_tooltip": ""
+          },
+          {
+            "key": "player:3",
+            "rank": 6,
+            "player_id": 3,
+            "known": true,
+            "is_you": false,
+            "name": "Ramesses",
+            "sub": "Egypt",
+            "portrait": "leader:LEADER_RAMESSES",
+            "emblem": "civ:CIVILIZATION_EGYPT",
+            "color_bg": 1262123775,
+            "color_fg": 3923550463,
+            "contribution": 0,
+            "contribution_pct": 0,
+            "tier": 0,
+            "awards": [],
+            "awards_tooltip": ""
+          },
+          {
+            "key": "player:6",
+            "rank": 7,
+            "player_id": 6,
+            "known": true,
+            "is_you": false,
+            "name": "Wu Zetian",
+            "sub": "China",
+            "portrait": "leader:LEADER_WU_ZETIAN",
+            "emblem": "civ:CIVILIZATION_CHINA",
+            "color_bg": 526079487,
+            "color_fg": 3957510911,
+            "contribution": 0,
+            "contribution_pct": 0,
+            "tier": 0,
+            "awards": [],
+            "awards_tooltip": ""
+          },
+          {
+            "key": "player:7",
+            "rank": 8,
+            "player_id": 7,
+            "known": false,
+            "is_you": false,
+            "name": "Unknown player",
+            "sub": "not met",
+            "portrait": "leader:UNKNOWN",
+            "emblem": "civ:UNKNOWN",
+            "color_bg": null,
+            "color_fg": null,
+            "contribution": 0,
+            "contribution_pct": 0,
+            "tier": 0,
+            "awards": [],
+            "awards_tooltip": ""
+          }
+        ]
+      }
+    }
+  },
+  "ui": {
+    "windows": {
+      "congress": {
+        "open": true
+      }
+    }
+  }
+}

@@ -1,0 +1,392 @@
+<!-- SIMPLIFIED(SIMP-373): Speculative trade lines and automatic map-overlay restoration need client intents. -->
+<div class="trade-routes-screen" data-part="trade-routes" data-screen="trade_routes" data-esc="call trade_routes.back()" data-bind-if="{{ui.windows.trade_routes.open}}">
+<section class="trade-routes-window" data-bind-class-toggle="trade-routes-popup:{{trade_routes != null && !state.trade_routes.overview && (trade_routes.choose != null || trade_routes.new_home != null)}}; trade-routes-home-popup:{{trade_routes != null && !state.trade_routes.overview && trade_routes.choose == null && trade_routes.new_home != null}}">
+<header class="trade-routes-head">
+<img class="trade-routes-icon" data-bind-if="{{trade_routes != null}}" data-bind-src="{{trade_routes.player.icon}}">
+<h1 data-l10n="trade_routes.title" data-bind-if="{{trade_routes == null || state.trade_routes.overview || (trade_routes.choose == null && trade_routes.new_home == null)}}"></h1><h1 data-l10n="trade_routes.choose_title" data-bind-if="{{trade_routes != null && !state.trade_routes.overview && trade_routes.choose != null}}"></h1><h1 data-l10n="trade_routes.title_trade_home" data-bind-if="{{trade_routes != null && !state.trade_routes.overview && trade_routes.choose == null && trade_routes.new_home != null && trade_routes.new_home.kind == 'trade_home'}}"></h1><h1 data-l10n="trade_routes.title_admiral_port" data-bind-if="{{trade_routes != null && !state.trade_routes.overview && trade_routes.choose == null && trade_routes.new_home != null && trade_routes.new_home.kind == 'admiral_port'}}"></h1>
+<button data-l10n="trade_routes.close" data-part="trade-routes.close" data-bind-if="{{state.trade_routes.confirm < 0}}" data-on-click="intent window.close(window: 'trade_routes')">
+</button>
+</header>
+<div data-l10n="trade_routes.loading" data-bind-if="{{trade_routes == null}}">
+</div>
+<div class="trade-routes-content" data-bind-if="{{trade_routes != null}}">
+<div class="trade-routes-overview" data-bind-if="{{state.trade_routes.overview || (trade_routes.choose == null && trade_routes.new_home == null)}}">
+<div class="trade-routes-toolbar">
+<button data-l10n="trade_routes.tab_yours" data-part="trade-routes.tab-yours" data-on-click="set state.trade_routes.tab = 'yours'">
+</button>
+<span class="trade-routes-value" data-bind-value="{{trade_routes.counts.yours}}" >
+</span>
+<button data-l10n="trade_routes.tab_available" data-part="trade-routes.tab-available" data-on-click="set state.trade_routes.tab = 'available'">
+</button>
+<span class="trade-routes-value" data-bind-value="{{trade_routes.counts.available}}" >
+</span>
+<button data-l10n="trade_routes.tab_to_you" data-part="trade-routes.tab-to-you" data-on-click="set state.trade_routes.tab = 'to_you'">
+</button>
+<span class="trade-routes-value" data-bind-value="{{trade_routes.counts.to_you}}" >
+</span>
+<span class="trade-routes-value" data-bind-value="{{trade_routes.totals.used}}" data-part="trade-routes.used" >
+</span>
+<span data-l10n="trade_routes.of" >
+</span>
+<span class="trade-routes-value" data-bind-value="{{trade_routes.totals.capacity}}" >
+</span>
+<span data-l10n="trade_routes.used" >
+</span>
+<span class="trade-routes-value" data-bind-value="{{trade_routes.totals.my_gold}}" >
+</span>
+<span data-l10n="trade_routes.gold" >
+</span>
+<span class="trade-routes-value" data-bind-value="{{trade_routes.totals.my_science}}" >
+</span>
+<span data-l10n="trade_routes.science" >
+</span>
+</div>
+<div class="trade-routes-table-scroll">
+<div class="trade-routes-table-head trade-routes-row">
+<button data-l10n="trade_routes.col_domain" class="trade-routes-col-domain" data-on-click="set state.trade_routes.sort_desc = state.trade_routes.sort == 'domain' ? !state.trade_routes.sort_desc : false; set state.trade_routes.sort = 'domain'">
+</button>
+<button data-l10n="trade_routes.col_from_civ" class="trade-routes-col-from_civ" data-on-click="set state.trade_routes.sort_desc = state.trade_routes.sort == 'from_civ' ? !state.trade_routes.sort_desc : false; set state.trade_routes.sort = 'from_civ'">
+</button>
+<button data-l10n="trade_routes.col_from" class="trade-routes-col-from" data-on-click="set state.trade_routes.sort_desc = state.trade_routes.sort == 'from' ? !state.trade_routes.sort_desc : false; set state.trade_routes.sort = 'from'">
+</button>
+<button data-l10n="trade_routes.col_to_civ" class="trade-routes-col-to_civ" data-on-click="set state.trade_routes.sort_desc = state.trade_routes.sort == 'to_civ' ? !state.trade_routes.sort_desc : false; set state.trade_routes.sort = 'to_civ'">
+</button>
+<button data-l10n="trade_routes.col_to" class="trade-routes-col-to" data-on-click="set state.trade_routes.sort_desc = state.trade_routes.sort == 'to' ? !state.trade_routes.sort_desc : false; set state.trade_routes.sort = 'to'">
+</button>
+<button data-l10n="trade_routes.col_my_gold" class="trade-routes-col-my_gold" data-on-click="set state.trade_routes.sort_desc = state.trade_routes.sort == 'my_gold' ? !state.trade_routes.sort_desc : false; set state.trade_routes.sort = 'my_gold'">
+</button>
+<button data-l10n="trade_routes.col_my_science" class="trade-routes-col-my_science" data-on-click="set state.trade_routes.sort_desc = state.trade_routes.sort == 'my_science' ? !state.trade_routes.sort_desc : false; set state.trade_routes.sort = 'my_science'">
+</button>
+<button data-l10n="trade_routes.col_their_gold" class="trade-routes-col-their_gold" data-on-click="set state.trade_routes.sort_desc = state.trade_routes.sort == 'their_gold' ? !state.trade_routes.sort_desc : false; set state.trade_routes.sort = 'their_gold'">
+</button>
+<button data-l10n="trade_routes.col_their_science" class="trade-routes-col-their_science" data-on-click="set state.trade_routes.sort_desc = state.trade_routes.sort == 'their_science' ? !state.trade_routes.sort_desc : false; set state.trade_routes.sort = 'their_science'">
+</button>
+<button data-l10n="trade_routes.col_food" class="trade-routes-col-food" data-on-click="set state.trade_routes.sort_desc = state.trade_routes.sort == 'food' ? !state.trade_routes.sort_desc : false; set state.trade_routes.sort = 'food'">
+</button>
+<button data-l10n="trade_routes.col_production" class="trade-routes-col-production" data-on-click="set state.trade_routes.sort_desc = state.trade_routes.sort == 'production' ? !state.trade_routes.sort_desc : false; set state.trade_routes.sort = 'production'">
+</button>
+<button data-l10n="trade_routes.col_my_religion" class="trade-routes-col-my_religion" data-on-click="set state.trade_routes.sort_desc = state.trade_routes.sort == 'my_religion' ? !state.trade_routes.sort_desc : false; set state.trade_routes.sort = 'my_religion'">
+</button>
+<button data-l10n="trade_routes.col_their_religion" class="trade-routes-col-their_religion" data-on-click="set state.trade_routes.sort_desc = state.trade_routes.sort == 'their_religion' ? !state.trade_routes.sort_desc : false; set state.trade_routes.sort = 'their_religion'">
+</button>
+<button data-l10n="trade_routes.col_turns_left" class="trade-routes-col-turns_left" data-on-click="set state.trade_routes.sort_desc = state.trade_routes.sort == 'turns_left' ? !state.trade_routes.sort_desc : false; set state.trade_routes.sort = 'turns_left'">
+</button>
+</div>
+<div data-bind-if="{{state.trade_routes.tab == 'yours' || (state.trade_routes.tab == '' && trade_routes.tab == 'yours')}}">
+<div class="trade-routes-row" data-part="trade-routes.yours-row" data-bind-for="r:{{trade_routes.routes.yours}}" data-bind-sort="{{state.trade_routes.sort == 'domain' ? (r.domain == 'sea' ? 'sea' : 'land') : state.trade_routes.sort == 'from_civ' ? r.from.owner_name : state.trade_routes.sort == 'from' ? r.from.city : state.trade_routes.sort == 'to_civ' ? r.to.owner_name : state.trade_routes.sort == 'to' ? r.to.city : state.trade_routes.sort == 'my_gold' ? r.my_gold : state.trade_routes.sort == 'my_science' ? r.my_science : state.trade_routes.sort == 'their_gold' ? r.their_gold : state.trade_routes.sort == 'their_science' ? r.their_science : state.trade_routes.sort == 'food' ? r.food : state.trade_routes.sort == 'production' ? r.production : state.trade_routes.sort == 'turns_left' ? r.turns_left : state.trade_routes.sort == 'my_religion' ? r.my_religion.name : state.trade_routes.sort == 'their_religion' ? r.their_religion.name : r.from.city}}" data-bind-sort-desc="{{state.trade_routes.sort_desc}}">
+<div class="trade-routes-col-domain"><span data-l10n="trade_routes.domain_land" data-bind-if="{{r.domain == 'land'}}"></span><span data-l10n="trade_routes.domain_sea" data-bind-if="{{r.domain == 'sea'}}"></span></div>
+<span class="trade-routes-col-from_civ" data-bind-value="{{r.from.owner_name}}" >
+</span>
+<span class="trade-routes-col-from" data-bind-value="{{r.from.city}}" >
+</span>
+<span class="trade-routes-col-to_civ" data-bind-value="{{r.to.owner_name}}" >
+</span>
+<span class="trade-routes-col-to" data-bind-value="{{r.to.city}}" data-part="trade-routes.yours-name">
+</span>
+<span class="trade-routes-col-my_gold" data-bind-value="{{r.my_gold}}" >
+</span>
+<span class="trade-routes-col-my_science" data-bind-value="{{r.my_science}}" >
+</span>
+<span class="trade-routes-col-their_gold" data-bind-value="{{r.their_gold}}" >
+</span>
+<span class="trade-routes-col-their_science" data-bind-value="{{r.their_science}}" >
+</span>
+<span class="trade-routes-col-food" data-bind-value="{{r.food}}" >
+</span>
+<span class="trade-routes-col-production" data-bind-value="{{r.production}}" >
+</span>
+<div class="trade-routes-col-my_religion" data-bind-if="{{r.my_religion != null}}">
+<span class="trade-routes-value" data-bind-value="{{r.my_religion.name}}" >
+</span>
+<span class="trade-routes-value" data-bind-value="{{r.my_religion.pressure}}" >
+</span>
+</div>
+<div class="trade-routes-col-their_religion" data-bind-if="{{r.their_religion != null}}">
+<span class="trade-routes-value" data-bind-value="{{r.their_religion.name}}" >
+</span>
+<span class="trade-routes-value" data-bind-value="{{r.their_religion.pressure}}" >
+</span>
+</div>
+<span class="trade-routes-col-turns_left" data-bind-value="{{r.turns_left}}" >
+</span>
+</div>
+<div data-l10n="trade_routes.empty" data-bind-if="{{len(trade_routes.routes.yours) == 0}}">
+</div>
+</div>
+<div data-bind-if="{{state.trade_routes.tab == 'available' || (state.trade_routes.tab == '' && trade_routes.tab == 'available')}}">
+<div class="trade-routes-row" data-part="trade-routes.available-row" data-bind-for="r:{{trade_routes.routes.available}}" data-bind-sort="{{state.trade_routes.sort == 'domain' ? (r.domain == 'sea' ? 'sea' : 'land') : state.trade_routes.sort == 'from_civ' ? r.from.owner_name : state.trade_routes.sort == 'from' ? r.from.city : state.trade_routes.sort == 'to_civ' ? r.to.owner_name : state.trade_routes.sort == 'to' ? r.to.city : state.trade_routes.sort == 'my_gold' ? r.my_gold : state.trade_routes.sort == 'my_science' ? r.my_science : state.trade_routes.sort == 'their_gold' ? r.their_gold : state.trade_routes.sort == 'their_science' ? r.their_science : state.trade_routes.sort == 'food' ? r.food : state.trade_routes.sort == 'production' ? r.production : state.trade_routes.sort == 'turns_left' ? r.turns_left : state.trade_routes.sort == 'my_religion' ? r.my_religion.name : state.trade_routes.sort == 'their_religion' ? r.their_religion.name : r.from.city}}" data-bind-sort-desc="{{state.trade_routes.sort_desc}}">
+<div class="trade-routes-col-domain"><span data-l10n="trade_routes.domain_land" data-bind-if="{{r.domain == 'land'}}"></span><span data-l10n="trade_routes.domain_sea" data-bind-if="{{r.domain == 'sea'}}"></span></div>
+<span class="trade-routes-col-from_civ" data-bind-value="{{r.from.owner_name}}" >
+</span>
+<span class="trade-routes-col-from" data-bind-value="{{r.from.city}}" >
+</span>
+<span class="trade-routes-col-to_civ" data-bind-value="{{r.to.owner_name}}" >
+</span>
+<span class="trade-routes-col-to" data-bind-value="{{r.to.city}}" data-part="trade-routes.available-name">
+</span>
+<span class="trade-routes-col-my_gold" data-bind-value="{{r.my_gold}}" >
+</span>
+<span class="trade-routes-col-my_science" data-bind-value="{{r.my_science}}" >
+</span>
+<span class="trade-routes-col-their_gold" data-bind-value="{{r.their_gold}}" >
+</span>
+<span class="trade-routes-col-their_science" data-bind-value="{{r.their_science}}" >
+</span>
+<span class="trade-routes-col-food" data-bind-value="{{r.food}}" >
+</span>
+<span class="trade-routes-col-production" data-bind-value="{{r.production}}" >
+</span>
+<div class="trade-routes-col-my_religion" data-bind-if="{{r.my_religion != null}}">
+<span class="trade-routes-value" data-bind-value="{{r.my_religion.name}}" >
+</span>
+<span class="trade-routes-value" data-bind-value="{{r.my_religion.pressure}}" >
+</span>
+</div>
+<div class="trade-routes-col-their_religion" data-bind-if="{{r.their_religion != null}}">
+<span class="trade-routes-value" data-bind-value="{{r.their_religion.name}}" >
+</span>
+<span class="trade-routes-value" data-bind-value="{{r.their_religion.pressure}}" >
+</span>
+</div>
+<span class="trade-routes-col-turns_left" data-bind-value="{{r.turns_left}}" >
+</span>
+</div>
+<div data-l10n="trade_routes.empty" data-bind-if="{{len(trade_routes.routes.available) == 0}}">
+</div>
+</div>
+<div data-bind-if="{{state.trade_routes.tab == 'to_you' || (state.trade_routes.tab == '' && trade_routes.tab == 'to_you')}}">
+<div class="trade-routes-row" data-part="trade-routes.to-you-row" data-bind-for="r:{{trade_routes.routes.to_you}}" data-bind-sort="{{state.trade_routes.sort == 'domain' ? (r.domain == 'sea' ? 'sea' : 'land') : state.trade_routes.sort == 'from_civ' ? r.from.owner_name : state.trade_routes.sort == 'from' ? r.from.city : state.trade_routes.sort == 'to_civ' ? r.to.owner_name : state.trade_routes.sort == 'to' ? r.to.city : state.trade_routes.sort == 'my_gold' ? r.my_gold : state.trade_routes.sort == 'my_science' ? r.my_science : state.trade_routes.sort == 'their_gold' ? r.their_gold : state.trade_routes.sort == 'their_science' ? r.their_science : state.trade_routes.sort == 'food' ? r.food : state.trade_routes.sort == 'production' ? r.production : state.trade_routes.sort == 'turns_left' ? r.turns_left : state.trade_routes.sort == 'my_religion' ? r.my_religion.name : state.trade_routes.sort == 'their_religion' ? r.their_religion.name : r.from.city}}" data-bind-sort-desc="{{state.trade_routes.sort_desc}}">
+<div class="trade-routes-col-domain"><span data-l10n="trade_routes.domain_land" data-bind-if="{{r.domain == 'land'}}"></span><span data-l10n="trade_routes.domain_sea" data-bind-if="{{r.domain == 'sea'}}"></span></div>
+<span class="trade-routes-col-from_civ" data-bind-value="{{r.from.owner_name}}" >
+</span>
+<span class="trade-routes-col-from" data-bind-value="{{r.from.city}}" >
+</span>
+<span class="trade-routes-col-to_civ" data-bind-value="{{r.to.owner_name}}" >
+</span>
+<span class="trade-routes-col-to" data-bind-value="{{r.to.city}}" data-part="trade-routes.to-you-name">
+</span>
+<span class="trade-routes-col-my_gold" data-bind-value="{{r.my_gold}}" >
+</span>
+<span class="trade-routes-col-my_science" data-bind-value="{{r.my_science}}" >
+</span>
+<span class="trade-routes-col-their_gold" data-bind-value="{{r.their_gold}}" >
+</span>
+<span class="trade-routes-col-their_science" data-bind-value="{{r.their_science}}" >
+</span>
+<span class="trade-routes-col-food" data-bind-value="{{r.food}}" >
+</span>
+<span class="trade-routes-col-production" data-bind-value="{{r.production}}" >
+</span>
+<div class="trade-routes-col-my_religion" data-bind-if="{{r.my_religion != null}}">
+<span class="trade-routes-value" data-bind-value="{{r.my_religion.name}}" >
+</span>
+<span class="trade-routes-value" data-bind-value="{{r.my_religion.pressure}}" >
+</span>
+</div>
+<div class="trade-routes-col-their_religion" data-bind-if="{{r.their_religion != null}}">
+<span class="trade-routes-value" data-bind-value="{{r.their_religion.name}}" >
+</span>
+<span class="trade-routes-value" data-bind-value="{{r.their_religion.pressure}}" >
+</span>
+</div>
+<span class="trade-routes-col-turns_left" data-bind-value="{{r.turns_left}}" >
+</span>
+</div>
+<div data-l10n="trade_routes.empty" data-bind-if="{{len(trade_routes.routes.to_you) == 0}}">
+</div>
+</div>
+</div>
+</div>
+<div class="trade-routes-choice" data-bind-if="{{!state.trade_routes.overview && trade_routes.choose != null}}">
+<div class="trade-routes-unit">
+<img class="trade-routes-portrait" data-bind-src="{{trade_routes.choose.unit.icon}}">
+<span class="trade-routes-name" data-bind-value="{{trade_routes.choose.unit.name}}" >
+</span>
+<span class="trade-routes-value" data-bind-value="{{trade_routes.choose.unit.home_city}}" >
+</span>
+<span class="trade-routes-value" data-bind-value="{{trade_routes.choose.unit.range}}" >
+</span>
+</div>
+<div class="trade-routes-toolbar">
+<button data-l10n="trade_routes.sort_city" data-on-click="set state.trade_routes.choose_sort = 'city'">
+</button>
+<button data-l10n="trade_routes.sort_civ" data-on-click="set state.trade_routes.choose_sort = 'civ'">
+</button>
+<button data-l10n="trade_routes.sort_my_gold" data-on-click="set state.trade_routes.choose_sort = 'my_gold'">
+</button>
+<button data-l10n="trade_routes.sort_gold_diff" data-on-click="set state.trade_routes.choose_sort = 'gold_diff'">
+</button>
+<button data-l10n="trade_routes.sort_my_science" data-on-click="set state.trade_routes.choose_sort = 'my_science'">
+</button>
+<button data-l10n="trade_routes.sort_science_diff" data-on-click="set state.trade_routes.choose_sort = 'science_diff'">
+</button>
+</div>
+<div class="trade-routes-scroll">
+<div data-bind-for="g:{{trade_routes.choose.groups}}">
+<button class="trade-routes-group" data-on-click="set state.trade_routes.collapse_yours = g.key == 'yours' ? !state.trade_routes.collapse_yours : state.trade_routes.collapse_yours; set state.trade_routes.collapse_majors = g.key == 'majors' ? !state.trade_routes.collapse_majors : state.trade_routes.collapse_majors; set state.trade_routes.collapse_city_states = g.key == 'city_states' ? !state.trade_routes.collapse_city_states : state.trade_routes.collapse_city_states">
+<span class="trade-routes-value" data-bind-value="{{g.key}}" >
+</span>
+<span class="trade-routes-value" data-bind-value="{{len(g.items)}}" >
+</span>
+</button>
+<div data-bind-if="{{!(g.key == 'yours' ? state.trade_routes.collapse_yours : g.key == 'majors' ? state.trade_routes.collapse_majors : state.trade_routes.collapse_city_states)}}">
+<div tabindex="0" class="trade-routes-destination" data-part="trade-routes.destination" data-bind-for="d:{{g.items}}" data-bind-sort-desc="{{state.trade_routes.choose_sort != 'city' && state.trade_routes.choose_sort != 'civ'}}" data-bind-sort="{{state.trade_routes.choose_sort == 'civ' ? d.owner_name : state.trade_routes.choose_sort == 'my_gold' ? d.mine.gold : state.trade_routes.choose_sort == 'gold_diff' ? d.mine.gold - d.theirs.gold : state.trade_routes.choose_sort == 'my_science' ? d.mine.science : state.trade_routes.choose_sort == 'science_diff' ? d.mine.science - d.theirs.science : d.city}}" data-on-click="set state.trade_routes.confirm = d.id" data-on-pointerenter="set state.trade_routes.hover = d.id">
+<img class="trade-routes-icon" data-bind-src="{{d.icon}}">
+<span class="trade-routes-name" data-bind-value="{{d.city}}" >
+</span>
+<span data-l10n="trade_routes.connection_food" data-bind-if="{{d.connection == 'food'}}"></span><span data-l10n="trade_routes.connection_production" data-bind-if="{{d.connection == 'production'}}"></span><span data-l10n="trade_routes.connection_international" data-bind-if="{{d.connection == 'international'}}"></span>
+<span class="trade-routes-value" data-bind-value="{{d.owner_name}}" >
+</span>
+<div class="trade-routes-yields">
+<span data-l10n="trade_routes.mine" >
+</span>
+<div data-bind-if="{{d.mine.gold != 0}}">
+<span class="trade-routes-value" data-bind-value="{{d.mine.gold}}" >
+</span>
+<span data-l10n="trade_routes.yield_gold" >
+</span>
+</div>
+<div data-bind-if="{{d.mine.science != 0}}">
+<span class="trade-routes-value" data-bind-value="{{d.mine.science}}" >
+</span>
+<span data-l10n="trade_routes.yield_science" >
+</span>
+</div>
+<div data-bind-if="{{d.mine.food != 0}}">
+<span class="trade-routes-value" data-bind-value="{{d.mine.food}}" >
+</span>
+<span data-l10n="trade_routes.yield_food" >
+</span>
+</div>
+<div data-bind-if="{{d.mine.production != 0}}">
+<span class="trade-routes-value" data-bind-value="{{d.mine.production}}" >
+</span>
+<span data-l10n="trade_routes.yield_production" >
+</span>
+</div>
+<div data-bind-if="{{d.mine.culture != 0}}">
+<span class="trade-routes-value" data-bind-value="{{d.mine.culture}}" >
+</span>
+<span data-l10n="trade_routes.yield_culture" >
+</span>
+</div>
+<div data-bind-if="{{d.mine.faith != 0}}">
+<span class="trade-routes-value" data-bind-value="{{d.mine.faith}}" >
+</span>
+<span data-l10n="trade_routes.yield_faith" >
+</span>
+</div>
+</div>
+<div class="trade-routes-yields">
+<span data-l10n="trade_routes.theirs" >
+</span>
+<div data-bind-if="{{d.theirs.gold != 0}}">
+<span class="trade-routes-value" data-bind-value="{{d.theirs.gold}}" >
+</span>
+<span data-l10n="trade_routes.yield_gold" >
+</span>
+</div>
+<div data-bind-if="{{d.theirs.science != 0}}">
+<span class="trade-routes-value" data-bind-value="{{d.theirs.science}}" >
+</span>
+<span data-l10n="trade_routes.yield_science" >
+</span>
+</div>
+<div data-bind-if="{{d.theirs.food != 0}}">
+<span class="trade-routes-value" data-bind-value="{{d.theirs.food}}" >
+</span>
+<span data-l10n="trade_routes.yield_food" >
+</span>
+</div>
+<div data-bind-if="{{d.theirs.production != 0}}">
+<span class="trade-routes-value" data-bind-value="{{d.theirs.production}}" >
+</span>
+<span data-l10n="trade_routes.yield_production" >
+</span>
+</div>
+<div data-bind-if="{{d.theirs.culture != 0}}">
+<span class="trade-routes-value" data-bind-value="{{d.theirs.culture}}" >
+</span>
+<span data-l10n="trade_routes.yield_culture" >
+</span>
+</div>
+<div data-bind-if="{{d.theirs.faith != 0}}">
+<span class="trade-routes-value" data-bind-value="{{d.theirs.faith}}" >
+</span>
+<span data-l10n="trade_routes.yield_faith" >
+</span>
+</div>
+</div>
+<span data-l10n="trade_routes.previous" data-bind-if="{{d.previous}}">
+</span>
+<button data-l10n="trade_routes.look" data-on-click="intent camera.to_plot(plot: d.location); stop"></button>
+</div>
+</div>
+<div class="trade-routes-confirm-dim" data-bind-for="d:{{g.items}}" data-bind-filter="{{state.trade_routes.confirm == d.id}}">
+<div class="trade-routes-confirm">
+<div class="trade-routes-question">
+<span data-l10n="trade_routes.establish" >
+</span>
+<span class="trade-routes-name" data-bind-value="{{d.city}}" >
+</span>
+<span data-l10n="trade_routes.connection_food" data-bind-if="{{d.connection == 'food'}}"></span><span data-l10n="trade_routes.connection_production" data-bind-if="{{d.connection == 'production'}}"></span><span data-l10n="trade_routes.connection_international" data-bind-if="{{d.connection == 'international'}}"></span>
+</div>
+<div class="trade-routes-actions">
+<button data-l10n="trade_routes.no" data-part="trade-routes.cancel-route" data-bind-hotkey="{{'Escape'}}" data-on-click="set state.trade_routes.confirm = -1">
+</button>
+<button data-l10n="trade_routes.yes" data-part="trade-routes.establish" data-on-click="intent screen.act(screen: 'trade_routes', action: 'establish', a: trade_routes.choose.unit.id, b: d.plot, c: d.connection_id); set state.trade_routes.confirm = -1; intent window.close(window: 'trade_routes')">
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="trade-routes-choice" data-bind-if="{{!state.trade_routes.overview && trade_routes.choose == null && trade_routes.new_home != null}}">
+<div class="trade-routes-unit">
+<img class="trade-routes-portrait" data-bind-src="{{trade_routes.new_home.unit.icon}}">
+<span class="trade-routes-name" data-bind-value="{{trade_routes.new_home.unit.name}}" >
+</span>
+<span class="trade-routes-value" data-bind-value="{{trade_routes.new_home.unit.city}}" >
+</span>
+<span data-l10n="trade_routes.kind_trade_home" data-bind-if="{{trade_routes.new_home.kind == 'trade_home'}}"></span><span data-l10n="trade_routes.kind_admiral_port" data-bind-if="{{trade_routes.new_home.kind == 'admiral_port'}}"></span>
+</div>
+<div class="trade-routes-scroll">
+<div data-bind-for="c:{{trade_routes.new_home.cities}}">
+<div tabindex="0" class="trade-routes-destination" data-part="trade-routes.home" data-on-click="set state.trade_routes.confirm = c.id">
+<span class="trade-routes-name" data-bind-value="{{c.name}}" >
+</span>
+<button data-l10n="trade_routes.look" data-on-click="intent camera.to_plot(plot: c.location); stop"></button>
+</div>
+<div class="trade-routes-confirm-dim" data-bind-if="{{state.trade_routes.confirm == c.id}}">
+<div class="trade-routes-confirm">
+<div class="trade-routes-question">
+<span data-l10n="trade_routes.make_home" >
+</span>
+<span class="trade-routes-name" data-bind-value="{{c.name}}" >
+</span>
+</div>
+<div class="trade-routes-actions">
+<button data-l10n="trade_routes.cancel_home" data-bind-hotkey="{{'Escape'}}" data-on-click="set state.trade_routes.confirm = -1">
+</button>
+<button data-l10n="trade_routes.rehome" data-bind-if="{{trade_routes.new_home.kind == 'trade_home'}}" data-on-click="intent screen.act(screen: 'trade_routes', action: 'rehome', a: trade_routes.new_home.unit.id, b: c.plot); set state.trade_routes.confirm = -1; intent window.close(window: 'trade_routes')">
+</button>
+<button data-l10n="trade_routes.port" data-bind-if="{{trade_routes.new_home.kind == 'admiral_port'}}" data-on-click="intent screen.act(screen: 'trade_routes', action: 'admiral_port', a: trade_routes.new_home.unit.id, b: c.plot); set state.trade_routes.confirm = -1; intent window.close(window: 'trade_routes')">
+</button>
+</div>
+</div>
+</div>
+</div>
+<div data-l10n="trade_routes.no_homes" data-bind-if="{{len(trade_routes.new_home.cities) == 0}}">
+</div>
+</div>
+</div>
+<footer class="trade-routes-actions">
+<button data-l10n="trade_routes.overview" data-on-click="toggle state.trade_routes.overview">
+</button>
+<button data-l10n="trade_routes.back" data-on-click="intent window.close(window: 'trade_routes')">
+</button>
+</footer>
+</div>
+</section>
+</div>

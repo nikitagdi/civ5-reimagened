@@ -1,0 +1,83 @@
+{
+  "model": {
+    "city_state": {
+      "view": "enter_land",
+      "player_id": 0,
+      "player_gold": 312,
+      "minor": {
+        "id": 24,
+        "key": "player:24",
+        "team_id": 24,
+        "name": "Valletta",
+        "emblem": "civ:MINOR_CIV_VALLETTA",
+        "color_bg": 3637494015,
+        "color_fg": 1511987967,
+        "name_color": 3819213823,
+        "trait": "militaristic",
+        "trait_name": "Militaristic",
+        "trait_tooltip": "",
+        "personality": "hostile",
+        "personality_name": "Hostile",
+        "personality_tooltip": "",
+        "has_capital": true,
+        "capital_plot": 2871
+      },
+      "speech": null,
+      "status": {
+        "kind": "friend",
+        "style": "friend",
+        "label": "Friends",
+        "influence": 52,
+        "per_turn": -1.0,
+        "resting_point": 0,
+        "at_rest": false,
+        "at_war": false,
+        "war_turns": 0,
+        "war_threshold": -60,
+        "friend_threshold": 30,
+        "ally_threshold": 60,
+        "scale_side": "positive",
+        "scale_fill_pct": 86.7,
+        "scale_marker_pct": 86.7,
+        "friend_tick_pct": 50.0
+      },
+      "ally": null,
+      "protectors": [],
+      "enemies": [],
+      "can_bully": false,
+      "bully_text": "",
+      "bonuses": [],
+      "resources": [],
+      "resources_exported_text": "",
+      "quests": [],
+      "no_quests_text": "",
+      "threat_barbarians": false,
+      "threat_barbarians_text": "",
+      "threat_proxy_war": false,
+      "threat_proxy_war_text": "",
+      "actions": null,
+      "gifts": null,
+      "tribute": null,
+      "enter_land": {
+        "owner_name": "Valletta",
+        "owner_kind": "city_state",
+        "owner_team_id": 24,
+        "subtitle": "Militaristic city-state, friends at 52",
+        "unit_id": 8217,
+        "unit_name": "Knight",
+        "plot": 2934,
+        "queue": false,
+        "text": "Your Knight is ordered across Valletta’s border. Troops on a city-state’s land without permission strain your relations."
+      },
+      "liberate": null,
+      "reason": "Continuing movement requires the territory-entry handler in the game host."
+    }
+  },
+  "ui": {
+    "windows": {
+      "city_state": {
+        "open": true
+      }
+    }
+  }
+}

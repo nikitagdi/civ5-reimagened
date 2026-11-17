@@ -1,0 +1,23 @@
+<div class="confirm-screen" data-part="confirm" data-screen="confirm" data-bind-if="{{ui.windows.confirm.open}}" data-esc="intent screen.act(screen: 'confirm', action: 'choose', a: confirm.id, b: confirm.esc_choice == null ? -1 : confirm.esc_choice, c: 0)">
+  <section class="confirm-window">
+    <div data-bind-if="{{confirm == null}}" class="confirm-body" data-l10n="confirm.loading"></div>
+    <div class="confirm-content" data-bind-if="{{confirm != null}}">
+      <div class="confirm-head">
+        <img class="confirm-icon" data-bind-if="{{confirm.icon != null}}" data-bind-src="{{confirm.icon}}">
+        <div class="confirm-titles"><span class="confirm-kicker" data-bind-value="{{confirm.kicker}}"></span><span class="confirm-title" data-part="confirm.title" data-bind-value="{{confirm.title}}"></span></div>
+      </div>
+      <div class="confirm-body">
+        <div class="confirm-advisor" data-bind-if="{{confirm.advisor != null}}"><img class="confirm-icon" data-bind-src="{{confirm.advisor.portrait}}"><span data-bind-value="{{confirm.advisor.name}}"></span></div>
+        <div class="confirm-prose" data-part="confirm.text" data-bind-value="{{confirm.text}}"></div>
+        <div><div class="confirm-row" data-bind-for="f:{{confirm.facts}}"><span data-bind-value="{{f.label}}"></span><b class="confirm-value" data-bind-value="{{f.value}}"></b></div></div>
+        <div class="confirm-prose" data-bind-if="{{confirm.consequence != null}}" data-bind-value="{{confirm.consequence.text}}"></div>
+        <button class="confirm-button" data-bind-if="{{confirm.dont_warn != null}}" data-control="checkbox" data-bind-model="state.confirm.dont_warn" data-bind-value="{{confirm.dont_warn.label}}"></button>
+      </div>
+      <div class="confirm-foot">
+        <span class="confirm-note" data-l10n="confirm.required"></span>
+        <button class="confirm-button" data-part="confirm.choice" data-bind-for="c:{{confirm.choices}}" data-bind-class-toggle="confirm-primary:{{c.primary}}" data-bind-disabled="{{!c.enabled}}" data-bind-value="{{c.label}}" data-on-pointerenter="set state.confirm.hover = c.id" data-tooltip="confirm-choice-tip" data-bind-hotkey="{{confirm.enter_choice != null &amp;&amp; c.id == confirm.enter_choice ? 'Enter' : ''}}" data-on-click="intent screen.act(screen: 'confirm', action: 'choose', a: confirm.id, b: c.id, c: state.confirm.dont_warn ? 1 : 0)"></button>
+      </div>
+    </div>
+  </section>
+</div>
+<template id="confirm-choice-tip" data-layer="tooltip"><div class="confirm-tip" data-bind-if="{{confirm != null}}"><div data-bind-for="c:{{confirm.choices}}" data-bind-filter="{{c.id == state.confirm.hover}}"><div data-bind-value="{{c.reason}}"></div><div data-bind-value="{{c.tooltip}}"></div></div></div></template>

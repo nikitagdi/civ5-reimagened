@@ -1,0 +1,136 @@
+[enum]
+MpVoteView = ["proposal", "concede", "diplo_vote"]
+MpVoteProposalKind = ["kick", "concede", "scrap", "remap"]
+MpVoteProposalStatus = ["open", "passed", "failed"]
+MpVoteProposalMyVote = ["none", "yes", "no"]
+MpVoteTeamsPlayersVote = ["none", "hidden", "yes", "no"]
+
+[type.MpVoteProposalSubject]
+player_id = "i32"
+nick = "text"
+leader = "text"
+civ_name = "text"
+portrait = "asset"
+emblem = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.MpVoteProposalAuthor]
+player_id = "i32"
+nick = "text"
+leader = "text"
+civ_name = "text"
+portrait = "asset"
+emblem = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.MpVoteProposalWaiting]
+key = "str"
+nick = "text"
+
+[type.MpVoteProposal]
+id = "i32"
+key = "str"
+kind = "MpVoteProposalKind"
+kind_label = "text"
+title = "text"
+subject = "MpVoteProposalSubject?"
+author = "MpVoteProposalAuthor"
+author_known = "bool"
+ends_turn = "i32"
+turns_left = "i32"
+voters = "i32"
+yes = "i32"
+needed = "i32?"
+still_needed = "i32?"
+show_counts = "bool"
+yes_pct = "f32?"
+needed_pct = "f32?"
+waiting_count = "i32"
+waiting = { list = "MpVoteProposalWaiting", key = "key" }
+waiting_text = "text"
+status = "MpVoteProposalStatus"
+status_text = "text"
+can_vote = "bool"
+my_vote = "MpVoteProposalMyVote"
+vote_reason = "text"
+secret = "bool"
+
+[type.MpVoteTeamsPlayers]
+key = "str"
+player_id = "i32"
+nick = "text"
+leader = "text"
+civ_name = "text"
+portrait = "asset"
+emblem = "asset"
+color_bg = "color?"
+color_fg = "color?"
+score = "i32?"
+is_you = "bool"
+is_human = "bool"
+is_observer = "bool"
+connected = "bool?"
+known = "bool"
+at_war = "bool"
+eligible = "bool"
+vote = "MpVoteTeamsPlayersVote"
+vote_label = "text"
+note = "text"
+
+[type.MpVoteTeams]
+key = "str"
+label = "text"
+multi = "bool"
+players = { list = "MpVoteTeamsPlayers", key = "key" }
+
+[type.MpVoteConcedeCandidates]
+key = "str"
+player_id = "i32"
+nick = "text"
+leader = "text"
+civ_name = "text"
+portrait = "asset"
+emblem = "asset"
+color_bg = "color"
+color_fg = "color"
+team_label = "text"
+is_human = "bool"
+sub = "text"
+score_text = "text"
+
+[type.MpVoteConcede]
+candidates = { list = "MpVoteConcedeCandidates", key = "key" }
+empty_text = "text"
+
+[type.MpVoteDiploVoteCandidates]
+key = "str"
+player_id = "i32"
+nick = "text"
+leader = "text"
+civ_name = "text"
+portrait = "asset"
+emblem = "asset"
+color_bg = "color"
+color_fg = "color"
+team_label = "text"
+is_human = "bool"
+sub = "text"
+score_text = "text"
+
+[type.MpVoteDiploVote]
+blocking = "bool"
+candidates = { list = "MpVoteDiploVoteCandidates", key = "key" }
+
+[model.mp_vote]
+_optional = true
+view = "MpVoteView"
+player_id = "i32"
+open_count = "i32"
+human_count = "i32"
+proposal = "MpVoteProposal?"
+teams = { list = "MpVoteTeams", key = "key" }
+concede = "MpVoteConcede?"
+diplo_vote = "MpVoteDiploVote?"
+reason = "text?"

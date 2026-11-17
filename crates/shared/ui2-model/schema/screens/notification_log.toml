@@ -1,0 +1,29 @@
+[enum]
+NotificationLogTint = ["food", "production", "gold", "science", "culture", "faith", "happiness", "tourism", "negative", "neutral"]
+
+[type.NotificationLogCiv]
+key = "str"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.NotificationLogItem]
+id = "key<note>"
+type = "str"
+icon = "asset"
+tint = "NotificationLogTint"
+text = "text"
+category = "text"
+active = "bool"
+
+[type.NotificationLogGroup]
+turn = "i32"
+count = "i32"
+items = { list = "NotificationLogItem", key = "id" }
+
+[model.notification_log]
+_optional = true
+civ = "NotificationLogCiv"
+total = "i32"
+open = "i32"
+groups = { list = "NotificationLogGroup", key = "turn" }

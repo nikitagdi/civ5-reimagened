@@ -1,0 +1,83 @@
+{
+  "model": {
+    "archaeology": {
+      "unit_id": 81,
+      "plot": {
+        "x": 44,
+        "y": 25
+      },
+      "near_city": "Kazan",
+      "player": {
+        "id": 0,
+        "name": "Catherine",
+        "civ_name": "Russia",
+        "civ": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": 1847335167,
+        "color_fg": 3837808383,
+        "leader": "leader:LEADER_CATHERINE"
+      },
+      "find": {
+        "kind": "writing",
+        "kind_name": "Written artifact",
+        "era": "Ancient era",
+        "participants": [
+          {
+            "role": "author",
+            "role_name": "Written by",
+            "civ_name": "Greece",
+            "civ": "civ:CIVILIZATION_GREECE",
+            "color_bg": 1012767999,
+            "color_fg": 4008768767
+          }
+        ],
+        "work": {
+          "name": "Odyssey",
+          "type": "GREAT_WORK_ODYSSEY",
+          "type_id": 318,
+          "creator": "Homer",
+          "civ_name": "Greece"
+        }
+      },
+      "no_slot_warning": "No free Great Work of Writing slot. Build an Amphitheater or move a work to keep the writing.",
+      "choices": [
+        {
+          "civ_name": null,
+          "civ": null,
+          "color_bg": null,
+          "color_fg": null,
+          "diplomacy": null,
+          "culture": null,
+          "id": 5,
+          "kind": "writing",
+          "title": "Keep the writing",
+          "enabled": false,
+          "reason": "No free writing slot",
+          "description": "Placed in the nearest free writing slot. +2 culture, +2 tourism. The archaeologist is consumed."
+        },
+        {
+          "civ_name": null,
+          "civ": null,
+          "color_bg": null,
+          "color_fg": null,
+          "diplomacy": null,
+          "culture": 1240,
+          "id": 4,
+          "kind": "culture",
+          "title": "Cultural renaissance",
+          "enabled": true,
+          "reason": null,
+          "description": "Gain 1,240 culture now. The archaeologist is consumed."
+        }
+      ],
+      "status": "pending",
+      "archaeologist": "unit:UNIT_ARCHAEOLOGIST"
+    }
+  },
+  "ui": {
+    "windows": {
+      "archaeology": {
+        "open": true
+      }
+    }
+  }
+}

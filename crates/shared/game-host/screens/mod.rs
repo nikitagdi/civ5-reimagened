@@ -5,6 +5,12 @@ pub(crate) use runtime::Screens;
 
 /// Names and sources compiled into the server. Add one entry per screen.
 pub const REGISTRY: &[(&str, &str)] = &[
+    ("economy", include_str!("economy.lua")),
+    ("military", include_str!("military.lua")),
+    ("trade_routes", include_str!("trade_routes.lua")),
+    ("espionage", include_str!("espionage.lua")),
+    ("victory", include_str!("victory.lua")),
+    ("demographics", include_str!("demographics.lua")),
     ("techs", include_str!("techs.lua")),
     ("rich_tooltips", include_str!("rich_tooltips.lua")),
     ("tech_award", include_str!("tech_award.lua")),
@@ -13,12 +19,25 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("pantheon", include_str!("pantheon.lua")),
     ("religion", include_str!("religion.lua")),
     ("religion_overview", include_str!("religion_overview.lua")),
+    ("culture", include_str!("culture.lua")),
+    ("great_work", include_str!("great_work.lua")),
+    ("archaeology", include_str!("archaeology.lua")),
+    ("city_state", include_str!("city_state.lua")),
+    ("congress", include_str!("congress.lua")),
+    ("mp_vote", include_str!("mp_vote.lua")),
     ("hud", include_str!("hud.lua")),
     ("city", include_str!("city.lua")),
     ("city_list", include_str!("city_list.lua")),
     ("city_rename", include_str!("city_rename.lua")),
     ("city_captured", include_str!("city_captured.lua")),
     ("free_great_person", include_str!("free_great_person.lua")),
+    ("confirm", include_str!("confirm.lua")),
+    ("message", include_str!("message.lua")),
+    ("goody_choice", include_str!("goody_choice.lua")),
+    ("notification_log", include_str!("notification_log.lua")),
+    ("game_menu", include_str!("game_menu.lua")),
+    ("advisor", include_str!("advisor.lua")),
+    ("end_game", include_str!("end_game.lua")),
 ];
 
 use crate::core::Refusal;
@@ -444,3 +463,5 @@ mod tests {
         );
     }
 }
+#[cfg(test)]
+mod popup_tests;

@@ -1,0 +1,59 @@
+[enum]
+ConfirmKind = ["combat_warning", "barbarian_ransom", "gift_unit", "improvement_rebuild", "return_civilian", "confirm_command", "exit_game"]
+ConfirmRole = ["economic", "military", "foreign", "science"]
+ConfirmYield = ["food", "production", "gold", "science", "culture", "faith", "happiness", "tourism", "influence"]
+
+[type.ConfirmCiv]
+key = "str"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.ConfirmAdvisor]
+role = "ConfirmRole"
+name = "text"
+portrait = "asset"
+
+[type.ConfirmFact]
+key = "str"
+label = "text"
+value = "i32"
+yield = "ConfirmYield?"
+
+[type.ConfirmConsequence]
+icon = "asset"
+text = "text"
+value = "i32?"
+yield = "ConfirmYield?"
+
+[type.ConfirmWarning]
+label = "text"
+checked = "bool"
+
+[type.ConfirmChoice]
+id = "i32"
+key = "str"
+label = "text"
+primary = "bool"
+enabled = "bool"
+reason = "text?"
+tooltip = "text?"
+
+[model.confirm]
+_optional = true
+id = "i32"
+kind = "ConfirmKind"
+icon = "asset?"
+civ = "ConfirmCiv?"
+kicker = "text?"
+title = "text"
+text = "text"
+advisor = "ConfirmAdvisor?"
+facts = { list = "ConfirmFact", key = "key" }
+consequence = "ConfirmConsequence?"
+dont_warn = "ConfirmWarning?"
+closable = "bool"
+esc_choice = "i32?"
+enter_choice = "i32?"
+choices = { list = "ConfirmChoice", key = "id" }
+resolved = "bool"

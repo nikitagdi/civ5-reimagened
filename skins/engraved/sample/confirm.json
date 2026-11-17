@@ -1,0 +1,61 @@
+{
+  "model": {
+    "confirm": {
+      "id": 5133,
+      "kind": "barbarian_ransom",
+      "icon": "unit:UNIT_WORKER",
+      "civ": null,
+      "kicker": "Barbarians",
+      "title": "Worker captured",
+      "text": "Barbarians have captured your Worker on the hills south of Kazan. They will release it for a ransom; otherwise the unit is lost.",
+      "advisor": null,
+      "facts": [
+        {
+          "key": "ransom",
+          "label": "Ransom",
+          "value": 100,
+          "yield": "gold"
+        },
+        {
+          "key": "treasury",
+          "label": "Your treasury",
+          "value": 1284,
+          "yield": "gold"
+        }
+      ],
+      "consequence": null,
+      "dont_warn": null,
+      "closable": false,
+      "esc_choice": null,
+      "enter_choice": null,
+      "choices": [
+        {
+          "id": 1,
+          "key": "abandon",
+          "label": "Abandon unit",
+          "primary": false,
+          "enabled": true,
+          "reason": null,
+          "tooltip": null
+        },
+        {
+          "id": 0,
+          "key": "pay",
+          "label": "Pay 100 gold",
+          "primary": true,
+          "enabled": true,
+          "reason": null,
+          "tooltip": null
+        }
+      ]
+    }
+  },
+  "ui": {
+    "windows": {
+      "confirm": {
+        "open": true,
+        "a": 5133
+      }
+    }
+  }
+}

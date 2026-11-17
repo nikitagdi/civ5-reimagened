@@ -1,0 +1,136 @@
+# Yield amounts are per turn; fractional values preserve hundredths from the game.
+[enum]
+EspionageRank = ["recruit", "agent", "special_agent"]
+EspionageRole = ["spy", "diplomat"]
+EspionageActivity = ["unassigned", "travelling", "surveillance", "stealing", "rigging", "schmoozing", "counterintel", "dead"]
+EspionagePotential = ["known", "ghost", "unknown", "city_state"]
+EspionageSourceKind = ["own_spy", "civ"]
+
+[type.EspionagePlayer]
+name = "str"
+civ_name = "str"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.EspionageCounts]
+alive = "i32"
+killed = "i32"
+
+[type.EspionageAgentsPlace]
+city_id = "i32"
+city = "str"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.EspionageAgentsCoup]
+chance_pct = "i32"
+ally = "str"
+ally_player = "i32"
+
+[type.EspionageAgents]
+id = "i32"
+name = "str"
+rank = "EspionageRank"
+rank_text = "str"
+role = "EspionageRole"
+place = "EspionageAgentsPlace?"
+activity = "EspionageActivity"
+activity_text = "str"
+progress_pct = "i32?"
+progress_per_turn_pct = "i32?"
+turns_left = "i32?"
+surveillance = "bool"
+dead = "bool"
+death_text = "str?"
+can_view = "bool"
+view_reason = "str?"
+is_cs = "bool"
+can_coup = "bool"
+coup_reason = "str?"
+coup = "EspionageAgentsCoup?"
+
+[type.EspionageOwnCities]
+raw_city_id = "i32"
+can_move = "bool"
+ask_role = "bool"
+move_reason = "str?"
+id = "i32"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+name = "str"
+population = "i32"
+potential = "i32"
+potential_rel = "f32"
+agent_id = "i32?"
+agent_role = "EspionageRole?"
+
+[type.EspionageOtherCities]
+raw_city_id = "i32"
+can_move = "bool"
+ask_role = "bool"
+move_reason = "str?"
+id = "i32"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+civ_name = "str"
+name = "str"
+population = "i32"
+potential = "i32?"
+potential_state = "EspionagePotential"
+potential_rel = "f32?"
+is_city_state = "bool"
+can_rig = "bool"
+capital = "bool"
+at_war = "bool"
+agent_id = "i32?"
+agent_role = "EspionageRole?"
+can_view = "bool"
+
+[type.EspionageIntrigueSource]
+kind = "EspionageSourceKind"
+name = "str"
+player = "i32?"
+icon = "asset?"
+color_bg = "color?"
+color_fg = "color?"
+
+[type.EspionageIntrigue]
+id = "i32"
+turn = "i32"
+source = "EspionageIntrigueSource"
+text = "str"
+
+[type.EspionageTarget]
+id = "i32"
+
+[type.EspionageMove]
+agent_id = "i32"
+targets = { list = "EspionageTarget", key = "id" }
+ask_role = { list = "EspionageTarget", key = "id" }
+
+[type.EspionageCoupResult]
+success = "bool"
+city = "str"
+text = "str"
+
+[model.espionage]
+_optional = true
+player = "EspionagePlayer"
+enabled = "bool"
+started = "bool"
+late_era = "bool"
+counts = "EspionageCounts"
+agents = { list = "EspionageAgents", key = "id" }
+own_cities = { list = "EspionageOwnCities", key = "id" }
+other_cities = { list = "EspionageOtherCities", key = "id" }
+intrigue = { list = "EspionageIntrigue", key = "id" }
+move = "EspionageMove?"
+coup_result = "EspionageCoupResult?"

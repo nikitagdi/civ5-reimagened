@@ -1,0 +1,58 @@
+[enum]
+EndGameOutcome = ["victory", "defeat", "kicked", "host_lost", "net_lost"]
+
+EndGameVictoryType = ["science", "domination", "cultural", "diplomatic", "time", "scrap"]
+
+[type.EndGameCiv]
+key = "str"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.EndGameWinner]
+player = "i32"
+name = "text"
+civ_name = "text"
+
+[type.EndGamePlayers]
+id = "i32"
+name = "text"
+civ_icon = "asset"
+color_bg = "color"
+color_fg = "color"
+score = "i32"
+me = "bool"
+
+[type.EndGameRankingRows]
+id = "i32"
+name = "text"
+threshold = "i32"
+me = "bool"
+quote = "text?"
+
+[type.EndGameRanking]
+title = "text"
+sub = "text"
+my_score = "i32"
+rows = { list = "EndGameRankingRows", key = "id" }
+
+[model.end_game]
+_optional = true
+outcome = "EndGameOutcome"
+victory_type = "EndGameVictoryType?"
+civ = "EndGameCiv"
+kicker = "text"
+title = "text"
+headline = "text"
+text = "text"
+art = "asset"
+speech = "text?"
+delay_ms = "i32"
+turn = "i32"
+year = "text"
+winner = "EndGameWinner?"
+can_continue = "bool"
+continue_reason = "text?"
+players = { list = "EndGamePlayers", key = "id" }
+ranking = "EndGameRanking"
+finished = "bool"

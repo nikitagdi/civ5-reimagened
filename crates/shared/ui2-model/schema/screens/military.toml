@@ -1,0 +1,54 @@
+[enum]
+MilitaryStatus = ["embarked", "garrison", "automated", "exploring", "healing", "sentry", "fortified", "sleeping", "building", "none"]
+
+[type.MilitaryPlayer]
+name = "text"
+civ_name = "text"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.MilitarySupply]
+difficulty = "i32"
+cities = "i32"
+population = "i32"
+limit = "i32"
+used = "i32"
+remaining = "i32"
+over = "i32"
+production_penalty_pct = "i32"
+
+[type.MilitaryGreatPerson]
+progress = "i32"
+threshold = "i32"
+icon = "asset"
+
+[type.MilitaryCounts]
+military = "i32"
+civilian = "i32"
+
+[type.MilitaryUnit]
+id = "i32"
+unit_key = "key<unit>"
+name = "str"
+icon = "asset"
+military = "bool"
+status = "MilitaryStatus"
+status_text = "str"
+build_turns = "i32?"
+moves = "f32"
+max_moves = "f32"
+strength = "i32"
+ranged = "i32"
+can_promote = "bool"
+health_pct = "i32?"
+
+[model.military]
+_optional = true
+player = "MilitaryPlayer"
+supply = "MilitarySupply"
+great_general = "MilitaryGreatPerson"
+great_admiral = "MilitaryGreatPerson"
+counts = "MilitaryCounts"
+units = { list = "MilitaryUnit", key = "id" }
