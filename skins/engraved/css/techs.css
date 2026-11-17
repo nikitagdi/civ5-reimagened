@@ -1,7 +1,7 @@
-.techs-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.6); }
+.techs-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.6); pointer-events: auto; }
 .techs-window { width: 960px; height: 720px; padding: 20px; display: flex; flex-direction: column; gap: 12px; background: #17232b; color: #ede6cc; }
 .techs-head { display: flex; justify-content: space-between; font-size: 24px; }
-.techs-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; flex: 1; overflow-y: auto; }
+.techs-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; flex: 1; overflow-y: auto; scrollbar-width: none; }
 .techs-row { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px; min-height: 120px; background: #293b45; color: #ede6cc; }
 .techs-era { font-size: 12px; color: #cabf9f; }
 .techs-name { font-size: 18px; }

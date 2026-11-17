@@ -29,7 +29,7 @@
       <div class="none" data-bind-if="{{len(research.options) == 0}}" data-l10n="research.none">Nothing can be researched now</div>
     </div>
     <div class="queued" data-bind-if="{{len(research.queue) > 0}}">
-      <div class="foot">Queued research</div>
+      <div class="foot" data-l10n="research.queued">Queued research</div>
       <div class="rlist" data-part="research.queue">
         <div class="rrow" data-bind-for="t:{{research.queue}}">
           <img class="ti" data-bind-src="{{t.icon}}">

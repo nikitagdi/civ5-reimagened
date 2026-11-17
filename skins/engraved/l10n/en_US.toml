@@ -155,3 +155,8 @@
 # Year line of the turn dial (the model gives the key and the year).
 "year.ad" = "{1} AD"
 "year.bc" = "{1} BC"
+"research.queued" = "Queued research"
+"techs.title" = "Technologies"
+"techs.close" = "Close"
+"techs.loading" = "Loading technologies"
+"techs.hint" = "Click to research. Right click to append to the queue."

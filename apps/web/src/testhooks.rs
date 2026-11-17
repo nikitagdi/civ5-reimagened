@@ -33,7 +33,8 @@
 //!   promise of the replica's own digest (`Replica::digest`: UI v2 actions must leave it as it is).
 //! - The game UIs: `act({kind: 'setUi', value: 'classic' | 'v2' | 'v2:<skin>', save?, cold?})` switches,
 //!   `state().ui` (see [`ui_json`]) tells which one is on the screen, `ui2()` (see [`ui2_json`]) is UI v2 as of its
-//!   last frame, `ui2Rects(parts)` a promise of the rectangles of `data-part` elements.
+//!   last frame, `ui2Rects(parts)` a promise of the rectangles of `data-part` elements,
+//!   `ui2Intent({name, args})` queues a UI v2 intent (as a skin click sends it) for the next frame.
 //! - `waitTurn(n, timeoutMs?)`: a promise of the state once turn `n` is the human's.
 //! - `trap(kind)`: kills the module on purpose (`page`, `workerPanic`, `workerTrap`), for the crash report.
 //! - `golden` (page with `&golden=<url>&capture=<name>`): once the frame is final,
@@ -327,6 +328,42 @@ pub fn install() -> Option<Box<dyn TestPort>> {
          });",
     );
     set("ui2Rects", &rects);
+    // `ui2Intent({ name, args })`: a normal UI v2 intent as a skin's click sends it, applied by the next frame.
+    // Args are numbers, booleans or texts (keys, windows and enum variants are texts).
+    let intent = Closure::<dyn Fn(JsValue) -> Result<(), JsValue>>::new(|v: JsValue| {
+        let text: String = js_sys::JSON::stringify(&v)?.into();
+        let bad = |why: &str| JsValue::from_str(&format!("ui2Intent: {why}"));
+        let Ok(Value::Object(obj)) = serde_json::from_str::<Value>(&text) else {
+            return Err(bad("expects { name, args }"));
+        };
+        let name = obj
+            .get("name")
+            .and_then(Value::as_str)
+            .ok_or_else(|| bad("name is required"))?;
+        let mut args = Vec::new();
+        for (key, value) in obj
+            .get("args")
+            .and_then(Value::as_object)
+            .into_iter()
+            .flatten()
+        {
+            let arg = match value {
+                Value::Bool(b) => client_app::Ui2TestIntentArg::Flag(*b),
+                Value::String(s) => client_app::Ui2TestIntentArg::Text(s.clone()),
+                Value::Number(n) => client_app::Ui2TestIntentArg::Int(
+                    n.as_i64()
+                        .and_then(|i| i32::try_from(i).ok())
+                        .ok_or_else(|| bad("numbers are 32-bit whole numbers"))?,
+                ),
+                _ => return Err(bad("an argument is a number, a boolean or a text")),
+            };
+            args.push((key.clone(), arg));
+        }
+        client_app::push_ui2_test_intent(name, args);
+        Ok(())
+    });
+    set("ui2Intent", intent.as_ref());
+    intent.forget();
 
     let trap = Closure::<dyn Fn(String)>::new(test_trap);
     set("trap", trap.as_ref());

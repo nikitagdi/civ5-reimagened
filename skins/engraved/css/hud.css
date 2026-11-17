@@ -230,6 +230,7 @@
   min-width: 0;
   max-width: 360px;
   overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .res .yield {

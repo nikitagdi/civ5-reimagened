@@ -1,10 +1,10 @@
 <div class="techs-screen" data-part="techs" data-screen="techs" data-bind-if="{{ui.windows.techs.open}}">
   <section class="techs-window">
     <div class="techs-head">
-      <span>Technologies</span>
-      <button data-part="techs.close" data-on-click="intent window.close(window: 'techs')">Close</button>
+      <span data-l10n="techs.title">Technologies</span>
+      <button data-part="techs.close" data-on-click="intent window.close(window: 'techs')" data-l10n="techs.close">Close</button>
     </div>
-    <div data-bind-if="{{techs == null}}">Loading technologies</div>
+    <div data-bind-if="{{techs == null}}" data-l10n="techs.loading">Loading technologies</div>
     <div class="techs-grid" data-part="techs.list" data-bind-if="{{techs != null}}">
       <button class="techs-row" data-part="techs.row" data-bind-for="t:{{techs.techs}}"
         data-bind-disabled="{{t.status == 'researched'}}"
@@ -17,6 +17,6 @@
         <span data-bind-if="{{t.turns != null}}" data-bind-value="{{t.turns}}"></span>
       </button>
     </div>
-    <div>Click to research. Right click to append to the queue.</div>
+    <div data-l10n="techs.hint">Click to research. Right click to append to the queue.</div>
   </section>
 </div>

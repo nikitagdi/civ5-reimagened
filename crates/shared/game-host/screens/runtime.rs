@@ -7,6 +7,16 @@ use serde_json::Value as Json;
 
 const MAX_JSON: usize = 512 * 1024;
 const MAX_MESSAGES: usize = 256;
+/// The longest text of an action or of a net message sent with it, in bytes.
+const MAX_TEXT: usize = 256;
+/// The net messages that carry a string: renames, a religion's own name, a league's name.
+const TEXT_MESSAGES: &[&str] = &[
+    "SendRenameCity",
+    "SendRenameUnit",
+    "SendFoundReligion",
+    "SendEnhanceReligion",
+    "SendLeagueEditName",
+];
 
 pub(crate) struct Screens {
     lua: Lua,
@@ -89,7 +99,7 @@ impl Screens {
         args: &[(String, i64)],
         text: Option<&str>,
     ) -> lua_sys::Result<Vec<NetMessage>> {
-        if text.is_some_and(|s| s.len() > 256 || s.chars().any(char::is_control)) {
+        if text.is_some_and(|s| s.len() > MAX_TEXT || s.chars().any(char::is_control)) {
             return Err(LuaError::msg("invalid screen action text"));
         }
         if args.iter().any(|(key, _)| key == "text") {
@@ -111,6 +121,52 @@ impl Screens {
                     let message = NetMessage::new(&name, &args.0)
                         .filter(|m| gamecore::replica::net_message_from_ui(m.id))
                         .ok_or_else(|| LuaError::msg("unknown or forbidden UI net message"))?;
+                    let mut output = output.borrow_mut();
+                    if output.len() >= MAX_MESSAGES {
+                        return Err(LuaError::msg("too many screen net messages"));
+                    }
+                    output.push(message);
+                    Ok(())
+                }),
+        )?;
+        // `net.send_text(name, text, ...)`: the whitelisted messages that carry a string (a rename, a religion's
+        // own name), the numbers after the text being the message's numeric arguments, as for `net.send`.
+        let output = Rc::clone(&messages);
+        net.raw_set(
+            "send_text",
+            self.lua
+                .create_function(move |_, all: Variadic<LuaValue<'_>>| {
+                    let text_of = |value: Option<&LuaValue<'_>>| match value {
+                        Some(LuaValue::String(s)) => Ok(String::from_utf8_lossy(&s.0).into_owned()),
+                        _ => Err(LuaError::msg("send_text expects a name and a text")),
+                    };
+                    let name = text_of(all.0.first())?;
+                    let text = text_of(all.0.get(1))?;
+                    let mut args = Vec::new();
+                    for value in all.0.iter().skip(2) {
+                        match value {
+                            LuaValue::Number(n)
+                                if n.fract() == 0.0
+                                    && *n >= f64::from(i32::MIN)
+                                    && *n <= f64::from(i32::MAX) =>
+                            {
+                                args.push(*n as i32);
+                            }
+                            _ => {
+                                return Err(LuaError::msg("send_text arguments are whole numbers"));
+                            }
+                        }
+                    }
+                    if !TEXT_MESSAGES.contains(&name.as_str()) {
+                        return Err(LuaError::msg("this net message carries no text"));
+                    }
+                    if text.len() > MAX_TEXT || text.chars().any(char::is_control) {
+                        return Err(LuaError::msg("invalid screen net message text"));
+                    }
+                    let mut message = NetMessage::new(&name, &args)
+                        .filter(|m| gamecore::replica::net_message_from_ui(m.id))
+                        .ok_or_else(|| LuaError::msg("unknown or forbidden UI net message"))?;
+                    message.text = text;
                     let mut output = output.borrow_mut();
                     if output.len() >= MAX_MESSAGES {
                         return Err(LuaError::msg("too many screen net messages"));
@@ -302,6 +358,54 @@ mod tests {
             .unwrap();
         r.action(3, "test", "text", &[], Some("Valid again"))
             .unwrap();
+    }
+
+    #[test]
+    fn send_text_attaches_a_bounded_text_to_whitelisted_string_messages() {
+        let r = runtime();
+        r.lua
+            .exec(
+                r#"
+            __screens.test.actions.rename = function(player, args, net)
+                net.send_text("SendRenameCity", args.text, args.a)
+            end
+            __screens.test.actions.religion = function(player, args, net)
+                net.send_text("SendFoundReligion", args.text, 1, 2)
+            end
+            __screens.test.actions.plain = function(player, args, net)
+                net.send_text("sendResearch", "x", 1)
+            end
+            __screens.test.actions.turn = function(player, args, net)
+                net.send_text("sendTurnComplete", "x")
+            end
+        "#,
+                "=send-text-test",
+            )
+            .unwrap();
+        let m = r
+            .action(
+                3,
+                "test",
+                "rename",
+                &[("a".into(), 7)],
+                Some("New \u{e9} city"),
+            )
+            .unwrap();
+        let mut expected = NetMessage::new("SendRenameCity", &[7]).unwrap();
+        expected.text = "New \u{e9} city".into();
+        assert_eq!(m, vec![expected]);
+        let m = r.action(3, "test", "religion", &[], Some("")).unwrap();
+        assert_eq!(m[0].name(), "SendFoundReligion");
+        assert_eq!((m[0].args[0], m[0].args[1], m[0].text.as_str()), (1, 2, ""));
+        for bad in ["\n", "\t", &"x".repeat(257)] {
+            assert!(
+                r.action(3, "test", "rename", &[("a".into(), 7)], Some(bad))
+                    .is_err()
+            );
+        }
+        // A message that carries no text, and the ones a screen may not send at all, stay closed.
+        assert!(r.action(3, "test", "plain", &[], None).is_err());
+        assert!(r.action(3, "test", "turn", &[], None).is_err());
     }
 
     #[test]

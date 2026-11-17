@@ -28,9 +28,10 @@ pub use ui_host::UiChoice;
 pub use ui_host::v2::ProbeReload as Ui2ProbeReload;
 /// The playtest hooks' view of UI v2 (`?test=1`).
 pub use ui_host::v2::{
-    ProbePanel as Ui2ProbePanel, ProbeRect as Ui2ProbeRect, ProbeScript as Ui2ProbeScript, V2Probe,
-    ask_rects as ask_ui2_rects, enable_probe as enable_ui2_probe,
-    parse_ui_param as parse_ui2_param, probe as ui2_probe,
+    ProbePanel as Ui2ProbePanel, ProbeRect as Ui2ProbeRect, ProbeScript as Ui2ProbeScript,
+    TestIntentArg as Ui2TestIntentArg, V2Probe, ask_rects as ask_ui2_rects,
+    enable_probe as enable_ui2_probe, parse_ui_param as parse_ui2_param, probe as ui2_probe,
+    push_test_intent as push_ui2_test_intent,
 };
 pub use ui_host::v2::{
     ScriptHostFactory as Ui2ScriptHostFactory, Ui2Platform,
