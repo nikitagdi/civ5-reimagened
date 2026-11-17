@@ -6,6 +6,11 @@ pub(crate) use runtime::Screens;
 /// Names and sources compiled into the server. Add one entry per screen.
 pub const REGISTRY: &[(&str, &str)] = &[
     ("techs", include_str!("techs.lua")),
+    ("policies", include_str!("policies.lua")),
+    ("ideology", include_str!("ideology.lua")),
+    ("pantheon", include_str!("pantheon.lua")),
+    ("religion", include_str!("religion.lua")),
+    ("religion_overview", include_str!("religion_overview.lua")),
     ("hud", include_str!("hud.lua")),
 ];
 

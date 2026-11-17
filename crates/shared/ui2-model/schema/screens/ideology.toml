@@ -1,0 +1,43 @@
+[enum]
+IdeologyVictoryKind = ["culture", "diplomacy", "domination", "science"]
+
+[type.IdeologyVictory]
+kind = "IdeologyVictoryKind"
+
+[type.IdeologyAdopter]
+key = "i32"
+civ = "asset?"
+name = "str"
+known = "bool"
+color_bg = "color?"
+color_fg = "color?"
+
+[type.IdeologyTenet]
+id = "i32"
+key = "str"
+name = "str"
+effect = "text"
+
+[type.IdeologyLevel]
+level = "i32"
+tenets = { list = "IdeologyTenet", key = "id" }
+
+[type.IdeologyOption]
+id = "i32"
+key = "str"
+name = "str"
+icon = "asset"
+free_tenets = "i32"
+victories = { list = "IdeologyVictory", key = "kind" }
+adopted_by = { list = "IdeologyAdopter", key = "key" }
+levels = { list = "IdeologyLevel", key = "level" }
+
+[model.ideology]
+_optional = true
+emblem = "asset"
+civ_adjective = "text"
+civ_name = "str"
+current = "i32?"
+enabled = "bool"
+reason = "text?"
+options = { list = "IdeologyOption", key = "id" }

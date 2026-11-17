@@ -1,0 +1,20 @@
+[enum]
+PantheonMode = ["pantheon", "reformation"]
+
+[type.PantheonBelief]
+id = "i32"
+key = "str"
+icon = "asset"
+name = "str"
+short_name = "str"
+effect = "str"
+
+[model.pantheon]
+_optional = true
+mode = "PantheonMode"
+emblem = "asset"
+religion_name = "text?"
+enabled = "bool"
+reason = "text?"
+completed = "bool"
+beliefs = { list = "PantheonBelief", key = "id" }

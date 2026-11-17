@@ -1,0 +1,129 @@
+[enum]
+PoliciesTab = ["policies", "ideology"]
+PoliciesBranchState = ["opened", "complete", "closed", "era_locked", "blocked"]
+PoliciesPolicyState = ["adopted", "available", "locked", "blocked"]
+PoliciesSlotState = ["adopted", "open", "unaffordable", "locked", "empty"]
+PoliciesOpinionState = ["content", "dissidents", "civil_resistance", "revolutionary_wave"]
+
+[type.PoliciesText]
+id = "i32"
+name = "str"
+
+[type.PoliciesCulture]
+stored = "i32"
+per_turn = "i32"
+next_cost = "i32"
+turns = "i32?"
+can_afford = "bool"
+
+[type.PoliciesPolicy]
+id = "i32"
+key = "str"
+name = "str"
+icon = "asset"
+grid_x = "i32"
+grid_y = "i32"
+state = "PoliciesPolicyState"
+effect = "text"
+requires = { list = "PoliciesText", key = "id" }
+reason = "text?"
+
+[type.PoliciesLink]
+key = "str"
+from_x = "i32"
+from_y = "i32"
+to_x = "i32"
+to_y = "i32"
+lit = "bool"
+
+[type.PoliciesBranch]
+id = "i32"
+key = "str"
+name = "str"
+icon = "asset"
+state = "PoliciesBranchState"
+adopted = "i32"
+total = "i32"
+opener = "text"
+finisher = "text"
+finisher_done = "bool"
+era = "text"
+can_unlock = "bool"
+unlock_cost = "i32?"
+disables = { list = "PoliciesText", key = "id" }
+reason = "text?"
+tooltip = "text"
+policies = { list = "PoliciesPolicy", key = "id" }
+links = { list = "PoliciesLink", key = "key" }
+
+[type.PoliciesTenet]
+id = "i32"
+key = "str"
+name = "str"
+effect = "text"
+
+[type.PoliciesSlot]
+key = "str"
+state = "PoliciesSlotState"
+tenet_id = "i32?"
+name = "text?"
+effect = "text?"
+reason = "text?"
+
+[type.PoliciesLevel]
+level = "i32"
+adopted = "i32"
+slot_count = "i32"
+slots = { list = "PoliciesSlot", key = "key" }
+available = { list = "PoliciesTenet", key = "id" }
+
+[type.PoliciesCount]
+level = "i32"
+count = "i32"
+
+[type.PoliciesOpinion]
+state = "PoliciesOpinionState"
+label = "text"
+pressure = "i32?"
+support = "i32?"
+unhappiness = "i32"
+tooltip = "text"
+unhappiness_tooltip = "text"
+preferred = "text?"
+
+[type.PoliciesSwitch]
+available = "bool"
+reason = "text?"
+target = "text?"
+target_id = "i32?"
+anarchy_turns = "i32"
+tenets_now = "i32"
+tenets_kept = "i32"
+unhappiness_removed = "i32"
+
+[type.PoliciesIdeology]
+id = "i32"
+key = "str"
+name = "str"
+title = "text"
+icon = "asset"
+emblem = "asset"
+adopted_date = "text"
+summary = "text"
+adopted_by_level = { list = "PoliciesCount", key = "level" }
+levels = { list = "PoliciesLevel", key = "level" }
+public_opinion = "PoliciesOpinion"
+switch = "PoliciesSwitch"
+
+[model.policies]
+_optional = true
+open_tab = "PoliciesTab"
+policies_enabled = "bool"
+ideologies_enabled = "bool"
+player_title = "text?"
+free_policies = "i32"
+free_tenets = "i32"
+must_choose = "bool"
+culture = "PoliciesCulture"
+branches = { list = "PoliciesBranch", key = "id" }
+ideology = "PoliciesIdeology?"

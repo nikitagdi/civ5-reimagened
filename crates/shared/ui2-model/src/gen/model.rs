@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 1);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x861afcd87ed44c0a;
+pub const SCHEMA_HASH: u64 = 0x13bcb5dd16a9f15b;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -1424,15 +1424,20 @@ pub enum WindowId {
     Menu = 2,
     Chat = 3,
     NotesLog = 4,
-    Techs = 5,
+    Ideology = 5,
+    Pantheon = 6,
+    Policies = 7,
+    Religion = 8,
+    ReligionOverview = 9,
+    Techs = 10,
 }
 
 impl WindowId {
     /// The names, indexed by the discriminant.
-    pub const NAMES: [&'static str; 6] = ["production", "research", "menu", "chat", "notes_log", "techs"];
+    pub const NAMES: [&'static str; 11] = ["production", "research", "menu", "chat", "notes_log", "ideology", "pantheon", "policies", "religion", "religion_overview", "techs"];
 
     /// Every variant, in declaration order.
-    pub const ALL: &'static [WindowId] = &[WindowId::Production, WindowId::Research, WindowId::Menu, WindowId::Chat, WindowId::NotesLog, WindowId::Techs];
+    pub const ALL: &'static [WindowId] = &[WindowId::Production, WindowId::Research, WindowId::Menu, WindowId::Chat, WindowId::NotesLog, WindowId::Ideology, WindowId::Pantheon, WindowId::Policies, WindowId::Religion, WindowId::ReligionOverview, WindowId::Techs];
 
     /// The schema name of the variant (the same as [`name`](Self::name)).
     #[must_use]
@@ -1449,7 +1454,12 @@ impl WindowId {
             2 => Some(WindowId::Menu),
             3 => Some(WindowId::Chat),
             4 => Some(WindowId::NotesLog),
-            5 => Some(WindowId::Techs),
+            5 => Some(WindowId::Ideology),
+            6 => Some(WindowId::Pantheon),
+            7 => Some(WindowId::Policies),
+            8 => Some(WindowId::Religion),
+            9 => Some(WindowId::ReligionOverview),
+            10 => Some(WindowId::Techs),
             _ => None,
         }
     }
@@ -1469,6 +1479,11 @@ impl WindowId {
             "menu" => Some(WindowId::Menu),
             "chat" => Some(WindowId::Chat),
             "notes_log" => Some(WindowId::NotesLog),
+            "ideology" => Some(WindowId::Ideology),
+            "pantheon" => Some(WindowId::Pantheon),
+            "policies" => Some(WindowId::Policies),
+            "religion" => Some(WindowId::Religion),
+            "religion_overview" => Some(WindowId::ReligionOverview),
             "techs" => Some(WindowId::Techs),
             _ => None,
         }
@@ -1494,7 +1509,7 @@ impl crate::model::Model for WindowId {
         match v {
             crate::value::Value::Enum(n) => WindowId::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
                 value: *n,
-                count: 6,
+                count: 11,
             }),
             other => Err(crate::value::ValueError::mismatch("enum", other)),
         }
@@ -1818,6 +1833,1040 @@ impl crate::model::Model for BuyWith {
             crate::value::Value::Enum(n) => BuyWith::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
                 value: *n,
                 count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum IdeologyVictoryKind {
+    #[default]
+    Culture = 0,
+    Diplomacy = 1,
+    Domination = 2,
+    Science = 3,
+}
+
+impl IdeologyVictoryKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["culture", "diplomacy", "domination", "science"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [IdeologyVictoryKind] = &[IdeologyVictoryKind::Culture, IdeologyVictoryKind::Diplomacy, IdeologyVictoryKind::Domination, IdeologyVictoryKind::Science];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<IdeologyVictoryKind> {
+        match v {
+            0 => Some(IdeologyVictoryKind::Culture),
+            1 => Some(IdeologyVictoryKind::Diplomacy),
+            2 => Some(IdeologyVictoryKind::Domination),
+            3 => Some(IdeologyVictoryKind::Science),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<IdeologyVictoryKind> {
+        match s {
+            "culture" => Some(IdeologyVictoryKind::Culture),
+            "diplomacy" => Some(IdeologyVictoryKind::Diplomacy),
+            "domination" => Some(IdeologyVictoryKind::Domination),
+            "science" => Some(IdeologyVictoryKind::Science),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for IdeologyVictoryKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => IdeologyVictoryKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum PantheonMode {
+    #[default]
+    Pantheon = 0,
+    Reformation = 1,
+}
+
+impl PantheonMode {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["pantheon", "reformation"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [PantheonMode] = &[PantheonMode::Pantheon, PantheonMode::Reformation];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<PantheonMode> {
+        match v {
+            0 => Some(PantheonMode::Pantheon),
+            1 => Some(PantheonMode::Reformation),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<PantheonMode> {
+        match s {
+            "pantheon" => Some(PantheonMode::Pantheon),
+            "reformation" => Some(PantheonMode::Reformation),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for PantheonMode {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => PantheonMode::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum PoliciesTab {
+    #[default]
+    Policies = 0,
+    Ideology = 1,
+}
+
+impl PoliciesTab {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["policies", "ideology"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [PoliciesTab] = &[PoliciesTab::Policies, PoliciesTab::Ideology];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<PoliciesTab> {
+        match v {
+            0 => Some(PoliciesTab::Policies),
+            1 => Some(PoliciesTab::Ideology),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<PoliciesTab> {
+        match s {
+            "policies" => Some(PoliciesTab::Policies),
+            "ideology" => Some(PoliciesTab::Ideology),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for PoliciesTab {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => PoliciesTab::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum PoliciesBranchState {
+    #[default]
+    Opened = 0,
+    Complete = 1,
+    Closed = 2,
+    EraLocked = 3,
+    Blocked = 4,
+}
+
+impl PoliciesBranchState {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 5] = ["opened", "complete", "closed", "era_locked", "blocked"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [PoliciesBranchState] = &[PoliciesBranchState::Opened, PoliciesBranchState::Complete, PoliciesBranchState::Closed, PoliciesBranchState::EraLocked, PoliciesBranchState::Blocked];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<PoliciesBranchState> {
+        match v {
+            0 => Some(PoliciesBranchState::Opened),
+            1 => Some(PoliciesBranchState::Complete),
+            2 => Some(PoliciesBranchState::Closed),
+            3 => Some(PoliciesBranchState::EraLocked),
+            4 => Some(PoliciesBranchState::Blocked),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<PoliciesBranchState> {
+        match s {
+            "opened" => Some(PoliciesBranchState::Opened),
+            "complete" => Some(PoliciesBranchState::Complete),
+            "closed" => Some(PoliciesBranchState::Closed),
+            "era_locked" => Some(PoliciesBranchState::EraLocked),
+            "blocked" => Some(PoliciesBranchState::Blocked),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for PoliciesBranchState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => PoliciesBranchState::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 5,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum PoliciesPolicyState {
+    #[default]
+    Adopted = 0,
+    Available = 1,
+    Locked = 2,
+    Blocked = 3,
+}
+
+impl PoliciesPolicyState {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["adopted", "available", "locked", "blocked"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [PoliciesPolicyState] = &[PoliciesPolicyState::Adopted, PoliciesPolicyState::Available, PoliciesPolicyState::Locked, PoliciesPolicyState::Blocked];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<PoliciesPolicyState> {
+        match v {
+            0 => Some(PoliciesPolicyState::Adopted),
+            1 => Some(PoliciesPolicyState::Available),
+            2 => Some(PoliciesPolicyState::Locked),
+            3 => Some(PoliciesPolicyState::Blocked),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<PoliciesPolicyState> {
+        match s {
+            "adopted" => Some(PoliciesPolicyState::Adopted),
+            "available" => Some(PoliciesPolicyState::Available),
+            "locked" => Some(PoliciesPolicyState::Locked),
+            "blocked" => Some(PoliciesPolicyState::Blocked),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for PoliciesPolicyState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => PoliciesPolicyState::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum PoliciesSlotState {
+    #[default]
+    Adopted = 0,
+    Open = 1,
+    Unaffordable = 2,
+    Locked = 3,
+    Empty = 4,
+}
+
+impl PoliciesSlotState {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 5] = ["adopted", "open", "unaffordable", "locked", "empty"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [PoliciesSlotState] = &[PoliciesSlotState::Adopted, PoliciesSlotState::Open, PoliciesSlotState::Unaffordable, PoliciesSlotState::Locked, PoliciesSlotState::Empty];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<PoliciesSlotState> {
+        match v {
+            0 => Some(PoliciesSlotState::Adopted),
+            1 => Some(PoliciesSlotState::Open),
+            2 => Some(PoliciesSlotState::Unaffordable),
+            3 => Some(PoliciesSlotState::Locked),
+            4 => Some(PoliciesSlotState::Empty),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<PoliciesSlotState> {
+        match s {
+            "adopted" => Some(PoliciesSlotState::Adopted),
+            "open" => Some(PoliciesSlotState::Open),
+            "unaffordable" => Some(PoliciesSlotState::Unaffordable),
+            "locked" => Some(PoliciesSlotState::Locked),
+            "empty" => Some(PoliciesSlotState::Empty),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for PoliciesSlotState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => PoliciesSlotState::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 5,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum PoliciesOpinionState {
+    #[default]
+    Content = 0,
+    Dissidents = 1,
+    CivilResistance = 2,
+    RevolutionaryWave = 3,
+}
+
+impl PoliciesOpinionState {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["content", "dissidents", "civil_resistance", "revolutionary_wave"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [PoliciesOpinionState] = &[PoliciesOpinionState::Content, PoliciesOpinionState::Dissidents, PoliciesOpinionState::CivilResistance, PoliciesOpinionState::RevolutionaryWave];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<PoliciesOpinionState> {
+        match v {
+            0 => Some(PoliciesOpinionState::Content),
+            1 => Some(PoliciesOpinionState::Dissidents),
+            2 => Some(PoliciesOpinionState::CivilResistance),
+            3 => Some(PoliciesOpinionState::RevolutionaryWave),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<PoliciesOpinionState> {
+        match s {
+            "content" => Some(PoliciesOpinionState::Content),
+            "dissidents" => Some(PoliciesOpinionState::Dissidents),
+            "civil_resistance" => Some(PoliciesOpinionState::CivilResistance),
+            "revolutionary_wave" => Some(PoliciesOpinionState::RevolutionaryWave),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for PoliciesOpinionState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => PoliciesOpinionState::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum ReligionMode {
+    #[default]
+    Found = 0,
+    Enhance = 1,
+}
+
+impl ReligionMode {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["found", "enhance"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [ReligionMode] = &[ReligionMode::Found, ReligionMode::Enhance];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<ReligionMode> {
+        match v {
+            0 => Some(ReligionMode::Found),
+            1 => Some(ReligionMode::Enhance),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<ReligionMode> {
+        match s {
+            "found" => Some(ReligionMode::Found),
+            "enhance" => Some(ReligionMode::Enhance),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for ReligionMode {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => ReligionMode::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum ReligionSlotType {
+    #[default]
+    Pantheon = 0,
+    Founder = 1,
+    Follower = 2,
+    Enhancer = 3,
+    Bonus = 4,
+}
+
+impl ReligionSlotType {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 5] = ["pantheon", "founder", "follower", "enhancer", "bonus"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [ReligionSlotType] = &[ReligionSlotType::Pantheon, ReligionSlotType::Founder, ReligionSlotType::Follower, ReligionSlotType::Enhancer, ReligionSlotType::Bonus];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<ReligionSlotType> {
+        match v {
+            0 => Some(ReligionSlotType::Pantheon),
+            1 => Some(ReligionSlotType::Founder),
+            2 => Some(ReligionSlotType::Follower),
+            3 => Some(ReligionSlotType::Enhancer),
+            4 => Some(ReligionSlotType::Bonus),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<ReligionSlotType> {
+        match s {
+            "pantheon" => Some(ReligionSlotType::Pantheon),
+            "founder" => Some(ReligionSlotType::Founder),
+            "follower" => Some(ReligionSlotType::Follower),
+            "enhancer" => Some(ReligionSlotType::Enhancer),
+            "bonus" => Some(ReligionSlotType::Bonus),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for ReligionSlotType {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => ReligionSlotType::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 5,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum ReligionSlotState {
+    #[default]
+    Choose = 0,
+    Fixed = 1,
+    Locked = 2,
+}
+
+impl ReligionSlotState {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["choose", "fixed", "locked"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [ReligionSlotState] = &[ReligionSlotState::Choose, ReligionSlotState::Fixed, ReligionSlotState::Locked];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<ReligionSlotState> {
+        match v {
+            0 => Some(ReligionSlotState::Choose),
+            1 => Some(ReligionSlotState::Fixed),
+            2 => Some(ReligionSlotState::Locked),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<ReligionSlotState> {
+        match s {
+            "choose" => Some(ReligionSlotState::Choose),
+            "fixed" => Some(ReligionSlotState::Fixed),
+            "locked" => Some(ReligionSlotState::Locked),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for ReligionSlotState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => ReligionSlotState::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum ReligionOverviewStatusKind {
+    #[default]
+    FoundedReligion = 0,
+    CreatedPantheon = 1,
+    CanCreatePantheon = 2,
+    NotEnoughFaith = 3,
+    TooLate = 4,
+}
+
+impl ReligionOverviewStatusKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 5] = ["founded_religion", "created_pantheon", "can_create_pantheon", "not_enough_faith", "too_late"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [ReligionOverviewStatusKind] = &[ReligionOverviewStatusKind::FoundedReligion, ReligionOverviewStatusKind::CreatedPantheon, ReligionOverviewStatusKind::CanCreatePantheon, ReligionOverviewStatusKind::NotEnoughFaith, ReligionOverviewStatusKind::TooLate];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<ReligionOverviewStatusKind> {
+        match v {
+            0 => Some(ReligionOverviewStatusKind::FoundedReligion),
+            1 => Some(ReligionOverviewStatusKind::CreatedPantheon),
+            2 => Some(ReligionOverviewStatusKind::CanCreatePantheon),
+            3 => Some(ReligionOverviewStatusKind::NotEnoughFaith),
+            4 => Some(ReligionOverviewStatusKind::TooLate),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<ReligionOverviewStatusKind> {
+        match s {
+            "founded_religion" => Some(ReligionOverviewStatusKind::FoundedReligion),
+            "created_pantheon" => Some(ReligionOverviewStatusKind::CreatedPantheon),
+            "can_create_pantheon" => Some(ReligionOverviewStatusKind::CanCreatePantheon),
+            "not_enough_faith" => Some(ReligionOverviewStatusKind::NotEnoughFaith),
+            "too_late" => Some(ReligionOverviewStatusKind::TooLate),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for ReligionOverviewStatusKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => ReligionOverviewStatusKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 5,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum ReligionOverviewBeliefType {
+    #[default]
+    Pantheon = 0,
+    Founder = 1,
+    Follower = 2,
+    Enhancer = 3,
+    Reformation = 4,
+}
+
+impl ReligionOverviewBeliefType {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 5] = ["pantheon", "founder", "follower", "enhancer", "reformation"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [ReligionOverviewBeliefType] = &[ReligionOverviewBeliefType::Pantheon, ReligionOverviewBeliefType::Founder, ReligionOverviewBeliefType::Follower, ReligionOverviewBeliefType::Enhancer, ReligionOverviewBeliefType::Reformation];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<ReligionOverviewBeliefType> {
+        match v {
+            0 => Some(ReligionOverviewBeliefType::Pantheon),
+            1 => Some(ReligionOverviewBeliefType::Founder),
+            2 => Some(ReligionOverviewBeliefType::Follower),
+            3 => Some(ReligionOverviewBeliefType::Enhancer),
+            4 => Some(ReligionOverviewBeliefType::Reformation),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<ReligionOverviewBeliefType> {
+        match s {
+            "pantheon" => Some(ReligionOverviewBeliefType::Pantheon),
+            "founder" => Some(ReligionOverviewBeliefType::Founder),
+            "follower" => Some(ReligionOverviewBeliefType::Follower),
+            "enhancer" => Some(ReligionOverviewBeliefType::Enhancer),
+            "reformation" => Some(ReligionOverviewBeliefType::Reformation),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for ReligionOverviewBeliefType {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => ReligionOverviewBeliefType::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 5,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum ReligionOverviewPurchaseKind {
+    #[default]
+    None = 0,
+    SaveProphet = 1,
+    Unit = 2,
+    Building = 3,
+}
+
+impl ReligionOverviewPurchaseKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["none", "save_prophet", "unit", "building"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [ReligionOverviewPurchaseKind] = &[ReligionOverviewPurchaseKind::None, ReligionOverviewPurchaseKind::SaveProphet, ReligionOverviewPurchaseKind::Unit, ReligionOverviewPurchaseKind::Building];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<ReligionOverviewPurchaseKind> {
+        match v {
+            0 => Some(ReligionOverviewPurchaseKind::None),
+            1 => Some(ReligionOverviewPurchaseKind::SaveProphet),
+            2 => Some(ReligionOverviewPurchaseKind::Unit),
+            3 => Some(ReligionOverviewPurchaseKind::Building),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<ReligionOverviewPurchaseKind> {
+        match s {
+            "none" => Some(ReligionOverviewPurchaseKind::None),
+            "save_prophet" => Some(ReligionOverviewPurchaseKind::SaveProphet),
+            "unit" => Some(ReligionOverviewPurchaseKind::Unit),
+            "building" => Some(ReligionOverviewPurchaseKind::Building),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for ReligionOverviewPurchaseKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => ReligionOverviewPurchaseKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
             }),
             other => Err(crate::value::ValueError::mismatch("enum", other)),
         }
@@ -3575,6 +4624,11 @@ impl crate::model::Model for WinCity {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Windows {
+    pub ideology: WinArgs,
+    pub pantheon: WinArgs,
+    pub policies: WinArgs,
+    pub religion: WinArgs,
+    pub religion_overview: WinArgs,
     pub techs: WinArgs,
     pub production: WinCity,
     pub research: Win,
@@ -3587,22 +4641,37 @@ impl crate::model::Model for Windows {
     fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
         let base = at.field;
         at.field = base.child(0);
-        crate::model::Model::diff(&self.techs, &old.techs, at, out);
+        crate::model::Model::diff(&self.ideology, &old.ideology, at, out);
         at.field = base.child(4);
+        crate::model::Model::diff(&self.pantheon, &old.pantheon, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.policies, &old.policies, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.religion, &old.religion, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.religion_overview, &old.religion_overview, at, out);
+        at.field = base.child(20);
+        crate::model::Model::diff(&self.techs, &old.techs, at, out);
+        at.field = base.child(24);
         crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(7);
+        at.field = base.child(27);
         crate::model::Model::diff(&self.research, &old.research, at, out);
-        at.field = base.child(9);
+        at.field = base.child(29);
         crate::model::Model::diff(&self.menu, &old.menu, at, out);
-        at.field = base.child(11);
+        at.field = base.child(31);
         crate::model::Model::diff(&self.chat, &old.chat, at, out);
-        at.field = base.child(13);
+        at.field = base.child(33);
         crate::model::Model::diff(&self.notes_log, &old.notes_log, at, out);
         at.field = base;
     }
 
     fn to_value(&self) -> crate::value::Value {
         crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.ideology),
+            crate::model::Model::to_value(&self.pantheon),
+            crate::model::Model::to_value(&self.policies),
+            crate::model::Model::to_value(&self.religion),
+            crate::model::Model::to_value(&self.religion_overview),
             crate::model::Model::to_value(&self.techs),
             crate::model::Model::to_value(&self.production),
             crate::model::Model::to_value(&self.research),
@@ -3613,14 +4682,19 @@ impl crate::model::Model for Windows {
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(6)?;
+        let f = v.as_struct(11)?;
         Ok(Windows {
-            techs: crate::model::Model::from_value(&f[0])?,
-            production: crate::model::Model::from_value(&f[1])?,
-            research: crate::model::Model::from_value(&f[2])?,
-            menu: crate::model::Model::from_value(&f[3])?,
-            chat: crate::model::Model::from_value(&f[4])?,
-            notes_log: crate::model::Model::from_value(&f[5])?,
+            ideology: crate::model::Model::from_value(&f[0])?,
+            pantheon: crate::model::Model::from_value(&f[1])?,
+            policies: crate::model::Model::from_value(&f[2])?,
+            religion: crate::model::Model::from_value(&f[3])?,
+            religion_overview: crate::model::Model::from_value(&f[4])?,
+            techs: crate::model::Model::from_value(&f[5])?,
+            production: crate::model::Model::from_value(&f[6])?,
+            research: crate::model::Model::from_value(&f[7])?,
+            menu: crate::model::Model::from_value(&f[8])?,
+            chat: crate::model::Model::from_value(&f[9])?,
+            notes_log: crate::model::Model::from_value(&f[10])?,
         })
     }
 }
@@ -4281,6 +5355,1904 @@ impl crate::model::Model for HudUnit {
             promotions: crate::model::Model::from_value(&f[1])?,
             actions: crate::model::Model::from_value(&f[2])?,
         })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct IdeologyVictory {
+    pub kind: IdeologyVictoryKind,
+}
+
+impl crate::model::Model for IdeologyVictory {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(1)?;
+        Ok(IdeologyVictory {
+            kind: crate::model::Model::from_value(&f[0])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for IdeologyVictory {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_enum(self.kind as u16)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct IdeologyAdopter {
+    pub key: i32,
+    pub civ: Option<crate::value::AssetRef>,
+    pub name: ::std::sync::Arc<str>,
+    pub known: bool,
+    pub color_bg: Option<u32>,
+    pub color_fg: Option<u32>,
+}
+
+impl crate::model::Model for IdeologyAdopter {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.known, &old.known, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.known),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(IdeologyAdopter {
+            key: crate::model::Model::from_value(&f[0])?,
+            civ: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            known: crate::model::Model::from_value(&f[3])?,
+            color_bg: crate::model::Model::from_value(&f[4])?,
+            color_fg: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for IdeologyAdopter {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.key))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct IdeologyTenet {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub name: ::std::sync::Arc<str>,
+    pub effect: crate::value::Text,
+}
+
+impl crate::model::Model for IdeologyTenet {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.effect),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(IdeologyTenet {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            effect: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for IdeologyTenet {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct IdeologyLevel {
+    pub level: i32,
+    pub tenets: crate::model::KeyedList<IdeologyTenet>,
+}
+
+impl crate::model::Model for IdeologyLevel {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.level, &old.level, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.tenets, &old.tenets, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.level),
+            crate::model::Model::to_value(&self.tenets),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(IdeologyLevel {
+            level: crate::model::Model::from_value(&f[0])?,
+            tenets: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for IdeologyLevel {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.level))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct IdeologyOption {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub name: ::std::sync::Arc<str>,
+    pub icon: crate::value::AssetRef,
+    pub free_tenets: i32,
+    pub victories: crate::model::KeyedList<IdeologyVictory>,
+    pub adopted_by: crate::model::KeyedList<IdeologyAdopter>,
+    pub levels: crate::model::KeyedList<IdeologyLevel>,
+}
+
+impl crate::model::Model for IdeologyOption {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.free_tenets, &old.free_tenets, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.victories, &old.victories, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.adopted_by, &old.adopted_by, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.levels, &old.levels, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.free_tenets),
+            crate::model::Model::to_value(&self.victories),
+            crate::model::Model::to_value(&self.adopted_by),
+            crate::model::Model::to_value(&self.levels),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(IdeologyOption {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+            free_tenets: crate::model::Model::from_value(&f[4])?,
+            victories: crate::model::Model::from_value(&f[5])?,
+            adopted_by: crate::model::Model::from_value(&f[6])?,
+            levels: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for IdeologyOption {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PantheonBelief {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub icon: crate::value::AssetRef,
+    pub name: ::std::sync::Arc<str>,
+    pub short_name: ::std::sync::Arc<str>,
+    pub effect: ::std::sync::Arc<str>,
+}
+
+impl crate::model::Model for PantheonBelief {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.short_name, &old.short_name, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.short_name),
+            crate::model::Model::to_value(&self.effect),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(PantheonBelief {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            name: crate::model::Model::from_value(&f[3])?,
+            short_name: crate::model::Model::from_value(&f[4])?,
+            effect: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for PantheonBelief {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PoliciesText {
+    pub id: i32,
+    pub name: ::std::sync::Arc<str>,
+}
+
+impl crate::model::Model for PoliciesText {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(PoliciesText {
+            id: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for PoliciesText {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PoliciesCulture {
+    pub stored: i32,
+    pub per_turn: i32,
+    pub next_cost: i32,
+    pub turns: Option<i32>,
+    pub can_afford: bool,
+}
+
+impl crate::model::Model for PoliciesCulture {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.stored, &old.stored, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.per_turn, &old.per_turn, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.next_cost, &old.next_cost, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.can_afford, &old.can_afford, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.stored),
+            crate::model::Model::to_value(&self.per_turn),
+            crate::model::Model::to_value(&self.next_cost),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.can_afford),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(PoliciesCulture {
+            stored: crate::model::Model::from_value(&f[0])?,
+            per_turn: crate::model::Model::from_value(&f[1])?,
+            next_cost: crate::model::Model::from_value(&f[2])?,
+            turns: crate::model::Model::from_value(&f[3])?,
+            can_afford: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PoliciesPolicy {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub name: ::std::sync::Arc<str>,
+    pub icon: crate::value::AssetRef,
+    pub grid_x: i32,
+    pub grid_y: i32,
+    pub state: PoliciesPolicyState,
+    pub effect: crate::value::Text,
+    pub requires: crate::model::KeyedList<PoliciesText>,
+    pub reason: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for PoliciesPolicy {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.grid_x, &old.grid_x, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.grid_y, &old.grid_y, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.state, &old.state, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.requires, &old.requires, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.grid_x),
+            crate::model::Model::to_value(&self.grid_y),
+            crate::model::Model::to_value(&self.state),
+            crate::model::Model::to_value(&self.effect),
+            crate::model::Model::to_value(&self.requires),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(10)?;
+        Ok(PoliciesPolicy {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+            grid_x: crate::model::Model::from_value(&f[4])?,
+            grid_y: crate::model::Model::from_value(&f[5])?,
+            state: crate::model::Model::from_value(&f[6])?,
+            effect: crate::model::Model::from_value(&f[7])?,
+            requires: crate::model::Model::from_value(&f[8])?,
+            reason: crate::model::Model::from_value(&f[9])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for PoliciesPolicy {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PoliciesLink {
+    pub key: ::std::sync::Arc<str>,
+    pub from_x: i32,
+    pub from_y: i32,
+    pub to_x: i32,
+    pub to_y: i32,
+    pub lit: bool,
+}
+
+impl crate::model::Model for PoliciesLink {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.from_x, &old.from_x, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.from_y, &old.from_y, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.to_x, &old.to_x, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.to_y, &old.to_y, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.lit, &old.lit, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.from_x),
+            crate::model::Model::to_value(&self.from_y),
+            crate::model::Model::to_value(&self.to_x),
+            crate::model::Model::to_value(&self.to_y),
+            crate::model::Model::to_value(&self.lit),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(PoliciesLink {
+            key: crate::model::Model::from_value(&f[0])?,
+            from_x: crate::model::Model::from_value(&f[1])?,
+            from_y: crate::model::Model::from_value(&f[2])?,
+            to_x: crate::model::Model::from_value(&f[3])?,
+            to_y: crate::model::Model::from_value(&f[4])?,
+            lit: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for PoliciesLink {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PoliciesBranch {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub name: ::std::sync::Arc<str>,
+    pub icon: crate::value::AssetRef,
+    pub state: PoliciesBranchState,
+    pub adopted: i32,
+    pub total: i32,
+    pub opener: crate::value::Text,
+    pub finisher: crate::value::Text,
+    pub finisher_done: bool,
+    pub era: crate::value::Text,
+    pub can_unlock: bool,
+    pub unlock_cost: Option<i32>,
+    pub disables: crate::model::KeyedList<PoliciesText>,
+    pub reason: Option<crate::value::Text>,
+    pub tooltip: crate::value::Text,
+    pub policies: crate::model::KeyedList<PoliciesPolicy>,
+    pub links: crate::model::KeyedList<PoliciesLink>,
+}
+
+impl crate::model::Model for PoliciesBranch {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.state, &old.state, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.adopted, &old.adopted, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.total, &old.total, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.opener, &old.opener, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.finisher, &old.finisher, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.finisher_done, &old.finisher_done, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.era, &old.era, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.can_unlock, &old.can_unlock, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.unlock_cost, &old.unlock_cost, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.disables, &old.disables, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.tooltip, &old.tooltip, at, out);
+        at.field = base.child(18);
+        crate::model::Model::diff(&self.policies, &old.policies, at, out);
+        at.field = base.child(31);
+        crate::model::Model::diff(&self.links, &old.links, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.state),
+            crate::model::Model::to_value(&self.adopted),
+            crate::model::Model::to_value(&self.total),
+            crate::model::Model::to_value(&self.opener),
+            crate::model::Model::to_value(&self.finisher),
+            crate::model::Model::to_value(&self.finisher_done),
+            crate::model::Model::to_value(&self.era),
+            crate::model::Model::to_value(&self.can_unlock),
+            crate::model::Model::to_value(&self.unlock_cost),
+            crate::model::Model::to_value(&self.disables),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.tooltip),
+            crate::model::Model::to_value(&self.policies),
+            crate::model::Model::to_value(&self.links),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(18)?;
+        Ok(PoliciesBranch {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+            state: crate::model::Model::from_value(&f[4])?,
+            adopted: crate::model::Model::from_value(&f[5])?,
+            total: crate::model::Model::from_value(&f[6])?,
+            opener: crate::model::Model::from_value(&f[7])?,
+            finisher: crate::model::Model::from_value(&f[8])?,
+            finisher_done: crate::model::Model::from_value(&f[9])?,
+            era: crate::model::Model::from_value(&f[10])?,
+            can_unlock: crate::model::Model::from_value(&f[11])?,
+            unlock_cost: crate::model::Model::from_value(&f[12])?,
+            disables: crate::model::Model::from_value(&f[13])?,
+            reason: crate::model::Model::from_value(&f[14])?,
+            tooltip: crate::model::Model::from_value(&f[15])?,
+            policies: crate::model::Model::from_value(&f[16])?,
+            links: crate::model::Model::from_value(&f[17])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for PoliciesBranch {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PoliciesTenet {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub name: ::std::sync::Arc<str>,
+    pub effect: crate::value::Text,
+}
+
+impl crate::model::Model for PoliciesTenet {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.effect),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(PoliciesTenet {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            effect: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for PoliciesTenet {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PoliciesSlot {
+    pub key: ::std::sync::Arc<str>,
+    pub state: PoliciesSlotState,
+    pub tenet_id: Option<i32>,
+    pub name: Option<crate::value::Text>,
+    pub effect: Option<crate::value::Text>,
+    pub reason: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for PoliciesSlot {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.state, &old.state, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.tenet_id, &old.tenet_id, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.state),
+            crate::model::Model::to_value(&self.tenet_id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.effect),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(PoliciesSlot {
+            key: crate::model::Model::from_value(&f[0])?,
+            state: crate::model::Model::from_value(&f[1])?,
+            tenet_id: crate::model::Model::from_value(&f[2])?,
+            name: crate::model::Model::from_value(&f[3])?,
+            effect: crate::model::Model::from_value(&f[4])?,
+            reason: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for PoliciesSlot {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PoliciesLevel {
+    pub level: i32,
+    pub adopted: i32,
+    pub slot_count: i32,
+    pub slots: crate::model::KeyedList<PoliciesSlot>,
+    pub available: crate::model::KeyedList<PoliciesTenet>,
+}
+
+impl crate::model::Model for PoliciesLevel {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.level, &old.level, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.adopted, &old.adopted, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.slot_count, &old.slot_count, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.slots, &old.slots, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.available, &old.available, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.level),
+            crate::model::Model::to_value(&self.adopted),
+            crate::model::Model::to_value(&self.slot_count),
+            crate::model::Model::to_value(&self.slots),
+            crate::model::Model::to_value(&self.available),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(PoliciesLevel {
+            level: crate::model::Model::from_value(&f[0])?,
+            adopted: crate::model::Model::from_value(&f[1])?,
+            slot_count: crate::model::Model::from_value(&f[2])?,
+            slots: crate::model::Model::from_value(&f[3])?,
+            available: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for PoliciesLevel {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.level))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PoliciesCount {
+    pub level: i32,
+    pub count: i32,
+}
+
+impl crate::model::Model for PoliciesCount {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.level, &old.level, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.count, &old.count, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.level),
+            crate::model::Model::to_value(&self.count),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(PoliciesCount {
+            level: crate::model::Model::from_value(&f[0])?,
+            count: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for PoliciesCount {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.level))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PoliciesOpinion {
+    pub state: PoliciesOpinionState,
+    pub label: crate::value::Text,
+    pub pressure: Option<i32>,
+    pub support: Option<i32>,
+    pub unhappiness: i32,
+    pub tooltip: crate::value::Text,
+    pub unhappiness_tooltip: crate::value::Text,
+    pub preferred: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for PoliciesOpinion {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.state, &old.state, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.pressure, &old.pressure, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.support, &old.support, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.unhappiness, &old.unhappiness, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.tooltip, &old.tooltip, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.unhappiness_tooltip, &old.unhappiness_tooltip, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.preferred, &old.preferred, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.state),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.pressure),
+            crate::model::Model::to_value(&self.support),
+            crate::model::Model::to_value(&self.unhappiness),
+            crate::model::Model::to_value(&self.tooltip),
+            crate::model::Model::to_value(&self.unhappiness_tooltip),
+            crate::model::Model::to_value(&self.preferred),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(PoliciesOpinion {
+            state: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            pressure: crate::model::Model::from_value(&f[2])?,
+            support: crate::model::Model::from_value(&f[3])?,
+            unhappiness: crate::model::Model::from_value(&f[4])?,
+            tooltip: crate::model::Model::from_value(&f[5])?,
+            unhappiness_tooltip: crate::model::Model::from_value(&f[6])?,
+            preferred: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PoliciesSwitch {
+    pub available: bool,
+    pub reason: Option<crate::value::Text>,
+    pub target: Option<crate::value::Text>,
+    pub target_id: Option<i32>,
+    pub anarchy_turns: i32,
+    pub tenets_now: i32,
+    pub tenets_kept: i32,
+    pub unhappiness_removed: i32,
+}
+
+impl crate::model::Model for PoliciesSwitch {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.available, &old.available, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.target, &old.target, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.target_id, &old.target_id, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.anarchy_turns, &old.anarchy_turns, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.tenets_now, &old.tenets_now, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.tenets_kept, &old.tenets_kept, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.unhappiness_removed, &old.unhappiness_removed, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.available),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.target),
+            crate::model::Model::to_value(&self.target_id),
+            crate::model::Model::to_value(&self.anarchy_turns),
+            crate::model::Model::to_value(&self.tenets_now),
+            crate::model::Model::to_value(&self.tenets_kept),
+            crate::model::Model::to_value(&self.unhappiness_removed),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(PoliciesSwitch {
+            available: crate::model::Model::from_value(&f[0])?,
+            reason: crate::model::Model::from_value(&f[1])?,
+            target: crate::model::Model::from_value(&f[2])?,
+            target_id: crate::model::Model::from_value(&f[3])?,
+            anarchy_turns: crate::model::Model::from_value(&f[4])?,
+            tenets_now: crate::model::Model::from_value(&f[5])?,
+            tenets_kept: crate::model::Model::from_value(&f[6])?,
+            unhappiness_removed: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PoliciesIdeology {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub name: ::std::sync::Arc<str>,
+    pub title: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub emblem: crate::value::AssetRef,
+    pub adopted_date: crate::value::Text,
+    pub summary: crate::value::Text,
+    pub adopted_by_level: crate::model::KeyedList<PoliciesCount>,
+    pub levels: crate::model::KeyedList<PoliciesLevel>,
+    pub public_opinion: PoliciesOpinion,
+    pub switch: PoliciesSwitch,
+}
+
+impl crate::model::Model for PoliciesIdeology {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.title, &old.title, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.adopted_date, &old.adopted_date, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.summary, &old.summary, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.adopted_by_level, &old.adopted_by_level, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.levels, &old.levels, at, out);
+        at.field = base.child(27);
+        crate::model::Model::diff(&self.public_opinion, &old.public_opinion, at, out);
+        at.field = base.child(36);
+        crate::model::Model::diff(&self.switch, &old.switch, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.title),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.adopted_date),
+            crate::model::Model::to_value(&self.summary),
+            crate::model::Model::to_value(&self.adopted_by_level),
+            crate::model::Model::to_value(&self.levels),
+            crate::model::Model::to_value(&self.public_opinion),
+            crate::model::Model::to_value(&self.switch),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(12)?;
+        Ok(PoliciesIdeology {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            title: crate::model::Model::from_value(&f[3])?,
+            icon: crate::model::Model::from_value(&f[4])?,
+            emblem: crate::model::Model::from_value(&f[5])?,
+            adopted_date: crate::model::Model::from_value(&f[6])?,
+            summary: crate::model::Model::from_value(&f[7])?,
+            adopted_by_level: crate::model::Model::from_value(&f[8])?,
+            levels: crate::model::Model::from_value(&f[9])?,
+            public_opinion: crate::model::Model::from_value(&f[10])?,
+            switch: crate::model::Model::from_value(&f[11])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionCity {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+}
+
+impl crate::model::Model for ReligionCity {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(ReligionCity {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionSymbol {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub taken: bool,
+    pub founder: Option<crate::value::Text>,
+    pub founder_known: Option<bool>,
+    pub tooltip: crate::value::Text,
+}
+
+impl crate::model::Model for ReligionSymbol {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.taken, &old.taken, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.founder, &old.founder, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.founder_known, &old.founder_known, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.tooltip, &old.tooltip, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.taken),
+            crate::model::Model::to_value(&self.founder),
+            crate::model::Model::to_value(&self.founder_known),
+            crate::model::Model::to_value(&self.tooltip),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(ReligionSymbol {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+            taken: crate::model::Model::from_value(&f[4])?,
+            founder: crate::model::Model::from_value(&f[5])?,
+            founder_known: crate::model::Model::from_value(&f[6])?,
+            tooltip: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for ReligionSymbol {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionBelief {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub short_name: crate::value::Text,
+    pub effect: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+}
+
+impl crate::model::Model for ReligionBelief {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.short_name, &old.short_name, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.short_name),
+            crate::model::Model::to_value(&self.effect),
+            crate::model::Model::to_value(&self.icon),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(ReligionBelief {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            short_name: crate::model::Model::from_value(&f[3])?,
+            effect: crate::model::Model::from_value(&f[4])?,
+            icon: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for ReligionBelief {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionSlot {
+    pub key: ::std::sync::Arc<str>,
+    pub r#type: ReligionSlotType,
+    pub label: crate::value::Text,
+    pub state: ReligionSlotState,
+    pub required: bool,
+    pub fixed: Option<ReligionBelief>,
+    pub reason: Option<crate::value::Text>,
+    pub options: crate::model::KeyedList<ReligionBelief>,
+}
+
+impl crate::model::Model for ReligionSlot {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.r#type, &old.r#type, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.state, &old.state, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.required, &old.required, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.fixed, &old.fixed, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.options, &old.options, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.r#type),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.state),
+            crate::model::Model::to_value(&self.required),
+            crate::model::Model::to_value(&self.fixed),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.options),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(ReligionSlot {
+            key: crate::model::Model::from_value(&f[0])?,
+            r#type: crate::model::Model::from_value(&f[1])?,
+            label: crate::model::Model::from_value(&f[2])?,
+            state: crate::model::Model::from_value(&f[3])?,
+            required: crate::model::Model::from_value(&f[4])?,
+            fixed: crate::model::Model::from_value(&f[5])?,
+            reason: crate::model::Model::from_value(&f[6])?,
+            options: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for ReligionSlot {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionExisting {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub default_name: crate::value::Text,
+    pub holy_city: crate::value::Text,
+    pub founded: crate::value::Text,
+}
+
+impl crate::model::Model for ReligionExisting {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.default_name, &old.default_name, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.holy_city, &old.holy_city, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.founded, &old.founded, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.default_name),
+            crate::model::Model::to_value(&self.holy_city),
+            crate::model::Model::to_value(&self.founded),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(ReligionExisting {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+            default_name: crate::model::Model::from_value(&f[4])?,
+            holy_city: crate::model::Model::from_value(&f[5])?,
+            founded: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionOverviewStatus {
+    pub kind: ReligionOverviewStatusKind,
+    pub text: crate::value::Text,
+}
+
+impl crate::model::Model for ReligionOverviewStatus {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(ReligionOverviewStatus {
+            kind: crate::model::Model::from_value(&f[0])?,
+            text: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionOverviewReligion {
+    pub id: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+}
+
+impl crate::model::Model for ReligionOverviewReligion {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(ReligionOverviewReligion {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionOverviewPantheon {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+}
+
+impl crate::model::Model for ReligionOverviewPantheon {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(ReligionOverviewPantheon {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionOverviewMyBelief {
+    pub key: ::std::sync::Arc<str>,
+    pub r#type: ReligionOverviewBeliefType,
+    pub type_label: crate::value::Text,
+    pub name: crate::value::Text,
+    pub effect: crate::value::Text,
+}
+
+impl crate::model::Model for ReligionOverviewMyBelief {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.r#type, &old.r#type, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.type_label, &old.type_label, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.r#type),
+            crate::model::Model::to_value(&self.type_label),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.effect),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(ReligionOverviewMyBelief {
+            key: crate::model::Model::from_value(&f[0])?,
+            r#type: crate::model::Model::from_value(&f[1])?,
+            type_label: crate::model::Model::from_value(&f[2])?,
+            name: crate::model::Model::from_value(&f[3])?,
+            effect: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for ReligionOverviewMyBelief {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionOverviewIncome {
+    pub key: ::std::sync::Arc<str>,
+    pub label: crate::value::Text,
+    pub value: i32,
+}
+
+impl crate::model::Model for ReligionOverviewIncome {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.value),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(ReligionOverviewIncome {
+            key: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            value: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for ReligionOverviewIncome {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionOverviewFaith {
+    pub stored: i32,
+    pub per_turn: i32,
+    pub next_prophet: i32,
+    pub prophet_tooltip: crate::value::Text,
+    pub income: crate::model::KeyedList<ReligionOverviewIncome>,
+}
+
+impl crate::model::Model for ReligionOverviewFaith {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.stored, &old.stored, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.per_turn, &old.per_turn, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.next_prophet, &old.next_prophet, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.prophet_tooltip, &old.prophet_tooltip, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.income, &old.income, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.stored),
+            crate::model::Model::to_value(&self.per_turn),
+            crate::model::Model::to_value(&self.next_prophet),
+            crate::model::Model::to_value(&self.prophet_tooltip),
+            crate::model::Model::to_value(&self.income),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(ReligionOverviewFaith {
+            stored: crate::model::Model::from_value(&f[0])?,
+            per_turn: crate::model::Model::from_value(&f[1])?,
+            next_prophet: crate::model::Model::from_value(&f[2])?,
+            prophet_tooltip: crate::model::Model::from_value(&f[3])?,
+            income: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionOverviewGreatPerson {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+}
+
+impl crate::model::Model for ReligionOverviewGreatPerson {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(ReligionOverviewGreatPerson {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for ReligionOverviewGreatPerson {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionOverviewOption {
+    pub key: ::std::sync::Arc<str>,
+    pub kind: ReligionOverviewPurchaseKind,
+    pub id: i32,
+    pub label: crate::value::Text,
+    pub cost: Option<i32>,
+}
+
+impl crate::model::Model for ReligionOverviewOption {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.cost, &old.cost, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.cost),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(ReligionOverviewOption {
+            key: crate::model::Model::from_value(&f[0])?,
+            kind: crate::model::Model::from_value(&f[1])?,
+            id: crate::model::Model::from_value(&f[2])?,
+            label: crate::model::Model::from_value(&f[3])?,
+            cost: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for ReligionOverviewOption {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionOverviewPurchase {
+    pub current: ::std::sync::Arc<str>,
+    pub label: crate::value::Text,
+    pub options: crate::model::KeyedList<ReligionOverviewOption>,
+}
+
+impl crate::model::Model for ReligionOverviewPurchase {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.current, &old.current, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.options, &old.options, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.current),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.options),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(ReligionOverviewPurchase {
+            current: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            options: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionOverviewFounder {
+    pub name: ::std::sync::Arc<str>,
+    pub civ: crate::value::AssetRef,
+    pub color_bg: Option<u32>,
+    pub color_fg: Option<u32>,
+}
+
+impl crate::model::Model for ReligionOverviewFounder {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.color_bg, &old.color_bg, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.color_fg, &old.color_fg, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.color_bg),
+            crate::model::Model::to_value(&self.color_fg),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(ReligionOverviewFounder {
+            name: crate::model::Model::from_value(&f[0])?,
+            civ: crate::model::Model::from_value(&f[1])?,
+            color_bg: crate::model::Model::from_value(&f[2])?,
+            color_fg: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionOverviewWorld {
+    pub key: i32,
+    pub name: ::std::sync::Arc<str>,
+    pub icon: crate::value::AssetRef,
+    pub holy_city: Option<::std::sync::Arc<str>>,
+    pub founder: Option<ReligionOverviewFounder>,
+    pub known: bool,
+    pub cities: i32,
+    pub is_mine: bool,
+}
+
+impl crate::model::Model for ReligionOverviewWorld {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.holy_city, &old.holy_city, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.founder, &old.founder, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.known, &old.known, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.cities, &old.cities, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.is_mine, &old.is_mine, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.holy_city),
+            crate::model::Model::to_value(&self.founder),
+            crate::model::Model::to_value(&self.known),
+            crate::model::Model::to_value(&self.cities),
+            crate::model::Model::to_value(&self.is_mine),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(ReligionOverviewWorld {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            holy_city: crate::model::Model::from_value(&f[3])?,
+            founder: crate::model::Model::from_value(&f[4])?,
+            known: crate::model::Model::from_value(&f[5])?,
+            cities: crate::model::Model::from_value(&f[6])?,
+            is_mine: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for ReligionOverviewWorld {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.key))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionOverviewAnyBelief {
+    pub type_order: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub name: ::std::sync::Arc<str>,
+    pub r#type: ReligionOverviewBeliefType,
+    pub type_label: crate::value::Text,
+    pub effect: crate::value::Text,
+    pub religion_name: ::std::sync::Arc<str>,
+    pub religion_icon: Option<crate::value::AssetRef>,
+    pub known: bool,
+}
+
+impl crate::model::Model for ReligionOverviewAnyBelief {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.type_order, &old.type_order, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.r#type, &old.r#type, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.type_label, &old.type_label, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.religion_name, &old.religion_name, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.religion_icon, &old.religion_icon, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.known, &old.known, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.type_order),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.r#type),
+            crate::model::Model::to_value(&self.type_label),
+            crate::model::Model::to_value(&self.effect),
+            crate::model::Model::to_value(&self.religion_name),
+            crate::model::Model::to_value(&self.religion_icon),
+            crate::model::Model::to_value(&self.known),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(9)?;
+        Ok(ReligionOverviewAnyBelief {
+            type_order: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            r#type: crate::model::Model::from_value(&f[3])?,
+            type_label: crate::model::Model::from_value(&f[4])?,
+            effect: crate::model::Model::from_value(&f[5])?,
+            religion_name: crate::model::Model::from_value(&f[6])?,
+            religion_icon: crate::model::Model::from_value(&f[7])?,
+            known: crate::model::Model::from_value(&f[8])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for ReligionOverviewAnyBelief {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
     }
 }
 
@@ -5045,15 +8017,15 @@ impl crate::model::Model for Ui {
         crate::model::Model::diff(&self.map_mode, &old.map_mode, at, out);
         at.field = base.child(7);
         crate::model::Model::diff(&self.windows, &old.windows, at, out);
-        at.field = base.child(23);
+        at.field = base.child(43);
         crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(27);
+        at.field = base.child(47);
         crate::model::Model::diff(&self.chat, &old.chat, at, out);
-        at.field = base.child(30);
+        at.field = base.child(50);
         crate::model::Model::diff(&self.pending, &old.pending, at, out);
-        at.field = base.child(35);
+        at.field = base.child(55);
         crate::model::Model::diff(&self.turn_pending, &old.turn_pending, at, out);
-        at.field = base.child(36);
+        at.field = base.child(56);
         crate::model::Model::diff(&self.errors, &old.errors, at, out);
         at.field = base;
     }
@@ -5124,6 +8096,356 @@ impl crate::model::Model for Hud {
             top: crate::model::Model::from_value(&f[1])?,
             city: crate::model::Model::from_value(&f[2])?,
             unit: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Ideology {
+    pub emblem: crate::value::AssetRef,
+    pub civ_adjective: crate::value::Text,
+    pub civ_name: ::std::sync::Arc<str>,
+    pub current: Option<i32>,
+    pub enabled: bool,
+    pub reason: Option<crate::value::Text>,
+    pub options: crate::model::KeyedList<IdeologyOption>,
+}
+
+impl crate::model::Model for Ideology {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.civ_adjective, &old.civ_adjective, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.civ_name, &old.civ_name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.current, &old.current, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.options, &old.options, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.civ_adjective),
+            crate::model::Model::to_value(&self.civ_name),
+            crate::model::Model::to_value(&self.current),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.options),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(Ideology {
+            emblem: crate::model::Model::from_value(&f[0])?,
+            civ_adjective: crate::model::Model::from_value(&f[1])?,
+            civ_name: crate::model::Model::from_value(&f[2])?,
+            current: crate::model::Model::from_value(&f[3])?,
+            enabled: crate::model::Model::from_value(&f[4])?,
+            reason: crate::model::Model::from_value(&f[5])?,
+            options: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Pantheon {
+    pub mode: PantheonMode,
+    pub emblem: crate::value::AssetRef,
+    pub religion_name: Option<crate::value::Text>,
+    pub enabled: bool,
+    pub reason: Option<crate::value::Text>,
+    pub completed: bool,
+    pub beliefs: crate::model::KeyedList<PantheonBelief>,
+}
+
+impl crate::model::Model for Pantheon {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.mode, &old.mode, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.religion_name, &old.religion_name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.completed, &old.completed, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.beliefs, &old.beliefs, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.mode),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.religion_name),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.completed),
+            crate::model::Model::to_value(&self.beliefs),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(Pantheon {
+            mode: crate::model::Model::from_value(&f[0])?,
+            emblem: crate::model::Model::from_value(&f[1])?,
+            religion_name: crate::model::Model::from_value(&f[2])?,
+            enabled: crate::model::Model::from_value(&f[3])?,
+            reason: crate::model::Model::from_value(&f[4])?,
+            completed: crate::model::Model::from_value(&f[5])?,
+            beliefs: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Policies {
+    pub open_tab: PoliciesTab,
+    pub policies_enabled: bool,
+    pub ideologies_enabled: bool,
+    pub player_title: Option<crate::value::Text>,
+    pub free_policies: i32,
+    pub free_tenets: i32,
+    pub must_choose: bool,
+    pub culture: PoliciesCulture,
+    pub branches: crate::model::KeyedList<PoliciesBranch>,
+    pub ideology: Option<PoliciesIdeology>,
+}
+
+impl crate::model::Model for Policies {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.open_tab, &old.open_tab, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.policies_enabled, &old.policies_enabled, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.ideologies_enabled, &old.ideologies_enabled, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.player_title, &old.player_title, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.free_policies, &old.free_policies, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.free_tenets, &old.free_tenets, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.must_choose, &old.must_choose, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.culture, &old.culture, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.branches, &old.branches, at, out);
+        at.field = base.child(52);
+        crate::model::Model::diff(&self.ideology, &old.ideology, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.open_tab),
+            crate::model::Model::to_value(&self.policies_enabled),
+            crate::model::Model::to_value(&self.ideologies_enabled),
+            crate::model::Model::to_value(&self.player_title),
+            crate::model::Model::to_value(&self.free_policies),
+            crate::model::Model::to_value(&self.free_tenets),
+            crate::model::Model::to_value(&self.must_choose),
+            crate::model::Model::to_value(&self.culture),
+            crate::model::Model::to_value(&self.branches),
+            crate::model::Model::to_value(&self.ideology),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(10)?;
+        Ok(Policies {
+            open_tab: crate::model::Model::from_value(&f[0])?,
+            policies_enabled: crate::model::Model::from_value(&f[1])?,
+            ideologies_enabled: crate::model::Model::from_value(&f[2])?,
+            player_title: crate::model::Model::from_value(&f[3])?,
+            free_policies: crate::model::Model::from_value(&f[4])?,
+            free_tenets: crate::model::Model::from_value(&f[5])?,
+            must_choose: crate::model::Model::from_value(&f[6])?,
+            culture: crate::model::Model::from_value(&f[7])?,
+            branches: crate::model::Model::from_value(&f[8])?,
+            ideology: crate::model::Model::from_value(&f[9])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Religion {
+    pub mode: ReligionMode,
+    pub city: Option<ReligionCity>,
+    pub date: crate::value::Text,
+    pub emblem: crate::value::AssetRef,
+    pub symbols: crate::model::KeyedList<ReligionSymbol>,
+    pub religion: Option<ReligionExisting>,
+    pub slots: crate::model::KeyedList<ReligionSlot>,
+    pub enabled: bool,
+    pub reason: Option<crate::value::Text>,
+    pub custom_name_available: bool,
+    pub custom_name_reason: crate::value::Text,
+}
+
+impl crate::model::Model for Religion {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.mode, &old.mode, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.date, &old.date, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.symbols, &old.symbols, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.religion, &old.religion, at, out);
+        at.field = base.child(24);
+        crate::model::Model::diff(&self.slots, &old.slots, at, out);
+        at.field = base.child(45);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(46);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(47);
+        crate::model::Model::diff(&self.custom_name_available, &old.custom_name_available, at, out);
+        at.field = base.child(48);
+        crate::model::Model::diff(&self.custom_name_reason, &old.custom_name_reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.mode),
+            crate::model::Model::to_value(&self.city),
+            crate::model::Model::to_value(&self.date),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.symbols),
+            crate::model::Model::to_value(&self.religion),
+            crate::model::Model::to_value(&self.slots),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.custom_name_available),
+            crate::model::Model::to_value(&self.custom_name_reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(11)?;
+        Ok(Religion {
+            mode: crate::model::Model::from_value(&f[0])?,
+            city: crate::model::Model::from_value(&f[1])?,
+            date: crate::model::Model::from_value(&f[2])?,
+            emblem: crate::model::Model::from_value(&f[3])?,
+            symbols: crate::model::Model::from_value(&f[4])?,
+            religion: crate::model::Model::from_value(&f[5])?,
+            slots: crate::model::Model::from_value(&f[6])?,
+            enabled: crate::model::Model::from_value(&f[7])?,
+            reason: crate::model::Model::from_value(&f[8])?,
+            custom_name_available: crate::model::Model::from_value(&f[9])?,
+            custom_name_reason: crate::model::Model::from_value(&f[10])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ReligionOverview {
+    pub enabled: bool,
+    pub reason: Option<crate::value::Text>,
+    pub emblem: crate::value::AssetRef,
+    pub status: ReligionOverviewStatus,
+    pub religion: Option<ReligionOverviewReligion>,
+    pub pantheon: Option<ReligionOverviewPantheon>,
+    pub my_beliefs: crate::model::KeyedList<ReligionOverviewMyBelief>,
+    pub faith: ReligionOverviewFaith,
+    pub great_people: crate::model::KeyedList<ReligionOverviewGreatPerson>,
+    pub auto_purchase: ReligionOverviewPurchase,
+    pub world: crate::model::KeyedList<ReligionOverviewWorld>,
+    pub religions_left: i32,
+    pub all_beliefs: crate::model::KeyedList<ReligionOverviewAnyBelief>,
+}
+
+impl crate::model::Model for ReligionOverview {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.status, &old.status, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.religion, &old.religion, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.pantheon, &old.pantheon, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.my_beliefs, &old.my_beliefs, at, out);
+        at.field = base.child(20);
+        crate::model::Model::diff(&self.faith, &old.faith, at, out);
+        at.field = base.child(29);
+        crate::model::Model::diff(&self.great_people, &old.great_people, at, out);
+        at.field = base.child(33);
+        crate::model::Model::diff(&self.auto_purchase, &old.auto_purchase, at, out);
+        at.field = base.child(42);
+        crate::model::Model::diff(&self.world, &old.world, at, out);
+        at.field = base.child(55);
+        crate::model::Model::diff(&self.religions_left, &old.religions_left, at, out);
+        at.field = base.child(56);
+        crate::model::Model::diff(&self.all_beliefs, &old.all_beliefs, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.status),
+            crate::model::Model::to_value(&self.religion),
+            crate::model::Model::to_value(&self.pantheon),
+            crate::model::Model::to_value(&self.my_beliefs),
+            crate::model::Model::to_value(&self.faith),
+            crate::model::Model::to_value(&self.great_people),
+            crate::model::Model::to_value(&self.auto_purchase),
+            crate::model::Model::to_value(&self.world),
+            crate::model::Model::to_value(&self.religions_left),
+            crate::model::Model::to_value(&self.all_beliefs),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(13)?;
+        Ok(ReligionOverview {
+            enabled: crate::model::Model::from_value(&f[0])?,
+            reason: crate::model::Model::from_value(&f[1])?,
+            emblem: crate::model::Model::from_value(&f[2])?,
+            status: crate::model::Model::from_value(&f[3])?,
+            religion: crate::model::Model::from_value(&f[4])?,
+            pantheon: crate::model::Model::from_value(&f[5])?,
+            my_beliefs: crate::model::Model::from_value(&f[6])?,
+            faith: crate::model::Model::from_value(&f[7])?,
+            great_people: crate::model::Model::from_value(&f[8])?,
+            auto_purchase: crate::model::Model::from_value(&f[9])?,
+            world: crate::model::Model::from_value(&f[10])?,
+            religions_left: crate::model::Model::from_value(&f[11])?,
+            all_beliefs: crate::model::Model::from_value(&f[12])?,
         })
     }
 }
@@ -5207,6 +8529,26 @@ impl crate::model::Root for Option<Hud> {
     const NAME: &'static str = "hud";
 }
 
+impl crate::model::Root for Option<Ideology> {
+    const NAME: &'static str = "ideology";
+}
+
+impl crate::model::Root for Option<Pantheon> {
+    const NAME: &'static str = "pantheon";
+}
+
+impl crate::model::Root for Option<Policies> {
+    const NAME: &'static str = "policies";
+}
+
+impl crate::model::Root for Option<Religion> {
+    const NAME: &'static str = "religion";
+}
+
+impl crate::model::Root for Option<ReligionOverview> {
+    const NAME: &'static str = "religion_overview";
+}
+
 impl crate::model::Root for Option<Techs> {
     const NAME: &'static str = "techs";
 }
@@ -5232,23 +8574,38 @@ pub fn put_root(
         "production" => crate::model::put_value::<Option<Production>>(w, v),
         "ui" => crate::model::put_value::<Ui>(w, v),
         "hud" => crate::model::put_value::<Option<Hud>>(w, v),
+        "ideology" => crate::model::put_value::<Option<Ideology>>(w, v),
+        "pantheon" => crate::model::put_value::<Option<Pantheon>>(w, v),
+        "policies" => crate::model::put_value::<Option<Policies>>(w, v),
+        "religion" => crate::model::put_value::<Option<Religion>>(w, v),
+        "religion_overview" => crate::model::put_value::<Option<ReligionOverview>>(w, v),
         "techs" => crate::model::put_value::<Option<Techs>>(w, v),
         _ => return None,
     })
 }
 
-pub const WINDOW_SCREEN_NAMES: &[&str] = &["techs"];
+pub const WINDOW_SCREEN_NAMES: &[&str] = &["ideology", "pantheon", "policies", "religion", "religion_overview", "techs"];
 
-pub const SCREEN_NAMES: &[&str] = &["hud", "techs"];
+pub const SCREEN_NAMES: &[&str] = &["hud", "ideology", "pantheon", "policies", "religion", "religion_overview", "techs"];
 impl Windows {
     pub fn remote(&self, name: &str) -> Option<&WinArgs> {
         Some(match name {
+            "ideology" => &self.ideology,
+            "pantheon" => &self.pantheon,
+            "policies" => &self.policies,
+            "religion" => &self.religion,
+            "religion_overview" => &self.religion_overview,
             "techs" => &self.techs,
             _ => return None,
         })
     }
     pub fn remote_mut(&mut self, name: &str) -> Option<&mut WinArgs> {
         Some(match name {
+            "ideology" => &mut self.ideology,
+            "pantheon" => &mut self.pantheon,
+            "policies" => &mut self.policies,
+            "religion" => &mut self.religion,
+            "religion_overview" => &mut self.religion_overview,
             "techs" => &mut self.techs,
             _ => return None,
         })

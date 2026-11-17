@@ -1,0 +1,70 @@
+<div class="policies-screen" data-part="policies" data-screen="policies" data-bind-if="{{ui.windows.policies.open}}">
+  <section class="policies-window" data-bind-if="{{policies != null}}">
+    <div class="policies-head">
+      <span class="policies-title" data-l10n="policies.title">Social policies</span>
+      <span data-bind-if="{{policies.player_title != null}}" data-bind-value="{{policies.player_title}}"></span>
+      <button class="policies-tab" data-on-click="set state.policies.tab = 'policies'" data-l10n="policies.tab">Policies</button>
+      <button class="policies-tab" data-on-click="set state.policies.tab = 'ideology'" data-l10n="policies.ideology">Ideology</button>
+      <button class="policies-tab" data-on-click="set state.policies.expanded = !state.policies.expanded" data-l10n="policies.expanded">Expanded view</button>
+      <button class="policies-tab" data-part="policies.close" data-on-click="intent window.close(window: 'policies')" data-l10n="policies.close">Close</button>
+    </div>
+    <div class="policies-band">
+      <span data-l10n="policies.culture">Culture</span><b data-bind-value="{{policies.culture.stored}}"></b>
+      <span data-l10n="policies.cost">Next cost</span><b data-bind-value="{{policies.culture.next_cost}}"></b>
+      <span data-l10n="policies.rate">Per turn</span><b data-bind-value="{{policies.culture.per_turn}}"></b>
+      <span data-bind-if="{{policies.culture.turns != null}}" data-l10n="policies.turns" data-l10n-args="{{policies.culture.turns}}">Turns to next policy</span>
+      <span data-l10n="policies.free">Free policies / tenets</span><b data-bind-value="{{policies.free_policies}}"></b><b data-bind-value="{{policies.free_tenets}}"></b>
+    </div>
+    <div class="policies-meter"><div class="policies-fill" data-bind-style-width="{{min(1, policies.culture.stored / max(1, policies.culture.next_cost)) * 100}}%"></div><div class="policies-ticks" data-bind-if="{{policies.culture.per_turn > 0}}" data-bind-style-background-size="{{policies.culture.per_turn / max(1, policies.culture.next_cost) * 100}}% 100%"></div></div>
+    <div class="policies-grid" data-bind-if="{{state.policies.tab == 'policies' || (state.policies.tab == '' && policies.open_tab == 'policies')}}">
+      <div class="policies-card" data-bind-for="b:{{policies.branches}}" data-bind-class-toggle="policies-blocked:{{b.state == 'blocked'}}; policies-era-locked:{{b.state == 'era_locked'}}">
+        <div class="policies-card-head"><b data-part="policies.name" data-bind-value="{{b.name}}"></b><span data-part="policies.status" data-bind-value="{{b.state}}"></span><span data-l10n="policies.count" data-l10n-args="{{b.adopted}}, {{b.total}}">Adopted policies</span></div>
+        <div class="policies-effects"><span data-bind-value="{{b.opener}}"></span><span data-bind-value="{{b.finisher}}"></span></div>
+        <div class="policies-tree" data-bind-class-toggle="policies-expanded:{{state.policies.expanded}}">
+          <button class="policies-policy" data-part="policies.policy" data-bind-for="p:{{b.policies}}" data-bind-class-toggle="policies-adopted:{{p.state == 'adopted'}}; policies-available:{{p.state == 'available'}}" data-bind-disabled="{{p.state != 'available'}}" data-tooltip="policies-tip" data-on-pointerenter="set state.policies.hover = p.id" data-on-click="set state.policies.confirm = p.id; set state.policies.kind = 'adopt_policy'; set state.policies.name = p.name">
+            <span data-bind-value="{{p.name}}"></span><span data-bind-if="{{state.policies.expanded}}" data-bind-value="{{p.effect}}"></span>
+          </button>
+        </div>
+        <span class="policies-reason" data-part="policies.reason" data-bind-if="{{b.reason != null}}" data-bind-value="{{b.reason}}"></span>
+        <button class="policies-button" data-part="policies.unlock" data-bind-disabled="{{!b.can_unlock}}" data-on-click="set state.policies.confirm = b.id; set state.policies.kind = 'unlock_branch'; set state.policies.name = b.name" data-bind-value="{{b.name}}"></button>
+      </div>
+      <div class="policies-card"><b data-l10n="policies.ideology">Ideology</b><span data-bind-if="{{policies.ideology == null}}" data-l10n="policies.no_ideology">Reach the required era or build three factories to choose an ideology.</span><button class="policies-button" data-on-click="set state.policies.tab = 'ideology'" data-l10n="policies.open_ideology">Open ideology</button></div>
+    </div>
+    <div class="policies-ideology" data-bind-if="{{state.policies.tab == 'ideology' || (state.policies.tab == '' && policies.open_tab == 'ideology')}}">
+      <span data-bind-if="{{policies.ideology == null}}" data-l10n="policies.no_ideology">Reach the required era or build three factories to choose an ideology.</span>
+      <div class="policies-ideology-body" data-bind-if="{{policies.ideology != null}}">
+        <div class="policies-summary">
+          <b class="policies-title" data-bind-value="{{policies.ideology.title}}"></b><span data-bind-value="{{policies.ideology.summary}}"></span>
+          <b data-bind-value="{{policies.ideology.public_opinion.label}}"></b><span data-bind-value="{{policies.ideology.public_opinion.tooltip}}"></span>
+          <span data-bind-value="{{policies.ideology.public_opinion.unhappiness_tooltip}}"></span>
+          <span data-l10n="policies.anarchy">Anarchy turns</span><b data-bind-value="{{policies.ideology.switch.anarchy_turns}}"></b>
+          <span data-l10n="policies.kept">Tenets kept</span><b data-bind-value="{{policies.ideology.switch.tenets_kept}}"></b>
+          <span data-bind-if="{{policies.ideology.switch.reason != null}}" data-bind-value="{{policies.ideology.switch.reason}}"></span>
+          <button class="policies-button" data-bind-disabled="{{!policies.ideology.switch.available}}" data-on-click="set state.policies.confirm = 0; set state.policies.kind = 'change_ideology'; set state.policies.name = policies.ideology.name" data-l10n="policies.change">Change ideology</button>
+        </div>
+        <div class="policies-level" data-bind-for="l:{{policies.ideology.levels}}">
+          <b data-l10n="policies.level" data-l10n-args="{{l.level}}">Level</b>
+          <button class="policies-slot" data-bind-for="s:{{l.slots}}" data-bind-disabled="{{s.state != 'open'}}" data-bind-class-toggle="policies-adopted:{{s.state == 'adopted'}}" data-on-click="set state.policies.tenet_level = l.level">
+            <b data-bind-if="{{s.name != null}}" data-bind-value="{{s.name}}"></b><span data-bind-if="{{s.effect != null}}" data-bind-value="{{s.effect}}"></span>
+            <span data-bind-if="{{s.state == 'open'}}" data-l10n="policies.add_tenet">Click to add a tenet</span><span data-bind-if="{{s.reason != null}}" data-bind-value="{{s.reason}}"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="policies-overlay" data-bind-if="{{state.policies.tenet_level > 0 && state.policies.confirm < 0 && policies.ideology != null}}">
+      <div class="policies-dialog"><div data-bind-for="l:{{policies.ideology.levels}}" data-bind-filter="{{l.level == state.policies.tenet_level}}"><button class="policies-tenet" data-bind-for="t:{{l.available}}" data-on-click="set state.policies.confirm = t.id; set state.policies.kind = 'adopt_tenet'; set state.policies.name = t.name"><b data-bind-value="{{t.name}}"></b><span data-bind-value="{{t.effect}}"></span></button></div><button class="policies-button" data-on-click="set state.policies.tenet_level = 0" data-l10n="policies.cancel">Cancel</button></div>
+    </div>
+    <div class="policies-overlay" data-bind-if="{{state.policies.confirm >= 0}}">
+      <div class="policies-dialog"><b class="policies-title" data-bind-if="{{state.policies.kind == 'unlock_branch'}}" data-l10n="policies.confirm_branch" data-l10n-args="{{state.policies.name}}">Open this branch?</b><b class="policies-title" data-bind-if="{{state.policies.kind != 'unlock_branch'}}" data-l10n="policies.confirm" data-l10n-args="{{state.policies.name}}">Adopt this choice?</b>
+        <div data-bind-for="b:{{policies.branches}}" data-bind-filter="{{state.policies.kind == 'unlock_branch' && b.id == state.policies.confirm}}"><span data-l10n="policies.disables">Opening this branch disables these branches:</span><span class="policies-reason" data-bind-for="d:{{b.disables}}" data-bind-value="{{d.name}}"></span></div>
+        <button class="policies-button" data-part="policies.confirm" data-on-click="intent screen.act(screen: 'policies', action: state.policies.kind, a: state.policies.confirm); set state.policies.confirm = -1; set state.policies.tenet_level = 0" data-l10n="policies.yes">Confirm</button>
+        <button class="policies-button" data-on-click="set state.policies.confirm = -1" data-l10n="policies.cancel">Cancel</button>
+      </div>
+    </div>
+  </section>
+</div>
+<template data-layer="tooltip" id="policies-tip"><div class="policies-tip" data-bind-if="{{policies != null}}"><div data-bind-for="b:{{policies.branches}}"><div data-bind-for="p:{{b.policies}}" data-bind-filter="{{p.id == state.policies.hover}}"><b data-bind-value="{{p.name}}"></b><p data-bind-value="{{p.effect}}"></p><p data-bind-if="{{p.reason != null}}" data-bind-value="{{p.reason}}"></p></div></div></div></template>
+
+<!-- SIMPLIFIED(SIMP-362): the group Cancel control resolves dialogs, but runtime Escape closes registered windows before skin hotkeys. -->
+<button class="policies-escape" data-part="policies.escape" data-hotkey="Escape" data-bind-if="{{ui.windows.policies.open || ui.windows.ideology.open || ui.windows.pantheon.open || ui.windows.religion.open || ui.windows.religion_overview.open}}" data-on-click="call policies.escape()" data-l10n="policies.cancel">Cancel</button>
+<div class="policies-feedback" data-bind-if="{{ui.windows.policies.open || ui.windows.ideology.open || ui.windows.pantheon.open || ui.windows.religion.open || ui.windows.religion_overview.open}}"><span data-bind-if="{{policies == null &amp;&amp; ideology == null &amp;&amp; pantheon == null &amp;&amp; religion == null &amp;&amp; religion_overview == null}}" data-l10n="policies.loading">Loading choices</span><div data-part="policies.error" data-bind-for="e:{{ui.errors}}" data-bind-filter="{{e.detail != null}}" data-bind-value="{{e.detail}}"></div></div>

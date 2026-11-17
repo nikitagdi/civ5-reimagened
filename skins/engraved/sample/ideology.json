@@ -1,0 +1,413 @@
+{
+  "model": {
+    "ideology": {
+      "emblem": "",
+      "civ_adjective": "Russian",
+      "civ_name": "Russia",
+      "current": null,
+      "options": [
+        {
+          "id": 9,
+          "key": "POLICY_BRANCH_AUTOCRACY",
+          "name": "Autocracy",
+          "icon": "",
+          "free_tenets": 0,
+          "victories": [
+            {
+              "kind": "culture"
+            },
+            {
+              "kind": "diplomacy"
+            },
+            {
+              "kind": "domination"
+            }
+          ],
+          "adopted_by": [
+            {
+              "key": 2,
+              "civ": "",
+              "name": "Montezuma",
+              "known": true,
+              "color_bg": 1013865215,
+              "color_fg": 3906777343
+            }
+          ],
+          "levels": [
+            {
+              "level": 1,
+              "tenets": [
+                {
+                  "id": 316,
+                  "key": "POLICY_ELITE_FORCES",
+                  "name": "Elite Forces",
+                  "effect": "+50% experience for new units"
+                },
+                {
+                  "id": 317,
+                  "key": "POLICY_MOBILIZATION",
+                  "name": "Mobilization",
+                  "effect": "Unit upgrades cost 33% less"
+                },
+                {
+                  "id": 318,
+                  "key": "POLICY_UNITED_FRONT",
+                  "name": "United Front",
+                  "effect": "Militaristic city-states give units twice as often"
+                },
+                {
+                  "id": 319,
+                  "key": "POLICY_FUTURISM",
+                  "name": "Futurism",
+                  "effect": "+250 tourism when a Great Writer, Artist or Musician is born"
+                },
+                {
+                  "id": 320,
+                  "key": "POLICY_INDUSTRIAL_ESPIONAGE",
+                  "name": "Industrial Espionage",
+                  "effect": "Spies steal technologies 25% faster"
+                }
+              ]
+            },
+            {
+              "level": 2,
+              "tenets": [
+                {
+                  "id": 321,
+                  "key": "POLICY_CULT_OF_PERSONALITY",
+                  "name": "Cult of Personality",
+                  "effect": "+3 happiness per military unit stationed in a city, up to 6"
+                },
+                {
+                  "id": 322,
+                  "key": "POLICY_FORTIFIED_BORDERS",
+                  "name": "Fortified Borders",
+                  "effect": "+1 happiness from Castles, Arsenals and Military Bases"
+                },
+                {
+                  "id": 323,
+                  "key": "POLICY_MILITARISM",
+                  "name": "Militarism",
+                  "effect": "Units cost 33% less gold to purchase"
+                },
+                {
+                  "id": 324,
+                  "key": "POLICY_POLICE_STATE",
+                  "name": "Police State",
+                  "effect": "Courthouses cost half; +3 happiness from Courthouses"
+                },
+                {
+                  "id": 325,
+                  "key": "POLICY_THIRD_ALTERNATIVE",
+                  "name": "Third Alternative",
+                  "effect": "Double strategic resources; +2 food and culture from Military Bases"
+                }
+              ]
+            },
+            {
+              "level": 3,
+              "tenets": [
+                {
+                  "id": 326,
+                  "key": "POLICY_CLAUSEWITZS_LEGACY",
+                  "name": "Clausewitz's Legacy",
+                  "effect": "+25% attack for 50 turns"
+                },
+                {
+                  "id": 327,
+                  "key": "POLICY_GUNBOAT_DIPLOMACY",
+                  "name": "Gunboat Diplomacy",
+                  "effect": "City-states are much easier to bully"
+                },
+                {
+                  "id": 328,
+                  "key": "POLICY_TOTAL_WAR",
+                  "name": "Total War",
+                  "effect": "+25% production of military units; new units get one extra promotion"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "key": "POLICY_BRANCH_FREEDOM",
+          "name": "Freedom",
+          "icon": "",
+          "free_tenets": 0,
+          "victories": [
+            {
+              "kind": "culture"
+            },
+            {
+              "kind": "diplomacy"
+            },
+            {
+              "kind": "science"
+            }
+          ],
+          "adopted_by": [
+            {
+              "key": 1,
+              "civ": "",
+              "name": "Harun al-Rashid",
+              "known": true,
+              "color_bg": 795556607,
+              "color_fg": 3655583487
+            },
+            {
+              "key": 6,
+              "civ": null,
+              "name": "Unmet player",
+              "known": false,
+              "color_bg": null,
+              "color_fg": null
+            }
+          ],
+          "levels": [
+            {
+              "level": 1,
+              "tenets": [
+                {
+                  "id": 329,
+                  "key": "POLICY_AVANT_GARDE",
+                  "name": "Avant Garde",
+                  "effect": "+25% Great People rate in all cities"
+                },
+                {
+                  "id": 330,
+                  "key": "POLICY_CIVIL_SOCIETY",
+                  "name": "Civil Society",
+                  "effect": "Specialists consume half the food"
+                },
+                {
+                  "id": 331,
+                  "key": "POLICY_COVERT_ACTION",
+                  "name": "Covert Action",
+                  "effect": "Two extra spies; spies level up faster"
+                },
+                {
+                  "id": 332,
+                  "key": "POLICY_CREATIVE_EXPRESSION",
+                  "name": "Creative Expression",
+                  "effect": "+2 culture from Great Works; Writers', Artists' and Musicians' Guilds +1 culture"
+                },
+                {
+                  "id": 333,
+                  "key": "POLICY_VOLUNTEER_ARMY",
+                  "name": "Volunteer Army",
+                  "effect": "Six free Foreign Legion units"
+                },
+                {
+                  "id": 334,
+                  "key": "POLICY_URBANIZATION",
+                  "name": "Urbanization",
+                  "effect": "+1 happiness from Hospitals, Stock Exchanges and Police Stations"
+                }
+              ]
+            },
+            {
+              "level": 2,
+              "tenets": [
+                {
+                  "id": 335,
+                  "key": "POLICY_ARSENAL_OF_DEMOCRACY",
+                  "name": "Arsenal of Democracy",
+                  "effect": "Gifted units give 2x influence with city-states; +15% military unit production"
+                },
+                {
+                  "id": 336,
+                  "key": "POLICY_CAPITALISM",
+                  "name": "Capitalism",
+                  "effect": "+1 happiness from Banks, Stock Exchanges and Markets"
+                },
+                {
+                  "id": 337,
+                  "key": "POLICY_ECONOMIC_UNION",
+                  "name": "Economic Union",
+                  "effect": "+2 gold and +2 science from trade routes with Freedom civilizations"
+                },
+                {
+                  "id": 338,
+                  "key": "POLICY_MEDIA_CULTURE",
+                  "name": "Media Culture",
+                  "effect": "+34% tourism in cities with a Broadcast Tower"
+                },
+                {
+                  "id": 339,
+                  "key": "POLICY_UNIVERSAL_SUFFRAGE",
+                  "name": "Universal Suffrage",
+                  "effect": "Specialists produce 1 less unhappiness"
+                }
+              ]
+            },
+            {
+              "level": 3,
+              "tenets": [
+                {
+                  "id": 340,
+                  "key": "POLICY_TREATY_ORGANIZATION",
+                  "name": "Treaty Organization",
+                  "effect": "+4 tourism, +2 gold from trade routes with city-states"
+                },
+                {
+                  "id": 341,
+                  "key": "POLICY_SPACE_PROCUREMENTS",
+                  "name": "Space Procurements",
+                  "effect": "Spaceship parts can be purchased with gold"
+                },
+                {
+                  "id": 342,
+                  "key": "POLICY_THEIR_FINEST_HOUR",
+                  "name": "Their Finest Hour",
+                  "effect": "+33% defense strength in cities"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "key": "POLICY_BRANCH_ORDER",
+          "name": "Order",
+          "icon": "",
+          "free_tenets": 2,
+          "victories": [
+            {
+              "kind": "culture"
+            },
+            {
+              "kind": "domination"
+            },
+            {
+              "kind": "science"
+            }
+          ],
+          "adopted_by": [],
+          "levels": [
+            {
+              "level": 1,
+              "tenets": [
+                {
+                  "id": 343,
+                  "key": "POLICY_SOCIALIST_REALISM",
+                  "name": "Socialist Realism",
+                  "effect": "Free Monument in every city; +2 culture from Monuments"
+                },
+                {
+                  "id": 344,
+                  "key": "POLICY_YOUNG_PIONEERS",
+                  "name": "Young Pioneers",
+                  "effect": "Two free Workers; +25% tile improvement speed"
+                },
+                {
+                  "id": 345,
+                  "key": "POLICY_WORKERS_FACULTIES",
+                  "name": "Worker's Faculties",
+                  "effect": "Factories give +25% science; +50% Factory production"
+                },
+                {
+                  "id": 346,
+                  "key": "POLICY_HERO_OF_THE_PEOPLE",
+                  "name": "Hero of the People",
+                  "effect": "+25% Great People rate during Golden Ages"
+                },
+                {
+                  "id": 347,
+                  "key": "POLICY_SKYSCRAPERS",
+                  "name": "Skyscrapers",
+                  "effect": "Buildings cost 33% less gold to purchase"
+                },
+                {
+                  "id": 348,
+                  "key": "POLICY_UNIVERSAL_HEALTHCARE",
+                  "name": "Universal Healthcare",
+                  "effect": "−1 unhappiness from every city"
+                }
+              ]
+            },
+            {
+              "level": 2,
+              "tenets": [
+                {
+                  "id": 349,
+                  "key": "POLICY_ACADEMY_OF_SCIENCES",
+                  "name": "Academy of Sciences",
+                  "effect": "Free Great Scientist; +25% science in the capital"
+                },
+                {
+                  "id": 350,
+                  "key": "POLICY_CULTURAL_REVOLUTION",
+                  "name": "Cultural Revolution",
+                  "effect": "+34% tourism toward civilizations that follow Order"
+                },
+                {
+                  "id": 351,
+                  "key": "POLICY_DICTATORSHIP_OF_THE_PROLETARIAT",
+                  "name": "Dictatorship of the Proletariat",
+                  "effect": "+3 happiness from Factories; unhappiness from other ideologies halved"
+                },
+                {
+                  "id": 352,
+                  "key": "POLICY_DOUBLE_AGENTS",
+                  "name": "Double Agents",
+                  "effect": "Spies are three times as likely to catch enemy spies"
+                },
+                {
+                  "id": 353,
+                  "key": "POLICY_PATRIOTIC_WAR",
+                  "name": "Patriotic War",
+                  "effect": "+25% combat strength inside your own territory"
+                },
+                {
+                  "id": 354,
+                  "key": "POLICY_RESETTLEMENT",
+                  "name": "Resettlement",
+                  "effect": "New cities start with 3 extra citizens"
+                }
+              ]
+            },
+            {
+              "level": 3,
+              "tenets": [
+                {
+                  "id": 355,
+                  "key": "POLICY_FIVE_YEAR_PLAN",
+                  "name": "Five-Year Plan",
+                  "effect": "+2 production in every city; +1 production from Mines and Quarries"
+                },
+                {
+                  "id": 356,
+                  "key": "POLICY_IRON_CURTAIN",
+                  "name": "Iron Curtain",
+                  "effect": "Free Courthouse in captured cities; +100% trade route gold"
+                },
+                {
+                  "id": 357,
+                  "key": "POLICY_SPACEFLIGHT_PIONEERS",
+                  "name": "Spaceflight Pioneers",
+                  "effect": "Great Engineers can hurry spaceship parts; free Great Scientist"
+                },
+                {
+                  "id": 358,
+                  "key": "POLICY_PARTY_LEADERSHIP",
+                  "name": "Party Leadership",
+                  "effect": "+1 food, production, science and gold in every city"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "enabled": true,
+      "reason": null
+    }
+  },
+  "ui": {
+    "windows": {
+      "ideology": {
+        "open": true
+      }
+    }
+  }
+}

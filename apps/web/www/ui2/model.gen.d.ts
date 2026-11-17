@@ -21,11 +21,24 @@ export type ProdTab = "all" | "units" | "buildings" | "wonders" | "other";
 export type TurnPending = "none" | "ending" | "cancelling";
 export type ToastKind = "refused" | "rejected" | "lost";
 export type RefuseWhy = "unsupported" | "no_screen" | "no_unit" | "action_unavailable" | "not_your_city" | "option_unavailable" | "cannot_buy" | "bad_slot" | "tech_unavailable" | "cannot_end_turn" | "cannot_cancel" | "chat_empty" | "chat_too_long" | "chat_rate" | "no_connection" | "no_game" | "too_many" | "turn_changed" | "too_big" | "core" | "turn_ended" | "not_your_turn" | "restarting" | "invalid" | "expired" | "not_seated" | "other";
-export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "techs";
+export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "ideology" | "pantheon" | "policies" | "religion" | "religion_overview" | "techs";
 export type ScreenId = "tech_tree" | "policies" | "religion" | "diplomacy" | "overview" | "notification_log" | "economy" | "military" | "victory" | "demographics" | "chat";
 export type MouseButton = "left" | "right";
 export type PushAt = "back" | "front";
 export type BuyWith = "gold" | "faith";
+export type IdeologyVictoryKind = "culture" | "diplomacy" | "domination" | "science";
+export type PantheonMode = "pantheon" | "reformation";
+export type PoliciesTab = "policies" | "ideology";
+export type PoliciesBranchState = "opened" | "complete" | "closed" | "era_locked" | "blocked";
+export type PoliciesPolicyState = "adopted" | "available" | "locked" | "blocked";
+export type PoliciesSlotState = "adopted" | "open" | "unaffordable" | "locked" | "empty";
+export type PoliciesOpinionState = "content" | "dissidents" | "civil_resistance" | "revolutionary_wave";
+export type ReligionMode = "found" | "enhance";
+export type ReligionSlotType = "pantheon" | "founder" | "follower" | "enhancer" | "bonus";
+export type ReligionSlotState = "choose" | "fixed" | "locked";
+export type ReligionOverviewStatusKind = "founded_religion" | "created_pantheon" | "can_create_pantheon" | "not_enough_faith" | "too_late";
+export type ReligionOverviewBeliefType = "pantheon" | "founder" | "follower" | "enhancer" | "reformation";
+export type ReligionOverviewPurchaseKind = "none" | "save_prophet" | "unit" | "building";
 export type TechsStatus = "researched" | "current" | "available" | "queued" | "locked";
 
 export interface Plot {
@@ -301,6 +314,11 @@ export interface WinCity {
 }
 
 export interface Windows {
+  readonly ideology: WinArgs;
+  readonly pantheon: WinArgs;
+  readonly policies: WinArgs;
+  readonly religion: WinArgs;
+  readonly religion_overview: WinArgs;
   readonly techs: WinArgs;
   readonly production: WinCity;
   readonly research: Win;
@@ -407,6 +425,309 @@ export interface HudUnit {
   readonly id: number;
   readonly promotions: HudPromotion[];
   readonly actions: HudAction[];
+}
+
+export interface IdeologyVictory {
+  readonly kind: IdeologyVictoryKind;
+}
+
+export interface IdeologyAdopter {
+  readonly key: number;
+  readonly civ: string | null;
+  readonly name: string;
+  readonly known: boolean;
+  readonly color_bg: number | null;
+  readonly color_fg: number | null;
+}
+
+export interface IdeologyTenet {
+  readonly id: number;
+  readonly key: string;
+  readonly name: string;
+  readonly effect: Text;
+}
+
+export interface IdeologyLevel {
+  readonly level: number;
+  readonly tenets: IdeologyTenet[];
+}
+
+export interface IdeologyOption {
+  readonly id: number;
+  readonly key: string;
+  readonly name: string;
+  readonly icon: string;
+  readonly free_tenets: number;
+  readonly victories: IdeologyVictory[];
+  readonly adopted_by: IdeologyAdopter[];
+  readonly levels: IdeologyLevel[];
+}
+
+export interface PantheonBelief {
+  readonly id: number;
+  readonly key: string;
+  readonly icon: string;
+  readonly name: string;
+  readonly short_name: string;
+  readonly effect: string;
+}
+
+export interface PoliciesText {
+  readonly id: number;
+  readonly name: string;
+}
+
+export interface PoliciesCulture {
+  readonly stored: number;
+  readonly per_turn: number;
+  readonly next_cost: number;
+  readonly turns: number | null;
+  readonly can_afford: boolean;
+}
+
+export interface PoliciesPolicy {
+  readonly id: number;
+  readonly key: string;
+  readonly name: string;
+  readonly icon: string;
+  readonly grid_x: number;
+  readonly grid_y: number;
+  readonly state: PoliciesPolicyState;
+  readonly effect: Text;
+  readonly requires: PoliciesText[];
+  readonly reason: Text | null;
+}
+
+export interface PoliciesLink {
+  readonly key: string;
+  readonly from_x: number;
+  readonly from_y: number;
+  readonly to_x: number;
+  readonly to_y: number;
+  readonly lit: boolean;
+}
+
+export interface PoliciesBranch {
+  readonly id: number;
+  readonly key: string;
+  readonly name: string;
+  readonly icon: string;
+  readonly state: PoliciesBranchState;
+  readonly adopted: number;
+  readonly total: number;
+  readonly opener: Text;
+  readonly finisher: Text;
+  readonly finisher_done: boolean;
+  readonly era: Text;
+  readonly can_unlock: boolean;
+  readonly unlock_cost: number | null;
+  readonly disables: PoliciesText[];
+  readonly reason: Text | null;
+  readonly tooltip: Text;
+  readonly policies: PoliciesPolicy[];
+  readonly links: PoliciesLink[];
+}
+
+export interface PoliciesTenet {
+  readonly id: number;
+  readonly key: string;
+  readonly name: string;
+  readonly effect: Text;
+}
+
+export interface PoliciesSlot {
+  readonly key: string;
+  readonly state: PoliciesSlotState;
+  readonly tenet_id: number | null;
+  readonly name: Text | null;
+  readonly effect: Text | null;
+  readonly reason: Text | null;
+}
+
+export interface PoliciesLevel {
+  readonly level: number;
+  readonly adopted: number;
+  readonly slot_count: number;
+  readonly slots: PoliciesSlot[];
+  readonly available: PoliciesTenet[];
+}
+
+export interface PoliciesCount {
+  readonly level: number;
+  readonly count: number;
+}
+
+export interface PoliciesOpinion {
+  readonly state: PoliciesOpinionState;
+  readonly label: Text;
+  readonly pressure: number | null;
+  readonly support: number | null;
+  readonly unhappiness: number;
+  readonly tooltip: Text;
+  readonly unhappiness_tooltip: Text;
+  readonly preferred: Text | null;
+}
+
+export interface PoliciesSwitch {
+  readonly available: boolean;
+  readonly reason: Text | null;
+  readonly target: Text | null;
+  readonly target_id: number | null;
+  readonly anarchy_turns: number;
+  readonly tenets_now: number;
+  readonly tenets_kept: number;
+  readonly unhappiness_removed: number;
+}
+
+export interface PoliciesIdeology {
+  readonly id: number;
+  readonly key: string;
+  readonly name: string;
+  readonly title: Text;
+  readonly icon: string;
+  readonly emblem: string;
+  readonly adopted_date: Text;
+  readonly summary: Text;
+  readonly adopted_by_level: PoliciesCount[];
+  readonly levels: PoliciesLevel[];
+  readonly public_opinion: PoliciesOpinion;
+  readonly switch: PoliciesSwitch;
+}
+
+export interface ReligionCity {
+  readonly id: number;
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface ReligionSymbol {
+  readonly id: number;
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly taken: boolean;
+  readonly founder: Text | null;
+  readonly founder_known: boolean | null;
+  readonly tooltip: Text;
+}
+
+export interface ReligionBelief {
+  readonly id: number;
+  readonly key: string;
+  readonly name: Text;
+  readonly short_name: Text;
+  readonly effect: Text;
+  readonly icon: string;
+}
+
+export interface ReligionSlot {
+  readonly key: string;
+  readonly type: ReligionSlotType;
+  readonly label: Text;
+  readonly state: ReligionSlotState;
+  readonly required: boolean;
+  readonly fixed: ReligionBelief | null;
+  readonly reason: Text | null;
+  readonly options: ReligionBelief[];
+}
+
+export interface ReligionExisting {
+  readonly id: number;
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly default_name: Text;
+  readonly holy_city: Text;
+  readonly founded: Text;
+}
+
+export interface ReligionOverviewStatus {
+  readonly kind: ReligionOverviewStatusKind;
+  readonly text: Text;
+}
+
+export interface ReligionOverviewReligion {
+  readonly id: number;
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+}
+
+export interface ReligionOverviewPantheon {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface ReligionOverviewMyBelief {
+  readonly key: string;
+  readonly type: ReligionOverviewBeliefType;
+  readonly type_label: Text;
+  readonly name: Text;
+  readonly effect: Text;
+}
+
+export interface ReligionOverviewIncome {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: number;
+}
+
+export interface ReligionOverviewFaith {
+  readonly stored: number;
+  readonly per_turn: number;
+  readonly next_prophet: number;
+  readonly prophet_tooltip: Text;
+  readonly income: ReligionOverviewIncome[];
+}
+
+export interface ReligionOverviewGreatPerson {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+}
+
+export interface ReligionOverviewOption {
+  readonly key: string;
+  readonly kind: ReligionOverviewPurchaseKind;
+  readonly id: number;
+  readonly label: Text;
+  readonly cost: number | null;
+}
+
+export interface ReligionOverviewPurchase {
+  readonly current: string;
+  readonly label: Text;
+  readonly options: ReligionOverviewOption[];
+}
+
+export interface ReligionOverviewFounder {
+  readonly name: string;
+  readonly civ: string;
+  readonly color_bg: number | null;
+  readonly color_fg: number | null;
+}
+
+export interface ReligionOverviewWorld {
+  readonly key: number;
+  readonly name: string;
+  readonly icon: string;
+  readonly holy_city: string | null;
+  readonly founder: ReligionOverviewFounder | null;
+  readonly known: boolean;
+  readonly cities: number;
+  readonly is_mine: boolean;
+}
+
+export interface ReligionOverviewAnyBelief {
+  readonly type_order: number;
+  readonly key: string;
+  readonly name: string;
+  readonly type: ReligionOverviewBeliefType;
+  readonly type_label: Text;
+  readonly effect: Text;
+  readonly religion_name: string;
+  readonly religion_icon: string | null;
+  readonly known: boolean;
 }
 
 export interface TechsPrerequisite {
@@ -556,6 +877,69 @@ export interface Hud {
   readonly unit: HudUnit | null;
 }
 
+export interface Ideology {
+  readonly emblem: string;
+  readonly civ_adjective: Text;
+  readonly civ_name: string;
+  readonly current: number | null;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly options: IdeologyOption[];
+}
+
+export interface Pantheon {
+  readonly mode: PantheonMode;
+  readonly emblem: string;
+  readonly religion_name: Text | null;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly completed: boolean;
+  readonly beliefs: PantheonBelief[];
+}
+
+export interface Policies {
+  readonly open_tab: PoliciesTab;
+  readonly policies_enabled: boolean;
+  readonly ideologies_enabled: boolean;
+  readonly player_title: Text | null;
+  readonly free_policies: number;
+  readonly free_tenets: number;
+  readonly must_choose: boolean;
+  readonly culture: PoliciesCulture;
+  readonly branches: PoliciesBranch[];
+  readonly ideology: PoliciesIdeology | null;
+}
+
+export interface Religion {
+  readonly mode: ReligionMode;
+  readonly city: ReligionCity | null;
+  readonly date: Text;
+  readonly emblem: string;
+  readonly symbols: ReligionSymbol[];
+  readonly religion: ReligionExisting | null;
+  readonly slots: ReligionSlot[];
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly custom_name_available: boolean;
+  readonly custom_name_reason: Text;
+}
+
+export interface ReligionOverview {
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly emblem: string;
+  readonly status: ReligionOverviewStatus;
+  readonly religion: ReligionOverviewReligion | null;
+  readonly pantheon: ReligionOverviewPantheon | null;
+  readonly my_beliefs: ReligionOverviewMyBelief[];
+  readonly faith: ReligionOverviewFaith;
+  readonly great_people: ReligionOverviewGreatPerson[];
+  readonly auto_purchase: ReligionOverviewPurchase;
+  readonly world: ReligionOverviewWorld[];
+  readonly religions_left: number;
+  readonly all_beliefs: ReligionOverviewAnyBelief[];
+}
+
 export interface Techs {
   readonly techs: TechsRow[];
 }
@@ -575,6 +959,11 @@ export interface Model {
   readonly production: Production | null;
   readonly ui: Ui;
   readonly hud: Hud | null;
+  readonly ideology: Ideology | null;
+  readonly pantheon: Pantheon | null;
+  readonly policies: Policies | null;
+  readonly religion: Religion | null;
+  readonly religion_overview: ReligionOverview | null;
   readonly techs: Techs | null;
 }
 

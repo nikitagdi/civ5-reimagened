@@ -1,0 +1,425 @@
+{
+  "model": {
+    "religion_overview": {
+      "emblem": "",
+      "status": {
+        "kind": "founded_religion",
+        "text": "You founded Orthodoxy"
+      },
+      "religion": {
+        "id": 8,
+        "key": "RELIGION_ORTHODOXY",
+        "name": "Orthodoxy",
+        "icon": ""
+      },
+      "pantheon": {
+        "key": "BELIEF_GOD_CRAFTSMEN",
+        "name": "God of Craftsmen"
+      },
+      "my_beliefs": [
+        {
+          "key": "b0",
+          "type": "pantheon",
+          "type_label": "Pantheon",
+          "name": "God of Craftsmen",
+          "effect": "+1 production in cities with 3 or more citizens"
+        },
+        {
+          "key": "b1",
+          "type": "founder",
+          "type_label": "Founder",
+          "name": "Tithe",
+          "effect": "+1 gold for every 4 followers of this religion"
+        },
+        {
+          "key": "b2",
+          "type": "follower",
+          "type_label": "Follower",
+          "name": "Feed the World",
+          "effect": "+1 food from Shrines and Temples"
+        },
+        {
+          "key": "b3",
+          "type": "follower",
+          "type_label": "Follower",
+          "name": "Cathedrals",
+          "effect": "Use faith to purchase Cathedrals (+1 happiness, +3 faith, 1 Great Work of Art slot)"
+        },
+        {
+          "key": "b4",
+          "type": "enhancer",
+          "type_label": "Enhancer",
+          "name": "Religious Texts",
+          "effect": "Religion spreads 34% faster; +34% more with the Printing Press"
+        }
+      ],
+      "faith": {
+        "stored": 640,
+        "per_turn": 44,
+        "next_prophet": 1100,
+        "prophet_tooltip": "A Great Prophet appears at 1,100 faith. The threshold grows with every prophet; faith spent on purchases does not count toward it.",
+        "income": [
+          {
+            "key": "cities",
+            "label": "Cities",
+            "value": 34
+          },
+          {
+            "key": "city_states",
+            "label": "City-states",
+            "value": 6
+          },
+          {
+            "key": "religion",
+            "label": "Religion",
+            "value": 4
+          }
+        ]
+      },
+      "great_people": [
+        {
+          "key": "UNIT_ENGINEER",
+          "name": "Great Engineer",
+          "icon": ""
+        },
+        {
+          "key": "UNIT_PROPHET",
+          "name": "Great Prophet",
+          "icon": ""
+        }
+      ],
+      "auto_purchase": {
+        "current": "u-UNIT_ENGINEER",
+        "label": "Buy Great Engineer (1,900 faith)",
+        "options": [
+          {
+            "key": "none",
+            "kind": "none",
+            "id": -1,
+            "label": "Do not spend (remind me later)",
+            "cost": null
+          },
+          {
+            "key": "u-UNIT_MISSIONARY",
+            "kind": "unit",
+            "id": 41,
+            "label": "Buy Missionary",
+            "cost": 230
+          },
+          {
+            "key": "u-UNIT_INQUISITOR",
+            "kind": "unit",
+            "id": 42,
+            "label": "Buy Inquisitor",
+            "cost": 230
+          },
+          {
+            "key": "u-UNIT_PROPHET",
+            "kind": "unit",
+            "id": 40,
+            "label": "Buy Great Prophet",
+            "cost": 1100
+          },
+          {
+            "key": "u-UNIT_ENGINEER",
+            "kind": "unit",
+            "id": 36,
+            "label": "Buy Great Engineer",
+            "cost": 1900
+          },
+          {
+            "key": "b-BUILDING_CATHEDRAL",
+            "kind": "building",
+            "id": 88,
+            "label": "Buy Cathedral",
+            "cost": 230
+          }
+        ]
+      },
+      "world": [
+        {
+          "key": 8,
+          "name": "Orthodoxy",
+          "icon": "",
+          "holy_city": "Moscow",
+          "founder": {
+            "name": "Catherine",
+            "civ": "",
+            "color_bg": 1847335167,
+            "color_fg": 3837808383
+          },
+          "known": true,
+          "cities": 14,
+          "is_mine": true
+        },
+        {
+          "key": 6,
+          "name": "Islam",
+          "icon": "",
+          "holy_city": "Mecca",
+          "founder": {
+            "name": "Harun al-Rashid",
+            "civ": "",
+            "color_bg": 795556607,
+            "color_fg": 3655583487
+          },
+          "known": true,
+          "cities": 11,
+          "is_mine": false
+        },
+        {
+          "key": 3,
+          "name": "Christianity",
+          "icon": "",
+          "holy_city": "Thebes",
+          "founder": {
+            "name": "Ramesses",
+            "civ": "",
+            "color_bg": 1262123775,
+            "color_fg": 3923550463
+          },
+          "known": true,
+          "cities": 9,
+          "is_mine": false
+        },
+        {
+          "key": 13,
+          "name": "Tengriism",
+          "icon": "",
+          "holy_city": "Tenochtitlan",
+          "founder": {
+            "name": "Montezuma",
+            "civ": "",
+            "color_bg": 1013865215,
+            "color_fg": 3906777343
+          },
+          "known": true,
+          "cities": 7,
+          "is_mine": false
+        },
+        {
+          "key": 1,
+          "name": "Buddhism",
+          "icon": "",
+          "holy_city": null,
+          "founder": null,
+          "known": false,
+          "cities": 5,
+          "is_mine": false
+        }
+      ],
+      "religions_left": 0,
+      "all_beliefs": [
+        {
+          "key": "ab0",
+          "name": "God of Craftsmen",
+          "type": "pantheon",
+          "type_label": "Pantheon",
+          "effect": "+1 production in cities with 3 or more citizens",
+          "religion_name": "Orthodoxy",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab1",
+          "name": "Tithe",
+          "type": "founder",
+          "type_label": "Founder",
+          "effect": "+1 gold for every 4 followers of this religion",
+          "religion_name": "Orthodoxy",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab2",
+          "name": "Feed the World",
+          "type": "follower",
+          "type_label": "Follower",
+          "effect": "+1 food from Shrines and Temples",
+          "religion_name": "Orthodoxy",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab3",
+          "name": "Cathedrals",
+          "type": "follower",
+          "type_label": "Follower",
+          "effect": "Use faith to purchase Cathedrals (+1 happiness, +3 faith, 1 Great Work of Art slot)",
+          "religion_name": "Orthodoxy",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab4",
+          "name": "Religious Texts",
+          "type": "enhancer",
+          "type_label": "Enhancer",
+          "effect": "Religion spreads 34% faster; +34% more with the Printing Press",
+          "religion_name": "Orthodoxy",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab5",
+          "name": "Desert Folklore",
+          "type": "pantheon",
+          "type_label": "Pantheon",
+          "effect": "+1 faith from Desert tiles",
+          "religion_name": "Islam",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab6",
+          "name": "Pilgrimage",
+          "type": "founder",
+          "type_label": "Founder",
+          "effect": "+2 faith for every foreign city following this religion",
+          "religion_name": "Islam",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab7",
+          "name": "Mosques",
+          "type": "follower",
+          "type_label": "Follower",
+          "effect": "Use faith to purchase Mosques (+1 happiness, +3 faith, +2 culture)",
+          "religion_name": "Islam",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab8",
+          "name": "Missionary Zeal",
+          "type": "enhancer",
+          "type_label": "Enhancer",
+          "effect": "Missionaries spread religion 25% more strongly",
+          "religion_name": "Islam",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab9",
+          "name": "Jesuit Education",
+          "type": "reformation",
+          "type_label": "Reformation",
+          "effect": "Universities, Public Schools and Research Labs can be purchased with faith",
+          "religion_name": "Islam",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab10",
+          "name": "Stone Circles",
+          "type": "pantheon",
+          "type_label": "Pantheon",
+          "effect": "+2 faith from Quarries",
+          "religion_name": "Christianity",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab11",
+          "name": "Papal Primacy",
+          "type": "founder",
+          "type_label": "Founder",
+          "effect": "+15 resting influence with city-states following this religion",
+          "religion_name": "Christianity",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab12",
+          "name": "Monasteries",
+          "type": "follower",
+          "type_label": "Follower",
+          "effect": "Use faith to purchase Monasteries (+2 faith, +2 science)",
+          "religion_name": "Christianity",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab13",
+          "name": "Itinerant Preachers",
+          "type": "enhancer",
+          "type_label": "Enhancer",
+          "effect": "Religion spreads to cities 30% further away",
+          "religion_name": "Christianity",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab14",
+          "name": "God of War",
+          "type": "pantheon",
+          "type_label": "Pantheon",
+          "effect": "Gain faith equal to 100% of the strength of each enemy unit killed within 4 tiles of your cities",
+          "religion_name": "Tengriism",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab15",
+          "name": "Ceremonial Burial",
+          "type": "founder",
+          "type_label": "Founder",
+          "effect": "+1 happiness for every city following this religion",
+          "religion_name": "Tengriism",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab16",
+          "name": "Swords into Plowshares",
+          "type": "follower",
+          "type_label": "Follower",
+          "effect": "+15% growth in cities not at war",
+          "religion_name": "Tengriism",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab17",
+          "name": "Peace Loving",
+          "type": "founder",
+          "type_label": "Founder",
+          "effect": "+1 happiness for every 5 followers in foreign cities",
+          "religion_name": "Buddhism",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab18",
+          "name": "Pagodas",
+          "type": "follower",
+          "type_label": "Follower",
+          "effect": "Use faith to purchase Pagodas (+2 happiness, +2 faith, +2 culture)",
+          "religion_name": "Buddhism",
+          "religion_icon": "",
+          "known": true
+        },
+        {
+          "key": "ab19",
+          "name": "Sacred Path",
+          "type": "pantheon",
+          "type_label": "Pantheon",
+          "effect": "+1 culture from Jungle tiles",
+          "religion_name": "Unknown pantheon",
+          "religion_icon": null,
+          "known": false
+        }
+      ],
+      "enabled": true,
+      "reason": null
+    }
+  },
+  "ui": {
+    "windows": {
+      "religion_overview": {
+        "open": true
+      }
+    }
+  }
+}

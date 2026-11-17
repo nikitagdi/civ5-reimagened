@@ -1,0 +1,60 @@
+[enum]
+ReligionMode = ["found", "enhance"]
+ReligionSlotType = ["pantheon", "founder", "follower", "enhancer", "bonus"]
+ReligionSlotState = ["choose", "fixed", "locked"]
+
+[type.ReligionCity]
+id = "i32"
+key = "str"
+name = "text"
+
+[type.ReligionSymbol]
+id = "i32"
+key = "str"
+name = "text"
+icon = "asset"
+taken = "bool"
+founder = "text?"
+founder_known = "bool?"
+tooltip = "text"
+
+[type.ReligionBelief]
+id = "i32"
+key = "str"
+name = "text"
+short_name = "text"
+effect = "text"
+icon = "asset"
+
+[type.ReligionSlot]
+key = "str"
+type = "ReligionSlotType"
+label = "text"
+state = "ReligionSlotState"
+required = "bool"
+fixed = "ReligionBelief?"
+reason = "text?"
+options = { list = "ReligionBelief", key = "id" }
+
+[type.ReligionExisting]
+id = "i32"
+key = "str"
+name = "text"
+icon = "asset"
+default_name = "text"
+holy_city = "text"
+founded = "text"
+
+[model.religion]
+_optional = true
+mode = "ReligionMode"
+city = "ReligionCity?"
+date = "text"
+emblem = "asset"
+symbols = { list = "ReligionSymbol", key = "id" }
+religion = "ReligionExisting?"
+slots = { list = "ReligionSlot", key = "key" }
+enabled = "bool"
+reason = "text?"
+custom_name_available = "bool"
+custom_name_reason = "text"
