@@ -5,7 +5,7 @@
     <svg class="i"><use href="#i-str"/></svg>
     <span data-bind-value="{{c.strength}}">18</span>
   </div>
-  <button class="body" data-bind-disabled="{{!c.mine}}" data-on-click="intent window.open(window: 'production', city: c.key)">
+  <button class="body" data-bind-disabled="{{!c.mine}}" data-on-click="call city.open(c.key)">
     <div class="flank" data-bind-style-background-color="{{c.color}}" data-bind-style-color="{{c.color2}}">
       <span class="size" data-bind-value="{{c.size}}">8</span>
       <span class="grow" data-bind-if="{{c.growth_turns != null}}"><svg class="i"><use href="#i-food"/></svg><span data-bind-value="{{c.growth_turns}}">9</span></span>

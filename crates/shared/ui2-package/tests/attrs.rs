@@ -1308,3 +1308,15 @@ fn runtime_additions_parse_and_typecheck() {
     let mut a = ok(Tag::Img, &[("data-bind-src", "state.mode")]);
     check(&mut a, &scope(), &view(), &AttrCtx::default()).expect("string asset names");
 }
+
+#[test]
+fn server_screen_names_accept_underscores() {
+    let a = ok(
+        Tag::Div,
+        &[("data-screen", "city_captured"), ("data-esc", "none")],
+    );
+    assert_eq!(a.screen.as_deref(), Some("city_captured"));
+    assert_eq!(a.events[0].ev, Event::Escape);
+    expect(Tag::Div, &[("data-screen", "City_captured")], codes::LAYER);
+    expect(Tag::Div, &[("data-screen", "_city")], codes::LAYER);
+}

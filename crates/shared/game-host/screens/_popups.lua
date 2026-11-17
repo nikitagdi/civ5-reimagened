@@ -29,7 +29,7 @@ return {
     BUTTONPOPUP_LEAGUE_PROJECT_COMPLETED = {screen = "congress", a = two, b = d2, decision = false},
     BUTTONPOPUP_DIPLO_VOTE = {screen = "mp_vote", a = two, decision = true},
     BUTTONPOPUP_VOTE_RESULTS = {screen = "congress", a = d1, decision = false},
-    BUTTONPOPUP_CHOOSEPRODUCTION = {screen = "city", a = d1, decision = true},
+    BUTTONPOPUP_CHOOSEPRODUCTION = {screen = "city", a = d1, b = two, decision = true},
     BUTTONPOPUP_CHOOSECITYPURCHASE = {screen = "city", a = d1, decision = false},
     BUTTONPOPUP_CITY_PLOT_MANAGEMENT = {screen = "city", a = d1, decision = false},
     BUTTONPOPUP_RENAME_CITY = {screen = "city_rename", a = d1, decision = true},

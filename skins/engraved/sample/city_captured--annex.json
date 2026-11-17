@@ -1,0 +1,28 @@
+{
+  "model": {
+    "city_captured": {
+      "city": 8204,
+      "name": "Mecca",
+      "mode": "annex",
+      "taken_from": "Previous civilization",
+      "founded_by": "Original civilization",
+      "population": 7,
+      "minor_buyout": false,
+      "loot": null,
+      "options": [],
+      "can_view": true,
+      "may_annex": true,
+      "happiness": null,
+      "reason": null
+    }
+  },
+  "ui": {
+    "windows": {
+      "city_captured": {
+        "open": true,
+        "a": 8204,
+        "b": 1
+      }
+    }
+  }
+}

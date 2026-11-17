@@ -1,0 +1,14 @@
+<section class="city_list-panel" data-part="city-list" data-screen="city_list" data-bind-if="{{ui.windows.city_list.open}}">
+  <header class="city_list-header"><b data-l10n="city_list.title">Cities</b><span data-bind-if="{{city_list != null}}" data-bind-value="{{city_list.count}}"></span><button data-on-click="intent window.close(window: 'city_list')" data-l10n="city_list.close">Close</button></header>
+  <div class="city_list-head"><button data-on-click="call city_list.sort('population')" data-l10n="city_list.population">Population</button><button data-on-click="call city_list.sort('name')" data-l10n="city_list.name">Name</button><button data-on-click="call city_list.sort('strength')" data-l10n="city_list.strength">Strength</button><button data-on-click="call city_list.sort('production')" data-l10n="city_list.production">Production</button></div>
+  <div class="city_list-scroll" data-bind-if="{{city_list != null}}">
+    <div class="city_list-row" data-bind-for="c:{{city_list.cities}}" data-bind-sort-desc="{{state.city_list.desc}}" data-bind-sort="{{state.city_list.sort == 'population' ? c.population : (state.city_list.sort == 'strength' ? c.strength : (state.city_list.sort == 'production' ? c.production_sort : c.name))}}">
+      <div class="city_list-growth"><b data-bind-value="{{c.population}}"></b><span data-bind-value="{{c.growth_state}}"></span><span data-bind-value="{{c.growth_turns}}"></span></div>
+      <button class="city_list-name" data-part="city-list.row" data-on-click="intent window.close(window: 'city_list'); intent window.open(window: 'city', a: c.city, b: 0)" data-on-contextmenu="intent camera.to_city(city: c.map_city)"><span data-part="city-list.name" data-bind-value="{{c.name}}"></span><span class="city_list-status" data-bind-value="{{c.status}}"></span></button>
+      <div class="city_list-strength"><b data-bind-value="{{c.strength}}"></b><span class="city_list-strike" data-bind-if="{{c.can_range_strike}}" data-l10n="city_list.strike">Can fire</span><div class="city_list-hp" data-bind-if="{{c.hp_fraction < 1}}"><i data-bind-style-width="{{c.hp_fraction * 100}}%"></i></div></div>
+      <button class="city_list-production" data-bind-disabled="{{!c.can_choose}}" data-on-click="intent window.close(window: 'city_list'); intent window.open(window: 'city', a: c.city, b: 2)"><span data-bind-if="{{c.production != null}}" data-bind-value="{{c.production.name}}"></span><span data-bind-if="{{c.production != null}}" data-bind-value="{{c.production.turns}}"></span><span data-bind-if="{{c.production == null}}" data-l10n="city_list.empty">No production</span></button>
+    </div>
+  </div>
+</section>
+
+<template data-layer="tooltip" id="tip-city-list"><div class="city-tip" data-l10n="city_list.title">Cities</div></template>

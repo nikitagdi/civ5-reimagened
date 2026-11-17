@@ -1,0 +1,27 @@
+{
+  "model": {
+    "city_rename": {
+      "mode": "raze",
+      "city": 8192,
+      "name": "Moscow",
+      "max_length": 15,
+      "task": {
+        "kind": "raze",
+        "id": 1,
+        "explain": "Confirm this city task.",
+        "forecast": null
+      },
+      "enabled": true,
+      "reason": null
+    }
+  },
+  "ui": {
+    "windows": {
+      "city_rename": {
+        "open": true,
+        "a": 8192,
+        "b": 1
+      }
+    }
+  }
+}

@@ -727,7 +727,7 @@ impl Parser<'_> {
                 ),
             },
             "data-screen" => {
-                if is_slot_name(value) {
+                if is_slot_name(&value.replace('_', "-")) {
                     self.out.screen = Some(value.to_string());
                 } else {
                     self.fail(codes::LAYER, name, "a screen id looks like `production`");

@@ -600,10 +600,17 @@ mod tests {
             .unwrap();
         let mut expected = NetMessage::new("SendRenameCity", &[7]).unwrap();
         expected.text = "New \u{e9} city".into();
-        assert_eq!(m, vec![expected]);
+        assert_eq!(m.messages, vec![expected]);
         let m = r.action(3, "test", "religion", &[], Some("")).unwrap();
-        assert_eq!(m[0].name(), "SendFoundReligion");
-        assert_eq!((m[0].args[0], m[0].args[1], m[0].text.as_str()), (1, 2, ""));
+        assert_eq!(m.messages[0].name(), "SendFoundReligion");
+        assert_eq!(
+            (
+                m.messages[0].args[0],
+                m.messages[0].args[1],
+                m.messages[0].text.as_str()
+            ),
+            (1, 2, "")
+        );
         for bad in ["\n", "\t", &"x".repeat(257)] {
             assert!(
                 r.action(3, "test", "rename", &[("a".into(), 7)], Some(bad))

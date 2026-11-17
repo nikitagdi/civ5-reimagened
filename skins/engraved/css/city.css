@@ -1,0 +1,47 @@
+.city-screen { position: absolute; inset: 48px 0 0; color: var(--bone); background: rgba(12,10,8,.68); }
+.city-screen button { padding: 5px 8px; color: var(--bone-2); background: var(--lacquer-2); border: 1px solid var(--engrave); font-size: 12px; }
+.city-screen button:hover { color: var(--bone); background: var(--lacquer-3); }
+.city-screen button:disabled { color: var(--bone-3); opacity: .5; }
+.city-screen .city-selected { border-color: var(--brass); color: var(--bone); }
+.city-screen .city-primary { background: var(--brass); color: var(--brass-ink); }
+.city-head { position: absolute; left: 50%; top: 0; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; max-width: 46%; padding: 12px; background: var(--lacquer); border: 1px solid var(--engrave); }
+.city-title { min-width: 0; display: flex; flex-direction: column; align-items: center; }
+.city-name { max-width: 300px; font: 500 34px/40px var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.city-side { position: absolute; top: 0; bottom: 0; width: 25%; display: flex; flex-direction: column; background: var(--lacquer); border: 1px solid var(--engrave); }
+.city-left { left: 0; }
+.city-right { right: 0; }
+.city-section { padding: 10px 16px; border-bottom: 1px solid var(--engrave); font-size: 13px; }
+.city-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.city-line .city-ellipsis { flex: 1; }
+.city-ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.city-current { padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+.city-current b { font: 500 24px/28px var(--serif); }
+.city-bar { height: 6px; background: var(--lacquer-3); overflow: hidden; }
+.city-bar i { display: block; height: 100%; background: var(--y-prod); }
+.city-food i { background: var(--y-food); }
+.city-queue { max-height: 180px; overflow-y: auto; scrollbar-width: none; padding: 8px 12px; font-size: 12px; }
+.city-queue .city-line { min-height: 32px; }
+.city-modes { padding: 8px; flex-wrap: wrap; }
+.city-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.city-group { display: flex; flex-direction: column; }
+.city-option { display: grid; grid-template-columns: 1fr 24px 66px 66px; gap: 4px; align-items: center; padding: 2px 12px; font-size: 12px; }
+.city-option .city-gold { color: var(--y-gold); }
+.city-option .city-faith { color: var(--y-faith); }
+.city-income { display: grid; grid-template-columns: repeat(4,1fr); }
+.city-yield { display: flex; flex-direction: column; padding: 10px; border: 1px solid var(--engrave); font-size: 12px; }
+.city-population { font: 500 38px/40px var(--serif); }
+.city-focus { padding: 8px 12px; display: grid; grid-template-columns: repeat(3,1fr); gap: 4px; }
+.city-building { padding: 5px 16px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.city-foot { position: absolute; left: 25%; right: 25%; bottom: 0; padding: 12px; background: var(--lacquer); display: flex; align-items: center; justify-content: flex-end; gap: 12px; border: 1px solid var(--engrave); }
+.city-warning { font-size: 12px; color: var(--bone-3); }
+.city-confirm { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.6); }
+.city-dialog { width: 480px; padding: 24px; display: flex; flex-direction: column; gap: 20px; background: var(--lacquer); border: 1px solid var(--engrave); }
+.city-dialog b { font: 500 26px/32px var(--serif); }
+.city-tip { max-width: 360px; padding: 16px; color: var(--bone); background: var(--lacquer); border: 1px solid var(--engrave); }
+.city-loading { padding: 24px; }
+@media (width < 1500px) { .city-side { width: 29%; } .city-head { max-width: 40%; gap: 4px; } .city-name { max-width: 180px; font-size: 28px; } .city-foot { left: 29%; right: 29%; flex-wrap: wrap; } .city-option { padding: 2px 8px; grid-template-columns: 1fr 20px 60px 60px; } }
+
+.city-status { display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; color: var(--bone-2); }
+.city-tip div { display: flex; flex-direction: column; gap: 8px; }
+
+.city-screen { pointer-events: auto; }

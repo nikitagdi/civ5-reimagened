@@ -1,0 +1,439 @@
+{
+  "model": {
+    "religion": {
+      "mode": "found",
+      "city": {
+        "id": 1,
+        "key": "c:0:1",
+        "name": "Moscow"
+      },
+      "date": "1250 AD",
+      "emblem": "",
+      "symbols": [
+        {
+          "id": 1,
+          "key": "RELIGION_BUDDHISM",
+          "name": "Buddhism",
+          "icon": "",
+          "taken": true,
+          "founder": "Unmet player",
+          "founder_known": false,
+          "tooltip": "Buddhism is already founded by an unknown player"
+        },
+        {
+          "id": 2,
+          "key": "RELIGION_CATHOLICISM",
+          "name": "Catholicism",
+          "icon": "",
+          "taken": false,
+          "founder": null,
+          "founder_known": null,
+          "tooltip": "Catholicism"
+        },
+        {
+          "id": 3,
+          "key": "RELIGION_CHRISTIANITY",
+          "name": "Christianity",
+          "icon": "",
+          "taken": true,
+          "founder": "Ramesses",
+          "founder_known": true,
+          "tooltip": "Christianity is already founded by Ramesses"
+        },
+        {
+          "id": 4,
+          "key": "RELIGION_CONFUCIANISM",
+          "name": "Confucianism",
+          "icon": "",
+          "taken": false,
+          "founder": null,
+          "founder_known": null,
+          "tooltip": "Confucianism"
+        },
+        {
+          "id": 5,
+          "key": "RELIGION_HINDUISM",
+          "name": "Hinduism",
+          "icon": "",
+          "taken": false,
+          "founder": null,
+          "founder_known": null,
+          "tooltip": "Hinduism"
+        },
+        {
+          "id": 6,
+          "key": "RELIGION_ISLAM",
+          "name": "Islam",
+          "icon": "",
+          "taken": true,
+          "founder": "Harun al-Rashid",
+          "founder_known": true,
+          "tooltip": "Islam is already founded by Harun al-Rashid"
+        },
+        {
+          "id": 7,
+          "key": "RELIGION_JUDAISM",
+          "name": "Judaism",
+          "icon": "",
+          "taken": false,
+          "founder": null,
+          "founder_known": null,
+          "tooltip": "Judaism"
+        },
+        {
+          "id": 8,
+          "key": "RELIGION_ORTHODOXY",
+          "name": "Orthodoxy",
+          "icon": "",
+          "taken": false,
+          "founder": null,
+          "founder_known": null,
+          "tooltip": "Orthodoxy"
+        },
+        {
+          "id": 9,
+          "key": "RELIGION_PROTESTANTISM",
+          "name": "Protestantism",
+          "icon": "",
+          "taken": false,
+          "founder": null,
+          "founder_known": null,
+          "tooltip": "Protestantism"
+        },
+        {
+          "id": 10,
+          "key": "RELIGION_SHINTO",
+          "name": "Shinto",
+          "icon": "",
+          "taken": false,
+          "founder": null,
+          "founder_known": null,
+          "tooltip": "Shinto"
+        },
+        {
+          "id": 11,
+          "key": "RELIGION_SIKHISM",
+          "name": "Sikhism",
+          "icon": "",
+          "taken": false,
+          "founder": null,
+          "founder_known": null,
+          "tooltip": "Sikhism"
+        },
+        {
+          "id": 12,
+          "key": "RELIGION_TAOISM",
+          "name": "Taoism",
+          "icon": "",
+          "taken": false,
+          "founder": null,
+          "founder_known": null,
+          "tooltip": "Taoism"
+        },
+        {
+          "id": 13,
+          "key": "RELIGION_TENGRIISM",
+          "name": "Tengriism",
+          "icon": "",
+          "taken": false,
+          "founder": null,
+          "founder_known": null,
+          "tooltip": "Tengriism"
+        },
+        {
+          "id": 14,
+          "key": "RELIGION_ZOROASTRIANISM",
+          "name": "Zoroastrianism",
+          "icon": "",
+          "taken": false,
+          "founder": null,
+          "founder_known": null,
+          "tooltip": "Zoroastrianism"
+        }
+      ],
+      "religion": null,
+      "slots": [
+        {
+          "key": "pantheon",
+          "type": "pantheon",
+          "label": "Pantheon belief",
+          "state": "fixed",
+          "required": false,
+          "fixed": {
+            "id": 6,
+            "key": "BELIEF_GOD_CRAFTSMEN",
+            "name": "God of Craftsmen",
+            "short_name": "God of Craftsmen",
+            "effect": "+1 production in cities with 3 or more citizens",
+            "icon": ""
+          },
+          "reason": null,
+          "options": []
+        },
+        {
+          "key": "founder",
+          "type": "founder",
+          "label": "Founder belief",
+          "state": "choose",
+          "required": true,
+          "fixed": null,
+          "reason": null,
+          "options": [
+            {
+              "id": 30,
+              "key": "BELIEF_CEREMONIAL_BURIAL",
+              "name": "Ceremonial Burial",
+              "short_name": "Ceremonial Burial",
+              "effect": "+1 happiness for every city following this religion",
+              "icon": ""
+            },
+            {
+              "id": 31,
+              "key": "BELIEF_CHURCH_PROPERTY_F",
+              "name": "Church Property",
+              "short_name": "Church Property",
+              "effect": "+2 gold for every city following this religion",
+              "icon": ""
+            },
+            {
+              "id": 32,
+              "key": "BELIEF_INITIATION_RITES",
+              "name": "Initiation Rites",
+              "short_name": "Initiation Rites",
+              "effect": "+100 gold when each city first follows this religion",
+              "icon": ""
+            },
+            {
+              "id": 33,
+              "key": "BELIEF_INTERFAITH_DIALOGUE",
+              "name": "Interfaith Dialogue",
+              "short_name": "Interfaith Dialogue",
+              "effect": "Science when a missionary spreads this religion to cities of other religions",
+              "icon": ""
+            },
+            {
+              "id": 34,
+              "key": "BELIEF_PAPAL_PRIMACY",
+              "name": "Papal Primacy",
+              "short_name": "Papal Primacy",
+              "effect": "+15 resting influence with city-states following this religion",
+              "icon": ""
+            },
+            {
+              "id": 35,
+              "key": "BELIEF_PEACE_LOVING",
+              "name": "Peace Loving",
+              "short_name": "Peace Loving",
+              "effect": "+1 happiness for every 5 followers in foreign cities",
+              "icon": ""
+            },
+            {
+              "id": 36,
+              "key": "BELIEF_PILGRIMAGE",
+              "name": "Pilgrimage",
+              "short_name": "Pilgrimage",
+              "effect": "+2 faith for every foreign city following this religion",
+              "icon": ""
+            },
+            {
+              "id": 37,
+              "key": "BELIEF_TITHE",
+              "name": "Tithe",
+              "short_name": "Tithe",
+              "effect": "+1 gold for every 4 followers of this religion",
+              "icon": ""
+            },
+            {
+              "id": 38,
+              "key": "BELIEF_WORLD_CHURCH",
+              "name": "World Church",
+              "short_name": "World Church",
+              "effect": "+1 culture for every 5 followers in foreign cities",
+              "icon": ""
+            }
+          ]
+        },
+        {
+          "key": "follower",
+          "type": "follower",
+          "label": "Follower belief",
+          "state": "choose",
+          "required": true,
+          "fixed": null,
+          "reason": null,
+          "options": [
+            {
+              "id": 39,
+              "key": "BELIEF_ASCETICISM",
+              "name": "Asceticism",
+              "short_name": "Asceticism",
+              "effect": "+1 happiness from Shrines in cities with at least 3 followers",
+              "icon": ""
+            },
+            {
+              "id": 40,
+              "key": "BELIEF_CATHEDRALS",
+              "name": "Cathedrals",
+              "short_name": "Cathedrals",
+              "effect": "Use faith to purchase Cathedrals (+1 happiness, +3 faith, 1 Great Work of Art slot)",
+              "icon": ""
+            },
+            {
+              "id": 41,
+              "key": "BELIEF_CHORAL_MUSIC",
+              "name": "Choral Music",
+              "short_name": "Choral Music",
+              "effect": "+2 culture from Temples in cities with at least 5 followers",
+              "icon": ""
+            },
+            {
+              "id": 42,
+              "key": "BELIEF_DIVINE_INSPIRATION",
+              "name": "Divine Inspiration",
+              "short_name": "Divine Inspiration",
+              "effect": "+2 faith from each world wonder",
+              "icon": ""
+            },
+            {
+              "id": 43,
+              "key": "BELIEF_FEED_THE_WORLD",
+              "name": "Feed the World",
+              "short_name": "Feed the World",
+              "effect": "+1 food from Shrines and Temples",
+              "icon": ""
+            },
+            {
+              "id": 44,
+              "key": "BELIEF_GURUSHIP",
+              "name": "Guruship",
+              "short_name": "Guruship",
+              "effect": "+2 production if the city has a specialist",
+              "icon": ""
+            },
+            {
+              "id": 45,
+              "key": "BELIEF_HOLY_WARRIORS",
+              "name": "Holy Warriors",
+              "short_name": "Holy Warriors",
+              "effect": "Use faith to purchase pre-Industrial land units",
+              "icon": ""
+            },
+            {
+              "id": 46,
+              "key": "BELIEF_LITURGICAL_DRAMA",
+              "name": "Liturgical Drama",
+              "short_name": "Liturgical Drama",
+              "effect": "+1 culture from Amphitheaters and Opera Houses",
+              "icon": ""
+            },
+            {
+              "id": 47,
+              "key": "BELIEF_MONASTERIES",
+              "name": "Monasteries",
+              "short_name": "Monasteries",
+              "effect": "Use faith to purchase Monasteries (+2 faith, +2 science)",
+              "icon": ""
+            },
+            {
+              "id": 48,
+              "key": "BELIEF_MOSQUES",
+              "name": "Mosques",
+              "short_name": "Mosques",
+              "effect": "Use faith to purchase Mosques (+1 happiness, +3 faith, +2 culture)",
+              "icon": ""
+            },
+            {
+              "id": 49,
+              "key": "BELIEF_PAGODAS",
+              "name": "Pagodas",
+              "short_name": "Pagodas",
+              "effect": "Use faith to purchase Pagodas (+2 happiness, +2 faith, +2 culture)",
+              "icon": ""
+            },
+            {
+              "id": 50,
+              "key": "BELIEF_PEACE_GARDENS",
+              "name": "Peace Gardens",
+              "short_name": "Peace Gardens",
+              "effect": "+2 happiness from Gardens",
+              "icon": ""
+            },
+            {
+              "id": 51,
+              "key": "BELIEF_RELIGIOUS_ART",
+              "name": "Religious Art",
+              "short_name": "Religious Art",
+              "effect": "+8 tourism from Hermitages",
+              "icon": ""
+            },
+            {
+              "id": 52,
+              "key": "BELIEF_RELIGIOUS_CENTER",
+              "name": "Religious Center",
+              "short_name": "Religious Center",
+              "effect": "+2 happiness from Temples in cities with at least 5 followers",
+              "icon": ""
+            },
+            {
+              "id": 53,
+              "key": "BELIEF_RELIGIOUS_COMMUNITY",
+              "name": "Religious Community",
+              "short_name": "Religious Community",
+              "effect": "+1% production for each follower, up to +15%",
+              "icon": ""
+            },
+            {
+              "id": 54,
+              "key": "BELIEF_SWORDS_INTO_PLOWSHARES",
+              "name": "Swords into Plowshares",
+              "short_name": "Swords into Plowshares",
+              "effect": "+15% growth in cities not at war",
+              "icon": ""
+            }
+          ]
+        },
+        {
+          "key": "follower2",
+          "type": "follower",
+          "label": "Second follower belief",
+          "state": "locked",
+          "required": false,
+          "fixed": null,
+          "reason": "Added when you enhance the religion",
+          "options": []
+        },
+        {
+          "key": "enhancer",
+          "type": "enhancer",
+          "label": "Enhancer belief",
+          "state": "locked",
+          "required": false,
+          "fixed": null,
+          "reason": "Added when you enhance the religion",
+          "options": []
+        },
+        {
+          "key": "bonus",
+          "type": "bonus",
+          "label": "Bonus belief",
+          "state": "locked",
+          "required": false,
+          "fixed": null,
+          "reason": "Byzantium only",
+          "options": []
+        }
+      ],
+      "enabled": true,
+      "reason": null,
+      "custom_name_available": true
+    }
+  },
+  "ui": {
+    "windows": {
+      "religion": {
+        "open": true,
+        "a": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "model": {
+    "city_rename": {
+      "mode": "rename",
+      "city": 8192,
+      "name": "Moscow",
+      "max_length": 15,
+      "task": null,
+      "enabled": true
+    }
+  },
+  "ui": {
+    "windows": {
+      "city_rename": {
+        "open": true,
+        "a": 8192
+      }
+    }
+  },
+  "state": {
+    "city_rename": {
+      "draft": "Bad/name",
+      "valid": false,
+      "touched": true,
+      "why": "Use 3 to 15 characters without reserved symbols."
+    }
+  }
+}

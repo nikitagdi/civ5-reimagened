@@ -1,0 +1,37 @@
+[enum]
+CityCapturedMode = ["captured", "annex"]
+CityCapturedChoice = ["liberate", "annex", "puppet", "raze"]
+CityCapturedWorkKind = ["art", "writing", "music", "artifact"]
+[type.CityCapturedWork]
+key = "i32"
+name = "text"
+icon = "asset"
+kind = "CityCapturedWorkKind"
+[type.CityCapturedLoot]
+gold = "i32"
+culture = "i32"
+great_works = { list = "CityCapturedWork", key = "key" }
+[type.CityCapturedOption]
+key = "CityCapturedChoice"
+enabled = "bool"
+reason = "text?"
+title = "text"
+text = "text"
+forecast = "text?"
+happiness = "i32?"
+liberate_to = "text?"
+[model.city_captured]
+_optional = true
+mode = "CityCapturedMode"
+city = "i32"
+name = "text"
+population = "i32"
+taken_from = "text"
+founded_by = "text?"
+minor_buyout = "bool"
+loot = "CityCapturedLoot?"
+options = { list = "CityCapturedOption", key = "key" }
+can_view = "bool"
+may_annex = "bool?"
+happiness = "i32?"
+reason = "text?"

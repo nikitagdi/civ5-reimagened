@@ -1450,3 +1450,43 @@ fn unknown_game_picture_draws_the_placeholder_and_reports_once() {
             .is_empty()
     );
 }
+
+#[test]
+fn explicit_enter_confirmation_precedes_previous_focus_and_ignores_repeats() {
+    let mut f = Fx::new();
+    let previous = f
+        .el("previous", at(0.0, 0.0, 50.0, 40.0))
+        .flags(node_flags::FOCUSABLE)
+        .bind(on(Event::Click, vec![intent("turn.cancel", &[])]));
+    let confirm = f
+        .el("confirm", at(60.0, 0.0, 50.0, 40.0))
+        .hotkey("Enter", 0)
+        .bind(on(Event::Click, vec![intent("turn.end", &[])]));
+    let screen = f
+        .el("screen", at(0.0, 0.0, 200.0, 100.0))
+        .screen("production")
+        .children([previous, confirm]);
+    let window = f.layer(Layer::Window, "window").child(screen);
+    f.kit.template("doc", vec![window]);
+    let mut h = Host::with(f.kit.finish().expect("package"), Env::default());
+    h.click(20.0, 20.0);
+    h.rt.drain_output();
+    assert_eq!(h.rt.focused(), Some(h.part("previous")));
+    assert_eq!(h.named(NamedKey::Enter, "Enter"), TAKEN);
+    assert_eq!(h.intents(), vec![wire("turn.end", vec![], Origin::Hotkey)]);
+    let InputEvent::Key(mut repeated) = key_event(
+        Key::Named(NamedKey::Enter),
+        "Enter",
+        true,
+        Modifiers::default(),
+    ) else {
+        unreachable!()
+    };
+    repeated.repeat = true;
+    assert_eq!(h.send(InputEvent::Key(repeated)), TAKEN);
+    assert!(h.intents().is_empty());
+    h.rt.set_state(h.part("confirm"), StateBits::DISABLED, true);
+    h.frame();
+    assert_eq!(h.named(NamedKey::Enter, "Enter"), TAKEN);
+    assert_eq!(h.intents()[0].name.as_ref(), "turn.cancel");
+}

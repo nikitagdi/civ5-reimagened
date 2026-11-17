@@ -21,11 +21,63 @@ export type ProdTab = "all" | "units" | "buildings" | "wonders" | "other";
 export type TurnPending = "none" | "ending" | "cancelling";
 export type ToastKind = "refused" | "rejected" | "lost";
 export type RefuseWhy = "unsupported" | "no_screen" | "no_unit" | "action_unavailable" | "not_your_city" | "option_unavailable" | "cannot_buy" | "bad_slot" | "tech_unavailable" | "cannot_end_turn" | "cannot_cancel" | "chat_empty" | "chat_too_long" | "chat_rate" | "no_connection" | "no_game" | "too_many" | "turn_changed" | "too_big" | "core" | "turn_ended" | "not_your_turn" | "restarting" | "invalid" | "expired" | "not_seated" | "other";
-export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "techs";
+export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "city" | "city_captured" | "city_list" | "city_rename" | "free_great_person" | "ideology" | "pantheon" | "policies" | "religion" | "religion_overview" | "tech_award" | "techs";
 export type ScreenId = "tech_tree" | "policies" | "religion" | "diplomacy" | "overview" | "notification_log" | "economy" | "military" | "victory" | "demographics" | "chat";
 export type MouseButton = "left" | "right";
 export type PushAt = "back" | "front";
 export type BuyWith = "gold" | "faith";
+export type CityViewReason = "none" | "puppet" | "foreign" | "spy" | "capture_pending" | "popup_view";
+export type CityStatusKind = "connected" | "blockaded" | "razing" | "puppet" | "resistance" | "occupied";
+export type CityDemandKind = "wltkd" | "resource";
+export type CityGrowth = "growing" | "stagnant" | "starving";
+export type CityYieldKind = "food" | "production" | "gold" | "science" | "faith" | "culture" | "tourism" | "golden_age";
+export type CityItemKind = "unit" | "building" | "wonder" | "project" | "process";
+export type CityGroupKind = "unit" | "building" | "wonder_project" | "process";
+export type CityBuyState = "ok" | "short" | "off";
+export type CityFocus = "default" | "food" | "production" | "gold" | "science" | "culture" | "great_people" | "faith" | "golden_age";
+export type CityBuildingKind = "specialist" | "great_work" | "wonder" | "other";
+export type CityWorkKind = "art" | "writing" | "music" | "artifact";
+export type CityTileState = "center" | "worked" | "locked" | "unworked" | "other" | "blocked" | "enemy" | "unowned";
+export type CityTaskKind = "raze" | "unraze" | "annex" | "none";
+export type CityTone = "neutral" | "negative";
+export type CityCapturedMode = "captured" | "annex";
+export type CityCapturedChoice = "liberate" | "annex" | "puppet" | "raze";
+export type CityCapturedWorkKind = "art" | "writing" | "music" | "artifact";
+export type CityListStatus = "none" | "capital" | "puppet" | "occupied";
+export type CityListGrowth = "growing" | "stagnant" | "starving";
+export type CityListItemKind = "unit" | "building" | "wonder" | "project" | "process";
+export type CityRenameMode = "rename" | "raze" | "unraze" | "annex";
+export type CityRenameTaskKind = "raze" | "unraze" | "annex";
+export type FreeGreatPersonMode = "free" | "faith" | "maya";
+export type IdeologyVictoryKind = "culture" | "diplomacy" | "domination" | "science";
+export type PantheonMode = "pantheon" | "reformation";
+export type PoliciesTab = "policies" | "ideology";
+export type PoliciesBranchState = "opened" | "complete" | "closed" | "era_locked" | "blocked";
+export type PoliciesPolicyState = "adopted" | "available" | "locked" | "blocked";
+export type PoliciesSlotState = "adopted" | "open" | "unaffordable" | "locked" | "empty";
+export type PoliciesOpinionState = "content" | "dissidents" | "civil_resistance" | "revolutionary_wave";
+export type ReligionMode = "found" | "enhance";
+export type ReligionSlotType = "pantheon" | "founder" | "follower" | "enhancer" | "bonus";
+export type ReligionSlotState = "choose" | "fixed" | "locked";
+export type ReligionOverviewStatusKind = "founded_religion" | "created_pantheon" | "can_create_pantheon" | "not_enough_faith" | "too_late";
+export type ReligionOverviewBeliefType = "pantheon" | "founder" | "follower" | "enhancer" | "reformation";
+export type ReligionOverviewPurchaseKind = "none" | "save_prophet" | "unit" | "building";
+export type RichTooltipsProgressKind = "science" | "culture" | "faith" | "golden_age" | "tourism";
+export type RichTooltipsCityYieldKind = "food" | "production" | "gold" | "science" | "culture" | "faith" | "tourism";
+export type RichTooltipsTechState = "researched" | "current" | "available" | "unavailable" | "locked" | "free";
+export type RichTooltipsUnlockKind = "unit" | "building" | "wonder" | "project" | "resource" | "improvement" | "ability";
+export type RichTooltipsRelation = "own" | "ally" | "war" | "other";
+export type RichTooltipsPortraitSide = "left" | "right";
+export type RichTooltipsPolicyStatus = "adopted" | "can_adopt" | "locked" | "blocked";
+export type RichTooltipsTreatyStatus = "active" | "partial" | "possible" | "unavailable";
+export type TechAwardUnlockKind = "unit" | "building" | "wonder" | "project" | "resource" | "improvement" | "ability";
+export type TechsMode = "normal" | "free" | "steal";
+export type TechsOpenedBy = "menu" | "request";
+export type TechsState = "researched" | "current" | "available" | "unavailable" | "locked" | "free";
+export type TechsUnlockKind = "unit" | "building" | "wonder" | "project" | "resource" | "improvement" | "ability";
+export type TechsEraState = "past" | "current" | "future";
+export type TechsLinkKind = "and" | "or";
+export type TechsLinkState = "done" | "live" | "idle";
 export type TechsStatus = "researched" | "current" | "available" | "queued" | "locked";
 
 export interface Plot {
@@ -303,6 +355,17 @@ export interface WinCity {
 }
 
 export interface Windows {
+  readonly city: WinArgs;
+  readonly city_captured: WinArgs;
+  readonly city_list: WinArgs;
+  readonly city_rename: WinArgs;
+  readonly free_great_person: WinArgs;
+  readonly ideology: WinArgs;
+  readonly pantheon: WinArgs;
+  readonly policies: WinArgs;
+  readonly religion: WinArgs;
+  readonly religion_overview: WinArgs;
+  readonly tech_award: WinArgs;
   readonly techs: WinArgs;
   readonly production: WinCity;
   readonly research: Win;
@@ -334,6 +397,293 @@ export interface Toast {
   readonly kind: ToastKind;
   readonly why: RefuseWhy;
   readonly detail: string | null;
+}
+
+export interface CityStatus {
+  readonly key: CityStatusKind;
+  readonly turns: number | null;
+  readonly text: Text;
+}
+
+export interface CityDemand {
+  readonly kind: CityDemandKind;
+  readonly text: Text;
+  readonly turns: number;
+  readonly icon: string | null;
+}
+
+export interface CityFood {
+  readonly stored: number;
+  readonly threshold: number;
+  readonly net: number;
+  readonly turns: number | null;
+  readonly state: CityGrowth;
+}
+
+export interface CityBreakdown {
+  readonly label: string;
+  readonly value: number;
+}
+
+export interface CityYield {
+  readonly key: CityYieldKind;
+  readonly value: number;
+  readonly enabled: boolean;
+  readonly breakdown: CityBreakdown[];
+}
+
+export interface CityBorder {
+  readonly stored: number;
+  readonly threshold: number;
+  readonly turns: number | null;
+}
+
+export interface CityTreasury {
+  readonly gold: number;
+  readonly faith: number;
+}
+
+export interface CityCurrent {
+  readonly item: number;
+  readonly name: Text;
+  readonly kind: CityItemKind;
+  readonly icon: string;
+  readonly stored: number;
+  readonly needed: number;
+  readonly turns: number | null;
+  readonly next: number;
+}
+
+export interface CityQueueRow {
+  readonly slot: number;
+  readonly item: number;
+  readonly name: Text;
+  readonly kind: CityItemKind;
+  readonly icon: string;
+  readonly turns: number | null;
+  readonly number: number | null;
+  readonly repeat: boolean;
+  readonly after_repeat: boolean;
+}
+
+export interface CityLastDone {
+  readonly name: Text;
+  readonly icon: string;
+  readonly turn: number;
+}
+
+export interface CityOption {
+  readonly item: number;
+  readonly name: Text;
+  readonly kind: CityItemKind;
+  readonly icon: string;
+  readonly turns: number | null;
+  readonly cost: number | null;
+  readonly can_build: boolean;
+  readonly buy_gold: number | null;
+  readonly gold_state: CityBuyState | null;
+  readonly gold_short: number | null;
+  readonly buy_faith: number | null;
+  readonly faith_state: CityBuyState | null;
+  readonly faith_short: number | null;
+  readonly reason: Text | null;
+  readonly effect: Text;
+  readonly help: Text;
+  readonly buy_reason: Text | null;
+}
+
+export interface CityOptionGroup {
+  readonly kind: CityGroupKind;
+  readonly count: number;
+  readonly options: CityOption[];
+}
+
+export interface CityProduction {
+  readonly rate: number;
+  readonly overflow: number;
+  readonly chop: number;
+  readonly current: CityCurrent | null;
+  readonly queue: CityQueueRow[];
+  readonly last_done: CityLastDone | null;
+  readonly groups: CityOptionGroup[];
+}
+
+export interface CityGreatPerson {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly yield: CityYieldKind;
+  readonly progress: number;
+  readonly threshold: number;
+  readonly rate: number | null;
+  readonly turns: number | null;
+  readonly modifiers: CityBreakdown[];
+}
+
+export interface CityFocusOption {
+  readonly key: CityFocus;
+  readonly id: number;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+}
+
+export interface CityBuildingYield {
+  readonly key: CityYieldKind;
+  readonly value: number;
+}
+
+export interface CitySpecialist {
+  readonly key: string;
+  readonly id: number;
+  readonly yield: CityYieldKind;
+  readonly slots: number;
+  readonly filled: number;
+  readonly can_add: boolean;
+  readonly reason: Text | null;
+}
+
+export interface CityWorkSlot {
+  readonly index: number;
+  readonly filled: boolean;
+  readonly name: Text | null;
+}
+
+export interface CityGreatWorks {
+  readonly kind: CityWorkKind;
+  readonly slots: CityWorkSlot[];
+  readonly theming_bonus: number | null;
+}
+
+export interface CityBuilding {
+  readonly id: number;
+  readonly name: Text;
+  readonly icon: string;
+  readonly yields: CityBuildingYield[];
+  readonly defense: number | null;
+  readonly maintenance: number;
+  readonly free: boolean;
+  readonly can_sell: boolean;
+  readonly sell_refund: number | null;
+  readonly sell_reason: Text | null;
+  readonly specialist: CitySpecialist | null;
+  readonly great_works: CityGreatWorks | null;
+  readonly help: Text;
+}
+
+export interface CityBuildingGroup {
+  readonly key: CityBuildingKind;
+  readonly count: number;
+  readonly maintenance: number;
+  readonly buildings: CityBuilding[];
+}
+
+export interface CityTile {
+  readonly index: number;
+  readonly x: number;
+  readonly y: number;
+  readonly plot: number;
+  readonly state: CityTileState;
+  readonly yields: CityBuildingYield[];
+  readonly other_city: Text | null;
+  readonly buy_price: number | null;
+  readonly buy_state: CityBuyState | null;
+  readonly buy_short: number | null;
+  readonly buy_reason: Text | null;
+  readonly border_next: boolean;
+}
+
+export interface CityTask {
+  readonly kind: CityTaskKind;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly forecast: Text | null;
+  readonly mode: number;
+}
+
+export interface CityAnnexPreview {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: Text;
+  readonly tone: CityTone;
+}
+
+export interface CityCapturedWork {
+  readonly key: number;
+  readonly name: Text;
+  readonly icon: string;
+  readonly kind: CityCapturedWorkKind;
+}
+
+export interface CityCapturedLoot {
+  readonly gold: number;
+  readonly culture: number;
+  readonly great_works: CityCapturedWork[];
+}
+
+export interface CityCapturedOption {
+  readonly key: CityCapturedChoice;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly title: Text;
+  readonly text: Text;
+  readonly forecast: Text | null;
+  readonly happiness: number | null;
+  readonly liberate_to: Text | null;
+}
+
+export interface CityListProduction {
+  readonly name: Text;
+  readonly icon: string;
+  readonly kind: CityListItemKind;
+  readonly stored: number;
+  readonly needed: number;
+  readonly rate: number;
+  readonly turns: number | null;
+}
+
+export interface CityListRow {
+  readonly city: number;
+  readonly map_city: Key;
+  readonly name: string;
+  readonly status: CityListStatus;
+  readonly population: number;
+  readonly food_stored: number;
+  readonly food_threshold: number;
+  readonly food_net: number;
+  readonly growth_turns: number | null;
+  readonly growth_state: CityListGrowth;
+  readonly strength: number;
+  readonly hp_fraction: number;
+  readonly can_range_strike: boolean;
+  readonly production: CityListProduction | null;
+  readonly production_sort: string;
+  readonly can_choose: boolean;
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface CityRenameTask {
+  readonly kind: CityRenameTaskKind;
+  readonly id: number;
+  readonly explain: Text | null;
+  readonly forecast: Text | null;
+}
+
+export interface FreeGreatPersonAbility {
+  readonly index: number;
+  readonly label: Text;
+  readonly text: Text;
+}
+
+export interface FreeGreatPersonChoice {
+  readonly unit: number;
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly strategy: Text;
+  readonly abilities: FreeGreatPersonAbility[];
+  readonly available: boolean;
+  readonly reason: Text | null;
 }
 
 export interface HudTech {
@@ -419,6 +769,716 @@ export interface HudPopup {
   readonly decision: boolean;
 }
 
+export interface IdeologyVictory {
+  readonly kind: IdeologyVictoryKind;
+}
+
+export interface IdeologyAdopter {
+  readonly key: number;
+  readonly civ: string | null;
+  readonly name: string;
+  readonly known: boolean;
+  readonly color_bg: number | null;
+  readonly color_fg: number | null;
+}
+
+export interface IdeologyTenet {
+  readonly id: number;
+  readonly key: string;
+  readonly name: string;
+  readonly effect: Text;
+}
+
+export interface IdeologyLevel {
+  readonly level: number;
+  readonly tenets: IdeologyTenet[];
+}
+
+export interface IdeologyOption {
+  readonly id: number;
+  readonly key: string;
+  readonly name: string;
+  readonly icon: string;
+  readonly free_tenets: number;
+  readonly victories: IdeologyVictory[];
+  readonly adopted_by: IdeologyAdopter[];
+  readonly levels: IdeologyLevel[];
+}
+
+export interface PantheonBelief {
+  readonly id: number;
+  readonly key: string;
+  readonly icon: string;
+  readonly name: string;
+  readonly short_name: string;
+  readonly effect: string;
+}
+
+export interface PoliciesText {
+  readonly id: number;
+  readonly name: string;
+}
+
+export interface PoliciesCulture {
+  readonly stored: number;
+  readonly per_turn: number;
+  readonly next_cost: number;
+  readonly turns: number | null;
+  readonly can_afford: boolean;
+}
+
+export interface PoliciesPolicy {
+  readonly id: number;
+  readonly key: string;
+  readonly name: string;
+  readonly icon: string;
+  readonly grid_x: number;
+  readonly grid_y: number;
+  readonly state: PoliciesPolicyState;
+  readonly effect: Text;
+  readonly requires: PoliciesText[];
+  readonly reason: Text | null;
+}
+
+export interface PoliciesLink {
+  readonly key: string;
+  readonly from_x: number;
+  readonly from_y: number;
+  readonly to_x: number;
+  readonly to_y: number;
+  readonly lit: boolean;
+}
+
+export interface PoliciesBranch {
+  readonly id: number;
+  readonly key: string;
+  readonly name: string;
+  readonly icon: string;
+  readonly state: PoliciesBranchState;
+  readonly adopted: number;
+  readonly total: number;
+  readonly opener: Text;
+  readonly finisher: Text;
+  readonly finisher_done: boolean;
+  readonly era: Text;
+  readonly can_unlock: boolean;
+  readonly unlock_cost: number | null;
+  readonly disables: PoliciesText[];
+  readonly reason: Text | null;
+  readonly tooltip: Text;
+  readonly policies: PoliciesPolicy[];
+  readonly links: PoliciesLink[];
+}
+
+export interface PoliciesTenet {
+  readonly id: number;
+  readonly key: string;
+  readonly name: string;
+  readonly effect: Text;
+}
+
+export interface PoliciesSlot {
+  readonly key: string;
+  readonly state: PoliciesSlotState;
+  readonly tenet_id: number | null;
+  readonly name: Text | null;
+  readonly effect: Text | null;
+  readonly reason: Text | null;
+}
+
+export interface PoliciesLevel {
+  readonly level: number;
+  readonly adopted: number;
+  readonly slot_count: number;
+  readonly slots: PoliciesSlot[];
+  readonly available: PoliciesTenet[];
+}
+
+export interface PoliciesCount {
+  readonly level: number;
+  readonly count: number;
+}
+
+export interface PoliciesOpinion {
+  readonly state: PoliciesOpinionState;
+  readonly label: Text;
+  readonly pressure: number | null;
+  readonly support: number | null;
+  readonly unhappiness: number;
+  readonly tooltip: Text;
+  readonly unhappiness_tooltip: Text;
+  readonly preferred: Text | null;
+}
+
+export interface PoliciesSwitch {
+  readonly available: boolean;
+  readonly reason: Text | null;
+  readonly target: Text | null;
+  readonly target_id: number | null;
+  readonly anarchy_turns: number;
+  readonly tenets_now: number;
+  readonly tenets_kept: number;
+  readonly unhappiness_removed: number;
+}
+
+export interface PoliciesIdeology {
+  readonly id: number;
+  readonly key: string;
+  readonly name: string;
+  readonly title: Text;
+  readonly icon: string;
+  readonly emblem: string;
+  readonly adopted_date: Text;
+  readonly summary: Text;
+  readonly adopted_by_level: PoliciesCount[];
+  readonly levels: PoliciesLevel[];
+  readonly public_opinion: PoliciesOpinion;
+  readonly switch: PoliciesSwitch;
+}
+
+export interface ReligionCity {
+  readonly id: number;
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface ReligionSymbol {
+  readonly id: number;
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly taken: boolean;
+  readonly founder: Text | null;
+  readonly founder_known: boolean | null;
+  readonly tooltip: Text;
+}
+
+export interface ReligionBelief {
+  readonly id: number;
+  readonly key: string;
+  readonly name: Text;
+  readonly short_name: Text;
+  readonly effect: Text;
+  readonly icon: string;
+}
+
+export interface ReligionSlot {
+  readonly key: string;
+  readonly type: ReligionSlotType;
+  readonly label: Text;
+  readonly state: ReligionSlotState;
+  readonly required: boolean;
+  readonly fixed: ReligionBelief | null;
+  readonly reason: Text | null;
+  readonly options: ReligionBelief[];
+}
+
+export interface ReligionExisting {
+  readonly id: number;
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly default_name: Text;
+  readonly holy_city: Text;
+  readonly founded: Text;
+}
+
+export interface ReligionOverviewStatus {
+  readonly kind: ReligionOverviewStatusKind;
+  readonly text: Text;
+}
+
+export interface ReligionOverviewReligion {
+  readonly id: number;
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+}
+
+export interface ReligionOverviewPantheon {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface ReligionOverviewMyBelief {
+  readonly key: string;
+  readonly type: ReligionOverviewBeliefType;
+  readonly type_label: Text;
+  readonly name: Text;
+  readonly effect: Text;
+}
+
+export interface ReligionOverviewIncome {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: number;
+}
+
+export interface ReligionOverviewFaith {
+  readonly stored: number;
+  readonly per_turn: number;
+  readonly next_prophet: number;
+  readonly prophet_tooltip: Text;
+  readonly income: ReligionOverviewIncome[];
+}
+
+export interface ReligionOverviewGreatPerson {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+}
+
+export interface ReligionOverviewOption {
+  readonly key: string;
+  readonly kind: ReligionOverviewPurchaseKind;
+  readonly id: number;
+  readonly label: Text;
+  readonly cost: number | null;
+}
+
+export interface ReligionOverviewPurchase {
+  readonly current: string;
+  readonly label: Text;
+  readonly options: ReligionOverviewOption[];
+}
+
+export interface ReligionOverviewFounder {
+  readonly name: string;
+  readonly civ: string;
+  readonly color_bg: number | null;
+  readonly color_fg: number | null;
+}
+
+export interface ReligionOverviewWorld {
+  readonly key: number;
+  readonly name: string;
+  readonly icon: string;
+  readonly holy_city: string | null;
+  readonly founder: ReligionOverviewFounder | null;
+  readonly known: boolean;
+  readonly cities: number;
+  readonly is_mine: boolean;
+}
+
+export interface ReligionOverviewAnyBelief {
+  readonly type_order: number;
+  readonly key: string;
+  readonly name: string;
+  readonly type: ReligionOverviewBeliefType;
+  readonly type_label: Text;
+  readonly effect: Text;
+  readonly religion_name: string;
+  readonly religion_icon: string | null;
+  readonly known: boolean;
+}
+
+export interface RichTooltipsTechLeadsTo {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface RichTooltipsTechUnlocks {
+  readonly key: string;
+  readonly kind: RichTooltipsUnlockKind;
+  readonly name: Text;
+  readonly icon: string;
+}
+
+export interface RichTooltipsTech {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly portrait: string;
+  readonly era_name: Text;
+  readonly state: RichTooltipsTechState;
+  readonly researched: boolean;
+  readonly progress: number;
+  readonly cost: number;
+  readonly turns: number | null;
+  readonly science_rate: number;
+  readonly leads_to: RichTooltipsTechLeadsTo[];
+  readonly unlocks: RichTooltipsTechUnlocks[];
+  readonly help: Text;
+}
+
+export interface RichTooltipsUnitOwnerColors {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface RichTooltipsUnitPromotions {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly free: boolean;
+}
+
+export interface RichTooltipsUnitCost {
+  readonly city: Text;
+  readonly production: number | null;
+  readonly gold: number | null;
+  readonly ratio_pct: number | null;
+  readonly faith: number | null;
+}
+
+export interface RichTooltipsUnitResources {
+  readonly key: string;
+  readonly name: Text;
+  readonly amount: number;
+  readonly icon: string;
+}
+
+export interface RichTooltipsUnitUnique {
+  readonly civ: Text;
+  readonly replaces: Text;
+}
+
+export interface RichTooltipsUnitRequires {
+  readonly kind: string;
+  readonly name: Text;
+}
+
+export interface RichTooltipsUnitUpgrade {
+  readonly to: Text;
+  readonly gold: number | null;
+  readonly tech: Text;
+}
+
+export interface RichTooltipsUnit {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly portrait: string;
+  readonly relation: RichTooltipsRelation;
+  readonly owner_line: Text;
+  readonly owner_emblem: string;
+  readonly owner_colors: RichTooltipsUnitOwnerColors[];
+  readonly combat_class: Text;
+  readonly strength: number | null;
+  readonly strength_base: number | null;
+  readonly strength_reduced: boolean;
+  readonly ranged_strength: number | null;
+  readonly range: number | null;
+  readonly moves_left: number | null;
+  readonly moves_max: number;
+  readonly hp: number | null;
+  readonly hp_max: number;
+  readonly embarked: boolean;
+  readonly religion: RichTooltipsUnitShortReligion | null;
+  readonly promotions: RichTooltipsUnitPromotions[];
+  readonly abilities: Text;
+  readonly cost: RichTooltipsUnitCost;
+  readonly resources: RichTooltipsUnitResources[];
+  readonly unique: RichTooltipsUnitUnique | null;
+  readonly requires: RichTooltipsUnitRequires[];
+  readonly upgrade: RichTooltipsUnitUpgrade | null;
+  readonly obsolete_tech: Text | null;
+}
+
+export interface RichTooltipsBuildingLines {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: Text;
+  readonly yield: string | null;
+}
+
+export interface RichTooltipsBuildingFuture {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: Text;
+}
+
+export interface RichTooltipsBuildingCost {
+  readonly production: number | null;
+  readonly gold: number | null;
+  readonly ratio_pct: number | null;
+  readonly faith: number | null;
+  readonly free: boolean;
+}
+
+export interface RichTooltipsBuildingRequires {
+  readonly key: string;
+  readonly label: Text;
+  readonly met: boolean;
+  readonly text: Text;
+}
+
+export interface RichTooltipsBuilding {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly portrait: string;
+  readonly portrait_side: RichTooltipsPortraitSide;
+  readonly city: Text;
+  readonly turns: number | null;
+  readonly lines: RichTooltipsBuildingLines[];
+  readonly future: RichTooltipsBuildingFuture[];
+  readonly cost: RichTooltipsBuildingCost;
+  readonly requires: RichTooltipsBuildingRequires[];
+  readonly limits: Text | null;
+  readonly help: Text;
+}
+
+export interface RichTooltipsImprovementYields {
+  readonly yield: string;
+  readonly value: number;
+  readonly fresh_water: number;
+}
+
+export interface RichTooltipsImprovementBonuses {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: Text;
+  readonly met: boolean | null;
+}
+
+export interface RichTooltipsImprovement {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly build_turns: number | null;
+  readonly maintenance: number;
+  readonly yields: RichTooltipsImprovementYields[];
+  readonly bonuses: RichTooltipsImprovementBonuses[];
+  readonly terrain: Text;
+  readonly resources: Text;
+  readonly requires: Text;
+  readonly defense: number | null;
+  readonly civ: Text | null;
+}
+
+export interface RichTooltipsPolicyRequires {
+  readonly key: string;
+  readonly name: Text;
+  readonly met: boolean;
+}
+
+export interface RichTooltipsPolicy {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly branch: Text;
+  readonly branch_progress: Text;
+  readonly status: RichTooltipsPolicyStatus;
+  readonly status_text: Text;
+  readonly cost: number;
+  readonly help: Text;
+  readonly effect_line: Text;
+  readonly requires: RichTooltipsPolicyRequires[];
+  readonly next_policy: Text;
+}
+
+export interface RichTooltipsProgressLines {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: number;
+}
+
+export interface RichTooltipsProgress {
+  readonly key: RichTooltipsProgressKind;
+  readonly title: Text;
+  readonly subtitle: Text;
+  readonly target_icon: string;
+  readonly fraction: number;
+  readonly gain_fraction: number;
+  readonly loss_fraction: number;
+  readonly mark_left: Text;
+  readonly mark_right: Text;
+  readonly lines: RichTooltipsProgressLines[];
+  readonly total: number;
+}
+
+export interface RichTooltipsCityYieldsLines {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: number;
+}
+
+export interface RichTooltipsCityYieldsFooter {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: Text;
+}
+
+export interface RichTooltipsCityYields {
+  readonly key: RichTooltipsCityYieldKind;
+  readonly city: Text;
+  readonly title: Text;
+  readonly subtitle: Text;
+  readonly total: number;
+  readonly lines: RichTooltipsCityYieldsLines[];
+  readonly base: number;
+  readonly modifier_pct: number;
+  readonly consumption: number | null;
+  readonly stored: number;
+  readonly threshold: number;
+  readonly footer: RichTooltipsCityYieldsFooter[];
+}
+
+export interface RichTooltipsCityReligionReligions {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly followers: number;
+  readonly pressure: number;
+  readonly routes: number;
+  readonly majority: boolean;
+}
+
+export interface RichTooltipsCityReligionLines {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: number;
+}
+
+export interface RichTooltipsCityReligion {
+  readonly city: Text;
+  readonly holy_city_of: Text;
+  readonly faith_total: number;
+  readonly religions: RichTooltipsCityReligionReligions[];
+  readonly beliefs: Text;
+  readonly lines: RichTooltipsCityReligionLines[];
+}
+
+export interface RichTooltipsPlayerColors {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface RichTooltipsPlayerWonders {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface RichTooltipsPlayerDeals {
+  readonly key: string;
+  readonly text: Text;
+  readonly turns: number | null;
+}
+
+export interface RichTooltipsPlayerRoutes {
+  readonly key: string;
+  readonly text: Text;
+  readonly turns: number | null;
+}
+
+export interface RichTooltipsPlayerTreaties {
+  readonly key: string;
+  readonly label: Text;
+  readonly status: RichTooltipsTreatyStatus;
+  readonly text: Text;
+}
+
+export interface RichTooltipsPlayerOpinion {
+  readonly key: string;
+  readonly text: Text;
+  readonly sign: number;
+}
+
+export interface RichTooltipsPlayer {
+  readonly player: number;
+  readonly met: boolean;
+  readonly human: boolean;
+  readonly nick: Text | null;
+  readonly leader: Text;
+  readonly civ: Text;
+  readonly emblem: string;
+  readonly colors: RichTooltipsPlayerColors[];
+  readonly attitude: Text;
+  readonly era: Text;
+  readonly researching: Text;
+  readonly techs: number;
+  readonly cities: number;
+  readonly population: number;
+  readonly gold: number | null;
+  readonly gold_rate: number;
+  readonly policies: Text;
+  readonly religion: Text | null;
+  readonly wonders: RichTooltipsPlayerWonders[];
+  readonly deals: RichTooltipsPlayerDeals[];
+  readonly routes: RichTooltipsPlayerRoutes[];
+  readonly their_luxuries: Text;
+  readonly their_strategic: Text;
+  readonly you_offer: Text;
+  readonly treaties: RichTooltipsPlayerTreaties[];
+  readonly opinion: RichTooltipsPlayerOpinion[];
+  readonly relations: Text;
+}
+
+export interface RichTooltipsCivNote {
+  readonly leader: Text;
+  readonly civ: Text;
+  readonly portrait: string;
+  readonly emblem: string;
+  readonly text: Text;
+}
+
+export interface RichTooltipsUnitAction {
+  readonly key: string;
+  readonly title: Text;
+  readonly hotkey: string;
+  readonly portrait: string;
+  readonly text: Text;
+  readonly disabled_reason: Text;
+}
+
+export interface RichTooltipsUnitShortReligion {
+  readonly name: Text;
+  readonly icon: string;
+  readonly spreads_left: number;
+}
+
+export interface RichTooltipsUnitShort {
+  readonly key: string;
+  readonly name: Text;
+  readonly relation: RichTooltipsRelation;
+  readonly owner_line: Text;
+  readonly emblem: string;
+  readonly strength: number | null;
+  readonly strength_base: number | null;
+  readonly strength_reduced: boolean;
+  readonly reduced_reason: Text | null;
+  readonly ranged_strength: number | null;
+  readonly range: number | null;
+  readonly air: boolean;
+  readonly moves: number | null;
+  readonly hp: number | null;
+  readonly hp_max: number;
+  readonly embarked: boolean;
+  readonly religion: RichTooltipsUnitShortReligion | null;
+}
+
+export interface RichTooltipsUnique {
+  readonly civ: Text;
+  readonly replaces: Text;
+}
+
+export interface RichTooltipsUpgrade {
+  readonly to: Text;
+  readonly gold: number | null;
+  readonly tech: Text;
+}
+
+export interface TechAwardTech {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly portrait: string | null;
+}
+
+export interface TechAwardText {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface TechAwardUnlock {
+  readonly key: string;
+  readonly kind: TechAwardUnlockKind;
+  readonly kind_name: Text;
+  readonly name: Text;
+  readonly icon: string;
+}
+
 export interface TechsPrerequisite {
   readonly id: number;
 }
@@ -426,9 +1486,26 @@ export interface TechsPrerequisite {
 export interface TechsUnlock {
   readonly idx: number;
   readonly name: Text;
+  readonly key: string;
+  readonly kind: TechsUnlockKind;
+  readonly icon: string;
 }
 
 export interface TechsRow {
+  readonly key: string;
+  readonly era_key: string;
+  readonly col: number;
+  readonly state: TechsState;
+  readonly queue_pos: number | null;
+  readonly fraction: number;
+  readonly forecast_fraction: number;
+  readonly steal_science: number | null;
+  readonly clickable: boolean;
+  readonly lock_reason: Text | null;
+  readonly help: Text;
+  readonly prereqs: TechsText[];
+  readonly or_prereqs: TechsText[];
+  readonly leads_to: TechsText[];
   readonly id: number;
   readonly name: Text;
   readonly column: number;
@@ -443,6 +1520,70 @@ export interface TechsRow {
   readonly era_name: Text;
   readonly icon: string;
   readonly unlocks: TechsUnlock[];
+}
+
+export interface TechsText {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface TechsEraRef {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface TechsGrid {
+  readonly cols: number;
+  readonly rows: number;
+}
+
+export interface TechsCurrent {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly turns: number | null;
+  readonly progress: number;
+  readonly cost: number;
+  readonly fraction: number;
+  readonly forecast_fraction: number;
+  readonly turn_fraction: number;
+}
+
+export interface TechsQueue {
+  readonly key: string;
+  readonly pos: number;
+  readonly name: Text;
+  readonly turns: number | null;
+}
+
+export interface TechsEra {
+  readonly key: string;
+  readonly name: Text;
+  readonly first_col: number;
+  readonly cols: number;
+  readonly state: TechsEraState;
+  readonly researched: number;
+  readonly total: number;
+}
+
+export interface TechsSteal {
+  readonly player: number;
+  readonly name: Text;
+  readonly civ: Text;
+  readonly icon: string;
+  readonly color: string;
+  readonly spy_city: Text;
+  readonly can_steal: number;
+}
+
+export interface TechsLink {
+  readonly key: string;
+  readonly from_col: number;
+  readonly from_row: number;
+  readonly to_col: number;
+  readonly to_row: number;
+  readonly kind: TechsLinkKind;
+  readonly state: TechsLinkState;
 }
 
 export interface Meta {
@@ -559,6 +1700,98 @@ export interface Ui {
   readonly errors: Toast[];
 }
 
+export interface City {
+  readonly city: number;
+  readonly map_city: Key;
+  readonly name: Text;
+  readonly capital: boolean;
+  readonly civ: string;
+  readonly civ_color: number;
+  readonly civ_color2: number;
+  readonly owner: Text;
+  readonly view_only: boolean;
+  readonly view_reason: CityViewReason;
+  readonly my_turn: boolean;
+  readonly disabled_reason: Text | null;
+  readonly can_rename: boolean;
+  readonly can_cycle: boolean;
+  readonly prev_city: number | null;
+  readonly next_city: number | null;
+  readonly city_count: number;
+  readonly choose_mode: boolean;
+  readonly next_choose_city: number | null;
+  readonly strength: number;
+  readonly hp: number;
+  readonly max_hp: number;
+  readonly status: CityStatus[];
+  readonly demand: CityDemand | null;
+  readonly population: number;
+  readonly population_label: Text;
+  readonly food: CityFood;
+  readonly yields: CityYield[];
+  readonly border: CityBorder;
+  readonly treasury: CityTreasury;
+  readonly production: CityProduction;
+  readonly great_people: CityGreatPerson[];
+  readonly focus: CityFocus;
+  readonly focus_options: CityFocusOption[];
+  readonly avoid_growth: boolean;
+  readonly manual_specialists: boolean;
+  readonly can_reset_tiles: boolean;
+  readonly unemployed: number;
+  readonly specialists: number;
+  readonly specialist_slots: number;
+  readonly sold_this_turn: boolean;
+  readonly building_groups: CityBuildingGroup[];
+  readonly tiles: CityTile[];
+  readonly task: CityTask;
+  readonly annex_preview: CityAnnexPreview[];
+}
+
+export interface CityCaptured {
+  readonly mode: CityCapturedMode;
+  readonly city: number;
+  readonly name: Text;
+  readonly population: number;
+  readonly taken_from: Text;
+  readonly founded_by: Text | null;
+  readonly minor_buyout: boolean;
+  readonly loot: CityCapturedLoot | null;
+  readonly options: CityCapturedOption[];
+  readonly can_view: boolean;
+  readonly may_annex: boolean | null;
+  readonly happiness: number | null;
+  readonly reason: Text | null;
+}
+
+export interface CityList {
+  readonly count: number;
+  readonly cities: CityListRow[];
+}
+
+export interface CityRename {
+  readonly mode: CityRenameMode;
+  readonly city: number;
+  readonly name: Text;
+  readonly max_length: number;
+  readonly task: CityRenameTask | null;
+  readonly enabled: boolean;
+  readonly done: boolean;
+  readonly reason: Text | null;
+}
+
+export interface FreeGreatPerson {
+  readonly mode: FreeGreatPersonMode;
+  readonly mode_id: number;
+  readonly title: Text;
+  readonly instructions: Text;
+  readonly remaining: number;
+  readonly can_close: boolean;
+  readonly baktun: number | null;
+  readonly appears_in: Text | null;
+  readonly people: FreeGreatPersonChoice[];
+}
+
 export interface Hud {
   readonly research: HudResearch;
   readonly top: HudTop;
@@ -568,8 +1801,113 @@ export interface Hud {
   readonly popup_count: number;
 }
 
+export interface Ideology {
+  readonly emblem: string;
+  readonly civ_adjective: Text;
+  readonly civ_name: string;
+  readonly current: number | null;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly options: IdeologyOption[];
+}
+
+export interface Pantheon {
+  readonly mode: PantheonMode;
+  readonly emblem: string;
+  readonly religion_name: Text | null;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly completed: boolean;
+  readonly beliefs: PantheonBelief[];
+}
+
+export interface Policies {
+  readonly open_tab: PoliciesTab;
+  readonly policies_enabled: boolean;
+  readonly ideologies_enabled: boolean;
+  readonly player_title: Text | null;
+  readonly free_policies: number;
+  readonly free_tenets: number;
+  readonly must_choose: boolean;
+  readonly culture: PoliciesCulture;
+  readonly branches: PoliciesBranch[];
+  readonly ideology: PoliciesIdeology | null;
+}
+
+export interface Religion {
+  readonly mode: ReligionMode;
+  readonly city: ReligionCity | null;
+  readonly date: Text;
+  readonly emblem: string;
+  readonly symbols: ReligionSymbol[];
+  readonly religion: ReligionExisting | null;
+  readonly slots: ReligionSlot[];
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly custom_name_available: boolean;
+  readonly custom_name_reason: Text;
+}
+
+export interface ReligionOverview {
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly emblem: string;
+  readonly status: ReligionOverviewStatus;
+  readonly religion: ReligionOverviewReligion | null;
+  readonly pantheon: ReligionOverviewPantheon | null;
+  readonly my_beliefs: ReligionOverviewMyBelief[];
+  readonly faith: ReligionOverviewFaith;
+  readonly great_people: ReligionOverviewGreatPerson[];
+  readonly auto_purchase: ReligionOverviewPurchase;
+  readonly world: ReligionOverviewWorld[];
+  readonly religions_left: number;
+  readonly all_beliefs: ReligionOverviewAnyBelief[];
+}
+
+export interface RichTooltips {
+  readonly unavailable_reason: Text | null;
+  readonly tech: RichTooltipsTech | null;
+  readonly unit: RichTooltipsUnit | null;
+  readonly building: RichTooltipsBuilding | null;
+  readonly improvement: RichTooltipsImprovement | null;
+  readonly policy: RichTooltipsPolicy | null;
+  readonly progress: RichTooltipsProgress | null;
+  readonly city_yields: RichTooltipsCityYields[];
+  readonly city_religion: RichTooltipsCityReligion | null;
+  readonly player: RichTooltipsPlayer | null;
+  readonly civ_note: RichTooltipsCivNote | null;
+  readonly unit_action: RichTooltipsUnitAction | null;
+  readonly unit_short: RichTooltipsUnitShort[];
+}
+
+export interface TechAward {
+  readonly tech: TechAwardTech | null;
+  readonly era: Text;
+  readonly turn: number;
+  readonly quote: Text | null;
+  readonly quote_by: Text | null;
+  readonly help: Text;
+  readonly leads_to: TechAwardText[];
+  readonly unlocks: TechAwardUnlock[];
+}
+
 export interface Techs {
   readonly techs: TechsRow[];
+  readonly mode: TechsMode;
+  readonly opened_by: TechsOpenedBy;
+  readonly science_off: boolean;
+  readonly science_rate: number;
+  readonly researched_count: number;
+  readonly total_count: number;
+  readonly era: TechsEraRef;
+  readonly free_count: number;
+  readonly free_reason: Text | null;
+  readonly steal: TechsSteal | null;
+  readonly grid: TechsGrid;
+  readonly current: TechsCurrent | null;
+  readonly queue: TechsQueue[];
+  readonly eras: TechsEra[];
+  readonly links: TechsLink[];
 }
 
 /** The model: one member per root. */
@@ -586,7 +1924,19 @@ export interface Model {
   readonly chat: ChatRow[];
   readonly production: Production | null;
   readonly ui: Ui;
+  readonly city: City | null;
+  readonly city_captured: CityCaptured | null;
+  readonly city_list: CityList | null;
+  readonly city_rename: CityRename | null;
+  readonly free_great_person: FreeGreatPerson | null;
   readonly hud: Hud | null;
+  readonly ideology: Ideology | null;
+  readonly pantheon: Pantheon | null;
+  readonly policies: Policies | null;
+  readonly religion: Religion | null;
+  readonly religion_overview: ReligionOverview | null;
+  readonly rich_tooltips: RichTooltips | null;
+  readonly tech_award: TechAward | null;
   readonly techs: Techs | null;
 }
 

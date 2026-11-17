@@ -267,7 +267,7 @@ pub fn generate(s: &Schema) -> String {
             .roots()
             .iter()
             .map(|r| r.name.as_str())
-            .filter(|name| *name == "hud" || window_names.contains(name))
+            .filter(|name| matches!(*name, "hud" | "rich_tooltips") || window_names.contains(name))
             .collect::<Vec<_>>();
         let _ = writeln!(out, "\npub const SCREEN_NAMES: &[&str] = &{:?};", names);
         let _ = writeln!(out, "impl Windows {{");

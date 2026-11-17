@@ -1,0 +1,26 @@
+.tech_award-screen { position: absolute; left: 0; right: 0; top: 48px; bottom: 0; display: flex; align-items: center; justify-content: center; pointer-events: auto; background: rgba(12,10,8,.65); color: var(--bone); }
+.tech_award-window { width: 600px; max-width: 96%; max-height: 90%; display: flex; flex-direction: column; background: var(--lacquer); border: 1px solid var(--engrave); border-radius: 5px; }
+.tech_award-head { height: 48px; flex-shrink: 0; padding: 0 24px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--engrave); color: var(--y-sci); font-size: 13px; }
+.tech_award-close { margin-left: auto; padding: 8px; color: var(--bone-2); }
+.tech_award-scroll { overflow: auto; scrollbar-width: none; min-height: 0; }
+.tech_award-hero { padding: 24px; display: flex; align-items: center; gap: 24px; }
+.tech_award-portrait { flex-shrink: 0; width: 112px; height: 112px; border: 1px solid var(--y-sci); border-radius: 56px; }
+.tech_award-details { min-width: 0; flex: 1; }
+.tech_award-era, .tech_award-author { font-size: 13px; color: var(--bone-3); }
+.tech_award-name { font: 500 36px/44px var(--serif); margin: 8px 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tech_award-quote { font: 400 18px/26px var(--serif); margin: 8px 0; color: var(--bone-2); }
+.tech_award-help { padding: 0 24px 16px; line-height: 22px; }
+.tech_award-leads { padding: 0 24px 20px; display: flex; flex-wrap: wrap; gap: 8px; color: var(--bone-2); }
+.tech_award-unlocks { padding: 16px 24px 20px; border-top: 1px solid var(--engrave); color: var(--bone-3); font-size: 13px; }
+.tech_award-tiles { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.tech_award-tile { width: 104px; min-height: 108px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 8px; border: 1px solid var(--engrave); background: var(--lacquer-0); border-radius: 3px; }
+.tech_award-tile:hover { background: var(--lacquer-2); border-color: var(--engrave-hi); }
+.tech_award-icon { width: 40px; height: 40px; }
+.tech_award-unlock-name { color: var(--bone); text-align: center; font-size: 13px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tech_award-kind { display: block; font-size: 12px; color: var(--bone-3); }
+.tech_award-foot { padding: 16px 24px; display: flex; justify-content: flex-end; border-top: 1px solid var(--engrave); }
+.tech_award-continue { min-width: 200px; padding: 12px 16px; display: flex; justify-content: space-between; color: var(--brass-ink); background: var(--brass); border-radius: 5px; }
+.tech_award-tip { width: 300px; padding: 16px; background: var(--lacquer); border: 1px solid var(--engrave); }
+@media (height < 900px) { .tech_award-window { max-height: 94%; } .tech_award-hero { padding: 16px 24px; } }
+
+.tech_award-screen { pointer-events: auto; }

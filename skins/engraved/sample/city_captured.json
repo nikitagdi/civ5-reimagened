@@ -1,0 +1,78 @@
+{
+  "model": {
+    "city_captured": {
+      "city": 8204,
+      "name": "Mecca",
+      "mode": "captured",
+      "taken_from": "Previous civilization",
+      "founded_by": "Original civilization",
+      "population": 7,
+      "minor_buyout": false,
+      "loot": {
+        "gold": 412,
+        "culture": 180,
+        "great_works": [
+          {
+            "key": 77,
+            "name": "Mu'allaqat",
+            "icon": "",
+            "kind": "writing"
+          }
+        ]
+      },
+      "options": [
+        {
+          "key": "liberate",
+          "enabled": false,
+          "reason": "Capture decisions require an authenticated pending game event.",
+          "title": "Liberate",
+          "text": "Return Mecca to Harun al-Rashid.",
+          "forecast": "Harun al-Rashid will remember the favor. No warmonger penalty.",
+          "happiness": 0,
+          "liberate_to": null
+        },
+        {
+          "key": "annex",
+          "enabled": false,
+          "reason": "Capture decisions require an authenticated pending game event.",
+          "title": "Annex",
+          "text": "Full control. Occupied until you build a Courthouse; asks for production at once.",
+          "forecast": "Warmonger: the world is mildly concerned.",
+          "happiness": -6,
+          "liberate_to": null
+        },
+        {
+          "key": "puppet",
+          "enabled": false,
+          "reason": "Capture decisions require an authenticated pending game event.",
+          "title": "Make a puppet",
+          "text": "The city builds on its own; you get its yields with a science and culture penalty.",
+          "forecast": "Warmonger: the world is mildly concerned.",
+          "happiness": -3,
+          "liberate_to": null
+        },
+        {
+          "key": "raze",
+          "enabled": false,
+          "reason": "Capture decisions require an authenticated pending game event.",
+          "title": "Raze",
+          "text": "Burn the city down, one citizen per turn.",
+          "forecast": null,
+          "happiness": -7,
+          "liberate_to": null
+        }
+      ],
+      "can_view": true,
+      "may_annex": null,
+      "happiness": null
+    }
+  },
+  "ui": {
+    "windows": {
+      "city_captured": {
+        "open": true,
+        "a": 8204
+      }
+    }
+  }
+}

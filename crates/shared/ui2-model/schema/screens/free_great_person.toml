@@ -1,0 +1,26 @@
+[enum]
+FreeGreatPersonMode = ["free", "faith", "maya"]
+[type.FreeGreatPersonAbility]
+index = "i32"
+label = "text"
+text = "text"
+[type.FreeGreatPersonChoice]
+unit = "i32"
+key = "str"
+name = "text"
+icon = "asset"
+strategy = "text"
+abilities = { list = "FreeGreatPersonAbility", key = "index" }
+available = "bool"
+reason = "text?"
+[model.free_great_person]
+_optional = true
+mode = "FreeGreatPersonMode"
+mode_id = "i32"
+title = "text"
+instructions = "text"
+remaining = "i32"
+can_close = "bool"
+baktun = "i32?"
+appears_in = "text?"
+people = { list = "FreeGreatPersonChoice", key = "unit" }

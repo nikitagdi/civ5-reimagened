@@ -1,0 +1,35 @@
+[enum]
+CityListStatus = ["none", "capital", "puppet", "occupied"]
+CityListGrowth = ["growing", "stagnant", "starving"]
+CityListItemKind = ["unit", "building", "wonder", "project", "process"]
+[type.CityListProduction]
+name = "text"
+icon = "asset"
+kind = "CityListItemKind"
+stored = "i32"
+needed = "i32"
+rate = "i32"
+turns = "i32?"
+[type.CityListRow]
+city = "i32"
+map_city = "key<city>"
+name = "str"
+status = "CityListStatus"
+population = "i32"
+food_stored = "i32"
+food_threshold = "i32"
+food_net = "i32"
+growth_turns = "i32?"
+growth_state = "CityListGrowth"
+strength = "i32"
+hp_fraction = "f32"
+can_range_strike = "bool"
+production = "CityListProduction?"
+production_sort = "str"
+can_choose = "bool"
+x = "i32"
+y = "i32"
+[model.city_list]
+_optional = true
+count = "i32"
+cities = { list = "CityListRow", key = "city" }

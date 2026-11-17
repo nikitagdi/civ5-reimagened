@@ -1,0 +1,18 @@
+[enum]
+CityRenameMode = ["rename", "raze", "unraze", "annex"]
+CityRenameTaskKind = ["raze", "unraze", "annex"]
+[type.CityRenameTask]
+kind = "CityRenameTaskKind"
+id = "i32"
+explain = "text?"
+forecast = "text?"
+[model.city_rename]
+_optional = true
+mode = "CityRenameMode"
+city = "i32"
+name = "text"
+max_length = "i32"
+task = "CityRenameTask?"
+enabled = "bool"
+done = "bool"
+reason = "text?"

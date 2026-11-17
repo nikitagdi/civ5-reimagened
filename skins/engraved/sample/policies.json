@@ -1,0 +1,1301 @@
+{
+  "model": {
+    "policies": {
+      "open_tab": "policies",
+      "policies_enabled": true,
+      "ideologies_enabled": true,
+      "player_title": null,
+      "free_policies": 0,
+      "free_tenets": 0,
+      "must_choose": true,
+      "culture": {
+        "stored": 3520,
+        "per_turn": 186,
+        "next_cost": 3450,
+        "turns": 0,
+        "can_afford": true
+      },
+      "branches": [
+        {
+          "id": 0,
+          "key": "POLICY_BRANCH_TRADITION",
+          "name": "Tradition",
+          "icon": "",
+          "state": "complete",
+          "adopted": 5,
+          "total": 5,
+          "opener": "+3 culture in the capital, faster border growth",
+          "finisher": "Free Aqueduct in your first 4 cities",
+          "finisher_done": true,
+          "era": "Ancient era",
+          "can_unlock": false,
+          "unlock_cost": null,
+          "disables": [],
+          "reason": null,
+          "tooltip": "All policies adopted",
+          "policies": [
+            {
+              "id": 100,
+              "key": "POLICY_ARISTOCRACY",
+              "name": "Aristocracy",
+              "icon": "",
+              "grid_x": 1,
+              "grid_y": 1,
+              "state": "adopted",
+              "effect": "+15% production toward wonders; +1 happiness for every 10 citizens in a city",
+              "requires": [],
+              "reason": null
+            },
+            {
+              "id": 101,
+              "key": "POLICY_LEGALISM",
+              "name": "Legalism",
+              "icon": "",
+              "grid_x": 3,
+              "grid_y": 1,
+              "state": "adopted",
+              "effect": "Free culture building in your first 4 cities",
+              "requires": [],
+              "reason": null
+            },
+            {
+              "id": 102,
+              "key": "POLICY_OLIGARCHY",
+              "name": "Oligarchy",
+              "icon": "",
+              "grid_x": 5,
+              "grid_y": 1,
+              "state": "adopted",
+              "effect": "Garrisons cost no maintenance; +100% city ranged strength with a garrison",
+              "requires": [],
+              "reason": null
+            },
+            {
+              "id": 103,
+              "key": "POLICY_LANDED_ELITE",
+              "name": "Landed Elite",
+              "icon": "",
+              "grid_x": 2,
+              "grid_y": 2,
+              "state": "adopted",
+              "effect": "+10% growth and +2 food in the capital",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Legalism"
+                }
+              ],
+              "reason": null
+            },
+            {
+              "id": 104,
+              "key": "POLICY_MONARCHY",
+              "name": "Monarchy",
+              "icon": "",
+              "grid_x": 4,
+              "grid_y": 2,
+              "state": "adopted",
+              "effect": "+1 gold and −1 unhappiness for every 2 citizens in the capital",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Legalism"
+                }
+              ],
+              "reason": null
+            }
+          ],
+          "links": [
+            {
+              "key": "101-103",
+              "from_x": 3,
+              "from_y": 1,
+              "to_x": 2,
+              "to_y": 2,
+              "lit": true
+            },
+            {
+              "key": "101-104",
+              "from_x": 3,
+              "from_y": 1,
+              "to_x": 4,
+              "to_y": 2,
+              "lit": true
+            }
+          ]
+        },
+        {
+          "id": 1,
+          "key": "POLICY_BRANCH_LIBERTY",
+          "name": "Liberty",
+          "icon": "",
+          "state": "closed",
+          "adopted": 0,
+          "total": 5,
+          "opener": "+1 culture in every city",
+          "finisher": "Free Great Person of your choice",
+          "finisher_done": false,
+          "era": "Ancient era",
+          "can_unlock": true,
+          "unlock_cost": 3450,
+          "disables": [],
+          "reason": null,
+          "tooltip": "Adopt for 3,450 culture",
+          "policies": [
+            {
+              "id": 105,
+              "key": "POLICY_COLLECTIVE_RULE",
+              "name": "Collective Rule",
+              "icon": "",
+              "grid_x": 1,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "+50% production of Settlers in the capital; free Settler",
+              "requires": [],
+              "reason": "Adopt Liberty first"
+            },
+            {
+              "id": 106,
+              "key": "POLICY_CITIZENSHIP",
+              "name": "Citizenship",
+              "icon": "",
+              "grid_x": 3,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "Free Worker; +25% tile improvement speed",
+              "requires": [],
+              "reason": "Adopt Liberty first"
+            },
+            {
+              "id": 107,
+              "key": "POLICY_REPUBLIC",
+              "name": "Republic",
+              "icon": "",
+              "grid_x": 5,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "+1 production in every city; +5% production toward buildings",
+              "requires": [],
+              "reason": "Adopt Liberty first"
+            },
+            {
+              "id": 108,
+              "key": "POLICY_REPRESENTATION",
+              "name": "Representation",
+              "icon": "",
+              "grid_x": 2,
+              "grid_y": 2,
+              "state": "locked",
+              "effect": "Each city raises policy cost 33% less; starts a Golden Age",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Citizenship"
+                }
+              ],
+              "reason": "Adopt Liberty first"
+            },
+            {
+              "id": 109,
+              "key": "POLICY_MERITOCRACY",
+              "name": "Meritocracy",
+              "icon": "",
+              "grid_x": 4,
+              "grid_y": 2,
+              "state": "locked",
+              "effect": "+1 happiness for each city connected to the capital",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Citizenship"
+                }
+              ],
+              "reason": "Adopt Liberty first"
+            }
+          ],
+          "links": [
+            {
+              "key": "106-108",
+              "from_x": 3,
+              "from_y": 1,
+              "to_x": 2,
+              "to_y": 2,
+              "lit": false
+            },
+            {
+              "key": "106-109",
+              "from_x": 3,
+              "from_y": 1,
+              "to_x": 4,
+              "to_y": 2,
+              "lit": false
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "key": "POLICY_BRANCH_HONOR",
+          "name": "Honor",
+          "icon": "",
+          "state": "closed",
+          "adopted": 0,
+          "total": 5,
+          "opener": "+33% strength vs barbarians; culture from kills",
+          "finisher": "Gold from kills; Great Generals bought with faith",
+          "finisher_done": false,
+          "era": "Ancient era",
+          "can_unlock": true,
+          "unlock_cost": 3450,
+          "disables": [],
+          "reason": null,
+          "tooltip": "Adopt for 3,450 culture",
+          "policies": [
+            {
+              "id": 110,
+              "key": "POLICY_WARRIOR_CODE",
+              "name": "Warrior Code",
+              "icon": "",
+              "grid_x": 1,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "+15% production of melee units; free Great General",
+              "requires": [],
+              "reason": "Adopt Honor first"
+            },
+            {
+              "id": 111,
+              "key": "POLICY_DISCIPLINE",
+              "name": "Discipline",
+              "icon": "",
+              "grid_x": 3,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "+15% strength for melee units next to another military unit",
+              "requires": [],
+              "reason": "Adopt Honor first"
+            },
+            {
+              "id": 112,
+              "key": "POLICY_MILITARY_TRADITION",
+              "name": "Military Tradition",
+              "icon": "",
+              "grid_x": 5,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "Military units gain 50% more experience",
+              "requires": [],
+              "reason": "Adopt Honor first"
+            },
+            {
+              "id": 113,
+              "key": "POLICY_MILITARY_CASTE",
+              "name": "Military Caste",
+              "icon": "",
+              "grid_x": 2,
+              "grid_y": 2,
+              "state": "locked",
+              "effect": "+1 happiness and +2 culture in each city with a garrison",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Warrior Code"
+                }
+              ],
+              "reason": "Adopt Honor first"
+            },
+            {
+              "id": 114,
+              "key": "POLICY_PROFESSIONAL_ARMY",
+              "name": "Professional Army",
+              "icon": "",
+              "grid_x": 4,
+              "grid_y": 2,
+              "state": "locked",
+              "effect": "Upgrades cost 33% less gold; +1 happiness per defensive building",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Military Tradition"
+                }
+              ],
+              "reason": "Adopt Honor first"
+            }
+          ],
+          "links": [
+            {
+              "key": "110-113",
+              "from_x": 1,
+              "from_y": 1,
+              "to_x": 2,
+              "to_y": 2,
+              "lit": false
+            },
+            {
+              "key": "112-114",
+              "from_x": 5,
+              "from_y": 1,
+              "to_x": 4,
+              "to_y": 2,
+              "lit": false
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "key": "POLICY_BRANCH_PIETY",
+          "name": "Piety",
+          "icon": "",
+          "state": "closed",
+          "adopted": 0,
+          "total": 5,
+          "opener": "Shrines and Temples cost 50% less",
+          "finisher": "Extra Reformation belief; Great Prophets with faith",
+          "finisher_done": false,
+          "era": "Ancient era",
+          "can_unlock": true,
+          "unlock_cost": 3450,
+          "disables": [
+            {
+              "id": 0,
+              "name": "Rationalism"
+            }
+          ],
+          "reason": "Opening it disables Rationalism",
+          "tooltip": "Adopt for 3,450 culture",
+          "policies": [
+            {
+              "id": 115,
+              "key": "POLICY_ORGANIZED_RELIGION",
+              "name": "Organized Religion",
+              "icon": "",
+              "grid_x": 1,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "+1 happiness from Shrines and Temples",
+              "requires": [],
+              "reason": "Adopt Piety first"
+            },
+            {
+              "id": 116,
+              "key": "POLICY_MANDATE_OF_HEAVEN",
+              "name": "Mandate of Heaven",
+              "icon": "",
+              "grid_x": 3,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "Faith purchases cost 20% less",
+              "requires": [],
+              "reason": "Adopt Piety first"
+            },
+            {
+              "id": 117,
+              "key": "POLICY_THEOCRACY",
+              "name": "Theocracy",
+              "icon": "",
+              "grid_x": 5,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "+25% gold from Temples",
+              "requires": [],
+              "reason": "Adopt Piety first"
+            },
+            {
+              "id": 118,
+              "key": "POLICY_REFORMATION",
+              "name": "Reformation",
+              "icon": "",
+              "grid_x": 2,
+              "grid_y": 2,
+              "state": "locked",
+              "effect": "Adds a Reformation belief; starts a Golden Age",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Organized Religion"
+                }
+              ],
+              "reason": "Adopt Piety first"
+            },
+            {
+              "id": 119,
+              "key": "POLICY_FREE_RELIGION",
+              "name": "Free Religion",
+              "icon": "",
+              "grid_x": 4,
+              "grid_y": 2,
+              "state": "locked",
+              "effect": "Two free social policies",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Mandate of Heaven"
+                }
+              ],
+              "reason": "Adopt Piety first"
+            }
+          ],
+          "links": [
+            {
+              "key": "115-118",
+              "from_x": 1,
+              "from_y": 1,
+              "to_x": 2,
+              "to_y": 2,
+              "lit": false
+            },
+            {
+              "key": "116-119",
+              "from_x": 3,
+              "from_y": 1,
+              "to_x": 4,
+              "to_y": 2,
+              "lit": false
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "key": "POLICY_BRANCH_PATRONAGE",
+          "name": "Patronage",
+          "icon": "",
+          "state": "opened",
+          "adopted": 2,
+          "total": 5,
+          "opener": "Influence with city-states decays 25% slower",
+          "finisher": "Allied city-states may gift Great People",
+          "finisher_done": false,
+          "era": "Classical era",
+          "can_unlock": false,
+          "unlock_cost": null,
+          "disables": [],
+          "reason": null,
+          "tooltip": "2 of 5 policies adopted",
+          "policies": [
+            {
+              "id": 120,
+              "key": "POLICY_PHILANTHROPY",
+              "name": "Philanthropy",
+              "icon": "",
+              "grid_x": 1,
+              "grid_y": 1,
+              "state": "adopted",
+              "effect": "Gold gifts to city-states give 25% more influence",
+              "requires": [],
+              "reason": null
+            },
+            {
+              "id": 121,
+              "key": "POLICY_CONSULATES",
+              "name": "Consulates",
+              "icon": "",
+              "grid_x": 3,
+              "grid_y": 1,
+              "state": "adopted",
+              "effect": "Resting influence with all city-states +20",
+              "requires": [],
+              "reason": null
+            },
+            {
+              "id": 122,
+              "key": "POLICY_CULTURAL_DIPLOMACY",
+              "name": "Cultural Diplomacy",
+              "icon": "",
+              "grid_x": 1,
+              "grid_y": 2,
+              "state": "available",
+              "effect": "Resources gifted by city-states doubled; +50% happiness from gifted luxuries",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Philanthropy"
+                }
+              ],
+              "reason": null
+            },
+            {
+              "id": 123,
+              "key": "POLICY_SCHOLASTICISM",
+              "name": "Scholasticism",
+              "icon": "",
+              "grid_x": 3,
+              "grid_y": 2,
+              "state": "available",
+              "effect": "Allied city-states give you 25% of their science",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Consulates"
+                }
+              ],
+              "reason": null
+            },
+            {
+              "id": 124,
+              "key": "POLICY_MERCHANT_CONFEDERACY",
+              "name": "Merchant Confederacy",
+              "icon": "",
+              "grid_x": 5,
+              "grid_y": 2,
+              "state": "available",
+              "effect": "+3 gold from trade routes with city-states",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Consulates"
+                }
+              ],
+              "reason": null
+            }
+          ],
+          "links": [
+            {
+              "key": "120-122",
+              "from_x": 1,
+              "from_y": 1,
+              "to_x": 1,
+              "to_y": 2,
+              "lit": false
+            },
+            {
+              "key": "121-123",
+              "from_x": 3,
+              "from_y": 1,
+              "to_x": 3,
+              "to_y": 2,
+              "lit": false
+            },
+            {
+              "key": "121-124",
+              "from_x": 3,
+              "from_y": 1,
+              "to_x": 5,
+              "to_y": 2,
+              "lit": false
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "key": "POLICY_BRANCH_AESTHETICS",
+          "name": "Aesthetics",
+          "icon": "",
+          "state": "closed",
+          "adopted": 0,
+          "total": 5,
+          "opener": "+25% to Great Writer, Artist and Musician rate",
+          "finisher": "Hidden antiquity sites; Great Artists with faith",
+          "finisher_done": false,
+          "era": "Medieval era",
+          "can_unlock": true,
+          "unlock_cost": 3450,
+          "disables": [],
+          "reason": null,
+          "tooltip": "Adopt for 3,450 culture",
+          "policies": [
+            {
+              "id": 125,
+              "key": "POLICY_CULTURAL_CENTERS",
+              "name": "Cultural Centers",
+              "icon": "",
+              "grid_x": 1,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "+50% production of culture buildings",
+              "requires": [],
+              "reason": "Adopt Aesthetics first"
+            },
+            {
+              "id": 126,
+              "key": "POLICY_FINE_ARTS",
+              "name": "Fine Arts",
+              "icon": "",
+              "grid_x": 3,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "50% of excess happiness is added to culture",
+              "requires": [],
+              "reason": "Adopt Aesthetics first"
+            },
+            {
+              "id": 127,
+              "key": "POLICY_ARTISTIC_GENIUS",
+              "name": "Artistic Genius",
+              "icon": "",
+              "grid_x": 5,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "Free Great Artist; +25% Great Artist rate",
+              "requires": [],
+              "reason": "Adopt Aesthetics first"
+            },
+            {
+              "id": 128,
+              "key": "POLICY_FLOURISHING_OF_ARTS",
+              "name": "Flourishing of the Arts",
+              "icon": "",
+              "grid_x": 2,
+              "grid_y": 2,
+              "state": "locked",
+              "effect": "+33% culture during Golden Ages; starts a Golden Age",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Cultural Centers"
+                }
+              ],
+              "reason": "Adopt Aesthetics first"
+            },
+            {
+              "id": 129,
+              "key": "POLICY_CULTURAL_EXCHANGE",
+              "name": "Cultural Exchange",
+              "icon": "",
+              "grid_x": 4,
+              "grid_y": 2,
+              "state": "locked",
+              "effect": "+15% tourism with open borders, trade routes and shared religion",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Artistic Genius"
+                }
+              ],
+              "reason": "Adopt Aesthetics first"
+            }
+          ],
+          "links": [
+            {
+              "key": "125-128",
+              "from_x": 1,
+              "from_y": 1,
+              "to_x": 2,
+              "to_y": 2,
+              "lit": false
+            },
+            {
+              "key": "127-129",
+              "from_x": 5,
+              "from_y": 1,
+              "to_x": 4,
+              "to_y": 2,
+              "lit": false
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "key": "POLICY_BRANCH_COMMERCE",
+          "name": "Commerce",
+          "icon": "",
+          "state": "closed",
+          "adopted": 0,
+          "total": 5,
+          "opener": "+25% gold in the capital",
+          "finisher": "+1 gold per trade route; Great Merchants with faith",
+          "finisher_done": false,
+          "era": "Medieval era",
+          "can_unlock": true,
+          "unlock_cost": 3450,
+          "disables": [],
+          "reason": null,
+          "tooltip": "Adopt for 3,450 culture",
+          "policies": [
+            {
+              "id": 130,
+              "key": "POLICY_WAGON_TRAINS",
+              "name": "Wagon Trains",
+              "icon": "",
+              "grid_x": 1,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "Road maintenance −33%; +1 gold per land trade route",
+              "requires": [],
+              "reason": "Adopt Commerce first"
+            },
+            {
+              "id": 131,
+              "key": "POLICY_MERCANTILISM",
+              "name": "Mercantilism",
+              "icon": "",
+              "grid_x": 3,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "Purchases cost 25% less gold; +1 science from Markets, Banks and Stock Exchanges",
+              "requires": [],
+              "reason": "Adopt Commerce first"
+            },
+            {
+              "id": 132,
+              "key": "POLICY_ENTREPRENEURSHIP",
+              "name": "Entrepreneurship",
+              "icon": "",
+              "grid_x": 5,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "+25% Great Merchant rate",
+              "requires": [],
+              "reason": "Adopt Commerce first"
+            },
+            {
+              "id": 133,
+              "key": "POLICY_PROTECTIONISM",
+              "name": "Protectionism",
+              "icon": "",
+              "grid_x": 2,
+              "grid_y": 2,
+              "state": "locked",
+              "effect": "+2 happiness for each luxury resource",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Wagon Trains"
+                }
+              ],
+              "reason": "Adopt Commerce first"
+            },
+            {
+              "id": 134,
+              "key": "POLICY_CARAVANS",
+              "name": "Caravans",
+              "icon": "",
+              "grid_x": 4,
+              "grid_y": 2,
+              "state": "locked",
+              "effect": "Land trade routes have 50% more range",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Mercantilism"
+                }
+              ],
+              "reason": "Adopt Commerce first"
+            }
+          ],
+          "links": [
+            {
+              "key": "130-133",
+              "from_x": 1,
+              "from_y": 1,
+              "to_x": 2,
+              "to_y": 2,
+              "lit": false
+            },
+            {
+              "key": "131-134",
+              "from_x": 3,
+              "from_y": 1,
+              "to_x": 4,
+              "to_y": 2,
+              "lit": false
+            }
+          ]
+        },
+        {
+          "id": 11,
+          "key": "POLICY_BRANCH_EXPLORATION",
+          "name": "Exploration",
+          "icon": "",
+          "state": "closed",
+          "adopted": 0,
+          "total": 5,
+          "opener": "+1 movement and +1 sight for naval units",
+          "finisher": "Hidden antiquity sites; Great Admirals with faith",
+          "finisher_done": false,
+          "era": "Medieval era",
+          "can_unlock": true,
+          "unlock_cost": 3450,
+          "disables": [],
+          "reason": null,
+          "tooltip": "Adopt for 3,450 culture",
+          "policies": [
+            {
+              "id": 135,
+              "key": "POLICY_MARITIME_INFRASTRUCTURE",
+              "name": "Maritime Infrastructure",
+              "icon": "",
+              "grid_x": 1,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "+1 production from water tiles in coastal cities",
+              "requires": [],
+              "reason": "Adopt Exploration first"
+            },
+            {
+              "id": 136,
+              "key": "POLICY_NAVIGATION_SCHOOL",
+              "name": "Navigation School",
+              "icon": "",
+              "grid_x": 3,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "Free Great Admiral; +25% Great Admiral rate",
+              "requires": [],
+              "reason": "Adopt Exploration first"
+            },
+            {
+              "id": 137,
+              "key": "POLICY_MERCHANT_NAVY",
+              "name": "Merchant Navy",
+              "icon": "",
+              "grid_x": 5,
+              "grid_y": 1,
+              "state": "locked",
+              "effect": "+3 gold from Harbors, Seaports and Lighthouses",
+              "requires": [],
+              "reason": "Adopt Exploration first"
+            },
+            {
+              "id": 138,
+              "key": "POLICY_NAVAL_TRADITION",
+              "name": "Naval Tradition",
+              "icon": "",
+              "grid_x": 2,
+              "grid_y": 2,
+              "state": "locked",
+              "effect": "+1 happiness from Harbors, Seaports and Lighthouses",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Maritime Infrastructure"
+                }
+              ],
+              "reason": "Adopt Exploration first"
+            },
+            {
+              "id": 139,
+              "key": "POLICY_TREASURE_FLEETS",
+              "name": "Treasure Fleets",
+              "icon": "",
+              "grid_x": 4,
+              "grid_y": 2,
+              "state": "locked",
+              "effect": "Naval trade routes +50% gold",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Navigation School"
+                }
+              ],
+              "reason": "Adopt Exploration first"
+            }
+          ],
+          "links": [
+            {
+              "key": "135-138",
+              "from_x": 1,
+              "from_y": 1,
+              "to_x": 2,
+              "to_y": 2,
+              "lit": false
+            },
+            {
+              "key": "136-139",
+              "from_x": 3,
+              "from_y": 1,
+              "to_x": 4,
+              "to_y": 2,
+              "lit": false
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "key": "POLICY_BRANCH_RATIONALISM",
+          "name": "Rationalism",
+          "icon": "",
+          "state": "opened",
+          "adopted": 3,
+          "total": 5,
+          "opener": "+10% science while your empire is happy",
+          "finisher": "Free technology; Great Scientists with faith",
+          "finisher_done": false,
+          "era": "Renaissance era",
+          "can_unlock": false,
+          "unlock_cost": null,
+          "disables": [],
+          "reason": null,
+          "tooltip": "3 of 5 policies adopted",
+          "policies": [
+            {
+              "id": 140,
+              "key": "POLICY_SECULARISM",
+              "name": "Secularism",
+              "icon": "",
+              "grid_x": 2,
+              "grid_y": 1,
+              "state": "adopted",
+              "effect": "+2 science from every specialist",
+              "requires": [],
+              "reason": null
+            },
+            {
+              "id": 141,
+              "key": "POLICY_HUMANISM",
+              "name": "Humanism",
+              "icon": "",
+              "grid_x": 4,
+              "grid_y": 1,
+              "state": "adopted",
+              "effect": "+1 happiness from Universities, Observatories and Public Schools",
+              "requires": [],
+              "reason": null
+            },
+            {
+              "id": 142,
+              "key": "POLICY_FREE_THOUGHT",
+              "name": "Free Thought",
+              "icon": "",
+              "grid_x": 2,
+              "grid_y": 2,
+              "state": "adopted",
+              "effect": "+1 science from Trading Posts; +17% science in cities with a University",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Secularism"
+                }
+              ],
+              "reason": null
+            },
+            {
+              "id": 143,
+              "key": "POLICY_SOVEREIGNTY",
+              "name": "Sovereignty",
+              "icon": "",
+              "grid_x": 4,
+              "grid_y": 2,
+              "state": "available",
+              "effect": "+15% science while your empire is happy",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Humanism"
+                }
+              ],
+              "reason": null
+            },
+            {
+              "id": 144,
+              "key": "POLICY_SCIENTIFIC_REVOLUTION",
+              "name": "Scientific Revolution",
+              "icon": "",
+              "grid_x": 3,
+              "grid_y": 3,
+              "state": "locked",
+              "effect": "Two free technologies",
+              "requires": [
+                {
+                  "id": 0,
+                  "name": "Free Thought"
+                },
+                {
+                  "id": 1,
+                  "name": "Sovereignty"
+                }
+              ],
+              "reason": "Requires Sovereignty"
+            }
+          ],
+          "links": [
+            {
+              "key": "140-142",
+              "from_x": 2,
+              "from_y": 1,
+              "to_x": 2,
+              "to_y": 2,
+              "lit": true
+            },
+            {
+              "key": "141-143",
+              "from_x": 4,
+              "from_y": 1,
+              "to_x": 4,
+              "to_y": 2,
+              "lit": false
+            },
+            {
+              "key": "142-144",
+              "from_x": 2,
+              "from_y": 2,
+              "to_x": 3,
+              "to_y": 3,
+              "lit": false
+            },
+            {
+              "key": "143-144",
+              "from_x": 4,
+              "from_y": 2,
+              "to_x": 3,
+              "to_y": 3,
+              "lit": false
+            }
+          ]
+        }
+      ],
+      "ideology": {
+        "id": 8,
+        "key": "POLICY_BRANCH_ORDER",
+        "name": "Order",
+        "title": "Russian Order",
+        "icon": "",
+        "emblem": "",
+        "adopted_date": "1922 AD",
+        "summary": "Order: production, science and growth of cities. Tenets of level 2 and 3 need more tenets of the level below.",
+        "adopted_by_level": [
+          {
+            "level": 1,
+            "count": 3
+          },
+          {
+            "level": 2,
+            "count": 1
+          },
+          {
+            "level": 3,
+            "count": 0
+          }
+        ],
+        "levels": [
+          {
+            "level": 1,
+            "adopted": 3,
+            "slot_count": 7,
+            "slots": [
+              {
+                "key": "1-1",
+                "state": "adopted",
+                "tenet_id": 300,
+                "name": "Socialist Realism",
+                "effect": "Free Monument in every city; +2 culture from Monuments",
+                "reason": null
+              },
+              {
+                "key": "1-2",
+                "state": "adopted",
+                "tenet_id": 301,
+                "name": "Young Pioneers",
+                "effect": "Two free Workers; +25% tile improvement speed",
+                "reason": null
+              },
+              {
+                "key": "1-3",
+                "state": "adopted",
+                "tenet_id": 302,
+                "name": "Worker's Faculties",
+                "effect": "Factories give +25% science; +50% Factory production",
+                "reason": null
+              },
+              {
+                "key": "1-4",
+                "state": "open",
+                "tenet_id": null,
+                "name": null,
+                "effect": null,
+                "reason": null
+              },
+              {
+                "key": "1-5",
+                "state": "empty",
+                "tenet_id": null,
+                "name": null,
+                "effect": null,
+                "reason": "Fill slot 4 first"
+              },
+              {
+                "key": "1-6",
+                "state": "empty",
+                "tenet_id": null,
+                "name": null,
+                "effect": null,
+                "reason": "Fill slot 4 first"
+              },
+              {
+                "key": "1-7",
+                "state": "empty",
+                "tenet_id": null,
+                "name": null,
+                "effect": null,
+                "reason": "Fill slot 4 first"
+              }
+            ],
+            "available": [
+              {
+                "id": 303,
+                "key": "POLICY_HERO_OF_THE_PEOPLE",
+                "name": "Hero of the People",
+                "effect": "+25% Great People rate during Golden Ages"
+              },
+              {
+                "id": 304,
+                "key": "POLICY_SKYSCRAPERS",
+                "name": "Skyscrapers",
+                "effect": "Buildings cost 33% less gold to purchase"
+              },
+              {
+                "id": 305,
+                "key": "POLICY_UNIVERSAL_HEALTHCARE",
+                "name": "Universal Healthcare",
+                "effect": "−1 unhappiness from every city"
+              }
+            ]
+          },
+          {
+            "level": 2,
+            "adopted": 1,
+            "slot_count": 4,
+            "slots": [
+              {
+                "key": "2-1",
+                "state": "adopted",
+                "tenet_id": 306,
+                "name": "Academy of Sciences",
+                "effect": "Free Great Scientist; +25% science in the capital",
+                "reason": null
+              },
+              {
+                "key": "2-2",
+                "state": "open",
+                "tenet_id": null,
+                "name": null,
+                "effect": null,
+                "reason": null
+              },
+              {
+                "key": "2-3",
+                "state": "locked",
+                "tenet_id": null,
+                "name": null,
+                "effect": null,
+                "reason": "Needs 4 level 1 tenets"
+              },
+              {
+                "key": "2-4",
+                "state": "locked",
+                "tenet_id": null,
+                "name": null,
+                "effect": null,
+                "reason": "Needs 5 level 1 tenets"
+              }
+            ],
+            "available": [
+              {
+                "id": 307,
+                "key": "POLICY_CULTURAL_REVOLUTION",
+                "name": "Cultural Revolution",
+                "effect": "+34% tourism toward civilizations that follow Order"
+              },
+              {
+                "id": 308,
+                "key": "POLICY_DICTATORSHIP_OF_THE_PROLETARIAT",
+                "name": "Dictatorship of the Proletariat",
+                "effect": "+3 happiness from Factories; unhappiness from other ideologies halved"
+              },
+              {
+                "id": 309,
+                "key": "POLICY_DOUBLE_AGENTS",
+                "name": "Double Agents",
+                "effect": "Spies are three times as likely to catch enemy spies"
+              },
+              {
+                "id": 310,
+                "key": "POLICY_PATRIOTIC_WAR",
+                "name": "Patriotic War",
+                "effect": "+25% combat strength inside your own territory"
+              },
+              {
+                "id": 311,
+                "key": "POLICY_RESETTLEMENT",
+                "name": "Resettlement",
+                "effect": "New cities start with 3 extra citizens"
+              }
+            ]
+          },
+          {
+            "level": 3,
+            "adopted": 0,
+            "slot_count": 3,
+            "slots": [
+              {
+                "key": "3-1",
+                "state": "locked",
+                "tenet_id": null,
+                "name": null,
+                "effect": null,
+                "reason": "Needs 2 level 2 tenets"
+              },
+              {
+                "key": "3-2",
+                "state": "locked",
+                "tenet_id": null,
+                "name": null,
+                "effect": null,
+                "reason": "Needs 3 level 2 tenets"
+              },
+              {
+                "key": "3-3",
+                "state": "locked",
+                "tenet_id": null,
+                "name": null,
+                "effect": null,
+                "reason": "Needs 4 level 2 tenets"
+              }
+            ],
+            "available": [
+              {
+                "id": 312,
+                "key": "POLICY_FIVE_YEAR_PLAN",
+                "name": "Five-Year Plan",
+                "effect": "+2 production in every city; +1 production from Mines and Quarries"
+              },
+              {
+                "id": 313,
+                "key": "POLICY_IRON_CURTAIN",
+                "name": "Iron Curtain",
+                "effect": "Free Courthouse in captured cities; +100% trade route gold"
+              },
+              {
+                "id": 314,
+                "key": "POLICY_SPACEFLIGHT_PIONEERS",
+                "name": "Spaceflight Pioneers",
+                "effect": "Great Engineers can hurry spaceship parts; free Great Scientist"
+              },
+              {
+                "id": 315,
+                "key": "POLICY_PARTY_LEADERSHIP",
+                "name": "Party Leadership",
+                "effect": "+1 food, production, science and gold in every city"
+              }
+            ]
+          }
+        ],
+        "public_opinion": {
+          "state": "dissidents",
+          "label": "Dissidents",
+          "unhappiness": 4,
+          "pressure": 38,
+          "support": 21,
+          "tooltip": "Arabia (Freedom) exerts 38 cultural pressure on Russia; your Order sympathies are 21. Your people prefer Freedom.",
+          "unhappiness_tooltip": "4 unhappiness from public opinion: pressure from Freedom civilizations exceeds support for Order by 17.",
+          "preferred": "Freedom"
+        },
+        "switch": {
+          "available": true,
+          "reason": null,
+          "target": "Freedom",
+          "target_id": 7,
+          "anarchy_turns": 2,
+          "tenets_now": 4,
+          "tenets_kept": 2,
+          "unhappiness_removed": 4
+        }
+      }
+    }
+  },
+  "ui": {
+    "windows": {
+      "policies": {
+        "open": true
+      }
+    }
+  }
+}

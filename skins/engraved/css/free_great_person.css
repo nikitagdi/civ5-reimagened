@@ -1,0 +1,24 @@
+.free_great_person-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--bone); background: rgba(0,0,0,.6); }
+.free_great_person-window { width: 760px; height: 696px; max-height: 90%; display: flex; flex-direction: column; background: var(--lacquer); border: 1px solid var(--engrave); border-radius: 4px; }
+.free_great_person-header { display: flex; align-items: center; gap: 20px; padding: 16px 24px; border-bottom: 1px solid var(--engrave); }
+.free_great_person-header b { font: 500 26px/32px var(--serif); flex: 1; }
+.free_great_person-header button { background: transparent; color: var(--bone-2); }
+.free_great_person-instructions { padding: 14px 24px; font-size: 14px; color: var(--bone-2); border-bottom: 1px solid var(--engrave); }
+.free_great_person-columns { flex: 1; min-height: 0; display: grid; grid-template-columns: 480px 1fr; }
+.free_great_person-list { overflow-y: auto; scrollbar-width: none; min-height: 0; }
+.free_great_person-row { padding: 10px 20px; border-left: 1px solid transparent; }
+.free_great_person-row:hover, .free_great_person-selected { background: var(--lacquer-2); border-left-color: var(--brass); }
+.free_great_person-row button { min-width: 0; width: 100%; display: flex; flex-direction: column; text-align: left; gap: 4px; background: transparent; color: var(--bone); font-size: 14px; }
+.free_great_person-row button:disabled { color: var(--bone-3); }
+.free_great_person-summary { width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; color: var(--bone-3); }
+.free_great_person-reason { font-size: 12px; color: var(--bone-3); }
+.free_great_person-detail { padding: 20px; background: var(--lacquer-0); border-left: 1px solid var(--engrave); overflow-y: auto; scrollbar-width: none; }
+.free_great_person-person { display: flex; flex-direction: column; gap: 16px; }
+.free_great_person-person > b { font: 500 24px/30px var(--serif); }
+.free_great_person-ability { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--engrave); font-size: 13px; }
+.free_great_person-footer { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-top: 1px solid var(--engrave); font-size: 12px; color: var(--bone-3); }
+.free_great_person-primary { padding: 12px 20px; background: var(--brass); color: var(--brass-ink); border-radius: 4px; }
+.free_great_person-primary:disabled { opacity: .4; }
+@media (height < 900px) { .free_great_person-window { height: 600px; } }
+
+.free_great_person-screen { pointer-events: auto; }

@@ -1,8 +1,8 @@
 // Remote screen acceptance against a real-core server started with m2/server.ps1.
-import { openPage, act, until, appUrl, state } from "../lib/browser.mjs";
+import { openPage, act, until, appUrl } from "../lib/browser.mjs";
 import { DEV_PASSWORD } from "../lib/game.mjs";
 import { clickPart } from "./ui2-v1.mjs";
-import { FOUND_CITY } from "../lib/policy.mjs";
+import { ensureCity } from "../lib/screen-city.mjs";
 
 const texts = (p, part) => (p?.texts ?? []).filter(t => t.part === part).map(t => t.text);
 const probe = page => page.evaluate(() => window.__civ5test.ui2());
@@ -31,13 +31,7 @@ export async function run({ server, opts }) {
     if (first.screen === "login") await act(page, { kind: "login", nick, password: DEV_PASSWORD });
     await until(page, s => s.screen === "play" && s.turn !== null, 90000, "running real game");
     await waitFor(page, p => p?.state === "running" && p.frames > 10, "UI v2");
-    // Research is closed until the first city stands: found it first.
-    const settler = ((await state(page)).units ?? []).find(u => /settler/i.test(u.name));
-    if (!settler) throw new Error("A settler is required");
-    await act(page, { kind: "selectUnit", id: settler.id });
-    await until(page, s => s.selectedUnit === settler.id, 10000, "selected settler");
-    await act(page, { kind: "unitAction", action: FOUND_CITY });
-    await until(page, s => (s.cities?.length ?? 0) > 0, 30000, "founded city");
+    await ensureCity(page);
     if (!await clickPart(page, "top.menu.tech")) throw new Error("technology HUD button is missing");
     const before = await waitFor(page, p => texts(p, "techs.name").length > 50, "server technology catalog");
     check("techs window contains the full real catalog", before.ui.windows.includes("techs"));
@@ -52,7 +46,7 @@ export async function run({ server, opts }) {
       const old = byKey.get(rect.keys);
       if (!old || rect.w * rect.h > old.w * old.h) byKey.set(rect.keys, rect);
     }
-    const rows = [...byKey.values()].sort((a,b) => a.y - b.y || a.x - b.x);
+    const rows = [...byKey.values()].sort((a,b) => a.x - b.x || a.y - b.y);
     const row = rows[index];
     if (!row) throw new Error("available technology has no row geometry");
     await page.mouse.click(row.x + row.w / 2, row.y + row.h / 2);

@@ -75,3 +75,11 @@ fn every_registered_screen_has_a_schema_checked_sample() {
             .expect("sample applies");
     }
 }
+
+#[test]
+fn rich_tooltips_is_a_queryable_service_without_a_window() {
+    assert!(g::SCREEN_NAMES.contains(&"rich_tooltips"));
+    assert!(!g::WINDOW_SCREEN_NAMES.contains(&"rich_tooltips"));
+    assert!(g::Windows::default().remote("rich_tooltips").is_none());
+    assert!(Schema::v1().root_by_name("rich_tooltips").is_some());
+}

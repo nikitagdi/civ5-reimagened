@@ -1,0 +1,26 @@
+[enum]
+TechAwardUnlockKind = ["unit", "building", "wonder", "project", "resource", "improvement", "ability"]
+[type.TechAwardTech]
+key = "str"
+name = "text"
+icon = "asset"
+portrait = "asset?"
+[type.TechAwardText]
+key = "str"
+name = "text"
+[type.TechAwardUnlock]
+key = "str"
+kind = "TechAwardUnlockKind"
+kind_name = "text"
+name = "text"
+icon = "asset"
+[model.tech_award]
+_optional = true
+tech = "TechAwardTech?"
+era = "text"
+turn = "i32"
+quote = "text?"
+quote_by = "text?"
+help = "text"
+leads_to = { list = "TechAwardText", key = "key" }
+unlocks = { list = "TechAwardUnlock", key = "key" }

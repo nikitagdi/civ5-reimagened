@@ -6,7 +6,19 @@ pub(crate) use runtime::Screens;
 /// Names and sources compiled into the server. Add one entry per screen.
 pub const REGISTRY: &[(&str, &str)] = &[
     ("techs", include_str!("techs.lua")),
+    ("rich_tooltips", include_str!("rich_tooltips.lua")),
+    ("tech_award", include_str!("tech_award.lua")),
+    ("policies", include_str!("policies.lua")),
+    ("ideology", include_str!("ideology.lua")),
+    ("pantheon", include_str!("pantheon.lua")),
+    ("religion", include_str!("religion.lua")),
+    ("religion_overview", include_str!("religion_overview.lua")),
     ("hud", include_str!("hud.lua")),
+    ("city", include_str!("city.lua")),
+    ("city_list", include_str!("city_list.lua")),
+    ("city_rename", include_str!("city_rename.lua")),
+    ("city_captured", include_str!("city_captured.lua")),
+    ("free_great_person", include_str!("free_great_person.lua")),
 ];
 
 use crate::core::Refusal;
@@ -61,6 +73,18 @@ impl<C: Core> Worker<C> {
         screen: &str,
         args: &[(String, i64)],
     ) -> Result<String, String> {
+        let mut effective_args = args.to_vec();
+        if screen == "city"
+            && args.iter().any(|(name, value)| {
+                name == "a"
+                    && i32::try_from(*value)
+                        .is_ok_and(|city| self.popups.capture_pending(player, city))
+            })
+        {
+            effective_args.retain(|(name, _)| name != "b");
+            effective_args.push(("b".into(), 1));
+        }
+        let args = effective_args.as_slice();
         let popup = self
             .popups
             .head(player)
@@ -99,6 +123,28 @@ impl<C: Core> Worker<C> {
         cmd: &Command,
     ) -> Result<(), Refusal> {
         self.screen_effect = None;
+        let city = match cmd {
+            Command::CitySetProduction { city, .. }
+            | Command::CityPurchase { city, .. }
+            | Command::CityQueuePush { city, .. }
+            | Command::CityQueuePop { city, .. }
+            | Command::CityQueueMove { city, .. }
+            | Command::CityReplaceHead { city, .. } => Some(*city),
+            Command::ScreenAction { screen, args, .. }
+                if screen == "city" || screen == "city_rename" =>
+            {
+                let key = if screen == "city" { "d" } else { "a" };
+                args.iter()
+                    .find(|(name, _)| name == key)
+                    .and_then(|(_, id)| i32::try_from(*id).ok())
+            }
+            _ => None,
+        };
+        if city.is_some_and(|city| self.popups.capture_pending(player, city)) {
+            return Err(Refusal::other(
+                "Resolve the pending capture choice before managing this city.",
+            ));
+        }
         let Command::ScreenAction {
             screen,
             action,
@@ -326,5 +372,75 @@ mod tests {
         worker.screen_or_core_command(0, &dismiss).unwrap();
         assert_eq!(hud(&mut worker, 0)["popup_count"], 0);
         assert!(worker.screen_or_core_command(0, &dismiss).is_err());
+    }
+    #[test]
+    fn pending_capture_blocks_city_mutations_even_behind_an_information_popup() {
+        let (mut worker, _) = Worker::new(FixtureCore::new(false, false), init(), 0);
+        worker
+            .inject_popup(
+                0,
+                Popup {
+                    kind: "BUTTONPOPUP_TECH_TREE".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        worker
+            .inject_popup(
+                0,
+                Popup {
+                    kind: "BUTTONPOPUP_CITY_CAPTURED".into(),
+                    data1: 7,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        for cmd in [
+            Command::CitySetProduction {
+                city: 7,
+                order: 0,
+                item: 1,
+            },
+            Command::CityPurchase {
+                city: 7,
+                order: 0,
+                item: 1,
+                yield_: 2,
+            },
+            Command::ScreenAction {
+                screen: "city".into(),
+                action: "push_order".into(),
+                args: vec![("d".into(), 7)],
+                text: None,
+            },
+            Command::ScreenAction {
+                screen: "city_rename".into(),
+                action: "rename".into(),
+                args: vec![("a".into(), 7)],
+                text: Some("New city".into()),
+            },
+        ] {
+            let error = worker.screen_or_core_command(0, &cmd).unwrap_err();
+            assert!(format!("{error:?}").contains("pending capture choice"));
+        }
+        assert!(!worker.popups.capture_pending(1, 7));
+        assert!(!worker.popups.capture_pending(0, 8));
+        let runtime = Screens::new().unwrap();
+        runtime.load().unwrap();
+        runtime
+            .lua()
+            .exec(
+                "__screens.city.data = function(player, args) return {view_only = args.b == 1} end",
+                "=capture-view",
+            )
+            .unwrap();
+        worker.screens = Some(runtime);
+        let json = worker
+            .screen_data(0, "city", &[("a".into(), 7), ("b".into(), 0)])
+            .unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&json).unwrap()["view_only"],
+            true
+        );
     }
 }

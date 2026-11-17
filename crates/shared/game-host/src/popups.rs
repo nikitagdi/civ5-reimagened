@@ -96,6 +96,15 @@ impl Popups {
         self.seats.get(&player)?.front()
     }
 
+    /// A captured city stays read-only until its authenticated choice is submitted.
+    pub fn capture_pending(&self, player: PlayerId, city: i32) -> bool {
+        self.seats.get(&player).is_some_and(|queue| {
+            queue.iter().any(|entry| {
+                entry.popup.kind == "BUTTONPOPUP_CITY_CAPTURED" && entry.popup.data1 == city
+            })
+        })
+    }
+
     pub fn len(&self, player: PlayerId) -> usize {
         self.seats.get(&player).map_or(0, VecDeque::len)
     }

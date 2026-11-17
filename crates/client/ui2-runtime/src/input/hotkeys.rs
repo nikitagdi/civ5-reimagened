@@ -1,5 +1,6 @@
 //! The keyboard, in order of precedence:
 //!
+//! 0. an explicit Enter hotkey confirms the active screen before previously focused controls;
 //! 1. a focused text field takes every key but Esc and Tab (the host's text bridge edits it);
 //! 2. Tab and Shift+Tab move the focus ([`focus`](super::focus));
 //! 3. a focused control takes its keys ([`controls`](super::controls): arrows, Page Up/Down, Home, End,
@@ -43,6 +44,15 @@ impl Runtime {
             Key::Character(c) if c == " " => Some(NamedKey::Space),
             _ => None,
         };
+        if k.pressed
+            && named == Some(NamedKey::Enter)
+            && let Some(node) = self.hotkey_target(k)
+        {
+            if !k.repeat {
+                self.dispatch(node, Event::Click, true);
+            }
+            return InputOutcome::Consumed;
+        }
         if k.pressed && self.number_key(k, named) {
             return InputOutcome::Consumed;
         }

@@ -1,0 +1,21 @@
+.pantheon-screen { position: absolute; inset: 48px 0 0; padding: 16px 24px 24px; display: flex; align-items: center; justify-content: center; background: rgba(12,10,8,.6); }
+.pantheon-window { position: relative; width: 880px; max-width: 100%; max-height: 100%; display: flex; flex-direction: column; background: var(--lacquer); color: var(--bone); border: 1px solid var(--engrave); border-radius: 4px; }
+.pantheon-head { display: flex; align-items: center; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--engrave); }
+.pantheon-title { font: 500 28px/32px var(--serif); }
+.pantheon-head p { font-size: 13px; color: var(--bone-2); }
+.pantheon-emblem { width: 48px; height: 48px; }
+.pantheon-icon { width: 32px; height: 32px; flex-shrink: 0; }
+.pantheon-list { flex: 1; min-height: 0; overflow-y: auto; }
+.pantheon-row { width: 100%; display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-left: 2px solid transparent; text-align: left; color: var(--bone); }
+.pantheon-row:hover { background: var(--lacquer-2); border-color: var(--brass); }
+.pantheon-label { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.pantheon-label b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pantheon-label span { font-size: 13px; color: var(--bone-2); }
+.pantheon-footer { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--engrave); color: var(--bone-3); font-size: 12px; }
+.pantheon-button { padding: 10px 16px; color: var(--bone); background: var(--lacquer-2); border: 1px solid var(--engrave); border-radius: 4px; }
+.pantheon-button:hover { border-color: var(--brass); }
+.pantheon-reason { padding: 12px 24px; color: var(--neg); }
+.pantheon-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(12,10,8,.7); }
+.pantheon-dialog { width: 520px; max-width: 90%; max-height: 90%; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 24px; background: var(--lacquer); border: 1px solid var(--engrave); }
+
+.pantheon-screen { pointer-events: auto; }

@@ -1,0 +1,189 @@
+{
+  "model": {
+    "pantheon": {
+      "mode": "pantheon",
+      "emblem": "",
+      "religion_name": null,
+      "beliefs": [
+        {
+          "id": 1,
+          "key": "BELIEF_ANCESTOR_WORSHIP",
+          "name": "Ancestor Worship",
+          "short_name": "Ancestor Worship",
+          "effect": "+1 culture from Shrines",
+          "icon": ""
+        },
+        {
+          "id": 2,
+          "key": "BELIEF_DANCE_AURORA",
+          "name": "Dance of the Aurora",
+          "short_name": "Dance of the Aurora",
+          "effect": "+1 faith from Tundra tiles without features",
+          "icon": ""
+        },
+        {
+          "id": 3,
+          "key": "BELIEF_EARTH_MOTHER",
+          "name": "Earth Mother",
+          "short_name": "Earth Mother",
+          "effect": "+1 faith from Mines on Iron, Copper and Salt",
+          "icon": ""
+        },
+        {
+          "id": 4,
+          "key": "BELIEF_FAITH_HEALERS",
+          "name": "Faith Healers",
+          "short_name": "Faith Healers",
+          "effect": "Units heal 30 extra hit points per turn next to a city that follows this religion",
+          "icon": ""
+        },
+        {
+          "id": 5,
+          "key": "BELIEF_FERTILITY_RITES",
+          "name": "Fertility Rites",
+          "short_name": "Fertility Rites",
+          "effect": "+10% growth in all cities",
+          "icon": ""
+        },
+        {
+          "id": 6,
+          "key": "BELIEF_GOD_CRAFTSMEN",
+          "name": "God of Craftsmen",
+          "short_name": "God of Craftsmen",
+          "effect": "+1 production in cities with 3 or more citizens",
+          "icon": ""
+        },
+        {
+          "id": 7,
+          "key": "BELIEF_OPEN_SKY",
+          "name": "God of the Open Sky",
+          "short_name": "God of the Open Sky",
+          "effect": "+1 culture from Pastures",
+          "icon": ""
+        },
+        {
+          "id": 8,
+          "key": "BELIEF_GOD_SEA",
+          "name": "God of the Sea",
+          "short_name": "God of the Sea",
+          "effect": "+1 production from Fishing Boats",
+          "icon": ""
+        },
+        {
+          "id": 9,
+          "key": "BELIEF_GOD_WAR",
+          "name": "God of War",
+          "short_name": "God of War",
+          "effect": "Gain faith equal to 100% of the strength of each enemy unit killed within 4 tiles of your cities",
+          "icon": ""
+        },
+        {
+          "id": 10,
+          "key": "BELIEF_GODDESS_FESTIVALS",
+          "name": "Goddess of Festivals",
+          "short_name": "Goddess of Festivals",
+          "effect": "+1 culture and +1 faith from Wine and Incense",
+          "icon": ""
+        },
+        {
+          "id": 11,
+          "key": "BELIEF_GODDESS_LOVE",
+          "name": "Goddess of Love",
+          "short_name": "Goddess of Love",
+          "effect": "+1 happiness from cities with 6 or more citizens",
+          "icon": ""
+        },
+        {
+          "id": 12,
+          "key": "BELIEF_GODDESS_HUNT",
+          "name": "Goddess of the Hunt",
+          "short_name": "Goddess of the Hunt",
+          "effect": "+1 food from Camps",
+          "icon": ""
+        },
+        {
+          "id": 13,
+          "key": "BELIEF_MESSENGER_GODS",
+          "name": "Messenger of the Gods",
+          "short_name": "Messenger of the Gods",
+          "effect": "+2 science in cities with a city connection",
+          "icon": ""
+        },
+        {
+          "id": 14,
+          "key": "BELIEF_MONUMENT_GODS",
+          "name": "Monument to the Gods",
+          "short_name": "Monument to the Gods",
+          "effect": "+15% production of Ancient and Classical era wonders",
+          "icon": ""
+        },
+        {
+          "id": 15,
+          "key": "BELIEF_ONE_WITH_NATURE",
+          "name": "One with Nature",
+          "short_name": "One with Nature",
+          "effect": "+4 faith from natural wonders",
+          "icon": ""
+        },
+        {
+          "id": 16,
+          "key": "BELIEF_ORAL_TRADITION",
+          "name": "Oral Tradition",
+          "short_name": "Oral Tradition",
+          "effect": "+1 culture from Plantations",
+          "icon": ""
+        },
+        {
+          "id": 17,
+          "key": "BELIEF_RELIGIOUS_IDOLS",
+          "name": "Religious Idols",
+          "short_name": "Religious Idols",
+          "effect": "+1 culture and +1 faith from Gold and Silver",
+          "icon": ""
+        },
+        {
+          "id": 18,
+          "key": "BELIEF_RELIGIOUS_SETTLEMENTS",
+          "name": "Religious Settlements",
+          "short_name": "Religious Settlements",
+          "effect": "Borders expand 15% faster",
+          "icon": ""
+        },
+        {
+          "id": 19,
+          "key": "BELIEF_SACRED_WATERS",
+          "name": "Sacred Waters",
+          "short_name": "Sacred Waters",
+          "effect": "+1 happiness from cities on rivers",
+          "icon": ""
+        },
+        {
+          "id": 20,
+          "key": "BELIEF_STONE_CIRCLES",
+          "name": "Stone Circles",
+          "short_name": "Stone Circles",
+          "effect": "+2 faith from Quarries",
+          "icon": ""
+        },
+        {
+          "id": 21,
+          "key": "BELIEF_TEARS_OF_GODS",
+          "name": "Tears of the Gods",
+          "short_name": "Tears of the Gods",
+          "effect": "+2 faith from Gems",
+          "icon": ""
+        }
+      ],
+      "enabled": true,
+      "reason": null,
+      "completed": false
+    }
+  },
+  "ui": {
+    "windows": {
+      "pantheon": {
+        "open": true
+      }
+    }
+  }
+}

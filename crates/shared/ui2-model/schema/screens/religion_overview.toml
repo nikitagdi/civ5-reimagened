@@ -1,0 +1,97 @@
+[enum]
+ReligionOverviewStatusKind = ["founded_religion", "created_pantheon", "can_create_pantheon", "not_enough_faith", "too_late"]
+ReligionOverviewBeliefType = ["pantheon", "founder", "follower", "enhancer", "reformation"]
+ReligionOverviewPurchaseKind = ["none", "save_prophet", "unit", "building"]
+
+[type.ReligionOverviewStatus]
+kind = "ReligionOverviewStatusKind"
+text = "text"
+
+[type.ReligionOverviewReligion]
+id = "i32"
+key = "str"
+name = "text"
+icon = "asset"
+
+[type.ReligionOverviewPantheon]
+key = "str"
+name = "text"
+
+[type.ReligionOverviewMyBelief]
+key = "str"
+type = "ReligionOverviewBeliefType"
+type_label = "text"
+name = "text"
+effect = "text"
+
+[type.ReligionOverviewIncome]
+key = "str"
+label = "text"
+value = "i32"
+
+[type.ReligionOverviewFaith]
+stored = "i32"
+per_turn = "i32"
+next_prophet = "i32"
+prophet_tooltip = "text"
+income = { list = "ReligionOverviewIncome", key = "key" }
+
+[type.ReligionOverviewGreatPerson]
+key = "str"
+name = "text"
+icon = "asset"
+
+[type.ReligionOverviewOption]
+key = "str"
+kind = "ReligionOverviewPurchaseKind"
+id = "i32"
+label = "text"
+cost = "i32?"
+
+[type.ReligionOverviewPurchase]
+current = "str"
+label = "text"
+options = { list = "ReligionOverviewOption", key = "key" }
+
+[type.ReligionOverviewFounder]
+name = "str"
+civ = "asset"
+color_bg = "color?"
+color_fg = "color?"
+
+[type.ReligionOverviewWorld]
+key = "i32"
+name = "str"
+icon = "asset"
+holy_city = "str?"
+founder = "ReligionOverviewFounder?"
+known = "bool"
+cities = "i32"
+is_mine = "bool"
+
+[type.ReligionOverviewAnyBelief]
+type_order = "i32"
+key = "str"
+name = "str"
+type = "ReligionOverviewBeliefType"
+type_label = "text"
+effect = "text"
+religion_name = "str"
+religion_icon = "asset?"
+known = "bool"
+
+[model.religion_overview]
+_optional = true
+enabled = "bool"
+reason = "text?"
+emblem = "asset"
+status = "ReligionOverviewStatus"
+religion = "ReligionOverviewReligion?"
+pantheon = "ReligionOverviewPantheon?"
+my_beliefs = { list = "ReligionOverviewMyBelief", key = "key" }
+faith = "ReligionOverviewFaith"
+great_people = { list = "ReligionOverviewGreatPerson", key = "key" }
+auto_purchase = "ReligionOverviewPurchase"
+world = { list = "ReligionOverviewWorld", key = "key" }
+religions_left = "i32"
+all_beliefs = { list = "ReligionOverviewAnyBelief", key = "key" }

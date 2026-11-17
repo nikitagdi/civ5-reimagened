@@ -548,17 +548,163 @@ api = "1.0"
         assert_eq!(
             skin.state.into_iter().collect::<Vec<_>>(),
             [
-                ("chat.draft".to_string(), StateValue::Str(String::new())),
+                ("chat.draft".to_string(), StateValue::Str("".to_string())),
                 ("chat.pick".to_string(), StateValue::Bool(false)),
+                ("city.buy_tiles".to_string(), StateValue::Bool(false)),
+                ("city.hover".to_string(), StateValue::Int(-1)),
+                (
+                    "city.hover_kind".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                ("city.queue_mode".to_string(), StateValue::Int(0)),
+                ("city.repeat_order".to_string(), StateValue::Bool(false)),
+                ("city.sell".to_string(), StateValue::Int(-1)),
+                ("city_list.desc".to_string(), StateValue::Bool(true)),
+                (
+                    "city_list.sort".to_string(),
+                    StateValue::Str("population".to_string())
+                ),
+                (
+                    "city_rename.draft".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                ("city_rename.touched".to_string(), StateValue::Bool(false)),
+                ("city_rename.valid".to_string(), StateValue::Bool(false)),
+                (
+                    "city_rename.why".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                ("free_gp.selected".to_string(), StateValue::Int(-1)),
+                ("ideology.confirm".to_string(), StateValue::Int(-1)),
+                ("ideology.details".to_string(), StateValue::Int(-1)),
+                ("ideology.folded".to_string(), StateValue::Int(0)),
+                ("ideology.name".to_string(), StateValue::Str("".to_string())),
+                ("pantheon.confirm".to_string(), StateValue::Int(-1)),
+                (
+                    "pantheon.effect".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                ("pantheon.name".to_string(), StateValue::Str("".to_string())),
+                ("policies.confirm".to_string(), StateValue::Int(-1)),
+                ("policies.expanded".to_string(), StateValue::Bool(false)),
+                ("policies.hover".to_string(), StateValue::Int(-1)),
+                (
+                    "policies.kind".to_string(),
+                    StateValue::Str("adopt_policy".to_string())
+                ),
+                ("policies.name".to_string(), StateValue::Str("".to_string())),
+                ("policies.tab".to_string(), StateValue::Str("".to_string())),
+                ("policies.tenet_level".to_string(), StateValue::Int(0)),
                 ("prod.hide_locked".to_string(), StateValue::Bool(false)),
                 (
                     "prod.sort".to_string(),
                     StateValue::Str("order".to_string())
                 ),
+                ("religion.confirm".to_string(), StateValue::Bool(false)),
+                ("religion.hover".to_string(), StateValue::Int(-1)),
+                (
+                    "religion.label.bonus".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                (
+                    "religion.label.enhancer".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                (
+                    "religion.label.follower".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                (
+                    "religion.label.follower2".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                (
+                    "religion.label.founder".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                (
+                    "religion.label.pantheon".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                ("religion.list".to_string(), StateValue::Str("".to_string())),
+                ("religion.name".to_string(), StateValue::Str("".to_string())),
+                ("religion.pick.bonus".to_string(), StateValue::Int(65535)),
+                ("religion.pick.enhancer".to_string(), StateValue::Int(65535)),
+                ("religion.pick.follower".to_string(), StateValue::Int(65535)),
+                (
+                    "religion.pick.follower2".to_string(),
+                    StateValue::Int(65535)
+                ),
+                ("religion.pick.founder".to_string(), StateValue::Int(65535)),
+                ("religion.pick.pantheon".to_string(), StateValue::Int(65535)),
+                ("religion.ready".to_string(), StateValue::Bool(false)),
+                ("religion.rename".to_string(), StateValue::Bool(false)),
+                ("religion.symbol".to_string(), StateValue::Int(-1)),
+                (
+                    "religion.symbol_name".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                (
+                    "religion_overview.beliefs_desc".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "religion_overview.beliefs_sort".to_string(),
+                    StateValue::Str("religion_name".to_string())
+                ),
+                (
+                    "religion_overview.menu".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "religion_overview.optimistic".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                (
+                    "religion_overview.tab".to_string(),
+                    StateValue::Str("mine".to_string())
+                ),
+                (
+                    "religion_overview.world_desc".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "religion_overview.world_sort".to_string(),
+                    StateValue::Str("name".to_string())
+                ),
+                (
+                    "tech_award.hover".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                ("tech_panel.done".to_string(), StateValue::Bool(false)),
+                ("tech_panel.last_id".to_string(), StateValue::Int(-1)),
+                (
+                    "tech_panel.last_name".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                ("tech_panel.open".to_string(), StateValue::Bool(false)),
+                ("techs.hover".to_string(), StateValue::Int(-1)),
+                ("techs.x".to_string(), StateValue::Float(0.0)),
                 ("top.menu".to_string(), StateValue::Bool(false)),
             ]
         );
-        assert_eq!(skin.scripts.files, ["js/production.js"]);
+        assert_eq!(
+            skin.scripts.files,
+            [
+                "js/production.js",
+                "js/tech_panel.js",
+                "js/techs.js",
+                "js/city_rename.js",
+                "js/city.js",
+                "js/city_list.js",
+                "js/free_great_person.js",
+                "js/policies.js",
+                "js/ideology.js",
+                "js/pantheon.js",
+                "js/religion.js",
+                "js/religion_overview.js"
+            ]
+        );
         // The first state is the one the converter scans with.
         assert_eq!(
             skin.verify.states,
@@ -568,7 +714,33 @@ api = "1.0"
                 "hud-chat",
                 "production",
                 "production-sorted",
-                "research"
+                "research",
+                "techs",
+                "techs--free",
+                "techs--steal",
+                "tech_award",
+                "rich_tooltips",
+                "tech_panel",
+                "tech_panel--done",
+                "city",
+                "city_list",
+                "city_rename",
+                "city_captured",
+                "free_great_person",
+                "city--puppet",
+                "city--sell",
+                "city_rename--invalid",
+                "city_rename--raze",
+                "city_rename--unraze",
+                "city_rename--annex",
+                "city_captured--annex",
+                "free_great_person--faith",
+                "free_great_person--maya",
+                "policies",
+                "ideology",
+                "pantheon",
+                "religion",
+                "religion_overview"
             ]
         );
         assert_eq!(skin.verify.golden[0].viewport, [1920, 1080]);

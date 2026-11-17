@@ -1,22 +1,44 @@
-<div class="techs-screen" data-part="techs" data-screen="techs" data-bind-if="{{ui.windows.techs.open}}">
+<div class="techs-screen" data-part="techs" data-screen="techs" data-esc="call techs.escape()" data-bind-if="{{ui.windows.techs.open}}">
   <section class="techs-window">
-    <div class="techs-head">
-      <span data-l10n="techs.title">Technologies</span>
-      <button data-part="techs.close" data-on-click="intent window.close(window: 'techs')" data-l10n="techs.close">Close</button>
-    </div>
+    <header class="techs-head">
+      <h1 data-l10n="techs.title">Technologies</h1>
+      <div class="techs-facts" data-bind-if="{{techs != null}}">
+        <span class="techs-science" data-bind-value="{{techs.science_rate}}"></span>
+        <span data-l10n="techs.science">science per turn</span>
+        <span data-bind-value="{{techs.researched_count}}"></span><span data-l10n="common.ratio">/</span><span data-bind-value="{{techs.total_count}}"></span>
+      </div>
+      <div class="techs-now" data-bind-if="{{techs != null && techs.current != null}}">
+        <span data-bind-value="{{techs.current.name}}"></span>
+        <div class="techs-scale"><div class="techs-forecast" data-bind-style-width="{{techs.current.forecast_fraction * 100}}%"></div><div class="techs-fill" data-bind-style-width="{{techs.current.fraction * 100}}%"></div><div class="techs-ticks" data-bind-if="{{techs.current.turn_fraction > 0}}" data-bind-style-background-size="{{techs.current.turn_fraction * 100}}% 100%"></div></div>
+      </div>
+      <div class="techs-queue" data-bind-if="{{techs != null}}"><div class="techs-chip" data-bind-for="q:{{techs.queue}}"><span data-bind-value="{{q.pos}}"></span><span class="techs-ellipsis" data-bind-value="{{q.name}}"></span></div></div>
+      <button class="techs-close" data-part="techs.close" data-on-click="intent window.close(window: 'techs')"><span data-l10n="key.escape">Esc</span><span data-l10n="techs.close">Close</span></button>
+    </header>
+    <div class="techs-mode" data-bind-if="{{techs != null && techs.mode == 'free'}}"><span data-bind-value="{{techs.free_reason}}"></span><span data-bind-value="{{techs.free_count}}"></span></div>
+    <div class="techs-mode" data-bind-if="{{techs != null && techs.steal != null}}"><span data-l10n="techs.steal">Steal technology</span><span data-bind-value="{{techs.steal.civ}}"></span></div>
     <div data-bind-if="{{techs == null}}" data-l10n="techs.loading">Loading technologies</div>
-    <div class="techs-grid" data-part="techs.list" data-bind-if="{{techs != null}}">
-      <button class="techs-row" data-part="techs.row" data-bind-for="t:{{techs.techs}}"
-        data-bind-disabled="{{t.status == 'researched'}}"
-        data-on-click="intent screen.act(screen: 'techs', action: 'research', a: t.id, b: 0)"
-        data-on-contextmenu="intent screen.act(screen: 'techs', action: 'research', a: t.id, b: 1)">
-        <span class="techs-era" data-bind-value="{{t.era_name}}"></span>
-        <span class="techs-name" data-part="techs.name" data-bind-value="{{t.name}}"></span>
-        <span data-part="techs.status" data-bind-value="{{t.status}}"></span>
-        <div class="techs-cost"><span data-bind-value="{{t.progress}}"></span><span> / </span><span data-bind-value="{{t.cost}}"></span></div>
-        <span data-bind-if="{{t.turns != null}}" data-bind-value="{{t.turns}}"></span>
-      </button>
+    <div class="techs-scroll" data-bind-scroll-x="state.techs.x" data-on-wheel="set state.techs.x = max(0, state.techs.x + event.dx + event.dy)" data-part="techs.list" data-bind-if="{{techs != null}}">
+      <div class="techs-canvas" data-bind-style-width="{{techs.grid.cols * 288 + 48}}px" data-bind-style-height="{{techs.grid.rows * 92 + 72}}px">
+        <div class="techs-era" data-bind-for="e:{{techs.eras}}" data-bind-style-left="{{e.first_col * 288}}px" data-bind-style-width="{{e.cols * 288}}px" data-bind-class-toggle="techs-era-current:{{e.state == 'current'}}"><span data-bind-value="{{e.name}}"></span><span data-bind-value="{{e.researched}}"></span><span data-l10n="common.ratio">/</span><span data-bind-value="{{e.total}}"></span></div>
+        <div class="techs-link" data-bind-for="l:{{techs.links}}" data-bind-class-toggle="techs-link-or:{{l.kind == 'or'}}">
+          <div class="techs-wire" data-bind-style-left="{{l.from_col * 288 + 256}}px" data-bind-style-top="{{l.from_row * 92 + 86}}px" data-bind-style-width="{{(l.to_col - l.from_col) * 144 - 112}}px"></div>
+          <div class="techs-wire-v" data-bind-style-left="{{(l.from_col + l.to_col) * 144 + 144}}px" data-bind-style-top="{{min(l.from_row, l.to_row) * 92 + 86}}px" data-bind-style-height="{{abs(l.to_row - l.from_row) * 92}}px"></div>
+          <div class="techs-wire" data-bind-style-left="{{(l.from_col + l.to_col) * 144 + 144}}px" data-bind-style-top="{{l.to_row * 92 + 86}}px" data-bind-style-width="{{(l.to_col - l.from_col) * 144 - 120}}px"></div>
+        </div>
+        <div data-bind-if="{{techs.mode != 'steal'}}">
+        <button class="techs-row" data-part="techs.row" data-bind-for="t:{{techs.techs}}" data-bind-style-left="{{t.col * 288 + 24}}px" data-bind-style-top="{{t.row * 92 + 52}}px"
+          data-bind-class-toggle="techs-current:{{t.state == 'current'}}; techs-researched:{{t.state == 'researched'}}; techs-free:{{t.state == 'free'}}; techs-locked:{{t.state == 'unavailable' || t.state == 'locked'}}"
+          data-bind-disabled="{{!t.clickable || len(ui.pending) > 0}}" data-tooltip="techs-tip" data-on-pointerenter="set state.techs.hover = t.id"
+          data-on-click="call techs.track(t.id, event.shift ? 1 : 0); intent screen.act(screen: 'techs', action: 'research', a: t.id, b: event.shift ? 1 : 0)"
+          data-on-contextmenu="call techs.track(t.id, 1); intent screen.act(screen: 'techs', action: 'research', a: t.id, b: 1)" >
+          <img class="techs-portrait" data-bind-src="{{t.icon}}"><div class="techs-body"><div class="techs-line"><span class="techs-name" data-part="techs.name" data-bind-value="{{t.name}}"></span><span data-bind-if="{{t.turns != null}}" data-bind-value="{{t.turns}}"></span></div><span class="techs-status" data-part="techs.status" data-bind-value="{{t.status}}"></span><div class="techs-unlocks"><img class="techs-unlock" data-bind-for="u:{{t.unlocks}}" data-bind-src="{{u.icon}}"></div><div class="techs-scale"><div class="techs-forecast" data-bind-style-width="{{t.forecast_fraction * 100}}%"></div><div class="techs-fill" data-bind-style-width="{{t.fraction * 100}}%"></div><div class="techs-ticks" data-bind-if="{{techs.science_rate > 0}}" data-bind-style-background-size="{{min(1, techs.science_rate / max(1,t.cost)) * 100}}% 100%"></div></div></div><span class="techs-pos" data-bind-if="{{t.queue_pos != null}}" data-bind-value="{{t.queue_pos}}"></span>
+        </button>
+        </div>
+        <div data-bind-if="{{techs.mode == 'steal'}}">
+        <button class="techs-row techs-free" data-bind-for="t:{{techs.techs}}" data-bind-style-left="{{t.col * 288 + 24}}px" data-bind-style-top="{{t.row * 92 + 52}}px" data-bind-disabled="{{!t.clickable || len(ui.pending) > 0}}" data-on-click="call techs.track(t.id, 0); intent screen.act(screen: 'techs', action: 'steal', a: t.id, b: techs.steal.player)" data-tooltip="techs-tip" data-on-pointerenter="set state.techs.hover = t.id"><span class="techs-name" data-bind-value="{{t.name}}"></span><span data-bind-value="{{t.steal_science}}"></span></button>
+        </div>
+      </div>
     </div>
-    <div data-l10n="techs.hint">Click to research. Right click to append to the queue.</div>
+    <footer class="techs-foot"><div class="techs-legend"><span class="techs-swatch techs-swatch-unavailable"></span><span data-l10n="techs.unavailable">Not yet available</span><span class="techs-swatch"></span><span data-l10n="techs.available">Available</span><span class="techs-swatch techs-swatch-current"></span><span data-l10n="techs.researching">Researching</span><span class="techs-swatch techs-swatch-researched"></span><span data-l10n="techs.researched">Researched</span></div><span data-l10n="techs.hint">Click to research. Right click to add to queue. Scroll to explore the tree.</span></footer>
   </section>
 </div>

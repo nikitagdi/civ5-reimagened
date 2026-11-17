@@ -1,0 +1,2240 @@
+{
+  "model": {
+    "techs": {
+      "mode": "free",
+      "opened_by": "request",
+      "science_off": false,
+      "science_rate": 186,
+      "researched_count": 54,
+      "total_count": 81,
+      "era": {
+        "key": "ERA_MODERN",
+        "name": "Modern era"
+      },
+      "free_count": 1,
+      "free_reason": "Rationalism completed. Other technologies are locked until you choose.",
+      "steal": null,
+      "grid": {
+        "cols": 10,
+        "rows": 10
+      },
+      "current": {
+        "key": "TECH_RADIO",
+        "name": "Radio",
+        "icon": "",
+        "turns": 4,
+        "progress": 2150,
+        "cost": 2870,
+        "fraction": 0.749,
+        "forecast_fraction": 0.814,
+        "turn_fraction": 0.065
+      },
+      "queue": [
+        {
+          "key": "TECH_RADIO",
+          "pos": 1,
+          "name": "Radio",
+          "turns": 4
+        },
+        {
+          "key": "TECH_PLASTICS",
+          "pos": 2,
+          "name": "Plastics",
+          "turns": 20
+        },
+        {
+          "key": "TECH_PENICILIN",
+          "pos": 3,
+          "name": "Penicillin",
+          "turns": 22
+        }
+      ],
+      "eras": [
+        {
+          "key": "ERA_RENAISSANCE",
+          "name": "Renaissance era",
+          "first_col": -1,
+          "cols": 2,
+          "state": "past",
+          "researched": 10,
+          "total": 10
+        },
+        {
+          "key": "ERA_INDUSTRIAL",
+          "name": "Industrial era",
+          "first_col": 1,
+          "cols": 2,
+          "state": "past",
+          "researched": 9,
+          "total": 10
+        },
+        {
+          "key": "ERA_MODERN",
+          "name": "Modern era",
+          "first_col": 3,
+          "cols": 2,
+          "state": "current",
+          "researched": 3,
+          "total": 9
+        },
+        {
+          "key": "ERA_POSTMODERN",
+          "name": "Atomic era",
+          "first_col": 5,
+          "cols": 2,
+          "state": "future",
+          "researched": 0,
+          "total": 8
+        },
+        {
+          "key": "ERA_FUTURE",
+          "name": "Information era",
+          "first_col": 7,
+          "cols": 3,
+          "state": "future",
+          "researched": 0,
+          "total": 13
+        }
+      ],
+      "techs": [
+        {
+          "key": "TECH_NAVIGATION",
+          "id": 40,
+          "name": "Navigation",
+          "icon": "",
+          "col": 0,
+          "row": 0,
+          "era": 0,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 1560,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Archaeology",
+              "name": "Archaeology"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "BUILDING_SEAPORT",
+              "kind": "building",
+              "name": "Seaport",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "UNIT_FRIGATE",
+              "kind": "unit",
+              "name": "Frigate",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Seaport and the Frigate; embarked units move faster.",
+          "column": 0,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Renaissance era",
+          "prerequisites": [],
+          "era_key": "ERA_RENAISSANCE"
+        },
+        {
+          "key": "TECH_ARCHITECTURE",
+          "id": 41,
+          "name": "Architecture",
+          "icon": "",
+          "col": 0,
+          "row": 2,
+          "era": 0,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 1560,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Scientific Theory",
+              "name": "Scientific Theory"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "BUILDING_TAJ_MAHAL",
+              "kind": "wonder",
+              "name": "Taj Mahal",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "BUILDING_PORCELAIN_TOWER",
+              "kind": "wonder",
+              "name": "Porcelain Tower",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Taj Mahal and the Porcelain Tower.",
+          "column": 0,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Renaissance era",
+          "prerequisites": [],
+          "era_key": "ERA_RENAISSANCE"
+        },
+        {
+          "key": "TECH_ECONOMICS",
+          "id": 42,
+          "name": "Economics",
+          "icon": "",
+          "col": 0,
+          "row": 5,
+          "era": 0,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 1560,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Industrialization",
+              "name": "Industrialization"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "BUILDING_BIG_BEN",
+              "kind": "wonder",
+              "name": "Big Ben",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "BUILDING_WINDMILL",
+              "kind": "building",
+              "name": "Windmill",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows Big Ben and the Windmill.",
+          "column": 0,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Renaissance era",
+          "prerequisites": [],
+          "era_key": "ERA_RENAISSANCE"
+        },
+        {
+          "key": "TECH_METALLURGY",
+          "id": 43,
+          "name": "Metallurgy",
+          "icon": "",
+          "col": 0,
+          "row": 7,
+          "era": 0,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 1560,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Rifling",
+              "name": "Rifling"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "UNIT_LANCER",
+              "kind": "unit",
+              "name": "Lancer",
+              "icon": "",
+              "idx": 0
+            }
+          ],
+          "help": "Allows the Lancer.",
+          "column": 0,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Renaissance era",
+          "prerequisites": [],
+          "era_key": "ERA_RENAISSANCE"
+        },
+        {
+          "key": "TECH_CHEMISTRY",
+          "id": 44,
+          "name": "Chemistry",
+          "icon": "",
+          "col": 0,
+          "row": 8,
+          "era": 0,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 1560,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Military Science",
+              "name": "Military Science"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "UNIT_CANNON",
+              "kind": "unit",
+              "name": "Cannon",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "IMPROVEMENT_MINE_1",
+              "kind": "improvement",
+              "name": "Mine +1",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Cannon; mines produce +1 production.",
+          "column": 0,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Renaissance era",
+          "prerequisites": [],
+          "era_key": "ERA_RENAISSANCE"
+        },
+        {
+          "key": "TECH_ARCHAEOLOGY",
+          "id": 45,
+          "name": "Archaeology",
+          "icon": "",
+          "col": 1,
+          "row": 1,
+          "era": 1,
+          "state": "free",
+          "queue_pos": null,
+          "turns": 9,
+          "cost": 1640,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": true,
+          "lock_reason": null,
+          "prereqs": [
+            {
+              "key": "TECH_NAVIGATION",
+              "name": "TECH_NAVIGATION"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Biology",
+              "name": "Biology"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "UNIT_ARCHAEOLOGIST",
+              "kind": "unit",
+              "name": "Archaeologist",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "BUILDING_MUSEUM",
+              "kind": "building",
+              "name": "Museum",
+              "icon": "",
+              "idx": 1
+            },
+            {
+              "key": "BUILDING_LOUVRE",
+              "kind": "wonder",
+              "name": "Louvre",
+              "icon": "",
+              "idx": 2
+            }
+          ],
+          "help": "Allows the Archaeologist, the Museum and the Louvre; reveals antiquity sites.",
+          "column": 1,
+          "status": "available",
+          "queue_position": -1,
+          "era_name": "Industrial era",
+          "prerequisites": [],
+          "era_key": "ERA_INDUSTRIAL"
+        },
+        {
+          "key": "TECH_SCIENTIFIC_THEORY",
+          "id": 46,
+          "name": "Scientific Theory",
+          "icon": "",
+          "col": 1,
+          "row": 3,
+          "era": 1,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 1640,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [
+            {
+              "key": "TECH_ARCHITECTURE",
+              "name": "TECH_ARCHITECTURE"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Biology",
+              "name": "Biology"
+            },
+            {
+              "key": "Electricity",
+              "name": "Electricity"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "BUILDING_PUBLIC_SCHOOL",
+              "kind": "building",
+              "name": "Public School",
+              "icon": "",
+              "idx": 0
+            }
+          ],
+          "help": "Allows the Public School.",
+          "column": 1,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Industrial era",
+          "prerequisites": [],
+          "era_key": "ERA_INDUSTRIAL"
+        },
+        {
+          "key": "TECH_INDUSTRIALIZATION",
+          "id": 47,
+          "name": "Industrialization",
+          "icon": "",
+          "col": 1,
+          "row": 5,
+          "era": 1,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 1640,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [
+            {
+              "key": "TECH_ECONOMICS",
+              "name": "TECH_ECONOMICS"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Steam Power",
+              "name": "Steam Power"
+            },
+            {
+              "key": "Railroad",
+              "name": "Railroad"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "BUILDING_FACTORY",
+              "kind": "building",
+              "name": "Factory",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "UNIT_GATLING_GUN",
+              "kind": "unit",
+              "name": "Gatling Gun",
+              "icon": "",
+              "idx": 1
+            },
+            {
+              "key": "BUILDING_EIFFEL_TOWER",
+              "kind": "wonder",
+              "name": "Eiffel Tower",
+              "icon": "",
+              "idx": 2
+            },
+            {
+              "key": "RESOURCE_COAL",
+              "kind": "resource",
+              "name": "Coal",
+              "icon": "",
+              "idx": 3
+            }
+          ],
+          "help": "Allows the Factory, the Gatling Gun and the Eiffel Tower; reveals Coal.",
+          "column": 1,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Industrial era",
+          "prerequisites": [],
+          "era_key": "ERA_INDUSTRIAL"
+        },
+        {
+          "key": "TECH_RIFLING",
+          "id": 48,
+          "name": "Rifling",
+          "icon": "",
+          "col": 1,
+          "row": 7,
+          "era": 1,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 1640,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [
+            {
+              "key": "TECH_METALLURGY",
+              "name": "TECH_METALLURGY"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Railroad",
+              "name": "Railroad"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "UNIT_RIFLEMAN",
+              "kind": "unit",
+              "name": "Rifleman",
+              "icon": "",
+              "idx": 0
+            }
+          ],
+          "help": "Allows the Rifleman.",
+          "column": 1,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Industrial era",
+          "prerequisites": [],
+          "era_key": "ERA_INDUSTRIAL"
+        },
+        {
+          "key": "TECH_MILITARY_SCIENCE",
+          "id": 49,
+          "name": "Military Science",
+          "icon": "",
+          "col": 1,
+          "row": 8,
+          "era": 1,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 1640,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [
+            {
+              "key": "TECH_CHEMISTRY",
+              "name": "TECH_CHEMISTRY"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Dynamite",
+              "name": "Dynamite"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "UNIT_COSSACK",
+              "kind": "unit",
+              "name": "Cossack",
+              "icon": "",
+              "idx": 0
+            }
+          ],
+          "help": "Allows the Cossack (Russia, replaces Cavalry).",
+          "column": 1,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Industrial era",
+          "prerequisites": [],
+          "era_key": "ERA_INDUSTRIAL"
+        },
+        {
+          "key": "TECH_BIOLOGY",
+          "id": 50,
+          "name": "Biology",
+          "icon": "",
+          "col": 2,
+          "row": 1,
+          "era": 1,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 2050,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [],
+          "or_prereqs": [
+            {
+              "key": "TECH_ARCHAEOLOGY",
+              "name": "TECH_ARCHAEOLOGY"
+            },
+            {
+              "key": "TECH_SCIENTIFIC_THEORY",
+              "name": "TECH_SCIENTIFIC_THEORY"
+            }
+          ],
+          "leads_to": [
+            {
+              "key": "Refrigeration",
+              "name": "Refrigeration"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "BUILDING_HOSPITAL",
+              "kind": "building",
+              "name": "Hospital",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "RESOURCE_OIL",
+              "kind": "resource",
+              "name": "Oil",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Hospital; reveals Oil.",
+          "column": 2,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Industrial era",
+          "prerequisites": [],
+          "era_key": "ERA_INDUSTRIAL"
+        },
+        {
+          "key": "TECH_ELECTRICITY",
+          "id": 51,
+          "name": "Electricity",
+          "icon": "",
+          "col": 2,
+          "row": 3,
+          "era": 1,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 2050,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [
+            {
+              "key": "TECH_SCIENTIFIC_THEORY",
+              "name": "TECH_SCIENTIFIC_THEORY"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Refrigeration",
+              "name": "Refrigeration"
+            },
+            {
+              "key": "Telegraph",
+              "name": "Telegraph"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "BUILDING_STOCK_EXCHANGE",
+              "kind": "building",
+              "name": "Stock Exchange",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "RESOURCE_ALUMINUM",
+              "kind": "resource",
+              "name": "Aluminum",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Stock Exchange; reveals Aluminum.",
+          "column": 2,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Industrial era",
+          "prerequisites": [],
+          "era_key": "ERA_INDUSTRIAL"
+        },
+        {
+          "key": "TECH_STEAM_POWER",
+          "id": 52,
+          "name": "Steam Power",
+          "icon": "",
+          "col": 2,
+          "row": 5,
+          "era": 1,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 2050,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [
+            {
+              "key": "TECH_INDUSTRIALIZATION",
+              "name": "TECH_INDUSTRIALIZATION"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Replaceable Parts",
+              "name": "Replaceable Parts"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "UNIT_IRONCLAD",
+              "kind": "unit",
+              "name": "Ironclad",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "ABILITY_EMBARK_1",
+              "kind": "ability",
+              "name": "Embark +1",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Ironclad; embarked units get +1 movement.",
+          "column": 2,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Industrial era",
+          "prerequisites": [],
+          "era_key": "ERA_INDUSTRIAL"
+        },
+        {
+          "key": "TECH_RAILROAD",
+          "id": 53,
+          "name": "Railroad",
+          "icon": "",
+          "col": 2,
+          "row": 6,
+          "era": 1,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 2050,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [
+            {
+              "key": "TECH_INDUSTRIALIZATION",
+              "name": "TECH_INDUSTRIALIZATION"
+            },
+            {
+              "key": "TECH_RIFLING",
+              "name": "TECH_RIFLING"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Replaceable Parts",
+              "name": "Replaceable Parts"
+            },
+            {
+              "key": "Combustion",
+              "name": "Combustion"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "UNIT_ARTILLERY",
+              "kind": "unit",
+              "name": "Artillery",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "BUILDING_KREMLIN",
+              "kind": "wonder",
+              "name": "Kremlin",
+              "icon": "",
+              "idx": 1
+            },
+            {
+              "key": "IMPROVEMENT_RAILROAD",
+              "kind": "improvement",
+              "name": "Railroad",
+              "icon": "",
+              "idx": 2
+            }
+          ],
+          "help": "Allows Artillery, the Kremlin and railroads.",
+          "column": 2,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Industrial era",
+          "prerequisites": [],
+          "era_key": "ERA_INDUSTRIAL"
+        },
+        {
+          "key": "TECH_DYNAMITE",
+          "id": 54,
+          "name": "Dynamite",
+          "icon": "",
+          "col": 2,
+          "row": 8,
+          "era": 1,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 2050,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [
+            {
+              "key": "TECH_MILITARY_SCIENCE",
+              "name": "TECH_MILITARY_SCIENCE"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Combustion",
+              "name": "Combustion"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "ABILITY_FORT",
+              "kind": "ability",
+              "name": "Fort +",
+              "icon": "",
+              "idx": 0
+            }
+          ],
+          "help": "Forts and citadels get +50% defense.",
+          "column": 2,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Industrial era",
+          "prerequisites": [],
+          "era_key": "ERA_INDUSTRIAL"
+        },
+        {
+          "key": "TECH_REFRIGERATION",
+          "id": 55,
+          "name": "Refrigeration",
+          "icon": "",
+          "col": 3,
+          "row": 1,
+          "era": 2,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 2870,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [
+            {
+              "key": "TECH_BIOLOGY",
+              "name": "TECH_BIOLOGY"
+            },
+            {
+              "key": "TECH_ELECTRICITY",
+              "name": "TECH_ELECTRICITY"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Plastics",
+              "name": "Plastics"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "BUILDING_STADIUM",
+              "kind": "building",
+              "name": "Stadium",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "IMPROVEMENT_FARM_1",
+              "kind": "improvement",
+              "name": "Farm +1",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Stadium; farms produce +1 food.",
+          "column": 3,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Modern era",
+          "prerequisites": [],
+          "era_key": "ERA_MODERN"
+        },
+        {
+          "key": "TECH_TELEGRAPH",
+          "id": 56,
+          "name": "Telegraph",
+          "icon": "",
+          "col": 3,
+          "row": 3,
+          "era": 2,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 2870,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [
+            {
+              "key": "TECH_ELECTRICITY",
+              "name": "TECH_ELECTRICITY"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Radio",
+              "name": "Radio"
+            },
+            {
+              "key": "Electronics",
+              "name": "Electronics"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "BUILDING_MILITARY_BASE",
+              "kind": "building",
+              "name": "Military Base",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "ABILITY_DIPLOMAT_VOTE",
+              "kind": "ability",
+              "name": "Diplomat vote",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Military Base; diplomats in city-states give +1 delegate.",
+          "column": 3,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Modern era",
+          "prerequisites": [],
+          "era_key": "ERA_MODERN"
+        },
+        {
+          "key": "TECH_RADIO",
+          "id": 57,
+          "name": "Radio",
+          "icon": "",
+          "col": 4,
+          "row": 4,
+          "era": 2,
+          "state": "free",
+          "queue_pos": null,
+          "turns": 4,
+          "cost": 2870,
+          "progress": 2150,
+          "fraction": 0.749,
+          "forecast_fraction": 0.814,
+          "steal_science": null,
+          "clickable": true,
+          "lock_reason": null,
+          "prereqs": [
+            {
+              "key": "TECH_TELEGRAPH",
+              "name": "TECH_TELEGRAPH"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Plastics",
+              "name": "Plastics"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "BUILDING_BROADCAST_TOWER",
+              "kind": "building",
+              "name": "Broadcast Tower",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "BUILDING_RADIO_CITY",
+              "kind": "wonder",
+              "name": "Radio City",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Broadcast Tower; +100% tourism from great works in that city.",
+          "column": 4,
+          "status": "available",
+          "queue_position": -1,
+          "era_name": "Modern era",
+          "prerequisites": [],
+          "era_key": "ERA_MODERN"
+        },
+        {
+          "key": "TECH_REPLACEABLE_PARTS",
+          "id": 58,
+          "name": "Replaceable Parts",
+          "icon": "",
+          "col": 3,
+          "row": 6,
+          "era": 2,
+          "state": "researched",
+          "queue_pos": null,
+          "turns": null,
+          "cost": 2870,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Already researched.",
+          "prereqs": [
+            {
+              "key": "TECH_STEAM_POWER",
+              "name": "TECH_STEAM_POWER"
+            },
+            {
+              "key": "TECH_RAILROAD",
+              "name": "TECH_RAILROAD"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Flight",
+              "name": "Flight"
+            },
+            {
+              "key": "Ballistics",
+              "name": "Ballistics"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "UNIT_INFANTRY",
+              "kind": "unit",
+              "name": "Infantry",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "BUILDING_STATUE_OF_LIBERTY",
+              "kind": "wonder",
+              "name": "Statue of Liberty",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows Infantry and the Statue of Liberty.",
+          "column": 3,
+          "status": "researched",
+          "queue_position": -1,
+          "era_name": "Modern era",
+          "prerequisites": [],
+          "era_key": "ERA_MODERN"
+        },
+        {
+          "key": "TECH_COMBUSTION",
+          "id": 59,
+          "name": "Combustion",
+          "icon": "",
+          "col": 3,
+          "row": 8,
+          "era": 2,
+          "state": "free",
+          "queue_pos": null,
+          "turns": 16,
+          "cost": 2870,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": true,
+          "lock_reason": null,
+          "prereqs": [
+            {
+              "key": "TECH_DYNAMITE",
+              "name": "TECH_DYNAMITE"
+            },
+            {
+              "key": "TECH_RAILROAD",
+              "name": "TECH_RAILROAD"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Flight",
+              "name": "Flight"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "UNIT_DESTROYER",
+              "kind": "unit",
+              "name": "Destroyer",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "UNIT_LANDSHIP",
+              "kind": "unit",
+              "name": "Landship",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Destroyer and the Landship.",
+          "column": 3,
+          "status": "available",
+          "queue_position": -1,
+          "era_name": "Modern era",
+          "prerequisites": [],
+          "era_key": "ERA_MODERN"
+        },
+        {
+          "key": "TECH_PLASTICS",
+          "id": 60,
+          "name": "Plastics",
+          "icon": "",
+          "col": 5,
+          "row": 1,
+          "era": 3,
+          "state": "locked",
+          "queue_pos": null,
+          "turns": 20,
+          "cost": 3560,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Not eligible for a free technology",
+          "prereqs": [
+            {
+              "key": "TECH_REFRIGERATION",
+              "name": "TECH_REFRIGERATION"
+            },
+            {
+              "key": "TECH_RADIO",
+              "name": "TECH_RADIO"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Penicillin",
+              "name": "Penicillin"
+            },
+            {
+              "key": "Ecology",
+              "name": "Ecology"
+            },
+            {
+              "key": "Computers",
+              "name": "Computers"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "BUILDING_RESEARCH_LAB",
+              "kind": "building",
+              "name": "Research Lab",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "IMPROVEMENT_OFFSHORE_PLATFORM",
+              "kind": "improvement",
+              "name": "Offshore Platform",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Research Lab and the Offshore Platform.",
+          "column": 5,
+          "status": "locked",
+          "queue_position": -1,
+          "era_name": "Atomic era",
+          "prerequisites": [],
+          "era_key": "ERA_POSTMODERN"
+        },
+        {
+          "key": "TECH_ELECTRONICS",
+          "id": 61,
+          "name": "Electronics",
+          "icon": "",
+          "col": 4,
+          "row": 3,
+          "era": 2,
+          "state": "free",
+          "queue_pos": null,
+          "turns": 18,
+          "cost": 3190,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": true,
+          "lock_reason": null,
+          "prereqs": [
+            {
+              "key": "TECH_TELEGRAPH",
+              "name": "TECH_TELEGRAPH"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Atomic Theory",
+              "name": "Atomic Theory"
+            },
+            {
+              "key": "Radar",
+              "name": "Radar"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "UNIT_BATTLESHIP",
+              "kind": "unit",
+              "name": "Battleship",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "BUILDING_HYDRO_PLANT",
+              "kind": "building",
+              "name": "Hydro Plant",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Battleship and the Hydro Plant.",
+          "column": 4,
+          "status": "available",
+          "queue_position": -1,
+          "era_name": "Modern era",
+          "prerequisites": [],
+          "era_key": "ERA_MODERN"
+        },
+        {
+          "key": "TECH_FLIGHT",
+          "id": 62,
+          "name": "Flight",
+          "icon": "",
+          "col": 4,
+          "row": 6,
+          "era": 2,
+          "state": "locked",
+          "queue_pos": null,
+          "turns": 14,
+          "cost": 3190,
+          "progress": 640,
+          "fraction": 0.201,
+          "forecast_fraction": 0.259,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Not eligible for a free technology",
+          "prereqs": [
+            {
+              "key": "TECH_REPLACEABLE_PARTS",
+              "name": "TECH_REPLACEABLE_PARTS"
+            },
+            {
+              "key": "TECH_COMBUSTION",
+              "name": "TECH_COMBUSTION"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Radar",
+              "name": "Radar"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "UNIT_TRIPLANE",
+              "kind": "unit",
+              "name": "Triplane",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "BUILDING_PRORA",
+              "kind": "wonder",
+              "name": "Prora",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Triplane and Prora.",
+          "column": 4,
+          "status": "locked",
+          "queue_position": -1,
+          "era_name": "Modern era",
+          "prerequisites": [],
+          "era_key": "ERA_MODERN"
+        },
+        {
+          "key": "TECH_BALLISTICS",
+          "id": 63,
+          "name": "Ballistics",
+          "icon": "",
+          "col": 4,
+          "row": 7,
+          "era": 2,
+          "state": "free",
+          "queue_pos": null,
+          "turns": 18,
+          "cost": 3190,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": true,
+          "lock_reason": null,
+          "prereqs": [
+            {
+              "key": "TECH_REPLACEABLE_PARTS",
+              "name": "TECH_REPLACEABLE_PARTS"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Combined Arms",
+              "name": "Combined Arms"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "UNIT_MACHINE_GUN",
+              "kind": "unit",
+              "name": "Machine Gun",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "UNIT_ANTI_AIRCRAFT_GUN",
+              "kind": "unit",
+              "name": "Anti-Aircraft Gun",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Machine Gun and the Anti-Aircraft Gun.",
+          "column": 4,
+          "status": "available",
+          "queue_position": -1,
+          "era_name": "Modern era",
+          "prerequisites": [],
+          "era_key": "ERA_MODERN"
+        },
+        {
+          "key": "TECH_PENICILIN",
+          "id": 64,
+          "name": "Penicillin",
+          "icon": "",
+          "col": 6,
+          "row": 1,
+          "era": 3,
+          "state": "locked",
+          "queue_pos": null,
+          "turns": 22,
+          "cost": 3920,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Not eligible for a free technology",
+          "prereqs": [
+            {
+              "key": "TECH_PLASTICS",
+              "name": "TECH_PLASTICS"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [],
+          "unlocks": [
+            {
+              "key": "BUILDING_MEDICAL_LAB",
+              "kind": "building",
+              "name": "Medical Lab",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "UNIT_MARINE",
+              "kind": "unit",
+              "name": "Marine",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Medical Lab and the Marine.",
+          "column": 6,
+          "status": "locked",
+          "queue_position": -1,
+          "era_name": "Atomic era",
+          "prerequisites": [],
+          "era_key": "ERA_POSTMODERN"
+        },
+        {
+          "key": "TECH_ATOMIC_THEORY",
+          "id": 65,
+          "name": "Atomic Theory",
+          "icon": "",
+          "col": 5,
+          "row": 3,
+          "era": 3,
+          "state": "locked",
+          "queue_pos": null,
+          "turns": 22,
+          "cost": 3920,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Not eligible for a free technology",
+          "prereqs": [
+            {
+              "key": "TECH_ELECTRONICS",
+              "name": "TECH_ELECTRONICS"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Computers",
+              "name": "Computers"
+            },
+            {
+              "key": "Nuclear Fission",
+              "name": "Nuclear Fission"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "RESOURCE_URANIUM",
+              "kind": "resource",
+              "name": "Uranium",
+              "icon": "",
+              "idx": 0
+            }
+          ],
+          "help": "Reveals Uranium.",
+          "column": 5,
+          "status": "locked",
+          "queue_position": -1,
+          "era_name": "Atomic era",
+          "prerequisites": [],
+          "era_key": "ERA_POSTMODERN"
+        },
+        {
+          "key": "TECH_RADAR",
+          "id": 66,
+          "name": "Radar",
+          "icon": "",
+          "col": 5,
+          "row": 5,
+          "era": 3,
+          "state": "locked",
+          "queue_pos": null,
+          "turns": 22,
+          "cost": 3920,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Not eligible for a free technology",
+          "prereqs": [
+            {
+              "key": "TECH_ELECTRONICS",
+              "name": "TECH_ELECTRONICS"
+            },
+            {
+              "key": "TECH_FLIGHT",
+              "name": "TECH_FLIGHT"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Nuclear Fission",
+              "name": "Nuclear Fission"
+            },
+            {
+              "key": "Rocketry",
+              "name": "Rocketry"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "UNIT_PARATROOPER",
+              "kind": "unit",
+              "name": "Paratrooper",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "BUILDING_AIRPORT",
+              "kind": "building",
+              "name": "Airport",
+              "icon": "",
+              "idx": 1
+            },
+            {
+              "key": "UNIT_BOMBER",
+              "kind": "unit",
+              "name": "Bomber",
+              "icon": "",
+              "idx": 2
+            }
+          ],
+          "help": "Allows the Paratrooper, the Airport and the Bomber.",
+          "column": 5,
+          "status": "locked",
+          "queue_position": -1,
+          "era_name": "Atomic era",
+          "prerequisites": [],
+          "era_key": "ERA_POSTMODERN"
+        },
+        {
+          "key": "TECH_COMBINED_ARMS",
+          "id": 67,
+          "name": "Combined Arms",
+          "icon": "",
+          "col": 5,
+          "row": 7,
+          "era": 3,
+          "state": "locked",
+          "queue_pos": null,
+          "turns": 22,
+          "cost": 3920,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Not eligible for a free technology",
+          "prereqs": [
+            {
+              "key": "TECH_BALLISTICS",
+              "name": "TECH_BALLISTICS"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [
+            {
+              "key": "Rocketry",
+              "name": "Rocketry"
+            }
+          ],
+          "unlocks": [
+            {
+              "key": "UNIT_TANK",
+              "kind": "unit",
+              "name": "Tank",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "BUILDING_PENTAGON",
+              "kind": "wonder",
+              "name": "Pentagon",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Tank and the Pentagon.",
+          "column": 5,
+          "status": "locked",
+          "queue_position": -1,
+          "era_name": "Atomic era",
+          "prerequisites": [],
+          "era_key": "ERA_POSTMODERN"
+        },
+        {
+          "key": "TECH_ECOLOGY",
+          "id": 68,
+          "name": "Ecology",
+          "icon": "",
+          "col": 6,
+          "row": 0,
+          "era": 3,
+          "state": "locked",
+          "queue_pos": null,
+          "turns": 24,
+          "cost": 4280,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Not eligible for a free technology",
+          "prereqs": [
+            {
+              "key": "TECH_PLASTICS",
+              "name": "TECH_PLASTICS"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [],
+          "unlocks": [
+            {
+              "key": "BUILDING_SOLAR_PLANT",
+              "kind": "building",
+              "name": "Solar Plant",
+              "icon": "",
+              "idx": 0
+            }
+          ],
+          "help": "Allows the Solar Plant.",
+          "column": 6,
+          "status": "locked",
+          "queue_position": -1,
+          "era_name": "Atomic era",
+          "prerequisites": [],
+          "era_key": "ERA_POSTMODERN"
+        },
+        {
+          "key": "TECH_COMPUTERS",
+          "id": 69,
+          "name": "Computers",
+          "icon": "",
+          "col": 6,
+          "row": 2,
+          "era": 3,
+          "state": "locked",
+          "queue_pos": null,
+          "turns": 24,
+          "cost": 4280,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Not eligible for a free technology",
+          "prereqs": [
+            {
+              "key": "TECH_PLASTICS",
+              "name": "TECH_PLASTICS"
+            },
+            {
+              "key": "TECH_ATOMIC_THEORY",
+              "name": "TECH_ATOMIC_THEORY"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [],
+          "unlocks": [
+            {
+              "key": "UNIT_CARRIER",
+              "kind": "unit",
+              "name": "Carrier",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "BUILDING_GREAT_FIREWALL",
+              "kind": "wonder",
+              "name": "Great Firewall",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Carrier and the Great Firewall.",
+          "column": 6,
+          "status": "locked",
+          "queue_position": -1,
+          "era_name": "Atomic era",
+          "prerequisites": [],
+          "era_key": "ERA_POSTMODERN"
+        },
+        {
+          "key": "TECH_NUCLEAR_FISSION",
+          "id": 70,
+          "name": "Nuclear Fission",
+          "icon": "",
+          "col": 6,
+          "row": 4,
+          "era": 3,
+          "state": "locked",
+          "queue_pos": null,
+          "turns": 24,
+          "cost": 4280,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Not eligible for a free technology",
+          "prereqs": [
+            {
+              "key": "TECH_ATOMIC_THEORY",
+              "name": "TECH_ATOMIC_THEORY"
+            },
+            {
+              "key": "TECH_RADAR",
+              "name": "TECH_RADAR"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [],
+          "unlocks": [
+            {
+              "key": "UNIT_ATOMIC_BOMB",
+              "kind": "unit",
+              "name": "Atomic Bomb",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "PROJECT_MANHATTAN_PROJECT",
+              "kind": "project",
+              "name": "Manhattan Project",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows the Atomic Bomb and the Manhattan Project.",
+          "column": 6,
+          "status": "locked",
+          "queue_position": -1,
+          "era_name": "Atomic era",
+          "prerequisites": [],
+          "era_key": "ERA_POSTMODERN"
+        },
+        {
+          "key": "TECH_ROCKETRY",
+          "id": 71,
+          "name": "Rocketry",
+          "icon": "",
+          "col": 6,
+          "row": 6,
+          "era": 3,
+          "state": "locked",
+          "queue_pos": null,
+          "turns": 24,
+          "cost": 4280,
+          "progress": 0,
+          "fraction": 0,
+          "forecast_fraction": 0,
+          "steal_science": null,
+          "clickable": false,
+          "lock_reason": "Not eligible for a free technology",
+          "prereqs": [
+            {
+              "key": "TECH_RADAR",
+              "name": "TECH_RADAR"
+            },
+            {
+              "key": "TECH_COMBINED_ARMS",
+              "name": "TECH_COMBINED_ARMS"
+            }
+          ],
+          "or_prereqs": [],
+          "leads_to": [],
+          "unlocks": [
+            {
+              "key": "UNIT_ROCKET_ARTILLERY",
+              "kind": "unit",
+              "name": "Rocket Artillery",
+              "icon": "",
+              "idx": 0
+            },
+            {
+              "key": "UNIT_MOBILE_SAM",
+              "kind": "unit",
+              "name": "Mobile SAM",
+              "icon": "",
+              "idx": 1
+            }
+          ],
+          "help": "Allows Rocket Artillery and the Mobile SAM.",
+          "column": 6,
+          "status": "locked",
+          "queue_position": -1,
+          "era_name": "Atomic era",
+          "prerequisites": [],
+          "era_key": "ERA_POSTMODERN"
+        }
+      ],
+      "links": [
+        {
+          "key": "TECH_NAVIGATION>TECH_ARCHAEOLOGY",
+          "from_col": 0,
+          "from_row": 0,
+          "to_col": 1,
+          "to_row": 1,
+          "kind": "and",
+          "state": "live"
+        },
+        {
+          "key": "TECH_ARCHITECTURE>TECH_SCIENTIFIC_THEORY",
+          "from_col": 0,
+          "from_row": 2,
+          "to_col": 1,
+          "to_row": 3,
+          "kind": "and",
+          "state": "done"
+        },
+        {
+          "key": "TECH_ECONOMICS>TECH_INDUSTRIALIZATION",
+          "from_col": 0,
+          "from_row": 5,
+          "to_col": 1,
+          "to_row": 5,
+          "kind": "and",
+          "state": "done"
+        },
+        {
+          "key": "TECH_METALLURGY>TECH_RIFLING",
+          "from_col": 0,
+          "from_row": 7,
+          "to_col": 1,
+          "to_row": 7,
+          "kind": "and",
+          "state": "done"
+        },
+        {
+          "key": "TECH_CHEMISTRY>TECH_MILITARY_SCIENCE",
+          "from_col": 0,
+          "from_row": 8,
+          "to_col": 1,
+          "to_row": 8,
+          "kind": "and",
+          "state": "done"
+        },
+        {
+          "key": "TECH_ARCHAEOLOGY>TECH_BIOLOGY",
+          "from_col": 1,
+          "from_row": 1,
+          "to_col": 2,
+          "to_row": 1,
+          "kind": "or",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_SCIENTIFIC_THEORY>TECH_BIOLOGY",
+          "from_col": 1,
+          "from_row": 3,
+          "to_col": 2,
+          "to_row": 1,
+          "kind": "or",
+          "state": "done"
+        },
+        {
+          "key": "TECH_SCIENTIFIC_THEORY>TECH_ELECTRICITY",
+          "from_col": 1,
+          "from_row": 3,
+          "to_col": 2,
+          "to_row": 3,
+          "kind": "and",
+          "state": "done"
+        },
+        {
+          "key": "TECH_INDUSTRIALIZATION>TECH_STEAM_POWER",
+          "from_col": 1,
+          "from_row": 5,
+          "to_col": 2,
+          "to_row": 5,
+          "kind": "and",
+          "state": "done"
+        },
+        {
+          "key": "TECH_INDUSTRIALIZATION>TECH_RAILROAD",
+          "from_col": 1,
+          "from_row": 5,
+          "to_col": 2,
+          "to_row": 6,
+          "kind": "and",
+          "state": "done"
+        },
+        {
+          "key": "TECH_RIFLING>TECH_RAILROAD",
+          "from_col": 1,
+          "from_row": 7,
+          "to_col": 2,
+          "to_row": 6,
+          "kind": "and",
+          "state": "done"
+        },
+        {
+          "key": "TECH_MILITARY_SCIENCE>TECH_DYNAMITE",
+          "from_col": 1,
+          "from_row": 8,
+          "to_col": 2,
+          "to_row": 8,
+          "kind": "and",
+          "state": "done"
+        },
+        {
+          "key": "TECH_BIOLOGY>TECH_REFRIGERATION",
+          "from_col": 2,
+          "from_row": 1,
+          "to_col": 3,
+          "to_row": 1,
+          "kind": "and",
+          "state": "done"
+        },
+        {
+          "key": "TECH_ELECTRICITY>TECH_REFRIGERATION",
+          "from_col": 2,
+          "from_row": 3,
+          "to_col": 3,
+          "to_row": 1,
+          "kind": "and",
+          "state": "done"
+        },
+        {
+          "key": "TECH_ELECTRICITY>TECH_TELEGRAPH",
+          "from_col": 2,
+          "from_row": 3,
+          "to_col": 3,
+          "to_row": 3,
+          "kind": "and",
+          "state": "done"
+        },
+        {
+          "key": "TECH_TELEGRAPH>TECH_RADIO",
+          "from_col": 3,
+          "from_row": 3,
+          "to_col": 4,
+          "to_row": 4,
+          "kind": "and",
+          "state": "live"
+        },
+        {
+          "key": "TECH_STEAM_POWER>TECH_REPLACEABLE_PARTS",
+          "from_col": 2,
+          "from_row": 5,
+          "to_col": 3,
+          "to_row": 6,
+          "kind": "and",
+          "state": "done"
+        },
+        {
+          "key": "TECH_RAILROAD>TECH_REPLACEABLE_PARTS",
+          "from_col": 2,
+          "from_row": 6,
+          "to_col": 3,
+          "to_row": 6,
+          "kind": "and",
+          "state": "done"
+        },
+        {
+          "key": "TECH_DYNAMITE>TECH_COMBUSTION",
+          "from_col": 2,
+          "from_row": 8,
+          "to_col": 3,
+          "to_row": 8,
+          "kind": "and",
+          "state": "live"
+        },
+        {
+          "key": "TECH_RAILROAD>TECH_COMBUSTION",
+          "from_col": 2,
+          "from_row": 6,
+          "to_col": 3,
+          "to_row": 8,
+          "kind": "and",
+          "state": "live"
+        },
+        {
+          "key": "TECH_REFRIGERATION>TECH_PLASTICS",
+          "from_col": 3,
+          "from_row": 1,
+          "to_col": 5,
+          "to_row": 1,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_RADIO>TECH_PLASTICS",
+          "from_col": 4,
+          "from_row": 4,
+          "to_col": 5,
+          "to_row": 1,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_TELEGRAPH>TECH_ELECTRONICS",
+          "from_col": 3,
+          "from_row": 3,
+          "to_col": 4,
+          "to_row": 3,
+          "kind": "and",
+          "state": "live"
+        },
+        {
+          "key": "TECH_REPLACEABLE_PARTS>TECH_FLIGHT",
+          "from_col": 3,
+          "from_row": 6,
+          "to_col": 4,
+          "to_row": 6,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_COMBUSTION>TECH_FLIGHT",
+          "from_col": 3,
+          "from_row": 8,
+          "to_col": 4,
+          "to_row": 6,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_REPLACEABLE_PARTS>TECH_BALLISTICS",
+          "from_col": 3,
+          "from_row": 6,
+          "to_col": 4,
+          "to_row": 7,
+          "kind": "and",
+          "state": "live"
+        },
+        {
+          "key": "TECH_PLASTICS>TECH_PENICILIN",
+          "from_col": 5,
+          "from_row": 1,
+          "to_col": 6,
+          "to_row": 1,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_ELECTRONICS>TECH_ATOMIC_THEORY",
+          "from_col": 4,
+          "from_row": 3,
+          "to_col": 5,
+          "to_row": 3,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_ELECTRONICS>TECH_RADAR",
+          "from_col": 4,
+          "from_row": 3,
+          "to_col": 5,
+          "to_row": 5,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_FLIGHT>TECH_RADAR",
+          "from_col": 4,
+          "from_row": 6,
+          "to_col": 5,
+          "to_row": 5,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_BALLISTICS>TECH_COMBINED_ARMS",
+          "from_col": 4,
+          "from_row": 7,
+          "to_col": 5,
+          "to_row": 7,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_PLASTICS>TECH_ECOLOGY",
+          "from_col": 5,
+          "from_row": 1,
+          "to_col": 6,
+          "to_row": 0,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_PLASTICS>TECH_COMPUTERS",
+          "from_col": 5,
+          "from_row": 1,
+          "to_col": 6,
+          "to_row": 2,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_ATOMIC_THEORY>TECH_COMPUTERS",
+          "from_col": 5,
+          "from_row": 3,
+          "to_col": 6,
+          "to_row": 2,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_ATOMIC_THEORY>TECH_NUCLEAR_FISSION",
+          "from_col": 5,
+          "from_row": 3,
+          "to_col": 6,
+          "to_row": 4,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_RADAR>TECH_NUCLEAR_FISSION",
+          "from_col": 5,
+          "from_row": 5,
+          "to_col": 6,
+          "to_row": 4,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_RADAR>TECH_ROCKETRY",
+          "from_col": 5,
+          "from_row": 5,
+          "to_col": 6,
+          "to_row": 6,
+          "kind": "and",
+          "state": "idle"
+        },
+        {
+          "key": "TECH_COMBINED_ARMS>TECH_ROCKETRY",
+          "from_col": 5,
+          "from_row": 7,
+          "to_col": 6,
+          "to_row": 6,
+          "kind": "and",
+          "state": "idle"
+        }
+      ]
+    }
+  },
+  "ui": {
+    "windows": {
+      "techs": {
+        "open": true,
+        "a": 2,
+        "b": 0
+      }
+    }
+  }
+}
