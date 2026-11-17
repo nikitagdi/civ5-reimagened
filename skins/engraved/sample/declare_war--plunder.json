@@ -1,0 +1,44 @@
+{
+  "model": {
+    "declare_war": {
+      "kind": "plunder_confirm",
+      "reason": "plunder",
+      "unit": {
+        "owner": 0,
+        "id": 8211
+      },
+      "plot": {
+        "x": 47,
+        "y": 18
+      },
+      "route": {
+        "from_city": "Berlin",
+        "to_city": "Rio de Janeiro",
+        "owner_id": 4,
+        "owner_name": "Germany",
+        "owner_at_war": true,
+        "loot_gold": 238
+      },
+      "affected": {
+        "team": 5,
+        "player": 5,
+        "name": "Pedro II",
+        "leader": "Pedro",
+        "civ": "Brazil",
+        "icon_leader": "leader:LEADER_PEDRO",
+        "icon_civ": "civ:CIVILIZATION_BRAZIL",
+        "color_bg": "#2f7a3a",
+        "color_fg": "#f2d64b"
+      },
+      "ignore_warning_team": 5,
+      "enabled": true
+    }
+  },
+  "ui": {
+    "windows": {
+      "declare_war": {
+        "open": true
+      }
+    }
+  }
+}

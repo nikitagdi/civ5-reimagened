@@ -1,0 +1,39 @@
+/* Shared HUD bounds keep the corner, notifications and turn plate disjoint. */
+.helm { width: 424px; height: 450px; }
+.helm .side { width: 176px; }
+.end-turn-queue { max-height: 48px; }
+.chat { left: 580px; bottom: 0; width: 470px; }
+.civ_ribbon-panel { top: 56px; bottom: 458px; width: 240px; pointer-events: auto; }
+.civ_ribbon-panel.civ_ribbon-left { left: 0; right: auto; }
+.civ_ribbon-toggle { position: relative; top: auto; right: auto; bottom: auto; width: auto; height: 32px; pointer-events: auto; }
+.civ_ribbon-panel.civ_ribbon-folded { bottom: auto; }
+.notes { right: 248px; top: 56px; bottom: 458px; width: 330px; }
+.notes .list { width: 330px; max-height: 100%; min-height: 0; flex: 1; overflow-y: auto; scrollbar-width: none; }
+.notes .more { flex: none; }
+.unit-lists-research { flex: 0 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.unit-lists-column .city_list-panel { position: relative; left: auto; top: auto; order: 1; width: 680px; max-height: 360px; min-height: 120px; flex: 0 1 auto; }
+.unit-lists-column .unit { max-height: 420px; overflow-y: auto; scrollbar-width: none; }
+.unit-lists-cities { min-height: 0; }
+.minimap-top-stack { left: 580px; right: 586px; width: auto; margin-left: 0; }
+@media (height < 900px) {
+  .helm { width: 404px; height: 404px; }
+  .helm .side { width: 196px; }
+  .helm .minimap { width: 332px; height: 116px; }
+  .helm .minimap .mm { width: 332px; height: 116px; }
+  .civ_ribbon-panel, .notes { bottom: 412px; }
+  .unit-lists-column { top: 56px; }
+  .minimap-options { max-height: 340px; right: 412px; }
+  .unit-lists-column .city_list-panel { max-height: 224px; }
+  .unit-lists-column .unit { max-height: 360px; }
+}
+@media (width < 1500px) {
+  .chat { left: 452px; bottom: 0; width: 340px; }
+  .minimap-top-stack { left: 452px; right: 586px; }
+}
+
+.notes.notes-no-ribbon { right: 0; }
+.notes.notes-ribbon-folded { top: 96px; }
+.unit-lists-column.unit-lists-left-ribbon { left: 248px; }
+.unit-lists-left-ribbon .unit, .unit-lists-left-ribbon .unit-lists-ribbon { left: -248px; position: relative; }
+.minimap-top-stack.minimap-stack-left-ribbon { left: 936px; right: 338px; }
+@media (width < 1500px) { .minimap-top-stack.minimap-stack-left-ribbon { left: 688px; } }

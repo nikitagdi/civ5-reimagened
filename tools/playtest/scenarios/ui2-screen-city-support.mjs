@@ -41,6 +41,7 @@ export async function scenario(context, name, body) {
       await act(page,{kind:"unitAction",action:FOUND_CITY});
       s = await until(page,s => s.cities?.length > 0,30000,"founded city");
     }
+    await page.evaluate(() => window.__civ5test.ui2Intent({name: "window.close", args: {window: "city"}}));
     const check = (label, pass) => { checks.push({name:label,pass:!!pass}); if (!pass) throw new Error(label); };
     await body({page,city:s.cities[0].id,check});
     return {scenario:name,pass:checks.every(c => c.pass),checks};

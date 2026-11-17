@@ -9,7 +9,7 @@ local function rows(values)
 end
 GameInfo = {
     Technologies = rows({{ID = 0}, {ID = 1}}),
-    Resources = rows({{ID = 0}, {ID = 1}}),
+    Resources = rows({{ID = 0, Description = "Iron"}, {ID = 1, Description = "Silk"}}),
     PolicyBranchTypes = rows({{ID = 0, Type = "TRADITION", Description = "Tradition"}}),
     Policies = rows({{ID = 0}, {ID = 1}}),
     UnitPromotions = rows({{ID = 2}}),
@@ -60,3 +60,97 @@ Teams = {[3] = {
     IsHasTech = function(_, id) return id == 0 end,
     GetTeamTechs = function() return {GetResearchProgress = function() return 20 end} end,
 }}
+
+-- Nonzero source values exercise hundredths conversion and preserve real getter names.
+local yield_getters = {
+    "GetScience", "GetScienceFromCitiesTimes100", "GetScienceFromOtherPlayersTimes100",
+    "GetScienceFromHappinessTimes100", "GetScienceFromResearchAgreementsTimes100", "GetScienceFromBudgetDeficitTimes100",
+    "GetOverflowResearch", "CalculateGoldRate", "GetGold", "CalculateGrossGold", "CalculateInflatedCosts",
+    "GetGoldFromCitiesTimes100", "GetCityConnectionGoldTimes100", "GetGoldPerTurnFromDiplomacy", "GetGoldPerTurnFromReligion",
+    "CalculateUnitCost", "CalculateUnitSupply", "GetBuildingGoldMaintenance", "GetImprovementGoldMaintenance",
+    "GetExcessHappiness", "GetHappiness", "GetUnhappiness", "GetHappinessFromPolicies", "GetHappinessFromResources",
+    "GetHappinessFromBuildings", "GetHappinessFromReligion", "GetHappinessFromNaturalWonders", "GetHappinessFromMinorCivs",
+    "GetHappinessFromLeagues", "GetTotalJONSCulturePerTurn", "GetJONSCulture", "GetNextPolicyCost",
+    "GetJONSCulturePerTurnFromCities", "GetJONSCulturePerTurnFromExcessHappiness", "GetJONSCulturePerTurnFromTraits",
+    "GetJONSCulturePerTurnForFree", "GetJONSCulturePerTurnFromMinorCivs", "GetCulturePerTurnFromReligion",
+    "GetTotalFaithPerTurn", "GetFaith", "GetFaithPerTurnFromCities", "GetFaithPerTurnFromMinorCivs", "GetFaithPerTurnFromReligion",
+    "GetGoldenAgeTurns", "GetGoldenAgeProgressMeter", "GetGoldenAgeProgressThreshold", "GetGoldenAgePointsFromCities",
+    "GetNumGreatWorks", "GetNumGreatWorkSlots", "GetAnarchyNumTurns", "GetNumInternationalTradeRoutesUsed",
+    "GetNumInternationalTradeRoutesAvailable", "GetResourceImport", "GetResourceExport",
+}
+for _, name in ipairs(yield_getters) do player[name] = function() return 125 end end
+
+GameDefines = {MAX_CIV_PLAYERS = 4}
+GameInfo.Civilizations = rows({{ID=0, ShortDescription="Fixture civilization"}})
+function player:IsAlive() return true end
+function player:IsHuman() return true end
+function player:IsTurnActive() return true end
+function player:IsSimultaneousTurns() return true end
+function player:GetCivilizationType() return 0 end
+function player:GetEndTurnBlockingType() return 8 end
+function player:GetEndTurnBlockingNotificationIndex() return 7 end
+function player:GetNotificationStr(id) assert(id == 7); return "A unit needs orders." end
+function player:Units() local done=false; return function() if not done then done=true; return unit end end end
+function unit:ReadyToMove() return not hud_busy end
+function unit:GetName() return "Fixture unit" end
+Teams[3].IsHasMet = function() return false end
+
+function unit:ExperienceNeeded() return 60 end
+function unit:GetPlot() return {} end
+function unit:CanDoCommand(_, _, _, visible) return visible == 1 or not hud_busy end
+GameInfoActions = {
+    [0] = {Visible=true, TextKey="Alert", MissionType=10, MissionData=0, CommandType=-1, HotKeyVal=13, Help="Watch for enemies."},
+    [1] = {Visible=true, TextKey="Upgrade", MissionType=-1, CommandType=12, CommandData=0, HotKeyVal=33, DisabledHelp="Not enough gold."},
+}
+
+GameDefines.MAX_HIT_POINTS = 100
+GameDefines.MOVE_DENOMINATOR = 60
+GameInfo.Specialists = rows({})
+GameInfo.UnitClasses = rows({})
+function unit:GetActivityType() return 0 end
+function unit:GetDamage() return 10 end
+function unit:MovesLeft() return 120 end
+function unit:MaxMoves() return 120 end
+function unit:IsPromotionReady() return false end
+function player:GetCombatExperience() return 15 end
+function player:GreatGeneralThreshold() return 100 end
+function player:GetNavalCombatExperience() return 10 end
+function player:GreatAdmiralThreshold() return 100 end
+
+GameInfo.Specialists.SPECIALIST_ENGINEER = {ID=1, Type="SPECIALIST_ENGINEER", GreatPeopleUnitClass="UNITCLASS_ENGINEER", GreatPeopleRateChange=3}
+GameInfo.UnitClasses.UNITCLASS_ENGINEER = {ID=1, Description="Great Engineer"}
+GameInfo.Buildings[4].GreatPeopleRateChange = 2
+function player:Cities() local done=false; return function() if not done then done=true; return city end end end
+function player:GetGreatPeopleRateModifier() return 25 end
+function player:GetGreatEngineerRateModifier() return 0 end
+function city:GetName() return "Fixture capital" end
+function city:GetSpecialistCount() return 2 end
+function city:GetNumBuilding() return 1 end
+function city:GetGreatPeopleRateModifier() return 25 end
+function city:GetSpecialistGreatPersonProgressTimes100() return 4000 end
+function city:GetSpecialistUpgradeThreshold() return 100 end
+
+function player:IsObserver() return false end
+function player:GetReligionCreatedByPlayer() return -1 end
+function player:HasCreatedPantheon() return false end
+
+function city:GetStrengthValue() return 1800 end
+function city:GetMaxHitPoints() return 200 end
+function city:GetDamage() return 10 end
+function city:GetFoodTurnsLeft() return 8 end
+function city:IsResistance() return false end
+function city:IsRazing() return false end
+function unit:IsEmbarked() return false end
+function unit:IsGarrisoned() return false end
+function unit:GetFortifyTurns() return 0 end
+function unit:IsTrade() return false end
+function unit:GetBaseCombatStrength() return 8 end
+function unit:GetBaseRangedCombatStrength() return 0 end
+function unit:Range() return 0 end
+function unit:GetCurrHitPoints() return 90 end
+function unit:GetMaxHitPoints() return 100 end
+
+function unit:IsCargo() return false end
+
+GameOptionTypes = {GAMEOPTION_NO_SCIENCE=0, GAMEOPTION_NO_POLICIES=1, GAMEOPTION_NO_RELIGION=2}
+Game.IsOption = function() return false end

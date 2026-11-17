@@ -28,7 +28,11 @@ fn city_actions_validate_owner_turn_and_native_availability() {
             return sent
         end
         local m = act('push_order', 2, 1, 1)[1]
-        assert(m[1]=='sendPushOrder' and m[2]==7 and m[3]==0 and m[4]==2 and m[5]==1 and m[6]==1 and m[7]==1)
+        assert(m[1]=='sendPushOrder' and m[2]==7 and m[3]==0 and m[4]==2 and m[5]==1 and m[6]==0 and m[7]==0)
+        local append = act('push_order', 2, 0, 0)[1]
+        assert(append[5]==0 and append[6]==0 and append[7]==1)
+        local replace = act('push_order', 2, 2, 0)[1]
+        assert(replace[5]==0 and replace[6]==1 and replace[7]==0)
         assert(act('purchase', 2, 1)[1][6]==5)
         local swapped=act('move_order', 2, 0)
         assert(#swapped==2 and swapped[1][3]==1 and swapped[2][3]==0)

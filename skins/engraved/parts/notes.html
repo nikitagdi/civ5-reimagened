@@ -1,4 +1,4 @@
-<div class="notes" data-part="notes">
+<div class="notes" data-part="notes" data-bind-class-toggle="notes-no-ribbon:{{!state.civ_ribbon.visible || state.civ_ribbon.left}}; notes-ribbon-folded:{{!state.civ_ribbon.visible}}">
   <div class="list" data-part="notes.list">
     <div class="note plate tl" data-bind-for="n:{{notes}}" data-bind-sort="{{n.turn}}" data-bind-sort-desc="{{true}}" data-on-click="intent note.activate(note: n.id)">
       <div class="ic">

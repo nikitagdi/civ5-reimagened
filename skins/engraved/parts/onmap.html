@@ -1,11 +1,12 @@
 <!-- The map layer: one banner per city and one flag per unit, each placed on the screen at its object by the host
      (data-anchor). A banner or flag is laid out once around the anchor's point (the origin of the layer). -->
-<div class="banner" data-part="city-banner" data-bind-for="c:{{map.cities}}" data-anchor="city:{{c.key}}" data-bind-class-toggle="mine:{{c.mine}}; sel:{{c.key == ui.selection.city}}; fog:{{!c.visible}}">
+<div data-bind-if="{{state.minimap.banners && !ui.windows.city.open}}">
+<div class="banner" data-part="city-banner" data-bind-for="c:{{map.cities}}" data-anchor="city:{{c.key}}" data-tooltip="on-map-city-tip" data-on-pointerenter="call on_map.hover('city', c.key)" data-bind-class-toggle="mine:{{c.mine}}; sel:{{c.key == ui.selection.city}}; fog:{{!c.visible}}">
   <div class="str">
     <svg class="i"><use href="#i-str"/></svg>
     <span data-bind-value="{{c.strength}}">18</span>
   </div>
-  <button class="body" data-bind-disabled="{{!c.mine}}" data-on-click="call city.open(c.key)">
+  <button class="body" data-bind-disabled="{{!c.mine || ui.map_mode != 'select'}}" data-on-click="call city.open(c.key)">
     <div class="flank" data-bind-style-background-color="{{c.color}}" data-bind-style-color="{{c.color2}}">
       <span class="size" data-bind-value="{{c.size}}">8</span>
       <span class="grow" data-bind-if="{{c.growth_turns != null}}"><svg class="i"><use href="#i-food"/></svg><span data-bind-value="{{c.growth_turns}}">9</span></span>
@@ -14,6 +15,10 @@
       <div class="name">
         <span class="nm" data-bind-value="{{c.name}}">Novgorod</span>
         <svg class="i fill cap" data-bind-if="{{c.capital}}"><use href="#i-star"/></svg>
+        <span class="on-map-status" data-bind-if="{{c.puppet}}" data-l10n="on_map.puppet"></span>
+        <span class="on-map-status" data-bind-if="{{c.occupied}}" data-l10n="on_map.occupied"></span>
+        <span class="on-map-status" data-bind-if="{{c.resistance}}" data-l10n="on_map.resistance"></span>
+        <span class="on-map-status" data-bind-if="{{c.razing}}" data-l10n="on_map.razing"></span>
       </div>
       <div class="prod" data-bind-if="{{c.production != null}}">
         <svg class="i"><use href="#i-prod"/></svg>
@@ -34,12 +39,32 @@
   </button>
 </div>
 
-<!-- SIMPLIFIED(SIMP-276): a unit flag is the unit's icon on its owner's colours with a health bar; no stack of the units on its plot and none of the original's status marks. -->
-<button class="uflag" data-part="unit-flag" data-bind-for="u:{{map.units}}" data-anchor="unit:{{u.key}}" data-bind-class-toggle="mine:{{u.mine}}; sel:{{u.key == ui.selection.unit}}; wait:{{u.mine && u.waiting}}; war:{{u.at_war}}" data-bind-disabled="{{!u.mine}}" data-on-click="intent unit.select(unit: u.key)">
-  <div class="hp"><div class="fill" data-bind-class-toggle="low:{{u.hp_fraction < 0.5}}" data-bind-style-width="{{u.hp_fraction * 100}}%" style="width: 100%"></div></div>
-  <div class="flag" data-bind-style-background-color="{{u.color}}" data-bind-style-color="{{u.color2}}">
+</div>
+<!-- SIMPLIFIED(SIMP-276): Unit flags still omit stack and cargo-count badges. -->
+<div data-bind-if="{{state.minimap.flags && !ui.windows.city.open}}">
+<button class="uflag" data-part="unit-flag" data-bind-for="u:{{map.units}}" data-bind-filter="{{u.mine || (u.domain != 'air' && !u.cargo)}}" data-anchor="unit:{{u.key}}" data-tooltip="on-map-unit-tip" data-on-pointerenter="call on_map.hover('unit', u.key)" data-bind-class-toggle="mine:{{u.mine}}; sel:{{u.key == ui.selection.unit}}; wait:{{u.mine && u.waiting}}; war:{{u.at_war}}" data-bind-disabled="{{!u.mine}}" data-on-click="intent unit.select(unit: u.key)">
+  <div class="hp"><div class="fill" data-bind-class-toggle="low:{{u.hp_fraction < 0.33}}; on-map-hp-mid:{{u.hp_fraction >= 0.33 && u.hp_fraction < 0.66}}" data-bind-style-width="{{u.hp_fraction * 100}}%" style="width: 100%"></div></div>
+  <div data-bind-if="{{hud != null}}"><div data-bind-for="s:{{hud.map.units}}" data-bind-filter="{{s.key == u.key}}">
+  <div class="flag" data-bind-if="{{s.shape == 'military'}}" data-bind-style-background-color="{{u.color}}" data-bind-style-color="{{u.color2}}">
     <svg class="i dom" data-bind-if="{{u.domain == 'sea'}}"><use href="#i-ship"/></svg>
     <svg class="i dom" data-bind-if="{{u.domain != 'sea'}}"><use href="#i-sword"/></svg>
     <img class="pic" data-bind-src="{{u.icon}}">
   </div>
+  <div class="flag on-map-civilian" data-bind-if="{{s.shape == 'civilian' || s.shape == 'trade'}}" data-bind-style-background-color="{{u.color}}" data-bind-style-color="{{u.color2}}">
+    <svg class="i dom" data-bind-if="{{u.domain == 'sea'}}"><use href="#i-ship"/></svg>
+    <svg class="i dom" data-bind-if="{{u.domain != 'sea'}}"><use href="#i-sword"/></svg>
+    <img class="pic" data-bind-src="{{u.icon}}">
+  </div>
+  <div class="flag on-map-embarked" data-bind-if="{{s.shape == 'embarked'}}" data-bind-style-background-color="{{u.color}}" data-bind-style-color="{{u.color2}}">
+    <svg class="i dom" data-bind-if="{{u.domain == 'sea'}}"><use href="#i-ship"/></svg>
+    <svg class="i dom" data-bind-if="{{u.domain != 'sea'}}"><use href="#i-sword"/></svg>
+    <img class="pic" data-bind-src="{{u.icon}}">
+  </div>
+  <div class="flag on-map-fortified" data-bind-if="{{s.shape == 'fortified' || s.shape == 'garrison'}}" data-bind-style-background-color="{{u.color}}" data-bind-style-color="{{u.color2}}">
+    <svg class="i dom" data-bind-if="{{u.domain == 'sea'}}"><use href="#i-ship"/></svg>
+    <svg class="i dom" data-bind-if="{{u.domain != 'sea'}}"><use href="#i-sword"/></svg>
+    <img class="pic" data-bind-src="{{u.icon}}">
+  </div></div></div>
 </button>
+
+</div>

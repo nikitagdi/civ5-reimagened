@@ -1,0 +1,60 @@
+{
+  "model": {
+    "declare_war": {
+      "kind": "declare_war",
+      "reason": "range_attack",
+      "unit": {
+        "owner": 0,
+        "id": 8211
+      },
+      "plot": {
+        "x": 41,
+        "y": 22
+      },
+      "me": {
+        "id": 0,
+        "name": "Catherine",
+        "leader": "Catherine",
+        "civ": "Russia",
+        "icon_leader": "leader:LEADER_CATHERINE",
+        "icon_civ": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": "#6e1c18",
+        "color_fg": "#e4c04e"
+      },
+      "target": {
+        "id": 24,
+        "team": 24,
+        "is_city_state": true,
+        "is_human": false,
+        "name": "Monaco",
+        "leader": null,
+        "civ": "Monaco",
+        "icon_leader": null,
+        "icon_civ": "civ:MINOR_CIV_MONACO",
+        "color_bg": "#ece6da",
+        "color_fg": "#a3262a",
+        "mood": null,
+        "trait": "Maritime",
+        "personality": "Friendly"
+      },
+      "question": "Declaring war will attack Monaco.",
+      "peaceful_hint": null,
+      "diplomacy": [],
+      "protectors": [],
+      "allied_city_states": [],
+      "deals_from_them": [],
+      "deals_from_you": [],
+      "vote_promises": [],
+      "routes": [],
+      "ignore_warning_team": null,
+      "enabled": true
+    }
+  },
+  "ui": {
+    "windows": {
+      "declare_war": {
+        "open": true
+      }
+    }
+  }
+}

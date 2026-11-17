@@ -1,4 +1,3 @@
-/* SIMPLIFIED(SIMP-422): the city list opens as its own corner panel; it does not share a selector with the research panel. */
 .city_list-panel { pointer-events: auto; position: absolute; left: 0; top: 48px; width: 680px; max-height: 60%; display: flex; flex-direction: column; background: var(--lacquer); color: var(--bone); border: 1px solid var(--engrave); }
 .city_list-header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--engrave); }
 .city_list-header b { font: 500 24px/30px var(--serif); flex: 1; }

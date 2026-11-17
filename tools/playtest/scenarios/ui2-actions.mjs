@@ -1,3 +1,4 @@
+import { clickPart, partBox } from "./ui2-v1.mjs";
 // `ui2-actions`: orders of UI v2 reach the server and its answers reach the interface, all through the skin (`engraved`).
 // Needs the real-core server (WSL, `tools/playtest/m2/server.ps1`) and `--attach <url>`, as `ui2-host` does:
 //   node tools/playtest/run.mjs --attach http://127.0.0.1:8790 --scenario ui2-actions [--headed]
@@ -32,7 +33,6 @@ const UP_MS = Number(process.env.UI2_UP_MS ?? 420000);
 const VP = { width: 1600, height: 900 };
 
 // ---- geometry of the skin at 1600 x 900 (css/hud.css, css/production.css, css/research.css)
-const DIAL = { x: VP.width - 8 - 108, y: VP.height - 392 + 8 + 108 };
 const PWIN = { left: 200, top: 60, right: 1160, bottom: VP.height - 56 };
 const DETAIL_X = PWIN.right - 156;
 const QUEUE = { top: PWIN.top + 72 + 16 + 20 + 4 + 2, row: 26, up: PWIN.right - 20 - 20 - 10 - 10 };
@@ -89,28 +89,6 @@ async function waitUi(page, pred, ms) {
   }
 }
 
-/** The centre of a unit order button: the layout `ui2-host` documents (rows of 488 px, 56 px buttons, 4 px gaps). */
-function actButton(acts, which) {
-  const boxes = [];
-  let x = 0;
-  let row = 0;
-  for (const a of acts) {
-    const lead = a === "unit.act.disband" ? 8 : 0;
-    const w = a === "unit.act.disband" ? 60 : 56;
-    let at = x === 0 ? lead : x + 4 + lead;
-    if (x > 0 && at + w > 488) {
-      row += 1;
-      at = lead;
-    }
-    boxes.push({ a, row, x: at, w });
-    x = at + w;
-  }
-  const box = boxes.find((b) => b.a === which);
-  if (!box) return null;
-  const rowTop = VP.height - 16 - 52 - (row - box.row) * 56;
-  return [16 + box.x + box.w / 2, rowTop + 26];
-}
-
 /** Clicks down a list from `y0` to `y1` in steps until `named(probe)` says the row is the one; returns its y or null. */
 async function findRow(page, x, y0, y1, step, named) {
   for (let y = y0; y <= y1; y += step) {
@@ -160,12 +138,13 @@ export async function run(ctx) {
       n.steps.push(st);
       if (st === "Unit needs orders") {
         // 1. The dial selects the unit that waits; the panel gives it an order.
-        await page.mouse.click(DIAL.x, DIAL.y);
+        await clickPart(page, "helm.dial");
         const sel = await waitUi(page, (p) => partTexts(p, "unit.title").length > 0 && partsOf(p, "unit.act.").length > 0, 5000);
         const title = partTexts(sel.probe, "unit.title");
         const acts = partsOf(sel.probe, "unit.act.");
         const pick = ["unit.act.found-city", "unit.act.fortify", "unit.act.sleep", "unit.act.skip"].find((a) => acts.includes(a));
-        const at = pick && actButton(acts, pick);
+        const box = pick && await partBox(page, pick);
+        const at = box && [box.cx, box.cy];
         if (!done.unit) {
           check("dial on 'Unit needs orders' selects a unit (the panel shows its name)", sel.ok, `title ${JSON.stringify(title)} in ${sel.ms} ms`);
           done.unit = true;
@@ -187,7 +166,7 @@ export async function run(ctx) {
         // 4. The dial ends the turn: +1 in the game and on the dial.
         const before = (await state(page)).turn;
         await shot("helm");
-        await page.mouse.click(DIAL.x, DIAL.y);
+        await clickPart(page, "helm.dial");
         let after = before;
         const tEnd = Date.now();
         while (Date.now() - tEnd < 60000) {
@@ -230,7 +209,7 @@ const detailName = (p) => partTexts(p, "production.detail")[0] ?? null;
 
 /** 2. The production window: Build now, Add to queue, the queue's arrow, sorting and filtering. */
 async function production(page, check, n, shot) {
-  await page.mouse.click(DIAL.x, DIAL.y);
+  await clickPart(page, "helm.dial");
   const open = await waitUi(page, (p) => partTexts(p, "production.head").length > 0, 5000);
   check("dial on 'Choose production' opens the production window", open.ok, `${open.ms} ms, head ${JSON.stringify(partTexts(open.probe, "production.head"))}`);
   if (!open.ok) throw new Error("the production window did not open");
@@ -304,7 +283,7 @@ async function production(page, check, n, shot) {
 /** 3. The research window: a click on the first (fastest) technology makes it the current research. */
 async function research(b, check, n, shot) {
   const page = b.page;
-  await page.mouse.click(DIAL.x, DIAL.y);
+  await clickPart(page, "helm.dial");
   // The window opens before the HUD service answers for the new focus: wait for real rows, not the empty-state line.
   const open = await waitUi(page, (p) => partTexts(p, "research.list").length > 0 && !partTexts(p, "research.list").includes("Nothing can be researched now"), 5000);
   const r = n.research = { list: partTexts(open.probe, "research.list") };

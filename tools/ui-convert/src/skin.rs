@@ -579,11 +579,39 @@ api = "1.0"
                     "city_rename.why".to_string(),
                     StateValue::Str("".to_string())
                 ),
+                ("civ_ribbon.hover".to_string(), StateValue::Int(-1)),
+                ("civ_ribbon.left".to_string(), StateValue::Bool(false)),
+                ("civ_ribbon.visible".to_string(), StateValue::Bool(true)),
+                ("deal.amount".to_string(), StateValue::Int(0)),
+                ("deal.item".to_string(), StateValue::Int(0)),
+                ("deal.kind".to_string(), StateValue::Int(-1)),
+                ("deal.side".to_string(), StateValue::Int(0)),
+                ("declare_war.allies".to_string(), StateValue::Bool(false)),
+                ("declare_war.deals".to_string(), StateValue::Bool(false)),
+                ("declare_war.diplomacy".to_string(), StateValue::Bool(false)),
+                (
+                    "declare_war.protectors".to_string(),
+                    StateValue::Bool(false)
+                ),
+                ("declare_war.routes".to_string(), StateValue::Bool(false)),
+                ("diplo.deal".to_string(), StateValue::Int(-1)),
+                ("diplo.hover".to_string(), StateValue::Int(-1)),
+                (
+                    "diplo.tab".to_string(),
+                    StateValue::Str("relations".to_string())
+                ),
                 ("free_gp.selected".to_string(), StateValue::Int(-1)),
                 ("ideology.confirm".to_string(), StateValue::Int(-1)),
                 ("ideology.details".to_string(), StateValue::Int(-1)),
                 ("ideology.folded".to_string(), StateValue::Int(0)),
                 ("ideology.name".to_string(), StateValue::Str("".to_string())),
+                ("leader.hover".to_string(), StateValue::Str("".to_string())),
+                ("minimap.banners".to_string(), StateValue::Bool(true)),
+                ("minimap.flags".to_string(), StateValue::Bool(true)),
+                ("minimap.options".to_string(), StateValue::Bool(false)),
+                ("minimap.streamer".to_string(), StateValue::Bool(false)),
+                ("on_map.city".to_string(), StateValue::Str("".to_string())),
+                ("on_map.unit".to_string(), StateValue::Str("".to_string())),
                 ("pantheon.confirm".to_string(), StateValue::Int(-1)),
                 (
                     "pantheon.effect".to_string(),
@@ -690,12 +718,41 @@ api = "1.0"
                 ("tech_panel.open".to_string(), StateValue::Bool(false)),
                 ("techs.hover".to_string(), StateValue::Int(-1)),
                 ("techs.x".to_string(), StateValue::Float(0.0)),
+                ("top.hover".to_string(), StateValue::Str("".to_string())),
                 ("top.menu".to_string(), StateValue::Bool(false)),
+                ("top.resource".to_string(), StateValue::Int(-1)),
+                ("top.resources".to_string(), StateValue::Bool(false)),
+                (
+                    "unit_lists.civilian_folded".to_string(),
+                    StateValue::Bool(false)
+                ),
+                ("unit_lists.desc".to_string(), StateValue::Bool(false)),
+                (
+                    "unit_lists.military_folded".to_string(),
+                    StateValue::Bool(false),
+                ),
+                (
+                    "unit_lists.section".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                (
+                    "unit_lists.sort".to_string(),
+                    StateValue::Str("name".to_string())
+                ),
+                (
+                    "unit_panel.draft".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                ("unit_panel.hover".to_string(), StateValue::Int(-1)),
+                ("unit_panel.valid".to_string(), StateValue::Bool(false)),
             ]
         );
         assert_eq!(
             skin.scripts.files,
             [
+                "js/minimap.js",
+                "js/unit_lists.js",
+                "js/unit_panel.js",
                 "js/production.js",
                 "js/tech_panel.js",
                 "js/techs.js",
@@ -707,7 +764,9 @@ api = "1.0"
                 "js/ideology.js",
                 "js/pantheon.js",
                 "js/religion.js",
-                "js/religion_overview.js"
+                "js/religion_overview.js",
+                "js/civ_ribbon.js",
+                "js/leader.js"
             ]
         );
         // The first state is the one the converter scans with.
@@ -715,6 +774,13 @@ api = "1.0"
             skin.verify.states,
             [
                 "hud",
+                "top_panel",
+                "end_turn",
+                "unit_panel",
+                "unit_rename",
+                "unit_lists",
+                "minimap",
+                "on_map",
                 "hud-timer",
                 "hud-chat",
                 "production",
@@ -745,7 +811,20 @@ api = "1.0"
                 "ideology",
                 "pantheon",
                 "religion",
-                "religion_overview"
+                "religion_overview",
+                "diplo",
+                "declare_war",
+                "declare_war--plunder",
+                "civ_ribbon",
+                "deal",
+                "leader",
+                "diplo--global",
+                "diplo--deals",
+                "diplo--empty",
+                "declare_war--citystate",
+                "civ_ribbon--host",
+                "deal--player",
+                "deal--player-incoming"
             ]
         );
         assert_eq!(skin.verify.golden[0].viewport, [1920, 1080]);

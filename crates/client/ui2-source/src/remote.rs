@@ -105,6 +105,8 @@ impl RemoteRoots {
                         key.map(|key| (name.into(), i64::from(key.0 as u32 as i32)))
                     })
                     .collect::<Vec<_>>()
+            } else if *name == "civ_ribbon" {
+                Vec::new()
             } else if let Some(window) = ui.windows.remote(name).filter(|w| w.open) {
                 [
                     ("a", window.a),
@@ -147,7 +149,9 @@ impl RemoteRoots {
             }
             if connected
                 && s.waiting.is_none()
-                && (*name == "hud" || s.dirty || s.revision != Some(revision))
+                && (matches!(*name, "hud" | "civ_ribbon")
+                    || s.dirty
+                    || s.revision != Some(revision))
                 && s.last_sent.is_none_or(|t| now_ms.saturating_sub(t) >= 250)
             {
                 let id = query(Query::Screen {
@@ -187,6 +191,59 @@ mod tests {
     use ui2_model::{ModelStore, Owner};
 
     #[test]
+    fn ribbon_service_polls_without_a_window_and_discards_disconnected_answers() {
+        use ui2_model::generated::CivRibbon;
+        let mut remote = RemoteRoots::default();
+        let mut store = ModelStore::new(Schema::v1());
+        let ui = Ui::default();
+        assert!(ui.windows.remote("civ_ribbon").is_none());
+        assert!(!ui2_model::generated::WINDOW_SCREEN_NAMES.contains(&"civ_ribbon"));
+        let mut sent = 0;
+        let mut tick = |remote: &mut RemoteRoots, store: &mut ModelStore, now, connected| {
+            remote.frame(
+                now,
+                1,
+                connected,
+                &ui,
+                &mut store.writer(Owner::Source),
+                |q| {
+                    if let Query::Screen { screen, args } = q
+                        && screen == "civ_ribbon"
+                    {
+                        assert!(args.is_empty());
+                        sent += 1;
+                        return sent;
+                    }
+                    0
+                },
+            )
+        };
+        tick(&mut remote, &mut store, 0, true);
+        let answer = QueryAnswer::Screen {
+            screen: "civ_ribbon".into(),
+            json: "{}".into(),
+        };
+        assert!(
+            remote
+                .answer(1, &answer, &mut store.writer(Owner::Source))
+                .is_none()
+        );
+        assert!(store.get::<Option<CivRibbon>>().unwrap().is_some());
+        tick(&mut remote, &mut store, 249, true);
+        assert_eq!(remote.subscriptions["civ_ribbon"].waiting, None);
+        tick(&mut remote, &mut store, 250, true);
+        assert_eq!(remote.subscriptions["civ_ribbon"].waiting, Some(2));
+        tick(&mut remote, &mut store, 251, false);
+        remote.answer(2, &answer, &mut store.writer(Owner::Source));
+        assert!(store.get::<Option<CivRibbon>>().unwrap().is_none());
+        tick(&mut remote, &mut store, 500, true);
+        assert_eq!(remote.subscriptions["civ_ribbon"].waiting, Some(3));
+        remote.reset();
+        remote.answer(3, &answer, &mut store.writer(Owner::Source));
+        assert!(store.get::<Option<CivRibbon>>().unwrap().is_none());
+    }
+
+    #[test]
     fn hud_is_always_subscribed_and_tracks_focus_refresh_outcomes_and_reconnects() {
         use ui2_model::{Key, generated::Hud};
         let mut remote = RemoteRoots::default();
@@ -207,6 +264,9 @@ mod tests {
                 ui,
                 &mut store.writer(Owner::Source),
                 |q| {
+                    if matches!(&q, Query::Screen { screen, .. } if screen == "civ_ribbon") {
+                        return 0;
+                    }
                     queries.push(q);
                     queries.len() as u32
                 },
@@ -276,7 +336,7 @@ mod tests {
         let mut queries = Vec::new();
         let mut tick = |remote: &mut RemoteRoots, now, rev, ui: &Ui, store: &mut ModelStore| {
             remote.frame(now, rev, true, ui, &mut store.writer(Owner::Source), |q| {
-                if matches!(&q, Query::Screen { screen, .. } if screen == "hud") {
+                if matches!(&q, Query::Screen { screen, .. } if matches!(screen.as_str(), "hud" | "civ_ribbon")) {
                     return 0;
                 }
                 queries.push(q);
@@ -331,7 +391,7 @@ mod tests {
         ui.windows.techs.open = true;
         ui.windows.techs.a = Some(7);
         remote.frame(0, 1, true, &ui, &mut store.writer(Owner::Source), |q| {
-            if matches!(q, Query::Screen { screen, .. } if screen == "hud") {
+            if matches!(q, Query::Screen { screen, .. } if matches!(screen.as_str(), "hud" | "civ_ribbon")) {
                 0
             } else {
                 1
@@ -339,7 +399,7 @@ mod tests {
         });
         ui.windows.techs.a = Some(8);
         remote.frame(250, 1, true, &ui, &mut store.writer(Owner::Source), |q| {
-            if matches!(q, Query::Screen { screen, .. } if screen == "hud") {
+            if matches!(q, Query::Screen { screen, .. } if matches!(screen.as_str(), "hud" | "civ_ribbon")) {
                 return 0;
             }
             panic!("previous request is still outstanding")
@@ -355,7 +415,7 @@ mod tests {
         );
         assert!(store.get::<Option<Techs>>().unwrap().is_none());
         remote.frame(251, 1, true, &ui, &mut store.writer(Owner::Source), |q| {
-            if matches!(&q, Query::Screen { screen, .. } if screen == "hud") {
+            if matches!(&q, Query::Screen { screen, .. } if matches!(screen.as_str(), "hud" | "civ_ribbon")) {
                 return 0;
             }
             assert_eq!(
@@ -401,7 +461,7 @@ mod tests {
                 &ui,
                 &mut store.writer(Owner::Source),
                 |q| {
-                    if matches!(q, Query::Screen { screen, .. } if screen == "hud") {
+                    if matches!(q, Query::Screen { screen, .. } if matches!(screen.as_str(), "hud" | "civ_ribbon")) {
                         0
                     } else {
                         1

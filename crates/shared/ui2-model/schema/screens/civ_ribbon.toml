@@ -1,0 +1,123 @@
+[enum]
+CivRibbonSide = ["right", "left"]
+CivRibbonRelation = ["own", "unmet", "war", "denounced", "human", "friendly", "neutral", "guarded", "hostile", "afraid"]
+CivRibbonMood = ["human", "friendly", "neutral", "guarded", "hostile", "afraid"]
+CivRibbonTurn = ["moving", "done", "waiting", "dead"]
+CivRibbonConnection = ["none", "connecting", "connected", "disconnected"]
+CivRibbonDeal = ["none", "incoming", "outgoing"]
+CivRibbonStatus = ["allied", "friends", "neutral", "angry", "war"]
+
+[type.CivRibbonLeague]
+active = "bool"
+in_session = "bool"
+turns_to_session = "i32"
+victory_session = "bool"
+
+[type.CivRibbonExtra]
+key = "str"
+name = "text"
+label = "text"
+icon = "asset?"
+
+[type.CivRibbonCorner]
+league = "CivRibbonLeague"
+has_spies = "bool"
+spies_unassigned = "i32"
+culture_overview = "bool"
+extra = { list = "CivRibbonExtra", key = "key" }
+
+[type.CivRibbonTreaties]
+friendship = "bool"
+research = "bool"
+defensive_pact = "bool"
+borders_out = "bool"
+borders_in = "bool"
+closed = "bool"
+
+[type.CivRibbonTreatyTurns]
+friendship = "i32?"
+research = "i32?"
+defensive_pact = "i32?"
+borders_out = "i32?"
+borders_in = "i32?"
+
+[type.CivRibbonTimes]
+shortest = "text"
+average = "text"
+longest = "text"
+
+[type.CivRibbonText]
+key = "str"
+name = "text"
+
+[type.CivRibbonHints]
+their_luxuries = { list = "CivRibbonText", key = "key" }
+we_can_sell = { list = "CivRibbonText", key = "key" }
+more = "bool"
+lump_gold = "i32?"
+
+[type.CivRibbonMajor]
+player_key = "key<player>"
+id = "i32"
+name = "text?"
+leader = "text?"
+civ = "text?"
+icon_leader = "asset?"
+icon_civ = "asset?"
+color_bg = "str?"
+color_fg = "str?"
+is_me = "bool"
+is_human = "bool"
+met = "bool"
+team = "i32"
+team_number = "i32?"
+score = "i32"
+relation = "CivRibbonRelation"
+mood = "CivRibbonMood"
+treaties = "CivRibbonTreaties?"
+treaty_turns = "CivRibbonTreatyTurns?"
+at_war = "bool"
+gold = "i32?"
+can_make_peace = "bool?"
+peace_turns = "i32?"
+peace_block_reason = "text?"
+turn_state = "CivRibbonTurn"
+turn_live = "bool"
+connection = "CivRibbonConnection"
+is_host = "bool"
+ping_ms = "i32?"
+deal = "CivRibbonDeal"
+can_open = "bool"
+can_kick = "bool"
+turn_times = "CivRibbonTimes?"
+trade_hints = "CivRibbonHints?"
+tip_portrait = "text?"
+action_reason = "text?"
+can_declare_war = "bool"
+
+[type.CivRibbonCS]
+id = "i32"
+name = "text"
+icon = "asset"
+color = "str"
+influence = "i32"
+status = "CivRibbonStatus"
+ally_is_me = "bool"
+ally_name = "text?"
+has_my_spy = "bool"
+quests = "i32"
+pledged = "bool"
+at_war = "bool"
+turn_live = "bool"
+
+[model.civ_ribbon]
+_optional = true
+visible = "bool"
+side = "CivRibbonSide"
+mp = "bool"
+i_am_host = "bool"
+hot_join = "bool"
+corner = "CivRibbonCorner"
+majors = { list = "CivRibbonMajor", key = "id" }
+city_states = { list = "CivRibbonCS", key = "id" }
+session_reason = "text?"

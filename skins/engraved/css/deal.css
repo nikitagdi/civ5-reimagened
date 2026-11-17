@@ -1,0 +1,35 @@
+.deal-panel { pointer-events: auto; position: absolute; top: 64px; right: 4%; left: 5%; bottom: 40px; background: #1b1815; color: #ebe2d2; border: 1px solid #4d4032; border-radius: 4px; display: flex; flex-direction: column; font: 13px/20px "Fira Sans"; }
+.deal-header { display: flex; align-items: center; gap: 16px; padding: 20px 24px; border-bottom: 1px solid #4d4032; }
+.deal-header img { width: 36px; height: 36px; border-radius: 18px; }
+.deal-header b { font: 500 28px/32px "Alegreya"; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.deal-header > button { margin-left: auto; }
+.deal-panel button { background: transparent; border: 1px solid #4d4032; color: #ebe2d2; font-size: 13px; padding: 8px; }
+.deal-panel button:hover { background: #26221d; }
+.deal-panel button:disabled { color: #8a8072; }
+.deal-columns { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 1fr); }
+.deal-scroll { min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.deal-pocket, .deal-table { padding: 12px; border-right: 1px solid #4d4032; }
+.deal-panel h2 { font: 500 13px/20px "Fira Sans"; color: #b2a794; margin: 0 0 12px; }
+.deal-category { padding: 8px 0; border-bottom: 1px solid #4d4032; }
+.deal-category button { display: flex; align-items: center; width: 100%; gap: 8px; border: 0; }
+.deal-category button > span { margin-left: auto; }
+.deal-category img, .deal-item img { width: 20px; height: 20px; }
+.deal-reason { color: #8a8072; font-size: 12px; }
+.deal-item { display: flex; align-items: center; gap: 8px; padding: 8px; margin-bottom: 8px; border: 1px solid #4d4032; border-radius: 4px; }
+.deal-item > div { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.deal-item b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deal-footer { border-top: 1px solid #4d4032; padding: 16px 24px; }
+.deal-buttons, .deal-editor { display: flex; align-items: center; gap: 12px; }
+.deal-buttons button { min-width: 160px; }
+.deal-editor input { width: 120px; background: #26221d; color: #ebe2d2; border: 1px solid #4d4032; padding: 8px; }
+.deal-player { left: auto; right: 0; width: 640px; top: 56px; bottom: 396px; }
+.deal-player .deal-header { padding: 12px; }
+.deal-player .deal-header b { font-size: 20px; }
+.deal-player .deal-columns { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+.deal-player .deal-pocket { grid-row: 1; }
+.deal-player .deal-table { grid-row: 2; }
+.deal-player .deal-footer { padding: 12px; }
+@media (max-width: 1600px) { .deal-player { bottom: 24px; } .deal-ai { left: 24px; right: 24px; } .deal-item { flex-wrap: wrap; } }
+
+.deal-player.deal-readonly .deal-columns { grid-template-rows: minmax(0, 1fr); }
+.deal-player.deal-readonly .deal-table { grid-row: 1; }

@@ -1,0 +1,51 @@
+.diplo-panel { pointer-events: auto; position: absolute; left: 5%; right: 5%; top: 64px; bottom: 40px; display: flex; flex-direction: column; background: #1b1815; color: #ebe2d2; border: 1px solid #4d4032; border-radius: 4px; font: 14px/20px "Fira Sans"; }
+.diplo-header { display: flex; align-items: center; gap: 24px; padding: 16px 24px; border-bottom: 1px solid #4d4032; }
+.diplo-header > b { font: 500 28px/36px "Alegreya"; }
+.diplo-header button { margin-left: auto; }
+.diplo-facts { display: flex; gap: 8px; font-size: 12px; color: #b2a794; }
+.diplo-tabs { display: flex; height: 44px; flex-shrink: 0; padding: 0 16px; gap: 4px; border-bottom: 1px solid #4d4032; }
+.diplo-panel button { background: transparent; color: #b2a794; border: 1px solid #4d4032; padding: 6px 12px; font-size: 13px; }
+.diplo-tabs button { border: 0; }
+.diplo-panel button:hover { background: #26221d; color: #ebe2d2; }
+.diplo-panel button:disabled { color: #8a8072; }
+.diplo-tabs .diplo-on { color: #ebe2d2; box-shadow: inset 0 -2px 0 #c9a36a; }
+.diplo-body { flex: 1; display: flex; min-height: 0; }
+.diplo-relations { flex: 1; display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr); min-height: 0; }
+.diplo-column { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.diplo-column h2 { margin: 0; padding: 16px 24px; font: 500 20px/24px "Alegreya"; }
+.diplo-minors { border-left: 1px solid #4d4032; }
+.diplo-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.diplo-column-head { display: grid; grid-template-columns: minmax(150px, 1.6fr) 90px 50px 60px 60px minmax(80px, 1fr); gap: 8px; padding: 8px 24px; font-size: 12px; color: #8a8072; border-bottom: 1px solid #4d4032; }
+.diplo-major { display: grid; grid-template-columns: minmax(150px, 1.6fr) 90px 50px 60px 60px minmax(80px, 1fr) 64px; gap: 4px 8px; align-items: center; min-height: 76px; padding: 8px 16px 8px 24px; border-bottom: 1px solid #352d25; font-size: 13px; }
+.diplo-major:hover, .diplo-cs:hover { background: #26221d; }
+.diplo-who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.diplo-who div, .diplo-cs-name { display: flex; flex-direction: column; min-width: 0; }
+.diplo-who b, .diplo-who span, .diplo-cs-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.diplo-who span, .diplo-cs-name span { color: #8a8072; font-size: 12px; }
+.diplo-portrait { width: 36px; height: 36px; border-radius: 18px; flex-shrink: 0; }
+.diplo-resource { width: 16px; height: 16px; }
+.diplo-status { font-size: 12px; color: #b2a794; }
+.diplo-number { text-align: right; }
+.diplo-gold { color: #dcc057; text-align: right; }
+.diplo-trade { display: flex; gap: 6px; overflow: hidden; min-width: 0; font-size: 12px; }
+.diplo-trade span, .diplo-influence span { display: flex; align-items: center; gap: 4px; }
+.diplo-summary { grid-column: 1 / 7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #8a8072; font-size: 12px; }
+.diplo-go { grid-column: 7; grid-row: 1 / 3; }
+.diplo-cs { display: grid; grid-template-columns: 36px minmax(0, 1fr) 128px; gap: 12px; padding: 12px 20px; border-bottom: 1px solid #352d25; }
+.diplo-influence { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 12px; font-size: 12px; }
+.diplo-scale { height: 4px; width: 100%; background: #352d25; }
+.diplo-scale i { display: block; height: 4px; background: #86b061; }
+.diplo-legend { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 16px 24px; color: #8a8072; font-size: 12px; border-top: 1px solid #4d4032; }
+.diplo-footer { display: flex; align-items: center; justify-content: flex-end; padding: 8px 16px; gap: 24px; border-top: 1px solid #4d4032; min-height: 56px; }
+.diplo-footer button { width: 168px; }
+.diplo-global { width: 100%; }
+.diplo-global-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 20px 24px; border-bottom: 1px solid #4d4032; }
+.diplo-global-row .diplo-who { align-items: flex-start; flex-direction: column; }
+.diplo-policy, .diplo-wonder, .diplo-relation { display: flex; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+.diplo-war { color: #cf6f5c; }
+.diplo-history { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.diplo-empty { color: #8a8072; text-align: center; padding: 32px; }
+.diplo-deal { padding: 12px 24px; border-bottom: 1px solid #4d4032; }
+.diplo-deal button, .diplo-deal-item { display: flex; gap: 24px; }
+.diplo-tip { max-width: 380px; padding: 12px; background: #26221d; color: #ebe2d2; border: 1px solid #4d4032; }
+@media (max-width: 1600px) { .diplo-panel { left: 24px; right: 24px; } .diplo-major { grid-template-columns: minmax(120px, 1.6fr) 76px 42px 50px 46px minmax(54px, 1fr) 60px; padding-left: 12px; gap: 4px; } .diplo-column-head { grid-template-columns: minmax(120px, 1.6fr) 76px 42px 50px 46px minmax(54px, 1fr); padding-left: 12px; gap: 4px; } .diplo-legend { display: none; } .diplo-cs { grid-template-columns: 28px minmax(0, 1fr) 96px; gap: 8px; padding: 12px; } .diplo-facts { gap: 4px; } }

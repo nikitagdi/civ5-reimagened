@@ -1,0 +1,116 @@
+[enum]
+DealKind = ["ai", "player"]
+DealState = ["own", "demand", "ai_offer", "ai_reply_yes", "ai_reply_no", "ai_request", "ai_demand", "concessions", "peace", "player_new", "player_incoming", "player_outgoing", "view"]
+DealMood = ["war", "at_peace", "denounced", "liberated", "friendly", "neutral", "guarded", "hostile", "afraid"]
+DealQuestionKind = ["what_want", "what_give", "equalize", "end_war", "concessions"]
+DealButtonKind = ["clear", "cancel", "refuse", "propose", "accept", "demand", "goodbye", "withdraw", "declare_war", "modify"]
+DealSectionKind = ["single", "list"]
+DealSectionKey = ["gold", "gold_per_turn", "embassy", "open_borders", "pact", "research_agreement", "trade_agreement", "friendship", "cities", "luxury", "strategic", "votes", "third_peace", "third_war"]
+
+[type.DealPartner]
+id = "i32"
+name = "text"
+nick = "text?"
+civ = "text"
+is_human = "bool"
+icon = "asset"
+emblem = "asset"
+color_bg = "str"
+color_fg = "str"
+mood = "DealMood"
+mood_label = "text"
+at_war = "bool"
+war_note = "text"
+gold = "i32"
+
+[type.DealMe]
+id = "i32"
+name = "text"
+civ = "text"
+emblem = "asset"
+gold = "i32"
+
+[type.DealVisibility]
+them = "bool"
+us = "bool"
+
+[type.DealQuestion]
+key = "DealQuestionKind"
+label = "text"
+hint = "text"
+
+[type.DealButton]
+key = "DealButtonKind"
+label = "text"
+enabled = "bool"
+reason = "text?"
+
+[type.DealRef]
+type = "i32"
+data1 = "i32"
+data2 = "i32"
+
+[type.DealPocketItem]
+key = "str"
+label = "text"
+icon = "asset"
+amount = "i32?"
+note = "text?"
+enabled = "bool"
+reason = "text?"
+ref = "DealRef"
+
+[type.DealSection]
+key = "DealSectionKey"
+label = "text"
+icon = "asset?"
+kind = "DealSectionKind"
+amount = "i32?"
+amount_text = "text?"
+enabled = "bool"
+reason = "text?"
+ref = "DealRef?"
+items = { list = "DealPocketItem", key = "key" }
+
+[type.DealPockets]
+them = { list = "DealSection", key = "key" }
+us = { list = "DealSection", key = "key" }
+
+[type.DealTableItem]
+key = "str"
+label = "text"
+sub = "text"
+icon = "asset"
+amount = "i32?"
+amount_max = "i32?"
+editable = "bool"
+turns = "i32?"
+duration_text = "text"
+removable = "bool"
+fixed = "bool"
+destroyed = "bool"
+ref = "DealRef"
+
+[type.DealTable]
+them = { list = "DealTableItem", key = "key" }
+us = { list = "DealTableItem", key = "key" }
+
+[model.deal]
+_optional = true
+kind = "DealKind"
+state = "DealState"
+partner = "DealPartner?"
+me = "DealMe?"
+deal_turns = "i32"
+peace_turns = "i32"
+phrase = "text?"
+editable = "bool"
+pockets_visible = "DealVisibility"
+question = "DealQuestion?"
+left_button = "DealButton"
+right_button = "DealButton"
+extra_button = "DealButton?"
+esc_allowed = "bool"
+side_note = "text"
+pockets = "DealPockets"
+table = "DealTable"

@@ -11,6 +11,11 @@ techs = { list = "HudTech", key = "id" }
 
 [type.HudResource]
 id = "i16"
+name = "str"
+icon = "asset"
+revealed = "bool"
+imported = "i32"
+exported = "i32"
 usage = "i8"
 available = "i32"
 used = "i32"
@@ -28,6 +33,29 @@ total = "i8"
 resources = { list = "HudResource", key = "id" }
 policies = { list = "HudPolicy", key = "id" }
 tourism = "i32?"
+tips = { list = "HudTopTip", key = "kind" }
+anarchy_turns = "i32"
+trade_used = "i32"
+trade_available = "i32"
+science_enabled = "bool"
+culture_enabled = "bool"
+faith_enabled = "bool"
+
+[enum]
+HudFlagShape = ["military", "civilian", "embarked", "fortified", "garrison", "trade"]
+HudTopTipKind = ["science", "gold", "happiness", "culture", "faith", "golden_age", "tourism"]
+
+# Values are yield units, including fractional yields returned in hundredths by the core.
+[type.HudTopLine]
+key = "str"
+label = "text"
+value = "f32"
+
+[type.HudTopTip]
+kind = "HudTopTipKind"
+title = "text"
+total = "f32"
+lines = { list = "HudTopLine", key = "key" }
 
 [type.HudOrder]
 slot = "i32"
@@ -50,6 +78,9 @@ reasons = { list = "HudBuildReason", key = "id" }
 
 [type.HudPromotion]
 id = "i16"
+name = "text"
+icon = "asset"
+help = "text"
 
 [type.HudAction]
 id = "i16"
@@ -59,8 +90,22 @@ cost = "i32?"
 
 [type.HudUnit]
 id = "i32"
+name = "text"
+xp_next = "i32"
 promotions = { list = "HudPromotion", key = "id" }
 actions = { list = "HudAction", key = "id" }
+catalog = { list = "HudUnitAction", key = "id" }
+
+[type.HudUnitAction]
+id = "i32"
+name = "text"
+help = "text"
+hotkey = "str"
+enabled = "bool"
+reason = "text?"
+promotion = "bool"
+build = "bool"
+client = "str"
 
 [type.HudPopup]
 id = "i32"
@@ -77,3 +122,113 @@ city = "HudCity?"
 unit = "HudUnit?"
 popup = "HudPopup?"
 popup_count = "i32"
+turn = "HudTurn"
+lists = "HudLists"
+minimap = "HudMinimap"
+map = "HudMap"
+
+[type.HudMapUnit]
+key = "key<unit>"
+hover_key = "str"
+name = "text"
+owner = "text"
+shape = "HudFlagShape"
+strength = "i32"
+ranged_strength = "i32"
+range = "i32"
+hp = "i32"
+hp_max = "i32"
+moves = "f32"
+moves_is_max = "bool"
+cargo = "bool"
+promotions = { list = "HudPromotion", key = "id" }
+
+[type.HudMapCity]
+key = "key<city>"
+hover_key = "str"
+name = "text"
+owner = "text"
+strength = "i32"
+hp = "i32"
+hp_max = "i32"
+growth_turns = "i32?"
+resistance_turns = "i32?"
+razing_turns = "i32?"
+
+[type.HudMap]
+units = { list = "HudMapUnit", key = "key" }
+cities = { list = "HudMapCity", key = "key" }
+
+[type.HudBelief]
+id = "i32"
+name = "text"
+
+[type.HudMinimap]
+observer = "bool"
+religion = "text?"
+pantheon = "text?"
+beliefs = { list = "HudBelief", key = "id" }
+
+[type.HudListUnit]
+key = "key<unit>"
+id = "i32"
+type_id = "i32"
+name = "str"
+icon = "asset"
+military = "bool"
+status = "Activity"
+hp = "i32"
+moves = "f32"
+max_moves = "f32"
+can_promote = "bool"
+
+[type.HudGreatPerson]
+city = "key<city>"
+city_id = "i32"
+name = "text"
+progress = "f32"
+threshold = "i32"
+per_turn = "f32"
+turns = "i32?"
+
+[type.HudGreatPersonGroup]
+key = "str"
+name = "text"
+rows = { list = "HudGreatPerson", key = "city" }
+
+[type.HudLists]
+units = { list = "HudListUnit", key = "key" }
+great_people = { list = "HudGreatPersonGroup", key = "key" }
+general_xp = "i32"
+general_threshold = "i32"
+admiral_xp = "i32"
+admiral_threshold = "i32"
+nearest = "HudNearestGreatPerson?"
+
+[type.HudNearestGreatPerson]
+city_id = "i32"
+name = "text"
+city_name = "text"
+icon = "asset"
+turns = "i32"
+progress = "f32"
+threshold = "i32"
+per_turn = "f32"
+
+[type.HudTurnPlayer]
+key = "key<player>"
+team = "i32"
+name = "text"
+known = "bool"
+human = "bool"
+active = "bool"
+
+[type.HudWaitingUnit]
+key = "key<unit>"
+name = "text"
+
+[type.HudTurn]
+blocker_kind = "i32"
+reason = "text"
+queue = { list = "HudTurnPlayer", key = "key" }
+waiting_units = { list = "HudWaitingUnit", key = "key" }

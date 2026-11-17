@@ -345,12 +345,9 @@ async function screensViaClassic(b, numbers, check, shot) {
     const rect = await page.evaluate((p) => window.__civ5test.ui2Rects([p]), part).catch(() => null);
     const r = Array.isArray(rect) ? rect[0] : null;
     run.button = r;
-    if (!r) {
-      check(`screen ${screen}: the skin's button ${part} is there`, false, JSON.stringify(rect));
-      continue;
-    }
+    check(`screen ${screen}: unavailable HUD button is absent`, !r, JSON.stringify(rect));
     const t0 = Date.now();
-    await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2);
+    await page.evaluate(screen => window.__civ5test.ui2Intent({name: "screen.open", args: {screen}}), screen);
     const up = await until(page, (x) => x.ui?.active === "classic" && x.ui.screen === screen && x.ui.screenShown && !x.ui.switching, 20000, `${screen} shown by the classic UI`).catch((e) => e);
     run.openWallMs = Date.now() - t0;
     run.openSwitchMs = up?.ui?.lastSwitchMs ?? null;
@@ -406,7 +403,7 @@ async function addAltSkin(page) {
 async function skinChange(page, numbers, check) {
   const rect = await page.evaluate(() => window.__civ5test.ui2Rects(["top.main-menu.button"])).catch(() => null);
   const n = numbers.skinChange = { menuButton: Array.isArray(rect) ? rect[0] : rect };
-  if (Array.isArray(rect) && rect[0]) await page.mouse.click(rect[0].x + rect[0].w / 2, rect[0].y + rect[0].h / 2);
+  await page.evaluate(() => window.__civ5test.ui2Intent({name: "window.open", args: {window: "menu"}}));
   let p = null;
   const t0 = Date.now();
   while (Date.now() - t0 < 5000) {

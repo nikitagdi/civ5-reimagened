@@ -262,3 +262,11 @@
 .uflag.war .hp {
   box-shadow: 0 0 0 1px var(--neg);
 }
+
+.on-map-tip { width: 320px; max-height: 440px; overflow-y: auto; scrollbar-width: none; }
+.on-map-promotions { display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--brass); }
+.on-map-status { font-size: 10px; max-width: 48px; overflow: hidden; text-overflow: ellipsis; color: var(--brass); }
+.uflag .flag.on-map-civilian { clip-path: none; height: 32px; border-radius: 3px; }
+.uflag .flag.on-map-embarked { clip-path: none; height: 32px; border-radius: 16px; }
+.uflag .flag.on-map-fortified { clip-path: polygon(0 20%, 20% 0, 80% 0, 100% 20%, 100% 100%, 0 100%); }
+.uflag .hp .fill.on-map-hp-mid { background-color: var(--brass); }

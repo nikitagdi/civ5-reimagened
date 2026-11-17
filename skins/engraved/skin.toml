@@ -24,6 +24,15 @@ display = "Alegreya"
 # line being written and whether the choice of its addressee is open; whether the folded screen buttons of a narrow
 # top strip are open.
 [state]
+unit_panel = { hover = -1, draft = "", valid = false }
+unit_lists = { section = "", sort = "name", desc = false, military_folded = false, civilian_folded = false }
+on_map = { unit = "", city = "" }
+minimap = { options = false, streamer = false, banners = true, flags = true }
+leader = { hover = "" }
+deal = { side = 0, kind = -1, item = 0, amount = 0 }
+civ_ribbon = { visible = true, left = false, hover = -1 }
+declare_war = { diplomacy = false, protectors = false, allies = false, deals = false, routes = false }
+diplo = { tab = "relations", deal = -1, hover = -1 }
 policies = { tab = "", expanded = false, confirm = -1, kind = "adopt_policy", name = "", tenet_level = 0, hover = -1 }
 ideology = { confirm = -1, details = -1, folded = 0, name = "" }
 pantheon = { confirm = -1, name = "", effect = "" }
@@ -38,13 +47,13 @@ tech_panel = { open = false, last_id = -1, last_name = "", done = false }
 techs = { hover = -1, x = 0.0 }
 prod = { sort = "order", hide_locked = false }
 chat = { draft = "", pick = false }
-top = { menu = false }
+top = { menu = false, hover = "", resource = -1, resources = false }
 
 # The production window's script: arrow keys move the focus; the sort is kept in the settings.
 [scripts]
-files = ["js/production.js", "js/tech_panel.js", "js/techs.js", "js/city_rename.js", "js/city.js", "js/city_list.js", "js/free_great_person.js", "js/policies.js", "js/ideology.js", "js/pantheon.js", "js/religion.js", "js/religion_overview.js"]
-reads = ["production", "research", "hud", "ui.windows.techs", "techs", "city", "city_rename", "city_captured", "free_great_person", "policies", "ideology", "pantheon", "religion", "religion_overview", "ui"]
+files = ["js/minimap.js", "js/unit_lists.js", "js/unit_panel.js", "js/production.js", "js/tech_panel.js", "js/techs.js", "js/city_rename.js", "js/city.js", "js/city_list.js", "js/free_great_person.js", "js/policies.js", "js/ideology.js", "js/pantheon.js", "js/religion.js", "js/religion_overview.js", "js/civ_ribbon.js", "js/leader.js"]
+reads = ["unit", "unit_rename", "production", "research", "hud", "ui.windows.techs", "techs", "city", "city_rename", "city_captured", "free_great_person", "policies", "ideology", "pantheon", "religion", "religion_overview", "ui", "civ_ribbon", "leader", "game"]
 
 [verify]
-states = ["hud", "hud-timer", "hud-chat", "production", "production-sorted", "research", "techs", "techs--free", "techs--steal", "tech_award", "rich_tooltips", "tech_panel", "tech_panel--done", "city", "city_list", "city_rename", "city_captured", "free_great_person", "city--puppet", "city--sell", "city_rename--invalid", "city_rename--raze", "city_rename--unraze", "city_rename--annex", "city_captured--annex", "free_great_person--faith", "free_great_person--maya", "policies", "ideology", "pantheon", "religion", "religion_overview"]
+states = ["hud", "top_panel", "end_turn", "unit_panel", "unit_rename", "unit_lists", "minimap", "on_map", "hud-timer", "hud-chat", "production", "production-sorted", "research", "techs", "techs--free", "techs--steal", "tech_award", "rich_tooltips", "tech_panel", "tech_panel--done", "city", "city_list", "city_rename", "city_captured", "free_great_person", "city--puppet", "city--sell", "city_rename--invalid", "city_rename--raze", "city_rename--unraze", "city_rename--annex", "city_captured--annex", "free_great_person--faith", "free_great_person--maya", "policies", "ideology", "pantheon", "religion", "religion_overview", "diplo", "declare_war", "declare_war--plunder", "civ_ribbon", "deal", "leader", "diplo--global", "diplo--deals", "diplo--empty", "declare_war--citystate", "civ_ribbon--host", "deal--player", "deal--player-incoming"]
 golden = [{ state = "hud", viewport = [1920, 1080], scale = 1.0 }]
