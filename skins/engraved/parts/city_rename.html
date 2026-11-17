@@ -1,0 +1,9 @@
+<div class="city_rename-screen" data-part="city-rename" data-screen="city_rename" data-bind-if="{{ui.windows.city_rename.open}}">
+  <section class="city_rename-window" data-bind-if="{{city_rename != null}}">
+    <header class="city_rename-header"><b data-bind-value="{{city_rename.mode}}"></b><span class="city_rename-name" data-part="city-rename.name" data-bind-value="{{city_rename.name}}"></span></header>
+    <div class="city_rename-body" data-bind-if="{{city_rename.mode == 'rename'}}"><span data-l10n="city_rename.new_name">New city name</span><input class="city_rename-input" type="text" data-part="city-rename.input" data-bind-model="state.city_rename.draft" data-on-input="call city_rename.validate()"/><span data-bind-value="{{state.city_rename.why}}"></span></div>
+    <div class="city_rename-body" data-bind-if="{{city_rename.task != null}}"><span data-bind-value="{{city_rename.task.explain}}"></span><span data-bind-value="{{city_rename.task.forecast}}"></span><span data-l10n="city_rename.sure">Are you sure?</span></div>
+    <span class="city_rename-reason" data-part="city-rename.reason" data-bind-value="{{city_rename.reason}}"></span>
+    <footer class="city_rename-footer"><button data-on-click="intent window.close(window: 'city_rename')" data-l10n="city_rename.cancel">Cancel</button><button class="city_rename-primary" data-bind-if="{{city_rename.mode == 'rename'}}" data-bind-disabled="{{!city_rename.enabled || !state.city_rename.valid || !state.city_rename.touched}}" data-on-click="intent screen.act(screen: 'city_rename', action: 'rename', a: city_rename.city, text: state.city_rename.draft)" data-l10n="city_rename.accept">Accept</button><button class="city_rename-primary" data-bind-if="{{city_rename.task != null}}" data-bind-disabled="{{!city_rename.enabled}}" data-on-click="call city_rename.confirm()" data-l10n="city_rename.yes">Yes</button></footer>
+  </section>
+</div>

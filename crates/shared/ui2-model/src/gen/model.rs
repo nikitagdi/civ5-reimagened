@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 1);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x861afcd87ed44c0a;
+pub const SCHEMA_HASH: u64 = 0x70ed93e1b046c5bd;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -1424,15 +1424,20 @@ pub enum WindowId {
     Menu = 2,
     Chat = 3,
     NotesLog = 4,
-    Techs = 5,
+    City = 5,
+    CityCaptured = 6,
+    CityList = 7,
+    CityRename = 8,
+    FreeGreatPerson = 9,
+    Techs = 10,
 }
 
 impl WindowId {
     /// The names, indexed by the discriminant.
-    pub const NAMES: [&'static str; 6] = ["production", "research", "menu", "chat", "notes_log", "techs"];
+    pub const NAMES: [&'static str; 11] = ["production", "research", "menu", "chat", "notes_log", "city", "city_captured", "city_list", "city_rename", "free_great_person", "techs"];
 
     /// Every variant, in declaration order.
-    pub const ALL: &'static [WindowId] = &[WindowId::Production, WindowId::Research, WindowId::Menu, WindowId::Chat, WindowId::NotesLog, WindowId::Techs];
+    pub const ALL: &'static [WindowId] = &[WindowId::Production, WindowId::Research, WindowId::Menu, WindowId::Chat, WindowId::NotesLog, WindowId::City, WindowId::CityCaptured, WindowId::CityList, WindowId::CityRename, WindowId::FreeGreatPerson, WindowId::Techs];
 
     /// The schema name of the variant (the same as [`name`](Self::name)).
     #[must_use]
@@ -1449,7 +1454,12 @@ impl WindowId {
             2 => Some(WindowId::Menu),
             3 => Some(WindowId::Chat),
             4 => Some(WindowId::NotesLog),
-            5 => Some(WindowId::Techs),
+            5 => Some(WindowId::City),
+            6 => Some(WindowId::CityCaptured),
+            7 => Some(WindowId::CityList),
+            8 => Some(WindowId::CityRename),
+            9 => Some(WindowId::FreeGreatPerson),
+            10 => Some(WindowId::Techs),
             _ => None,
         }
     }
@@ -1469,6 +1479,11 @@ impl WindowId {
             "menu" => Some(WindowId::Menu),
             "chat" => Some(WindowId::Chat),
             "notes_log" => Some(WindowId::NotesLog),
+            "city" => Some(WindowId::City),
+            "city_captured" => Some(WindowId::CityCaptured),
+            "city_list" => Some(WindowId::CityList),
+            "city_rename" => Some(WindowId::CityRename),
+            "free_great_person" => Some(WindowId::FreeGreatPerson),
             "techs" => Some(WindowId::Techs),
             _ => None,
         }
@@ -1494,7 +1509,7 @@ impl crate::model::Model for WindowId {
         match v {
             crate::value::Value::Enum(n) => WindowId::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
                 value: *n,
-                count: 6,
+                count: 11,
             }),
             other => Err(crate::value::ValueError::mismatch("enum", other)),
         }
@@ -1818,6 +1833,1870 @@ impl crate::model::Model for BuyWith {
             crate::value::Value::Enum(n) => BuyWith::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
                 value: *n,
                 count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityViewReason {
+    #[default]
+    None = 0,
+    Puppet = 1,
+    Foreign = 2,
+    Spy = 3,
+    CapturePending = 4,
+    PopupView = 5,
+}
+
+impl CityViewReason {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 6] = ["none", "puppet", "foreign", "spy", "capture_pending", "popup_view"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityViewReason] = &[CityViewReason::None, CityViewReason::Puppet, CityViewReason::Foreign, CityViewReason::Spy, CityViewReason::CapturePending, CityViewReason::PopupView];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityViewReason> {
+        match v {
+            0 => Some(CityViewReason::None),
+            1 => Some(CityViewReason::Puppet),
+            2 => Some(CityViewReason::Foreign),
+            3 => Some(CityViewReason::Spy),
+            4 => Some(CityViewReason::CapturePending),
+            5 => Some(CityViewReason::PopupView),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityViewReason> {
+        match s {
+            "none" => Some(CityViewReason::None),
+            "puppet" => Some(CityViewReason::Puppet),
+            "foreign" => Some(CityViewReason::Foreign),
+            "spy" => Some(CityViewReason::Spy),
+            "capture_pending" => Some(CityViewReason::CapturePending),
+            "popup_view" => Some(CityViewReason::PopupView),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityViewReason {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityViewReason::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 6,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityStatusKind {
+    #[default]
+    Connected = 0,
+    Blockaded = 1,
+    Razing = 2,
+    Puppet = 3,
+    Resistance = 4,
+    Occupied = 5,
+}
+
+impl CityStatusKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 6] = ["connected", "blockaded", "razing", "puppet", "resistance", "occupied"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityStatusKind] = &[CityStatusKind::Connected, CityStatusKind::Blockaded, CityStatusKind::Razing, CityStatusKind::Puppet, CityStatusKind::Resistance, CityStatusKind::Occupied];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityStatusKind> {
+        match v {
+            0 => Some(CityStatusKind::Connected),
+            1 => Some(CityStatusKind::Blockaded),
+            2 => Some(CityStatusKind::Razing),
+            3 => Some(CityStatusKind::Puppet),
+            4 => Some(CityStatusKind::Resistance),
+            5 => Some(CityStatusKind::Occupied),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityStatusKind> {
+        match s {
+            "connected" => Some(CityStatusKind::Connected),
+            "blockaded" => Some(CityStatusKind::Blockaded),
+            "razing" => Some(CityStatusKind::Razing),
+            "puppet" => Some(CityStatusKind::Puppet),
+            "resistance" => Some(CityStatusKind::Resistance),
+            "occupied" => Some(CityStatusKind::Occupied),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityStatusKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityStatusKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 6,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityDemandKind {
+    #[default]
+    Wltkd = 0,
+    Resource = 1,
+}
+
+impl CityDemandKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["wltkd", "resource"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityDemandKind] = &[CityDemandKind::Wltkd, CityDemandKind::Resource];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityDemandKind> {
+        match v {
+            0 => Some(CityDemandKind::Wltkd),
+            1 => Some(CityDemandKind::Resource),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityDemandKind> {
+        match s {
+            "wltkd" => Some(CityDemandKind::Wltkd),
+            "resource" => Some(CityDemandKind::Resource),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityDemandKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityDemandKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityGrowth {
+    #[default]
+    Growing = 0,
+    Stagnant = 1,
+    Starving = 2,
+}
+
+impl CityGrowth {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["growing", "stagnant", "starving"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityGrowth] = &[CityGrowth::Growing, CityGrowth::Stagnant, CityGrowth::Starving];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityGrowth> {
+        match v {
+            0 => Some(CityGrowth::Growing),
+            1 => Some(CityGrowth::Stagnant),
+            2 => Some(CityGrowth::Starving),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityGrowth> {
+        match s {
+            "growing" => Some(CityGrowth::Growing),
+            "stagnant" => Some(CityGrowth::Stagnant),
+            "starving" => Some(CityGrowth::Starving),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityGrowth {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityGrowth::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityYieldKind {
+    #[default]
+    Food = 0,
+    Production = 1,
+    Gold = 2,
+    Science = 3,
+    Faith = 4,
+    Culture = 5,
+    Tourism = 6,
+    GoldenAge = 7,
+}
+
+impl CityYieldKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 8] = ["food", "production", "gold", "science", "faith", "culture", "tourism", "golden_age"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityYieldKind] = &[CityYieldKind::Food, CityYieldKind::Production, CityYieldKind::Gold, CityYieldKind::Science, CityYieldKind::Faith, CityYieldKind::Culture, CityYieldKind::Tourism, CityYieldKind::GoldenAge];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityYieldKind> {
+        match v {
+            0 => Some(CityYieldKind::Food),
+            1 => Some(CityYieldKind::Production),
+            2 => Some(CityYieldKind::Gold),
+            3 => Some(CityYieldKind::Science),
+            4 => Some(CityYieldKind::Faith),
+            5 => Some(CityYieldKind::Culture),
+            6 => Some(CityYieldKind::Tourism),
+            7 => Some(CityYieldKind::GoldenAge),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityYieldKind> {
+        match s {
+            "food" => Some(CityYieldKind::Food),
+            "production" => Some(CityYieldKind::Production),
+            "gold" => Some(CityYieldKind::Gold),
+            "science" => Some(CityYieldKind::Science),
+            "faith" => Some(CityYieldKind::Faith),
+            "culture" => Some(CityYieldKind::Culture),
+            "tourism" => Some(CityYieldKind::Tourism),
+            "golden_age" => Some(CityYieldKind::GoldenAge),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityYieldKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityYieldKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 8,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityItemKind {
+    #[default]
+    Unit = 0,
+    Building = 1,
+    Wonder = 2,
+    Project = 3,
+    Process = 4,
+}
+
+impl CityItemKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 5] = ["unit", "building", "wonder", "project", "process"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityItemKind] = &[CityItemKind::Unit, CityItemKind::Building, CityItemKind::Wonder, CityItemKind::Project, CityItemKind::Process];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityItemKind> {
+        match v {
+            0 => Some(CityItemKind::Unit),
+            1 => Some(CityItemKind::Building),
+            2 => Some(CityItemKind::Wonder),
+            3 => Some(CityItemKind::Project),
+            4 => Some(CityItemKind::Process),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityItemKind> {
+        match s {
+            "unit" => Some(CityItemKind::Unit),
+            "building" => Some(CityItemKind::Building),
+            "wonder" => Some(CityItemKind::Wonder),
+            "project" => Some(CityItemKind::Project),
+            "process" => Some(CityItemKind::Process),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityItemKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityItemKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 5,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityGroupKind {
+    #[default]
+    Unit = 0,
+    Building = 1,
+    WonderProject = 2,
+    Process = 3,
+}
+
+impl CityGroupKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["unit", "building", "wonder_project", "process"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityGroupKind] = &[CityGroupKind::Unit, CityGroupKind::Building, CityGroupKind::WonderProject, CityGroupKind::Process];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityGroupKind> {
+        match v {
+            0 => Some(CityGroupKind::Unit),
+            1 => Some(CityGroupKind::Building),
+            2 => Some(CityGroupKind::WonderProject),
+            3 => Some(CityGroupKind::Process),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityGroupKind> {
+        match s {
+            "unit" => Some(CityGroupKind::Unit),
+            "building" => Some(CityGroupKind::Building),
+            "wonder_project" => Some(CityGroupKind::WonderProject),
+            "process" => Some(CityGroupKind::Process),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityGroupKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityGroupKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityBuyState {
+    #[default]
+    Ok = 0,
+    Short = 1,
+    Off = 2,
+}
+
+impl CityBuyState {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["ok", "short", "off"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityBuyState] = &[CityBuyState::Ok, CityBuyState::Short, CityBuyState::Off];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityBuyState> {
+        match v {
+            0 => Some(CityBuyState::Ok),
+            1 => Some(CityBuyState::Short),
+            2 => Some(CityBuyState::Off),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityBuyState> {
+        match s {
+            "ok" => Some(CityBuyState::Ok),
+            "short" => Some(CityBuyState::Short),
+            "off" => Some(CityBuyState::Off),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityBuyState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityBuyState::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityFocus {
+    #[default]
+    Default = 0,
+    Food = 1,
+    Production = 2,
+    Gold = 3,
+    Science = 4,
+    Culture = 5,
+    GreatPeople = 6,
+    Faith = 7,
+    GoldenAge = 8,
+}
+
+impl CityFocus {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 9] = ["default", "food", "production", "gold", "science", "culture", "great_people", "faith", "golden_age"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityFocus] = &[CityFocus::Default, CityFocus::Food, CityFocus::Production, CityFocus::Gold, CityFocus::Science, CityFocus::Culture, CityFocus::GreatPeople, CityFocus::Faith, CityFocus::GoldenAge];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityFocus> {
+        match v {
+            0 => Some(CityFocus::Default),
+            1 => Some(CityFocus::Food),
+            2 => Some(CityFocus::Production),
+            3 => Some(CityFocus::Gold),
+            4 => Some(CityFocus::Science),
+            5 => Some(CityFocus::Culture),
+            6 => Some(CityFocus::GreatPeople),
+            7 => Some(CityFocus::Faith),
+            8 => Some(CityFocus::GoldenAge),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityFocus> {
+        match s {
+            "default" => Some(CityFocus::Default),
+            "food" => Some(CityFocus::Food),
+            "production" => Some(CityFocus::Production),
+            "gold" => Some(CityFocus::Gold),
+            "science" => Some(CityFocus::Science),
+            "culture" => Some(CityFocus::Culture),
+            "great_people" => Some(CityFocus::GreatPeople),
+            "faith" => Some(CityFocus::Faith),
+            "golden_age" => Some(CityFocus::GoldenAge),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityFocus {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityFocus::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 9,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityBuildingKind {
+    #[default]
+    Specialist = 0,
+    GreatWork = 1,
+    Wonder = 2,
+    Other = 3,
+}
+
+impl CityBuildingKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["specialist", "great_work", "wonder", "other"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityBuildingKind] = &[CityBuildingKind::Specialist, CityBuildingKind::GreatWork, CityBuildingKind::Wonder, CityBuildingKind::Other];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityBuildingKind> {
+        match v {
+            0 => Some(CityBuildingKind::Specialist),
+            1 => Some(CityBuildingKind::GreatWork),
+            2 => Some(CityBuildingKind::Wonder),
+            3 => Some(CityBuildingKind::Other),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityBuildingKind> {
+        match s {
+            "specialist" => Some(CityBuildingKind::Specialist),
+            "great_work" => Some(CityBuildingKind::GreatWork),
+            "wonder" => Some(CityBuildingKind::Wonder),
+            "other" => Some(CityBuildingKind::Other),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityBuildingKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityBuildingKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityWorkKind {
+    #[default]
+    Art = 0,
+    Writing = 1,
+    Music = 2,
+    Artifact = 3,
+}
+
+impl CityWorkKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["art", "writing", "music", "artifact"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityWorkKind] = &[CityWorkKind::Art, CityWorkKind::Writing, CityWorkKind::Music, CityWorkKind::Artifact];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityWorkKind> {
+        match v {
+            0 => Some(CityWorkKind::Art),
+            1 => Some(CityWorkKind::Writing),
+            2 => Some(CityWorkKind::Music),
+            3 => Some(CityWorkKind::Artifact),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityWorkKind> {
+        match s {
+            "art" => Some(CityWorkKind::Art),
+            "writing" => Some(CityWorkKind::Writing),
+            "music" => Some(CityWorkKind::Music),
+            "artifact" => Some(CityWorkKind::Artifact),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityWorkKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityWorkKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityTileState {
+    #[default]
+    Center = 0,
+    Worked = 1,
+    Locked = 2,
+    Unworked = 3,
+    Other = 4,
+    Blocked = 5,
+    Enemy = 6,
+    Unowned = 7,
+}
+
+impl CityTileState {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 8] = ["center", "worked", "locked", "unworked", "other", "blocked", "enemy", "unowned"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityTileState] = &[CityTileState::Center, CityTileState::Worked, CityTileState::Locked, CityTileState::Unworked, CityTileState::Other, CityTileState::Blocked, CityTileState::Enemy, CityTileState::Unowned];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityTileState> {
+        match v {
+            0 => Some(CityTileState::Center),
+            1 => Some(CityTileState::Worked),
+            2 => Some(CityTileState::Locked),
+            3 => Some(CityTileState::Unworked),
+            4 => Some(CityTileState::Other),
+            5 => Some(CityTileState::Blocked),
+            6 => Some(CityTileState::Enemy),
+            7 => Some(CityTileState::Unowned),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityTileState> {
+        match s {
+            "center" => Some(CityTileState::Center),
+            "worked" => Some(CityTileState::Worked),
+            "locked" => Some(CityTileState::Locked),
+            "unworked" => Some(CityTileState::Unworked),
+            "other" => Some(CityTileState::Other),
+            "blocked" => Some(CityTileState::Blocked),
+            "enemy" => Some(CityTileState::Enemy),
+            "unowned" => Some(CityTileState::Unowned),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityTileState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityTileState::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 8,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityTaskKind {
+    #[default]
+    Raze = 0,
+    Unraze = 1,
+    Annex = 2,
+    None = 3,
+}
+
+impl CityTaskKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["raze", "unraze", "annex", "none"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityTaskKind] = &[CityTaskKind::Raze, CityTaskKind::Unraze, CityTaskKind::Annex, CityTaskKind::None];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityTaskKind> {
+        match v {
+            0 => Some(CityTaskKind::Raze),
+            1 => Some(CityTaskKind::Unraze),
+            2 => Some(CityTaskKind::Annex),
+            3 => Some(CityTaskKind::None),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityTaskKind> {
+        match s {
+            "raze" => Some(CityTaskKind::Raze),
+            "unraze" => Some(CityTaskKind::Unraze),
+            "annex" => Some(CityTaskKind::Annex),
+            "none" => Some(CityTaskKind::None),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityTaskKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityTaskKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityTone {
+    #[default]
+    Neutral = 0,
+    Negative = 1,
+}
+
+impl CityTone {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["neutral", "negative"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityTone] = &[CityTone::Neutral, CityTone::Negative];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityTone> {
+        match v {
+            0 => Some(CityTone::Neutral),
+            1 => Some(CityTone::Negative),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityTone> {
+        match s {
+            "neutral" => Some(CityTone::Neutral),
+            "negative" => Some(CityTone::Negative),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityTone {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityTone::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityCapturedMode {
+    #[default]
+    Captured = 0,
+    Annex = 1,
+}
+
+impl CityCapturedMode {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["captured", "annex"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityCapturedMode] = &[CityCapturedMode::Captured, CityCapturedMode::Annex];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityCapturedMode> {
+        match v {
+            0 => Some(CityCapturedMode::Captured),
+            1 => Some(CityCapturedMode::Annex),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityCapturedMode> {
+        match s {
+            "captured" => Some(CityCapturedMode::Captured),
+            "annex" => Some(CityCapturedMode::Annex),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityCapturedMode {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityCapturedMode::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityCapturedChoice {
+    #[default]
+    Liberate = 0,
+    Annex = 1,
+    Puppet = 2,
+    Raze = 3,
+}
+
+impl CityCapturedChoice {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["liberate", "annex", "puppet", "raze"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityCapturedChoice] = &[CityCapturedChoice::Liberate, CityCapturedChoice::Annex, CityCapturedChoice::Puppet, CityCapturedChoice::Raze];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityCapturedChoice> {
+        match v {
+            0 => Some(CityCapturedChoice::Liberate),
+            1 => Some(CityCapturedChoice::Annex),
+            2 => Some(CityCapturedChoice::Puppet),
+            3 => Some(CityCapturedChoice::Raze),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityCapturedChoice> {
+        match s {
+            "liberate" => Some(CityCapturedChoice::Liberate),
+            "annex" => Some(CityCapturedChoice::Annex),
+            "puppet" => Some(CityCapturedChoice::Puppet),
+            "raze" => Some(CityCapturedChoice::Raze),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityCapturedChoice {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityCapturedChoice::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityCapturedWorkKind {
+    #[default]
+    Art = 0,
+    Writing = 1,
+    Music = 2,
+    Artifact = 3,
+}
+
+impl CityCapturedWorkKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["art", "writing", "music", "artifact"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityCapturedWorkKind] = &[CityCapturedWorkKind::Art, CityCapturedWorkKind::Writing, CityCapturedWorkKind::Music, CityCapturedWorkKind::Artifact];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityCapturedWorkKind> {
+        match v {
+            0 => Some(CityCapturedWorkKind::Art),
+            1 => Some(CityCapturedWorkKind::Writing),
+            2 => Some(CityCapturedWorkKind::Music),
+            3 => Some(CityCapturedWorkKind::Artifact),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityCapturedWorkKind> {
+        match s {
+            "art" => Some(CityCapturedWorkKind::Art),
+            "writing" => Some(CityCapturedWorkKind::Writing),
+            "music" => Some(CityCapturedWorkKind::Music),
+            "artifact" => Some(CityCapturedWorkKind::Artifact),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityCapturedWorkKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityCapturedWorkKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityListStatus {
+    #[default]
+    None = 0,
+    Capital = 1,
+    Puppet = 2,
+    Occupied = 3,
+}
+
+impl CityListStatus {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["none", "capital", "puppet", "occupied"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityListStatus] = &[CityListStatus::None, CityListStatus::Capital, CityListStatus::Puppet, CityListStatus::Occupied];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityListStatus> {
+        match v {
+            0 => Some(CityListStatus::None),
+            1 => Some(CityListStatus::Capital),
+            2 => Some(CityListStatus::Puppet),
+            3 => Some(CityListStatus::Occupied),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityListStatus> {
+        match s {
+            "none" => Some(CityListStatus::None),
+            "capital" => Some(CityListStatus::Capital),
+            "puppet" => Some(CityListStatus::Puppet),
+            "occupied" => Some(CityListStatus::Occupied),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityListStatus {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityListStatus::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityListGrowth {
+    #[default]
+    Growing = 0,
+    Stagnant = 1,
+    Starving = 2,
+}
+
+impl CityListGrowth {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["growing", "stagnant", "starving"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityListGrowth] = &[CityListGrowth::Growing, CityListGrowth::Stagnant, CityListGrowth::Starving];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityListGrowth> {
+        match v {
+            0 => Some(CityListGrowth::Growing),
+            1 => Some(CityListGrowth::Stagnant),
+            2 => Some(CityListGrowth::Starving),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityListGrowth> {
+        match s {
+            "growing" => Some(CityListGrowth::Growing),
+            "stagnant" => Some(CityListGrowth::Stagnant),
+            "starving" => Some(CityListGrowth::Starving),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityListGrowth {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityListGrowth::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityListItemKind {
+    #[default]
+    Unit = 0,
+    Building = 1,
+    Wonder = 2,
+    Project = 3,
+    Process = 4,
+}
+
+impl CityListItemKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 5] = ["unit", "building", "wonder", "project", "process"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityListItemKind] = &[CityListItemKind::Unit, CityListItemKind::Building, CityListItemKind::Wonder, CityListItemKind::Project, CityListItemKind::Process];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityListItemKind> {
+        match v {
+            0 => Some(CityListItemKind::Unit),
+            1 => Some(CityListItemKind::Building),
+            2 => Some(CityListItemKind::Wonder),
+            3 => Some(CityListItemKind::Project),
+            4 => Some(CityListItemKind::Process),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityListItemKind> {
+        match s {
+            "unit" => Some(CityListItemKind::Unit),
+            "building" => Some(CityListItemKind::Building),
+            "wonder" => Some(CityListItemKind::Wonder),
+            "project" => Some(CityListItemKind::Project),
+            "process" => Some(CityListItemKind::Process),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityListItemKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityListItemKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 5,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityRenameMode {
+    #[default]
+    Rename = 0,
+    Raze = 1,
+    Unraze = 2,
+    Annex = 3,
+}
+
+impl CityRenameMode {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["rename", "raze", "unraze", "annex"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityRenameMode] = &[CityRenameMode::Rename, CityRenameMode::Raze, CityRenameMode::Unraze, CityRenameMode::Annex];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityRenameMode> {
+        match v {
+            0 => Some(CityRenameMode::Rename),
+            1 => Some(CityRenameMode::Raze),
+            2 => Some(CityRenameMode::Unraze),
+            3 => Some(CityRenameMode::Annex),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityRenameMode> {
+        match s {
+            "rename" => Some(CityRenameMode::Rename),
+            "raze" => Some(CityRenameMode::Raze),
+            "unraze" => Some(CityRenameMode::Unraze),
+            "annex" => Some(CityRenameMode::Annex),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityRenameMode {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityRenameMode::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum CityRenameTaskKind {
+    #[default]
+    Raze = 0,
+    Unraze = 1,
+    Annex = 2,
+}
+
+impl CityRenameTaskKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["raze", "unraze", "annex"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [CityRenameTaskKind] = &[CityRenameTaskKind::Raze, CityRenameTaskKind::Unraze, CityRenameTaskKind::Annex];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<CityRenameTaskKind> {
+        match v {
+            0 => Some(CityRenameTaskKind::Raze),
+            1 => Some(CityRenameTaskKind::Unraze),
+            2 => Some(CityRenameTaskKind::Annex),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<CityRenameTaskKind> {
+        match s {
+            "raze" => Some(CityRenameTaskKind::Raze),
+            "unraze" => Some(CityRenameTaskKind::Unraze),
+            "annex" => Some(CityRenameTaskKind::Annex),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for CityRenameTaskKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => CityRenameTaskKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum FreeGreatPersonMode {
+    #[default]
+    Free = 0,
+    Faith = 1,
+    Maya = 2,
+}
+
+impl FreeGreatPersonMode {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["free", "faith", "maya"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [FreeGreatPersonMode] = &[FreeGreatPersonMode::Free, FreeGreatPersonMode::Faith, FreeGreatPersonMode::Maya];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<FreeGreatPersonMode> {
+        match v {
+            0 => Some(FreeGreatPersonMode::Free),
+            1 => Some(FreeGreatPersonMode::Faith),
+            2 => Some(FreeGreatPersonMode::Maya),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<FreeGreatPersonMode> {
+        match s {
+            "free" => Some(FreeGreatPersonMode::Free),
+            "faith" => Some(FreeGreatPersonMode::Faith),
+            "maya" => Some(FreeGreatPersonMode::Maya),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for FreeGreatPersonMode {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => FreeGreatPersonMode::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
             }),
             other => Err(crate::value::ValueError::mismatch("enum", other)),
         }
@@ -3575,6 +5454,11 @@ impl crate::model::Model for WinCity {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Windows {
+    pub city: WinArgs,
+    pub city_captured: WinArgs,
+    pub city_list: WinArgs,
+    pub city_rename: WinArgs,
+    pub free_great_person: WinArgs,
     pub techs: WinArgs,
     pub production: WinCity,
     pub research: Win,
@@ -3587,22 +5471,37 @@ impl crate::model::Model for Windows {
     fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
         let base = at.field;
         at.field = base.child(0);
-        crate::model::Model::diff(&self.techs, &old.techs, at, out);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
         at.field = base.child(4);
+        crate::model::Model::diff(&self.city_captured, &old.city_captured, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.city_list, &old.city_list, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.city_rename, &old.city_rename, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.free_great_person, &old.free_great_person, at, out);
+        at.field = base.child(20);
+        crate::model::Model::diff(&self.techs, &old.techs, at, out);
+        at.field = base.child(24);
         crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(7);
+        at.field = base.child(27);
         crate::model::Model::diff(&self.research, &old.research, at, out);
-        at.field = base.child(9);
+        at.field = base.child(29);
         crate::model::Model::diff(&self.menu, &old.menu, at, out);
-        at.field = base.child(11);
+        at.field = base.child(31);
         crate::model::Model::diff(&self.chat, &old.chat, at, out);
-        at.field = base.child(13);
+        at.field = base.child(33);
         crate::model::Model::diff(&self.notes_log, &old.notes_log, at, out);
         at.field = base;
     }
 
     fn to_value(&self) -> crate::value::Value {
         crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.city),
+            crate::model::Model::to_value(&self.city_captured),
+            crate::model::Model::to_value(&self.city_list),
+            crate::model::Model::to_value(&self.city_rename),
+            crate::model::Model::to_value(&self.free_great_person),
             crate::model::Model::to_value(&self.techs),
             crate::model::Model::to_value(&self.production),
             crate::model::Model::to_value(&self.research),
@@ -3613,14 +5512,19 @@ impl crate::model::Model for Windows {
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(6)?;
+        let f = v.as_struct(11)?;
         Ok(Windows {
-            techs: crate::model::Model::from_value(&f[0])?,
-            production: crate::model::Model::from_value(&f[1])?,
-            research: crate::model::Model::from_value(&f[2])?,
-            menu: crate::model::Model::from_value(&f[3])?,
-            chat: crate::model::Model::from_value(&f[4])?,
-            notes_log: crate::model::Model::from_value(&f[5])?,
+            city: crate::model::Model::from_value(&f[0])?,
+            city_captured: crate::model::Model::from_value(&f[1])?,
+            city_list: crate::model::Model::from_value(&f[2])?,
+            city_rename: crate::model::Model::from_value(&f[3])?,
+            free_great_person: crate::model::Model::from_value(&f[4])?,
+            techs: crate::model::Model::from_value(&f[5])?,
+            production: crate::model::Model::from_value(&f[6])?,
+            research: crate::model::Model::from_value(&f[7])?,
+            menu: crate::model::Model::from_value(&f[8])?,
+            chat: crate::model::Model::from_value(&f[9])?,
+            notes_log: crate::model::Model::from_value(&f[10])?,
         })
     }
 }
@@ -3787,6 +5691,1779 @@ impl crate::model::Model for Toast {
 impl crate::model::Keyed for Toast {
     fn key(&self) -> crate::value::Key {
         crate::value::Key::from_i32(i32::from(self.seq))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityStatus {
+    pub key: CityStatusKind,
+    pub turns: Option<i32>,
+    pub text: crate::value::Text,
+}
+
+impl crate::model::Model for CityStatus {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CityStatus {
+            key: crate::model::Model::from_value(&f[0])?,
+            turns: crate::model::Model::from_value(&f[1])?,
+            text: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityStatus {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_enum(self.key as u16)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityDemand {
+    pub kind: CityDemandKind,
+    pub text: crate::value::Text,
+    pub turns: i32,
+    pub icon: Option<crate::value::AssetRef>,
+}
+
+impl crate::model::Model for CityDemand {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.text),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.icon),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(CityDemand {
+            kind: crate::model::Model::from_value(&f[0])?,
+            text: crate::model::Model::from_value(&f[1])?,
+            turns: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityFood {
+    pub stored: i32,
+    pub threshold: i32,
+    pub net: i32,
+    pub turns: Option<i32>,
+    pub state: CityGrowth,
+}
+
+impl crate::model::Model for CityFood {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.stored, &old.stored, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.threshold, &old.threshold, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.net, &old.net, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.state, &old.state, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.stored),
+            crate::model::Model::to_value(&self.threshold),
+            crate::model::Model::to_value(&self.net),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.state),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(CityFood {
+            stored: crate::model::Model::from_value(&f[0])?,
+            threshold: crate::model::Model::from_value(&f[1])?,
+            net: crate::model::Model::from_value(&f[2])?,
+            turns: crate::model::Model::from_value(&f[3])?,
+            state: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityBreakdown {
+    pub label: ::std::sync::Arc<str>,
+    pub value: i32,
+}
+
+impl crate::model::Model for CityBreakdown {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.value),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(CityBreakdown {
+            label: crate::model::Model::from_value(&f[0])?,
+            value: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityBreakdown {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.label)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityYield {
+    pub key: CityYieldKind,
+    pub value: i32,
+    pub enabled: bool,
+    pub breakdown: crate::model::KeyedList<CityBreakdown>,
+}
+
+impl crate::model::Model for CityYield {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.breakdown, &old.breakdown, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.value),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.breakdown),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(CityYield {
+            key: crate::model::Model::from_value(&f[0])?,
+            value: crate::model::Model::from_value(&f[1])?,
+            enabled: crate::model::Model::from_value(&f[2])?,
+            breakdown: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityYield {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_enum(self.key as u16)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityBorder {
+    pub stored: i32,
+    pub threshold: i32,
+    pub turns: Option<i32>,
+}
+
+impl crate::model::Model for CityBorder {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.stored, &old.stored, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.threshold, &old.threshold, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.stored),
+            crate::model::Model::to_value(&self.threshold),
+            crate::model::Model::to_value(&self.turns),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CityBorder {
+            stored: crate::model::Model::from_value(&f[0])?,
+            threshold: crate::model::Model::from_value(&f[1])?,
+            turns: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityTreasury {
+    pub gold: i32,
+    pub faith: i32,
+}
+
+impl crate::model::Model for CityTreasury {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.gold, &old.gold, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.faith, &old.faith, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.gold),
+            crate::model::Model::to_value(&self.faith),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(CityTreasury {
+            gold: crate::model::Model::from_value(&f[0])?,
+            faith: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityCurrent {
+    pub item: i32,
+    pub name: crate::value::Text,
+    pub kind: CityItemKind,
+    pub icon: crate::value::AssetRef,
+    pub stored: i32,
+    pub needed: i32,
+    pub turns: Option<i32>,
+    pub next: i32,
+}
+
+impl crate::model::Model for CityCurrent {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.item, &old.item, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.stored, &old.stored, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.needed, &old.needed, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.next, &old.next, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.item),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.stored),
+            crate::model::Model::to_value(&self.needed),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.next),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(CityCurrent {
+            item: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            kind: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+            stored: crate::model::Model::from_value(&f[4])?,
+            needed: crate::model::Model::from_value(&f[5])?,
+            turns: crate::model::Model::from_value(&f[6])?,
+            next: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityQueueRow {
+    pub slot: i32,
+    pub item: i32,
+    pub name: crate::value::Text,
+    pub kind: CityItemKind,
+    pub icon: crate::value::AssetRef,
+    pub turns: Option<i32>,
+    pub number: Option<i32>,
+    pub repeat: bool,
+    pub after_repeat: bool,
+}
+
+impl crate::model::Model for CityQueueRow {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.slot, &old.slot, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.item, &old.item, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.number, &old.number, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.repeat, &old.repeat, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.after_repeat, &old.after_repeat, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.slot),
+            crate::model::Model::to_value(&self.item),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.number),
+            crate::model::Model::to_value(&self.repeat),
+            crate::model::Model::to_value(&self.after_repeat),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(9)?;
+        Ok(CityQueueRow {
+            slot: crate::model::Model::from_value(&f[0])?,
+            item: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            kind: crate::model::Model::from_value(&f[3])?,
+            icon: crate::model::Model::from_value(&f[4])?,
+            turns: crate::model::Model::from_value(&f[5])?,
+            number: crate::model::Model::from_value(&f[6])?,
+            repeat: crate::model::Model::from_value(&f[7])?,
+            after_repeat: crate::model::Model::from_value(&f[8])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityQueueRow {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.slot))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityLastDone {
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub turn: i32,
+}
+
+impl crate::model::Model for CityLastDone {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.turn, &old.turn, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.turn),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CityLastDone {
+            name: crate::model::Model::from_value(&f[0])?,
+            icon: crate::model::Model::from_value(&f[1])?,
+            turn: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityOption {
+    pub item: i32,
+    pub name: crate::value::Text,
+    pub kind: CityItemKind,
+    pub icon: crate::value::AssetRef,
+    pub turns: Option<i32>,
+    pub cost: Option<i32>,
+    pub can_build: bool,
+    pub buy_gold: Option<i32>,
+    pub gold_state: Option<CityBuyState>,
+    pub gold_short: Option<i32>,
+    pub buy_faith: Option<i32>,
+    pub faith_state: Option<CityBuyState>,
+    pub faith_short: Option<i32>,
+    pub reason: Option<crate::value::Text>,
+    pub effect: crate::value::Text,
+    pub help: crate::value::Text,
+    pub buy_reason: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for CityOption {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.item, &old.item, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.cost, &old.cost, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.can_build, &old.can_build, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.buy_gold, &old.buy_gold, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.gold_state, &old.gold_state, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.gold_short, &old.gold_short, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.buy_faith, &old.buy_faith, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.faith_state, &old.faith_state, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.faith_short, &old.faith_short, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.help, &old.help, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.buy_reason, &old.buy_reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.item),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.cost),
+            crate::model::Model::to_value(&self.can_build),
+            crate::model::Model::to_value(&self.buy_gold),
+            crate::model::Model::to_value(&self.gold_state),
+            crate::model::Model::to_value(&self.gold_short),
+            crate::model::Model::to_value(&self.buy_faith),
+            crate::model::Model::to_value(&self.faith_state),
+            crate::model::Model::to_value(&self.faith_short),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.effect),
+            crate::model::Model::to_value(&self.help),
+            crate::model::Model::to_value(&self.buy_reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(17)?;
+        Ok(CityOption {
+            item: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            kind: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+            turns: crate::model::Model::from_value(&f[4])?,
+            cost: crate::model::Model::from_value(&f[5])?,
+            can_build: crate::model::Model::from_value(&f[6])?,
+            buy_gold: crate::model::Model::from_value(&f[7])?,
+            gold_state: crate::model::Model::from_value(&f[8])?,
+            gold_short: crate::model::Model::from_value(&f[9])?,
+            buy_faith: crate::model::Model::from_value(&f[10])?,
+            faith_state: crate::model::Model::from_value(&f[11])?,
+            faith_short: crate::model::Model::from_value(&f[12])?,
+            reason: crate::model::Model::from_value(&f[13])?,
+            effect: crate::model::Model::from_value(&f[14])?,
+            help: crate::model::Model::from_value(&f[15])?,
+            buy_reason: crate::model::Model::from_value(&f[16])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityOption {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.item))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityOptionGroup {
+    pub kind: CityGroupKind,
+    pub count: i32,
+    pub options: crate::model::KeyedList<CityOption>,
+}
+
+impl crate::model::Model for CityOptionGroup {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.count, &old.count, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.options, &old.options, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.count),
+            crate::model::Model::to_value(&self.options),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CityOptionGroup {
+            kind: crate::model::Model::from_value(&f[0])?,
+            count: crate::model::Model::from_value(&f[1])?,
+            options: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityOptionGroup {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_enum(self.kind as u16)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityProduction {
+    pub rate: i32,
+    pub overflow: i32,
+    pub chop: i32,
+    pub current: Option<CityCurrent>,
+    pub queue: crate::model::KeyedList<CityQueueRow>,
+    pub last_done: Option<CityLastDone>,
+    pub groups: crate::model::KeyedList<CityOptionGroup>,
+}
+
+impl crate::model::Model for CityProduction {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.rate, &old.rate, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.overflow, &old.overflow, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.chop, &old.chop, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.current, &old.current, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.queue, &old.queue, at, out);
+        at.field = base.child(22);
+        crate::model::Model::diff(&self.last_done, &old.last_done, at, out);
+        at.field = base.child(26);
+        crate::model::Model::diff(&self.groups, &old.groups, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.rate),
+            crate::model::Model::to_value(&self.overflow),
+            crate::model::Model::to_value(&self.chop),
+            crate::model::Model::to_value(&self.current),
+            crate::model::Model::to_value(&self.queue),
+            crate::model::Model::to_value(&self.last_done),
+            crate::model::Model::to_value(&self.groups),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(CityProduction {
+            rate: crate::model::Model::from_value(&f[0])?,
+            overflow: crate::model::Model::from_value(&f[1])?,
+            chop: crate::model::Model::from_value(&f[2])?,
+            current: crate::model::Model::from_value(&f[3])?,
+            queue: crate::model::Model::from_value(&f[4])?,
+            last_done: crate::model::Model::from_value(&f[5])?,
+            groups: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityGreatPerson {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub r#yield: CityYieldKind,
+    pub progress: i32,
+    pub threshold: i32,
+    pub rate: Option<i32>,
+    pub turns: Option<i32>,
+    pub modifiers: crate::model::KeyedList<CityBreakdown>,
+}
+
+impl crate::model::Model for CityGreatPerson {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.r#yield, &old.r#yield, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.progress, &old.progress, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.threshold, &old.threshold, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.rate, &old.rate, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.modifiers, &old.modifiers, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.r#yield),
+            crate::model::Model::to_value(&self.progress),
+            crate::model::Model::to_value(&self.threshold),
+            crate::model::Model::to_value(&self.rate),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.modifiers),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(9)?;
+        Ok(CityGreatPerson {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            r#yield: crate::model::Model::from_value(&f[3])?,
+            progress: crate::model::Model::from_value(&f[4])?,
+            threshold: crate::model::Model::from_value(&f[5])?,
+            rate: crate::model::Model::from_value(&f[6])?,
+            turns: crate::model::Model::from_value(&f[7])?,
+            modifiers: crate::model::Model::from_value(&f[8])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityGreatPerson {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityFocusOption {
+    pub key: CityFocus,
+    pub id: i32,
+    pub enabled: bool,
+    pub reason: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for CityFocusOption {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(CityFocusOption {
+            key: crate::model::Model::from_value(&f[0])?,
+            id: crate::model::Model::from_value(&f[1])?,
+            enabled: crate::model::Model::from_value(&f[2])?,
+            reason: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityFocusOption {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_enum(self.key as u16)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityBuildingYield {
+    pub key: CityYieldKind,
+    pub value: i32,
+}
+
+impl crate::model::Model for CityBuildingYield {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.value),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(CityBuildingYield {
+            key: crate::model::Model::from_value(&f[0])?,
+            value: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityBuildingYield {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_enum(self.key as u16)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CitySpecialist {
+    pub key: ::std::sync::Arc<str>,
+    pub id: i32,
+    pub r#yield: CityYieldKind,
+    pub slots: i32,
+    pub filled: i32,
+    pub can_add: bool,
+    pub reason: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for CitySpecialist {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.r#yield, &old.r#yield, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.slots, &old.slots, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.filled, &old.filled, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.can_add, &old.can_add, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.r#yield),
+            crate::model::Model::to_value(&self.slots),
+            crate::model::Model::to_value(&self.filled),
+            crate::model::Model::to_value(&self.can_add),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(CitySpecialist {
+            key: crate::model::Model::from_value(&f[0])?,
+            id: crate::model::Model::from_value(&f[1])?,
+            r#yield: crate::model::Model::from_value(&f[2])?,
+            slots: crate::model::Model::from_value(&f[3])?,
+            filled: crate::model::Model::from_value(&f[4])?,
+            can_add: crate::model::Model::from_value(&f[5])?,
+            reason: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityWorkSlot {
+    pub index: i32,
+    pub filled: bool,
+    pub name: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for CityWorkSlot {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.index, &old.index, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.filled, &old.filled, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.index),
+            crate::model::Model::to_value(&self.filled),
+            crate::model::Model::to_value(&self.name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CityWorkSlot {
+            index: crate::model::Model::from_value(&f[0])?,
+            filled: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityWorkSlot {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.index))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityGreatWorks {
+    pub kind: CityWorkKind,
+    pub slots: crate::model::KeyedList<CityWorkSlot>,
+    pub theming_bonus: Option<i32>,
+}
+
+impl crate::model::Model for CityGreatWorks {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.slots, &old.slots, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.theming_bonus, &old.theming_bonus, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.slots),
+            crate::model::Model::to_value(&self.theming_bonus),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CityGreatWorks {
+            kind: crate::model::Model::from_value(&f[0])?,
+            slots: crate::model::Model::from_value(&f[1])?,
+            theming_bonus: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityBuilding {
+    pub id: i32,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub yields: crate::model::KeyedList<CityBuildingYield>,
+    pub defense: Option<i32>,
+    pub maintenance: i32,
+    pub free: bool,
+    pub can_sell: bool,
+    pub sell_refund: Option<i32>,
+    pub sell_reason: Option<crate::value::Text>,
+    pub specialist: Option<CitySpecialist>,
+    pub great_works: Option<CityGreatWorks>,
+    pub help: crate::value::Text,
+}
+
+impl crate::model::Model for CityBuilding {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.yields, &old.yields, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.defense, &old.defense, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.maintenance, &old.maintenance, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.free, &old.free, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.can_sell, &old.can_sell, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.sell_refund, &old.sell_refund, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.sell_reason, &old.sell_reason, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.specialist, &old.specialist, at, out);
+        at.field = base.child(20);
+        crate::model::Model::diff(&self.great_works, &old.great_works, at, out);
+        at.field = base.child(27);
+        crate::model::Model::diff(&self.help, &old.help, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.yields),
+            crate::model::Model::to_value(&self.defense),
+            crate::model::Model::to_value(&self.maintenance),
+            crate::model::Model::to_value(&self.free),
+            crate::model::Model::to_value(&self.can_sell),
+            crate::model::Model::to_value(&self.sell_refund),
+            crate::model::Model::to_value(&self.sell_reason),
+            crate::model::Model::to_value(&self.specialist),
+            crate::model::Model::to_value(&self.great_works),
+            crate::model::Model::to_value(&self.help),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(13)?;
+        Ok(CityBuilding {
+            id: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            yields: crate::model::Model::from_value(&f[3])?,
+            defense: crate::model::Model::from_value(&f[4])?,
+            maintenance: crate::model::Model::from_value(&f[5])?,
+            free: crate::model::Model::from_value(&f[6])?,
+            can_sell: crate::model::Model::from_value(&f[7])?,
+            sell_refund: crate::model::Model::from_value(&f[8])?,
+            sell_reason: crate::model::Model::from_value(&f[9])?,
+            specialist: crate::model::Model::from_value(&f[10])?,
+            great_works: crate::model::Model::from_value(&f[11])?,
+            help: crate::model::Model::from_value(&f[12])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityBuilding {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityBuildingGroup {
+    pub key: CityBuildingKind,
+    pub count: i32,
+    pub maintenance: i32,
+    pub buildings: crate::model::KeyedList<CityBuilding>,
+}
+
+impl crate::model::Model for CityBuildingGroup {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.count, &old.count, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.maintenance, &old.maintenance, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.buildings, &old.buildings, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.count),
+            crate::model::Model::to_value(&self.maintenance),
+            crate::model::Model::to_value(&self.buildings),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(CityBuildingGroup {
+            key: crate::model::Model::from_value(&f[0])?,
+            count: crate::model::Model::from_value(&f[1])?,
+            maintenance: crate::model::Model::from_value(&f[2])?,
+            buildings: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityBuildingGroup {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_enum(self.key as u16)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityTile {
+    pub index: i32,
+    pub x: i32,
+    pub y: i32,
+    pub plot: i32,
+    pub state: CityTileState,
+    pub yields: crate::model::KeyedList<CityBuildingYield>,
+    pub other_city: Option<crate::value::Text>,
+    pub buy_price: Option<i32>,
+    pub buy_state: Option<CityBuyState>,
+    pub buy_short: Option<i32>,
+    pub buy_reason: Option<crate::value::Text>,
+    pub border_next: bool,
+}
+
+impl crate::model::Model for CityTile {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.index, &old.index, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.x, &old.x, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.y, &old.y, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.plot, &old.plot, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.state, &old.state, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.yields, &old.yields, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.other_city, &old.other_city, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.buy_price, &old.buy_price, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.buy_state, &old.buy_state, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.buy_short, &old.buy_short, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.buy_reason, &old.buy_reason, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.border_next, &old.border_next, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.index),
+            crate::model::Model::to_value(&self.x),
+            crate::model::Model::to_value(&self.y),
+            crate::model::Model::to_value(&self.plot),
+            crate::model::Model::to_value(&self.state),
+            crate::model::Model::to_value(&self.yields),
+            crate::model::Model::to_value(&self.other_city),
+            crate::model::Model::to_value(&self.buy_price),
+            crate::model::Model::to_value(&self.buy_state),
+            crate::model::Model::to_value(&self.buy_short),
+            crate::model::Model::to_value(&self.buy_reason),
+            crate::model::Model::to_value(&self.border_next),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(12)?;
+        Ok(CityTile {
+            index: crate::model::Model::from_value(&f[0])?,
+            x: crate::model::Model::from_value(&f[1])?,
+            y: crate::model::Model::from_value(&f[2])?,
+            plot: crate::model::Model::from_value(&f[3])?,
+            state: crate::model::Model::from_value(&f[4])?,
+            yields: crate::model::Model::from_value(&f[5])?,
+            other_city: crate::model::Model::from_value(&f[6])?,
+            buy_price: crate::model::Model::from_value(&f[7])?,
+            buy_state: crate::model::Model::from_value(&f[8])?,
+            buy_short: crate::model::Model::from_value(&f[9])?,
+            buy_reason: crate::model::Model::from_value(&f[10])?,
+            border_next: crate::model::Model::from_value(&f[11])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityTile {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.index))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityTask {
+    pub kind: CityTaskKind,
+    pub enabled: bool,
+    pub reason: Option<crate::value::Text>,
+    pub forecast: Option<crate::value::Text>,
+    pub mode: i32,
+}
+
+impl crate::model::Model for CityTask {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.forecast, &old.forecast, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.mode, &old.mode, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.forecast),
+            crate::model::Model::to_value(&self.mode),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(CityTask {
+            kind: crate::model::Model::from_value(&f[0])?,
+            enabled: crate::model::Model::from_value(&f[1])?,
+            reason: crate::model::Model::from_value(&f[2])?,
+            forecast: crate::model::Model::from_value(&f[3])?,
+            mode: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityAnnexPreview {
+    pub key: ::std::sync::Arc<str>,
+    pub label: crate::value::Text,
+    pub value: crate::value::Text,
+    pub tone: CityTone,
+}
+
+impl crate::model::Model for CityAnnexPreview {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.tone, &old.tone, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.value),
+            crate::model::Model::to_value(&self.tone),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(CityAnnexPreview {
+            key: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            value: crate::model::Model::from_value(&f[2])?,
+            tone: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityAnnexPreview {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityCapturedWork {
+    pub key: i32,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub kind: CityCapturedWorkKind,
+}
+
+impl crate::model::Model for CityCapturedWork {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.kind),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(CityCapturedWork {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            kind: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityCapturedWork {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.key))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityCapturedLoot {
+    pub gold: i32,
+    pub culture: i32,
+    pub great_works: crate::model::KeyedList<CityCapturedWork>,
+}
+
+impl crate::model::Model for CityCapturedLoot {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.gold, &old.gold, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.culture, &old.culture, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.great_works, &old.great_works, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.gold),
+            crate::model::Model::to_value(&self.culture),
+            crate::model::Model::to_value(&self.great_works),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(CityCapturedLoot {
+            gold: crate::model::Model::from_value(&f[0])?,
+            culture: crate::model::Model::from_value(&f[1])?,
+            great_works: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityCapturedOption {
+    pub key: CityCapturedChoice,
+    pub enabled: bool,
+    pub reason: Option<crate::value::Text>,
+    pub title: crate::value::Text,
+    pub text: crate::value::Text,
+    pub forecast: Option<crate::value::Text>,
+    pub happiness: Option<i32>,
+    pub liberate_to: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for CityCapturedOption {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.title, &old.title, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.forecast, &old.forecast, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.happiness, &old.happiness, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.liberate_to, &old.liberate_to, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.title),
+            crate::model::Model::to_value(&self.text),
+            crate::model::Model::to_value(&self.forecast),
+            crate::model::Model::to_value(&self.happiness),
+            crate::model::Model::to_value(&self.liberate_to),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(CityCapturedOption {
+            key: crate::model::Model::from_value(&f[0])?,
+            enabled: crate::model::Model::from_value(&f[1])?,
+            reason: crate::model::Model::from_value(&f[2])?,
+            title: crate::model::Model::from_value(&f[3])?,
+            text: crate::model::Model::from_value(&f[4])?,
+            forecast: crate::model::Model::from_value(&f[5])?,
+            happiness: crate::model::Model::from_value(&f[6])?,
+            liberate_to: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityCapturedOption {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_enum(self.key as u16)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityListProduction {
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub kind: CityListItemKind,
+    pub stored: i32,
+    pub needed: i32,
+    pub rate: i32,
+    pub turns: Option<i32>,
+}
+
+impl crate::model::Model for CityListProduction {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.stored, &old.stored, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.needed, &old.needed, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.rate, &old.rate, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.stored),
+            crate::model::Model::to_value(&self.needed),
+            crate::model::Model::to_value(&self.rate),
+            crate::model::Model::to_value(&self.turns),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(CityListProduction {
+            name: crate::model::Model::from_value(&f[0])?,
+            icon: crate::model::Model::from_value(&f[1])?,
+            kind: crate::model::Model::from_value(&f[2])?,
+            stored: crate::model::Model::from_value(&f[3])?,
+            needed: crate::model::Model::from_value(&f[4])?,
+            rate: crate::model::Model::from_value(&f[5])?,
+            turns: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityListRow {
+    pub city: i32,
+    pub map_city: crate::value::Key,
+    pub name: ::std::sync::Arc<str>,
+    pub status: CityListStatus,
+    pub population: i32,
+    pub food_stored: i32,
+    pub food_threshold: i32,
+    pub food_net: i32,
+    pub growth_turns: Option<i32>,
+    pub growth_state: CityListGrowth,
+    pub strength: i32,
+    pub hp_fraction: f32,
+    pub can_range_strike: bool,
+    pub production: Option<CityListProduction>,
+    pub production_sort: ::std::sync::Arc<str>,
+    pub can_choose: bool,
+    pub x: i32,
+    pub y: i32,
+}
+
+impl crate::model::Model for CityListRow {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.map_city, &old.map_city, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.status, &old.status, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.population, &old.population, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.food_stored, &old.food_stored, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.food_threshold, &old.food_threshold, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.food_net, &old.food_net, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.growth_turns, &old.growth_turns, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.growth_state, &old.growth_state, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.strength, &old.strength, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.hp_fraction, &old.hp_fraction, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.can_range_strike, &old.can_range_strike, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.production, &old.production, at, out);
+        at.field = base.child(21);
+        crate::model::Model::diff(&self.production_sort, &old.production_sort, at, out);
+        at.field = base.child(22);
+        crate::model::Model::diff(&self.can_choose, &old.can_choose, at, out);
+        at.field = base.child(23);
+        crate::model::Model::diff(&self.x, &old.x, at, out);
+        at.field = base.child(24);
+        crate::model::Model::diff(&self.y, &old.y, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.city),
+            crate::model::Model::to_value(&self.map_city),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.status),
+            crate::model::Model::to_value(&self.population),
+            crate::model::Model::to_value(&self.food_stored),
+            crate::model::Model::to_value(&self.food_threshold),
+            crate::model::Model::to_value(&self.food_net),
+            crate::model::Model::to_value(&self.growth_turns),
+            crate::model::Model::to_value(&self.growth_state),
+            crate::model::Model::to_value(&self.strength),
+            crate::model::Model::to_value(&self.hp_fraction),
+            crate::model::Model::to_value(&self.can_range_strike),
+            crate::model::Model::to_value(&self.production),
+            crate::model::Model::to_value(&self.production_sort),
+            crate::model::Model::to_value(&self.can_choose),
+            crate::model::Model::to_value(&self.x),
+            crate::model::Model::to_value(&self.y),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(18)?;
+        Ok(CityListRow {
+            city: crate::model::Model::from_value(&f[0])?,
+            map_city: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            status: crate::model::Model::from_value(&f[3])?,
+            population: crate::model::Model::from_value(&f[4])?,
+            food_stored: crate::model::Model::from_value(&f[5])?,
+            food_threshold: crate::model::Model::from_value(&f[6])?,
+            food_net: crate::model::Model::from_value(&f[7])?,
+            growth_turns: crate::model::Model::from_value(&f[8])?,
+            growth_state: crate::model::Model::from_value(&f[9])?,
+            strength: crate::model::Model::from_value(&f[10])?,
+            hp_fraction: crate::model::Model::from_value(&f[11])?,
+            can_range_strike: crate::model::Model::from_value(&f[12])?,
+            production: crate::model::Model::from_value(&f[13])?,
+            production_sort: crate::model::Model::from_value(&f[14])?,
+            can_choose: crate::model::Model::from_value(&f[15])?,
+            x: crate::model::Model::from_value(&f[16])?,
+            y: crate::model::Model::from_value(&f[17])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for CityListRow {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.city))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityRenameTask {
+    pub kind: CityRenameTaskKind,
+    pub id: i32,
+    pub explain: Option<crate::value::Text>,
+    pub forecast: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for CityRenameTask {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.explain, &old.explain, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.forecast, &old.forecast, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.explain),
+            crate::model::Model::to_value(&self.forecast),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(CityRenameTask {
+            kind: crate::model::Model::from_value(&f[0])?,
+            id: crate::model::Model::from_value(&f[1])?,
+            explain: crate::model::Model::from_value(&f[2])?,
+            forecast: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct FreeGreatPersonAbility {
+    pub index: i32,
+    pub label: crate::value::Text,
+    pub text: crate::value::Text,
+}
+
+impl crate::model::Model for FreeGreatPersonAbility {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.index, &old.index, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.index),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(FreeGreatPersonAbility {
+            index: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            text: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for FreeGreatPersonAbility {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.index))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct FreeGreatPersonChoice {
+    pub unit: i32,
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub strategy: crate::value::Text,
+    pub abilities: crate::model::KeyedList<FreeGreatPersonAbility>,
+    pub available: bool,
+    pub reason: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for FreeGreatPersonChoice {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.unit, &old.unit, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.strategy, &old.strategy, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.abilities, &old.abilities, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.available, &old.available, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.unit),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.strategy),
+            crate::model::Model::to_value(&self.abilities),
+            crate::model::Model::to_value(&self.available),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(FreeGreatPersonChoice {
+            unit: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+            strategy: crate::model::Model::from_value(&f[4])?,
+            abilities: crate::model::Model::from_value(&f[5])?,
+            available: crate::model::Model::from_value(&f[6])?,
+            reason: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for FreeGreatPersonChoice {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.unit))
     }
 }
 
@@ -5045,15 +8722,15 @@ impl crate::model::Model for Ui {
         crate::model::Model::diff(&self.map_mode, &old.map_mode, at, out);
         at.field = base.child(7);
         crate::model::Model::diff(&self.windows, &old.windows, at, out);
-        at.field = base.child(23);
+        at.field = base.child(43);
         crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(27);
+        at.field = base.child(47);
         crate::model::Model::diff(&self.chat, &old.chat, at, out);
-        at.field = base.child(30);
+        at.field = base.child(50);
         crate::model::Model::diff(&self.pending, &old.pending, at, out);
-        at.field = base.child(35);
+        at.field = base.child(55);
         crate::model::Model::diff(&self.turn_pending, &old.turn_pending, at, out);
-        at.field = base.child(36);
+        at.field = base.child(56);
         crate::model::Model::diff(&self.errors, &old.errors, at, out);
         at.field = base;
     }
@@ -5082,6 +8759,501 @@ impl crate::model::Model for Ui {
             pending: crate::model::Model::from_value(&f[5])?,
             turn_pending: crate::model::Model::from_value(&f[6])?,
             errors: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct City {
+    pub city: i32,
+    pub map_city: crate::value::Key,
+    pub name: crate::value::Text,
+    pub capital: bool,
+    pub civ: crate::value::AssetRef,
+    pub civ_color: u32,
+    pub civ_color2: u32,
+    pub owner: crate::value::Text,
+    pub view_only: bool,
+    pub view_reason: CityViewReason,
+    pub my_turn: bool,
+    pub disabled_reason: Option<crate::value::Text>,
+    pub can_rename: bool,
+    pub can_cycle: bool,
+    pub prev_city: Option<i32>,
+    pub next_city: Option<i32>,
+    pub city_count: i32,
+    pub choose_mode: bool,
+    pub next_choose_city: Option<i32>,
+    pub strength: i32,
+    pub hp: i32,
+    pub max_hp: i32,
+    pub status: crate::model::KeyedList<CityStatus>,
+    pub demand: Option<CityDemand>,
+    pub population: i32,
+    pub population_label: crate::value::Text,
+    pub food: CityFood,
+    pub yields: crate::model::KeyedList<CityYield>,
+    pub border: CityBorder,
+    pub treasury: CityTreasury,
+    pub production: CityProduction,
+    pub great_people: crate::model::KeyedList<CityGreatPerson>,
+    pub focus: CityFocus,
+    pub focus_options: crate::model::KeyedList<CityFocusOption>,
+    pub avoid_growth: bool,
+    pub manual_specialists: bool,
+    pub can_reset_tiles: bool,
+    pub unemployed: i32,
+    pub specialists: i32,
+    pub specialist_slots: i32,
+    pub sold_this_turn: bool,
+    pub building_groups: crate::model::KeyedList<CityBuildingGroup>,
+    pub tiles: crate::model::KeyedList<CityTile>,
+    pub task: CityTask,
+    pub annex_preview: crate::model::KeyedList<CityAnnexPreview>,
+}
+
+impl crate::model::Model for City {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.map_city, &old.map_city, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.capital, &old.capital, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.civ_color, &old.civ_color, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.civ_color2, &old.civ_color2, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.owner, &old.owner, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.view_only, &old.view_only, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.view_reason, &old.view_reason, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.my_turn, &old.my_turn, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.disabled_reason, &old.disabled_reason, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.can_rename, &old.can_rename, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.can_cycle, &old.can_cycle, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.prev_city, &old.prev_city, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.next_city, &old.next_city, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.city_count, &old.city_count, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.choose_mode, &old.choose_mode, at, out);
+        at.field = base.child(18);
+        crate::model::Model::diff(&self.next_choose_city, &old.next_choose_city, at, out);
+        at.field = base.child(19);
+        crate::model::Model::diff(&self.strength, &old.strength, at, out);
+        at.field = base.child(20);
+        crate::model::Model::diff(&self.hp, &old.hp, at, out);
+        at.field = base.child(21);
+        crate::model::Model::diff(&self.max_hp, &old.max_hp, at, out);
+        at.field = base.child(22);
+        crate::model::Model::diff(&self.status, &old.status, at, out);
+        at.field = base.child(26);
+        crate::model::Model::diff(&self.demand, &old.demand, at, out);
+        at.field = base.child(31);
+        crate::model::Model::diff(&self.population, &old.population, at, out);
+        at.field = base.child(32);
+        crate::model::Model::diff(&self.population_label, &old.population_label, at, out);
+        at.field = base.child(33);
+        crate::model::Model::diff(&self.food, &old.food, at, out);
+        at.field = base.child(39);
+        crate::model::Model::diff(&self.yields, &old.yields, at, out);
+        at.field = base.child(46);
+        crate::model::Model::diff(&self.border, &old.border, at, out);
+        at.field = base.child(50);
+        crate::model::Model::diff(&self.treasury, &old.treasury, at, out);
+        at.field = base.child(53);
+        crate::model::Model::diff(&self.production, &old.production, at, out);
+        at.field = base.child(101);
+        crate::model::Model::diff(&self.great_people, &old.great_people, at, out);
+        at.field = base.child(113);
+        crate::model::Model::diff(&self.focus, &old.focus, at, out);
+        at.field = base.child(114);
+        crate::model::Model::diff(&self.focus_options, &old.focus_options, at, out);
+        at.field = base.child(119);
+        crate::model::Model::diff(&self.avoid_growth, &old.avoid_growth, at, out);
+        at.field = base.child(120);
+        crate::model::Model::diff(&self.manual_specialists, &old.manual_specialists, at, out);
+        at.field = base.child(121);
+        crate::model::Model::diff(&self.can_reset_tiles, &old.can_reset_tiles, at, out);
+        at.field = base.child(122);
+        crate::model::Model::diff(&self.unemployed, &old.unemployed, at, out);
+        at.field = base.child(123);
+        crate::model::Model::diff(&self.specialists, &old.specialists, at, out);
+        at.field = base.child(124);
+        crate::model::Model::diff(&self.specialist_slots, &old.specialist_slots, at, out);
+        at.field = base.child(125);
+        crate::model::Model::diff(&self.sold_this_turn, &old.sold_this_turn, at, out);
+        at.field = base.child(126);
+        crate::model::Model::diff(&self.building_groups, &old.building_groups, at, out);
+        at.field = base.child(159);
+        crate::model::Model::diff(&self.tiles, &old.tiles, at, out);
+        at.field = base.child(174);
+        crate::model::Model::diff(&self.task, &old.task, at, out);
+        at.field = base.child(180);
+        crate::model::Model::diff(&self.annex_preview, &old.annex_preview, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.city),
+            crate::model::Model::to_value(&self.map_city),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.capital),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.civ_color),
+            crate::model::Model::to_value(&self.civ_color2),
+            crate::model::Model::to_value(&self.owner),
+            crate::model::Model::to_value(&self.view_only),
+            crate::model::Model::to_value(&self.view_reason),
+            crate::model::Model::to_value(&self.my_turn),
+            crate::model::Model::to_value(&self.disabled_reason),
+            crate::model::Model::to_value(&self.can_rename),
+            crate::model::Model::to_value(&self.can_cycle),
+            crate::model::Model::to_value(&self.prev_city),
+            crate::model::Model::to_value(&self.next_city),
+            crate::model::Model::to_value(&self.city_count),
+            crate::model::Model::to_value(&self.choose_mode),
+            crate::model::Model::to_value(&self.next_choose_city),
+            crate::model::Model::to_value(&self.strength),
+            crate::model::Model::to_value(&self.hp),
+            crate::model::Model::to_value(&self.max_hp),
+            crate::model::Model::to_value(&self.status),
+            crate::model::Model::to_value(&self.demand),
+            crate::model::Model::to_value(&self.population),
+            crate::model::Model::to_value(&self.population_label),
+            crate::model::Model::to_value(&self.food),
+            crate::model::Model::to_value(&self.yields),
+            crate::model::Model::to_value(&self.border),
+            crate::model::Model::to_value(&self.treasury),
+            crate::model::Model::to_value(&self.production),
+            crate::model::Model::to_value(&self.great_people),
+            crate::model::Model::to_value(&self.focus),
+            crate::model::Model::to_value(&self.focus_options),
+            crate::model::Model::to_value(&self.avoid_growth),
+            crate::model::Model::to_value(&self.manual_specialists),
+            crate::model::Model::to_value(&self.can_reset_tiles),
+            crate::model::Model::to_value(&self.unemployed),
+            crate::model::Model::to_value(&self.specialists),
+            crate::model::Model::to_value(&self.specialist_slots),
+            crate::model::Model::to_value(&self.sold_this_turn),
+            crate::model::Model::to_value(&self.building_groups),
+            crate::model::Model::to_value(&self.tiles),
+            crate::model::Model::to_value(&self.task),
+            crate::model::Model::to_value(&self.annex_preview),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(45)?;
+        Ok(City {
+            city: crate::model::Model::from_value(&f[0])?,
+            map_city: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            capital: crate::model::Model::from_value(&f[3])?,
+            civ: crate::model::Model::from_value(&f[4])?,
+            civ_color: crate::model::Model::from_value(&f[5])?,
+            civ_color2: crate::model::Model::from_value(&f[6])?,
+            owner: crate::model::Model::from_value(&f[7])?,
+            view_only: crate::model::Model::from_value(&f[8])?,
+            view_reason: crate::model::Model::from_value(&f[9])?,
+            my_turn: crate::model::Model::from_value(&f[10])?,
+            disabled_reason: crate::model::Model::from_value(&f[11])?,
+            can_rename: crate::model::Model::from_value(&f[12])?,
+            can_cycle: crate::model::Model::from_value(&f[13])?,
+            prev_city: crate::model::Model::from_value(&f[14])?,
+            next_city: crate::model::Model::from_value(&f[15])?,
+            city_count: crate::model::Model::from_value(&f[16])?,
+            choose_mode: crate::model::Model::from_value(&f[17])?,
+            next_choose_city: crate::model::Model::from_value(&f[18])?,
+            strength: crate::model::Model::from_value(&f[19])?,
+            hp: crate::model::Model::from_value(&f[20])?,
+            max_hp: crate::model::Model::from_value(&f[21])?,
+            status: crate::model::Model::from_value(&f[22])?,
+            demand: crate::model::Model::from_value(&f[23])?,
+            population: crate::model::Model::from_value(&f[24])?,
+            population_label: crate::model::Model::from_value(&f[25])?,
+            food: crate::model::Model::from_value(&f[26])?,
+            yields: crate::model::Model::from_value(&f[27])?,
+            border: crate::model::Model::from_value(&f[28])?,
+            treasury: crate::model::Model::from_value(&f[29])?,
+            production: crate::model::Model::from_value(&f[30])?,
+            great_people: crate::model::Model::from_value(&f[31])?,
+            focus: crate::model::Model::from_value(&f[32])?,
+            focus_options: crate::model::Model::from_value(&f[33])?,
+            avoid_growth: crate::model::Model::from_value(&f[34])?,
+            manual_specialists: crate::model::Model::from_value(&f[35])?,
+            can_reset_tiles: crate::model::Model::from_value(&f[36])?,
+            unemployed: crate::model::Model::from_value(&f[37])?,
+            specialists: crate::model::Model::from_value(&f[38])?,
+            specialist_slots: crate::model::Model::from_value(&f[39])?,
+            sold_this_turn: crate::model::Model::from_value(&f[40])?,
+            building_groups: crate::model::Model::from_value(&f[41])?,
+            tiles: crate::model::Model::from_value(&f[42])?,
+            task: crate::model::Model::from_value(&f[43])?,
+            annex_preview: crate::model::Model::from_value(&f[44])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityCaptured {
+    pub mode: CityCapturedMode,
+    pub city: i32,
+    pub name: crate::value::Text,
+    pub population: i32,
+    pub taken_from: crate::value::Text,
+    pub founded_by: Option<crate::value::Text>,
+    pub minor_buyout: bool,
+    pub loot: Option<CityCapturedLoot>,
+    pub options: crate::model::KeyedList<CityCapturedOption>,
+    pub can_view: bool,
+    pub may_annex: Option<bool>,
+    pub happiness: Option<i32>,
+    pub reason: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for CityCaptured {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.mode, &old.mode, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.population, &old.population, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.taken_from, &old.taken_from, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.founded_by, &old.founded_by, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.minor_buyout, &old.minor_buyout, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.loot, &old.loot, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.options, &old.options, at, out);
+        at.field = base.child(24);
+        crate::model::Model::diff(&self.can_view, &old.can_view, at, out);
+        at.field = base.child(25);
+        crate::model::Model::diff(&self.may_annex, &old.may_annex, at, out);
+        at.field = base.child(26);
+        crate::model::Model::diff(&self.happiness, &old.happiness, at, out);
+        at.field = base.child(27);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.mode),
+            crate::model::Model::to_value(&self.city),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.population),
+            crate::model::Model::to_value(&self.taken_from),
+            crate::model::Model::to_value(&self.founded_by),
+            crate::model::Model::to_value(&self.minor_buyout),
+            crate::model::Model::to_value(&self.loot),
+            crate::model::Model::to_value(&self.options),
+            crate::model::Model::to_value(&self.can_view),
+            crate::model::Model::to_value(&self.may_annex),
+            crate::model::Model::to_value(&self.happiness),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(13)?;
+        Ok(CityCaptured {
+            mode: crate::model::Model::from_value(&f[0])?,
+            city: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            population: crate::model::Model::from_value(&f[3])?,
+            taken_from: crate::model::Model::from_value(&f[4])?,
+            founded_by: crate::model::Model::from_value(&f[5])?,
+            minor_buyout: crate::model::Model::from_value(&f[6])?,
+            loot: crate::model::Model::from_value(&f[7])?,
+            options: crate::model::Model::from_value(&f[8])?,
+            can_view: crate::model::Model::from_value(&f[9])?,
+            may_annex: crate::model::Model::from_value(&f[10])?,
+            happiness: crate::model::Model::from_value(&f[11])?,
+            reason: crate::model::Model::from_value(&f[12])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityList {
+    pub count: i32,
+    pub cities: crate::model::KeyedList<CityListRow>,
+}
+
+impl crate::model::Model for CityList {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.count, &old.count, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.cities, &old.cities, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.count),
+            crate::model::Model::to_value(&self.cities),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(CityList {
+            count: crate::model::Model::from_value(&f[0])?,
+            cities: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CityRename {
+    pub mode: CityRenameMode,
+    pub city: i32,
+    pub name: crate::value::Text,
+    pub max_length: i32,
+    pub task: Option<CityRenameTask>,
+    pub enabled: bool,
+    pub done: bool,
+    pub reason: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for CityRename {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.mode, &old.mode, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.max_length, &old.max_length, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.task, &old.task, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.done, &old.done, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.mode),
+            crate::model::Model::to_value(&self.city),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.max_length),
+            crate::model::Model::to_value(&self.task),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.done),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(CityRename {
+            mode: crate::model::Model::from_value(&f[0])?,
+            city: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            max_length: crate::model::Model::from_value(&f[3])?,
+            task: crate::model::Model::from_value(&f[4])?,
+            enabled: crate::model::Model::from_value(&f[5])?,
+            done: crate::model::Model::from_value(&f[6])?,
+            reason: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct FreeGreatPerson {
+    pub mode: FreeGreatPersonMode,
+    pub mode_id: i32,
+    pub title: crate::value::Text,
+    pub instructions: crate::value::Text,
+    pub remaining: i32,
+    pub can_close: bool,
+    pub baktun: Option<i32>,
+    pub appears_in: Option<crate::value::Text>,
+    pub people: crate::model::KeyedList<FreeGreatPersonChoice>,
+}
+
+impl crate::model::Model for FreeGreatPerson {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.mode, &old.mode, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.mode_id, &old.mode_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.title, &old.title, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.instructions, &old.instructions, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.remaining, &old.remaining, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.can_close, &old.can_close, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.baktun, &old.baktun, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.appears_in, &old.appears_in, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.people, &old.people, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.mode),
+            crate::model::Model::to_value(&self.mode_id),
+            crate::model::Model::to_value(&self.title),
+            crate::model::Model::to_value(&self.instructions),
+            crate::model::Model::to_value(&self.remaining),
+            crate::model::Model::to_value(&self.can_close),
+            crate::model::Model::to_value(&self.baktun),
+            crate::model::Model::to_value(&self.appears_in),
+            crate::model::Model::to_value(&self.people),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(9)?;
+        Ok(FreeGreatPerson {
+            mode: crate::model::Model::from_value(&f[0])?,
+            mode_id: crate::model::Model::from_value(&f[1])?,
+            title: crate::model::Model::from_value(&f[2])?,
+            instructions: crate::model::Model::from_value(&f[3])?,
+            remaining: crate::model::Model::from_value(&f[4])?,
+            can_close: crate::model::Model::from_value(&f[5])?,
+            baktun: crate::model::Model::from_value(&f[6])?,
+            appears_in: crate::model::Model::from_value(&f[7])?,
+            people: crate::model::Model::from_value(&f[8])?,
         })
     }
 }
@@ -5203,6 +9375,26 @@ impl crate::model::Root for Ui {
     const NAME: &'static str = "ui";
 }
 
+impl crate::model::Root for Option<City> {
+    const NAME: &'static str = "city";
+}
+
+impl crate::model::Root for Option<CityCaptured> {
+    const NAME: &'static str = "city_captured";
+}
+
+impl crate::model::Root for Option<CityList> {
+    const NAME: &'static str = "city_list";
+}
+
+impl crate::model::Root for Option<CityRename> {
+    const NAME: &'static str = "city_rename";
+}
+
+impl crate::model::Root for Option<FreeGreatPerson> {
+    const NAME: &'static str = "free_great_person";
+}
+
 impl crate::model::Root for Option<Hud> {
     const NAME: &'static str = "hud";
 }
@@ -5231,24 +9423,39 @@ pub fn put_root(
         "chat" => crate::model::put_value::<crate::model::KeyedList<ChatRow>>(w, v),
         "production" => crate::model::put_value::<Option<Production>>(w, v),
         "ui" => crate::model::put_value::<Ui>(w, v),
+        "city" => crate::model::put_value::<Option<City>>(w, v),
+        "city_captured" => crate::model::put_value::<Option<CityCaptured>>(w, v),
+        "city_list" => crate::model::put_value::<Option<CityList>>(w, v),
+        "city_rename" => crate::model::put_value::<Option<CityRename>>(w, v),
+        "free_great_person" => crate::model::put_value::<Option<FreeGreatPerson>>(w, v),
         "hud" => crate::model::put_value::<Option<Hud>>(w, v),
         "techs" => crate::model::put_value::<Option<Techs>>(w, v),
         _ => return None,
     })
 }
 
-pub const WINDOW_SCREEN_NAMES: &[&str] = &["techs"];
+pub const WINDOW_SCREEN_NAMES: &[&str] = &["city", "city_captured", "city_list", "city_rename", "free_great_person", "techs"];
 
-pub const SCREEN_NAMES: &[&str] = &["hud", "techs"];
+pub const SCREEN_NAMES: &[&str] = &["city", "city_captured", "city_list", "city_rename", "free_great_person", "hud", "techs"];
 impl Windows {
     pub fn remote(&self, name: &str) -> Option<&WinArgs> {
         Some(match name {
+            "city" => &self.city,
+            "city_captured" => &self.city_captured,
+            "city_list" => &self.city_list,
+            "city_rename" => &self.city_rename,
+            "free_great_person" => &self.free_great_person,
             "techs" => &self.techs,
             _ => return None,
         })
     }
     pub fn remote_mut(&mut self, name: &str) -> Option<&mut WinArgs> {
         Some(match name {
+            "city" => &mut self.city,
+            "city_captured" => &mut self.city_captured,
+            "city_list" => &mut self.city_list,
+            "city_rename" => &mut self.city_rename,
+            "free_great_person" => &mut self.free_great_person,
             "techs" => &mut self.techs,
             _ => return None,
         })

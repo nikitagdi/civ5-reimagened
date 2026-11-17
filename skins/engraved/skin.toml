@@ -27,12 +27,16 @@ display = "Alegreya"
 prod = { sort = "order", hide_locked = false }
 chat = { draft = "", pick = false }
 top = { menu = false }
+free_gp = { selected = -1 }
+city_rename = { draft = "", valid = false, touched = false, why = "" }
+city_list = { sort = "population", desc = true }
+city = { hover_kind = "", buy_tiles = false, sell = -1, hover = -1, queue_mode = 0, repeat_order = false }
 
 # The production window's script: arrow keys move the focus; the sort is kept in the settings.
 [scripts]
-files = ["js/production.js"]
-reads = ["production"]
+files = ["js/production.js", "js/city_rename.js", "js/city.js", "js/city_list.js", "js/free_great_person.js"]
+reads = ["production", "city", "city_rename", "city_captured", "free_great_person"]
 
 [verify]
-states = ["hud", "hud-timer", "hud-chat", "production", "production-sorted", "research", "techs"]
+states = ["hud", "hud-timer", "hud-chat", "production", "production-sorted", "research", "techs", "city", "city_list", "city_rename", "city_captured", "free_great_person", "city--puppet", "city--sell", "city_rename--invalid", "city_rename--raze", "city_rename--unraze", "city_rename--annex", "city_captured--annex", "free_great_person--faith", "free_great_person--maya"]
 golden = [{ state = "hud", viewport = [1920, 1080], scale = 1.0 }]

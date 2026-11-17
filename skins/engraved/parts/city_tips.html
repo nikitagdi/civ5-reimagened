@@ -1,0 +1,5 @@
+<template id="city-tip" data-layer="tooltip"><div class="city-tip" data-bind-if="{{city != null}}">
+  <div data-bind-if="{{state.city.hover_kind == 'option'}}"><div data-bind-for="g:{{city.production.groups}}"><div data-bind-for="o:{{g.options}}" data-bind-filter="{{o.item == state.city.hover}}"><b data-bind-value="{{o.name}}"></b><span data-bind-value="{{o.help}}"></span><span data-bind-value="{{o.reason}}"></span><span data-bind-value="{{o.buy_reason}}"></span></div></div></div>
+  <div data-bind-if="{{state.city.hover_kind == 'building'}}"><div data-bind-for="g:{{city.building_groups}}"><div data-bind-for="b:{{g.buildings}}" data-bind-filter="{{b.id == state.city.hover}}"><b data-bind-value="{{b.name}}"></b><span data-bind-value="{{b.help}}"></span><span data-bind-value="{{b.sell_reason}}"></span></div></div></div>
+  <div data-bind-if="{{state.city.hover_kind == 'focus'}}"><div data-bind-for="f:{{city.focus_options}}" data-bind-filter="{{f.id == state.city.hover}}" data-bind-value="{{f.reason}}"></div></div>
+</div></template>

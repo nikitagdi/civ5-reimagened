@@ -1,0 +1,71 @@
+<div class="city-screen" data-part="city" data-screen="city" data-bind-if="{{ui.windows.city.open}}">
+  <span class="city-loading" data-bind-if="{{city == null}}" data-l10n="city.loading">Loading city</span>
+  <div data-bind-if="{{city != null}}">
+    <header class="city-head">
+      <button class="city-nav" data-hotkey="ArrowLeft" data-bind-disabled="{{!city.can_cycle}}" data-on-click="set state.city.sell = -1; intent window.open(window: 'city', a: city.prev_city, b: 0)" data-l10n="city.previous">Previous</button>
+      <div class="city-title"><span class="city-name" data-part="city.name" data-bind-value="{{city.name}}"></span><span data-bind-value="{{city.strength}}"></span><div class="city-status"><span data-bind-if="{{city.hp < city.max_hp}}" data-bind-value="{{city.hp}}"></span><span data-bind-for="s:{{city.status}}" data-bind-value="{{s.text}}"></span><span data-bind-if="{{city.demand != null}}" data-bind-value="{{city.demand.text}}"></span></div></div>
+      <button data-part="city.rename" data-bind-disabled="{{!city.can_rename}}" data-on-click="intent window.open(window: 'city_rename', a: city.city, b: 0)" data-l10n="city.rename">Rename</button>
+      <button class="city-nav" data-hotkey="ArrowRight" data-bind-disabled="{{!city.can_cycle}}" data-on-click="set state.city.sell = -1; intent window.open(window: 'city', a: city.next_city, b: 0)" data-l10n="city.next">Next</button>
+    </header>
+    <!-- SIMPLIFIED(SIMP-359): Compact panels omit collapsible groups and segmented next-turn scales; foreign-city inspection and full yield/GP previews remain follow-up work. -->
+    <aside class="city-side city-left">
+      <div class="city-section city-line"><b data-l10n="city.production">Production</b><span data-bind-value="{{city.production.rate}}"></span></div>
+      <div class="city-current" data-bind-if="{{city.production.current != null}}">
+        <b data-part="city.current" data-bind-value="{{city.production.current.name}}"></b>
+        <div class="city-bar"><i data-bind-style-width="{{city.production.current.needed > 0 ? city.production.current.stored / city.production.current.needed * 100 : 0}}%"></i></div>
+        <div class="city-line"><span data-bind-value="{{city.production.current.stored}}"></span><span data-bind-value="{{city.production.current.needed}}"></span><span data-bind-value="{{city.production.current.turns}}"></span></div>
+      </div>
+      <div class="city-line city-section"><span data-l10n="city.overflow">Overflow</span><span data-bind-value="{{city.production.overflow}}"></span><span data-l10n="city.chop">Chopping</span><span data-bind-value="{{city.production.chop}}"></span></div>
+      <div class="city-queue">
+        <div class="city-line" data-bind-for="q:{{city.production.queue}}">
+          <span class="city-ellipsis" data-part="city.queue" data-bind-value="{{q.name}}"></span><span data-bind-value="{{q.turns}}"></span>
+          <span data-bind-if="{{q.repeat}}" data-l10n="city.repeating">Repeat</span>
+          <!-- SIMPLIFIED(SIMP-353): Explicit queue controls replace drag and click modifiers until runtime events expose them. -->
+          <button data-part="city.queue-up" data-bind-disabled="{{city.view_only || !city.my_turn || q.slot == 0}}" data-on-click="intent screen.act(screen: 'city', action: 'move_order', a: q.slot, b: q.slot - 1, d: city.city)" data-l10n="city.up">Up</button>
+          <button data-bind-disabled="{{city.view_only || !city.my_turn || q.slot == len(city.production.queue) - 1}}" data-on-click="intent screen.act(screen: 'city', action: 'move_order', a: q.slot, b: q.slot + 1, d: city.city)" data-l10n="city.down">Down</button>
+          <button data-part="city.queue-remove" data-bind-disabled="{{city.view_only || !city.my_turn}}" data-on-click="intent screen.act(screen: 'city', action: 'pop_order', a: q.slot, d: city.city)" data-l10n="city.remove">Remove</button>
+        </div>
+      </div>
+      <div class="city-section city-line"><b data-l10n="city.add">Add to queue</b><button data-on-click="intent window.open(window: 'production', city: city.map_city)" data-l10n="city.details">Details</button></div>
+      <div class="city-line city-modes"><button data-on-click="set state.city.queue_mode = 0" data-l10n="city.append">Append</button><button data-on-click="set state.city.queue_mode = 1" data-l10n="city.front">To front</button><button data-on-click="set state.city.queue_mode = 2" data-l10n="city.replace">Replace</button><button data-on-click="set state.city.repeat_order = !state.city.repeat_order" data-bind-class-toggle="city-selected:{{state.city.repeat_order}}" data-l10n="city.repeating">Repeat</button></div>
+      <div class="city-scroll">
+        <div class="city-group" data-bind-for="g:{{city.production.groups}}">
+          <b class="city-section" data-bind-value="{{g.kind}}"></b>
+          <div class="city-option" data-bind-for="o:{{g.options}}" data-tooltip="city-tip" data-on-pointerenter="set state.city.hover = o.item; set state.city.hover_kind = 'option'">
+            <button class="city-ellipsis" data-part="city.option" data-bind-disabled="{{!o.can_build}}" data-on-click="call city.push(o.item)" data-bind-value="{{o.name}}"></button>
+            <span data-bind-value="{{o.turns}}"></span>
+            <button class="city-gold" data-bind-if="{{o.buy_gold != null}}" data-bind-disabled="{{o.gold_state != 'ok'}}" data-on-click="intent screen.act(screen: 'city', action: 'purchase', a: o.item, b: 0, d: city.city)"><span data-bind-value="{{o.buy_gold}}"></span><span data-l10n="city.gold">Gold</span></button>
+            <button class="city-faith" data-bind-if="{{o.buy_faith != null}}" data-bind-disabled="{{o.faith_state != 'ok'}}" data-on-click="intent screen.act(screen: 'city', action: 'purchase', a: o.item, b: 1, d: city.city)"><span data-bind-value="{{o.buy_faith}}"></span><span data-l10n="city.faith">Faith</span></button>
+          </div>
+        </div>
+        <span class="city-warning" data-bind-value="{{city.disabled_reason}}"></span>
+        <div class="city-line" data-bind-for="a:{{city.annex_preview}}"><span data-bind-value="{{a.label}}"></span><span data-bind-value="{{a.value}}"></span></div>
+      </div>
+      <div class="city-section city-line"><span data-l10n="city.gold">Gold</span><span data-bind-value="{{city.treasury.gold}}"></span><span data-l10n="city.faith">Faith</span><span data-bind-value="{{city.treasury.faith}}"></span></div>
+    </aside>
+    <aside class="city-side city-right">
+      <div class="city-section city-line"><b class="city-population" data-bind-value="{{city.population}}"></b><span data-bind-value="{{city.population_label}}"></span><span data-bind-value="{{city.food.state}}"></span><span data-bind-value="{{city.food.turns}}"></span></div>
+      <div class="city-bar city-food"><i data-bind-style-width="{{city.food.threshold > 0 ? city.food.stored / city.food.threshold * 100 : 0}}%"></i></div>
+      <div class="city-income"><div class="city-yield" data-bind-for="y:{{city.yields}}"><b data-bind-value="{{y.value}}"></b><span data-bind-value="{{y.key}}"></span></div></div>
+      <div class="city-section city-line"><span data-l10n="city.border">Border growth</span><span data-bind-value="{{city.border.stored}}"></span><span data-bind-value="{{city.border.threshold}}"></span></div>
+      <div class="city-section city-line"><b data-l10n="city.focus">Citizen focus</b><button data-bind-disabled="{{!city.can_reset_tiles}}" data-on-click="intent screen.act(screen: 'city', action: 'reset_tiles', d: city.city)" data-l10n="city.reset">Reset tiles</button></div>
+      <div class="city-focus"><button data-part="city.focus" data-bind-for="f:{{city.focus_options}}" data-bind-disabled="{{!f.enabled}}" data-bind-class-toggle="city-selected:{{city.focus == f.key}}" data-tooltip="city-tip" data-on-pointerenter="set state.city.hover = f.id; set state.city.hover_kind = 'focus'" data-on-click="intent screen.act(screen: 'city', action: 'set_focus', a: f.id, d: city.city)" data-bind-value="{{f.key}}"></button></div>
+      <div class="city-line city-section"><button data-bind-disabled="{{city.view_only || !city.my_turn}}" data-bind-class-toggle="city-selected:{{city.avoid_growth}}" data-on-click="intent screen.act(screen: 'city', action: 'avoid_growth', a: city.avoid_growth ? 0 : 1, d: city.city)" data-l10n="city.avoid">Avoid growth</button><button data-bind-disabled="{{city.view_only || !city.my_turn}}" data-bind-class-toggle="city-selected:{{city.manual_specialists}}" data-on-click="intent screen.act(screen: 'city', action: 'manual_specialists', a: city.manual_specialists ? 0 : 1, d: city.city)" data-l10n="city.manual">Manual specialists</button></div>
+      <div class="city-scroll">
+        <div class="city-section" data-bind-for="p:{{city.great_people}}"><div class="city-line"><b data-bind-value="{{p.name}}"></b><span data-bind-value="{{p.progress}}"></span><span data-bind-value="{{p.threshold}}"></span><span data-bind-value="{{p.turns}}"></span></div></div>
+        <div class="city-section city-line"><span data-l10n="city.unemployed">Unemployed</span><span data-bind-value="{{city.unemployed}}"></span><button data-bind-disabled="{{city.view_only || !city.my_turn || city.unemployed == 0}}" data-on-click="intent screen.act(screen: 'city', action: 'unemployed_to_work', a: 0, d: city.city)" data-l10n="city.work">Put to work</button></div>
+        <div class="city-group" data-bind-for="g:{{city.building_groups}}">
+          <div class="city-section city-line"><b data-bind-value="{{g.key}}"></b><span data-bind-value="{{g.count}}"></span><span data-bind-value="{{g.maintenance}}"></span></div>
+          <div class="city-building" data-bind-for="b:{{g.buildings}}" data-tooltip="city-tip" data-on-pointerenter="set state.city.hover = b.id; set state.city.hover_kind = 'building'">
+            <div class="city-line"><span class="city-ellipsis" data-bind-value="{{b.name}}"></span><button data-bind-if="{{b.can_sell}}" data-on-click="set state.city.sell = b.id" data-l10n="city.sell">Sell</button><span data-bind-value="{{b.sell_refund}}"></span></div>
+            <div class="city-line" data-bind-if="{{b.specialist != null}}"><span data-bind-value="{{b.specialist.filled}}"></span><span data-bind-value="{{b.specialist.slots}}"></span><button data-bind-disabled="{{!b.specialist.can_add}}" data-on-click="intent screen.act(screen: 'city', action: 'add_specialist', a: b.specialist.id, b: b.id, d: city.city)" data-l10n="city.assign">Assign</button><button data-bind-disabled="{{city.view_only || !city.my_turn || b.specialist.filled == 0}}" data-on-click="intent screen.act(screen: 'city', action: 'remove_specialist', a: b.specialist.id, b: b.id, d: city.city)" data-l10n="city.remove">Remove</button></div>
+          </div>
+        </div>
+        <div class="city-section city-line"><b data-l10n="city.tiles">City tiles</b><button data-on-click="set state.city.buy_tiles = !state.city.buy_tiles" data-l10n="city.purchases">Show purchases</button></div>
+        <div class="city-line" data-bind-for="t:{{city.tiles}}"><span data-bind-value="{{t.index}}"></span><button data-bind-disabled="{{city.view_only || !city.my_turn || t.state == 'unowned' || t.state == 'blocked' || t.state == 'enemy'}}" data-on-click="intent screen.act(screen: 'city', action: 'toggle_tile', a: t.index, d: city.city)" data-bind-value="{{t.state}}"></button><button data-bind-if="{{state.city.buy_tiles && t.buy_price != null}}" data-bind-disabled="{{t.buy_state != 'ok'}}" data-on-click="intent screen.act(screen: 'city', action: 'buy_plot', a: t.x, b: t.y, d: city.city)" data-bind-value="{{t.buy_price}}"></button></div>
+      </div>
+    </aside>
+    <footer class="city-foot"><button data-bind-disabled="{{!city.task.enabled}}" data-on-click="intent window.open(window: 'city_rename', a: city.city, b: city.task.mode)" data-bind-value="{{city.task.kind}}"></button><span class="city-warning" data-bind-value="{{city.task.reason}}"></span><button class="city-primary" data-part="city.close" data-on-click="set state.city.sell = -1; intent window.close(window: 'city')" data-l10n="city.return">Return to map</button></footer>
+    <div class="city-confirm" data-bind-if="{{state.city.sell >= 0}}"><section class="city-dialog"><b data-l10n="city.confirm_sell">Sell this building?</b><div data-bind-for="g:{{city.building_groups}}"><div data-bind-for="b:{{g.buildings}}" data-bind-filter="{{b.id == state.city.sell}}"><b data-bind-value="{{b.name}}"></b><span data-bind-value="{{b.sell_refund}}"></span><span data-bind-value="{{b.maintenance}}"></span></div></div><span data-l10n="city.sell_warning">You can sell only one building per turn.</span><button data-on-click="set state.city.sell = -1" data-l10n="city.keep">Keep it</button><button class="city-primary" data-on-click="intent screen.act(screen: 'city', action: 'sell_building', a: state.city.sell, d: city.city); set state.city.sell = -1" data-l10n="city.sell">Sell</button></section></div>
+  </div>
+</div>

@@ -7,6 +7,11 @@ pub(crate) use runtime::Screens;
 pub const REGISTRY: &[(&str, &str)] = &[
     ("techs", include_str!("techs.lua")),
     ("hud", include_str!("hud.lua")),
+    ("city", include_str!("city.lua")),
+    ("city_list", include_str!("city_list.lua")),
+    ("city_rename", include_str!("city_rename.lua")),
+    ("city_captured", include_str!("city_captured.lua")),
+    ("free_great_person", include_str!("free_great_person.lua")),
 ];
 
 use crate::core::Refusal;

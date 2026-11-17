@@ -1,0 +1,225 @@
+# Rates and stored yields are whole yield units; turns are nullable for indefinite orders.
+[enum]
+CityViewReason = ["none", "puppet", "foreign", "spy", "capture_pending", "popup_view"]
+CityStatusKind = ["connected", "blockaded", "razing", "puppet", "resistance", "occupied"]
+CityDemandKind = ["wltkd", "resource"]
+CityGrowth = ["growing", "stagnant", "starving"]
+CityYieldKind = ["food", "production", "gold", "science", "faith", "culture", "tourism", "golden_age"]
+CityItemKind = ["unit", "building", "wonder", "project", "process"]
+CityGroupKind = ["unit", "building", "wonder_project", "process"]
+CityBuyState = ["ok", "short", "off"]
+CityFocus = ["default", "food", "production", "gold", "science", "culture", "great_people", "faith", "golden_age"]
+CityBuildingKind = ["specialist", "great_work", "wonder", "other"]
+CityWorkKind = ["art", "writing", "music", "artifact"]
+CityTileState = ["center", "worked", "locked", "unworked", "other", "blocked", "enemy", "unowned"]
+CityTaskKind = ["raze", "unraze", "annex", "none"]
+CityTone = ["neutral", "negative"]
+
+[type.CityStatus]
+key = "CityStatusKind"
+turns = "i32?"
+text = "text"
+[type.CityDemand]
+kind = "CityDemandKind"
+text = "text"
+turns = "i32"
+icon = "asset?"
+[type.CityFood]
+stored = "i32"
+threshold = "i32"
+net = "i32"
+turns = "i32?"
+state = "CityGrowth"
+[type.CityBreakdown]
+label = "str"
+value = "i32"
+[type.CityYield]
+key = "CityYieldKind"
+value = "i32"
+enabled = "bool"
+breakdown = { list = "CityBreakdown", key = "label" }
+[type.CityBorder]
+stored = "i32"
+threshold = "i32"
+turns = "i32?"
+[type.CityTreasury]
+gold = "i32"
+faith = "i32"
+[type.CityCurrent]
+item = "i32"
+name = "text"
+kind = "CityItemKind"
+icon = "asset"
+stored = "i32"
+needed = "i32"
+turns = "i32?"
+next = "i32"
+[type.CityQueueRow]
+slot = "i32"
+item = "i32"
+name = "text"
+kind = "CityItemKind"
+icon = "asset"
+turns = "i32?"
+number = "i32?"
+repeat = "bool"
+after_repeat = "bool"
+[type.CityLastDone]
+name = "text"
+icon = "asset"
+turn = "i32"
+[type.CityOption]
+item = "i32"
+name = "text"
+kind = "CityItemKind"
+icon = "asset"
+turns = "i32?"
+cost = "i32?"
+can_build = "bool"
+buy_gold = "i32?"
+gold_state = "CityBuyState?"
+gold_short = "i32?"
+buy_faith = "i32?"
+faith_state = "CityBuyState?"
+faith_short = "i32?"
+reason = "text?"
+effect = "text"
+help = "text"
+buy_reason = "text?"
+[type.CityOptionGroup]
+kind = "CityGroupKind"
+count = "i32"
+options = { list = "CityOption", key = "item" }
+[type.CityProduction]
+rate = "i32"
+overflow = "i32"
+chop = "i32"
+current = "CityCurrent?"
+queue = { list = "CityQueueRow", key = "slot" }
+last_done = "CityLastDone?"
+groups = { list = "CityOptionGroup", key = "kind" }
+[type.CityGreatPerson]
+key = "str"
+name = "text"
+icon = "asset"
+yield = "CityYieldKind"
+progress = "i32"
+threshold = "i32"
+rate = "i32?"
+turns = "i32?"
+modifiers = { list = "CityBreakdown", key = "label" }
+[type.CityFocusOption]
+key = "CityFocus"
+id = "i32"
+enabled = "bool"
+reason = "text?"
+[type.CityBuildingYield]
+key = "CityYieldKind"
+value = "i32"
+[type.CitySpecialist]
+key = "str"
+id = "i32"
+yield = "CityYieldKind"
+slots = "i32"
+filled = "i32"
+can_add = "bool"
+reason = "text?"
+[type.CityWorkSlot]
+index = "i32"
+filled = "bool"
+name = "text?"
+[type.CityGreatWorks]
+kind = "CityWorkKind"
+slots = { list = "CityWorkSlot", key = "index" }
+theming_bonus = "i32?"
+[type.CityBuilding]
+id = "i32"
+name = "text"
+icon = "asset"
+yields = { list = "CityBuildingYield", key = "key" }
+defense = "i32?"
+maintenance = "i32"
+free = "bool"
+can_sell = "bool"
+sell_refund = "i32?"
+sell_reason = "text?"
+specialist = "CitySpecialist?"
+great_works = "CityGreatWorks?"
+help = "text"
+[type.CityBuildingGroup]
+key = "CityBuildingKind"
+count = "i32"
+maintenance = "i32"
+buildings = { list = "CityBuilding", key = "id" }
+[type.CityTile]
+index = "i32"
+x = "i32"
+y = "i32"
+plot = "i32"
+state = "CityTileState"
+yields = { list = "CityBuildingYield", key = "key" }
+other_city = "text?"
+buy_price = "i32?"
+buy_state = "CityBuyState?"
+buy_short = "i32?"
+buy_reason = "text?"
+border_next = "bool"
+[type.CityTask]
+kind = "CityTaskKind"
+enabled = "bool"
+reason = "text?"
+forecast = "text?"
+mode = "i32"
+[type.CityAnnexPreview]
+key = "str"
+label = "text"
+value = "text"
+tone = "CityTone"
+
+[model.city]
+_optional = true
+city = "i32"
+map_city = "key<city>"
+name = "text"
+capital = "bool"
+civ = "asset"
+civ_color = "color"
+civ_color2 = "color"
+owner = "text"
+view_only = "bool"
+view_reason = "CityViewReason"
+my_turn = "bool"
+disabled_reason = "text?"
+can_rename = "bool"
+can_cycle = "bool"
+prev_city = "i32?"
+next_city = "i32?"
+city_count = "i32"
+choose_mode = "bool"
+next_choose_city = "i32?"
+strength = "i32"
+hp = "i32"
+max_hp = "i32"
+status = { list = "CityStatus", key = "key" }
+demand = "CityDemand?"
+population = "i32"
+population_label = "text"
+food = "CityFood"
+yields = { list = "CityYield", key = "key" }
+border = "CityBorder"
+treasury = "CityTreasury"
+production = "CityProduction"
+great_people = { list = "CityGreatPerson", key = "key" }
+focus = "CityFocus"
+focus_options = { list = "CityFocusOption", key = "key" }
+avoid_growth = "bool"
+manual_specialists = "bool"
+can_reset_tiles = "bool"
+unemployed = "i32"
+specialists = "i32"
+specialist_slots = "i32"
+sold_this_turn = "bool"
+building_groups = { list = "CityBuildingGroup", key = "key" }
+tiles = { list = "CityTile", key = "index" }
+task = "CityTask"
+annex_preview = { list = "CityAnnexPreview", key = "key" }

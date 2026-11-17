@@ -21,11 +21,34 @@ export type ProdTab = "all" | "units" | "buildings" | "wonders" | "other";
 export type TurnPending = "none" | "ending" | "cancelling";
 export type ToastKind = "refused" | "rejected" | "lost";
 export type RefuseWhy = "unsupported" | "no_screen" | "no_unit" | "action_unavailable" | "not_your_city" | "option_unavailable" | "cannot_buy" | "bad_slot" | "tech_unavailable" | "cannot_end_turn" | "cannot_cancel" | "chat_empty" | "chat_too_long" | "chat_rate" | "no_connection" | "no_game" | "too_many" | "turn_changed" | "too_big" | "core" | "turn_ended" | "not_your_turn" | "restarting" | "invalid" | "expired" | "not_seated" | "other";
-export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "techs";
+export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "city" | "city_captured" | "city_list" | "city_rename" | "free_great_person" | "techs";
 export type ScreenId = "tech_tree" | "policies" | "religion" | "diplomacy" | "overview" | "notification_log" | "economy" | "military" | "victory" | "demographics" | "chat";
 export type MouseButton = "left" | "right";
 export type PushAt = "back" | "front";
 export type BuyWith = "gold" | "faith";
+export type CityViewReason = "none" | "puppet" | "foreign" | "spy" | "capture_pending" | "popup_view";
+export type CityStatusKind = "connected" | "blockaded" | "razing" | "puppet" | "resistance" | "occupied";
+export type CityDemandKind = "wltkd" | "resource";
+export type CityGrowth = "growing" | "stagnant" | "starving";
+export type CityYieldKind = "food" | "production" | "gold" | "science" | "faith" | "culture" | "tourism" | "golden_age";
+export type CityItemKind = "unit" | "building" | "wonder" | "project" | "process";
+export type CityGroupKind = "unit" | "building" | "wonder_project" | "process";
+export type CityBuyState = "ok" | "short" | "off";
+export type CityFocus = "default" | "food" | "production" | "gold" | "science" | "culture" | "great_people" | "faith" | "golden_age";
+export type CityBuildingKind = "specialist" | "great_work" | "wonder" | "other";
+export type CityWorkKind = "art" | "writing" | "music" | "artifact";
+export type CityTileState = "center" | "worked" | "locked" | "unworked" | "other" | "blocked" | "enemy" | "unowned";
+export type CityTaskKind = "raze" | "unraze" | "annex" | "none";
+export type CityTone = "neutral" | "negative";
+export type CityCapturedMode = "captured" | "annex";
+export type CityCapturedChoice = "liberate" | "annex" | "puppet" | "raze";
+export type CityCapturedWorkKind = "art" | "writing" | "music" | "artifact";
+export type CityListStatus = "none" | "capital" | "puppet" | "occupied";
+export type CityListGrowth = "growing" | "stagnant" | "starving";
+export type CityListItemKind = "unit" | "building" | "wonder" | "project" | "process";
+export type CityRenameMode = "rename" | "raze" | "unraze" | "annex";
+export type CityRenameTaskKind = "raze" | "unraze" | "annex";
+export type FreeGreatPersonMode = "free" | "faith" | "maya";
 export type TechsStatus = "researched" | "current" | "available" | "queued" | "locked";
 
 export interface Plot {
@@ -301,6 +324,11 @@ export interface WinCity {
 }
 
 export interface Windows {
+  readonly city: WinArgs;
+  readonly city_captured: WinArgs;
+  readonly city_list: WinArgs;
+  readonly city_rename: WinArgs;
+  readonly free_great_person: WinArgs;
   readonly techs: WinArgs;
   readonly production: WinCity;
   readonly research: Win;
@@ -332,6 +360,293 @@ export interface Toast {
   readonly kind: ToastKind;
   readonly why: RefuseWhy;
   readonly detail: string | null;
+}
+
+export interface CityStatus {
+  readonly key: CityStatusKind;
+  readonly turns: number | null;
+  readonly text: Text;
+}
+
+export interface CityDemand {
+  readonly kind: CityDemandKind;
+  readonly text: Text;
+  readonly turns: number;
+  readonly icon: string | null;
+}
+
+export interface CityFood {
+  readonly stored: number;
+  readonly threshold: number;
+  readonly net: number;
+  readonly turns: number | null;
+  readonly state: CityGrowth;
+}
+
+export interface CityBreakdown {
+  readonly label: string;
+  readonly value: number;
+}
+
+export interface CityYield {
+  readonly key: CityYieldKind;
+  readonly value: number;
+  readonly enabled: boolean;
+  readonly breakdown: CityBreakdown[];
+}
+
+export interface CityBorder {
+  readonly stored: number;
+  readonly threshold: number;
+  readonly turns: number | null;
+}
+
+export interface CityTreasury {
+  readonly gold: number;
+  readonly faith: number;
+}
+
+export interface CityCurrent {
+  readonly item: number;
+  readonly name: Text;
+  readonly kind: CityItemKind;
+  readonly icon: string;
+  readonly stored: number;
+  readonly needed: number;
+  readonly turns: number | null;
+  readonly next: number;
+}
+
+export interface CityQueueRow {
+  readonly slot: number;
+  readonly item: number;
+  readonly name: Text;
+  readonly kind: CityItemKind;
+  readonly icon: string;
+  readonly turns: number | null;
+  readonly number: number | null;
+  readonly repeat: boolean;
+  readonly after_repeat: boolean;
+}
+
+export interface CityLastDone {
+  readonly name: Text;
+  readonly icon: string;
+  readonly turn: number;
+}
+
+export interface CityOption {
+  readonly item: number;
+  readonly name: Text;
+  readonly kind: CityItemKind;
+  readonly icon: string;
+  readonly turns: number | null;
+  readonly cost: number | null;
+  readonly can_build: boolean;
+  readonly buy_gold: number | null;
+  readonly gold_state: CityBuyState | null;
+  readonly gold_short: number | null;
+  readonly buy_faith: number | null;
+  readonly faith_state: CityBuyState | null;
+  readonly faith_short: number | null;
+  readonly reason: Text | null;
+  readonly effect: Text;
+  readonly help: Text;
+  readonly buy_reason: Text | null;
+}
+
+export interface CityOptionGroup {
+  readonly kind: CityGroupKind;
+  readonly count: number;
+  readonly options: CityOption[];
+}
+
+export interface CityProduction {
+  readonly rate: number;
+  readonly overflow: number;
+  readonly chop: number;
+  readonly current: CityCurrent | null;
+  readonly queue: CityQueueRow[];
+  readonly last_done: CityLastDone | null;
+  readonly groups: CityOptionGroup[];
+}
+
+export interface CityGreatPerson {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly yield: CityYieldKind;
+  readonly progress: number;
+  readonly threshold: number;
+  readonly rate: number | null;
+  readonly turns: number | null;
+  readonly modifiers: CityBreakdown[];
+}
+
+export interface CityFocusOption {
+  readonly key: CityFocus;
+  readonly id: number;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+}
+
+export interface CityBuildingYield {
+  readonly key: CityYieldKind;
+  readonly value: number;
+}
+
+export interface CitySpecialist {
+  readonly key: string;
+  readonly id: number;
+  readonly yield: CityYieldKind;
+  readonly slots: number;
+  readonly filled: number;
+  readonly can_add: boolean;
+  readonly reason: Text | null;
+}
+
+export interface CityWorkSlot {
+  readonly index: number;
+  readonly filled: boolean;
+  readonly name: Text | null;
+}
+
+export interface CityGreatWorks {
+  readonly kind: CityWorkKind;
+  readonly slots: CityWorkSlot[];
+  readonly theming_bonus: number | null;
+}
+
+export interface CityBuilding {
+  readonly id: number;
+  readonly name: Text;
+  readonly icon: string;
+  readonly yields: CityBuildingYield[];
+  readonly defense: number | null;
+  readonly maintenance: number;
+  readonly free: boolean;
+  readonly can_sell: boolean;
+  readonly sell_refund: number | null;
+  readonly sell_reason: Text | null;
+  readonly specialist: CitySpecialist | null;
+  readonly great_works: CityGreatWorks | null;
+  readonly help: Text;
+}
+
+export interface CityBuildingGroup {
+  readonly key: CityBuildingKind;
+  readonly count: number;
+  readonly maintenance: number;
+  readonly buildings: CityBuilding[];
+}
+
+export interface CityTile {
+  readonly index: number;
+  readonly x: number;
+  readonly y: number;
+  readonly plot: number;
+  readonly state: CityTileState;
+  readonly yields: CityBuildingYield[];
+  readonly other_city: Text | null;
+  readonly buy_price: number | null;
+  readonly buy_state: CityBuyState | null;
+  readonly buy_short: number | null;
+  readonly buy_reason: Text | null;
+  readonly border_next: boolean;
+}
+
+export interface CityTask {
+  readonly kind: CityTaskKind;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly forecast: Text | null;
+  readonly mode: number;
+}
+
+export interface CityAnnexPreview {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: Text;
+  readonly tone: CityTone;
+}
+
+export interface CityCapturedWork {
+  readonly key: number;
+  readonly name: Text;
+  readonly icon: string;
+  readonly kind: CityCapturedWorkKind;
+}
+
+export interface CityCapturedLoot {
+  readonly gold: number;
+  readonly culture: number;
+  readonly great_works: CityCapturedWork[];
+}
+
+export interface CityCapturedOption {
+  readonly key: CityCapturedChoice;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly title: Text;
+  readonly text: Text;
+  readonly forecast: Text | null;
+  readonly happiness: number | null;
+  readonly liberate_to: Text | null;
+}
+
+export interface CityListProduction {
+  readonly name: Text;
+  readonly icon: string;
+  readonly kind: CityListItemKind;
+  readonly stored: number;
+  readonly needed: number;
+  readonly rate: number;
+  readonly turns: number | null;
+}
+
+export interface CityListRow {
+  readonly city: number;
+  readonly map_city: Key;
+  readonly name: string;
+  readonly status: CityListStatus;
+  readonly population: number;
+  readonly food_stored: number;
+  readonly food_threshold: number;
+  readonly food_net: number;
+  readonly growth_turns: number | null;
+  readonly growth_state: CityListGrowth;
+  readonly strength: number;
+  readonly hp_fraction: number;
+  readonly can_range_strike: boolean;
+  readonly production: CityListProduction | null;
+  readonly production_sort: string;
+  readonly can_choose: boolean;
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface CityRenameTask {
+  readonly kind: CityRenameTaskKind;
+  readonly id: number;
+  readonly explain: Text | null;
+  readonly forecast: Text | null;
+}
+
+export interface FreeGreatPersonAbility {
+  readonly index: number;
+  readonly label: Text;
+  readonly text: Text;
+}
+
+export interface FreeGreatPersonChoice {
+  readonly unit: number;
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly strategy: Text;
+  readonly abilities: FreeGreatPersonAbility[];
+  readonly available: boolean;
+  readonly reason: Text | null;
 }
 
 export interface HudTech {
@@ -549,6 +864,98 @@ export interface Ui {
   readonly errors: Toast[];
 }
 
+export interface City {
+  readonly city: number;
+  readonly map_city: Key;
+  readonly name: Text;
+  readonly capital: boolean;
+  readonly civ: string;
+  readonly civ_color: number;
+  readonly civ_color2: number;
+  readonly owner: Text;
+  readonly view_only: boolean;
+  readonly view_reason: CityViewReason;
+  readonly my_turn: boolean;
+  readonly disabled_reason: Text | null;
+  readonly can_rename: boolean;
+  readonly can_cycle: boolean;
+  readonly prev_city: number | null;
+  readonly next_city: number | null;
+  readonly city_count: number;
+  readonly choose_mode: boolean;
+  readonly next_choose_city: number | null;
+  readonly strength: number;
+  readonly hp: number;
+  readonly max_hp: number;
+  readonly status: CityStatus[];
+  readonly demand: CityDemand | null;
+  readonly population: number;
+  readonly population_label: Text;
+  readonly food: CityFood;
+  readonly yields: CityYield[];
+  readonly border: CityBorder;
+  readonly treasury: CityTreasury;
+  readonly production: CityProduction;
+  readonly great_people: CityGreatPerson[];
+  readonly focus: CityFocus;
+  readonly focus_options: CityFocusOption[];
+  readonly avoid_growth: boolean;
+  readonly manual_specialists: boolean;
+  readonly can_reset_tiles: boolean;
+  readonly unemployed: number;
+  readonly specialists: number;
+  readonly specialist_slots: number;
+  readonly sold_this_turn: boolean;
+  readonly building_groups: CityBuildingGroup[];
+  readonly tiles: CityTile[];
+  readonly task: CityTask;
+  readonly annex_preview: CityAnnexPreview[];
+}
+
+export interface CityCaptured {
+  readonly mode: CityCapturedMode;
+  readonly city: number;
+  readonly name: Text;
+  readonly population: number;
+  readonly taken_from: Text;
+  readonly founded_by: Text | null;
+  readonly minor_buyout: boolean;
+  readonly loot: CityCapturedLoot | null;
+  readonly options: CityCapturedOption[];
+  readonly can_view: boolean;
+  readonly may_annex: boolean | null;
+  readonly happiness: number | null;
+  readonly reason: Text | null;
+}
+
+export interface CityList {
+  readonly count: number;
+  readonly cities: CityListRow[];
+}
+
+export interface CityRename {
+  readonly mode: CityRenameMode;
+  readonly city: number;
+  readonly name: Text;
+  readonly max_length: number;
+  readonly task: CityRenameTask | null;
+  readonly enabled: boolean;
+  readonly done: boolean;
+  readonly reason: Text | null;
+}
+
+export interface FreeGreatPerson {
+  readonly mode: FreeGreatPersonMode;
+  readonly mode_id: number;
+  readonly title: Text;
+  readonly instructions: Text;
+  readonly remaining: number;
+  readonly can_close: boolean;
+  readonly baktun: number | null;
+  readonly appears_in: Text | null;
+  readonly people: FreeGreatPersonChoice[];
+}
+
 export interface Hud {
   readonly research: HudResearch;
   readonly top: HudTop;
@@ -574,6 +981,11 @@ export interface Model {
   readonly chat: ChatRow[];
   readonly production: Production | null;
   readonly ui: Ui;
+  readonly city: City | null;
+  readonly city_captured: CityCaptured | null;
+  readonly city_list: CityList | null;
+  readonly city_rename: CityRename | null;
+  readonly free_great_person: FreeGreatPerson | null;
   readonly hud: Hud | null;
   readonly techs: Techs | null;
 }

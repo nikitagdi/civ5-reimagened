@@ -1,0 +1,213 @@
+{
+  "model": {
+    "free_great_person": {
+      "mode": "faith",
+      "title": "Great Person for faith",
+      "instructions": "A wonder grants you one Great Person of your choice. It appears in your capital.",
+      "remaining": 1,
+      "can_close": false,
+      "baktun": null,
+      "appears_in": "Moscow",
+      "people": [
+        {
+          "unit": 85,
+          "key": "UNIT_WRITER",
+          "name": "Great Writer",
+          "icon": "",
+          "strategy": "Writes a Great Work of Writing, or a political treatise for an instant burst of culture.",
+          "abilities": [
+            {
+              "index": 0,
+              "label": "Abilities",
+              "text": "Great Work of Writing"
+            },
+            {
+              "index": 1,
+              "label": "Abilities",
+              "text": "Political treatise: culture"
+            }
+          ],
+          "available": false,
+          "reason": "Needs the policy branch completed."
+        },
+        {
+          "unit": 83,
+          "key": "UNIT_ARTIST",
+          "name": "Great Artist",
+          "icon": "",
+          "strategy": "Creates a Great Work of Art, or starts a Golden Age.",
+          "abilities": [
+            {
+              "index": 0,
+              "label": "Abilities",
+              "text": "Great Work of Art"
+            },
+            {
+              "index": 1,
+              "label": "Abilities",
+              "text": "Golden Age"
+            }
+          ],
+          "available": true,
+          "reason": null
+        },
+        {
+          "unit": 84,
+          "key": "UNIT_MUSICIAN",
+          "name": "Great Musician",
+          "icon": "",
+          "strategy": "Creates a Great Work of Music, or tours a foreign civilization for tourism.",
+          "abilities": [
+            {
+              "index": 0,
+              "label": "Abilities",
+              "text": "Great Work of Music"
+            },
+            {
+              "index": 1,
+              "label": "Abilities",
+              "text": "Concert tour: tourism"
+            }
+          ],
+          "available": true,
+          "reason": null
+        },
+        {
+          "unit": 86,
+          "key": "UNIT_SCIENTIST",
+          "name": "Great Scientist",
+          "icon": "",
+          "strategy": "Gives an instant burst of science, or builds an Academy for science every turn.",
+          "abilities": [
+            {
+              "index": 0,
+              "label": "Abilities",
+              "text": "Discover: +1,140 science"
+            },
+            {
+              "index": 1,
+              "label": "Abilities",
+              "text": "Academy: +8 science"
+            }
+          ],
+          "available": true,
+          "reason": null
+        },
+        {
+          "unit": 87,
+          "key": "UNIT_MERCHANT",
+          "name": "Great Merchant",
+          "icon": "",
+          "strategy": "Trade mission to a city-state for gold and influence, or a Customs House.",
+          "abilities": [
+            {
+              "index": 0,
+              "label": "Abilities",
+              "text": "Trade mission: 1,050 gold"
+            },
+            {
+              "index": 1,
+              "label": "Abilities",
+              "text": "Customs House: +4 gold"
+            }
+          ],
+          "available": true,
+          "reason": null
+        },
+        {
+          "unit": 88,
+          "key": "UNIT_ENGINEER",
+          "name": "Great Engineer",
+          "icon": "",
+          "strategy": "Hurries production in a city, or builds a Manufactory.",
+          "abilities": [
+            {
+              "index": 0,
+              "label": "Abilities",
+              "text": "Hurry: 1,020 production"
+            },
+            {
+              "index": 1,
+              "label": "Abilities",
+              "text": "Manufactory: +4 production"
+            }
+          ],
+          "available": true,
+          "reason": null
+        },
+        {
+          "unit": 89,
+          "key": "UNIT_GREAT_GENERAL",
+          "name": "Great General",
+          "icon": "",
+          "strategy": "Boosts nearby land units in combat, or builds a Citadel.",
+          "abilities": [
+            {
+              "index": 0,
+              "label": "Abilities",
+              "text": "+15% combat nearby"
+            },
+            {
+              "index": 1,
+              "label": "Abilities",
+              "text": "Citadel"
+            }
+          ],
+          "available": true,
+          "reason": null
+        },
+        {
+          "unit": 90,
+          "key": "UNIT_GREAT_ADMIRAL",
+          "name": "Great Admiral",
+          "icon": "",
+          "strategy": "Boosts nearby ships and can heal the fleet once.",
+          "abilities": [
+            {
+              "index": 0,
+              "label": "Abilities",
+              "text": "+15% naval combat nearby"
+            },
+            {
+              "index": 1,
+              "label": "Abilities",
+              "text": "Repair fleet"
+            }
+          ],
+          "available": true,
+          "reason": null
+        },
+        {
+          "unit": 91,
+          "key": "UNIT_PROPHET",
+          "name": "Great Prophet",
+          "icon": "",
+          "strategy": "Spreads or enhances your religion, or builds a Holy Site.",
+          "abilities": [
+            {
+              "index": 0,
+              "label": "Abilities",
+              "text": "Spread religion, 4 charges"
+            },
+            {
+              "index": 1,
+              "label": "Abilities",
+              "text": "Holy Site: +6 faith"
+            }
+          ],
+          "available": true,
+          "reason": null
+        }
+      ],
+      "mode_id": 1
+    }
+  },
+  "ui": {
+    "windows": {
+      "free_great_person": {
+        "open": true,
+        "a": 1
+      }
+    }
+  }
+}
