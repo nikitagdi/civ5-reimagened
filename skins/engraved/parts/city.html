@@ -9,7 +9,7 @@
     </header>
     <!-- SIMPLIFIED(SIMP-359): Compact panels omit collapsible groups and segmented next-turn scales; foreign-city inspection and full yield/GP previews remain follow-up work. -->
     <aside class="city-side city-left">
-      <div class="city-section city-line"><b data-l10n="city.production">Production</b><button data-bind-disabled="{{city.view_only}}" data-on-click="intent window.open(window: 'production', city: city.map_city)" data-l10n="banner.choose">Choose production</button><span data-bind-value="{{city.production.rate}}"></span></div>
+      <div class="city-section city-line"><b data-l10n="city.production">Production</b><button data-part="city.choose-production" data-bind-disabled="{{city.view_only}}" data-on-click="intent window.open(window: 'production', city: city.map_city)" data-l10n="banner.choose">Choose production</button><span data-bind-value="{{city.production.rate}}"></span></div>
       <div class="city-current" data-bind-if="{{city.production.current != null}}">
         <b data-part="city.current" data-bind-value="{{city.production.current.name}}"></b>
         <div class="city-bar"><i data-bind-style-width="{{city.production.current.needed > 0 ? city.production.current.stored / city.production.current.needed * 100 : 0}}%"></i></div>
@@ -28,7 +28,7 @@
       </div>
       <div class="city-section city-line"><b data-l10n="city.add">Add to queue</b><button data-on-click="intent window.open(window: 'production', city: city.map_city)" data-l10n="city.details">Details</button></div>
       <div class="city-line city-modes"><button data-on-click="set state.city.queue_mode = 0" data-l10n="city.append">Append</button><button data-on-click="set state.city.queue_mode = 1" data-l10n="city.front">To front</button><button data-on-click="set state.city.queue_mode = 2" data-l10n="city.replace">Replace</button><button data-on-click="set state.city.repeat_order = !state.city.repeat_order" data-bind-class-toggle="city-selected:{{state.city.repeat_order}}" data-l10n="city.repeating">Repeat</button></div>
-      <div class="city-scroll">
+      <div class="city-scroll" data-part="city.scroll">
         <div class="city-group" data-bind-for="g:{{city.production.groups}}">
           <b class="city-section" data-bind-value="{{g.kind}}"></b>
           <div class="city-option" data-bind-for="o:{{g.options}}" data-tooltip="city-tip" data-on-pointerenter="set state.city.hover = o.item; set state.city.hover_kind = 'option'">

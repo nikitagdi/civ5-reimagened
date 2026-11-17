@@ -31,3 +31,13 @@ export async function openTechWindow(page, window, a = 0, b = 0) {
     globalThis.__civ5test.ui2Intent({name: "window.open", args: {window:name,a,b}});
   }, {window,a,b});
 }
+/** The technology cards of the open tree in the order of the model (column, then row): the 232 x 68 px rectangles of the list part, which also holds era headers, links and unlock chips. */
+export async function techCards(page) {
+  const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["techs.list"]));
+  const byKey = new Map();
+  for (const r of rects) {
+    if (!r.keys || r.keys.includes("/") || r.node.includes("#") || Math.abs(r.w - 232) > 2 || Math.abs(r.h - 68) > 2) continue;
+    byKey.set(r.keys, r);
+  }
+  return [...byKey.values()].sort((a, b) => a.x - b.x || a.y - b.y);
+}

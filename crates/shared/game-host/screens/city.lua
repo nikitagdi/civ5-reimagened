@@ -92,10 +92,10 @@ return {
             local k = kinds[order]
             local options = array()
             for row in GameInfo[k[1]]() do
-                local build = c[k[3]](c, row.ID, false, false)
+                local build = c[k[3]](c, row.ID, 0, 0)
                 local gold = purchasable(c, order, row.ID, 2, false)
                 local faith = purchasable(c, order, row.ID, 5, false)
-                if build or gold or faith or c[k[3]](c, row.ID, false, true) then
+                if build or gold or faith or c[k[3]](c, row.ID, 0, 1) then
                     local opt = {item = order * 65536 + row.ID, name = L(row.Description), kind = item_kind(row, k), icon = icon(row.IconAtlas, row.PortraitIndex), turns = k[4] and turns(c[k[4]](c, row.ID, 0)), cost = k[5] and c[k[5]](c, row.ID), can_build = editable and build, effect = plain(row.Help or row.Description), help = plain(row.Help or row.Description)}
                     -- SIMPLIFIED(SIMP-350): Native availability booleans have no complete server tooltip; use explicit general refusal text.
                     opt.reason = reason or (not build and "Production requirements are not met in this city." or nil)
@@ -247,11 +247,12 @@ return {
         push_order = function(player, args, net)
             local c = own(player, args.d, true)
             local order, id, _, k = decode(args.a)
-            assert(c[k[3]](c, id, false, false), "Production requirements are not met.")
+            assert(c[k[3]](c, id, 0, 0), "Production requirements are not met.")
             local mode = args.b or 0
             assert(mode == 0 or mode == 1 or mode == 2, "queue mode must be 0, 1 or 2")
             local repeating = boolean(args.c or 0)
-            net.send("sendPushOrder", c:GetID(), order, id, repeating, mode == 2 and 0 or 1, mode == 1 and 1 or 0)
+            -- sendPushOrder(city, order, item, repeat, clear queue, append): 0 appends, 1 goes in front, 2 replaces the queue
+            net.send("sendPushOrder", c:GetID(), order, id, repeating, mode == 2 and 1 or 0, mode == 0 and 1 or 0)
             if args.popup_id then net.popup_done(args.popup_id) end
             
         end,

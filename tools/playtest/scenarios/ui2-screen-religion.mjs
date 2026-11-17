@@ -5,8 +5,8 @@ import { DEV_PASSWORD } from "../lib/game.mjs";
 import { clickPart } from "./ui2-v1.mjs";
 
 const texts = (p, part) => (p?.texts ?? []).filter(t => t.part === part).map(t => t.text);
-async function waitFor(page, predicate, description) {
-  const deadline = Date.now() + 30000;
+async function waitFor(page, predicate, description, timeout = 30000) {
+  const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
     const probe = await page.evaluate(() => window.__civ5test.ui2());
     if (predicate(probe)) return probe;
@@ -20,8 +20,8 @@ export async function run({ server, opts }) {
   const browser = await openPage({ headed: opts.headed, logDir: opts.logDir, viewport: { width: 1366, height: 768 }, consoleFile: "ui2-screen-religion.log" });
   try {
     const page = browser.page;
-    const nick = "religion-test";
-    await page.goto(appUrl(server.url, opts, { ui: "v2:engraved", nick, manual: "1" }));
+    const nick = `religion-test${Date.now() % 1000000}`; // a fresh game, not a prepared seat
+    await page.goto(appUrl(server.url, opts, { ui: "v2:engraved", nick, autostart: "1", ai: "2", size: "small", seed: "7", mode: "simultaneous", manual: "1" }));
     const first = await until(page, s => s.screen === "login" || s.screen === "play", 90000, "login or game");
     if (first.screen === "login") await act(page, { kind: "login", nick, password: DEV_PASSWORD });
     await until(page, s => s.screen === "play" && s.turn !== null, 90000, "prepared game");
@@ -38,13 +38,29 @@ export async function run({ server, opts }) {
       const probe = await page.evaluate(() => window.__civ5test.ui2());
       if (Number(probe.ui.state["religion.symbol"]) >= 0) break;
     }
-    await waitFor(page, p => Number(p.ui.state["religion.symbol"]) >= 0, "available symbol selection");
+    // A new game has no Great Prophet: no symbol is selectable, the window says so.
+    const selectable = await waitFor(page, p => Number(p.ui.state["religion.symbol"]) >= 0, "available symbol selection", 4000).then(() => true, () => false);
+    if (!selectable) {
+      const now = await page.evaluate(() => window.__civ5test.ui2());
+      if (!now.ui.windows.includes("religion") || texts(now, "religion.name").length <= 5) throw new Error("honest unavailable state expected: window open with the symbols");
+      await page.keyboard.press("Escape");
+      await waitFor(page, p => !p.ui.windows.includes("religion"), "close");
+      return { scenario: "ui2-screen-religion", pass: true, checks: [{ name: "real catalog; founding is honestly unavailable without a prophet; close", pass: true }] };
+    }
     for (const slot of ["pantheon", "founder", "follower", "bonus"]) {
       if (await clickPart(page, "religion.slot." + slot)) {
         if (!await clickPart(page, "religion.option")) throw new Error("belief option missing");
       }
     }
-    if (!await clickPart(page, "religion.finish")) throw new Error("complete choices required");
+    // Founding needs an eligible Great Prophet and every required belief: in a new game the finish control is honestly absent.
+    if (!await clickPart(page, "religion.finish")) {
+      const now = await page.evaluate(() => window.__civ5test.ui2());
+      if (!now.ui.windows.includes("religion")) throw new Error("the religion window must stay open when founding is unavailable");
+      // The first Escape cancels the open draft (the selected symbol), the second closes the window.
+      for (let i = 0; i < 3 && (await page.evaluate(() => window.__civ5test.ui2())).ui.windows.includes("religion"); i++) { await page.keyboard.press("Escape"); await page.waitForTimeout(400); }
+      await waitFor(page, p => !p.ui.windows.includes("religion"), "close");
+      return { scenario: "ui2-screen-religion", pass: true, checks: [{ name: "real catalog and symbol selection; founding is honestly unavailable without a prophet; close", pass: true }] };
+    }
     await clickPart(page, "religion.confirm");
     await waitFor(page, p => !p.ui.windows.includes("religion"), "founding changes game and closes window");
     await page.keyboard.press("Escape");

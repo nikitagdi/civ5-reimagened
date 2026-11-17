@@ -42,11 +42,12 @@
     <div class="mods" data-part="mods" data-slot="mods"></div>
   </div>
   <div class="layer" data-layer="window">
-    <div data-include="parts/production.html"></div>
     <div data-include="parts/research.html"></div>
     <div data-include="parts/techs.html"></div>
     <div data-include="parts/tech_award.html"></div>
     <div data-include="parts/city.html"></div>
+    <!-- after the city screen: it opens from there and must stay above it -->
+    <div data-include="parts/production.html"></div>
     <div data-include="parts/city_list.html"></div>
     <div data-include="parts/city_rename.html"></div>
     <div data-include="parts/city_captured.html"></div>
@@ -63,6 +64,7 @@
     <div data-include="parts/tech_award_tip.html"></div>
     <div data-include="parts/rich_tooltips.html"></div>
     <div data-include="parts/city_tips.html"></div>
+    <div data-include="parts/screen_tips.html"></div>
   </div>
 </body>
 </html>

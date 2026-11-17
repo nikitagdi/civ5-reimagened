@@ -312,32 +312,31 @@ async function screensViaClassic(b, numbers, check, shot) {
   const lua0 = await luaErrors(page);
   const runs = [];
   const screens = [
-    ["policies", "top.menu.policies", "SocialPolicyPopup"],
     ["economy", "top.menu.economy", "EconomicOverview"],
     ["military", "top.menu.military", "MilitaryOverview"],
     ["victory", "top.menu.victory", "VictoryProgress"],
     ["demographics", "top.menu.demographics", "Demographics"],
   ];
-  // The technology screen is a UI v2 window of the skin now (a server screen): its button opens it in UI v2, no
-  // hand-off to the classic UI; Escape closes it. The other five screens are not in the skin and still go classic.
-  {
-    const rect = await page.evaluate(() => window.__civ5test.ui2Rects(["top.menu.tech"])).catch(() => null);
+  // The technology and policy screens are UI v2 windows of the skin now (server screens): their buttons open them in
+  // UI v2, no hand-off to the classic UI; Escape closes them. The other four screens are not in the skin and still go classic.
+  for (const [label, part, win] of [["tech_tree", "top.menu.tech", "techs"], ["policies", "top.menu.policies", "policies"]]) {
+    const rect = await page.evaluate((p) => window.__civ5test.ui2Rects([p]), part).catch(() => null);
     const r = Array.isArray(rect) ? rect[0] : null;
-    check("screen tech_tree: the skin's button top.menu.tech is there", !!r, JSON.stringify(rect));
+    check(`screen ${label}: the skin's button ${part} is there`, !!r, JSON.stringify(rect));
     if (r) {
       await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2);
-      const up = await until(page, (x) => x.ui?.active === "v2" && !x.ui.screen, 20000, "tech window").catch((e) => e);
+      const up = await until(page, (x) => x.ui?.active === "v2" && !x.ui.screen, 20000, `${win} window`).catch((e) => e);
       let shown = false;
       const t0 = Date.now();
       while (Date.now() - t0 < 20000 && !shown) {
-        shown = (await ui2(page))?.ui?.windows?.includes("techs") === true;
+        shown = (await ui2(page))?.ui?.windows?.includes(win) === true;
         if (!shown) await sleep(100);
       }
-      check("screen tech_tree: UI v2 shows its techs window, no hand-off to the classic UI", shown && up?.ui?.active === "v2", JSON.stringify(up?.ui ?? String(up)));
+      check(`screen ${label}: UI v2 shows its ${win} window, no hand-off to the classic UI`, shown && up?.ui?.active === "v2", JSON.stringify(up?.ui ?? String(up)));
       await page.keyboard.press("Escape");
       const t1 = Date.now();
-      while (Date.now() - t1 < 10000 && (await ui2(page))?.ui?.windows?.includes("techs")) await sleep(100);
-      check("screen tech_tree: Escape closes the techs window", !(await ui2(page))?.ui?.windows?.includes("techs"), "");
+      while (Date.now() - t1 < 10000 && (await ui2(page))?.ui?.windows?.includes(win)) await sleep(100);
+      check(`screen ${label}: Escape closes the ${win} window`, !(await ui2(page))?.ui?.windows?.includes(win), "");
     }
   }
   for (const [screen, part, ctx] of screens) {

@@ -94,6 +94,9 @@ export async function run({ server, opts }) {
 
     // The test hook `openCity` drives the old city window; UI v2 opens its production window from the city banner.
     if (!await clickPart(page, "city-banner")) throw new Error("City banner is missing");
+    // The banner opens the full city screen; its production chooser opens the production window.
+    await waitFor(page, p => texts(p, "city.name").length > 0, "city window");
+    if (!await clickPart(page, "city.choose-production")) throw new Error("City production chooser is missing");
     await waitFor(page, p => texts(p, "production.head").length > 0 && texts(p, "production.list").includes("Worker"), "production window");
     await focusWorker(page);
     if (!await clickPart(page, "production.choose") && !await clickPart(page, "production.build-now")) throw new Error("Production choice button is missing");

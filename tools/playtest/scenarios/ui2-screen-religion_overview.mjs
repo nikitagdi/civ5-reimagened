@@ -5,8 +5,8 @@ import { DEV_PASSWORD } from "../lib/game.mjs";
 import { clickPart } from "./ui2-v1.mjs";
 
 const texts = (p, part) => (p?.texts ?? []).filter(t => t.part === part).map(t => t.text);
-async function waitFor(page, predicate, description) {
-  const deadline = Date.now() + 30000;
+async function waitFor(page, predicate, description, timeout = 30000) {
+  const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
     const probe = await page.evaluate(() => window.__civ5test.ui2());
     if (predicate(probe)) return probe;
@@ -20,8 +20,8 @@ export async function run({ server, opts }) {
   const browser = await openPage({ headed: opts.headed, logDir: opts.logDir, viewport: { width: 1366, height: 768 }, consoleFile: "ui2-screen-religion_overview.log" });
   try {
     const page = browser.page;
-    const nick = "religion_overview-test";
-    await page.goto(appUrl(server.url, opts, { ui: "v2:engraved", nick, manual: "1" }));
+    const nick = `religionov-test${Date.now() % 1000000}`; // a fresh game, not a prepared seat
+    await page.goto(appUrl(server.url, opts, { ui: "v2:engraved", nick, autostart: "1", ai: "2", size: "small", seed: "7", mode: "simultaneous", manual: "1" }));
     const first = await until(page, s => s.screen === "login" || s.screen === "play", 90000, "login or game");
     if (first.screen === "login") await act(page, { kind: "login", nick, password: DEV_PASSWORD });
     await until(page, s => s.screen === "play" && s.turn !== null, 90000, "prepared game");
@@ -34,8 +34,10 @@ export async function run({ server, opts }) {
     const before = await waitFor(page, p => texts(p, "religion-overview.auto-label").length > 0, "auto-purchase label");
     await clickPart(page, "religion-overview.auto");
     const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["religion-overview.option"]));
-    const row = rects.filter(r => r.keys.includes("save_prophet") && !r.node.includes("#"))[0];
-    if (!row) throw new Error("fixture must offer Save for a Great Prophet");
+    // The rectangle dump of a part covers its first element, which the server lists first: "Save for a Great Prophet".
+    if (!texts(await page.evaluate(() => window.__civ5test.ui2()), "religion-overview.option").includes("Save for a Great Prophet")) throw new Error("fixture must offer Save for a Great Prophet");
+    const row = rects.filter(r => !r.node.includes("#"))[0];
+    if (!row) throw new Error("the first purchase option has no geometry");
     await page.mouse.click(row.x + row.w/2, row.y + row.h/2);
     await waitFor(page, p => texts(p, "religion-overview.auto-label")[0] !== texts(before, "religion-overview.auto-label")[0], "server-confirmed auto-purchase label");
     await page.keyboard.press("Escape");

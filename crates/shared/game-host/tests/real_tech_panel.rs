@@ -17,6 +17,7 @@ fn real_panel_inputs_track_research_selection() {
         0,
     );
     let mut h = common::H::with(worker, outs);
+    h.found_city(0); // research is closed until the first city exists
     let hud = tech_query::query(&mut h, 1, "hud", vec![]);
     let id = hud["research"]["techs"]
         .as_array()
