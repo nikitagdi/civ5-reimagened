@@ -1,0 +1,103 @@
+[enum]
+LeaderMoodKey = ["war", "denounced", "liberated", "friendly", "neutral", "guarded", "hostile", "afraid"]
+LeaderMode = ["main", "discussion", "response", "coop_target", "confirm_denounce", "confirm_war"]
+LeaderAction = ["discuss", "trade", "demand", "declare_war", "make_peace", "goodbye"]
+LeaderTone = ["normal", "warn", "war"]
+LeaderConfirmKind = ["denounce", "war"]
+
+[type.LeaderPartner]
+id = "i32"
+name = "text"
+leader_name = "text"
+title = "text"
+civ = "text"
+capital = "text"
+cities = "i32"
+score = "i32"
+ideology = "text?"
+religion = "text?"
+is_human = "bool"
+alive = "bool"
+team = "i32"
+icon = "asset"
+emblem = "asset"
+color_bg = "str"
+color_fg = "str"
+
+[type.LeaderMoodReason]
+key = "str"
+text = "text"
+value = "i32?"
+
+[type.LeaderMood]
+key = "LeaderMoodKey"
+label = "text"
+reasons = { list = "LeaderMoodReason", key = "key" }
+
+[type.LeaderPhraseTarget]
+name = "text"
+civ = "text"
+emblem = "asset"
+color_bg = "str"
+color_fg = "str"
+
+[type.LeaderRelation]
+key = "str"
+label = "text"
+value = "text"
+note = "text?"
+
+[type.LeaderActionRow]
+key = "LeaderAction"
+label = "text"
+visible = "bool"
+enabled = "bool"
+reason = "text?"
+tooltip = "text?"
+
+[type.LeaderResponse]
+key = "str"
+index = "i32"
+label = "text"
+hint = "text?"
+tone = "LeaderTone"
+enabled = "bool"
+reason = "text?"
+
+[type.LeaderTarget]
+player = "i32"
+name = "text"
+civ = "text"
+emblem = "asset"
+color_bg = "str"
+color_fg = "str"
+meta = "text"
+score = "i32"
+
+[type.LeaderText]
+key = "str"
+text = "text"
+
+[type.LeaderConfirm]
+kind = "LeaderConfirmKind"
+text = "text"
+consequences = { list = "LeaderText", key = "key" }
+
+[model.leader]
+_optional = true
+partner = "LeaderPartner?"
+mood = "LeaderMood"
+mode = "LeaderMode"
+scenario = "i32?"
+speaker_line = "text"
+phrase = "text"
+phrase_target = "LeaderPhraseTarget?"
+can_close = "bool"
+relation = { list = "LeaderRelation", key = "key" }
+at_war = "bool"
+main_actions = { list = "LeaderActionRow", key = "key" }
+responses = { list = "LeaderResponse", key = "key" }
+targets = { list = "LeaderTarget", key = "player" }
+confirm = "LeaderConfirm?"
+available = "bool"
+unavailable_reason = "text?"

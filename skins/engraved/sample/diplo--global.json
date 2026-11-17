@@ -1,0 +1,1279 @@
+{
+  "model": {
+    "diplo": {
+      "me": {
+        "id": 0,
+        "name": "Catherine",
+        "leader": "Catherine",
+        "civ": "Russia",
+        "icon_leader": "leader:LEADER_CATHERINE",
+        "icon_civ": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": "#6e1c18",
+        "color_fg": "#e4c04e",
+        "score": 1248
+      },
+      "turn": 187,
+      "can_open_diplo": true,
+      "open_block_reason": null,
+      "league": {
+        "active": true,
+        "in_session": false,
+        "turns_to_session": 4
+      },
+      "counts": {
+        "majors_met": 6,
+        "city_states_met": 8,
+        "at_war": 1,
+        "friends": 2,
+        "denounced_us": 1,
+        "allies_cs": 2,
+        "cs_at_war": 1
+      },
+      "majors": [
+        {
+          "id": 1,
+          "name": "Harun al-Rashid",
+          "leader": "Harun al-Rashid",
+          "civ": "Arabia",
+          "icon_leader": "leader:LEADER_HARUN_AL_RASHID",
+          "icon_civ": "civ:CIVILIZATION_ARABIA",
+          "color_bg": "#2f6b3a",
+          "color_fg": "#d9e3c6",
+          "is_human": true,
+          "team": 1,
+          "team_size": 1,
+          "score": 1312,
+          "status": "none",
+          "mood": "human",
+          "war_turns": null,
+          "denounce_turns": null,
+          "dof_turns": null,
+          "summary": "Open borders both ways until turn 211 · embassies exchanged · your proposal sent this turn",
+          "trade_visible": true,
+          "gold": 2140,
+          "gold_per_turn": 71,
+          "embassy": "both",
+          "borders": "both",
+          "defensive_pact": false,
+          "research_agreement": false,
+          "trade_agreement_possible": true,
+          "resources": [
+            {
+              "key": "RESOURCE_OIL",
+              "name": "Oil",
+              "count": 3,
+              "kind": "strategic",
+              "icon": "resource:RESOURCE_OIL"
+            },
+            {
+              "key": "RESOURCE_INCENSE",
+              "name": "Incense",
+              "count": 2,
+              "kind": "luxury",
+              "icon": "resource:RESOURCE_INCENSE"
+            },
+            {
+              "key": "RESOURCE_PEARLS",
+              "name": "Pearls",
+              "count": 1,
+              "kind": "luxury",
+              "icon": "resource:RESOURCE_PEARLS"
+            }
+          ],
+          "action": "trade",
+          "action_enabled": false,
+          "action_reason": "Your proposal is waiting for an answer",
+          "era": "Modern era",
+          "policies": [
+            {
+              "key": "POLICY_BRANCH_LIBERTY",
+              "name": "Liberty",
+              "count": 5,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_COMMERCE",
+              "name": "Commerce",
+              "count": 6,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_RATIONALISM",
+              "name": "Rationalism",
+              "count": 4,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_FREEDOM",
+              "name": "Freedom",
+              "count": 5,
+              "is_ideology": true
+            }
+          ],
+          "wonders": [
+            {
+              "key": "BUILDING_GREAT_LIBRARY",
+              "name": "Great Library",
+              "icon": "building:BUILDING_GREAT_LIBRARY"
+            },
+            {
+              "key": "BUILDING_PETRA",
+              "name": "Petra",
+              "icon": "building:BUILDING_PETRA"
+            },
+            {
+              "key": "BUILDING_TAJ_MAHAL",
+              "name": "Taj Mahal",
+              "icon": "building:BUILDING_TAJ_MAHAL"
+            },
+            {
+              "key": "BUILDING_BIG_BEN",
+              "name": "Big Ben",
+              "icon": "building:BUILDING_BIG_BEN"
+            }
+          ],
+          "relations": [
+            {
+              "key": "friend_0",
+              "kind": "friend",
+              "tone": "good",
+              "text": "Friends with Pedro II",
+              "turns": 18
+            },
+            {
+              "key": "denounced_1",
+              "kind": "denounced",
+              "tone": "bad",
+              "text": "Denounced Bismarck",
+              "turns": 9
+            },
+            {
+              "key": "ally_cs_2",
+              "kind": "ally_cs",
+              "tone": "good",
+              "text": "Allied with Kathmandu",
+              "turns": null
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "name": "Pedro II",
+          "leader": "Pedro",
+          "civ": "Brazil",
+          "icon_leader": "leader:LEADER_PEDRO",
+          "icon_civ": "civ:CIVILIZATION_BRAZIL",
+          "color_bg": "#2f7a3a",
+          "color_fg": "#f2d64b",
+          "is_human": false,
+          "team": 5,
+          "team_size": 1,
+          "score": 1104,
+          "status": "none",
+          "mood": "friendly",
+          "war_turns": null,
+          "denounce_turns": null,
+          "dof_turns": 12,
+          "summary": "Friends for 12 more turns · open borders until turn 208 · pays you 6 gold per turn until turn 208",
+          "trade_visible": true,
+          "gold": 1520,
+          "gold_per_turn": 48,
+          "embassy": "both",
+          "borders": "both",
+          "defensive_pact": false,
+          "research_agreement": false,
+          "trade_agreement_possible": true,
+          "resources": [
+            {
+              "key": "RESOURCE_ALUMINUM",
+              "name": "Aluminium",
+              "count": 2,
+              "kind": "strategic",
+              "icon": "resource:RESOURCE_ALUMINUM"
+            },
+            {
+              "key": "RESOURCE_COFFEE",
+              "name": "Coffee",
+              "count": 1,
+              "kind": "luxury",
+              "icon": "resource:RESOURCE_COFFEE"
+            }
+          ],
+          "action": "talk",
+          "action_enabled": true,
+          "action_reason": null,
+          "era": "Modern era",
+          "policies": [
+            {
+              "key": "POLICY_BRANCH_TRADITION",
+              "name": "Tradition",
+              "count": 4,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_AESTHETICS",
+              "name": "Aesthetics",
+              "count": 5,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_COMMERCE",
+              "name": "Commerce",
+              "count": 2,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_FREEDOM",
+              "name": "Freedom",
+              "count": 3,
+              "is_ideology": true
+            }
+          ],
+          "wonders": [
+            {
+              "key": "BUILDING_SISTINE_CHAPEL",
+              "name": "Sistine Chapel",
+              "icon": "building:BUILDING_SISTINE_CHAPEL"
+            },
+            {
+              "key": "BUILDING_UFFIZI",
+              "name": "Uffizi",
+              "icon": "building:BUILDING_UFFIZI"
+            },
+            {
+              "key": "BUILDING_CHRIST_THE_REDEEMER",
+              "name": "Christ the Redeemer",
+              "icon": "building:BUILDING_CHRIST_THE_REDEEMER"
+            }
+          ],
+          "relations": [
+            {
+              "key": "friend_0",
+              "kind": "friend",
+              "tone": "good",
+              "text": "Friends with you",
+              "turns": 12
+            },
+            {
+              "key": "friend_1",
+              "kind": "friend",
+              "tone": "good",
+              "text": "Friends with Harun al-Rashid",
+              "turns": 18
+            },
+            {
+              "key": "ally_cs_2",
+              "kind": "ally_cs",
+              "tone": "good",
+              "text": "Allied with Zurich",
+              "turns": null
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "name": "Montezuma",
+          "leader": "Montezuma",
+          "civ": "Aztec",
+          "icon_leader": "leader:LEADER_MONTEZUMA",
+          "icon_civ": "civ:CIVILIZATION_AZTEC",
+          "color_bg": "#4f9f99",
+          "color_fg": "#3b1412",
+          "is_human": true,
+          "team": 2,
+          "team_size": 1,
+          "score": 1046,
+          "status": "denounced_us",
+          "mood": "human",
+          "war_turns": null,
+          "denounce_turns": 41,
+          "dof_turns": null,
+          "summary": "Denounced you on turn 178; lasts 41 more turns",
+          "trade_visible": false,
+          "gold": null,
+          "gold_per_turn": null,
+          "embassy": null,
+          "borders": null,
+          "defensive_pact": null,
+          "research_agreement": null,
+          "trade_agreement_possible": null,
+          "resources": [],
+          "action": "trade",
+          "action_enabled": true,
+          "action_reason": null,
+          "era": "Industrial era",
+          "policies": [
+            {
+              "key": "POLICY_BRANCH_HONOR",
+              "name": "Honor",
+              "count": 6,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_EXPLORATION",
+              "name": "Exploration",
+              "count": 3,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_AUTOCRACY",
+              "name": "Autocracy",
+              "count": 4,
+              "is_ideology": true
+            }
+          ],
+          "wonders": [
+            {
+              "key": "BUILDING_TERRACOTTA_ARMY",
+              "name": "Terracotta Army",
+              "icon": "building:BUILDING_TERRACOTTA_ARMY"
+            },
+            {
+              "key": "BUILDING_ALHAMBRA",
+              "name": "Alhambra",
+              "icon": "building:BUILDING_ALHAMBRA"
+            }
+          ],
+          "relations": [
+            {
+              "key": "denounced_0",
+              "kind": "denounced",
+              "tone": "bad",
+              "text": "Denounced you",
+              "turns": 41
+            },
+            {
+              "key": "war_1",
+              "kind": "war",
+              "tone": "bad",
+              "text": "At war with Japan",
+              "turns": null
+            },
+            {
+              "key": "denounced_2",
+              "kind": "denounced",
+              "tone": "bad",
+              "text": "Denounced Ramesses",
+              "turns": 22
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "name": "Bismarck",
+          "leader": "Bismarck",
+          "civ": "Germany",
+          "icon_leader": "leader:LEADER_BISMARCK",
+          "icon_civ": "civ:CIVILIZATION_GERMANY",
+          "color_bg": "#3f4a52",
+          "color_fg": "#d8d8d8",
+          "is_human": false,
+          "team": 4,
+          "team_size": 1,
+          "score": 982,
+          "status": "war",
+          "mood": "hostile",
+          "war_turns": 14,
+          "denounce_turns": null,
+          "dof_turns": null,
+          "summary": "Declared war on you on turn 173 · peace possible in 3 turns",
+          "trade_visible": false,
+          "gold": null,
+          "gold_per_turn": null,
+          "embassy": null,
+          "borders": null,
+          "defensive_pact": null,
+          "research_agreement": null,
+          "trade_agreement_possible": null,
+          "resources": [],
+          "action": "talk",
+          "action_enabled": true,
+          "action_reason": null,
+          "era": "Modern era",
+          "policies": [
+            {
+              "key": "POLICY_BRANCH_TRADITION",
+              "name": "Tradition",
+              "count": 3,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_RATIONALISM",
+              "name": "Rationalism",
+              "count": 5,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_AUTOCRACY",
+              "name": "Autocracy",
+              "count": 6,
+              "is_ideology": true
+            }
+          ],
+          "wonders": [
+            {
+              "key": "BUILDING_BRANDENBURG_GATE",
+              "name": "Brandenburg Gate",
+              "icon": "building:BUILDING_BRANDENBURG_GATE"
+            },
+            {
+              "key": "BUILDING_HANGING_GARDENS",
+              "name": "Hanging Gardens",
+              "icon": "building:BUILDING_HANGING_GARDENS"
+            },
+            {
+              "key": "BUILDING_LEANING_TOWER_OF_PISA",
+              "name": "Leaning Tower of Pisa",
+              "icon": "building:BUILDING_LEANING_TOWER_OF_PISA"
+            }
+          ],
+          "relations": [
+            {
+              "key": "war_us_0",
+              "kind": "war_us",
+              "tone": "bad",
+              "text": "At war with you",
+              "turns": null
+            },
+            {
+              "key": "betrayal_1",
+              "kind": "betrayal",
+              "tone": "bad",
+              "text": "Denounced Pedro II: betrayal",
+              "turns": null
+            },
+            {
+              "key": "denounced_2",
+              "kind": "denounced",
+              "tone": "bad",
+              "text": "Denounced Ramesses",
+              "turns": 11
+            },
+            {
+              "key": "ally_cs_3",
+              "kind": "ally_cs",
+              "tone": "good",
+              "text": "Allied with Almaty, Kabul",
+              "turns": null
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "name": "Ramesses",
+          "leader": "Ramesses",
+          "civ": "Egypt",
+          "icon_leader": "leader:LEADER_RAMESSES",
+          "icon_civ": "civ:CIVILIZATION_EGYPT",
+          "color_bg": "#e9dca0",
+          "color_fg": "#4b3a7a",
+          "is_human": true,
+          "team": 3,
+          "team_size": 1,
+          "score": 937,
+          "status": "none",
+          "mood": "human",
+          "war_turns": null,
+          "denounce_turns": null,
+          "dof_turns": 22,
+          "summary": "Friends for 22 more turns · defensive pact until turn 205 · research agreement until turn 197",
+          "trade_visible": true,
+          "gold": 640,
+          "gold_per_turn": 22,
+          "embassy": "both",
+          "borders": "both",
+          "defensive_pact": true,
+          "research_agreement": true,
+          "trade_agreement_possible": false,
+          "resources": [
+            {
+              "key": "RESOURCE_HORSE",
+              "name": "Horses",
+              "count": 2,
+              "kind": "strategic",
+              "icon": "resource:RESOURCE_HORSE"
+            },
+            {
+              "key": "RESOURCE_COTTON",
+              "name": "Cotton",
+              "count": 1,
+              "kind": "luxury",
+              "icon": "resource:RESOURCE_COTTON"
+            }
+          ],
+          "action": "trade",
+          "action_enabled": true,
+          "action_reason": null,
+          "era": "Modern era",
+          "policies": [
+            {
+              "key": "POLICY_BRANCH_TRADITION",
+              "name": "Tradition",
+              "count": 5,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_PIETY",
+              "name": "Piety",
+              "count": 3,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_RATIONALISM",
+              "name": "Rationalism",
+              "count": 4,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_FREEDOM",
+              "name": "Freedom",
+              "count": 3,
+              "is_ideology": true
+            }
+          ],
+          "wonders": [
+            {
+              "key": "BUILDING_PYRAMIDS",
+              "name": "Pyramids",
+              "icon": "building:BUILDING_PYRAMIDS"
+            },
+            {
+              "key": "BUILDING_GREAT_LIGHTHOUSE",
+              "name": "Great Lighthouse",
+              "icon": "building:BUILDING_GREAT_LIGHTHOUSE"
+            },
+            {
+              "key": "BUILDING_NOTRE_DAME",
+              "name": "Notre Dame",
+              "icon": "building:BUILDING_NOTRE_DAME"
+            }
+          ],
+          "relations": [
+            {
+              "key": "friend_0",
+              "kind": "friend",
+              "tone": "good",
+              "text": "Friends with you",
+              "turns": 22
+            },
+            {
+              "key": "dp_1",
+              "kind": "dp",
+              "tone": "good",
+              "text": "Defensive pact with you",
+              "turns": null
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "name": "Oda Nobunaga",
+          "leader": "Oda Nobunaga",
+          "civ": "Japan",
+          "icon_leader": "leader:LEADER_ODA_NOBUNAGA",
+          "icon_civ": "civ:CIVILIZATION_JAPAN",
+          "color_bg": "#ece6da",
+          "color_fg": "#a3262a",
+          "is_human": false,
+          "team": 6,
+          "team_size": 1,
+          "score": 861,
+          "status": "none",
+          "mood": "guarded",
+          "war_turns": null,
+          "denounce_turns": null,
+          "dof_turns": null,
+          "summary": "You denounced them, 6 turns left · their embassy in Moscow · pays you 4 gold per turn until turn 210",
+          "trade_visible": true,
+          "gold": 380,
+          "gold_per_turn": -4,
+          "embassy": "theirs",
+          "borders": "none",
+          "defensive_pact": false,
+          "research_agreement": false,
+          "trade_agreement_possible": true,
+          "resources": [
+            {
+              "key": "RESOURCE_IRON",
+              "name": "Iron",
+              "count": 2,
+              "kind": "strategic",
+              "icon": "resource:RESOURCE_IRON"
+            },
+            {
+              "key": "RESOURCE_SILK",
+              "name": "Silk",
+              "count": 1,
+              "kind": "luxury",
+              "icon": "resource:RESOURCE_SILK"
+            }
+          ],
+          "action": "talk",
+          "action_enabled": true,
+          "action_reason": null,
+          "era": "Industrial era",
+          "policies": [
+            {
+              "key": "POLICY_BRANCH_HONOR",
+              "name": "Honor",
+              "count": 5,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_PATRONAGE",
+              "name": "Patronage",
+              "count": 2,
+              "is_ideology": false
+            },
+            {
+              "key": "POLICY_BRANCH_AUTOCRACY",
+              "name": "Autocracy",
+              "count": 3,
+              "is_ideology": true
+            }
+          ],
+          "wonders": [
+            {
+              "key": "BUILDING_HIMEJI_CASTLE",
+              "name": "Himeji Castle",
+              "icon": "building:BUILDING_HIMEJI_CASTLE"
+            },
+            {
+              "key": "BUILDING_CHICHEN_ITZA",
+              "name": "Chichen Itza",
+              "icon": "building:BUILDING_CHICHEN_ITZA"
+            }
+          ],
+          "relations": [
+            {
+              "key": "we_denounced_0",
+              "kind": "we_denounced",
+              "tone": "bad",
+              "text": "You denounced them",
+              "turns": 6
+            },
+            {
+              "key": "war_1",
+              "kind": "war",
+              "tone": "bad",
+              "text": "At war with Montezuma",
+              "turns": null
+            },
+            {
+              "key": "ally_cs_2",
+              "kind": "ally_cs",
+              "tone": "good",
+              "text": "Allied with Hanoi",
+              "turns": null
+            }
+          ]
+        }
+      ],
+      "influence_scale": {
+        "min": -60,
+        "max": 180,
+        "friends": 30,
+        "allies": 60
+      },
+      "city_states": [
+        {
+          "id": 22,
+          "name": "Singapore",
+          "icon": "civ:MINOR_CIV_SINGAPORE",
+          "color": "#78a6d6",
+          "at_war": false,
+          "influence": 148,
+          "status": "allied",
+          "trait": "Maritime",
+          "personality": "Friendly",
+          "ally_id": 0,
+          "ally_name": "You",
+          "ally_is_me": true,
+          "resources": [
+            {
+              "key": "RESOURCE_WHALE",
+              "name": "Whales",
+              "count": 2,
+              "kind": "luxury",
+              "icon": "resource:RESOURCE_WHALE"
+            },
+            {
+              "key": "RESOURCE_PEARLS",
+              "name": "Pearls",
+              "count": 1,
+              "kind": "luxury",
+              "icon": "resource:RESOURCE_PEARLS"
+            }
+          ],
+          "tip_status": "Allies. Influence 148, falls by 1 per turn. Gives +3 food in the capital, +1 food in other cities."
+        },
+        {
+          "id": 24,
+          "name": "Florence",
+          "icon": "civ:MINOR_CIV_FLORENCE",
+          "color": "#a98ccc",
+          "at_war": false,
+          "influence": 96,
+          "status": "allied",
+          "trait": "Cultural",
+          "personality": "Neutral",
+          "ally_id": 0,
+          "ally_name": "You",
+          "ally_is_me": true,
+          "resources": [
+            {
+              "key": "RESOURCE_WINE",
+              "name": "Wine",
+              "count": 2,
+              "kind": "luxury",
+              "icon": "resource:RESOURCE_WINE"
+            },
+            {
+              "key": "RESOURCE_MARBLE",
+              "name": "Marble",
+              "count": 1,
+              "kind": "luxury",
+              "icon": "resource:RESOURCE_MARBLE"
+            }
+          ],
+          "tip_status": null
+        },
+        {
+          "id": 23,
+          "name": "Zurich",
+          "icon": "civ:MINOR_CIV_ZURICH",
+          "color": "#dcc057",
+          "at_war": false,
+          "influence": 52,
+          "status": "friends",
+          "trait": "Mercantile",
+          "personality": "Neutral",
+          "ally_id": 5,
+          "ally_name": "Pedro II",
+          "ally_is_me": false,
+          "resources": [
+            {
+              "key": "RESOURCE_IRON",
+              "name": "Iron",
+              "count": 4,
+              "kind": "strategic",
+              "icon": "resource:RESOURCE_IRON"
+            }
+          ],
+          "tip_status": null
+        },
+        {
+          "id": 25,
+          "name": "Kathmandu",
+          "icon": "civ:MINOR_CIV_KATHMANDU",
+          "color": "#cfcbc1",
+          "at_war": false,
+          "influence": 34,
+          "status": "friends",
+          "trait": "Religious",
+          "personality": "Irrational",
+          "ally_id": 1,
+          "ally_name": "Harun al-Rashid",
+          "ally_is_me": false,
+          "resources": [
+            {
+              "key": "RESOURCE_INCENSE",
+              "name": "Incense",
+              "count": 1,
+              "kind": "luxury",
+              "icon": "resource:RESOURCE_INCENSE"
+            }
+          ],
+          "tip_status": null
+        },
+        {
+          "id": 26,
+          "name": "Monaco",
+          "icon": "civ:MINOR_CIV_MONACO",
+          "color": "#78a6d6",
+          "at_war": false,
+          "influence": 12,
+          "status": "neutral",
+          "trait": "Maritime",
+          "personality": "Friendly",
+          "ally_id": null,
+          "ally_name": null,
+          "ally_is_me": false,
+          "resources": [],
+          "tip_status": null
+        },
+        {
+          "id": 27,
+          "name": "Hanoi",
+          "icon": "civ:MINOR_CIV_HANOI",
+          "color": "#dcc057",
+          "at_war": false,
+          "influence": 0,
+          "status": "neutral",
+          "trait": "Mercantile",
+          "personality": "Hostile",
+          "ally_id": 6,
+          "ally_name": "Oda Nobunaga",
+          "ally_is_me": false,
+          "resources": [
+            {
+              "key": "RESOURCE_SILK",
+              "name": "Silk",
+              "count": 2,
+              "kind": "luxury",
+              "icon": "resource:RESOURCE_SILK"
+            }
+          ],
+          "tip_status": null
+        },
+        {
+          "id": 28,
+          "name": "Almaty",
+          "icon": "civ:MINOR_CIV_ALMATY",
+          "color": "#c78a52",
+          "at_war": false,
+          "influence": -24,
+          "status": "angry",
+          "trait": "Militaristic",
+          "personality": "Irrational",
+          "ally_id": 4,
+          "ally_name": "Bismarck",
+          "ally_is_me": false,
+          "resources": [
+            {
+              "key": "RESOURCE_HORSE",
+              "name": "Horses",
+              "count": 3,
+              "kind": "strategic",
+              "icon": "resource:RESOURCE_HORSE"
+            }
+          ],
+          "tip_status": null
+        },
+        {
+          "id": 29,
+          "name": "Kabul",
+          "icon": "civ:MINOR_CIV_KABUL",
+          "color": "#c78a52",
+          "at_war": true,
+          "influence": -60,
+          "status": "war",
+          "trait": "Militaristic",
+          "personality": "Hostile",
+          "ally_id": 4,
+          "ally_name": "Bismarck",
+          "ally_is_me": false,
+          "resources": [
+            {
+              "key": "RESOURCE_IRON",
+              "name": "Iron",
+              "count": 2,
+              "kind": "strategic",
+              "icon": "resource:RESOURCE_IRON"
+            },
+            {
+              "key": "RESOURCE_COAL",
+              "name": "Coal",
+              "count": 1,
+              "kind": "strategic",
+              "icon": "resource:RESOURCE_COAL"
+            }
+          ],
+          "tip_status": null
+        }
+      ],
+      "deals": [
+        {
+          "id": 41,
+          "state": "current",
+          "partner_id": 5,
+          "partner_name": "Pedro II",
+          "partner_civ": "Brazil",
+          "partner_icon": "civ:CIVILIZATION_BRAZIL",
+          "partner_color_bg": "#2f7a3a",
+          "partner_color_fg": "#f2d64b",
+          "start_turn": 178,
+          "duration": 30,
+          "end_turn": 208,
+          "items": [
+            {
+              "key": "41_0",
+              "side": "them",
+              "group": "gold",
+              "kind": "gold_per_turn",
+              "name": "Gold per turn",
+              "amount": 6,
+              "duration": 30
+            },
+            {
+              "key": "41_1",
+              "side": "them",
+              "group": "luxury",
+              "kind": "resource",
+              "name": "Sugar",
+              "amount": 1,
+              "duration": 30
+            },
+            {
+              "key": "41_2",
+              "side": "them",
+              "group": "other",
+              "kind": "open_borders",
+              "name": "Open borders",
+              "amount": null,
+              "duration": 30
+            },
+            {
+              "key": "41_3",
+              "side": "me",
+              "group": "strategic",
+              "kind": "resource",
+              "name": "Iron",
+              "amount": 2,
+              "duration": 30
+            },
+            {
+              "key": "41_4",
+              "side": "me",
+              "group": "luxury",
+              "kind": "resource",
+              "name": "Furs",
+              "amount": 1,
+              "duration": 30
+            },
+            {
+              "key": "41_5",
+              "side": "me",
+              "group": "other",
+              "kind": "embassy",
+              "name": "Embassy",
+              "amount": null,
+              "duration": null
+            }
+          ]
+        },
+        {
+          "id": 44,
+          "state": "current",
+          "partner_id": 1,
+          "partner_name": "Harun al-Rashid",
+          "partner_civ": "Arabia",
+          "partner_icon": "civ:CIVILIZATION_ARABIA",
+          "partner_color_bg": "#2f6b3a",
+          "partner_color_fg": "#d9e3c6",
+          "start_turn": 181,
+          "duration": 30,
+          "end_turn": 211,
+          "items": [
+            {
+              "key": "44_0",
+              "side": "them",
+              "group": "other",
+              "kind": "open_borders",
+              "name": "Open borders",
+              "amount": null,
+              "duration": 30
+            },
+            {
+              "key": "44_1",
+              "side": "me",
+              "group": "gold",
+              "kind": "gold_per_turn",
+              "name": "Gold per turn",
+              "amount": 10,
+              "duration": 30
+            },
+            {
+              "key": "44_2",
+              "side": "me",
+              "group": "other",
+              "kind": "open_borders",
+              "name": "Open borders",
+              "amount": null,
+              "duration": 30
+            }
+          ]
+        },
+        {
+          "id": 45,
+          "state": "current",
+          "partner_id": 6,
+          "partner_name": "Oda Nobunaga",
+          "partner_civ": "Japan",
+          "partner_icon": "civ:CIVILIZATION_JAPAN",
+          "partner_color_bg": "#ece6da",
+          "partner_color_fg": "#a3262a",
+          "start_turn": 180,
+          "duration": 30,
+          "end_turn": 210,
+          "items": [
+            {
+              "key": "45_0",
+              "side": "them",
+              "group": "gold",
+              "kind": "gold_per_turn",
+              "name": "Gold per turn",
+              "amount": 4,
+              "duration": 30
+            },
+            {
+              "key": "45_1",
+              "side": "me",
+              "group": "luxury",
+              "kind": "resource",
+              "name": "Silk",
+              "amount": 1,
+              "duration": 30
+            }
+          ]
+        },
+        {
+          "id": 39,
+          "state": "current",
+          "partner_id": 3,
+          "partner_name": "Ramesses",
+          "partner_civ": "Egypt",
+          "partner_icon": "civ:CIVILIZATION_EGYPT",
+          "partner_color_bg": "#e9dca0",
+          "partner_color_fg": "#4b3a7a",
+          "start_turn": 175,
+          "duration": 30,
+          "end_turn": 205,
+          "items": [
+            {
+              "key": "39_0",
+              "side": "them",
+              "group": "other",
+              "kind": "defensive_pact",
+              "name": "Defensive pact",
+              "amount": null,
+              "duration": 30
+            },
+            {
+              "key": "39_1",
+              "side": "me",
+              "group": "other",
+              "kind": "defensive_pact",
+              "name": "Defensive pact",
+              "amount": null,
+              "duration": 30
+            }
+          ]
+        },
+        {
+          "id": 36,
+          "state": "current",
+          "partner_id": 3,
+          "partner_name": "Ramesses",
+          "partner_civ": "Egypt",
+          "partner_icon": "civ:CIVILIZATION_EGYPT",
+          "partner_color_bg": "#e9dca0",
+          "partner_color_fg": "#4b3a7a",
+          "start_turn": 167,
+          "duration": 30,
+          "end_turn": 197,
+          "items": [
+            {
+              "key": "36_0",
+              "side": "them",
+              "group": "other",
+              "kind": "research_agreement",
+              "name": "Research agreement",
+              "amount": 340,
+              "duration": 30
+            },
+            {
+              "key": "36_1",
+              "side": "me",
+              "group": "other",
+              "kind": "research_agreement",
+              "name": "Research agreement",
+              "amount": 340,
+              "duration": 30
+            }
+          ]
+        },
+        {
+          "id": 31,
+          "state": "completed",
+          "partner_id": 2,
+          "partner_name": "Montezuma",
+          "partner_civ": "Aztec",
+          "partner_icon": "civ:CIVILIZATION_AZTEC",
+          "partner_color_bg": "#4f9f99",
+          "partner_color_fg": "#3b1412",
+          "start_turn": 142,
+          "duration": 30,
+          "end_turn": 172,
+          "items": [
+            {
+              "key": "31_0",
+              "side": "them",
+              "group": "other",
+              "kind": "open_borders",
+              "name": "Open borders",
+              "amount": null,
+              "duration": 30
+            },
+            {
+              "key": "31_1",
+              "side": "me",
+              "group": "other",
+              "kind": "open_borders",
+              "name": "Open borders",
+              "amount": null,
+              "duration": 30
+            }
+          ]
+        },
+        {
+          "id": 27,
+          "state": "completed",
+          "partner_id": 1,
+          "partner_name": "Harun al-Rashid",
+          "partner_civ": "Arabia",
+          "partner_icon": "civ:CIVILIZATION_ARABIA",
+          "partner_color_bg": "#2f6b3a",
+          "partner_color_fg": "#d9e3c6",
+          "start_turn": 121,
+          "duration": 30,
+          "end_turn": 151,
+          "items": [
+            {
+              "key": "27_0",
+              "side": "them",
+              "group": "other",
+              "kind": "research_agreement",
+              "name": "Research agreement",
+              "amount": 215,
+              "duration": 30
+            },
+            {
+              "key": "27_1",
+              "side": "me",
+              "group": "other",
+              "kind": "research_agreement",
+              "name": "Research agreement",
+              "amount": 215,
+              "duration": 30
+            }
+          ]
+        },
+        {
+          "id": 22,
+          "state": "completed",
+          "partner_id": 5,
+          "partner_name": "Pedro II",
+          "partner_civ": "Brazil",
+          "partner_icon": "civ:CIVILIZATION_BRAZIL",
+          "partner_color_bg": "#2f7a3a",
+          "partner_color_fg": "#f2d64b",
+          "start_turn": 118,
+          "duration": 30,
+          "end_turn": 148,
+          "items": [
+            {
+              "key": "22_0",
+              "side": "them",
+              "group": "luxury",
+              "kind": "resource",
+              "name": "Cotton",
+              "amount": 1,
+              "duration": 30
+            },
+            {
+              "key": "22_1",
+              "side": "me",
+              "group": "luxury",
+              "kind": "resource",
+              "name": "Wine",
+              "amount": 1,
+              "duration": 30
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "state": "completed",
+          "partner_id": 6,
+          "partner_name": "Oda Nobunaga",
+          "partner_civ": "Japan",
+          "partner_icon": "civ:CIVILIZATION_JAPAN",
+          "partner_color_bg": "#ece6da",
+          "partner_color_fg": "#a3262a",
+          "start_turn": 132,
+          "duration": 0,
+          "end_turn": 132,
+          "items": [
+            {
+              "key": "18_0",
+              "side": "them",
+              "group": "other",
+              "kind": "embassy",
+              "name": "Embassy",
+              "amount": null,
+              "duration": null
+            },
+            {
+              "key": "18_1",
+              "side": "me",
+              "group": "gold",
+              "kind": "gold",
+              "name": "Gold",
+              "amount": 120,
+              "duration": null
+            }
+          ]
+        },
+        {
+          "id": 12,
+          "state": "completed",
+          "partner_id": 4,
+          "partner_name": "Bismarck",
+          "partner_civ": "Germany",
+          "partner_icon": "civ:CIVILIZATION_GERMANY",
+          "partner_color_bg": "#3f4a52",
+          "partner_color_fg": "#d8d8d8",
+          "start_turn": 110,
+          "duration": 10,
+          "end_turn": 120,
+          "items": [
+            {
+              "key": "12_0",
+              "side": "them",
+              "group": "other",
+              "kind": "peace",
+              "name": "Peace treaty",
+              "amount": null,
+              "duration": 10
+            },
+            {
+              "key": "12_1",
+              "side": "me",
+              "group": "other",
+              "kind": "peace",
+              "name": "Peace treaty",
+              "amount": null,
+              "duration": 10
+            }
+          ]
+        }
+      ],
+      "deals_available": true,
+      "deals_reason": null
+    }
+  },
+  "ui": {
+    "windows": {
+      "diplo": {
+        "open": true
+      }
+    }
+  },
+  "state": {
+    "diplo": {
+      "tab": "global",
+      "deal": -1
+    }
+  }
+}

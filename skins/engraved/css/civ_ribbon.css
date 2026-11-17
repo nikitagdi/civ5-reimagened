@@ -1,0 +1,26 @@
+.civ_ribbon-panel { position: absolute; right: 0; top: 52px; bottom: 396px; width: 240px; display: flex; flex-direction: column; background: #1b1815; color: #ebe2d2; border: 1px solid #4d4032; font: 12px/16px "Fira Sans"; }
+.civ_ribbon-panel.civ_ribbon-left { left: 0; right: auto; }
+.civ_ribbon-toggle { position: absolute; right: 0; bottom: 380px; width: 240px; height: 20px; background: #1b1815; color: #b2a794; border: 1px solid #4d4032; font-size: 12px; }
+.civ_ribbon-corner { display: flex; justify-content: space-between; border-bottom: 1px solid #4d4032; }
+.civ_ribbon-corner button { background: transparent; color: #b2a794; border: 0; padding: 8px; font-size: 12px; }
+.civ_ribbon-corner button:hover { color: #ebe2d2; background: #26221d; }
+.civ_ribbon-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.civ_ribbon-major { display: grid; grid-template-columns: 3px 32px minmax(0, 1fr) 40px; gap: 4px 8px; padding: 8px; min-height: 60px; align-items: center; }
+.civ_ribbon-major:hover { background: #26221d; }
+.civ_ribbon-notch { height: 32px; background: #8a8072; }
+.civ_ribbon-notch.civ_ribbon-done { background: #c9a36a; }
+.civ_ribbon-portrait { width: 32px; height: 32px; border-radius: 16px; border: 1px solid #4d4032; }
+.civ_ribbon-who, .civ_ribbon-values { display: flex; flex-direction: column; min-width: 0; }
+.civ_ribbon-who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.civ_ribbon-who span { color: #8a8072; }
+.civ_ribbon-values { text-align: right; }
+.civ_ribbon-values span { color: #dcc057; }
+.civ_ribbon-connection { display: flex; gap: 8px; grid-column: 3 / 5; color: #86b061; font-size: 12px; }
+.civ_ribbon-war { color: #cf6f5c; }
+.civ_ribbon-war-button { grid-column: 3 / 5; background: transparent; color: #b2a794; border: 1px solid #4d4032; font-size: 12px; }
+.civ_ribbon-minor { display: flex; gap: 8px; padding: 4px 12px; align-items: center; }
+.civ_ribbon-minor img { width: 18px; height: 18px; }
+.civ_ribbon-minor b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.civ_ribbon-tip { display: flex; flex-direction: column; gap: 8px; width: 320px; padding: 16px; border: 1px solid #4d4032; background: #1b1815; color: #ebe2d2; font: 13px/20px "Fira Sans"; }
+.civ_ribbon-tip div { display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 1600px) { .civ_ribbon-panel { bottom: 320px; } .civ_ribbon-toggle { bottom: 300px; } }

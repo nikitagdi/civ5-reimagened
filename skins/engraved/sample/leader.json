@@ -1,0 +1,167 @@
+{
+  "model": {
+    "leader": {
+      "partner": {
+        "id": 5,
+        "name": "Bismarck",
+        "leader_name": "Otto von Bismarck",
+        "title": "Chancellor of the German Empire",
+        "civ": "Germany",
+        "capital": "Berlin",
+        "cities": 9,
+        "score": 702,
+        "ideology": "Autocracy",
+        "religion": "Protestantism",
+        "is_human": false,
+        "alive": true,
+        "team": 5,
+        "icon": "leader:LEADER_BISMARCK",
+        "emblem": "civ:CIVILIZATION_GERMANY",
+        "color_bg": "#3a3d42",
+        "color_fg": "#e3e1d9"
+      },
+      "mood": {
+        "key": "guarded",
+        "label": "Guarded",
+        "reasons": [
+          {
+            "key": "common_enemy",
+            "text": "We fought a common enemy",
+            "value": 2
+          },
+          {
+            "key": "trade_partner",
+            "text": "Trade partners for 40 turns",
+            "value": 1
+          },
+          {
+            "key": "minor_civ_competition",
+            "text": "You compete for the same city-states",
+            "value": -3
+          },
+          {
+            "key": "spy_caught",
+            "text": "Your spy was caught in Munich",
+            "value": -2
+          },
+          {
+            "key": "ideology",
+            "text": "Different ideologies",
+            "value": -1
+          }
+        ]
+      },
+      "mode": "main",
+      "scenario": null,
+      "speaker_line": "Bismarck says",
+      "phrase": "Catherine. Russia grows by the day, and Germany watches with interest. Speak plainly: what do you want from me?",
+      "phrase_target": null,
+      "can_close": true,
+      "relation": [
+        {
+          "key": "status",
+          "label": "Status",
+          "value": "At peace",
+          "note": "since turn 171"
+        },
+        {
+          "key": "pact",
+          "label": "Pact",
+          "value": "Non-aggression",
+          "note": "4 turns left"
+        },
+        {
+          "key": "borders",
+          "label": "Open borders",
+          "value": "His open to you",
+          "note": "12 turns"
+        },
+        {
+          "key": "embassy",
+          "label": "Embassies",
+          "value": "Both ways",
+          "note": ""
+        },
+        {
+          "key": "friendship",
+          "label": "Friendship",
+          "value": "None",
+          "note": "can be offered"
+        },
+        {
+          "key": "denounce",
+          "label": "Denouncements",
+          "value": "He denounced Montezuma",
+          "note": "turn 204"
+        },
+        {
+          "key": "spies",
+          "label": "Spies",
+          "value": "One each",
+          "note": "Munich and Kazan"
+        },
+        {
+          "key": "coop_war",
+          "label": "Joint war",
+          "value": "None agreed",
+          "note": ""
+        }
+      ],
+      "at_war": false,
+      "main_actions": [
+        {
+          "key": "discuss",
+          "label": "Discuss",
+          "visible": true,
+          "enabled": true,
+          "reason": null,
+          "tooltip": null
+        },
+        {
+          "key": "trade",
+          "label": "Trade",
+          "visible": true,
+          "enabled": true,
+          "reason": null,
+          "tooltip": null
+        },
+        {
+          "key": "demand",
+          "label": "Demand",
+          "visible": true,
+          "enabled": true,
+          "reason": null,
+          "tooltip": null
+        },
+        {
+          "key": "declare_war",
+          "label": "Declare war",
+          "visible": true,
+          "enabled": false,
+          "reason": "Pact: 4 turns left",
+          "tooltip": "A non-aggression pact forbids war between you for 4 more turns."
+        },
+        {
+          "key": "goodbye",
+          "label": "Goodbye",
+          "visible": true,
+          "enabled": true,
+          "reason": null,
+          "tooltip": null
+        }
+      ],
+      "responses": [],
+      "targets": [],
+      "confirm": null,
+      "available": true
+    }
+  },
+  "ui": {
+    "windows": {
+      "leader": {
+        "open": true,
+        "a": 5
+      }
+    }
+  }
+}

@@ -1,0 +1,136 @@
+[enum]
+DeclareWarKind = ["declare_war", "plunder_confirm"]
+DeclareWarReason = ["move", "move_city", "range_attack", "air_strike", "explicit", "plunder"]
+DeclareWarMood = ["friendly", "neutral", "guarded", "hostile", "afraid"]
+DeclareWarTone = ["good", "bad", "none"]
+DeclareWarItemKind = ["gold_per_turn", "research_agreement", "resource", "vote"]
+DeclareWarDir = ["out", "in"]
+DeclareWarYield = ["gold", "food", "prod", "sci"]
+
+[type.DeclareWarUnit]
+owner = "i32"
+id = "i32"
+
+[type.DeclareWarPlot]
+x = "i32"
+y = "i32"
+
+[type.DeclareWarPerson]
+id = "i32"
+name = "text"
+leader = "text"
+civ = "text"
+icon_leader = "asset"
+icon_civ = "asset"
+color_bg = "str"
+color_fg = "str"
+
+[type.DeclareWarTarget]
+id = "i32"
+team = "i32"
+is_city_state = "bool"
+is_human = "bool"
+name = "text"
+leader = "text?"
+civ = "text"
+icon_leader = "asset?"
+icon_civ = "asset"
+color_bg = "str"
+color_fg = "str"
+mood = "DeclareWarMood?"
+trait = "text?"
+personality = "text?"
+
+[type.DeclareWarDiplomacy]
+key = "str"
+text = "text"
+turns = "i32?"
+tone = "DeclareWarTone"
+
+[type.DeclareWarProtector]
+id = "i32"
+name = "text"
+icon_leader = "asset"
+icon_civ = "asset"
+color_bg = "str"
+color_fg = "str"
+
+[type.DeclareWarAlly]
+id = "i32"
+name = "text"
+icon = "asset"
+color = "str"
+
+[type.DeclareWarItem]
+key = "str"
+kind = "DeclareWarItemKind"
+text = "text"
+icon = "asset"
+turns_left = "i32?"
+
+[type.DeclareWarVote]
+key = "str"
+text = "text"
+
+[type.DeclareWarYieldValue]
+yield = "DeclareWarYield"
+value = "f32"
+
+[type.DeclareWarReligion]
+name = "text"
+pressure = "i32"
+icon = "asset"
+
+[type.DeclareWarRoute]
+key = "str"
+dir = "DeclareWarDir"
+from_city = "text"
+to_city = "text"
+other_icon = "asset"
+ours = { list = "DeclareWarYieldValue", key = "yield" }
+theirs = { list = "DeclareWarYieldValue", key = "yield" }
+religion_ours = "DeclareWarReligion?"
+religion_theirs = "DeclareWarReligion?"
+
+[type.DeclareWarPlunderRoute]
+from_city = "text"
+to_city = "text"
+owner_id = "i32"
+owner_name = "text"
+owner_at_war = "bool"
+loot_gold = "i32"
+
+[type.DeclareWarAffected]
+team = "i32"
+player = "i32"
+name = "text"
+leader = "text"
+civ = "text"
+icon_leader = "asset"
+icon_civ = "asset"
+color_bg = "str"
+color_fg = "str"
+
+[model.declare_war]
+_optional = true
+kind = "DeclareWarKind"
+reason = "DeclareWarReason"
+unit = "DeclareWarUnit?"
+plot = "DeclareWarPlot?"
+me = "DeclareWarPerson?"
+target = "DeclareWarTarget?"
+question = "text?"
+peaceful_hint = "text?"
+diplomacy = { list = "DeclareWarDiplomacy", key = "key" }
+protectors = { list = "DeclareWarProtector", key = "id" }
+allied_city_states = { list = "DeclareWarAlly", key = "id" }
+deals_from_them = { list = "DeclareWarItem", key = "key" }
+deals_from_you = { list = "DeclareWarItem", key = "key" }
+vote_promises = { list = "DeclareWarVote", key = "key" }
+routes = { list = "DeclareWarRoute", key = "key" }
+ignore_warning_team = "i32?"
+route = "DeclareWarPlunderRoute?"
+affected = "DeclareWarAffected?"
+enabled = "bool"
+disabled_reason = "text?"
+deals_reason = "text?"

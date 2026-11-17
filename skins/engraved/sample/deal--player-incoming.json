@@ -1,0 +1,611 @@
+{
+  "model": {
+    "deal": {
+      "kind": "player",
+      "state": "player_incoming",
+      "partner": {
+        "id": 1,
+        "name": "Harun al-Rashid",
+        "nick": null,
+        "civ": "Arabia",
+        "is_human": true,
+        "icon": "leader:LEADER_HARUN_AL_RASHID",
+        "emblem": "civ:CIVILIZATION_ARABIA",
+        "color_bg": "#3a3d42",
+        "color_fg": "#e3e1d9",
+        "mood": "at_peace",
+        "mood_label": "Guarded",
+        "at_war": false,
+        "war_note": "since turn 171",
+        "gold": 1240
+      },
+      "me": {
+        "id": 0,
+        "name": "Catherine",
+        "civ": "Russia",
+        "emblem": "civ:CIVILIZATION_RUSSIA",
+        "gold": 2140
+      },
+      "deal_turns": 20,
+      "peace_turns": 10,
+      "phrase": null,
+      "editable": false,
+      "pockets_visible": {
+        "them": false,
+        "us": false
+      },
+      "question": null,
+      "left_button": {
+        "key": "refuse",
+        "label": "Refuse",
+        "enabled": true,
+        "reason": null
+      },
+      "right_button": {
+        "key": "accept",
+        "label": "Accept",
+        "enabled": false,
+        "reason": "Native proposal contents are unavailable."
+      },
+      "extra_button": null,
+      "esc_allowed": true,
+      "side_note": "Draft only. Submission is unavailable until native deal serialization is connected.",
+      "pockets": {
+        "them": [
+          {
+            "key": "research_agreement",
+            "label": "Research agreement",
+            "icon": "deal:research_agreement",
+            "kind": "single",
+            "amount": null,
+            "amount_text": null,
+            "enabled": false,
+            "reason": "Needs a Declaration of Friendship",
+            "ref": {
+              "type": 8,
+              "data1": 0,
+              "data2": 0
+            },
+            "items": []
+          },
+          {
+            "key": "cities",
+            "label": "Cities",
+            "icon": null,
+            "kind": "list",
+            "amount": null,
+            "amount_text": null,
+            "enabled": true,
+            "reason": null,
+            "ref": null,
+            "items": [
+              {
+                "key": "city:5:1",
+                "label": "Berlin",
+                "icon": "deal:city",
+                "amount": 18,
+                "note": null,
+                "enabled": false,
+                "reason": "A capital cannot be traded",
+                "ref": {
+                  "type": 4,
+                  "data1": 1,
+                  "data2": 0
+                }
+              },
+              {
+                "key": "city:5:4",
+                "label": "Leipzig",
+                "icon": "deal:city",
+                "amount": 7,
+                "note": null,
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 4,
+                  "data1": 4,
+                  "data2": 0
+                }
+              }
+            ]
+          },
+          {
+            "key": "luxury",
+            "label": "Luxury resources",
+            "icon": null,
+            "kind": "list",
+            "amount": null,
+            "amount_text": null,
+            "enabled": true,
+            "reason": null,
+            "ref": null,
+            "items": [
+              {
+                "key": "res:RESOURCE_COCOA",
+                "label": "Cocoa",
+                "icon": "resource:RESOURCE_COCOA",
+                "amount": 1,
+                "note": null,
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 3,
+                  "data1": 31,
+                  "data2": 0
+                }
+              },
+              {
+                "key": "res:RESOURCE_TRUFFLES",
+                "label": "Truffles",
+                "icon": "resource:RESOURCE_TRUFFLES",
+                "amount": 2,
+                "note": null,
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 3,
+                  "data1": 22,
+                  "data2": 0
+                }
+              },
+              {
+                "key": "res:RESOURCE_SILK",
+                "label": "Silk",
+                "icon": "resource:RESOURCE_SILK",
+                "amount": 1,
+                "note": null,
+                "enabled": false,
+                "reason": "You already have Silk",
+                "ref": {
+                  "type": 3,
+                  "data1": 17,
+                  "data2": 0
+                }
+              }
+            ]
+          },
+          {
+            "key": "strategic",
+            "label": "Strategic resources",
+            "icon": null,
+            "kind": "list",
+            "amount": null,
+            "amount_text": null,
+            "enabled": true,
+            "reason": null,
+            "ref": null,
+            "items": [
+              {
+                "key": "res:RESOURCE_IRON",
+                "label": "Iron",
+                "icon": "resource:RESOURCE_IRON",
+                "amount": 5,
+                "note": null,
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 3,
+                  "data1": 0,
+                  "data2": 0
+                }
+              },
+              {
+                "key": "res:RESOURCE_OIL",
+                "label": "Oil",
+                "icon": "resource:RESOURCE_OIL",
+                "amount": 4,
+                "note": null,
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 3,
+                  "data1": 3,
+                  "data2": 0
+                }
+              },
+              {
+                "key": "res:RESOURCE_URANIUM",
+                "label": "Uranium",
+                "icon": "resource:RESOURCE_URANIUM",
+                "amount": 2,
+                "note": null,
+                "enabled": false,
+                "reason": "You need Atomic Theory",
+                "ref": {
+                  "type": 3,
+                  "data1": 5,
+                  "data2": 0
+                }
+              }
+            ]
+          },
+          {
+            "key": "votes",
+            "label": "World Congress votes",
+            "icon": null,
+            "kind": "list",
+            "amount": null,
+            "amount_text": null,
+            "enabled": true,
+            "reason": null,
+            "ref": null,
+            "items": [
+              {
+                "key": "vote:12:1:0",
+                "label": "World Fair: Yea",
+                "icon": "deal:vote",
+                "amount": 4,
+                "note": "Enact proposal, 4 base votes",
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 19,
+                  "data1": 12,
+                  "data2": 1
+                }
+              },
+              {
+                "key": "vote:12:0:0",
+                "label": "World Fair: Nay",
+                "icon": "deal:vote",
+                "amount": 4,
+                "note": "Enact proposal, 4 base votes",
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 19,
+                  "data1": 12,
+                  "data2": 0
+                }
+              }
+            ]
+          },
+          {
+            "key": "third_peace",
+            "label": "Make peace with",
+            "icon": null,
+            "kind": "list",
+            "amount": null,
+            "amount_text": null,
+            "enabled": true,
+            "reason": null,
+            "ref": null,
+            "items": [
+              {
+                "key": "peace:team:7",
+                "label": "Kabul",
+                "icon": "civ:MINOR_CIV_KABUL",
+                "amount": null,
+                "note": "City-state",
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 14,
+                  "data1": 7,
+                  "data2": 0
+                }
+              }
+            ]
+          },
+          {
+            "key": "third_war",
+            "label": "Declare war on",
+            "icon": null,
+            "kind": "list",
+            "amount": null,
+            "amount_text": null,
+            "enabled": true,
+            "reason": null,
+            "ref": null,
+            "items": [
+              {
+                "key": "war:team:6",
+                "label": "Elizabeth",
+                "icon": "civ:CIVILIZATION_ENGLAND",
+                "amount": null,
+                "note": "England",
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 15,
+                  "data1": 6,
+                  "data2": 0
+                }
+              },
+              {
+                "key": "war:team:4",
+                "label": "Alexander",
+                "icon": "civ:CIVILIZATION_GREECE",
+                "amount": null,
+                "note": "Greece",
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 15,
+                  "data1": 4,
+                  "data2": 0
+                }
+              }
+            ]
+          }
+        ],
+        "us": [
+          {
+            "key": "research_agreement",
+            "label": "Research agreement",
+            "icon": "deal:research_agreement",
+            "kind": "single",
+            "amount": null,
+            "amount_text": null,
+            "enabled": false,
+            "reason": "Needs a Declaration of Friendship",
+            "ref": {
+              "type": 8,
+              "data1": 0,
+              "data2": 0
+            },
+            "items": []
+          },
+          {
+            "key": "cities",
+            "label": "Cities",
+            "icon": null,
+            "kind": "list",
+            "amount": null,
+            "amount_text": null,
+            "enabled": true,
+            "reason": null,
+            "ref": null,
+            "items": [
+              {
+                "key": "city:0:1",
+                "label": "Moscow",
+                "icon": "deal:city",
+                "amount": 14,
+                "note": null,
+                "enabled": false,
+                "reason": "A capital cannot be traded",
+                "ref": {
+                  "type": 4,
+                  "data1": 1,
+                  "data2": 0
+                }
+              },
+              {
+                "key": "city:0:2",
+                "label": "Novgorod",
+                "icon": "deal:city",
+                "amount": 8,
+                "note": null,
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 4,
+                  "data1": 2,
+                  "data2": 0
+                }
+              }
+            ]
+          },
+          {
+            "key": "luxury",
+            "label": "Luxury resources",
+            "icon": null,
+            "kind": "list",
+            "amount": null,
+            "amount_text": null,
+            "enabled": true,
+            "reason": null,
+            "ref": null,
+            "items": [
+              {
+                "key": "res:RESOURCE_WHALE",
+                "label": "Whales",
+                "icon": "resource:RESOURCE_WHALE",
+                "amount": 2,
+                "note": null,
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 3,
+                  "data1": 12,
+                  "data2": 0
+                }
+              },
+              {
+                "key": "res:RESOURCE_INCENSE",
+                "label": "Incense",
+                "icon": "resource:RESOURCE_INCENSE",
+                "amount": 1,
+                "note": null,
+                "enabled": false,
+                "reason": "Bismarck already has Incense",
+                "ref": {
+                  "type": 3,
+                  "data1": 20,
+                  "data2": 0
+                }
+              },
+              {
+                "key": "res:RESOURCE_SUGAR",
+                "label": "Sugar",
+                "icon": "resource:RESOURCE_SUGAR",
+                "amount": 1,
+                "note": null,
+                "enabled": false,
+                "reason": "World Congress embargo on Germany",
+                "ref": {
+                  "type": 3,
+                  "data1": 23,
+                  "data2": 0
+                }
+              }
+            ]
+          },
+          {
+            "key": "strategic",
+            "label": "Strategic resources",
+            "icon": null,
+            "kind": "list",
+            "amount": null,
+            "amount_text": null,
+            "enabled": true,
+            "reason": null,
+            "ref": null,
+            "items": [
+              {
+                "key": "res:RESOURCE_IRON",
+                "label": "Iron",
+                "icon": "resource:RESOURCE_IRON",
+                "amount": 6,
+                "note": null,
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 3,
+                  "data1": 0,
+                  "data2": 0
+                }
+              },
+              {
+                "key": "res:RESOURCE_HORSE",
+                "label": "Horses",
+                "icon": "resource:RESOURCE_HORSE",
+                "amount": 4,
+                "note": null,
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 3,
+                  "data1": 1,
+                  "data2": 0
+                }
+              },
+              {
+                "key": "res:RESOURCE_ALUMINUM",
+                "label": "Aluminium",
+                "icon": "resource:RESOURCE_ALUMINUM",
+                "amount": 2,
+                "note": null,
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 3,
+                  "data1": 4,
+                  "data2": 0
+                }
+              }
+            ]
+          },
+          {
+            "key": "votes",
+            "label": "World Congress votes",
+            "icon": null,
+            "kind": "list",
+            "amount": null,
+            "amount_text": null,
+            "enabled": true,
+            "reason": null,
+            "ref": null,
+            "items": [
+              {
+                "key": "vote:12:1:0",
+                "label": "World Fair: Yea",
+                "icon": "deal:vote",
+                "amount": 9,
+                "note": "Enact proposal, 9 base votes",
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 19,
+                  "data1": 12,
+                  "data2": 1
+                }
+              },
+              {
+                "key": "vote:12:0:0",
+                "label": "World Fair: Nay",
+                "icon": "deal:vote",
+                "amount": 9,
+                "note": "Enact proposal, 9 base votes",
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 19,
+                  "data1": 12,
+                  "data2": 0
+                }
+              }
+            ]
+          },
+          {
+            "key": "third_peace",
+            "label": "Make peace with",
+            "icon": null,
+            "kind": "list",
+            "amount": null,
+            "amount_text": null,
+            "enabled": true,
+            "reason": null,
+            "ref": null,
+            "items": [
+              {
+                "key": "peace:team:4",
+                "label": "Alexander",
+                "icon": "civ:CIVILIZATION_GREECE",
+                "amount": null,
+                "note": "Greece",
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 14,
+                  "data1": 4,
+                  "data2": 0
+                }
+              }
+            ]
+          },
+          {
+            "key": "third_war",
+            "label": "Declare war on",
+            "icon": null,
+            "kind": "list",
+            "amount": null,
+            "amount_text": null,
+            "enabled": true,
+            "reason": null,
+            "ref": null,
+            "items": [
+              {
+                "key": "war:team:6",
+                "label": "Elizabeth",
+                "icon": "civ:CIVILIZATION_ENGLAND",
+                "amount": null,
+                "note": "England",
+                "enabled": true,
+                "reason": null,
+                "ref": {
+                  "type": 15,
+                  "data1": 6,
+                  "data2": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "table": {
+        "them": [],
+        "us": []
+      }
+    }
+  },
+  "ui": {
+    "windows": {
+      "deal": {
+        "open": true,
+        "a": 5
+      }
+    }
+  }
+}

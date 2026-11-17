@@ -1,0 +1,159 @@
+[enum]
+DiploStatus = ["none", "war", "denounced_us", "liberated_us"]
+DiploMood = ["human", "friendly", "neutral", "guarded", "hostile", "afraid"]
+DiploDirection = ["both", "ours", "theirs", "none"]
+DiploResourceKind = ["strategic", "luxury"]
+DiploAction = ["trade", "talk"]
+DiploRelationKind = ["war_us", "we_denounced", "war", "friend", "denounced", "betrayal", "ally_cs", "dp"]
+DiploTone = ["good", "bad"]
+DiploCSStatus = ["allied", "friends", "neutral", "angry", "war"]
+DiploDealState = ["current", "completed"]
+DiploSide = ["them", "me"]
+DiploGroup = ["gold", "strategic", "luxury", "other"]
+DiploItemKind = ["gold", "gold_per_turn", "resource", "open_borders", "embassy", "defensive_pact", "research_agreement", "trade_agreement", "friendship", "peace", "city", "third_party_peace", "third_party_war", "vote"]
+
+[type.DiploPerson]
+id = "i32"
+name = "text"
+leader = "text"
+civ = "text"
+icon_leader = "asset"
+icon_civ = "asset"
+color_bg = "str"
+color_fg = "str"
+score = "i32"
+
+[type.DiploLeague]
+active = "bool"
+in_session = "bool"
+turns_to_session = "i32"
+
+[type.DiploCounts]
+majors_met = "i32"
+city_states_met = "i32"
+at_war = "i32"
+friends = "i32"
+denounced_us = "i32"
+allies_cs = "i32"
+cs_at_war = "i32"
+
+[type.DiploResource]
+key = "str"
+name = "text"
+count = "i32"
+kind = "DiploResourceKind"
+icon = "asset"
+
+[type.DiploPolicy]
+key = "str"
+name = "text"
+count = "i32"
+is_ideology = "bool"
+
+[type.DiploWonder]
+key = "str"
+name = "text"
+icon = "asset"
+
+[type.DiploRelation]
+key = "str"
+kind = "DiploRelationKind"
+tone = "DiploTone"
+text = "text"
+turns = "i32?"
+
+[type.DiploMajor]
+id = "i32"
+team = "i32"
+team_size = "i32"
+name = "text"
+leader = "text"
+civ = "text"
+icon_leader = "asset"
+icon_civ = "asset"
+color_bg = "str"
+color_fg = "str"
+is_human = "bool"
+score = "i32"
+status = "DiploStatus"
+mood = "DiploMood"
+war_turns = "i32?"
+denounce_turns = "i32?"
+dof_turns = "i32?"
+summary = "text"
+trade_visible = "bool"
+gold = "i32?"
+gold_per_turn = "i32?"
+embassy = "DiploDirection?"
+borders = "DiploDirection?"
+defensive_pact = "bool?"
+research_agreement = "bool?"
+trade_agreement_possible = "bool?"
+resources = { list = "DiploResource", key = "key" }
+action = "DiploAction"
+action_enabled = "bool"
+action_reason = "text?"
+era = "text"
+policies = { list = "DiploPolicy", key = "key" }
+wonders = { list = "DiploWonder", key = "key" }
+relations = { list = "DiploRelation", key = "key" }
+
+[type.DiploScale]
+min = "i32"
+max = "i32"
+friends = "i32"
+allies = "i32"
+
+[type.DiploCS]
+id = "i32"
+name = "text"
+icon = "asset"
+color = "str"
+at_war = "bool"
+influence = "i32"
+status = "DiploCSStatus"
+trait = "text"
+personality = "text"
+ally_id = "i32?"
+ally_name = "text?"
+ally_is_me = "bool"
+resources = { list = "DiploResource", key = "key" }
+tip_status = "text?"
+
+[type.DiploItem]
+key = "str"
+side = "DiploSide"
+group = "DiploGroup"
+kind = "DiploItemKind"
+name = "text"
+amount = "i32?"
+duration = "i32?"
+
+[type.DiploDeal]
+id = "i32"
+state = "DiploDealState"
+partner_id = "i32"
+partner_name = "text"
+partner_civ = "text"
+partner_icon = "asset"
+partner_color_bg = "str"
+partner_color_fg = "str"
+start_turn = "i32"
+duration = "i32"
+end_turn = "i32"
+items = { list = "DiploItem", key = "key" }
+
+[model.diplo]
+_optional = true
+me = "DiploPerson"
+turn = "i32"
+can_open_diplo = "bool"
+open_block_reason = "text?"
+league = "DiploLeague"
+counts = "DiploCounts"
+majors = { list = "DiploMajor", key = "id" }
+influence_scale = "DiploScale"
+city_states = { list = "DiploCS", key = "id" }
+deals = { list = "DiploDeal", key = "id" }
+deals_available = "bool"
+deals_reason = "text?"

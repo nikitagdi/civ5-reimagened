@@ -1,0 +1,52 @@
+{
+  "model": {
+    "diplo": {
+      "me": {
+        "id": 0,
+        "name": "Catherine",
+        "leader": "Catherine",
+        "civ": "Russia",
+        "icon_leader": "leader:LEADER_CATHERINE",
+        "icon_civ": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": "#6e1c18",
+        "color_fg": "#e4c04e",
+        "score": 1248
+      },
+      "turn": 187,
+      "can_open_diplo": true,
+      "open_block_reason": null,
+      "league": {
+        "active": true,
+        "in_session": false,
+        "turns_to_session": 4
+      },
+      "counts": {
+        "majors_met": 0,
+        "city_states_met": 0,
+        "at_war": 0,
+        "friends": 0,
+        "denounced_us": 0,
+        "allies_cs": 0,
+        "cs_at_war": 0
+      },
+      "majors": [],
+      "influence_scale": {
+        "min": -60,
+        "max": 180,
+        "friends": 30,
+        "allies": 60
+      },
+      "city_states": [],
+      "deals": [],
+      "deals_available": true,
+      "deals_reason": null
+    }
+  },
+  "ui": {
+    "windows": {
+      "diplo": {
+        "open": true
+      }
+    }
+  }
+}

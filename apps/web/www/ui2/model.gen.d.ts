@@ -21,7 +21,7 @@ export type ProdTab = "all" | "units" | "buildings" | "wonders" | "other";
 export type TurnPending = "none" | "ending" | "cancelling";
 export type ToastKind = "refused" | "rejected" | "lost";
 export type RefuseWhy = "unsupported" | "no_screen" | "no_unit" | "action_unavailable" | "not_your_city" | "option_unavailable" | "cannot_buy" | "bad_slot" | "tech_unavailable" | "cannot_end_turn" | "cannot_cancel" | "chat_empty" | "chat_too_long" | "chat_rate" | "no_connection" | "no_game" | "too_many" | "turn_changed" | "too_big" | "core" | "turn_ended" | "not_your_turn" | "restarting" | "invalid" | "expired" | "not_seated" | "other";
-export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "city" | "city_captured" | "city_list" | "city_rename" | "free_great_person" | "ideology" | "pantheon" | "policies" | "religion" | "religion_overview" | "tech_award" | "techs";
+export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "city" | "city_captured" | "city_list" | "city_rename" | "civ_ribbon" | "deal" | "declare_war" | "diplo" | "free_great_person" | "ideology" | "leader" | "pantheon" | "policies" | "religion" | "religion_overview" | "tech_award" | "techs";
 export type ScreenId = "tech_tree" | "policies" | "religion" | "diplomacy" | "overview" | "notification_log" | "economy" | "military" | "victory" | "demographics" | "chat";
 export type MouseButton = "left" | "right";
 export type PushAt = "back" | "front";
@@ -48,8 +48,46 @@ export type CityListGrowth = "growing" | "stagnant" | "starving";
 export type CityListItemKind = "unit" | "building" | "wonder" | "project" | "process";
 export type CityRenameMode = "rename" | "raze" | "unraze" | "annex";
 export type CityRenameTaskKind = "raze" | "unraze" | "annex";
+export type CivRibbonSide = "right" | "left";
+export type CivRibbonRelation = "own" | "unmet" | "war" | "denounced" | "human" | "friendly" | "neutral" | "guarded" | "hostile" | "afraid";
+export type CivRibbonMood = "human" | "friendly" | "neutral" | "guarded" | "hostile" | "afraid";
+export type CivRibbonTurn = "moving" | "done" | "waiting" | "dead";
+export type CivRibbonConnection = "none" | "connecting" | "connected" | "disconnected";
+export type CivRibbonDeal = "none" | "incoming" | "outgoing";
+export type CivRibbonStatus = "allied" | "friends" | "neutral" | "angry" | "war";
+export type DealKind = "ai" | "player";
+export type DealState = "own" | "demand" | "ai_offer" | "ai_reply_yes" | "ai_reply_no" | "ai_request" | "ai_demand" | "concessions" | "peace" | "player_new" | "player_incoming" | "player_outgoing" | "view";
+export type DealMood = "war" | "at_peace" | "denounced" | "liberated" | "friendly" | "neutral" | "guarded" | "hostile" | "afraid";
+export type DealQuestionKind = "what_want" | "what_give" | "equalize" | "end_war" | "concessions";
+export type DealButtonKind = "clear" | "cancel" | "refuse" | "propose" | "accept" | "demand" | "goodbye" | "withdraw" | "declare_war" | "modify";
+export type DealSectionKind = "single" | "list";
+export type DealSectionKey = "gold" | "gold_per_turn" | "embassy" | "open_borders" | "pact" | "research_agreement" | "trade_agreement" | "friendship" | "cities" | "luxury" | "strategic" | "votes" | "third_peace" | "third_war";
+export type DeclareWarKind = "declare_war" | "plunder_confirm";
+export type DeclareWarReason = "move" | "move_city" | "range_attack" | "air_strike" | "explicit" | "plunder";
+export type DeclareWarMood = "friendly" | "neutral" | "guarded" | "hostile" | "afraid";
+export type DeclareWarTone = "good" | "bad" | "none";
+export type DeclareWarItemKind = "gold_per_turn" | "research_agreement" | "resource" | "vote";
+export type DeclareWarDir = "out" | "in";
+export type DeclareWarYield = "gold" | "food" | "prod" | "sci";
+export type DiploStatus = "none" | "war" | "denounced_us" | "liberated_us";
+export type DiploMood = "human" | "friendly" | "neutral" | "guarded" | "hostile" | "afraid";
+export type DiploDirection = "both" | "ours" | "theirs" | "none";
+export type DiploResourceKind = "strategic" | "luxury";
+export type DiploAction = "trade" | "talk";
+export type DiploRelationKind = "war_us" | "we_denounced" | "war" | "friend" | "denounced" | "betrayal" | "ally_cs" | "dp";
+export type DiploTone = "good" | "bad";
+export type DiploCSStatus = "allied" | "friends" | "neutral" | "angry" | "war";
+export type DiploDealState = "current" | "completed";
+export type DiploSide = "them" | "me";
+export type DiploGroup = "gold" | "strategic" | "luxury" | "other";
+export type DiploItemKind = "gold" | "gold_per_turn" | "resource" | "open_borders" | "embassy" | "defensive_pact" | "research_agreement" | "trade_agreement" | "friendship" | "peace" | "city" | "third_party_peace" | "third_party_war" | "vote";
 export type FreeGreatPersonMode = "free" | "faith" | "maya";
 export type IdeologyVictoryKind = "culture" | "diplomacy" | "domination" | "science";
+export type LeaderMoodKey = "war" | "denounced" | "liberated" | "friendly" | "neutral" | "guarded" | "hostile" | "afraid";
+export type LeaderMode = "main" | "discussion" | "response" | "coop_target" | "confirm_denounce" | "confirm_war";
+export type LeaderAction = "discuss" | "trade" | "demand" | "declare_war" | "make_peace" | "goodbye";
+export type LeaderTone = "normal" | "warn" | "war";
+export type LeaderConfirmKind = "denounce" | "war";
 export type PantheonMode = "pantheon" | "reformation";
 export type PoliciesTab = "policies" | "ideology";
 export type PoliciesBranchState = "opened" | "complete" | "closed" | "era_locked" | "blocked";
@@ -359,8 +397,13 @@ export interface Windows {
   readonly city_captured: WinArgs;
   readonly city_list: WinArgs;
   readonly city_rename: WinArgs;
+  readonly civ_ribbon: WinArgs;
+  readonly deal: WinArgs;
+  readonly declare_war: WinArgs;
+  readonly diplo: WinArgs;
   readonly free_great_person: WinArgs;
   readonly ideology: WinArgs;
+  readonly leader: WinArgs;
   readonly pantheon: WinArgs;
   readonly policies: WinArgs;
   readonly religion: WinArgs;
@@ -669,6 +712,479 @@ export interface CityRenameTask {
   readonly forecast: Text | null;
 }
 
+export interface CivRibbonLeague {
+  readonly active: boolean;
+  readonly in_session: boolean;
+  readonly turns_to_session: number;
+  readonly victory_session: boolean;
+}
+
+export interface CivRibbonExtra {
+  readonly key: string;
+  readonly name: Text;
+  readonly label: Text;
+  readonly icon: string | null;
+}
+
+export interface CivRibbonCorner {
+  readonly league: CivRibbonLeague;
+  readonly has_spies: boolean;
+  readonly spies_unassigned: number;
+  readonly culture_overview: boolean;
+  readonly extra: CivRibbonExtra[];
+}
+
+export interface CivRibbonTreaties {
+  readonly friendship: boolean;
+  readonly research: boolean;
+  readonly defensive_pact: boolean;
+  readonly borders_out: boolean;
+  readonly borders_in: boolean;
+  readonly closed: boolean;
+}
+
+export interface CivRibbonTreatyTurns {
+  readonly friendship: number | null;
+  readonly research: number | null;
+  readonly defensive_pact: number | null;
+  readonly borders_out: number | null;
+  readonly borders_in: number | null;
+}
+
+export interface CivRibbonTimes {
+  readonly shortest: Text;
+  readonly average: Text;
+  readonly longest: Text;
+}
+
+export interface CivRibbonText {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface CivRibbonHints {
+  readonly their_luxuries: CivRibbonText[];
+  readonly we_can_sell: CivRibbonText[];
+  readonly more: boolean;
+  readonly lump_gold: number | null;
+}
+
+export interface CivRibbonMajor {
+  readonly player_key: Key;
+  readonly id: number;
+  readonly name: Text | null;
+  readonly leader: Text | null;
+  readonly civ: Text | null;
+  readonly icon_leader: string | null;
+  readonly icon_civ: string | null;
+  readonly color_bg: string | null;
+  readonly color_fg: string | null;
+  readonly is_me: boolean;
+  readonly is_human: boolean;
+  readonly met: boolean;
+  readonly team: number;
+  readonly team_number: number | null;
+  readonly score: number;
+  readonly relation: CivRibbonRelation;
+  readonly mood: CivRibbonMood;
+  readonly treaties: CivRibbonTreaties | null;
+  readonly treaty_turns: CivRibbonTreatyTurns | null;
+  readonly at_war: boolean;
+  readonly gold: number | null;
+  readonly can_make_peace: boolean | null;
+  readonly peace_turns: number | null;
+  readonly peace_block_reason: Text | null;
+  readonly turn_state: CivRibbonTurn;
+  readonly turn_live: boolean;
+  readonly connection: CivRibbonConnection;
+  readonly is_host: boolean;
+  readonly ping_ms: number | null;
+  readonly deal: CivRibbonDeal;
+  readonly can_open: boolean;
+  readonly can_kick: boolean;
+  readonly turn_times: CivRibbonTimes | null;
+  readonly trade_hints: CivRibbonHints | null;
+  readonly tip_portrait: Text | null;
+  readonly action_reason: Text | null;
+  readonly can_declare_war: boolean;
+}
+
+export interface CivRibbonCS {
+  readonly id: number;
+  readonly name: Text;
+  readonly icon: string;
+  readonly color: string;
+  readonly influence: number;
+  readonly status: CivRibbonStatus;
+  readonly ally_is_me: boolean;
+  readonly ally_name: Text | null;
+  readonly has_my_spy: boolean;
+  readonly quests: number;
+  readonly pledged: boolean;
+  readonly at_war: boolean;
+  readonly turn_live: boolean;
+}
+
+export interface DealPartner {
+  readonly id: number;
+  readonly name: Text;
+  readonly nick: Text | null;
+  readonly civ: Text;
+  readonly is_human: boolean;
+  readonly icon: string;
+  readonly emblem: string;
+  readonly color_bg: string;
+  readonly color_fg: string;
+  readonly mood: DealMood;
+  readonly mood_label: Text;
+  readonly at_war: boolean;
+  readonly war_note: Text;
+  readonly gold: number;
+}
+
+export interface DealMe {
+  readonly id: number;
+  readonly name: Text;
+  readonly civ: Text;
+  readonly emblem: string;
+  readonly gold: number;
+}
+
+export interface DealVisibility {
+  readonly them: boolean;
+  readonly us: boolean;
+}
+
+export interface DealQuestion {
+  readonly key: DealQuestionKind;
+  readonly label: Text;
+  readonly hint: Text;
+}
+
+export interface DealButton {
+  readonly key: DealButtonKind;
+  readonly label: Text;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+}
+
+export interface DealRef {
+  readonly type: number;
+  readonly data1: number;
+  readonly data2: number;
+}
+
+export interface DealPocketItem {
+  readonly key: string;
+  readonly label: Text;
+  readonly icon: string;
+  readonly amount: number | null;
+  readonly note: Text | null;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly ref: DealRef;
+}
+
+export interface DealSection {
+  readonly key: DealSectionKey;
+  readonly label: Text;
+  readonly icon: string | null;
+  readonly kind: DealSectionKind;
+  readonly amount: number | null;
+  readonly amount_text: Text | null;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly ref: DealRef | null;
+  readonly items: DealPocketItem[];
+}
+
+export interface DealPockets {
+  readonly them: DealSection[];
+  readonly us: DealSection[];
+}
+
+export interface DealTableItem {
+  readonly key: string;
+  readonly label: Text;
+  readonly sub: Text;
+  readonly icon: string;
+  readonly amount: number | null;
+  readonly amount_max: number | null;
+  readonly editable: boolean;
+  readonly turns: number | null;
+  readonly duration_text: Text;
+  readonly removable: boolean;
+  readonly fixed: boolean;
+  readonly destroyed: boolean;
+  readonly ref: DealRef;
+}
+
+export interface DealTable {
+  readonly them: DealTableItem[];
+  readonly us: DealTableItem[];
+}
+
+export interface DeclareWarUnit {
+  readonly owner: number;
+  readonly id: number;
+}
+
+export interface DeclareWarPlot {
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface DeclareWarPerson {
+  readonly id: number;
+  readonly name: Text;
+  readonly leader: Text;
+  readonly civ: Text;
+  readonly icon_leader: string;
+  readonly icon_civ: string;
+  readonly color_bg: string;
+  readonly color_fg: string;
+}
+
+export interface DeclareWarTarget {
+  readonly id: number;
+  readonly team: number;
+  readonly is_city_state: boolean;
+  readonly is_human: boolean;
+  readonly name: Text;
+  readonly leader: Text | null;
+  readonly civ: Text;
+  readonly icon_leader: string | null;
+  readonly icon_civ: string;
+  readonly color_bg: string;
+  readonly color_fg: string;
+  readonly mood: DeclareWarMood | null;
+  readonly trait: Text | null;
+  readonly personality: Text | null;
+}
+
+export interface DeclareWarDiplomacy {
+  readonly key: string;
+  readonly text: Text;
+  readonly turns: number | null;
+  readonly tone: DeclareWarTone;
+}
+
+export interface DeclareWarProtector {
+  readonly id: number;
+  readonly name: Text;
+  readonly icon_leader: string;
+  readonly icon_civ: string;
+  readonly color_bg: string;
+  readonly color_fg: string;
+}
+
+export interface DeclareWarAlly {
+  readonly id: number;
+  readonly name: Text;
+  readonly icon: string;
+  readonly color: string;
+}
+
+export interface DeclareWarItem {
+  readonly key: string;
+  readonly kind: DeclareWarItemKind;
+  readonly text: Text;
+  readonly icon: string;
+  readonly turns_left: number | null;
+}
+
+export interface DeclareWarVote {
+  readonly key: string;
+  readonly text: Text;
+}
+
+export interface DeclareWarYieldValue {
+  readonly yield: DeclareWarYield;
+  readonly value: number;
+}
+
+export interface DeclareWarReligion {
+  readonly name: Text;
+  readonly pressure: number;
+  readonly icon: string;
+}
+
+export interface DeclareWarRoute {
+  readonly key: string;
+  readonly dir: DeclareWarDir;
+  readonly from_city: Text;
+  readonly to_city: Text;
+  readonly other_icon: string;
+  readonly ours: DeclareWarYieldValue[];
+  readonly theirs: DeclareWarYieldValue[];
+  readonly religion_ours: DeclareWarReligion | null;
+  readonly religion_theirs: DeclareWarReligion | null;
+}
+
+export interface DeclareWarPlunderRoute {
+  readonly from_city: Text;
+  readonly to_city: Text;
+  readonly owner_id: number;
+  readonly owner_name: Text;
+  readonly owner_at_war: boolean;
+  readonly loot_gold: number;
+}
+
+export interface DeclareWarAffected {
+  readonly team: number;
+  readonly player: number;
+  readonly name: Text;
+  readonly leader: Text;
+  readonly civ: Text;
+  readonly icon_leader: string;
+  readonly icon_civ: string;
+  readonly color_bg: string;
+  readonly color_fg: string;
+}
+
+export interface DiploPerson {
+  readonly id: number;
+  readonly name: Text;
+  readonly leader: Text;
+  readonly civ: Text;
+  readonly icon_leader: string;
+  readonly icon_civ: string;
+  readonly color_bg: string;
+  readonly color_fg: string;
+  readonly score: number;
+}
+
+export interface DiploLeague {
+  readonly active: boolean;
+  readonly in_session: boolean;
+  readonly turns_to_session: number;
+}
+
+export interface DiploCounts {
+  readonly majors_met: number;
+  readonly city_states_met: number;
+  readonly at_war: number;
+  readonly friends: number;
+  readonly denounced_us: number;
+  readonly allies_cs: number;
+  readonly cs_at_war: number;
+}
+
+export interface DiploResource {
+  readonly key: string;
+  readonly name: Text;
+  readonly count: number;
+  readonly kind: DiploResourceKind;
+  readonly icon: string;
+}
+
+export interface DiploPolicy {
+  readonly key: string;
+  readonly name: Text;
+  readonly count: number;
+  readonly is_ideology: boolean;
+}
+
+export interface DiploWonder {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+}
+
+export interface DiploRelation {
+  readonly key: string;
+  readonly kind: DiploRelationKind;
+  readonly tone: DiploTone;
+  readonly text: Text;
+  readonly turns: number | null;
+}
+
+export interface DiploMajor {
+  readonly id: number;
+  readonly team: number;
+  readonly team_size: number;
+  readonly name: Text;
+  readonly leader: Text;
+  readonly civ: Text;
+  readonly icon_leader: string;
+  readonly icon_civ: string;
+  readonly color_bg: string;
+  readonly color_fg: string;
+  readonly is_human: boolean;
+  readonly score: number;
+  readonly status: DiploStatus;
+  readonly mood: DiploMood;
+  readonly war_turns: number | null;
+  readonly denounce_turns: number | null;
+  readonly dof_turns: number | null;
+  readonly summary: Text;
+  readonly trade_visible: boolean;
+  readonly gold: number | null;
+  readonly gold_per_turn: number | null;
+  readonly embassy: DiploDirection | null;
+  readonly borders: DiploDirection | null;
+  readonly defensive_pact: boolean | null;
+  readonly research_agreement: boolean | null;
+  readonly trade_agreement_possible: boolean | null;
+  readonly resources: DiploResource[];
+  readonly action: DiploAction;
+  readonly action_enabled: boolean;
+  readonly action_reason: Text | null;
+  readonly era: Text;
+  readonly policies: DiploPolicy[];
+  readonly wonders: DiploWonder[];
+  readonly relations: DiploRelation[];
+}
+
+export interface DiploScale {
+  readonly min: number;
+  readonly max: number;
+  readonly friends: number;
+  readonly allies: number;
+}
+
+export interface DiploCS {
+  readonly id: number;
+  readonly name: Text;
+  readonly icon: string;
+  readonly color: string;
+  readonly at_war: boolean;
+  readonly influence: number;
+  readonly status: DiploCSStatus;
+  readonly trait: Text;
+  readonly personality: Text;
+  readonly ally_id: number | null;
+  readonly ally_name: Text | null;
+  readonly ally_is_me: boolean;
+  readonly resources: DiploResource[];
+  readonly tip_status: Text | null;
+}
+
+export interface DiploItem {
+  readonly key: string;
+  readonly side: DiploSide;
+  readonly group: DiploGroup;
+  readonly kind: DiploItemKind;
+  readonly name: Text;
+  readonly amount: number | null;
+  readonly duration: number | null;
+}
+
+export interface DiploDeal {
+  readonly id: number;
+  readonly state: DiploDealState;
+  readonly partner_id: number;
+  readonly partner_name: Text;
+  readonly partner_civ: Text;
+  readonly partner_icon: string;
+  readonly partner_color_bg: string;
+  readonly partner_color_fg: string;
+  readonly start_turn: number;
+  readonly duration: number;
+  readonly end_turn: number;
+  readonly items: DiploItem[];
+}
+
 export interface FreeGreatPersonAbility {
   readonly index: number;
   readonly label: Text;
@@ -803,6 +1319,94 @@ export interface IdeologyOption {
   readonly victories: IdeologyVictory[];
   readonly adopted_by: IdeologyAdopter[];
   readonly levels: IdeologyLevel[];
+}
+
+export interface LeaderPartner {
+  readonly id: number;
+  readonly name: Text;
+  readonly leader_name: Text;
+  readonly title: Text;
+  readonly civ: Text;
+  readonly capital: Text;
+  readonly cities: number;
+  readonly score: number;
+  readonly ideology: Text | null;
+  readonly religion: Text | null;
+  readonly is_human: boolean;
+  readonly alive: boolean;
+  readonly team: number;
+  readonly icon: string;
+  readonly emblem: string;
+  readonly color_bg: string;
+  readonly color_fg: string;
+}
+
+export interface LeaderMoodReason {
+  readonly key: string;
+  readonly text: Text;
+  readonly value: number | null;
+}
+
+export interface LeaderMood {
+  readonly key: LeaderMoodKey;
+  readonly label: Text;
+  readonly reasons: LeaderMoodReason[];
+}
+
+export interface LeaderPhraseTarget {
+  readonly name: Text;
+  readonly civ: Text;
+  readonly emblem: string;
+  readonly color_bg: string;
+  readonly color_fg: string;
+}
+
+export interface LeaderRelation {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: Text;
+  readonly note: Text | null;
+}
+
+export interface LeaderActionRow {
+  readonly key: LeaderAction;
+  readonly label: Text;
+  readonly visible: boolean;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly tooltip: Text | null;
+}
+
+export interface LeaderResponse {
+  readonly key: string;
+  readonly index: number;
+  readonly label: Text;
+  readonly hint: Text | null;
+  readonly tone: LeaderTone;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+}
+
+export interface LeaderTarget {
+  readonly player: number;
+  readonly name: Text;
+  readonly civ: Text;
+  readonly emblem: string;
+  readonly color_bg: string;
+  readonly color_fg: string;
+  readonly meta: Text;
+  readonly score: number;
+}
+
+export interface LeaderText {
+  readonly key: string;
+  readonly text: Text;
+}
+
+export interface LeaderConfirm {
+  readonly kind: LeaderConfirmKind;
+  readonly text: Text;
+  readonly consequences: LeaderText[];
 }
 
 export interface PantheonBelief {
@@ -1780,6 +2384,77 @@ export interface CityRename {
   readonly reason: Text | null;
 }
 
+export interface CivRibbon {
+  readonly visible: boolean;
+  readonly side: CivRibbonSide;
+  readonly mp: boolean;
+  readonly i_am_host: boolean;
+  readonly hot_join: boolean;
+  readonly corner: CivRibbonCorner;
+  readonly majors: CivRibbonMajor[];
+  readonly city_states: CivRibbonCS[];
+  readonly session_reason: Text | null;
+}
+
+export interface Deal {
+  readonly kind: DealKind;
+  readonly state: DealState;
+  readonly partner: DealPartner | null;
+  readonly me: DealMe | null;
+  readonly deal_turns: number;
+  readonly peace_turns: number;
+  readonly phrase: Text | null;
+  readonly editable: boolean;
+  readonly pockets_visible: DealVisibility;
+  readonly question: DealQuestion | null;
+  readonly left_button: DealButton;
+  readonly right_button: DealButton;
+  readonly extra_button: DealButton | null;
+  readonly esc_allowed: boolean;
+  readonly side_note: Text;
+  readonly pockets: DealPockets;
+  readonly table: DealTable;
+}
+
+export interface DeclareWar {
+  readonly kind: DeclareWarKind;
+  readonly reason: DeclareWarReason;
+  readonly unit: DeclareWarUnit | null;
+  readonly plot: DeclareWarPlot | null;
+  readonly me: DeclareWarPerson | null;
+  readonly target: DeclareWarTarget | null;
+  readonly question: Text | null;
+  readonly peaceful_hint: Text | null;
+  readonly diplomacy: DeclareWarDiplomacy[];
+  readonly protectors: DeclareWarProtector[];
+  readonly allied_city_states: DeclareWarAlly[];
+  readonly deals_from_them: DeclareWarItem[];
+  readonly deals_from_you: DeclareWarItem[];
+  readonly vote_promises: DeclareWarVote[];
+  readonly routes: DeclareWarRoute[];
+  readonly ignore_warning_team: number | null;
+  readonly route: DeclareWarPlunderRoute | null;
+  readonly affected: DeclareWarAffected | null;
+  readonly enabled: boolean;
+  readonly disabled_reason: Text | null;
+  readonly deals_reason: Text | null;
+}
+
+export interface Diplo {
+  readonly me: DiploPerson;
+  readonly turn: number;
+  readonly can_open_diplo: boolean;
+  readonly open_block_reason: Text | null;
+  readonly league: DiploLeague;
+  readonly counts: DiploCounts;
+  readonly majors: DiploMajor[];
+  readonly influence_scale: DiploScale;
+  readonly city_states: DiploCS[];
+  readonly deals: DiploDeal[];
+  readonly deals_available: boolean;
+  readonly deals_reason: Text | null;
+}
+
 export interface FreeGreatPerson {
   readonly mode: FreeGreatPersonMode;
   readonly mode_id: number;
@@ -1809,6 +2484,25 @@ export interface Ideology {
   readonly enabled: boolean;
   readonly reason: Text | null;
   readonly options: IdeologyOption[];
+}
+
+export interface Leader {
+  readonly partner: LeaderPartner | null;
+  readonly mood: LeaderMood;
+  readonly mode: LeaderMode;
+  readonly scenario: number | null;
+  readonly speaker_line: Text;
+  readonly phrase: Text;
+  readonly phrase_target: LeaderPhraseTarget | null;
+  readonly can_close: boolean;
+  readonly relation: LeaderRelation[];
+  readonly at_war: boolean;
+  readonly main_actions: LeaderActionRow[];
+  readonly responses: LeaderResponse[];
+  readonly targets: LeaderTarget[];
+  readonly confirm: LeaderConfirm | null;
+  readonly available: boolean;
+  readonly unavailable_reason: Text | null;
 }
 
 export interface Pantheon {
@@ -1928,9 +2622,14 @@ export interface Model {
   readonly city_captured: CityCaptured | null;
   readonly city_list: CityList | null;
   readonly city_rename: CityRename | null;
+  readonly civ_ribbon: CivRibbon | null;
+  readonly deal: Deal | null;
+  readonly declare_war: DeclareWar | null;
+  readonly diplo: Diplo | null;
   readonly free_great_person: FreeGreatPerson | null;
   readonly hud: Hud | null;
   readonly ideology: Ideology | null;
+  readonly leader: Leader | null;
   readonly pantheon: Pantheon | null;
   readonly policies: Policies | null;
   readonly religion: Religion | null;

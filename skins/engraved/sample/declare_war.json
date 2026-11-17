@@ -1,0 +1,182 @@
+{
+  "model": {
+    "declare_war": {
+      "kind": "declare_war",
+      "reason": "move",
+      "unit": {
+        "owner": 0,
+        "id": 8211
+      },
+      "plot": {
+        "x": 41,
+        "y": 22
+      },
+      "me": {
+        "id": 0,
+        "name": "Catherine",
+        "leader": "Catherine",
+        "civ": "Russia",
+        "icon_leader": "leader:LEADER_CATHERINE",
+        "icon_civ": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": "#6e1c18",
+        "color_fg": "#e4c04e"
+      },
+      "target": {
+        "id": 6,
+        "team": 6,
+        "is_city_state": false,
+        "is_human": false,
+        "name": "Oda Nobunaga",
+        "leader": "Oda Nobunaga",
+        "civ": "Japan",
+        "icon_leader": "leader:LEADER_ODA_NOBUNAGA",
+        "icon_civ": "civ:CIVILIZATION_JAPAN",
+        "color_bg": "#ece6da",
+        "color_fg": "#a3262a",
+        "mood": "guarded"
+      },
+      "question": "Moving into Japanese territory means war with Oda Nobunaga.",
+      "peaceful_hint": "You can enter peacefully if you sign an Open Borders agreement with Japan.",
+      "diplomacy": [
+        {
+          "key": "we_denounced",
+          "text": "You denounced them",
+          "turns": 6,
+          "tone": "bad"
+        },
+        {
+          "key": "no_dof",
+          "text": "No declaration of friendship",
+          "turns": null,
+          "tone": "none"
+        }
+      ],
+      "protectors": [],
+      "allied_city_states": [
+        {
+          "id": 27,
+          "name": "Hanoi",
+          "icon": "civ:MINOR_CIV_HANOI",
+          "color": "#dcc057"
+        }
+      ],
+      "deals_from_them": [
+        {
+          "key": "45_0",
+          "kind": "gold_per_turn",
+          "text": "4 gold per turn",
+          "icon": "yield:gold",
+          "turns_left": 23
+        }
+      ],
+      "deals_from_you": [
+        {
+          "key": "45_1",
+          "kind": "resource",
+          "text": "1 Silk",
+          "icon": "resource:RESOURCE_SILK",
+          "turns_left": 23
+        }
+      ],
+      "vote_promises": [],
+      "routes": [
+        {
+          "key": "r0",
+          "dir": "out",
+          "from_city": "Moscow",
+          "to_city": "Kyoto",
+          "other_icon": "civ:CIVILIZATION_JAPAN",
+          "ours": [
+            {
+              "yield": "gold",
+              "value": 6.4
+            },
+            {
+              "yield": "sci",
+              "value": 2
+            }
+          ],
+          "theirs": [
+            {
+              "yield": "gold",
+              "value": 3.1
+            },
+            {
+              "yield": "sci",
+              "value": 1.5
+            }
+          ],
+          "religion_ours": null,
+          "religion_theirs": {
+            "name": "Orthodoxy",
+            "pressure": 6,
+            "icon": "religion:RELIGION_ORTHODOXY"
+          }
+        },
+        {
+          "key": "r1",
+          "dir": "out",
+          "from_city": "Novgorod",
+          "to_city": "Hanoi",
+          "other_icon": "civ:MINOR_CIV_HANOI",
+          "ours": [
+            {
+              "yield": "gold",
+              "value": 4.2
+            },
+            {
+              "yield": "food",
+              "value": 1.25
+            }
+          ],
+          "theirs": [
+            {
+              "yield": "gold",
+              "value": 1.8
+            }
+          ],
+          "religion_ours": null,
+          "religion_theirs": null
+        },
+        {
+          "key": "r2",
+          "dir": "in",
+          "from_city": "Osaka",
+          "to_city": "Kazan",
+          "other_icon": "civ:CIVILIZATION_JAPAN",
+          "ours": [
+            {
+              "yield": "gold",
+              "value": 2.1
+            }
+          ],
+          "theirs": [
+            {
+              "yield": "gold",
+              "value": 5.3
+            },
+            {
+              "yield": "prod",
+              "value": 1
+            }
+          ],
+          "religion_ours": null,
+          "religion_theirs": {
+            "name": "Shinto",
+            "pressure": 4,
+            "icon": "religion:RELIGION_SHINTO"
+          }
+        }
+      ],
+      "ignore_warning_team": null,
+      "enabled": true
+    }
+  },
+  "ui": {
+    "windows": {
+      "declare_war": {
+        "open": true
+      }
+    }
+  }
+}

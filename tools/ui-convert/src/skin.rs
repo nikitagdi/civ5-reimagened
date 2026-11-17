@@ -574,11 +574,33 @@ api = "1.0"
                     "city_rename.why".to_string(),
                     StateValue::Str("".to_string())
                 ),
+                ("civ_ribbon.hover".to_string(), StateValue::Int(-1)),
+                ("civ_ribbon.left".to_string(), StateValue::Bool(false)),
+                ("civ_ribbon.visible".to_string(), StateValue::Bool(true)),
+                ("deal.amount".to_string(), StateValue::Int(0)),
+                ("deal.item".to_string(), StateValue::Int(0)),
+                ("deal.kind".to_string(), StateValue::Int(-1)),
+                ("deal.side".to_string(), StateValue::Int(0)),
+                ("declare_war.allies".to_string(), StateValue::Bool(false)),
+                ("declare_war.deals".to_string(), StateValue::Bool(false)),
+                ("declare_war.diplomacy".to_string(), StateValue::Bool(false)),
+                (
+                    "declare_war.protectors".to_string(),
+                    StateValue::Bool(false)
+                ),
+                ("declare_war.routes".to_string(), StateValue::Bool(false)),
+                ("diplo.deal".to_string(), StateValue::Int(-1)),
+                ("diplo.hover".to_string(), StateValue::Int(-1)),
+                (
+                    "diplo.tab".to_string(),
+                    StateValue::Str("relations".to_string())
+                ),
                 ("free_gp.selected".to_string(), StateValue::Int(-1)),
                 ("ideology.confirm".to_string(), StateValue::Int(-1)),
                 ("ideology.details".to_string(), StateValue::Int(-1)),
                 ("ideology.folded".to_string(), StateValue::Int(0)),
                 ("ideology.name".to_string(), StateValue::Str("".to_string())),
+                ("leader.hover".to_string(), StateValue::Str("".to_string())),
                 ("pantheon.confirm".to_string(), StateValue::Int(-1)),
                 (
                     "pantheon.effect".to_string(),
@@ -702,7 +724,9 @@ api = "1.0"
                 "js/ideology.js",
                 "js/pantheon.js",
                 "js/religion.js",
-                "js/religion_overview.js"
+                "js/religion_overview.js",
+                "js/civ_ribbon.js",
+                "js/leader.js"
             ]
         );
         // The first state is the one the converter scans with.
@@ -740,7 +764,20 @@ api = "1.0"
                 "ideology",
                 "pantheon",
                 "religion",
-                "religion_overview"
+                "religion_overview",
+                "diplo",
+                "declare_war",
+                "declare_war--plunder",
+                "civ_ribbon",
+                "deal",
+                "leader",
+                "diplo--global",
+                "diplo--deals",
+                "diplo--empty",
+                "declare_war--citystate",
+                "civ_ribbon--host",
+                "deal--player",
+                "deal--player-incoming"
             ]
         );
         assert_eq!(skin.verify.golden[0].viewport, [1920, 1080]);
