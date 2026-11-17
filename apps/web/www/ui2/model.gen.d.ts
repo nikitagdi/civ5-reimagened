@@ -21,12 +21,39 @@ export type ProdTab = "all" | "units" | "buildings" | "wonders" | "other";
 export type TurnPending = "none" | "ending" | "cancelling";
 export type ToastKind = "refused" | "rejected" | "lost";
 export type RefuseWhy = "unsupported" | "no_screen" | "no_unit" | "action_unavailable" | "not_your_city" | "option_unavailable" | "cannot_buy" | "bad_slot" | "tech_unavailable" | "cannot_end_turn" | "cannot_cancel" | "chat_empty" | "chat_too_long" | "chat_rate" | "no_connection" | "no_game" | "too_many" | "turn_changed" | "too_big" | "core" | "turn_ended" | "not_your_turn" | "restarting" | "invalid" | "expired" | "not_seated" | "other";
-export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "techs";
+export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "demographics" | "economy" | "espionage" | "military" | "techs" | "trade_routes" | "victory";
 export type ScreenId = "tech_tree" | "policies" | "religion" | "diplomacy" | "overview" | "notification_log" | "economy" | "military" | "victory" | "demographics" | "chat";
 export type MouseButton = "left" | "right";
 export type PushAt = "back" | "front";
 export type BuyWith = "gold" | "faith";
+export type DemographicsMetric = "population" | "food" | "production" | "gold" | "land" | "army" | "approval" | "literacy";
+export type DemographicsUnit = "people" | "million_bushels" | "million_tons" | "million_gold" | "square_km" | "soldiers" | "percent";
+export type DemographicsRanking = "food" | "production" | "gold" | "science" | "culture" | "happiness" | "wonders" | "military_might" | "influence" | "city_tourism";
+export type DemographicsPresenter = "herodotus" | "pliny" | "livy" | "tacitus" | "gibbon" | "bede" | "toynbee";
+export type EconomyTab = "general" | "happiness";
+export type EconomyIncomeKey = "cities" | "diplomacy" | "religion" | "connections";
+export type EconomyExpenseKey = "units" | "buildings" | "improvements" | "diplomacy";
+export type EconomyHappinessKey = "luxuries" | "variety" | "extra_per_luxury" | "other_luxury" | "local" | "buildings" | "connections" | "city_states" | "policies" | "religion" | "natural_wonders" | "free_per_city" | "world_congress" | "difficulty";
+export type EconomyOrderKind = "unit" | "building" | "wonder" | "project" | "process";
+export type EspionageRank = "recruit" | "agent" | "special_agent";
+export type EspionageRole = "spy" | "diplomat";
+export type EspionageActivity = "unassigned" | "travelling" | "surveillance" | "stealing" | "rigging" | "schmoozing" | "counterintel" | "dead";
+export type EspionagePotential = "known" | "ghost" | "unknown" | "city_state";
+export type EspionageSourceKind = "own_spy" | "civ";
+export type MilitaryStatus = "embarked" | "garrison" | "automated" | "exploring" | "healing" | "sentry" | "fortified" | "sleeping" | "building" | "none";
 export type TechsStatus = "researched" | "current" | "available" | "queued" | "locked";
+export type TradeRoutesTab = "yours" | "available" | "to_you";
+export type TradeRoutesDomain = "land" | "sea";
+export type TradeRoutesConnection = "food" | "production" | "international";
+export type TradeRoutesGroup = "yours" | "majors" | "city_states";
+export type TradeRoutesSort = "civ" | "city" | "my_gold" | "gold_diff" | "my_science" | "science_diff";
+export type TradeRoutesHomeKind = "trade_home" | "admiral_port";
+export type TradeRoutesBenefit = "my_gold" | "their_gold" | "my_science" | "their_science";
+export type TradeRoutesTerm = "base" | "dest_city_gold" | "origin_city_gold" | "policies" | "buildings" | "different_resources" | "exclusive_connection" | "other_trait" | "river" | "sea_route_mult" | "tech_difference" | "cultural_influence";
+export type VictoryScoreKey = "cities" | "population" | "land" | "wonders" | "technologies" | "future_techs" | "policies" | "great_works" | "religion" | "scenario_1" | "scenario_2" | "scenario_3" | "scenario_4";
+export type VictoryPart = "booster_1" | "booster_2" | "booster_3" | "cockpit" | "stasis_chamber" | "engine";
+export type VictoryProposal = "irr" | "cc" | "scrap";
+export type VictoryReason = "type_active" | "type_unavailable" | "cooldown" | "wait_next_turn" | "own_active" | "other_active";
 
 export interface Plot {
   readonly x: number;
@@ -301,7 +328,13 @@ export interface WinCity {
 }
 
 export interface Windows {
+  readonly demographics: WinArgs;
+  readonly economy: WinArgs;
+  readonly espionage: WinArgs;
+  readonly military: WinArgs;
   readonly techs: WinArgs;
+  readonly trade_routes: WinArgs;
+  readonly victory: WinArgs;
   readonly production: WinCity;
   readonly research: Win;
   readonly menu: Win;
@@ -332,6 +365,359 @@ export interface Toast {
   readonly kind: ToastKind;
   readonly why: RefuseWhy;
   readonly detail: string | null;
+}
+
+export interface DemographicsPlayer {
+  readonly name: string;
+  readonly civ_name: string;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface DemographicsRowsBest {
+  readonly value: number;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly name: string | null;
+  readonly met: boolean;
+  readonly is_you: boolean;
+}
+
+export interface DemographicsRowsWorst {
+  readonly value: number;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly name: string | null;
+  readonly met: boolean;
+  readonly is_you: boolean;
+}
+
+export interface DemographicsRows {
+  readonly key: DemographicsMetric;
+  readonly unit_key: DemographicsUnit;
+  readonly rank: number;
+  readonly rank_shared: boolean;
+  readonly value: number;
+  readonly best: DemographicsRowsBest;
+  readonly average: number;
+  readonly worst: DemographicsRowsWorst;
+}
+
+export interface DemographicsWhosWinningRows {
+  readonly row_key: string;
+  readonly city: string | null;
+  readonly rank: number;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly is_you: boolean;
+  readonly met: boolean;
+  readonly leader_name: string | null;
+  readonly civ_name: string | null;
+  readonly leader_icon: string | null;
+  readonly value: number;
+}
+
+export interface DemographicsWhosWinning {
+  readonly presenter_key: DemographicsPresenter;
+  readonly ranking_key: DemographicsRanking;
+  readonly rows: DemographicsWhosWinningRows[];
+}
+
+export interface EconomyPlayer {
+  readonly name: Text;
+  readonly civ_name: Text;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface EconomyOptions {
+  readonly science: boolean;
+  readonly religion: boolean;
+  readonly happiness: boolean;
+}
+
+export interface EconomyItem {
+  readonly id: number;
+  readonly name: Text;
+  readonly value: number;
+}
+
+export interface EconomyIncomeTooltip {
+  readonly base: number;
+  readonly per_citizen: number;
+  readonly player_mod_pct: number;
+}
+
+export interface EconomyExpenseTooltip {
+  readonly paid: number;
+  readonly free: number;
+  readonly avg_cost: number;
+  readonly difficulty_mod_pct: number;
+}
+
+export interface EconomyIncome {
+  readonly key: EconomyIncomeKey;
+  readonly value: number;
+  readonly items: EconomyItem[];
+  readonly tooltip: EconomyIncomeTooltip | null;
+}
+
+export interface EconomyExpense {
+  readonly key: EconomyExpenseKey;
+  readonly value: number;
+  readonly items: EconomyItem[];
+  readonly tooltip: EconomyExpenseTooltip | null;
+}
+
+export interface EconomyFinance {
+  readonly treasury: number;
+  readonly net: number;
+  readonly gross: number;
+  readonly expenses: number;
+  readonly science_loss: number | null;
+  readonly income: EconomyIncome[];
+  readonly expense: EconomyExpense[];
+}
+
+export interface EconomyOrder {
+  readonly kind: EconomyOrderKind;
+  readonly key: string;
+  readonly name: string;
+  readonly icon: string;
+  readonly stored: number | null;
+  readonly cost: number | null;
+  readonly per_turn: number | null;
+  readonly turns: number | null;
+}
+
+export interface EconomyCity {
+  readonly id: number;
+  readonly city_key: Key;
+  readonly name: string;
+  readonly population: number;
+  readonly food_stored: number;
+  readonly food_threshold: number;
+  readonly food_per_turn: number;
+  readonly growth_turns: number | null;
+  readonly starving: boolean;
+  readonly capital: boolean;
+  readonly puppet: boolean;
+  readonly occupied: boolean;
+  readonly health_pct: number | null;
+  readonly defense: number;
+  readonly production: number;
+  readonly production_mod_pct: number;
+  readonly science: number;
+  readonly gold: number;
+  readonly culture: number;
+  readonly faith: number;
+  readonly golden_age: number | null;
+  readonly order: EconomyOrder | null;
+}
+
+export interface EconomyTotals {
+  readonly population: number;
+  readonly food: number;
+  readonly production: number;
+  readonly science: number;
+  readonly gold: number;
+  readonly culture: number;
+  readonly faith: number;
+  readonly golden_age: number | null;
+}
+
+export interface EconomyHappinessItem {
+  readonly entry_key: string;
+  readonly id: number | null;
+  readonly key: string | null;
+  readonly name: Text;
+  readonly icon: string | null;
+  readonly value: number;
+}
+
+export interface EconomyHappinessRow {
+  readonly key: EconomyHappinessKey;
+  readonly value: number;
+  readonly items: EconomyHappinessItem[];
+}
+
+export interface EconomyHappiness {
+  readonly enabled: boolean;
+  readonly total: number;
+  readonly items: EconomyHappinessRow[];
+}
+
+export interface EconomyUnhappyCount {
+  readonly count: number;
+  readonly value: number;
+}
+
+export interface EconomyUnhappyCity {
+  readonly id: number;
+  readonly name: Text;
+  readonly value: number;
+  readonly occupied: boolean;
+}
+
+export interface EconomyUnhappiness {
+  readonly total: number;
+  readonly cities: EconomyUnhappyCount;
+  readonly occupied_cities: EconomyUnhappyCount;
+  readonly population: EconomyUnhappyCount;
+  readonly occupied_population: EconomyUnhappyCount;
+  readonly public_opinion: number;
+  readonly by_city: EconomyUnhappyCity[];
+}
+
+export interface EconomyResource {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly count: number;
+}
+
+export interface EconomyResources {
+  readonly available: EconomyResource[];
+  readonly imported: EconomyResource[];
+  readonly exported: EconomyResource[];
+  readonly local: EconomyResource[];
+}
+
+export interface EspionagePlayer {
+  readonly name: string;
+  readonly civ_name: string;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface EspionageCounts {
+  readonly alive: number;
+  readonly killed: number;
+}
+
+export interface EspionageAgentsPlace {
+  readonly city_id: number;
+  readonly city: string;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface EspionageAgentsCoup {
+  readonly chance_pct: number;
+  readonly ally: string;
+  readonly ally_player: number;
+}
+
+export interface EspionageAgents {
+  readonly id: number;
+  readonly name: string;
+  readonly rank: EspionageRank;
+  readonly rank_text: string;
+  readonly role: EspionageRole;
+  readonly place: EspionageAgentsPlace | null;
+  readonly activity: EspionageActivity;
+  readonly activity_text: string;
+  readonly progress_pct: number | null;
+  readonly progress_per_turn_pct: number | null;
+  readonly turns_left: number | null;
+  readonly surveillance: boolean;
+  readonly dead: boolean;
+  readonly death_text: string | null;
+  readonly can_view: boolean;
+  readonly view_reason: string | null;
+  readonly is_cs: boolean;
+  readonly can_coup: boolean;
+  readonly coup_reason: string | null;
+  readonly coup: EspionageAgentsCoup | null;
+}
+
+export interface EspionageOwnCities {
+  readonly raw_city_id: number;
+  readonly can_move: boolean;
+  readonly ask_role: boolean;
+  readonly move_reason: string | null;
+  readonly id: number;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly name: string;
+  readonly population: number;
+  readonly potential: number;
+  readonly potential_rel: number;
+  readonly agent_id: number | null;
+  readonly agent_role: EspionageRole | null;
+}
+
+export interface EspionageOtherCities {
+  readonly raw_city_id: number;
+  readonly can_move: boolean;
+  readonly ask_role: boolean;
+  readonly move_reason: string | null;
+  readonly id: number;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly civ_name: string;
+  readonly name: string;
+  readonly population: number;
+  readonly potential: number | null;
+  readonly potential_state: EspionagePotential;
+  readonly potential_rel: number | null;
+  readonly is_city_state: boolean;
+  readonly can_rig: boolean;
+  readonly capital: boolean;
+  readonly at_war: boolean;
+  readonly agent_id: number | null;
+  readonly agent_role: EspionageRole | null;
+  readonly can_view: boolean;
+}
+
+export interface EspionageIntrigueSource {
+  readonly kind: EspionageSourceKind;
+  readonly name: string;
+  readonly player: number | null;
+  readonly icon: string | null;
+  readonly color_bg: number | null;
+  readonly color_fg: number | null;
+}
+
+export interface EspionageIntrigue {
+  readonly id: number;
+  readonly turn: number;
+  readonly source: EspionageIntrigueSource;
+  readonly text: string;
+}
+
+export interface EspionageTarget {
+  readonly id: number;
+}
+
+export interface EspionageMove {
+  readonly agent_id: number;
+  readonly targets: EspionageTarget[];
+  readonly ask_role: EspionageTarget[];
+}
+
+export interface EspionageCoupResult {
+  readonly success: boolean;
+  readonly city: string;
+  readonly text: string;
 }
 
 export interface HudTech {
@@ -409,6 +795,54 @@ export interface HudUnit {
   readonly actions: HudAction[];
 }
 
+export interface MilitaryPlayer {
+  readonly name: Text;
+  readonly civ_name: Text;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface MilitarySupply {
+  readonly difficulty: number;
+  readonly cities: number;
+  readonly population: number;
+  readonly limit: number;
+  readonly used: number;
+  readonly remaining: number;
+  readonly over: number;
+  readonly production_penalty_pct: number;
+}
+
+export interface MilitaryGreatPerson {
+  readonly progress: number;
+  readonly threshold: number;
+  readonly icon: string;
+}
+
+export interface MilitaryCounts {
+  readonly military: number;
+  readonly civilian: number;
+}
+
+export interface MilitaryUnit {
+  readonly id: number;
+  readonly unit_key: Key;
+  readonly name: string;
+  readonly icon: string;
+  readonly military: boolean;
+  readonly status: MilitaryStatus;
+  readonly status_text: string;
+  readonly build_turns: number | null;
+  readonly moves: number;
+  readonly max_moves: number;
+  readonly strength: number;
+  readonly ranged: number;
+  readonly can_promote: boolean;
+  readonly health_pct: number | null;
+}
+
 export interface TechsPrerequisite {
   readonly id: number;
 }
@@ -433,6 +867,302 @@ export interface TechsRow {
   readonly era_name: Text;
   readonly icon: string;
   readonly unlocks: TechsUnlock[];
+}
+
+export interface TradeRoutesPlayer {
+  readonly name: string;
+  readonly civ_name: string;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface TradeRoutesCounts {
+  readonly yours: number;
+  readonly available: number;
+  readonly to_you: number;
+}
+
+export interface TradeRoutesTotals {
+  readonly used: number;
+  readonly capacity: number;
+  readonly my_gold: number;
+  readonly my_science: number;
+}
+
+export interface TradeRoutesChooseUnit {
+  readonly id: number;
+  readonly name: string;
+  readonly icon: string;
+  readonly domain: TradeRoutesDomain;
+  readonly home_city_id: number;
+  readonly home_city: string;
+  readonly range: number;
+}
+
+export interface TradeRoutesChooseGroups {
+  readonly key: TradeRoutesGroup;
+  readonly items: TradeRoutesDestination[];
+}
+
+export interface TradeRoutesChoose {
+  readonly unit: TradeRoutesChooseUnit;
+  readonly sort: TradeRoutesSort;
+  readonly groups: TradeRoutesChooseGroups[];
+}
+
+export interface TradeRoutesNewHomeUnit {
+  readonly id: number;
+  readonly name: string;
+  readonly icon: string;
+  readonly domain: TradeRoutesDomain;
+  readonly city_id: number;
+  readonly city: string;
+}
+
+export interface TradeRoutesNewHomeCities {
+  readonly location: Plot;
+  readonly id: number;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly name: string;
+  readonly plot: number;
+}
+
+export interface TradeRoutesNewHome {
+  readonly kind: TradeRoutesHomeKind;
+  readonly unit: TradeRoutesNewHomeUnit;
+  readonly cities: TradeRoutesNewHomeCities[];
+}
+
+export interface TradeRoutesEndpoint {
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly city_id: number;
+  readonly city: string;
+  readonly owner_name: string;
+}
+
+export interface TradeRoutesReligion {
+  readonly key: string;
+  readonly icon: string;
+  readonly name: string;
+  readonly pressure: number;
+}
+
+export interface TradeRoutesTooltipLine {
+  readonly key: TradeRoutesTerm;
+  readonly value: number;
+  readonly arg: string | null;
+}
+
+export interface TradeRoutesTooltipBlock {
+  readonly key: TradeRoutesBenefit;
+  readonly owner: string;
+  readonly total: number;
+  readonly lines: TradeRoutesTooltipLine[];
+}
+
+export interface TradeRoutesTooltip {
+  readonly route_id: number | null;
+  readonly blocks: TradeRoutesTooltipBlock[];
+}
+
+export interface TradeRoutesRoute {
+  readonly id: number;
+  readonly domain: TradeRoutesDomain;
+  readonly from: TradeRoutesEndpoint;
+  readonly to: TradeRoutesEndpoint;
+  readonly my_gold: number;
+  readonly my_science: number;
+  readonly their_gold: number;
+  readonly their_science: number;
+  readonly food: number;
+  readonly production: number;
+  readonly my_religion: TradeRoutesReligion | null;
+  readonly their_religion: TradeRoutesReligion | null;
+  readonly turns_left: number | null;
+  readonly tooltip: TradeRoutesTooltip | null;
+}
+
+export interface TradeRoutesRoutes {
+  readonly yours: TradeRoutesRoute[];
+  readonly available: TradeRoutesRoute[];
+  readonly to_you: TradeRoutesRoute[];
+}
+
+export interface TradeRoutesYield {
+  readonly food: number;
+  readonly production: number;
+  readonly gold: number;
+  readonly science: number;
+  readonly culture: number;
+  readonly faith: number;
+}
+
+export interface TradeRoutesDestination {
+  readonly location: Plot;
+  readonly id: number;
+  readonly group: TradeRoutesGroup;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly city_id: number;
+  readonly city: string;
+  readonly owner_name: string;
+  readonly connection: TradeRoutesConnection;
+  readonly connection_id: number;
+  readonly plot: number;
+  readonly mine: TradeRoutesYield;
+  readonly theirs: TradeRoutesYield;
+  readonly pressure_out: TradeRoutesReligion | null;
+  readonly pressure_in: TradeRoutesReligion | null;
+  readonly previous: boolean;
+  readonly tooltip: TradeRoutesTooltip | null;
+}
+
+export interface VictoryPlayer {
+  readonly name: string;
+  readonly civ_name: string;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface VictoryTime {
+  readonly enabled: boolean;
+  readonly max_turn: number;
+  readonly turns_left: number;
+}
+
+export interface VictoryScoreItems {
+  readonly key: VictoryScoreKey;
+  readonly value: number;
+}
+
+export interface VictoryScore {
+  readonly total: number;
+  readonly rank: number;
+  readonly items: VictoryScoreItems[];
+}
+
+export interface VictoryDominationCapitals {
+  readonly id: number;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly capital_name: string;
+  readonly owner: number | null;
+  readonly owner_icon: string | null;
+  readonly owner_met: boolean | null;
+  readonly team: number | null;
+  readonly alive: boolean;
+}
+
+export interface VictoryDominationLeader {
+  readonly player: number;
+  readonly name: string;
+  readonly is_team: boolean;
+  readonly count: number;
+  readonly total: number;
+}
+
+export interface VictoryDomination {
+  readonly enabled: boolean;
+  readonly own_count: number;
+  readonly capitals: VictoryDominationCapitals[];
+  readonly leader: VictoryDominationLeader | null;
+}
+
+export interface VictoryScienceParts {
+  readonly key: VictoryPart;
+  readonly icon: string;
+  readonly built: boolean;
+}
+
+export interface VictoryScience {
+  readonly enabled: boolean;
+  readonly apollo_built: boolean;
+  readonly apollo_teams: number;
+  readonly prereq_done: number;
+  readonly prereq_total: number;
+  readonly parts: VictoryScienceParts[];
+}
+
+export interface VictoryDiplomatic {
+  readonly enabled: boolean;
+  readonly league_active: boolean;
+  readonly un_active: boolean;
+  readonly turns_to_session: number | null;
+  readonly delegates_needed: number | null;
+  readonly delegates_controlled: number | null;
+  readonly winner: string | null;
+}
+
+export interface VictoryCultureCivs {
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly influence_pct: number;
+  readonly met: boolean;
+}
+
+export interface VictoryCulture {
+  readonly enabled: boolean;
+  readonly influential_count: number;
+  readonly rivals_count: number;
+  readonly civs: VictoryCultureCivs[];
+}
+
+export interface VictoryProposalsItemsReasons {
+  readonly key: VictoryReason;
+  readonly turn: number | null;
+}
+
+export interface VictoryProposalsItems {
+  readonly key: VictoryProposal;
+  readonly enabled: boolean;
+  readonly reasons: VictoryProposalsItemsReasons[];
+}
+
+export interface VictoryProposals {
+  readonly visible: boolean;
+  readonly items: VictoryProposalsItems[];
+}
+
+export interface VictoryRanking {
+  readonly rank: number;
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly name: string | null;
+  readonly is_you: boolean;
+  readonly civ_name: string;
+  readonly leader_icon: string;
+  readonly score: number;
+  readonly alive: boolean;
+  readonly eliminated_turn: number | null;
+}
+
+export interface VictorySpaceRace {
+  readonly player: number;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly name: string | null;
+  readonly is_you: boolean;
+  readonly apollo: boolean;
+  readonly parts_built: number;
 }
 
 export interface Meta {
@@ -549,6 +1279,40 @@ export interface Ui {
   readonly errors: Toast[];
 }
 
+export interface Demographics {
+  readonly player: DemographicsPlayer;
+  readonly participants: number;
+  readonly humans_only: boolean;
+  readonly rows: DemographicsRows[];
+  readonly whos_winning: DemographicsWhosWinning | null;
+}
+
+export interface Economy {
+  readonly player: EconomyPlayer;
+  readonly options: EconomyOptions;
+  readonly open_tab: EconomyTab | null;
+  readonly finance: EconomyFinance;
+  readonly cities: EconomyCity[];
+  readonly totals: EconomyTotals;
+  readonly happiness: EconomyHappiness;
+  readonly unhappiness: EconomyUnhappiness;
+  readonly resources: EconomyResources;
+}
+
+export interface Espionage {
+  readonly player: EspionagePlayer;
+  readonly enabled: boolean;
+  readonly started: boolean;
+  readonly late_era: boolean;
+  readonly counts: EspionageCounts;
+  readonly agents: EspionageAgents[];
+  readonly own_cities: EspionageOwnCities[];
+  readonly other_cities: EspionageOtherCities[];
+  readonly intrigue: EspionageIntrigue[];
+  readonly move: EspionageMove | null;
+  readonly coup_result: EspionageCoupResult | null;
+}
+
 export interface Hud {
   readonly research: HudResearch;
   readonly top: HudTop;
@@ -556,8 +1320,42 @@ export interface Hud {
   readonly unit: HudUnit | null;
 }
 
+export interface Military {
+  readonly player: MilitaryPlayer;
+  readonly supply: MilitarySupply;
+  readonly great_general: MilitaryGreatPerson;
+  readonly great_admiral: MilitaryGreatPerson;
+  readonly counts: MilitaryCounts;
+  readonly units: MilitaryUnit[];
+}
+
 export interface Techs {
   readonly techs: TechsRow[];
+}
+
+export interface TradeRoutes {
+  readonly player: TradeRoutesPlayer;
+  readonly tab: TradeRoutesTab | null;
+  readonly counts: TradeRoutesCounts;
+  readonly totals: TradeRoutesTotals;
+  readonly routes: TradeRoutesRoutes;
+  readonly choose: TradeRoutesChoose | null;
+  readonly new_home: TradeRoutesNewHome | null;
+}
+
+export interface Victory {
+  readonly player: VictoryPlayer;
+  readonly turn: number;
+  readonly scenario: boolean;
+  readonly time: VictoryTime;
+  readonly score: VictoryScore;
+  readonly domination: VictoryDomination;
+  readonly science: VictoryScience;
+  readonly diplomatic: VictoryDiplomatic;
+  readonly culture: VictoryCulture;
+  readonly proposals: VictoryProposals;
+  readonly ranking: VictoryRanking[];
+  readonly space_race: VictorySpaceRace[];
 }
 
 /** The model: one member per root. */
@@ -574,8 +1372,14 @@ export interface Model {
   readonly chat: ChatRow[];
   readonly production: Production | null;
   readonly ui: Ui;
+  readonly demographics: Demographics | null;
+  readonly economy: Economy | null;
+  readonly espionage: Espionage | null;
   readonly hud: Hud | null;
+  readonly military: Military | null;
   readonly techs: Techs | null;
+  readonly trade_routes: TradeRoutes | null;
+  readonly victory: Victory | null;
 }
 
 /** A decoded operation of a frame delta. Values follow the types above. */

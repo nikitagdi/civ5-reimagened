@@ -1,0 +1,508 @@
+{
+  "model": {
+    "victory": {
+      "player": {
+        "name": "Catherine",
+        "civ_name": "Russia",
+        "player": 0,
+        "icon": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": 1847335167,
+        "color_fg": 3837808383
+      },
+      "turn": 214,
+      "scenario": false,
+      "time": {
+        "enabled": true,
+        "max_turn": 330,
+        "turns_left": 116
+      },
+      "score": {
+        "total": 1292,
+        "rank": 2,
+        "items": [
+          {
+            "key": "cities",
+            "value": 120
+          },
+          {
+            "key": "population",
+            "value": 354
+          },
+          {
+            "key": "land",
+            "value": 248
+          },
+          {
+            "key": "wonders",
+            "value": 160
+          },
+          {
+            "key": "technologies",
+            "value": 252
+          },
+          {
+            "key": "future_techs",
+            "value": 0
+          },
+          {
+            "key": "policies",
+            "value": 66
+          },
+          {
+            "key": "great_works",
+            "value": 54
+          },
+          {
+            "key": "religion",
+            "value": 38
+          }
+        ]
+      },
+      "domination": {
+        "enabled": true,
+        "own_count": 1,
+        "capitals": [
+          {
+            "id": 0,
+            "player": 0,
+            "icon": "civ:CIVILIZATION_RUSSIA",
+            "color_bg": 1847335167,
+            "color_fg": 3837808383,
+            "capital_name": "Moscow",
+            "owner": 0,
+            "owner_icon": null,
+            "owner_met": true,
+            "team": null,
+            "alive": true
+          },
+          {
+            "id": 1,
+            "player": 1,
+            "icon": "civ:CIVILIZATION_ARABIA",
+            "color_bg": 795556607,
+            "color_fg": 3655583487,
+            "capital_name": "Mecca",
+            "owner": 1,
+            "owner_icon": null,
+            "owner_met": true,
+            "team": null,
+            "alive": true
+          },
+          {
+            "id": 2,
+            "player": 2,
+            "icon": "civ:CIVILIZATION_AZTEC",
+            "color_bg": 745499391,
+            "color_fg": 4038699263,
+            "capital_name": "Tenochtitlan",
+            "owner": 2,
+            "owner_icon": null,
+            "owner_met": true,
+            "team": null,
+            "alive": true
+          },
+          {
+            "id": 3,
+            "player": 3,
+            "icon": "civ:CIVILIZATION_EGYPT",
+            "color_bg": 1262123775,
+            "color_fg": 3923550463,
+            "capital_name": "Thebes",
+            "owner": 3,
+            "owner_icon": null,
+            "owner_met": true,
+            "team": null,
+            "alive": true
+          },
+          {
+            "id": 4,
+            "player": 4,
+            "icon": "civ:CIVILIZATION_GERMANY",
+            "color_bg": 1247109375,
+            "color_fg": 3907178751,
+            "capital_name": "Berlin",
+            "owner": 4,
+            "owner_icon": null,
+            "owner_met": true,
+            "team": null,
+            "alive": true
+          },
+          {
+            "id": 5,
+            "player": 5,
+            "icon": "civ:CIVILIZATION_JAPAN",
+            "color_bg": 3907180799,
+            "color_fg": 2333743871,
+            "capital_name": "Kyoto",
+            "owner": 5,
+            "owner_icon": null,
+            "owner_met": true,
+            "team": null,
+            "alive": true
+          },
+          {
+            "id": 6,
+            "player": 6,
+            "icon": "civ:CIVILIZATION_SIAM",
+            "color_bg": 3382847487,
+            "color_fg": 522869503,
+            "capital_name": "Sukhothai",
+            "owner": 6,
+            "owner_icon": null,
+            "owner_met": false,
+            "team": null,
+            "alive": true
+          },
+          {
+            "id": 7,
+            "player": 7,
+            "icon": "civ:CIVILIZATION_POLYNESIA",
+            "color_bg": 3092654847,
+            "color_fg": 4125538559,
+            "capital_name": "Honolulu",
+            "owner": 5,
+            "owner_icon": "civ:CIVILIZATION_JAPAN",
+            "owner_met": true,
+            "team": null,
+            "alive": false
+          }
+        ],
+        "leader": {
+          "player": 5,
+          "name": "Oda Nobunaga",
+          "is_team": false,
+          "count": 2,
+          "total": 8
+        }
+      },
+      "science": {
+        "enabled": true,
+        "apollo_built": false,
+        "apollo_teams": 0,
+        "prereq_done": 5,
+        "prereq_total": 7,
+        "parts": [
+          {
+            "key": "booster_1",
+            "icon": "icon:PROJECT_ATLAS:0",
+            "built": false
+          },
+          {
+            "key": "booster_2",
+            "icon": "icon:PROJECT_ATLAS:0",
+            "built": false
+          },
+          {
+            "key": "booster_3",
+            "icon": "icon:PROJECT_ATLAS:0",
+            "built": false
+          },
+          {
+            "key": "cockpit",
+            "icon": "icon:PROJECT_ATLAS:0",
+            "built": false
+          },
+          {
+            "key": "stasis_chamber",
+            "icon": "icon:PROJECT_ATLAS:0",
+            "built": false
+          },
+          {
+            "key": "engine",
+            "icon": "icon:PROJECT_ATLAS:0",
+            "built": false
+          }
+        ]
+      },
+      "diplomatic": {
+        "enabled": true,
+        "league_active": true,
+        "un_active": false,
+        "turns_to_session": 7,
+        "delegates_needed": 26,
+        "delegates_controlled": 14,
+        "winner": null
+      },
+      "culture": {
+        "enabled": true,
+        "influential_count": 1,
+        "rivals_count": 6,
+        "civs": [
+          {
+            "player": 1,
+            "icon": "civ:CIVILIZATION_ARABIA",
+            "color_bg": 795556607,
+            "color_fg": 3655583487,
+            "influence_pct": 64,
+            "met": true
+          },
+          {
+            "player": 2,
+            "icon": "civ:CIVILIZATION_AZTEC",
+            "color_bg": 745499391,
+            "color_fg": 4038699263,
+            "influence_pct": 38,
+            "met": true
+          },
+          {
+            "player": 3,
+            "icon": "civ:CIVILIZATION_EGYPT",
+            "color_bg": 1262123775,
+            "color_fg": 3923550463,
+            "influence_pct": 104,
+            "met": true
+          },
+          {
+            "player": 4,
+            "icon": "civ:CIVILIZATION_GERMANY",
+            "color_bg": 1247109375,
+            "color_fg": 3907178751,
+            "influence_pct": 47,
+            "met": true
+          },
+          {
+            "player": 5,
+            "icon": "civ:CIVILIZATION_JAPAN",
+            "color_bg": 3907180799,
+            "color_fg": 2333743871,
+            "influence_pct": 29,
+            "met": true
+          },
+          {
+            "player": 7,
+            "icon": "civ:CIVILIZATION_POLYNESIA",
+            "color_bg": 3092654847,
+            "color_fg": 4125538559,
+            "influence_pct": 12,
+            "met": true
+          }
+        ]
+      },
+      "proposals": {
+        "visible": true,
+        "items": [
+          {
+            "key": "irr",
+            "enabled": true,
+            "reasons": []
+          },
+          {
+            "key": "cc",
+            "enabled": false,
+            "reasons": [
+              {
+                "key": "cooldown",
+                "turn": 222
+              },
+              {
+                "key": "own_active"
+              }
+            ]
+          },
+          {
+            "key": "scrap",
+            "enabled": false,
+            "reasons": [
+              {
+                "key": "type_active"
+              }
+            ]
+          }
+        ]
+      },
+      "ranking": [
+        {
+          "rank": 1,
+          "player": 5,
+          "icon": "civ:CIVILIZATION_JAPAN",
+          "color_bg": 3907180799,
+          "color_fg": 2333743871,
+          "name": "Oda Nobunaga",
+          "is_you": false,
+          "civ_name": "Japan",
+          "leader_icon": "leader:LEADER_JAPAN",
+          "score": 1388,
+          "alive": true,
+          "eliminated_turn": null
+        },
+        {
+          "rank": 2,
+          "player": 0,
+          "icon": "civ:CIVILIZATION_RUSSIA",
+          "color_bg": 1847335167,
+          "color_fg": 3837808383,
+          "name": null,
+          "is_you": true,
+          "civ_name": "Russia",
+          "leader_icon": "leader:LEADER_RUSSIA",
+          "score": 1292,
+          "alive": true,
+          "eliminated_turn": null
+        },
+        {
+          "rank": 3,
+          "player": 1,
+          "icon": "civ:CIVILIZATION_ARABIA",
+          "color_bg": 795556607,
+          "color_fg": 3655583487,
+          "name": "Harun al-Rashid",
+          "is_you": false,
+          "civ_name": "Arabia",
+          "leader_icon": "leader:LEADER_ARABIA",
+          "score": 1201,
+          "alive": true,
+          "eliminated_turn": null
+        },
+        {
+          "rank": 4,
+          "player": 4,
+          "icon": "civ:CIVILIZATION_GERMANY",
+          "color_bg": 1247109375,
+          "color_fg": 3907178751,
+          "name": "Bismarck",
+          "is_you": false,
+          "civ_name": "Germany",
+          "leader_icon": "leader:LEADER_GERMANY",
+          "score": 1034,
+          "alive": true,
+          "eliminated_turn": null
+        },
+        {
+          "rank": 5,
+          "player": 6,
+          "icon": "civ:CIVILIZATION_SIAM",
+          "color_bg": 3382847487,
+          "color_fg": 522869503,
+          "name": "Ramkhamhaeng",
+          "is_you": false,
+          "civ_name": "Siam",
+          "leader_icon": "leader:LEADER_SIAM",
+          "score": 912,
+          "alive": true,
+          "eliminated_turn": null
+        },
+        {
+          "rank": 6,
+          "player": 2,
+          "icon": "civ:CIVILIZATION_AZTEC",
+          "color_bg": 745499391,
+          "color_fg": 4038699263,
+          "name": "Montezuma",
+          "is_you": false,
+          "civ_name": "Aztec",
+          "leader_icon": "leader:LEADER_AZTEC",
+          "score": 877,
+          "alive": true,
+          "eliminated_turn": null
+        },
+        {
+          "rank": 7,
+          "player": 3,
+          "icon": "civ:CIVILIZATION_EGYPT",
+          "color_bg": 1262123775,
+          "color_fg": 3923550463,
+          "name": "Ramesses",
+          "is_you": false,
+          "civ_name": "Egypt",
+          "leader_icon": "leader:LEADER_EGYPT",
+          "score": 802,
+          "alive": true,
+          "eliminated_turn": null
+        },
+        {
+          "rank": 8,
+          "player": 7,
+          "icon": "civ:CIVILIZATION_POLYNESIA",
+          "color_bg": 3092654847,
+          "color_fg": 4125538559,
+          "name": "Kamehameha",
+          "is_you": false,
+          "civ_name": "Polynesia",
+          "leader_icon": "leader:LEADER_POLYNESIA",
+          "score": 341,
+          "alive": false,
+          "eliminated_turn": 162
+        }
+      ],
+      "space_race": [
+        {
+          "player": 5,
+          "icon": "civ:CIVILIZATION_JAPAN",
+          "color_bg": 3907180799,
+          "color_fg": 2333743871,
+          "name": "Oda Nobunaga",
+          "is_you": false,
+          "apollo": false,
+          "parts_built": 0
+        },
+        {
+          "player": 0,
+          "icon": "civ:CIVILIZATION_RUSSIA",
+          "color_bg": 1847335167,
+          "color_fg": 3837808383,
+          "name": null,
+          "is_you": true,
+          "apollo": false,
+          "parts_built": 0
+        },
+        {
+          "player": 1,
+          "icon": "civ:CIVILIZATION_ARABIA",
+          "color_bg": 795556607,
+          "color_fg": 3655583487,
+          "name": "Harun al-Rashid",
+          "is_you": false,
+          "apollo": false,
+          "parts_built": 0
+        },
+        {
+          "player": 4,
+          "icon": "civ:CIVILIZATION_GERMANY",
+          "color_bg": 1247109375,
+          "color_fg": 3907178751,
+          "name": "Bismarck",
+          "is_you": false,
+          "apollo": false,
+          "parts_built": 0
+        },
+        {
+          "player": 6,
+          "icon": "civ:CIVILIZATION_SIAM",
+          "color_bg": 3382847487,
+          "color_fg": 522869503,
+          "name": "Ramkhamhaeng",
+          "is_you": false,
+          "apollo": false,
+          "parts_built": 0
+        },
+        {
+          "player": 2,
+          "icon": "civ:CIVILIZATION_AZTEC",
+          "color_bg": 745499391,
+          "color_fg": 4038699263,
+          "name": "Montezuma",
+          "is_you": false,
+          "apollo": false,
+          "parts_built": 0
+        },
+        {
+          "player": 3,
+          "icon": "civ:CIVILIZATION_EGYPT",
+          "color_bg": 1262123775,
+          "color_fg": 3923550463,
+          "name": "Ramesses",
+          "is_you": false,
+          "apollo": false,
+          "parts_built": 0
+        }
+      ]
+    }
+  },
+  "ui": {
+    "windows": {
+      "victory": {
+        "open": true
+      }
+    }
+  }
+}

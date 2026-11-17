@@ -1,0 +1,221 @@
+<div class="military-screen" data-part="military" data-screen="military" data-bind-if="{{ui.windows.military.open}}">
+<section class="military-window">
+<header class="military-head">
+<img class="military-icon" data-bind-if="{{military != null}}" data-bind-src="{{military.player.icon}}">
+<h1 data-l10n="military.title" >
+</h1>
+<div class="military-facts" data-bind-if="{{military != null}}">
+<span class="military-value" data-bind-value="{{military.counts.military}}" >
+</span>
+<span data-l10n="military.combat_count" >
+</span>
+<span class="military-value" data-bind-value="{{military.counts.civilian}}" >
+</span>
+<span data-l10n="military.civilian_count" >
+</span>
+<span class="military-value" data-bind-value="{{military.supply.used}}" >
+</span>
+<span data-l10n="military.of" >
+</span>
+<span class="military-value" data-bind-value="{{military.supply.limit}}" >
+</span>
+<span data-l10n="military.supply_count" >
+</span>
+</div>
+<button data-l10n="military.close" data-part="military.close" data-bind-hotkey="{{'Enter'}}" data-on-click="intent window.close(window: 'military')">
+</button>
+</header>
+<div data-l10n="military.loading" data-bind-if="{{military == null}}">
+</div>
+<div class="military-body" data-bind-if="{{military != null}}">
+<aside class="military-aside military-scroll">
+<h2 data-l10n="military.supply" >
+</h2>
+<div class="military-ledger-row">
+<span data-l10n="military.difficulty" >
+</span>
+<span class="military-value" data-bind-value="{{military.supply.difficulty}}" >
+</span>
+</div>
+<div class="military-ledger-row">
+<span data-l10n="military.cities" >
+</span>
+<span class="military-value" data-bind-value="{{military.supply.cities}}" >
+</span>
+</div>
+<div class="military-ledger-row">
+<span data-l10n="military.population" >
+</span>
+<span class="military-value" data-bind-value="{{military.supply.population}}" >
+</span>
+</div>
+<div class="military-ledger-row">
+<span data-l10n="military.limit" >
+</span>
+<span class="military-value" data-bind-value="{{military.supply.limit}}" >
+</span>
+</div>
+<div class="military-ledger-row">
+<span data-l10n="military.used" >
+</span>
+<span class="military-value" data-bind-value="{{military.supply.used}}" >
+</span>
+</div>
+<div class="military-ledger-row">
+<span data-l10n="military.remaining" >
+</span>
+<span class="military-value" data-bind-value="{{military.supply.remaining}}" >
+</span>
+</div>
+<div data-bind-if="{{military.supply.over > 0}}">
+<div class="military-ledger-row">
+<span data-l10n="military.over" >
+</span>
+<span class="military-value" data-bind-value="{{military.supply.over}}" >
+</span>
+</div>
+<div class="military-ledger-row">
+<span data-l10n="military.penalty" >
+</span>
+<span class="military-value" data-bind-value="{{military.supply.production_penalty_pct}}" >
+</span>
+</div>
+</div>
+<h2 data-l10n="military.great_people" >
+</h2>
+<div class="military-person">
+<img class="military-portrait" data-bind-src="{{military.great_general.icon}}">
+<div class="military-person-body">
+<span data-l10n="military.great_general" >
+</span>
+<span class="military-value" data-bind-value="{{military.great_general.progress}}" >
+</span>
+<span class="military-value" data-bind-value="{{military.great_general.threshold}}" >
+</span>
+<div class="military-bar">
+<div class="military-fill" data-bind-style-width="{{clamp(military.great_general.progress / military.great_general.threshold, 0, 1) * 100}}%">
+</div>
+</div>
+<span class="military-value" data-bind-value="{{military.great_general.threshold - military.great_general.progress}}" >
+</span>
+<span data-l10n="military.xp_remaining" >
+</span>
+</div>
+</div>
+<div class="military-person">
+<img class="military-portrait" data-bind-src="{{military.great_admiral.icon}}">
+<div class="military-person-body">
+<span data-l10n="military.great_admiral" >
+</span>
+<span class="military-value" data-bind-value="{{military.great_admiral.progress}}" >
+</span>
+<span class="military-value" data-bind-value="{{military.great_admiral.threshold}}" >
+</span>
+<div class="military-bar">
+<div class="military-fill" data-bind-style-width="{{clamp(military.great_admiral.progress / military.great_admiral.threshold, 0, 1) * 100}}%">
+</div>
+</div>
+<span class="military-value" data-bind-value="{{military.great_admiral.threshold - military.great_admiral.progress}}" >
+</span>
+<span data-l10n="military.xp_remaining" >
+</span>
+</div>
+</div>
+<h2 data-l10n="military.legend" >
+</h2>
+<div data-l10n="military.promotion" class="military-legend">
+</div>
+<div data-l10n="military.dim" class="military-legend">
+</div>
+<div data-l10n="military.select" class="military-legend">
+</div>
+</aside>
+<div class="military-table">
+<div class="military-table-head military-row">
+<span class="military-promote">
+</span>
+<button data-l10n="military.col_name" class="military-col-name" data-on-click="set state.military.sort_desc = state.military.sort == 'name' ? !state.military.sort_desc : false; set state.military.sort = 'name'">
+</button>
+<button data-l10n="military.col_status_text" class="military-col-status_text" data-on-click="set state.military.sort_desc = state.military.sort == 'status_text' ? !state.military.sort_desc : false; set state.military.sort = 'status_text'">
+</button>
+<button data-l10n="military.col_moves" class="military-col-moves" data-on-click="set state.military.sort_desc = state.military.sort == 'moves' ? !state.military.sort_desc : true; set state.military.sort = 'moves'">
+</button>
+<button data-l10n="military.col_max_moves" class="military-col-max_moves" data-on-click="set state.military.sort_desc = state.military.sort == 'max_moves' ? !state.military.sort_desc : true; set state.military.sort = 'max_moves'">
+</button>
+<button data-l10n="military.col_strength" class="military-col-strength" data-on-click="set state.military.sort_desc = state.military.sort == 'strength' ? !state.military.sort_desc : true; set state.military.sort = 'strength'">
+</button>
+<button data-l10n="military.col_ranged" class="military-col-ranged" data-on-click="set state.military.sort_desc = state.military.sort == 'ranged' ? !state.military.sort_desc : true; set state.military.sort = 'ranged'">
+</button>
+<button data-l10n="military.col_health_pct" class="military-col-health_pct" data-on-click="set state.military.sort_desc = state.military.sort == 'health_pct' ? !state.military.sort_desc : true; set state.military.sort = 'health_pct'">
+</button>
+</div>
+<div class="military-scroll military-unit-list">
+<h2 data-l10n="military.group_military" data-bind-if="{{military.counts.military > 0}}">
+</h2>
+<button class="military-row" data-part="military.unit-row" data-bind-for="u:{{military.units}}" data-bind-filter="{{u.military}}" data-bind-sort="{{state.military.sort == 'name' ? u.name : state.military.sort == 'status_text' ? u.status_text : state.military.sort == 'moves' ? u.moves : state.military.sort == 'max_moves' ? u.max_moves : state.military.sort == 'strength' ? u.strength : state.military.sort == 'ranged' ? u.ranged : state.military.sort == 'health_pct' ? u.health_pct : u.id}}" data-bind-sort-desc="{{state.military.sort_desc}}" data-bind-class-toggle="military-dim:{{u.moves == 0}}; military-selected:{{unit != null && unit.key == u.unit_key}}" data-on-click="intent unit.select(unit: u.unit_key)">
+<span class="military-promote" data-bind-value="{{u.can_promote ? '↑' : ''}}" >
+</span>
+<div class="military-col-name">
+<img class="military-icon" data-bind-src="{{u.icon}}">
+<span class="military-name" data-bind-value="{{u.name}}" data-part="military.unit-name">
+</span>
+</div>
+<div class="military-col-status_text">
+<span class="military-value" data-bind-value="{{u.status_text}}" >
+</span>
+<span class="military-value" data-bind-value="{{u.build_turns}}" >
+</span>
+</div>
+<span class="military-col-moves" data-bind-value="{{u.moves}}" >
+</span>
+<span class="military-col-max_moves" data-bind-value="{{u.max_moves}}" >
+</span>
+<span class="military-col-strength" data-bind-value="{{u.strength == 0 ? '−' : fmt.int(u.strength)}}" >
+</span>
+<span class="military-col-ranged" data-bind-value="{{u.ranged == 0 ? '−' : fmt.int(u.ranged)}}" >
+</span>
+<div class="military-col-health_pct">
+<div class="military-bar" data-bind-if="{{u.health_pct != null}}">
+<div class="military-fill" data-bind-class-toggle="military-health-medium:{{u.health_pct > 33 && u.health_pct <= 66}}; military-health-low:{{u.health_pct <= 33}}" data-bind-style-width="{{u.health_pct}}%">
+</div>
+</div>
+</div>
+</button>
+<h2 data-l10n="military.group_civilian" data-bind-if="{{military.counts.civilian > 0}}">
+</h2>
+<button class="military-row" data-part="military.civilian-row" data-bind-for="u:{{military.units}}" data-bind-filter="{{!u.military}}" data-bind-sort="{{state.military.sort == 'name' ? u.name : state.military.sort == 'status_text' ? u.status_text : state.military.sort == 'moves' ? u.moves : state.military.sort == 'max_moves' ? u.max_moves : state.military.sort == 'strength' ? u.strength : state.military.sort == 'ranged' ? u.ranged : state.military.sort == 'health_pct' ? u.health_pct : u.id}}" data-bind-sort-desc="{{state.military.sort_desc}}" data-bind-class-toggle="military-dim:{{u.moves == 0}}; military-selected:{{unit != null && unit.key == u.unit_key}}" data-on-click="intent unit.select(unit: u.unit_key)">
+<span class="military-promote" data-bind-value="{{u.can_promote ? '↑' : ''}}" >
+</span>
+<div class="military-col-name">
+<img class="military-icon" data-bind-src="{{u.icon}}">
+<span class="military-name" data-bind-value="{{u.name}}" data-part="military.civilian-name">
+</span>
+</div>
+<div class="military-col-status_text">
+<span class="military-value" data-bind-value="{{u.status_text}}" >
+</span>
+<span class="military-value" data-bind-value="{{u.build_turns}}" >
+</span>
+</div>
+<span class="military-col-moves" data-bind-value="{{u.moves}}" >
+</span>
+<span class="military-col-max_moves" data-bind-value="{{u.max_moves}}" >
+</span>
+<span class="military-col-strength" data-bind-value="{{u.strength == 0 ? '−' : fmt.int(u.strength)}}" >
+</span>
+<span class="military-col-ranged" data-bind-value="{{u.ranged == 0 ? '−' : fmt.int(u.ranged)}}" >
+</span>
+<div class="military-col-health_pct">
+<div class="military-bar" data-bind-if="{{u.health_pct != null}}">
+<div class="military-fill" data-bind-class-toggle="military-health-medium:{{u.health_pct > 33 && u.health_pct <= 66}}; military-health-low:{{u.health_pct <= 33}}" data-bind-style-width="{{u.health_pct}}%">
+</div>
+</div>
+</div>
+</button>
+<div data-l10n="military.empty" data-bind-if="{{len(military.units) == 0}}">
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>

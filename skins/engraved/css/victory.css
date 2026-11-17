@@ -1,0 +1,39 @@
+/* Victory's ledger stays beside a four-quadrant summary or the ranking detail. */
+.victory-screen { position: absolute; left: 0; right: 0; top: 48px; bottom: 0; background: rgba(12,10,8,.62); pointer-events: auto; }
+.victory-window { position: absolute; left: 200px; right: 200px; top: 48px; bottom: 88px; display: flex; flex-direction: column; overflow: hidden; border-radius: 6px; background: var(--lacquer); color: var(--bone); box-shadow: inset 0 0 0 1px var(--engrave), 0 24px 64px rgba(0,0,0,.5); }
+.victory-head { height: 72px; flex: none; display: flex; align-items: center; gap: 24px; padding: 0 24px; box-shadow: inset 0 -1px 0 var(--engrave); }
+.victory-head h1 { font: 500 28px/32px var(--serif); }
+.victory-head button { padding: 8px; }
+.victory-facts { margin-left: auto; display: flex; gap: 8px; font-size: 13px; color: var(--bone-2); }
+.victory-body { flex: 1; min-height: 0; display: flex; }
+.victory-ledger { width: 380px; flex: none; background: var(--lacquer-0); box-shadow: inset -1px 0 0 var(--engrave); }
+.victory-scroll { overflow-y: auto; scrollbar-width: none; min-height: 0; }
+.victory-window h2 { padding: 12px 24px; font: 500 22px/28px var(--serif); }
+.victory-ledger h2 { font: 500 13px/18px var(--sans); }
+.victory-ledger-row { padding: 0 24px; height: 28px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--bone-2); box-shadow: inset 0 -1px 0 var(--engrave); }
+.victory-ledger-row .victory-value { margin-left: auto; font-weight: 500; color: var(--bone); }
+.victory-button { margin: 12px 24px; padding: 10px 16px; background: var(--lacquer-2); border-radius: 4px; box-shadow: inset 0 0 0 1px var(--engrave); font-size: 12px; }
+.victory-main, .victory-summary { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.victory-quadrants { flex: 1; min-height: 0; display: flex; }
+.victory-quadrant { flex: 1; min-width: 0; padding: 8px 24px 16px; box-shadow: inset -1px -1px 0 var(--engrave); font-size: 13px; color: var(--bone-2); }
+.victory-quadrant h2 { padding: 8px 0 12px; color: var(--bone); }
+.victory-quadrant .victory-ledger-row { padding: 0; box-shadow: none; }
+.victory-capitals { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; }
+.victory-capital { position: relative; width: 84px; min-width: 0; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.victory-civ { width: 44px; height: 44px; }
+.victory-owner { position: absolute; right: 8px; top: 24px; width: 22px; height: 22px; }
+.victory-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
+.victory-line { display: flex; gap: 8px; margin: 12px 0; }
+.victory-bar { position: relative; height: 6px; background: var(--lacquer-3); }
+.victory-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--y-sci); }
+.victory-parts { display: flex; gap: 8px; margin: 12px 0; }
+.victory-part { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; font-size: 11px; text-align: center; opacity: .35; box-shadow: inset 0 0 0 1px var(--engrave); }
+.victory-part.victory-built { opacity: 1; color: var(--y-sci); }
+.victory-part-icon { width: 20px; height: 20px; }
+.victory-details { flex: 1; }
+.victory-ranking-row { min-height: 48px; padding: 12px 24px; display: flex; align-items: center; gap: 24px; font-size: 13px; }
+.victory-ranking-row:hover { background: var(--lacquer-2); }
+.victory-score { margin-left: auto; font-weight: 500; }
+.victory-icon { width: 28px; height: 28px; }
+.victory-tip { width: 300px; padding: 16px; background: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave); font-size: 13px; }
+@media (width < 1600px) { .victory-window { left: 24px; right: 24px; top: 16px; bottom: 24px; } .victory-ledger { width: 280px; } .victory-quadrant { padding: 8px 16px; } }

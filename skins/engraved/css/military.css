@@ -1,0 +1,35 @@
+/* Military ledger and two independently sorted unit groups. */
+.military-screen { position: absolute; left: 0; right: 0; top: 48px; bottom: 0; background: rgba(12,10,8,.62); pointer-events: auto; }
+.military-window { position: absolute; left: 260px; right: 260px; top: 16px; bottom: 24px; display: flex; flex-direction: column; overflow: hidden; border-radius: 6px; background: var(--lacquer); color: var(--bone); box-shadow: inset 0 0 0 1px var(--engrave), 0 24px 64px rgba(0,0,0,.5); }
+.military-head { height: 72px; flex: none; display: flex; align-items: center; gap: 24px; padding: 0 24px; box-shadow: inset 0 -1px 0 var(--engrave); }
+.military-head h1 { font: 500 28px/32px var(--serif); }
+.military-facts { display: flex; gap: 8px; margin-left: auto; font-size: 13px; color: var(--bone-2); }
+.military-head button { padding: 8px; color: var(--bone-2); }
+.military-body { display: flex; flex: 1; min-height: 0; }
+.military-aside { width: 340px; flex: none; background: var(--lacquer-0); box-shadow: inset -1px 0 0 var(--engrave); }
+.military-scroll { min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.military-window h2 { height: 32px; padding: 8px 24px 0; color: var(--bone-2); font-size: 13px; }
+.military-ledger-row { height: 30px; padding: 0 24px 0 48px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--bone-2); box-shadow: inset 0 -1px 0 var(--engrave); }
+.military-ledger-row .military-value { margin-left: auto; color: var(--bone); font-weight: 500; }
+.military-person { padding: 12px 24px; display: flex; align-items: center; gap: 12px; }
+.military-portrait { width: 40px; height: 40px; flex: none; }
+.military-person-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; color: var(--bone-2); font-size: 12px; }
+.military-legend { padding: 8px 24px; font-size: 12px; color: var(--bone-3); }
+.military-table { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.military-unit-list { flex: 1; }
+.military-row { width: 100%; height: 28px; padding: 0 24px; display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--bone); }
+.military-table-head { height: 36px; flex: none; font-size: 12px; color: var(--bone-3); box-shadow: inset 0 -1px 0 var(--engrave); }
+.military-promote { width: 16px; flex: none; color: var(--y-food); }
+.military-col-name { display: flex; align-items: center; gap: 8px; flex: 1.3; min-width: 0; }
+.military-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.military-col-status_text { flex: 1.2; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
+.military-col-moves, .military-col-max_moves, .military-col-strength, .military-col-ranged, .military-col-health_pct { width: 58px; flex: none; text-align: right; }
+.military-row:hover, .military-selected { background: var(--lacquer-2); }
+.military-selected { box-shadow: inset 2px 0 0 var(--brass); }
+.military-dim { color: var(--bone-3); }
+.military-icon { width: 20px; height: 20px; flex: none; }
+.military-bar { position: relative; height: 4px; background: var(--lacquer-3); }
+.military-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--y-food); }
+.military-fill.military-health-medium { background: var(--y-gold); }
+.military-fill.military-health-low { background: var(--neg); }
+@media (width < 1600px) { .military-window { left: 24px; right: 24px; } .military-aside { width: 240px; } .military-row { gap: 8px; padding: 0 16px; } .military-col-moves, .military-col-max_moves, .military-col-strength, .military-col-ranged, .military-col-health_pct { width: 48px; } }

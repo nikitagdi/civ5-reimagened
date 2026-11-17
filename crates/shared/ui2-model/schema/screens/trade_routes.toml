@@ -1,0 +1,160 @@
+# Gold and science are yields per turn, retaining fractional hundredths.
+[enum]
+TradeRoutesTab = ["yours", "available", "to_you"]
+TradeRoutesDomain = ["land", "sea"]
+TradeRoutesConnection = ["food", "production", "international"]
+TradeRoutesGroup = ["yours", "majors", "city_states"]
+TradeRoutesSort = ["civ", "city", "my_gold", "gold_diff", "my_science", "science_diff"]
+TradeRoutesHomeKind = ["trade_home", "admiral_port"]
+TradeRoutesBenefit = ["my_gold", "their_gold", "my_science", "their_science"]
+TradeRoutesTerm = ["base", "dest_city_gold", "origin_city_gold", "policies", "buildings", "different_resources", "exclusive_connection", "other_trait", "river", "sea_route_mult", "tech_difference", "cultural_influence"]
+
+[type.TradeRoutesPlayer]
+name = "str"
+civ_name = "str"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.TradeRoutesCounts]
+yours = "i32"
+available = "i32"
+to_you = "i32"
+
+[type.TradeRoutesTotals]
+used = "i32"
+capacity = "i32"
+my_gold = "f32"
+my_science = "f32"
+
+[type.TradeRoutesChooseUnit]
+id = "i32"
+name = "str"
+icon = "asset"
+domain = "TradeRoutesDomain"
+home_city_id = "i32"
+home_city = "str"
+range = "i32"
+
+[type.TradeRoutesChooseGroups]
+key = "TradeRoutesGroup"
+items = { list = "TradeRoutesDestination", key = "id" }
+
+[type.TradeRoutesChoose]
+unit = "TradeRoutesChooseUnit"
+sort = "TradeRoutesSort"
+groups = { list = "TradeRoutesChooseGroups", key = "key" }
+
+[type.TradeRoutesNewHomeUnit]
+id = "i32"
+name = "str"
+icon = "asset"
+domain = "TradeRoutesDomain"
+city_id = "i32"
+city = "str"
+
+[type.TradeRoutesNewHomeCities]
+location = "Plot"
+id = "i32"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+name = "str"
+plot = "i32"
+
+[type.TradeRoutesNewHome]
+kind = "TradeRoutesHomeKind"
+unit = "TradeRoutesNewHomeUnit"
+cities = { list = "TradeRoutesNewHomeCities", key = "id" }
+
+[type.TradeRoutesEndpoint]
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+city_id = "i32"
+city = "str"
+owner_name = "str"
+
+[type.TradeRoutesReligion]
+key = "str"
+icon = "asset"
+name = "str"
+pressure = "i32"
+
+[type.TradeRoutesTooltipLine]
+key = "TradeRoutesTerm"
+value = "f32"
+arg = "str?"
+
+[type.TradeRoutesTooltipBlock]
+key = "TradeRoutesBenefit"
+owner = "str"
+total = "f32"
+lines = { list = "TradeRoutesTooltipLine", key = "key" }
+
+[type.TradeRoutesTooltip]
+route_id = "i32?"
+blocks = { list = "TradeRoutesTooltipBlock", key = "key" }
+
+[type.TradeRoutesRoute]
+id = "i32"
+domain = "TradeRoutesDomain"
+from = "TradeRoutesEndpoint"
+to = "TradeRoutesEndpoint"
+my_gold = "f32"
+my_science = "f32"
+their_gold = "f32"
+their_science = "f32"
+food = "f32"
+production = "f32"
+my_religion = "TradeRoutesReligion?"
+their_religion = "TradeRoutesReligion?"
+turns_left = "i32?"
+tooltip = "TradeRoutesTooltip?"
+
+[type.TradeRoutesRoutes]
+yours = { list = "TradeRoutesRoute", key = "id" }
+available = { list = "TradeRoutesRoute", key = "id" }
+to_you = { list = "TradeRoutesRoute", key = "id" }
+
+[type.TradeRoutesYield]
+food = "f32"
+production = "f32"
+gold = "f32"
+science = "f32"
+culture = "f32"
+faith = "f32"
+
+[type.TradeRoutesDestination]
+location = "Plot"
+id = "i32"
+group = "TradeRoutesGroup"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+city_id = "i32"
+city = "str"
+owner_name = "str"
+connection = "TradeRoutesConnection"
+connection_id = "i32"
+plot = "i32"
+mine = "TradeRoutesYield"
+theirs = "TradeRoutesYield"
+pressure_out = "TradeRoutesReligion?"
+pressure_in = "TradeRoutesReligion?"
+previous = "bool"
+tooltip = "TradeRoutesTooltip?"
+
+[model.trade_routes]
+_optional = true
+player = "TradeRoutesPlayer"
+tab = "TradeRoutesTab?"
+counts = "TradeRoutesCounts"
+totals = "TradeRoutesTotals"
+routes = "TradeRoutesRoutes"
+choose = "TradeRoutesChoose?"
+new_home = "TradeRoutesNewHome?"
