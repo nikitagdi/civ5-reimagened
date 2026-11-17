@@ -83,10 +83,13 @@ impl Watchdog {
         !self.inflight.is_empty()
     }
 
-    /// The verdict at `now_ms`.
-    pub fn check(&mut self, now_ms: f64) -> Verdict {
+    /// The verdict at `now_ms`, the time up to which the page took messages in. `clock_ms` is the app's clock
+    /// now (at least `now_ms`): a start is dated by it, not by the time of the page's last message check, which
+    /// can be as old as the page when nothing was asked of the workers before (a skin that starts long after
+    /// the page loaded would otherwise be killed for not being ready at once).
+    pub fn check(&mut self, now_ms: f64, clock_ms: f64) -> Verdict {
         if self.loading {
-            let since = *self.loading_since.get_or_insert(now_ms);
+            let since = *self.loading_since.get_or_insert(clock_ms);
             let waited_ms = now_ms - since;
             return if waited_ms >= READY_TIMEOUT_MS {
                 Verdict::Kill {
@@ -137,12 +140,16 @@ mod tests {
         w.ready(0.0);
         w.sent(1, 0.0);
         w.sent(2, 100.0);
-        assert_eq!(w.check(249.0), Verdict::Fine);
-        assert_eq!(w.check(250.0), Verdict::Busy(250.0));
+        assert_eq!(w.check(249.0, 249.0), Verdict::Fine);
+        assert_eq!(w.check(250.0, 250.0), Verdict::Busy(250.0));
         w.acked(1);
-        assert_eq!(w.check(300.0), Verdict::Fine, "frame 2 waited 200 ms");
         assert_eq!(
-            w.check(1100.0),
+            w.check(300.0, 300.0),
+            Verdict::Fine,
+            "frame 2 waited 200 ms"
+        );
+        assert_eq!(
+            w.check(1100.0, 1100.0),
             Verdict::Kill {
                 waited_ms: 1000.0,
                 loading: false
@@ -150,7 +157,7 @@ mod tests {
         );
         w.acked(2);
         assert!(!w.waiting());
-        assert_eq!(w.check(5000.0), Verdict::Fine);
+        assert_eq!(w.check(5000.0, 5000.0), Verdict::Fine);
     }
 
     #[test]
@@ -158,15 +165,15 @@ mod tests {
         let mut w = Watchdog::default();
         w.started();
         w.sent(1, 10.0);
-        assert_eq!(w.check(20.0), Verdict::Fine);
-        assert_eq!(w.check(5000.0), Verdict::Fine);
+        assert_eq!(w.check(20.0, 20.0), Verdict::Fine);
+        assert_eq!(w.check(5000.0, 5000.0), Verdict::Fine);
         w.ready(6000.0);
-        assert_eq!(w.check(6100.0), Verdict::Fine);
-        assert_eq!(w.check(6300.0), Verdict::Busy(300.0));
+        assert_eq!(w.check(6100.0, 6100.0), Verdict::Fine);
+        assert_eq!(w.check(6300.0, 6300.0), Verdict::Busy(300.0));
         w.started();
-        assert_eq!(w.check(7000.0), Verdict::Fine);
+        assert_eq!(w.check(7000.0, 7000.0), Verdict::Fine);
         assert!(matches!(
-            w.check(17_000.0),
+            w.check(17_000.0, 17_000.0),
             Verdict::Kill { loading: true, .. }
         ));
     }

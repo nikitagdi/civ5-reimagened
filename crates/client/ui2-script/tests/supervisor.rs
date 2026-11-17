@@ -423,6 +423,30 @@ fn a_mod_raises_only_its_own_intents() {
     );
 }
 
+/// A skin that starts long after the page loaded, while the page has not taken in a worker message since the
+/// page loaded (`delivered_until` is old): its load must not count from that old time, or the worker would be
+/// killed as "not ready" before it could answer, and its failing script would restart instead of being fatal.
+#[test]
+fn a_late_start_is_not_judged_by_an_old_delivery_time() {
+    let (mut sup, host, _store, w) = setup(&["top"]);
+    host.set_delivered_until(Some(100.0));
+    let out = sup.drain(33_000.0);
+    assert!(out.failed.is_empty(), "{:?}", out.log);
+    host.set_delivered_until(Some(33_500.0));
+    let out = sup.drain(33_500.0);
+    assert!(out.failed.is_empty(), "{:?}", out.log);
+    assert!(host.terminated().is_empty());
+    host.reply(
+        w,
+        r#"{"t":"fail","ctx":"skin","error":{"message":"boom","file":"js/main.js","line":1}}"#,
+    );
+    let _ = sup.drain(33_600.0);
+    assert!(
+        sup.take_fatal().is_some(),
+        "the first start failing is fatal"
+    );
+}
+
 #[test]
 fn a_skin_that_fails_to_load_is_fatal() {
     let (mut sup, host, _store, w) = setup(&["top"]);

@@ -410,7 +410,7 @@ impl ScriptSupervisor {
             if c.off() || c.worker.is_none() {
                 continue;
             }
-            match c.wd.check(seen) {
+            match c.wd.check(seen, now_ms) {
                 Verdict::Fine => {
                     if matches!(c.status, ScriptStatus::Busy { .. }) {
                         c.status = ScriptStatus::Running;
