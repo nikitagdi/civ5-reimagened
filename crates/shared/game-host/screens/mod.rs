@@ -14,6 +14,7 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("religion", include_str!("religion.lua")),
     ("religion_overview", include_str!("religion_overview.lua")),
     ("hud", include_str!("hud.lua")),
+    ("unit_rename", include_str!("unit_rename.lua")),
     ("city", include_str!("city.lua")),
     ("city_list", include_str!("city_list.lua")),
     ("city_rename", include_str!("city_rename.lua")),

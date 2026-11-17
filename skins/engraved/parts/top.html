@@ -1,76 +1,79 @@
-<header class="top" data-part="top">
+<header class="top" data-part="top" data-bind-if="{{!ui.windows.city.open}}">
   <div class="grp research" data-part="top.research">
-    <div class="ring"><svg class="i"><use href="#i-sci"/></svg></div>
-    <div class="body" data-bind-if="{{research.current != null}}">
+    <button class="ring" data-bind-disabled="{{hud != null && !hud.top.science_enabled}}" data-on-click="intent window.open(window: 'techs')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'science'"><svg class="i"><use href="#i-sci"/></svg></button>
+    <button class="body" data-bind-disabled="{{hud != null && !hud.top.science_enabled}}" data-bind-if="{{research.current != null}}" data-on-click="intent window.open(window: 'techs')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'science'">
       <div class="line">
-        <span><span class="name" data-bind-value="{{research.current.name}}">Education</span>&nbsp;&nbsp;<span class="turns" data-l10n="top.turns" data-l10n-args="{{research.current.turns}}">3 turns</span></span>
+        <span><span class="name" data-bind-value="{{research.current.name}}">Education</span>&nbsp;&nbsp;<span class="turns" data-bind-if="{{research.current.turns != null}}" data-l10n="top.turns" data-l10n-args="{{research.current.turns}}">3 turns</span></span>
         <span class="next" data-bind-if="{{research.next != null}}" data-l10n="top.next" data-l10n-args="{{research.next.name}}">Astronomy next</span>
       </div>
       <div class="scale" data-part="top.research.scale">
         <div class="fill" data-bind-style-width="{{research.current.fraction * 100}}%" style="width: 62%"></div>
-        <div class="ticks" data-bind-style-background-size="{{100 * (1 - research.current.fraction) / research.current.turns}}% 100%" style="background-size: 12.6667% 100%"></div>
+        <div class="ticks" data-bind-style-background-size="{{100 * (1 - research.current.fraction) / max(research.current.turns != null ? research.current.turns : 1, 1)}}% 100%" style="background-size: 12.6667% 100%"></div>
       </div>
-    </div>
-    <button class="pick" data-part="top.research.pick" data-bind-if="{{research.current == null}}" data-on-click="intent window.open(window: 'research')"><span data-l10n="research.title">Choose research</span></button>
+    </button>
+    <button class="pick" data-part="top.research.pick" data-bind-disabled="{{hud != null && !hud.top.science_enabled}}" data-bind-if="{{research.current == null}}" data-on-click="intent window.open(window: 'research')"><span data-l10n="research.title">Choose research</span></button>
   </div>
 
   <div class="grp menus screens sep" data-part="top.menu" data-bind-class-toggle="open:{{state.top.menu}}">
     <!-- A narrow strip shows this one button instead of the row below, which then opens under it. -->
     <button class="mbtn fold" data-part="top.menu.fold" data-on-click="set state.top.menu = !state.top.menu"><svg class="i"><use href="#i-menu"/></svg></button>
     <div class="drop" data-part="top.menu.list" data-slot="hud.menu">
-      <button class="mbtn" data-part="top.menu.tech" data-hotkey="F6" data-on-click="intent window.open(window: 'techs')"><svg class="i"><use href="#i-tech"/></svg></button>
-      <button class="mbtn" data-part="top.menu.policies" data-hotkey="F5" data-tooltip="tip-policies" data-on-click="intent window.open(window: 'policies')"><svg class="i"><use href="#i-policy"/></svg></button>
-      <button class="mbtn" data-part="top.menu.religion" data-on-click="intent window.open(window: 'religion_overview')"><svg class="i"><use href="#i-religion"/></svg></button>
+      <button class="mbtn" data-part="top.menu.tech" data-bind-disabled="{{hud != null && !hud.top.science_enabled}}" data-hotkey="F6" data-on-click="intent window.open(window: 'techs')"><svg class="i"><use href="#i-tech"/></svg></button>
+      <button class="mbtn" data-part="top.menu.policies" data-bind-disabled="{{hud != null && !hud.top.culture_enabled}}" data-hotkey="F5" data-tooltip="tip-policies" data-on-click="intent window.open(window: 'policies')"><svg class="i"><use href="#i-policy"/></svg></button>
+      <button class="mbtn" data-part="top.menu.religion" data-bind-disabled="{{hud != null && !hud.top.faith_enabled}}" data-on-click="intent window.open(window: 'religion_overview')"><svg class="i"><use href="#i-religion"/></svg></button>
       <button class="mbtn" data-part="top.menu.cities" data-tooltip="tip-city-list" data-on-click="intent window.open(window: 'city_list')"><svg class="i"><use href="#i-econ"/></svg></button>
-      <button class="mbtn" data-part="top.menu.diplomacy" data-on-click="intent screen.open(screen: 'diplomacy')"><svg class="i"><use href="#i-diplo"/></svg></button>
-      <button class="mbtn" data-part="top.menu.economy" data-on-click="intent screen.open(screen: 'economy')"><svg class="i"><use href="#i-econ"/></svg></button>
-      <button class="mbtn" data-part="top.menu.military" data-on-click="intent screen.open(screen: 'military')"><svg class="i"><use href="#i-military"/></svg></button>
-      <button class="mbtn" data-part="top.menu.victory" data-on-click="intent screen.open(screen: 'victory')"><svg class="i"><use href="#i-victory"/></svg></button>
-      <button class="mbtn" data-part="top.menu.demographics" data-on-click="intent screen.open(screen: 'demographics')"><svg class="i"><use href="#i-demo"/></svg></button>
     </div>
   </div>
 
   <div class="spacer" data-part="top.extra" data-slot="hud.top.extra"></div>
 
   <div class="grp yields" data-part="top.yields">
-    <div class="yield" data-part="top.yield.science">
+    <button class="yield" data-part="top.yield.science" data-bind-disabled="{{hud != null && !hud.top.science_enabled}}" data-on-click="intent window.open(window: 'techs')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'science'">
       <svg class="i c-sci"><use href="#i-sci"/></svg>
       <span class="v" data-bind-value="{{fmt.signed(top.science_rate)}}">+48</span>
-    </div>
-    <div class="yield" data-part="top.yield.gold">
+    </button>
+    <div class="yield" data-part="top.yield.gold" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'gold'">
       <svg class="i c-gold"><use href="#i-gold"/></svg>
       <span class="v" data-bind-value="{{top.gold}}">312</span>
       <span class="d" data-bind-class-toggle="neg:{{top.gold_rate < 0}}" data-bind-value="{{fmt.signed(top.gold_rate)}}">+21</span>
     </div>
-    <div class="yield" data-part="top.yield.happiness">
+    <div class="yield" data-part="top.yield.happiness" data-bind-class-toggle="top-panel-negative:{{top.happiness < 0}}" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'happiness'">
       <svg class="i c-happy"><use href="#i-happy"/></svg>
       <span class="v" data-bind-value="{{top.happiness}}">7</span>
-      <span class="d muted" data-bind-value="{{top.golden_age.progress}}/{{top.golden_age.threshold}}">412/650</span>
     </div>
-    <div class="yield" data-part="top.yield.culture">
+    <div class="yield top-panel-age" data-part="top.yield.golden-age" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'golden_age'" data-bind-class-toggle="top-panel-active:{{top.golden_age.active}}">
+      <svg class="i c-gold"><use href="#i-happy"/></svg>
+      <span class="v" data-bind-if="{{top.golden_age.active}}" data-l10n="top.turns" data-l10n-args="{{top.golden_age.turns}}"></span>
+      <span class="d muted" data-bind-value="{{top.golden_age.progress}}/{{top.golden_age.threshold}}"></span>
+      <div class="top-panel-progress"><div class="top-panel-fill" data-bind-style-width="{{clamp(top.golden_age.progress / max(top.golden_age.threshold, 1), 0, 1) * 100}}%"></div></div>
+    </div>
+    <button class="yield" data-part="top.yield.culture" data-bind-disabled="{{hud != null && !hud.top.culture_enabled}}" data-on-click="intent window.open(window: 'policies')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'culture'">
       <svg class="i c-cult"><use href="#i-cult"/></svg>
       <span class="v" data-bind-value="{{fmt.signed(top.culture_rate)}}">+31</span>
       <span class="d muted" data-bind-if="{{top.policy_turns != null}}" data-l10n="top.turns" data-l10n-args="{{top.policy_turns}}">6 turns</span>
-    </div>
-    <div class="yield" data-part="top.yield.faith">
+      <div class="top-panel-progress"><div class="top-panel-fill" data-bind-style-width="{{clamp(top.culture / max(top.policy_cost, 1), 0, 1) * 100}}%"></div></div>
+    </button>
+    <button class="yield" data-part="top.yield.faith" data-bind-disabled="{{hud != null && !hud.top.faith_enabled}}" data-on-click="intent window.open(window: 'religion_overview')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'faith'">
       <svg class="i c-faith"><use href="#i-faith"/></svg>
       <span class="v" data-bind-value="{{top.faith}}">140</span>
       <span class="d" data-bind-class-toggle="neg:{{top.faith_rate < 0}}" data-bind-value="{{fmt.signed(top.faith_rate)}}">+9</span>
-    </div>
-    <div class="yield" data-part="top.yield.tourism" data-bind-if="{{top.tourism != null}}">
+    </button>
+    <div class="yield" data-part="top.yield.tourism" data-bind-if="{{top.tourism != null}}" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'tourism'">
       <svg class="i c-tour"><use href="#i-tour"/></svg>
       <span class="v" data-bind-value="{{top.tourism}}">4</span>
     </div>
+    <div class="yield" data-part="top.yield.trade" data-bind-if="{{hud != null}}"><span class="v" data-bind-value="{{hud.top.trade_used}}/{{hud.top.trade_available}}"></span><span class="d muted" data-l10n="top_panel.routes"></span></div>
+    <button class="yield top-panel-gp" data-part="top.yield.gp" data-bind-if="{{hud != null && hud.lists.nearest != null}}" data-on-click="intent window.open(window: 'city', a: hud.lists.nearest.city_id)" data-tooltip="top-panel-gp-tip"><img class="unit-lists-icon" data-bind-src="{{hud.lists.nearest.icon}}"><span class="v" data-l10n="top.turns" data-l10n-args="{{hud.lists.nearest.turns}}"></span></button>
   </div>
 
   <div class="grp res sep" data-part="top.resources">
-    <div class="yield sec" data-bind-for="r:{{top.resources}}" data-bind-class-toggle="off:{{r.available <= 0}}">
+    <button class="mbtn top-panel-resource-fold" data-on-click="set state.top.resources = !state.top.resources" data-l10n="top_panel.resources"></button>
+    <div data-bind-if="{{hud != null}}" class="top-panel-resource-list" data-bind-class-toggle="top-panel-expanded:{{state.top.resources}}">
+    <div class="yield sec" data-bind-for="r:{{hud.top.resources}}" data-bind-filter="{{r.usage == 1}}" data-bind-class-toggle="off:{{!r.revealed || r.available == 0}}; top-panel-negative:{{r.revealed && r.available < 0}}" data-tooltip="top-panel-resource-tip" data-on-pointerenter="set state.top.resource = r.id">
       <img class="rico" data-bind-src="{{r.icon}}">
-      <span class="v" data-bind-value="{{r.available}}">2</span>
+      <span class="v" data-bind-if="{{r.revealed}}" data-bind-value="{{r.available}}">2</span><span class="v" data-bind-if="{{!r.revealed}}">—</span>
+    </div>
     </div>
   </div>
 
-  <div class="grp menus menu-end sep" data-part="top.main-menu">
-    <button class="mbtn" data-part="top.main-menu.button" data-on-click="intent window.open(window: 'menu')"><svg class="i"><use href="#i-menu"/></svg></button>
-  </div>
 </header>

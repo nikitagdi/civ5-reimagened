@@ -21,7 +21,7 @@ export type ProdTab = "all" | "units" | "buildings" | "wonders" | "other";
 export type TurnPending = "none" | "ending" | "cancelling";
 export type ToastKind = "refused" | "rejected" | "lost";
 export type RefuseWhy = "unsupported" | "no_screen" | "no_unit" | "action_unavailable" | "not_your_city" | "option_unavailable" | "cannot_buy" | "bad_slot" | "tech_unavailable" | "cannot_end_turn" | "cannot_cancel" | "chat_empty" | "chat_too_long" | "chat_rate" | "no_connection" | "no_game" | "too_many" | "turn_changed" | "too_big" | "core" | "turn_ended" | "not_your_turn" | "restarting" | "invalid" | "expired" | "not_seated" | "other";
-export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "city" | "city_captured" | "city_list" | "city_rename" | "free_great_person" | "ideology" | "pantheon" | "policies" | "religion" | "religion_overview" | "tech_award" | "techs";
+export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "city" | "city_captured" | "city_list" | "city_rename" | "free_great_person" | "ideology" | "pantheon" | "policies" | "religion" | "religion_overview" | "tech_award" | "techs" | "unit_rename";
 export type ScreenId = "tech_tree" | "policies" | "religion" | "diplomacy" | "overview" | "notification_log" | "economy" | "military" | "victory" | "demographics" | "chat";
 export type MouseButton = "left" | "right";
 export type PushAt = "back" | "front";
@@ -49,6 +49,8 @@ export type CityListItemKind = "unit" | "building" | "wonder" | "project" | "pro
 export type CityRenameMode = "rename" | "raze" | "unraze" | "annex";
 export type CityRenameTaskKind = "raze" | "unraze" | "annex";
 export type FreeGreatPersonMode = "free" | "faith" | "maya";
+export type HudFlagShape = "military" | "civilian" | "embarked" | "fortified" | "garrison" | "trade";
+export type HudTopTipKind = "science" | "gold" | "happiness" | "culture" | "faith" | "golden_age" | "tourism";
 export type IdeologyVictoryKind = "culture" | "diplomacy" | "domination" | "science";
 export type PantheonMode = "pantheon" | "reformation";
 export type PoliciesTab = "policies" | "ideology";
@@ -367,6 +369,7 @@ export interface Windows {
   readonly religion_overview: WinArgs;
   readonly tech_award: WinArgs;
   readonly techs: WinArgs;
+  readonly unit_rename: WinArgs;
   readonly production: WinCity;
   readonly research: Win;
   readonly menu: Win;
@@ -701,6 +704,11 @@ export interface HudResearch {
 
 export interface HudResource {
   readonly id: number;
+  readonly name: string;
+  readonly icon: string;
+  readonly revealed: boolean;
+  readonly imported: number;
+  readonly exported: number;
   readonly usage: number;
   readonly available: number;
   readonly used: number;
@@ -720,6 +728,26 @@ export interface HudTop {
   readonly resources: HudResource[];
   readonly policies: HudPolicy[];
   readonly tourism: number | null;
+  readonly tips: HudTopTip[];
+  readonly anarchy_turns: number;
+  readonly trade_used: number;
+  readonly trade_available: number;
+  readonly science_enabled: boolean;
+  readonly culture_enabled: boolean;
+  readonly faith_enabled: boolean;
+}
+
+export interface HudTopLine {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: number;
+}
+
+export interface HudTopTip {
+  readonly kind: HudTopTipKind;
+  readonly title: Text;
+  readonly total: number;
+  readonly lines: HudTopLine[];
 }
 
 export interface HudOrder {
@@ -746,6 +774,9 @@ export interface HudCity {
 
 export interface HudPromotion {
   readonly id: number;
+  readonly name: Text;
+  readonly icon: string;
+  readonly help: Text;
 }
 
 export interface HudAction {
@@ -757,8 +788,23 @@ export interface HudAction {
 
 export interface HudUnit {
   readonly id: number;
+  readonly name: Text;
+  readonly xp_next: number;
   readonly promotions: HudPromotion[];
   readonly actions: HudAction[];
+  readonly catalog: HudUnitAction[];
+}
+
+export interface HudUnitAction {
+  readonly id: number;
+  readonly name: Text;
+  readonly help: Text;
+  readonly hotkey: string;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly promotion: boolean;
+  readonly build: boolean;
+  readonly client: string;
 }
 
 export interface HudPopup {
@@ -767,6 +813,125 @@ export interface HudPopup {
   readonly a: number | null;
   readonly b: number | null;
   readonly decision: boolean;
+}
+
+export interface HudMapUnit {
+  readonly key: Key;
+  readonly hover_key: string;
+  readonly name: Text;
+  readonly owner: Text;
+  readonly shape: HudFlagShape;
+  readonly strength: number;
+  readonly ranged_strength: number;
+  readonly range: number;
+  readonly hp: number;
+  readonly hp_max: number;
+  readonly moves: number;
+  readonly moves_is_max: boolean;
+  readonly cargo: boolean;
+  readonly promotions: HudPromotion[];
+}
+
+export interface HudMapCity {
+  readonly key: Key;
+  readonly hover_key: string;
+  readonly name: Text;
+  readonly owner: Text;
+  readonly strength: number;
+  readonly hp: number;
+  readonly hp_max: number;
+  readonly growth_turns: number | null;
+  readonly resistance_turns: number | null;
+  readonly razing_turns: number | null;
+}
+
+export interface HudMap {
+  readonly units: HudMapUnit[];
+  readonly cities: HudMapCity[];
+}
+
+export interface HudBelief {
+  readonly id: number;
+  readonly name: Text;
+}
+
+export interface HudMinimap {
+  readonly observer: boolean;
+  readonly religion: Text | null;
+  readonly pantheon: Text | null;
+  readonly beliefs: HudBelief[];
+}
+
+export interface HudListUnit {
+  readonly key: Key;
+  readonly id: number;
+  readonly type_id: number;
+  readonly name: string;
+  readonly icon: string;
+  readonly military: boolean;
+  readonly status: Activity;
+  readonly hp: number;
+  readonly moves: number;
+  readonly max_moves: number;
+  readonly can_promote: boolean;
+}
+
+export interface HudGreatPerson {
+  readonly city: Key;
+  readonly city_id: number;
+  readonly name: Text;
+  readonly progress: number;
+  readonly threshold: number;
+  readonly per_turn: number;
+  readonly turns: number | null;
+}
+
+export interface HudGreatPersonGroup {
+  readonly key: string;
+  readonly name: Text;
+  readonly rows: HudGreatPerson[];
+}
+
+export interface HudLists {
+  readonly units: HudListUnit[];
+  readonly great_people: HudGreatPersonGroup[];
+  readonly general_xp: number;
+  readonly general_threshold: number;
+  readonly admiral_xp: number;
+  readonly admiral_threshold: number;
+  readonly nearest: HudNearestGreatPerson | null;
+}
+
+export interface HudNearestGreatPerson {
+  readonly city_id: number;
+  readonly name: Text;
+  readonly city_name: Text;
+  readonly icon: string;
+  readonly turns: number;
+  readonly progress: number;
+  readonly threshold: number;
+  readonly per_turn: number;
+}
+
+export interface HudTurnPlayer {
+  readonly key: Key;
+  readonly team: number;
+  readonly name: Text;
+  readonly known: boolean;
+  readonly human: boolean;
+  readonly active: boolean;
+}
+
+export interface HudWaitingUnit {
+  readonly key: Key;
+  readonly name: Text;
+}
+
+export interface HudTurn {
+  readonly blocker_kind: number;
+  readonly reason: Text;
+  readonly queue: HudTurnPlayer[];
+  readonly waiting_units: HudWaitingUnit[];
 }
 
 export interface IdeologyVictory {
@@ -1799,6 +1964,10 @@ export interface Hud {
   readonly unit: HudUnit | null;
   readonly popup: HudPopup | null;
   readonly popup_count: number;
+  readonly turn: HudTurn;
+  readonly lists: HudLists;
+  readonly minimap: HudMinimap;
+  readonly map: HudMap;
 }
 
 export interface Ideology {
@@ -1910,6 +2079,13 @@ export interface Techs {
   readonly links: TechsLink[];
 }
 
+export interface UnitRename {
+  readonly unit: number;
+  readonly name: Text;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+}
+
 /** The model: one member per root. */
 export interface Model {
   readonly meta: Meta;
@@ -1938,6 +2114,7 @@ export interface Model {
   readonly rich_tooltips: RichTooltips | null;
   readonly tech_award: TechAward | null;
   readonly techs: Techs | null;
+  readonly unit_rename: UnitRename | null;
 }
 
 /** A decoded operation of a frame delta. Values follow the types above. */

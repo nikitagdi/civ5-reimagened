@@ -1,4 +1,5 @@
-<section class="helm plate tl" data-part="helm">
+<section class="helm plate tl" data-part="helm" data-bind-if="{{!ui.windows.city.open}}">
+  <!-- SIMPLIFIED(SIMP-443): The session exposes a primary blocker and readiness; ordered decision targets and soft reminders need additional session data. -->
   <!-- What the turn button does now, and who has ended the turn. -->
   <div class="side" data-part="helm.state">
     <div class="st">
@@ -13,7 +14,8 @@
       <span data-bind-if="{{turn.state == 'ended'}}" data-l10n="turn.ended">Turn ended</span>
       <span data-bind-if="{{turn.state == 'game_over'}}" data-l10n="turn.over">Game over</span>
     </div>
-    <div class="sub" data-bind-if="{{turn.state == 'unit_needs_orders' && turn.units_waiting > 0}}" data-l10n="turn.units_waiting" data-l10n-args="{{turn.units_waiting}}">5 units waiting</div>
+    <div class="end-turn-reason" data-bind-if="{{hud != null && turn.blocker != null && !turn.finished}}" data-bind-value="{{hud.turn.reason}}"></div>
+    <div class="sub" data-bind-if="{{turn.state == 'unit_needs_orders' && hud != null && len(hud.turn.waiting_units) > 0}}" data-l10n="turn.units_waiting" data-l10n-args="{{len(hud.turn.waiting_units)}}">5 units waiting</div>
     <div class="hint" data-bind-if="{{turn.state != 'waiting_others' && turn.state != 'ai_moving' && turn.state != 'game_over'}}">
       <span class="key"><span data-l10n="key.enter">Enter</span></span>
       <span data-bind-if="{{turn.state == 'next_turn'}}" data-l10n="turn.do.end">End turn</span>
@@ -26,10 +28,10 @@
     </div>
     <div class="rule"></div>
     <div class="ph"><span data-l10n="turn.ready">Ready</span><span data-l10n="turn.ready_of" data-l10n-args="{{turn.ready}}, {{turn.humans}}">3 of 4</span></div>
-    <div class="seats" data-part="helm.seats">
+    <div class="seats" data-part="helm.seats" data-bind-if="{{hud != null}}">
       <div class="player" data-bind-for="s:{{turn.seats}}" data-bind-class-toggle="wait:{{!s.finished}}">
         <i class="notch"></i>
-        <span class="nm" data-bind-value="{{s.name}}">Catherine</span>
+        <span class="nm" data-bind-for="p:{{hud.turn.queue}}" data-bind-filter="{{p.key == s.player}}" data-bind-value="{{p.name}}"></span>
         <span class="you" data-bind-if="{{s.me}}" data-l10n="turn.you">you</span>
       </div>
     </div>
@@ -37,7 +39,7 @@
 
   <!-- The turn dial: a click (or Enter) does what the state above says. The scale is a conic gradient, the
        remaining time of a turn timer is an arc of two rotating halves and 40 lit ticks. -->
-  <button class="dial" data-part="helm.dial" data-hotkey="Enter" data-on-click="intent turn.primary()">
+  <button class="dial" data-part="helm.dial" data-hotkey="Enter" data-on-click="intent turn.primary()" data-tooltip="end-turn-tip" data-bind-disabled="{{ui.turn_pending != 'none' || turn.state == 'ai_moving' || turn.state == 'game_over' || (turn.state == 'waiting_others' && !turn.can_cancel)}}" data-bind-class-toggle="end-turn-paused:{{turn.timer != null && turn.timer.stopped}}">
     <div class="face"></div>
     <div class="track"></div>
     <div class="arc" data-bind-if="{{turn.timer != null}}">
@@ -99,10 +101,19 @@
     </div>
   </button>
 
+  <div class="end-turn-queue" data-part="end-turn.queue" data-bind-if="{{hud != null}}">
+    <span class="end-turn-queue-label" data-l10n="end_turn.queue"></span>
+    <div class="end-turn-player" data-bind-for="p:{{hud.turn.queue}}" data-bind-class-toggle="end-turn-active:{{p.active && !p.human}}; end-turn-unknown:{{!p.known}}">
+      <span class="end-turn-player-name" data-bind-value="{{p.name}}"></span>
+      <span class="end-turn-human" data-bind-for="s:{{turn.seats}}" data-bind-filter="{{s.player == p.key}}" data-bind-class-toggle="end-turn-active:{{!s.finished && s.may_act}}"><span class="end-turn-ready" data-bind-if="{{s.finished}}" data-l10n="end_turn.done"></span><span data-bind-if="{{!s.finished}}" data-l10n="end_turn.moving"></span></span>
+    </div>
+  </div>
+
   <!-- The minimap is a picture the game draws; a press on it moves the camera (the host does that).
        SIMPLIFIED(SIMP-278): no frame of the camera's view on the minimap; the camera does not give the model the
        rectangle it sees. -->
   <div class="minimap" data-part="helm.minimap" data-slot="hud.minimap">
     <img class="mm" data-asset="render:minimap">
   </div>
+  <div data-include="parts/minimap.html"></div>
 </section>

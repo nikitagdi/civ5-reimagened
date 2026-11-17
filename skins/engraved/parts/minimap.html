@@ -1,0 +1,7 @@
+<div class="minimap-buttons">
+  <!-- SIMPLIFIED(SIMP-442): Strategic view, renderer overlays and timer administration have no client/session intents in this base. -->
+  <button disabled data-tooltip="minimap-renderer-tip" data-l10n="minimap.view"></button>
+  <button data-part="minimap.options-toggle" data-on-click="set state.minimap.options = !state.minimap.options" data-l10n="minimap.options"></button>
+  <button data-part="minimap.streamer-toggle" data-on-click="set state.minimap.streamer = !state.minimap.streamer" data-l10n="minimap.streamer"></button>
+  <button disabled data-bind-if="{{turn.timer != null && hud != null && !hud.minimap.observer}}" data-tooltip="minimap-timer-tip" data-l10n="minimap.timer"></button>
+</div>

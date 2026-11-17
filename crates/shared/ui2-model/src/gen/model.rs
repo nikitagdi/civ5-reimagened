@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 2);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x4fbd50809e4cdf04;
+pub const SCHEMA_HASH: u64 = 0x77c852ba1ec40117;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -1436,14 +1436,15 @@ pub enum WindowId {
     ReligionOverview = 14,
     TechAward = 15,
     Techs = 16,
+    UnitRename = 17,
 }
 
 impl WindowId {
     /// The names, indexed by the discriminant.
-    pub const NAMES: [&'static str; 17] = ["production", "research", "menu", "chat", "notes_log", "city", "city_captured", "city_list", "city_rename", "free_great_person", "ideology", "pantheon", "policies", "religion", "religion_overview", "tech_award", "techs"];
+    pub const NAMES: [&'static str; 18] = ["production", "research", "menu", "chat", "notes_log", "city", "city_captured", "city_list", "city_rename", "free_great_person", "ideology", "pantheon", "policies", "religion", "religion_overview", "tech_award", "techs", "unit_rename"];
 
     /// Every variant, in declaration order.
-    pub const ALL: &'static [WindowId] = &[WindowId::Production, WindowId::Research, WindowId::Menu, WindowId::Chat, WindowId::NotesLog, WindowId::City, WindowId::CityCaptured, WindowId::CityList, WindowId::CityRename, WindowId::FreeGreatPerson, WindowId::Ideology, WindowId::Pantheon, WindowId::Policies, WindowId::Religion, WindowId::ReligionOverview, WindowId::TechAward, WindowId::Techs];
+    pub const ALL: &'static [WindowId] = &[WindowId::Production, WindowId::Research, WindowId::Menu, WindowId::Chat, WindowId::NotesLog, WindowId::City, WindowId::CityCaptured, WindowId::CityList, WindowId::CityRename, WindowId::FreeGreatPerson, WindowId::Ideology, WindowId::Pantheon, WindowId::Policies, WindowId::Religion, WindowId::ReligionOverview, WindowId::TechAward, WindowId::Techs, WindowId::UnitRename];
 
     /// The schema name of the variant (the same as [`name`](Self::name)).
     #[must_use]
@@ -1472,6 +1473,7 @@ impl WindowId {
             14 => Some(WindowId::ReligionOverview),
             15 => Some(WindowId::TechAward),
             16 => Some(WindowId::Techs),
+            17 => Some(WindowId::UnitRename),
             _ => None,
         }
     }
@@ -1503,6 +1505,7 @@ impl WindowId {
             "religion_overview" => Some(WindowId::ReligionOverview),
             "tech_award" => Some(WindowId::TechAward),
             "techs" => Some(WindowId::Techs),
+            "unit_rename" => Some(WindowId::UnitRename),
             _ => None,
         }
     }
@@ -1527,7 +1530,7 @@ impl crate::model::Model for WindowId {
         match v {
             crate::value::Value::Enum(n) => WindowId::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
                 value: *n,
-                count: 17,
+                count: 18,
             }),
             other => Err(crate::value::ValueError::mismatch("enum", other)),
         }
@@ -3715,6 +3718,181 @@ impl crate::model::Model for FreeGreatPersonMode {
             crate::value::Value::Enum(n) => FreeGreatPersonMode::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
                 value: *n,
                 count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum HudFlagShape {
+    #[default]
+    Military = 0,
+    Civilian = 1,
+    Embarked = 2,
+    Fortified = 3,
+    Garrison = 4,
+    Trade = 5,
+}
+
+impl HudFlagShape {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 6] = ["military", "civilian", "embarked", "fortified", "garrison", "trade"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [HudFlagShape] = &[HudFlagShape::Military, HudFlagShape::Civilian, HudFlagShape::Embarked, HudFlagShape::Fortified, HudFlagShape::Garrison, HudFlagShape::Trade];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<HudFlagShape> {
+        match v {
+            0 => Some(HudFlagShape::Military),
+            1 => Some(HudFlagShape::Civilian),
+            2 => Some(HudFlagShape::Embarked),
+            3 => Some(HudFlagShape::Fortified),
+            4 => Some(HudFlagShape::Garrison),
+            5 => Some(HudFlagShape::Trade),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<HudFlagShape> {
+        match s {
+            "military" => Some(HudFlagShape::Military),
+            "civilian" => Some(HudFlagShape::Civilian),
+            "embarked" => Some(HudFlagShape::Embarked),
+            "fortified" => Some(HudFlagShape::Fortified),
+            "garrison" => Some(HudFlagShape::Garrison),
+            "trade" => Some(HudFlagShape::Trade),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for HudFlagShape {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => HudFlagShape::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 6,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum HudTopTipKind {
+    #[default]
+    Science = 0,
+    Gold = 1,
+    Happiness = 2,
+    Culture = 3,
+    Faith = 4,
+    GoldenAge = 5,
+    Tourism = 6,
+}
+
+impl HudTopTipKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 7] = ["science", "gold", "happiness", "culture", "faith", "golden_age", "tourism"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [HudTopTipKind] = &[HudTopTipKind::Science, HudTopTipKind::Gold, HudTopTipKind::Happiness, HudTopTipKind::Culture, HudTopTipKind::Faith, HudTopTipKind::GoldenAge, HudTopTipKind::Tourism];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<HudTopTipKind> {
+        match v {
+            0 => Some(HudTopTipKind::Science),
+            1 => Some(HudTopTipKind::Gold),
+            2 => Some(HudTopTipKind::Happiness),
+            3 => Some(HudTopTipKind::Culture),
+            4 => Some(HudTopTipKind::Faith),
+            5 => Some(HudTopTipKind::GoldenAge),
+            6 => Some(HudTopTipKind::Tourism),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<HudTopTipKind> {
+        match s {
+            "science" => Some(HudTopTipKind::Science),
+            "gold" => Some(HudTopTipKind::Gold),
+            "happiness" => Some(HudTopTipKind::Happiness),
+            "culture" => Some(HudTopTipKind::Culture),
+            "faith" => Some(HudTopTipKind::Faith),
+            "golden_age" => Some(HudTopTipKind::GoldenAge),
+            "tourism" => Some(HudTopTipKind::Tourism),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for HudTopTipKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => HudTopTipKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 7,
             }),
             other => Err(crate::value::ValueError::mismatch("enum", other)),
         }
@@ -7832,6 +8010,7 @@ pub struct Windows {
     pub religion_overview: WinArgs,
     pub tech_award: WinArgs,
     pub techs: WinArgs,
+    pub unit_rename: WinArgs,
     pub production: WinCity,
     pub research: Win,
     pub menu: Win,
@@ -7867,14 +8046,16 @@ impl crate::model::Model for Windows {
         at.field = base.child(66);
         crate::model::Model::diff(&self.techs, &old.techs, at, out);
         at.field = base.child(72);
+        crate::model::Model::diff(&self.unit_rename, &old.unit_rename, at, out);
+        at.field = base.child(78);
         crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(75);
-        crate::model::Model::diff(&self.research, &old.research, at, out);
-        at.field = base.child(77);
-        crate::model::Model::diff(&self.menu, &old.menu, at, out);
-        at.field = base.child(79);
-        crate::model::Model::diff(&self.chat, &old.chat, at, out);
         at.field = base.child(81);
+        crate::model::Model::diff(&self.research, &old.research, at, out);
+        at.field = base.child(83);
+        crate::model::Model::diff(&self.menu, &old.menu, at, out);
+        at.field = base.child(85);
+        crate::model::Model::diff(&self.chat, &old.chat, at, out);
+        at.field = base.child(87);
         crate::model::Model::diff(&self.notes_log, &old.notes_log, at, out);
         at.field = base;
     }
@@ -7893,6 +8074,7 @@ impl crate::model::Model for Windows {
             crate::model::Model::to_value(&self.religion_overview),
             crate::model::Model::to_value(&self.tech_award),
             crate::model::Model::to_value(&self.techs),
+            crate::model::Model::to_value(&self.unit_rename),
             crate::model::Model::to_value(&self.production),
             crate::model::Model::to_value(&self.research),
             crate::model::Model::to_value(&self.menu),
@@ -7902,7 +8084,7 @@ impl crate::model::Model for Windows {
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(17)?;
+        let f = v.as_struct(18)?;
         Ok(Windows {
             city: crate::model::Model::from_value(&f[0])?,
             city_captured: crate::model::Model::from_value(&f[1])?,
@@ -7916,11 +8098,12 @@ impl crate::model::Model for Windows {
             religion_overview: crate::model::Model::from_value(&f[9])?,
             tech_award: crate::model::Model::from_value(&f[10])?,
             techs: crate::model::Model::from_value(&f[11])?,
-            production: crate::model::Model::from_value(&f[12])?,
-            research: crate::model::Model::from_value(&f[13])?,
-            menu: crate::model::Model::from_value(&f[14])?,
-            chat: crate::model::Model::from_value(&f[15])?,
-            notes_log: crate::model::Model::from_value(&f[16])?,
+            unit_rename: crate::model::Model::from_value(&f[12])?,
+            production: crate::model::Model::from_value(&f[13])?,
+            research: crate::model::Model::from_value(&f[14])?,
+            menu: crate::model::Model::from_value(&f[15])?,
+            chat: crate::model::Model::from_value(&f[16])?,
+            notes_log: crate::model::Model::from_value(&f[17])?,
         })
     }
 }
@@ -9951,6 +10134,11 @@ impl crate::model::Model for HudResearch {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct HudResource {
     pub id: i16,
+    pub name: ::std::sync::Arc<str>,
+    pub icon: crate::value::AssetRef,
+    pub revealed: bool,
+    pub imported: i32,
+    pub exported: i32,
     pub usage: i8,
     pub available: i32,
     pub used: i32,
@@ -9963,12 +10151,22 @@ impl crate::model::Model for HudResource {
         at.field = base.child(0);
         crate::model::Model::diff(&self.id, &old.id, at, out);
         at.field = base.child(1);
-        crate::model::Model::diff(&self.usage, &old.usage, at, out);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
         at.field = base.child(2);
-        crate::model::Model::diff(&self.available, &old.available, at, out);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
         at.field = base.child(3);
-        crate::model::Model::diff(&self.used, &old.used, at, out);
+        crate::model::Model::diff(&self.revealed, &old.revealed, at, out);
         at.field = base.child(4);
+        crate::model::Model::diff(&self.imported, &old.imported, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.exported, &old.exported, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.usage, &old.usage, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.available, &old.available, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.used, &old.used, at, out);
+        at.field = base.child(9);
         crate::model::Model::diff(&self.total, &old.total, at, out);
         at.field = base;
     }
@@ -9976,6 +10174,11 @@ impl crate::model::Model for HudResource {
     fn to_value(&self) -> crate::value::Value {
         crate::value::Value::Struct(vec![
             crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.revealed),
+            crate::model::Model::to_value(&self.imported),
+            crate::model::Model::to_value(&self.exported),
             crate::model::Model::to_value(&self.usage),
             crate::model::Model::to_value(&self.available),
             crate::model::Model::to_value(&self.used),
@@ -9984,13 +10187,18 @@ impl crate::model::Model for HudResource {
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(5)?;
+        let f = v.as_struct(10)?;
         Ok(HudResource {
             id: crate::model::Model::from_value(&f[0])?,
-            usage: crate::model::Model::from_value(&f[1])?,
-            available: crate::model::Model::from_value(&f[2])?,
-            used: crate::model::Model::from_value(&f[3])?,
-            total: crate::model::Model::from_value(&f[4])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            revealed: crate::model::Model::from_value(&f[3])?,
+            imported: crate::model::Model::from_value(&f[4])?,
+            exported: crate::model::Model::from_value(&f[5])?,
+            usage: crate::model::Model::from_value(&f[6])?,
+            available: crate::model::Model::from_value(&f[7])?,
+            used: crate::model::Model::from_value(&f[8])?,
+            total: crate::model::Model::from_value(&f[9])?,
         })
     }
 }
@@ -10064,6 +10272,13 @@ pub struct HudTop {
     pub resources: crate::model::KeyedList<HudResource>,
     pub policies: crate::model::KeyedList<HudPolicy>,
     pub tourism: Option<i32>,
+    pub tips: crate::model::KeyedList<HudTopTip>,
+    pub anarchy_turns: i32,
+    pub trade_used: i32,
+    pub trade_available: i32,
+    pub science_enabled: bool,
+    pub culture_enabled: bool,
+    pub faith_enabled: bool,
 }
 
 impl crate::model::Model for HudTop {
@@ -10071,10 +10286,24 @@ impl crate::model::Model for HudTop {
         let base = at.field;
         at.field = base.child(0);
         crate::model::Model::diff(&self.resources, &old.resources, at, out);
-        at.field = base.child(6);
+        at.field = base.child(11);
         crate::model::Model::diff(&self.policies, &old.policies, at, out);
-        at.field = base.child(13);
+        at.field = base.child(18);
         crate::model::Model::diff(&self.tourism, &old.tourism, at, out);
+        at.field = base.child(19);
+        crate::model::Model::diff(&self.tips, &old.tips, at, out);
+        at.field = base.child(27);
+        crate::model::Model::diff(&self.anarchy_turns, &old.anarchy_turns, at, out);
+        at.field = base.child(28);
+        crate::model::Model::diff(&self.trade_used, &old.trade_used, at, out);
+        at.field = base.child(29);
+        crate::model::Model::diff(&self.trade_available, &old.trade_available, at, out);
+        at.field = base.child(30);
+        crate::model::Model::diff(&self.science_enabled, &old.science_enabled, at, out);
+        at.field = base.child(31);
+        crate::model::Model::diff(&self.culture_enabled, &old.culture_enabled, at, out);
+        at.field = base.child(32);
+        crate::model::Model::diff(&self.faith_enabled, &old.faith_enabled, at, out);
         at.field = base;
     }
 
@@ -10083,16 +10312,121 @@ impl crate::model::Model for HudTop {
             crate::model::Model::to_value(&self.resources),
             crate::model::Model::to_value(&self.policies),
             crate::model::Model::to_value(&self.tourism),
+            crate::model::Model::to_value(&self.tips),
+            crate::model::Model::to_value(&self.anarchy_turns),
+            crate::model::Model::to_value(&self.trade_used),
+            crate::model::Model::to_value(&self.trade_available),
+            crate::model::Model::to_value(&self.science_enabled),
+            crate::model::Model::to_value(&self.culture_enabled),
+            crate::model::Model::to_value(&self.faith_enabled),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(10)?;
+        Ok(HudTop {
+            resources: crate::model::Model::from_value(&f[0])?,
+            policies: crate::model::Model::from_value(&f[1])?,
+            tourism: crate::model::Model::from_value(&f[2])?,
+            tips: crate::model::Model::from_value(&f[3])?,
+            anarchy_turns: crate::model::Model::from_value(&f[4])?,
+            trade_used: crate::model::Model::from_value(&f[5])?,
+            trade_available: crate::model::Model::from_value(&f[6])?,
+            science_enabled: crate::model::Model::from_value(&f[7])?,
+            culture_enabled: crate::model::Model::from_value(&f[8])?,
+            faith_enabled: crate::model::Model::from_value(&f[9])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudTopLine {
+    pub key: ::std::sync::Arc<str>,
+    pub label: crate::value::Text,
+    pub value: f32,
+}
+
+impl crate::model::Model for HudTopLine {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.value),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
         let f = v.as_struct(3)?;
-        Ok(HudTop {
-            resources: crate::model::Model::from_value(&f[0])?,
-            policies: crate::model::Model::from_value(&f[1])?,
-            tourism: crate::model::Model::from_value(&f[2])?,
+        Ok(HudTopLine {
+            key: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            value: crate::model::Model::from_value(&f[2])?,
         })
+    }
+}
+
+impl crate::model::Keyed for HudTopLine {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudTopTip {
+    pub kind: HudTopTipKind,
+    pub title: crate::value::Text,
+    pub total: f32,
+    pub lines: crate::model::KeyedList<HudTopLine>,
+}
+
+impl crate::model::Model for HudTopTip {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.title, &old.title, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.total, &old.total, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.lines, &old.lines, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.title),
+            crate::model::Model::to_value(&self.total),
+            crate::model::Model::to_value(&self.lines),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(HudTopTip {
+            kind: crate::model::Model::from_value(&f[0])?,
+            title: crate::model::Model::from_value(&f[1])?,
+            total: crate::model::Model::from_value(&f[2])?,
+            lines: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudTopTip {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_enum(self.kind as u16)
     }
 }
 
@@ -10242,6 +10576,9 @@ impl crate::model::Model for HudCity {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct HudPromotion {
     pub id: i16,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub help: crate::value::Text,
 }
 
 impl crate::model::Model for HudPromotion {
@@ -10249,19 +10586,31 @@ impl crate::model::Model for HudPromotion {
         let base = at.field;
         at.field = base.child(0);
         crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.help, &old.help, at, out);
         at.field = base;
     }
 
     fn to_value(&self) -> crate::value::Value {
         crate::value::Value::Struct(vec![
             crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.help),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(1)?;
+        let f = v.as_struct(4)?;
         Ok(HudPromotion {
             id: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            help: crate::model::Model::from_value(&f[3])?,
         })
     }
 }
@@ -10323,8 +10672,11 @@ impl crate::model::Keyed for HudAction {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct HudUnit {
     pub id: i32,
+    pub name: crate::value::Text,
+    pub xp_next: i32,
     pub promotions: crate::model::KeyedList<HudPromotion>,
     pub actions: crate::model::KeyedList<HudAction>,
+    pub catalog: crate::model::KeyedList<HudUnitAction>,
 }
 
 impl crate::model::Model for HudUnit {
@@ -10333,27 +10685,112 @@ impl crate::model::Model for HudUnit {
         at.field = base.child(0);
         crate::model::Model::diff(&self.id, &old.id, at, out);
         at.field = base.child(1);
-        crate::model::Model::diff(&self.promotions, &old.promotions, at, out);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.xp_next, &old.xp_next, at, out);
         at.field = base.child(3);
+        crate::model::Model::diff(&self.promotions, &old.promotions, at, out);
+        at.field = base.child(8);
         crate::model::Model::diff(&self.actions, &old.actions, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.catalog, &old.catalog, at, out);
         at.field = base;
     }
 
     fn to_value(&self) -> crate::value::Value {
         crate::value::Value::Struct(vec![
             crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.xp_next),
             crate::model::Model::to_value(&self.promotions),
             crate::model::Model::to_value(&self.actions),
+            crate::model::Model::to_value(&self.catalog),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(3)?;
+        let f = v.as_struct(6)?;
         Ok(HudUnit {
             id: crate::model::Model::from_value(&f[0])?,
-            promotions: crate::model::Model::from_value(&f[1])?,
-            actions: crate::model::Model::from_value(&f[2])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            xp_next: crate::model::Model::from_value(&f[2])?,
+            promotions: crate::model::Model::from_value(&f[3])?,
+            actions: crate::model::Model::from_value(&f[4])?,
+            catalog: crate::model::Model::from_value(&f[5])?,
         })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudUnitAction {
+    pub id: i32,
+    pub name: crate::value::Text,
+    pub help: crate::value::Text,
+    pub hotkey: ::std::sync::Arc<str>,
+    pub enabled: bool,
+    pub reason: Option<crate::value::Text>,
+    pub promotion: bool,
+    pub build: bool,
+    pub client: ::std::sync::Arc<str>,
+}
+
+impl crate::model::Model for HudUnitAction {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.help, &old.help, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.hotkey, &old.hotkey, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.promotion, &old.promotion, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.build, &old.build, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.client, &old.client, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.help),
+            crate::model::Model::to_value(&self.hotkey),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.promotion),
+            crate::model::Model::to_value(&self.build),
+            crate::model::Model::to_value(&self.client),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(9)?;
+        Ok(HudUnitAction {
+            id: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            help: crate::model::Model::from_value(&f[2])?,
+            hotkey: crate::model::Model::from_value(&f[3])?,
+            enabled: crate::model::Model::from_value(&f[4])?,
+            reason: crate::model::Model::from_value(&f[5])?,
+            promotion: crate::model::Model::from_value(&f[6])?,
+            build: crate::model::Model::from_value(&f[7])?,
+            client: crate::model::Model::from_value(&f[8])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudUnitAction {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
     }
 }
 
@@ -10400,6 +10837,740 @@ impl crate::model::Model for HudPopup {
             a: crate::model::Model::from_value(&f[2])?,
             b: crate::model::Model::from_value(&f[3])?,
             decision: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudMapUnit {
+    pub key: crate::value::Key,
+    pub hover_key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub owner: crate::value::Text,
+    pub shape: HudFlagShape,
+    pub strength: i32,
+    pub ranged_strength: i32,
+    pub range: i32,
+    pub hp: i32,
+    pub hp_max: i32,
+    pub moves: f32,
+    pub moves_is_max: bool,
+    pub cargo: bool,
+    pub promotions: crate::model::KeyedList<HudPromotion>,
+}
+
+impl crate::model::Model for HudMapUnit {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.hover_key, &old.hover_key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.owner, &old.owner, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.shape, &old.shape, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.strength, &old.strength, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.ranged_strength, &old.ranged_strength, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.range, &old.range, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.hp, &old.hp, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.hp_max, &old.hp_max, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.moves, &old.moves, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.moves_is_max, &old.moves_is_max, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.cargo, &old.cargo, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.promotions, &old.promotions, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.hover_key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.owner),
+            crate::model::Model::to_value(&self.shape),
+            crate::model::Model::to_value(&self.strength),
+            crate::model::Model::to_value(&self.ranged_strength),
+            crate::model::Model::to_value(&self.range),
+            crate::model::Model::to_value(&self.hp),
+            crate::model::Model::to_value(&self.hp_max),
+            crate::model::Model::to_value(&self.moves),
+            crate::model::Model::to_value(&self.moves_is_max),
+            crate::model::Model::to_value(&self.cargo),
+            crate::model::Model::to_value(&self.promotions),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(14)?;
+        Ok(HudMapUnit {
+            key: crate::model::Model::from_value(&f[0])?,
+            hover_key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            owner: crate::model::Model::from_value(&f[3])?,
+            shape: crate::model::Model::from_value(&f[4])?,
+            strength: crate::model::Model::from_value(&f[5])?,
+            ranged_strength: crate::model::Model::from_value(&f[6])?,
+            range: crate::model::Model::from_value(&f[7])?,
+            hp: crate::model::Model::from_value(&f[8])?,
+            hp_max: crate::model::Model::from_value(&f[9])?,
+            moves: crate::model::Model::from_value(&f[10])?,
+            moves_is_max: crate::model::Model::from_value(&f[11])?,
+            cargo: crate::model::Model::from_value(&f[12])?,
+            promotions: crate::model::Model::from_value(&f[13])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudMapUnit {
+    fn key(&self) -> crate::value::Key {
+        self.key
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudMapCity {
+    pub key: crate::value::Key,
+    pub hover_key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub owner: crate::value::Text,
+    pub strength: i32,
+    pub hp: i32,
+    pub hp_max: i32,
+    pub growth_turns: Option<i32>,
+    pub resistance_turns: Option<i32>,
+    pub razing_turns: Option<i32>,
+}
+
+impl crate::model::Model for HudMapCity {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.hover_key, &old.hover_key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.owner, &old.owner, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.strength, &old.strength, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.hp, &old.hp, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.hp_max, &old.hp_max, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.growth_turns, &old.growth_turns, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.resistance_turns, &old.resistance_turns, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.razing_turns, &old.razing_turns, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.hover_key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.owner),
+            crate::model::Model::to_value(&self.strength),
+            crate::model::Model::to_value(&self.hp),
+            crate::model::Model::to_value(&self.hp_max),
+            crate::model::Model::to_value(&self.growth_turns),
+            crate::model::Model::to_value(&self.resistance_turns),
+            crate::model::Model::to_value(&self.razing_turns),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(10)?;
+        Ok(HudMapCity {
+            key: crate::model::Model::from_value(&f[0])?,
+            hover_key: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            owner: crate::model::Model::from_value(&f[3])?,
+            strength: crate::model::Model::from_value(&f[4])?,
+            hp: crate::model::Model::from_value(&f[5])?,
+            hp_max: crate::model::Model::from_value(&f[6])?,
+            growth_turns: crate::model::Model::from_value(&f[7])?,
+            resistance_turns: crate::model::Model::from_value(&f[8])?,
+            razing_turns: crate::model::Model::from_value(&f[9])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudMapCity {
+    fn key(&self) -> crate::value::Key {
+        self.key
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudMap {
+    pub units: crate::model::KeyedList<HudMapUnit>,
+    pub cities: crate::model::KeyedList<HudMapCity>,
+}
+
+impl crate::model::Model for HudMap {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.units, &old.units, at, out);
+        at.field = base.child(19);
+        crate::model::Model::diff(&self.cities, &old.cities, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.units),
+            crate::model::Model::to_value(&self.cities),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(HudMap {
+            units: crate::model::Model::from_value(&f[0])?,
+            cities: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudBelief {
+    pub id: i32,
+    pub name: crate::value::Text,
+}
+
+impl crate::model::Model for HudBelief {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(HudBelief {
+            id: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudBelief {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudMinimap {
+    pub observer: bool,
+    pub religion: Option<crate::value::Text>,
+    pub pantheon: Option<crate::value::Text>,
+    pub beliefs: crate::model::KeyedList<HudBelief>,
+}
+
+impl crate::model::Model for HudMinimap {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.observer, &old.observer, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.religion, &old.religion, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.pantheon, &old.pantheon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.beliefs, &old.beliefs, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.observer),
+            crate::model::Model::to_value(&self.religion),
+            crate::model::Model::to_value(&self.pantheon),
+            crate::model::Model::to_value(&self.beliefs),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(HudMinimap {
+            observer: crate::model::Model::from_value(&f[0])?,
+            religion: crate::model::Model::from_value(&f[1])?,
+            pantheon: crate::model::Model::from_value(&f[2])?,
+            beliefs: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudListUnit {
+    pub key: crate::value::Key,
+    pub id: i32,
+    pub type_id: i32,
+    pub name: ::std::sync::Arc<str>,
+    pub icon: crate::value::AssetRef,
+    pub military: bool,
+    pub status: Activity,
+    pub hp: i32,
+    pub moves: f32,
+    pub max_moves: f32,
+    pub can_promote: bool,
+}
+
+impl crate::model::Model for HudListUnit {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.type_id, &old.type_id, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.military, &old.military, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.status, &old.status, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.hp, &old.hp, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.moves, &old.moves, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.max_moves, &old.max_moves, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.can_promote, &old.can_promote, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.type_id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.military),
+            crate::model::Model::to_value(&self.status),
+            crate::model::Model::to_value(&self.hp),
+            crate::model::Model::to_value(&self.moves),
+            crate::model::Model::to_value(&self.max_moves),
+            crate::model::Model::to_value(&self.can_promote),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(11)?;
+        Ok(HudListUnit {
+            key: crate::model::Model::from_value(&f[0])?,
+            id: crate::model::Model::from_value(&f[1])?,
+            type_id: crate::model::Model::from_value(&f[2])?,
+            name: crate::model::Model::from_value(&f[3])?,
+            icon: crate::model::Model::from_value(&f[4])?,
+            military: crate::model::Model::from_value(&f[5])?,
+            status: crate::model::Model::from_value(&f[6])?,
+            hp: crate::model::Model::from_value(&f[7])?,
+            moves: crate::model::Model::from_value(&f[8])?,
+            max_moves: crate::model::Model::from_value(&f[9])?,
+            can_promote: crate::model::Model::from_value(&f[10])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudListUnit {
+    fn key(&self) -> crate::value::Key {
+        self.key
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudGreatPerson {
+    pub city: crate::value::Key,
+    pub city_id: i32,
+    pub name: crate::value::Text,
+    pub progress: f32,
+    pub threshold: i32,
+    pub per_turn: f32,
+    pub turns: Option<i32>,
+}
+
+impl crate::model::Model for HudGreatPerson {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.city_id, &old.city_id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.progress, &old.progress, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.threshold, &old.threshold, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.per_turn, &old.per_turn, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.city),
+            crate::model::Model::to_value(&self.city_id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.progress),
+            crate::model::Model::to_value(&self.threshold),
+            crate::model::Model::to_value(&self.per_turn),
+            crate::model::Model::to_value(&self.turns),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(HudGreatPerson {
+            city: crate::model::Model::from_value(&f[0])?,
+            city_id: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            progress: crate::model::Model::from_value(&f[3])?,
+            threshold: crate::model::Model::from_value(&f[4])?,
+            per_turn: crate::model::Model::from_value(&f[5])?,
+            turns: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudGreatPerson {
+    fn key(&self) -> crate::value::Key {
+        self.city
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudGreatPersonGroup {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub rows: crate::model::KeyedList<HudGreatPerson>,
+}
+
+impl crate::model::Model for HudGreatPersonGroup {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.rows, &old.rows, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.rows),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(HudGreatPersonGroup {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            rows: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudGreatPersonGroup {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudLists {
+    pub units: crate::model::KeyedList<HudListUnit>,
+    pub great_people: crate::model::KeyedList<HudGreatPersonGroup>,
+    pub general_xp: i32,
+    pub general_threshold: i32,
+    pub admiral_xp: i32,
+    pub admiral_threshold: i32,
+    pub nearest: Option<HudNearestGreatPerson>,
+}
+
+impl crate::model::Model for HudLists {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.units, &old.units, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.great_people, &old.great_people, at, out);
+        at.field = base.child(23);
+        crate::model::Model::diff(&self.general_xp, &old.general_xp, at, out);
+        at.field = base.child(24);
+        crate::model::Model::diff(&self.general_threshold, &old.general_threshold, at, out);
+        at.field = base.child(25);
+        crate::model::Model::diff(&self.admiral_xp, &old.admiral_xp, at, out);
+        at.field = base.child(26);
+        crate::model::Model::diff(&self.admiral_threshold, &old.admiral_threshold, at, out);
+        at.field = base.child(27);
+        crate::model::Model::diff(&self.nearest, &old.nearest, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.units),
+            crate::model::Model::to_value(&self.great_people),
+            crate::model::Model::to_value(&self.general_xp),
+            crate::model::Model::to_value(&self.general_threshold),
+            crate::model::Model::to_value(&self.admiral_xp),
+            crate::model::Model::to_value(&self.admiral_threshold),
+            crate::model::Model::to_value(&self.nearest),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(HudLists {
+            units: crate::model::Model::from_value(&f[0])?,
+            great_people: crate::model::Model::from_value(&f[1])?,
+            general_xp: crate::model::Model::from_value(&f[2])?,
+            general_threshold: crate::model::Model::from_value(&f[3])?,
+            admiral_xp: crate::model::Model::from_value(&f[4])?,
+            admiral_threshold: crate::model::Model::from_value(&f[5])?,
+            nearest: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudNearestGreatPerson {
+    pub city_id: i32,
+    pub name: crate::value::Text,
+    pub city_name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub turns: i32,
+    pub progress: f32,
+    pub threshold: i32,
+    pub per_turn: f32,
+}
+
+impl crate::model::Model for HudNearestGreatPerson {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.city_id, &old.city_id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.city_name, &old.city_name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.progress, &old.progress, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.threshold, &old.threshold, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.per_turn, &old.per_turn, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.city_id),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.city_name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.progress),
+            crate::model::Model::to_value(&self.threshold),
+            crate::model::Model::to_value(&self.per_turn),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(HudNearestGreatPerson {
+            city_id: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            city_name: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+            turns: crate::model::Model::from_value(&f[4])?,
+            progress: crate::model::Model::from_value(&f[5])?,
+            threshold: crate::model::Model::from_value(&f[6])?,
+            per_turn: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudTurnPlayer {
+    pub key: crate::value::Key,
+    pub team: i32,
+    pub name: crate::value::Text,
+    pub known: bool,
+    pub human: bool,
+    pub active: bool,
+}
+
+impl crate::model::Model for HudTurnPlayer {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.team, &old.team, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.known, &old.known, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.human, &old.human, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.active, &old.active, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.team),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.known),
+            crate::model::Model::to_value(&self.human),
+            crate::model::Model::to_value(&self.active),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(HudTurnPlayer {
+            key: crate::model::Model::from_value(&f[0])?,
+            team: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            known: crate::model::Model::from_value(&f[3])?,
+            human: crate::model::Model::from_value(&f[4])?,
+            active: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudTurnPlayer {
+    fn key(&self) -> crate::value::Key {
+        self.key
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudWaitingUnit {
+    pub key: crate::value::Key,
+    pub name: crate::value::Text,
+}
+
+impl crate::model::Model for HudWaitingUnit {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(HudWaitingUnit {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for HudWaitingUnit {
+    fn key(&self) -> crate::value::Key {
+        self.key
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudTurn {
+    pub blocker_kind: i32,
+    pub reason: crate::value::Text,
+    pub queue: crate::model::KeyedList<HudTurnPlayer>,
+    pub waiting_units: crate::model::KeyedList<HudWaitingUnit>,
+}
+
+impl crate::model::Model for HudTurn {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.blocker_kind, &old.blocker_kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.queue, &old.queue, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.waiting_units, &old.waiting_units, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.blocker_kind),
+            crate::model::Model::to_value(&self.reason),
+            crate::model::Model::to_value(&self.queue),
+            crate::model::Model::to_value(&self.waiting_units),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(HudTurn {
+            blocker_kind: crate::model::Model::from_value(&f[0])?,
+            reason: crate::model::Model::from_value(&f[1])?,
+            queue: crate::model::Model::from_value(&f[2])?,
+            waiting_units: crate::model::Model::from_value(&f[3])?,
         })
     }
 }
@@ -16060,15 +17231,15 @@ impl crate::model::Model for Ui {
         crate::model::Model::diff(&self.map_mode, &old.map_mode, at, out);
         at.field = base.child(7);
         crate::model::Model::diff(&self.windows, &old.windows, at, out);
-        at.field = base.child(91);
+        at.field = base.child(97);
         crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(95);
+        at.field = base.child(101);
         crate::model::Model::diff(&self.chat, &old.chat, at, out);
-        at.field = base.child(98);
-        crate::model::Model::diff(&self.pending, &old.pending, at, out);
-        at.field = base.child(103);
-        crate::model::Model::diff(&self.turn_pending, &old.turn_pending, at, out);
         at.field = base.child(104);
+        crate::model::Model::diff(&self.pending, &old.pending, at, out);
+        at.field = base.child(109);
+        crate::model::Model::diff(&self.turn_pending, &old.turn_pending, at, out);
+        at.field = base.child(110);
         crate::model::Model::diff(&self.errors, &old.errors, at, out);
         at.field = base;
     }
@@ -16604,6 +17775,10 @@ pub struct Hud {
     pub unit: Option<HudUnit>,
     pub popup: Option<HudPopup>,
     pub popup_count: i32,
+    pub turn: HudTurn,
+    pub lists: HudLists,
+    pub minimap: HudMinimap,
+    pub map: HudMap,
 }
 
 impl crate::model::Model for Hud {
@@ -16613,14 +17788,22 @@ impl crate::model::Model for Hud {
         crate::model::Model::diff(&self.research, &old.research, at, out);
         at.field = base.child(8);
         crate::model::Model::diff(&self.top, &old.top, at, out);
-        at.field = base.child(23);
+        at.field = base.child(42);
         crate::model::Model::diff(&self.city, &old.city, at, out);
-        at.field = base.child(37);
+        at.field = base.child(56);
         crate::model::Model::diff(&self.unit, &old.unit, at, out);
-        at.field = base.child(46);
+        at.field = base.child(80);
         crate::model::Model::diff(&self.popup, &old.popup, at, out);
-        at.field = base.child(52);
+        at.field = base.child(86);
         crate::model::Model::diff(&self.popup_count, &old.popup_count, at, out);
+        at.field = base.child(87);
+        crate::model::Model::diff(&self.turn, &old.turn, at, out);
+        at.field = base.child(100);
+        crate::model::Model::diff(&self.lists, &old.lists, at, out);
+        at.field = base.child(137);
+        crate::model::Model::diff(&self.minimap, &old.minimap, at, out);
+        at.field = base.child(144);
+        crate::model::Model::diff(&self.map, &old.map, at, out);
         at.field = base;
     }
 
@@ -16632,11 +17815,15 @@ impl crate::model::Model for Hud {
             crate::model::Model::to_value(&self.unit),
             crate::model::Model::to_value(&self.popup),
             crate::model::Model::to_value(&self.popup_count),
+            crate::model::Model::to_value(&self.turn),
+            crate::model::Model::to_value(&self.lists),
+            crate::model::Model::to_value(&self.minimap),
+            crate::model::Model::to_value(&self.map),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(6)?;
+        let f = v.as_struct(10)?;
         Ok(Hud {
             research: crate::model::Model::from_value(&f[0])?,
             top: crate::model::Model::from_value(&f[1])?,
@@ -16644,6 +17831,10 @@ impl crate::model::Model for Hud {
             unit: crate::model::Model::from_value(&f[3])?,
             popup: crate::model::Model::from_value(&f[4])?,
             popup_count: crate::model::Model::from_value(&f[5])?,
+            turn: crate::model::Model::from_value(&f[6])?,
+            lists: crate::model::Model::from_value(&f[7])?,
+            minimap: crate::model::Model::from_value(&f[8])?,
+            map: crate::model::Model::from_value(&f[9])?,
         })
     }
 }
@@ -17249,6 +18440,48 @@ impl crate::model::Model for Techs {
     }
 }
 
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct UnitRename {
+    pub unit: i32,
+    pub name: crate::value::Text,
+    pub enabled: bool,
+    pub reason: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for UnitRename {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.unit, &old.unit, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.unit),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.enabled),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(UnitRename {
+            unit: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            enabled: crate::model::Model::from_value(&f[2])?,
+            reason: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
 impl crate::model::Root for Meta {
     const NAME: &'static str = "meta";
 }
@@ -17353,6 +18586,10 @@ impl crate::model::Root for Option<Techs> {
     const NAME: &'static str = "techs";
 }
 
+impl crate::model::Root for Option<UnitRename> {
+    const NAME: &'static str = "unit_rename";
+}
+
 /// Write a root, given by name as a dynamic value, through a writer: the typed form of `Value`-based sources
 /// (samples, remote frames). `None` if the schema has no root of that name.
 pub fn put_root(
@@ -17387,13 +18624,14 @@ pub fn put_root(
         "rich_tooltips" => crate::model::put_value::<Option<RichTooltips>>(w, v),
         "tech_award" => crate::model::put_value::<Option<TechAward>>(w, v),
         "techs" => crate::model::put_value::<Option<Techs>>(w, v),
+        "unit_rename" => crate::model::put_value::<Option<UnitRename>>(w, v),
         _ => return None,
     })
 }
 
-pub const WINDOW_SCREEN_NAMES: &[&str] = &["city", "city_captured", "city_list", "city_rename", "free_great_person", "ideology", "pantheon", "policies", "religion", "religion_overview", "tech_award", "techs"];
+pub const WINDOW_SCREEN_NAMES: &[&str] = &["city", "city_captured", "city_list", "city_rename", "free_great_person", "ideology", "pantheon", "policies", "religion", "religion_overview", "tech_award", "techs", "unit_rename"];
 
-pub const SCREEN_NAMES: &[&str] = &["city", "city_captured", "city_list", "city_rename", "free_great_person", "hud", "ideology", "pantheon", "policies", "religion", "religion_overview", "rich_tooltips", "tech_award", "techs"];
+pub const SCREEN_NAMES: &[&str] = &["city", "city_captured", "city_list", "city_rename", "free_great_person", "hud", "ideology", "pantheon", "policies", "religion", "religion_overview", "rich_tooltips", "tech_award", "techs", "unit_rename"];
 impl Windows {
     pub fn remote(&self, name: &str) -> Option<&WinArgs> {
         Some(match name {
@@ -17409,6 +18647,7 @@ impl Windows {
             "religion_overview" => &self.religion_overview,
             "tech_award" => &self.tech_award,
             "techs" => &self.techs,
+            "unit_rename" => &self.unit_rename,
             _ => return None,
         })
     }
@@ -17426,6 +18665,7 @@ impl Windows {
             "religion_overview" => &mut self.religion_overview,
             "tech_award" => &mut self.tech_award,
             "techs" => &mut self.techs,
+            "unit_rename" => &mut self.unit_rename,
             _ => return None,
         })
     }

@@ -13,6 +13,8 @@
   <link rel="stylesheet" href="css/tech_award.css">
   <link rel="stylesheet" href="css/rich_tooltips.css">
   <link rel="stylesheet" href="css/tech_panel.css">
+  <link rel="stylesheet" href="css/unit_lists.css">
+  <link rel="stylesheet" href="css/minimap.css">
   <link rel="stylesheet" href="css/city.css">
   <link rel="stylesheet" href="css/city_list.css">
   <link rel="stylesheet" href="css/city_rename.css">
@@ -35,13 +37,18 @@
     <div data-include="icons.svg"></div>
     <div data-include="parts/top.html"></div>
     <div data-include="parts/notes.html"></div>
-    <div data-include="parts/unit.html"></div>
+    <div class="unit-lists-column" data-bind-if="{{!ui.windows.city.open && !ui.windows.city_captured.open && !ui.windows.ideology.open && !ui.windows.pantheon.open && !ui.windows.religion.open && !ui.windows.free_great_person.open}}">
+      <div data-include="parts/unit_lists.html"></div>
+      <div class="unit-lists-research" data-bind-if="{{state.tech_panel.open}}"><div data-include="parts/tech_panel.html"></div></div>
+      <div data-include="parts/unit.html"></div>
+    </div>
     <div data-include="parts/chat.html"></div>
     <div data-include="parts/helm.html"></div>
-    <div data-include="parts/tech_panel.html"></div>
+    <div data-include="parts/minimap_options.html"></div>
     <div class="mods" data-part="mods" data-slot="mods"></div>
   </div>
   <div class="layer" data-layer="window">
+    <div data-include="parts/unit_rename.html"></div>
     <div data-include="parts/production.html"></div>
     <div data-include="parts/research.html"></div>
     <div data-include="parts/techs.html"></div>
@@ -59,6 +66,8 @@
   </div>
   <div class="layer" data-layer="tooltip">
     <div data-include="parts/tips.html"></div>
+    <div data-include="parts/top_panel_tips.html"></div>
+    <div data-include="parts/on_map_tips.html"></div>
     <div data-include="parts/techs_tip.html"></div>
     <div data-include="parts/tech_award_tip.html"></div>
     <div data-include="parts/rich_tooltips.html"></div>

@@ -1,0 +1,14 @@
+<section class="minimap-options" data-part="minimap.options" data-bind-if="{{state.minimap.options}}">
+  <header class="minimap-options-header"><b data-l10n="minimap.options"></b><button data-part="minimap.options-close" data-on-click="set state.minimap.options = false" data-l10n="unit_lists.close"></button></header>
+  <button class="minimap-option" data-on-click="set state.minimap.banners = !state.minimap.banners"><span data-l10n="minimap.banners"></span><span data-bind-if="{{state.minimap.banners}}" data-l10n="minimap.on"></span><span data-bind-if="{{!state.minimap.banners}}" data-l10n="minimap.off"></span></button>
+  <button class="minimap-option" data-on-click="set state.minimap.flags = !state.minimap.flags"><span data-l10n="minimap.flags"></span><span data-bind-if="{{state.minimap.flags}}" data-l10n="minimap.on"></span><span data-bind-if="{{!state.minimap.flags}}" data-l10n="minimap.off"></span></button>
+  <span class="minimap-unavailable" data-l10n="minimap.renderer_reason"></span>
+  <button class="minimap-option" disabled data-l10n="minimap.resources"></button><button class="minimap-option" disabled data-l10n="minimap.yields"></button><button class="minimap-option" disabled data-l10n="minimap.grid"></button><button class="minimap-option" disabled data-l10n="minimap.routes"></button>
+</section>
+<div class="minimap-top-stack" data-part="minimap.top-stack" data-slot="hud.top-center">
+  <section class="minimap-streamer" data-part="minimap.streamer" data-bind-if="{{state.minimap.streamer && hud != null}}">
+    <div class="minimap-streamer-line"><b data-l10n="minimap.policies"></b><span data-bind-for="p:{{hud.top.policies}}" data-bind-filter="{{p.unlocked}}" data-bind-value="{{p.name}} {{p.owned}}"></span><button data-on-click="set state.minimap.streamer = false" data-l10n="unit_lists.close"></button></div>
+    <div class="minimap-streamer-line"><b data-l10n="minimap.religion"></b><span data-bind-value="{{hud.minimap.religion}}"></span><span data-bind-value="{{hud.minimap.pantheon}}"></span><span data-bind-if="{{hud.minimap.religion == null && hud.minimap.pantheon == null}}" data-l10n="minimap.none"></span></div>
+    <div class="minimap-streamer-line"><span data-bind-for="b:{{hud.minimap.beliefs}}" data-bind-value="{{b.name}}"></span></div>
+  </section>
+</div>

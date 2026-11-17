@@ -1,0 +1,21 @@
+<template id="on-map-unit-tip" data-layer="tooltip">
+  <div class="tip on-map-tip" data-part="on-map.unit-tip" data-bind-if="{{hud != null}}"><div data-bind-for="u:{{hud.map.units}}" data-bind-filter="{{u.hover_key == state.on_map.unit}}">
+    <div class="th" data-bind-value="{{u.name}}"></div><div class="tl" data-bind-value="{{u.owner}}"></div>
+    <div class="trow"><span data-l10n="unit.strength"></span><span class="n" data-bind-value="{{u.strength}}"></span></div>
+    <div class="trow" data-bind-if="{{u.ranged_strength > 0}}"><span data-l10n="on_map.ranged"></span><span class="n" data-bind-value="{{u.ranged_strength}}"></span></div>
+    <div class="trow"><span data-l10n="unit.health"></span><span class="n" data-bind-value="{{u.hp}}/{{u.hp_max}}"></span></div>
+    <div class="trow"><span data-l10n="unit.moves"></span><span class="n" data-bind-value="{{u.moves}}"></span><span data-bind-if="{{u.moves_is_max}}" data-l10n="on_map.maximum"></span></div>
+    <div class="tl" data-bind-if="{{u.cargo}}" data-l10n="on_map.cargo"></div>
+    <div class="on-map-promotions"><span data-bind-for="p:{{u.promotions}}" data-bind-value="{{p.name}}"></span></div>
+  </div></div>
+</template>
+<template id="on-map-city-tip" data-layer="tooltip">
+  <div class="tip on-map-tip" data-part="on-map.city-tip" data-bind-if="{{hud != null}}"><div data-bind-for="c:{{hud.map.cities}}" data-bind-filter="{{c.hover_key == state.on_map.city}}">
+    <div class="th" data-bind-value="{{c.name}}"></div><div class="tl" data-bind-value="{{c.owner}}"></div>
+    <div class="trow"><span data-l10n="unit.strength"></span><span class="n" data-bind-value="{{c.strength}}"></span></div>
+    <div class="trow"><span data-l10n="unit.health"></span><span class="n" data-bind-value="{{c.hp}}/{{c.hp_max}}"></span></div>
+    <div class="trow" data-bind-if="{{c.growth_turns != null}}"><span data-l10n="on_map.growth"></span><span class="n" data-l10n="top.turns" data-l10n-args="{{c.growth_turns}}"></span></div>
+    <div class="trow" data-bind-if="{{c.resistance_turns != null}}"><span data-l10n="on_map.resistance"></span><span class="n" data-bind-value="{{c.resistance_turns}}"></span></div>
+    <div class="trow" data-bind-if="{{c.razing_turns != null}}"><span data-l10n="on_map.razing"></span><span class="n" data-bind-value="{{c.razing_turns}}"></span></div>
+  </div></div>
+</template>
