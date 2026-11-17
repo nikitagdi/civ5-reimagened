@@ -138,7 +138,12 @@ pub fn panel(
     ui2_model::r#gen::Unit {
         key,
         name: Arc::from(u.name.as_str()),
-        type_name: item.name,
+        // A unit that carries its type's name has no second caption: the skin shows an empty type name as nothing.
+        type_name: if matches!(&item.name, ui2_model::Text::Raw(s) if **s == *u.name.as_str()) {
+            ui2_model::Text::default()
+        } else {
+            item.name
+        },
         portrait: item.icon,
         level: i16::from(u.level),
         xp: u.experience,

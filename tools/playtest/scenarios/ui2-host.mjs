@@ -108,6 +108,15 @@ async function unitPanel(page, numbers, check, shot) {
       }
     }
     if (at) break;
+    // Units of one tile share one flag, and the flag selects the top unit (the Settler, which cannot fortify): the
+    // next unit that needs orders is the way to the others.
+    for (let i = 0; i < 4 && !at; i++) {
+      await page.evaluate(() => window.__civ5test.ui2Intent({ name: "unit.select_next", args: {} }));
+      await sleep(500);
+      probe = await ui2(page);
+      if (await partBox(page, "unit.act.fortify")) at = "unit.select_next";
+    }
+    if (at) break;
     await sleep(250);
   }
   const name = partTexts(probe, "unit.title");
@@ -115,7 +124,7 @@ async function unitPanel(page, numbers, check, shot) {
   const st = await state(page);
   const mine = (st?.units ?? []).map((u) => u.name);
   check("unit selected: the panel shows its name", at && name.length > 0 && name.some((t) => mine.includes(t)),
-    `title ${JSON.stringify(name)}, units ${JSON.stringify(mine)}`);
+    `title ${JSON.stringify(name)}, units ${JSON.stringify(mine)}, clicked ${JSON.stringify(at)}, acts ${JSON.stringify(partsOf(probe, "unit.act."))}, flags ${JSON.stringify(await page.evaluate(() => window.__civ5test.ui2Rects(["unit-flag"])).catch(() => null))}`);
   if (!at) return;
   // The unit's portrait (`icon:<atlas>:<index>` of the model) is a cell of the game's atlas texture: the resolver
   // found it, the renderer holds the texture (fetched in the background) and no picture waits for its texture. The
@@ -439,7 +448,9 @@ async function skinChange(page, numbers, check) {
     await sleep(100);
   } while (Date.now() < restoredBy);
   check("skin change: HUD texts return after closing the preserved window",
-    partTexts(restored, "top.yield.gold").length > 0 && partTexts(restored, "top.research").length > 0);
+    // The research group's text is its `top.research.pick` child until a research is chosen (none is, here).
+    partTexts(restored, "top.yield.gold").length > 0 && (partTexts(restored, "top.research").length > 0 || partTexts(restored, "top.research.pick").length > 0),
+    JSON.stringify({ skin: restored?.skin, windows: restored?.ui?.windows, texts: restored?.texts?.length, parts: [...new Set((restored?.texts ?? []).map((t) => t.part))].slice(0, 40) }));
   const att1 = await attaches(page);
   check("skin change: the same connection", att0 !== null && att1 === att0, `${att0} -> ${att1}`);
 }

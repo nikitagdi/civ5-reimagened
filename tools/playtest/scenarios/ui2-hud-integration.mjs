@@ -43,9 +43,14 @@ export async function run(context) {
         const boxes = await page.evaluate(part => window.__civ5test.ui2Rects([part]), part);
         actionBoxes.push(...boxes.filter(box => box.w > 0 && box.h > 0));
       }
+      // A part's rectangles include its descendants' (the icon and the hotkey label of each button): only the buttons
+      // themselves, the rectangles no other action rectangle contains, stand in rows.
+      const inside = (a, b) => a !== b && a.x >= b.x - 1 && a.y >= b.y - 1 && a.x + a.w <= b.x + b.w + 1 && a.y + a.h <= b.y + b.h + 1;
+      const buttons = actionBoxes.filter(box => !actionBoxes.some(other => inside(box, other)));
       check(`${label} unit actions use two compact rows`,
-        actionBoxes.length > 0 && new Set(actionBoxes.map(box => Math.round(box.y))).size === 2
-        && actionBoxes.every(box => box.h <= 44 && box.w <= 60));
+        buttons.length > 0 && new Set(buttons.map(box => Math.round(box.y))).size === 2
+        && buttons.every(box => box.h <= 44 && box.w <= 60),
+        JSON.stringify(buttons.map(box => [box.part, box.x, box.y, box.w, box.h])));
       const fold = await partBox(page, "top.menu.fold");
       if (fold && !(await partBox(page, "top.menu.tech"))) {
         await page.keyboard.press("Alt+w");

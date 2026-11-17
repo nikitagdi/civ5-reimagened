@@ -21,7 +21,7 @@ export async function withHud({ server, opts }, scenario, test) {
   if (!opts.attach) throw new Error(`${scenario} requires --attach to a real-core server`);
   const browser = await openPage({ headed: opts.headed, logDir: opts.logDir, viewport: { width: 1366, height: 768 }, consoleFile: `${scenario}.log` });
   const result = { scenario, pass: false, checks: [] };
-  const check = (name, pass) => result.checks.push({ name, pass: !!pass });
+  const check = (name, pass, detail) => result.checks.push({ name, pass: !!pass, detail: detail ?? "" });
   try {
     const page = browser.page;
     const nick = `hud-test-${Date.now() % 1000000}`;
