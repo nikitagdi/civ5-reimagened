@@ -1,0 +1,24 @@
+{
+  "model": {
+    "congress": {
+      "view": "league",
+      "player_id": 0,
+      "league": {
+        "exists": false,
+        "absent_reason": "not_founded",
+        "absent_text": "The World Congress has not been founded.",
+        "members": [],
+        "proposals": [],
+        "effects": [],
+        "slots": []
+      }
+    }
+  },
+  "ui": {
+    "windows": {
+      "congress": {
+        "open": true
+      }
+    }
+  }
+}

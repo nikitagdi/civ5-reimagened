@@ -1,0 +1,27 @@
+[enum]
+AdvisorRolesKey = ["economic", "military", "foreign", "science"]
+
+[type.AdvisorCiv]
+key = "str"
+name = "text"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.AdvisorRolesPages]
+id = "i32"
+text = "text"
+
+[type.AdvisorRoles]
+key = "AdvisorRolesKey"
+name = "text"
+role = "text"
+portrait = "asset"
+pages = { list = "AdvisorRolesPages", key = "id" }
+
+[model.advisor]
+_optional = true
+civ = "AdvisorCiv"
+era = "text"
+roles = { list = "AdvisorRoles", key = "key" }
+reason = "text?"

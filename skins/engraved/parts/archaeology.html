@@ -1,0 +1,34 @@
+<div class="archaeology-screen" data-part="archaeology" data-screen="archaeology" data-esc="call archaeology.back()" data-bind-if="{{ui.windows.archaeology.open}}">
+  <section class="archaeology-window">
+    <header class="archaeology-head"><h1 data-l10n="archaeology.title">Archaeology find</h1><button data-on-click="call archaeology.back()" data-l10n="archaeology.back">Back</button></header>
+    <div class="archaeology-loading" data-bind-if="{{archaeology == null}}" data-l10n="archaeology.loading">Loading excavation</div>
+    <div class="archaeology-content" data-bind-if="{{archaeology != null}}">
+      <div class="archaeology-idle" data-part="archaeology.idle" data-bind-if="{{archaeology.reason != null}}" data-bind-value="{{archaeology.reason}}"></div>
+      <div data-bind-if="{{archaeology.find != null}}">
+        <div class="archaeology-intro"><img data-bind-src="{{archaeology.archaeologist}}"><span data-l10n="archaeology.near" data-l10n-args="{{archaeology.near_city}}"></span></div>
+        <div class="archaeology-find"><div><h2 data-bind-value="{{archaeology.find.kind_name}}"></h2><span data-bind-value="{{archaeology.find.era}}"></span></div><div><div class="archaeology-participant" data-bind-for="participant:{{archaeology.find.participants}}"><span data-bind-value="{{participant.role_name}}"></span><img data-bind-src="{{participant.civ}}"><span data-bind-value="{{participant.civ_name}}"></span></div></div></div>
+        <div class="archaeology-work" data-bind-if="{{archaeology.find.work != null}}"><span data-bind-value="{{archaeology.find.work.name}}"></span><button data-on-click="intent window.open(window: 'great_work', a: -1, b: archaeology.find.work.type_id)" data-l10n="archaeology.view">View the work</button></div>
+      </div>
+      <p class="archaeology-warning" data-bind-if="{{archaeology.no_slot_warning != null}}" data-bind-value="{{archaeology.no_slot_warning}}"></p>
+      <div class="archaeology-choices">
+        <button class="archaeology-choice" data-part="archaeology.choice" data-bind-for="choice:{{archaeology.choices}}" data-bind-disabled="{{!choice.enabled}}" data-on-click="set state.archaeology.confirm = choice.id">
+          <strong data-part="archaeology.choice-title" data-bind-value="{{choice.title}}"></strong>
+          <span data-bind-value="{{choice.description}}"></span>
+          <span data-bind-if="{{choice.civ_name != null}}" data-bind-value="{{choice.civ_name}}"></span>
+          <span class="archaeology-diplomacy" data-bind-if="{{choice.diplomacy != null}}" data-bind-value="{{choice.diplomacy}}"></span>
+          <span class="archaeology-warning" data-bind-if="{{choice.reason != null}}" data-bind-value="{{choice.reason}}"></span>
+        </button>
+      </div>
+    </div>
+    <div class="archaeology-errors" data-bind-for="error:{{ui.errors}}"><span data-part="archaeology.error" data-bind-if="{{error.detail != null}}" data-bind-value="{{error.detail}}"></span></div>
+    <footer class="archaeology-footer"><button data-part="archaeology.back" data-on-click="call archaeology.back()" data-l10n="archaeology.back">Back</button><span data-l10n="archaeology.unresolved">Closing keeps the excavation awaiting a decision</span></footer>
+    <div class="archaeology-confirm-shade" data-bind-if="{{state.archaeology.confirm != 0}}">
+      <section class="archaeology-confirm">
+        <h2 data-l10n="archaeology.confirm">Confirm excavation choice</h2>
+        <p data-l10n="archaeology.consumed">The archaeologist is consumed when you accept.</p>
+        <div data-bind-if="{{archaeology != null}}"><p data-bind-for="choice:{{archaeology.choices}}" data-bind-filter="{{choice.id == state.archaeology.confirm}}" data-bind-value="{{choice.title}}"></p></div>
+        <div class="archaeology-confirm-buttons"><button data-part="archaeology.no" data-on-click="set state.archaeology.confirm = 0" data-l10n="archaeology.no">No</button><button class="archaeology-primary" data-part="archaeology.yes" data-on-click="call archaeology.choose()" data-l10n="archaeology.yes">Yes</button></div>
+      </section>
+    </div>
+  </section>
+</div>

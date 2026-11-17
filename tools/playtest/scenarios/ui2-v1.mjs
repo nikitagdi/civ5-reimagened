@@ -87,7 +87,18 @@ export async function partBox(page, part) {
 }
 
 export async function clickPart(page, part) {
-  const b = await partBox(page, part);
+  let b = await partBox(page, part);
+  if (!b && (part.startsWith("top.menu.") || part === "top.main-menu.button") && part !== "top.menu.fold") {
+    const fold = await partBox(page, "top.menu.fold");
+    if (fold) {
+      await page.mouse.click(fold.cx, fold.cy);
+      const end = Date.now() + 5000;
+      while (!b && Date.now() < end) {
+        await page.waitForTimeout(50);
+        b = await partBox(page, part);
+      }
+    }
+  }
   if (!b) return null;
   await page.mouse.click(b.cx, b.cy);
   return b;
@@ -533,11 +544,12 @@ async function step4(alice, check, n, shot) {
   await page.keyboard.press("Escape");
   await waitUi(page, (q) => partTexts(q, "city.name").length === 0, 3000);
   // The tooltip of the strip's policies button.
-  const pol = await partBox(page, "top.menu.policies");
+  let pol = await partBox(page, "top.menu.policies");
+  if (!pol) { await clickPart(page, "top.menu.fold"); pol = await partBox(page, "top.menu.policies"); }
   if (pol) await page.mouse.move(pol.cx, pol.cy);
   const ptip = await waitUi(page, (q) => partTexts(q, "tip.policies").length > 0, 3000);
   p.policiesTip = { ms: ptip.ms, texts: partTexts(ptip.probe, "tip.policies"), windows: ptip.probe?.ui?.windows };
-  check("4. the policies button shows its tooltip while hovered", !!pol && ptip.ok && p.policiesTip.texts.includes("Social policies"), JSON.stringify(p.policiesTip));
+  check("4. the policies button shows its tooltip while hovered", !!pol && ptip.ok && p.policiesTip.texts.includes("Social policies (F5)"), JSON.stringify(p.policiesTip));
   await shot(alice, "policies-tooltip");
   await page.mouse.move(VP.width / 2, VP.height / 2);
 }

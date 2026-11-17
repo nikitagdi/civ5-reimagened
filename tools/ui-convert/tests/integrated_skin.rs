@@ -28,6 +28,8 @@ fn integrated_skin_has_valid_static_profile_bindings_scripts_and_samples() {
     let source = Source::load(&dir).unwrap();
     let (statics, errors) = check::check(&source.skin, &ir, &dir);
     assert!(errors.is_empty(), "{errors:#?}");
+    let (_, errors) = ui2_convert::plan::plan(&Dom::new(&ir.dom), &statics);
+    assert!(errors.is_empty(), "{errors:#?}");
     let (_, errors) = bindings::check(
         &Dom::new(&ir.dom),
         &statics,

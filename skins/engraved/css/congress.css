@@ -1,0 +1,49 @@
+.congress-screen { position: absolute; inset: 48px 0 0; display: flex; align-items: center; justify-content: center; pointer-events: auto; background: rgba(12,10,8,.55); }
+.congress-window { position: relative; width: 1320px; max-width: 96%; height: 880px; max-height: 94%; display: flex; flex-direction: column; background: #1b1815; border: 1px solid #4d4032; border-radius: 4px; color: #ebe2d2; overflow: hidden; }
+.congress-head { display: flex; align-items: center; gap: 16px; padding: 16px 24px; min-height: 70px; border-bottom: 1px solid #4d4032; flex-shrink: 0; }
+.congress-head h1, .congress-head h2 { font-family: 'Alegreya'; font-size: 28px; font-weight: 500; margin: 0; flex: 1; }
+.congress-window button { display: block; appearance: none; padding: 8px 16px; border: 1px solid #4d4032; border-radius: 4px; color: #ebe2d2; background: #26221d; cursor: pointer; text-align: left; }
+.congress-window button:hover { border-color: #c9a36a; }
+.congress-window button:disabled { opacity: .45; cursor: not-allowed; }
+.congress-window button:focus-visible { outline: 1px solid #c9a36a; outline-offset: -3px; }
+.congress-content, .congress-league, .congress-league-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.congress-bar { display: flex; align-items: center; gap: 16px; padding: 12px 24px; border-bottom: 1px solid #4d4032; color: #b2a794; font-size: 13px; flex-shrink: 0; }
+.congress-columns { display: grid; grid-template-columns: 296px 1fr; flex: 1; min-height: 0; }
+.congress-members { padding: 16px 20px; background: #14120f; border-right: 1px solid #4d4032; overflow-y: auto; scrollbar-width: none; }
+.congress-member { display: flex; align-items: center; gap: 12px; min-height: 64px; }
+.congress-member img { width: 32px; height: 32px; flex-shrink: 0; }
+.congress-member > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.congress-member strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.congress-member span { color: #8a8072; font-size: 12px; }
+.congress-ledger { padding: 0 24px 24px; overflow-y: auto; scrollbar-width: none; min-height: 0; }
+.congress-proposal { display: grid; grid-template-columns: 72px 1fr 150px; align-items: center; gap: 16px; min-height: 84px; border-bottom: 1px solid #352d25; padding: 12px 0; }
+.congress-proposal > div { min-width: 0; }
+.congress-proposal > div > span { display: block; color: #b2a794; font-size: 13px; line-height: 20px; }
+.congress-counter { display: flex; gap: 12px; align-items: center; justify-content: flex-end; }
+.congress-counter button { padding: 8px; }
+.congress-candidates { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 8px; }
+.congress-candidates button { font-size: 12px; padding: 4px 8px; }
+.congress-slot { width: 100%; display: flex; flex-direction: column; margin-top: 12px; gap: 8px; min-height: 64px; }
+.congress-ledger h2 { font-size: 14px; color: #b2a794; font-weight: 500; margin: 24px 0 8px; }
+.congress-effect { margin: 0; padding: 8px 0; border-bottom: 1px solid #352d25; font-size: 13px; line-height: 20px; }
+.congress-footer { padding: 16px 24px; border-top: 1px solid #4d4032; flex-shrink: 0; }
+.congress-vote-footer { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
+.congress-vote-footer strong, .congress-vote-footer > span { margin-right: auto; }
+.congress-empty { margin: auto; padding: 48px; color: #b2a794; text-align: center; }
+.congress-overlay { position: absolute; inset: 0; background: rgba(12,10,8,.55); display: flex; align-items: center; justify-content: center; }
+.congress-picker { display: flex; flex-direction: column; width: 960px; max-width: 92%; max-height: 88%; border: 1px solid #c9a36a; background: #1b1815; }
+.congress-picker-list { overflow-y: auto; scrollbar-width: none; min-height: 0; padding: 20px; }
+.congress-choice { padding: 8px 0; display: flex; flex-direction: column; gap: 8px; }
+.congress-choice > button { display: flex; flex-direction: column; gap: 4px; }
+.congress-choice span { font-size: 13px; color: #b2a794; }
+.congress-params { display: flex; flex-wrap: wrap; gap: 8px; padding-left: 24px; }
+.congress-confirm { width: 480px; max-width: 90%; padding: 24px; background: #1b1815; border: 1px solid #c9a36a; }
+.congress-confirm h2 { font-family: 'Alegreya'; font-size: 24px; font-weight: 500; margin: 0; }
+.congress-confirm p { font-size: 13px; line-height: 20px; color: #b2a794; }
+.congress-confirm input { display: block; appearance: none; width: 100%; height: 36px; padding: 8px; background: #14120f; border: 1px solid #4d4032; color: #ebe2d2; }
+.congress-splash, .congress-project { padding: 24px; overflow-y: auto; scrollbar-width: none; }
+.congress-splash h2, .congress-project h2 { font-family: 'Alegreya'; font-size: 28px; font-weight: 500; }
+.congress-era-columns, .congress-project-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.congress-ranking { display: grid; grid-template-columns: 24px 1fr 100px 40px; align-items: center; gap: 12px; min-height: 56px; border-bottom: 1px solid #352d25; }
+.congress-tooltip { width: 320px; padding: 16px; border: 1px solid #4d4032; background: #1b1815; color: #ebe2d2; white-space: pre-wrap; font-size: 13px; }
+.congress-errors { color: #cf6f5c; font-size: 13px; padding: 4px 24px; }

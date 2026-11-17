@@ -1,0 +1,217 @@
+<div class="demographics-screen" data-part="demographics" data-screen="demographics" data-bind-if="{{ui.windows.demographics.open}}">
+<section class="demographics-window" data-bind-class-toggle="demographics-popup:{{demographics.whos_winning != null && ui.windows.demographics.a == 1}}">
+<header class="demographics-head">
+<img class="demographics-icon" data-bind-if="{{demographics != null}}" data-bind-src="{{demographics.player.icon}}">
+<h1 data-l10n="demographics.title" >
+</h1>
+<div class="demographics-facts" data-bind-if="{{demographics != null}}">
+<span class="demographics-value" data-bind-value="{{demographics.participants}}" >
+</span>
+<span data-l10n="demographics.compared" >
+</span>
+</div>
+<button data-l10n="demographics.close" data-part="demographics.close" data-bind-hotkey="{{'Enter'}}" data-on-click="intent window.close(window: 'demographics')">
+</button>
+</header>
+<div data-l10n="demographics.loading" data-bind-if="{{demographics == null}}">
+</div>
+<div class="demographics-content" data-bind-if="{{demographics != null}}">
+<div class="demographics-table" data-bind-if="{{!(demographics.whos_winning != null && ui.windows.demographics.a == 1)}}">
+<div class="demographics-row demographics-table-head">
+<span data-l10n="demographics.column_metric" class="demographics-col-metric">
+</span>
+<span data-l10n="demographics.column_rank" class="demographics-col-rank">
+</span>
+<span data-l10n="demographics.column_own" class="demographics-col-own">
+</span>
+<span data-l10n="demographics.column_best" class="demographics-col-best">
+</span>
+<span data-l10n="demographics.column_average" class="demographics-col-average">
+</span>
+<span data-l10n="demographics.column_worst" class="demographics-col-worst">
+</span>
+</div>
+<div class="demographics-scroll demographics-rows">
+<div class="demographics-row" data-part="demographics.row" data-bind-for="r:{{demographics.rows}}" data-tooltip="demographics-unit-tip" data-on-pointerenter="set state.demographics.hover = r.key">
+<div class="demographics-col-metric">
+<span data-l10n="demographics.metric_population" data-bind-if="{{r.key == 'population'}}">
+</span>
+<span data-l10n="demographics.metric_food" data-bind-if="{{r.key == 'food'}}">
+</span>
+<span data-l10n="demographics.metric_production" data-bind-if="{{r.key == 'production'}}">
+</span>
+<span data-l10n="demographics.metric_gold" data-bind-if="{{r.key == 'gold'}}">
+</span>
+<span data-l10n="demographics.metric_land" data-bind-if="{{r.key == 'land'}}">
+</span>
+<span data-l10n="demographics.metric_army" data-bind-if="{{r.key == 'army'}}">
+</span>
+<span data-l10n="demographics.metric_approval" data-bind-if="{{r.key == 'approval'}}">
+</span>
+<span data-l10n="demographics.metric_literacy" data-bind-if="{{r.key == 'literacy'}}">
+</span>
+</div>
+<div class="demographics-col-rank">
+<span class="demographics-rank" data-bind-value="{{r.rank}}" data-part="demographics.rank">
+</span>
+<small data-l10n="demographics.shared" data-bind-if="{{r.rank_shared}}">
+</small>
+</div>
+<div class="demographics-col-own">
+<div class="demographics-reading">
+<span class="demographics-own-value" data-bind-value="{{fmt.int(r.value)}}" data-part="demographics.own-value">
+</span>
+<small data-l10n="demographics.unit_own_people" data-bind-if="{{r.unit_key == 'people'}}">
+</small>
+<small data-l10n="demographics.unit_own_million_bushels" data-bind-if="{{r.unit_key == 'million_bushels'}}">
+</small>
+<small data-l10n="demographics.unit_own_million_tons" data-bind-if="{{r.unit_key == 'million_tons'}}">
+</small>
+<small data-l10n="demographics.unit_own_million_gold" data-bind-if="{{r.unit_key == 'million_gold'}}">
+</small>
+<small data-l10n="demographics.unit_own_square_km" data-bind-if="{{r.unit_key == 'square_km'}}">
+</small>
+<small data-l10n="demographics.unit_own_soldiers" data-bind-if="{{r.unit_key == 'soldiers'}}">
+</small>
+<small data-l10n="demographics.unit_own_percent" data-bind-if="{{r.unit_key == 'percent'}}">
+</small>
+</div>
+</div>
+<div class="demographics-col-best">
+<img class="demographics-icon" data-bind-if="{{r.best.met}}" data-bind-src="{{r.best.icon}}">
+<span data-l10n="demographics.unknown_best" class="demographics-unknown" data-bind-if="{{!r.best.met}}">
+</span>
+<div class="demographics-reading">
+<span class="demographics-best-value" data-bind-value="{{fmt.int(r.best.value)}}" >
+</span>
+<small data-l10n="demographics.unit_best_people" data-bind-if="{{r.unit_key == 'people'}}">
+</small>
+<small data-l10n="demographics.unit_best_million_bushels" data-bind-if="{{r.unit_key == 'million_bushels'}}">
+</small>
+<small data-l10n="demographics.unit_best_million_tons" data-bind-if="{{r.unit_key == 'million_tons'}}">
+</small>
+<small data-l10n="demographics.unit_best_million_gold" data-bind-if="{{r.unit_key == 'million_gold'}}">
+</small>
+<small data-l10n="demographics.unit_best_square_km" data-bind-if="{{r.unit_key == 'square_km'}}">
+</small>
+<small data-l10n="demographics.unit_best_soldiers" data-bind-if="{{r.unit_key == 'soldiers'}}">
+</small>
+<small data-l10n="demographics.unit_best_percent" data-bind-if="{{r.unit_key == 'percent'}}">
+</small>
+</div>
+</div>
+<div class="demographics-col-average">
+<div class="demographics-reading">
+<span class="demographics-average-value" data-bind-value="{{fmt.int(r.average)}}" >
+</span>
+<small data-l10n="demographics.unit_average_people" data-bind-if="{{r.unit_key == 'people'}}">
+</small>
+<small data-l10n="demographics.unit_average_million_bushels" data-bind-if="{{r.unit_key == 'million_bushels'}}">
+</small>
+<small data-l10n="demographics.unit_average_million_tons" data-bind-if="{{r.unit_key == 'million_tons'}}">
+</small>
+<small data-l10n="demographics.unit_average_million_gold" data-bind-if="{{r.unit_key == 'million_gold'}}">
+</small>
+<small data-l10n="demographics.unit_average_square_km" data-bind-if="{{r.unit_key == 'square_km'}}">
+</small>
+<small data-l10n="demographics.unit_average_soldiers" data-bind-if="{{r.unit_key == 'soldiers'}}">
+</small>
+<small data-l10n="demographics.unit_average_percent" data-bind-if="{{r.unit_key == 'percent'}}">
+</small>
+</div>
+</div>
+<div class="demographics-col-worst">
+<img class="demographics-icon" data-bind-if="{{r.worst.met}}" data-bind-src="{{r.worst.icon}}">
+<span data-l10n="demographics.unknown_worst" class="demographics-unknown" data-bind-if="{{!r.worst.met}}">
+</span>
+<div class="demographics-reading">
+<span class="demographics-worst-value" data-bind-value="{{fmt.int(r.worst.value)}}" >
+</span>
+<small data-l10n="demographics.unit_worst_people" data-bind-if="{{r.unit_key == 'people'}}">
+</small>
+<small data-l10n="demographics.unit_worst_million_bushels" data-bind-if="{{r.unit_key == 'million_bushels'}}">
+</small>
+<small data-l10n="demographics.unit_worst_million_tons" data-bind-if="{{r.unit_key == 'million_tons'}}">
+</small>
+<small data-l10n="demographics.unit_worst_million_gold" data-bind-if="{{r.unit_key == 'million_gold'}}">
+</small>
+<small data-l10n="demographics.unit_worst_square_km" data-bind-if="{{r.unit_key == 'square_km'}}">
+</small>
+<small data-l10n="demographics.unit_worst_soldiers" data-bind-if="{{r.unit_key == 'soldiers'}}">
+</small>
+<small data-l10n="demographics.unit_worst_percent" data-bind-if="{{r.unit_key == 'percent'}}">
+</small>
+</div>
+</div>
+</div>
+</div>
+<footer class="demographics-note">
+<span data-l10n="demographics.normal_note" data-bind-if="{{!demographics.humans_only}}">
+</span>
+<span data-l10n="demographics.human_note" data-bind-if="{{demographics.humans_only}}">
+</span>
+</footer>
+</div>
+<div class="demographics-winning" data-bind-if="{{demographics.whos_winning != null && ui.windows.demographics.a == 1}}">
+<div class="demographics-presents">
+<span data-l10n="demographics.presenter_herodotus" data-bind-if="{{demographics.whos_winning.presenter_key == 'herodotus'}}">
+</span>
+<span data-l10n="demographics.presenter_pliny" data-bind-if="{{demographics.whos_winning.presenter_key == 'pliny'}}">
+</span>
+<span data-l10n="demographics.presenter_livy" data-bind-if="{{demographics.whos_winning.presenter_key == 'livy'}}">
+</span>
+<span data-l10n="demographics.presenter_tacitus" data-bind-if="{{demographics.whos_winning.presenter_key == 'tacitus'}}">
+</span>
+<span data-l10n="demographics.presenter_gibbon" data-bind-if="{{demographics.whos_winning.presenter_key == 'gibbon'}}">
+</span>
+<span data-l10n="demographics.presenter_bede" data-bind-if="{{demographics.whos_winning.presenter_key == 'bede'}}">
+</span>
+<span data-l10n="demographics.presenter_toynbee" data-bind-if="{{demographics.whos_winning.presenter_key == 'toynbee'}}">
+</span>
+<h2 data-l10n="demographics.ranking_food" data-bind-if="{{demographics.whos_winning.ranking_key == 'food'}}">
+</h2>
+<h2 data-l10n="demographics.ranking_production" data-bind-if="{{demographics.whos_winning.ranking_key == 'production'}}">
+</h2>
+<h2 data-l10n="demographics.ranking_gold" data-bind-if="{{demographics.whos_winning.ranking_key == 'gold'}}">
+</h2>
+<h2 data-l10n="demographics.ranking_science" data-bind-if="{{demographics.whos_winning.ranking_key == 'science'}}">
+</h2>
+<h2 data-l10n="demographics.ranking_culture" data-bind-if="{{demographics.whos_winning.ranking_key == 'culture'}}">
+</h2>
+<h2 data-l10n="demographics.ranking_happiness" data-bind-if="{{demographics.whos_winning.ranking_key == 'happiness'}}">
+</h2>
+<h2 data-l10n="demographics.ranking_wonders" data-bind-if="{{demographics.whos_winning.ranking_key == 'wonders'}}">
+</h2>
+<h2 data-l10n="demographics.ranking_military_might" data-bind-if="{{demographics.whos_winning.ranking_key == 'military_might'}}">
+</h2>
+<h2 data-l10n="demographics.ranking_influence" data-bind-if="{{demographics.whos_winning.ranking_key == 'influence'}}">
+</h2>
+<h2 data-l10n="demographics.ranking_city_tourism" data-bind-if="{{demographics.whos_winning.ranking_key == 'city_tourism'}}">
+</h2>
+</div>
+<div class="demographics-scroll demographics-winning-rows">
+<div class="demographics-winning-row" data-part="demographics.winning-row" data-bind-for="r:{{demographics.whos_winning.rows}}">
+<span class="demographics-rank" data-bind-value="{{r.rank}}" >
+</span>
+<img class="demographics-portrait" data-bind-if="{{r.leader_icon != null}}" data-bind-src="{{r.leader_icon}}">
+<img class="demographics-icon" data-bind-if="{{r.met}}" data-bind-src="{{r.icon}}">
+<div class="demographics-who">
+<span data-l10n="demographics.you" data-bind-if="{{r.is_you}}">
+</span>
+<span data-l10n="demographics.unknown_player" data-bind-if="{{!r.met}}">
+</span>
+<span class="demographics-name" data-bind-value="{{r.leader_name}}" data-bind-if="{{r.met && !r.is_you}}">
+</span>
+<span class="demographics-muted" data-bind-value="{{r.civ_name}}" >
+</span>
+<span class="demographics-name" data-bind-value="{{r.city}}" >
+</span>
+</div>
+<span class="demographics-winning-value" data-bind-value="{{fmt.fixed(r.value, 1)}}" >
+</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>

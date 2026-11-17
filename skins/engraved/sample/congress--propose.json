@@ -1,0 +1,476 @@
+{
+  "model": {
+    "congress": {
+      "view": "league",
+      "player_id": 0,
+      "league": {
+        "exists": true,
+        "absent_reason": null,
+        "absent_text": "",
+        "id": 0,
+        "name": "United Nations",
+        "is_un": true,
+        "art": "ui-tx:LEAGUE_UNITED_NATIONS",
+        "can_rename": false,
+        "phase": "between",
+        "session_label": "",
+        "special_session": false,
+        "turns_to_session": 6,
+        "diplo_victory_enabled": true,
+        "turns_to_world_leader_vote": 24,
+        "delegates_to_win": 28,
+        "mode": "propose",
+        "members": [
+          {
+            "key": "player:1",
+            "player_id": 1,
+            "name": "Harun al-Rashid",
+            "nick": "",
+            "civ_name": "Arabia",
+            "portrait": "leader:LEADER_HARUN_AL_RASHID",
+            "emblem": "civ:CIVILIZATION_ARABIA",
+            "color_bg": 795556607,
+            "color_fg": 3655583487,
+            "is_you": false,
+            "is_host": true,
+            "is_human": true,
+            "delegates": 14,
+            "delegates_left": null,
+            "delegates_spent": null,
+            "can_propose": true,
+            "our_diplomat": true,
+            "tooltip": null
+          },
+          {
+            "key": "player:0",
+            "player_id": 0,
+            "name": "Catherine",
+            "nick": "",
+            "civ_name": "Russia",
+            "portrait": "leader:LEADER_CATHERINE",
+            "emblem": "civ:CIVILIZATION_RUSSIA",
+            "color_bg": 1847335167,
+            "color_fg": 3837808383,
+            "is_you": true,
+            "is_host": false,
+            "is_human": true,
+            "delegates": 9,
+            "delegates_left": null,
+            "delegates_spent": null,
+            "can_propose": true,
+            "our_diplomat": false,
+            "tooltip": null
+          },
+          {
+            "key": "player:2",
+            "player_id": 2,
+            "name": "Montezuma",
+            "nick": "",
+            "civ_name": "Aztec",
+            "portrait": "leader:LEADER_MONTEZUMA",
+            "emblem": "civ:CIVILIZATION_AZTEC",
+            "color_bg": 1512317695,
+            "color_fg": 1655942655,
+            "is_you": false,
+            "is_host": false,
+            "is_human": true,
+            "delegates": 11,
+            "delegates_left": null,
+            "delegates_spent": null,
+            "can_propose": true,
+            "our_diplomat": true,
+            "tooltip": null
+          },
+          {
+            "key": "player:4",
+            "player_id": 4,
+            "name": "Bismarck",
+            "nick": "",
+            "civ_name": "Germany",
+            "portrait": "leader:LEADER_BISMARCK",
+            "emblem": "civ:CIVILIZATION_GERMANY",
+            "color_bg": 1246581503,
+            "color_fg": 3907578111,
+            "is_you": false,
+            "is_host": false,
+            "is_human": false,
+            "delegates": 8,
+            "delegates_left": null,
+            "delegates_spent": null,
+            "can_propose": false,
+            "our_diplomat": true,
+            "tooltip": null
+          },
+          {
+            "key": "player:3",
+            "player_id": 3,
+            "name": "Ramesses",
+            "nick": "",
+            "civ_name": "Egypt",
+            "portrait": "leader:LEADER_RAMESSES",
+            "emblem": "civ:CIVILIZATION_EGYPT",
+            "color_bg": 1262123775,
+            "color_fg": 3923550463,
+            "is_you": false,
+            "is_host": false,
+            "is_human": true,
+            "delegates": 7,
+            "delegates_left": null,
+            "delegates_spent": null,
+            "can_propose": false,
+            "our_diplomat": false,
+            "tooltip": null
+          },
+          {
+            "key": "player:5",
+            "player_id": 5,
+            "name": "Pedro II",
+            "nick": "",
+            "civ_name": "Brazil",
+            "portrait": "leader:LEADER_PEDRO",
+            "emblem": "civ:CIVILIZATION_BRAZIL",
+            "color_bg": 1030433535,
+            "color_fg": 3838988031,
+            "is_you": false,
+            "is_host": false,
+            "is_human": false,
+            "delegates": 6,
+            "delegates_left": null,
+            "delegates_spent": null,
+            "can_propose": false,
+            "our_diplomat": false,
+            "tooltip": null
+          },
+          {
+            "key": "player:6",
+            "player_id": 6,
+            "name": "Wu Zetian",
+            "nick": "",
+            "civ_name": "China",
+            "portrait": "leader:LEADER_WU_ZETIAN",
+            "emblem": "civ:CIVILIZATION_CHINA",
+            "color_bg": 526079487,
+            "color_fg": 3957510911,
+            "is_you": false,
+            "is_host": false,
+            "is_human": false,
+            "delegates": 5,
+            "delegates_left": null,
+            "delegates_spent": null,
+            "can_propose": false,
+            "our_diplomat": true,
+            "tooltip": null
+          }
+        ],
+        "proposals": [
+          {
+            "postponed": false,
+            "vote_kind": "yes_no",
+            "candidate": null,
+            "candidates": [],
+            "can_up": false,
+            "can_down": false,
+            "project_icon": "building:PROJECT_WORLDS_FAIR",
+            "key": "enact:31",
+            "kind": "enact",
+            "resolution_id": 31,
+            "resolution_type": "RESOLUTION_WORLDS_FAIR",
+            "name": "World’s Fair",
+            "param_name": null,
+            "by": {
+              "player_id": 2,
+              "name": "Montezuma",
+              "nick": "",
+              "civ_name": "Aztec",
+              "portrait": "leader:LEADER_MONTEZUMA",
+              "emblem": "civ:CIVILIZATION_AZTEC",
+              "color_bg": 1512317695,
+              "color_fg": 1655942655,
+              "is_you": false
+            },
+            "effect": "Cities can build the fair; awards by contribution",
+            "description": "International project. Cities may build the World’s Fair; when it completes, civilizations are ranked by contribution and awarded.",
+            "my_votes": 0,
+            "state": "pending",
+            "state_label": ""
+          }
+        ],
+        "effects": [
+          {
+            "key": "active:7",
+            "icon": "policy:RESOLUTION_STANDING_ARMY_TAX",
+            "text": "Standing Army Tax: unit gold maintenance +25%",
+            "since_turn": 166
+          },
+          {
+            "key": "active:9",
+            "icon": "policy:RESOLUTION_CULTURAL_HERITAGE_SITES",
+            "text": "Cultural Heritage Sites: +1 culture from each World Wonder",
+            "since_turn": 172
+          },
+          {
+            "key": "active:12",
+            "icon": "policy:RESOLUTION_MINOR_CIV_EMBARGO",
+            "text": "Embargo City-States: no trade routes with city-states",
+            "since_turn": 184
+          },
+          {
+            "key": "active:15",
+            "icon": "policy:RESOLUTION_ARTS_FUNDING",
+            "text": "Arts Funding: +50% Great Artist, Writer, Musician points; −33% Great Scientist, Engineer, Merchant",
+            "since_turn": 190
+          },
+          {
+            "key": "active:21",
+            "icon": "policy:RESOLUTION_NUCLEAR_NON_PROLIFERATION",
+            "text": "Nuclear Non-Proliferation: nobody can build nuclear weapons",
+            "since_turn": 202
+          }
+        ],
+        "delegates_total": 9,
+        "delegates_free": null,
+        "can_reset_votes": false,
+        "slots": [
+          {
+            "key": "slot:0",
+            "index": 0,
+            "filled": true,
+            "kind": "repeal",
+            "resolution_id": 7,
+            "resolution_type": "RESOLUTION_STANDING_ARMY_TAX",
+            "param": -1,
+            "name": "Standing Army Tax",
+            "param_name": null,
+            "effect": "Unit maintenance goes back to normal"
+          },
+          {
+            "key": "slot:1",
+            "index": 1,
+            "filled": false,
+            "kind": null,
+            "resolution_id": null,
+            "resolution_type": null,
+            "param": -1,
+            "name": "",
+            "param_name": null,
+            "effect": ""
+          }
+        ],
+        "choices": {
+          "repeal": [
+            {
+              "needs": "none",
+              "enabled": false,
+              "reason": "Already in slot 1",
+              "params": [],
+              "key": "repeal:7",
+              "kind": "repeal",
+              "id": 7,
+              "name": "Standing Army Tax",
+              "effect": "Unit gold maintenance +25%",
+              "description": "Repeal: unit gold maintenance returns to normal."
+            },
+            {
+              "needs": "none",
+              "enabled": true,
+              "reason": "",
+              "params": [],
+              "key": "repeal:12",
+              "kind": "repeal",
+              "id": 12,
+              "name": "Embargo City-States",
+              "effect": "No trade routes with city-states",
+              "description": "Repeal: trade routes with city-states are allowed again."
+            },
+            {
+              "needs": "none",
+              "enabled": true,
+              "reason": "",
+              "params": [],
+              "key": "repeal:15",
+              "kind": "repeal",
+              "id": 15,
+              "name": "Arts Funding",
+              "effect": "+50% Great Artist, Writer, Musician points",
+              "description": "Repeal: great person rates return to normal."
+            }
+          ],
+          "enact": [
+            {
+              "needs": "civ",
+              "enabled": true,
+              "reason": "",
+              "params": [
+                {
+                  "key": "player:1",
+                  "value": 1,
+                  "name": "Harun al-Rashid",
+                  "sub": "Arabia",
+                  "icon": "leader:LEADER_HARUN_AL_RASHID",
+                  "emblem": "civ:CIVILIZATION_ARABIA",
+                  "color_bg": 795556607,
+                  "color_fg": 3655583487,
+                  "enabled": true,
+                  "reason": ""
+                },
+                {
+                  "key": "player:2",
+                  "value": 2,
+                  "name": "Montezuma",
+                  "sub": "Aztec",
+                  "icon": "leader:LEADER_MONTEZUMA",
+                  "emblem": "civ:CIVILIZATION_AZTEC",
+                  "color_bg": 1512317695,
+                  "color_fg": 1655942655,
+                  "enabled": true,
+                  "reason": ""
+                },
+                {
+                  "key": "player:4",
+                  "value": 4,
+                  "name": "Bismarck",
+                  "sub": "Germany",
+                  "icon": "leader:LEADER_BISMARCK",
+                  "emblem": "civ:CIVILIZATION_GERMANY",
+                  "color_bg": 1246581503,
+                  "color_fg": 3907578111,
+                  "enabled": true,
+                  "reason": ""
+                },
+                {
+                  "key": "player:3",
+                  "value": 3,
+                  "name": "Ramesses",
+                  "sub": "Egypt",
+                  "icon": "leader:LEADER_RAMESSES",
+                  "emblem": "civ:CIVILIZATION_EGYPT",
+                  "color_bg": 1262123775,
+                  "color_fg": 3923550463,
+                  "enabled": true,
+                  "reason": ""
+                },
+                {
+                  "key": "player:5",
+                  "value": 5,
+                  "name": "Pedro II",
+                  "sub": "Brazil",
+                  "icon": "leader:LEADER_PEDRO",
+                  "emblem": "civ:CIVILIZATION_BRAZIL",
+                  "color_bg": 1030433535,
+                  "color_fg": 3838988031,
+                  "enabled": true,
+                  "reason": ""
+                },
+                {
+                  "key": "player:6",
+                  "value": 6,
+                  "name": "Wu Zetian",
+                  "sub": "China",
+                  "icon": "leader:LEADER_WU_ZETIAN",
+                  "emblem": "civ:CIVILIZATION_CHINA",
+                  "color_bg": 526079487,
+                  "color_fg": 3957510911,
+                  "enabled": false,
+                  "reason": "already sanctioned"
+                },
+                {
+                  "key": "player:0",
+                  "value": 0,
+                  "name": "Catherine",
+                  "sub": "Russia",
+                  "icon": "leader:LEADER_CATHERINE",
+                  "emblem": "civ:CIVILIZATION_RUSSIA",
+                  "color_bg": 1847335167,
+                  "color_fg": 3837808383,
+                  "enabled": false,
+                  "reason": "not yourself"
+                }
+              ],
+              "key": "enact:RESOLUTION_PLAYER_EMBARGO",
+              "kind": "enact",
+              "id": 4,
+              "name": "Sanctions",
+              "effect": "No deals or trade routes with one civilization",
+              "description": "Members of the United Nations may not make deals or trade routes with the chosen civilization while the resolution is in force."
+            },
+            {
+              "needs": "luxury",
+              "enabled": true,
+              "reason": "",
+              "params": [],
+              "key": "enact:RESOLUTION_BAN_LUXURY_HAPPINESS",
+              "kind": "enact",
+              "id": 5,
+              "name": "Ban Luxury",
+              "effect": "One luxury gives no happiness to anyone",
+              "description": "The chosen luxury provides no happiness to any civilization."
+            },
+            {
+              "needs": "religion",
+              "enabled": true,
+              "reason": "",
+              "params": [],
+              "key": "enact:RESOLUTION_WORLD_RELIGION",
+              "kind": "enact",
+              "id": 8,
+              "name": "World Religion",
+              "effect": "+1 delegate to its founder, more pressure",
+              "description": "The chosen religion becomes the World Religion."
+            },
+            {
+              "needs": "none",
+              "enabled": true,
+              "reason": "",
+              "params": [],
+              "key": "enact:RESOLUTION_INTERNATIONAL_SPACE_STATION",
+              "kind": "enact",
+              "id": 17,
+              "name": "International Space Station",
+              "effect": "International project: production toward a shared station",
+              "description": "International project. Cities contribute production to a shared space station."
+            },
+            {
+              "needs": "none",
+              "enabled": true,
+              "reason": "",
+              "params": [],
+              "key": "enact:RESOLUTION_NATURAL_HERITAGE_SITES",
+              "kind": "enact",
+              "id": 10,
+              "name": "Natural Heritage Sites",
+              "effect": "+1 culture from natural wonders",
+              "description": "Natural wonders give +1 culture."
+            }
+          ],
+          "unavailable": [
+            {
+              "needs": "none",
+              "enabled": false,
+              "reason": "Already on the floor",
+              "params": [],
+              "key": "enact:RESOLUTION_WORLDS_FAIR",
+              "kind": "enact",
+              "id": 3,
+              "name": "World’s Fair",
+              "effect": "Already proposed by Montezuma",
+              "description": ""
+            }
+          ],
+          "unavailable_count": 6
+        },
+        "can_submit_proposals": false,
+        "submit_reason": "Fill both slots to submit",
+        "rename_reason": "Congress renaming requires a text net-message emitter."
+      },
+      "splash": null,
+      "project": null
+    }
+  },
+  "ui": {
+    "windows": {
+      "congress": {
+        "open": true
+      }
+    }
+  }
+}

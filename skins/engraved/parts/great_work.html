@@ -1,0 +1,24 @@
+<div class="great-work-screen" data-part="great-work" data-screen="great_work" data-esc="intent window.close(window: 'great_work')" data-bind-if="{{ui.windows.great_work.open}}">
+  <section class="great-work-window">
+    <div class="great-work-loading" data-bind-if="{{great_work == null}}" data-l10n="great-work.loading">Loading great work</div>
+    <div class="great-work-content" data-bind-if="{{great_work != null}}">
+      <header class="great-work-head">
+        <div><h1 data-bind-if="{{great_work.artist != null}}" data-bind-value="{{great_work.artist}}"></h1><h1 data-bind-if="{{great_work.artist == null &amp;&amp; great_work.from_dig}}" data-l10n="great-work.written">Written artifact</h1><h1 data-bind-if="{{great_work.artist == null &amp;&amp; !great_work.from_dig}}" data-bind-value="{{great_work.name}}"></h1><span data-bind-value="{{great_work.class_name}}"></span></div>
+        <button data-on-click="intent window.close(window: 'great_work')" data-l10n="great-work.close">Close</button>
+      </header>
+      <div class="great-work-scroll">
+        <div class="great-work-frame">
+          <img class="great-work-image" data-bind-if="{{great_work.image_reason == null}}" data-bind-src="{{great_work.image}}">
+          <span class="great-work-missing" data-bind-if="{{great_work.image_reason != null}}" data-bind-value="{{great_work.image_reason}}"></span>
+        </div>
+        <p class="great-work-quote" data-bind-if="{{great_work.quote != null}}" data-bind-value="{{great_work.quote}}"></p>
+        <h2 data-part="great-work.name" data-bind-value="{{great_work.name}}"></h2>
+        <div class="great-work-origin"><span data-bind-value="{{great_work.civ_name}}"></span><span data-bind-value="{{great_work.era}}"></span></div>
+      </div>
+    </div>
+    <footer class="great-work-footer">
+      <span data-bind-if="{{great_work != null &amp;&amp; great_work.location != null}}" data-bind-value="{{great_work.location}}"></span>
+      <button data-part="great-work.close" data-bind-hotkey="'Enter'" data-on-click="intent window.close(window: 'great_work')" data-l10n="great-work.close">Close</button>
+    </footer>
+  </section>
+</div>

@@ -164,3 +164,21 @@ fn rename_modal_validates_the_target_and_closes_only_after_emitting_the_text_act
     )
     .unwrap();
 }
+
+#[test]
+fn unit_catalog_exposes_window_actions_only_when_native_applicability_allows() {
+    script().exec(r#"
+        local unit = Players[3]:GetUnitByID(4)
+        unit.CanMakeTradeRoute = function() return true end
+        GameInfoActions[2] = {Visible=true, TextKey="Trade", Type="INTERFACEMODE_ESTABLISH_TRADE_ROUTE"}
+        GameInfoActions[3] = {Visible=true, TextKey="Home", Type="MISSION_CHANGE_TRADE_UNIT_HOME_CITY", MissionType=10}
+        GameInfoActions[4] = {Visible=true, TextKey="Port", Type="MISSION_CHANGE_ADMIRAL_PORT", MissionType=10}
+        local rows = screen.data(3, {unit=4}).unit.catalog
+        assert(#rows==5 and rows[3].client=='trade_route' and rows[3].enabled)
+        assert(rows[4].client=='trade_home' and rows[5].client=='admiral_port')
+        unit.CanMakeTradeRoute = function() return false end
+        assert(#screen.data(3, {unit=4}).unit.catalog==4)
+        hud_busy = true
+        for _, row in ipairs(screen.data(3, {unit=4}).unit.catalog) do assert(not row.enabled) end
+    "#, "=chooser-actions").unwrap();
+}

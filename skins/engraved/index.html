@@ -30,6 +30,25 @@
   <link rel="stylesheet" href="css/deal.css">
   <link rel="stylesheet" href="css/leader.css">
   <link rel="stylesheet" href="css/diplo.css">
+  <link rel="stylesheet" href="css/economy.css">
+  <link rel="stylesheet" href="css/military.css">
+  <link rel="stylesheet" href="css/trade_routes.css">
+  <link rel="stylesheet" href="css/espionage.css">
+  <link rel="stylesheet" href="css/victory.css">
+  <link rel="stylesheet" href="css/demographics.css">
+  <link rel="stylesheet" href="css/culture.css">
+  <link rel="stylesheet" href="css/great_work.css">
+  <link rel="stylesheet" href="css/archaeology.css">
+  <link rel="stylesheet" href="css/city_state.css">
+  <link rel="stylesheet" href="css/congress.css">
+  <link rel="stylesheet" href="css/mp_vote.css">
+  <link rel="stylesheet" href="css/confirm.css">
+  <link rel="stylesheet" href="css/message.css">
+  <link rel="stylesheet" href="css/goody_choice.css">
+  <link rel="stylesheet" href="css/notification_log.css">
+  <link rel="stylesheet" href="css/game_menu.css">
+  <link rel="stylesheet" href="css/advisor.css">
+  <link rel="stylesheet" href="css/end_game.css">
   <link rel="stylesheet" href="css/tips.css">
   <link rel="stylesheet" href="css/responsive.css">
   <link rel="stylesheet" href="css/hud_layout.css">
@@ -41,13 +60,19 @@
   </div>
   <div class="layer" data-layer="hud">
     <div data-include="icons.svg"></div>
+    <div data-bind-if="{{!ui.windows.economy.open && !ui.windows.military.open && !ui.windows.trade_routes.open}}">
+    <div data-bind-if="{{!ui.windows.espionage.open && !ui.windows.victory.open && !ui.windows.demographics.open}}">
+    <div data-bind-if="{{!ui.windows.culture.open && !ui.windows.great_work.open && !ui.windows.archaeology.open}}">
+    <div data-bind-if="{{!ui.windows.city_state.open && !ui.windows.congress.open && !ui.windows.mp_vote.open}}">
+    <div data-bind-if="{{!ui.windows.notification_log.open && !ui.windows.game_menu.open && !ui.windows.advisor.open}}">
+    <div data-bind-if="{{!ui.windows.end_game.open}}">
     <div data-bind-if="{{!ui.windows.techs.open && !ui.windows.city.open && !ui.windows.policies.open}}">
     <div data-bind-if="{{!ui.windows.ideology.open && !ui.windows.pantheon.open && !ui.windows.religion.open}}">
     <div data-bind-if="{{!ui.windows.religion_overview.open && !ui.windows.diplo.open && !ui.windows.leader.open}}">
     <div data-bind-if="{{!ui.windows.city_captured.open && !ui.windows.free_great_person.open}}">
     <div data-bind-if="{{!ui.windows.deal.open || deal == null || deal.partner == null || deal.partner.is_human}}">
       <div data-include="parts/top.html"></div>
-      <div data-include="parts/notes.html"></div>
+      <div data-include="parts/notification_log_panel.html"></div>
       <div data-include="parts/chat.html"></div>
       <div data-include="parts/helm.html"></div>
       <div data-include="parts/civ_ribbon.html"></div>
@@ -59,8 +84,20 @@
     </div>
     </div>
     </div>
+    </div>
+    </div>
+    </div>
+    </div>
+    </div>
+    </div>
   </div>
   <div class="layer" data-layer="window">
+    <div data-bind-if="{{!ui.windows.economy.open && !ui.windows.military.open && !ui.windows.trade_routes.open}}">
+    <div data-bind-if="{{!ui.windows.espionage.open && !ui.windows.victory.open && !ui.windows.demographics.open}}">
+    <div data-bind-if="{{!ui.windows.culture.open && !ui.windows.great_work.open && !ui.windows.archaeology.open}}">
+    <div data-bind-if="{{!ui.windows.city_state.open && !ui.windows.congress.open && !ui.windows.mp_vote.open}}">
+    <div data-bind-if="{{!ui.windows.notification_log.open && !ui.windows.game_menu.open && !ui.windows.advisor.open}}">
+    <div data-bind-if="{{!ui.windows.end_game.open}}">
     <div data-bind-if="{{!ui.windows.techs.open && !ui.windows.city.open && !ui.windows.policies.open}}">
     <div data-bind-if="{{!ui.windows.ideology.open && !ui.windows.pantheon.open && !ui.windows.religion.open}}">
     <div data-bind-if="{{!ui.windows.religion_overview.open && !ui.windows.diplo.open && !ui.windows.leader.open}}">
@@ -72,6 +109,12 @@
         <div data-include="parts/city_list.html"></div>
         <div data-include="parts/unit.html"></div>
       </div>
+    </div>
+    </div>
+    </div>
+    </div>
+    </div>
+    </div>
     </div>
     </div>
     </div>
@@ -96,6 +139,25 @@
     <div data-include="parts/religion.html"></div>
     <div data-include="parts/religion_overview.html"></div>
     <div data-include="parts/declare_war.html"></div>
+    <div data-include="parts/economy.html"></div>
+    <div data-include="parts/military.html"></div>
+    <div data-include="parts/trade_routes.html"></div>
+    <div data-include="parts/espionage.html"></div>
+    <div data-include="parts/victory.html"></div>
+    <div data-include="parts/demographics.html"></div>
+    <div data-include="parts/culture.html"></div>
+    <div data-include="parts/archaeology.html"></div>
+    <div data-include="parts/great_work.html"></div>
+    <div data-include="parts/city_state.html"></div>
+    <div data-include="parts/congress.html"></div>
+    <div data-include="parts/mp_vote.html"></div>
+    <div data-include="parts/confirm.html"></div>
+    <div data-include="parts/message.html"></div>
+    <div data-include="parts/goody_choice.html"></div>
+    <div data-include="parts/notification_log.html"></div>
+    <div data-include="parts/game_menu.html"></div>
+    <div data-include="parts/advisor.html"></div>
+    <div data-include="parts/end_game.html"></div>
   </div>
   <div class="layer" data-layer="tooltip">
     <div data-include="parts/tips.html"></div>
@@ -107,6 +169,10 @@
     <div data-include="parts/city_tips.html"></div>
     <div data-include="parts/screen_tips.html"></div>
     <div data-include="parts/diplo_tips.html"></div>
+    <div data-include="parts/culture-tips.html"></div>
+    <div data-include="parts/congress-tips.html"></div>
+    <div data-include="parts/city_state-tips.html"></div>
+    <div data-include="parts/overview_tips.html"></div>
   </div>
 </body>
 </html>

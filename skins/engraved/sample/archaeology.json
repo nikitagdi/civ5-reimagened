@@ -1,0 +1,99 @@
+{
+  "model": {
+    "archaeology": {
+      "unit_id": 77,
+      "plot": {
+        "x": 41,
+        "y": 22
+      },
+      "near_city": "Kazan",
+      "player": {
+        "id": 0,
+        "name": "Catherine",
+        "civ_name": "Russia",
+        "civ": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": 1847335167,
+        "color_fg": 3837808383,
+        "leader": "leader:LEADER_CATHERINE"
+      },
+      "find": {
+        "kind": "battle_ranged",
+        "kind_name": "Ranged battle",
+        "era": "Medieval era",
+        "participants": [
+          {
+            "role": "attacker",
+            "role_name": "Attacker",
+            "civ_name": "Arabia",
+            "civ": "civ:CIVILIZATION_ARABIA",
+            "color_bg": 795556607,
+            "color_fg": 3655583487
+          },
+          {
+            "role": "defender",
+            "role_name": "Defender",
+            "civ_name": "Aztecs",
+            "civ": "civ:CIVILIZATION_AZTEC",
+            "color_bg": 1512317695,
+            "color_fg": 1655942655
+          }
+        ],
+        "work": null
+      },
+      "no_slot_warning": null,
+      "choices": [
+        {
+          "civ_name": "Arabia",
+          "civ": "civ:CIVILIZATION_ARABIA",
+          "color_bg": 795556607,
+          "color_fg": 3655583487,
+          "diplomacy": null,
+          "culture": null,
+          "id": 2,
+          "kind": "artifact",
+          "title": "Create Arabian artifact",
+          "enabled": true,
+          "reason": null,
+          "description": "Placed in the nearest free art or artifact slot: Museum in Yaroslavl. +2 culture, +2 tourism. The archaeologist is consumed."
+        },
+        {
+          "civ_name": "Aztecs",
+          "civ": "civ:CIVILIZATION_AZTEC",
+          "color_bg": 1512317695,
+          "color_fg": 1655942655,
+          "diplomacy": null,
+          "culture": null,
+          "id": 3,
+          "kind": "artifact",
+          "title": "Create Aztec artifact",
+          "enabled": true,
+          "reason": null,
+          "description": "Placed in the nearest free art or artifact slot: Museum in Yaroslavl. +2 culture, +2 tourism. The archaeologist is consumed."
+        },
+        {
+          "civ_name": null,
+          "civ": null,
+          "color_bg": null,
+          "color_fg": null,
+          "diplomacy": "The site is in Geneva's territory: a landmark here pleases this city-state.",
+          "culture": null,
+          "id": 1,
+          "kind": "landmark",
+          "title": "Create a landmark",
+          "enabled": true,
+          "reason": null,
+          "description": "When worked, the landmark gives culture for its age: +1 culture per era older than the current one."
+        }
+      ],
+      "status": "pending",
+      "archaeologist": "unit:UNIT_ARCHAEOLOGIST"
+    }
+  },
+  "ui": {
+    "windows": {
+      "archaeology": {
+        "open": true
+      }
+    }
+  }
+}

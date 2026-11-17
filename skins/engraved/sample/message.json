@@ -1,0 +1,82 @@
+{
+  "model": {
+    "message": {
+      "id": 5121,
+      "kind": "wonder",
+      "width": "medium",
+      "civ": {
+        "key": "CIVILIZATION_RUSSIA",
+        "icon": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": 1847335167,
+        "color_fg": 3837808383
+      },
+      "kicker": "Wonder completed in Moscow",
+      "title": "Neuschwanstein",
+      "art": "building:BUILDING_NEUSCHWANSTEIN",
+      "art_anchor": "top_right",
+      "icon": "building:BUILDING_NEUSCHWANSTEIN",
+      "band": {
+        "name": "Neuschwanstein",
+        "note": "Turn 241"
+      },
+      "quote": {
+        "text": "I wish to remain an eternal enigma to myself and to others.",
+        "by": "Ludwig II of Bavaria"
+      },
+      "text": null,
+      "facts_title": "Effects",
+      "facts": [
+        {
+          "key": "per_castle",
+          "label": "Every Castle in your cities",
+          "value": null,
+          "yields": [
+            {
+              "yield": "gold",
+              "value": 3
+            },
+            {
+              "yield": "culture",
+              "value": 2
+            },
+            {
+              "yield": "happiness",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "key": "this_city",
+          "label": "This city",
+          "value": null,
+          "yields": [
+            {
+              "yield": "happiness",
+              "value": 2
+            },
+            {
+              "yield": "tourism",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "key": "art_slots",
+          "label": "Great work of art slots",
+          "value": "1",
+          "yields": []
+        }
+      ],
+      "button": "Continue",
+      "available": true
+    }
+  },
+  "ui": {
+    "windows": {
+      "message": {
+        "open": true,
+        "a": 5121
+      }
+    }
+  }
+}

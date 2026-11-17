@@ -1,4 +1,4 @@
-<template data-layer="tooltip" id="tip-city-list"><div class="city-tip" data-l10n="city_list.title">Cities</div></template>
+<template data-layer="tooltip" id="tip-city-list"><div class="city-tip" data-l10n="nav.cities">Cities (Ctrl+C)</div></template>
 <template data-layer="tooltip" id="policies-tip"><div class="policies-tip" data-bind-if="{{policies != null}}"><div data-bind-for="b:{{policies.branches}}"><div data-bind-for="p:{{b.policies}}" data-bind-filter="{{p.id == state.policies.hover}}"><b data-bind-value="{{p.name}}"></b><p data-bind-value="{{p.effect}}"></p><p data-bind-if="{{p.reason != null}}" data-bind-value="{{p.reason}}"></p></div></div></div></template>
 <template data-layer="tooltip" id="religion-symbol-tip"><div class="religion-tip" data-bind-if="{{religion != null}}"><div data-bind-for="s:{{religion.symbols}}" data-bind-filter="{{s.id == state.religion.hover}}"><b data-bind-value="{{s.name}}"></b><p data-bind-value="{{s.tooltip}}"></p><span data-bind-if="{{s.founder != null}}" data-bind-value="{{s.founder}}"></span></div></div></template>
 <template data-layer="tooltip" id="religion-overview-prophet-tip"><div class="religion_overview-tip" data-bind-if="{{religion_overview != null}}" data-bind-value="{{religion_overview.faith.prophet_tooltip}}"></div></template>
@@ -28,3 +28,20 @@
     </div>
   </div>
 </template>
+
+<!-- Navigation captions include their bound shortcuts. -->
+<template data-layer="tooltip" id="nav-tech-tip"><div class="tip" data-l10n="nav.tech">Technologies (F6)</div></template>
+<template data-layer="tooltip" id="nav-policies-tip"><div class="tip" data-l10n="nav.policies">Policies (F5)</div></template>
+<template data-layer="tooltip" id="nav-religion-tip"><div class="tip" data-l10n="nav.religion">Religion (Ctrl+R)</div></template>
+<template data-layer="tooltip" id="nav-cities-tip"><div class="tip" data-l10n="nav.cities">Cities (Ctrl+C)</div></template>
+<template data-layer="tooltip" id="nav-economy-tip"><div class="tip" data-l10n="nav.economy">Economy (F2)</div></template>
+<template data-layer="tooltip" id="nav-military-tip"><div class="tip" data-l10n="nav.military">Military (F3)</div></template>
+<template data-layer="tooltip" id="nav-trade-routes-tip"><div class="tip" data-l10n="nav.trade-routes">Trade routes (F9)</div></template>
+<template data-layer="tooltip" id="nav-espionage-tip"><div class="tip" data-l10n="nav.espionage">Espionage (Ctrl+E)</div></template>
+<template data-layer="tooltip" id="nav-culture-tip"><div class="tip" data-l10n="nav.culture">Culture (Ctrl+T)</div></template>
+<template data-layer="tooltip" id="nav-victory-tip"><div class="tip" data-l10n="nav.victory">Victory (F8)</div></template>
+<template data-layer="tooltip" id="nav-demographics-tip"><div class="tip" data-l10n="nav.demographics">Demographics (F4)</div></template>
+<template data-layer="tooltip" id="nav-congress-tip"><div class="tip" data-l10n="nav.congress">World Congress (F10)</div></template>
+<template data-layer="tooltip" id="nav-notification-log-tip"><div class="tip" data-l10n="nav.notification-log">Notification log (F7)</div></template>
+<template data-layer="tooltip" id="nav-game-menu-tip"><div class="tip" data-l10n="nav.game-menu">Game menu (Ctrl+M)</div></template>
+<template data-layer="tooltip" id="nav-fold-tip"><div class="tip" data-l10n="nav.fold">Windows (Alt+W)</div></template>

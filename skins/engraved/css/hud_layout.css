@@ -37,3 +37,7 @@
 .unit-lists-left-ribbon .unit, .unit-lists-left-ribbon .unit-lists-ribbon { left: -248px; position: relative; }
 .minimap-top-stack.minimap-stack-left-ribbon { left: 936px; right: 338px; }
 @media (width < 1500px) { .minimap-top-stack.minimap-stack-left-ribbon { left: 688px; } }
+
+/* The notification history shares the bounded HUD column. */
+.notification-log-panel { max-height: none; }
+.notification-log-log { flex: none; }

@@ -153,14 +153,15 @@ fn primary_in_every_state() {
     rig.one("turn.primary", &[]);
     assert!(rig.ui().windows.research.open);
 
-    // Policy decisions use the registered window. Other blockers use the host.
+    // Policy decisions and other blockers use their registered windows.
     let mut rig = rig_in(TurnUi::PolicyNeeded);
     rig.one("turn.primary", &[]);
     assert!(rig.ui().windows.policies.open);
     assert!(rig.sent().is_empty());
     let mut rig = rig_in(TurnUi::OtherBlocker);
     rig.one("turn.primary", &[]);
-    assert_eq!(rig.sent(), &[Sent::Screen(ScreenId::NotificationLog)]);
+    assert!(rig.ui().windows.notification_log.open);
+    assert!(rig.sent().is_empty());
 
     // ended: takes the end back.
     let mut rig = Rig::new();

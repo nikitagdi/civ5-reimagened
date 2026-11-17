@@ -1,0 +1,49 @@
+[enum]
+MessageKind = ["text", "wonder", "natural_wonder", "golden_age", "new_era", "goody_hut", "great_person", "barbarian_camp"]
+MessageWidth = ["narrow", "medium", "wide"]
+MessageAnchor = ["top_left", "top_right", "center", "bottom_left", "bottom_right"]
+MessageYield = ["food", "production", "gold", "science", "culture", "faith", "happiness", "tourism", "influence"]
+
+[type.MessageCiv]
+key = "str"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.MessageBand]
+name = "text"
+note = "text?"
+
+[type.MessageQuote]
+text = "text"
+by = "text?"
+
+[type.MessageYieldRow]
+yield = "MessageYield"
+value = "i32"
+
+[type.MessageFact]
+key = "str"
+label = "text"
+value = "text?"
+yields = { list = "MessageYieldRow", key = "yield" }
+
+[model.message]
+_optional = true
+id = "i32"
+kind = "MessageKind"
+width = "MessageWidth"
+civ = "MessageCiv?"
+kicker = "text?"
+title = "text?"
+art = "asset?"
+art_anchor = "MessageAnchor"
+icon = "asset?"
+band = "MessageBand?"
+quote = "MessageQuote?"
+text = "text?"
+facts_title = "text?"
+facts = { list = "MessageFact", key = "key" }
+button = "text"
+available = "bool"
+resolved = "bool"

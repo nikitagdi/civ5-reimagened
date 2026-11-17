@@ -8,7 +8,11 @@
     if (!selected || !hud || !hud.unit || hud.unit.id !== Number(String(selected.key).split(":").pop())) return;
     const row = hud.unit.catalog.find(a => a.id === id);
     if (!row || !row.enabled) return;
-    if (client === "move" || client === "range_attack") ui.intent("unit.action", { unit: selected.key, action: client });
+    client = row.client;
+    if (client === "trade_route" || client === "trade_home" || client === "admiral_port") {
+      ui.intent("window.open", { "window": "trade_routes", a: client === "trade_home" ? 3 : (client === "admiral_port" ? 4 : 0), b: hud.unit.id });
+    }
+    else if (client === "move" || client === "range_attack") ui.intent("unit.action", { unit: selected.key, action: client });
     else ui.intent("screen.act", { screen: "hud", action: "do_action", a: hud.unit.id, b: id, c: alt ? 1 : 0, d: shift ? 1 : 0 });
   });
   ui.model.on("unit_rename", function (root) {

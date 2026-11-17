@@ -157,7 +157,7 @@
 }
 
 /* ---------- narrower still: the yields without their changes, the screen buttons folded into one ---------- */
-@media (width < 1360px) {
+@media (width < 1500px) {
   .yields {
     gap: 20px;
   }
@@ -166,30 +166,7 @@
     display: none;
   }
 
-  .menus.screens {
-    position: relative;
-  }
 
-  .menus .fold {
-    display: flex;
-  }
-
-  .menus .drop {
-    display: none;
-  }
-
-  .menus.open .drop {
-    position: absolute;
-    left: 6px;
-    top: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 4px;
-    border-radius: 0 0 6px 6px;
-    background-color: var(--lacquer);
-    box-shadow: inset 0 0 0 1px var(--engrave);
-  }
 }
 
 /* ---------- a wide window (width at least 2.4 x height): the HUD in a zone 2.4 x height wide in the middle ---------- */
@@ -229,3 +206,31 @@
     left: 50%;
     margin-left: -1528px;
   }}
+
+/* Fourteen destinations fold before they crowd the research and yield groups. */
+@media (width < 2161px) {
+  .menus.screens {
+    position: relative;
+  }
+
+  .menus .fold {
+    display: flex;
+  }
+
+  .menus .drop {
+    display: none;
+  }
+
+  .menus.open .drop {
+    position: absolute;
+    left: 6px;
+    top: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 0 0 6px 6px;
+    background-color: var(--lacquer);
+    box-shadow: inset 0 0 0 1px var(--engrave);
+  }
+}

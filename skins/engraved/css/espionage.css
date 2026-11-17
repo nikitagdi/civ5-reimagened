@@ -1,0 +1,48 @@
+/* Agent cards and city potentials retain separate scrolling regions. */
+.espionage-screen { position: absolute; left: 0; right: 0; top: 48px; bottom: 0; background: rgba(12,10,8,.62); pointer-events: auto; }
+.espionage-window { position: absolute; left: 96px; right: 96px; top: 16px; bottom: 24px; display: flex; flex-direction: column; overflow: hidden; border-radius: 6px; background: var(--lacquer); color: var(--bone); box-shadow: inset 0 0 0 1px var(--engrave), 0 24px 64px rgba(0,0,0,.5); }
+.espionage-head { height: 72px; flex: none; display: flex; gap: 24px; align-items: center; padding: 0 24px; box-shadow: inset 0 -1px 0 var(--engrave); }
+.espionage-head h1 { font: 500 28px/32px var(--serif); }
+.espionage-head button { padding: 12px; }
+.espionage-counts { margin-left: auto; display: flex; gap: 8px; }
+.espionage-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.espionage-overview { flex: 1; min-height: 0; display: flex; }
+.espionage-agent-list { flex: 1.15; min-width: 0; box-shadow: inset -1px 0 0 var(--engrave); }
+.espionage-scroll { min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.espionage-sort { display: flex; align-items: center; gap: 12px; padding: 0 24px; height: 32px; flex: none; color: var(--bone-3); font-size: 12px; }
+.espionage-sort button { padding: 4px 8px; }
+.espionage-moving button { display: block; padding: 8px 12px; }
+.espionage-window h2 { height: 40px; padding: 12px 24px; font-size: 13px; color: var(--bone-2); }
+.espionage-agent { display: flex; gap: 20px; padding: 16px 24px; min-height: 96px; box-shadow: inset 0 -1px 0 var(--engrave); }
+.espionage-agent:hover, .espionage-city:hover { background: var(--lacquer-2); }
+.espionage-agent-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--bone-3); }
+.espionage-line { display: flex; align-items: center; gap: 8px; }
+.espionage-name { font: 500 20px/24px var(--serif); color: var(--bone); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.espionage-agent-actions { width: 100px; flex: none; display: flex; flex-direction: column; gap: 4px; }
+.espionage-agent-actions button { padding: 6px 10px; font-size: 12px; background: var(--lacquer-2); border-radius: 4px; }
+.espionage-death { color: var(--neg); }
+.espionage-city-lists { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.espionage-city-section { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.espionage-city-section > .espionage-scroll { flex: 1; }
+.espionage-city { height: 32px; padding: 0 24px; display: flex; align-items: center; gap: 12px; font-size: 13px; }
+.espionage-city-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.espionage-city-potential { width: 160px; flex: none; display: flex; gap: 8px; align-items: center; }
+.espionage-city-potential .espionage-bar { flex: 1; }
+.espionage-icon { width: 20px; height: 20px; flex: none; }
+.espionage-bar { position: relative; height: 4px; background: var(--lacquer-3); }
+.espionage-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--bone-2); }
+.espionage-dim { opacity: .45; }
+.espionage-intrigue { flex: 1; }
+.espionage-intrigue-row { display: flex; gap: 24px; min-height: 40px; align-items: center; padding: 8px 24px; box-shadow: inset 0 -1px 0 var(--engrave); font-size: 13px; }
+.espionage-source { width: 210px; flex: none; }
+.espionage-message { flex: 1; }
+.espionage-moving { padding: 24px; color: var(--bone-2); }
+.espionage-empty { padding: 48px 24px; text-align: center; color: var(--bone-3); }
+.espionage-confirm-dim { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(12,10,8,.62); }
+.espionage-confirm { width: 440px; border-radius: 6px; background: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave-hi), 0 16px 48px rgba(0,0,0,.55); }
+.espionage-question { display: flex; gap: 8px; padding: 20px 24px; font: 500 20px/26px var(--serif); }
+.espionage-dialog-body { padding: 0 24px 16px; font-size: 13px; color: var(--bone-2); }
+.espionage-actions { display: flex; gap: 8px; padding: 16px 24px; box-shadow: inset 0 1px 0 var(--engrave); }
+.espionage-actions button { flex: 1; padding: 12px; background: var(--lacquer-2); border-radius: 4px; }
+.espionage-tip { width: 300px; padding: 16px; display: flex; flex-direction: column; gap: 8px; background: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave); font-size: 13px; }
+@media (width < 1500px) { .espionage-window { left: 24px; right: 24px; } .espionage-city-potential { width: 100px; } }

@@ -1,0 +1,158 @@
+{
+  "model": {
+    "notification_log": {
+      "civ": {
+        "key": "CIVILIZATION_RUSSIA",
+        "icon": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": 1847335167,
+        "color_fg": 3837808383
+      },
+      "total": 64,
+      "open": 6,
+      "groups": [
+        {
+          "turn": 241,
+          "count": 6,
+          "items": [
+            {
+              "id": 1902,
+              "type": "NOTIFICATION_CITY_GROWTH",
+              "icon": "notif:growth",
+              "tint": "food",
+              "text": "Kazan has grown to size 15",
+              "category": "City growth",
+              "active": true
+            },
+            {
+              "id": 1901,
+              "type": "NOTIFICATION_GREAT_PERSON_ACTIVE_PLAYER",
+              "icon": "unit:UNIT_ENGINEER",
+              "tint": "production",
+              "text": "A Great Engineer has been born in Moscow. Use it to hurry a wonder or build a Manufactory.",
+              "category": "Great people",
+              "active": true
+            },
+            {
+              "id": 1899,
+              "type": "NOTIFICATION_PLAYER_DENOUNCED",
+              "icon": "notif:denounce",
+              "tint": "negative",
+              "text": "Ramesses has denounced you. Other civilizations that like Ramesses will think less of you.",
+              "category": "Diplomacy",
+              "active": true
+            },
+            {
+              "id": 1897,
+              "type": "NOTIFICATION_SPY_STOLE_TECH",
+              "icon": "notif:spy",
+              "tint": "science",
+              "text": "An enemy spy stole Radio from Novgorod. Your spy in Novgorod identified the thief: Arabia.",
+              "category": "Espionage",
+              "active": true
+            },
+            {
+              "id": 1896,
+              "type": "NOTIFICATION_LEAGUE_VOTING_SOON",
+              "icon": "notif:congress",
+              "tint": "culture",
+              "text": "The World Congress will vote on Scholars in Residence next turn.",
+              "category": "World Congress",
+              "active": true
+            },
+            {
+              "id": 1893,
+              "type": "NOTIFICATION_PRODUCTION",
+              "icon": "building:BUILDING_HOSPITAL",
+              "tint": "production",
+              "text": "Kazan has finished the Hospital and needs new orders.",
+              "category": "Production",
+              "active": false
+            }
+          ]
+        },
+        {
+          "turn": 240,
+          "count": 4,
+          "items": [
+            {
+              "id": 1890,
+              "type": "NOTIFICATION_TRADE_ROUTE_BROKEN",
+              "icon": "notif:trade",
+              "tint": "gold",
+              "text": "Your trade route from Moscow to Venice has ended. Choose a new destination for the Caravan.",
+              "category": "Trade route",
+              "active": true
+            },
+            {
+              "id": 1888,
+              "type": "NOTIFICATION_TECH",
+              "icon": "tech:TECH_RADIO",
+              "tint": "science",
+              "text": "You have researched Radio. You can now build Broadcast Towers.",
+              "category": "Research",
+              "active": false
+            },
+            {
+              "id": 1885,
+              "type": "NOTIFICATION_ENEMY_IN_TERRITORY",
+              "icon": "unit:UNIT_INFANTRY",
+              "tint": "negative",
+              "text": "Enemy units spotted near Smolensk: 2 Infantry and 1 Artillery of Egypt.",
+              "category": "Military",
+              "active": false
+            },
+            {
+              "id": 1884,
+              "type": "NOTIFICATION_RELIGION_SPREAD",
+              "icon": "religion:RELIGION_ORTHODOXY",
+              "tint": "faith",
+              "text": "Orthodoxy has spread to the Venetian city of Venice.",
+              "category": "Religion",
+              "active": false
+            }
+          ]
+        },
+        {
+          "turn": 239,
+          "count": 3,
+          "items": [
+            {
+              "id": 1879,
+              "type": "NOTIFICATION_WONDER_COMPLETED",
+              "icon": "building:BUILDING_EIFFEL_TOWER",
+              "tint": "production",
+              "text": "Montezuma has completed the Eiffel Tower in Tenochtitlan.",
+              "category": "Wonders",
+              "active": false
+            },
+            {
+              "id": 1876,
+              "type": "NOTIFICATION_DEAL_PROPOSED",
+              "icon": "notif:deal",
+              "tint": "gold",
+              "text": "Harun al-Rashid will pay 12 gold per turn for your Iron. The deal is waiting in the trade screen.",
+              "category": "Trade",
+              "active": false
+            },
+            {
+              "id": 1874,
+              "type": "NOTIFICATION_CITY_TILE",
+              "icon": "resource:RESOURCE_OIL",
+              "tint": "culture",
+              "text": "Moscow has acquired a new tile with Oil.",
+              "category": "Borders",
+              "active": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "ui": {
+    "windows": {
+      "notification_log": {
+        "open": true
+      }
+    }
+  }
+}

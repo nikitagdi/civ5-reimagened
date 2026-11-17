@@ -15,6 +15,14 @@ export async function run(context) {
       await page.setViewportSize(viewport);
       await page.waitForTimeout(1000);
       const label = `${viewport.width}x${viewport.height}`;
+      const fold = await partBox(page, "top.menu.fold");
+      if (fold && !(await partBox(page, "top.menu.tech"))) {
+        await page.keyboard.press("Alt+w");
+        const end = Date.now() + 5000;
+        while (!(await partBox(page, "top.menu.tech")) && Date.now() < end) await page.waitForTimeout(50);
+        check(`${label} menu shortcut reveals destinations`, !!(await partBox(page, "top.menu.tech")));
+        await clickPart(page, "top.menu.fold");
+      }
       const current = await probe(page);
       check(`${label} ribbon has no window`, !current.ui.windows.includes("civ_ribbon"));
       const right = await Promise.all(["notes", "civ-ribbon", "helm"].map(part => partBox(page, part)));
@@ -40,6 +48,17 @@ export async function run(context) {
       check(`${label} full screen hides HUD panels`, texts(full, "helm.state").length === 0
         && texts(full, "top.yield.science").length === 0 && texts(full, "civ-ribbon.name").length === 0);
       await intent(page, "window.close", {window: "techs"});
+      for (const window of ["economy", "military", "trade_routes", "espionage", "culture", "victory", "demographics", "congress", "notification_log", "game_menu", "advisor"]) {
+        await intent(page, "window.open", { window });
+        await waitFor(page, p => p.ui.windows.includes(window), `${window} window`);
+        const up = await probe(page);
+        check(`${label} ${window} suppresses HUD panels`, texts(up, "helm.state").length === 0
+          && texts(up, "top.yield.science").length === 0 && texts(up, "civ-ribbon.name").length === 0);
+        check(`${label} ${window} hides notifications and unit corner`, !(await partBox(page, "notes")) && !(await partBox(page, "unit")));
+        await intent(page, "window.close", { window });
+        await waitFor(page, p => !p.ui.windows.includes(window), `closed ${window}`);
+      }
+
     }
   });
 }

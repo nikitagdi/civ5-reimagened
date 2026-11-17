@@ -1,0 +1,1223 @@
+{
+  "model": {
+    "economy": {
+      "player": {
+        "name": "Catherine",
+        "civ_name": "Russia",
+        "player": 0,
+        "icon": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": 1847335167,
+        "color_fg": 3837808383
+      },
+      "options": {
+        "science": true,
+        "religion": true,
+        "happiness": true
+      },
+      "open_tab": "happiness",
+      "finance": {
+        "treasury": 1846,
+        "net": 87,
+        "gross": 412,
+        "expenses": 325,
+        "science_loss": null,
+        "income": [
+          {
+            "key": "cities",
+            "value": 248,
+            "items": [
+              {
+                "id": 8192,
+                "name": "Moscow",
+                "value": 52
+              },
+              {
+                "id": 8193,
+                "name": "St. Petersburg",
+                "value": 38
+              },
+              {
+                "id": 8194,
+                "name": "Novgorod",
+                "value": 27
+              },
+              {
+                "id": 8195,
+                "name": "Kazan",
+                "value": 23
+              },
+              {
+                "id": 8196,
+                "name": "Rostov",
+                "value": 20
+              },
+              {
+                "id": 8197,
+                "name": "Smolensk",
+                "value": 16
+              },
+              {
+                "id": 8198,
+                "name": "Yaroslavl",
+                "value": 15
+              },
+              {
+                "id": 8199,
+                "name": "Pskov",
+                "value": 12
+              },
+              {
+                "id": 8200,
+                "name": "Arkhangelsk",
+                "value": 18
+              },
+              {
+                "id": 8201,
+                "name": "Vladimir",
+                "value": 9
+              },
+              {
+                "id": 8202,
+                "name": "Tlatelolco",
+                "value": 5
+              },
+              {
+                "id": 8203,
+                "name": "Hamburg",
+                "value": 13
+              }
+            ]
+          },
+          {
+            "key": "diplomacy",
+            "value": 36,
+            "items": []
+          },
+          {
+            "key": "religion",
+            "value": 18,
+            "items": []
+          },
+          {
+            "key": "connections",
+            "value": 110,
+            "items": [
+              {
+                "id": 8193,
+                "name": "St. Petersburg",
+                "value": 15
+              },
+              {
+                "id": 8194,
+                "name": "Novgorod",
+                "value": 14
+              },
+              {
+                "id": 8195,
+                "name": "Kazan",
+                "value": 13
+              },
+              {
+                "id": 8196,
+                "name": "Rostov",
+                "value": 12
+              },
+              {
+                "id": 8197,
+                "name": "Smolensk",
+                "value": 11
+              },
+              {
+                "id": 8198,
+                "name": "Yaroslavl",
+                "value": 10
+              },
+              {
+                "id": 8199,
+                "name": "Pskov",
+                "value": 9
+              },
+              {
+                "id": 8200,
+                "name": "Arkhangelsk",
+                "value": 9
+              },
+              {
+                "id": 8201,
+                "name": "Vladimir",
+                "value": 8
+              },
+              {
+                "id": 8203,
+                "name": "Hamburg",
+                "value": 9
+              }
+            ],
+            "tooltip": {
+              "base": 1,
+              "per_citizen": 0.15,
+              "player_mod_pct": 25
+            }
+          }
+        ],
+        "expense": [
+          {
+            "key": "units",
+            "value": 142,
+            "items": [],
+            "tooltip": {
+              "paid": 58,
+              "free": 9,
+              "avg_cost": 2.45,
+              "difficulty_mod_pct": -10
+            }
+          },
+          {
+            "key": "buildings",
+            "value": 131,
+            "items": [
+              {
+                "id": 8192,
+                "name": "Moscow",
+                "value": 24
+              },
+              {
+                "id": 8193,
+                "name": "St. Petersburg",
+                "value": 18
+              },
+              {
+                "id": 8194,
+                "name": "Novgorod",
+                "value": 15
+              },
+              {
+                "id": 8195,
+                "name": "Kazan",
+                "value": 14
+              },
+              {
+                "id": 8196,
+                "name": "Rostov",
+                "value": 12
+              },
+              {
+                "id": 8197,
+                "name": "Smolensk",
+                "value": 11
+              },
+              {
+                "id": 8198,
+                "name": "Yaroslavl",
+                "value": 10
+              },
+              {
+                "id": 8199,
+                "name": "Pskov",
+                "value": 9
+              },
+              {
+                "id": 8200,
+                "name": "Arkhangelsk",
+                "value": 8
+              },
+              {
+                "id": 8201,
+                "name": "Vladimir",
+                "value": 7
+              },
+              {
+                "id": 8202,
+                "name": "Tlatelolco",
+                "value": 2
+              },
+              {
+                "id": 8203,
+                "name": "Hamburg",
+                "value": 6
+              }
+            ],
+            "tooltip": {
+              "difficulty_mod_pct": -10
+            }
+          },
+          {
+            "key": "improvements",
+            "value": 38,
+            "items": [],
+            "tooltip": {
+              "difficulty_mod_pct": -10
+            }
+          },
+          {
+            "key": "diplomacy",
+            "value": 14,
+            "items": []
+          }
+        ]
+      },
+      "cities": [
+        {
+          "id": 8192,
+          "name": "Moscow",
+          "population": 28,
+          "food_stored": 452,
+          "food_threshold": 554,
+          "food_per_turn": 12,
+          "growth_turns": 9,
+          "starving": false,
+          "capital": true,
+          "puppet": false,
+          "occupied": false,
+          "health_pct": null,
+          "defense": 64,
+          "production": 96,
+          "production_mod_pct": 35,
+          "science": 168,
+          "gold": 52,
+          "culture": 42.5,
+          "faith": 12,
+          "golden_age": 18,
+          "order": {
+            "kind": "wonder",
+            "key": "BUILDING_BROADWAY",
+            "name": "Broadway",
+            "icon": "building:BUILDING_BROADWAY",
+            "stored": 722,
+            "cost": 1250,
+            "per_turn": 96,
+            "turns": 6
+          },
+          "city_key": "0:8192"
+        },
+        {
+          "id": 8193,
+          "name": "St. Petersburg",
+          "population": 24,
+          "food_stored": 377,
+          "food_threshold": 436,
+          "food_per_turn": 9,
+          "growth_turns": 7,
+          "starving": false,
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health_pct": null,
+          "defense": 58,
+          "production": 74,
+          "production_mod_pct": 25,
+          "science": 112,
+          "gold": 38,
+          "culture": 21.75,
+          "faith": 6,
+          "golden_age": 9,
+          "order": {
+            "kind": "building",
+            "key": "BUILDING_FACTORY",
+            "name": "Factory",
+            "icon": "building:BUILDING_FACTORY",
+            "stored": 281,
+            "cost": 540,
+            "per_turn": 74,
+            "turns": 4
+          },
+          "city_key": "0:8193"
+        },
+        {
+          "id": 8194,
+          "name": "Novgorod",
+          "population": 21,
+          "food_stored": 292,
+          "food_threshold": 355,
+          "food_per_turn": 6,
+          "growth_turns": 11,
+          "starving": false,
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health_pct": null,
+          "defense": 52,
+          "production": 61,
+          "production_mod_pct": 20,
+          "science": 88,
+          "gold": 27,
+          "culture": 14,
+          "faith": 4,
+          "golden_age": 6,
+          "order": {
+            "kind": "unit",
+            "key": "UNIT_INFANTRY",
+            "name": "Infantry",
+            "icon": "unit:UNIT_INFANTRY",
+            "stored": 238,
+            "cost": 330,
+            "per_turn": 61,
+            "turns": 2
+          },
+          "city_key": "0:8194"
+        },
+        {
+          "id": 8195,
+          "name": "Kazan",
+          "population": 19,
+          "food_stored": 245,
+          "food_threshold": 305,
+          "food_per_turn": 8,
+          "growth_turns": 8,
+          "starving": false,
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health_pct": null,
+          "defense": 49,
+          "production": 52,
+          "production_mod_pct": 15,
+          "science": 71,
+          "gold": 23,
+          "culture": 11.25,
+          "faith": 8,
+          "golden_age": 5,
+          "order": {
+            "kind": "building",
+            "key": "BUILDING_STOCK_EXCHANGE",
+            "name": "Stock Exchange",
+            "icon": "building:BUILDING_STOCK_EXCHANGE",
+            "stored": 266,
+            "cost": 500,
+            "per_turn": 52,
+            "turns": 5
+          },
+          "city_key": "0:8195"
+        },
+        {
+          "id": 8196,
+          "name": "Rostov",
+          "population": 17,
+          "food_stored": 204,
+          "food_threshold": 258,
+          "food_per_turn": 4,
+          "growth_turns": 14,
+          "starving": false,
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health_pct": null,
+          "defense": 44,
+          "production": 47,
+          "production_mod_pct": 15,
+          "science": 52,
+          "gold": 20,
+          "culture": 8.5,
+          "faith": 3,
+          "golden_age": 4,
+          "order": {
+            "kind": "building",
+            "key": "BUILDING_HOSPITAL",
+            "name": "Hospital",
+            "icon": "building:BUILDING_HOSPITAL",
+            "stored": 141,
+            "cost": 400,
+            "per_turn": 47,
+            "turns": 6
+          },
+          "city_key": "0:8196"
+        },
+        {
+          "id": 8197,
+          "name": "Smolensk",
+          "population": 15,
+          "food_stored": 160,
+          "food_threshold": 215,
+          "food_per_turn": 10,
+          "growth_turns": 6,
+          "starving": false,
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health_pct": null,
+          "defense": 41,
+          "production": 39,
+          "production_mod_pct": 10,
+          "science": 44,
+          "gold": 16,
+          "culture": 7.75,
+          "faith": 3,
+          "golden_age": 4,
+          "order": {
+            "kind": "unit",
+            "key": "UNIT_ARTILLERY",
+            "name": "Artillery",
+            "icon": "unit:UNIT_ARTILLERY",
+            "stored": 202,
+            "cost": 300,
+            "per_turn": 39,
+            "turns": 3
+          },
+          "city_key": "0:8197"
+        },
+        {
+          "id": 8198,
+          "name": "Yaroslavl",
+          "population": 14,
+          "food_stored": 136,
+          "food_threshold": 194,
+          "food_per_turn": 5,
+          "growth_turns": 12,
+          "starving": false,
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health_pct": null,
+          "defense": 40,
+          "production": 33,
+          "production_mod_pct": 10,
+          "science": 38,
+          "gold": 15,
+          "culture": 6,
+          "faith": 2,
+          "golden_age": 3,
+          "order": {
+            "kind": "process",
+            "key": "PROCESS_RESEARCH",
+            "name": "Research",
+            "icon": "process:PROCESS_RESEARCH",
+            "stored": null,
+            "cost": null,
+            "per_turn": null,
+            "turns": null
+          },
+          "city_key": "0:8198"
+        },
+        {
+          "id": 8199,
+          "name": "Pskov",
+          "population": 12,
+          "food_stored": 105,
+          "food_threshold": 156,
+          "food_per_turn": 6,
+          "growth_turns": 9,
+          "starving": false,
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health_pct": null,
+          "defense": 37,
+          "production": 30,
+          "production_mod_pct": 10,
+          "science": 31,
+          "gold": 12,
+          "culture": 5.5,
+          "faith": 2,
+          "golden_age": 2,
+          "order": {
+            "kind": "building",
+            "key": "BUILDING_HARBOR",
+            "name": "Harbor",
+            "icon": "building:BUILDING_HARBOR",
+            "stored": 75,
+            "cost": 180,
+            "per_turn": 30,
+            "turns": 4
+          },
+          "city_key": "0:8199"
+        },
+        {
+          "id": 8200,
+          "name": "Arkhangelsk",
+          "population": 11,
+          "food_stored": 91,
+          "food_threshold": 138,
+          "food_per_turn": 3,
+          "growth_turns": 16,
+          "starving": false,
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health_pct": null,
+          "defense": 36,
+          "production": 26,
+          "production_mod_pct": 5,
+          "science": 22,
+          "gold": 18,
+          "culture": 4.25,
+          "faith": 1,
+          "golden_age": 2,
+          "order": {
+            "kind": "unit",
+            "key": "UNIT_DESTROYER",
+            "name": "Destroyer",
+            "icon": "unit:UNIT_DESTROYER",
+            "stored": 208,
+            "cost": 325,
+            "per_turn": 26,
+            "turns": 5
+          },
+          "city_key": "0:8200"
+        },
+        {
+          "id": 8201,
+          "name": "Vladimir",
+          "population": 9,
+          "food_stored": 73,
+          "food_threshold": 105,
+          "food_per_turn": 7,
+          "growth_turns": 5,
+          "starving": false,
+          "capital": false,
+          "puppet": false,
+          "occupied": false,
+          "health_pct": null,
+          "defense": 33,
+          "production": 22,
+          "production_mod_pct": 5,
+          "science": 18,
+          "gold": 9,
+          "culture": 3.5,
+          "faith": 1,
+          "golden_age": 1,
+          "order": {
+            "kind": "building",
+            "key": "BUILDING_PUBLIC_SCHOOL",
+            "name": "Public School",
+            "icon": "building:BUILDING_PUBLIC_SCHOOL",
+            "stored": 133,
+            "cost": 320,
+            "per_turn": 22,
+            "turns": 9
+          },
+          "city_key": "0:8201"
+        },
+        {
+          "id": 8202,
+          "name": "Tlatelolco",
+          "population": 8,
+          "food_stored": 38,
+          "food_threshold": 90,
+          "food_per_turn": 0,
+          "growth_turns": null,
+          "starving": false,
+          "capital": false,
+          "puppet": false,
+          "occupied": true,
+          "health_pct": 45,
+          "defense": 22,
+          "production": 14,
+          "production_mod_pct": 0,
+          "science": 9,
+          "gold": 5,
+          "culture": 1,
+          "faith": 0,
+          "golden_age": 0,
+          "order": {
+            "kind": "building",
+            "key": "BUILDING_COURTHOUSE",
+            "name": "Courthouse",
+            "icon": "building:BUILDING_COURTHOUSE",
+            "stored": 109,
+            "cost": 200,
+            "per_turn": 14,
+            "turns": 7
+          },
+          "city_key": "0:8202"
+        },
+        {
+          "id": 8203,
+          "name": "Hamburg",
+          "population": 7,
+          "food_stored": 14,
+          "food_threshold": 76,
+          "food_per_turn": -2,
+          "growth_turns": null,
+          "starving": true,
+          "capital": false,
+          "puppet": true,
+          "occupied": false,
+          "health_pct": null,
+          "defense": 28,
+          "production": 17,
+          "production_mod_pct": 0,
+          "science": 12,
+          "gold": 13,
+          "culture": 2.25,
+          "faith": 1,
+          "golden_age": 1,
+          "order": {
+            "kind": "building",
+            "key": "BUILDING_BANK",
+            "name": "Bank",
+            "icon": "building:BUILDING_BANK",
+            "stored": 172,
+            "cost": 300,
+            "per_turn": 17,
+            "turns": 8
+          },
+          "city_key": "0:8203"
+        }
+      ],
+      "totals": {
+        "population": 185,
+        "food": 68,
+        "production": 511,
+        "science": 665,
+        "gold": 248,
+        "culture": 128.25,
+        "faith": 43,
+        "golden_age": 55
+      },
+      "happiness": {
+        "enabled": true,
+        "total": 99,
+        "items": [
+          {
+            "key": "luxuries",
+            "value": 32,
+            "items": [
+              {
+                "key": "RESOURCE_FUR",
+                "name": "Furs",
+                "icon": "resource:RESOURCE_FUR",
+                "value": 4,
+                "entry_key": "RESOURCE_FUR"
+              },
+              {
+                "key": "RESOURCE_SILK",
+                "name": "Silk",
+                "icon": "resource:RESOURCE_SILK",
+                "value": 4,
+                "entry_key": "RESOURCE_SILK"
+              },
+              {
+                "key": "RESOURCE_WINE",
+                "name": "Wine",
+                "icon": "resource:RESOURCE_WINE",
+                "value": 4,
+                "entry_key": "RESOURCE_WINE"
+              },
+              {
+                "key": "RESOURCE_COTTON",
+                "name": "Cotton",
+                "icon": "resource:RESOURCE_COTTON",
+                "value": 4,
+                "entry_key": "RESOURCE_COTTON"
+              },
+              {
+                "key": "RESOURCE_WHALE",
+                "name": "Whales",
+                "icon": "resource:RESOURCE_WHALE",
+                "value": 4,
+                "entry_key": "RESOURCE_WHALE"
+              },
+              {
+                "key": "RESOURCE_PEARLS",
+                "name": "Pearls",
+                "icon": "resource:RESOURCE_PEARLS",
+                "value": 4,
+                "entry_key": "RESOURCE_PEARLS"
+              },
+              {
+                "key": "RESOURCE_SALT",
+                "name": "Salt",
+                "icon": "resource:RESOURCE_SALT",
+                "value": 4,
+                "entry_key": "RESOURCE_SALT"
+              },
+              {
+                "key": "RESOURCE_DYE",
+                "name": "Dyes",
+                "icon": "resource:RESOURCE_DYE",
+                "value": 4,
+                "entry_key": "RESOURCE_DYE"
+              }
+            ]
+          },
+          {
+            "key": "variety",
+            "value": 3,
+            "items": []
+          },
+          {
+            "key": "extra_per_luxury",
+            "value": 8,
+            "items": []
+          },
+          {
+            "key": "other_luxury",
+            "value": 0,
+            "items": []
+          },
+          {
+            "key": "local",
+            "value": 7,
+            "items": [
+              {
+                "id": 8192,
+                "name": "Moscow",
+                "value": 2,
+                "entry_key": "8192"
+              },
+              {
+                "id": 8193,
+                "name": "St. Petersburg",
+                "value": 2,
+                "entry_key": "8193"
+              },
+              {
+                "id": 8194,
+                "name": "Novgorod",
+                "value": 1,
+                "entry_key": "8194"
+              },
+              {
+                "id": 8195,
+                "name": "Kazan",
+                "value": 1,
+                "entry_key": "8195"
+              },
+              {
+                "id": 8196,
+                "name": "Rostov",
+                "value": 1,
+                "entry_key": "8196"
+              }
+            ]
+          },
+          {
+            "key": "buildings",
+            "value": 12,
+            "items": [
+              {
+                "id": 8192,
+                "name": "Moscow",
+                "value": 3,
+                "entry_key": "8192"
+              },
+              {
+                "id": 8193,
+                "name": "St. Petersburg",
+                "value": 2,
+                "entry_key": "8193"
+              },
+              {
+                "id": 8194,
+                "name": "Novgorod",
+                "value": 2,
+                "entry_key": "8194"
+              },
+              {
+                "id": 8195,
+                "name": "Kazan",
+                "value": 2,
+                "entry_key": "8195"
+              },
+              {
+                "id": 8196,
+                "name": "Rostov",
+                "value": 1,
+                "entry_key": "8196"
+              },
+              {
+                "id": 8197,
+                "name": "Smolensk",
+                "value": 1,
+                "entry_key": "8197"
+              },
+              {
+                "id": 8199,
+                "name": "Pskov",
+                "value": 1,
+                "entry_key": "8199"
+              }
+            ]
+          },
+          {
+            "key": "connections",
+            "value": 10,
+            "items": [
+              {
+                "id": 8193,
+                "name": "St. Petersburg",
+                "value": 1,
+                "entry_key": "8193"
+              },
+              {
+                "id": 8194,
+                "name": "Novgorod",
+                "value": 1,
+                "entry_key": "8194"
+              },
+              {
+                "id": 8195,
+                "name": "Kazan",
+                "value": 1,
+                "entry_key": "8195"
+              },
+              {
+                "id": 8196,
+                "name": "Rostov",
+                "value": 1,
+                "entry_key": "8196"
+              },
+              {
+                "id": 8197,
+                "name": "Smolensk",
+                "value": 1,
+                "entry_key": "8197"
+              },
+              {
+                "id": 8198,
+                "name": "Yaroslavl",
+                "value": 1,
+                "entry_key": "8198"
+              },
+              {
+                "id": 8199,
+                "name": "Pskov",
+                "value": 1,
+                "entry_key": "8199"
+              },
+              {
+                "id": 8200,
+                "name": "Arkhangelsk",
+                "value": 1,
+                "entry_key": "8200"
+              },
+              {
+                "id": 8201,
+                "name": "Vladimir",
+                "value": 1,
+                "entry_key": "8201"
+              },
+              {
+                "id": 8203,
+                "name": "Hamburg",
+                "value": 1,
+                "entry_key": "8203"
+              }
+            ]
+          },
+          {
+            "key": "city_states",
+            "value": 6,
+            "items": []
+          },
+          {
+            "key": "policies",
+            "value": 9,
+            "items": []
+          },
+          {
+            "key": "religion",
+            "value": 5,
+            "items": []
+          },
+          {
+            "key": "natural_wonders",
+            "value": 0,
+            "items": []
+          },
+          {
+            "key": "free_per_city",
+            "value": 0,
+            "items": []
+          },
+          {
+            "key": "world_congress",
+            "value": -2,
+            "items": []
+          },
+          {
+            "key": "difficulty",
+            "value": 9,
+            "items": []
+          }
+        ]
+      },
+      "unhappiness": {
+        "total": 82,
+        "cities": {
+          "count": 11,
+          "value": 22.5
+        },
+        "occupied_cities": {
+          "count": 1,
+          "value": 4.5
+        },
+        "population": {
+          "count": 177,
+          "value": 44.25
+        },
+        "occupied_population": {
+          "count": 8,
+          "value": 8
+        },
+        "public_opinion": 3,
+        "by_city": [
+          {
+            "id": 8192,
+            "name": "Moscow",
+            "value": 12.6,
+            "occupied": false
+          },
+          {
+            "id": 8193,
+            "name": "St. Petersburg",
+            "value": 10.8,
+            "occupied": false
+          },
+          {
+            "id": 8194,
+            "name": "Novgorod",
+            "value": 9.45,
+            "occupied": false
+          },
+          {
+            "id": 8195,
+            "name": "Kazan",
+            "value": 8.55,
+            "occupied": false
+          },
+          {
+            "id": 8196,
+            "name": "Rostov",
+            "value": 7.65,
+            "occupied": false
+          },
+          {
+            "id": 8197,
+            "name": "Smolensk",
+            "value": 6.75,
+            "occupied": false
+          },
+          {
+            "id": 8198,
+            "name": "Yaroslavl",
+            "value": 6.3,
+            "occupied": false
+          },
+          {
+            "id": 8199,
+            "name": "Pskov",
+            "value": 5.4,
+            "occupied": false
+          },
+          {
+            "id": 8200,
+            "name": "Arkhangelsk",
+            "value": 4.95,
+            "occupied": false
+          },
+          {
+            "id": 8201,
+            "name": "Vladimir",
+            "value": 4.05,
+            "occupied": false
+          },
+          {
+            "id": 8202,
+            "name": "Tlatelolco",
+            "value": 10,
+            "occupied": true
+          },
+          {
+            "id": 8203,
+            "name": "Hamburg",
+            "value": 3.15,
+            "occupied": false
+          }
+        ]
+      },
+      "resources": {
+        "available": [
+          {
+            "key": "RESOURCE_HORSE",
+            "name": "Horses",
+            "icon": "resource:RESOURCE_HORSE",
+            "count": 3
+          },
+          {
+            "key": "RESOURCE_IRON",
+            "name": "Iron",
+            "icon": "resource:RESOURCE_IRON",
+            "count": 6
+          },
+          {
+            "key": "RESOURCE_COAL",
+            "name": "Coal",
+            "icon": "resource:RESOURCE_COAL",
+            "count": 5
+          },
+          {
+            "key": "RESOURCE_OIL",
+            "name": "Oil",
+            "icon": "resource:RESOURCE_OIL",
+            "count": 4
+          },
+          {
+            "key": "RESOURCE_ALUMINUM",
+            "name": "Aluminum",
+            "icon": "resource:RESOURCE_ALUMINUM",
+            "count": 2
+          },
+          {
+            "key": "RESOURCE_FUR",
+            "name": "Furs",
+            "icon": "resource:RESOURCE_FUR",
+            "count": 2
+          },
+          {
+            "key": "RESOURCE_SILK",
+            "name": "Silk",
+            "icon": "resource:RESOURCE_SILK",
+            "count": 1
+          },
+          {
+            "key": "RESOURCE_WINE",
+            "name": "Wine",
+            "icon": "resource:RESOURCE_WINE",
+            "count": 2
+          },
+          {
+            "key": "RESOURCE_COTTON",
+            "name": "Cotton",
+            "icon": "resource:RESOURCE_COTTON",
+            "count": 1
+          },
+          {
+            "key": "RESOURCE_WHALE",
+            "name": "Whales",
+            "icon": "resource:RESOURCE_WHALE",
+            "count": 1
+          },
+          {
+            "key": "RESOURCE_PEARLS",
+            "name": "Pearls",
+            "icon": "resource:RESOURCE_PEARLS",
+            "count": 1
+          },
+          {
+            "key": "RESOURCE_SALT",
+            "name": "Salt",
+            "icon": "resource:RESOURCE_SALT",
+            "count": 1
+          },
+          {
+            "key": "RESOURCE_DYE",
+            "name": "Dyes",
+            "icon": "resource:RESOURCE_DYE",
+            "count": 1
+          }
+        ],
+        "imported": [
+          {
+            "key": "RESOURCE_COTTON",
+            "name": "Cotton",
+            "icon": "resource:RESOURCE_COTTON",
+            "count": 1
+          },
+          {
+            "key": "RESOURCE_PEARLS",
+            "name": "Pearls",
+            "icon": "resource:RESOURCE_PEARLS",
+            "count": 1
+          },
+          {
+            "key": "RESOURCE_OIL",
+            "name": "Oil",
+            "icon": "resource:RESOURCE_OIL",
+            "count": 2
+          }
+        ],
+        "exported": [
+          {
+            "key": "RESOURCE_WINE",
+            "name": "Wine",
+            "icon": "resource:RESOURCE_WINE",
+            "count": 1
+          },
+          {
+            "key": "RESOURCE_IRON",
+            "name": "Iron",
+            "icon": "resource:RESOURCE_IRON",
+            "count": 2
+          }
+        ],
+        "local": [
+          {
+            "key": "RESOURCE_HORSE",
+            "name": "Horses",
+            "icon": "resource:RESOURCE_HORSE",
+            "count": 3
+          },
+          {
+            "key": "RESOURCE_IRON",
+            "name": "Iron",
+            "icon": "resource:RESOURCE_IRON",
+            "count": 6
+          },
+          {
+            "key": "RESOURCE_COAL",
+            "name": "Coal",
+            "icon": "resource:RESOURCE_COAL",
+            "count": 5
+          },
+          {
+            "key": "RESOURCE_OIL",
+            "name": "Oil",
+            "icon": "resource:RESOURCE_OIL",
+            "count": 2
+          },
+          {
+            "key": "RESOURCE_ALUMINUM",
+            "name": "Aluminum",
+            "icon": "resource:RESOURCE_ALUMINUM",
+            "count": 2
+          },
+          {
+            "key": "RESOURCE_FUR",
+            "name": "Furs",
+            "icon": "resource:RESOURCE_FUR",
+            "count": 2
+          },
+          {
+            "key": "RESOURCE_SILK",
+            "name": "Silk",
+            "icon": "resource:RESOURCE_SILK",
+            "count": 1
+          },
+          {
+            "key": "RESOURCE_WINE",
+            "name": "Wine",
+            "icon": "resource:RESOURCE_WINE",
+            "count": 2
+          },
+          {
+            "key": "RESOURCE_WHALE",
+            "name": "Whales",
+            "icon": "resource:RESOURCE_WHALE",
+            "count": 1
+          },
+          {
+            "key": "RESOURCE_SALT",
+            "name": "Salt",
+            "icon": "resource:RESOURCE_SALT",
+            "count": 1
+          },
+          {
+            "key": "RESOURCE_DYE",
+            "name": "Dyes",
+            "icon": "resource:RESOURCE_DYE",
+            "count": 1
+          }
+        ]
+      }
+    }
+  },
+  "ui": {
+    "windows": {
+      "economy": {
+        "open": true,
+        "a": 1
+      }
+    }
+  }
+}

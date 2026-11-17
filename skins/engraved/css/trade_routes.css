@@ -1,0 +1,36 @@
+/* Native route totals and unit-scoped choice dialogs. */
+.trade-routes-screen { position: absolute; left: 0; right: 0; top: 48px; bottom: 0; background: rgba(12,10,8,.62); pointer-events: auto; }
+.trade-routes-window { position: absolute; left: 120px; right: 120px; top: 48px; bottom: 160px; display: flex; flex-direction: column; overflow: hidden; border-radius: 6px; background: var(--lacquer); color: var(--bone); box-shadow: inset 0 0 0 1px var(--engrave), 0 24px 64px rgba(0,0,0,.5); }
+.trade-routes-window.trade-routes-popup { left: 50%; right: auto; width: 1120px; transform: translateX(-560px); top: 28px; bottom: 28px; }
+.trade-routes-window.trade-routes-home-popup { width: 560px; transform: translateX(-280px); top: 112px; bottom: 120px; }
+.trade-routes-head { height: 72px; padding: 0 24px; display: flex; align-items: center; gap: 24px; flex: none; box-shadow: inset 0 -1px 0 var(--engrave); }
+.trade-routes-head h1 { font: 500 28px/32px var(--serif); }
+.trade-routes-head button { margin-left: auto; padding: 8px; }
+.trade-routes-content, .trade-routes-overview, .trade-routes-choice { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.trade-routes-toolbar { padding: 12px 24px; display: flex; gap: 12px; align-items: center; font-size: 12px; color: var(--bone-2); box-shadow: inset 0 -1px 0 var(--engrave); }
+.trade-routes-toolbar button { padding: 8px; }
+.trade-routes-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.trade-routes-table-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; }
+.trade-routes-row { width: 1600px; height: 32px; padding: 0 24px; display: flex; gap: 12px; align-items: center; font-size: 13px; }
+.trade-routes-row:hover { background: var(--lacquer-2); }
+.trade-routes-table-head { height: 36px; font-size: 12px; color: var(--bone-3); }
+.trade-routes-row > span, .trade-routes-row > button, .trade-routes-row > div { width: 64px; flex: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trade-routes-row > .trade-routes-col-from, .trade-routes-row > .trade-routes-col-to { width: 160px; }
+.trade-routes-row > .trade-routes-col-my_religion, .trade-routes-row > .trade-routes-col-their_religion { width: 140px; }
+.trade-routes-unit { height: 80px; display: flex; gap: 16px; align-items: center; padding: 16px 24px; flex: none; box-shadow: inset 0 -1px 0 var(--engrave); }
+.trade-routes-portrait { width: 40px; height: 40px; }
+.trade-routes-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.trade-routes-icon { width: 28px; height: 28px; flex: none; }
+.trade-routes-group { width: 100%; height: 36px; padding: 0 24px; display: flex; gap: 12px; align-items: center; background: var(--lacquer-0); color: var(--bone-2); font-size: 13px; }
+.trade-routes-destination { width: 100%; min-height: 52px; padding: 12px 24px; display: flex; gap: 16px; align-items: center; box-shadow: inset 0 -1px 0 var(--engrave); font-size: 13px; }
+.trade-routes-destination:hover { background: var(--lacquer-2); }
+.trade-routes-destination .trade-routes-name { width: 160px; flex: none; }
+.trade-routes-yields { flex: 1; min-width: 0; display: flex; gap: 8px; align-items: center; }
+.trade-routes-yields > div { display: flex; gap: 4px; }
+.trade-routes-actions { display: flex; gap: 8px; padding: 16px 24px; box-shadow: inset 0 1px 0 var(--engrave); }
+.trade-routes-actions button { flex: 1; padding: 12px; background: var(--lacquer-2); border-radius: 4px; box-shadow: inset 0 0 0 1px var(--engrave); }
+.trade-routes-confirm-dim { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(12,10,8,.62); }
+.trade-routes-confirm { width: 440px; border-radius: 6px; background: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave-hi), 0 16px 48px rgba(0,0,0,.55); }
+.trade-routes-question { display: flex; gap: 8px; padding: 20px 24px; font: 500 20px/26px var(--serif); }
+@media (width < 1500px) { .trade-routes-window { left: 24px; right: 24px; top: 16px; bottom: 24px; } }
+@media (width < 1500px) { .trade-routes-window.trade-routes-home-popup { top: 60px; bottom: 60px; } }

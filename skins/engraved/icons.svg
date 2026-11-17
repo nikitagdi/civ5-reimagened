@@ -49,5 +49,10 @@
 <symbol id="i-queue" viewBox="0 0 16 16"><path d="M2.5 4h11M2.5 8h11M2.5 12h7"/></symbol>
 <symbol id="i-unit" viewBox="0 0 72 84"><path d="M36 6c-9 0-15 6-15 14v2l-3 3h6v4c0 8 5 15 12 15s12-7 12-15v-4h6l-3-3v-2c0-8-6-14-15-14z"/><path d="M6 84c1-16 11-27 30-27s29 11 30 27z"/></symbol>
 <symbol id="i-star"viewBox="0 0 16 16"><path d="M8 1.8l1.8 3.9 4.2.5-3.1 2.9.8 4.2L8 11.2l-3.7 2.1.8-4.2L2 6.2l4.2-.5z"/></symbol>
+<symbol id="i-cities" viewBox="0 0 16 16"><path d="M2 14V6h5v8M7 14V2h7v12M1 14h14M10 5h1M10 8h1M4 9h1"/></symbol>
+<symbol id="i-routes" viewBox="0 0 16 16"><path d="M2 4h10l-3-3M14 12H4l3 3M12 4l-3 3M4 12l3-3M2 4v4M14 12V8"/></symbol>
+<symbol id="i-spy" viewBox="0 0 16 16"><path d="M2 6h12M4 6l1-4h6l1 4M3 10h4l1 1 1-1h4M3 10v3h4v-3M9 10v3h4v-3"/></symbol>
+<symbol id="i-congress" viewBox="0 0 16 16"><path d="M1 14h14M2 6h12L8 2zM3 7v5M6 7v5M10 7v5M13 7v5"/></symbol>
+<symbol id="i-notices" viewBox="0 0 16 16"><path d="M3 2h10v12H3zM5 5h6M5 8h6M5 11h4"/></symbol>
 </defs>
 </svg>

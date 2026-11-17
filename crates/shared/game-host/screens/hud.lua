@@ -288,6 +288,7 @@ local function action_available(unit, a, visible)
     if not a or not a.Visible then return false end
     if a.Type == "INTERFACEMODE_MOVE_TO" then return visible or unit:MovesLeft() > 0 end
     if a.Type == "INTERFACEMODE_RANGE_ATTACK" then return unit:CanRangeStrike() end
+    if a.Type == "INTERFACEMODE_ESTABLISH_TRADE_ROUTE" then return unit:CanMakeTradeRoute(unit:GetPlot()) end
     if a.MissionType and a.MissionType >= 0 then
         return unit:CanStartMission(a.MissionType, a.MissionData, -1, unit:GetPlot(), visible and 1 or 0)
     end
@@ -314,7 +315,9 @@ local function action_catalog(player, unit)
             out[#out + 1] = {id = id, name = L(a.TextKey), help = a.Help and L(a.Help) or "", hotkey = action_hotkey(a), enabled = enabled,
                 reason = reason, promotion = a.CommandType == GameInfoTypes.COMMAND_PROMOTION,
                 build = a.MissionType == GameInfoTypes.MISSION_BUILD,
-                client = ({INTERFACEMODE_MOVE_TO="move", INTERFACEMODE_RANGE_ATTACK="range_attack", MISSION_FOUND="found_city", MISSION_FORTIFY="fortify", MISSION_SLEEP="sleep", MISSION_SKIP="skip"})[a.Type] or ""}
+                client = ({INTERFACEMODE_MOVE_TO="move", INTERFACEMODE_RANGE_ATTACK="range_attack", MISSION_FOUND="found_city", MISSION_FORTIFY="fortify", MISSION_SLEEP="sleep", MISSION_SKIP="skip",
+                    INTERFACEMODE_ESTABLISH_TRADE_ROUTE="trade_route", MISSION_ESTABLISH_TRADE_ROUTE="trade_route",
+                    MISSION_CHANGE_TRADE_UNIT_HOME_CITY="trade_home", MISSION_CHANGE_ADMIRAL_PORT="admiral_port"})[a.Type] or ""}
         end
         id = id + 1
     end

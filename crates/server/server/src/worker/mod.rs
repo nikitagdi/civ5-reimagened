@@ -240,15 +240,30 @@ fn run_game<C: Core>(
         if worker.phase().1 == protocol::TurnPhase::Humans
             && let Some(player) = popup_fixture.take()
         {
-            for kind in [
-                "BUTTONPOPUP_TECH_TREE",
-                "BUTTONPOPUP_CHOOSETECH",
-                "BUTTONPOPUP_TECH_TREE",
-            ] {
+            // `CIV5_TEST_POPUP_LIST=KIND[:data1[:data2[:data3]]],...` replaces the default three entries.
+            let listed = std::env::var("CIV5_TEST_POPUP_LIST").ok();
+            let entries: Vec<String> = match &listed {
+                Some(list) => list.split(',').map(str::to_owned).collect(),
+                None => [
+                    "BUTTONPOPUP_TECH_TREE",
+                    "BUTTONPOPUP_CHOOSETECH",
+                    "BUTTONPOPUP_TECH_TREE",
+                ]
+                .map(str::to_owned)
+                .to_vec(),
+            };
+            for entry in entries {
+                let mut parts = entry.split(':');
+                let kind = parts.next().unwrap_or_default().to_owned();
+                let mut number = || parts.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+                let (data1, data2, data3) = (number(), number(), number());
                 if let Err(reason) = worker.inject_popup(
                     player,
                     game_host::popups::Popup {
-                        kind: kind.into(),
+                        kind,
+                        data1,
+                        data2,
+                        data3,
                         ..Default::default()
                     },
                 ) {

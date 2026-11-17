@@ -1,0 +1,142 @@
+# Yield amounts are per turn; fractional values preserve hundredths from the game.
+[enum]
+VictoryScoreKey = ["cities", "population", "land", "wonders", "technologies", "future_techs", "policies", "great_works", "religion", "scenario_1", "scenario_2", "scenario_3", "scenario_4"]
+VictoryPart = ["booster_1", "booster_2", "booster_3", "cockpit", "stasis_chamber", "engine"]
+VictoryProposal = ["irr", "cc", "scrap"]
+VictoryReason = ["type_active", "type_unavailable", "cooldown", "wait_next_turn", "own_active", "other_active"]
+
+[type.VictoryPlayer]
+name = "str"
+civ_name = "str"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.VictoryTime]
+enabled = "bool"
+max_turn = "i32"
+turns_left = "i32"
+
+[type.VictoryScoreItems]
+key = "VictoryScoreKey"
+value = "i32"
+
+[type.VictoryScore]
+total = "i32"
+rank = "i32"
+items = { list = "VictoryScoreItems", key = "key" }
+
+[type.VictoryDominationCapitals]
+id = "i32"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+capital_name = "str"
+owner = "i32?"
+owner_icon = "asset?"
+owner_met = "bool?"
+team = "i32?"
+alive = "bool"
+
+[type.VictoryDominationLeader]
+player = "i32"
+name = "str"
+is_team = "bool"
+count = "i32"
+total = "i32"
+
+[type.VictoryDomination]
+enabled = "bool"
+own_count = "i32"
+capitals = { list = "VictoryDominationCapitals", key = "id" }
+leader = "VictoryDominationLeader?"
+
+[type.VictoryScienceParts]
+key = "VictoryPart"
+icon = "asset"
+built = "bool"
+
+[type.VictoryScience]
+enabled = "bool"
+apollo_built = "bool"
+apollo_teams = "i32"
+prereq_done = "i32"
+prereq_total = "i32"
+parts = { list = "VictoryScienceParts", key = "key" }
+
+[type.VictoryDiplomatic]
+enabled = "bool"
+league_active = "bool"
+un_active = "bool"
+turns_to_session = "i32?"
+delegates_needed = "i32?"
+delegates_controlled = "i32?"
+winner = "str?"
+
+[type.VictoryCultureCivs]
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+influence_pct = "i32"
+met = "bool"
+
+[type.VictoryCulture]
+enabled = "bool"
+influential_count = "i32"
+rivals_count = "i32"
+civs = { list = "VictoryCultureCivs", key = "player" }
+
+[type.VictoryProposalsItemsReasons]
+key = "VictoryReason"
+turn = "i32?"
+
+[type.VictoryProposalsItems]
+key = "VictoryProposal"
+enabled = "bool"
+reasons = { list = "VictoryProposalsItemsReasons", key = "key" }
+
+[type.VictoryProposals]
+visible = "bool"
+items = { list = "VictoryProposalsItems", key = "key" }
+
+[type.VictoryRanking]
+rank = "i32"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+name = "str?"
+is_you = "bool"
+civ_name = "str"
+leader_icon = "asset"
+score = "i32"
+alive = "bool"
+eliminated_turn = "i32?"
+
+[type.VictorySpaceRace]
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+name = "str?"
+is_you = "bool"
+apollo = "bool"
+parts_built = "i32"
+
+[model.victory]
+_optional = true
+player = "VictoryPlayer"
+turn = "i32"
+scenario = "bool"
+time = "VictoryTime"
+score = "VictoryScore"
+domination = "VictoryDomination"
+science = "VictoryScience"
+diplomatic = "VictoryDiplomatic"
+culture = "VictoryCulture"
+proposals = "VictoryProposals"
+ranking = { list = "VictoryRanking", key = "player" }
+space_race = { list = "VictorySpaceRace", key = "player" }

@@ -548,6 +548,11 @@ api = "1.0"
         assert_eq!(
             skin.state.into_iter().collect::<Vec<_>>(),
             [
+                ("advisor.economic".to_string(), StateValue::Int(0)),
+                ("advisor.foreign".to_string(), StateValue::Int(0)),
+                ("advisor.military".to_string(), StateValue::Int(0)),
+                ("advisor.science".to_string(), StateValue::Int(0)),
+                ("archaeology.confirm".to_string(), StateValue::Int(0)),
                 ("chat.draft".to_string(), StateValue::Str("".to_string())),
                 ("chat.pick".to_string(), StateValue::Bool(false)),
                 ("city.buy_tiles".to_string(), StateValue::Bool(false)),
@@ -582,6 +587,66 @@ api = "1.0"
                 ("civ_ribbon.hover".to_string(), StateValue::Int(-1)),
                 ("civ_ribbon.left".to_string(), StateValue::Bool(false)),
                 ("civ_ribbon.visible".to_string(), StateValue::Bool(true)),
+                ("confirm.dont_warn".to_string(), StateValue::Bool(false)),
+                ("confirm.hover".to_string(), StateValue::Int(-1)),
+                (
+                    "congress.choice".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                (
+                    "congress.confirm".to_string(),
+                    StateValue::Str("none".to_string())
+                ),
+                (
+                    "congress.picker".to_string(),
+                    StateValue::Str("none".to_string())
+                ),
+                ("congress.rename".to_string(), StateValue::Bool(false)),
+                (
+                    "congress.rename_text".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                ("congress.slot".to_string(), StateValue::Int(0)),
+                ("congress.tip".to_string(), StateValue::Str("".to_string())),
+                (
+                    "cs.confirm".to_string(),
+                    StateValue::Str("none".to_string())
+                ),
+                ("cs.menu".to_string(), StateValue::Str("main".to_string())),
+                ("cs.tip".to_string(), StateValue::Str("".to_string())),
+                (
+                    "culture.click_mode".to_string(),
+                    StateValue::Str("move".to_string())
+                ),
+                ("culture.offer".to_string(), StateValue::Int(-1)),
+                ("culture.own_work".to_string(), StateValue::Int(-1)),
+                (
+                    "culture.pair_label".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                ("culture.pair_partner".to_string(), StateValue::Int(-1)),
+                ("culture.pair_work".to_string(), StateValue::Int(-1)),
+                ("culture.pick".to_string(), StateValue::Int(-1)),
+                (
+                    "culture.reason".to_string(),
+                    StateValue::Str("Pick a work from another civilization.".to_string())
+                ),
+                (
+                    "culture.slot_type".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                (
+                    "culture.sort_cities".to_string(),
+                    StateValue::Str("id".to_string())
+                ),
+                ("culture.source".to_string(), StateValue::Int(-1)),
+                (
+                    "culture.tab".to_string(),
+                    StateValue::Str("yours".to_string())
+                ),
+                ("culture.tip".to_string(), StateValue::Str("".to_string())),
+                ("culture.x".to_string(), StateValue::Int(0)),
+                ("culture.y".to_string(), StateValue::Int(0)),
                 ("deal.amount".to_string(), StateValue::Int(0)),
                 ("deal.item".to_string(), StateValue::Int(0)),
                 ("deal.kind".to_string(), StateValue::Int(-1)),
@@ -594,24 +659,187 @@ api = "1.0"
                     StateValue::Bool(false)
                 ),
                 ("declare_war.routes".to_string(), StateValue::Bool(false)),
+                (
+                    "demographics.hover".to_string(),
+                    StateValue::Str("population".to_string())
+                ),
                 ("diplo.deal".to_string(), StateValue::Int(-1)),
                 ("diplo.hover".to_string(), StateValue::Int(-1)),
                 (
                     "diplo.tab".to_string(),
                     StateValue::Str("relations".to_string())
                 ),
+                (
+                    "economy.happy_open".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                ("economy.hover".to_string(), StateValue::Str("".to_string())),
+                (
+                    "economy.open_expense_buildings".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "economy.open_expense_diplomacy".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "economy.open_expense_improvements".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "economy.open_expense_units".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "economy.open_income_cities".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "economy.open_income_connections".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "economy.open_income_diplomacy".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "economy.open_income_religion".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "economy.sort".to_string(),
+                    StateValue::Str("population".to_string())
+                ),
+                ("economy.sort_desc".to_string(), StateValue::Bool(false)),
+                ("economy.tab".to_string(), StateValue::Str("".to_string())),
+                (
+                    "end_game.tab".to_string(),
+                    StateValue::Str("summary".to_string())
+                ),
+                (
+                    "espionage.agents_sort".to_string(),
+                    StateValue::Str("name".to_string())
+                ),
+                (
+                    "espionage.agents_sort_desc".to_string(),
+                    StateValue::Bool(false)
+                ),
+                ("espionage.ask".to_string(), StateValue::Int(-1)),
+                (
+                    "espionage.confirm".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                ("espionage.hover_agent".to_string(), StateValue::Int(-1)),
+                ("espionage.hover_city".to_string(), StateValue::Int(-1)),
+                (
+                    "espionage.intrigue_sort".to_string(),
+                    StateValue::Str("turn".to_string())
+                ),
+                (
+                    "espionage.intrigue_sort_desc".to_string(),
+                    StateValue::Bool(true)
+                ),
+                ("espionage.moving".to_string(), StateValue::Int(-1)),
+                (
+                    "espionage.other_sort".to_string(),
+                    StateValue::Str("civilization".to_string())
+                ),
+                (
+                    "espionage.other_sort_desc".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "espionage.own_sort".to_string(),
+                    StateValue::Str("name".to_string())
+                ),
+                (
+                    "espionage.own_sort_desc".to_string(),
+                    StateValue::Bool(false)
+                ),
+                ("espionage.selected".to_string(), StateValue::Int(-1)),
+                (
+                    "espionage.tab".to_string(),
+                    StateValue::Str("overview".to_string())
+                ),
                 ("free_gp.selected".to_string(), StateValue::Int(-1)),
+                ("goody.sel".to_string(), StateValue::Int(-1)),
                 ("ideology.confirm".to_string(), StateValue::Int(-1)),
                 ("ideology.details".to_string(), StateValue::Int(-1)),
                 ("ideology.folded".to_string(), StateValue::Int(0)),
                 ("ideology.name".to_string(), StateValue::Str("".to_string())),
                 ("leader.hover".to_string(), StateValue::Str("".to_string())),
+                ("menu.options".to_string(), StateValue::Bool(false)),
+                (
+                    "menu.panel".to_string(),
+                    StateValue::Str("details".to_string())
+                ),
+                (
+                    "military.sort".to_string(),
+                    StateValue::Str("name".to_string())
+                ),
+                ("military.sort_desc".to_string(), StateValue::Bool(false)),
                 ("minimap.banners".to_string(), StateValue::Bool(true)),
                 ("minimap.flags".to_string(), StateValue::Bool(true)),
                 ("minimap.options".to_string(), StateValue::Bool(false)),
                 ("minimap.streamer".to_string(), StateValue::Bool(false)),
+                ("mp_vote.pending".to_string(), StateValue::Bool(false)),
+                (
+                    "notification.hover".to_string(),
+                    StateValue::Str("".to_string())
+                ),
                 ("on_map.city".to_string(), StateValue::Str("".to_string())),
                 ("on_map.unit".to_string(), StateValue::Str("".to_string())),
+                ("opt.air_rebase_rmb".to_string(), StateValue::Bool(true)),
+                ("opt.all_great_people".to_string(), StateValue::Bool(false)),
+                ("opt.ambience".to_string(), StateValue::Int(70)),
+                ("opt.auto_close_city".to_string(), StateValue::Bool(false)),
+                ("opt.auto_close_tech".to_string(), StateValue::Bool(false)),
+                ("opt.auto_end_turn".to_string(), StateValue::Bool(false)),
+                ("opt.auto_end_turn_sp".to_string(), StateValue::Bool(false)),
+                ("opt.auto_unit_cycle".to_string(), StateValue::Bool(true)),
+                ("opt.city_advisor_recs".to_string(), StateValue::Bool(true)),
+                ("opt.city_ribbon".to_string(), StateValue::Bool(true)),
+                ("opt.civ_ribbon".to_string(), StateValue::Bool(true)),
+                ("opt.civilian_yields".to_string(), StateValue::Bool(true)),
+                ("opt.clock".to_string(), StateValue::Bool(false)),
+                ("opt.effects".to_string(), StateValue::Int(80)),
+                ("opt.music".to_string(), StateValue::Int(70)),
+                (
+                    "opt.next_unit_after_orders".to_string(),
+                    StateValue::Bool(true)
+                ),
+                ("opt.no_basic_help".to_string(), StateValue::Bool(false)),
+                ("opt.no_tile_recs".to_string(), StateValue::Bool(false)),
+                ("opt.policy_info_full".to_string(), StateValue::Bool(true)),
+                (
+                    "opt.ribbon_side".to_string(),
+                    StateValue::Str("right".to_string())
+                ),
+                ("opt.score_list".to_string(), StateValue::Bool(true)),
+                ("opt.scroll_inertia".to_string(), StateValue::Bool(true)),
+                (
+                    "opt.skip_reward_popups".to_string(),
+                    StateValue::Bool(false)
+                ),
+                ("opt.speech".to_string(), StateValue::Int(80)),
+                (
+                    "opt.tab".to_string(),
+                    StateValue::Str("general".to_string())
+                ),
+                ("opt.tooltip_delay".to_string(), StateValue::Int(500)),
+                ("opt.tooltip_delay_ext".to_string(), StateValue::Int(1500)),
+                ("opt.ui_scale".to_string(), StateValue::Int(100)),
+                ("opt.unit_ribbon".to_string(), StateValue::Bool(true)),
+                ("opt.warn_unassigned".to_string(), StateValue::Bool(true)),
+                (
+                    "opt.workers_keep_features".to_string(),
+                    StateValue::Bool(true)
+                ),
+                (
+                    "opt.workers_keep_improvements".to_string(),
+                    StateValue::Bool(true)
+                ),
+                ("opt.zoom_dynamic".to_string(), StateValue::Bool(true)),
                 ("pantheon.confirm".to_string(), StateValue::Int(-1)),
                 (
                     "pantheon.effect".to_string(),
@@ -628,6 +856,7 @@ api = "1.0"
                 ("policies.name".to_string(), StateValue::Str("".to_string())),
                 ("policies.tab".to_string(), StateValue::Str("".to_string())),
                 ("policies.tenet_level".to_string(), StateValue::Int(0)),
+                ("policies.visible".to_string(), StateValue::Bool(false)),
                 ("prod.hide_locked".to_string(), StateValue::Bool(false)),
                 (
                     "prod.sort".to_string(),
@@ -723,6 +952,37 @@ api = "1.0"
                 ("top.resource".to_string(), StateValue::Int(-1)),
                 ("top.resources".to_string(), StateValue::Bool(false)),
                 (
+                    "trade_routes.choose_sort".to_string(),
+                    StateValue::Str("city".to_string())
+                ),
+                (
+                    "trade_routes.collapse_city_states".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "trade_routes.collapse_majors".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "trade_routes.collapse_yours".to_string(),
+                    StateValue::Bool(false)
+                ),
+                ("trade_routes.confirm".to_string(), StateValue::Int(-1)),
+                ("trade_routes.hover".to_string(), StateValue::Int(-1)),
+                ("trade_routes.overview".to_string(), StateValue::Bool(false)),
+                (
+                    "trade_routes.sort".to_string(),
+                    StateValue::Str("from".to_string())
+                ),
+                (
+                    "trade_routes.sort_desc".to_string(),
+                    StateValue::Bool(false)
+                ),
+                (
+                    "trade_routes.tab".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                (
                     "unit_lists.civilian_folded".to_string(),
                     StateValue::Bool(false)
                 ),
@@ -745,6 +1005,14 @@ api = "1.0"
                 ),
                 ("unit_panel.hover".to_string(), StateValue::Int(-1)),
                 ("unit_panel.valid".to_string(), StateValue::Bool(false)),
+                (
+                    "victory.hover".to_string(),
+                    StateValue::Str("irr".to_string())
+                ),
+                (
+                    "victory.view".to_string(),
+                    StateValue::Str("summary".to_string())
+                ),
             ]
         );
         assert_eq!(
@@ -766,7 +1034,24 @@ api = "1.0"
                 "js/religion.js",
                 "js/religion_overview.js",
                 "js/civ_ribbon.js",
-                "js/leader.js"
+                "js/leader.js",
+                "js/economy.js",
+                "js/military.js",
+                "js/trade_routes.js",
+                "js/espionage.js",
+                "js/victory.js",
+                "js/demographics.js",
+                "js/culture.js",
+                "js/archaeology.js",
+                "js/city_state.js",
+                "js/congress.js",
+                "js/mp_vote.js",
+                "js/end_game.js",
+                "js/advisor.js",
+                "js/game_menu.js",
+                "js/confirm.js",
+                "js/message.js",
+                "js/goody_choice.js",
             ]
         );
         // The first state is the one the converter scans with.
@@ -824,7 +1109,41 @@ api = "1.0"
                 "declare_war--citystate",
                 "civ_ribbon--host",
                 "deal--player",
-                "deal--player-incoming"
+                "deal--player-incoming",
+                "economy",
+                "military",
+                "trade_routes",
+                "espionage",
+                "victory",
+                "demographics",
+                "demographics-whos-winning",
+                "economy-happiness",
+                "trade_routes-choose",
+                "trade_routes-home",
+                "trade_routes-port",
+                "culture",
+                "great_work",
+                "archaeology",
+                "archaeology--writing",
+                "city_state",
+                "city_state--enter",
+                "city_state--liberate",
+                "congress",
+                "congress--propose",
+                "congress--splash",
+                "congress--project",
+                "congress--empty",
+                "mp_vote",
+                "mp_vote--result",
+                "mp_vote--concede",
+                "mp_vote--diplo",
+                "confirm",
+                "message",
+                "goody_choice",
+                "notification_log",
+                "game_menu",
+                "end_game",
+                "advisor",
             ]
         );
         assert_eq!(skin.verify.golden[0].viewport, [1920, 1080]);

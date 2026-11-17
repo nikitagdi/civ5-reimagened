@@ -1,0 +1,183 @@
+[enum]
+CultureWorkClass = ["writing", "art", "artifact", "music"]
+CultureSlotType = ["art_artifact", "literature", "music"]
+CultureCellState = ["built", "not_built", "none"]
+CultureIdeology = ["none", "freedom", "order", "autocracy"]
+CultureLevel = ["unknown", "exotic", "familiar", "popular", "influential", "dominant"]
+CultureTrend = ["falling", "static", "rising_slowly", "rising"]
+
+[type.CultureCiv]
+id = "i32"
+name = "text"
+civ_name = "text"
+civ = "asset"
+leader = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.CultureWork]
+id = "i32"
+name = "text"
+class = "CultureWorkClass"
+creator = "text?"
+civ_name = "text"
+civ = "asset"
+color_bg = "color"
+color_fg = "color"
+era = "text"
+tooltip = "text"
+viewable = "bool"
+location = "text?"
+theme_bonus = "i32?"
+
+[type.CultureSlot]
+# Opaque, seat-local address, stable while its city and building exist.
+id = "i32"
+slot_type = "CultureSlotType"
+work = "CultureWork?"
+
+[type.CultureColumn]
+key = "str"
+building = "asset"
+name = "text"
+slot_type = "CultureSlotType"
+slots = "i32"
+tooltip = "text"
+
+[type.CultureCell]
+column = "str"
+state = "CultureCellState"
+theme_bonus = "i32?"
+theme_tooltip = "text?"
+slots = { list = "CultureSlot", key = "id" }
+
+[type.CultureExtra]
+key = "str"
+building = "asset"
+name = "text"
+theme_bonus = "i32?"
+theme_tooltip = "text?"
+slots = { list = "CultureSlot", key = "id" }
+
+[type.CultureCity]
+id = "i32"
+name = "text"
+capital = "bool"
+puppet = "bool"
+occupied = "bool"
+# Remaining hit points divided by maximum hit points, 0..1.
+health = "f32?"
+culture = "i32"
+tourism = "i32"
+tourism_tooltip = "text"
+works = "i32"
+slots_free = "i32"
+slots_tooltip = "text"
+cells = { list = "CultureCell", key = "column" }
+extra = { list = "CultureExtra", key = "key" }
+
+[type.CultureOffer]
+class = "CultureWorkClass"
+class_id = "i32"
+work = "CultureWork?"
+options = { list = "CultureWork", key = "id" }
+
+[type.CulturePartner]
+id = "i32"
+name = "text"
+civ_name = "text"
+civ = "asset"
+leader = "asset"
+color_bg = "color"
+color_fg = "color"
+human = "bool"
+writing = "CultureWork?"
+art = "CultureWork?"
+artifact = "CultureWork?"
+
+[type.CultureSwap]
+offers = { list = "CultureOffer", key = "class" }
+partners = { list = "CulturePartner", key = "id" }
+
+[type.CultureVictoryRow]
+id = "i32"
+name = "text"
+civ_name = "text"
+civ = "asset"
+leader = "asset"
+color_bg = "color"
+color_fg = "color"
+you = "bool"
+influential_on = "i32"
+influential_of = "i32"
+tourism = "i32"
+ideology = "CultureIdeology"
+ideology_name = "text?"
+opinion = "text?"
+opinion_tooltip = "text?"
+opinion_unhappiness = "i32?"
+opinion_unhappiness_tooltip = "text?"
+excess_happiness = "i32"
+
+[type.CultureVictory]
+rows = { list = "CultureVictoryRow", key = "id" }
+
+[type.CultureInfluenceRow]
+id = "i32"
+known = "bool"
+name = "text?"
+civ_name = "text?"
+civ = "asset?"
+color_bg = "color?"
+color_fg = "color?"
+level = "CultureLevel"
+level_name = "text"
+level_tooltip = "text"
+# Influence divided by target lifetime culture, 1 means 100 percent.
+share = "f32"
+tourism_accum = "i32"
+culture_accum = "i32?"
+bars_tooltip = "text"
+modifier_pct = "i32"
+modifier_tooltip = "text"
+per_turn = "i32"
+trend = "CultureTrend?"
+trend_name = "text?"
+trend_tooltip = "text?"
+turns_to_influential = "i32?"
+
+[type.CultureSource]
+id = "i32"
+name = "text"
+civ_name = "text"
+civ = "asset"
+leader = "asset"
+color_bg = "color"
+color_fg = "color"
+tourism = "i32"
+rows = { list = "CultureInfluenceRow", key = "id" }
+
+[type.CultureInfluence]
+sources = { list = "CultureSource", key = "id" }
+
+[type.CultureSummary]
+works = "i32"
+slots = "i32"
+tourism = "i32"
+influential_on = "i32"
+influential_of = "i32"
+
+[type.CultureAntiquity]
+sites = "i32"
+hidden = "i32"
+
+[model.culture]
+_optional = true
+player = "CultureCiv"
+summary = "CultureSummary"
+antiquity = "CultureAntiquity?"
+columns = { list = "CultureColumn", key = "key" }
+cities = { list = "CultureCity", key = "id" }
+swap = "CultureSwap"
+victory = "CultureVictory"
+influence = "CultureInfluence"

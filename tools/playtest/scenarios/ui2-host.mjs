@@ -308,6 +308,7 @@ async function switching(page, numbers, check) {
  */
 async function screensViaClassic(b, numbers, check, shot) {
   const page = b.page;
+  const { clickPart } = await import("./ui2-v1.mjs");
   const ui = uiDriver(b);
   const lua0 = await luaErrors(page);
   const runs = [];
@@ -318,13 +319,12 @@ async function screensViaClassic(b, numbers, check, shot) {
     ["demographics", "top.menu.demographics", "Demographics"],
   ];
   // The technology and policy screens are UI v2 windows of the skin now (server screens): their buttons open them in
-  // UI v2, no hand-off to the classic UI; Escape closes them. The other four screens are not in the skin and still go classic.
+  // UI v2; Escape closes them. Explicit screen.open intents below still exercise the classic handoff.
   for (const [label, part, win] of [["tech_tree", "top.menu.tech", "techs"], ["policies", "top.menu.policies", "policies"]]) {
-    const rect = await page.evaluate((p) => window.__civ5test.ui2Rects([p]), part).catch(() => null);
-    const r = Array.isArray(rect) ? rect[0] : null;
+    const r = await clickPart(page, part);
+    const rect = r;
     check(`screen ${label}: the skin's button ${part} is there`, !!r, JSON.stringify(rect));
     if (r) {
-      await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2);
       const up = await until(page, (x) => x.ui?.active === "v2" && !x.ui.screen, 20000, `${win} window`).catch((e) => e);
       let shown = false;
       const t0 = Date.now();
@@ -345,7 +345,15 @@ async function screensViaClassic(b, numbers, check, shot) {
     const rect = await page.evaluate((p) => window.__civ5test.ui2Rects([p]), part).catch(() => null);
     const r = Array.isArray(rect) ? rect[0] : null;
     run.button = r;
-    check(`screen ${screen}: unavailable HUD button is absent`, !r, JSON.stringify(rect));
+    const clicked = await clickPart(page, part);
+    check(`screen ${screen}: registered HUD button is present`, !!clicked, JSON.stringify(clicked));
+    const end = Date.now() + 30000;
+    while (Date.now() < end && !(await ui2(page))?.ui?.windows?.includes(screen)) await sleep(100);
+    check(`screen ${screen}: HUD opens the native window`, (await ui2(page))?.ui?.windows?.includes(screen), "");
+    await page.keyboard.press("Escape");
+    const closed = Date.now() + 10000;
+    while (Date.now() < closed && (await ui2(page))?.ui?.windows?.includes(screen)) await sleep(100);
+    check(`screen ${screen}: Escape closes the native window`, !(await ui2(page))?.ui?.windows?.includes(screen), "");
     const t0 = Date.now();
     await page.evaluate(screen => window.__civ5test.ui2Intent({name: "screen.open", args: {screen}}), screen);
     const up = await until(page, (x) => x.ui?.active === "classic" && x.ui.screen === screen && x.ui.screenShown && !x.ui.switching, 20000, `${screen} shown by the classic UI`).catch((e) => e);

@@ -1,0 +1,120 @@
+<template id="confirm-choice-tip" data-layer="tooltip"><div class="confirm-tip" data-bind-if="{{confirm != null}}"><div data-bind-for="c:{{confirm.choices}}" data-bind-filter="{{c.id == state.confirm.hover}}"><div data-bind-value="{{c.reason}}"></div><div data-bind-value="{{c.tooltip}}"></div></div></div></template>
+<template id="demographics-unit-tip" data-layer="tooltip">
+<div class="demographics-tip">
+<div data-bind-for="r:{{demographics.rows}}" data-bind-filter="{{r.key == state.demographics.hover}}">
+<span data-l10n="demographics.tip_people" data-bind-if="{{r.unit_key == 'people'}}">
+</span>
+<span data-l10n="demographics.tip_million_bushels" data-bind-if="{{r.unit_key == 'million_bushels'}}">
+</span>
+<span data-l10n="demographics.tip_million_tons" data-bind-if="{{r.unit_key == 'million_tons'}}">
+</span>
+<span data-l10n="demographics.tip_million_gold" data-bind-if="{{r.unit_key == 'million_gold'}}">
+</span>
+<span data-l10n="demographics.tip_square_km" data-bind-if="{{r.unit_key == 'square_km'}}">
+</span>
+<span data-l10n="demographics.tip_soldiers" data-bind-if="{{r.unit_key == 'soldiers'}}">
+</span>
+<span data-l10n="demographics.tip_percent" data-bind-if="{{r.unit_key == 'percent'}}">
+</span>
+</div>
+</div>
+</template>
+<template id="economy-units" data-layer="tooltip">
+<div class="economy-tip">
+<div data-bind-for="r:{{economy.finance.expense}}" data-bind-filter="{{r.key == 'units'}}">
+<div data-bind-if="{{r.tooltip != null}}">
+<div class="economy-ledger-row">
+<span data-l10n="economy.tip_paid" >
+</span>
+<span class="economy-value" data-bind-value="{{r.tooltip.paid}}" >
+</span>
+</div>
+<div class="economy-ledger-row">
+<span data-l10n="economy.tip_free" >
+</span>
+<span class="economy-value" data-bind-value="{{r.tooltip.free}}" >
+</span>
+</div>
+<div class="economy-ledger-row">
+<span data-l10n="economy.tip_avg_cost" >
+</span>
+<span class="economy-value" data-bind-value="{{r.tooltip.avg_cost}}" >
+</span>
+</div>
+<div class="economy-ledger-row">
+<span data-l10n="economy.tip_difficulty_mod_pct" >
+</span>
+<span class="economy-value" data-bind-value="{{r.tooltip.difficulty_mod_pct}}" >
+</span>
+</div>
+</div>
+</div>
+</div>
+</template>
+<template id="economy-connections" data-layer="tooltip">
+<div class="economy-tip">
+<div data-bind-for="r:{{economy.finance.income}}" data-bind-filter="{{r.key == 'connections'}}">
+<div data-bind-if="{{r.tooltip != null}}">
+<div class="economy-ledger-row">
+<span data-l10n="economy.tip_base" >
+</span>
+<span class="economy-value" data-bind-value="{{r.tooltip.base}}" >
+</span>
+</div>
+<div class="economy-ledger-row">
+<span data-l10n="economy.tip_per_citizen" >
+</span>
+<span class="economy-value" data-bind-value="{{r.tooltip.per_citizen}}" >
+</span>
+</div>
+<div class="economy-ledger-row">
+<span data-l10n="economy.tip_player_mod_pct" >
+</span>
+<span class="economy-value" data-bind-value="{{r.tooltip.player_mod_pct}}" >
+</span>
+</div>
+</div>
+</div>
+</div>
+</template>
+<template id="economy-puppet" data-layer="tooltip"><div class="economy-tip" data-l10n="economy.puppet_reason"></div></template>
+<template id="espionage-agent-tip" data-layer="tooltip">
+<div class="espionage-tip">
+<div data-bind-for="a:{{espionage.agents}}" data-bind-filter="{{a.id == state.espionage.hover_agent}}">
+<span class="espionage-value" data-bind-value="{{a.view_reason}}" >
+</span>
+<span class="espionage-value" data-bind-value="{{a.coup_reason}}" >
+</span>
+<div data-bind-if="{{a.coup != null}}">
+<span class="espionage-value" data-bind-value="{{a.coup.chance_pct}}" >
+</span>
+<span class="espionage-value" data-bind-value="{{a.coup.ally}}" >
+</span>
+</div>
+</div>
+</div>
+</template>
+<template id="goody-reason" data-layer="tooltip"><div class="goody-choice-tip" data-bind-if="{{state.goody.sel &lt; 0}}" data-l10n="goody.pick"></div></template>
+<template id="notification-card-tip" data-layer="tooltip"><div class="notification-log-tip"><div data-bind-for="n:{{notes}}" data-bind-filter="{{n.summary == state.notification.hover}}"><b data-bind-value="{{n.summary}}"></b><div data-bind-value="{{n.message}}"></div></div></div></template>
+<template id="victory-proposal-tip" data-layer="tooltip">
+<div class="victory-tip">
+<div data-bind-for="p:{{victory.proposals.items}}" data-bind-filter="{{p.key == state.victory.hover}}">
+<div data-bind-for="r:{{p.reasons}}">
+<span data-l10n="victory.reason_type_active" data-bind-if="{{r.key == 'type_active'}}">
+</span>
+<span data-l10n="victory.reason_type_unavailable" data-bind-if="{{r.key == 'type_unavailable'}}">
+</span>
+<span data-l10n="victory.reason_cooldown" data-bind-if="{{r.key == 'cooldown'}}">
+</span>
+<span data-l10n="victory.reason_wait_next_turn" data-bind-if="{{r.key == 'wait_next_turn'}}">
+</span>
+<span data-l10n="victory.reason_own_active" data-bind-if="{{r.key == 'own_active'}}">
+</span>
+<span data-l10n="victory.reason_other_active" data-bind-if="{{r.key == 'other_active'}}">
+</span>
+<span class="victory-value" data-bind-value="{{r.turn}}" >
+</span>
+</div>
+</div>
+</div>
+</template>

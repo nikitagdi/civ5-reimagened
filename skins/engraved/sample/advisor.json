@@ -1,0 +1,86 @@
+{
+  "model": {
+    "advisor": {
+      "civ": {
+        "key": "CIVILIZATION_RUSSIA",
+        "name": "Russia",
+        "icon": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": 1847335167,
+        "color_fg": 3837808383
+      },
+      "era": "Modern era",
+      "roles": [
+        {
+          "key": "economic",
+          "name": "Economic advisor",
+          "role": "Economy",
+          "portrait": "advisor:ECONOMIC_MODERN",
+          "pages": [
+            {
+              "id": 0,
+              "text": "Our gold income has fallen to 86 per turn since the Venice route ended. Build a Stock Exchange in Moscow and send the idle Caravan in Kazan to Venice again; it is still our richest partner."
+            },
+            {
+              "id": 1,
+              "text": "Kazan works three unimproved tiles. A Worker there would add 6 gold per turn."
+            },
+            {
+              "id": 2,
+              "text": "We have 1,284 gold in the treasury. Buying the Broadcast Tower in Moscow now saves 3 turns."
+            }
+          ]
+        },
+        {
+          "key": "military",
+          "name": "Military advisor",
+          "role": "Military",
+          "portrait": "advisor:MILITARY_MODERN",
+          "pages": [
+            {
+              "id": 0,
+              "text": "Our army is smaller than Egypt's and Arabia's."
+            },
+            {
+              "id": 1,
+              "text": "Egypt has massed Infantry and Artillery three tiles from Smolensk. The city has no Military Base and only one garrison. We should move the Infantry from Novgorod and finish Ballistics before Ramesses finishes his walls."
+            },
+            {
+              "id": 2,
+              "text": "Three of our units are still Rifleman and can be upgraded to Infantry."
+            },
+            {
+              "id": 3,
+              "text": "Build a Destroyer to watch the coast near Novgorod."
+            }
+          ]
+        },
+        {
+          "key": "foreign",
+          "name": "Foreign advisor",
+          "role": "Foreign affairs",
+          "portrait": "advisor:FOREIGN_MODERN",
+          "pages": [
+            {
+              "id": 0,
+              "text": "Ramesses has denounced us and Montezuma likes him. If the Congress vote on Scholars in Residence fails, Harun al-Rashid will be the only friend we have left. Offer him the Iron he asked for."
+            }
+          ]
+        },
+        {
+          "key": "science",
+          "name": "Science advisor",
+          "role": "Science",
+          "portrait": "advisor:SCIENCE_MODERN",
+          "pages": []
+        }
+      ]
+    }
+  },
+  "ui": {
+    "windows": {
+      "advisor": {
+        "open": true
+      }
+    }
+  }
+}

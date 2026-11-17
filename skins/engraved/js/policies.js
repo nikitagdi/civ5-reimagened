@@ -1,5 +1,11 @@
 (function () {
   "use strict";
+  function visibility() {
+    const windows = ui.model.get("ui.windows");
+    ui.state.set("policies.visible", !!windows && ["policies", "ideology", "pantheon", "religion", "religion_overview"].some(name => windows[name] && windows[name].open));
+  }
+  ui.model.on("ui.windows", visibility);
+  ui.on("ready", visibility);
   let present = false;
   let hadIdeology = false;
   const open = [];

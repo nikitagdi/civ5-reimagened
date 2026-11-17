@@ -64,5 +64,5 @@
   </section>
 </div>
 
-<button class="policies-escape" data-part="policies.escape" data-hotkey="Escape" data-bind-if="{{ui.windows.policies.open || ui.windows.ideology.open || ui.windows.pantheon.open || ui.windows.religion.open || ui.windows.religion_overview.open}}" data-on-click="call policies.escape()" data-l10n="policies.cancel">Cancel</button>
-<div class="policies-feedback" data-bind-if="{{ui.windows.policies.open || ui.windows.ideology.open || ui.windows.pantheon.open || ui.windows.religion.open || ui.windows.religion_overview.open}}"><span data-bind-if="{{policies == null &amp;&amp; ideology == null &amp;&amp; pantheon == null &amp;&amp; religion == null &amp;&amp; religion_overview == null}}" data-l10n="policies.loading">Loading choices</span><div data-part="policies.error" data-bind-for="e:{{ui.errors}}" data-bind-filter="{{e.detail != null}}" data-bind-value="{{e.detail}}"></div></div>
+<button class="policies-escape" data-part="policies.escape" data-hotkey="Escape" data-bind-if="{{state.policies.visible}}" data-on-click="call policies.escape()" data-l10n="policies.cancel">Cancel</button>
+<div class="policies-feedback" data-bind-if="{{state.policies.visible}}"><div data-bind-if="{{religion_overview == null}}"><span data-bind-if="{{policies == null &amp;&amp; ideology == null &amp;&amp; pantheon == null &amp;&amp; religion == null}}" data-l10n="policies.loading">Loading choices</span></div><div data-part="policies.error" data-bind-for="e:{{ui.errors}}" data-bind-filter="{{e.detail != null}}" data-bind-value="{{e.detail}}"></div></div>

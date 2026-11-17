@@ -1,4 +1,5 @@
-<section class="unit plate tr" data-part="unit" data-bind-if="{{unit != null && !ui.windows.city.open && !ui.windows.city_captured.open && !ui.windows.ideology.open && !ui.windows.pantheon.open && !ui.windows.religion.open && !ui.windows.free_great_person.open}}">
+<!-- SIMPLIFIED(SIMP-462): The native unit catalog has no spy identity or move-spy action; relocate spies from the espionage overview. -->
+<section class="unit plate tr" data-part="unit" data-bind-if="{{unit != null}}">
   <div class="head">
     <div class="portrait" data-part="unit.portrait">
       <svg class="i fill sil"><use href="#i-unit"/></svg>

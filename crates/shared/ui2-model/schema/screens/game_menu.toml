@@ -1,0 +1,121 @@
+[enum]
+GameMenuMode = ["network"]
+
+GameMenuSettingsKey = ["map_type", "map_size", "difficulty", "speed"]
+
+GameMenuKickedReason = ["kicked_by_host", "host_lost", "net_lost"]
+
+[type.GameMenuPlayerTrait]
+name = "text"
+short = "text"
+long = "text"
+
+[type.GameMenuPlayer]
+id = "i32"
+leader = "text"
+nick = "text?"
+leader_icon = "asset"
+civ = "text"
+civ_icon = "asset"
+color_bg = "color"
+color_fg = "color"
+trait = "GameMenuPlayerTrait"
+
+[type.GameMenuSettings]
+key = "GameMenuSettingsKey"
+label = "text"
+value = "text"
+short = "text"
+icon = "asset"
+tooltip = "text"
+
+[type.GameMenuDetails]
+key = "str"
+label = "text"
+value = "text"
+
+[type.GameMenuVictories]
+key = "str"
+name = "text"
+
+[type.GameMenuGameOptions]
+key = "str"
+name = "text"
+
+[type.GameMenuMods]
+id = "str"
+name = "text"
+version = "str"
+
+[type.GameMenuOptions]
+quick_combat = "bool"
+quick_movement = "bool"
+quick_locked_reason = "text?"
+email_turn = "bool"
+email_address = "text?"
+autosave_every = "i32"
+autosave_keep = "i32"
+
+[type.GameMenuHotkeysActions]
+key = "str"
+name = "text"
+icon = "asset"
+help = "text"
+default = "str?"
+hidden = "bool"
+
+[type.GameMenuHotkeys]
+key = "str"
+name = "text"
+count = "i32"
+actions = { list = "GameMenuHotkeysActions", key = "key" }
+
+[type.GameMenuLoadingFacts]
+key = "str"
+label = "text"
+value = "text"
+
+[type.GameMenuLoadingUniques]
+key = "str"
+name = "text"
+kind = "text"
+icon = "asset"
+short = "text"
+help = "text"
+
+[type.GameMenuLoadingPlayers]
+id = "i32"
+name = "text"
+me = "bool"
+loaded = "bool"
+
+[type.GameMenuLoading]
+is_loaded_game = "bool"
+ready = "bool"
+facts = { list = "GameMenuLoadingFacts", key = "key" }
+art = "asset"
+quote = "text"
+uniques = { list = "GameMenuLoadingUniques", key = "key" }
+players = { list = "GameMenuLoadingPlayers", key = "id" }
+
+[type.GameMenuKicked]
+reason = "GameMenuKickedReason"
+text = "text"
+
+[model.game_menu]
+_optional = true
+mode = "GameMenuMode"
+turn = "i32"
+player = "GameMenuPlayer"
+settings = { list = "GameMenuSettings", key = "key" }
+details = { list = "GameMenuDetails", key = "key" }
+victories = { list = "GameMenuVictories", key = "key" }
+game_options = { list = "GameMenuGameOptions", key = "key" }
+mods = { list = "GameMenuMods", key = "id" }
+can_save = "bool"
+save_reason = "text?"
+options = "GameMenuOptions"
+hotkeys = { list = "GameMenuHotkeys", key = "key" }
+loading = "GameMenuLoading?"
+kicked = "GameMenuKicked?"
+mods_reason = "text?"

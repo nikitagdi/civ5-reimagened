@@ -1,0 +1,162 @@
+# Gold values are gold per turn; food and production are yield points.
+[enum]
+EconomyTab = ["general", "happiness"]
+EconomyIncomeKey = ["cities", "diplomacy", "religion", "connections"]
+EconomyExpenseKey = ["units", "buildings", "improvements", "diplomacy"]
+EconomyHappinessKey = ["luxuries", "variety", "extra_per_luxury", "other_luxury", "local", "buildings", "connections", "city_states", "policies", "religion", "natural_wonders", "free_per_city", "world_congress", "difficulty"]
+EconomyOrderKind = ["unit", "building", "wonder", "project", "process"]
+
+[type.EconomyPlayer]
+name = "text"
+civ_name = "text"
+player = "i32"
+icon = "asset"
+color_bg = "color"
+color_fg = "color"
+
+[type.EconomyOptions]
+science = "bool"
+religion = "bool"
+happiness = "bool"
+
+[type.EconomyItem]
+id = "i32"
+name = "text"
+value = "f32"
+
+[type.EconomyIncomeTooltip]
+base = "f32"
+per_citizen = "f32"
+player_mod_pct = "i32"
+
+[type.EconomyExpenseTooltip]
+paid = "i32"
+free = "i32"
+avg_cost = "f32"
+difficulty_mod_pct = "i32"
+
+[type.EconomyIncome]
+key = "EconomyIncomeKey"
+value = "f32"
+items = { list = "EconomyItem", key = "id" }
+tooltip = "EconomyIncomeTooltip?"
+
+[type.EconomyExpense]
+key = "EconomyExpenseKey"
+value = "f32"
+items = { list = "EconomyItem", key = "id" }
+tooltip = "EconomyExpenseTooltip?"
+
+[type.EconomyFinance]
+treasury = "i32"
+net = "i32"
+gross = "i32"
+expenses = "i32"
+science_loss = "i32?"
+income = { list = "EconomyIncome", key = "key" }
+expense = { list = "EconomyExpense", key = "key" }
+
+[type.EconomyOrder]
+kind = "EconomyOrderKind"
+key = "str"
+name = "str"
+icon = "asset"
+stored = "i32?"
+cost = "i32?"
+per_turn = "i32?"
+turns = "i32?"
+
+[type.EconomyCity]
+id = "i32"
+city_key = "key<city>"
+name = "str"
+population = "i32"
+food_stored = "i32"
+food_threshold = "i32"
+food_per_turn = "i32"
+growth_turns = "i32?"
+starving = "bool"
+capital = "bool"
+puppet = "bool"
+occupied = "bool"
+health_pct = "i32?"
+defense = "i32"
+production = "i32"
+production_mod_pct = "i32"
+science = "i32"
+gold = "i32"
+culture = "f32"
+faith = "i32"
+golden_age = "i32?"
+order = "EconomyOrder?"
+
+[type.EconomyTotals]
+population = "i32"
+food = "i32"
+production = "i32"
+science = "i32"
+gold = "i32"
+culture = "f32"
+faith = "i32"
+golden_age = "i32?"
+
+[type.EconomyHappinessItem]
+entry_key = "str"
+id = "i32?"
+key = "str?"
+name = "text"
+icon = "asset?"
+value = "f32"
+
+[type.EconomyHappinessRow]
+key = "EconomyHappinessKey"
+value = "i32"
+items = { list = "EconomyHappinessItem", key = "entry_key" }
+
+[type.EconomyHappiness]
+enabled = "bool"
+total = "i32"
+items = { list = "EconomyHappinessRow", key = "key" }
+
+[type.EconomyUnhappyCount]
+count = "i32"
+value = "f32"
+
+[type.EconomyUnhappyCity]
+id = "i32"
+name = "text"
+value = "f32"
+occupied = "bool"
+
+[type.EconomyUnhappiness]
+total = "i32"
+cities = "EconomyUnhappyCount"
+occupied_cities = "EconomyUnhappyCount"
+population = "EconomyUnhappyCount"
+occupied_population = "EconomyUnhappyCount"
+public_opinion = "f32"
+by_city = { list = "EconomyUnhappyCity", key = "id" }
+
+[type.EconomyResource]
+key = "str"
+name = "text"
+icon = "asset"
+count = "i32"
+
+[type.EconomyResources]
+available = { list = "EconomyResource", key = "key" }
+imported = { list = "EconomyResource", key = "key" }
+exported = { list = "EconomyResource", key = "key" }
+local = { list = "EconomyResource", key = "key" }
+
+[model.economy]
+_optional = true
+player = "EconomyPlayer"
+options = "EconomyOptions"
+open_tab = "EconomyTab?"
+finance = "EconomyFinance"
+cities = { list = "EconomyCity", key = "id" }
+totals = "EconomyTotals"
+happiness = "EconomyHappiness"
+unhappiness = "EconomyUnhappiness"
+resources = "EconomyResources"

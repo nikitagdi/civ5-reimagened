@@ -1,0 +1,297 @@
+{
+  "model": {
+    "city_state": {
+      "view": "diplo",
+      "player_id": 0,
+      "player_gold": 312,
+      "minor": {
+        "id": 24,
+        "key": "player:24",
+        "team_id": 24,
+        "name": "Valletta",
+        "emblem": "civ:MINOR_CIV_VALLETTA",
+        "color_bg": 3637494015,
+        "color_fg": 1511987967,
+        "name_color": 3819213823,
+        "trait": "militaristic",
+        "trait_name": "Militaristic",
+        "trait_tooltip": "Militaristic city-states give their friends military units. Valletta gives Comanche Riders once you know Military Science.",
+        "personality": "hostile",
+        "personality_name": "Hostile",
+        "personality_tooltip": "Hostile city-states bully weaker neighbours and are quick to declare war.",
+        "has_capital": true,
+        "capital_plot": 2871
+      },
+      "speech": {
+        "kind": "peace_friend",
+        "text": "Russia’s friendship has served Valletta well. Our garrison will keep sending you its finest soldiers, and we expect the same loyalty in return.",
+        "caption": "Valletta greets a friend"
+      },
+      "status": {
+        "kind": "friend",
+        "style": "friend",
+        "label": "Friends",
+        "influence": 52,
+        "per_turn": -1.0,
+        "resting_point": 0,
+        "at_rest": false,
+        "at_war": false,
+        "war_turns": 0,
+        "war_threshold": -60,
+        "friend_threshold": 30,
+        "ally_threshold": 60,
+        "scale_side": "positive",
+        "scale_fill_pct": 86.7,
+        "scale_marker_pct": 86.7,
+        "friend_tick_pct": 50.0
+      },
+      "ally": {
+        "kind": "civ",
+        "player_id": 1,
+        "name": "Harun al-Rashid",
+        "emblem": "civ:CIVILIZATION_ARABIA",
+        "color_bg": 795556607,
+        "color_fg": 3655583487,
+        "influence": 71,
+        "influence_to_overtake": 20,
+        "ally_turns": 14,
+        "marriage": false,
+        "refuses_bribes": false,
+        "tooltip": "Harun al-Rashid is their ally with 71 influence. You need 20 more influence to take their place."
+      },
+      "protectors": [
+        {
+          "key": "player:0",
+          "player_id": 0,
+          "name": "You",
+          "is_you": true,
+          "emblem": "civ:CIVILIZATION_RUSSIA",
+          "color_bg": 1847335167,
+          "color_fg": 3837808383
+        },
+        {
+          "key": "player:1",
+          "player_id": 1,
+          "name": "Harun al-Rashid",
+          "is_you": false,
+          "emblem": "civ:CIVILIZATION_ARABIA",
+          "color_bg": 795556607,
+          "color_fg": 3655583487
+        }
+      ],
+      "enemies": [
+        {
+          "key": "player:2",
+          "player_id": 2,
+          "name": "Montezuma",
+          "is_you": false,
+          "emblem": "civ:CIVILIZATION_AZTEC",
+          "color_bg": 1512317695,
+          "color_fg": 1655942655
+        }
+      ],
+      "can_bully": true,
+      "bully_text": "You can demand tribute",
+      "bonuses": [
+        {
+          "key": "unit_gift",
+          "kind": "units",
+          "icon": "unit:UNIT_INFANTRY",
+          "text": "A military unit about every 18 turns, next in 6",
+          "short": "Unit every ~18 turns",
+          "next_in": 6
+        }
+      ],
+      "resources": [
+        {
+          "key": "RESOURCE_IRON",
+          "icon": "resource:RESOURCE_IRON",
+          "name": "Iron",
+          "count": 4,
+          "kind": "strategic",
+          "exported": true
+        },
+        {
+          "key": "RESOURCE_HORSE",
+          "icon": "resource:RESOURCE_HORSE",
+          "name": "Horses",
+          "count": 2,
+          "kind": "strategic",
+          "exported": true
+        },
+        {
+          "key": "RESOURCE_SILK",
+          "icon": "resource:RESOURCE_SILK",
+          "name": "Silk",
+          "count": 1,
+          "kind": "luxury",
+          "exported": true
+        }
+      ],
+      "resources_exported_text": "all of them",
+      "quests": [
+        {
+          "key": "quest:24:kill_camp",
+          "type": "kill_camp",
+          "icon": "quest:KILL_CAMP",
+          "title": "Destroy a barbarian encampment",
+          "detail": "Camp 4 tiles south of Valletta",
+          "tooltip": "Destroy the barbarian encampment 4 tiles south of Valletta. 12 turns left.",
+          "turns_left": 12,
+          "plot": 3127,
+          "can_locate": true,
+          "contest_you": null,
+          "contest_leader": null,
+          "contest_leader_name": null,
+          "contest_you_lead": null
+        },
+        {
+          "key": "quest:24:contest_culture",
+          "type": "contest_culture",
+          "icon": "quest:CONTEST_CULTURE",
+          "title": "Culture contest",
+          "detail": "You 412, leader Montezuma 588",
+          "tooltip": "Generate the most culture. You 412, leader Montezuma 588. 18 turns left.",
+          "turns_left": 18,
+          "plot": null,
+          "can_locate": false,
+          "contest_you": 412,
+          "contest_leader": 588,
+          "contest_leader_name": "Montezuma",
+          "contest_you_lead": false
+        },
+        {
+          "key": "quest:24:find_natural_wonder",
+          "type": "find_natural_wonder",
+          "icon": "quest:FIND_NATURAL_WONDER",
+          "title": "Find a natural wonder",
+          "detail": "Any natural wonder you have not seen yet",
+          "tooltip": "Find a natural wonder you have not seen yet. No time limit.",
+          "turns_left": null,
+          "plot": null,
+          "can_locate": false,
+          "contest_you": null,
+          "contest_leader": null,
+          "contest_leader_name": null,
+          "contest_you_lead": null
+        }
+      ],
+      "no_quests_text": "",
+      "threat_barbarians": true,
+      "threat_barbarians_text": "Barbarians threaten Valletta. Kill barbarian units near the city for influence.",
+      "threat_proxy_war": false,
+      "threat_proxy_war_text": "",
+      "actions": {
+        "peace": {
+          "visible": false,
+          "enabled": false,
+          "turns": 0,
+          "reason": ""
+        },
+        "war": {
+          "visible": true,
+          "enabled": true,
+          "reason": ""
+        },
+        "gifts": {
+          "visible": true,
+          "enabled": true
+        },
+        "tribute": {
+          "visible": true,
+          "enabled": true,
+          "subtitle": "Your army nearby outweighs their defence"
+        },
+        "pledge": {
+          "visible": true,
+          "state": "pledged",
+          "enabled": false,
+          "turns": 4,
+          "reason": "Pledges hold 10 turns, yours since 208"
+        },
+        "unit_spawning": {
+          "visible": true,
+          "on": true,
+          "subtitle": "Valletta sends you a unit every ~18 turns"
+        },
+        "buyout": {
+          "visible": false,
+          "enabled": false,
+          "cost": 0,
+          "reason": ""
+        }
+      },
+      "gifts": {
+        "gold": [
+          {
+            "key": "small",
+            "index": 0,
+            "amount": 250,
+            "influence": 21,
+            "enabled": true,
+            "reason": ""
+          },
+          {
+            "key": "medium",
+            "index": 1,
+            "amount": 500,
+            "influence": 38,
+            "enabled": false,
+            "reason": "188 gold short"
+          },
+          {
+            "key": "large",
+            "index": 2,
+            "amount": 1000,
+            "influence": 69,
+            "enabled": false,
+            "reason": "688 gold short"
+          }
+        ],
+        "gold_hint": "Friends at 30, allies at 60",
+        "unit": {
+          "enabled": false,
+          "influence_min": 10,
+          "influence_max": 40,
+          "travel_turns": 4,
+          "reason": "Choose-unit map mode is unavailable in this skin."
+        },
+        "improvement": {
+          "enabled": false,
+          "cost": 200,
+          "reason": "Choose-improvement map mode is unavailable in this skin."
+        }
+      },
+      "tribute": {
+        "pressure": 108,
+        "pressure_gold_needed": 100,
+        "pressure_unit_needed": 140,
+        "tooltip": "Your units near Valletta outweigh its defence: you can demand gold.",
+        "gold": {
+          "enabled": true,
+          "amount": 156,
+          "influence_loss": 30,
+          "reason": ""
+        },
+        "unit": {
+          "enabled": false,
+          "unit_name": "Worker",
+          "icon": "unit:UNIT_WORKER",
+          "influence_loss": 50,
+          "reason": "Needs more pressure: 108 of 140"
+        },
+        "confirm_influence_after": 22,
+        "confirm_status_after": "Neutral"
+      },
+      "enter_land": null,
+      "liberate": null
+    }
+  },
+  "ui": {
+    "windows": {
+      "city_state": {
+        "open": true
+      }
+    }
+  }
+}
