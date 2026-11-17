@@ -776,7 +776,7 @@ mod tests {
             },
             Command::ProposePeace { to: 2 },
         ] {
-            assert_eq!(go(cmd), None, "{cmd:?}");
+            assert_eq!(go(cmd.clone()), None, "{cmd:?}");
         }
     }
 
@@ -948,7 +948,7 @@ mod tests {
         // Stale (the client's view moved on), and another unit's context.
         assert_eq!(
             go_in(
-                mv,
+                mv.clone(),
                 &w,
                 &turn(false, true, TurnPhase::Humans),
                 10,
@@ -971,7 +971,7 @@ mod tests {
             turn(false, true, TurnPhase::GameOver { winner: None }),
             turn(false, false, TurnPhase::Humans),
         ] {
-            assert_eq!(go_in(mv, &w, &t, 9, &Overlay::default()), None);
+            assert_eq!(go_in(mv.clone(), &w, &t, 9, &Overlay::default()), None);
         }
         // Without a turn state nothing is known about the phase.
         let s = store();

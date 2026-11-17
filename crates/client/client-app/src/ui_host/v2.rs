@@ -54,6 +54,10 @@ const MAX_EVENTS: usize = 1024;
 /// to the same game again (a reconnect) keeps the UI's state; another game, or leaving the game, is a new game.
 pub(crate) fn action_event(ev: &ClientEvent, game: &mut Option<GameId>) -> Option<ActionEvent> {
     match ev {
+        ClientEvent::QueryResult { id, answer } => Some(ActionEvent::QueryResult {
+            id: *id,
+            answer: answer.clone(),
+        }),
         ClientEvent::OrderAnswered { id, outcome } => Some(ActionEvent::Answered {
             id: *id,
             outcome: outcome.clone(),
@@ -366,6 +370,12 @@ fn probe_windows(ui: &V2Ui) -> Vec<&'static str> {
     ]
     .into_iter()
     .filter_map(|(n, open)| open.then_some(n))
+    .chain(
+        ui2_host::SCREEN_NAMES
+            .iter()
+            .copied()
+            .filter(|name| w.remote(name).is_some_and(|w| w.open)),
+    )
     .collect()
 }
 

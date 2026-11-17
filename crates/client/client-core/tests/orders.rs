@@ -607,7 +607,7 @@ fn the_order_goes_as_a_cmd_with_its_number_and_the_turn_of_the_view() {
         .log
         .iter()
         .filter_map(|(_, m)| match m {
-            ClientMsg::Cmd(c) => Some(*c),
+            ClientMsg::Cmd(c) => Some(c.clone()),
             _ => None,
         })
         .collect();

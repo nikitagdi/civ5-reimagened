@@ -243,7 +243,7 @@ fn every_path_of_the_generated_schema_has_the_type_the_json_gives_it() {
         assert_eq!(view.root(name), Some(want), "{name}");
     }
     let intents = json["intents"].as_array().expect("intents");
-    assert_eq!(intents.len(), 27);
+    assert_eq!(intents.len(), 28);
     for intent in intents {
         let name = intent["name"].as_str().expect("name");
         let want: Vec<(String, TypeSig)> = intent["args"]

@@ -352,7 +352,7 @@ fn the_mockup_top_bar() {
 
     let meta = rig.store.get::<Meta>().expect("meta is written");
     assert!(meta.live && !meta.catching_up);
-    assert_eq!(&*meta.schema, "1.0");
+    assert_eq!(&*meta.schema, ui2_model::Schema::v1().version().to_string());
     assert!(rig.store.take_frame().is_some());
 }
 

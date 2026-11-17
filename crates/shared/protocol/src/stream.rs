@@ -115,7 +115,7 @@ pub enum KeyframeReason {
 pub type CmdId = u32;
 
 /// An order with its number (`ClientMsg::Cmd`). `turn` is the turn the client saw.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Cmd {
     pub id: CmdId,
     pub turn: i32,

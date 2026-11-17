@@ -454,7 +454,8 @@ pub fn core_command(cmd: &Command) -> Result<CoreCommand, BuildError> {
         | Command::CityQueuePop { .. }
         | Command::CityQueueMove { .. }
         | Command::CityReplaceHead { .. }
-        | Command::ResearchSet { .. } => {
+        | Command::ResearchSet { .. }
+        | Command::ScreenAction { .. } => {
             return Err(
                 "the v15 queue and research orders are net messages, not core commands".into(),
             );

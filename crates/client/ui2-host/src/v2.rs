@@ -142,6 +142,7 @@ fn fatal(e: LoadError) -> String {
 pub struct V2Ui {
     pub(crate) store: ModelStore,
     pub(crate) source: UiSource,
+    pub(crate) remote: ui2_source::remote::RemoteRoots,
     /// The UI's own state and the way out for orders; lives as long as the model, across skins.
     pub(crate) actions: UiActions,
     /// Intents from outside the markup (map clicks), applied with the markup's in the next frame.
@@ -214,6 +215,7 @@ impl V2Ui {
         Ok(V2Ui {
             store,
             source,
+            remote: ui2_source::remote::RemoteRoots::default(),
             actions,
             queued: Vec::new(),
             skin,

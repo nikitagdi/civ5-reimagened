@@ -414,8 +414,8 @@ mod tests {
     }
 
     #[test]
-    fn protocol_version_is_15() {
-        assert_eq!(PROTOCOL_VERSION, 15);
+    fn protocol_version_is_16() {
+        assert_eq!(PROTOCOL_VERSION, 16);
     }
 
     /// New ClientMsg variants keep tags 2..=5 (after Hello = 0, Ping = 1).
@@ -1440,7 +1440,7 @@ mod tests {
         assert_eq!(cmd(pop), [4, 21, 4, 4]);
         assert_eq!(cmd(mv), [4, 22, 4, 1, 0]);
         assert_eq!(cmd(head), [4, 23, 4, 0, 1]);
-        assert_eq!(cmd(research), [4, 24, 10, 1]);
+        assert_eq!(cmd(research.clone()), [4, 24, 10, 1]);
         let numbered = Postcard
             .encode(&ClientMsg::Cmd(Cmd {
                 id: 1,
@@ -1465,6 +1465,37 @@ mod tests {
                 },
             );
         }
+    }
+
+    #[test]
+    fn screen_messages_append_tags_and_round_trip_both_codecs() {
+        let query = Query::Screen {
+            screen: "techs".into(),
+            args: vec![("a".into(), i64::MIN), ("b".into(), i64::MAX)],
+        };
+        let answer = QueryAnswer::Screen {
+            screen: "techs".into(),
+            json: "{}".into(),
+        };
+        let command = Command::ScreenAction {
+            screen: "techs".into(),
+            action: "research".into(),
+            args: vec![("a".into(), 12), ("b".into(), 1)],
+        };
+        assert_eq!(Postcard.encode(&query).unwrap()[0], 11);
+        assert_eq!(Postcard.encode(&answer).unwrap()[0], 12);
+        assert_eq!(Postcard.encode(&command).unwrap()[0], 25);
+        rt(&Postcard, &query);
+        rt(&Json, &query);
+        rt(&Postcard, &answer);
+        rt(&Json, &answer);
+        let command = ClientMsg::Cmd(Cmd {
+            id: 7,
+            turn: 9,
+            cmd: command,
+        });
+        rt(&Postcard, &command);
+        rt(&Json, &command);
     }
 
     /// v12 bytes of `GameSettings` (frozen from the v12 build) still load: `SETG`, recording headers.

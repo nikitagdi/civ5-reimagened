@@ -24,7 +24,7 @@ enum State {
 }
 
 /// An order sent and not answered finally.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct Pending {
     id: CmdId,
     cmd: Command,
@@ -97,7 +97,7 @@ impl Orders {
             .map(|p| Cmd {
                 id: p.id,
                 turn: p.turn,
-                cmd: p.cmd,
+                cmd: p.cmd.clone(),
             })
             .collect()
     }
@@ -195,6 +195,7 @@ pub(crate) fn query_kind(q: &Query) -> &'static str {
         Query::Notifications => "Notifications",
         Query::Reach { .. } => "Reach",
         Query::CombatPreview { .. } => "CombatPreview",
+        Query::Screen { .. } => "Screen",
     }
 }
 

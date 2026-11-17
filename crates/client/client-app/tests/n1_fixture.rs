@@ -146,7 +146,7 @@ impl Gateway {
                     new.turn = w.view.turn + i32::from(matches!(c.cmd, Command::EndTurn { .. }));
                     out.push(w.step_to(new));
                 }
-                out.extend(self.book.on_cmd(c, &mut self.world));
+                out.extend(self.book.on_cmd(c.clone(), &mut self.world));
                 if is_new && matches!(c.cmd, Command::EndTurn { .. }) {
                     let ts = turn_state(self.world.view.turn);
                     out.push(self.world.push(vec![GameMsg::TurnState(ts)]));

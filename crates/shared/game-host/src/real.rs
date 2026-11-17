@@ -404,6 +404,7 @@ pub fn network_setup(setup: &GameSetup, fallback_seed: u64) -> Result<gc::Setup,
 /// team or a player gets the viewer's data (game-host-mp 4.15).
 pub struct RealCore {
     game: gc::Game,
+    screen_localization: Vec<u8>,
     events: Arc<Mutex<Vec<GameEvent>>>,
     /// Events taken from the core's queue and not yet turned into journal entries.
     backlog: Vec<GameEvent>,
@@ -432,6 +433,7 @@ impl RealCore {
     /// # Errors
     /// `BadStart`: the core did not boot (missing or broken game data, a second instance in the process).
     pub fn boot(read: FileReader) -> Result<Self, CoreError> {
+        let screen_localization = read(crate::files::LOC_DB_PATH).unwrap_or_default();
         let events = Arc::new(Mutex::new(Vec::new()));
         let mut game = gc::Game::new(ReaderHost {
             read,
@@ -451,6 +453,7 @@ impl RealCore {
         })?;
         Ok(RealCore {
             game,
+            screen_localization,
             build_id,
             events,
             backlog: Vec::new(),
@@ -803,6 +806,14 @@ fn addressee(ev: &GameEvent) -> EventTarget {
 }
 
 impl Core for RealCore {
+    fn attach_screen_lua(&mut self, lua: &lua_sys::Lua) -> Result<(), CoreError> {
+        self.game
+            .attach_lua(lua)
+            .map_err(failed("screen Lua attach"))?;
+        crate::screens::localization::attach(lua, &self.screen_localization)
+            .map_err(CoreError::failed)
+    }
+
     fn start(&mut self, start: CoreStart<'_>) -> Result<(), CoreError> {
         match start {
             CoreStart::New { setup, seed } => {
@@ -1753,7 +1764,9 @@ mod tests {
         assert!(plan(mv(3, 0), Some(&c)).is_ok());
         for bad in [pop(4), pop(i8::MAX), mv(0, 4), mv(4, 0), mv(5, 9)] {
             assert!(
-                plan(bad, Some(&c)).unwrap_err().contains("queue of 4"),
+                plan(bad.clone(), Some(&c))
+                    .unwrap_err()
+                    .contains("queue of 4"),
                 "{bad:?}"
             );
         }

@@ -12,6 +12,7 @@ const SOURCES: &[(&str, &str)] = &[
     ("session.rs", include_str!("../src/session.rs")),
     ("static_source.rs", include_str!("../src/static_source.rs")),
     ("pending.rs", include_str!("../src/pending.rs")),
+    ("remote.rs", include_str!("../src/remote.rs")),
     ("build/mod.rs", include_str!("../src/build/mod.rs")),
     ("build/game.rs", include_str!("../src/build/game.rs")),
     ("build/top.rs", include_str!("../src/build/top.rs")),

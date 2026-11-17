@@ -544,7 +544,7 @@ impl ClientCore {
         let turn = replica_turn
             .filter(|t| *t > 0)
             .unwrap_or_else(|| self.base_turn());
-        self.orders.add(id, cmd, turn, self.now);
+        self.orders.add(id, cmd.clone(), turn, self.now);
         self.stats.orders_sent += 1;
         self.draw_order(id, &cmd);
         self.send_current(&ClientMsg::Cmd(Cmd { id, turn, cmd }));

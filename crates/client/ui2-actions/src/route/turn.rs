@@ -104,6 +104,13 @@ fn cancel(ctx: &mut Ctx<'_>) {
 
 /// Open a screen of the host (outside the skin); the toast says when the host has no way to.
 fn open_screen(ctx: &mut Ctx<'_>, screen: ScreenId) {
+    if let Some(window) = WindowId::from_name(screen.as_str())
+        && ctx.ui.ui().windows.remote(screen.as_str()).is_some()
+    {
+        window::open(ctx, window, None);
+        return;
+    }
+
     if !ctx.sink.open_screen(screen) {
         ctx.refuse(RefuseWhy::NoScreen);
     }

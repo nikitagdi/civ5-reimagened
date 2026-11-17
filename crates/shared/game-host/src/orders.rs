@@ -136,6 +136,7 @@ fn is_unit_or_city_order(c: &Command) -> bool {
             | Command::CityQueueMove { .. }
             | Command::CityReplaceHead { .. }
             | Command::ResearchSet { .. }
+            | Command::ScreenAction { .. }
     )
 }
 
@@ -203,9 +204,10 @@ impl<C: Core> Worker<C> {
         self.tl_cmd_accepted(player, cmd.id, &cmd.cmd);
         // While the core is busy the seat hears `Queued` at once.
         let busy = self.phase != TurnPhase::Humans;
+        let id = cmd.id;
         self.queue.push_cmd(player, cmd, busy);
         if busy {
-            fb.result(player, cmd.id, CommandOutcome::Queued);
+            fb.result(player, id, CommandOutcome::Queued);
         }
     }
 
@@ -433,7 +435,7 @@ impl<C: Core> Worker<C> {
             });
         }
         let apply_t0 = self.tl_now();
-        let mut r = self.core.command(player, &cmd.cmd);
+        let mut r = self.screen_or_core_command(player, &cmd.cmd);
         self.collect_events();
         // Live game 931 (2026-10-30): an end of turn right after a move was refused with "a unit / city is busy;
         // pump first" and nothing pumped any more (the humans' phase waits for orders), so the turn hung. The
@@ -449,7 +451,7 @@ impl<C: Core> Worker<C> {
             if self.phase != TurnPhase::Humans {
                 break;
             }
-            r = self.core.command(player, &cmd.cmd);
+            r = self.screen_or_core_command(player, &cmd.cmd);
             self.collect_events();
         }
         if settle > 0 {

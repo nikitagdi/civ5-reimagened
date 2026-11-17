@@ -20,6 +20,8 @@ mod peace;
 pub mod real;
 pub mod replica;
 pub mod saves;
+#[path = "../screens/mod.rs"]
+pub mod screens;
 mod seats;
 mod slots;
 mod stats;

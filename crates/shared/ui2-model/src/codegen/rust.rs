@@ -251,5 +251,26 @@ pub fn generate(s: &Schema) -> String {
         struct_code(&mut out, s, t);
     }
     roots_code(&mut out, s);
+    if let Some(windows) = s.types().iter().find(|t| t.name == "Windows") {
+        let names = windows
+            .fields
+            .iter()
+            .filter(|f| matches!(&f.ty, Type::Struct(t) if s.type_def(*t).name == "WinArgs"))
+            .map(|f| f.name.as_str())
+            .collect::<Vec<_>>();
+        let _ = writeln!(out, "\npub const SCREEN_NAMES: &[&str] = &{:?};", names);
+        let _ = writeln!(out, "impl Windows {{");
+        for (method, reference) in [("remote", "&"), ("remote_mut", "&mut ")] {
+            let _ = writeln!(
+                out,
+                "    pub fn {method}({reference}self, name: &str) -> Option<{reference}WinArgs> {{\n        Some(match name {{"
+            );
+            for name in &names {
+                let _ = writeln!(out, "            {name:?} => {reference}self.{name},");
+            }
+            let _ = writeln!(out, "            _ => return None,\n        }})\n    }}");
+        }
+        let _ = writeln!(out, "}}");
+    }
     out
 }

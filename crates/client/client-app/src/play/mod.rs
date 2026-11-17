@@ -77,7 +77,7 @@ impl Outputs {
     pub fn send(self, ctl: &mut PlayController, sink: &mut dyn OrderSink) -> Vec<UiEffect> {
         for cmd in self.commands {
             tracing::info!("command sent: {cmd:?}");
-            match sink.order(cmd) {
+            match sink.order(cmd.clone()) {
                 Ok(id) => ctl.on_order_sent(id, &cmd),
                 Err(why) => {
                     tracing::info!("order refused: {why:?}");
@@ -86,7 +86,7 @@ impl Outputs {
             }
         }
         for q in self.queries {
-            let id = sink.query(q);
+            let id = sink.query(q.clone());
             ctl.query_sent(id, &q);
         }
         self.effects

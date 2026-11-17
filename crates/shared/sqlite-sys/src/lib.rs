@@ -29,6 +29,14 @@ unsafe extern "C" {
         flags: c_int,
         vfs: *const c_char,
     ) -> c_int;
+    pub fn sqlite3_deserialize(
+        db: *mut sqlite3,
+        schema: *const c_char,
+        data: *mut u8,
+        size: i64,
+        capacity: i64,
+        flags: u32,
+    ) -> c_int;
     pub fn sqlite3_close(db: *mut sqlite3) -> c_int;
     pub fn sqlite3_errmsg(db: *mut sqlite3) -> *const c_char;
     pub fn sqlite3_exec(

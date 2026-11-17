@@ -175,6 +175,18 @@ impl V2Ui {
             if *ev == ActionEvent::NewGame {
                 // Another game: every root is rebuilt from it, its catalog read again.
                 self.source.reset();
+                self.remote.reset();
+            }
+            if let ActionEvent::Answered { id, outcome } = ev
+                && *outcome != protocol::CommandOutcome::Queued
+                && let Some(p) = self
+                    .actions
+                    .ui()
+                    .pending
+                    .iter()
+                    .find(|p| p.seq == *id as i32 && p.intent.as_ref() == "screen.act")
+            {
+                self.remote.invalidate(&p.target);
             }
             self.actions.on_event(ev, now_ms);
         }
@@ -250,6 +262,29 @@ impl V2Ui {
                 ),
             }
         };
+        if self.sample.is_none() {
+            let mut errors = Vec::new();
+            let mut w = self.store.writer(Owner::Source);
+            // Closing a window removes its subscription before any late answer is considered.
+            errors.extend(self.remote.frame(
+                now_ms,
+                net.revision(),
+                net.session().connected(),
+                self.actions.ui(),
+                &mut w,
+                |q| net.query(q),
+            ));
+            for event in events {
+                if let ActionEvent::QueryResult { id, answer } = event
+                    && let Some(e) = self.remote.answer(*id, answer, &mut w)
+                {
+                    errors.push(e);
+                }
+            }
+            for error in errors {
+                self.actions.screen_error(&error, now_ms);
+            }
+        }
         let source_ms = (now() - t_source) as f32;
         // A sample is a fixed picture: its windows and focus are not judged against a game.
         if self.sample.is_none() {

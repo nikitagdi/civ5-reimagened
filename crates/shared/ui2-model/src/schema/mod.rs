@@ -60,7 +60,7 @@ impl FragmentDraft {
 }
 
 /// The v1 schema source, embedded in the crate.
-const V1_SOURCE: &str = include_str!("../../schema/ui-model.toml");
+const V1_SOURCE: &str = include_str!(concat!(env!("OUT_DIR"), "/ui-model.toml"));
 
 /// A schema problem. The text is meant to be shown to the author as is.
 #[derive(Clone, Debug, PartialEq, Eq, Error)]

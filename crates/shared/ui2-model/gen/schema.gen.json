@@ -1,6 +1,6 @@
 {
-"version": "1.0",
-"hash": "899e7e5a99497c3d",
+"version": "1.1",
+"hash": "c1c790745ff17c2c",
 "roots": [
 {"name":"meta","type":"Meta","field":0,"owner":"source"},
 {"name":"game","type":"Game","field":6,"owner":"source"},
@@ -13,7 +13,8 @@
 {"name":"notes","type":"list<Note>","field":252,"owner":"source"},
 {"name":"chat","type":"list<ChatRow>","field":261,"owner":"source"},
 {"name":"production","type":"Production?","field":269,"owner":"source"},
-{"name":"ui","type":"Ui","field":332,"owner":"actions"}
+{"name":"ui","type":"Ui","field":332,"owner":"actions"},
+{"name":"techs","type":"Techs?","field":374,"owner":"source"}
 ],
 "types": [
 {"name":"Plot","fields":[{"name":"x","type":"i16"},{"name":"y","type":"i16"}]},
@@ -44,12 +45,16 @@
 {"name":"Detail","fields":[{"name":"item","type":"key<item>"},{"name":"name","type":"text"},{"name":"kind","type":"ItemKind"},{"name":"turns","type":"i16?"},{"name":"cost","type":"i32"},{"name":"help","type":"text?"},{"name":"maintenance","type":"i32?"},{"name":"requires","type":"list<Req>","key":"idx"},{"name":"compare","type":"list<CityTurns>","key":"city"},{"name":"short_gold","type":"i32?"}]},
 {"name":"Selection","fields":[{"name":"unit","type":"key<unit>?"},{"name":"city","type":"key<city>?"},{"name":"plot","type":"Plot?"}]},
 {"name":"Win","fields":[{"name":"open","type":"bool"}]},
+{"name":"WinArgs","fields":[{"name":"open","type":"bool"},{"name":"a","type":"i32?"},{"name":"b","type":"i32?"}]},
 {"name":"WinCity","fields":[{"name":"open","type":"bool"},{"name":"city","type":"key<city>?"}]},
-{"name":"Windows","fields":[{"name":"production","type":"WinCity"},{"name":"research","type":"Win"},{"name":"menu","type":"Win"},{"name":"chat","type":"Win"},{"name":"notes_log","type":"Win"}]},
+{"name":"Windows","fields":[{"name":"techs","type":"WinArgs"},{"name":"production","type":"WinCity"},{"name":"research","type":"Win"},{"name":"menu","type":"Win"},{"name":"chat","type":"Win"},{"name":"notes_log","type":"Win"}]},
 {"name":"UiProduction","fields":[{"name":"tab","type":"ProdTab","js":true},{"name":"focus","type":"key<item>?","js":true},{"name":"hover","type":"key<item>?","js":true}]},
 {"name":"UiChat","fields":[{"name":"to","type":"ChatTo","js":true},{"name":"to_player","type":"key<player>?","js":true}]},
 {"name":"Pending","fields":[{"name":"seq","type":"i32"},{"name":"intent","type":"str"},{"name":"target","type":"str"},{"name":"since_ms","type":"u32"}]},
 {"name":"Toast","fields":[{"name":"seq","type":"i32"},{"name":"kind","type":"ToastKind"},{"name":"why","type":"RefuseWhy"},{"name":"detail","type":"str?"}]},
+{"name":"TechsPrerequisite","fields":[{"name":"id","type":"i32"}]},
+{"name":"TechsUnlock","fields":[{"name":"idx","type":"i32"},{"name":"name","type":"text"}]},
+{"name":"TechsRow","fields":[{"name":"id","type":"i32"},{"name":"name","type":"text"},{"name":"column","type":"i32"},{"name":"row","type":"i32"},{"name":"status","type":"TechsStatus"},{"name":"cost","type":"i32"},{"name":"progress","type":"i32"},{"name":"turns","type":"i32?"},{"name":"prerequisites","type":"list<TechsPrerequisite>","key":"id"},{"name":"queue_position","type":"i32"},{"name":"era","type":"i32"},{"name":"era_name","type":"text"},{"name":"icon","type":"asset"},{"name":"unlocks","type":"list<TechsUnlock>","key":"idx"}]},
 {"name":"Meta","fields":[{"name":"schema","type":"str"},{"name":"source","type":"Source"},{"name":"live","type":"bool"},{"name":"catching_up","type":"bool"},{"name":"connected","type":"bool"}]},
 {"name":"Game","fields":[{"name":"turn","type":"i32"},{"name":"year","type":"i32"},{"name":"year_text","type":"text"},{"name":"era","type":"EraRef"},{"name":"me","type":"key<player>"},{"name":"phase","type":"Phase"},{"name":"mode","type":"TurnMode"},{"name":"winner","type":"key<player>?"}]},
 {"name":"Top","fields":[{"name":"science_rate","type":"i32"},{"name":"gold","type":"i32"},{"name":"gold_rate","type":"i32"},{"name":"happiness","type":"i32"},{"name":"mood","type":"Mood"},{"name":"golden_age","type":"GoldenAge"},{"name":"culture","type":"i32"},{"name":"culture_rate","type":"i32"},{"name":"policy_cost","type":"i32"},{"name":"policy_turns","type":"i16?"},{"name":"faith","type":"i32"},{"name":"faith_rate","type":"i32"},{"name":"tourism","type":"i32?"},{"name":"resources","type":"list<Resource>","key":"id"},{"name":"policies","type":"list<PolicyBranch>","key":"id"}]},
@@ -58,7 +63,8 @@
 {"name":"Unit","fields":[{"name":"key","type":"key<unit>"},{"name":"name","type":"str"},{"name":"type_name","type":"text"},{"name":"portrait","type":"asset"},{"name":"level","type":"i16"},{"name":"xp","type":"i16"},{"name":"strength","type":"i16"},{"name":"ranged","type":"i16"},{"name":"range","type":"i16"},{"name":"moves","type":"f32"},{"name":"max_moves","type":"i16"},{"name":"hp","type":"i16"},{"name":"max_hp","type":"i16"},{"name":"hp_fraction","type":"f32"},{"name":"domain","type":"Domain"},{"name":"activity","type":"Activity"},{"name":"promotions","type":"list<Promo>","key":"id"},{"name":"promotion_ready","type":"bool"},{"name":"actions","type":"list<UnitActionRow>","key":"kind"},{"name":"act","type":"UnitActs"},{"name":"pending","type":"bool"}]},
 {"name":"Map","fields":[{"name":"cities","type":"list<CityBanner>","key":"key"},{"name":"units","type":"list<UnitFlag>","key":"key"}]},
 {"name":"Production","fields":[{"name":"city","type":"key<city>"},{"name":"name","type":"str"},{"name":"capital","type":"bool"},{"name":"size","type":"i16"},{"name":"rate","type":"i32"},{"name":"overflow","type":"i32?"},{"name":"gold","type":"i32"},{"name":"faith","type":"i32"},{"name":"current","type":"ProdNow?"},{"name":"queue_known","type":"bool"},{"name":"queue","type":"list<QueueRow>","key":"slot"},{"name":"groups","type":"list<OptGroup>","key":"kind"},{"name":"detail","type":"Detail?"}]},
-{"name":"Ui","fields":[{"name":"selection","type":"Selection"},{"name":"map_mode","type":"MapMode"},{"name":"windows","type":"Windows"},{"name":"production","type":"UiProduction"},{"name":"chat","type":"UiChat"},{"name":"pending","type":"list<Pending>","key":"seq"},{"name":"turn_pending","type":"TurnPending"},{"name":"errors","type":"list<Toast>","key":"seq"}]}
+{"name":"Ui","fields":[{"name":"selection","type":"Selection"},{"name":"map_mode","type":"MapMode"},{"name":"windows","type":"Windows"},{"name":"production","type":"UiProduction"},{"name":"chat","type":"UiChat"},{"name":"pending","type":"list<Pending>","key":"seq"},{"name":"turn_pending","type":"TurnPending"},{"name":"errors","type":"list<Toast>","key":"seq"}]},
+{"name":"Techs","fields":[{"name":"techs","type":"list<TechsRow>","key":"id"}]}
 ],
 "enums": [
 {"name":"Source","variants":["replica","server"]},
@@ -77,11 +83,12 @@
 {"name":"TurnPending","variants":["none","ending","cancelling"]},
 {"name":"ToastKind","variants":["refused","rejected","lost"]},
 {"name":"RefuseWhy","variants":["unsupported","no_screen","no_unit","action_unavailable","not_your_city","option_unavailable","cannot_buy","bad_slot","tech_unavailable","cannot_end_turn","cannot_cancel","chat_empty","chat_too_long","chat_rate","no_connection","no_game","too_many","turn_changed","too_big","core","turn_ended","not_your_turn","restarting","invalid","expired","not_seated","other"]},
-{"name":"WindowId","variants":["production","research","menu","chat","notes_log"]},
+{"name":"WindowId","variants":["production","research","menu","chat","notes_log","techs"]},
 {"name":"ScreenId","variants":["tech_tree","policies","religion","diplomacy","overview","notification_log","economy","military","victory","demographics","chat"]},
 {"name":"MouseButton","variants":["left","right"]},
 {"name":"PushAt","variants":["back","front"]},
-{"name":"BuyWith","variants":["gold","faith"]}
+{"name":"BuyWith","variants":["gold","faith"]},
+{"name":"TechsStatus","variants":["researched","current","available","queued","locked"]}
 ],
 "intents": [
 {"name":"unit.select","args":[{"name":"unit","type":"key<unit>"}]},
@@ -103,14 +110,15 @@
 {"name":"research.choose","args":[{"name":"tech","type":"key<tech>"},{"name":"queue","type":"bool"}]},
 {"name":"note.dismiss","args":[{"name":"note","type":"key<note>"}]},
 {"name":"note.activate","args":[{"name":"note","type":"key<note>"}]},
-{"name":"window.open","args":[{"name":"window","type":"WindowId"},{"name":"city","type":"key<city>?"}]},
+{"name":"window.open","args":[{"name":"window","type":"WindowId"},{"name":"city","type":"key<city>?"},{"name":"a","type":"i32?"},{"name":"b","type":"i32?"}]},
 {"name":"window.close","args":[{"name":"window","type":"WindowId"}]},
 {"name":"window.toggle","args":[{"name":"window","type":"WindowId"}]},
 {"name":"screen.open","args":[{"name":"screen","type":"ScreenId"}]},
 {"name":"camera.to_plot","args":[{"name":"plot","type":"Plot"}]},
 {"name":"camera.to_city","args":[{"name":"city","type":"key<city>"}]},
 {"name":"camera.to_unit","args":[{"name":"unit","type":"key<unit>"}]},
-{"name":"chat.send","args":[{"name":"text","type":"str"},{"name":"to","type":"ChatTo"},{"name":"player","type":"key<player>?"}]}
+{"name":"chat.send","args":[{"name":"text","type":"str"},{"name":"to","type":"ChatTo"},{"name":"player","type":"key<player>?"}]},
+{"name":"screen.act","args":[{"name":"screen","type":"str"},{"name":"action","type":"str"},{"name":"a","type":"i32?"},{"name":"b","type":"i32?"},{"name":"c","type":"i32?"},{"name":"d","type":"i32?"}]}
 ],
 "paths": [
 {"path":"meta","type":"Meta"},
@@ -454,6 +462,10 @@
 {"path":"ui.selection.plot.y","type":"i16"},
 {"path":"ui.map_mode","type":"MapMode"},
 {"path":"ui.windows","type":"Windows"},
+{"path":"ui.windows.techs","type":"WinArgs"},
+{"path":"ui.windows.techs.open","type":"bool"},
+{"path":"ui.windows.techs.a","type":"i32?"},
+{"path":"ui.windows.techs.b","type":"i32?"},
 {"path":"ui.windows.production","type":"WinCity"},
 {"path":"ui.windows.production.open","type":"bool"},
 {"path":"ui.windows.production.city","type":"key<city>?"},
@@ -482,6 +494,25 @@
 {"path":"ui.errors[].seq","type":"i32"},
 {"path":"ui.errors[].kind","type":"ToastKind"},
 {"path":"ui.errors[].why","type":"RefuseWhy"},
-{"path":"ui.errors[].detail","type":"str?"}
+{"path":"ui.errors[].detail","type":"str?"},
+{"path":"techs","type":"Techs?"},
+{"path":"techs.techs","type":"list<TechsRow>","list_key":"id"},
+{"path":"techs.techs[].id","type":"i32"},
+{"path":"techs.techs[].name","type":"text"},
+{"path":"techs.techs[].column","type":"i32"},
+{"path":"techs.techs[].row","type":"i32"},
+{"path":"techs.techs[].status","type":"TechsStatus"},
+{"path":"techs.techs[].cost","type":"i32"},
+{"path":"techs.techs[].progress","type":"i32"},
+{"path":"techs.techs[].turns","type":"i32?"},
+{"path":"techs.techs[].prerequisites","type":"list<TechsPrerequisite>","list_key":"id"},
+{"path":"techs.techs[].prerequisites[].id","type":"i32"},
+{"path":"techs.techs[].queue_position","type":"i32"},
+{"path":"techs.techs[].era","type":"i32"},
+{"path":"techs.techs[].era_name","type":"text"},
+{"path":"techs.techs[].icon","type":"asset"},
+{"path":"techs.techs[].unlocks","type":"list<TechsUnlock>","list_key":"idx"},
+{"path":"techs.techs[].unlocks[].idx","type":"i32"},
+{"path":"techs.techs[].unlocks[].name","type":"text"}
 ]
 }

@@ -1108,7 +1108,7 @@ fn an_order_is_answered_after_the_view_that_shows_it() {
         panic!()
     };
     let others: Vec<u32> = (1..4).map(|p| h.clients[&p].delta_count).collect();
-    let id = h.cmd(0, cmd);
+    let id = h.cmd(0, cmd.clone());
     // The order waits for the next step.
     assert!(h.outcome(0, id).is_empty());
     assert!(h.w.wants_step());
@@ -2772,7 +2772,7 @@ fn v15_queue_and_research_orders_are_applied_and_the_view_shows_the_head() {
         ),
     ];
     for (cmd, want) in steps {
-        let id = h.cmd(0, cmd);
+        let id = h.cmd(0, cmd.clone());
         h.run();
         assert_eq!(h.last_outcome(0, id), CommandOutcome::Applied, "{cmd:?}");
         assert_eq!(queue(&mut h), want, "{cmd:?}");
@@ -2825,7 +2825,7 @@ fn a_wrong_slot_city_item_or_tech_is_invalid() {
             queue: true,
         },
     ] {
-        let id = h.cmd(0, cmd);
+        let id = h.cmd(0, cmd.clone());
         h.run();
         rejected_with(&h, 0, id, RejectCode::Invalid);
         let CommandOutcome::Rejected { reason, .. } = h.last_outcome(0, id) else {

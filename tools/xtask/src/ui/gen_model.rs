@@ -7,11 +7,36 @@ use anyhow::{Context, Result, bail};
 use ui2_model::Schema;
 use ui2_model::codegen::{GenFile, generate};
 
+#[path = "../../../../crates/shared/ui2-model/schema/assemble.rs"]
+mod assemble;
+
 const SCHEMA: &str = "crates/shared/ui2-model/schema/ui-model.toml";
 
 /// Parse the schema on disk and produce every generated file.
 fn files(root: &Path) -> Result<Vec<GenFile>> {
-    let src = fs::read_to_string(root.join(SCHEMA)).with_context(|| format!("reading {SCHEMA}"))?;
+    let base =
+        fs::read_to_string(root.join(SCHEMA)).with_context(|| format!("reading {SCHEMA}"))?;
+    let mut paths = fs::read_dir(root.join("crates/shared/ui2-model/schema/screens"))?
+        .map(|e| e.map(|e| e.path()))
+        .collect::<std::io::Result<Vec<_>>>()?;
+    paths.retain(|p| p.extension().is_some_and(|e| e == "toml"));
+    paths.sort();
+    let mut screens = Vec::new();
+    for p in paths {
+        let name = p
+            .file_stem()
+            .context("screen filename")?
+            .to_string_lossy()
+            .into_owned();
+        anyhow::ensure!(
+            root.join("crates/shared/game-host/screens")
+                .join(format!("{name}.lua"))
+                .is_file(),
+            "screen {name} has no script"
+        );
+        screens.push((name, fs::read_to_string(p)?));
+    }
+    let src = assemble::assemble(&base, &screens).map_err(anyhow::Error::msg)?;
     let schema = Schema::parse(&src).map_err(|e| anyhow::anyhow!("{SCHEMA}: {e}"))?;
     Ok(generate(&schema))
 }

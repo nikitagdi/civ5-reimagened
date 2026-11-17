@@ -63,3 +63,15 @@ fn engraved_hud_sample_is_the_top_strip_fixture() {
         assert_eq!(other, Some(v), "root {rid:?}");
     }
 }
+
+#[test]
+fn every_registered_screen_has_a_schema_checked_sample() {
+    for screen in g::SCREEN_NAMES {
+        let sample = load("engraved", &format!("{screen}.json"));
+        let root = Schema::v1().root_by_name(screen).expect("registered root");
+        assert!(sample.roots().iter().any(|(id, _)| *id == root));
+        sample
+            .apply(&mut ModelStore::new(Schema::v1()))
+            .expect("sample applies");
+    }
+}

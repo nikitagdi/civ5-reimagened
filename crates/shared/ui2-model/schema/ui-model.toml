@@ -1,4 +1,4 @@
-version = "1.0"
+version = "1.1"
 
 # The UI view model, schema 1.0. Source of the generated Rust types, the path table and the JS typings
 # (`cargo xtask ui gen-model`). A new field, root or enum value is a minor version; removing, renaming or
@@ -249,6 +249,13 @@ plot = "Plot?"
 [type.Win]
 open = "bool"
 
+# SIMPLIFIED(SIMP-320): window and intent scalar arguments use the model's signed 32-bit
+# integer type, widened to i64 on the screen protocol boundary.
+[type.WinArgs]
+open = "bool"
+a = "i32?"
+b = "i32?"
+
 [type.WinCity]
 open = "bool"
 city = "key<city>?"
@@ -482,6 +489,8 @@ note = "key<note>"
 [intent."window.open"]
 window = "WindowId"
 city = "key<city>?"
+a = "i32?"
+b = "i32?"
 
 [intent."window.close"]
 window = "WindowId"
@@ -505,3 +514,11 @@ unit = "key<unit>"
 text = "str"
 to = "ChatTo"
 player = "key<player>?"
+
+[intent."screen.act"]
+screen = "str"
+action = "str"
+a = "i32?"
+b = "i32?"
+c = "i32?"
+d = "i32?"

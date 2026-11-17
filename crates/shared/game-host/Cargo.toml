@@ -23,7 +23,10 @@ asset-format.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
+loc.workspace = true
+sqlite-sys.workspace = true
 turntrace.workspace = true
+lua-sys.workspace = true
 
 [dev-dependencies]
 gamecore-sys.workspace = true

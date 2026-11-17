@@ -193,6 +193,13 @@ pub struct CoreEvent {
 
 /// Core for the worker. Methods that take a `team` or a `player` return what that viewer may know.
 pub trait Core {
+    /// Bind the running game to a worker-owned screen interpreter.
+    fn attach_screen_lua(&mut self, _lua: &lua_sys::Lua) -> Result<(), CoreError> {
+        Err(CoreError::failed(
+            "screen data is unavailable for this core",
+        ))
+    }
+
     /// Begins the game. Called once.
     fn start(&mut self, start: CoreStart<'_>) -> Result<(), CoreError>;
     /// Reference data of the game.

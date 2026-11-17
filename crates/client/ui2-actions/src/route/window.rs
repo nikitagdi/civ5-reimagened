@@ -13,7 +13,13 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
         return;
     };
     match intent.name() {
-        "window.open" => open(ctx, window, intent.key("city")),
+        "window.open" => {
+            open(ctx, window, intent.key("city"));
+            if let Some(w) = ctx.ui.edit().windows.remote_mut(window.as_str()) {
+                w.a = intent.int("a");
+                w.b = intent.int("b");
+            }
+        }
         "window.close" => close(&mut ctx.ui.edit().windows, window),
         "window.toggle" => {
             if is_open(&ctx.ui.ui().windows, window) {
@@ -65,6 +71,11 @@ fn set_open(w: &mut Windows, window: WindowId, open: bool) {
         WindowId::Menu => w.menu.open = open,
         WindowId::Chat => w.chat.open = open,
         WindowId::NotesLog => w.notes_log.open = open,
+        remote => {
+            if let Some(w) = w.remote_mut(remote.as_str()) {
+                w.open = open;
+            }
+        }
     }
 }
 
@@ -75,5 +86,6 @@ fn is_open(w: &Windows, window: WindowId) -> bool {
         WindowId::Menu => w.menu.open,
         WindowId::Chat => w.chat.open,
         WindowId::NotesLog => w.notes_log.open,
+        remote => w.remote(remote.as_str()).is_some_and(|w| w.open),
     }
 }

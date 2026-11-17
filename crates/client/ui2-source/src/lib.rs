@@ -17,6 +17,7 @@ pub mod catalog;
 pub mod cost;
 pub mod pending;
 pub mod profile;
+pub mod remote;
 pub mod session;
 pub mod static_source;
 pub mod trigger;
