@@ -6,7 +6,8 @@
     if (["mine", "world", "beliefs"].includes(tab)) ui.state.set("religion_overview.tab", tab);
   });
   ui.state.on("religion_overview.tab", value => ui.settings.set("religion_overview.tab", value));
-  ui.on("religion_overview.sort", (table, key) => {
+  ui.on("religion_overview.sort", (...p) => {
+    const [table, key] = Array.isArray(p[0]) ? p[0] : p;
     const allowed = table === "world" ? ["name", "holy_city", "founder", "cities"] : ["name", "type", "religion_name"];
     if (!["world", "beliefs"].includes(table) || !allowed.includes(key)) return;
     const prefix = "religion_overview." + table;

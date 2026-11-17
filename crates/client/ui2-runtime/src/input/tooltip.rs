@@ -147,7 +147,12 @@ impl Runtime {
             return false;
         };
         let mut g = self.geo();
-        let (opos, osize) = (g.abs(owner), g.size(owner));
+        let (mut opos, mut osize) = (g.abs(owner), g.size(owner));
+        // A node of a map anchor is where the host put the anchor, not where the layout has it.
+        if let Some(xf) = g.anchor_xf(owner) {
+            let (from, to) = (xf.transform_point2(opos), xf.transform_point2(opos + osize));
+            (opos, osize) = (from, to - from);
+        }
         let (tpos, tsize) = (g.abs(root), g.size(root));
         let vp = Vec2::from(self.style_env.scale.viewport_css);
         // SIMPLIFIED(SIMP-200): the tooltip always goes under its node (left edges aligned, 4 px gap) and is only pushed back inside the viewport; there is no choice of another side when it does not fit below

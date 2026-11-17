@@ -21,7 +21,7 @@
 .deal-footer { border-top: 1px solid #4d4032; padding: 16px 24px; }
 .deal-buttons, .deal-editor { display: flex; align-items: center; gap: 12px; }
 .deal-buttons button { min-width: 160px; }
-.deal-editor input { width: 120px; background: #26221d; color: #ebe2d2; border: 1px solid #4d4032; padding: 8px; }
+.deal-editor input { appearance: none; width: 120px; background: #26221d; color: #ebe2d2; border: 1px solid #4d4032; padding: 8px; }
 .deal-player { left: auto; right: 0; width: 640px; top: 56px; bottom: 396px; }
 .deal-player .deal-header { padding: 12px; }
 .deal-player .deal-header b { font-size: 20px; }

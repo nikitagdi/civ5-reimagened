@@ -4,7 +4,7 @@ return {
         local unit = args.a and Players[player]:GetUnitByID(args.a)
         assert(unit and unit:GetOwner() == player, "Choose an owned unit first.")
         local enabled = Players[player]:IsTurnActive() and not unit:IsBusy() and not unit:IsDelayedDeath()
-        return {unit = unit:GetID(), name = unit:GetName(), enabled = enabled,
+        return {unit = unit:GetID(), name = (unit.GetNameNoDesc and unit:GetNameNoDesc() or "") ~= "" and unit:GetNameNoDesc() or unit:GetName(), enabled = enabled,
             reason = not enabled and "The unit cannot be renamed now." or nil}
     end,
     actions = {

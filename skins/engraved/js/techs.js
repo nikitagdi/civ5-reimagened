@@ -5,7 +5,8 @@
     const root = ui.model.get("techs");
     if (!root || root.mode === "normal") ui.intent("window.close", {"window": "techs"});
   });
-  ui.on("techs.track", function (id, append) {
+  ui.on("techs.track", function (...p) {
+    const [id, append] = Array.isArray(p[0]) ? p[0] : p;
     const root = ui.model.get("techs");
     const row = root && root.techs.find(t => t.id === id);
     choice = row && append === 0 ? {id, progress: row.progress, mode: root.mode, opened: root.opened_by} : null;

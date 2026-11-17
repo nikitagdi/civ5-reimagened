@@ -1,8 +1,9 @@
 (function () {
   "use strict";
   let unit = -1;
-  ui.on("on_map.hover", function (kind, key) { ui.state.set("on_map." + kind, String(key)); });
-  ui.on("unit_panel.act", function (id, client, alt, shift) {
+  ui.on("on_map.hover", function (...p) { const [kind, key] = Array.isArray(p[0]) ? p[0] : p; ui.state.set("on_map." + kind, String(key)); });
+  ui.on("unit_panel.act", function (...p) {
+    let [id, client, alt, shift] = Array.isArray(p[0]) ? p[0] : p;
     const selected = ui.model.get("unit");
     const hud = ui.model.get("hud");
     if (!selected || !hud || !hud.unit || hud.unit.id !== Number(String(selected.key).split(":").pop())) return;

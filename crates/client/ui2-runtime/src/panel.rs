@@ -8,11 +8,11 @@
 
 use std::sync::Arc;
 
-use ui2_package::StrId;
 use ui2_package::style::{
     BorderStyle, BoxSizing, ColorV, Display, Len, LenAuto, Overflow, StyleRecord, TextOverflow,
     TextWrapMode,
 };
+use ui2_package::{NodeKind, NodeRef, StrId};
 
 use crate::arena::{Dirty, Node, NodeClass, NodeId, PLACEHOLDER_STYLE};
 use crate::error::{ErrorCode, UiError};
@@ -154,7 +154,16 @@ impl Runtime {
                 .arena
                 .get(id)
                 .and_then(|n| instantiate::template_node(&*self.pkg, n.tmpl()))
-                .and_then(|t| t.part)
+                .and_then(|t| {
+                    // A top-level `if` or `for` (a part that comes and goes with the model) is named by
+                    // the part of its body's root.
+                    match &t.kind {
+                        NodeKind::For { tpl, .. } | NodeKind::If { tpl, .. } => {
+                            instantiate::template_node(&*self.pkg, NodeRef(*tpl, 0))?.part
+                        }
+                        _ => t.part,
+                    }
+                })
                 .and_then(|p| self.pkg.str(p))
                 .map(str::to_string);
             if let Some(name) = name {

@@ -196,6 +196,19 @@ impl<'a> Geo<'a> {
         Some(anchors.placement(id, origin, k))
     }
 
+    /// The placement (layout space to page space) of the placed anchor a node is inside of (the node itself
+    /// included); `None` for a node outside any anchor and for an anchor the host has not placed.
+    pub fn anchor_xf(&mut self, id: NodeId) -> Option<Affine2> {
+        let mut at = Some(id);
+        while let Some(a) = at {
+            if let Some(placed) = self.anchor_placement(a) {
+                return placed;
+            }
+            at = self.arena.get(a).and_then(|n| n.parent());
+        }
+        None
+    }
+
     pub fn record(&self, id: NodeId) -> Option<&'a StyleRecord> {
         let n = self.arena.get(id)?;
         Some(node_record(self.index, self.pkg.styles(), n))

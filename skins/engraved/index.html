@@ -60,7 +60,7 @@
   </div>
   <div class="layer" data-layer="hud">
     <div data-include="icons.svg"></div>
-    <div data-bind-if="{{!ui.windows.economy.open && !ui.windows.military.open && !ui.windows.trade_routes.open}}">
+    <div data-part="hud-root" data-bind-if="{{!ui.windows.economy.open && !ui.windows.military.open && !ui.windows.trade_routes.open}}">
     <div data-bind-if="{{!ui.windows.espionage.open && !ui.windows.victory.open && !ui.windows.demographics.open}}">
     <div data-bind-if="{{!ui.windows.culture.open && !ui.windows.great_work.open && !ui.windows.archaeology.open}}">
     <div data-bind-if="{{!ui.windows.city_state.open && !ui.windows.congress.open && !ui.windows.mp_vote.open}}">
@@ -71,7 +71,6 @@
     <div data-bind-if="{{!ui.windows.religion_overview.open && !ui.windows.diplo.open && !ui.windows.leader.open}}">
     <div data-bind-if="{{!ui.windows.city_captured.open && !ui.windows.free_great_person.open}}">
     <div data-bind-if="{{!ui.windows.deal.open || deal == null || deal.partner == null || deal.partner.is_human}}">
-      <div data-include="parts/top.html"></div>
       <div data-include="parts/notification_log_panel.html"></div>
       <div data-include="parts/chat.html"></div>
       <div data-include="parts/helm.html"></div>
@@ -92,7 +91,7 @@
     </div>
   </div>
   <div class="layer" data-layer="window">
-    <div data-bind-if="{{!ui.windows.economy.open && !ui.windows.military.open && !ui.windows.trade_routes.open}}">
+    <div data-part="windows-root" data-bind-if="{{!ui.windows.economy.open && !ui.windows.military.open && !ui.windows.trade_routes.open}}">
     <div data-bind-if="{{!ui.windows.espionage.open && !ui.windows.victory.open && !ui.windows.demographics.open}}">
     <div data-bind-if="{{!ui.windows.culture.open && !ui.windows.great_work.open && !ui.windows.archaeology.open}}">
     <div data-bind-if="{{!ui.windows.city_state.open && !ui.windows.congress.open && !ui.windows.mp_vote.open}}">
@@ -107,8 +106,11 @@
         <div data-include="parts/unit_lists.html"></div>
         <div class="unit-lists-research" data-bind-if="{{!ui.windows.city_list.open}}"><div data-include="parts/tech_panel.html"></div></div>
         <div data-include="parts/city_list.html"></div>
+        <div data-include="parts/unit_lists_body.html"></div>
         <div data-include="parts/unit.html"></div>
       </div>
+      <!-- After the corner column: the folded screen menu hangs over it and must be on top of it. -->
+      <div data-include="parts/top.html"></div>
     </div>
     </div>
     </div>

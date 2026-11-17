@@ -1,5 +1,5 @@
 .minimap-buttons { position: absolute; left: 8px; bottom: 16px; width: 40px; display: flex; flex-direction: column; gap: 4px; }
-.minimap-buttons button { height: 32px; padding: 2px; font-size: 9px; color: var(--bone-2); border: 1px solid var(--engrave); border-radius: 3px; }
+.minimap-buttons button { height: 32px; padding: 2px; overflow: hidden; line-height: 10px; font-size: 9px; color: var(--bone-2); border: 1px solid var(--engrave); border-radius: 3px; }
 .minimap-buttons button:hover { border-color: var(--brass); }
 .minimap-buttons button:disabled { color: var(--bone-3); border-color: var(--engrave); cursor: default; }
 .minimap-options { position: absolute; right: 432px; bottom: 16px; width: 320px; max-height: 440px; overflow-y: auto; scrollbar-width: none; padding: 16px; border: 1px solid var(--engrave); border-radius: 4px; background: var(--lacquer); pointer-events: auto; }
@@ -13,4 +13,4 @@
 .minimap-streamer-line b { color: var(--brass); }
 .minimap-streamer-line button { margin-left: auto; color: var(--bone-3); }
 @media (width < 1500px) { .minimap-top-stack { width: 600px; margin-left: -300px; } }
-@media (height < 900px) { .minimap-buttons button { height: 26px; } }
+@media (height < 900px) { .minimap-buttons button { height: 30px; } }

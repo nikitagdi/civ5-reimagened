@@ -90,7 +90,7 @@ local function turn_data(player)
         return tonumber(a.key:match(":(%d+)$")) < tonumber(b.key:match(":(%d+)$"))
     end)
     for unit in p:Units() do
-        if unit:ReadyToMove() then waiting[#waiting + 1] = {key = key_unit(player, unit:GetID()), name = unit:GetName()} end
+        if unit:IsReadyToMove() then waiting[#waiting + 1] = {key = key_unit(player, unit:GetID()), name = unit:GetName()} end
     end
     local notification = p:GetEndTurnBlockingNotificationIndex()
     return {blocker_kind = p:GetEndTurnBlockingType(),
@@ -299,6 +299,11 @@ local function action_available(unit, a, visible)
     return false
 end
 
+-- The text markup of the native strings (colours, line breaks) has no place in the skin's text.
+local function plain(text)
+    return (text:gsub("%[NEWLINE%]", " "):gsub("%[COLOR[^%]]*%]", ""):gsub("%[ENDCOLOR%]", ""))
+end
+
 local function action_catalog(player, unit)
     -- SIMPLIFIED(SIMP-441): Combat prediction and plot help await hover-plot subscriptions; HUD focus currently supplies selection ids only.
     local out, id = array(), 0
@@ -310,9 +315,9 @@ local function action_catalog(player, unit)
             if not enabled then
                 reason = not Players[player]:IsTurnActive() and "Wait for your turn." or
                     ((unit:IsBusy() or unit:IsDelayedDeath()) and "The unit is busy." or
-                    (a.DisabledHelp and a.DisabledHelp ~= "" and L(a.DisabledHelp) or "The unit cannot perform this action here."))
+                    (a.DisabledHelp and a.DisabledHelp ~= "" and plain(L(a.DisabledHelp)) or "The unit cannot perform this action here."))
             end
-            out[#out + 1] = {id = id, name = L(a.TextKey), help = a.Help and L(a.Help) or "", hotkey = action_hotkey(a), enabled = enabled,
+            out[#out + 1] = {id = id, name = plain(L(a.TextKey)), help = a.Help and plain(L(a.Help)) or "", hotkey = action_hotkey(a), enabled = enabled,
                 reason = reason, promotion = a.CommandType == GameInfoTypes.COMMAND_PROMOTION,
                 build = a.MissionType == GameInfoTypes.MISSION_BUILD,
                 client = ({INTERFACEMODE_MOVE_TO="move", INTERFACEMODE_RANGE_ATTACK="range_attack", MISSION_FOUND="found_city", MISSION_FORTIFY="fortify", MISSION_SLEEP="sleep", MISSION_SKIP="skip",

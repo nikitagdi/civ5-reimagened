@@ -508,7 +508,7 @@
 "diplo.no_minors" = "You have not met any city-states."
 "diplo.no_deals" = "No deals."
 
-"declare_war.war_mark" = "⚔"
+"declare_war.war_mark" = "!"
 "declare_war.title" = "Declare war?"
 "declare_war.plunder_title" = "Plunder this caravan?"
 "declare_war.diplomacy" = "Diplomacy"
@@ -531,7 +531,7 @@
 
 "civ_ribbon.toggle" = "Civilizations"
 "civ_ribbon.diplo" = "Diplomacy"
-"civ_ribbon.side" = "⇄"
+"civ_ribbon.side" = "<>"
 "civ_ribbon.war" = "War?"
 "civ_ribbon.online" = "Connected"
 "civ_ribbon.offline" = "Disconnected"

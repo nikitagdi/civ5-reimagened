@@ -149,7 +149,7 @@ fn trade_routes_data_and_actions_validate_through_the_real_worker() {
             },
         );
         match outcome {
-            protocol::CommandOutcome::Applied => {
+            protocol::CommandOutcome::Applied | protocol::CommandOutcome::ScreenApplied { .. } => {
                 if action == "establish" {
                     assert!(query(&mut h, qid, 0)["totals"]["used"].as_i64().unwrap() > used);
                 } else {

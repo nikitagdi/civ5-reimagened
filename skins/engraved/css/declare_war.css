@@ -11,7 +11,7 @@
 .declare_war-panel p { margin: 8px 0; }
 .declare_war-hint { color: #86b061; }
 .declare_war-section { border-top: 1px solid #4d4032; padding: 12px 0; margin-top: 16px; }
-.declare_war-section > button { background: transparent; border: 0; color: #b2a794; font-weight: 500; padding: 0 0 12px; }
+.declare_war-section > button { display: block; background: transparent; border: 0; color: #b2a794; font-weight: 500; padding: 0 0 12px; }
 .declare_war-line { display: flex; justify-content: space-between; gap: 16px; padding: 4px 0; }
 .declare_war-muted { color: #8a8072; }
 .declare_war-icons { display: flex; flex-wrap: wrap; gap: 24px; }
@@ -23,7 +23,7 @@
 .declare_war-route div, .declare_war-route span { display: flex; flex-wrap: wrap; gap: 6px; }
 .declare_war-footer { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-top: 1px solid #4d4032; }
 .declare_war-footer > span { margin-right: auto; color: #8a8072; font-size: 12px; }
-.declare_war-footer button { background: #26221d; border: 1px solid #4d4032; padding: 10px 16px; color: #ebe2d2; font-weight: 500; }
+.declare_war-footer button { display: block; background: #26221d; border: 1px solid #4d4032; padding: 10px 16px; color: #ebe2d2; font-weight: 500; }
 .declare_war-footer .declare_war-confirm { color: #cf6f5c; border-color: #965341; }
 .declare_war-footer button:hover { background: #352d25; }
 .declare_war-footer button:disabled { color: #8a8072; border-color: #4d4032; }

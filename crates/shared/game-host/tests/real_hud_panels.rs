@@ -7,6 +7,12 @@ use ui2_model::{ModelStore, Sample, Schema, generated::Hud};
 mod common;
 
 fn start() -> Option<common::H> {
+    let mut h = start_unfounded()?;
+    h.found_city(0);
+    Some(h)
+}
+
+fn start_unfounded() -> Option<common::H> {
     if gamecore::IMPLEMENTATION != "lekmod" {
         eprintln!("skipped: linked gamecore is the stub");
         return None;
@@ -16,9 +22,7 @@ fn start() -> Option<common::H> {
         common::init(Start::New(common::setup()), ""),
         0,
     );
-    let mut h = common::H::with(worker, outs);
-    h.found_city(0);
-    Some(h)
+    Some(common::H::with(worker, outs))
 }
 
 fn hud(h: &mut common::H, id: u64, args: Vec<(String, i64)>) -> Hud {
@@ -112,7 +116,7 @@ fn unit_panel_catalog_and_text_rename_change_the_owned_unit() {
             .unit
             .unwrap()
             .name,
-        ui2_model::Text::raw("Test Guard")
+        ui2_model::Text::raw("Test Guard (Warrior)")
     );
     let root = hud(&mut h, 3, vec![("unit".into(), i64::from(id))]);
     for (index, a) in root.unit.unwrap().catalog.iter().enumerate() {
@@ -185,4 +189,81 @@ fn on_map_tooltips_include_owned_entities_after_founding() {
             .all(|c| c.hp <= c.hp_max && c.strength >= 0)
     );
     // Hover data is read-only. City opening and unit selection are client intents.
+}
+
+#[test]
+fn unit_catalog_builds_for_every_starting_unit_before_a_city_exists() {
+    let Some(mut h) = start_unfounded() else {
+        return;
+    };
+    let world = h.w.fresh_view(0).unwrap();
+    let ids: Vec<i64> = world
+        .units
+        .iter()
+        .filter(|u| u.owner == 0)
+        .map(|u| i64::from(u.id))
+        .collect();
+    assert!(ids.len() >= 2, "a settler and a warrior at least");
+    for (n, id) in ids.into_iter().enumerate() {
+        let root = hud(&mut h, 10 + n as u64, vec![("unit".into(), id)]);
+        let unit = root.unit.expect("the focused unit");
+        assert!(!unit.catalog.is_empty(), "unit {id} has an action catalog");
+        for a in unit.catalog.iter() {
+            eprintln!(
+                "unit {id}: {} client={} enabled={} reason={:?}",
+                a.id, &*a.client, a.enabled, a.reason
+            );
+        }
+        // The orders a new game starts with can be given: the dial's first unit gets its order here.
+        assert!(
+            unit.catalog
+                .iter()
+                .any(|a| (&*a.client == "found_city" || &*a.client == "fortify") && a.enabled),
+            "unit {id} can found a city or fortify"
+        );
+    }
+}
+
+#[test]
+fn catalog_found_city_order_founds_a_city() {
+    let Some(mut h) = start_unfounded() else {
+        return;
+    };
+    let world = h.w.fresh_view(0).unwrap();
+    let id = world
+        .units
+        .iter()
+        .filter(|u| u.owner == 0)
+        .map(|u| i64::from(u.id))
+        .find(|id| {
+            hud(&mut h, 1, vec![("unit".into(), *id)])
+                .unit
+                .is_some_and(|u| u.catalog.iter().any(|a| &*a.client == "found_city"))
+        })
+        .expect("a unit that can found a city");
+    let action = hud(&mut h, 2, vec![("unit".into(), id)])
+        .unit
+        .unwrap()
+        .catalog
+        .iter()
+        .find(|a| &*a.client == "found_city")
+        .map(|a| i64::from(a.id))
+        .unwrap();
+    let outcome = h.cmd(
+        0,
+        protocol::Command::ScreenAction {
+            screen: "hud".into(),
+            action: "do_action".into(),
+            args: vec![
+                ("a".into(), id),
+                ("b".into(), action),
+                ("c".into(), 0),
+                ("d".into(), 0),
+            ],
+            text: None,
+        },
+    );
+    assert_eq!(outcome, protocol::CommandOutcome::Applied);
+    let view = h.w.fresh_view(0).unwrap();
+    assert!(view.cities.iter().any(|c| c.owner == 0), "the city exists");
 }

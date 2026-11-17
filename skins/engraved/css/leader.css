@@ -2,7 +2,7 @@
 .leader-content { display: grid; grid-template-columns: minmax(0, 0.55fr) minmax(0, 1fr); min-height: 0; width: 100%; }
 .leader-stage { position: relative; display: flex; flex-direction: column; min-height: 0; padding: 24px; background: linear-gradient(160deg, #383b3e, #26221d); }
 .leader-mood { align-self: flex-start; color: #c9a36a; border: 1px solid #4d4032; border-radius: 12px; padding: 2px 8px; }
-.leader-portrait { flex: 1; min-height: 0; width: 100%; }
+.leader-portrait { flex: none; width: 100%; height: 220px; }
 .leader-caption { display: flex; flex-direction: column; gap: 4px; }
 .leader-caption b { font: 500 28px/32px "Alegreya"; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .leader-caption span { color: #b2a794; }
@@ -11,7 +11,7 @@
 .leader-header div { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .leader-header b { font: 500 28px/32px "Alegreya"; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .leader-header span { color: #b2a794; }
-.leader-panel button { padding: 8px 12px; background: #26221d; color: #ebe2d2; border: 1px solid #4d4032; border-radius: 4px; font-size: 13px; }
+.leader-panel button { display: block; padding: 8px 12px; background: #26221d; color: #ebe2d2; border: 1px solid #4d4032; border-radius: 4px; font-size: 13px; }
 .leader-panel button:hover { background: #352d25; }
 .leader-panel button:disabled { color: #8a8072; }
 .leader-scroll { flex: 1; min-height: 0; padding: 20px 32px; overflow-y: auto; scrollbar-width: none; }

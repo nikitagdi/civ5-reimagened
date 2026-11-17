@@ -34,6 +34,8 @@ export async function run({ server, opts }) {
     if (!expected) throw new Error('military row has no own unit');
     if (!await clickPart(page, 'military.unit-row')) throw new Error('unit row missing');
     // The v2 selection is local to the UI model (`ui.selection`); the unit panel shows the selected unit's name.
+    // A full-screen window suppresses the HUD: close it, then the unit panel shows the selected unit.
+    await page.keyboard.press('Escape');
     await waitFor(page, p => texts(p, 'unit.title').includes(name), 'unit panel shows the selected unit');
     check('clicking a row selects its unit', true);
     await page.keyboard.press('Escape');

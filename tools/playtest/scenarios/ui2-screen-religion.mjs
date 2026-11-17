@@ -53,7 +53,11 @@ export async function run({ server, opts }) {
       }
     }
     // Founding needs an eligible Great Prophet and every required belief: in a new game the finish control is honestly absent.
-    if (!await clickPart(page, "religion.finish")) {
+    // The finish control is there but disabled without a prophet: a click leaves no confirmation open.
+    const clickedFinish = await clickPart(page, "religion.finish");
+    await page.waitForTimeout(800);
+    const confirmOpen = !!clickedFinish && (await page.evaluate(() => window.__civ5test.ui2())).ui.state["religion.confirm"] === true;
+    if (!confirmOpen) {
       const now = await page.evaluate(() => window.__civ5test.ui2());
       if (!now.ui.windows.includes("religion")) throw new Error("the religion window must stay open when founding is unavailable");
       // The first Escape cancels the open draft (the selected symbol), the second closes the window.

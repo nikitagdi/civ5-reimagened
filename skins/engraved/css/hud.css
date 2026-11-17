@@ -10,7 +10,7 @@
 .top-panel-progress { position: absolute; left: 0; right: 0; bottom: -8px; height: 2px; background: var(--engrave); }
 .top-panel-fill { height: 2px; background: var(--brass); }
 .top-panel-resource-list { display: flex; align-items: center; gap: 16px; }
-.top-panel-resource-fold { display: none; }
+.top .res .top-panel-resource-fold { display: none; }
 .top-panel-tip { width: 360px; max-height: 500px; overflow-y: auto; scrollbar-width: none; }
 .top-panel-total { border-top: 1px solid var(--engrave); margin-top: 8px; padding-top: 8px; }
 .top-panel-negative .v { color: var(--neg); }
@@ -20,7 +20,7 @@
   .top .yields { gap: 12px; }
   .top .yields .d { display: none; }
   .top .res { overflow: visible; padding: 0 8px; }
-  .top-panel-resource-fold { display: flex; font-size: 11px; width: 72px; }
+  .top .res .top-panel-resource-fold { display: flex; font-size: 11px; width: 72px; }
   .top-panel-resource-list { display: none; }
   .top-panel-expanded { position: absolute; right: 40px; top: 48px; display: flex; padding: 12px; background: var(--lacquer); border: 1px solid var(--engrave); }
 }
@@ -1220,7 +1220,7 @@
 .helm .side { width: 184px; max-height: 196px; overflow-y: auto; scrollbar-width: none; }
 .helm .seats { max-height: 88px; overflow-y: auto; scrollbar-width: none; }
 .end-turn-reason { max-height: 44px; overflow: hidden; font-size: 12px; color: var(--bone-2); }
-.end-turn-queue { position: absolute; left: 16px; right: 16px; bottom: 176px; display: flex; flex-wrap: wrap; gap: 4px; max-height: 56px; overflow-y: auto; scrollbar-width: none; }
+.end-turn-queue { position: absolute; left: 16px; right: 16px; bottom: 176px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 4px; max-height: 64px; overflow-y: auto; scrollbar-width: none; }
 .end-turn-queue-label { font-size: 11px; color: var(--bone-3); }
 .end-turn-player { display: flex; gap: 4px; max-width: 92px; padding: 3px; border: 1px solid var(--engrave); font-size: 10px; color: var(--bone-2); }
 .end-turn-player-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -1245,7 +1245,7 @@
 .unit .title .nm { max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .unit .promos { flex-wrap: wrap; height: auto; max-height: 48px; overflow-y: auto; scrollbar-width: none; }
 .unit-panel-catalog { position: relative; }
-.unit-panel-rename-button { color: var(--brass); padding: 2px 8px; border: 1px solid var(--engrave); }
+.unit-panel-rename-button { display: block; color: var(--brass); padding: 2px 8px; border: 1px solid var(--engrave); }
 .unit-panel-xp { margin-left: 12px; font-size: 12px; color: var(--bone-3); }
 .unit-panel-actions { display: flex; flex-wrap: wrap; gap: 4px; max-height: 160px; margin-top: 8px; overflow-y: auto; scrollbar-width: none; }
 .unit-panel-action { position: relative; width: 60px; min-height: 48px; padding: 5px; display: flex; flex-direction: column; justify-content: center; gap: 4px; border: 1px solid var(--engrave); border-radius: 3px; }

@@ -354,29 +354,19 @@ async function screensViaClassic(b, numbers, check, shot) {
     const closed = Date.now() + 10000;
     while (Date.now() < closed && (await ui2(page))?.ui?.windows?.includes(screen)) await sleep(100);
     check(`screen ${screen}: Escape closes the native window`, !(await ui2(page))?.ui?.windows?.includes(screen), "");
-    const t0 = Date.now();
+    // `screen.open` of a screen that has a window in the skin opens that window: no hand-off to the classic UI.
     await page.evaluate(screen => window.__civ5test.ui2Intent({name: "screen.open", args: {screen}}), screen);
-    const up = await until(page, (x) => x.ui?.active === "classic" && x.ui.screen === screen && x.ui.screenShown && !x.ui.switching, 20000, `${screen} shown by the classic UI`).catch((e) => e);
-    run.openWallMs = Date.now() - t0;
-    run.openSwitchMs = up?.ui?.lastSwitchMs ?? null;
-    check(`screen ${screen}: the classic UI shows it`, up?.ui?.screenShown === true, JSON.stringify(up?.ui ?? String(up)));
-    if (!up?.ui?.screenShown) continue;
-    await sleep(1500);
-    await shot(`ui2-screen-${screen}`);
-    const close = await ui.find(`/${ctx}`, (x) => /\/CloseButton$/.test(x.path) && !x.disabled).catch(() => null);
-    run.close = close ? close.path : null;
-    const t1 = Date.now();
-    if (close) await ui.click(close);
-    else await page.keyboard.press("Escape");
-    const back = await until(page, (x) => x.ui?.active === "v2" && !x.ui.screen && !x.ui.switching, 20000, `UI v2 back after ${screen}`).catch((e) => e);
-    run.backWallMs = Date.now() - t1;
-    run.backSwitchMs = back?.ui?.lastSwitchMs ?? null;
-    check(`screen ${screen}: closed, UI v2 is back`, back?.ui?.active === "v2", JSON.stringify(back?.ui ?? String(back)));
-    // From the click to the window up, and from the Close click to UI v2 back (the host's own switch time is in
-    // `lastSwitchMs`; the classic UI is ready at once, its wake-up and the popup are in the wall time).
-    check(`screen ${screen}: each hand-off within 1 s`, run.openWallMs <= 1000 && back?.ui?.active === "v2" && run.backWallMs <= 1000,
-      `open ${run.openWallMs} ms (switch ${run.openSwitchMs}), back ${run.backWallMs} ms (switch ${run.backSwitchMs})`);
-    await sleep(1000);
+    const reopen = Date.now() + 20000;
+    while (Date.now() < reopen && !(await ui2(page))?.ui?.windows?.includes(screen)) await sleep(100);
+    const st = await state(page);
+    check(`screen ${screen}: screen.open opens the skin's window, no hand-off to the classic UI`,
+      (await ui2(page))?.ui?.windows?.includes(screen) === true && st?.ui?.active === "v2" && !st.ui.screen, JSON.stringify(st?.ui ?? null));
+    await page.keyboard.press("Escape");
+    const shut = Date.now() + 10000;
+    while (Date.now() < shut && (await ui2(page))?.ui?.windows?.includes(screen)) await sleep(100);
+    check(`screen ${screen}: Escape closes the window opened by screen.open`, !(await ui2(page))?.ui?.windows?.includes(screen), "");
+    run.close = null;
+    await sleep(500);
   }
   const lua1 = await luaErrors(page);
   check("screens: no new Lua errors", lua1 !== null && lua1 === (lua0 ?? 0), `${lua0} -> ${lua1}`);

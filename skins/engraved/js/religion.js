@@ -24,7 +24,8 @@
     set("ready", !!ready);
   }
   ui.on("religion.symbol", id => { set("symbol", id); refresh(); });
-  ui.on("religion.pick", (key, id) => {
+  ui.on("religion.pick", (...p) => {
+    const [key, id] = Array.isArray(p[0]) ? p[0] : p;
     if (keys.includes(key)) { set("pick." + key, id); set("list", ""); refresh(); }
   });
   ui.state.on("religion.name", refresh);

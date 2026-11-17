@@ -30,7 +30,7 @@
 .diplo-trade { display: flex; gap: 6px; overflow: hidden; min-width: 0; font-size: 12px; }
 .diplo-trade span, .diplo-influence span { display: flex; align-items: center; gap: 4px; }
 .diplo-summary { grid-column: 1 / 7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #8a8072; font-size: 12px; }
-.diplo-go { grid-column: 7; grid-row: 1 / 3; }
+.diplo-go { display: block; grid-column: 7; grid-row: 1 / 3; }
 .diplo-cs { display: grid; grid-template-columns: 36px minmax(0, 1fr) 128px; gap: 12px; padding: 12px 20px; border-bottom: 1px solid #352d25; }
 .diplo-influence { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 12px; font-size: 12px; }
 .diplo-scale { height: 4px; width: 100%; background: #352d25; }

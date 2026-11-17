@@ -91,7 +91,7 @@ function player:GetEndTurnBlockingType() return 8 end
 function player:GetEndTurnBlockingNotificationIndex() return 7 end
 function player:GetNotificationStr(id) assert(id == 7); return "A unit needs orders." end
 function player:Units() local done=false; return function() if not done then done=true; return unit end end end
-function unit:ReadyToMove() return not hud_busy end
+function unit:IsReadyToMove() return not hud_busy end
 function unit:GetName() return "Fixture unit" end
 Teams[3].IsHasMet = function() return false end
 

@@ -1,6 +1,6 @@
 import { withHud, intent, probe, texts, waitFor } from "./ui2-screen-top_panel.mjs";
 import { clickPart, partBox } from "./ui2-v1.mjs";
-import { act, state } from "../lib/browser.mjs";
+import { state } from "../lib/browser.mjs";
 
 const overlaps = (a, b) => a && b && a.x < b.x + b.w - 1 && b.x < a.x + a.w - 1
   && a.y < b.y + b.h - 1 && b.y < a.y + a.h - 1;
@@ -9,7 +9,10 @@ export async function run(context) {
   return withHud(context, "ui2-hud-integration", async (page, check) => {
     const unit = (await state(page)).units?.[0];
     if (!unit) throw new Error("Owned unit required");
-    await act(page, {kind: "selectUnit", id: unit.id});
+    // The selection of UI v2 is its own (the test hook `selectUnit` drives the classic UI's): the unit's flag on the map
+    // selects it.
+    await waitFor(page, p => (p.counters["ui2.anchors.shown"] ?? 0) > 0, "unit flags on the map");
+    if (!await clickPart(page, "unit-flag")) throw new Error("A unit flag is required");
     await waitFor(page, p => texts(p, "unit.title").length > 0, "selected unit");
     for (const viewport of [{width: 1920, height: 1080}, {width: 1366, height: 768}]) {
       await page.setViewportSize(viewport);
@@ -25,7 +28,9 @@ export async function run(context) {
       }
       const current = await probe(page);
       check(`${label} ribbon has no window`, !current.ui.windows.includes("civ_ribbon"));
-      const right = await Promise.all(["notes", "civ-ribbon", "helm"].map(part => partBox(page, part)));
+      // One after the other: the page answers one rectangle request at a time.
+      const right = [];
+      for (const part of ["notes", "civ-ribbon", "helm"]) right.push(await partBox(page, part));
       if (right.some(box => !box)) throw new Error(`${label} right HUD boxes missing`);
       check(`${label} notifications, ribbon and turn plate are disjoint`,
         !overlaps(right[0], right[1]) && !overlaps(right[0], right[2]) && !overlaps(right[1], right[2]));
