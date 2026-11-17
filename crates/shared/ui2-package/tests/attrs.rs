@@ -1124,7 +1124,7 @@ fn models_sources_and_anchors_are_typed() {
     .expect("asset");
     check_fails(
         Tag::Img,
-        &[("data-bind-src", "{{ state.mode }}")],
+        &[("data-bind-src", "{{ state.prod.page }}")],
         codes::TYPE,
     );
     check_fails(
@@ -1246,4 +1246,65 @@ fn a_static_disabled_is_a_binding_that_is_always_true() {
     }
     let a = parse(&raw(Tag::Button, &[]), &ctx).expect("parse");
     assert_eq!(a.disabled, None);
+}
+
+#[test]
+fn runtime_additions_parse_and_typecheck() {
+    let mut a = ok(
+        Tag::Button,
+        &[
+            ("data-bind-hotkey", "state.mode"),
+            (
+                "data-on-right-click",
+                "call pick(event.shift, event.ctrl, event.alt)",
+            ),
+        ],
+    );
+    assert_eq!(a.events[0].ev, Event::Contextmenu);
+    check(&mut a, &scope(), &view(), &AttrCtx::default()).expect("typed modifiers");
+    assert!(a.bind_hotkey.is_some());
+    let a = ok(
+        Tag::Input,
+        &[
+            ("type", "number"),
+            ("min", "-5"),
+            ("max", "20"),
+            ("step", "2"),
+            ("data-bind-model", "state.prod.page"),
+        ],
+    );
+    assert_eq!(a.number, Some([-5, 20, 2]));
+    let mut a = a;
+    check(&mut a, &scope(), &view(), &AttrCtx::default()).expect("integer state");
+    expect(
+        Tag::Input,
+        &[("type", "number"), ("step", "0")],
+        codes::VALUE,
+    );
+    expect(
+        Tag::Input,
+        &[("type", "number"), ("min", "1.5")],
+        codes::VALUE,
+    );
+    let a = ok(
+        Tag::Div,
+        &[("data-screen", "production"), ("data-esc", "none")],
+    );
+    assert_eq!(a.events[0].ev, Event::Escape);
+    assert_eq!(a.events[0].actions, [Action::Stop]);
+    let mut a = ok(
+        Tag::Div,
+        &[
+            ("data-bind-scroll-x", "state.prod.page"),
+            ("data-on-wheel", "call scroll(event.dy)"),
+        ],
+    );
+    check(&mut a, &scope(), &view(), &AttrCtx::default()).expect("wheel and numeric state");
+    expect(
+        Tag::Div,
+        &[("data-bind-scroll-y", "top.gold")],
+        codes::MODEL,
+    );
+    let mut a = ok(Tag::Img, &[("data-bind-src", "state.mode")]);
+    check(&mut a, &scope(), &view(), &AttrCtx::default()).expect("string asset names");
 }

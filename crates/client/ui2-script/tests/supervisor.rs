@@ -216,6 +216,7 @@ fn events_go_to_their_context_and_env_to_all() {
     .unwrap_or_else(|e| panic!("{e}"));
     host.take_posted();
     let ev = |ctx: ScriptCtxId, name: &str| ScriptEvent {
+        input: Default::default(),
         ctx,
         name: Arc::from(name),
         arg: Value::Key(Key::new(1, 2)),
@@ -241,7 +242,9 @@ fn events_go_to_their_context_and_env_to_all() {
     assert_eq!(m["model"], Json::Null);
     assert_eq!(
         m["events"],
-        json(r#"[{"name":"sort","arg":"1:2","node":"hud.html:3"}]"#)
+        json(
+            r#"[{"name":"sort","arg":"1:2","node":"hud.html:3","shift":false,"ctrl":false,"alt":false,"dx":0,"dy":0}]"#
+        )
     );
     let e = env();
     sup.post(
@@ -531,6 +534,7 @@ fn a_busy_context_gets_its_frames_merged_after_the_answer() {
     for n in [2, 3] {
         let d = gold(&mut store, n);
         let ev = [ScriptEvent {
+            input: Default::default(),
             ctx: ScriptCtxId::Skin,
             name: Arc::from(format!("e{n}").as_str()),
             arg: Value::None,

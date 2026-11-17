@@ -659,6 +659,11 @@ impl Doc {
                     BindKind::Style { prop, tpl } => BindKind::Style { prop, tpl: tp(tpl) },
                     BindKind::Src(e) => BindKind::Src(ex(e)),
                     BindKind::Disabled(e) => BindKind::Disabled(ex(e)),
+                    BindKind::Hotkey(e) => BindKind::Hotkey(ex(e)),
+                    BindKind::Scroll { axis, path } => BindKind::Scroll {
+                        axis,
+                        path: s(path),
+                    },
                     BindKind::Model(p) => BindKind::Model(s(p)),
                     BindKind::Event { ev, mut actions } => {
                         for a in &mut actions {
@@ -690,7 +695,8 @@ impl Doc {
                         range,
                         options: options.map(ex),
                     },
-                    other @ (BindKind::Fit { .. } | BindKind::HotkeyLabel) => other,
+                    other
+                    @ (BindKind::Fit { .. } | BindKind::HotkeyLabel | BindKind::Number(_)) => other,
                 };
                 Binding {
                     tpl: t(b.tpl),

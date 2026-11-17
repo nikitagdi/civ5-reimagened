@@ -36,7 +36,9 @@ pub struct Scope {
 }
 
 /// Names a loop variable may not take, besides the model roots.
-const RESERVED: &[&str] = &["true", "false", "null", "state", "mods", "modstate"];
+const RESERVED: &[&str] = &[
+    "true", "false", "null", "state", "mods", "modstate", "event",
+];
 
 impl Scope {
     /// An empty scope.

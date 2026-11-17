@@ -1100,7 +1100,7 @@
           Object.assign(env, msg.env);
           fire("env", env);
         }
-        for (const ev of msg.events || []) fire(ev.name, ev.arg, { node: ev.node });
+        for (const ev of msg.events || []) fire(ev.name, ev.arg, { node: ev.node, shift: !!ev.shift, ctrl: !!ev.ctrl, alt: !!ev.alt, dx: ev.dx || 0, dy: ev.dy || 0 });
         flush(msg.seq === undefined ? null : msg.seq, t0);
       },
       ready() {

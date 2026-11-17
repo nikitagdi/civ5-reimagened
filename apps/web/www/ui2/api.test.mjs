@@ -645,3 +645,11 @@ test("timers: after, every, cancel, the minimum interval, and errors switch the 
   assert.equal(lines.length, 1);
   assert.match(lines[0].text, /timer\.every\(50\) disabled: tick/);
 });
+
+test("script event metadata includes modifiers and wheel deltas", () => {
+  const { ctx, ui } = context();
+  let event;
+  ui.on("pick", (_arg, info) => { event = info; });
+  ctx.receive(frame(null, [{ name: "pick", arg: null, node: "sample.html:3", shift: true, ctrl: false, alt: true, dx: 12, dy: -40 }]));
+  assert.deepEqual(event, { node: "sample.html:3", shift: true, ctrl: false, alt: true, dx: 12, dy: -40 });
+});

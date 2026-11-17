@@ -128,6 +128,73 @@ fn offset_at(run: Option<&ShapedRun>, x: f32) -> u32 {
 }
 
 impl Runtime {
+    fn number_range(&self, id: NodeId) -> Option<[i32; 3]> {
+        let n = self.arena.get(id)?;
+        self.pkg
+            .bindings_of(n.tmpl().0, n.tmpl().1)
+            .iter()
+            .find_map(|b| match b.kind {
+                BindKind::Number(range) => Some(range),
+                _ => None,
+            })
+    }
+
+    fn step_number(&mut self, id: NodeId, direction: i32) -> bool {
+        let Some([min, max, step]) = self.number_range(id) else {
+            return false;
+        };
+        if self.disabled(id) {
+            return false;
+        }
+        let current = self
+            .input
+            .fields
+            .edit_of(id)
+            .map(|e| e.value.clone())
+            .unwrap_or_else(|| self.resting_text(id));
+        let value = current
+            .parse::<i32>()
+            .unwrap_or(min.max(0))
+            .saturating_add(step.saturating_mul(direction))
+            .clamp(min, max)
+            .to_string();
+        if self.focused() != Some(id) {
+            self.set_focus(Some(id), false);
+        }
+        self.set_text_input(TextInputState {
+            sel: TextSel::caret(value.len() as u32),
+            value,
+            ..TextInputState::default()
+        });
+        if let Some(e) = self.input.fields.edit.clone() {
+            self.focus_request(&e);
+        }
+        true
+    }
+
+    pub(crate) fn number_key(
+        &mut self,
+        k: &platform::KeyEvent,
+        named: Option<platform::NamedKey>,
+    ) -> bool {
+        let Some(id) = self.focused() else {
+            return false;
+        };
+        let direction = match named {
+            Some(platform::NamedKey::ArrowUp) => 1,
+            Some(platform::NamedKey::ArrowDown) => -1,
+            _ => return false,
+        };
+        self.step_number(id, direction) && k.pressed
+    }
+
+    pub(crate) fn number_wheel(&mut self, id: NodeId, delta: f32) -> bool {
+        if delta == 0.0 {
+            return false;
+        }
+        self.step_number(id, if delta < 0.0 { 1 } else { -1 })
+    }
+
     /// Whether a node is a text field.
     pub(crate) fn is_text_field(&self, id: NodeId) -> bool {
         self.arena
@@ -191,7 +258,12 @@ impl Runtime {
     /// The focus moved from `old` to `new`: a field that lost it stops editing (`change` when its text
     /// changed), a field that got it starts, with the caret at the end of its text.
     pub(crate) fn field_focus_changed(&mut self, old: Option<NodeId>, new: Option<NodeId>) {
-        if let Some(e) = self.input.fields.edit.take() {
+        if let Some(mut e) = self.input.fields.edit.take() {
+            if self.number_range(e.node).is_some_and(|[min, max, _]| {
+                !e.value.parse::<i32>().is_ok_and(|v| v >= min && v <= max)
+            }) {
+                e.value = e.written.clone().unwrap_or_else(|| e.initial.clone());
+            }
             if old == Some(e.node) || new != Some(e.node) {
                 if self.field_path(e.node).is_none() {
                     self.input.fields.own.insert(e.node, e.value.clone());
@@ -268,6 +340,21 @@ impl Runtime {
             return;
         }
         let node = e.node;
+        let range = self.number_range(node);
+        let partial_number = range.is_some_and(|[min, max, _]| {
+            !s.value.parse::<i32>().is_ok_and(|v| v >= min && v <= max)
+        });
+        if let Some([min, _, _]) = range {
+            let digits = s.value.strip_prefix('-').unwrap_or(&s.value);
+            let partial = s.value.is_empty() || (min < 0 && s.value == "-");
+            let integer = !digits.is_empty()
+                && digits.bytes().all(|c| c.is_ascii_digit())
+                && s.value.parse::<i32>().is_ok();
+            if !partial && !integer {
+                self.focus_request(&e);
+                return;
+            }
+        }
         let sel = s.sel.clamped(&s.value);
         let composing = s.composing.and_then(|(a, b)| {
             let c = TextSel {
@@ -287,11 +374,15 @@ impl Runtime {
         e.composing = composing;
         if new_value {
             e.value = s.value;
-            if let Some(path) = self.field_path(node) {
+            if !partial_number && let Some(path) = self.field_path(node) {
                 e.written = Some(e.value.clone());
                 self.output.state_writes.push(StateOp {
                     path,
-                    value: MValue::Str(e.value.as_str().into()),
+                    value: if self.number_range(node).is_some() {
+                        MValue::I32(e.value.parse().unwrap_or_default())
+                    } else {
+                        MValue::Str(e.value.as_str().into())
+                    },
                 });
             }
         }
@@ -302,7 +393,7 @@ impl Runtime {
         } else if moved {
             self.arena.mark(node, Dirty::PAINT);
         }
-        if s.submitted {
+        if s.submitted && !partial_number {
             self.dispatch(node, Event::Submit, false);
         }
         if let Some(back) = s.tab {

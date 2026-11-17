@@ -49,21 +49,38 @@ pub(crate) enum RowKind {
     /// A text template (`data-bind-value`, a bound text leaf); the text goes to the row's text leaf.
     Text(TplId),
     /// A skin text (`data-l10n` with `data-l10n-args`).
-    L10n { key: StrId, args: Vec<ExprId> },
+    L10n {
+        key: StrId,
+        args: Vec<ExprId>,
+    },
     /// The name of the key of the `data-hotkey` on the node or its nearest ancestor that has one
     /// (`data-hotkey-label`): see [`hotkey_label`].
     HotkeyLabel,
+    Hotkey(ExprId),
+    Scroll {
+        axis: u8,
+        path: StrId,
+    },
     /// A class on while the condition holds.
-    Class { class: StrId, cond: ExprId },
+    Class {
+        class: StrId,
+        cond: ExprId,
+    },
     /// The disabled state.
     Disabled(ExprId),
     /// A style property.
-    Style { prop: PropId, tpl: TplId },
+    Style {
+        prop: PropId,
+        tpl: TplId,
+    },
     /// The values a markup action needs (`data-on-*`): the arguments of an `intent` or `call`, the value of a
     /// `set`, the current value of a `toggle`'s path. `bind` is the binding's index among the node's
     /// bindings, `action` the step's index in it. Evaluated like any row (when what it reads changes) and
     /// kept: an event reads the values as the player saw them, without the model at hand.
-    Action { bind: u16, action: u16 },
+    Action {
+        bind: u16,
+        action: u16,
+    },
     /// The value a control edits (`data-bind-model`, the path below `state.`): kept as the model holds it
     /// and as text, for the control's behaviour and its checked state.
     Model(StrId),
@@ -76,7 +93,10 @@ pub(crate) enum RowKind {
     /// The game asset reference a picture shows (`data-bind-src`).
     Src(ExprId),
     /// The map object a node follows (`data-anchor`): its kind and the expression of its key.
-    Anchor { kind: AnchorKind, id: ExprId },
+    Anchor {
+        kind: AnchorKind,
+        id: ExprId,
+    },
 }
 
 impl RowKind {
@@ -93,6 +113,7 @@ enum Out {
     Bool(bool),
     Style(Option<OverValue>),
     Values(Vec<MValue>),
+    Actions(Vec<MValue>, Vec<Option<eval::Captured>>),
     /// Structural rows apply their result themselves.
     Done,
 }
@@ -200,6 +221,28 @@ fn checked(pkg: &crate::Pkg, tmpl: NodeRef, v: &[MValue]) -> bool {
 /// The value of an action argument: a bare model path gives the field as the model holds it (a key, an enum,
 /// a whole struct such as a plot); anything else is evaluated and converted to the expected type.
 fn arg_value(host: &mut Host<'_>, e: &Expr, ty: Option<&Type>) -> MValue {
+    use ui2_package::profile::expr::EvalHost;
+    let mut paths = Vec::new();
+    e.for_each_path(&mut |p| paths.push(p.to_vec()));
+    let has_event = paths
+        .iter()
+        .any(|p| p.first().is_some_and(|s| s == "event"));
+    let captured = has_event.then(|| eval::Captured {
+        expr: e.clone(),
+        ty: ty.cloned(),
+        paths: paths
+            .into_iter()
+            .filter(|p| p.first().is_none_or(|s| s != "event"))
+            .map(|p| {
+                let v = host.path(&p);
+                (p, v)
+            })
+            .collect(),
+    });
+    host.captured.push(captured);
+    if has_event {
+        return MValue::None;
+    }
     if let Expr::Path(segs) = e {
         let mut buf = String::new();
         if let Resolved::Path(_) = resolve_path(host.vars, segs, &mut buf)
@@ -260,6 +303,8 @@ pub(crate) struct Binder {
     pub loc: SkinLoc,
     /// The asset references of bound pictures, by node.
     srcs: HashMap<NodeId, Arc<str>>,
+    pub hotkeys: HashMap<NodeId, Arc<str>>,
+    pub scroll_updates: Vec<(NodeId, u8, f32)>,
     /// Anchor bindings whose object changed since the frame took them.
     anchor_updates: Vec<AnchorUpdate>,
     /// The loop variables of the last row evaluated, by the innermost list instance it is in (`None`:
@@ -302,6 +347,9 @@ pub(crate) struct Reads<'a> {
 impl Reads<'_> {
     /// Adds the reads of one path.
     pub fn path(&mut self, segs: &[String]) {
+        if segs.first().is_some_and(|s| s == "event") {
+            return;
+        }
         let mut buf = String::new();
         match resolve_path(self.vars, segs, &mut buf) {
             Resolved::Path(keys) => {
@@ -350,6 +398,8 @@ impl Binder {
             windows_dirty: false,
             loc,
             srcs: HashMap::new(),
+            hotkeys: HashMap::new(),
+            scroll_updates: Vec::new(),
             anchor_updates: Vec::new(),
             scope: None,
         }
@@ -572,6 +622,11 @@ impl Binder {
                     ));
                 }
                 BindKind::HotkeyLabel => kinds.push(RowKind::HotkeyLabel),
+                BindKind::Hotkey(e) => kinds.push(RowKind::Hotkey(*e)),
+                BindKind::Scroll { axis, path } => kinds.push(RowKind::Scroll {
+                    axis: *axis,
+                    path: *path,
+                }),
                 // Controls and fitting are handled by their own passes.
                 _ => {}
             }
@@ -581,7 +636,7 @@ impl Binder {
 
     /// Adds the reads of a row of a node.
     fn reads_of(pkg: &crate::Pkg, tmpl: NodeRef, kind: &RowKind, reads: &mut Reads<'_>) {
-        if let RowKind::Model(p) = kind {
+        if let RowKind::Model(p) | RowKind::Scroll { path: p, .. } = kind {
             reads.path(&model_segs(pkg, tmpl, *p));
             return;
         }
@@ -625,10 +680,12 @@ impl Binder {
             | RowKind::Disabled(e)
             | RowKind::Cond(e)
             | RowKind::Src(e)
+            | RowKind::Hotkey(e)
             | RowKind::Anchor { id: e, .. } => pkg.expr(*e).into_iter().collect(),
             // Read through `reads_of` (actions) or the list's state (lists, items).
             RowKind::Action { .. }
             | RowKind::Model(_)
+            | RowKind::Scroll { .. }
             | RowKind::List
             | RowKind::Item
             | RowKind::HotkeyLabel => Vec::new(),
@@ -747,6 +804,7 @@ impl Binder {
         for range in arena.take_removed_binds() {
             self.free_rows(range);
         }
+        self.hotkeys.retain(|id, _| arena.contains(*id));
         if !self.srcs.is_empty() {
             self.srcs.retain(|id, _| arena.contains(*id));
         }
@@ -858,7 +916,7 @@ impl Binder {
         let out = match &row.kind {
             RowKind::Action { bind, action } => {
                 let act = tmpl.and_then(|t| action_of(pkg, t, *bind, *action));
-                Out::Values(match act {
+                let values = match act {
                     Some(Action::Intent { name, args }) => {
                         let def = plan.schema.intents().iter().find(|d| d.name == *name);
                         args.iter()
@@ -885,7 +943,15 @@ impl Binder {
                         vec![MValue::Bool(truthy(&now))]
                     }
                     Some(Action::Stop) | None => Vec::new(),
-                })
+                };
+                Out::Actions(values, std::mem::take(&mut host.captured))
+            }
+            RowKind::Scroll { path, .. } => {
+                let segs = tmpl.map(|t| model_segs(pkg, t, *path)).unwrap_or_default();
+                Out::Values(vec![to_model(
+                    &ui2_package::profile::expr::EvalHost::path(&mut host, &segs),
+                    None,
+                )])
             }
             RowKind::Model(p) => {
                 let segs = tmpl.map(|t| model_segs(pkg, t, *p)).unwrap_or_default();
@@ -917,6 +983,7 @@ impl Binder {
             }
             RowKind::HotkeyLabel => match hotkey_of(arena, pkg, row.node) {
                 Some((code, mods)) => Out::Text(hotkey_label(pkg, &self.loc, code, mods).into()),
+                None if dynamic_hotkey_of(arena, pkg, row.node).is_some() => Out::Text("".into()),
                 None => {
                     problem = Some((
                         ErrorCode::Bind,
@@ -929,7 +996,7 @@ impl Binder {
                 Out::Bool(truthy(&host.expr(*cond)))
             }
             RowKind::Anchor { id, .. } => Out::Values(vec![anchor_key(&host.expr(*id))]),
-            RowKind::Src(e) => match host.expr(*e) {
+            RowKind::Src(e) | RowKind::Hotkey(e) => match host.expr(*e) {
                 Value::Null => Out::Text("".into()),
                 v => Out::Text(render(&v).into()),
             },
@@ -995,6 +1062,17 @@ impl Binder {
                 let key = v.first().cloned().unwrap_or(MValue::None);
                 self.anchor_updates.push((row.node, *kind, key));
             }
+            (RowKind::Hotkey(_), Out::Text(s)) => {
+                self.hotkeys.insert(row.node, Arc::clone(s));
+            }
+            (RowKind::Scroll { axis, .. }, Out::Values(v)) => {
+                let value = match v.first() {
+                    Some(MValue::I32(v)) => *v as f32,
+                    Some(MValue::F32(v)) => *v,
+                    _ => 0.0,
+                };
+                self.scroll_updates.push((row.node, *axis, value));
+            }
             (RowKind::Src(_), Out::Text(s)) => {
                 self.srcs.insert(row.node, Arc::clone(s));
                 arena.mark(row.node, Dirty::PAINT);
@@ -1015,6 +1093,46 @@ impl Binder {
         row.last = Some(out);
     }
 
+    pub fn refresh_hotkey_labels(&self, arena: &mut Arena, pkg: &crate::Pkg, store: &ModelStore) {
+        for id in arena.preorder() {
+            let Some(n) = arena.get(id) else {
+                continue;
+            };
+            if !pkg
+                .bindings_of(n.tmpl().0, n.tmpl().1)
+                .iter()
+                .any(|b| b.kind == BindKind::HotkeyLabel)
+            {
+                continue;
+            }
+            let mut at = Some(id);
+            while let Some(owner) = at {
+                let Some(n) = arena.get(owner) else {
+                    break;
+                };
+                let dynamic = self.hotkeys.get(&owner);
+                let key = pkg.hotkeys().iter().find(|h| h.node == n.tmpl());
+                if dynamic.is_some() || key.is_some() {
+                    let chord = if let Some(value) = dynamic {
+                        crate::input::hotkeys::parse_hotkey(value)
+                    } else {
+                        let key =
+                            key.and_then(|h| pkg.str(h.code).map(|s| (s.to_string(), h.mods)));
+                        crate::input::hotkeys::override_key(pkg, n.tmpl(), store).unwrap_or(key)
+                    };
+                    let text = chord.map_or(String::new(), |(code, mods)| {
+                        hotkey_label(pkg, &self.loc, &code, mods)
+                    });
+                    if let Some(leaf) = text_target(arena, id) {
+                        set_text(arena, leaf, &Arc::from(text));
+                    }
+                    break;
+                }
+                at = n.parent();
+            }
+        }
+    }
+
     /// The anchor bindings whose object changed (new anchor nodes included) since the last call.
     pub fn take_anchor_updates(&mut self) -> Vec<AnchorUpdate> {
         std::mem::take(&mut self.anchor_updates)
@@ -1025,20 +1143,39 @@ impl Binder {
         &self.srcs
     }
 
-    /// The values the row of a node's markup action holds (`rows` is the node's row range): `None` while it
-    /// was not evaluated yet, or when the action reads nothing.
-    pub fn action_values(
+    pub fn event_values(
         &self,
         rows: std::ops::Range<u32>,
         bind: u16,
         action: u16,
-    ) -> Option<&[MValue]> {
-        rows.filter_map(|r| self.rows.get(r as usize)?.as_ref())
-            .find(|row| row.kind == RowKind::Action { bind, action })
-            .and_then(|row| match &row.last {
-                Some(Out::Values(v)) => Some(v.as_slice()),
-                _ => None,
+        event: &crate::input::events::EventData,
+        pkg: &crate::Pkg,
+    ) -> Vec<MValue> {
+        let row = rows
+            .filter_map(|r| self.rows.get(r as usize)?.as_ref())
+            .find(|row| row.kind == RowKind::Action { bind, action });
+        let Some(Out::Actions(values, captured)) = row.and_then(|r| r.last.as_ref()) else {
+            return Vec::new();
+        };
+        values
+            .iter()
+            .enumerate()
+            .map(|(i, value)| {
+                let Some(Some(c)) = captured.get(i) else {
+                    return value.clone();
+                };
+                let mut host = crate::input::events::EventHost {
+                    event,
+                    paths: &c.paths,
+                    pkg,
+                    loc: &self.loc,
+                };
+                to_model(
+                    &ui2_package::profile::expr::eval(&c.expr, &mut host),
+                    c.ty.as_ref(),
+                )
             })
+            .collect()
     }
 
     /// The value of a control's model as its row last read it (`rows` is the node's row range): the value as
@@ -1080,6 +1217,25 @@ impl Binder {
     pub fn len(&self) -> usize {
         self.rows.iter().filter(|r| r.is_some()).count()
     }
+}
+
+fn dynamic_hotkey_of(arena: &Arena, pkg: &crate::Pkg, node: NodeId) -> Option<ExprId> {
+    let mut at = Some(node);
+    while let Some(id) = at {
+        let n = arena.get(id)?;
+        if let Some(e) = pkg
+            .bindings_of(n.tmpl().0, n.tmpl().1)
+            .iter()
+            .find_map(|b| match b.kind {
+                BindKind::Hotkey(e) => Some(e),
+                _ => None,
+            })
+        {
+            return Some(e);
+        }
+        at = n.parent();
+    }
+    None
 }
 
 /// The key of a hotkey label: the `data-hotkey` of the node itself or of its nearest ancestor that has one,

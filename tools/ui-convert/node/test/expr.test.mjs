@@ -301,3 +301,10 @@ test("text engine subset: {N}, the _Name comment, plural, the rest is reported",
   assert.equal(u.unsupported.length, 2);
   assert.equal(r("a {1: plural 1?one {1}; other?many {1};}", 5).text, "a many 5");
 });
+
+
+test("runtime additions accept bare asset, hotkey, model and scroll expressions", () => {
+  const parsed = core.parseBindings([["data-bind-src", "item.icon"], ["data-bind-hotkey", "item.hotkey"], ["data-bind-model", "state.amount"], ["data-bind-scroll-x", "state.techs.x"], ["data-bind-scroll-y", "state.techs.y"]]);
+  assert.deepEqual(parsed.errors, []);
+  for (const key of ["src", "hotkey", "model", "scrollX", "scrollY"]) assert.ok(parsed[key], key);
+});

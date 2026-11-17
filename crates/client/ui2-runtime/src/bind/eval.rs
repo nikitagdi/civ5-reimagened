@@ -76,6 +76,14 @@ pub(crate) fn resolve_path<'v>(vars: &'v [Var], segs: &[String], buf: &mut Strin
     Resolved::Path(keys)
 }
 
+/// Model leaves captured for an expression that also reads the current input event.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Captured {
+    pub expr: ui2_package::profile::expr::Expr,
+    pub ty: Option<Type>,
+    pub paths: Vec<(Vec<String>, Value)>,
+}
+
 /// What an expression sees while it is evaluated for one binding row.
 pub(crate) struct Host<'a> {
     pub pkg: &'a crate::Pkg,
@@ -88,6 +96,7 @@ pub(crate) struct Host<'a> {
     pub buf: String,
     /// Warnings of the evaluator (division by zero, overflow).
     pub warnings: Vec<String>,
+    pub captured: Vec<Option<Captured>>,
 }
 
 impl<'a> Host<'a> {
@@ -107,6 +116,7 @@ impl<'a> Host<'a> {
             loc,
             buf: String::new(),
             warnings: Vec::new(),
+            captured: Vec::new(),
         }
     }
 
@@ -202,6 +212,12 @@ impl<'a> Host<'a> {
 
 impl EvalHost for Host<'_> {
     fn path(&mut self, segs: &[String]) -> Value {
+        if segs.first().is_some_and(|s| s == "event") {
+            return match segs.get(1).map(String::as_str) {
+                Some("shift" | "ctrl" | "alt") => Value::Bool(false),
+                _ => Value::Float(0.0),
+            };
+        }
         let mut buf = std::mem::take(&mut self.buf);
         let out = match resolve_path(self.vars, segs, &mut buf) {
             Resolved::Path(keys) => match self.plan.lookup(&buf) {

@@ -635,7 +635,7 @@ What a skin may use. This section is generated from the profile file `crates/sha
 | document | `html`, `head`, `body`, `meta`, `title`, `style`, `template`, `link`, `script` |
 | block | `div`, `section`, `header`, `footer`, `aside`, `nav`, `main`, `article`, `p`, `h1`, `h2`, `h3`, `h4`, `h5`, `h6`, `ul` (`list-style: none`), `ol` (`list-style: none`), `li` (`list-style: none`), `label`, `hr` |
 | text | `span`, `b`, `strong`, `i`, `em`, `small` |
-| control | `button` (`appearance: none`), `input` (type `text`; `appearance: none`) |
+| control | `button` (`appearance: none`), `input` (type `text`, `number`; `appearance: none`) |
 | image | `img`, `svg`, `use`, `symbol`, `defs` |
 
 The notes in parentheses are what the element must have: the allowed `type`, and computed values the skin sets itself (the browser's own look of controls and lists is not part of the profile).
@@ -994,3 +994,20 @@ The color tokens a panel may read as `var(--ui-*)` are the 17 color synonyms eve
 `--ui-text-2`, `--ui-text-3`, `--ui-accent`, `--ui-accent-ink`, `--ui-negative`, `--ui-y-food`, `--ui-y-prod`,
 `--ui-y-gold`, `--ui-y-sci`, `--ui-y-cult`, `--ui-y-faith`, `--ui-y-happy` and `--ui-y-tour`. A panel reads them and
 never defines them. Its text uses the font roles `ui-sans` and `ui-display`.
+
+
+## Runtime controls and data-driven assets
+
+Click handlers can read boolean `event.shift`, `event.ctrl` and `event.alt`. For example, `data-on-click="call pick(item.id, event.shift ? 1 : 0)"` passes a queue flag. `data-on-right-click` aliases `data-on-contextmenu`. The second argument of a script's `ui.on(name, (arg, event) => ...)` callback carries the same flags and wheel deltas, alongside `event.node`. Model arguments retain the values displayed by the last frame.
+
+`data-bind-hotkey="item.hotkey"` evaluates a string per live list row. Empty strings disable the key. Names follow `[Ctrl+][Alt+][Shift+]<KeyboardEvent.code>`, such as `Ctrl+KeyB`. Each screen has its own key map. The first enabled, visible element in document order wins a conflict and a runtime binding diagnostic identifies the duplicate. Static `data-hotkey` keeps its compile-time checks. An optional string at `ui.keys.<action name>` overrides the static key of the first `intent` or `call` in the click handler. For example, `ui.keys.pick = 'KeyQ'` rebinds `call pick()`. An empty override disables it. Hotkey labels follow the effective binding. SIMPLIFIED(SIMP-330): maps are rebuilt each frame so list, visibility and model changes share one update path.
+
+A screen root accepts `data-esc="none"` or an intent action, such as `data-esc="intent window.close('research')"`. The default is `close`. The policy applies to the top visible screen and consumes Escape, including key repeats.
+
+`input type="number"` uses `data-bind-model="state.amount"` with integer skin state. Its optional `min`, `max` and `step` are signed 32-bit integers, with inclusive bounds and a positive step. Defaults are the signed 32-bit limits and step 1. Non-integer edits are rejected. Out-of-range integers remain temporary edits and write to state once they enter the range. Up/Down and the wheel add or subtract one step, clamped to the bounds. Empty text and a leading minus sign are temporary edits until another digit is entered. Leaving a partial edit restores the last integer.
+
+Scroll containers accept `data-bind-scroll-x="state.techs.x"` and `data-bind-scroll-y="state.techs.y"` with numeric skin state. Model changes move the scroll offset after layout, and runtime scrolling writes the offset back. `data-on-wheel="set state.techs.x = state.techs.x + event.dy"` handles the wheel instead of automatic scrolling. `event.dx` and `event.dy` are CSS-pixel offset deltas, positive towards the right and bottom. One wheel line is 40 CSS pixels.
+
+`data-bind-src="item.icon"` accepts an asset value or string, with bare expressions or `{{ }}`. Game picture namespaces are `tech`, `unit`, `building`, `policy`, `belief`, `religion`, `resource`, `civ`, `leader`, `promotion`, `improvement`, `great_work` and `icon`. All accept `<namespace>:<atlas>:<index>`. Entries provided by the server catalog also accept numeric ids or database type names, such as `tech:3` or `unit:UNIT_SCOUT`. Unknown pictures use the existing placeholder and are logged once. SIMPLIFIED(SIMP-331): belief, religion and great-work catalog metadata is unavailable in the current catalog, so these namespaces require atlas and index payloads.
+
+SIMPLIFIED(SIMP-332): dashed borders remain outside the profile. The current painter emits continuous rounded border primitives, so dashed contours need additional geometry or shader support.

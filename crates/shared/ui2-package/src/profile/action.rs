@@ -65,6 +65,10 @@ names! {
         Focus => "focus",
         /// `blur`
         Blur => "blur",
+        /// Wheel movement in CSS pixels.
+        Wheel => "wheel",
+        /// The screen's Escape policy.
+        Escape => "escape",
     }
 }
 
@@ -136,4 +140,58 @@ pub enum Action {
     },
     /// `stop`: the event does not bubble.
     Stop,
+}
+
+/// A `KeyboardEvent.code` value.
+pub fn is_key_code(c: &str) -> bool {
+    const NAMED: &[&str] = &[
+        "Space",
+        "Enter",
+        "Escape",
+        "Tab",
+        "Backspace",
+        "Delete",
+        "Insert",
+        "Home",
+        "End",
+        "PageUp",
+        "PageDown",
+        "ArrowUp",
+        "ArrowDown",
+        "ArrowLeft",
+        "ArrowRight",
+        "Minus",
+        "Equal",
+        "Comma",
+        "Period",
+        "Slash",
+        "Backslash",
+        "Semicolon",
+        "Quote",
+        "Backquote",
+        "BracketLeft",
+        "BracketRight",
+        "NumpadAdd",
+        "NumpadSubtract",
+        "NumpadMultiply",
+        "NumpadDivide",
+        "NumpadEnter",
+        "NumpadDecimal",
+    ];
+    if NAMED.contains(&c) {
+        return true;
+    }
+    let one = |rest: &str, ok: fn(u8) -> bool| rest.len() == 1 && ok(rest.as_bytes()[0]);
+    if let Some(rest) = c.strip_prefix("Key") {
+        return one(rest, |b| b.is_ascii_uppercase());
+    }
+    if let Some(rest) = c.strip_prefix("Digit").or_else(|| c.strip_prefix("Numpad")) {
+        return one(rest, |b| b.is_ascii_digit());
+    }
+    if let Some(n) = c.strip_prefix('F') {
+        return !n.starts_with('0')
+            && n.parse::<u8>().is_ok_and(|n| (1..=24).contains(&n))
+            && n.bytes().all(|b| b.is_ascii_digit());
+    }
+    false
 }

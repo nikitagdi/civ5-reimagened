@@ -101,6 +101,7 @@ fn exprs_of(a: &NodeAttrs) -> Vec<&Expr> {
         }
     }
     out.extend(a.src.iter());
+    out.extend(a.bind_hotkey.iter());
     out.extend(a.disabled.iter());
     out.extend(a.l10n_args.iter());
     if let Some((_, e)) = &a.anchor {

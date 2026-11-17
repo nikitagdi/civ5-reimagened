@@ -25,9 +25,64 @@ use ui2_package::BindKind;
 use ui2_package::profile::action::{Action, Event};
 
 use crate::Runtime;
+use ui2_package::profile::expr::{EvalHost, Value};
+
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct EventData {
+    pub modifiers: platform::Modifiers,
+    pub dx: f32,
+    pub dy: f32,
+}
+
+pub(crate) struct EventHost<'a> {
+    pub event: &'a EventData,
+    pub paths: &'a [(Vec<String>, Value)],
+    pub pkg: &'a crate::Pkg,
+    pub loc: &'a crate::loc::SkinLoc,
+}
+
+impl EvalHost for EventHost<'_> {
+    fn path(&mut self, segs: &[String]) -> Value {
+        if segs.first().is_some_and(|s| s == "event") {
+            return match segs.get(1).map(String::as_str) {
+                Some("shift") => Value::Bool(self.event.modifiers.shift),
+                Some("ctrl") => Value::Bool(self.event.modifiers.ctrl),
+                Some("alt") => Value::Bool(self.event.modifiers.alt),
+                Some("dx") => Value::Float(f64::from(self.event.dx)),
+                Some("dy") => Value::Float(f64::from(self.event.dy)),
+                _ => Value::Null,
+            };
+        }
+        self.paths
+            .iter()
+            .find(|(p, _)| p == segs)
+            .map_or(Value::Null, |(_, v)| v.clone())
+    }
+    fn loc(&mut self, key: &str, args: &[Value]) -> String {
+        self.loc.call(self.pkg, key, args)
+    }
+    fn warn(&mut self, message: &str) {
+        tracing::warn!(target: "ui2.input", "{message}");
+    }
+}
 use crate::arena::NodeId;
 
 impl Runtime {
+    pub(crate) fn has_handler(&self, id: NodeId, event: Event) -> bool {
+        let mut at = Some(id);
+        while let Some(n) = at.and_then(|id| self.arena.get(id)) {
+            if self
+                .pkg
+                .bindings_of(n.tmpl().0, n.tmpl().1)
+                .iter()
+                .any(|b| matches!(b.kind, BindKind::Event { ev, .. } if ev == event))
+            {
+                return true;
+            }
+            at = n.parent();
+        }
+        false
+    }
     /// Runs an event on a node and bubbles it up its ancestors. `hotkey` says that a key clicked the node.
     pub(crate) fn dispatch(&mut self, target: NodeId, ev: Event, hotkey: bool) {
         if self.disabled(target) {
@@ -69,11 +124,13 @@ impl Runtime {
                 continue;
             }
             for (ai, a) in actions.iter().enumerate() {
-                let values = self
-                    .binder
-                    .action_values(rows.clone(), bi as u16, ai as u16)
-                    .map(<[MValue]>::to_vec)
-                    .unwrap_or_default();
+                let values = self.binder.event_values(
+                    rows.clone(),
+                    bi as u16,
+                    ai as u16,
+                    &self.input.event,
+                    &pkg,
+                );
                 let value = |i: usize| values.get(i).cloned().unwrap_or(MValue::None);
                 match a {
                     Action::Intent { name, args } => {
@@ -118,6 +175,13 @@ impl Runtime {
                         };
                         let node_path = self.path(id).to_string();
                         self.output.script_events.push(ScriptEvent {
+                            input: ui2_model::wire::ScriptInput {
+                                shift: self.input.event.modifiers.shift,
+                                ctrl: self.input.event.modifiers.ctrl,
+                                alt: self.input.event.modifiers.alt,
+                                dx: self.input.event.dx,
+                                dy: self.input.event.dy,
+                            },
                             ctx: pkg.ctx_of(tmpl.0),
                             name: name.as_str().into(),
                             arg,

@@ -56,6 +56,10 @@ fn call(name: &str) -> Action {
 /// placeholder `chat.hint`; `input`, `change` and `submit` call scripts), `note` (a field without a model,
 /// 10, 50) and `btn` (a focusable box, 300, 10).
 fn package() -> Arc<Package> {
+    package_with_number(false)
+}
+
+fn package_with_number(number: bool) -> Arc<Package> {
     let mut kit = Kit::new();
     kit.font("Fira Sans", 400, false, &font());
     kit.l10n("en_US", "chat.hint", "Say something");
@@ -87,7 +91,7 @@ fn package() -> Arc<Package> {
             set,
         )
     };
-    let field = input(sets[1])
+    let mut field = input(sets[1])
         .part(names[0])
         .flags(node_flags::FOCUSABLE)
         .bind(BindKind::Model(model))
@@ -103,6 +107,10 @@ fn package() -> Arc<Package> {
             ev: Event::Submit,
             actions: vec![call("send")],
         });
+    if number {
+        kit.state_default("text", ui2_package::Lit::Int(2));
+        field = field.bind(BindKind::Number([-10, 20, 3]));
+    }
     let note = input(sets[2]).part(names[1]).flags(node_flags::FOCUSABLE);
     let btn = TNode::el(sets[3])
         .part(names[2])
@@ -124,10 +132,23 @@ struct Host {
 
 impl Host {
     fn new() -> Self {
+        Self::with_number(false)
+    }
+
+    fn with_number(number: bool) -> Self {
         let mut store = ModelStore::new(Schema::v1());
-        let state = Fragment::parse("[root]\ntext = \"str\"\n").expect("fragment");
+
+        let state = Fragment::parse(&format!(
+            "[root]\ntext = '{}'\n",
+            if number { "i32" } else { "str" }
+        ))
+        .expect("fragment");
         store.mount(Namespace::State, &state).expect("mount");
-        let pkg = package();
+        let pkg = if number {
+            package_with_number(true)
+        } else {
+            package()
+        };
         let mut engine = TextEngine::new();
         load_faces(&pkg, &mut engine).expect("faces");
         let mut h = Self {
@@ -485,4 +506,49 @@ fn text_fields_idle_frames_do_nothing() {
         );
         assert_eq!(out.text_input, None);
     }
+}
+
+#[test]
+fn number_input_rejects_non_digits_and_steps_with_keys_and_wheel() {
+    let mut h = Host::with_number(true);
+    h.click(20.0, 20.0);
+    h.typed("12x", TextSel::caret(3));
+    assert!(h.rt.drain_output().state_writes.is_empty());
+    h.typed("99", TextSel::caret(2));
+    assert!(h.rt.drain_output().state_writes.is_empty());
+    h.typed("12", TextSel::caret(2));
+    assert_eq!(h.rt.drain_output().state_writes[0].value, MValue::I32(12));
+    h.rt.handle_input(
+        &InputEvent::Key(KeyEvent {
+            key: Key::Named(platform::NamedKey::ArrowUp),
+            code: Some("ArrowUp".into()),
+            pressed: true,
+            repeat: false,
+            modifiers: Modifiers::default(),
+        }),
+        20.0,
+    );
+    assert_eq!(h.rt.drain_output().state_writes[0].value, MValue::I32(15));
+    for _ in 0..3 {
+        h.rt.handle_input(
+            &InputEvent::Wheel(platform::WheelEvent {
+                position: PhysicalPosition { x: 20.0, y: 20.0 },
+                delta: platform::WheelDelta::Lines { x: 0.0, y: 1.0 },
+                modifiers: Modifiers::default(),
+            }),
+            21.0,
+        );
+    }
+    let writes = h.rt.drain_output().state_writes;
+    assert_eq!(writes.last().expect("step").value, MValue::I32(20));
+    h.typed("-", TextSel::caret(1));
+    assert!(h.rt.drain_output().state_writes.is_empty());
+    h.typed("-4", TextSel::caret(2));
+    assert_eq!(h.rt.drain_output().state_writes[0].value, MValue::I32(-4));
+    h.store
+        .writer(Owner::Skin)
+        .set_value("state.text", MValue::I32(8))
+        .expect("model write");
+    let out = h.frame();
+    assert!(matches!(out.text_input, Some(TextInputRequest::Focus { value, .. }) if value == "8"));
 }

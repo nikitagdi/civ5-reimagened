@@ -59,7 +59,7 @@ element.i = { group = "text" }
 element.em = { group = "text" }
 element.small = { group = "text" }
 element.button = { group = "control", require = { appearance = "none" } }
-element.input = { group = "control", types = ["text"], require = { appearance = "none" } }
+element.input = { group = "control", types = ["text", "number"], require = { appearance = "none" } }
 element.img = { group = "image" }
 element.svg = { group = "image" }
 element.use = { group = "image" }

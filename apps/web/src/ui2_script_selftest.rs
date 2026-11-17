@@ -90,6 +90,7 @@ impl Ui2ScriptSelftest {
     pub fn event(&mut self, name: &str, arg: &str) {
         let arg = serde_json::from_str::<Json>(arg).unwrap_or(Json::Null);
         self.events.push(ScriptEvent {
+            input: Default::default(),
             ctx: ScriptCtxId::Skin,
             name: Arc::from(name),
             arg: json_to_value(&arg, None),

@@ -10,7 +10,7 @@
 //! of a mod's panels are not drawn.
 
 use std::cell::{Cell, RefCell};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
 use asset_format::UiAtlas;
@@ -26,7 +26,25 @@ pub const ICON_SIZE: u32 = 128;
 
 /// `icon:<ATLAS>:<index>`: the atlas and the index; `None` for any other name.
 pub fn parse_icon(name: &str) -> Option<(&str, u32)> {
-    let rest = name.strip_prefix("icon:")?;
+    let (namespace, rest) = name.split_once(':')?;
+    if !matches!(
+        namespace,
+        "tech"
+            | "unit"
+            | "building"
+            | "policy"
+            | "belief"
+            | "religion"
+            | "resource"
+            | "civ"
+            | "leader"
+            | "promotion"
+            | "improvement"
+            | "great_work"
+            | "icon"
+    ) {
+        return None;
+    }
     let (atlas, index) = rest.rsplit_once(':')?;
     if atlas.is_empty() {
         return None;
@@ -84,6 +102,7 @@ const LOGGED_MISSES: usize = 32;
 #[derive(Clone, Default)]
 pub struct GameIcons {
     store: Rc<RefCell<Option<Rc<UiStore>>>>,
+    aliases: Rc<RefCell<BTreeMap<String, String>>>,
     /// The textures pictures named so far.
     named: Rc<RefCell<BTreeSet<u64>>>,
     /// Names resolved and names the set has no picture for.
@@ -108,6 +127,42 @@ impl GameIcons {
         !same
     }
 
+    /// Namespaced numeric ids and database type names from the server's catalog.
+    pub fn set_catalog(&self, catalog: Option<&protocol::Catalog>) -> bool {
+        let mut aliases = BTreeMap::new();
+        if let Some(c) = catalog {
+            for (ns, rows) in [
+                ("tech", &c.techs),
+                ("unit", &c.units),
+                ("building", &c.buildings),
+                ("policy", &c.policies),
+                ("resource", &c.resources),
+                ("civ", &c.civs),
+                ("leader", &c.leaders),
+                ("promotion", &c.promotions),
+                ("improvement", &c.improvements),
+            ] {
+                for row in rows {
+                    if row.art.icon_atlas.is_empty() || row.art.icon_index < 0 {
+                        continue;
+                    }
+                    let target = format!("icon:{}:{}", row.art.icon_atlas, row.art.icon_index);
+                    aliases.insert(format!("{ns}:{}", row.id), target.clone());
+                    if !row.type_name.is_empty() {
+                        aliases.insert(format!("{ns}:{}", row.type_name), target);
+                    }
+                }
+            }
+        }
+        let mut old = self.aliases.borrow_mut();
+        if *old == aliases {
+            return false;
+        }
+        *old = aliases;
+        self.logged.borrow_mut().clear();
+        true
+    }
+
     /// The resolver for a skin's runtime.
     pub fn resolver(&self) -> AssetResolver {
         let me = self.clone();
@@ -116,7 +171,10 @@ impl GameIcons {
 
     fn resolve(&self, name: &str) -> Option<ExtImage> {
         let found = match self.store.borrow().as_ref() {
-            Some(s) => icon_image(s, name),
+            Some(s) => {
+                let aliases = self.aliases.borrow();
+                icon_image(s, aliases.get(name).map_or(name, String::as_str))
+            }
             None => Err("the UI set is not loaded yet"),
         };
         match found {
@@ -214,6 +272,54 @@ mod tests {
             ..UiIndex::default()
         };
         UiStore::new(index, Vec::new()).expect("store")
+    }
+
+    #[test]
+    fn every_game_namespace_accepts_atlas_cells_and_catalog_aliases_resolve() {
+        let namespaces = [
+            "tech",
+            "unit",
+            "building",
+            "policy",
+            "belief",
+            "religion",
+            "resource",
+            "civ",
+            "leader",
+            "promotion",
+            "improvement",
+            "great_work",
+            "icon",
+        ];
+        let icons = GameIcons::default();
+        icons.set_store(Some(store()));
+        let resolve = icons.resolver();
+        for ns in namespaces {
+            assert!(resolve(&format!("{ns}:UNIT_ATLAS_1:9")).is_some(), "{ns}");
+        }
+        let entry = protocol::CatalogEntry {
+            id: 5,
+            type_name: "UNIT_SAMPLE".into(),
+            art: protocol::ArtRefs {
+                icon_atlas: "UNIT_ATLAS_1".into(),
+                icon_index: 9,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let catalog = protocol::Catalog {
+            units: vec![entry],
+            ..Default::default()
+        };
+        assert!(icons.set_catalog(Some(&catalog)));
+        assert!(!icons.set_catalog(Some(&catalog)));
+        assert_eq!(resolve("unit:5"), resolve("unit:UNIT_SAMPLE"));
+        assert!(resolve("unit:5").is_some());
+        resolve("unit:missing");
+        resolve("unit:missing");
+        assert_eq!(icons.logged.borrow().len(), 1);
+        assert!(icons.set_catalog(None));
+        assert!(resolve("unit:5").is_none());
     }
 
     #[test]

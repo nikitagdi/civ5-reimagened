@@ -141,3 +141,57 @@ fn write_runtime_labels_are_the_preview_marks() {
     );
     assert!(!top.iter().any(|r| r.node == "0:1"));
 }
+
+#[test]
+fn write_preserves_data_hotkeys_scroll_policies_and_event_expressions() {
+    use ui2_package::profile::action::Event;
+    use ui2_package::profile::attrs::{AttrCtx, RawAttrs, parse};
+    use ui2_package::{BindKind, Tag};
+    let mut r = run();
+    let additions = parse(
+        &RawAttrs::new(
+            Tag::Div,
+            &[
+                ("data-bind-hotkey", "'KeyQ'"),
+                ("data-bind-scroll-x", "state.techs.x"),
+                ("data-bind-scroll-y", "state.techs.y"),
+                ("data-screen", "production"),
+                ("data-esc", "none"),
+                (
+                    "data-on-click",
+                    "call pick(event.shift ? 1 : 0, event.ctrl, event.alt)",
+                ),
+                ("data-on-wheel", "call wheel(event.dx, event.dy)"),
+            ],
+        ),
+        &AttrCtx::default(),
+    )
+    .expect("attributes");
+    let bound = r.bindings.as_mut().expect("bindings");
+    let node = bound
+        .nodes
+        .values_mut()
+        .find(|n| n.attrs.part.as_deref() == Some("top"))
+        .expect("sample panel");
+    node.attrs.bind_hotkey = additions.bind_hotkey;
+    node.attrs.scroll = additions.scroll;
+    node.attrs.events.extend(additions.events);
+    let pkg = package(&r);
+    let binds = &pkg.bindings().items;
+    assert!(binds.iter().any(|b| matches!(b.kind, BindKind::Hotkey(_))));
+    for axis in 0..2 {
+        assert!(
+            binds
+                .iter()
+                .any(|b| matches!(b.kind, BindKind::Scroll { axis: a, .. } if a == axis))
+        );
+    }
+    assert!(binds.iter().any(|b| matches!(&b.kind, BindKind::Event { ev: Event::Escape, actions } if actions == &[ui2_package::profile::action::Action::Stop])));
+    assert!(binds.iter().any(|b| matches!(
+        b.kind,
+        BindKind::Event {
+            ev: Event::Wheel,
+            ..
+        }
+    )));
+}

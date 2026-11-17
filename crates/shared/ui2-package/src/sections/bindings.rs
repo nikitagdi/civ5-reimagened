@@ -151,6 +151,17 @@ pub enum BindKind {
     },
     /// A node that shows the name of its hotkey (`data-hotkey-label`).
     HotkeyLabel,
+    /// A model-provided hotkey string, empty to disable.
+    Hotkey(ExprId),
+    /// A two-way scroll offset in skin state.
+    Scroll {
+        /// Horizontal (0) or vertical (1).
+        axis: u8,
+        /// State path without its root.
+        path: StrId,
+    },
+    /// An integer input's inclusive bounds and positive step.
+    Number([i32; 3]),
 }
 
 /// One binding of one node.
@@ -257,6 +268,9 @@ impl Bindings {
                 }
                 BindKind::Fit { min } => min.is_none_or(|m| m.is_finite() && m > 0.0),
                 BindKind::HotkeyLabel => true,
+                BindKind::Hotkey(e) => expr_ok(*e),
+                BindKind::Scroll { axis, path } => *axis < 2 && str_ok(*path),
+                BindKind::Number([min, max, step]) => min <= max && *step > 0,
             };
             if !ok {
                 return bad(where_("an index or a value is out of range"));
@@ -305,7 +319,7 @@ impl crate::remap::Remapped for Binding {
     fn remap(&mut self, r: &crate::remap::Remap) {
         match &mut self.kind {
             BindKind::ClassToggle { class, .. } => r.str(class),
-            BindKind::Model(s) => r.str(s),
+            BindKind::Model(s) | BindKind::Scroll { path: s, .. } => r.str(s),
             BindKind::Control { value, .. } => r.opt_str(value),
             _ => {}
         }

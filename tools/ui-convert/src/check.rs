@@ -614,9 +614,10 @@ fn registry(cx: &mut Ctx, skin_page: bool) {
             first.entry(format!("hotkey {key}")).or_insert(ix);
         }
         if a.hotkey_label
-            && !std::iter::once(ix)
-                .chain(dom.ancestors(ix))
-                .any(|x| dom.elems[x].attr("data-hotkey").is_some())
+            && !std::iter::once(ix).chain(dom.ancestors(ix)).any(|x| {
+                dom.elems[x].attr("data-hotkey").is_some()
+                    || dom.elems[x].attr("data-bind-hotkey").is_some()
+            })
         {
             cx.err_at(
                 ix,

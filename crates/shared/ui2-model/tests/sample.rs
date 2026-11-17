@@ -269,6 +269,7 @@ fn wire_types_carry_plain_values() {
     assert_eq!(mi.name.as_ref(), "say");
 
     let ev = ScriptEvent {
+        input: Default::default(),
         ctx: ScriptCtxId::Mod("hello".into()),
         name: "pick".into(),
         arg: Value::None,

@@ -92,6 +92,8 @@ impl Runtime {
             env: &self.style_env,
         };
         let mut binds = self.binder.pass(&mut self.arena, &bctx, &mut self.errors);
+        self.binder
+            .refresh_hotkey_labels(&mut self.arena, &self.pkg, m);
         let mut bind_ms = watch.lap();
         let change = std::mem::take(&mut self.env_change);
         let mut restyled = Vec::new();
@@ -139,6 +141,7 @@ impl Runtime {
             layout.runs += again.runs;
             layout.visited += again.visited;
         }
+        self.sync_scroll();
         let mut layout_ms = watch.lap();
         // Virtual lists show what their scroll containers show once these are laid out: rows that entered
         // the window are bound, styled, shaped and laid out in the same frame.
@@ -161,6 +164,8 @@ impl Runtime {
             let b = self.binder.pass(&mut self.arena, &bctx, &mut self.errors);
             binds.evaluated += b.evaluated;
             binds.visited += b.visited;
+            self.binder
+                .refresh_hotkey_labels(&mut self.arena, &self.pkg, m);
             bind_ms += watch.lap();
             let s = style::select::pass(
                 &mut self.arena,
@@ -201,6 +206,7 @@ impl Runtime {
             );
             layout.runs += l.runs;
             layout.visited += l.visited;
+            self.sync_scroll();
             layout_ms += watch.lap();
             if l.runs > 0 {
                 self.binder.windows_changed();
@@ -248,6 +254,7 @@ impl Runtime {
         let updates = self.binder.take_anchor_updates();
         self.anchors
             .sync(&mut self.arena, &self.pkg, scene, updates, &mut self.errors);
+        self.rebuild_hotkeys(m);
         let paint = paint::pass(
             &mut self.arena,
             &paint::PaintCtx {

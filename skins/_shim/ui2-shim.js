@@ -37,7 +37,7 @@
     "meta", "game", "top", "research", "players", "turn", "unit", "map", "notes", "chat", "production", "ui", "state",
   ];
   // The DOM events markup may handle; the ones that do not bubble are handled on their own element only.
-  const EVENTS = ["click", "dblclick", "contextmenu", "pointerdown", "pointerup", "input", "change", "submit", "keydown", "keyup"];
+  const EVENTS = ["click", "dblclick", "contextmenu", "pointerdown", "pointerup", "input", "change", "submit", "keydown", "keyup", "wheel"];
   const OWN_EVENTS = ["pointerenter", "pointerleave", "focus", "blur"];
   // CSS properties whose numbers have no unit.
   const UNITLESS = new Set(["opacity", "z-index", "flex-grow", "flex-shrink", "order", "font-weight", "line-height"]);
@@ -91,9 +91,11 @@
     return copy;
   }
 
+  let currentEvent = null;
+
   function get(path) {
     const steps = path.split(".");
-    let node = shim.roots[steps[0]];
+    let node = steps[0] === "event" ? currentEvent : shim.roots[steps[0]];
     for (const s of steps.slice(1)) {
       if (node === null || node === undefined) return null;
       node = node[s];
@@ -109,7 +111,7 @@
 
   function tokens(src) {
     const out = [];
-    const re = /\s*(?:(\d+(?:\.\d+)?)|('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")|([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)|(==|!=|<=|>=|&&|\|\||[!<>()+\-,:]))/y;
+    const re = /\s*(?:(\d+(?:\.\d+)?)|('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")|([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)|(==|!=|<=|>=|&&|\|\||[!<>()+\-,:?]))/y;
     let i = 0;
     while (i < src.length) {
       if (/^\s*$/.test(src.slice(i))) break;
@@ -136,7 +138,7 @@
       if (!tok) throw new Unknown("`" + src + "` ends early");
       if (tok.k === "num" || tok.k === "str") return () => tok.v;
       if (tok.k === "op" && tok.v === "(") {
-        const e = or();
+        const e = conditional();
         if (!peek(")")) throw new Unknown("`" + src + "`: a ) is missing");
         p++;
         return e;
@@ -147,7 +149,7 @@
         if (tok.v === "null") return () => null;
         if (peek("(")) throw new Unknown("`" + src + "`: functions are not evaluated by the shim");
         const root = tok.v.split(".")[0];
-        if (!ROOTS.includes(root)) throw new Unknown("`" + tok.v + "` is a loop variable");
+        if (root !== "event" && !ROOTS.includes(root)) throw new Unknown("`" + tok.v + "` is a loop variable");
         paths.push(tok.v);
         return () => get(tok.v);
       }
@@ -214,7 +216,17 @@
       }
       return e;
     }
-    const fn = or();
+    function conditional() {
+      const test = or();
+      if (!peek("?")) return test;
+      p++;
+      const yes = conditional();
+      if (!peek(":")) throw new Unknown("conditional needs :");
+      p++;
+      const no = conditional();
+      return () => test() ? yes() : no();
+    }
+    const fn = conditional();
     if (p !== t.length) throw new Unknown("`" + src + "`: more after the expression");
     return { fn, paths };
   }
@@ -480,7 +492,7 @@
       const a = el.getAttribute("data-event-arg");
       events.push({ name: el.getAttribute("data-event"), arg: a === null ? null : evalLoose(inner(a)), node: nodePath(el) });
     }
-    const src = el.getAttribute("data-on-" + type);
+    const src = el.getAttribute("data-on-" + type) || (type === "contextmenu" ? el.getAttribute("data-on-right-click") : null);
     if (src === null) return stop;
     for (const action of splitTop(src, ";")) {
       const s = action.trim();
@@ -499,12 +511,15 @@
   }
 
   function onEvent(ev) {
+    currentEvent = { shift: !!ev.shiftKey, ctrl: !!ev.ctrlKey, alt: !!ev.altKey, dx: ev.deltaX || 0, dy: ev.deltaY || 0 };
     const own = OWN_EVENTS.includes(ev.type);
     const events = [];
     const changed = new Set();
     for (let el = ev.target; el && el.nodeType === 1; el = el.parentElement) {
       if (act(el, ev.type, events, changed) || own) break;
     }
+    for (const event of events) Object.assign(event, currentEvent);
+    currentEvent = null;
     if (events.length || changed.size) {
       sendFrame(changed, events);
       render();
@@ -516,7 +531,7 @@
     for (const el of doc.querySelectorAll("[data-hotkey]")) {
       if (el.getAttribute("data-hotkey") === code) {
         ev.preventDefault();
-        el.click();
+        el.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: ev.ctrlKey, altKey: ev.altKey, shiftKey: ev.shiftKey }));
         return;
       }
     }

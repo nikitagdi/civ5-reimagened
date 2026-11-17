@@ -613,6 +613,10 @@
   }
 
   /** Exactly one {{ expr }} (spaces around it are fine) -> the expression, or throws ExprError. */
+  function parseBindingExpr(value) {
+    return value.trim().startsWith("{{") ? parseSingleExpr(value) : parseExpr(value);
+  }
+
   function parseSingleExpr(value) {
     const t = parseTemplate(value.trim());
     if (t.segs.length === 1 && t.segs[0].expr) return t.segs[0].expr;
@@ -671,7 +675,7 @@
    * errors = [{ code, attr, message }]. Attributes the preview does not evaluate are ignored.
    */
   function parseBindings(attrs) {
-    const out = { value: null, cond: null, forSpec: null, classToggle: [], styles: [], src: null, disabled: null, l10n: null, l10nArgs: null, errors: [] };
+    const out = { value: null, cond: null, forSpec: null, classToggle: [], styles: [], src: null, hotkey: null, model: null, scrollX: null, scrollY: null, disabled: null, l10n: null, l10nArgs: null, errors: [] };
     const seen = new Set();
     const raw = {};
     const take = (attr, fn) => {
@@ -689,7 +693,11 @@
         case "data-bind-value": out.value = take(name, () => parseTemplate(value)); break;
         case "data-bind-if": out.cond = take(name, () => parseSingleExpr(value)); break;
         case "data-bind-class-toggle": out.classToggle = take(name, () => parseClassToggle(value)) || []; break;
-        case "data-bind-src": out.src = take(name, () => parseSingleExpr(value)); break;
+        case "data-bind-src": out.src = take(name, () => parseBindingExpr(value)); break;
+        case "data-bind-hotkey": out.hotkey = take(name, () => parseBindingExpr(value)); break;
+        case "data-bind-model": out.model = take(name, () => parseBindingExpr(value)); break;
+        case "data-bind-scroll-x": out.scrollX = take(name, () => parseBindingExpr(value)); break;
+        case "data-bind-scroll-y": out.scrollY = take(name, () => parseBindingExpr(value)); break;
         case "data-bind-disabled": out.disabled = take(name, () => parseSingleExpr(value)); break;
         case "data-l10n": out.l10n = value; break;
         case "data-l10n-args": out.l10nArgs = take(name, () => parseL10nArgs(value)); break;
@@ -1402,13 +1410,19 @@
         for (const t of p.classToggle) c.classList.toggle(t.cls, truthy(ev(t.cond, scope)));
         for (const s of p.styles) c.style.setProperty(s.prop, evText(s.tpl, scope));
       }
+      if (p.hotkey && !extract()) c.setAttribute("data-hotkey", renderValue(ev(p.hotkey, scope)));
+      if (p.model && !extract()) c.value = renderValue(ev(p.model, scope));
+      if ((p.scrollX || p.scrollY) && !extract()) requestAnimationFrame(() => {
+        if (p.scrollX) c.scrollLeft = Number(renderValue(ev(p.scrollX, scope))) || 0;
+        if (p.scrollY) c.scrollTop = Number(renderValue(ev(p.scrollY, scope))) || 0;
+      });
       if (p.src && extract()) {
         // A picture the runtime fills from data: the converter needs only the reference, not a placeholder.
         const v = renderValue(ev(p.src, scope));
         if (v !== "") c.setAttribute("data-ui2-asset", v);
       } else if (p.src) {
         const v = renderValue(ev(p.src, scope));
-        if (/^[a-z][a-z0-9-]*:/i.test(v)) {
+        if (/^[a-z][a-z0-9_-]*:/i.test(v)) {
           // A game asset reference: the game's files are not here. Keep the reference, show a placeholder.
           c.setAttribute("data-ui2-asset", v);
           c.setAttribute("src", ASSET_PLACEHOLDER);
@@ -1432,10 +1446,12 @@
       }
       if (el.hasAttribute("data-hotkey-label")) {
         // The name of the key of the nearest data-hotkey (this element or an ancestor), as the runtime shows it.
-        const owner = el.closest("[data-hotkey]");
+        const owner = el.closest("[data-hotkey], [data-bind-hotkey]");
         if (owner) {
           const name = (k, fallback) => Object.prototype.hasOwnProperty.call(l10n, "key." + k) ? locText("key." + k, []) : fallback;
-          c.textContent = hotkeyLabel(owner.getAttribute("data-hotkey"), name);
+          const binding = owner.getAttribute("data-bind-hotkey");
+          const key = binding === null ? owner.getAttribute("data-hotkey") : renderValue(ev(parseBindingExpr(binding), scope));
+          c.textContent = key ? hotkeyLabel(key, name) : "";
         } else {
           report(E.HOTKEY, "error", el, "data-hotkey-label", "no data-hotkey on the element or an ancestor");
           c.textContent = "";

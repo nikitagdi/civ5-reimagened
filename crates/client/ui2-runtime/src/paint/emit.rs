@@ -1272,6 +1272,25 @@ impl<'a> Emitter<'a> {
                 ErrorCode::Paint,
                 format!("the game has no picture {name}"),
             ));
+            let placeholder = crate::panel::failed_record(taffy::Size::ZERO, None);
+            let rect = Self::snap(self.content_box(id), &s.xf);
+            let fill = self.color(placeholder.background_color, s.alpha);
+            let edge = self.color(placeholder.border_top_color, s.alpha);
+            let width = self.width(Len::px(1.0));
+            self.push(Item::Box(BoxItem {
+                rect,
+                fill: Fill::Solid(fill),
+                border: Border {
+                    top: width,
+                    right: width,
+                    bottom: width,
+                    left: width,
+                    color: edge,
+                },
+                radii: Radii::ZERO,
+                transform: Self::xf_of(s.xf),
+                clip: Self::clip_of(s),
+            }));
             return;
         };
         let image = ImageRef {

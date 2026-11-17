@@ -1339,6 +1339,12 @@ impl V2Frontend {
         }
         // The replica, the localizer and the UI set the game's pictures come from are the game session's.
         let new_icons = self.icons.set_store(session.ui_store());
+        let new_aliases = match net {
+            Some(n) => n
+                .peek(|core| self.icons.set_catalog(core.catalog()))
+                .unwrap_or(false),
+            None => self.icons.set_catalog(None),
+        };
         let loc = session.localizer();
         let new_loc = match (&loc, &self.loc) {
             (Some(a), Some(b)) => !Rc::ptr_eq(a, b),
@@ -1354,7 +1360,7 @@ impl V2Frontend {
             ui.set_localizer(Rc::clone(l));
         }
         // The UI set came (or changed): the pictures the skin could not find are painted again.
-        if new_icons {
+        if new_icons || new_aliases {
             ui.set_asset_resolver(self.icons.resolver());
         }
         self.loc = loc;

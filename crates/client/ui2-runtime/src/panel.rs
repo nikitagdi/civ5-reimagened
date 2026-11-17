@@ -95,7 +95,7 @@ const PLACEHOLDER_FONT_PX: f32 = 12.0;
 /// size, that shows the panel's name on one line (cut with an ellipsis) in the package's first font family.
 /// The look is built in: a package carries style records only for the nodes of its templates, so a skin
 /// rule for placeholders has no record to take.
-fn failed_record(size: taffy::Size<f32>, family: Option<StrId>) -> StyleRecord {
+pub(crate) fn failed_record(size: taffy::Size<f32>, family: Option<StrId>) -> StyleRecord {
     let mut r = name_record(family);
     r.display = Display::Block;
     r.box_sizing = BoxSizing::BorderBox;

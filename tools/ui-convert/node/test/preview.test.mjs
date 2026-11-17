@@ -381,3 +381,18 @@ test("skin state: the defaults of skin.toml, then the sample's state over them",
     await ctx.close();
   }
 });
+
+
+test("runtime controls sample renders model hotkeys, integer input, scroll offsets and namespaced assets", async () => {
+  const ctx = await newContext();
+  try {
+    const { page } = await openPage(ctx, fixture, "runtime-additions.html");
+    await page.evaluate(() => window.__ui2preview.rerender({ model: { items: [{ id: 1, hotkey: "Shift+KeyQ", icon: "great_work:ART:2" }] }, state: { amount: 6, techs: { x: 30, y: 10 } } }));
+    await page.waitForFunction(() => document.querySelector("#tree").scrollLeft === 30);
+    assert.equal(await text(page, "[data-hotkey-label]"), "Shift+Q");
+    assert.equal(await page.getAttribute("img", "data-ui2-asset"), "great_work:ART:2");
+    assert.equal(await page.inputValue("#amount"), "6");
+    assert.equal(await page.getAttribute("#amount", "step"), "2");
+    assert.equal(await page.getAttribute('[data-screen="production"]', "data-esc"), "none");
+  } finally { await ctx.close(); }
+});

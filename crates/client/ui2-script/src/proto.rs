@@ -155,10 +155,15 @@ pub(crate) fn encode_frame(
         }
         let _ = write!(
             out,
-            "{{\"name\":{},\"arg\":{},\"node\":{}}}",
+            "{{\"name\":{},\"arg\":{},\"node\":{},\"shift\":{},\"ctrl\":{},\"alt\":{},\"dx\":{},\"dy\":{}}}",
             json_str(&e.name),
             value_to_json(&e.arg),
-            json_str(&e.node_path)
+            json_str(&e.node_path),
+            e.input.shift,
+            e.input.ctrl,
+            e.input.alt,
+            e.input.dx,
+            e.input.dy
         );
     }
     out.push(']');

@@ -37,6 +37,7 @@ const SCRIPT = `
 ui.on("sort", (by) => ui.state.set("sort", by));
 ui.on("pick", (a) => ui.state.set("picked", a));
 ui.on("hot", () => ui.state.set("hot", true));
+ui.on("modifiers", (arg, event) => { ui.state.set("modifiers", [arg, event.shift, event.ctrl, event.alt]); ui.island("clock").text("t", "modified"); });
 ui.state.on("open", (v) => ui.island("clock").text("t", v ? "open" : "shut").cls("t", "lit", v));
 ui.on("ready", () => ui.state.set("gold", ui.model.get("top.gold")));
 `;
@@ -61,6 +62,7 @@ ${data}
 <span id="gold" data-bind-value="{{top.gold}}">312</span>
 <button id="toggle" data-on-click="toggle state.open">toggle</button>
 <button id="call" data-on-click="call pick('a', 2)">call</button>
+<button id="modifiers" data-on-click="call modifiers(event.shift ? 1 : 0)">1</button>
 <button id="hot" data-hotkey="KeyP" data-on-click="call hot()">hot</button>
 <button id="intent" data-on-click="intent window.open(window: 'production')">intent</button>
 <script src="js/hud.js"></script>
@@ -124,6 +126,10 @@ test("the shim runs a skin script from file:// and binds its state", { skip: !ch
     assert.equal(s.hot, true);
     const intents = await p.evaluate(() => window.__ui2shim.intents);
     assert.deepEqual(intents, [{ name: "window.open", args: { window: "production" } }]);
+    await p.click("#modifiers", { modifiers: ["Shift", "Control", "Alt"] });
+    await settle();
+    assert.deepEqual((await state()).modifiers, [1, true, true, true]);
+    assert.equal(await p.textContent("[data-ui2-key='t']"), "modified");
     assert.deepEqual(errors, [], "no console errors after the clicks");
   } finally {
     await browser.close();

@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Runtime controls sample</title></head><body>
+<div data-layer="hud">
+  <button data-bind-for="item:{{items}}" data-bind-key="{{item.id}}" data-bind-hotkey="item.hotkey" data-on-click="call pick(item.id, event.shift ? 1 : 0)" data-on-right-click="call first(event.ctrl)"><span data-hotkey-label></span><img data-bind-src="item.icon"></button>
+  <input id="amount" type="number" min="-5" max="20" step="2" data-bind-model="state.amount">
+  <div id="tree" style="width:100px;height:40px;overflow:auto;scrollbar-width:none" data-bind-scroll-x="state.techs.x" data-bind-scroll-y="state.techs.y" data-on-wheel="set state.techs.x = state.techs.x + event.dy"><div style="width:500px;height:100px"></div></div>
+</div>
+<div data-layer="window"><section data-screen="production" data-esc="none"></section><section data-screen="research" data-esc="intent window.close('research')"></section></div>
+</body></html>

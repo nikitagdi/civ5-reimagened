@@ -553,6 +553,25 @@ impl Tb<'_> {
         if let Some(min) = attrs.fit {
             bind(self, BindKind::Fit { min });
         }
+        if let Some(e) = &attrs.bind_hotkey {
+            let e = self.expr(e);
+            bind(self, BindKind::Hotkey(e));
+        }
+        for (axis, path) in attrs.scroll.iter().enumerate() {
+            if let Some(path) = path {
+                let path = self.b.str(path);
+                bind(
+                    self,
+                    BindKind::Scroll {
+                        axis: axis as u8,
+                        path,
+                    },
+                );
+            }
+        }
+        if let Some(range) = attrs.number {
+            bind(self, BindKind::Number(range));
+        }
         if attrs.hotkey_label {
             bind(self, BindKind::HotkeyLabel);
         }

@@ -1133,3 +1133,320 @@ fn input_tooltip_shows_under_its_node_while_hovered() {
     h.frame();
     assert_eq!(rect(&h), (1840.0, 1050.0, 80.0, 30.0));
 }
+
+#[test]
+fn click_and_script_events_read_current_modifiers_without_another_frame() {
+    let mut f = Fx::new();
+    f.kit.state_default("amount", Lit::Int(7));
+    let button = f
+        .el("button", at(0.0, 0.0, 100.0, 100.0))
+        .bind(on(
+            Event::Click,
+            vec![call(
+                "pick",
+                &["event.shift ? state.amount : 0", "event.ctrl", "event.alt"],
+            )],
+        ))
+        .bind(on(
+            Event::Contextmenu,
+            vec![call("right", &["event.shift"])],
+        ));
+    f.kit.template("doc", vec![button]);
+    let mut h = Host::with(f.kit.finish().expect("package"), Env::default());
+    for shift in [false, true, false] {
+        for phase in [PointerPhase::Down, PointerPhase::Up] {
+            let mut input = pointer(phase, 5.0, 5.0, Some(MouseButton::Left));
+            if let InputEvent::Pointer(p) = &mut input {
+                p.modifiers = Modifiers {
+                    shift,
+                    ctrl: true,
+                    alt: true,
+                    ..Modifiers::default()
+                };
+            }
+            h.send(input);
+        }
+        let out = h.rt.drain_output();
+        let ev = out
+            .script_events
+            .iter()
+            .find(|e| e.name.as_ref() == "pick")
+            .expect("script event");
+        assert_eq!(
+            ev.arg,
+            MValue::Struct(vec![
+                MValue::I32(if shift { 7 } else { 0 }),
+                MValue::Bool(true),
+                MValue::Bool(true)
+            ])
+        );
+        assert_eq!(
+            (ev.input.shift, ev.input.ctrl, ev.input.alt),
+            (shift, true, true)
+        );
+    }
+    for phase in [PointerPhase::Down, PointerPhase::Up] {
+        let mut input = pointer(phase, 5.0, 5.0, Some(MouseButton::Right));
+        if let InputEvent::Pointer(p) = &mut input {
+            p.modifiers.shift = true;
+        }
+        h.send(input);
+    }
+    assert_eq!(h.rt.drain_output().script_events[0].arg, MValue::Bool(true));
+}
+
+#[test]
+fn escape_policy_consumes_without_closing_or_dispatches_its_intent() {
+    for actions in [vec![Action::Stop], vec![intent("turn.end", &[])]] {
+        let mut f = Fx::new();
+        let screen = f
+            .el("screen", at(0.0, 0.0, 200.0, 100.0))
+            .screen("production")
+            .bind(on(Event::Escape, actions.clone()));
+        let window = f.layer(Layer::Window, "window").child(screen);
+        f.kit.template("doc", vec![window]);
+        let mut h = Host::with(f.kit.finish().expect("package"), Env::default());
+        assert_eq!(h.named(NamedKey::Escape, "Escape"), TAKEN);
+        let out = h.rt.drain_output();
+        if actions == vec![Action::Stop] {
+            assert!(out.intents.is_empty());
+        } else {
+            assert_eq!(out.intents[0].name.as_ref(), "turn.end");
+        }
+    }
+}
+
+#[derive(Clone)]
+struct DynamicRoot<const UI: bool>(MValue);
+impl<const UI: bool> Default for DynamicRoot<UI> {
+    fn default() -> Self {
+        Self(MValue::Struct(Vec::new()))
+    }
+}
+impl<const UI: bool> ui2_model::Model for DynamicRoot<UI> {
+    fn diff(&self, old: &Self, at: &mut ui2_model::Cursor, out: &mut ui2_model::Ops) {
+        if self.0 != old.0 {
+            out.push(ui2_model::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: self.0.clone(),
+            });
+        }
+    }
+    fn to_value(&self) -> MValue {
+        self.0.clone()
+    }
+    fn from_value(v: &MValue) -> Result<Self, ui2_model::ValueError> {
+        Ok(Self(v.clone()))
+    }
+}
+impl<const UI: bool> ui2_model::Root for DynamicRoot<UI> {
+    const NAME: &'static str = if UI { "ui" } else { "top" };
+}
+
+#[test]
+fn model_hotkeys_rebuild_after_list_reordering_and_report_first_wins() {
+    let mut f = Fx::new();
+    let key = f.kit.expr(e("r.hotkey"));
+    let row = f
+        .el("row", at(0.0, 0.0, 30.0, 30.0))
+        .bind(BindKind::Hotkey(key))
+        .bind(on(Event::Click, vec![call("pick", &["r.id"])]));
+    let list = f.kit.expr(e("top.rows"));
+    let id = f.kit.expr(e("r.id"));
+    let item = f.kit.str("r");
+    let list = TNode::new(
+        NodeKind::For {
+            tpl: TemplateId(1),
+            item,
+            index: None,
+            list,
+            key: id,
+            virt: false,
+            sort: None,
+            sort_desc: None,
+            filter: None,
+        },
+        StyleSetId(0),
+    );
+    let hud = f.layer(Layer::Hud, "hud").child(list);
+    f.kit.template("doc", vec![hud]);
+    f.kit.template("row", vec![row]);
+    let schema = Box::leak(Box::new(Schema::parse("version = \"1.0\"\n[type.Row]\nid = \"i32\"\nhotkey = \"str\"\n[model.top]\nrows = { list = \"Row\", key = \"id\" }\n").expect("schema")));
+    let pkg = f.kit.finish().expect("package");
+    let mut h = Host {
+        rt: Runtime::new(pkg, Env::default(), Services::default()).expect("runtime"),
+        engine: TextEngine::new(),
+        store: ModelStore::new(schema),
+        scene: Scene::new(1.0),
+        now: 0.0,
+    };
+    for (rows, winner, conflict) in [
+        (
+            r#"[{"id":1,"hotkey":"KeyQ"},{"id":2,"hotkey":"KeyQ"}]"#,
+            1,
+            true,
+        ),
+        (
+            r#"[{"id":2,"hotkey":"KeyQ"},{"id":1,"hotkey":""}]"#,
+            2,
+            false,
+        ),
+        (r#"[{"id":3,"hotkey":"KeyQ"}]"#, 3, false),
+    ] {
+        let sample = Sample::parse(
+            schema,
+            &format!("{{\"model\":{{\"top\":{{\"rows\":{rows}}}}}}}"),
+        )
+        .expect("sample");
+        h.store
+            .writer(ui2_model::Owner::Source)
+            .put(DynamicRoot::<false>(sample.roots()[0].1.clone()))
+            .expect("apply");
+        let frame = h.frame();
+        assert_eq!(
+            frame
+                .errors
+                .iter()
+                .any(|e| e.msg.contains("hotkey conflict")),
+            conflict,
+            "{:?}",
+            frame.errors
+        );
+        assert_eq!(h.letter("KeyQ"), TAKEN);
+        assert_eq!(
+            h.rt.drain_output().script_events[0].arg,
+            MValue::I32(winner)
+        );
+    }
+}
+
+#[test]
+fn static_keys_use_optional_action_map_overrides() {
+    let mut f = Fx::new();
+    let button = f
+        .el("button", at(0.0, 0.0, 30.0, 30.0))
+        .hotkey("KeyQ", 0)
+        .bind(on(Event::Click, vec![call("pick", &[])]));
+    f.kit.template("doc", vec![button]);
+    let schema = Box::leak(Box::new(
+        Schema::parse(
+            "version = \"1.0\"\n[type.Keys]\npick = \"str\"\n[model.ui]\nkeys = \"Keys\"\n",
+        )
+        .expect("schema"),
+    ));
+    let mut h = Host {
+        rt: Runtime::new(
+            f.kit.finish().expect("package"),
+            Env::default(),
+            Services::default(),
+        )
+        .expect("runtime"),
+        engine: TextEngine::new(),
+        store: ModelStore::new(schema),
+        scene: Scene::new(1.0),
+        now: 0.0,
+    };
+    let sample = Sample::parse(schema, r#"{"ui":{"keys":{"pick":"Ctrl+KeyB"}}}"#).expect("sample");
+    h.store
+        .writer(ui2_model::Owner::Actions)
+        .put(DynamicRoot::<true>(sample.ui().expect("ui").1.clone()))
+        .expect("apply");
+    h.frame();
+    assert_eq!(h.letter("KeyQ"), PASS);
+    assert_eq!(
+        h.send(key_event(
+            Key::Character("b".into()),
+            "KeyB",
+            true,
+            Modifiers {
+                ctrl: true,
+                ..Modifiers::default()
+            }
+        )),
+        TAKEN
+    );
+    assert_eq!(h.rt.drain_output().script_events[0].name.as_ref(), "pick");
+}
+
+#[test]
+fn wheel_handler_and_scroll_binding_share_state() {
+    let mut f = Fx::new();
+    f.kit.state_default("techs.x", Lit::Float(40.0));
+    f.kit.state_default("techs.y", Lit::Int(0));
+    let path = f.kit.str("techs.x");
+    let scroller = f
+        .el(
+            "scroll",
+            with(at(0.0, 0.0, 100.0, 100.0), |r| {
+                r.overflow_x = Overflow::Auto;
+                r.overflow_y = Overflow::Hidden;
+            }),
+        )
+        .bind(BindKind::Scroll { axis: 0, path })
+        .bind(on(
+            Event::Wheel,
+            vec![
+                Action::Set {
+                    path: "state.techs.x".into(),
+                    value: e("state.techs.x + event.dy"),
+                },
+                call("wheel", &["event.dx", "event.dy"]),
+            ],
+        ));
+    let wide = f.el("wide", at(0.0, 0.0, 500.0, 80.0));
+    f.kit.template("doc", vec![scroller.child(wide)]);
+    let mut h = Host::with(f.kit.finish().expect("package"), Env::default());
+    let id = h.part("scroll");
+    assert_eq!(h.rt.node(id).expect("scroll").scroll(), [40.0, 0.0]);
+    h.wheel(50.0, 50.0, -1.0);
+    let out = h.rt.drain_output();
+    assert_eq!(out.state_writes[0].value, MValue::F32(80.0));
+    assert_eq!(
+        out.script_events[0].arg,
+        MValue::Struct(vec![MValue::F32(0.0), MValue::F32(40.0)])
+    );
+    h.rt.scroll_by(id, glam::Vec2::new(20.0, 0.0));
+    let out = h.rt.drain_output();
+    assert_eq!(
+        out.state_writes[0],
+        StateOp {
+            path: "state.techs.x".into(),
+            value: MValue::F32(60.0)
+        }
+    );
+}
+
+#[test]
+fn unknown_game_picture_draws_the_placeholder_and_reports_once() {
+    let mut f = Fx::new();
+    let asset = f.kit.asset_ref("unit:unknown");
+    let set = f.set(at(0.0, 0.0, 40.0, 40.0));
+    let part = f.kit.str("missing");
+    f.kit
+        .template("doc", vec![TNode::asset(asset, set).part(part)]);
+    let mut rt = Runtime::new(
+        f.kit.finish().expect("package"),
+        Env::default(),
+        Services::default(),
+    )
+    .expect("runtime");
+    rt.set_asset_resolver(std::rc::Rc::new(|_| None));
+    let mut scene = Scene::new(1.0);
+    let mut engine = TextEngine::new();
+    let store = ModelStore::new(Schema::v1());
+    let out = rt.frame(0.0, &store, &mut engine, &mut scene);
+    assert_eq!(out.errors.len(), 1);
+    assert!(out.errors[0].msg.contains("unit:unknown"));
+    let chunk = rt
+        .node(rt.find_part("missing").expect("part"))
+        .expect("node")
+        .chunk();
+    let items = rt.chunk_items(chunk).expect("chunk").1.items;
+    assert!(items.iter().any(|item| matches!(item, ui2_draw::Item::Box(b) if b.fill == ui2_draw::Fill::Solid(ui2_draw::Color([170, 60, 50, 72])))));
+    assert!(
+        rt.frame(1.0, &store, &mut engine, &mut scene)
+            .errors
+            .is_empty()
+    );
+}

@@ -55,9 +55,20 @@ pub enum ScriptCtxId {
     Mod(Arc<str>),
 }
 
+/// Input details supplied to a script handler as its second argument.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ScriptInput {
+    pub shift: bool,
+    pub ctrl: bool,
+    pub alt: bool,
+    pub dx: f32,
+    pub dy: f32,
+}
+
 /// A markup event delivered to a script (`data-on-<ev>="call ..."`, `data-event`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct ScriptEvent {
+    pub input: ScriptInput,
     pub ctx: ScriptCtxId,
     pub name: Arc<str>,
     pub arg: Value,

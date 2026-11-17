@@ -181,7 +181,11 @@ impl C<'_> {
         }
         if let Some(e) = &attrs.src
             && let Some(a) = self.analyze("data-bind-src", e, inner)
-            && !a.ty.alts.iter().all(|t| matches!(t, TypeSig::Asset))
+            && !a
+                .ty
+                .alts
+                .iter()
+                .all(|t| matches!(t, TypeSig::Asset | TypeSig::Str))
         {
             self.push(
                 codes::TYPE,
@@ -218,9 +222,35 @@ impl C<'_> {
             );
         }
         if let Some(model) = attrs.model.clone() {
-            self.model(&model, attrs.control.as_ref().map(|c| c.kind));
+            self.model(
+                &model,
+                attrs.control.as_ref().map(|c| c.kind),
+                attrs.number.is_some(),
+            );
+        }
+        if let Some(e) = &attrs.bind_hotkey
+            && let Some(a) = self.analyze("data-bind-hotkey", e, inner)
+            && !a.ty.alts.iter().all(|t| *t == TypeSig::Str)
+        {
+            self.push(codes::TYPE, "data-bind-hotkey", "a hotkey is a string");
+        }
+        for path in attrs.scroll.iter().flatten() {
+            if !matches!(inner.state.get(path), Some(TypeSig::Int | TypeSig::Float)) {
+                self.push(
+                    codes::TYPE,
+                    "data-bind-scroll",
+                    "scroll offset needs numeric skin state",
+                );
+            }
         }
         for ev in &mut attrs.events {
+            let inner = &inner
+                .clone()
+                .with_extra("event.shift", TypeSig::Bool)
+                .with_extra("event.ctrl", TypeSig::Bool)
+                .with_extra("event.alt", TypeSig::Bool)
+                .with_extra("event.dx", TypeSig::Float)
+                .with_extra("event.dy", TypeSig::Float);
             for a in &mut ev.actions {
                 self.action(a, inner);
             }
@@ -285,7 +315,7 @@ impl C<'_> {
         }
     }
 
-    fn model(&mut self, path: &str, control: Option<ControlKind>) {
+    fn model(&mut self, path: &str, control: Option<ControlKind>, number: bool) {
         let Some(ty) = self.scope.state.get(path).cloned() else {
             self.push(
                 expr::codes::UNKNOWN_PATH,
@@ -298,7 +328,13 @@ impl C<'_> {
             Some(ControlKind::Checkbox | ControlKind::Toggle) => ty == TypeSig::Bool,
             Some(ControlKind::Slider) => matches!(ty, TypeSig::Int | TypeSig::Float),
             Some(ControlKind::Radio | ControlKind::Select) => scalar(&ty),
-            None => matches!(ty, TypeSig::Str),
+            None => {
+                if number {
+                    ty == TypeSig::Int
+                } else {
+                    ty == TypeSig::Str
+                }
+            }
         };
         if !ok {
             self.push(

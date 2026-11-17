@@ -33,10 +33,10 @@
 //! takes it from the UI (also a press in the world).
 
 pub(crate) mod controls;
-mod events;
+pub(crate) mod events;
 mod focus;
 pub(crate) mod hit;
-mod hotkeys;
+pub(crate) mod hotkeys;
 pub(crate) mod text_edit;
 mod tooltip;
 
@@ -117,6 +117,8 @@ pub(crate) struct InputState {
     pub controls: controls::Controls,
     /// Text fields: what they show, the focused one's edit, the request for the host's text bridge.
     pub fields: text_edit::Fields,
+    pub event: events::EventData,
+    pub hotkeys: Vec<(String, u8, NodeId)>,
 }
 
 impl InputState {
@@ -200,6 +202,13 @@ impl Runtime {
     /// Takes one input event of the window (see the [module docs](crate::input)). `now_ms` is the host's
     /// clock.
     pub fn handle_input(&mut self, ev: &InputEvent, now_ms: f64) -> InputOutcome {
+        self.input.event = events::EventData::default();
+        match ev {
+            InputEvent::Pointer(p) => self.input.event.modifiers = p.modifiers,
+            InputEvent::Key(k) => self.input.event.modifiers = k.modifiers,
+            InputEvent::Wheel(w) => self.input.event.modifiers = w.modifiers,
+            _ => {}
+        }
         match ev {
             InputEvent::Pointer(p) => self.on_pointer(p, now_ms),
             InputEvent::Wheel(w) => self.on_wheel(w),
@@ -339,14 +348,27 @@ impl Runtime {
         let Some(node) = hit.node else {
             return InputOutcome::PassToWorld;
         };
-        let Some(scroller) = self.geo().scroller(node) else {
-            return InputOutcome::PassToWorld;
-        };
         let k = self.style_env.scale.k;
         // Positive deltas scroll up (and left): the content moves down, the offset shrinks.
         let d = match w.delta {
             WheelDelta::Lines { x, y } => Vec2::new(-x, -y) * WHEEL_LINE_PX,
             WheelDelta::Pixels { x, y } => Vec2::new(-x as f32, -y as f32) / k,
+        };
+        let d = Vec2::new(
+            if d.x == 0.0 { 0.0 } else { d.x },
+            if d.y == 0.0 { 0.0 } else { d.y },
+        );
+        self.input.event.dx = d.x;
+        self.input.event.dy = d.y;
+        if self.number_wheel(node, d.y) {
+            return InputOutcome::Consumed;
+        }
+        if self.has_handler(node, Event::Wheel) {
+            self.dispatch(node, Event::Wheel, false);
+            return InputOutcome::Consumed;
+        }
+        let Some(scroller) = self.geo().scroller(node) else {
+            return InputOutcome::PassToWorld;
         };
         self.scroll_by(scroller, d);
         InputOutcome::Consumed
@@ -368,6 +390,48 @@ impl Runtime {
             self.arena.mark(id, Dirty::PAINT);
             // A virtual list in it may show other rows now.
             self.binder.windows_changed();
+            self.write_scroll(id, new);
+        }
+    }
+
+    pub(crate) fn sync_scroll(&mut self) {
+        for (id, axis, value) in std::mem::take(&mut self.binder.scroll_updates) {
+            let range = hit::scroll_range(&self.arena, id);
+            if let Some(n) = self.arena.get_mut(id) {
+                let index = usize::from(axis);
+                let max = if axis == 0 { range.x } else { range.y };
+                let value = value.clamp(0.0, max);
+                if n.scroll[index] != value {
+                    n.scroll[index] = value;
+                    self.arena.mark(id, Dirty::PAINT);
+                    self.binder.windows_changed();
+                }
+            }
+        }
+    }
+
+    fn write_scroll(&mut self, id: NodeId, offset: [f32; 2]) {
+        let Some(n) = self.arena.get(id) else {
+            return;
+        };
+        for b in self.pkg.bindings_of(n.tmpl().0, n.tmpl().1) {
+            if let ui2_package::BindKind::Scroll { axis, path } = b.kind {
+                let path = self
+                    .pkg
+                    .state_path(n.tmpl().0, self.pkg.str(path).unwrap_or(""));
+                let value = offset[usize::from(axis)];
+                let value = if self.binder.model_type(&path)
+                    == Some(ui2_model::Type::Scalar(ui2_model::Scalar::I32))
+                {
+                    ui2_model::Value::I32(value as i32)
+                } else {
+                    ui2_model::Value::F32(value)
+                };
+                self.output.state_writes.push(ui2_model::wire::StateOp {
+                    path: path.into(),
+                    value,
+                });
+            }
         }
     }
 

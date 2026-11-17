@@ -364,6 +364,12 @@ pub struct NodeAttrs {
     pub anchor: Option<(AnchorKind, Expr)>,
     /// `data-hotkey`
     pub hotkey: Option<Hotkey>,
+    /// A key name evaluated for this live node.
+    pub bind_hotkey: Option<Expr>,
+    /// Two-way scroll paths below state, horizontal then vertical.
+    pub scroll: [Option<String>; 2],
+    /// Integer input limits and step.
+    pub number: Option<[i32; 3]>,
     /// `data-hotkey-label`
     pub hotkey_label: bool,
     /// `data-tooltip`
@@ -420,59 +426,7 @@ fn is_l10n_key(s: &str) -> bool {
         && !s.contains("..")
 }
 
-/// A `KeyboardEvent.code` value.
-fn is_key_code(c: &str) -> bool {
-    const NAMED: &[&str] = &[
-        "Space",
-        "Enter",
-        "Escape",
-        "Tab",
-        "Backspace",
-        "Delete",
-        "Insert",
-        "Home",
-        "End",
-        "PageUp",
-        "PageDown",
-        "ArrowUp",
-        "ArrowDown",
-        "ArrowLeft",
-        "ArrowRight",
-        "Minus",
-        "Equal",
-        "Comma",
-        "Period",
-        "Slash",
-        "Backslash",
-        "Semicolon",
-        "Quote",
-        "Backquote",
-        "BracketLeft",
-        "BracketRight",
-        "NumpadAdd",
-        "NumpadSubtract",
-        "NumpadMultiply",
-        "NumpadDivide",
-        "NumpadEnter",
-        "NumpadDecimal",
-    ];
-    if NAMED.contains(&c) {
-        return true;
-    }
-    let one = |rest: &str, ok: fn(u8) -> bool| rest.len() == 1 && ok(rest.as_bytes()[0]);
-    if let Some(rest) = c.strip_prefix("Key") {
-        return one(rest, |b| b.is_ascii_uppercase());
-    }
-    if let Some(rest) = c.strip_prefix("Digit").or_else(|| c.strip_prefix("Numpad")) {
-        return one(rest, |b| b.is_ascii_digit());
-    }
-    if let Some(n) = c.strip_prefix('F') {
-        return !n.starts_with('0')
-            && n.parse::<u8>().is_ok_and(|n| (1..=24).contains(&n))
-            && n.bytes().all(|b| b.is_ascii_digit());
-    }
-    false
-}
+use super::action::is_key_code;
 
 /// Splits `src` at `sep` outside string literals, parentheses and `{{ }}` inserts. Returns each
 /// piece with its byte offset.
@@ -507,6 +461,18 @@ pub(crate) fn split_top(src: &str, sep: char) -> Vec<(usize, &str)> {
     }
     out.push((start, &src[start.min(src.len())..]));
     out
+}
+
+fn valid_state_path(path: &str) -> bool {
+    !path.is_empty() && path.split('.').all(is_ident)
+}
+
+fn binding_expr(attr: &str, value: &str) -> Result<Expr, ProfileError> {
+    if value.trim().starts_with("{{") {
+        single_expr(attr, value)
+    } else {
+        expr::parse(value).map_err(|e| ProfileError::from_expr(attr, e, 0))
+    }
 }
 
 /// Exactly one `{{ expr }}` (spaces around it are fine).
@@ -587,6 +553,13 @@ pub fn parse(raw: &RawAttrs, ctx: &AttrCtx) -> Result<NodeAttrs, Vec<ProfileErro
             continue;
         }
         p.attr(name, value);
+    }
+    if seen.contains("data-esc") && p.out.screen.is_none() {
+        p.fail(
+            codes::LAYER,
+            "data-esc",
+            "Escape policy requires data-screen",
+        );
     }
     p.finish();
     if p.errs.is_empty() {
@@ -679,7 +652,31 @@ impl Parser<'_> {
             "data-bind-class-toggle" => self.class_toggle(name, value),
             "data-bind-src" => {
                 if self.only_on(name, &[Tag::Img]) {
-                    self.out.src = self.take(single_expr(name, value));
+                    self.out.src = self.take(binding_expr(name, value));
+                }
+            }
+            "data-bind-hotkey" => {
+                self.out.bind_hotkey = self.take(binding_expr(name, value));
+            }
+            "data-bind-scroll-x" | "data-bind-scroll-y" => {
+                if let Some(path) = value
+                    .trim()
+                    .strip_prefix("state.")
+                    .filter(|p| valid_state_path(p))
+                {
+                    self.out.scroll[usize::from(name.ends_with('y'))] = Some(path.to_string());
+                } else {
+                    self.fail(codes::MODEL, name, "scroll binding needs a state.path");
+                }
+            }
+            "data-esc" => {
+                if value == "none" {
+                    self.out.events.push(EventBind {
+                        ev: Event::Escape,
+                        actions: vec![Action::Stop],
+                    });
+                } else if value != "close" {
+                    self.event(name, "escape", value);
                 }
             }
             "data-bind-disabled" => self.out.disabled = self.take(single_expr(name, value)),
@@ -820,7 +817,15 @@ impl Parser<'_> {
         if let Some(rest) = name.strip_prefix("data-bind-style-") {
             self.style(name, rest, value);
         } else if let Some(rest) = name.strip_prefix("data-on-") {
-            self.event(name, rest, value);
+            self.event(
+                name,
+                if rest == "right-click" {
+                    "contextmenu"
+                } else {
+                    rest
+                },
+                value,
+            );
         } else if name.starts_with("data-") {
             self.fail(
                 codes::UNKNOWN_DATA,
@@ -857,6 +862,20 @@ impl Parser<'_> {
                     self.out.disabled = Some(Expr::Bool(true));
                 }
                 ok
+            }
+            "min" | "max" | "step" => {
+                if !self.only_on(name, &[Tag::Input]) {
+                    return;
+                }
+                if value.parse::<i32>().is_err() {
+                    self.fail(
+                        codes::VALUE,
+                        name,
+                        "number limits and step are signed integers",
+                    );
+                    return;
+                }
+                true
             }
             "type" => {
                 let limits = Profile::v1().element(tag).map(|d| d.types.clone());
@@ -988,7 +1007,7 @@ impl Parser<'_> {
             ns.bytes().next().is_some_and(|c| c.is_ascii_lowercase())
                 && ns
                     .bytes()
-                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-')
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-' || c == b'_')
                 && !id.is_empty()
                 && !id.contains(char::is_whitespace)
         });
@@ -1196,6 +1215,53 @@ impl Parser<'_> {
 
     /// Rules that need several attributes at once.
     fn finish(&mut self) {
+        let number = self
+            .out
+            .plain
+            .iter()
+            .any(|(n, v)| n == "type" && v == "number");
+        let attr = |name: &str, default| {
+            self.out
+                .plain
+                .iter()
+                .find(|(n, _)| n == name)
+                .and_then(|(_, v)| v.parse::<i32>().ok())
+                .unwrap_or(default)
+        };
+        if number {
+            let range = [
+                attr("min", i32::MIN),
+                attr("max", i32::MAX),
+                attr("step", 1),
+            ];
+            if range[0] > range[1] || range[2] <= 0 {
+                self.fail(
+                    codes::VALUE,
+                    "min",
+                    "number input needs min <= max and step > 0",
+                );
+            } else {
+                self.out.number = Some(range);
+            }
+        } else if self
+            .out
+            .plain
+            .iter()
+            .any(|(n, _)| matches!(n.as_str(), "min" | "max" | "step"))
+        {
+            self.fail(
+                codes::VALUE,
+                "type",
+                "min, max and step require a number input",
+            );
+        }
+        if self.out.hotkey.is_some() && self.out.bind_hotkey.is_some() {
+            self.fail(
+                codes::HOTKEY,
+                "data-bind-hotkey",
+                "choose one hotkey source per element",
+            );
+        }
         // Loops.
         let companions = [
             ("data-bind-key", self.for_key.is_some()),
@@ -1368,6 +1434,8 @@ impl Parser<'_> {
                 || !self.out.class_toggle.is_empty()
                 || !self.out.style.is_empty()
                 || self.out.src.is_some()
+                || self.out.bind_hotkey.is_some()
+                || self.out.scroll.iter().any(Option::is_some)
                 || self
                     .out
                     .disabled
