@@ -1,0 +1,593 @@
+{
+  "model": {
+    "rich_tooltips": {
+      "tech": {
+        "key": "TECH_FLIGHT",
+        "name": "Flight",
+        "icon": "",
+        "portrait": "",
+        "era_name": "Modern era",
+        "state": "unavailable",
+        "researched": false,
+        "progress": 640,
+        "cost": 3190,
+        "turns": 14,
+        "science_rate": 186,
+        "leads_to": [
+          {
+            "key": "0",
+            "name": "Radar"
+          }
+        ],
+        "unlocks": [
+          {
+            "key": "UNIT_TRIPLANE",
+            "kind": "unit",
+            "name": "Triplane",
+            "icon": ""
+          },
+          {
+            "key": "BUILDING_PRORA",
+            "kind": "wonder",
+            "name": "Prora",
+            "icon": ""
+          }
+        ],
+        "help": "Allows the Triplane and Prora."
+      },
+      "unit": {
+        "key": "UNIT_RUSSIAN_COSSACK",
+        "name": "Cossack",
+        "icon": "",
+        "portrait": "",
+        "relation": "own",
+        "owner_line": "Known civilization",
+        "owner_emblem": "",
+        "owner_colors": [
+          {
+            "key": "0",
+            "name": "#6e1c18"
+          },
+          {
+            "key": "1",
+            "name": "#e4c04e"
+          }
+        ],
+        "combat_class": "mounted",
+        "strength": 34,
+        "strength_base": 34,
+        "strength_reduced": false,
+        "ranged_strength": null,
+        "range": null,
+        "moves_left": 2,
+        "moves_max": 5,
+        "hp": 85,
+        "hp_max": 100,
+        "embarked": false,
+        "religion": null,
+        "promotions": [
+          {
+            "key": "PROMOTION_SHOCK_1",
+            "name": "Shock I",
+            "icon": "",
+            "free": false
+          },
+          {
+            "key": "PROMOTION_SHOCK_2",
+            "name": "Shock II",
+            "icon": "",
+            "free": false
+          },
+          {
+            "key": "PROMOTION_CHARGE",
+            "name": "Charge",
+            "icon": "",
+            "free": true
+          }
+        ],
+        "abilities": "Withdraws before melee combat. No movement cost to pillage. Free promotion Charge: +33% against wounded units.",
+        "cost": {
+          "city": "Moscow",
+          "production": 225,
+          "gold": 600,
+          "ratio_pct": 37,
+          "faith": null
+        },
+        "resources": [
+          {
+            "key": "RESOURCE_HORSE",
+            "name": "Horses",
+            "amount": 1,
+            "icon": ""
+          }
+        ],
+        "unique": {
+          "civ": "Russia",
+          "replaces": "Cavalry"
+        },
+        "requires": [
+          {
+            "kind": "tech",
+            "name": "Military Science"
+          }
+        ],
+        "upgrade": {
+          "to": "Landship",
+          "gold": 270,
+          "tech": "Combustion"
+        },
+        "obsolete_tech": "Combustion"
+      },
+      "building": {
+        "key": "BUILDING_RESEARCH_LAB",
+        "name": "Research Lab",
+        "icon": "",
+        "portrait": "",
+        "portrait_side": "left",
+        "city": "Moscow",
+        "turns": 14,
+        "lines": [
+          {
+            "key": "science",
+            "label": "Science",
+            "value": "+4",
+            "yield": "science"
+          },
+          {
+            "key": "science_mod",
+            "label": "Science in the city",
+            "value": "+50%",
+            "yield": null
+          },
+          {
+            "key": "specialists",
+            "label": "Scientist slots",
+            "value": "2, 1 filled, +3 science each",
+            "yield": null
+          },
+          {
+            "key": "gp",
+            "label": "Great scientist points",
+            "value": "+3",
+            "yield": null
+          },
+          {
+            "key": "maint",
+            "label": "Maintenance",
+            "value": "3",
+            "yield": "gold"
+          }
+        ],
+        "future": [
+          {
+            "key": "POLICY_SECULARISM",
+            "label": "Secularism",
+            "value": "+2 science per specialist"
+          }
+        ],
+        "cost": {
+          "production": 1064,
+          "gold": 2840,
+          "ratio_pct": 37,
+          "faith": null,
+          "free": false
+        },
+        "requires": [
+          {
+            "key": "BUILDING_PUBLIC_SCHOOL",
+            "label": "Public School in the city",
+            "met": true,
+            "text": "Built"
+          },
+          {
+            "key": "TECH_PLASTICS",
+            "label": "Technology",
+            "met": false,
+            "text": "Plastics"
+          }
+        ],
+        "limits": "in 4 of 12 cities, 1 in progress",
+        "help": "+50% science in the city and 4 science; needs a Public School."
+      },
+      "improvement": {
+        "key": "IMPROVEMENT_FARM",
+        "name": "Farm",
+        "icon": "",
+        "build_turns": 5,
+        "maintenance": 0,
+        "yields": [
+          {
+            "yield": "food",
+            "value": 1,
+            "fresh_water": 1
+          }
+        ],
+        "bonuses": [
+          {
+            "key": "TECH_FERTILIZER",
+            "label": "Fertilizer",
+            "value": "+1 food",
+            "met": true
+          },
+          {
+            "key": "TECH_REFRIGERATION",
+            "label": "Refrigeration, no fresh water",
+            "value": "+1 food",
+            "met": true
+          },
+          {
+            "key": "RESOURCE_WHEAT",
+            "label": "Wheat on the tile",
+            "value": "+1 food",
+            "met": null
+          }
+        ],
+        "terrain": "Grassland, Plains, Tundra, Hills",
+        "resources": "Wheat, Maize, Rice",
+        "requires": "Agriculture",
+        "defense": null,
+        "civ": null
+      },
+      "policy": {
+        "key": "POLICY_FREE_THOUGHT",
+        "name": "Free Thought",
+        "icon": "",
+        "branch": "Rationalism",
+        "branch_progress": "3 of 5 adopted",
+        "status": "can_adopt",
+        "status_text": "Can adopt",
+        "cost": 2480,
+        "help": "+1 science from every Trading Post; +17% science in cities with a University.",
+        "effect_line": "+186 to +214 science",
+        "requires": [
+          {
+            "key": "POLICY_SECULARISM",
+            "name": "Secularism",
+            "met": true
+          }
+        ],
+        "next_policy": "4 turns at +142 culture"
+      },
+      "progress": {
+        "key": "science",
+        "title": "Science +186",
+        "subtitle": "per turn, researching Radio",
+        "target_icon": "",
+        "fraction": 0.749,
+        "gain_fraction": 0.065,
+        "loss_fraction": 0,
+        "mark_left": "Radio in 4 turns",
+        "mark_right": "2,150 of 2,870, +186 this turn",
+        "lines": [
+          {
+            "key": "cities",
+            "label": "From cities",
+            "value": 142
+          },
+          {
+            "key": "routes",
+            "label": "From trade routes",
+            "value": 18
+          },
+          {
+            "key": "minors",
+            "label": "From city-states",
+            "value": 12
+          },
+          {
+            "key": "agreements",
+            "label": "From research agreements",
+            "value": 14
+          }
+        ],
+        "total": 186
+      },
+      "city_yields": [
+        {
+          "key": "food",
+          "city": "Moscow",
+          "title": "Food in Moscow",
+          "subtitle": "Size 31, growing",
+          "total": 4,
+          "lines": [
+            {
+              "key": "terrain",
+              "label": "Territory",
+              "value": 49
+            },
+            {
+              "key": "buildings",
+              "label": "Buildings",
+              "value": 8
+            },
+            {
+              "key": "routes",
+              "label": "Trade routes",
+              "value": 6
+            },
+            {
+              "key": "policies",
+              "label": "Policies",
+              "value": 3
+            }
+          ],
+          "base": 66,
+          "modifier_pct": 0,
+          "consumption": -62,
+          "stored": 214,
+          "threshold": 380,
+          "footer": [
+            {
+              "key": "next",
+              "label": "Size 32",
+              "value": "in 42 turns"
+            }
+          ]
+        },
+        {
+          "key": "production",
+          "city": "Moscow",
+          "title": "Production in Moscow",
+          "subtitle": "Building Stock Exchange",
+          "total": 94,
+          "lines": [
+            {
+              "key": "terrain",
+              "label": "Territory",
+              "value": 38
+            },
+            {
+              "key": "buildings",
+              "label": "Buildings",
+              "value": 22
+            },
+            {
+              "key": "policies",
+              "label": "Policies",
+              "value": 6
+            },
+            {
+              "key": "specialists",
+              "label": "Specialists",
+              "value": 4
+            }
+          ],
+          "base": 70,
+          "modifier_pct": 35,
+          "consumption": null,
+          "stored": 412,
+          "threshold": 900,
+          "footer": [
+            {
+              "key": "build",
+              "label": "Stock Exchange",
+              "value": "412 of 900, 6 turns"
+            },
+            {
+              "key": "overflow",
+              "label": "Overflow",
+              "value": "12"
+            }
+          ]
+        }
+      ],
+      "city_religion": {
+        "city": "Moscow",
+        "holy_city_of": "Orthodoxy",
+        "faith_total": 15,
+        "religions": [
+          {
+            "key": "RELIGION_ORTHODOXY",
+            "name": "Orthodoxy",
+            "icon": "",
+            "followers": 28,
+            "pressure": 42,
+            "routes": 5,
+            "majority": true
+          },
+          {
+            "key": "RELIGION_ISLAM",
+            "name": "Islam",
+            "icon": "",
+            "followers": 3,
+            "pressure": 8,
+            "routes": 1,
+            "majority": false
+          }
+        ],
+        "beliefs": "Tithe, Religious Community, Cathedrals, Peace Gardens, Messiah",
+        "lines": [
+          {
+            "key": "buildings",
+            "label": "Buildings",
+            "value": 9
+          },
+          {
+            "key": "beliefs",
+            "label": "Beliefs",
+            "value": 6
+          }
+        ]
+      },
+      "player": {
+        "player": 5,
+        "met": true,
+        "human": false,
+        "nick": null,
+        "leader": "Pedro II",
+        "civ": "Brazil",
+        "emblem": "",
+        "colors": [
+          {
+            "key": "0",
+            "name": "#2f8a3a"
+          },
+          {
+            "key": "1",
+            "name": "#f2d24c"
+          }
+        ],
+        "attitude": "Guarded",
+        "era": "Modern",
+        "researching": "Plastics",
+        "techs": 52,
+        "cities": 9,
+        "population": 142,
+        "gold": 840,
+        "gold_rate": 31,
+        "policies": "Tradition 5, Rationalism 3, Freedom 2",
+        "religion": null,
+        "wonders": [
+          {
+            "key": "0",
+            "name": "Louvre"
+          },
+          {
+            "key": "1",
+            "name": "Big Ben"
+          },
+          {
+            "key": "2",
+            "name": "Taj Mahal"
+          },
+          {
+            "key": "3",
+            "name": "Uffizi"
+          }
+        ],
+        "deals": [
+          {
+            "key": "d1",
+            "text": "Oil 2 to you",
+            "turns": 9
+          },
+          {
+            "key": "d2",
+            "text": "8 gold per turn to Brazil",
+            "turns": 9
+          }
+        ],
+        "routes": [
+          {
+            "key": "r1",
+            "text": "Rio de Janeiro to Moscow, +6 gold +2 science",
+            "turns": 14
+          }
+        ],
+        "their_luxuries": "Sugar, Wine",
+        "their_strategic": "Iron 3",
+        "you_offer": "Furs, Salt; Coal 2",
+        "treaties": [
+          {
+            "key": "peace",
+            "label": "Peace",
+            "status": "active",
+            "text": "Active"
+          },
+          {
+            "key": "embassy",
+            "label": "Embassies",
+            "status": "active",
+            "text": "Both ways"
+          },
+          {
+            "key": "borders",
+            "label": "Open borders",
+            "status": "partial",
+            "text": "yours active, theirs possible"
+          },
+          {
+            "key": "dof",
+            "label": "Declaration of friendship",
+            "status": "possible",
+            "text": "possible"
+          },
+          {
+            "key": "research",
+            "label": "Research agreement",
+            "status": "active",
+            "text": "active, 6 turns"
+          },
+          {
+            "key": "pact",
+            "label": "Defensive pact",
+            "status": "possible",
+            "text": "possible"
+          }
+        ],
+        "opinion": [
+          {
+            "key": "o1",
+            "text": "We fought together against Montezuma",
+            "sign": 1
+          },
+          {
+            "key": "o2",
+            "text": "You compete with us for wonders",
+            "sign": -1
+          }
+        ],
+        "relations": "Allied with Geneva; friends with Kabul. Friends with Ramesses, 12 turns. Denounced by Montezuma, 18 turns. At war with nobody."
+      },
+      "civ_note": {
+        "leader": "Harun al-Rashid",
+        "civ": "Arabia",
+        "portrait": "",
+        "emblem": "",
+        "text": "Proposes a deal: open borders for 10 gold per turn."
+      },
+      "unit_action": {
+        "key": "upgrade",
+        "title": "Upgrade",
+        "hotkey": "KeyU",
+        "portrait": "",
+        "text": "Upgrade the Cossack to a Landship for 270 gold.",
+        "disabled_reason": "Not available: requires Combustion."
+      },
+      "unit_short": [
+        {
+          "key": "3:118",
+          "name": "Landship",
+          "relation": "war",
+          "owner_line": "Known civilization",
+          "emblem": "",
+          "strength": 45,
+          "strength_base": 60,
+          "strength_reduced": true,
+          "reduced_reason": "no Oil",
+          "ranged_strength": null,
+          "range": null,
+          "air": false,
+          "moves": 4,
+          "hp": 72,
+          "hp_max": 100,
+          "embarked": false,
+          "religion": null
+        },
+        {
+          "key": "0:233",
+          "name": "Missionary",
+          "relation": "own",
+          "owner_line": "Known civilization",
+          "emblem": "",
+          "strength": null,
+          "strength_base": null,
+          "strength_reduced": false,
+          "reduced_reason": null,
+          "ranged_strength": null,
+          "range": null,
+          "air": false,
+          "moves": 3,
+          "hp": null,
+          "hp_max": 100,
+          "embarked": true,
+          "religion": {
+            "name": "Orthodoxy",
+            "icon": "",
+            "spreads_left": 2
+          }
+        }
+      ]
+    }
+  }
+}

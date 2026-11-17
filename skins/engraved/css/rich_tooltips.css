@@ -1,0 +1,9 @@
+/* SIMPLIFIED(SIMP-348): shared tooltip sections use a plain value ledger; conditional EUI details and progress rings await the help bridge. */
+.rich_tooltips { width: 360px; max-height: 600px; padding: 16px; overflow: auto; scrollbar-width: none; background: var(--lacquer); color: var(--bone); border: 1px solid var(--engrave); border-radius: 4px; }
+.rich_tooltips-section { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--engrave); }
+.rich_tooltips-title { font: 500 22px/28px var(--serif); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.rich_tooltips-portrait { width: 48px; height: 48px; border: 1px solid var(--engrave-hi); margin: 8px 0; }
+.rich_tooltips-line { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-top: 8px; font-size: 13px; color: var(--bone-2); }
+.rich_tooltips-value { color: var(--bone); text-align: right; min-width: 0; }
+.rich_tooltips-reason { color: var(--bone-3); font-size: 12px; }
+@media (max-height: 800px) { .rich_tooltips { max-height: 480px; } }

@@ -1,0 +1,13 @@
+<!-- SIMPLIFIED(SIMP-346): the profile only accepts hyphenated modal ids; explicit Escape closes the snake-case window. -->
+<div class="tech_award-screen" data-screen="tech-award" data-part="tech-award" data-bind-if="{{ui.windows.tech_award.open && tech_award != null && tech_award.tech != null}}">
+  <section class="tech_award-window">
+    <header class="tech_award-head"><span data-l10n="tech_panel.complete">Research complete</span><span data-bind-value="{{tech_award.turn}}"></span><button class="tech_award-close" data-part="tech-award.close" data-hotkey="Escape" data-on-click="intent window.close(window: 'tech_award')">&#215;</button></header>
+    <div class="tech_award-scroll">
+      <div class="tech_award-hero"><img class="tech_award-portrait" data-bind-src="{{tech_award.tech.icon}}"><div class="tech_award-details"><span class="tech_award-era" data-bind-value="{{tech_award.era}}"></span><h1 class="tech_award-name" data-part="tech-award.name" data-bind-value="{{tech_award.tech.name}}"></h1><p class="tech_award-quote" data-bind-if="{{tech_award.quote != null}}" data-bind-value="{{tech_award.quote}}"></p><span class="tech_award-author" data-bind-if="{{tech_award.quote_by != null}}" data-bind-value="{{tech_award.quote_by}}"></span></div></div>
+      <div class="tech_award-help" data-bind-value="{{tech_award.help}}"></div>
+      <div class="tech_award-leads" data-bind-if="{{len(tech_award.leads_to) > 0}}"><span data-l10n="tech_award.leads">Leads to</span><span data-bind-for="n:{{tech_award.leads_to}}" data-bind-value="{{n.name}}"></span></div>
+      <div class="tech_award-unlocks"><span data-l10n="tech_award.unlocks">Unlocks</span><div class="tech_award-tiles"><div class="tech_award-tile" data-part="tech-award.unlock" data-bind-for="u:{{tech_award.unlocks}}" data-tooltip="tech_award-tip" data-on-pointerenter="set state.tech_award.hover = u.key"><img class="tech_award-icon" data-bind-src="{{u.icon}}"><span class="tech_award-unlock-name" data-bind-value="{{u.name}}"></span><span class="tech_award-kind" data-bind-value="{{u.kind_name}}"></span></div></div></div>
+    </div>
+    <footer class="tech_award-foot"><button class="tech_award-continue" data-part="tech-award.continue" data-hotkey="Enter" data-on-click="intent window.close(window: 'tech_award')"><span data-l10n="tech_award.continue">Continue</span><span data-hotkey-label>Enter</span></button></footer>
+  </section>
+</div>

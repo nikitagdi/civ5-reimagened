@@ -24,15 +24,18 @@ display = "Alegreya"
 # line being written and whether the choice of its addressee is open; whether the folded screen buttons of a narrow
 # top strip are open.
 [state]
+tech_award = { hover = "" }
+tech_panel = { open = false, last_id = -1, last_name = "", done = false }
+techs = { hover = -1 }
 prod = { sort = "order", hide_locked = false }
 chat = { draft = "", pick = false }
 top = { menu = false }
 
 # The production window's script: arrow keys move the focus; the sort is kept in the settings.
 [scripts]
-files = ["js/production.js"]
-reads = ["production"]
+files = ["js/production.js", "js/tech_panel.js", "js/techs.js"]
+reads = ["production", "research", "hud", "ui.windows.techs", "techs"]
 
 [verify]
-states = ["hud", "hud-timer", "hud-chat", "production", "production-sorted", "research", "techs"]
+states = ["hud", "hud-timer", "hud-chat", "production", "production-sorted", "research", "techs", "techs--free", "techs--steal", "tech_award", "rich_tooltips", "tech_panel", "tech_panel--done"]
 golden = [{ state = "hud", viewport = [1920, 1080], scale = 1.0 }]

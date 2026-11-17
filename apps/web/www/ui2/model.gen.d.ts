@@ -21,11 +21,27 @@ export type ProdTab = "all" | "units" | "buildings" | "wonders" | "other";
 export type TurnPending = "none" | "ending" | "cancelling";
 export type ToastKind = "refused" | "rejected" | "lost";
 export type RefuseWhy = "unsupported" | "no_screen" | "no_unit" | "action_unavailable" | "not_your_city" | "option_unavailable" | "cannot_buy" | "bad_slot" | "tech_unavailable" | "cannot_end_turn" | "cannot_cancel" | "chat_empty" | "chat_too_long" | "chat_rate" | "no_connection" | "no_game" | "too_many" | "turn_changed" | "too_big" | "core" | "turn_ended" | "not_your_turn" | "restarting" | "invalid" | "expired" | "not_seated" | "other";
-export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "techs";
+export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "rich_tooltips" | "tech_award" | "techs";
 export type ScreenId = "tech_tree" | "policies" | "religion" | "diplomacy" | "overview" | "notification_log" | "economy" | "military" | "victory" | "demographics" | "chat";
 export type MouseButton = "left" | "right";
 export type PushAt = "back" | "front";
 export type BuyWith = "gold" | "faith";
+export type RichTooltipsProgressKind = "science" | "culture" | "faith" | "golden_age" | "tourism";
+export type RichTooltipsCityYieldKind = "food" | "production" | "gold" | "science" | "culture" | "faith" | "tourism";
+export type RichTooltipsTechState = "researched" | "current" | "available" | "unavailable" | "locked" | "free";
+export type RichTooltipsUnlockKind = "unit" | "building" | "wonder" | "project" | "resource" | "improvement" | "ability";
+export type RichTooltipsRelation = "own" | "ally" | "war" | "other";
+export type RichTooltipsPortraitSide = "left" | "right";
+export type RichTooltipsPolicyStatus = "adopted" | "can_adopt" | "locked" | "blocked";
+export type RichTooltipsTreatyStatus = "active" | "partial" | "possible" | "unavailable";
+export type TechAwardUnlockKind = "unit" | "building" | "wonder" | "project" | "resource" | "improvement" | "ability";
+export type TechsMode = "normal" | "free" | "steal";
+export type TechsOpenedBy = "menu" | "request";
+export type TechsState = "researched" | "current" | "available" | "unavailable" | "locked" | "free";
+export type TechsUnlockKind = "unit" | "building" | "wonder" | "project" | "resource" | "improvement" | "ability";
+export type TechsEraState = "past" | "current" | "future";
+export type TechsLinkKind = "and" | "or";
+export type TechsLinkState = "done" | "live" | "idle";
 export type TechsStatus = "researched" | "current" | "available" | "queued" | "locked";
 
 export interface Plot {
@@ -301,6 +317,8 @@ export interface WinCity {
 }
 
 export interface Windows {
+  readonly rich_tooltips: WinArgs;
+  readonly tech_award: WinArgs;
   readonly techs: WinArgs;
   readonly production: WinCity;
   readonly research: Win;
@@ -409,6 +427,413 @@ export interface HudUnit {
   readonly actions: HudAction[];
 }
 
+export interface RichTooltipsTechLeadsTo {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface RichTooltipsTechUnlocks {
+  readonly key: string;
+  readonly kind: RichTooltipsUnlockKind;
+  readonly name: Text;
+  readonly icon: string;
+}
+
+export interface RichTooltipsTech {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly portrait: string;
+  readonly era_name: Text;
+  readonly state: RichTooltipsTechState;
+  readonly researched: boolean;
+  readonly progress: number;
+  readonly cost: number;
+  readonly turns: number | null;
+  readonly science_rate: number;
+  readonly leads_to: RichTooltipsTechLeadsTo[];
+  readonly unlocks: RichTooltipsTechUnlocks[];
+  readonly help: Text;
+}
+
+export interface RichTooltipsUnitOwnerColors {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface RichTooltipsUnitPromotions {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly free: boolean;
+}
+
+export interface RichTooltipsUnitCost {
+  readonly city: Text;
+  readonly production: number | null;
+  readonly gold: number | null;
+  readonly ratio_pct: number | null;
+  readonly faith: number | null;
+}
+
+export interface RichTooltipsUnitResources {
+  readonly key: string;
+  readonly name: Text;
+  readonly amount: number;
+  readonly icon: string;
+}
+
+export interface RichTooltipsUnitUnique {
+  readonly civ: Text;
+  readonly replaces: Text;
+}
+
+export interface RichTooltipsUnitRequires {
+  readonly kind: string;
+  readonly name: Text;
+}
+
+export interface RichTooltipsUnitUpgrade {
+  readonly to: Text;
+  readonly gold: number | null;
+  readonly tech: Text;
+}
+
+export interface RichTooltipsUnit {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly portrait: string;
+  readonly relation: RichTooltipsRelation;
+  readonly owner_line: Text;
+  readonly owner_emblem: string;
+  readonly owner_colors: RichTooltipsUnitOwnerColors[];
+  readonly combat_class: Text;
+  readonly strength: number | null;
+  readonly strength_base: number | null;
+  readonly strength_reduced: boolean;
+  readonly ranged_strength: number | null;
+  readonly range: number | null;
+  readonly moves_left: number | null;
+  readonly moves_max: number;
+  readonly hp: number | null;
+  readonly hp_max: number;
+  readonly embarked: boolean;
+  readonly religion: RichTooltipsUnitShortReligion | null;
+  readonly promotions: RichTooltipsUnitPromotions[];
+  readonly abilities: Text;
+  readonly cost: RichTooltipsUnitCost;
+  readonly resources: RichTooltipsUnitResources[];
+  readonly unique: RichTooltipsUnitUnique | null;
+  readonly requires: RichTooltipsUnitRequires[];
+  readonly upgrade: RichTooltipsUnitUpgrade | null;
+  readonly obsolete_tech: Text | null;
+}
+
+export interface RichTooltipsBuildingLines {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: Text;
+  readonly yield: string | null;
+}
+
+export interface RichTooltipsBuildingFuture {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: Text;
+}
+
+export interface RichTooltipsBuildingCost {
+  readonly production: number | null;
+  readonly gold: number | null;
+  readonly ratio_pct: number | null;
+  readonly faith: number | null;
+  readonly free: boolean;
+}
+
+export interface RichTooltipsBuildingRequires {
+  readonly key: string;
+  readonly label: Text;
+  readonly met: boolean;
+  readonly text: Text;
+}
+
+export interface RichTooltipsBuilding {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly portrait: string;
+  readonly portrait_side: RichTooltipsPortraitSide;
+  readonly city: Text;
+  readonly turns: number | null;
+  readonly lines: RichTooltipsBuildingLines[];
+  readonly future: RichTooltipsBuildingFuture[];
+  readonly cost: RichTooltipsBuildingCost;
+  readonly requires: RichTooltipsBuildingRequires[];
+  readonly limits: Text | null;
+  readonly help: Text;
+}
+
+export interface RichTooltipsImprovementYields {
+  readonly yield: string;
+  readonly value: number;
+  readonly fresh_water: number;
+}
+
+export interface RichTooltipsImprovementBonuses {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: Text;
+  readonly met: boolean | null;
+}
+
+export interface RichTooltipsImprovement {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly build_turns: number | null;
+  readonly maintenance: number;
+  readonly yields: RichTooltipsImprovementYields[];
+  readonly bonuses: RichTooltipsImprovementBonuses[];
+  readonly terrain: Text;
+  readonly resources: Text;
+  readonly requires: Text;
+  readonly defense: number | null;
+  readonly civ: Text | null;
+}
+
+export interface RichTooltipsPolicyRequires {
+  readonly key: string;
+  readonly name: Text;
+  readonly met: boolean;
+}
+
+export interface RichTooltipsPolicy {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly branch: Text;
+  readonly branch_progress: Text;
+  readonly status: RichTooltipsPolicyStatus;
+  readonly status_text: Text;
+  readonly cost: number;
+  readonly help: Text;
+  readonly effect_line: Text;
+  readonly requires: RichTooltipsPolicyRequires[];
+  readonly next_policy: Text;
+}
+
+export interface RichTooltipsProgressLines {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: number;
+}
+
+export interface RichTooltipsProgress {
+  readonly key: RichTooltipsProgressKind;
+  readonly title: Text;
+  readonly subtitle: Text;
+  readonly target_icon: string;
+  readonly fraction: number;
+  readonly gain_fraction: number;
+  readonly loss_fraction: number;
+  readonly mark_left: Text;
+  readonly mark_right: Text;
+  readonly lines: RichTooltipsProgressLines[];
+  readonly total: number;
+}
+
+export interface RichTooltipsCityYieldsLines {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: number;
+}
+
+export interface RichTooltipsCityYieldsFooter {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: Text;
+}
+
+export interface RichTooltipsCityYields {
+  readonly key: RichTooltipsCityYieldKind;
+  readonly city: Text;
+  readonly title: Text;
+  readonly subtitle: Text;
+  readonly total: number;
+  readonly lines: RichTooltipsCityYieldsLines[];
+  readonly base: number;
+  readonly modifier_pct: number;
+  readonly consumption: number | null;
+  readonly stored: number;
+  readonly threshold: number;
+  readonly footer: RichTooltipsCityYieldsFooter[];
+}
+
+export interface RichTooltipsCityReligionReligions {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly followers: number;
+  readonly pressure: number;
+  readonly routes: number;
+  readonly majority: boolean;
+}
+
+export interface RichTooltipsCityReligionLines {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: number;
+}
+
+export interface RichTooltipsCityReligion {
+  readonly city: Text;
+  readonly holy_city_of: Text;
+  readonly faith_total: number;
+  readonly religions: RichTooltipsCityReligionReligions[];
+  readonly beliefs: Text;
+  readonly lines: RichTooltipsCityReligionLines[];
+}
+
+export interface RichTooltipsPlayerColors {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface RichTooltipsPlayerWonders {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface RichTooltipsPlayerDeals {
+  readonly key: string;
+  readonly text: Text;
+  readonly turns: number | null;
+}
+
+export interface RichTooltipsPlayerRoutes {
+  readonly key: string;
+  readonly text: Text;
+  readonly turns: number | null;
+}
+
+export interface RichTooltipsPlayerTreaties {
+  readonly key: string;
+  readonly label: Text;
+  readonly status: RichTooltipsTreatyStatus;
+  readonly text: Text;
+}
+
+export interface RichTooltipsPlayerOpinion {
+  readonly key: string;
+  readonly text: Text;
+  readonly sign: number;
+}
+
+export interface RichTooltipsPlayer {
+  readonly player: number;
+  readonly met: boolean;
+  readonly human: boolean;
+  readonly nick: Text | null;
+  readonly leader: Text;
+  readonly civ: Text;
+  readonly emblem: string;
+  readonly colors: RichTooltipsPlayerColors[];
+  readonly attitude: Text;
+  readonly era: Text;
+  readonly researching: Text;
+  readonly techs: number;
+  readonly cities: number;
+  readonly population: number;
+  readonly gold: number | null;
+  readonly gold_rate: number;
+  readonly policies: Text;
+  readonly religion: Text | null;
+  readonly wonders: RichTooltipsPlayerWonders[];
+  readonly deals: RichTooltipsPlayerDeals[];
+  readonly routes: RichTooltipsPlayerRoutes[];
+  readonly their_luxuries: Text;
+  readonly their_strategic: Text;
+  readonly you_offer: Text;
+  readonly treaties: RichTooltipsPlayerTreaties[];
+  readonly opinion: RichTooltipsPlayerOpinion[];
+  readonly relations: Text;
+}
+
+export interface RichTooltipsCivNote {
+  readonly leader: Text;
+  readonly civ: Text;
+  readonly portrait: string;
+  readonly emblem: string;
+  readonly text: Text;
+}
+
+export interface RichTooltipsUnitAction {
+  readonly key: string;
+  readonly title: Text;
+  readonly hotkey: string;
+  readonly portrait: string;
+  readonly text: Text;
+  readonly disabled_reason: Text;
+}
+
+export interface RichTooltipsUnitShortReligion {
+  readonly name: Text;
+  readonly icon: string;
+  readonly spreads_left: number;
+}
+
+export interface RichTooltipsUnitShort {
+  readonly key: string;
+  readonly name: Text;
+  readonly relation: RichTooltipsRelation;
+  readonly owner_line: Text;
+  readonly emblem: string;
+  readonly strength: number | null;
+  readonly strength_base: number | null;
+  readonly strength_reduced: boolean;
+  readonly reduced_reason: Text | null;
+  readonly ranged_strength: number | null;
+  readonly range: number | null;
+  readonly air: boolean;
+  readonly moves: number | null;
+  readonly hp: number | null;
+  readonly hp_max: number;
+  readonly embarked: boolean;
+  readonly religion: RichTooltipsUnitShortReligion | null;
+}
+
+export interface RichTooltipsUnique {
+  readonly civ: Text;
+  readonly replaces: Text;
+}
+
+export interface RichTooltipsUpgrade {
+  readonly to: Text;
+  readonly gold: number | null;
+  readonly tech: Text;
+}
+
+export interface TechAwardTech {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly portrait: string | null;
+}
+
+export interface TechAwardText {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface TechAwardUnlock {
+  readonly key: string;
+  readonly kind: TechAwardUnlockKind;
+  readonly kind_name: Text;
+  readonly name: Text;
+  readonly icon: string;
+}
+
 export interface TechsPrerequisite {
   readonly id: number;
 }
@@ -416,9 +841,26 @@ export interface TechsPrerequisite {
 export interface TechsUnlock {
   readonly idx: number;
   readonly name: Text;
+  readonly key: string;
+  readonly kind: TechsUnlockKind;
+  readonly icon: string;
 }
 
 export interface TechsRow {
+  readonly key: string;
+  readonly era_key: string;
+  readonly col: number;
+  readonly state: TechsState;
+  readonly queue_pos: number | null;
+  readonly fraction: number;
+  readonly forecast_fraction: number;
+  readonly steal_science: number | null;
+  readonly clickable: boolean;
+  readonly lock_reason: Text | null;
+  readonly help: Text;
+  readonly prereqs: TechsText[];
+  readonly or_prereqs: TechsText[];
+  readonly leads_to: TechsText[];
   readonly id: number;
   readonly name: Text;
   readonly column: number;
@@ -433,6 +875,70 @@ export interface TechsRow {
   readonly era_name: Text;
   readonly icon: string;
   readonly unlocks: TechsUnlock[];
+}
+
+export interface TechsText {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface TechsEraRef {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface TechsGrid {
+  readonly cols: number;
+  readonly rows: number;
+}
+
+export interface TechsCurrent {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly turns: number | null;
+  readonly progress: number;
+  readonly cost: number;
+  readonly fraction: number;
+  readonly forecast_fraction: number;
+  readonly turn_fraction: number;
+}
+
+export interface TechsQueue {
+  readonly key: string;
+  readonly pos: number;
+  readonly name: Text;
+  readonly turns: number | null;
+}
+
+export interface TechsEra {
+  readonly key: string;
+  readonly name: Text;
+  readonly first_col: number;
+  readonly cols: number;
+  readonly state: TechsEraState;
+  readonly researched: number;
+  readonly total: number;
+}
+
+export interface TechsSteal {
+  readonly player: number;
+  readonly name: Text;
+  readonly civ: Text;
+  readonly icon: string;
+  readonly color: string;
+  readonly spy_city: Text;
+  readonly can_steal: number;
+}
+
+export interface TechsLink {
+  readonly key: string;
+  readonly from_col: number;
+  readonly from_row: number;
+  readonly to_col: number;
+  readonly to_row: number;
+  readonly kind: TechsLinkKind;
+  readonly state: TechsLinkState;
 }
 
 export interface Meta {
@@ -556,8 +1062,50 @@ export interface Hud {
   readonly unit: HudUnit | null;
 }
 
+export interface RichTooltips {
+  readonly unavailable_reason: Text | null;
+  readonly tech: RichTooltipsTech | null;
+  readonly unit: RichTooltipsUnit | null;
+  readonly building: RichTooltipsBuilding | null;
+  readonly improvement: RichTooltipsImprovement | null;
+  readonly policy: RichTooltipsPolicy | null;
+  readonly progress: RichTooltipsProgress | null;
+  readonly city_yields: RichTooltipsCityYields[];
+  readonly city_religion: RichTooltipsCityReligion | null;
+  readonly player: RichTooltipsPlayer | null;
+  readonly civ_note: RichTooltipsCivNote | null;
+  readonly unit_action: RichTooltipsUnitAction | null;
+  readonly unit_short: RichTooltipsUnitShort[];
+}
+
+export interface TechAward {
+  readonly tech: TechAwardTech | null;
+  readonly era: Text;
+  readonly turn: number;
+  readonly quote: Text | null;
+  readonly quote_by: Text | null;
+  readonly help: Text;
+  readonly leads_to: TechAwardText[];
+  readonly unlocks: TechAwardUnlock[];
+}
+
 export interface Techs {
   readonly techs: TechsRow[];
+  readonly mode: TechsMode;
+  readonly opened_by: TechsOpenedBy;
+  readonly science_off: boolean;
+  readonly science_rate: number;
+  readonly researched_count: number;
+  readonly total_count: number;
+  readonly era: TechsEraRef;
+  readonly free_count: number;
+  readonly free_reason: Text | null;
+  readonly steal: TechsSteal | null;
+  readonly grid: TechsGrid;
+  readonly current: TechsCurrent | null;
+  readonly queue: TechsQueue[];
+  readonly eras: TechsEra[];
+  readonly links: TechsLink[];
 }
 
 /** The model: one member per root. */
@@ -575,6 +1123,8 @@ export interface Model {
   readonly production: Production | null;
   readonly ui: Ui;
   readonly hud: Hud | null;
+  readonly rich_tooltips: RichTooltips | null;
+  readonly tech_award: TechAward | null;
   readonly techs: Techs | null;
 }
 

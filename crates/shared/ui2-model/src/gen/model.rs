@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 1);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x861afcd87ed44c0a;
+pub const SCHEMA_HASH: u64 = 0x6d5e1fd613ac32cb;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -1424,15 +1424,17 @@ pub enum WindowId {
     Menu = 2,
     Chat = 3,
     NotesLog = 4,
-    Techs = 5,
+    RichTooltips = 5,
+    TechAward = 6,
+    Techs = 7,
 }
 
 impl WindowId {
     /// The names, indexed by the discriminant.
-    pub const NAMES: [&'static str; 6] = ["production", "research", "menu", "chat", "notes_log", "techs"];
+    pub const NAMES: [&'static str; 8] = ["production", "research", "menu", "chat", "notes_log", "rich_tooltips", "tech_award", "techs"];
 
     /// Every variant, in declaration order.
-    pub const ALL: &'static [WindowId] = &[WindowId::Production, WindowId::Research, WindowId::Menu, WindowId::Chat, WindowId::NotesLog, WindowId::Techs];
+    pub const ALL: &'static [WindowId] = &[WindowId::Production, WindowId::Research, WindowId::Menu, WindowId::Chat, WindowId::NotesLog, WindowId::RichTooltips, WindowId::TechAward, WindowId::Techs];
 
     /// The schema name of the variant (the same as [`name`](Self::name)).
     #[must_use]
@@ -1449,7 +1451,9 @@ impl WindowId {
             2 => Some(WindowId::Menu),
             3 => Some(WindowId::Chat),
             4 => Some(WindowId::NotesLog),
-            5 => Some(WindowId::Techs),
+            5 => Some(WindowId::RichTooltips),
+            6 => Some(WindowId::TechAward),
+            7 => Some(WindowId::Techs),
             _ => None,
         }
     }
@@ -1469,6 +1473,8 @@ impl WindowId {
             "menu" => Some(WindowId::Menu),
             "chat" => Some(WindowId::Chat),
             "notes_log" => Some(WindowId::NotesLog),
+            "rich_tooltips" => Some(WindowId::RichTooltips),
+            "tech_award" => Some(WindowId::TechAward),
             "techs" => Some(WindowId::Techs),
             _ => None,
         }
@@ -1494,7 +1500,7 @@ impl crate::model::Model for WindowId {
         match v {
             crate::value::Value::Enum(n) => WindowId::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
                 value: *n,
-                count: 6,
+                count: 8,
             }),
             other => Err(crate::value::ValueError::mismatch("enum", other)),
         }
@@ -1818,6 +1824,1310 @@ impl crate::model::Model for BuyWith {
             crate::value::Value::Enum(n) => BuyWith::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
                 value: *n,
                 count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum RichTooltipsProgressKind {
+    #[default]
+    Science = 0,
+    Culture = 1,
+    Faith = 2,
+    GoldenAge = 3,
+    Tourism = 4,
+}
+
+impl RichTooltipsProgressKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 5] = ["science", "culture", "faith", "golden_age", "tourism"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [RichTooltipsProgressKind] = &[RichTooltipsProgressKind::Science, RichTooltipsProgressKind::Culture, RichTooltipsProgressKind::Faith, RichTooltipsProgressKind::GoldenAge, RichTooltipsProgressKind::Tourism];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<RichTooltipsProgressKind> {
+        match v {
+            0 => Some(RichTooltipsProgressKind::Science),
+            1 => Some(RichTooltipsProgressKind::Culture),
+            2 => Some(RichTooltipsProgressKind::Faith),
+            3 => Some(RichTooltipsProgressKind::GoldenAge),
+            4 => Some(RichTooltipsProgressKind::Tourism),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<RichTooltipsProgressKind> {
+        match s {
+            "science" => Some(RichTooltipsProgressKind::Science),
+            "culture" => Some(RichTooltipsProgressKind::Culture),
+            "faith" => Some(RichTooltipsProgressKind::Faith),
+            "golden_age" => Some(RichTooltipsProgressKind::GoldenAge),
+            "tourism" => Some(RichTooltipsProgressKind::Tourism),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for RichTooltipsProgressKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => RichTooltipsProgressKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 5,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum RichTooltipsCityYieldKind {
+    #[default]
+    Food = 0,
+    Production = 1,
+    Gold = 2,
+    Science = 3,
+    Culture = 4,
+    Faith = 5,
+    Tourism = 6,
+}
+
+impl RichTooltipsCityYieldKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 7] = ["food", "production", "gold", "science", "culture", "faith", "tourism"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [RichTooltipsCityYieldKind] = &[RichTooltipsCityYieldKind::Food, RichTooltipsCityYieldKind::Production, RichTooltipsCityYieldKind::Gold, RichTooltipsCityYieldKind::Science, RichTooltipsCityYieldKind::Culture, RichTooltipsCityYieldKind::Faith, RichTooltipsCityYieldKind::Tourism];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<RichTooltipsCityYieldKind> {
+        match v {
+            0 => Some(RichTooltipsCityYieldKind::Food),
+            1 => Some(RichTooltipsCityYieldKind::Production),
+            2 => Some(RichTooltipsCityYieldKind::Gold),
+            3 => Some(RichTooltipsCityYieldKind::Science),
+            4 => Some(RichTooltipsCityYieldKind::Culture),
+            5 => Some(RichTooltipsCityYieldKind::Faith),
+            6 => Some(RichTooltipsCityYieldKind::Tourism),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<RichTooltipsCityYieldKind> {
+        match s {
+            "food" => Some(RichTooltipsCityYieldKind::Food),
+            "production" => Some(RichTooltipsCityYieldKind::Production),
+            "gold" => Some(RichTooltipsCityYieldKind::Gold),
+            "science" => Some(RichTooltipsCityYieldKind::Science),
+            "culture" => Some(RichTooltipsCityYieldKind::Culture),
+            "faith" => Some(RichTooltipsCityYieldKind::Faith),
+            "tourism" => Some(RichTooltipsCityYieldKind::Tourism),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for RichTooltipsCityYieldKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => RichTooltipsCityYieldKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 7,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum RichTooltipsTechState {
+    #[default]
+    Researched = 0,
+    Current = 1,
+    Available = 2,
+    Unavailable = 3,
+    Locked = 4,
+    Free = 5,
+}
+
+impl RichTooltipsTechState {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 6] = ["researched", "current", "available", "unavailable", "locked", "free"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [RichTooltipsTechState] = &[RichTooltipsTechState::Researched, RichTooltipsTechState::Current, RichTooltipsTechState::Available, RichTooltipsTechState::Unavailable, RichTooltipsTechState::Locked, RichTooltipsTechState::Free];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<RichTooltipsTechState> {
+        match v {
+            0 => Some(RichTooltipsTechState::Researched),
+            1 => Some(RichTooltipsTechState::Current),
+            2 => Some(RichTooltipsTechState::Available),
+            3 => Some(RichTooltipsTechState::Unavailable),
+            4 => Some(RichTooltipsTechState::Locked),
+            5 => Some(RichTooltipsTechState::Free),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<RichTooltipsTechState> {
+        match s {
+            "researched" => Some(RichTooltipsTechState::Researched),
+            "current" => Some(RichTooltipsTechState::Current),
+            "available" => Some(RichTooltipsTechState::Available),
+            "unavailable" => Some(RichTooltipsTechState::Unavailable),
+            "locked" => Some(RichTooltipsTechState::Locked),
+            "free" => Some(RichTooltipsTechState::Free),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for RichTooltipsTechState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => RichTooltipsTechState::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 6,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum RichTooltipsUnlockKind {
+    #[default]
+    Unit = 0,
+    Building = 1,
+    Wonder = 2,
+    Project = 3,
+    Resource = 4,
+    Improvement = 5,
+    Ability = 6,
+}
+
+impl RichTooltipsUnlockKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 7] = ["unit", "building", "wonder", "project", "resource", "improvement", "ability"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [RichTooltipsUnlockKind] = &[RichTooltipsUnlockKind::Unit, RichTooltipsUnlockKind::Building, RichTooltipsUnlockKind::Wonder, RichTooltipsUnlockKind::Project, RichTooltipsUnlockKind::Resource, RichTooltipsUnlockKind::Improvement, RichTooltipsUnlockKind::Ability];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<RichTooltipsUnlockKind> {
+        match v {
+            0 => Some(RichTooltipsUnlockKind::Unit),
+            1 => Some(RichTooltipsUnlockKind::Building),
+            2 => Some(RichTooltipsUnlockKind::Wonder),
+            3 => Some(RichTooltipsUnlockKind::Project),
+            4 => Some(RichTooltipsUnlockKind::Resource),
+            5 => Some(RichTooltipsUnlockKind::Improvement),
+            6 => Some(RichTooltipsUnlockKind::Ability),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<RichTooltipsUnlockKind> {
+        match s {
+            "unit" => Some(RichTooltipsUnlockKind::Unit),
+            "building" => Some(RichTooltipsUnlockKind::Building),
+            "wonder" => Some(RichTooltipsUnlockKind::Wonder),
+            "project" => Some(RichTooltipsUnlockKind::Project),
+            "resource" => Some(RichTooltipsUnlockKind::Resource),
+            "improvement" => Some(RichTooltipsUnlockKind::Improvement),
+            "ability" => Some(RichTooltipsUnlockKind::Ability),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for RichTooltipsUnlockKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => RichTooltipsUnlockKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 7,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum RichTooltipsRelation {
+    #[default]
+    Own = 0,
+    Ally = 1,
+    War = 2,
+    Other = 3,
+}
+
+impl RichTooltipsRelation {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["own", "ally", "war", "other"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [RichTooltipsRelation] = &[RichTooltipsRelation::Own, RichTooltipsRelation::Ally, RichTooltipsRelation::War, RichTooltipsRelation::Other];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<RichTooltipsRelation> {
+        match v {
+            0 => Some(RichTooltipsRelation::Own),
+            1 => Some(RichTooltipsRelation::Ally),
+            2 => Some(RichTooltipsRelation::War),
+            3 => Some(RichTooltipsRelation::Other),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<RichTooltipsRelation> {
+        match s {
+            "own" => Some(RichTooltipsRelation::Own),
+            "ally" => Some(RichTooltipsRelation::Ally),
+            "war" => Some(RichTooltipsRelation::War),
+            "other" => Some(RichTooltipsRelation::Other),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for RichTooltipsRelation {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => RichTooltipsRelation::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum RichTooltipsPortraitSide {
+    #[default]
+    Left = 0,
+    Right = 1,
+}
+
+impl RichTooltipsPortraitSide {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["left", "right"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [RichTooltipsPortraitSide] = &[RichTooltipsPortraitSide::Left, RichTooltipsPortraitSide::Right];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<RichTooltipsPortraitSide> {
+        match v {
+            0 => Some(RichTooltipsPortraitSide::Left),
+            1 => Some(RichTooltipsPortraitSide::Right),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<RichTooltipsPortraitSide> {
+        match s {
+            "left" => Some(RichTooltipsPortraitSide::Left),
+            "right" => Some(RichTooltipsPortraitSide::Right),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for RichTooltipsPortraitSide {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => RichTooltipsPortraitSide::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum RichTooltipsPolicyStatus {
+    #[default]
+    Adopted = 0,
+    CanAdopt = 1,
+    Locked = 2,
+    Blocked = 3,
+}
+
+impl RichTooltipsPolicyStatus {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["adopted", "can_adopt", "locked", "blocked"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [RichTooltipsPolicyStatus] = &[RichTooltipsPolicyStatus::Adopted, RichTooltipsPolicyStatus::CanAdopt, RichTooltipsPolicyStatus::Locked, RichTooltipsPolicyStatus::Blocked];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<RichTooltipsPolicyStatus> {
+        match v {
+            0 => Some(RichTooltipsPolicyStatus::Adopted),
+            1 => Some(RichTooltipsPolicyStatus::CanAdopt),
+            2 => Some(RichTooltipsPolicyStatus::Locked),
+            3 => Some(RichTooltipsPolicyStatus::Blocked),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<RichTooltipsPolicyStatus> {
+        match s {
+            "adopted" => Some(RichTooltipsPolicyStatus::Adopted),
+            "can_adopt" => Some(RichTooltipsPolicyStatus::CanAdopt),
+            "locked" => Some(RichTooltipsPolicyStatus::Locked),
+            "blocked" => Some(RichTooltipsPolicyStatus::Blocked),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for RichTooltipsPolicyStatus {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => RichTooltipsPolicyStatus::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum RichTooltipsTreatyStatus {
+    #[default]
+    Active = 0,
+    Partial = 1,
+    Possible = 2,
+    Unavailable = 3,
+}
+
+impl RichTooltipsTreatyStatus {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["active", "partial", "possible", "unavailable"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [RichTooltipsTreatyStatus] = &[RichTooltipsTreatyStatus::Active, RichTooltipsTreatyStatus::Partial, RichTooltipsTreatyStatus::Possible, RichTooltipsTreatyStatus::Unavailable];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<RichTooltipsTreatyStatus> {
+        match v {
+            0 => Some(RichTooltipsTreatyStatus::Active),
+            1 => Some(RichTooltipsTreatyStatus::Partial),
+            2 => Some(RichTooltipsTreatyStatus::Possible),
+            3 => Some(RichTooltipsTreatyStatus::Unavailable),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<RichTooltipsTreatyStatus> {
+        match s {
+            "active" => Some(RichTooltipsTreatyStatus::Active),
+            "partial" => Some(RichTooltipsTreatyStatus::Partial),
+            "possible" => Some(RichTooltipsTreatyStatus::Possible),
+            "unavailable" => Some(RichTooltipsTreatyStatus::Unavailable),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for RichTooltipsTreatyStatus {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => RichTooltipsTreatyStatus::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum TechAwardUnlockKind {
+    #[default]
+    Unit = 0,
+    Building = 1,
+    Wonder = 2,
+    Project = 3,
+    Resource = 4,
+    Improvement = 5,
+    Ability = 6,
+}
+
+impl TechAwardUnlockKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 7] = ["unit", "building", "wonder", "project", "resource", "improvement", "ability"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [TechAwardUnlockKind] = &[TechAwardUnlockKind::Unit, TechAwardUnlockKind::Building, TechAwardUnlockKind::Wonder, TechAwardUnlockKind::Project, TechAwardUnlockKind::Resource, TechAwardUnlockKind::Improvement, TechAwardUnlockKind::Ability];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<TechAwardUnlockKind> {
+        match v {
+            0 => Some(TechAwardUnlockKind::Unit),
+            1 => Some(TechAwardUnlockKind::Building),
+            2 => Some(TechAwardUnlockKind::Wonder),
+            3 => Some(TechAwardUnlockKind::Project),
+            4 => Some(TechAwardUnlockKind::Resource),
+            5 => Some(TechAwardUnlockKind::Improvement),
+            6 => Some(TechAwardUnlockKind::Ability),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<TechAwardUnlockKind> {
+        match s {
+            "unit" => Some(TechAwardUnlockKind::Unit),
+            "building" => Some(TechAwardUnlockKind::Building),
+            "wonder" => Some(TechAwardUnlockKind::Wonder),
+            "project" => Some(TechAwardUnlockKind::Project),
+            "resource" => Some(TechAwardUnlockKind::Resource),
+            "improvement" => Some(TechAwardUnlockKind::Improvement),
+            "ability" => Some(TechAwardUnlockKind::Ability),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for TechAwardUnlockKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => TechAwardUnlockKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 7,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum TechsMode {
+    #[default]
+    Normal = 0,
+    Free = 1,
+    Steal = 2,
+}
+
+impl TechsMode {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["normal", "free", "steal"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [TechsMode] = &[TechsMode::Normal, TechsMode::Free, TechsMode::Steal];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<TechsMode> {
+        match v {
+            0 => Some(TechsMode::Normal),
+            1 => Some(TechsMode::Free),
+            2 => Some(TechsMode::Steal),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<TechsMode> {
+        match s {
+            "normal" => Some(TechsMode::Normal),
+            "free" => Some(TechsMode::Free),
+            "steal" => Some(TechsMode::Steal),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for TechsMode {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => TechsMode::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum TechsOpenedBy {
+    #[default]
+    Menu = 0,
+    Request = 1,
+}
+
+impl TechsOpenedBy {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["menu", "request"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [TechsOpenedBy] = &[TechsOpenedBy::Menu, TechsOpenedBy::Request];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<TechsOpenedBy> {
+        match v {
+            0 => Some(TechsOpenedBy::Menu),
+            1 => Some(TechsOpenedBy::Request),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<TechsOpenedBy> {
+        match s {
+            "menu" => Some(TechsOpenedBy::Menu),
+            "request" => Some(TechsOpenedBy::Request),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for TechsOpenedBy {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => TechsOpenedBy::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum TechsState {
+    #[default]
+    Researched = 0,
+    Current = 1,
+    Available = 2,
+    Unavailable = 3,
+    Locked = 4,
+    Free = 5,
+}
+
+impl TechsState {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 6] = ["researched", "current", "available", "unavailable", "locked", "free"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [TechsState] = &[TechsState::Researched, TechsState::Current, TechsState::Available, TechsState::Unavailable, TechsState::Locked, TechsState::Free];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<TechsState> {
+        match v {
+            0 => Some(TechsState::Researched),
+            1 => Some(TechsState::Current),
+            2 => Some(TechsState::Available),
+            3 => Some(TechsState::Unavailable),
+            4 => Some(TechsState::Locked),
+            5 => Some(TechsState::Free),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<TechsState> {
+        match s {
+            "researched" => Some(TechsState::Researched),
+            "current" => Some(TechsState::Current),
+            "available" => Some(TechsState::Available),
+            "unavailable" => Some(TechsState::Unavailable),
+            "locked" => Some(TechsState::Locked),
+            "free" => Some(TechsState::Free),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for TechsState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => TechsState::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 6,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum TechsUnlockKind {
+    #[default]
+    Unit = 0,
+    Building = 1,
+    Wonder = 2,
+    Project = 3,
+    Resource = 4,
+    Improvement = 5,
+    Ability = 6,
+}
+
+impl TechsUnlockKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 7] = ["unit", "building", "wonder", "project", "resource", "improvement", "ability"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [TechsUnlockKind] = &[TechsUnlockKind::Unit, TechsUnlockKind::Building, TechsUnlockKind::Wonder, TechsUnlockKind::Project, TechsUnlockKind::Resource, TechsUnlockKind::Improvement, TechsUnlockKind::Ability];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<TechsUnlockKind> {
+        match v {
+            0 => Some(TechsUnlockKind::Unit),
+            1 => Some(TechsUnlockKind::Building),
+            2 => Some(TechsUnlockKind::Wonder),
+            3 => Some(TechsUnlockKind::Project),
+            4 => Some(TechsUnlockKind::Resource),
+            5 => Some(TechsUnlockKind::Improvement),
+            6 => Some(TechsUnlockKind::Ability),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<TechsUnlockKind> {
+        match s {
+            "unit" => Some(TechsUnlockKind::Unit),
+            "building" => Some(TechsUnlockKind::Building),
+            "wonder" => Some(TechsUnlockKind::Wonder),
+            "project" => Some(TechsUnlockKind::Project),
+            "resource" => Some(TechsUnlockKind::Resource),
+            "improvement" => Some(TechsUnlockKind::Improvement),
+            "ability" => Some(TechsUnlockKind::Ability),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for TechsUnlockKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => TechsUnlockKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 7,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum TechsEraState {
+    #[default]
+    Past = 0,
+    Current = 1,
+    Future = 2,
+}
+
+impl TechsEraState {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["past", "current", "future"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [TechsEraState] = &[TechsEraState::Past, TechsEraState::Current, TechsEraState::Future];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<TechsEraState> {
+        match v {
+            0 => Some(TechsEraState::Past),
+            1 => Some(TechsEraState::Current),
+            2 => Some(TechsEraState::Future),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<TechsEraState> {
+        match s {
+            "past" => Some(TechsEraState::Past),
+            "current" => Some(TechsEraState::Current),
+            "future" => Some(TechsEraState::Future),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for TechsEraState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => TechsEraState::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum TechsLinkKind {
+    #[default]
+    And = 0,
+    Or = 1,
+}
+
+impl TechsLinkKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 2] = ["and", "or"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [TechsLinkKind] = &[TechsLinkKind::And, TechsLinkKind::Or];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<TechsLinkKind> {
+        match v {
+            0 => Some(TechsLinkKind::And),
+            1 => Some(TechsLinkKind::Or),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<TechsLinkKind> {
+        match s {
+            "and" => Some(TechsLinkKind::And),
+            "or" => Some(TechsLinkKind::Or),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for TechsLinkKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => TechsLinkKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 2,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum TechsLinkState {
+    #[default]
+    Done = 0,
+    Live = 1,
+    Idle = 2,
+}
+
+impl TechsLinkState {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 3] = ["done", "live", "idle"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [TechsLinkState] = &[TechsLinkState::Done, TechsLinkState::Live, TechsLinkState::Idle];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<TechsLinkState> {
+        match v {
+            0 => Some(TechsLinkState::Done),
+            1 => Some(TechsLinkState::Live),
+            2 => Some(TechsLinkState::Idle),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<TechsLinkState> {
+        match s {
+            "done" => Some(TechsLinkState::Done),
+            "live" => Some(TechsLinkState::Live),
+            "idle" => Some(TechsLinkState::Idle),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for TechsLinkState {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => TechsLinkState::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 3,
             }),
             other => Err(crate::value::ValueError::mismatch("enum", other)),
         }
@@ -3575,6 +4885,8 @@ impl crate::model::Model for WinCity {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Windows {
+    pub rich_tooltips: WinArgs,
+    pub tech_award: WinArgs,
     pub techs: WinArgs,
     pub production: WinCity,
     pub research: Win,
@@ -3587,22 +4899,28 @@ impl crate::model::Model for Windows {
     fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
         let base = at.field;
         at.field = base.child(0);
-        crate::model::Model::diff(&self.techs, &old.techs, at, out);
+        crate::model::Model::diff(&self.rich_tooltips, &old.rich_tooltips, at, out);
         at.field = base.child(4);
+        crate::model::Model::diff(&self.tech_award, &old.tech_award, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.techs, &old.techs, at, out);
+        at.field = base.child(12);
         crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(7);
+        at.field = base.child(15);
         crate::model::Model::diff(&self.research, &old.research, at, out);
-        at.field = base.child(9);
+        at.field = base.child(17);
         crate::model::Model::diff(&self.menu, &old.menu, at, out);
-        at.field = base.child(11);
+        at.field = base.child(19);
         crate::model::Model::diff(&self.chat, &old.chat, at, out);
-        at.field = base.child(13);
+        at.field = base.child(21);
         crate::model::Model::diff(&self.notes_log, &old.notes_log, at, out);
         at.field = base;
     }
 
     fn to_value(&self) -> crate::value::Value {
         crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.rich_tooltips),
+            crate::model::Model::to_value(&self.tech_award),
             crate::model::Model::to_value(&self.techs),
             crate::model::Model::to_value(&self.production),
             crate::model::Model::to_value(&self.research),
@@ -3613,14 +4931,16 @@ impl crate::model::Model for Windows {
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(6)?;
+        let f = v.as_struct(8)?;
         Ok(Windows {
-            techs: crate::model::Model::from_value(&f[0])?,
-            production: crate::model::Model::from_value(&f[1])?,
-            research: crate::model::Model::from_value(&f[2])?,
-            menu: crate::model::Model::from_value(&f[3])?,
-            chat: crate::model::Model::from_value(&f[4])?,
-            notes_log: crate::model::Model::from_value(&f[5])?,
+            rich_tooltips: crate::model::Model::from_value(&f[0])?,
+            tech_award: crate::model::Model::from_value(&f[1])?,
+            techs: crate::model::Model::from_value(&f[2])?,
+            production: crate::model::Model::from_value(&f[3])?,
+            research: crate::model::Model::from_value(&f[4])?,
+            menu: crate::model::Model::from_value(&f[5])?,
+            chat: crate::model::Model::from_value(&f[6])?,
+            notes_log: crate::model::Model::from_value(&f[7])?,
         })
     }
 }
@@ -4285,6 +5605,2518 @@ impl crate::model::Model for HudUnit {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsTechLeadsTo {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsTechLeadsTo {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(RichTooltipsTechLeadsTo {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsTechLeadsTo {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsTechUnlocks {
+    pub key: ::std::sync::Arc<str>,
+    pub kind: RichTooltipsUnlockKind,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+}
+
+impl crate::model::Model for RichTooltipsTechUnlocks {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(RichTooltipsTechUnlocks {
+            key: crate::model::Model::from_value(&f[0])?,
+            kind: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsTechUnlocks {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsTech {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub portrait: crate::value::AssetRef,
+    pub era_name: crate::value::Text,
+    pub state: RichTooltipsTechState,
+    pub researched: bool,
+    pub progress: i32,
+    pub cost: i32,
+    pub turns: Option<i32>,
+    pub science_rate: i32,
+    pub leads_to: crate::model::KeyedList<RichTooltipsTechLeadsTo>,
+    pub unlocks: crate::model::KeyedList<RichTooltipsTechUnlocks>,
+    pub help: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsTech {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.era_name, &old.era_name, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.state, &old.state, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.researched, &old.researched, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.progress, &old.progress, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.cost, &old.cost, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.science_rate, &old.science_rate, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.leads_to, &old.leads_to, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.unlocks, &old.unlocks, at, out);
+        at.field = base.child(19);
+        crate::model::Model::diff(&self.help, &old.help, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.era_name),
+            crate::model::Model::to_value(&self.state),
+            crate::model::Model::to_value(&self.researched),
+            crate::model::Model::to_value(&self.progress),
+            crate::model::Model::to_value(&self.cost),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.science_rate),
+            crate::model::Model::to_value(&self.leads_to),
+            crate::model::Model::to_value(&self.unlocks),
+            crate::model::Model::to_value(&self.help),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(14)?;
+        Ok(RichTooltipsTech {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            portrait: crate::model::Model::from_value(&f[3])?,
+            era_name: crate::model::Model::from_value(&f[4])?,
+            state: crate::model::Model::from_value(&f[5])?,
+            researched: crate::model::Model::from_value(&f[6])?,
+            progress: crate::model::Model::from_value(&f[7])?,
+            cost: crate::model::Model::from_value(&f[8])?,
+            turns: crate::model::Model::from_value(&f[9])?,
+            science_rate: crate::model::Model::from_value(&f[10])?,
+            leads_to: crate::model::Model::from_value(&f[11])?,
+            unlocks: crate::model::Model::from_value(&f[12])?,
+            help: crate::model::Model::from_value(&f[13])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsUnitOwnerColors {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsUnitOwnerColors {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(RichTooltipsUnitOwnerColors {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsUnitOwnerColors {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsUnitPromotions {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub free: bool,
+}
+
+impl crate::model::Model for RichTooltipsUnitPromotions {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.free, &old.free, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.free),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(RichTooltipsUnitPromotions {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            free: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsUnitPromotions {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsUnitCost {
+    pub city: crate::value::Text,
+    pub production: Option<i32>,
+    pub gold: Option<i32>,
+    pub ratio_pct: Option<i32>,
+    pub faith: Option<i32>,
+}
+
+impl crate::model::Model for RichTooltipsUnitCost {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.production, &old.production, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.gold, &old.gold, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.ratio_pct, &old.ratio_pct, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.faith, &old.faith, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.city),
+            crate::model::Model::to_value(&self.production),
+            crate::model::Model::to_value(&self.gold),
+            crate::model::Model::to_value(&self.ratio_pct),
+            crate::model::Model::to_value(&self.faith),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(RichTooltipsUnitCost {
+            city: crate::model::Model::from_value(&f[0])?,
+            production: crate::model::Model::from_value(&f[1])?,
+            gold: crate::model::Model::from_value(&f[2])?,
+            ratio_pct: crate::model::Model::from_value(&f[3])?,
+            faith: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsUnitResources {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub amount: i32,
+    pub icon: crate::value::AssetRef,
+}
+
+impl crate::model::Model for RichTooltipsUnitResources {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.amount, &old.amount, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.amount),
+            crate::model::Model::to_value(&self.icon),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(RichTooltipsUnitResources {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            amount: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsUnitResources {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsUnitUnique {
+    pub civ: crate::value::Text,
+    pub replaces: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsUnitUnique {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.replaces, &old.replaces, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.replaces),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(RichTooltipsUnitUnique {
+            civ: crate::model::Model::from_value(&f[0])?,
+            replaces: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsUnitRequires {
+    pub kind: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsUnitRequires {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(RichTooltipsUnitRequires {
+            kind: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsUnitRequires {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.kind)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsUnitUpgrade {
+    pub to: crate::value::Text,
+    pub gold: Option<i32>,
+    pub tech: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsUnitUpgrade {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.to, &old.to, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.gold, &old.gold, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.tech, &old.tech, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.to),
+            crate::model::Model::to_value(&self.gold),
+            crate::model::Model::to_value(&self.tech),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(RichTooltipsUnitUpgrade {
+            to: crate::model::Model::from_value(&f[0])?,
+            gold: crate::model::Model::from_value(&f[1])?,
+            tech: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsUnit {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub portrait: crate::value::AssetRef,
+    pub relation: RichTooltipsRelation,
+    pub owner_line: crate::value::Text,
+    pub owner_emblem: crate::value::AssetRef,
+    pub owner_colors: crate::model::KeyedList<RichTooltipsUnitOwnerColors>,
+    pub combat_class: crate::value::Text,
+    pub strength: Option<i32>,
+    pub strength_base: Option<i32>,
+    pub strength_reduced: bool,
+    pub ranged_strength: Option<i32>,
+    pub range: Option<i32>,
+    pub moves_left: Option<i32>,
+    pub moves_max: i32,
+    pub hp: Option<i32>,
+    pub hp_max: i32,
+    pub embarked: bool,
+    pub religion: Option<RichTooltipsUnitShortReligion>,
+    pub promotions: crate::model::KeyedList<RichTooltipsUnitPromotions>,
+    pub abilities: crate::value::Text,
+    pub cost: RichTooltipsUnitCost,
+    pub resources: crate::model::KeyedList<RichTooltipsUnitResources>,
+    pub unique: Option<RichTooltipsUnitUnique>,
+    pub requires: crate::model::KeyedList<RichTooltipsUnitRequires>,
+    pub upgrade: Option<RichTooltipsUnitUpgrade>,
+    pub obsolete_tech: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for RichTooltipsUnit {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.relation, &old.relation, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.owner_line, &old.owner_line, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.owner_emblem, &old.owner_emblem, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.owner_colors, &old.owner_colors, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.combat_class, &old.combat_class, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.strength, &old.strength, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.strength_base, &old.strength_base, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.strength_reduced, &old.strength_reduced, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.ranged_strength, &old.ranged_strength, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.range, &old.range, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.moves_left, &old.moves_left, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.moves_max, &old.moves_max, at, out);
+        at.field = base.child(18);
+        crate::model::Model::diff(&self.hp, &old.hp, at, out);
+        at.field = base.child(19);
+        crate::model::Model::diff(&self.hp_max, &old.hp_max, at, out);
+        at.field = base.child(20);
+        crate::model::Model::diff(&self.embarked, &old.embarked, at, out);
+        at.field = base.child(21);
+        crate::model::Model::diff(&self.religion, &old.religion, at, out);
+        at.field = base.child(25);
+        crate::model::Model::diff(&self.promotions, &old.promotions, at, out);
+        at.field = base.child(30);
+        crate::model::Model::diff(&self.abilities, &old.abilities, at, out);
+        at.field = base.child(31);
+        crate::model::Model::diff(&self.cost, &old.cost, at, out);
+        at.field = base.child(37);
+        crate::model::Model::diff(&self.resources, &old.resources, at, out);
+        at.field = base.child(42);
+        crate::model::Model::diff(&self.unique, &old.unique, at, out);
+        at.field = base.child(45);
+        crate::model::Model::diff(&self.requires, &old.requires, at, out);
+        at.field = base.child(48);
+        crate::model::Model::diff(&self.upgrade, &old.upgrade, at, out);
+        at.field = base.child(52);
+        crate::model::Model::diff(&self.obsolete_tech, &old.obsolete_tech, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.relation),
+            crate::model::Model::to_value(&self.owner_line),
+            crate::model::Model::to_value(&self.owner_emblem),
+            crate::model::Model::to_value(&self.owner_colors),
+            crate::model::Model::to_value(&self.combat_class),
+            crate::model::Model::to_value(&self.strength),
+            crate::model::Model::to_value(&self.strength_base),
+            crate::model::Model::to_value(&self.strength_reduced),
+            crate::model::Model::to_value(&self.ranged_strength),
+            crate::model::Model::to_value(&self.range),
+            crate::model::Model::to_value(&self.moves_left),
+            crate::model::Model::to_value(&self.moves_max),
+            crate::model::Model::to_value(&self.hp),
+            crate::model::Model::to_value(&self.hp_max),
+            crate::model::Model::to_value(&self.embarked),
+            crate::model::Model::to_value(&self.religion),
+            crate::model::Model::to_value(&self.promotions),
+            crate::model::Model::to_value(&self.abilities),
+            crate::model::Model::to_value(&self.cost),
+            crate::model::Model::to_value(&self.resources),
+            crate::model::Model::to_value(&self.unique),
+            crate::model::Model::to_value(&self.requires),
+            crate::model::Model::to_value(&self.upgrade),
+            crate::model::Model::to_value(&self.obsolete_tech),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(28)?;
+        Ok(RichTooltipsUnit {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            portrait: crate::model::Model::from_value(&f[3])?,
+            relation: crate::model::Model::from_value(&f[4])?,
+            owner_line: crate::model::Model::from_value(&f[5])?,
+            owner_emblem: crate::model::Model::from_value(&f[6])?,
+            owner_colors: crate::model::Model::from_value(&f[7])?,
+            combat_class: crate::model::Model::from_value(&f[8])?,
+            strength: crate::model::Model::from_value(&f[9])?,
+            strength_base: crate::model::Model::from_value(&f[10])?,
+            strength_reduced: crate::model::Model::from_value(&f[11])?,
+            ranged_strength: crate::model::Model::from_value(&f[12])?,
+            range: crate::model::Model::from_value(&f[13])?,
+            moves_left: crate::model::Model::from_value(&f[14])?,
+            moves_max: crate::model::Model::from_value(&f[15])?,
+            hp: crate::model::Model::from_value(&f[16])?,
+            hp_max: crate::model::Model::from_value(&f[17])?,
+            embarked: crate::model::Model::from_value(&f[18])?,
+            religion: crate::model::Model::from_value(&f[19])?,
+            promotions: crate::model::Model::from_value(&f[20])?,
+            abilities: crate::model::Model::from_value(&f[21])?,
+            cost: crate::model::Model::from_value(&f[22])?,
+            resources: crate::model::Model::from_value(&f[23])?,
+            unique: crate::model::Model::from_value(&f[24])?,
+            requires: crate::model::Model::from_value(&f[25])?,
+            upgrade: crate::model::Model::from_value(&f[26])?,
+            obsolete_tech: crate::model::Model::from_value(&f[27])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsBuildingLines {
+    pub key: ::std::sync::Arc<str>,
+    pub label: crate::value::Text,
+    pub value: crate::value::Text,
+    pub r#yield: Option<::std::sync::Arc<str>>,
+}
+
+impl crate::model::Model for RichTooltipsBuildingLines {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.r#yield, &old.r#yield, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.value),
+            crate::model::Model::to_value(&self.r#yield),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(RichTooltipsBuildingLines {
+            key: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            value: crate::model::Model::from_value(&f[2])?,
+            r#yield: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsBuildingLines {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsBuildingFuture {
+    pub key: ::std::sync::Arc<str>,
+    pub label: crate::value::Text,
+    pub value: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsBuildingFuture {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.value),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(RichTooltipsBuildingFuture {
+            key: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            value: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsBuildingFuture {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsBuildingCost {
+    pub production: Option<i32>,
+    pub gold: Option<i32>,
+    pub ratio_pct: Option<i32>,
+    pub faith: Option<i32>,
+    pub free: bool,
+}
+
+impl crate::model::Model for RichTooltipsBuildingCost {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.production, &old.production, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.gold, &old.gold, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.ratio_pct, &old.ratio_pct, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.faith, &old.faith, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.free, &old.free, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.production),
+            crate::model::Model::to_value(&self.gold),
+            crate::model::Model::to_value(&self.ratio_pct),
+            crate::model::Model::to_value(&self.faith),
+            crate::model::Model::to_value(&self.free),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(RichTooltipsBuildingCost {
+            production: crate::model::Model::from_value(&f[0])?,
+            gold: crate::model::Model::from_value(&f[1])?,
+            ratio_pct: crate::model::Model::from_value(&f[2])?,
+            faith: crate::model::Model::from_value(&f[3])?,
+            free: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsBuildingRequires {
+    pub key: ::std::sync::Arc<str>,
+    pub label: crate::value::Text,
+    pub met: bool,
+    pub text: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsBuildingRequires {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.met, &old.met, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.met),
+            crate::model::Model::to_value(&self.text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(RichTooltipsBuildingRequires {
+            key: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            met: crate::model::Model::from_value(&f[2])?,
+            text: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsBuildingRequires {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsBuilding {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub portrait: crate::value::AssetRef,
+    pub portrait_side: RichTooltipsPortraitSide,
+    pub city: crate::value::Text,
+    pub turns: Option<i32>,
+    pub lines: crate::model::KeyedList<RichTooltipsBuildingLines>,
+    pub future: crate::model::KeyedList<RichTooltipsBuildingFuture>,
+    pub cost: RichTooltipsBuildingCost,
+    pub requires: crate::model::KeyedList<RichTooltipsBuildingRequires>,
+    pub limits: Option<crate::value::Text>,
+    pub help: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsBuilding {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.portrait_side, &old.portrait_side, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.lines, &old.lines, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.future, &old.future, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.cost, &old.cost, at, out);
+        at.field = base.child(22);
+        crate::model::Model::diff(&self.requires, &old.requires, at, out);
+        at.field = base.child(27);
+        crate::model::Model::diff(&self.limits, &old.limits, at, out);
+        at.field = base.child(28);
+        crate::model::Model::diff(&self.help, &old.help, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.portrait_side),
+            crate::model::Model::to_value(&self.city),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.lines),
+            crate::model::Model::to_value(&self.future),
+            crate::model::Model::to_value(&self.cost),
+            crate::model::Model::to_value(&self.requires),
+            crate::model::Model::to_value(&self.limits),
+            crate::model::Model::to_value(&self.help),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(13)?;
+        Ok(RichTooltipsBuilding {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            portrait: crate::model::Model::from_value(&f[3])?,
+            portrait_side: crate::model::Model::from_value(&f[4])?,
+            city: crate::model::Model::from_value(&f[5])?,
+            turns: crate::model::Model::from_value(&f[6])?,
+            lines: crate::model::Model::from_value(&f[7])?,
+            future: crate::model::Model::from_value(&f[8])?,
+            cost: crate::model::Model::from_value(&f[9])?,
+            requires: crate::model::Model::from_value(&f[10])?,
+            limits: crate::model::Model::from_value(&f[11])?,
+            help: crate::model::Model::from_value(&f[12])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsImprovementYields {
+    pub r#yield: ::std::sync::Arc<str>,
+    pub value: i32,
+    pub fresh_water: i32,
+}
+
+impl crate::model::Model for RichTooltipsImprovementYields {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.r#yield, &old.r#yield, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.fresh_water, &old.fresh_water, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.r#yield),
+            crate::model::Model::to_value(&self.value),
+            crate::model::Model::to_value(&self.fresh_water),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(RichTooltipsImprovementYields {
+            r#yield: crate::model::Model::from_value(&f[0])?,
+            value: crate::model::Model::from_value(&f[1])?,
+            fresh_water: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsImprovementYields {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.r#yield)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsImprovementBonuses {
+    pub key: ::std::sync::Arc<str>,
+    pub label: crate::value::Text,
+    pub value: crate::value::Text,
+    pub met: Option<bool>,
+}
+
+impl crate::model::Model for RichTooltipsImprovementBonuses {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.met, &old.met, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.value),
+            crate::model::Model::to_value(&self.met),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(RichTooltipsImprovementBonuses {
+            key: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            value: crate::model::Model::from_value(&f[2])?,
+            met: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsImprovementBonuses {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsImprovement {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub build_turns: Option<i32>,
+    pub maintenance: i32,
+    pub yields: crate::model::KeyedList<RichTooltipsImprovementYields>,
+    pub bonuses: crate::model::KeyedList<RichTooltipsImprovementBonuses>,
+    pub terrain: crate::value::Text,
+    pub resources: crate::value::Text,
+    pub requires: crate::value::Text,
+    pub defense: Option<i32>,
+    pub civ: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for RichTooltipsImprovement {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.build_turns, &old.build_turns, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.maintenance, &old.maintenance, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.yields, &old.yields, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.bonuses, &old.bonuses, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.terrain, &old.terrain, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.resources, &old.resources, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.requires, &old.requires, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.defense, &old.defense, at, out);
+        at.field = base.child(18);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.build_turns),
+            crate::model::Model::to_value(&self.maintenance),
+            crate::model::Model::to_value(&self.yields),
+            crate::model::Model::to_value(&self.bonuses),
+            crate::model::Model::to_value(&self.terrain),
+            crate::model::Model::to_value(&self.resources),
+            crate::model::Model::to_value(&self.requires),
+            crate::model::Model::to_value(&self.defense),
+            crate::model::Model::to_value(&self.civ),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(12)?;
+        Ok(RichTooltipsImprovement {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            build_turns: crate::model::Model::from_value(&f[3])?,
+            maintenance: crate::model::Model::from_value(&f[4])?,
+            yields: crate::model::Model::from_value(&f[5])?,
+            bonuses: crate::model::Model::from_value(&f[6])?,
+            terrain: crate::model::Model::from_value(&f[7])?,
+            resources: crate::model::Model::from_value(&f[8])?,
+            requires: crate::model::Model::from_value(&f[9])?,
+            defense: crate::model::Model::from_value(&f[10])?,
+            civ: crate::model::Model::from_value(&f[11])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsPolicyRequires {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub met: bool,
+}
+
+impl crate::model::Model for RichTooltipsPolicyRequires {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.met, &old.met, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.met),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(RichTooltipsPolicyRequires {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            met: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsPolicyRequires {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsPolicy {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub branch: crate::value::Text,
+    pub branch_progress: crate::value::Text,
+    pub status: RichTooltipsPolicyStatus,
+    pub status_text: crate::value::Text,
+    pub cost: i32,
+    pub help: crate::value::Text,
+    pub effect_line: crate::value::Text,
+    pub requires: crate::model::KeyedList<RichTooltipsPolicyRequires>,
+    pub next_policy: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsPolicy {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.branch, &old.branch, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.branch_progress, &old.branch_progress, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.status, &old.status, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.status_text, &old.status_text, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.cost, &old.cost, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.help, &old.help, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.effect_line, &old.effect_line, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.requires, &old.requires, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.next_policy, &old.next_policy, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.branch),
+            crate::model::Model::to_value(&self.branch_progress),
+            crate::model::Model::to_value(&self.status),
+            crate::model::Model::to_value(&self.status_text),
+            crate::model::Model::to_value(&self.cost),
+            crate::model::Model::to_value(&self.help),
+            crate::model::Model::to_value(&self.effect_line),
+            crate::model::Model::to_value(&self.requires),
+            crate::model::Model::to_value(&self.next_policy),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(12)?;
+        Ok(RichTooltipsPolicy {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            branch: crate::model::Model::from_value(&f[3])?,
+            branch_progress: crate::model::Model::from_value(&f[4])?,
+            status: crate::model::Model::from_value(&f[5])?,
+            status_text: crate::model::Model::from_value(&f[6])?,
+            cost: crate::model::Model::from_value(&f[7])?,
+            help: crate::model::Model::from_value(&f[8])?,
+            effect_line: crate::model::Model::from_value(&f[9])?,
+            requires: crate::model::Model::from_value(&f[10])?,
+            next_policy: crate::model::Model::from_value(&f[11])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsProgressLines {
+    pub key: ::std::sync::Arc<str>,
+    pub label: crate::value::Text,
+    pub value: i32,
+}
+
+impl crate::model::Model for RichTooltipsProgressLines {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.value),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(RichTooltipsProgressLines {
+            key: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            value: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsProgressLines {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsProgress {
+    pub key: RichTooltipsProgressKind,
+    pub title: crate::value::Text,
+    pub subtitle: crate::value::Text,
+    pub target_icon: crate::value::AssetRef,
+    pub fraction: f32,
+    pub gain_fraction: f32,
+    pub loss_fraction: f32,
+    pub mark_left: crate::value::Text,
+    pub mark_right: crate::value::Text,
+    pub lines: crate::model::KeyedList<RichTooltipsProgressLines>,
+    pub total: i32,
+}
+
+impl crate::model::Model for RichTooltipsProgress {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.title, &old.title, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.subtitle, &old.subtitle, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.target_icon, &old.target_icon, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.fraction, &old.fraction, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.gain_fraction, &old.gain_fraction, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.loss_fraction, &old.loss_fraction, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.mark_left, &old.mark_left, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.mark_right, &old.mark_right, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.lines, &old.lines, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.total, &old.total, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.title),
+            crate::model::Model::to_value(&self.subtitle),
+            crate::model::Model::to_value(&self.target_icon),
+            crate::model::Model::to_value(&self.fraction),
+            crate::model::Model::to_value(&self.gain_fraction),
+            crate::model::Model::to_value(&self.loss_fraction),
+            crate::model::Model::to_value(&self.mark_left),
+            crate::model::Model::to_value(&self.mark_right),
+            crate::model::Model::to_value(&self.lines),
+            crate::model::Model::to_value(&self.total),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(11)?;
+        Ok(RichTooltipsProgress {
+            key: crate::model::Model::from_value(&f[0])?,
+            title: crate::model::Model::from_value(&f[1])?,
+            subtitle: crate::model::Model::from_value(&f[2])?,
+            target_icon: crate::model::Model::from_value(&f[3])?,
+            fraction: crate::model::Model::from_value(&f[4])?,
+            gain_fraction: crate::model::Model::from_value(&f[5])?,
+            loss_fraction: crate::model::Model::from_value(&f[6])?,
+            mark_left: crate::model::Model::from_value(&f[7])?,
+            mark_right: crate::model::Model::from_value(&f[8])?,
+            lines: crate::model::Model::from_value(&f[9])?,
+            total: crate::model::Model::from_value(&f[10])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsCityYieldsLines {
+    pub key: ::std::sync::Arc<str>,
+    pub label: crate::value::Text,
+    pub value: i32,
+}
+
+impl crate::model::Model for RichTooltipsCityYieldsLines {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.value),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(RichTooltipsCityYieldsLines {
+            key: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            value: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsCityYieldsLines {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsCityYieldsFooter {
+    pub key: ::std::sync::Arc<str>,
+    pub label: crate::value::Text,
+    pub value: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsCityYieldsFooter {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.value),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(RichTooltipsCityYieldsFooter {
+            key: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            value: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsCityYieldsFooter {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsCityYields {
+    pub key: RichTooltipsCityYieldKind,
+    pub city: crate::value::Text,
+    pub title: crate::value::Text,
+    pub subtitle: crate::value::Text,
+    pub total: i32,
+    pub lines: crate::model::KeyedList<RichTooltipsCityYieldsLines>,
+    pub base: i32,
+    pub modifier_pct: i32,
+    pub consumption: Option<i32>,
+    pub stored: i32,
+    pub threshold: i32,
+    pub footer: crate::model::KeyedList<RichTooltipsCityYieldsFooter>,
+}
+
+impl crate::model::Model for RichTooltipsCityYields {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.title, &old.title, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.subtitle, &old.subtitle, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.total, &old.total, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.lines, &old.lines, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.base, &old.base, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.modifier_pct, &old.modifier_pct, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.consumption, &old.consumption, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.stored, &old.stored, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.threshold, &old.threshold, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.footer, &old.footer, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.city),
+            crate::model::Model::to_value(&self.title),
+            crate::model::Model::to_value(&self.subtitle),
+            crate::model::Model::to_value(&self.total),
+            crate::model::Model::to_value(&self.lines),
+            crate::model::Model::to_value(&self.base),
+            crate::model::Model::to_value(&self.modifier_pct),
+            crate::model::Model::to_value(&self.consumption),
+            crate::model::Model::to_value(&self.stored),
+            crate::model::Model::to_value(&self.threshold),
+            crate::model::Model::to_value(&self.footer),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(12)?;
+        Ok(RichTooltipsCityYields {
+            key: crate::model::Model::from_value(&f[0])?,
+            city: crate::model::Model::from_value(&f[1])?,
+            title: crate::model::Model::from_value(&f[2])?,
+            subtitle: crate::model::Model::from_value(&f[3])?,
+            total: crate::model::Model::from_value(&f[4])?,
+            lines: crate::model::Model::from_value(&f[5])?,
+            base: crate::model::Model::from_value(&f[6])?,
+            modifier_pct: crate::model::Model::from_value(&f[7])?,
+            consumption: crate::model::Model::from_value(&f[8])?,
+            stored: crate::model::Model::from_value(&f[9])?,
+            threshold: crate::model::Model::from_value(&f[10])?,
+            footer: crate::model::Model::from_value(&f[11])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsCityYields {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_enum(self.key as u16)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsCityReligionReligions {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub followers: i32,
+    pub pressure: i32,
+    pub routes: i32,
+    pub majority: bool,
+}
+
+impl crate::model::Model for RichTooltipsCityReligionReligions {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.followers, &old.followers, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.pressure, &old.pressure, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.routes, &old.routes, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.majority, &old.majority, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.followers),
+            crate::model::Model::to_value(&self.pressure),
+            crate::model::Model::to_value(&self.routes),
+            crate::model::Model::to_value(&self.majority),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(RichTooltipsCityReligionReligions {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            followers: crate::model::Model::from_value(&f[3])?,
+            pressure: crate::model::Model::from_value(&f[4])?,
+            routes: crate::model::Model::from_value(&f[5])?,
+            majority: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsCityReligionReligions {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsCityReligionLines {
+    pub key: ::std::sync::Arc<str>,
+    pub label: crate::value::Text,
+    pub value: i32,
+}
+
+impl crate::model::Model for RichTooltipsCityReligionLines {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.value),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(RichTooltipsCityReligionLines {
+            key: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            value: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsCityReligionLines {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsCityReligion {
+    pub city: crate::value::Text,
+    pub holy_city_of: crate::value::Text,
+    pub faith_total: i32,
+    pub religions: crate::model::KeyedList<RichTooltipsCityReligionReligions>,
+    pub beliefs: crate::value::Text,
+    pub lines: crate::model::KeyedList<RichTooltipsCityReligionLines>,
+}
+
+impl crate::model::Model for RichTooltipsCityReligion {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.holy_city_of, &old.holy_city_of, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.faith_total, &old.faith_total, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.religions, &old.religions, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.beliefs, &old.beliefs, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.lines, &old.lines, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.city),
+            crate::model::Model::to_value(&self.holy_city_of),
+            crate::model::Model::to_value(&self.faith_total),
+            crate::model::Model::to_value(&self.religions),
+            crate::model::Model::to_value(&self.beliefs),
+            crate::model::Model::to_value(&self.lines),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(RichTooltipsCityReligion {
+            city: crate::model::Model::from_value(&f[0])?,
+            holy_city_of: crate::model::Model::from_value(&f[1])?,
+            faith_total: crate::model::Model::from_value(&f[2])?,
+            religions: crate::model::Model::from_value(&f[3])?,
+            beliefs: crate::model::Model::from_value(&f[4])?,
+            lines: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsPlayerColors {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsPlayerColors {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(RichTooltipsPlayerColors {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsPlayerColors {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsPlayerWonders {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsPlayerWonders {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(RichTooltipsPlayerWonders {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsPlayerWonders {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsPlayerDeals {
+    pub key: ::std::sync::Arc<str>,
+    pub text: crate::value::Text,
+    pub turns: Option<i32>,
+}
+
+impl crate::model::Model for RichTooltipsPlayerDeals {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.text),
+            crate::model::Model::to_value(&self.turns),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(RichTooltipsPlayerDeals {
+            key: crate::model::Model::from_value(&f[0])?,
+            text: crate::model::Model::from_value(&f[1])?,
+            turns: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsPlayerDeals {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsPlayerRoutes {
+    pub key: ::std::sync::Arc<str>,
+    pub text: crate::value::Text,
+    pub turns: Option<i32>,
+}
+
+impl crate::model::Model for RichTooltipsPlayerRoutes {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.text),
+            crate::model::Model::to_value(&self.turns),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(RichTooltipsPlayerRoutes {
+            key: crate::model::Model::from_value(&f[0])?,
+            text: crate::model::Model::from_value(&f[1])?,
+            turns: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsPlayerRoutes {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsPlayerTreaties {
+    pub key: ::std::sync::Arc<str>,
+    pub label: crate::value::Text,
+    pub status: RichTooltipsTreatyStatus,
+    pub text: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsPlayerTreaties {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.status, &old.status, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.status),
+            crate::model::Model::to_value(&self.text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(RichTooltipsPlayerTreaties {
+            key: crate::model::Model::from_value(&f[0])?,
+            label: crate::model::Model::from_value(&f[1])?,
+            status: crate::model::Model::from_value(&f[2])?,
+            text: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsPlayerTreaties {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsPlayerOpinion {
+    pub key: ::std::sync::Arc<str>,
+    pub text: crate::value::Text,
+    pub sign: i32,
+}
+
+impl crate::model::Model for RichTooltipsPlayerOpinion {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.sign, &old.sign, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.text),
+            crate::model::Model::to_value(&self.sign),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(RichTooltipsPlayerOpinion {
+            key: crate::model::Model::from_value(&f[0])?,
+            text: crate::model::Model::from_value(&f[1])?,
+            sign: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsPlayerOpinion {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsPlayer {
+    pub player: i32,
+    pub met: bool,
+    pub human: bool,
+    pub nick: Option<crate::value::Text>,
+    pub leader: crate::value::Text,
+    pub civ: crate::value::Text,
+    pub emblem: crate::value::AssetRef,
+    pub colors: crate::model::KeyedList<RichTooltipsPlayerColors>,
+    pub attitude: crate::value::Text,
+    pub era: crate::value::Text,
+    pub researching: crate::value::Text,
+    pub techs: i32,
+    pub cities: i32,
+    pub population: i32,
+    pub gold: Option<i32>,
+    pub gold_rate: i32,
+    pub policies: crate::value::Text,
+    pub religion: Option<crate::value::Text>,
+    pub wonders: crate::model::KeyedList<RichTooltipsPlayerWonders>,
+    pub deals: crate::model::KeyedList<RichTooltipsPlayerDeals>,
+    pub routes: crate::model::KeyedList<RichTooltipsPlayerRoutes>,
+    pub their_luxuries: crate::value::Text,
+    pub their_strategic: crate::value::Text,
+    pub you_offer: crate::value::Text,
+    pub treaties: crate::model::KeyedList<RichTooltipsPlayerTreaties>,
+    pub opinion: crate::model::KeyedList<RichTooltipsPlayerOpinion>,
+    pub relations: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsPlayer {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.player, &old.player, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.met, &old.met, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.human, &old.human, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.nick, &old.nick, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.leader, &old.leader, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.colors, &old.colors, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.attitude, &old.attitude, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.era, &old.era, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.researching, &old.researching, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.techs, &old.techs, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.cities, &old.cities, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.population, &old.population, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.gold, &old.gold, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.gold_rate, &old.gold_rate, at, out);
+        at.field = base.child(18);
+        crate::model::Model::diff(&self.policies, &old.policies, at, out);
+        at.field = base.child(19);
+        crate::model::Model::diff(&self.religion, &old.religion, at, out);
+        at.field = base.child(20);
+        crate::model::Model::diff(&self.wonders, &old.wonders, at, out);
+        at.field = base.child(23);
+        crate::model::Model::diff(&self.deals, &old.deals, at, out);
+        at.field = base.child(27);
+        crate::model::Model::diff(&self.routes, &old.routes, at, out);
+        at.field = base.child(31);
+        crate::model::Model::diff(&self.their_luxuries, &old.their_luxuries, at, out);
+        at.field = base.child(32);
+        crate::model::Model::diff(&self.their_strategic, &old.their_strategic, at, out);
+        at.field = base.child(33);
+        crate::model::Model::diff(&self.you_offer, &old.you_offer, at, out);
+        at.field = base.child(34);
+        crate::model::Model::diff(&self.treaties, &old.treaties, at, out);
+        at.field = base.child(39);
+        crate::model::Model::diff(&self.opinion, &old.opinion, at, out);
+        at.field = base.child(43);
+        crate::model::Model::diff(&self.relations, &old.relations, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.player),
+            crate::model::Model::to_value(&self.met),
+            crate::model::Model::to_value(&self.human),
+            crate::model::Model::to_value(&self.nick),
+            crate::model::Model::to_value(&self.leader),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.colors),
+            crate::model::Model::to_value(&self.attitude),
+            crate::model::Model::to_value(&self.era),
+            crate::model::Model::to_value(&self.researching),
+            crate::model::Model::to_value(&self.techs),
+            crate::model::Model::to_value(&self.cities),
+            crate::model::Model::to_value(&self.population),
+            crate::model::Model::to_value(&self.gold),
+            crate::model::Model::to_value(&self.gold_rate),
+            crate::model::Model::to_value(&self.policies),
+            crate::model::Model::to_value(&self.religion),
+            crate::model::Model::to_value(&self.wonders),
+            crate::model::Model::to_value(&self.deals),
+            crate::model::Model::to_value(&self.routes),
+            crate::model::Model::to_value(&self.their_luxuries),
+            crate::model::Model::to_value(&self.their_strategic),
+            crate::model::Model::to_value(&self.you_offer),
+            crate::model::Model::to_value(&self.treaties),
+            crate::model::Model::to_value(&self.opinion),
+            crate::model::Model::to_value(&self.relations),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(27)?;
+        Ok(RichTooltipsPlayer {
+            player: crate::model::Model::from_value(&f[0])?,
+            met: crate::model::Model::from_value(&f[1])?,
+            human: crate::model::Model::from_value(&f[2])?,
+            nick: crate::model::Model::from_value(&f[3])?,
+            leader: crate::model::Model::from_value(&f[4])?,
+            civ: crate::model::Model::from_value(&f[5])?,
+            emblem: crate::model::Model::from_value(&f[6])?,
+            colors: crate::model::Model::from_value(&f[7])?,
+            attitude: crate::model::Model::from_value(&f[8])?,
+            era: crate::model::Model::from_value(&f[9])?,
+            researching: crate::model::Model::from_value(&f[10])?,
+            techs: crate::model::Model::from_value(&f[11])?,
+            cities: crate::model::Model::from_value(&f[12])?,
+            population: crate::model::Model::from_value(&f[13])?,
+            gold: crate::model::Model::from_value(&f[14])?,
+            gold_rate: crate::model::Model::from_value(&f[15])?,
+            policies: crate::model::Model::from_value(&f[16])?,
+            religion: crate::model::Model::from_value(&f[17])?,
+            wonders: crate::model::Model::from_value(&f[18])?,
+            deals: crate::model::Model::from_value(&f[19])?,
+            routes: crate::model::Model::from_value(&f[20])?,
+            their_luxuries: crate::model::Model::from_value(&f[21])?,
+            their_strategic: crate::model::Model::from_value(&f[22])?,
+            you_offer: crate::model::Model::from_value(&f[23])?,
+            treaties: crate::model::Model::from_value(&f[24])?,
+            opinion: crate::model::Model::from_value(&f[25])?,
+            relations: crate::model::Model::from_value(&f[26])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsCivNote {
+    pub leader: crate::value::Text,
+    pub civ: crate::value::Text,
+    pub portrait: crate::value::AssetRef,
+    pub emblem: crate::value::AssetRef,
+    pub text: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsCivNote {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.leader, &old.leader, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.leader),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(RichTooltipsCivNote {
+            leader: crate::model::Model::from_value(&f[0])?,
+            civ: crate::model::Model::from_value(&f[1])?,
+            portrait: crate::model::Model::from_value(&f[2])?,
+            emblem: crate::model::Model::from_value(&f[3])?,
+            text: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsUnitAction {
+    pub key: ::std::sync::Arc<str>,
+    pub title: crate::value::Text,
+    pub hotkey: ::std::sync::Arc<str>,
+    pub portrait: crate::value::AssetRef,
+    pub text: crate::value::Text,
+    pub disabled_reason: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsUnitAction {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.title, &old.title, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.hotkey, &old.hotkey, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.disabled_reason, &old.disabled_reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.title),
+            crate::model::Model::to_value(&self.hotkey),
+            crate::model::Model::to_value(&self.portrait),
+            crate::model::Model::to_value(&self.text),
+            crate::model::Model::to_value(&self.disabled_reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(6)?;
+        Ok(RichTooltipsUnitAction {
+            key: crate::model::Model::from_value(&f[0])?,
+            title: crate::model::Model::from_value(&f[1])?,
+            hotkey: crate::model::Model::from_value(&f[2])?,
+            portrait: crate::model::Model::from_value(&f[3])?,
+            text: crate::model::Model::from_value(&f[4])?,
+            disabled_reason: crate::model::Model::from_value(&f[5])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsUnitShortReligion {
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub spreads_left: i32,
+}
+
+impl crate::model::Model for RichTooltipsUnitShortReligion {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.spreads_left, &old.spreads_left, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.spreads_left),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(RichTooltipsUnitShortReligion {
+            name: crate::model::Model::from_value(&f[0])?,
+            icon: crate::model::Model::from_value(&f[1])?,
+            spreads_left: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsUnitShort {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub relation: RichTooltipsRelation,
+    pub owner_line: crate::value::Text,
+    pub emblem: crate::value::AssetRef,
+    pub strength: Option<i32>,
+    pub strength_base: Option<i32>,
+    pub strength_reduced: bool,
+    pub reduced_reason: Option<crate::value::Text>,
+    pub ranged_strength: Option<i32>,
+    pub range: Option<i32>,
+    pub air: bool,
+    pub moves: Option<i32>,
+    pub hp: Option<i32>,
+    pub hp_max: i32,
+    pub embarked: bool,
+    pub religion: Option<RichTooltipsUnitShortReligion>,
+}
+
+impl crate::model::Model for RichTooltipsUnitShort {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.relation, &old.relation, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.owner_line, &old.owner_line, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.emblem, &old.emblem, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.strength, &old.strength, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.strength_base, &old.strength_base, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.strength_reduced, &old.strength_reduced, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.reduced_reason, &old.reduced_reason, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.ranged_strength, &old.ranged_strength, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.range, &old.range, at, out);
+        at.field = base.child(11);
+        crate::model::Model::diff(&self.air, &old.air, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.moves, &old.moves, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.hp, &old.hp, at, out);
+        at.field = base.child(14);
+        crate::model::Model::diff(&self.hp_max, &old.hp_max, at, out);
+        at.field = base.child(15);
+        crate::model::Model::diff(&self.embarked, &old.embarked, at, out);
+        at.field = base.child(16);
+        crate::model::Model::diff(&self.religion, &old.religion, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.relation),
+            crate::model::Model::to_value(&self.owner_line),
+            crate::model::Model::to_value(&self.emblem),
+            crate::model::Model::to_value(&self.strength),
+            crate::model::Model::to_value(&self.strength_base),
+            crate::model::Model::to_value(&self.strength_reduced),
+            crate::model::Model::to_value(&self.reduced_reason),
+            crate::model::Model::to_value(&self.ranged_strength),
+            crate::model::Model::to_value(&self.range),
+            crate::model::Model::to_value(&self.air),
+            crate::model::Model::to_value(&self.moves),
+            crate::model::Model::to_value(&self.hp),
+            crate::model::Model::to_value(&self.hp_max),
+            crate::model::Model::to_value(&self.embarked),
+            crate::model::Model::to_value(&self.religion),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(17)?;
+        Ok(RichTooltipsUnitShort {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            relation: crate::model::Model::from_value(&f[2])?,
+            owner_line: crate::model::Model::from_value(&f[3])?,
+            emblem: crate::model::Model::from_value(&f[4])?,
+            strength: crate::model::Model::from_value(&f[5])?,
+            strength_base: crate::model::Model::from_value(&f[6])?,
+            strength_reduced: crate::model::Model::from_value(&f[7])?,
+            reduced_reason: crate::model::Model::from_value(&f[8])?,
+            ranged_strength: crate::model::Model::from_value(&f[9])?,
+            range: crate::model::Model::from_value(&f[10])?,
+            air: crate::model::Model::from_value(&f[11])?,
+            moves: crate::model::Model::from_value(&f[12])?,
+            hp: crate::model::Model::from_value(&f[13])?,
+            hp_max: crate::model::Model::from_value(&f[14])?,
+            embarked: crate::model::Model::from_value(&f[15])?,
+            religion: crate::model::Model::from_value(&f[16])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for RichTooltipsUnitShort {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsUnique {
+    pub civ: crate::value::Text,
+    pub replaces: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsUnique {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.replaces, &old.replaces, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.replaces),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(RichTooltipsUnique {
+            civ: crate::model::Model::from_value(&f[0])?,
+            replaces: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltipsUpgrade {
+    pub to: crate::value::Text,
+    pub gold: Option<i32>,
+    pub tech: crate::value::Text,
+}
+
+impl crate::model::Model for RichTooltipsUpgrade {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.to, &old.to, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.gold, &old.gold, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.tech, &old.tech, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.to),
+            crate::model::Model::to_value(&self.gold),
+            crate::model::Model::to_value(&self.tech),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(RichTooltipsUpgrade {
+            to: crate::model::Model::from_value(&f[0])?,
+            gold: crate::model::Model::from_value(&f[1])?,
+            tech: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TechAwardTech {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub portrait: Option<crate::value::AssetRef>,
+}
+
+impl crate::model::Model for TechAwardTech {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.portrait, &old.portrait, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.portrait),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(TechAwardTech {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            portrait: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TechAwardText {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+}
+
+impl crate::model::Model for TechAwardText {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(TechAwardText {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for TechAwardText {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TechAwardUnlock {
+    pub key: ::std::sync::Arc<str>,
+    pub kind: TechAwardUnlockKind,
+    pub kind_name: crate::value::Text,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+}
+
+impl crate::model::Model for TechAwardUnlock {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.kind_name, &old.kind_name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.kind_name),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(TechAwardUnlock {
+            key: crate::model::Model::from_value(&f[0])?,
+            kind: crate::model::Model::from_value(&f[1])?,
+            kind_name: crate::model::Model::from_value(&f[2])?,
+            name: crate::model::Model::from_value(&f[3])?,
+            icon: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for TechAwardUnlock {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct TechsPrerequisite {
     pub id: i32,
 }
@@ -4321,6 +8153,9 @@ impl crate::model::Keyed for TechsPrerequisite {
 pub struct TechsUnlock {
     pub idx: i32,
     pub name: crate::value::Text,
+    pub key: ::std::sync::Arc<str>,
+    pub kind: TechsUnlockKind,
+    pub icon: crate::value::AssetRef,
 }
 
 impl crate::model::Model for TechsUnlock {
@@ -4330,6 +8165,12 @@ impl crate::model::Model for TechsUnlock {
         crate::model::Model::diff(&self.idx, &old.idx, at, out);
         at.field = base.child(1);
         crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
         at.field = base;
     }
 
@@ -4337,14 +8178,20 @@ impl crate::model::Model for TechsUnlock {
         crate::value::Value::Struct(vec![
             crate::model::Model::to_value(&self.idx),
             crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.icon),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(2)?;
+        let f = v.as_struct(5)?;
         Ok(TechsUnlock {
             idx: crate::model::Model::from_value(&f[0])?,
             name: crate::model::Model::from_value(&f[1])?,
+            key: crate::model::Model::from_value(&f[2])?,
+            kind: crate::model::Model::from_value(&f[3])?,
+            icon: crate::model::Model::from_value(&f[4])?,
         })
     }
 }
@@ -4357,6 +8204,20 @@ impl crate::model::Keyed for TechsUnlock {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TechsRow {
+    pub key: ::std::sync::Arc<str>,
+    pub era_key: ::std::sync::Arc<str>,
+    pub col: i32,
+    pub state: TechsState,
+    pub queue_pos: Option<i32>,
+    pub fraction: f32,
+    pub forecast_fraction: f32,
+    pub steal_science: Option<i32>,
+    pub clickable: bool,
+    pub lock_reason: Option<crate::value::Text>,
+    pub help: crate::value::Text,
+    pub prereqs: crate::model::KeyedList<TechsText>,
+    pub or_prereqs: crate::model::KeyedList<TechsText>,
+    pub leads_to: crate::model::KeyedList<TechsText>,
     pub id: i32,
     pub name: crate::value::Text,
     pub column: i32,
@@ -4377,38 +8238,80 @@ impl crate::model::Model for TechsRow {
     fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
         let base = at.field;
         at.field = base.child(0);
-        crate::model::Model::diff(&self.id, &old.id, at, out);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
         at.field = base.child(1);
-        crate::model::Model::diff(&self.name, &old.name, at, out);
+        crate::model::Model::diff(&self.era_key, &old.era_key, at, out);
         at.field = base.child(2);
-        crate::model::Model::diff(&self.column, &old.column, at, out);
+        crate::model::Model::diff(&self.col, &old.col, at, out);
         at.field = base.child(3);
-        crate::model::Model::diff(&self.row, &old.row, at, out);
+        crate::model::Model::diff(&self.state, &old.state, at, out);
         at.field = base.child(4);
-        crate::model::Model::diff(&self.status, &old.status, at, out);
+        crate::model::Model::diff(&self.queue_pos, &old.queue_pos, at, out);
         at.field = base.child(5);
-        crate::model::Model::diff(&self.cost, &old.cost, at, out);
+        crate::model::Model::diff(&self.fraction, &old.fraction, at, out);
         at.field = base.child(6);
-        crate::model::Model::diff(&self.progress, &old.progress, at, out);
+        crate::model::Model::diff(&self.forecast_fraction, &old.forecast_fraction, at, out);
         at.field = base.child(7);
-        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        crate::model::Model::diff(&self.steal_science, &old.steal_science, at, out);
         at.field = base.child(8);
-        crate::model::Model::diff(&self.prerequisites, &old.prerequisites, at, out);
+        crate::model::Model::diff(&self.clickable, &old.clickable, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.lock_reason, &old.lock_reason, at, out);
         at.field = base.child(10);
-        crate::model::Model::diff(&self.queue_position, &old.queue_position, at, out);
+        crate::model::Model::diff(&self.help, &old.help, at, out);
         at.field = base.child(11);
-        crate::model::Model::diff(&self.era, &old.era, at, out);
-        at.field = base.child(12);
-        crate::model::Model::diff(&self.era_name, &old.era_name, at, out);
-        at.field = base.child(13);
-        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        crate::model::Model::diff(&self.prereqs, &old.prereqs, at, out);
         at.field = base.child(14);
+        crate::model::Model::diff(&self.or_prereqs, &old.or_prereqs, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.leads_to, &old.leads_to, at, out);
+        at.field = base.child(20);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(21);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(22);
+        crate::model::Model::diff(&self.column, &old.column, at, out);
+        at.field = base.child(23);
+        crate::model::Model::diff(&self.row, &old.row, at, out);
+        at.field = base.child(24);
+        crate::model::Model::diff(&self.status, &old.status, at, out);
+        at.field = base.child(25);
+        crate::model::Model::diff(&self.cost, &old.cost, at, out);
+        at.field = base.child(26);
+        crate::model::Model::diff(&self.progress, &old.progress, at, out);
+        at.field = base.child(27);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(28);
+        crate::model::Model::diff(&self.prerequisites, &old.prerequisites, at, out);
+        at.field = base.child(30);
+        crate::model::Model::diff(&self.queue_position, &old.queue_position, at, out);
+        at.field = base.child(31);
+        crate::model::Model::diff(&self.era, &old.era, at, out);
+        at.field = base.child(32);
+        crate::model::Model::diff(&self.era_name, &old.era_name, at, out);
+        at.field = base.child(33);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(34);
         crate::model::Model::diff(&self.unlocks, &old.unlocks, at, out);
         at.field = base;
     }
 
     fn to_value(&self) -> crate::value::Value {
         crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.era_key),
+            crate::model::Model::to_value(&self.col),
+            crate::model::Model::to_value(&self.state),
+            crate::model::Model::to_value(&self.queue_pos),
+            crate::model::Model::to_value(&self.fraction),
+            crate::model::Model::to_value(&self.forecast_fraction),
+            crate::model::Model::to_value(&self.steal_science),
+            crate::model::Model::to_value(&self.clickable),
+            crate::model::Model::to_value(&self.lock_reason),
+            crate::model::Model::to_value(&self.help),
+            crate::model::Model::to_value(&self.prereqs),
+            crate::model::Model::to_value(&self.or_prereqs),
+            crate::model::Model::to_value(&self.leads_to),
             crate::model::Model::to_value(&self.id),
             crate::model::Model::to_value(&self.name),
             crate::model::Model::to_value(&self.column),
@@ -4427,22 +8330,36 @@ impl crate::model::Model for TechsRow {
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(14)?;
+        let f = v.as_struct(28)?;
         Ok(TechsRow {
-            id: crate::model::Model::from_value(&f[0])?,
-            name: crate::model::Model::from_value(&f[1])?,
-            column: crate::model::Model::from_value(&f[2])?,
-            row: crate::model::Model::from_value(&f[3])?,
-            status: crate::model::Model::from_value(&f[4])?,
-            cost: crate::model::Model::from_value(&f[5])?,
-            progress: crate::model::Model::from_value(&f[6])?,
-            turns: crate::model::Model::from_value(&f[7])?,
-            prerequisites: crate::model::Model::from_value(&f[8])?,
-            queue_position: crate::model::Model::from_value(&f[9])?,
-            era: crate::model::Model::from_value(&f[10])?,
-            era_name: crate::model::Model::from_value(&f[11])?,
-            icon: crate::model::Model::from_value(&f[12])?,
-            unlocks: crate::model::Model::from_value(&f[13])?,
+            key: crate::model::Model::from_value(&f[0])?,
+            era_key: crate::model::Model::from_value(&f[1])?,
+            col: crate::model::Model::from_value(&f[2])?,
+            state: crate::model::Model::from_value(&f[3])?,
+            queue_pos: crate::model::Model::from_value(&f[4])?,
+            fraction: crate::model::Model::from_value(&f[5])?,
+            forecast_fraction: crate::model::Model::from_value(&f[6])?,
+            steal_science: crate::model::Model::from_value(&f[7])?,
+            clickable: crate::model::Model::from_value(&f[8])?,
+            lock_reason: crate::model::Model::from_value(&f[9])?,
+            help: crate::model::Model::from_value(&f[10])?,
+            prereqs: crate::model::Model::from_value(&f[11])?,
+            or_prereqs: crate::model::Model::from_value(&f[12])?,
+            leads_to: crate::model::Model::from_value(&f[13])?,
+            id: crate::model::Model::from_value(&f[14])?,
+            name: crate::model::Model::from_value(&f[15])?,
+            column: crate::model::Model::from_value(&f[16])?,
+            row: crate::model::Model::from_value(&f[17])?,
+            status: crate::model::Model::from_value(&f[18])?,
+            cost: crate::model::Model::from_value(&f[19])?,
+            progress: crate::model::Model::from_value(&f[20])?,
+            turns: crate::model::Model::from_value(&f[21])?,
+            prerequisites: crate::model::Model::from_value(&f[22])?,
+            queue_position: crate::model::Model::from_value(&f[23])?,
+            era: crate::model::Model::from_value(&f[24])?,
+            era_name: crate::model::Model::from_value(&f[25])?,
+            icon: crate::model::Model::from_value(&f[26])?,
+            unlocks: crate::model::Model::from_value(&f[27])?,
         })
     }
 }
@@ -4450,6 +8367,406 @@ impl crate::model::Model for TechsRow {
 impl crate::model::Keyed for TechsRow {
     fn key(&self) -> crate::value::Key {
         crate::value::Key::from_i32(i32::from(self.id))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TechsText {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+}
+
+impl crate::model::Model for TechsText {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(TechsText {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for TechsText {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TechsEraRef {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+}
+
+impl crate::model::Model for TechsEraRef {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(TechsEraRef {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TechsGrid {
+    pub cols: i32,
+    pub rows: i32,
+}
+
+impl crate::model::Model for TechsGrid {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.cols, &old.cols, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.rows, &old.rows, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.cols),
+            crate::model::Model::to_value(&self.rows),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(TechsGrid {
+            cols: crate::model::Model::from_value(&f[0])?,
+            rows: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TechsCurrent {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub turns: Option<i32>,
+    pub progress: i32,
+    pub cost: i32,
+    pub fraction: f32,
+    pub forecast_fraction: f32,
+    pub turn_fraction: f32,
+}
+
+impl crate::model::Model for TechsCurrent {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.progress, &old.progress, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.cost, &old.cost, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.fraction, &old.fraction, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.forecast_fraction, &old.forecast_fraction, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.turn_fraction, &old.turn_fraction, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.turns),
+            crate::model::Model::to_value(&self.progress),
+            crate::model::Model::to_value(&self.cost),
+            crate::model::Model::to_value(&self.fraction),
+            crate::model::Model::to_value(&self.forecast_fraction),
+            crate::model::Model::to_value(&self.turn_fraction),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(9)?;
+        Ok(TechsCurrent {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+            turns: crate::model::Model::from_value(&f[3])?,
+            progress: crate::model::Model::from_value(&f[4])?,
+            cost: crate::model::Model::from_value(&f[5])?,
+            fraction: crate::model::Model::from_value(&f[6])?,
+            forecast_fraction: crate::model::Model::from_value(&f[7])?,
+            turn_fraction: crate::model::Model::from_value(&f[8])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TechsQueue {
+    pub key: ::std::sync::Arc<str>,
+    pub pos: i32,
+    pub name: crate::value::Text,
+    pub turns: Option<i32>,
+}
+
+impl crate::model::Model for TechsQueue {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.pos, &old.pos, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.turns, &old.turns, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.pos),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.turns),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(TechsQueue {
+            key: crate::model::Model::from_value(&f[0])?,
+            pos: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            turns: crate::model::Model::from_value(&f[3])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for TechsQueue {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TechsEra {
+    pub key: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub first_col: i32,
+    pub cols: i32,
+    pub state: TechsEraState,
+    pub researched: i32,
+    pub total: i32,
+}
+
+impl crate::model::Model for TechsEra {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.first_col, &old.first_col, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.cols, &old.cols, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.state, &old.state, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.researched, &old.researched, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.total, &old.total, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.first_col),
+            crate::model::Model::to_value(&self.cols),
+            crate::model::Model::to_value(&self.state),
+            crate::model::Model::to_value(&self.researched),
+            crate::model::Model::to_value(&self.total),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(TechsEra {
+            key: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            first_col: crate::model::Model::from_value(&f[2])?,
+            cols: crate::model::Model::from_value(&f[3])?,
+            state: crate::model::Model::from_value(&f[4])?,
+            researched: crate::model::Model::from_value(&f[5])?,
+            total: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for TechsEra {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TechsSteal {
+    pub player: i32,
+    pub name: crate::value::Text,
+    pub civ: crate::value::Text,
+    pub icon: crate::value::AssetRef,
+    pub color: ::std::sync::Arc<str>,
+    pub spy_city: crate::value::Text,
+    pub can_steal: i32,
+}
+
+impl crate::model::Model for TechsSteal {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.player, &old.player, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.civ, &old.civ, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.color, &old.color, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.spy_city, &old.spy_city, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.can_steal, &old.can_steal, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.player),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.civ),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.color),
+            crate::model::Model::to_value(&self.spy_city),
+            crate::model::Model::to_value(&self.can_steal),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(TechsSteal {
+            player: crate::model::Model::from_value(&f[0])?,
+            name: crate::model::Model::from_value(&f[1])?,
+            civ: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+            color: crate::model::Model::from_value(&f[4])?,
+            spy_city: crate::model::Model::from_value(&f[5])?,
+            can_steal: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TechsLink {
+    pub key: ::std::sync::Arc<str>,
+    pub from_col: i32,
+    pub from_row: i32,
+    pub to_col: i32,
+    pub to_row: i32,
+    pub kind: TechsLinkKind,
+    pub state: TechsLinkState,
+}
+
+impl crate::model::Model for TechsLink {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.from_col, &old.from_col, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.from_row, &old.from_row, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.to_col, &old.to_col, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.to_row, &old.to_row, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.state, &old.state, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.from_col),
+            crate::model::Model::to_value(&self.from_row),
+            crate::model::Model::to_value(&self.to_col),
+            crate::model::Model::to_value(&self.to_row),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.state),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(TechsLink {
+            key: crate::model::Model::from_value(&f[0])?,
+            from_col: crate::model::Model::from_value(&f[1])?,
+            from_row: crate::model::Model::from_value(&f[2])?,
+            to_col: crate::model::Model::from_value(&f[3])?,
+            to_row: crate::model::Model::from_value(&f[4])?,
+            kind: crate::model::Model::from_value(&f[5])?,
+            state: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for TechsLink {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
     }
 }
 
@@ -5045,15 +9362,15 @@ impl crate::model::Model for Ui {
         crate::model::Model::diff(&self.map_mode, &old.map_mode, at, out);
         at.field = base.child(7);
         crate::model::Model::diff(&self.windows, &old.windows, at, out);
-        at.field = base.child(23);
+        at.field = base.child(31);
         crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(27);
-        crate::model::Model::diff(&self.chat, &old.chat, at, out);
-        at.field = base.child(30);
-        crate::model::Model::diff(&self.pending, &old.pending, at, out);
         at.field = base.child(35);
+        crate::model::Model::diff(&self.chat, &old.chat, at, out);
+        at.field = base.child(38);
+        crate::model::Model::diff(&self.pending, &old.pending, at, out);
+        at.field = base.child(43);
         crate::model::Model::diff(&self.turn_pending, &old.turn_pending, at, out);
-        at.field = base.child(36);
+        at.field = base.child(44);
         crate::model::Model::diff(&self.errors, &old.errors, at, out);
         at.field = base;
     }
@@ -5129,8 +9446,172 @@ impl crate::model::Model for Hud {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+pub struct RichTooltips {
+    pub unavailable_reason: Option<crate::value::Text>,
+    pub tech: Option<RichTooltipsTech>,
+    pub unit: Option<RichTooltipsUnit>,
+    pub building: Option<RichTooltipsBuilding>,
+    pub improvement: Option<RichTooltipsImprovement>,
+    pub policy: Option<RichTooltipsPolicy>,
+    pub progress: Option<RichTooltipsProgress>,
+    pub city_yields: crate::model::KeyedList<RichTooltipsCityYields>,
+    pub city_religion: Option<RichTooltipsCityReligion>,
+    pub player: Option<RichTooltipsPlayer>,
+    pub civ_note: Option<RichTooltipsCivNote>,
+    pub unit_action: Option<RichTooltipsUnitAction>,
+    pub unit_short: crate::model::KeyedList<RichTooltipsUnitShort>,
+}
+
+impl crate::model::Model for RichTooltips {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.unavailable_reason, &old.unavailable_reason, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.tech, &old.tech, at, out);
+        at.field = base.child(22);
+        crate::model::Model::diff(&self.unit, &old.unit, at, out);
+        at.field = base.child(76);
+        crate::model::Model::diff(&self.building, &old.building, at, out);
+        at.field = base.child(106);
+        crate::model::Model::diff(&self.improvement, &old.improvement, at, out);
+        at.field = base.child(126);
+        crate::model::Model::diff(&self.policy, &old.policy, at, out);
+        at.field = base.child(142);
+        crate::model::Model::diff(&self.progress, &old.progress, at, out);
+        at.field = base.child(157);
+        crate::model::Model::diff(&self.city_yields, &old.city_yields, at, out);
+        at.field = base.child(176);
+        crate::model::Model::diff(&self.city_religion, &old.city_religion, at, out);
+        at.field = base.child(193);
+        crate::model::Model::diff(&self.player, &old.player, at, out);
+        at.field = base.child(238);
+        crate::model::Model::diff(&self.civ_note, &old.civ_note, at, out);
+        at.field = base.child(244);
+        crate::model::Model::diff(&self.unit_action, &old.unit_action, at, out);
+        at.field = base.child(251);
+        crate::model::Model::diff(&self.unit_short, &old.unit_short, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.unavailable_reason),
+            crate::model::Model::to_value(&self.tech),
+            crate::model::Model::to_value(&self.unit),
+            crate::model::Model::to_value(&self.building),
+            crate::model::Model::to_value(&self.improvement),
+            crate::model::Model::to_value(&self.policy),
+            crate::model::Model::to_value(&self.progress),
+            crate::model::Model::to_value(&self.city_yields),
+            crate::model::Model::to_value(&self.city_religion),
+            crate::model::Model::to_value(&self.player),
+            crate::model::Model::to_value(&self.civ_note),
+            crate::model::Model::to_value(&self.unit_action),
+            crate::model::Model::to_value(&self.unit_short),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(13)?;
+        Ok(RichTooltips {
+            unavailable_reason: crate::model::Model::from_value(&f[0])?,
+            tech: crate::model::Model::from_value(&f[1])?,
+            unit: crate::model::Model::from_value(&f[2])?,
+            building: crate::model::Model::from_value(&f[3])?,
+            improvement: crate::model::Model::from_value(&f[4])?,
+            policy: crate::model::Model::from_value(&f[5])?,
+            progress: crate::model::Model::from_value(&f[6])?,
+            city_yields: crate::model::Model::from_value(&f[7])?,
+            city_religion: crate::model::Model::from_value(&f[8])?,
+            player: crate::model::Model::from_value(&f[9])?,
+            civ_note: crate::model::Model::from_value(&f[10])?,
+            unit_action: crate::model::Model::from_value(&f[11])?,
+            unit_short: crate::model::Model::from_value(&f[12])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TechAward {
+    pub tech: Option<TechAwardTech>,
+    pub era: crate::value::Text,
+    pub turn: i32,
+    pub quote: Option<crate::value::Text>,
+    pub quote_by: Option<crate::value::Text>,
+    pub help: crate::value::Text,
+    pub leads_to: crate::model::KeyedList<TechAwardText>,
+    pub unlocks: crate::model::KeyedList<TechAwardUnlock>,
+}
+
+impl crate::model::Model for TechAward {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.tech, &old.tech, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.era, &old.era, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.turn, &old.turn, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.quote, &old.quote, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.quote_by, &old.quote_by, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.help, &old.help, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.leads_to, &old.leads_to, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.unlocks, &old.unlocks, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.tech),
+            crate::model::Model::to_value(&self.era),
+            crate::model::Model::to_value(&self.turn),
+            crate::model::Model::to_value(&self.quote),
+            crate::model::Model::to_value(&self.quote_by),
+            crate::model::Model::to_value(&self.help),
+            crate::model::Model::to_value(&self.leads_to),
+            crate::model::Model::to_value(&self.unlocks),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(TechAward {
+            tech: crate::model::Model::from_value(&f[0])?,
+            era: crate::model::Model::from_value(&f[1])?,
+            turn: crate::model::Model::from_value(&f[2])?,
+            quote: crate::model::Model::from_value(&f[3])?,
+            quote_by: crate::model::Model::from_value(&f[4])?,
+            help: crate::model::Model::from_value(&f[5])?,
+            leads_to: crate::model::Model::from_value(&f[6])?,
+            unlocks: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Techs {
     pub techs: crate::model::KeyedList<TechsRow>,
+    pub mode: TechsMode,
+    pub opened_by: TechsOpenedBy,
+    pub science_off: bool,
+    pub science_rate: i32,
+    pub researched_count: i32,
+    pub total_count: i32,
+    pub era: TechsEraRef,
+    pub free_count: i32,
+    pub free_reason: Option<crate::value::Text>,
+    pub steal: Option<TechsSteal>,
+    pub grid: TechsGrid,
+    pub current: Option<TechsCurrent>,
+    pub queue: crate::model::KeyedList<TechsQueue>,
+    pub eras: crate::model::KeyedList<TechsEra>,
+    pub links: crate::model::KeyedList<TechsLink>,
 }
 
 impl crate::model::Model for Techs {
@@ -5138,19 +9619,79 @@ impl crate::model::Model for Techs {
         let base = at.field;
         at.field = base.child(0);
         crate::model::Model::diff(&self.techs, &old.techs, at, out);
+        at.field = base.child(41);
+        crate::model::Model::diff(&self.mode, &old.mode, at, out);
+        at.field = base.child(42);
+        crate::model::Model::diff(&self.opened_by, &old.opened_by, at, out);
+        at.field = base.child(43);
+        crate::model::Model::diff(&self.science_off, &old.science_off, at, out);
+        at.field = base.child(44);
+        crate::model::Model::diff(&self.science_rate, &old.science_rate, at, out);
+        at.field = base.child(45);
+        crate::model::Model::diff(&self.researched_count, &old.researched_count, at, out);
+        at.field = base.child(46);
+        crate::model::Model::diff(&self.total_count, &old.total_count, at, out);
+        at.field = base.child(47);
+        crate::model::Model::diff(&self.era, &old.era, at, out);
+        at.field = base.child(50);
+        crate::model::Model::diff(&self.free_count, &old.free_count, at, out);
+        at.field = base.child(51);
+        crate::model::Model::diff(&self.free_reason, &old.free_reason, at, out);
+        at.field = base.child(52);
+        crate::model::Model::diff(&self.steal, &old.steal, at, out);
+        at.field = base.child(60);
+        crate::model::Model::diff(&self.grid, &old.grid, at, out);
+        at.field = base.child(63);
+        crate::model::Model::diff(&self.current, &old.current, at, out);
+        at.field = base.child(73);
+        crate::model::Model::diff(&self.queue, &old.queue, at, out);
+        at.field = base.child(78);
+        crate::model::Model::diff(&self.eras, &old.eras, at, out);
+        at.field = base.child(86);
+        crate::model::Model::diff(&self.links, &old.links, at, out);
         at.field = base;
     }
 
     fn to_value(&self) -> crate::value::Value {
         crate::value::Value::Struct(vec![
             crate::model::Model::to_value(&self.techs),
+            crate::model::Model::to_value(&self.mode),
+            crate::model::Model::to_value(&self.opened_by),
+            crate::model::Model::to_value(&self.science_off),
+            crate::model::Model::to_value(&self.science_rate),
+            crate::model::Model::to_value(&self.researched_count),
+            crate::model::Model::to_value(&self.total_count),
+            crate::model::Model::to_value(&self.era),
+            crate::model::Model::to_value(&self.free_count),
+            crate::model::Model::to_value(&self.free_reason),
+            crate::model::Model::to_value(&self.steal),
+            crate::model::Model::to_value(&self.grid),
+            crate::model::Model::to_value(&self.current),
+            crate::model::Model::to_value(&self.queue),
+            crate::model::Model::to_value(&self.eras),
+            crate::model::Model::to_value(&self.links),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(1)?;
+        let f = v.as_struct(16)?;
         Ok(Techs {
             techs: crate::model::Model::from_value(&f[0])?,
+            mode: crate::model::Model::from_value(&f[1])?,
+            opened_by: crate::model::Model::from_value(&f[2])?,
+            science_off: crate::model::Model::from_value(&f[3])?,
+            science_rate: crate::model::Model::from_value(&f[4])?,
+            researched_count: crate::model::Model::from_value(&f[5])?,
+            total_count: crate::model::Model::from_value(&f[6])?,
+            era: crate::model::Model::from_value(&f[7])?,
+            free_count: crate::model::Model::from_value(&f[8])?,
+            free_reason: crate::model::Model::from_value(&f[9])?,
+            steal: crate::model::Model::from_value(&f[10])?,
+            grid: crate::model::Model::from_value(&f[11])?,
+            current: crate::model::Model::from_value(&f[12])?,
+            queue: crate::model::Model::from_value(&f[13])?,
+            eras: crate::model::Model::from_value(&f[14])?,
+            links: crate::model::Model::from_value(&f[15])?,
         })
     }
 }
@@ -5207,6 +9748,14 @@ impl crate::model::Root for Option<Hud> {
     const NAME: &'static str = "hud";
 }
 
+impl crate::model::Root for Option<RichTooltips> {
+    const NAME: &'static str = "rich_tooltips";
+}
+
+impl crate::model::Root for Option<TechAward> {
+    const NAME: &'static str = "tech_award";
+}
+
 impl crate::model::Root for Option<Techs> {
     const NAME: &'static str = "techs";
 }
@@ -5232,23 +9781,29 @@ pub fn put_root(
         "production" => crate::model::put_value::<Option<Production>>(w, v),
         "ui" => crate::model::put_value::<Ui>(w, v),
         "hud" => crate::model::put_value::<Option<Hud>>(w, v),
+        "rich_tooltips" => crate::model::put_value::<Option<RichTooltips>>(w, v),
+        "tech_award" => crate::model::put_value::<Option<TechAward>>(w, v),
         "techs" => crate::model::put_value::<Option<Techs>>(w, v),
         _ => return None,
     })
 }
 
-pub const WINDOW_SCREEN_NAMES: &[&str] = &["techs"];
+pub const WINDOW_SCREEN_NAMES: &[&str] = &["rich_tooltips", "tech_award", "techs"];
 
-pub const SCREEN_NAMES: &[&str] = &["hud", "techs"];
+pub const SCREEN_NAMES: &[&str] = &["hud", "rich_tooltips", "tech_award", "techs"];
 impl Windows {
     pub fn remote(&self, name: &str) -> Option<&WinArgs> {
         Some(match name {
+            "rich_tooltips" => &self.rich_tooltips,
+            "tech_award" => &self.tech_award,
             "techs" => &self.techs,
             _ => return None,
         })
     }
     pub fn remote_mut(&mut self, name: &str) -> Option<&mut WinArgs> {
         Some(match name {
+            "rich_tooltips" => &mut self.rich_tooltips,
+            "tech_award" => &mut self.tech_award,
             "techs" => &mut self.techs,
             _ => return None,
         })

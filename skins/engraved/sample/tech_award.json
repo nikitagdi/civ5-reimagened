@@ -1,0 +1,51 @@
+{
+  "model": {
+    "tech_award": {
+      "tech": {
+        "key": "TECH_TELEGRAPH",
+        "name": "Telegraph",
+        "icon": "",
+        "portrait": null
+      },
+      "era": "Modern era",
+      "turn": 196,
+      "quote": "\u201cWhat hath God wrought?\u201d",
+      "quote_by": "Samuel Morse",
+      "help": "Allows the Military Base; diplomats in city-states give +1 delegate.",
+      "leads_to": [
+        {
+          "key": "0",
+          "name": "Radio"
+        },
+        {
+          "key": "1",
+          "name": "Electronics"
+        }
+      ],
+      "unlocks": [
+        {
+          "key": "BUILDING_MILITARY_BASE",
+          "kind": "building",
+          "name": "Military Base",
+          "icon": "",
+          "kind_name": "Building"
+        },
+        {
+          "key": "ABILITY_DIPLOMAT_VOTE",
+          "kind": "ability",
+          "name": "Diplomat vote",
+          "icon": "",
+          "kind_name": "Ability"
+        }
+      ]
+    }
+  },
+  "ui": {
+    "windows": {
+      "tech_award": {
+        "open": true,
+        "a": 0
+      }
+    }
+  }
+}

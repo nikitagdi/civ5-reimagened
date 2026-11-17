@@ -1,0 +1,372 @@
+# SIMPLIFIED(SIMP-340): scalar arrays are represented as keyed name rows.
+[enum]
+RichTooltipsProgressKind = ["science", "culture", "faith", "golden_age", "tourism"]
+RichTooltipsCityYieldKind = ["food", "production", "gold", "science", "culture", "faith", "tourism"]
+RichTooltipsTechState = ["researched", "current", "available", "unavailable", "locked", "free"]
+RichTooltipsUnlockKind = ["unit", "building", "wonder", "project", "resource", "improvement", "ability"]
+RichTooltipsRelation = ["own", "ally", "war", "other"]
+RichTooltipsPortraitSide = ["left", "right"]
+RichTooltipsPolicyStatus = ["adopted", "can_adopt", "locked", "blocked"]
+RichTooltipsTreatyStatus = ["active", "partial", "possible", "unavailable"]
+
+[type.RichTooltipsTechLeadsTo]
+key = "str"
+name = "text"
+
+[type.RichTooltipsTechUnlocks]
+key = "str"
+kind = "RichTooltipsUnlockKind"
+name = "text"
+icon = "asset"
+
+[type.RichTooltipsTech]
+key = "str"
+name = "text"
+icon = "asset"
+portrait = "asset"
+era_name = "text"
+state = "RichTooltipsTechState"
+researched = "bool"
+progress = "i32"
+cost = "i32"
+turns = "i32?"
+science_rate = "i32"
+leads_to = { list = "RichTooltipsTechLeadsTo", key = "key" }
+unlocks = { list = "RichTooltipsTechUnlocks", key = "key" }
+help = "text"
+
+[type.RichTooltipsUnitOwnerColors]
+key = "str"
+name = "text"
+
+[type.RichTooltipsUnitPromotions]
+key = "str"
+name = "text"
+icon = "asset"
+free = "bool"
+
+[type.RichTooltipsUnitCost]
+city = "text"
+production = "i32?"
+gold = "i32?"
+ratio_pct = "i32?"
+faith = "i32?"
+
+[type.RichTooltipsUnitResources]
+key = "str"
+name = "text"
+amount = "i32"
+icon = "asset"
+
+[type.RichTooltipsUnitUnique]
+civ = "text"
+replaces = "text"
+
+[type.RichTooltipsUnitRequires]
+kind = "str"
+name = "text"
+
+[type.RichTooltipsUnitUpgrade]
+to = "text"
+gold = "i32?"
+tech = "text"
+
+[type.RichTooltipsUnit]
+key = "str"
+name = "text"
+icon = "asset"
+portrait = "asset"
+relation = "RichTooltipsRelation"
+owner_line = "text"
+owner_emblem = "asset"
+owner_colors = { list = "RichTooltipsUnitOwnerColors", key = "key" }
+combat_class = "text"
+strength = "i32?"
+strength_base = "i32?"
+strength_reduced = "bool"
+ranged_strength = "i32?"
+range = "i32?"
+moves_left = "i32?"
+moves_max = "i32"
+hp = "i32?"
+hp_max = "i32"
+embarked = "bool"
+religion = "RichTooltipsUnitShortReligion?"
+promotions = { list = "RichTooltipsUnitPromotions", key = "key" }
+abilities = "text"
+cost = "RichTooltipsUnitCost"
+resources = { list = "RichTooltipsUnitResources", key = "key" }
+unique = "RichTooltipsUnitUnique?"
+requires = { list = "RichTooltipsUnitRequires", key = "kind" }
+upgrade = "RichTooltipsUnitUpgrade?"
+obsolete_tech = "text?"
+
+[type.RichTooltipsBuildingLines]
+key = "str"
+label = "text"
+value = "text"
+yield = "str?"
+
+[type.RichTooltipsBuildingFuture]
+key = "str"
+label = "text"
+value = "text"
+
+[type.RichTooltipsBuildingCost]
+production = "i32?"
+gold = "i32?"
+ratio_pct = "i32?"
+faith = "i32?"
+free = "bool"
+
+[type.RichTooltipsBuildingRequires]
+key = "str"
+label = "text"
+met = "bool"
+text = "text"
+
+[type.RichTooltipsBuilding]
+key = "str"
+name = "text"
+icon = "asset"
+portrait = "asset"
+portrait_side = "RichTooltipsPortraitSide"
+city = "text"
+turns = "i32?"
+lines = { list = "RichTooltipsBuildingLines", key = "key" }
+future = { list = "RichTooltipsBuildingFuture", key = "key" }
+cost = "RichTooltipsBuildingCost"
+requires = { list = "RichTooltipsBuildingRequires", key = "key" }
+limits = "text?"
+help = "text"
+
+[type.RichTooltipsImprovementYields]
+yield = "str"
+value = "i32"
+fresh_water = "i32"
+
+[type.RichTooltipsImprovementBonuses]
+key = "str"
+label = "text"
+value = "text"
+met = "bool?"
+
+[type.RichTooltipsImprovement]
+key = "str"
+name = "text"
+icon = "asset"
+build_turns = "i32?"
+maintenance = "i32"
+yields = { list = "RichTooltipsImprovementYields", key = "yield" }
+bonuses = { list = "RichTooltipsImprovementBonuses", key = "key" }
+terrain = "text"
+resources = "text"
+requires = "text"
+defense = "i32?"
+civ = "text?"
+
+[type.RichTooltipsPolicyRequires]
+key = "str"
+name = "text"
+met = "bool"
+
+[type.RichTooltipsPolicy]
+key = "str"
+name = "text"
+icon = "asset"
+branch = "text"
+branch_progress = "text"
+status = "RichTooltipsPolicyStatus"
+status_text = "text"
+cost = "i32"
+help = "text"
+effect_line = "text"
+requires = { list = "RichTooltipsPolicyRequires", key = "key" }
+next_policy = "text"
+
+[type.RichTooltipsProgressLines]
+key = "str"
+label = "text"
+value = "i32"
+
+[type.RichTooltipsProgress]
+key = "RichTooltipsProgressKind"
+title = "text"
+subtitle = "text"
+target_icon = "asset"
+fraction = "f32"
+gain_fraction = "f32"
+loss_fraction = "f32"
+mark_left = "text"
+mark_right = "text"
+lines = { list = "RichTooltipsProgressLines", key = "key" }
+total = "i32"
+
+[type.RichTooltipsCityYieldsLines]
+key = "str"
+label = "text"
+value = "i32"
+
+[type.RichTooltipsCityYieldsFooter]
+key = "str"
+label = "text"
+value = "text"
+
+[type.RichTooltipsCityYields]
+key = "RichTooltipsCityYieldKind"
+city = "text"
+title = "text"
+subtitle = "text"
+total = "i32"
+lines = { list = "RichTooltipsCityYieldsLines", key = "key" }
+base = "i32"
+modifier_pct = "i32"
+consumption = "i32?"
+stored = "i32"
+threshold = "i32"
+footer = { list = "RichTooltipsCityYieldsFooter", key = "key" }
+
+[type.RichTooltipsCityReligionReligions]
+key = "str"
+name = "text"
+icon = "asset"
+followers = "i32"
+pressure = "i32"
+routes = "i32"
+majority = "bool"
+
+[type.RichTooltipsCityReligionLines]
+key = "str"
+label = "text"
+value = "i32"
+
+[type.RichTooltipsCityReligion]
+city = "text"
+holy_city_of = "text"
+faith_total = "i32"
+religions = { list = "RichTooltipsCityReligionReligions", key = "key" }
+beliefs = "text"
+lines = { list = "RichTooltipsCityReligionLines", key = "key" }
+
+[type.RichTooltipsPlayerColors]
+key = "str"
+name = "text"
+
+[type.RichTooltipsPlayerWonders]
+key = "str"
+name = "text"
+
+[type.RichTooltipsPlayerDeals]
+key = "str"
+text = "text"
+turns = "i32?"
+
+[type.RichTooltipsPlayerRoutes]
+key = "str"
+text = "text"
+turns = "i32?"
+
+[type.RichTooltipsPlayerTreaties]
+key = "str"
+label = "text"
+status = "RichTooltipsTreatyStatus"
+text = "text"
+
+[type.RichTooltipsPlayerOpinion]
+key = "str"
+text = "text"
+sign = "i32"
+
+[type.RichTooltipsPlayer]
+player = "i32"
+met = "bool"
+human = "bool"
+nick = "text?"
+leader = "text"
+civ = "text"
+emblem = "asset"
+colors = { list = "RichTooltipsPlayerColors", key = "key" }
+attitude = "text"
+era = "text"
+researching = "text"
+techs = "i32"
+cities = "i32"
+population = "i32"
+gold = "i32?"
+gold_rate = "i32"
+policies = "text"
+religion = "text?"
+wonders = { list = "RichTooltipsPlayerWonders", key = "key" }
+deals = { list = "RichTooltipsPlayerDeals", key = "key" }
+routes = { list = "RichTooltipsPlayerRoutes", key = "key" }
+their_luxuries = "text"
+their_strategic = "text"
+you_offer = "text"
+treaties = { list = "RichTooltipsPlayerTreaties", key = "key" }
+opinion = { list = "RichTooltipsPlayerOpinion", key = "key" }
+relations = "text"
+
+[type.RichTooltipsCivNote]
+leader = "text"
+civ = "text"
+portrait = "asset"
+emblem = "asset"
+text = "text"
+
+[type.RichTooltipsUnitAction]
+key = "str"
+title = "text"
+hotkey = "str"
+portrait = "asset"
+text = "text"
+disabled_reason = "text"
+
+[type.RichTooltipsUnitShortReligion]
+name = "text"
+icon = "asset"
+spreads_left = "i32"
+
+[type.RichTooltipsUnitShort]
+key = "str"
+name = "text"
+relation = "RichTooltipsRelation"
+owner_line = "text"
+emblem = "asset"
+strength = "i32?"
+strength_base = "i32?"
+strength_reduced = "bool"
+reduced_reason = "text?"
+ranged_strength = "i32?"
+range = "i32?"
+air = "bool"
+moves = "i32?"
+hp = "i32?"
+hp_max = "i32"
+embarked = "bool"
+religion = "RichTooltipsUnitShortReligion?"
+
+[model.rich_tooltips]
+_optional = true
+unavailable_reason = "text?"
+tech = "RichTooltipsTech?"
+unit = "RichTooltipsUnit?"
+building = "RichTooltipsBuilding?"
+improvement = "RichTooltipsImprovement?"
+policy = "RichTooltipsPolicy?"
+progress = "RichTooltipsProgress?"
+city_yields = { list = "RichTooltipsCityYields", key = "key" }
+city_religion = "RichTooltipsCityReligion?"
+player = "RichTooltipsPlayer?"
+civ_note = "RichTooltipsCivNote?"
+unit_action = "RichTooltipsUnitAction?"
+unit_short = { list = "RichTooltipsUnitShort", key = "key" }
+
+[type.RichTooltipsUnique]
+civ = "text"
+replaces = "text"
+
+[type.RichTooltipsUpgrade]
+to = "text"
+gold = "i32?"
+tech = "text"
+

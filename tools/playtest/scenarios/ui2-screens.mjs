@@ -44,7 +44,7 @@ export async function run({ server, opts }) {
       const old = byKey.get(rect.keys);
       if (!old || rect.w * rect.h > old.w * old.h) byKey.set(rect.keys, rect);
     }
-    const rows = [...byKey.values()].sort((a,b) => a.y - b.y || a.x - b.x);
+    const rows = [...byKey.values()].sort((a,b) => a.x - b.x || a.y - b.y);
     const row = rows[index];
     if (!row) throw new Error("available technology has no row geometry");
     await page.mouse.click(row.x + row.w / 2, row.y + row.h / 2);

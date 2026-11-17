@@ -1,0 +1,93 @@
+<template data-layer="tooltip" id="rich_tooltips-tip">
+  <div class="rich_tooltips" data-part="rich-tooltips" data-bind-if="{{rich_tooltips != null}}">
+    <section class="rich_tooltips-section" data-bind-if="{{rich_tooltips.tech != null}}">
+      <div class="rich_tooltips-title" data-part="rich-tooltips.title" data-bind-value="{{rich_tooltips.tech.name}}"></div>
+      <img class="rich_tooltips-portrait" data-bind-src="{{rich_tooltips.tech.icon}}">
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.era_name">era name</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.tech.era_name}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.cost">cost</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.tech.cost}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.progress">progress</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.tech.progress}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-if="{{rich_tooltips.tech.turns != null}}"><span data-l10n="rich_tooltips.turns">turns</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.tech.turns}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.science_rate">science rate</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.tech.science_rate}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.help">help</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.tech.help}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-for="v:{{rich_tooltips.tech.unlocks}}"><span data-bind-value="{{v.kind}}"></span><span class="rich_tooltips-value" data-bind-value="{{v.name}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-for="v:{{rich_tooltips.tech.leads_to}}"><span data-bind-value="{{v.name}}"></span><span class="rich_tooltips-value" data-bind-value="{{v.name}}"></span></div>
+    </section>
+    <section class="rich_tooltips-section" data-bind-if="{{rich_tooltips.unit != null}}">
+      <div class="rich_tooltips-title" data-part="rich-tooltips.title" data-bind-value="{{rich_tooltips.unit.name}}"></div>
+      <img class="rich_tooltips-portrait" data-bind-src="{{rich_tooltips.unit.icon}}">
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.combat_class">combat class</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.unit.combat_class}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-if="{{rich_tooltips.unit.strength != null}}"><span data-l10n="rich_tooltips.strength">strength</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.unit.strength}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-if="{{rich_tooltips.unit.ranged_strength != null}}"><span data-l10n="rich_tooltips.ranged_strength">ranged strength</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.unit.ranged_strength}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.moves_max">moves max</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.unit.moves_max}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.abilities">abilities</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.unit.abilities}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-for="v:{{rich_tooltips.unit.promotions}}"><span data-bind-value="{{v.name}}"></span><span class="rich_tooltips-value" data-bind-value="{{v.name}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-for="v:{{rich_tooltips.unit.resources}}"><span data-bind-value="{{v.name}}"></span><span class="rich_tooltips-value" data-bind-value="{{v.amount}}"></span></div>
+    </section>
+    <section class="rich_tooltips-section" data-bind-if="{{rich_tooltips.building != null}}">
+      <div class="rich_tooltips-title" data-part="rich-tooltips.title" data-bind-value="{{rich_tooltips.building.name}}"></div>
+      <img class="rich_tooltips-portrait" data-bind-src="{{rich_tooltips.building.icon}}">
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.city">city</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.building.city}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-if="{{rich_tooltips.building.turns != null}}"><span data-l10n="rich_tooltips.turns">turns</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.building.turns}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.help">help</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.building.help}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-for="v:{{rich_tooltips.building.lines}}"><span data-bind-value="{{v.label}}"></span><span class="rich_tooltips-value" data-bind-value="{{v.value}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-for="v:{{rich_tooltips.building.future}}"><span data-bind-value="{{v.label}}"></span><span class="rich_tooltips-value" data-bind-value="{{v.value}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-for="v:{{rich_tooltips.building.requires}}"><span data-bind-value="{{v.label}}"></span><span class="rich_tooltips-value" data-bind-value="{{v.text}}"></span></div>
+    </section>
+    <section class="rich_tooltips-section" data-bind-if="{{rich_tooltips.improvement != null}}">
+      <div class="rich_tooltips-title" data-part="rich-tooltips.title" data-bind-value="{{rich_tooltips.improvement.name}}"></div>
+      <img class="rich_tooltips-portrait" data-bind-src="{{rich_tooltips.improvement.icon}}">
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.terrain">terrain</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.improvement.terrain}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.resources">resources</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.improvement.resources}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.requires">requires</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.improvement.requires}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.maintenance">maintenance</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.improvement.maintenance}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-for="v:{{rich_tooltips.improvement.yields}}"><span data-bind-value="{{v.yield}}"></span><span class="rich_tooltips-value" data-bind-value="{{v.value}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-for="v:{{rich_tooltips.improvement.bonuses}}"><span data-bind-value="{{v.label}}"></span><span class="rich_tooltips-value" data-bind-value="{{v.value}}"></span></div>
+    </section>
+    <section class="rich_tooltips-section" data-bind-if="{{rich_tooltips.policy != null}}">
+      <div class="rich_tooltips-title" data-part="rich-tooltips.title" data-bind-value="{{rich_tooltips.policy.name}}"></div>
+      <img class="rich_tooltips-portrait" data-bind-src="{{rich_tooltips.policy.icon}}">
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.branch">branch</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.policy.branch}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.status_text">status text</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.policy.status_text}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.cost">cost</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.policy.cost}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.help">help</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.policy.help}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-for="v:{{rich_tooltips.policy.requires}}"><span data-bind-value="{{v.name}}"></span><span class="rich_tooltips-value" data-bind-value="{{v.met ? loc('rich_tooltips.met') : loc('rich_tooltips.unmet')}}"></span></div>
+    </section>
+    <section class="rich_tooltips-section" data-bind-if="{{rich_tooltips.progress != null}}">
+      <div class="rich_tooltips-title" data-part="rich-tooltips.title" data-bind-value="{{rich_tooltips.progress.title}}"></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.subtitle">subtitle</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.progress.subtitle}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.total">total</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.progress.total}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-for="v:{{rich_tooltips.progress.lines}}"><span data-bind-value="{{v.label}}"></span><span class="rich_tooltips-value" data-bind-value="{{v.value}}"></span></div>
+    </section>
+    <section class="rich_tooltips-section" data-bind-if="{{rich_tooltips.city_religion != null}}">
+      <div class="rich_tooltips-title" data-part="rich-tooltips.title" data-bind-value="{{rich_tooltips.city_religion.city}}"></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.faith_total">faith total</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.city_religion.faith_total}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.beliefs">beliefs</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.city_religion.beliefs}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-for="v:{{rich_tooltips.city_religion.religions}}"><span data-bind-value="{{v.name}}"></span><span class="rich_tooltips-value" data-bind-value="{{v.followers}}"></span></div>
+    </section>
+    <section class="rich_tooltips-section" data-bind-if="{{rich_tooltips.player != null}}">
+      <div class="rich_tooltips-title" data-part="rich-tooltips.title" data-bind-value="{{rich_tooltips.player.leader}}"></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.civ">civ</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.player.civ}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.era">era</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.player.era}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.cities">cities</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.player.cities}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.population">population</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.player.population}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.gold">gold</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.player.gold}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.gold_rate">gold rate</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.player.gold_rate}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-for="v:{{rich_tooltips.player.treaties}}"><span data-bind-value="{{v.label}}"></span><span class="rich_tooltips-value" data-bind-value="{{v.text}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-for="v:{{rich_tooltips.player.opinion}}"><span data-bind-value="{{v.text}}"></span><span class="rich_tooltips-value" data-bind-value="{{v.sign}}"></span></div>
+    </section>
+    <section class="rich_tooltips-section" data-bind-if="{{rich_tooltips.civ_note != null}}">
+      <div class="rich_tooltips-title" data-part="rich-tooltips.title" data-bind-value="{{rich_tooltips.civ_note.leader}}"></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.civ">civ</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.civ_note.civ}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.text">text</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.civ_note.text}}"></span></div>
+    </section>
+    <section class="rich_tooltips-section" data-bind-if="{{rich_tooltips.unit_action != null}}">
+      <div class="rich_tooltips-title" data-part="rich-tooltips.title" data-bind-value="{{rich_tooltips.unit_action.title}}"></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.hotkey">hotkey</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.unit_action.hotkey}}"></span></div>
+      <div class="rich_tooltips-line"><span data-l10n="rich_tooltips.text">text</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.unit_action.text}}"></span></div>
+      <div class="rich_tooltips-line" data-bind-if="{{rich_tooltips.unit_action.disabled_reason != null}}"><span data-l10n="rich_tooltips.disabled_reason">disabled reason</span><span class="rich_tooltips-value" data-bind-value="{{rich_tooltips.unit_action.disabled_reason}}"></span></div>
+    </section>
+    <section class="rich_tooltips-section" data-bind-for="v:{{rich_tooltips.city_yields}}"><div class="rich_tooltips-title" data-bind-value="{{v.title}}"></div><div class="rich_tooltips-line" data-bind-for="l:{{v.lines}}"><span data-bind-value="{{l.label}}"></span><span data-bind-value="{{l.value}}"></span></div><span data-bind-value="{{v.total}}"></span></section>
+    <section class="rich_tooltips-section" data-bind-for="v:{{rich_tooltips.unit_short}}"><div class="rich_tooltips-title" data-bind-value="{{v.name}}"></div><span data-bind-if="{{v.strength != null}}" data-bind-value="{{v.strength}}"></span><span data-bind-if="{{v.hp != null}}" data-bind-value="{{v.hp}}"></span></section>
+    <div class="rich_tooltips-reason" data-bind-if="{{rich_tooltips.unavailable_reason != null}}" data-bind-value="{{rich_tooltips.unavailable_reason}}"></div>
+  </div>
+</template>

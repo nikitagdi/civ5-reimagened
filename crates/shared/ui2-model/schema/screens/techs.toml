@@ -1,4 +1,11 @@
 [enum]
+TechsMode = ["normal", "free", "steal"]
+TechsOpenedBy = ["menu", "request"]
+TechsState = ["researched", "current", "available", "unavailable", "locked", "free"]
+TechsUnlockKind = ["unit", "building", "wonder", "project", "resource", "improvement", "ability"]
+TechsEraState = ["past", "current", "future"]
+TechsLinkKind = ["and", "or"]
+TechsLinkState = ["done", "live", "idle"]
 TechsStatus = ["researched", "current", "available", "queued", "locked"]
 
 [type.TechsPrerequisite]
@@ -7,8 +14,25 @@ id = "i32"
 [type.TechsUnlock]
 idx = "i32"
 name = "text"
+key = "str"
+kind = "TechsUnlockKind"
+icon = "asset"
 
 [type.TechsRow]
+key = "str"
+era_key = "str"
+col = "i32"
+state = "TechsState"
+queue_pos = "i32?"
+fraction = "f32"
+forecast_fraction = "f32"
+steal_science = "i32?"
+clickable = "bool"
+lock_reason = "text?"
+help = "text"
+prereqs = { list = "TechsText", key = "key" }
+or_prereqs = { list = "TechsText", key = "key" }
+leads_to = { list = "TechsText", key = "key" }
 id = "i32"
 name = "text"
 column = "i32"
@@ -24,6 +48,70 @@ era_name = "text"
 icon = "asset"
 unlocks = { list = "TechsUnlock", key = "idx" }
 
+# SIMPLIFIED(SIMP-340): scalar lists use keyed objects; legacy row fields remain compatible.
+[type.TechsText]
+key = "str"
+name = "text"
+[type.TechsEraRef]
+key = "str"
+name = "text"
+[type.TechsGrid]
+cols = "i32"
+rows = "i32"
+[type.TechsCurrent]
+key = "str"
+name = "text"
+icon = "asset"
+turns = "i32?"
+progress = "i32"
+cost = "i32"
+fraction = "f32"
+forecast_fraction = "f32"
+turn_fraction = "f32"
+[type.TechsQueue]
+key = "str"
+pos = "i32"
+name = "text"
+turns = "i32?"
+[type.TechsEra]
+key = "str"
+name = "text"
+first_col = "i32"
+cols = "i32"
+state = "TechsEraState"
+researched = "i32"
+total = "i32"
+[type.TechsSteal]
+player = "i32"
+name = "text"
+civ = "text"
+icon = "asset"
+color = "str"
+spy_city = "text"
+can_steal = "i32"
+[type.TechsLink]
+key = "str"
+from_col = "i32"
+from_row = "i32"
+to_col = "i32"
+to_row = "i32"
+kind = "TechsLinkKind"
+state = "TechsLinkState"
 [model.techs]
 _optional = true
 techs = { list = "TechsRow", key = "id" }
+mode = "TechsMode"
+opened_by = "TechsOpenedBy"
+science_off = "bool"
+science_rate = "i32"
+researched_count = "i32"
+total_count = "i32"
+era = "TechsEraRef"
+free_count = "i32"
+free_reason = "text?"
+steal = "TechsSteal?"
+grid = "TechsGrid"
+current = "TechsCurrent?"
+queue = { list = "TechsQueue", key = "key" }
+eras = { list = "TechsEra", key = "key" }
+links = { list = "TechsLink", key = "key" }

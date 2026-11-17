@@ -1,8 +1,54 @@
-.techs-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.6); }
-.techs-window { width: 960px; height: 720px; padding: 20px; display: flex; flex-direction: column; gap: 12px; background: #17232b; color: #ede6cc; }
-.techs-head { display: flex; justify-content: space-between; font-size: 24px; }
-.techs-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; flex: 1; overflow-y: auto; }
-.techs-row { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px; min-height: 120px; background: #293b45; color: #ede6cc; }
-.techs-era { font-size: 12px; color: #cabf9f; }
-.techs-name { font-size: 18px; }
-.techs-cost { display: flex; }
+/* SIMPLIFIED(SIMP-349): samples omit unresolved mockup asset names and crop tree coordinates to their visible columns; live data uses game icon-atlas references. */
+/* SIMPLIFIED(SIMP-343): native scrolling replaces the scrubber, saved offset and auto-centering; right click appends instead of Shift. The legend stays static across modes. */
+.techs-screen { position: absolute; inset: 0; pointer-events: auto; background: rgba(12,10,8,.86); color: var(--bone); }
+.techs-window { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.techs-head { height: 72px; flex-shrink: 0; padding: 0 24px; display: flex; align-items: center; gap: 24px; background: var(--lacquer); border-bottom: 1px solid var(--engrave); }
+.techs-head h1 { font: 500 30px/36px var(--serif); margin: 0; }
+.techs-facts { display: flex; gap: 8px; font-size: 13px; color: var(--bone-2); }
+.techs-science { color: var(--y-sci); }
+.techs-now { width: 220px; display: flex; flex-direction: column; gap: 8px; }
+.techs-queue { flex: 1; min-width: 0; display: flex; gap: 8px; overflow: hidden; }
+.techs-chip { display: flex; gap: 8px; padding: 6px; max-width: 150px; border: 1px solid var(--engrave); background: var(--lacquer-0); }
+.techs-close { margin-left: auto; color: var(--bone-2); padding: 8px; }
+.techs-mode { padding: 12px 24px; background: var(--lacquer-2); color: var(--y-sci); display: flex; gap: 12px; }
+.techs-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; }
+.techs-canvas { position: relative; }
+.techs-era { position: absolute; top: 0; height: 32px; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--bone-3); background: var(--lacquer-0); border: 1px solid var(--engrave); }
+.techs-era-current { background: var(--lacquer-2); color: var(--bone); border-bottom-color: var(--y-sci); }
+.techs-row { position: absolute; width: 232px; height: 68px; display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--lacquer-2); border: 1px solid var(--engrave-hi); border-radius: 3px; color: var(--bone); text-align: left; }
+.techs-current { border: 2px solid var(--brass); }
+.techs-researched { background: var(--lacquer-0); color: var(--bone-2); }
+.techs-locked { color: var(--bone-3); background: var(--lacquer-0); }
+.techs-free { border-color: var(--y-sci); }
+.techs-portrait { width: 48px; height: 48px; border: 1px solid var(--engrave-hi); border-radius: 24px; }
+.techs-body { flex: 1; min-width: 0; }
+.techs-line { display: flex; justify-content: space-between; gap: 6px; }
+.techs-name, .techs-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.techs-name { font: 500 16px/20px var(--serif); }
+.techs-status { font-size: 10px; color: var(--bone-3); }
+.techs-unlocks { display: flex; gap: 4px; height: 18px; }
+.techs-unlock { width: 18px; height: 18px; border: 1px solid var(--engrave); }
+.techs-pos { position: absolute; left: -22px; top: 22px; padding: 2px; color: var(--brass); background: var(--lacquer); border: 1px solid var(--engrave); }
+.techs-scale { position: relative; height: 4px; background: var(--lacquer-3); }
+.techs-fill, .techs-forecast { position: absolute; top: 0; bottom: 0; left: 0; background: var(--y-sci); }
+.techs-forecast { background: #3a4b60; }
+.techs-wire { position: absolute; height: 1px; background: var(--engrave-hi); }
+.techs-wire-v { position: absolute; width: 1px; background: var(--engrave-hi); }
+.techs-link-or .techs-wire { background: var(--y-gold); }
+.techs-link-or .techs-wire-v { background: var(--y-gold); }
+.techs-foot { padding: 14px 24px; background: var(--lacquer); border-top: 1px solid var(--engrave); color: var(--bone-3); font-size: 12px; }
+.techs-tip { width: 360px; max-height: 500px; overflow: auto; scrollbar-width: none; padding: 16px; background: var(--lacquer); border: 1px solid var(--engrave); color: var(--bone); display: flex; flex-direction: column; gap: 10px; }
+.techs-tip-title { font: 500 20px/24px var(--serif); }
+.techs-tip-row { display: flex; justify-content: space-between; gap: 12px; }
+@media (max-width: 1400px) { .techs-head { gap: 12px; } .techs-now { width: 180px; } .techs-queue { max-width: 250px; } }
+
+.techs-ticks { position: absolute; inset: 0; background-image: linear-gradient(to right, transparent calc(100% - 1px),var(--lacquer) calc(100% - 1px)); background-repeat: repeat-x; }
+.techs-researched .techs-status { color: var(--y-food); }
+.techs-link-or .techs-wire { background-image: linear-gradient(to right, var(--y-gold) 60%, transparent 60%); background-color: transparent; background-size: 8px 1px; background-repeat: repeat-x; }
+.techs-link-or .techs-wire-v { background-image: linear-gradient(to bottom, var(--y-gold) 60%, transparent 60%); background-color: transparent; background-size: 1px 8px; background-repeat: repeat-y; }
+.techs-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.techs-legend { display: flex; align-items: center; gap: 8px; }
+.techs-swatch { width: 20px; height: 10px; background: var(--lacquer-2); border: 1px solid var(--engrave-hi); }
+.techs-swatch-unavailable { background: var(--lacquer-0); border-color: var(--engrave); }
+.techs-swatch-current { border-color: var(--brass); }
+.techs-swatch-researched { background: var(--lacquer-0); }
