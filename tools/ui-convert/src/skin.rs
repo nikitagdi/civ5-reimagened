@@ -548,8 +548,79 @@ api = "1.0"
         assert_eq!(
             skin.state.into_iter().collect::<Vec<_>>(),
             [
+                ("advisor.economic".to_string(), StateValue::Int(0)),
+                ("advisor.foreign".to_string(), StateValue::Int(0)),
+                ("advisor.military".to_string(), StateValue::Int(0)),
+                ("advisor.science".to_string(), StateValue::Int(0)),
                 ("chat.draft".to_string(), StateValue::Str(String::new())),
                 ("chat.pick".to_string(), StateValue::Bool(false)),
+                ("confirm.dont_warn".to_string(), StateValue::Bool(false)),
+                ("confirm.hover".to_string(), StateValue::Int(-1)),
+                (
+                    "end_game.tab".to_string(),
+                    StateValue::Str("summary".to_string())
+                ),
+                ("goody.sel".to_string(), StateValue::Int(-1)),
+                ("menu.options".to_string(), StateValue::Bool(false)),
+                (
+                    "menu.panel".to_string(),
+                    StateValue::Str("details".to_string())
+                ),
+                (
+                    "notification.hover".to_string(),
+                    StateValue::Str(String::new())
+                ),
+                ("opt.air_rebase_rmb".to_string(), StateValue::Bool(true)),
+                ("opt.all_great_people".to_string(), StateValue::Bool(false)),
+                ("opt.ambience".to_string(), StateValue::Int(70)),
+                ("opt.auto_close_city".to_string(), StateValue::Bool(false)),
+                ("opt.auto_close_tech".to_string(), StateValue::Bool(false)),
+                ("opt.auto_end_turn".to_string(), StateValue::Bool(false)),
+                ("opt.auto_end_turn_sp".to_string(), StateValue::Bool(false)),
+                ("opt.auto_unit_cycle".to_string(), StateValue::Bool(true)),
+                ("opt.city_advisor_recs".to_string(), StateValue::Bool(true)),
+                ("opt.city_ribbon".to_string(), StateValue::Bool(true)),
+                ("opt.civ_ribbon".to_string(), StateValue::Bool(true)),
+                ("opt.civilian_yields".to_string(), StateValue::Bool(true)),
+                ("opt.clock".to_string(), StateValue::Bool(false)),
+                ("opt.effects".to_string(), StateValue::Int(80)),
+                ("opt.music".to_string(), StateValue::Int(70)),
+                (
+                    "opt.next_unit_after_orders".to_string(),
+                    StateValue::Bool(true)
+                ),
+                ("opt.no_basic_help".to_string(), StateValue::Bool(false)),
+                ("opt.no_tile_recs".to_string(), StateValue::Bool(false)),
+                ("opt.policy_info_full".to_string(), StateValue::Bool(true)),
+                (
+                    "opt.ribbon_side".to_string(),
+                    StateValue::Str("right".to_string())
+                ),
+                ("opt.score_list".to_string(), StateValue::Bool(true)),
+                ("opt.scroll_inertia".to_string(), StateValue::Bool(true)),
+                (
+                    "opt.skip_reward_popups".to_string(),
+                    StateValue::Bool(false)
+                ),
+                ("opt.speech".to_string(), StateValue::Int(80)),
+                (
+                    "opt.tab".to_string(),
+                    StateValue::Str("general".to_string())
+                ),
+                ("opt.tooltip_delay".to_string(), StateValue::Int(500)),
+                ("opt.tooltip_delay_ext".to_string(), StateValue::Int(1500)),
+                ("opt.ui_scale".to_string(), StateValue::Int(100)),
+                ("opt.unit_ribbon".to_string(), StateValue::Bool(true)),
+                ("opt.warn_unassigned".to_string(), StateValue::Bool(true)),
+                (
+                    "opt.workers_keep_features".to_string(),
+                    StateValue::Bool(true)
+                ),
+                (
+                    "opt.workers_keep_improvements".to_string(),
+                    StateValue::Bool(true)
+                ),
+                ("opt.zoom_dynamic".to_string(), StateValue::Bool(true)),
                 ("prod.hide_locked".to_string(), StateValue::Bool(false)),
                 (
                     "prod.sort".to_string(),
@@ -558,7 +629,18 @@ api = "1.0"
                 ("top.menu".to_string(), StateValue::Bool(false)),
             ]
         );
-        assert_eq!(skin.scripts.files, ["js/production.js"]);
+        assert_eq!(
+            skin.scripts.files,
+            [
+                "js/end_game.js",
+                "js/advisor.js",
+                "js/game_menu.js",
+                "js/production.js",
+                "js/confirm.js",
+                "js/message.js",
+                "js/goody_choice.js"
+            ]
+        );
         // The first state is the one the converter scans with.
         assert_eq!(
             skin.verify.states,
@@ -568,7 +650,15 @@ api = "1.0"
                 "hud-chat",
                 "production",
                 "production-sorted",
-                "research"
+                "research",
+                "techs",
+                "confirm",
+                "message",
+                "goody_choice",
+                "notification_log",
+                "game_menu",
+                "end_game",
+                "advisor",
             ]
         );
         assert_eq!(skin.verify.golden[0].viewport, [1920, 1080]);

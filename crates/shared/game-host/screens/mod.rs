@@ -7,6 +7,13 @@ pub(crate) use runtime::Screens;
 pub const REGISTRY: &[(&str, &str)] = &[
     ("techs", include_str!("techs.lua")),
     ("hud", include_str!("hud.lua")),
+    ("confirm", include_str!("confirm.lua")),
+    ("message", include_str!("message.lua")),
+    ("goody_choice", include_str!("goody_choice.lua")),
+    ("notification_log", include_str!("notification_log.lua")),
+    ("game_menu", include_str!("game_menu.lua")),
+    ("advisor", include_str!("advisor.lua")),
+    ("end_game", include_str!("end_game.lua")),
 ];
 
 use crate::core::Refusal;
@@ -75,3 +82,6 @@ impl<C: Core> Worker<C> {
         result.map_err(Refusal::other)
     }
 }
+
+#[cfg(test)]
+mod popup_tests;

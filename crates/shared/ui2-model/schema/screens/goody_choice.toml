@@ -1,0 +1,29 @@
+[type.GoodyChoiceUnit]
+id = "i32"
+name = "text"
+icon = "asset"
+
+[type.GoodyChoicePlot]
+x = "i32"
+y = "i32"
+
+[type.GoodyChoicePart]
+id = "i32"
+text = "text?"
+icon = "asset?"
+
+[type.GoodyChoiceReward]
+id = "i32"
+key = "str"
+icon = "asset"
+parts = { list = "GoodyChoicePart", key = "id" }
+sub = "text?"
+
+[model.goody_choice]
+_optional = true
+id = "i32"
+unit = "GoodyChoiceUnit"
+plot = "GoodyChoicePlot"
+rewards = { list = "GoodyChoiceReward", key = "id" }
+reason = "text?"
+resolved = "bool"

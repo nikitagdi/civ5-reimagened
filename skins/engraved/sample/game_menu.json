@@ -1,0 +1,305 @@
+{
+  "model": {
+    "game_menu": {
+      "mode": "network",
+      "turn": 241,
+      "player": {
+        "id": 0,
+        "leader": "Catherine",
+        "nick": null,
+        "leader_icon": "leader:LEADER_CATHERINE",
+        "civ": "Russia",
+        "civ_icon": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": 1847335167,
+        "color_fg": 3837808383,
+        "trait": {
+          "name": "Siberian Riches",
+          "short": "+1 production from every strategic resource tile",
+          "long": "+1 production from every strategic resource tile. Horses, Iron and Uranium deposits are twice as large."
+        }
+      },
+      "settings": [
+        {
+          "key": "map_type",
+          "label": "Map type",
+          "value": "Pangaea",
+          "short": "Pangaea",
+          "icon": "map:MAPSCRIPT_PANGAEA",
+          "tooltip": "Pangaea: one large continent"
+        },
+        {
+          "key": "map_size",
+          "label": "Map size",
+          "value": "Standard, 8 players",
+          "short": "Standard",
+          "icon": "worldsize:WORLDSIZE_STANDARD",
+          "tooltip": "Standard"
+        },
+        {
+          "key": "difficulty",
+          "label": "Difficulty",
+          "value": "Prince",
+          "short": "Prince",
+          "icon": "handicap:HANDICAP_PRINCE",
+          "tooltip": "Prince"
+        },
+        {
+          "key": "speed",
+          "label": "Game speed",
+          "value": "Quick",
+          "short": "Quick",
+          "icon": "speed:GAMESPEED_QUICK",
+          "tooltip": "Quick"
+        }
+      ],
+      "details": [
+        {
+          "key": "leader",
+          "label": "Leader",
+          "value": "Catherine"
+        },
+        {
+          "key": "civ",
+          "label": "Civilization",
+          "value": "Russia, Siberian Riches"
+        },
+        {
+          "key": "start_era",
+          "label": "Starting era",
+          "value": "Ancient"
+        },
+        {
+          "key": "map_type",
+          "label": "Map type",
+          "value": "Pangaea"
+        },
+        {
+          "key": "map_size",
+          "label": "Map size",
+          "value": "Standard, 8 players"
+        },
+        {
+          "key": "difficulty",
+          "label": "Difficulty",
+          "value": "Prince"
+        },
+        {
+          "key": "speed",
+          "label": "Game speed",
+          "value": "Quick"
+        },
+        {
+          "key": "timer",
+          "label": "Turn timer",
+          "value": "3:00, simultaneous turns"
+        }
+      ],
+      "victories": [
+        {
+          "key": "VICTORY_TIME",
+          "name": "Time"
+        },
+        {
+          "key": "VICTORY_SPACE_RACE",
+          "name": "Science"
+        },
+        {
+          "key": "VICTORY_DOMINATION",
+          "name": "Domination"
+        },
+        {
+          "key": "VICTORY_CULTURAL",
+          "name": "Cultural"
+        },
+        {
+          "key": "VICTORY_DIPLOMATIC",
+          "name": "Diplomatic"
+        }
+      ],
+      "game_options": [
+        {
+          "key": "GAMEOPTION_NO_GOODY_HUTS_AFTER_100",
+          "name": "No ancient ruins after turn 100"
+        },
+        {
+          "key": "GAMEOPTION_COMPLETE_KILLS",
+          "name": "Complete kills"
+        },
+        {
+          "key": "GAMEOPTION_DISABLE_START_BIAS",
+          "name": "Disable start bias"
+        },
+        {
+          "key": "GAMEOPTION_POLICY_SAVING",
+          "name": "Policy saving"
+        },
+        {
+          "key": "GAMEOPTION_PROMOTION_SAVING",
+          "name": "Promotion saving"
+        },
+        {
+          "key": "GAMEOPTION_NEW_RANDOM_SEED",
+          "name": "New random seed"
+        }
+      ],
+      "mods": [
+        {
+          "id": "lekmod",
+          "name": "Lekmod",
+          "version": "34.15"
+        },
+        {
+          "id": "eui",
+          "name": "Enhanced User Interface",
+          "version": "1.29"
+        },
+        {
+          "id": "mpvotes",
+          "name": "Multiplayer votes",
+          "version": "3"
+        }
+      ],
+      "can_save": true,
+      "save_reason": null,
+      "options": {
+        "quick_combat": true,
+        "quick_movement": true,
+        "quick_locked_reason": "Set by the host for this game",
+        "email_turn": true,
+        "email_address": null,
+        "autosave_every": 5,
+        "autosave_keep": 10
+      },
+      "hotkeys": [
+        {
+          "key": "commands",
+          "name": "Commands",
+          "count": 14,
+          "actions": [
+            {
+              "key": "COMMAND_FORTIFY",
+              "name": "Fortify",
+              "icon": "action:COMMAND_FORTIFY",
+              "help": "Unit digs in and gets a defense bonus each turn",
+              "default": "KeyF",
+              "hidden": false
+            },
+            {
+              "key": "COMMAND_SLEEP",
+              "name": "Sleep",
+              "icon": "action:COMMAND_SLEEP",
+              "help": "Unit skips turns until woken",
+              "default": "KeyS",
+              "hidden": false
+            },
+            {
+              "key": "COMMAND_ALERT",
+              "name": "Alert",
+              "icon": "action:COMMAND_ALERT",
+              "help": "Sleep until an enemy comes into view",
+              "default": "KeyA",
+              "hidden": false
+            },
+            {
+              "key": "MISSION_PILLAGE",
+              "name": "Pillage",
+              "icon": "action:MISSION_PILLAGE",
+              "help": "Destroy the improvement on this tile",
+              "default": "KeyP",
+              "hidden": false
+            },
+            {
+              "key": "COMMAND_UPGRADE",
+              "name": "Upgrade unit",
+              "icon": "action:COMMAND_UPGRADE",
+              "help": "Upgrade to the newest unit of this line for gold",
+              "default": "KeyU",
+              "hidden": false
+            },
+            {
+              "key": "COMMAND_DELETE",
+              "name": "Delete unit",
+              "icon": "action:COMMAND_DELETE",
+              "help": "Disband the unit",
+              "default": "Delete",
+              "hidden": false
+            },
+            {
+              "key": "MISSION_MOVE_TO",
+              "name": "Move to",
+              "icon": "action:MISSION_MOVE_TO",
+              "help": "Order the unit to a chosen tile",
+              "default": "KeyM",
+              "hidden": false
+            },
+            {
+              "key": "MISSION_RANGE_ATTACK",
+              "name": "Ranged attack",
+              "icon": "action:MISSION_RANGE_ATTACK",
+              "help": "Attack a target within range",
+              "default": "KeyB",
+              "hidden": false
+            },
+            {
+              "key": "MISSION_EMBARK",
+              "name": "Embark",
+              "icon": "action:MISSION_EMBARK",
+              "help": "Move onto water",
+              "default": null,
+              "hidden": false
+            },
+            {
+              "key": "COMMAND_SKIP",
+              "name": "Skip turn",
+              "icon": "action:COMMAND_SKIP",
+              "help": "Skip this unit until next turn",
+              "default": "Space",
+              "hidden": false
+            },
+            {
+              "key": "AUTOMATE_EXPLORE",
+              "name": "Automate exploration",
+              "icon": "action:AUTOMATE_EXPLORE",
+              "help": "The unit explores on its own",
+              "default": "KeyE",
+              "hidden": false
+            }
+          ]
+        },
+        {
+          "key": "builds",
+          "name": "Worker builds",
+          "count": 24,
+          "actions": []
+        },
+        {
+          "key": "promotions",
+          "name": "Promotions",
+          "count": 61,
+          "actions": []
+        },
+        {
+          "key": "controls",
+          "name": "Controls",
+          "count": 38,
+          "actions": []
+        },
+        {
+          "key": "missions",
+          "name": "Missions",
+          "count": 19,
+          "actions": []
+        }
+      ],
+      "loading": null,
+      "kicked": null
+    }
+  },
+  "ui": {
+    "windows": {
+      "game_menu": {
+        "open": true
+      }
+    }
+  }
+}

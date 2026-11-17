@@ -1,0 +1,31 @@
+.goody-choice-screen { position: absolute; inset: 48px 0 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(12,10,8,.55); pointer-events: auto; }
+.goody-choice-window { width: 600px; max-width: 100%; max-height: 100%; display: flex; flex-direction: column; background: var(--lacquer); border: 1px solid var(--engrave); border-radius: 6px; box-shadow: 0 24px 64px rgba(0,0,0,.5); }
+.goody-choice-head { flex: none; min-height: 70px; padding: 12px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--engrave); }
+.goody-choice-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.goody-choice-kicker { font-size: 12px; line-height: 16px; color: var(--bone-3); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.goody-choice-title { font: 500 26px/32px var(--serif); color: var(--bone); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.goody-choice-icon { width: 48px; height: 48px; flex: none; border-radius: 24px; background: var(--lacquer-0); }
+.goody-choice-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.goody-choice-prose { font-size: 15px; line-height: 24px; color: var(--bone); }
+.goody-choice-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--engrave); font-size: 13px; color: var(--bone-2); }
+.goody-choice-value { color: var(--brass); }
+.goody-choice-foot { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 16px 20px; border-top: 1px solid var(--engrave); flex-wrap: wrap; }
+.goody-choice-note { flex: 1; font-size: 12px; color: var(--bone-3); }
+.goody-choice-button { appearance: none; min-height: 40px; min-width: 140px; padding: 8px 16px; border: 1px solid var(--engrave); border-radius: 6px; background: var(--lacquer-2); color: var(--bone); font: 500 14px/20px var(--sans); }
+.goody-choice-button.goody-choice-primary { background: var(--brass); color: var(--brass-ink); }
+.goody-choice-button:hover { background: var(--lacquer-3); }
+.goody-choice-button:disabled { opacity: .45; }
+.goody-choice-advisor { display: flex; align-items: center; gap: 12px; }
+.goody-choice-tip { padding: 12px; background: var(--lacquer); color: var(--bone); max-width: 360px; }
+@media (max-height: 800px) { .goody-choice-screen { padding: 16px; } }
+
+.goody-choice-content { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.goody-choice-reward { appearance: none; width: 100%; display: flex; align-items: center; gap: 14px; padding: 10px 24px; min-height: 54px; background: var(--lacquer); border: 0; border-bottom: 1px solid var(--engrave); color: var(--bone); text-align: left; }
+.goody-choice-reward:hover { background: var(--lacquer-2); }
+.goody-choice-reward.goody-choice-selected { background: var(--lacquer-2); border-left: 2px solid var(--brass); }
+.goody-choice-radio { width: 18px; height: 18px; border-radius: 9px; border: 1px solid var(--engrave-hi); }
+.goody-choice-selected .goody-choice-radio { background: var(--brass); }
+.goody-choice-lines { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.goody-choice-parts { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.goody-choice-small-icon { width: 16px; height: 16px; }
+.goody-choice-body { padding: 0; gap: 0; }

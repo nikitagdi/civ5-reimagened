@@ -1,0 +1,35 @@
+.end-game-screen { position: absolute; inset: 48px 0 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(12,10,8,.55); pointer-events: auto; }
+.end-game-window { width: 600px; max-width: 100%; max-height: 100%; display: flex; flex-direction: column; background: var(--lacquer); border: 1px solid var(--engrave); border-radius: 6px; box-shadow: 0 24px 64px rgba(0,0,0,.5); }
+.end-game-head { flex: none; min-height: 70px; padding: 12px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--engrave); }
+.end-game-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.end-game-kicker { font-size: 12px; line-height: 16px; color: var(--bone-3); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.end-game-title { font: 500 26px/32px var(--serif); color: var(--bone); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.end-game-icon { width: 48px; height: 48px; flex: none; border-radius: 24px; background: var(--lacquer-0); }
+.end-game-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.end-game-prose { font-size: 15px; line-height: 24px; color: var(--bone); }
+.end-game-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--engrave); font-size: 13px; color: var(--bone-2); }
+.end-game-value { color: var(--brass); }
+.end-game-foot { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 16px 20px; border-top: 1px solid var(--engrave); flex-wrap: wrap; }
+.end-game-note { flex: 1; font-size: 12px; color: var(--bone-3); }
+.end-game-button { appearance: none; min-height: 40px; min-width: 140px; padding: 8px 16px; border: 1px solid var(--engrave); border-radius: 6px; background: var(--lacquer-2); color: var(--bone); font: 500 14px/20px var(--sans); }
+.end-game-button.end-game-primary { background: var(--brass); color: var(--brass-ink); }
+.end-game-button:hover { background: var(--lacquer-3); }
+.end-game-button:disabled { opacity: .45; }
+.end-game-advisor { display: flex; align-items: center; gap: 12px; }
+.end-game-tip { padding: 12px; background: var(--lacquer); color: var(--bone); max-width: 360px; }
+@media (max-height: 800px) { .end-game-screen { padding: 16px; } }
+
+.end-game-content { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.end-game-window { width: 1320px; height: 900px; }
+.end-game-tabs { flex: none; display: flex; gap: 12px; padding: 12px; border-bottom: 1px solid var(--engrave); }
+.end-game-tab { appearance: none; background: var(--lacquer); color: var(--bone-2); border: 0; padding: 10px 12px; }
+.end-game-active { color: var(--brass); border-bottom: 2px solid var(--brass); }
+.end-game-layout { flex: 1; min-height: 0; display: flex; }
+.end-game-scene { flex: 1; min-width: 0; padding: 24px; display: flex; flex-direction: column; justify-content: flex-end; background: var(--lacquer-2); overflow-y: auto; scrollbar-width: none; }
+.end-game-story { padding: 24px; background: var(--lacquer-0); border: 1px solid var(--engrave); border-radius: 4px; max-width: 640px; }
+.end-game-headline { font: 500 38px/44px var(--serif); color: var(--bone); }
+.end-game-side { width: 338px; flex: none; padding: 20px; background: var(--lacquer-0); overflow-y: auto; scrollbar-width: none; border-left: 1px solid var(--engrave); }
+.end-game-score { display: flex; align-items: center; gap: 10px; padding: 8px 0; color: var(--bone-2); }
+.end-game-name { flex: 1; min-width: 0; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.end-game-score.end-game-me { color: var(--brass); }
+.end-game-ranking { min-height: 0; flex: 1; overflow-y: auto; scrollbar-width: none; padding: 20px 24px; }

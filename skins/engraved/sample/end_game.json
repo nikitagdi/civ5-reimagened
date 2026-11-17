@@ -1,0 +1,204 @@
+{
+  "model": {
+    "end_game": {
+      "outcome": "victory",
+      "victory_type": "cultural",
+      "civ": {
+        "key": "CIVILIZATION_RUSSIA",
+        "icon": "civ:CIVILIZATION_RUSSIA",
+        "color_bg": 1847335167,
+        "color_fg": 3837808383
+      },
+      "kicker": "Catherine of Russia",
+      "title": "Russia is victorious",
+      "headline": "Cultural victory",
+      "text": "The world looks to Russia. Your writers, painters and musicians have made Catherine's culture the one every nation follows; no rival's heritage can resist its pull.",
+      "art": "victory:VICTORY_CULTURAL",
+      "speech": "victory:VICTORY_CULTURAL",
+      "delay_ms": 0,
+      "turn": 241,
+      "year": "1938 AD",
+      "winner": {
+        "player": 0,
+        "name": "Catherine",
+        "civ_name": "Russia"
+      },
+      "can_continue": true,
+      "continue_reason": null,
+      "players": [
+        {
+          "id": 2,
+          "name": "Harun al-Rashid",
+          "civ_icon": "civ:CIVILIZATION_ARABIA",
+          "color_bg": 794442495,
+          "color_fg": 3923883519,
+          "score": 2214,
+          "me": false
+        },
+        {
+          "id": 0,
+          "name": "Catherine (you)",
+          "civ_icon": "civ:CIVILIZATION_RUSSIA",
+          "color_bg": 1847335167,
+          "color_fg": 3837808383,
+          "score": 1986,
+          "me": true
+        },
+        {
+          "id": 1,
+          "name": "Montezuma",
+          "civ_icon": "civ:CIVILIZATION_AZTEC",
+          "color_bg": 1512317695,
+          "color_fg": 1655942655,
+          "score": 1702,
+          "me": false
+        },
+        {
+          "id": 3,
+          "name": "Ramesses",
+          "civ_icon": "civ:CIVILIZATION_EGYPT",
+          "color_bg": 1262123775,
+          "color_fg": 3923550463,
+          "score": 1655,
+          "me": false
+        },
+        {
+          "id": 5,
+          "name": "Gustavus Adolphus",
+          "civ_icon": "civ:CIVILIZATION_SWEDEN",
+          "color_bg": 524250111,
+          "color_fg": 3907578111,
+          "score": 1120,
+          "me": false
+        }
+      ],
+      "ranking": {
+        "title": "You rank with Peter the Great",
+        "sub": "Your final score 1,986 includes the victory bonus",
+        "my_score": 1986,
+        "rows": [
+          {
+            "id": 1,
+            "name": "Augustus Caesar",
+            "threshold": 5000,
+            "me": false,
+            "quote": null
+          },
+          {
+            "id": 2,
+            "name": "Hammurabi",
+            "threshold": 4500,
+            "me": false,
+            "quote": null
+          },
+          {
+            "id": 3,
+            "name": "Charlemagne",
+            "threshold": 4000,
+            "me": false,
+            "quote": null
+          },
+          {
+            "id": 4,
+            "name": "Cyrus the Great",
+            "threshold": 3500,
+            "me": false,
+            "quote": null
+          },
+          {
+            "id": 5,
+            "name": "Ashoka",
+            "threshold": 3000,
+            "me": false,
+            "quote": null
+          },
+          {
+            "id": 6,
+            "name": "Kublai Khan",
+            "threshold": 2600,
+            "me": false,
+            "quote": null
+          },
+          {
+            "id": 7,
+            "name": "Elizabeth I",
+            "threshold": 2250,
+            "me": false,
+            "quote": null
+          },
+          {
+            "id": 8,
+            "name": "Peter the Great",
+            "threshold": 1950,
+            "me": true,
+            "quote": "I have conquered an empire, but I have not been able to conquer myself."
+          },
+          {
+            "id": 9,
+            "name": "Akbar",
+            "threshold": 1600,
+            "me": false,
+            "quote": null
+          },
+          {
+            "id": 10,
+            "name": "Frederick the Great",
+            "threshold": 1300,
+            "me": false,
+            "quote": null
+          },
+          {
+            "id": 11,
+            "name": "Suleiman",
+            "threshold": 1000,
+            "me": false,
+            "quote": null
+          },
+          {
+            "id": 12,
+            "name": "Louis XIV",
+            "threshold": 800,
+            "me": false,
+            "quote": null
+          },
+          {
+            "id": 13,
+            "name": "Montcalm",
+            "threshold": 600,
+            "me": false,
+            "quote": null
+          },
+          {
+            "id": 14,
+            "name": "Dido",
+            "threshold": 400,
+            "me": false,
+            "quote": null
+          },
+          {
+            "id": 15,
+            "name": "Nero",
+            "threshold": 250,
+            "me": false,
+            "quote": null
+          },
+          {
+            "id": 16,
+            "name": "Ethelred the Unready",
+            "threshold": 100,
+            "me": false,
+            "quote": null
+          }
+        ]
+      },
+      "finished": true
+    }
+  },
+  "ui": {
+    "windows": {
+      "end_game": {
+        "open": true
+      }
+    }
+  }
+}

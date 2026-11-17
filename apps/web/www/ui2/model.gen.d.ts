@@ -21,11 +21,25 @@ export type ProdTab = "all" | "units" | "buildings" | "wonders" | "other";
 export type TurnPending = "none" | "ending" | "cancelling";
 export type ToastKind = "refused" | "rejected" | "lost";
 export type RefuseWhy = "unsupported" | "no_screen" | "no_unit" | "action_unavailable" | "not_your_city" | "option_unavailable" | "cannot_buy" | "bad_slot" | "tech_unavailable" | "cannot_end_turn" | "cannot_cancel" | "chat_empty" | "chat_too_long" | "chat_rate" | "no_connection" | "no_game" | "too_many" | "turn_changed" | "too_big" | "core" | "turn_ended" | "not_your_turn" | "restarting" | "invalid" | "expired" | "not_seated" | "other";
-export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "techs";
+export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "advisor" | "confirm" | "end_game" | "game_menu" | "goody_choice" | "message" | "notification_log" | "techs";
 export type ScreenId = "tech_tree" | "policies" | "religion" | "diplomacy" | "overview" | "notification_log" | "economy" | "military" | "victory" | "demographics" | "chat";
 export type MouseButton = "left" | "right";
 export type PushAt = "back" | "front";
 export type BuyWith = "gold" | "faith";
+export type AdvisorRolesKey = "economic" | "military" | "foreign" | "science";
+export type ConfirmKind = "combat_warning" | "barbarian_ransom" | "gift_unit" | "improvement_rebuild" | "return_civilian" | "confirm_command" | "exit_game";
+export type ConfirmRole = "economic" | "military" | "foreign" | "science";
+export type ConfirmYield = "food" | "production" | "gold" | "science" | "culture" | "faith" | "happiness" | "tourism" | "influence";
+export type EndGameOutcome = "victory" | "defeat" | "kicked" | "host_lost" | "net_lost";
+export type EndGameVictoryType = "science" | "domination" | "cultural" | "diplomatic" | "time" | "scrap";
+export type GameMenuMode = "network";
+export type GameMenuSettingsKey = "map_type" | "map_size" | "difficulty" | "speed";
+export type GameMenuKickedReason = "kicked_by_host" | "host_lost" | "net_lost";
+export type MessageKind = "text" | "wonder" | "natural_wonder" | "golden_age" | "new_era" | "goody_hut" | "great_person" | "barbarian_camp";
+export type MessageWidth = "narrow" | "medium" | "wide";
+export type MessageAnchor = "top_left" | "top_right" | "center" | "bottom_left" | "bottom_right";
+export type MessageYield = "food" | "production" | "gold" | "science" | "culture" | "faith" | "happiness" | "tourism" | "influence";
+export type NotificationLogTint = "food" | "production" | "gold" | "science" | "culture" | "faith" | "happiness" | "tourism" | "negative" | "neutral";
 export type TechsStatus = "researched" | "current" | "available" | "queued" | "locked";
 
 export interface Plot {
@@ -301,6 +315,13 @@ export interface WinCity {
 }
 
 export interface Windows {
+  readonly advisor: WinArgs;
+  readonly confirm: WinArgs;
+  readonly end_game: WinArgs;
+  readonly game_menu: WinArgs;
+  readonly goody_choice: WinArgs;
+  readonly message: WinArgs;
+  readonly notification_log: WinArgs;
   readonly techs: WinArgs;
   readonly production: WinCity;
   readonly research: Win;
@@ -332,6 +353,244 @@ export interface Toast {
   readonly kind: ToastKind;
   readonly why: RefuseWhy;
   readonly detail: string | null;
+}
+
+export interface AdvisorCiv {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface AdvisorRolesPages {
+  readonly id: number;
+  readonly text: Text;
+}
+
+export interface AdvisorRoles {
+  readonly key: AdvisorRolesKey;
+  readonly name: Text;
+  readonly role: Text;
+  readonly portrait: string;
+  readonly pages: AdvisorRolesPages[];
+}
+
+export interface ConfirmCiv {
+  readonly key: string;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface ConfirmAdvisor {
+  readonly role: ConfirmRole;
+  readonly name: Text;
+  readonly portrait: string;
+}
+
+export interface ConfirmFact {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: number;
+  readonly yield: ConfirmYield | null;
+}
+
+export interface ConfirmConsequence {
+  readonly icon: string;
+  readonly text: Text;
+  readonly value: number | null;
+  readonly yield: ConfirmYield | null;
+}
+
+export interface ConfirmWarning {
+  readonly label: Text;
+  readonly checked: boolean;
+}
+
+export interface ConfirmChoice {
+  readonly id: number;
+  readonly key: string;
+  readonly label: Text;
+  readonly primary: boolean;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly tooltip: Text | null;
+}
+
+export interface EndGameCiv {
+  readonly key: string;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface EndGameWinner {
+  readonly player: number;
+  readonly name: Text;
+  readonly civ_name: Text;
+}
+
+export interface EndGamePlayers {
+  readonly id: number;
+  readonly name: Text;
+  readonly civ_icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly score: number;
+  readonly me: boolean;
+}
+
+export interface EndGameRankingRows {
+  readonly id: number;
+  readonly name: Text;
+  readonly threshold: number;
+  readonly me: boolean;
+  readonly quote: Text | null;
+}
+
+export interface EndGameRanking {
+  readonly title: Text;
+  readonly sub: Text;
+  readonly my_score: number;
+  readonly rows: EndGameRankingRows[];
+}
+
+export interface GameMenuPlayerTrait {
+  readonly name: Text;
+  readonly short: Text;
+  readonly long: Text;
+}
+
+export interface GameMenuPlayer {
+  readonly id: number;
+  readonly leader: Text;
+  readonly nick: Text | null;
+  readonly leader_icon: string;
+  readonly civ: Text;
+  readonly civ_icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+  readonly trait: GameMenuPlayerTrait;
+}
+
+export interface GameMenuSettings {
+  readonly key: GameMenuSettingsKey;
+  readonly label: Text;
+  readonly value: Text;
+  readonly short: Text;
+  readonly icon: string;
+  readonly tooltip: Text;
+}
+
+export interface GameMenuDetails {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: Text;
+}
+
+export interface GameMenuVictories {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface GameMenuGameOptions {
+  readonly key: string;
+  readonly name: Text;
+}
+
+export interface GameMenuMods {
+  readonly id: string;
+  readonly name: Text;
+  readonly version: string;
+}
+
+export interface GameMenuOptions {
+  readonly quick_combat: boolean;
+  readonly quick_movement: boolean;
+  readonly quick_locked_reason: Text | null;
+  readonly email_turn: boolean;
+  readonly email_address: Text | null;
+  readonly autosave_every: number;
+  readonly autosave_keep: number;
+}
+
+export interface GameMenuHotkeysActions {
+  readonly key: string;
+  readonly name: Text;
+  readonly icon: string;
+  readonly help: Text;
+  readonly default: string | null;
+  readonly hidden: boolean;
+}
+
+export interface GameMenuHotkeys {
+  readonly key: string;
+  readonly name: Text;
+  readonly count: number;
+  readonly actions: GameMenuHotkeysActions[];
+}
+
+export interface GameMenuLoadingFacts {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: Text;
+}
+
+export interface GameMenuLoadingUniques {
+  readonly key: string;
+  readonly name: Text;
+  readonly kind: Text;
+  readonly icon: string;
+  readonly short: Text;
+  readonly help: Text;
+}
+
+export interface GameMenuLoadingPlayers {
+  readonly id: number;
+  readonly name: Text;
+  readonly me: boolean;
+  readonly loaded: boolean;
+}
+
+export interface GameMenuLoading {
+  readonly is_loaded_game: boolean;
+  readonly ready: boolean;
+  readonly facts: GameMenuLoadingFacts[];
+  readonly art: string;
+  readonly quote: Text;
+  readonly uniques: GameMenuLoadingUniques[];
+  readonly players: GameMenuLoadingPlayers[];
+}
+
+export interface GameMenuKicked {
+  readonly reason: GameMenuKickedReason;
+  readonly text: Text;
+}
+
+export interface GoodyChoiceUnit {
+  readonly id: number;
+  readonly name: Text;
+  readonly icon: string;
+}
+
+export interface GoodyChoicePlot {
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface GoodyChoicePart {
+  readonly id: number;
+  readonly text: Text | null;
+  readonly icon: string | null;
+}
+
+export interface GoodyChoiceReward {
+  readonly id: number;
+  readonly key: string;
+  readonly icon: string;
+  readonly parts: GoodyChoicePart[];
+  readonly sub: Text | null;
 }
 
 export interface HudTech {
@@ -407,6 +666,58 @@ export interface HudUnit {
   readonly id: number;
   readonly promotions: HudPromotion[];
   readonly actions: HudAction[];
+}
+
+export interface MessageCiv {
+  readonly key: string;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface MessageBand {
+  readonly name: Text;
+  readonly note: Text | null;
+}
+
+export interface MessageQuote {
+  readonly text: Text;
+  readonly by: Text | null;
+}
+
+export interface MessageYieldRow {
+  readonly yield: MessageYield;
+  readonly value: number;
+}
+
+export interface MessageFact {
+  readonly key: string;
+  readonly label: Text;
+  readonly value: Text | null;
+  readonly yields: MessageYieldRow[];
+}
+
+export interface NotificationLogCiv {
+  readonly key: string;
+  readonly icon: string;
+  readonly color_bg: number;
+  readonly color_fg: number;
+}
+
+export interface NotificationLogItem {
+  readonly id: Key;
+  readonly type: string;
+  readonly icon: string;
+  readonly tint: NotificationLogTint;
+  readonly text: Text;
+  readonly category: Text;
+  readonly active: boolean;
+}
+
+export interface NotificationLogGroup {
+  readonly turn: number;
+  readonly count: number;
+  readonly items: NotificationLogItem[];
 }
 
 export interface TechsPrerequisite {
@@ -549,11 +860,112 @@ export interface Ui {
   readonly errors: Toast[];
 }
 
+export interface Advisor {
+  readonly civ: AdvisorCiv;
+  readonly era: Text;
+  readonly roles: AdvisorRoles[];
+  readonly reason: Text | null;
+}
+
+export interface Confirm {
+  readonly id: number;
+  readonly kind: ConfirmKind;
+  readonly icon: string | null;
+  readonly civ: ConfirmCiv | null;
+  readonly kicker: Text | null;
+  readonly title: Text;
+  readonly text: Text;
+  readonly advisor: ConfirmAdvisor | null;
+  readonly facts: ConfirmFact[];
+  readonly consequence: ConfirmConsequence | null;
+  readonly dont_warn: ConfirmWarning | null;
+  readonly closable: boolean;
+  readonly esc_choice: number | null;
+  readonly enter_choice: number | null;
+  readonly choices: ConfirmChoice[];
+  readonly resolved: boolean;
+}
+
+export interface EndGame {
+  readonly outcome: EndGameOutcome;
+  readonly victory_type: EndGameVictoryType | null;
+  readonly civ: EndGameCiv;
+  readonly kicker: Text;
+  readonly title: Text;
+  readonly headline: Text;
+  readonly text: Text;
+  readonly art: string;
+  readonly speech: Text | null;
+  readonly delay_ms: number;
+  readonly turn: number;
+  readonly year: Text;
+  readonly winner: EndGameWinner | null;
+  readonly can_continue: boolean;
+  readonly continue_reason: Text | null;
+  readonly players: EndGamePlayers[];
+  readonly ranking: EndGameRanking;
+  readonly finished: boolean;
+}
+
+export interface GameMenu {
+  readonly mode: GameMenuMode;
+  readonly turn: number;
+  readonly player: GameMenuPlayer;
+  readonly settings: GameMenuSettings[];
+  readonly details: GameMenuDetails[];
+  readonly victories: GameMenuVictories[];
+  readonly game_options: GameMenuGameOptions[];
+  readonly mods: GameMenuMods[];
+  readonly can_save: boolean;
+  readonly save_reason: Text | null;
+  readonly options: GameMenuOptions;
+  readonly hotkeys: GameMenuHotkeys[];
+  readonly loading: GameMenuLoading | null;
+  readonly kicked: GameMenuKicked | null;
+  readonly mods_reason: Text | null;
+}
+
+export interface GoodyChoice {
+  readonly id: number;
+  readonly unit: GoodyChoiceUnit;
+  readonly plot: GoodyChoicePlot;
+  readonly rewards: GoodyChoiceReward[];
+  readonly reason: Text | null;
+  readonly resolved: boolean;
+}
+
 export interface Hud {
   readonly research: HudResearch;
   readonly top: HudTop;
   readonly city: HudCity | null;
   readonly unit: HudUnit | null;
+}
+
+export interface Message {
+  readonly id: number;
+  readonly kind: MessageKind;
+  readonly width: MessageWidth;
+  readonly civ: MessageCiv | null;
+  readonly kicker: Text | null;
+  readonly title: Text | null;
+  readonly art: string | null;
+  readonly art_anchor: MessageAnchor;
+  readonly icon: string | null;
+  readonly band: MessageBand | null;
+  readonly quote: MessageQuote | null;
+  readonly text: Text | null;
+  readonly facts_title: Text | null;
+  readonly facts: MessageFact[];
+  readonly button: Text;
+  readonly available: boolean;
+  readonly resolved: boolean;
+}
+
+export interface NotificationLog {
+  readonly civ: NotificationLogCiv;
+  readonly total: number;
+  readonly open: number;
+  readonly groups: NotificationLogGroup[];
 }
 
 export interface Techs {
@@ -574,7 +986,14 @@ export interface Model {
   readonly chat: ChatRow[];
   readonly production: Production | null;
   readonly ui: Ui;
+  readonly advisor: Advisor | null;
+  readonly confirm: Confirm | null;
+  readonly end_game: EndGame | null;
+  readonly game_menu: GameMenu | null;
+  readonly goody_choice: GoodyChoice | null;
   readonly hud: Hud | null;
+  readonly message: Message | null;
+  readonly notification_log: NotificationLog | null;
   readonly techs: Techs | null;
 }
 
