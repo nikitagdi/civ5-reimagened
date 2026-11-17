@@ -46,7 +46,7 @@ impl OrderBook {
 
     /// The gateway's reaction to a `Cmd`: the batches to send back (none, when it keeps silent).
     pub fn on_cmd(&mut self, c: Cmd, w: &mut World) -> Vec<ServerMsg> {
-        self.seen.push(c);
+        self.seen.push(c.clone());
         if c.id <= self.last {
             if let Some(r) = self.ring.iter().find(|r| r.id == c.id) {
                 return vec![w.push(vec![GameMsg::Results(vec![r.clone()])])];

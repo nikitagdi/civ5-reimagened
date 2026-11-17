@@ -107,7 +107,7 @@ impl Ledger {
                 self.entries.insert(
                     cmd.id,
                     Entry {
-                        cmd: *cmd,
+                        cmd: cmd.clone(),
                         kind: kind_of(&cmd.cmd),
                         first_sent: now,
                         last_sent: now,
@@ -161,7 +161,7 @@ impl Ledger {
         self.entries
             .values()
             .filter(|e| e.outcome.is_none())
-            .map(|e| e.cmd)
+            .map(|e| e.cmd.clone())
             .collect()
     }
 

@@ -184,6 +184,8 @@ impl Fb {
 
 /// The worker of one game.
 pub struct Worker<C: Core> {
+    // Drop the interpreter before the core whose objects it references.
+    pub(crate) screens: Option<crate::screens::Screens>,
     pub(crate) core: C,
     pub(crate) cfg: WorkerConfig,
     pub(crate) game: protocol::GameId,
@@ -284,6 +286,7 @@ impl<C: Core> Worker<C> {
 
     fn start(core: C, init: WorkerInit, save: Option<Save>, now_ms: u64) -> (Self, Vec<Out>) {
         let mut w = Worker {
+            screens: None,
             core,
             cfg: init.cfg.clone(),
             game: init.game,
@@ -984,6 +987,17 @@ impl<C: Core> Worker<C> {
         let team = seat.team;
         let cities = seat.mirror.as_ref().map(|m| m.view.cities.clone());
         match q {
+            Query::Screen { screen, args } => {
+                if !matches!(self.phase, TurnPhase::Humans | TurnPhase::Ai { .. }) {
+                    return QueryAnswer::Error {
+                        reason: "the game is starting".into(),
+                    };
+                }
+                self.screen_data(player, &screen, &args).map_or_else(
+                    |reason| QueryAnswer::Error { reason },
+                    |json| QueryAnswer::Screen { screen, json },
+                )
+            }
             Query::UnitActions { unit } => self
                 .core
                 .unit_actions(player, unit)

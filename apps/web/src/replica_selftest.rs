@@ -269,9 +269,9 @@ pub fn replica_getters(scenario: &str, files: &Object, seat: i32) -> String {
 
 // ---------------------------------------------------------------- the replica stays untouched (`ui2-r17`)
 
-/// The steps of the native test `ui2-source/tests/r17_replica_untouched.rs`, the same file: the wasm core is a
+/// The steps of the native test `client-app/tests/r17_replica_untouched.rs`, the same file: the wasm core is a
 /// build of its own, so the rule is checked on it too.
-#[path = "../../../crates/client/ui2-source/tests/r17/scenario.rs"]
+#[path = "../../../crates/client/client-app/tests/r17/scenario.rs"]
 mod r17;
 
 /// The replica-untouched test on the fixture (`scenario`, `files` as for [`replica_selftest`]; `seat` < 0: the

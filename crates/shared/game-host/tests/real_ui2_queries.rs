@@ -152,7 +152,7 @@ fn queries_child() {
         front,
     };
     let step = |h: &mut H, cmd: Command, want: Vec<Item>| {
-        assert_eq!(h.cmd(0, cmd), CommandOutcome::Applied, "{cmd:?}");
+        assert_eq!(h.cmd(0, cmd.clone()), CommandOutcome::Applied, "{cmd:?}");
         assert_eq!(queue(h, me, city), want, "after {cmd:?}");
         let c = own_city(h, me, city);
         assert_eq!(
@@ -196,7 +196,7 @@ fn queries_child() {
     ] {
         assert!(
             matches!(
-                h.cmd(0, bad),
+                h.cmd(0, bad.clone()),
                 CommandOutcome::Rejected {
                     code: RejectCode::Invalid,
                     ..

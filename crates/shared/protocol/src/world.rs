@@ -454,7 +454,7 @@ pub type CityKey = (PlayerId, i32);
 // ---------------------------------------------------------------- commands and queries
 
 /// Human orders. Ids are the player's own unit / city ids; `order` is the city order type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Command {
     UnitMoveTo {
         unit: i32,
@@ -559,6 +559,13 @@ pub enum Command {
         tech: i16,
         queue: bool,
     },
+    /// Execute a built-in screen action for the requesting seat.
+    ScreenAction {
+        screen: String,
+        action: String,
+        args: Vec<(String, i64)>,
+        text: Option<String>,
+    },
 }
 
 /// Who shoots in `Query::RangeTargets`.
@@ -569,7 +576,7 @@ pub enum Shooter {
 }
 
 /// Questions answered by the brain (rules are never computed on the host side).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Query {
     UnitActions {
         unit: i32,
@@ -606,6 +613,11 @@ pub enum Query {
         attacker: Shooter,
         x: i16,
         y: i16,
+    },
+    /// Read a built-in screen root for the requesting seat.
+    Screen {
+        screen: String,
+        args: Vec<(String, i64)>,
     },
 }
 
@@ -678,6 +690,11 @@ pub enum QueryAnswer {
     Reach(Vec<ReachNode>),
     /// v3 (tag 11): the forecast, `None` when there is nothing to attack on the plot.
     CombatPreview(Option<CombatPreview>),
+    /// JSON object of the requested screen root.
+    Screen {
+        screen: String,
+        json: String,
+    },
 }
 
 // ---------------------------------------------------------------- journal

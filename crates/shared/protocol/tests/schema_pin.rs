@@ -1459,6 +1459,29 @@ fn samples() -> Pins {
     mod_samples(&mut p);
     terrain_share_samples(&mut p);
     queue_research_samples(&mut p);
+    p.add(
+        "Query::Screen (v16)",
+        &Query::Screen {
+            screen: "techs".into(),
+            args: vec![("a".into(), i64::MIN)],
+        },
+    );
+    p.add(
+        "QueryAnswer::Screen (v16)",
+        &QueryAnswer::Screen {
+            screen: "techs".into(),
+            json: "{}".into(),
+        },
+    );
+    p.add(
+        "Command::ScreenAction (v16)",
+        &Command::ScreenAction {
+            screen: "techs".into(),
+            action: "research".into(),
+            args: vec![("a".into(), 12), ("b".into(), 1)],
+            text: Some("New city".into()),
+        },
+    );
     p
 }
 
@@ -1506,27 +1529,25 @@ fn queue_research_samples(p: &mut Pins) {
             &ClientMsg::Cmd(Cmd {
                 id: 100 + i as u32,
                 turn: 158,
-                cmd: *c,
+                cmd: c.clone(),
             }),
         );
     }
 }
 
-/// The v15 pin is the v14 pin plus the v15 samples: every sample that existed in v14 keeps its bytes.
-/// The one exception is `ClientMsg::Hello`, which carries `PROTOCOL_VERSION` itself; with the old
-/// number in it, it is the v14 record again.
-#[test]
-fn v14_samples_keep_their_bytes() {
+/// Every previously pinned record keeps its bytes, with Hello's version restamped.
+fn assert_compatible_pin(version: u32, additions: &[&str]) {
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
-    let v14 = std::fs::read(dir.join("schema-v14.bin")).expect("schema-v14.bin");
+    let old_pin =
+        std::fs::read(dir.join(format!("schema-v{version}.bin"))).expect("previous schema pin");
     let now = samples();
     let mut at = 0usize;
     for (i, name) in now.names.iter().enumerate() {
-        let Some(old) = record(&v14, i) else {
-            assert_eq!(at, v14.len(), "v14 pin has a partial record");
+        let Some(old) = record(&old_pin, i) else {
+            assert_eq!(at, old_pin.len(), "previous pin has a partial record");
             assert!(
-                name.ends_with("(v15)"),
-                "sample {i} ({name}) is new but not a v15 sample"
+                additions.iter().any(|suffix| name.ends_with(suffix)),
+                "sample {i} ({name}) is an unrecognized addition"
             );
             continue;
         };
@@ -1535,18 +1556,32 @@ fn v14_samples_keep_their_bytes() {
         if *name == "ClientMsg::Hello" {
             let hello = Postcard
                 .encode(&ClientMsg::Hello {
-                    protocol: 14,
+                    protocol: version,
                     build: "dev-1".into(),
                     nick: "alice".into(),
                 })
                 .expect("encode");
-            assert_eq!(&old[4..], &hello[..], "v14 Hello");
+            assert_eq!(&old[4..], &hello[..], "previous Hello");
             assert_ne!(old, new, "Hello carries the new version");
         } else {
             assert_eq!(old, new, "sample {i} ({name}) changed its bytes");
         }
     }
-    assert_eq!(at, v14.len(), "v14 pin has samples this build lost");
+    assert_eq!(
+        at,
+        old_pin.len(),
+        "previous pin has samples this build lost"
+    );
+}
+
+#[test]
+fn v14_samples_keep_their_bytes() {
+    assert_compatible_pin(14, &["(v15)", "(v16)"]);
+}
+
+#[test]
+fn v15_samples_keep_their_bytes() {
+    assert_compatible_pin(15, &["(v16)"]);
 }
 
 /// v14 additions: the terrain share of the mods (mod API 1.2).

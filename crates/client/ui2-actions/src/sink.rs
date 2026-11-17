@@ -110,7 +110,7 @@ impl RecordingSink {
         self.sent
             .iter()
             .filter_map(|s| match s {
-                Sent::Command { cmd, .. } => Some(*cmd),
+                Sent::Command { cmd, .. } => Some(cmd.clone()),
                 _ => None,
             })
             .collect()

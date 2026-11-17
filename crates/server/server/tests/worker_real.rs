@@ -1267,7 +1267,7 @@ fn queue_and_research_orders_change_the_city_queue_and_the_research() {
     assert!(units.len() >= 2, "two units to train: {builds:?}");
     let (a, b) = ((0i8, units[0]), (0i8, units[1]));
     let step = |p: &mut Proc, cmd: Command, want: (i8, i16)| {
-        assert_eq!(p.cmd(0, cmd), CommandOutcome::Applied, "{cmd:?}");
+        assert_eq!(p.cmd(0, cmd.clone()), CommandOutcome::Applied, "{cmd:?}");
         assert_eq!(head(p), want, "the head after {cmd:?}");
     };
     // [x] -> [x, a] -> [b, x, a] -> [x, a, b] -> [a, b] -> [x, b] -> [x] -> [].
@@ -1340,4 +1340,120 @@ fn queue_and_research_orders_change_the_city_queue_and_the_research() {
             ..
         }
     ));
+}
+
+/// Every registered data script speaks the same schema as its skin sample.
+/// Set CIV5_SCREEN_SAVE to exercise the registry against a late C5SV game.
+#[test]
+fn registered_screens_validate_and_research_changes() {
+    if !have_real_core() {
+        return;
+    }
+    let _one = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+    let mut worker = Proc::start();
+    let mut config = init(setup("WORLDSIZE_DUEL", 1, 2), WorkerConfig::default());
+    let late = std::env::var_os("CIV5_SCREEN_SAVE");
+    if let Some(file) = &late {
+        let bytes = std::fs::read(file).expect("CIV5_SCREEN_SAVE");
+        let save = game_host::saves::decode(&bytes).expect("C5SV save");
+        config.start = Start::Load {
+            file: file.to_string_lossy().into_owned(),
+            seats: save.info.seats,
+        };
+    }
+    worker.send(&ToWorker::Init(config));
+    worker.wait_msg("Ready", |m| matches!(m, WorkerMsg::Ready(_)));
+    worker.wait_humans();
+    let player = std::env::var("CIV5_SCREEN_PLAYER")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+    let mut techs = None;
+    let filter = std::env::var("CIV5_SCREEN").ok();
+    for (screen, _) in game_host::screens::REGISTRY {
+        if filter.as_ref().is_some_and(|filter| filter != screen) {
+            continue;
+        }
+        let answer = worker.query(
+            player,
+            Query::Screen {
+                screen: (*screen).into(),
+                args: vec![],
+            },
+        );
+        let QueryAnswer::Screen {
+            screen: actual,
+            json,
+        } = answer
+        else {
+            panic!("screen {screen} query failed");
+        };
+        assert_eq!(&actual, screen);
+        let value: serde_json::Value = serde_json::from_str(&json).expect("JSON object");
+        let sample = serde_json::json!({"model": { *screen: value }}).to_string();
+        let sample = ui2_model::Sample::parse(ui2_model::Schema::v1(), &sample)
+            .unwrap_or_else(|e| panic!("{screen}: {}", e.join("; ")));
+        sample
+            .apply(&mut ui2_model::ModelStore::new(ui2_model::Schema::v1()))
+            .expect("model accepts response");
+        if *screen == "techs" {
+            techs = Some(value);
+        }
+    }
+    // A late-game probe validates data only, keeping the loaded game's orders untouched.
+    if late.is_none()
+        && let Some(techs) = techs
+    {
+        let rows = techs["techs"].as_array().expect("technology rows");
+        assert!(rows.len() > 50, "full technology catalog");
+        let chosen = rows
+            .iter()
+            .find(|t| t["status"] == "available")
+            .expect("available technology")["id"]
+            .as_i64()
+            .unwrap();
+        assert_eq!(
+            worker.cmd(
+                player,
+                Command::ScreenAction {
+                    screen: "techs".into(),
+                    action: "research".into(),
+                    args: vec![("a".into(), chosen), ("b".into(), 0)],
+                    text: None,
+                }
+            ),
+            CommandOutcome::Applied
+        );
+        let QueryAnswer::Screen { json, .. } = worker.query(
+            player,
+            Query::Screen {
+                screen: "techs".into(),
+                args: vec![],
+            },
+        ) else {
+            panic!("refresh failed");
+        };
+        let after: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(
+            after["techs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|t| t["id"] == chosen && t["status"] == "current")
+        );
+    }
+    worker.send(&ToWorker::Shutdown { save: false });
+    assert_eq!(worker.exit_code(), Some(0));
+}
+
+#[test]
+fn screen_registry_matches_the_schema_directory() {
+    let mut server = game_host::screens::REGISTRY
+        .iter()
+        .map(|(n, _)| *n)
+        .collect::<Vec<_>>();
+    server.sort();
+    let mut model = ui2_model::generated::SCREEN_NAMES.to_vec();
+    model.sort();
+    assert_eq!(server, model);
 }

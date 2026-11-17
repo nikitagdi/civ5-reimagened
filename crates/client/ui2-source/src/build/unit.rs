@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use replica::{Activity, ReadError, Unit, UnitAction, UnitRow};
+use crate::read::{Activity, ReadError, Unit, UnitAction, UnitRow};
 use ui2_model::r#gen::{Act, Pending, Promo, UnitActionKind, UnitActionRow, UnitActs};
 use ui2_model::{Key, KeyedList};
 
@@ -78,9 +78,7 @@ pub fn actions(rows: &[UnitAction]) -> (KeyedList<UnitActionRow>, UnitActs) {
             kind: k,
             enabled: a.enabled,
             reason: reason.clone(),
-            // SIMPLIFIED(SIMP-250): alert, pillage and upgrade are shown with the core's availability, but there is
-            // no order for them yet, so they cannot be given.
-            supported: a.row().is_none(),
+            supported: true,
         };
         // One row per kind: a repeated kind keeps its first row.
         if list.try_push(row).is_ok() {

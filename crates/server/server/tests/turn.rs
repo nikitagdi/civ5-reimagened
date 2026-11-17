@@ -702,7 +702,7 @@ fn queue_and_research_orders_are_answered_like_any_order() {
             queue: true,
         },
     ] {
-        let id = alice.order(1, cmd);
+        let id = alice.order(1, cmd.clone());
         assert_eq!(alice.answer(id), CommandOutcome::Applied, "{cmd:?}");
     }
 }

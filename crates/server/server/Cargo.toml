@@ -66,3 +66,5 @@ hello-server = { path = "../../../examples/mods/hello/hello-server" }
 hello-shared = { path = "../../../examples/mods/hello/hello-shared" }
 # Builds a mod asset pack for the `/mods/{hash}` test.
 mod-assets.workspace = true
+
+ui2-model.workspace = true

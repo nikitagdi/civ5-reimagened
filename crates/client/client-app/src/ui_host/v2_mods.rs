@@ -374,8 +374,7 @@ mod tests {
 
     fn frame(ui: &mut V2Ui, mods: Option<Vec<Arc<str>>>) {
         ui.frame(V2Frame {
-            replica: None,
-            steps: &[],
+            world: None,
             net: None,
             events: &[],
             mods,

@@ -488,9 +488,13 @@ impl UiHost {
         !self.fronts.is_empty()
     }
 
-    /// A registered frontend reads the replica: the app makes the game session.
+    /// The frontend requested or active needs the classic engine.
     pub fn needs_replica(&self) -> bool {
-        self.fronts.iter().any(|f| f.needs_replica())
+        self.switch
+            .as_ref()
+            .map(|s| s.to)
+            .or(self.active)
+            .is_some_and(|i| self.fronts[i].needs_replica())
     }
 
     /// The kind of the frontend on the screen.
@@ -604,11 +608,9 @@ impl UiHost {
             self.trip = None;
         }
         self.step_screens(cx.now_ms);
-        // The timeout counts while a game is played and its replica is live: before, UI v2 waits for the game, not
-        // for itself.
+        // Playing means the synchronized world is ready for a game UI.
         if let Some(sw) = self.switch.as_mut()
             && cx.playing
-            && cx.session.is_none_or(GameSession::live)
         {
             sw.playing_since.get_or_insert(cx.now_ms);
         }
@@ -900,7 +902,7 @@ mod tests {
             self.kind
         }
         fn needs_replica(&self) -> bool {
-            true
+            self.kind == UiKind::Classic
         }
         fn prepare(&mut self, _cx: &mut PrepareCx<'_>) -> Readiness {
             self.ready.borrow().clone()
@@ -958,6 +960,7 @@ mod tests {
         assert!(h.has_game_ui() && h.needs_replica());
         assert_eq!(h.active_kind(), Some(UiKind::Classic));
         assert!(h.request(UiKind::V2) && h.switching());
+        assert!(!h.needs_replica(), "preparing v2 requires no local engine");
         for t in 0..3 {
             frame(&mut h, f64::from(t) * 16.0);
         }

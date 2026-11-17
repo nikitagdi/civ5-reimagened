@@ -1,0 +1,14 @@
+{
+  "model": {
+    "techs": {
+      "techs": [
+        { "id": 0, "name": "Agriculture", "column": 0, "row": 3, "status": "researched", "cost": 20, "progress": 20, "turns": null, "prerequisites": [], "queue_position": -1, "era": 0, "era_name": "Ancient Era", "icon": "", "unlocks": [{ "idx": 0, "name": "Farm" }] },
+        { "id": 1, "name": "Pottery", "column": 1, "row": 1, "status": "current", "cost": 35, "progress": 12, "turns": 4, "prerequisites": [{ "id": 0 }], "queue_position": 1, "era": 0, "era_name": "Ancient Era", "icon": "", "unlocks": [{ "idx": 0, "name": "Granary" }] },
+        { "id": 2, "name": "Animal Husbandry", "column": 1, "row": 5, "status": "available", "cost": 35, "progress": 0, "turns": 6, "prerequisites": [{ "id": 0 }], "queue_position": -1, "era": 0, "era_name": "Ancient Era", "icon": "", "unlocks": [] },
+        { "id": 3, "name": "Writing", "column": 2, "row": 1, "status": "queued", "cost": 55, "progress": 0, "turns": 10, "prerequisites": [{ "id": 1 }], "queue_position": 2, "era": 0, "era_name": "Ancient Era", "icon": "", "unlocks": [] },
+        { "id": 4, "name": "Education", "column": 5, "row": 1, "status": "locked", "cost": 400, "progress": 0, "turns": null, "prerequisites": [{ "id": 3 }], "queue_position": -1, "era": 2, "era_name": "Medieval Era", "icon": "", "unlocks": [] }
+      ]
+    }
+  },
+  "ui": { "windows": { "techs": { "open": true } } }
+}

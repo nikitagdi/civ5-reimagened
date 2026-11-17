@@ -321,6 +321,9 @@ fn roots_owners_and_enums() {
             "production",
             "ui"
         ]
+        .into_iter()
+        .chain(ui2_model::generated::SCREEN_NAMES.iter().copied())
+        .collect::<Vec<_>>()
     );
     // Only `ui` belongs to the actions module.
     assert!(
@@ -455,7 +458,10 @@ fn enums_of_the_model() {
     eq("ToastKind", &["refused", "rejected", "lost"]);
     eq(
         "WindowId",
-        &["production", "research", "menu", "chat", "notes_log"],
+        &["production", "research", "menu", "chat", "notes_log"]
+            .into_iter()
+            .chain(ui2_model::generated::WINDOW_SCREEN_NAMES.iter().copied())
+            .collect::<Vec<_>>(),
     );
     eq("MouseButton", &["left", "right"]);
     eq("PushAt", &["back", "front"]);
@@ -527,7 +533,10 @@ const INTENTS: &[(&str, &[&str])] = &[
     ("research.choose", &["tech: key<tech>", "queue: bool"]),
     ("note.dismiss", &["note: key<note>"]),
     ("note.activate", &["note: key<note>"]),
-    ("window.open", &["window: WindowId", "city: key<city>?"]),
+    (
+        "window.open",
+        &["window: WindowId", "city: key<city>?", "a: i32?", "b: i32?"],
+    ),
     ("window.close", &["window: WindowId"]),
     ("window.toggle", &["window: WindowId"]),
     ("screen.open", &["screen: ScreenId"]),
@@ -537,6 +546,18 @@ const INTENTS: &[(&str, &[&str])] = &[
     (
         "chat.send",
         &["text: str", "to: ChatTo", "player: key<player>?"],
+    ),
+    (
+        "screen.act",
+        &[
+            "screen: str",
+            "action: str",
+            "a: i32?",
+            "b: i32?",
+            "c: i32?",
+            "d: i32?",
+            "text: str?",
+        ],
     ),
 ];
 

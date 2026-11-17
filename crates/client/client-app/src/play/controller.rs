@@ -449,7 +449,7 @@ impl PlayController {
             _ => return out,
         };
         if self.selected == Some(unit) {
-            self.unit_order(world, &mut out, |_| cmd);
+            self.unit_order(world, &mut out, |_| cmd.clone());
         }
         out
     }

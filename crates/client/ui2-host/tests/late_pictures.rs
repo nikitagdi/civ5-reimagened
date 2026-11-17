@@ -71,8 +71,7 @@ fn flags() -> Arc<ui2_package::Package> {
 fn frame(ui: &mut V2Ui, now: f64) {
     // The report's errors are the pictures the game has no asset for yet: expected before the set arrives.
     let _ = ui.frame(V2Frame {
-        replica: None,
-        steps: &[],
+        world: None,
         net: None,
         events: &[],
         mods: None,

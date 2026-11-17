@@ -1,0 +1,394 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use gamecore::NetMessage;
+use lua_sys::{Function, Lua, LuaError, LuaValue, Table, Variadic};
+use serde_json::Value as Json;
+
+const MAX_JSON: usize = 512 * 1024;
+const MAX_MESSAGES: usize = 256;
+
+pub(crate) struct Screens {
+    lua: Lua,
+}
+
+impl Screens {
+    pub fn new() -> lua_sys::Result<Self> {
+        let lua = Lua::new()?;
+        lua.sandbox()?;
+        lua.set_instruction_limit(Some(20_000_000));
+        Ok(Self { lua })
+    }
+
+    pub fn lua(&self) -> &Lua {
+        &self.lua
+    }
+
+    pub fn load(&self) -> lua_sys::Result<()> {
+        self.lua
+            .exec(include_str!("_lib.lua"), "=screens/_lib.lua")?;
+        let registry = self.lua.create_table();
+        for (name, source) in super::REGISTRY {
+            let screen: Table = self
+                .lua
+                .load(source)
+                .set_name(&format!("=screens/{name}.lua"))
+                .eval()?;
+            let _: Function = screen.get("data")?;
+            registry.raw_set(*name, screen)?;
+        }
+        self.lua.globals().raw_set("__screens", registry)
+    }
+
+    fn screen(&self, name: &str) -> lua_sys::Result<Table<'_>> {
+        let registry: Table = self.lua.globals().raw_get("__screens")?;
+        registry
+            .raw_get(name)
+            .map_err(|_| LuaError::msg(format!("unknown screen {name}")))
+    }
+
+    fn args(&self, args: &[(String, i64)]) -> lua_sys::Result<Table<'_>> {
+        if args.len() > 32 {
+            return Err(LuaError::msg("too many screen arguments"));
+        }
+        let table = self.lua.create_table();
+        for (key, value) in args {
+            if key.len() > 64
+                || table.contains_key(key.as_str())?
+                // SIMPLIFIED(SIMP-323): Lua arguments reject integers outside the exact double range.
+                || value.unsigned_abs() > (1u64 << 53)
+            {
+                return Err(LuaError::msg("invalid or duplicate screen argument"));
+            }
+            table.raw_set(key.as_str(), *value as f64)?;
+        }
+        Ok(table)
+    }
+
+    pub fn data(&self, player: i8, name: &str, args: &[(String, i64)]) -> lua_sys::Result<String> {
+        let data: Function = self.screen(name)?.get("data")?;
+        let value: LuaValue = data.call((i32::from(player), self.args(args)?))?;
+        let mut remaining = MAX_JSON;
+        let value = json(value, 0, &mut remaining)?;
+        if !value.is_object() {
+            return Err(LuaError::msg("screen data must return an object"));
+        }
+        let text = serde_json::to_string(&value).map_err(|e| LuaError::msg(e.to_string()))?;
+        if text.len() > MAX_JSON {
+            return Err(LuaError::msg("screen response exceeds 512 KiB"));
+        }
+        self.lua.gc_collect()?;
+        Ok(text)
+    }
+
+    pub fn action(
+        &self,
+        player: i8,
+        name: &str,
+        action: &str,
+        args: &[(String, i64)],
+        text: Option<&str>,
+    ) -> lua_sys::Result<Vec<NetMessage>> {
+        if text.is_some_and(|s| s.len() > 256 || s.chars().any(char::is_control)) {
+            return Err(LuaError::msg("invalid screen action text"));
+        }
+        if args.iter().any(|(key, _)| key == "text") {
+            return Err(LuaError::msg("text is a reserved screen argument"));
+        }
+        let arguments = self.args(args)?;
+        if let Some(text) = text {
+            arguments.raw_set("text", text)?;
+        }
+        let actions: Table = self.screen(name)?.get("actions")?;
+        let function: Function = actions.get(action)?;
+        let messages = Rc::new(RefCell::new(Vec::new()));
+        let output = Rc::clone(&messages);
+        let net = self.lua.create_table();
+        net.raw_set(
+            "send",
+            self.lua
+                .create_function(move |_, (name, args): (String, Variadic<i32>)| {
+                    let message = NetMessage::new(&name, &args.0)
+                        .filter(|m| gamecore::replica::net_message_from_ui(m.id))
+                        .ok_or_else(|| LuaError::msg("unknown or forbidden UI net message"))?;
+                    let mut output = output.borrow_mut();
+                    if output.len() >= MAX_MESSAGES {
+                        return Err(LuaError::msg("too many screen net messages"));
+                    }
+                    output.push(message);
+                    Ok(())
+                }),
+        )?;
+        function.call::<_, ()>((i32::from(player), arguments, net))?;
+        let result = messages.borrow().clone();
+        self.lua.gc_collect()?;
+        Ok(result)
+    }
+}
+
+fn json(value: LuaValue<'_>, depth: usize, remaining: &mut usize) -> lua_sys::Result<Json> {
+    if depth > 32 || *remaining == 0 {
+        return Err(LuaError::msg("screen response exceeds structural limits"));
+    }
+    *remaining -= 1;
+    Ok(match value {
+        LuaValue::Nil => Json::Null,
+        LuaValue::Boolean(v) => Json::Bool(v),
+        LuaValue::Number(n) => {
+            if !n.is_finite() {
+                return Err(LuaError::msg("non-finite screen number"));
+            }
+            if n.fract() == 0.0 && n.abs() <= (1u64 << 53) as f64 {
+                Json::from(n as i64)
+            } else {
+                Json::from(n)
+            }
+        }
+        LuaValue::String(s) => {
+            let s = s.to_str()?.to_owned();
+            *remaining = remaining
+                .checked_sub(s.len())
+                .ok_or_else(|| LuaError::msg("screen response exceeds 512 KiB"))?;
+            Json::String(s)
+        }
+        LuaValue::Table(t) => {
+            let array = t.raw_len() > 0
+                || t.metatable()
+                    .is_some_and(|m| m.raw_get::<_, bool>("__screen_array").unwrap_or(false));
+            if array {
+                let len = t.raw_len();
+                let mut count = 0;
+                for pair in t.pairs::<LuaValue, LuaValue>() {
+                    let (key, _) = pair?;
+                    if !matches!(key, LuaValue::Number(n) if n >= 1.0 && n <= len as f64 && n.fract() == 0.0)
+                    {
+                        return Err(LuaError::msg("screen arrays must be dense"));
+                    }
+                    count += 1;
+                }
+                if count != len {
+                    return Err(LuaError::msg("screen arrays must be dense"));
+                }
+                let mut values = Vec::new();
+                for i in 1..=len {
+                    values.push(json(t.raw_get(i)?, depth + 1, remaining)?);
+                }
+                Json::Array(values)
+            } else {
+                let mut values = serde_json::Map::new();
+                for pair in t.pairs::<String, LuaValue>() {
+                    let (key, value) = pair?;
+                    *remaining = remaining
+                        .checked_sub(key.len())
+                        .ok_or_else(|| LuaError::msg("screen response exceeds 512 KiB"))?;
+                    values.insert(key, json(value, depth + 1, remaining)?);
+                }
+                Json::Object(values)
+            }
+        }
+        _ => return Err(LuaError::msg("screen data contains a non-JSON value")),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn runtime() -> Screens {
+        let runtime = Screens::new().unwrap();
+        runtime.load().unwrap();
+        runtime.lua.exec(r#"
+            __screens.test = {
+                data = function(player, args) return {player = player, a = args.a, empty = array()} end,
+                actions = {
+                    research = function(player, args, net) net.send("sendResearch", args.a, 0, -1, args.b or 0) end,
+                    forbidden = function(player, args, net) net.send("sendTurnComplete") end,
+                    fail = function(player, args, net) net.send("sendResearch", 1); error("failed") end,
+                },
+            }
+        "#, "=test").unwrap();
+        runtime
+    }
+
+    #[test]
+    fn data_and_messages_keep_the_explicit_seat_and_arguments() {
+        let r = runtime();
+        let json: Json =
+            serde_json::from_str(&r.data(3, "test", &[("a".into(), 9)]).unwrap()).unwrap();
+        assert_eq!(json, serde_json::json!({"player":3,"a":9,"empty":[]}));
+        let messages = r
+            .action(
+                3,
+                "test",
+                "research",
+                &[("a".into(), 12), ("b".into(), 1)],
+                None,
+            )
+            .unwrap();
+        assert_eq!(
+            messages,
+            vec![NetMessage::new("sendResearch", &[12, 0, -1, 1]).unwrap()]
+        );
+        assert!(r.action(3, "test", "forbidden", &[], None).is_err());
+        assert!(r.action(3, "test", "fail", &[], None).is_err());
+        assert_eq!(
+            r.action(3, "test", "research", &[("a".into(), 2)], None)
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(r.data(0, "missing", &[]).is_err());
+        assert!(
+            r.data(0, "test", &[("a".into(), 1), ("a".into(), 2)])
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn errors_and_limits_leave_the_interpreter_usable() {
+        let r = runtime();
+        for source in [
+            "function() while true do end end",
+            "function() return {text = string.rep('x', 524289)} end",
+            "function() local t = {}; t.self = t; return t end",
+            "function() return {invalid = function() end} end",
+            "function() error('screen failed') end",
+        ] {
+            r.lua
+                .exec(&format!("__screens.bad = {{data = {source}}}"), "=bad")
+                .unwrap();
+            assert!(r.data(0, "bad", &[]).is_err());
+            assert!(r.data(0, "test", &[]).is_ok());
+        }
+    }
+
+    #[test]
+    fn action_text_is_optional_utf8_bounded_and_free_of_controls() {
+        let r = runtime();
+        r.lua
+            .exec(
+                r#"
+            __screens.test.actions.text = function(player, args, net)
+                assert(args.text == expected_text)
+            end
+        "#,
+                "=text-test",
+            )
+            .unwrap();
+        r.action(3, "test", "text", &[], None).unwrap();
+        for value in ["", "New city", "\u{e9}", &"\u{e9}".repeat(128)] {
+            r.lua.globals().raw_set("expected_text", value).unwrap();
+            r.action(3, "test", "text", &[], Some(value)).unwrap();
+        }
+        for value in [
+            "\n",
+            "\r",
+            "\0",
+            "\t",
+            "\u{7f}",
+            "\u{85}",
+            &"x".repeat(257),
+            &"\u{e9}".repeat(129),
+        ] {
+            assert!(r.action(3, "test", "text", &[], Some(value)).is_err());
+        }
+        assert!(
+            r.action(3, "test", "text", &[("text".into(), 1)], None)
+                .is_err()
+        );
+        r.lua
+            .globals()
+            .raw_set("expected_text", "Valid again")
+            .unwrap();
+        r.action(3, "test", "text", &[], Some("Valid again"))
+            .unwrap();
+    }
+
+    #[test]
+    fn built_in_scripts_only_read_and_emit_net_messages() {
+        for (name, source) in super::super::REGISTRY {
+            for forbidden in [
+                "GetActivePlayer",
+                "GetActiveTeam",
+                ":Set",
+                ":Change",
+                ":Do",
+                ":Push",
+                ":Pop",
+                "Game.Set",
+                "Game.Do",
+            ] {
+                assert!(!source.contains(forbidden), "{name} uses {forbidden}");
+            }
+        }
+    }
+
+    #[test]
+    fn hud_script_matches_schema_scopes_focus_and_rechecks_action_availability() {
+        let r = runtime();
+        r.lua
+            .exec(include_str!("../tests/fixtures/hud_api.lua"), "=hud-api")
+            .unwrap();
+        let global: Json = serde_json::from_str(&r.data(3, "hud", &[]).unwrap()).unwrap();
+        assert!(global.get("city").is_none() && global.get("unit").is_none());
+        let json: Json = serde_json::from_str(
+            &r.data(3, "hud", &[("city".into(), 3), ("unit".into(), 4)])
+                .unwrap(),
+        )
+        .unwrap();
+        let sample = ui2_model::Sample::parse(
+            ui2_model::Schema::v1(),
+            &serde_json::json!({"model":{"hud":json}}).to_string(),
+        )
+        .unwrap();
+        let mut store = ui2_model::ModelStore::new(ui2_model::Schema::v1());
+        sample.apply(&mut store).unwrap();
+        let hud = store
+            .get::<Option<ui2_model::generated::Hud>>()
+            .unwrap()
+            .as_ref()
+            .unwrap();
+        let city = hud.city.as_ref().unwrap();
+        assert_eq!(city.queue.len(), 2);
+        assert_eq!(city.overflow, 7);
+        assert_eq!(city.reasons.len(), 1);
+        assert_eq!(
+            hud.research
+                .techs
+                .iter()
+                .map(|t| t.queue)
+                .collect::<Vec<_>>(),
+            [Some(0), Some(1)]
+        );
+        assert_eq!(hud.top.resources.len(), 2);
+        assert_eq!(hud.top.policies.iter().next().unwrap().owned, 1);
+        assert_eq!(hud.unit.as_ref().unwrap().promotions.len(), 1);
+        assert_eq!(
+            r.action(3, "hud", "alert", &[("a".into(), 4)], None)
+                .unwrap(),
+            [NetMessage::new("sendPushMission", &[4, 10, 0, 0, 0, 0]).unwrap()]
+        );
+        assert_eq!(
+            r.action(3, "hud", "upgrade", &[("a".into(), 4)], None)
+                .unwrap(),
+            [NetMessage::new("sendDoCommand", &[4, 12, 0, 0, 0]).unwrap()]
+        );
+        assert!(
+            r.action(3, "hud", "pillage", &[("a".into(), 4)], None)
+                .is_err()
+        );
+        for args in [vec![("city".into(), 3)], vec![("unit".into(), 4)]] {
+            assert!(r.data(1, "hud", &args).is_err());
+        }
+        assert!(
+            r.action(1, "hud", "alert", &[("a".into(), 4)], None)
+                .is_err()
+        );
+        assert!(r.action(3, "hud", "alert", &[], None).is_err());
+        r.lua.exec("hud_busy = true", "=busy").unwrap();
+        assert!(
+            r.action(3, "hud", "alert", &[("a".into(), 4)], None)
+                .is_err()
+        );
+    }
+}

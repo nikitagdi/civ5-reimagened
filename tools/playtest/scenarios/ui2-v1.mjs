@@ -230,6 +230,8 @@ export async function run(ctx) {
 /** 1. Both clients run UI v2 with every panel ok. */
 async function step1(alice, bob, check, n) {
   for (const b of [alice, bob]) {
+    const loads = await b.page.evaluate(() => window.__civ5stats?.counters?.["client.core.loads"]);
+    check(`1. ${b.nick}: no client-side core loaded`, loads === 0, String(loads));
     const p = await ui2(b.page);
     const st = await state(b.page);
     const panels = (p?.panels ?? []).map((x) => `${x.id}:${x.status}${x.reason ? `(${x.reason})` : ""}`);

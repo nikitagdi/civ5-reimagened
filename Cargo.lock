@@ -674,10 +674,13 @@ dependencies = [
  "tungstenite",
  "ui",
  "ui-client",
+ "ui2-actions",
  "ui2-host",
+ "ui2-model",
  "ui2-package",
  "ui2-runtime",
  "ui2-script",
+ "ui2-source",
  "winit",
  "wire",
 ]
@@ -1357,12 +1360,15 @@ dependencies = [
  "asset-format",
  "gamecore",
  "gamecore-sys",
+ "loc",
  "lua-sys",
  "protocol",
  "serde",
  "serde_json",
+ "sqlite-sys",
  "tracing",
  "turntrace",
+ "ui2-model",
  "wire",
 ]
 
@@ -3331,6 +3337,7 @@ dependencies = [
  "tracing-subscriber",
  "tungstenite",
  "turntrace",
+ "ui2-model",
  "wire",
  "zstd",
 ]
@@ -3958,7 +3965,6 @@ dependencies = [
  "loc",
  "platform",
  "protocol",
- "replica",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -3971,6 +3977,7 @@ dependencies = [
  "ui2-script",
  "ui2-source",
  "ui2-text",
+ "wire",
 ]
 
 [[package]]
@@ -4035,8 +4042,8 @@ version = "0.1.0"
 dependencies = [
  "client-core",
  "protocol",
- "replica",
  "serde_json",
+ "thiserror 2.0.21",
  "tracing",
  "ui2-actions",
  "ui2-model",

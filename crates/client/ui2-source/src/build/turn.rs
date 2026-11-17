@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
+use crate::read::{Activity, GameInfo, ReadError, Unit};
 use protocol::{Conn, SeatControl};
-use replica::{Activity, GameInfo, ReadError, Unit};
 use ui2_model::KeyedList;
 use ui2_model::r#gen::{Blocker, Phase, Plot, Seat, Turn, TurnUi};
 

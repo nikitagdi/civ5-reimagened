@@ -5,9 +5,9 @@
 mod common;
 
 use common::*;
-use replica::testing::FakeRead;
 use ui2_model::r#gen::{Map, Research, Top};
 use ui2_source::cost::ReadKind;
+use ui2_source::testing::FakeRead;
 use ui2_source::{DEFAULT_FRAME_BUDGET, SourceStats};
 
 /// The cost of one recorded call of the fake (catalog reads are not looked at here).
@@ -140,7 +140,7 @@ fn the_catalog_is_read_over_frames_within_the_budget() {
 fn a_failed_table_is_asked_again_after_the_game_changes() {
     let mut f = game();
     let mut rig = Rig::new(session());
-    f.error = Some(replica::ReadError::Core("down".into()));
+    f.error = Some(ui2_source::read::ReadError::Core("down".into()));
     rig.frame(&mut f);
     assert_eq!(
         f.calls.iter().filter(|c| **c == "catalog").count(),

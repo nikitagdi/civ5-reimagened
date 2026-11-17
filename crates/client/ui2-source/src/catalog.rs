@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use replica::{CatalogEntry, CatalogTable, OrderType, ReadError};
+use crate::read::{CatalogEntry, CatalogTable, OrderType, ReadError};
 use ui2_model::{AssetRef, Text};
 
 use crate::CountingRead;

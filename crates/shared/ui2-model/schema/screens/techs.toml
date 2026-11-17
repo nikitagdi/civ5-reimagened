@@ -1,0 +1,29 @@
+[enum]
+TechsStatus = ["researched", "current", "available", "queued", "locked"]
+
+[type.TechsPrerequisite]
+id = "i32"
+
+[type.TechsUnlock]
+idx = "i32"
+name = "text"
+
+[type.TechsRow]
+id = "i32"
+name = "text"
+column = "i32"
+row = "i32"
+status = "TechsStatus"
+cost = "i32"
+progress = "i32"
+turns = "i32?"
+prerequisites = { list = "TechsPrerequisite", key = "id" }
+queue_position = "i32"
+era = "i32"
+era_name = "text"
+icon = "asset"
+unlocks = { list = "TechsUnlock", key = "idx" }
+
+[model.techs]
+_optional = true
+techs = { list = "TechsRow", key = "id" }

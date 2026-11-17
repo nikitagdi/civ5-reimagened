@@ -26,7 +26,6 @@
 
 use std::sync::Arc;
 
-use replica::ReplicaStep;
 use ui2_actions::ActionEvent;
 use ui2_draw::SceneStats;
 use ui2_model::Owner;
@@ -35,7 +34,7 @@ use ui2_model::wire::WireIntent;
 use ui2_package::style::Cursor;
 use ui2_runtime::{FrameStats, Runtime, UiError};
 use ui2_script::{FrameInput, ScriptStats};
-use ui2_source::{ReplicaView, SourceFrame, SourceProfile, SourceStats};
+use ui2_source::{SourceFrame, SourceProfile, SourceStats, WorldView};
 
 use crate::error::{LoadFailure, SkinLoadError};
 use crate::scripts;
@@ -44,10 +43,8 @@ use crate::v2::{RESOLVE_BUDGET_MS, Skin, V2Ui};
 
 /// The input of one frame, made by the application after it pumped the game session and the network.
 pub struct V2Frame<'a> {
-    /// The replica as the session lends it; `None` when there is none (lobby, no game yet).
-    pub replica: Option<ReplicaView<'a>>,
-    /// What the session's pump did this frame (the source's change signal).
-    pub steps: &'a [ReplicaStep],
+    /// Optional explicit world reader, for fixtures and embedding without a network core.
+    pub world: Option<WorldView<'a>>,
     /// The network for this frame (in the app: a [`NetSink`](crate::NetSink) over the client core); `None`:
     /// offline, every order is refused and the session is empty.
     pub net: Option<&'a mut dyn HostNet>,
@@ -150,8 +147,7 @@ impl V2Ui {
         // A skin built anew gets the mods' panels again.
         self.keep_mod_panels();
         let V2Frame {
-            replica,
-            steps,
+            world,
             net,
             events,
             mods,
@@ -175,6 +171,26 @@ impl V2Ui {
             if *ev == ActionEvent::NewGame {
                 // Another game: every root is rebuilt from it, its catalog read again.
                 self.source.reset();
+                self.remote.reset();
+                self.world_source.reset();
+                self.hud_service.update(None);
+            }
+            if let ActionEvent::Answered { outcome, .. } = ev
+                && *outcome != protocol::CommandOutcome::Queued
+            {
+                // Queue-only orders can leave the synchronized world unchanged.
+                self.remote.invalidate("hud");
+            }
+            if let ActionEvent::Answered { id, outcome } = ev
+                && *outcome != protocol::CommandOutcome::Queued
+                && let Some(p) = self
+                    .actions
+                    .ui()
+                    .pending
+                    .iter()
+                    .find(|p| p.seq == *id as i32 && p.intent.as_ref() == "screen.act")
+            {
+                self.remote.invalidate(&p.target);
             }
             self.actions.on_event(ev, now_ms);
         }
@@ -237,19 +253,115 @@ impl V2Ui {
             match self.sample.as_mut() {
                 // The sample mode: the sample's roots, once; nothing of a game is read.
                 Some(sample) => sample.write(&mut w),
-                None => self.source.frame(
-                    SourceFrame {
-                        replica,
-                        steps,
-                        session: net.session(),
-                        dismissed: self.actions.dismissed(),
-                        now_ms,
-                    },
-                    &mut w,
-                    self.actions.ui(),
-                ),
+                None => {
+                    if let Some(world) = world {
+                        self.source.frame(
+                            SourceFrame {
+                                world: Some(world),
+                                session: net.session(),
+                                dismissed: self.actions.dismissed(),
+                                now_ms,
+                            },
+                            &mut w,
+                            self.actions.ui(),
+                        )
+                    } else if let Some(core) = net.core() {
+                        let extras = self.hud_extras.as_deref().unwrap_or(&self.hud_service);
+                        let extras_revision = extras.revision();
+                        if self.extras_revision != extras_revision {
+                            self.extras_revision = extras_revision;
+                            self.source.extras_changed();
+                        }
+                        if self.world_source.prepare(core, self.actions.ui())
+                            && let Some(world) = core.shown()
+                        {
+                            let ui = self.actions.ui();
+                            let selected = world
+                                .units
+                                .iter()
+                                .find(|u| {
+                                    u.owner == world.human
+                                        && Some(ui2_source::build::entity_key(u.owner, u.id))
+                                            == ui.selection.unit
+                                })
+                                .map(|u| u.id);
+                            let city = world
+                                .cities
+                                .iter()
+                                .find(|c| {
+                                    ui.windows.production.open
+                                        && c.owner == world.human
+                                        && Some(ui2_source::build::entity_key(c.owner, c.id))
+                                            == ui.windows.production.city
+                                })
+                                .map(|c| c.id);
+                            let next = world
+                                .units
+                                .iter()
+                                .filter(|u| {
+                                    u.owner == world.human
+                                        && u.flags.contains(protocol::UnitFlags::NEEDS_ORDERS)
+                                })
+                                .map(|u| u.id);
+                            let focus = client_core::FocusPlan::new(selected, next, city);
+                            core.set_focus(&focus);
+                        }
+                        let revision = self.world_source.revision(core);
+                        let mut reader = self.world_source.reader(core, extras);
+                        let world = reader.as_mut().map(|read| WorldView { revision, read });
+                        self.source.frame(
+                            SourceFrame {
+                                world,
+                                session: core,
+                                dismissed: self.actions.dismissed(),
+                                now_ms,
+                            },
+                            &mut w,
+                            self.actions.ui(),
+                        )
+                    } else {
+                        self.source.frame(
+                            SourceFrame {
+                                world: None,
+                                session: net.session(),
+                                dismissed: self.actions.dismissed(),
+                                now_ms,
+                            },
+                            &mut w,
+                            self.actions.ui(),
+                        )
+                    }
+                }
             }
         };
+        if self.sample.is_none() {
+            let mut errors = Vec::new();
+            let mut w = self.store.writer(Owner::Source);
+            // Closing a window removes its subscription before any late answer is considered.
+            errors.extend(self.remote.frame(
+                now_ms,
+                net.revision(),
+                net.session().connected(),
+                self.actions.ui(),
+                &mut w,
+                |q| net.query(q),
+            ));
+            for event in events {
+                if let ActionEvent::QueryResult { id, answer } = event
+                    && let Some(e) = self.remote.answer(*id, answer, &mut w)
+                {
+                    errors.push(e);
+                }
+            }
+            self.hud_service.update(
+                self.store
+                    .get::<Option<ui2_model::generated::Hud>>()
+                    .and_then(Option::as_ref),
+            );
+            for error in errors {
+                self.actions.screen_error(&error, now_ms);
+            }
+        }
         let source_ms = (now() - t_source) as f32;
         // A sample is a fixed picture: its windows and focus are not judged against a game.
         if self.sample.is_none() {

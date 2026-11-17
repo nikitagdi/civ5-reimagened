@@ -351,7 +351,7 @@ impl Bot {
         };
         let frames = 1 + dup + self.s.knobs.dup_cmds;
         for i in 0..frames {
-            let at = self.send(&ClientMsg::Cmd(cmd))?;
+            let at = self.send(&ClientMsg::Cmd(cmd.clone()))?;
             self.s.ledger.sent(&cmd, at, i > 0);
         }
         Ok(id)
@@ -504,7 +504,7 @@ impl Bot {
         if self.resend_after_attach && self.s.attach.is_some() {
             self.resend_after_attach = false;
             for cmd in self.s.ledger.unanswered() {
-                let at = self.send(&ClientMsg::Cmd(cmd))?;
+                let at = self.send(&ClientMsg::Cmd(cmd.clone()))?;
                 self.s.ledger.sent(&cmd, at, false);
             }
         }

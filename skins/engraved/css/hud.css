@@ -227,6 +227,13 @@
 .res {
   gap: 20px;
   padding: 0 20px;
+  min-width: 0;
+  max-width: 360px;
+  overflow-x: auto;
+}
+
+.res .yield {
+  flex: none;
 }
 
 .res .yield .v {

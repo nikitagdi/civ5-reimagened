@@ -29,6 +29,11 @@ pub enum ActionEvent {
     /// A different game was attached (a new stream of another game, or the old one was left): everything
     /// that belonged to the old one goes.
     NewGame,
+    /// A server query answer, routed to remote roots by the host.
+    QueryResult {
+        id: u32,
+        answer: protocol::QueryAnswer,
+    },
 }
 
 /// What the module remembers about an order it sent.
@@ -203,6 +208,7 @@ impl UiActions {
                     self.state.edit().turn_pending = TurnPending::None;
                 }
             }
+            ActionEvent::QueryResult { .. } => {}
             ActionEvent::NewGame => self.state.new_game(),
         }
     }

@@ -792,7 +792,7 @@ fn cmds_received(n: &Net) -> Vec<Cmd> {
         .log
         .iter()
         .filter_map(|(_, m)| match m {
-            ClientMsg::Cmd(c) => Some(*c),
+            ClientMsg::Cmd(c) => Some(c.clone()),
             _ => None,
         })
         .collect()
@@ -1019,7 +1019,7 @@ fn every_city_queue_order_that_takes_back_our_end_of_turn_says_by_order() {
         assert_eq!(n.core.my_finished(), Some(true), "{cmd:?}");
         n.take_events();
 
-        let id = n.core.order_at(cmd, Some(turn)).expect("accepted");
+        let id = n.core.order_at(cmd.clone(), Some(turn)).expect("accepted");
         n.settle();
         // The answer and the turn state with the end of turn taken back arrive in one batch.
         n.srv.book.held.retain(|h| h.id != id);

@@ -91,6 +91,12 @@ impl UiActions {
         }
     }
 
+    /// Show a remote-screen failure in the ordinary UI error list.
+    pub fn screen_error(&mut self, detail: &str, now_ms: u64) {
+        self.state
+            .toast(ToastKind::Rejected, RefuseWhy::Core, Some(detail), now_ms);
+    }
+
     /// The `ui` root as this module holds it: what the source needs to read (the selection, the windows).
     #[must_use]
     pub fn ui(&self) -> &Ui {
@@ -213,6 +219,7 @@ impl UiActions {
             "map.click" => route::map::click(&mut ctx, intent),
             "production.choose" | "production.replace" | "production.push" | "production.pop"
             | "production.move" | "production.buy" => route::production::run(&mut ctx, intent),
+            "screen.act" => route::screen::run(&mut ctx, intent),
             "research.choose" => route::research::run(&mut ctx, intent),
             "chat.send" => route::chat::send(&mut ctx, intent),
             "note.dismiss" | "note.activate" => route::notes::run(&mut ctx, intent),

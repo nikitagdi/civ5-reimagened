@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use replica::{BuildFlags, City, CityBuild, CityOrder, OrderType, ReadError};
+use crate::read::{BuildFlags, City, CityBuild, CityOrder, OrderType, ReadError};
 use ui2_model::r#gen::{
     CityTurns, Detail, ItemKind, Opt, OptGroup, Pending, ProdNow, Production, QueueRow, WinCity,
 };

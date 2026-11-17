@@ -44,6 +44,8 @@ pub use ui2_actions::ActionEvent;
 pub use ui2_draw::ExtTexture;
 /// The mouse button of a `map.click` (the model's enum, not the platform's).
 pub use ui2_model::generated::MouseButton as MapButton;
+/// Server-built screen roots compiled into this model.
+pub use ui2_model::generated::SCREEN_NAMES;
 /// The game's screens a skin may open (or ask the host for).
 pub use ui2_model::wire::ScreenId;
 /// The intents on the wire, and those of the mods' panels and scripts for their Rust halves.
@@ -56,5 +58,5 @@ pub use ui2_package::profile::action::AnchorKind;
 pub use ui2_package::style::Cursor;
 pub use ui2_runtime::{AssetResolver, Env, ExtImage, InputOutcome, Services};
 pub use ui2_script::{ScriptStats, ScriptStatus, ctx_name};
-pub use ui2_source::ReplicaView;
+pub use ui2_source::WorldView;
 pub use v2::{HostClock, LoadStats, RESOLVE_BUDGET_MS, V2Init, V2Ui};

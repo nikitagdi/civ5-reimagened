@@ -575,8 +575,21 @@ impl ReplicaGame {
     /// into the UI's Lua state, so its scripts read this replica. The state's stack is as before,
     /// also on an error. The replica must stay alive as long as the state calls into it, and be attached again to a new state.
     pub fn attach_lua(&mut self, lua: &lua_sys::Lua) -> Result<(), GameError> {
+        self.game.attach_lua(lua)
+    }
+
+    /// After a snapshot replaced the game, invalidate cached Lua objects.
+    pub fn invalidate_lua(&mut self, lua: &lua_sys::Lua) {
+        self.game.invalidate_lua(lua);
+    }
+}
+
+impl Game {
+    /// Attach the running game's read libraries to a host-owned Lua state. The game must
+    /// outlive all calls through the state. Available in server and replica roles.
+    pub fn attach_lua(&mut self, lua: &lua_sys::Lua) -> Result<(), GameError> {
         // SAFETY: `lua` is a live state of the Lua this build links; the replica outlives its use per the contract above.
-        let r = unsafe { self.game.sys().lua_attach_ui(lua.as_ptr()) };
+        let r = unsafe { self.sys().lua_attach_ui(lua.as_ptr()) };
         crate::flush_cpp_output();
         Ok(r?)
     }
@@ -586,12 +599,14 @@ impl ReplicaGame {
     /// `Players` and `Teams` stay valid.
     pub fn invalidate_lua(&mut self, lua: &lua_sys::Lua) {
         // SAFETY: as in `attach_lua`.
-        if let Err(e) = unsafe { self.game.sys().lua_invalidate_ui(lua.as_ptr()) } {
+        if let Err(e) = unsafe { self.sys().lua_invalidate_ui(lua.as_ptr()) } {
             tracing::warn!("invalidate_lua: {e}");
         }
         crate::flush_cpp_output();
     }
+}
 
+impl ReplicaGame {
     /// Moves the events the engine sent the UI since the last call to `out`, in order (replica role).
     pub fn take_ui_events(&mut self, out: &mut Vec<UiEvent>) {
         let mut raw = Vec::new();

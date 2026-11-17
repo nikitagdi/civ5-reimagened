@@ -3448,9 +3448,12 @@ impl GameActor {
                         );
                         self.answer(player, rejected(id, code, why));
                     }
-                    None => match self.sup.send(ToWorker::Cmd { player, cmd: c }) {
+                    None => match self.sup.send(ToWorker::Cmd {
+                        player,
+                        cmd: c.clone(),
+                    }) {
                         Ok(()) => {
-                            self.rec_order(player, c, RecVerdict::Forwarded);
+                            self.rec_order(player, c.clone(), RecVerdict::Forwarded);
                             stats::bump(&self.info.stats.forwarded);
                             if matches!(c.cmd, protocol::Command::EndTurn { .. }) {
                                 // `g.cmd`: the end of turn arrived -> it is on the worker's pipe.

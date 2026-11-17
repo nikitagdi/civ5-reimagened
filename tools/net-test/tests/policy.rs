@@ -691,7 +691,7 @@ fn orders(sent: &[ClientMsg]) -> Vec<Command> {
     sent.iter()
         .filter_map(|m| {
             if let ClientMsg::Cmd(c) = m {
-                Some(c.cmd)
+                Some(c.cmd.clone())
             } else {
                 None
             }

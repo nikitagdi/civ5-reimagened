@@ -89,6 +89,7 @@ fn m2_boots_makes_the_core_and_waits_for_the_snapshot() {
             seat: 0,
             seat_known: true,
             drain_events: false,
+            replica_needed: true,
         });
         let env = M2Env {
             now_ms: now,

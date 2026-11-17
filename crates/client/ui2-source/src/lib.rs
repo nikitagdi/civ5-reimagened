@@ -1,33 +1,26 @@
-//! UI v2 source: the view-model roots built from the replica's game and the client session.
-//!
-//! [`UiSource::frame`] runs once per frame. It compares the change signals (the replica's state, generation and
-//! last applied batch, the pump's steps; the session's turn state, seats and timer; the UI's selection and open
-//! window) with the previous frame's and rebuilds only the roots a change asks for; with no change it reads
-//! nothing and writes nothing. Roots are written whole through the store's [`ModelWriter`]; the store diffs them.
-//!
-//! What a frame reads from the game is kept until the replica changes ([`Cache`]): a root that a session or UI
-//! change rebuilds reads only what no earlier root of the same game state read.
-//!
-//! Read only by construction: the builders see the game as `&mut dyn replica::GameRead` (typed queries, no
-//! setters, no UI operations) and the session as `&dyn SessionRead` (getters only). [`ReplicaView::of`] is the
-//! one place that touches a [`Replica`], and it only takes its read-only signals and its reader.
+//! Event-driven HUD roots built from the server-synced world and session.
 
 pub mod build;
 pub mod catalog;
 pub mod cost;
+pub mod hud;
 pub mod pending;
 pub mod profile;
+pub mod read;
+pub mod records;
+pub mod remote;
 pub mod session;
 pub mod static_source;
+pub mod testing;
 pub mod trigger;
+pub mod world;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use replica::{
-    CatalogEntry, CatalogTable, City, CityBuild, CityOrder, GameInfo, GameRead, GameSide,
-    Notification, Player, PlayerResource, PolicyBranchState, ReadError, Replica, ReplicaStep,
-    State, TechState, TopBar, Unit, UnitAction,
+use crate::read::{
+    CatalogEntry, CatalogTable, City, CityBuild, CityOrder, GameInfo, GameRead, Notification,
+    Player, PlayerResource, PolicyBranchState, ReadError, TechState, TopBar, Unit, UnitAction,
 };
 use ui2_model::r#gen::{Meta, Turn, Ui};
 use ui2_model::{Key, ModelWriter, Root, Schema};
@@ -60,64 +53,25 @@ fn timed<T>(clock: Clock<'_>, f: impl FnOnce() -> T) -> (T, f64) {
     }
 }
 
-/// The replica as one frame of the source sees it: its change signals and, while it can be read, its reader.
-pub struct ReplicaView<'a> {
-    pub state: State,
-    /// The replica still has journal batches to apply (or no base yet): what it shows is the past.
-    pub catching_up: bool,
-    /// Grows on every snapshot load and resync.
-    pub generation: u64,
-    /// The last journal batch applied.
-    pub applied_jseq: u64,
-    /// The game turn the replica's journal has reached (`Replica::turn`): a batch that ends the turn says so
-    /// before the next turn's snapshot is loaded, so it can be ahead of the game the reader shows. `None`: not
-    /// known.
-    pub turn: Option<i32>,
-    /// The game, read only; `None` when the replica is not live or its engine has no core.
-    pub read: Option<&'a mut dyn GameRead>,
+/// The world revision and its read-only builder input for this frame.
+pub struct WorldView<'a> {
+    pub revision: u64,
+    pub read: &'a mut dyn GameRead,
 }
 
-impl<'a> ReplicaView<'a> {
-    /// The view of a replica: its signals and [`Replica::read`]. Nothing here changes the replica.
-    pub fn of(r: &'a mut Replica) -> ReplicaView<'a> {
-        let state = r.state();
-        let catching_up = GameSide::catching_up(r);
-        let generation = r.generation();
-        let applied_jseq = r.applied_jseq();
-        let turn = Some(r.turn());
-        ReplicaView {
-            state,
-            catching_up,
-            generation,
-            applied_jseq,
-            turn,
-            read: r.read(),
-        }
-    }
-
+impl WorldView<'_> {
     fn seen(&self) -> Seen {
         Seen {
-            state: self.state,
-            catching_up: self.catching_up,
-            generation: self.generation,
-            applied_jseq: self.applied_jseq,
-            turn: self.turn,
+            revision: self.revision,
         }
     }
 }
 
-/// The input of one frame, made by the host after it pumped the replica and applied the UI's intents. `'r` is the
-/// replica's borrow, `'s` the borrow of everything else.
+/// The input of a HUD frame. World reads use the optimistic shown view.
 pub struct SourceFrame<'r, 's> {
-    /// `None`: there is no replica (lobby, another UI).
-    pub replica: Option<ReplicaView<'r>>,
-    /// What the replica's pump did in this frame.
-    pub steps: &'s [ReplicaStep],
-    /// The client session (in the app: the `ClientCore`).
+    pub world: Option<WorldView<'r>>,
     pub session: &'s dyn SessionRead,
-    /// The notifications the player dismissed here (in the app: `UiActions::dismissed`); `notes` leaves them out.
     pub dismissed: &'s BTreeSet<Key>,
-    /// The host's clock, ms: the turn timer is read at this time.
     pub now_ms: u64,
 }
 
@@ -132,16 +86,16 @@ pub struct SourceStats {
     pub spent_us: u32,
     /// The cost units of the reads made ([`cost`]: about µs of the browser build); what the frame budget counts.
     pub spent_units: u32,
-    /// Roots that wait for a later frame (the replica cannot be read yet, the frame's budget is spent, or the
+    /// Roots that wait for a later frame (the world cannot be read yet, the frame's budget is spent, or the
     /// production window still fills its comparison).
     pub deferred: u32,
 }
 
-/// The replica adapter: rebuilds the game-data roots on change triggers.
+/// The world adapter: rebuilds the game-data roots on change triggers.
 pub struct UiSource {
     /// The schema version, as `meta.schema` carries it.
     schema_text: Arc<str>,
-    /// The replica's signals as of the last frame that had a replica.
+    /// The world's signals as of the last frame that had a world.
     seen: Option<Seen>,
     /// The session's signals as of the last frame.
     session: Option<SessionSeen>,
@@ -153,7 +107,7 @@ pub struct UiSource {
     turn: Option<Turn>,
     /// Read once per core, table by table over the first frames that read the game.
     catalog: Catalog,
-    /// The game reads of the current replica state.
+    /// The game reads of the current shown-world revision.
     cache: Cache,
     /// The UI v2 queries the core does not serve: not asked again until [`UiSource::reset`].
     missing: Missing,
@@ -236,7 +190,7 @@ impl UiSource {
     ///
     /// The rules of a frame:
     /// - the roots always on screen ([`Roots::PRIORITY`]: `turn`, `game`, `top`, the selected `unit`) are built
-    ///   first and get all their reads, so a change shows in the frame the replica has it; they cost about a
+    ///   first and get all their reads, so a change shows in the frame the world has it; they cost about a
     ///   tenth of the budget, and what they spent counts against it;
     /// - then the other roots, the longest waiting first, each written whole; a root whose next read does not
     ///   fit in what is left of the budget is not written, waits for the next frame and stops this one (what it
@@ -270,13 +224,21 @@ impl UiSource {
         self.clock = clock;
     }
 
+    /// New asynchronous HUD facts invalidate projection caches while preserving session history.
+    pub fn extras_changed(&mut self) {
+        self.cache = Cache::default();
+        self.missing = Missing::default();
+        self.catalog = Catalog::default();
+        self.pending = self.pending.union(Roots::GAME_DATA);
+    }
+
     /// Takes the core's slow first calls out of the frames. The first call of some reads after a core loads a
     /// game costs far more than the frame budget assumes (the core fills its own caches: the top bar about 11 ms,
     /// the game record 1.4 ms, a unit's actions 1.6 ms, a city's options 4.6 ms). This makes one call of each of
     /// those (for the seat's first unit and first city, if any) and reads the catalog tables not read yet, with
     /// no budget, and keeps only the catalog: the frames then start from warm caches and a ready catalog.
     ///
-    /// For the host: call it once when a game is joined or loaded (the replica live, after
+    /// For the host: call it once when a game is joined or loaded (the world live, after
     /// [`reset`](Self::reset) for a new game), at a moment that may take a few ms more, such as the load
     /// screen; it is never called from [`frame`](Self::frame). It reads only; skipping it changes nothing but the
     /// cost of the first frames. The stats count its reads and their cost units (the table's medians, not the
@@ -322,7 +284,7 @@ impl UiSource {
     /// of the always-shown roots (the game record, the top bar with resources and policies, the selected unit's
     /// actions and promotions in `ui`, the open production window's city), with no budget, and keeps nothing.
     ///
-    /// For the host: call it in the frame whose pump loaded a snapshot (`ReplicaStep::Loaded`/`TurnSwitched`), right
+    /// For the host: call it in the frame whose pump loaded a snapshot (`world revision changes`/`TurnSwitched`), right
     /// after the pump and before [`frame`](Self::frame), as part of the load; never from inside a frame. It reads
     /// only; skipping it changes nothing but the cost of that frame. The [`profile`](Self::profile) has its reads.
     pub fn warm_turn(&mut self, read: &mut dyn GameRead, ui: &Ui) -> SourceStats {
@@ -386,14 +348,13 @@ impl UiSource {
     fn run(&mut self, f: SourceFrame<'_, '_>, w: &mut ModelWriter<'_>, ui: &Ui) -> SourceStats {
         let mut stats = SourceStats::default();
         let SourceFrame {
-            replica,
-            steps,
+            world,
             session,
             dismissed,
             now_ms,
         } = f;
 
-        let seen = replica.as_ref().map(ReplicaView::seen);
+        let seen = world.as_ref().map(WorldView::seen);
         let meta = build::game::meta(&self.schema_text, seen.as_ref(), session.connected());
         if self.meta.as_ref() != Some(&meta) {
             write(w, meta.clone(), &mut stats);
@@ -413,9 +374,13 @@ impl UiSource {
         self.pending = self.pending.union(self.ui.update(ui));
 
         let mut reader = None;
-        if let Some(view) = replica {
+        if world.is_none() && self.seen.take().is_some() {
+            self.pending = self.pending.union(Roots::GAME_DATA);
+            self.cache = Cache::default();
+        }
+        if let Some(view) = world {
             let now = view.seen();
-            let changed = trigger::changes(self.seen.as_ref(), &now, steps);
+            let changed = trigger::changes(self.seen.as_ref(), &now);
             if !changed.is_empty() {
                 // The game changed: what was read of it is stale.
                 self.cache = Cache::default();
@@ -423,15 +388,13 @@ impl UiSource {
             }
             self.pending = self.pending.union(changed);
             self.seen = Some(now);
-            if now.readable() {
-                reader = view.read;
-            }
+            reader = Some(view.read);
         }
         if self.pending.is_empty() {
             return stats;
         }
 
-        // The timer patch reads nothing: it keeps the clock going while the replica cannot be read. When `turn`
+        // The timer patch reads nothing: it keeps the clock going while the world cannot be read. When `turn`
         // is rebuilt in this frame anyway, the rebuild carries the new second.
         if self.pending.contains(Roots::TIMER) {
             self.pending = self.pending.without(Roots::TIMER);
@@ -471,7 +434,6 @@ impl UiSource {
             session,
             now_ms,
             catalog,
-            journal_turn: self.seen.and_then(|s| s.turn),
         };
 
         // The order of the frame (see `set_read_budget`): the roots always on screen first, each with all its reads;
@@ -522,7 +484,7 @@ impl UiSource {
                     None => {}
                 }
             } else if root == Roots::PLAYERS {
-                let r = build::players::players(&mut read);
+                let r = build::players::players(&mut read, session);
                 if let Some(r) = read.settle(r) {
                     write_built(w, r, &mut stats);
                 }

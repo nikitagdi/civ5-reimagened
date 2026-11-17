@@ -6,9 +6,9 @@ mod common;
 
 use common::*;
 use protocol::{Conn, TurnPhase};
-use replica::State;
 use ui2_model::r#gen::{Blocker, Game, Meta, Phase, PlayerRow, Seat, Timer, Turn, TurnUi};
 use ui2_model::{Key, KeyedList, Op};
+use ui2_source::testing::State;
 
 fn turn(rig: &Rig) -> Turn {
     rig.store.get::<Turn>().cloned().expect("turn is written")

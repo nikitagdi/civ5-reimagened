@@ -26,6 +26,8 @@
 // Each of the two callers uses a part of the report.
 #![allow(dead_code)]
 
+mod bridge;
+use bridge::Bridge;
 use std::collections::{BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
 
@@ -43,7 +45,7 @@ use ui2_model::schema::{IntentDef, Scalar, Schema, Type};
 use ui2_model::wire::{ModIdx, Origin, StateOp, WireIntent};
 use ui2_model::{Fragment, Key, KeyedList, ModelStore, Owner, Value};
 use ui2_source::session::testing::FakeSession;
-use ui2_source::{ReplicaView, SourceFrame, UiSource};
+use ui2_source::{SourceFrame, UiSource, WorldView};
 
 /// The fixture: file name (as in its `list.json`) to bytes.
 pub type Files = HashMap<String, Vec<u8>>;
@@ -314,12 +316,13 @@ impl Host {
                 &own
             }
         };
+        let revision = r.generation() * 1_000_000 + r.applied_jseq();
+        let mut read = r.read().map(Bridge);
         let stats = {
             let mut w = self.store.writer(Owner::Source);
             self.src.frame(
                 SourceFrame {
-                    replica: Some(ReplicaView::of(r)),
-                    steps: &[],
+                    world: read.as_mut().map(|read| WorldView { revision, read }),
                     session: &self.session,
                     dismissed: self.actions.dismissed(),
                     now_ms: self.now,
@@ -402,7 +405,7 @@ fn rebuild_all(h: &mut Host, r: &mut Replica, warm: bool) -> Result<(), String> 
         h.src.reset();
         if warm && pass == 0 {
             let read = r.read().ok_or("the replica cannot be read")?;
-            let s = h.src.warm_up(read);
+            let s = h.src.warm_up(&mut Bridge(read));
             h.reads.getter_calls += u64::from(s.getter_calls);
         }
         h.frame(r, None);

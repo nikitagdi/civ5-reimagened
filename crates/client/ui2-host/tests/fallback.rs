@@ -190,8 +190,7 @@ fn a_script_that_fails_while_loading_is_fatal_once_then_classic_without_a_loop()
     );
     let frame = |ui: &mut V2Ui| {
         ui.frame(V2Frame {
-            replica: None,
-            steps: &[],
+            world: None,
             net: None,
             events: &[],
             mods: None,

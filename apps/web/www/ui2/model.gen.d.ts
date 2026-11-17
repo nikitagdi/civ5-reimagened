@@ -21,11 +21,12 @@ export type ProdTab = "all" | "units" | "buildings" | "wonders" | "other";
 export type TurnPending = "none" | "ending" | "cancelling";
 export type ToastKind = "refused" | "rejected" | "lost";
 export type RefuseWhy = "unsupported" | "no_screen" | "no_unit" | "action_unavailable" | "not_your_city" | "option_unavailable" | "cannot_buy" | "bad_slot" | "tech_unavailable" | "cannot_end_turn" | "cannot_cancel" | "chat_empty" | "chat_too_long" | "chat_rate" | "no_connection" | "no_game" | "too_many" | "turn_changed" | "too_big" | "core" | "turn_ended" | "not_your_turn" | "restarting" | "invalid" | "expired" | "not_seated" | "other";
-export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log";
+export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "techs";
 export type ScreenId = "tech_tree" | "policies" | "religion" | "diplomacy" | "overview" | "notification_log" | "economy" | "military" | "victory" | "demographics" | "chat";
 export type MouseButton = "left" | "right";
 export type PushAt = "back" | "front";
 export type BuyWith = "gold" | "faith";
+export type TechsStatus = "researched" | "current" | "available" | "queued" | "locked";
 
 export interface Plot {
   readonly x: number;
@@ -288,12 +289,19 @@ export interface Win {
   readonly open: boolean;
 }
 
+export interface WinArgs {
+  readonly open: boolean;
+  readonly a: number | null;
+  readonly b: number | null;
+}
+
 export interface WinCity {
   readonly open: boolean;
   readonly city: Key | null;
 }
 
 export interface Windows {
+  readonly techs: WinArgs;
   readonly production: WinCity;
   readonly research: Win;
   readonly menu: Win;
@@ -324,6 +332,107 @@ export interface Toast {
   readonly kind: ToastKind;
   readonly why: RefuseWhy;
   readonly detail: string | null;
+}
+
+export interface HudTech {
+  readonly id: number;
+  readonly status: number;
+  readonly queue: number | null;
+  readonly turns: number | null;
+  readonly progress: number;
+  readonly cost: number;
+}
+
+export interface HudResearch {
+  readonly techs: HudTech[];
+}
+
+export interface HudResource {
+  readonly id: number;
+  readonly usage: number;
+  readonly available: number;
+  readonly used: number;
+  readonly total: number;
+}
+
+export interface HudPolicy {
+  readonly id: number;
+  readonly name: Text;
+  readonly type_name: string;
+  readonly unlocked: boolean;
+  readonly owned: number;
+  readonly total: number;
+}
+
+export interface HudTop {
+  readonly resources: HudResource[];
+  readonly policies: HudPolicy[];
+  readonly tourism: number | null;
+}
+
+export interface HudOrder {
+  readonly slot: number;
+  readonly order: number;
+  readonly item: number;
+  readonly turns: number | null;
+  readonly needed: number;
+}
+
+export interface HudBuildReason {
+  readonly id: number;
+  readonly order: number;
+  readonly item: number;
+  readonly reason: Text;
+}
+
+export interface HudCity {
+  readonly id: number;
+  readonly queue: HudOrder[];
+  readonly overflow: number;
+  readonly reasons: HudBuildReason[];
+}
+
+export interface HudPromotion {
+  readonly id: number;
+}
+
+export interface HudAction {
+  readonly id: number;
+  readonly enabled: boolean;
+  readonly reason: Text | null;
+  readonly cost: number | null;
+}
+
+export interface HudUnit {
+  readonly id: number;
+  readonly promotions: HudPromotion[];
+  readonly actions: HudAction[];
+}
+
+export interface TechsPrerequisite {
+  readonly id: number;
+}
+
+export interface TechsUnlock {
+  readonly idx: number;
+  readonly name: Text;
+}
+
+export interface TechsRow {
+  readonly id: number;
+  readonly name: Text;
+  readonly column: number;
+  readonly row: number;
+  readonly status: TechsStatus;
+  readonly cost: number;
+  readonly progress: number;
+  readonly turns: number | null;
+  readonly prerequisites: TechsPrerequisite[];
+  readonly queue_position: number;
+  readonly era: number;
+  readonly era_name: Text;
+  readonly icon: string;
+  readonly unlocks: TechsUnlock[];
 }
 
 export interface Meta {
@@ -440,6 +549,17 @@ export interface Ui {
   readonly errors: Toast[];
 }
 
+export interface Hud {
+  readonly research: HudResearch;
+  readonly top: HudTop;
+  readonly city: HudCity | null;
+  readonly unit: HudUnit | null;
+}
+
+export interface Techs {
+  readonly techs: TechsRow[];
+}
+
 /** The model: one member per root. */
 export interface Model {
   readonly meta: Meta;
@@ -454,6 +574,8 @@ export interface Model {
   readonly chat: ChatRow[];
   readonly production: Production | null;
   readonly ui: Ui;
+  readonly hud: Hud | null;
+  readonly techs: Techs | null;
 }
 
 /** A decoded operation of a frame delta. Values follow the types above. */

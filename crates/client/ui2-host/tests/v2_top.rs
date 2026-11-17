@@ -6,10 +6,11 @@ mod support;
 use std::cell::Cell;
 use std::rc::Rc;
 
-use replica::testing::{FakeRead, catalog_entry};
-use replica::{CatalogTable, ReplicaStep, State};
 use ui2_draw::{Item, LayerId};
-use ui2_host::{Env, ReplicaView, V2Frame, V2FrameReport, V2Init, V2Ui};
+use ui2_host::{Env, V2Frame, V2FrameReport, V2Init, V2Ui, WorldView};
+use ui2_source::read::CatalogTable;
+use ui2_source::testing::Change as ReplicaStep;
+use ui2_source::testing::{FakeRead, catalog_entry};
 use ui2_text::{FaceId, RunStyle, TextEngine};
 
 const MEDIEVAL: i16 = 2;
@@ -90,19 +91,14 @@ impl Rig {
         }
     }
 
-    fn frame(&mut self, steps: &[ReplicaStep]) -> V2FrameReport {
+    fn frame(&mut self, _steps: &[ReplicaStep]) -> V2FrameReport {
         self.now += 16.0;
-        let view = ReplicaView {
-            state: State::Live,
-            catching_up: false,
-            generation: self.generation,
-            applied_jseq: self.jseq,
-            turn: None,
-            read: Some(&mut self.game),
+        let view = WorldView {
+            revision: (self.generation) * 1_000_000 + (self.jseq),
+            read: &mut self.game,
         };
         self.ui.frame(V2Frame {
-            replica: Some(view),
-            steps,
+            world: Some(view),
             net: None,
             events: &[],
             mods: None,
@@ -258,8 +254,7 @@ fn the_host_clock_times_the_load_and_the_frame() {
     .expect("the skin loads");
     assert!(ui.load_stats().build_ms > 0.0);
     let r = ui.frame(V2Frame {
-        replica: None,
-        steps: &[],
+        world: None,
         net: None,
         events: &[],
         mods: None,

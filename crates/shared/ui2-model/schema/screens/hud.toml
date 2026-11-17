@@ -1,0 +1,70 @@
+[type.HudTech]
+id = "i16"
+status = "i8"
+queue = "i16?"
+turns = "i16?"
+progress = "i32"
+cost = "i32"
+
+[type.HudResearch]
+techs = { list = "HudTech", key = "id" }
+
+[type.HudResource]
+id = "i16"
+usage = "i8"
+available = "i32"
+used = "i32"
+total = "i32"
+
+[type.HudPolicy]
+id = "i16"
+name = "text"
+type_name = "str"
+unlocked = "bool"
+owned = "i8"
+total = "i8"
+
+[type.HudTop]
+resources = { list = "HudResource", key = "id" }
+policies = { list = "HudPolicy", key = "id" }
+tourism = "i32?"
+
+[type.HudOrder]
+slot = "i32"
+order = "i8"
+item = "i16"
+turns = "i16?"
+needed = "i32"
+
+[type.HudBuildReason]
+id = "i32"
+order = "i8"
+item = "i16"
+reason = "text"
+
+[type.HudCity]
+id = "i32"
+queue = { list = "HudOrder", key = "slot" }
+overflow = "i32"
+reasons = { list = "HudBuildReason", key = "id" }
+
+[type.HudPromotion]
+id = "i16"
+
+[type.HudAction]
+id = "i16"
+enabled = "bool"
+reason = "text?"
+cost = "i32?"
+
+[type.HudUnit]
+id = "i32"
+promotions = { list = "HudPromotion", key = "id" }
+actions = { list = "HudAction", key = "id" }
+
+[model.hud]
+_optional = true
+research = "HudResearch"
+top = "HudTop"
+city = "HudCity?"
+unit = "HudUnit?"

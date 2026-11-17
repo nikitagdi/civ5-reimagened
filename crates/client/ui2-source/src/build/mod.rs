@@ -1,4 +1,4 @@
-//! Builders of the model roots: plain functions from core records and session facts to generated root structs.
+//! Builders of the model roots: plain functions from HUD input records and session facts to generated root structs.
 
 pub mod chat;
 pub mod game;
@@ -10,7 +10,7 @@ pub mod top;
 pub mod turn;
 pub mod unit;
 
-use replica::OrderType;
+use crate::read::OrderType;
 use ui2_model::Key;
 
 use crate::catalog::Catalog;
@@ -21,8 +21,6 @@ pub(crate) struct Cx<'a> {
     pub session: &'a dyn SessionRead,
     pub now_ms: u64,
     pub catalog: &'a Catalog,
-    /// The turn the replica's journal reached ([crate::ReplicaView::turn]).
-    pub journal_turn: Option<i32>,
 }
 
 /// `part / whole` rounded to 1/1000; 0 when `whole` is not positive.

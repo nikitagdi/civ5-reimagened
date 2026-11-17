@@ -5,7 +5,7 @@ id = "engraved"
 version = "0.1.0"
 title = "skin.title"
 entry = "index.html"
-model = "1.0"
+model = "1.1"
 api = "1.0"
 default = true
 
@@ -34,5 +34,5 @@ files = ["js/production.js"]
 reads = ["production"]
 
 [verify]
-states = ["hud", "hud-timer", "hud-chat", "production", "production-sorted", "research"]
+states = ["hud", "hud-timer", "hud-chat", "production", "production-sorted", "research", "techs"]
 golden = [{ state = "hud", viewport = [1920, 1080], scale = 1.0 }]
