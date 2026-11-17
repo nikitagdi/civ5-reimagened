@@ -69,6 +69,14 @@ export async function run({ server, opts }) {
     await pause(1500);
     check("cold v2 has zero client core loads", (await counters(page))["client.core.loads"] === 0);
 
+    // Research is closed until the first city stands: found it first.
+    const settler = ((await state(page)).units ?? []).find(u => /settler/i.test(u.name));
+    if (!settler) throw new Error("A settler is required");
+    await act(page, { kind: "selectUnit", id: settler.id });
+    await until(page, s => s.selectedUnit === settler.id, 10000, "selected settler");
+    await act(page, { kind: "unitAction", action: FOUND_CITY });
+    await until(page, s => (s.cities?.length ?? 0) > 0, 30000, "founded city");
+
     // Right-click keeps the research window open. The first choice starts research,
     // the second appends without changing the synchronized world's current head.
     if (!await clickPart(page, "top.research.pick")) throw new Error("Choose research button is missing");
@@ -84,13 +92,8 @@ export async function run({ server, opts }) {
     await page.keyboard.press("Escape");
     await waitFor(page, p => !p.ui.windows.includes("research"), "closed research window");
 
-    const settler = ((await state(page)).units ?? []).find(u => /settler/i.test(u.name));
-    if (!settler) throw new Error("A settler is required");
-    await act(page, { kind: "selectUnit", id: settler.id });
-    await until(page, s => s.selectedUnit === settler.id, 10000, "selected settler");
-    await act(page, { kind: "unitAction", action: FOUND_CITY });
-    const cityState = await until(page, s => (s.cities?.length ?? 0) > 0, 30000, "founded city");
-    await act(page, { kind: "openCity", id: cityState.cities[0].id });
+    // The test hook `openCity` drives the old city window; UI v2 opens its production window from the city banner.
+    if (!await clickPart(page, "city-banner")) throw new Error("City banner is missing");
     await waitFor(page, p => texts(p, "production.head").length > 0 && texts(p, "production.list").includes("Worker"), "production window");
     await focusWorker(page);
     if (!await clickPart(page, "production.choose") && !await clickPart(page, "production.build-now")) throw new Error("Production choice button is missing");

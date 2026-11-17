@@ -55,6 +55,8 @@ fn hud_service_returns_seat_scoped_queues_and_executes_alert() {
         0,
     );
     let mut h = common::H::with(worker, outs);
+    // The core closes research until the first city stands, so found it before looking for researchable techs.
+    h.found_city(0);
     let root = query(&mut h, 1, 0, vec![]).expect("global HUD");
     assert!(root.city.is_none() && root.unit.is_none());
     assert!(root.research.techs.len() > 50);
@@ -82,7 +84,6 @@ fn hud_service_returns_seat_scoped_queues_and_executes_alert() {
             CommandOutcome::Applied
         );
     }
-    h.found_city(0);
     let world = h.w.fresh_view(0).unwrap();
     let city = world.cities.iter().find(|c| c.owner == 0).unwrap().id;
     let build = h.pick_build(0, city);

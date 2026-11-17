@@ -1368,6 +1368,10 @@ fn registered_screens_validate_and_research_changes() {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
+    if late.is_none() {
+        // The core closes research until the first city stands.
+        worker.found_city(player);
+    }
     let mut techs = None;
     let filter = std::env::var("CIV5_SCREEN").ok();
     for (screen, _) in game_host::screens::REGISTRY {

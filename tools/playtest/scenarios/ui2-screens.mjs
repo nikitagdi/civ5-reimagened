@@ -1,7 +1,8 @@
 // Remote screen acceptance against a real-core server started with m2/server.ps1.
-import { openPage, act, until, appUrl } from "../lib/browser.mjs";
+import { openPage, act, until, appUrl, state } from "../lib/browser.mjs";
 import { DEV_PASSWORD } from "../lib/game.mjs";
 import { clickPart } from "./ui2-v1.mjs";
+import { FOUND_CITY } from "../lib/policy.mjs";
 
 const texts = (p, part) => (p?.texts ?? []).filter(t => t.part === part).map(t => t.text);
 const probe = page => page.evaluate(() => window.__civ5test.ui2());
@@ -30,6 +31,13 @@ export async function run({ server, opts }) {
     if (first.screen === "login") await act(page, { kind: "login", nick, password: DEV_PASSWORD });
     await until(page, s => s.screen === "play" && s.turn !== null, 90000, "running real game");
     await waitFor(page, p => p?.state === "running" && p.frames > 10, "UI v2");
+    // Research is closed until the first city stands: found it first.
+    const settler = ((await state(page)).units ?? []).find(u => /settler/i.test(u.name));
+    if (!settler) throw new Error("A settler is required");
+    await act(page, { kind: "selectUnit", id: settler.id });
+    await until(page, s => s.selectedUnit === settler.id, 10000, "selected settler");
+    await act(page, { kind: "unitAction", action: FOUND_CITY });
+    await until(page, s => (s.cities?.length ?? 0) > 0, 30000, "founded city");
     if (!await clickPart(page, "top.menu.tech")) throw new Error("technology HUD button is missing");
     const before = await waitFor(page, p => texts(p, "techs.name").length > 50, "server technology catalog");
     check("techs window contains the full real catalog", before.ui.windows.includes("techs"));
@@ -37,7 +45,7 @@ export async function run({ server, opts }) {
     const index = statuses.indexOf("available");
     if (index < 0) throw new Error("no available technology in new game");
     const name = texts(before, "techs.name")[index];
-    const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["techs.row"]));
+    const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["techs.list"])); // the dump covers only the subtree of the first element of a part, so ask for the list that holds all rows
     const byKey = new Map();
     for (const rect of rects) {
       if (!rect.keys || rect.node.includes("#")) continue;
@@ -53,6 +61,12 @@ export async function run({ server, opts }) {
     await page.keyboard.press("Escape");
     await waitFor(page, p => !p.ui.windows.includes("techs"), "Escape closes techs");
     check("Escape closes the registered window", true);
+    // The test hook sends an intent as a skin's click does.
+    await page.evaluate(() => window.__civ5test.ui2Intent({ name: "window.open", args: { window: "techs" } }));
+    await waitFor(page, p => p.ui.windows.includes("techs"), "ui2Intent opens techs");
+    await page.evaluate(() => window.__civ5test.ui2Intent({ name: "window.close", args: { window: "techs" } }));
+    await waitFor(page, p => !p.ui.windows.includes("techs"), "ui2Intent closes techs");
+    check("ui2Intent drives a window like a skin intent", true);
     result.pass = result.checks.every(c => c.pass);
     return result;
   } finally {

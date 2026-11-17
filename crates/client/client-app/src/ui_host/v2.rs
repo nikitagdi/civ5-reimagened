@@ -433,6 +433,41 @@ thread_local! {
     static RECTS_SEQ: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
 }
 
+thread_local! {
+    /// Intents the playtest hook `ui2Intent` queued; the next UI v2 frame applies them.
+    static TEST_INTENTS: RefCell<Vec<ui2_host::WireIntent>> = const { RefCell::new(Vec::new()) };
+}
+
+/// One argument of a hook intent: a whole number, a flag or a text (keys, enum variants and windows are texts).
+#[derive(Debug, Clone, PartialEq)]
+pub enum TestIntentArg {
+    Int(i32),
+    Flag(bool),
+    Text(String),
+}
+
+/// Queues an intent as a skin's markup would send it (the playtest hook `ui2Intent`).
+pub fn push_test_intent(name: &str, args: Vec<(String, TestIntentArg)>) {
+    let args = args
+        .into_iter()
+        .map(|(n, v)| {
+            let v = match v {
+                TestIntentArg::Int(i) => ui2_host::ModelValue::I32(i),
+                TestIntentArg::Flag(b) => ui2_host::ModelValue::Bool(b),
+                TestIntentArg::Text(s) => ui2_host::ModelValue::Str(Arc::from(s)),
+            };
+            (Arc::from(n), v)
+        })
+        .collect();
+    TEST_INTENTS.with(|q| {
+        q.borrow_mut().push(ui2_host::WireIntent {
+            name: Arc::from(name),
+            args,
+            origin: ui2_host::Origin::Script,
+        });
+    });
+}
+
 /// Asks the next UI v2 frame for the rectangles of the elements of `parts` (`data-part` names); the answer comes in
 /// [`V2Probe::rects`] under the returned number.
 pub fn ask_rects(parts: Vec<String>) -> u64 {
@@ -1371,6 +1406,10 @@ impl V2Frontend {
         }
         self.loc = loc;
         ui.set_env(env);
+        // Intents of the playtest hook `ui2Intent`: applied like a skin's, in this frame.
+        for intent in TEST_INTENTS.with(|q| std::mem::take(&mut *q.borrow_mut())) {
+            ui.push_intent(intent);
+        }
         let events = std::mem::take(&mut self.events);
         let mods = self.mods.take();
         self.mod_ui.before_frame(ui);
