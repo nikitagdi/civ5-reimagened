@@ -5,6 +5,7 @@ export async function run({server,opts}) {
   try {
     const page=browser.page;
     if (!await clickPart(page,"tech-panel.toggle")) throw new Error("Lead must include parts/tech_panel.html in the HUD layer");
+    await waitTech(page,p=>texts(p,"tech-panel.choose").length>0 || texts(p,"tech-panel.name").length>0,"expanded research panel");
     if (!await clickPart(page,"tech-panel.choose")) await clickPart(page,"tech-panel.current");
     const root=await waitTech(page,p=>texts(p,"techs.name").length>50,"real technology rows");
     const index=texts(root,"techs.status").indexOf("Available");

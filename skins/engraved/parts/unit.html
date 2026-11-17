@@ -8,6 +8,7 @@
     <div class="info">
       <div class="title" data-part="unit.title">
         <span class="nm" data-bind-value="{{unit.name}}">Bogatyr</span>
+        <button class="unit-panel-rename-button" data-part="unit-panel.rename-open" data-on-click="intent window.open(window: 'unit_rename', a: hud.unit.id)" data-tooltip="unit-rename-tip" data-bind-if="{{hud != null && hud.unit != null}}"><svg class="i"><use href="#i-pencil"/></svg></button>
         <span class="ty" data-bind-value="{{unit.type_name}}">Knight</span>
         <span class="state" data-bind-if="{{unit.activity == 'hold'}}" data-l10n="unit.holding">Holding</span>
         <span class="state" data-bind-if="{{unit.activity == 'sleep'}}" data-l10n="unit.resting">Fortified</span>
@@ -55,14 +56,93 @@
   </div>
 
   <div class="unit-panel-catalog" data-bind-if="{{hud != null && hud.unit != null}}">
-    <button class="unit-panel-rename-button" data-part="unit-panel.rename-open" data-on-click="intent window.open(window: 'unit_rename', a: hud.unit.id)" data-l10n="unit_panel.rename"></button>
-    <span class="unit-panel-xp" data-l10n="unit_panel.xp" data-l10n-args="{{unit.xp}}, {{hud.unit.xp_next}}"></span>
+    <div class="unit-panel-experience"><div class="unit-panel-xp-track"><div class="unit-panel-xp-fill" data-bind-style-width="{{clamp(unit.xp / max(hud.unit.xp_next, 1), 0, 1) * 100}}%"></div></div><span class="unit-panel-xp" data-l10n="unit_panel.xp" data-l10n-args="{{unit.xp}}, {{hud.unit.xp_next}}"></span></div>
     <div class="unit-panel-actions" data-part="unit.actions" data-slot="hud.unit.actions">
-      <button class="unit-panel-action" data-part="unit.act.found-city" data-bind-for="a:{{hud.unit.catalog}}" data-bind-filter="{{a.client == 'found_city'}}" data-bind-hotkey="{{a.hotkey}}" data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}" data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}" data-tooltip="unit-panel-action-tip" data-on-pointerenter="set state.unit_panel.hover = a.id" data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)"><svg class="i" data-bind-if="{{a.promotion}}"><use href="#i-str"/></svg><svg class="i" data-bind-if="{{a.build}}"><use href="#i-worker"/></svg><svg class="i" data-bind-if="{{!a.promotion && !a.build}}"><use href="#i-move"/></svg><span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span><span class="unit-panel-key" data-hotkey-label></span></button>
-      <button class="unit-panel-action" data-part="unit.act.fortify" data-bind-for="a:{{hud.unit.catalog}}" data-bind-filter="{{a.client == 'fortify'}}" data-bind-hotkey="{{a.hotkey}}" data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}" data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}" data-tooltip="unit-panel-action-tip" data-on-pointerenter="set state.unit_panel.hover = a.id" data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)"><svg class="i" data-bind-if="{{a.promotion}}"><use href="#i-str"/></svg><svg class="i" data-bind-if="{{a.build}}"><use href="#i-worker"/></svg><svg class="i" data-bind-if="{{!a.promotion && !a.build}}"><use href="#i-move"/></svg><span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span><span class="unit-panel-key" data-hotkey-label></span></button>
-      <button class="unit-panel-action" data-part="unit.act.sleep" data-bind-for="a:{{hud.unit.catalog}}" data-bind-filter="{{a.client == 'sleep'}}" data-bind-hotkey="{{a.hotkey}}" data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}" data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}" data-tooltip="unit-panel-action-tip" data-on-pointerenter="set state.unit_panel.hover = a.id" data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)"><svg class="i" data-bind-if="{{a.promotion}}"><use href="#i-str"/></svg><svg class="i" data-bind-if="{{a.build}}"><use href="#i-worker"/></svg><svg class="i" data-bind-if="{{!a.promotion && !a.build}}"><use href="#i-move"/></svg><span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span><span class="unit-panel-key" data-hotkey-label></span></button>
-      <button class="unit-panel-action" data-part="unit.act.skip" data-bind-for="a:{{hud.unit.catalog}}" data-bind-filter="{{a.client == 'skip'}}" data-bind-hotkey="{{a.hotkey}}" data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}" data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}" data-tooltip="unit-panel-action-tip" data-on-pointerenter="set state.unit_panel.hover = a.id" data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)"><svg class="i" data-bind-if="{{a.promotion}}"><use href="#i-str"/></svg><svg class="i" data-bind-if="{{a.build}}"><use href="#i-worker"/></svg><svg class="i" data-bind-if="{{!a.promotion && !a.build}}"><use href="#i-move"/></svg><span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span><span class="unit-panel-key" data-hotkey-label></span></button>
-      <button class="unit-panel-action" data-part="unit-panel.action" data-bind-for="a:{{hud.unit.catalog}}" data-bind-filter="{{a.client != 'found_city' && a.client != 'fortify' && a.client != 'sleep' && a.client != 'skip'}}" data-bind-hotkey="{{a.hotkey}}" data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}" data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}" data-tooltip="unit-panel-action-tip" data-on-pointerenter="set state.unit_panel.hover = a.id" data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)"><svg class="i" data-bind-if="{{a.promotion}}"><use href="#i-str"/></svg><svg class="i" data-bind-if="{{a.build}}"><use href="#i-worker"/></svg><svg class="i" data-bind-if="{{!a.promotion && !a.build}}"><use href="#i-move"/></svg><span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span><span class="unit-panel-key" data-hotkey-label></span></button>
+      <button class="unit-panel-action"
+        data-part="unit.act.found-city"
+        data-bind-for="a:{{hud.unit.catalog}}"
+        data-bind-filter="{{a.client == 'found_city'}}"
+        data-bind-hotkey="{{a.hotkey}}"
+        data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}"
+        data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}"
+        data-tooltip="unit-panel-action-tip"
+        data-on-pointerenter="set state.unit_panel.hover = a.id"
+        data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)">
+        <svg class="i"><use href="#i-settler"/></svg>
+        <span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span>
+        <span class="unit-panel-key" data-hotkey-label></span>
+      </button>
+      <button class="unit-panel-action"
+        data-part="unit.act.fortify"
+        data-bind-for="a:{{hud.unit.catalog}}"
+        data-bind-filter="{{a.client == 'fortify'}}"
+        data-bind-hotkey="{{a.hotkey}}"
+        data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}"
+        data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}"
+        data-tooltip="unit-panel-action-tip"
+        data-on-pointerenter="set state.unit_panel.hover = a.id"
+        data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)">
+        <svg class="i"><use href="#i-fortify"/></svg>
+        <span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span>
+        <span class="unit-panel-key" data-hotkey-label></span>
+      </button>
+      <button class="unit-panel-action"
+        data-part="unit.act.sleep"
+        data-bind-for="a:{{hud.unit.catalog}}"
+        data-bind-filter="{{a.client == 'sleep'}}"
+        data-bind-hotkey="{{a.hotkey}}"
+        data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}"
+        data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}"
+        data-tooltip="unit-panel-action-tip"
+        data-on-pointerenter="set state.unit_panel.hover = a.id"
+        data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)">
+        <svg class="i"><use href="#i-sleep"/></svg>
+        <span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span>
+        <span class="unit-panel-key" data-hotkey-label></span>
+      </button>
+      <button class="unit-panel-action"
+        data-part="unit.act.skip"
+        data-bind-for="a:{{hud.unit.catalog}}"
+        data-bind-filter="{{a.client == 'skip'}}"
+        data-bind-hotkey="{{a.hotkey}}"
+        data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}"
+        data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}"
+        data-tooltip="unit-panel-action-tip"
+        data-on-pointerenter="set state.unit_panel.hover = a.id"
+        data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)">
+        <svg class="i"><use href="#i-moves"/></svg>
+        <span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span>
+        <span class="unit-panel-key" data-hotkey-label></span>
+      </button>
+      <button class="unit-panel-action"
+        data-part="unit-panel.action"
+        data-bind-for="a:{{hud.unit.catalog}}"
+        data-bind-filter="{{a.client != 'found_city' && a.client != 'fortify' && a.client != 'sleep' && a.client != 'skip'}}"
+        data-bind-hotkey="{{a.hotkey}}"
+        data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}"
+        data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}"
+        data-tooltip="unit-panel-action-tip"
+        data-on-pointerenter="set state.unit_panel.hover = a.id"
+        data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)">
+        <svg class="i" data-bind-if="{{a.promotion}}"><use href="#i-str"/></svg>
+        <svg class="i" data-bind-if="{{a.build}}"><use href="#i-worker"/></svg>
+        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'move'}}"><use href="#i-move"/></svg>
+        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'range_attack'}}"><use href="#i-bow"/></svg>
+        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'alert'}}"><use href="#i-alert"/></svg>
+        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'heal'}}"><use href="#i-hp"/></svg>
+        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'disband'}}"><use href="#i-del"/></svg>
+        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'upgrade'}}"><use href="#i-upgrade"/></svg>
+        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'explore'}}"><use href="#i-tour"/></svg>
+        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'automate_build'}}"><use href="#i-worker"/></svg>
+        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'pillage'}}"><use href="#i-pillage"/></svg>
+        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'trade_route'}}"><use href="#i-routes"/></svg>
+        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'trade_home'}}"><use href="#i-cities"/></svg>
+        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'admiral_port'}}"><use href="#i-ship"/></svg>
+        <!-- SIMPLIFIED(SIMP-520): Unclassified native catalog entries use the command icon and retain their complete hover help. -->
+        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == ''}}"><use href="#i-move"/></svg>
+        <span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span>
+        <span class="unit-panel-key" data-hotkey-label></span>
+      </button>
     </div>
   </div>
 </section>

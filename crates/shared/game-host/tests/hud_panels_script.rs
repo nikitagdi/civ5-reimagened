@@ -35,12 +35,17 @@ fn end_turn_keeps_native_reason_and_anonymizes_unmet_queue_entries() {
     script()
         .exec(
             r#"
+        Players[1]=setmetatable({IsHuman=function() return false end},{__index=Players[1]})
         local turn = screen.data(3, {}).turn
         assert(turn.blocker_kind == 8 and turn.reason == 'A unit needs orders.')
         assert(#turn.waiting_units == 1 and turn.waiting_units[1].key == '3:4')
         assert(#turn.queue == 2)
         local hidden = turn.queue[1]
         assert(not hidden.known and hidden.name == 'Unknown player' and hidden.team == -1)
+        Players[1].IsHuman=function() return true end
+        for _,entry in ipairs(screen.data(3, {}).turn.queue) do
+            assert(entry.human and entry.name == 'Fixture civilization')
+        end
         hud_busy = true
         assert(#screen.data(3, {}).turn.waiting_units == 0)
     "#,

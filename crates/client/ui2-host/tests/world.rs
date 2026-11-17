@@ -285,6 +285,15 @@ fn default_hud_service_projects_answers_and_refreshes_after_queue_only_orders() 
     assert!(research.known);
     assert_eq!(research.queue.len(), 1);
     assert!(research.next.is_some());
+    // Both a replacement skin and the original runtime get the existing service snapshot.
+    ui.set_skin(support::state_skin("other", "name", None), None)
+        .unwrap();
+    frame(&mut ui, &mut net);
+    assert_eq!(ui.store().get::<Top>().unwrap().tourism, Some(9));
+    ui.set_skin(support::strip(), None).unwrap();
+    frame(&mut ui, &mut net);
+    assert_eq!(ui.store().get::<Top>().unwrap().tourism, Some(9));
+    assert_eq!(ui.store().get::<Research>().unwrap().queue.len(), 1);
     // A successful queue-only command need not produce a world diff.
     let outcome = ui2_actions::ActionEvent::Answered {
         id: 99,

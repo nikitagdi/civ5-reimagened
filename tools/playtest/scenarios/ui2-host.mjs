@@ -90,27 +90,25 @@ function partsOf(probe, prefix) {
  * at the bottom left, the buttons are 56 px wide with 4 px gaps, 16 px in from the panel's edge.
  */
 async function unitPanel(page, numbers, check, shot) {
-  const vp = page.viewportSize() ?? { width: 1600, height: 900 };
-  const cx = vp.width / 2;
-  const cy = vp.height / 2;
-  const spots = [];
-  for (let r = 0; r <= 6; r++) {
-    for (let dy = -r; dy <= r; dy++) {
-      for (let dx = -r; dx <= r; dx++) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) === r) spots.push([cx + dx * 36, cy + dy * 30]);
-      }
-    }
-  }
+  // Select actual flag targets. Broad map probing can open a city screen and hide the HUD.
+  const { partBox } = await import("./ui2-v1.mjs");
   let probe = null;
   let at = null;
-  for (const [x, y] of spots) {
-    await page.mouse.click(x, y);
-    await sleep(250);
-    probe = await ui2(page);
-    if (partsOf(probe, "unit.act.").includes("unit.act.fortify")) {
-      at = [x, y];
-      break;
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["unit-flag"]));
+    for (const box of Array.isArray(rects) ? rects : []) {
+      if (box.w <= 0 || box.h <= 0) continue;
+      await page.mouse.click(box.x + box.w / 2, box.y + box.h / 2);
+      await sleep(500);
+      probe = await ui2(page);
+      if (await partBox(page, "unit.act.fortify")) {
+        at = [box.x + box.w / 2, box.y + box.h / 2];
+        break;
+      }
     }
+    if (at) break;
+    await sleep(250);
   }
   const name = partTexts(probe, "unit.title");
   numbers.unitPanel = { clickedAt: at, title: name, acts: partsOf(probe, "unit.act.") };
@@ -432,6 +430,16 @@ async function skinChange(page, numbers, check) {
   n.back = await change("v2:engraved", "engraved");
   check("back to engraved within 1 s (cached package), the window still open", n.back.skin === "engraved" && n.back.ms !== null && n.back.ms <= 1000 && n.back.windows?.includes("menu"), JSON.stringify(n.back));
   check("back to engraved: its own state is back", n.back.state?.["prod.sort"] === n.before.state?.["prod.sort"] && n.before.state?.["prod.sort"] !== undefined, JSON.stringify({ before: n.before.state, after: n.back.state }));
+  await page.evaluate(() => window.__civ5test.ui2Intent({name: "window.close", args: {window: "menu"}}));
+  const restoredBy = Date.now() + 10000;
+  let restored = null;
+  do {
+    restored = await ui2(page);
+    if (partTexts(restored, "top.yield.gold").length && partTexts(restored, "helm.state").length) break;
+    await sleep(100);
+  } while (Date.now() < restoredBy);
+  check("skin change: HUD texts return after closing the preserved window",
+    partTexts(restored, "top.yield.gold").length > 0 && partTexts(restored, "top.research").length > 0);
   const att1 = await attaches(page);
   check("skin change: the same connection", att0 !== null && att1 === att0, `${att0} -> ${att1}`);
 }

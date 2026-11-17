@@ -132,7 +132,7 @@ impl Runtime {
         let Some(t) = &self.input.tooltip else {
             return false;
         };
-        if !self.arena.contains(t.owner) {
+        if !self.arena.contains(t.owner) || !self.geo().shown(t.owner) {
             self.remove_tooltip();
             return false;
         }

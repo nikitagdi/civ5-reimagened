@@ -20,6 +20,10 @@ fn war_confirmation_rechecks_team_unit_plot_and_stages_cancel() {
       Map={GetPlot=function(x,y) return {IsVisible=function() return true end,GetX=function() return x end,GetY=function() return y end} end}
       local sent,done={},nil
       local net={send=function(...) sent[#sent+1]={...} end,popup_done=function(id) done=id end}
+      for _,rival in ipairs({-1,0,2,99}) do
+          local root=screen.data(0,{a=rival})
+          assert(not root.enabled and type(root.disabled_reason)=='string' and #root.disabled_reason>0)
+      end
       assert(screen.actions.confirm(0,{a=1,b=-1},net).close)
       assert(#sent==1 and sent[1][1]=='sendChangeWar' and sent[1][2]==1 and sent[1][3]==1)
       local args={a=1,b=9,c=4,d=5,popup_id=7,popup={kind='BUTTONPOPUP_DECLAREWARRANGESTRIKE',data1=1,data2=4,data3=5}}

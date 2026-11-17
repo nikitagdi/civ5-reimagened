@@ -1,26 +1,26 @@
 <template id="top-panel-tip" data-layer="tooltip">
-  <div class="tip top-panel-tip" data-part="top-panel.tip" data-bind-if="{{hud != null}}">
+  <div class="tip top-panel-tip" data-part="top-panel.tip"><div data-bind-if="{{hud != null}}">
     <div data-bind-for="t:{{hud.top.tips}}" data-bind-filter="{{t.kind == state.top.hover}}">
       <div class="th" data-bind-value="{{t.title}}"></div><div class="tl" data-bind-if="{{(t.kind == 'science' && !hud.top.science_enabled) || (t.kind == 'culture' && !hud.top.culture_enabled) || (t.kind == 'faith' && !hud.top.faith_enabled)}}" data-l10n="top_panel.disabled"></div>
       <div class="trow" data-bind-for="r:{{t.lines}}"><span class="nm" data-bind-value="{{r.label}}"></span><span class="n" data-bind-value="{{round(r.value * 100) / 100}}"></span></div>
       <div class="trow top-panel-total"><span class="nm" data-l10n="top_panel.total"></span><span class="n" data-bind-value="{{t.total}}"></span></div>
     </div>
   </div>
-</template>
-<template id="top-panel-gp-tip" data-layer="tooltip"><div class="tip top-panel-tip" data-bind-if="{{hud != null && hud.lists.nearest != null}}"><div class="th" data-bind-value="{{hud.lists.nearest.name}}"></div><div class="tl" data-bind-value="{{hud.lists.nearest.city_name}}"></div><div class="trow"><span data-bind-value="{{hud.lists.nearest.progress}}/{{hud.lists.nearest.threshold}}"></span><span data-bind-value="{{fmt.signed(hud.lists.nearest.per_turn)}}"></span><span data-l10n="top.turns" data-l10n-args="{{hud.lists.nearest.turns}}"></span></div></div></template>
+</div></template>
+<template id="top-panel-gp-tip" data-layer="tooltip"><div class="tip top-panel-tip"><div data-bind-if="{{hud != null && hud.lists.nearest != null}}"><div class="th" data-bind-value="{{hud.lists.nearest.name}}"></div><div class="tl" data-bind-value="{{hud.lists.nearest.city_name}}"></div><div class="trow"><span data-bind-value="{{hud.lists.nearest.progress}}/{{hud.lists.nearest.threshold}}"></span><span data-bind-value="{{fmt.signed(hud.lists.nearest.per_turn)}}"></span><span data-l10n="top.turns" data-l10n-args="{{hud.lists.nearest.turns}}"></span></div></div></div></template>
 <template id="minimap-renderer-tip" data-layer="tooltip"><div class="tip top-panel-tip" data-l10n="minimap.renderer_reason"></div></template>
 <template id="minimap-timer-tip" data-layer="tooltip"><div class="tip top-panel-tip" data-l10n="minimap.timer_reason"></div></template>
 <template id="end-turn-tip" data-layer="tooltip">
-  <div class="tip top-panel-tip" data-part="end-turn.tip" data-bind-if="{{hud != null}}">
+  <div class="tip top-panel-tip" data-part="end-turn.tip"><div data-bind-if="{{hud != null}}">
     <div class="th" data-l10n="end_turn.title"></div>
     <div class="tl" data-bind-if="{{hud != null && turn.blocker != null && !turn.finished}}" data-bind-value="{{hud.turn.reason}}"></div>
     <div data-bind-if="{{hud != null && !turn.finished}}"><div class="trow" data-bind-for="u:{{hud.turn.waiting_units}}"><span data-bind-value="{{u.name}}"></span></div></div>
     <div class="tl" data-l10n="end_turn.help"></div>
     <div class="trow" data-bind-for="s:{{turn.seats}}" data-bind-filter="{{!s.finished}}"><span data-bind-for="p:{{hud.turn.queue}}" data-bind-filter="{{p.key == s.player}}" data-bind-value="{{p.name}}"></span><span data-l10n="end_turn.moving"></span></div>
   </div>
-</template>
+</div></template>
 <template id="top-panel-resource-tip" data-layer="tooltip">
-  <div class="tip top-panel-tip" data-part="top-panel.resource-tip" data-bind-if="{{hud != null}}">
+  <div class="tip top-panel-tip" data-part="top-panel.resource-tip"><div data-bind-if="{{hud != null}}">
     <div data-bind-for="r:{{hud.top.resources}}" data-bind-filter="{{r.id == state.top.resource}}">
       <div class="th" data-bind-value="{{r.name}}"></div><div class="tl" data-bind-if="{{!r.revealed}}" data-l10n="top_panel.unrevealed"></div><div class="tl" data-bind-if="{{!r.revealed}}" data-l10n="top_panel.unrevealed"></div>
       <div class="trow" data-bind-if="{{r.revealed}}"><span class="nm" data-l10n="top_panel.available"></span><span class="n" data-bind-value="{{r.available}}"></span></div>
@@ -30,6 +30,6 @@
       <div class="trow" data-bind-if="{{r.revealed}}"><span class="nm" data-l10n="top_panel.exported"></span><span class="n" data-bind-value="{{r.exported}}"></span></div>
     </div>
   </div>
-</template>
+</div></template>
 
-<template id="unit-panel-action-tip" data-layer="tooltip"><div class="tip top-panel-tip" data-part="unit-panel.action-tip" data-bind-if="{{hud != null && hud.unit != null}}"><div data-bind-for="a:{{hud.unit.catalog}}" data-bind-filter="{{a.id == state.unit_panel.hover}}"><div class="th" data-bind-value="{{a.name}}"></div><div class="tl" data-bind-value="{{a.help}}"></div><div class="tl unit-panel-reason" data-bind-value="{{a.reason}}"></div></div></div></template>
+<template id="unit-panel-action-tip" data-layer="tooltip"><div class="tip top-panel-tip" data-part="unit-panel.action-tip"><div data-bind-if="{{hud != null && hud.unit != null}}"><div data-bind-for="a:{{hud.unit.catalog}}" data-bind-filter="{{a.id == state.unit_panel.hover}}"><div class="th" data-bind-value="{{a.name}}"></div><div class="tl" data-bind-value="{{a.help}}"></div><div class="tl unit-panel-reason" data-bind-value="{{a.reason}}"></div></div></div></div></template>

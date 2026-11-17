@@ -1,8 +1,8 @@
 <nav class="unit-lists-corner" data-part="unit-lists.corner">
-  <button data-on-click="call unit_lists.open('tech')" data-l10n="unit_lists.research"></button>
-  <button data-part="unit-lists.units-open" data-on-click="call unit_lists.open('units')" data-l10n="unit_lists.units"></button>
-  <button data-on-click="intent window.open(window: 'city_list')" data-l10n="unit_lists.cities"></button>
-  <button data-part="unit-lists.resources-open" data-on-click="call unit_lists.open('resources')" data-l10n="unit_lists.resources"></button>
-  <button data-part="unit-lists.gp-open" data-on-click="call unit_lists.open('gp')" data-l10n="unit_lists.gp"></button>
-  <button data-on-click="call unit_lists.open('')" data-l10n="unit_lists.close"></button>
+  <button data-part="tech-panel.toggle" data-on-click="call unit_lists.open('tech')" data-tooltip="corner-research-tip"><svg class="i"><use href="#i-tech"/></svg></button>
+  <button data-part="unit-lists.units-open" data-on-click="call unit_lists.open('units')" data-tooltip="corner-units-tip"><svg class="i"><use href="#i-military"/></svg></button>
+  <button data-on-click="intent window.open(window: 'city_list')" data-tooltip="corner-cities-tip"><svg class="i"><use href="#i-cities"/></svg></button>
+  <button data-part="unit-lists.resources-open" data-on-click="call unit_lists.open('resources')" data-tooltip="corner-resources-tip"><svg class="i"><use href="#i-iron"/></svg></button>
+  <button data-part="unit-lists.gp-open" data-on-click="call unit_lists.open('gp')" data-tooltip="corner-gp-tip"><svg class="i"><use href="#i-person"/></svg></button>
+  <button data-on-click="call unit_lists.open('')" data-tooltip="corner-close-tip"><svg class="i"><use href="#i-close"/></svg></button>
 </nav>

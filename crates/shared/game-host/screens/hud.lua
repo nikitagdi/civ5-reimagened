@@ -77,7 +77,7 @@ local function turn_data(player)
     for id = 0, GameDefines.MAX_CIV_PLAYERS - 1 do
         local other = Players[id]
         if other and other:IsAlive() then
-            local known = id == player or met(player, id)
+            local known = id == player or other:IsHuman() or met(player, id)
             local civ = known and GameInfo.Civilizations[other:GetCivilizationType()]
             queue[#queue + 1] = {key = "0:" .. id, team = known and other:GetTeam() or -1,
                 name = civ and L(civ.ShortDescription) or "Unknown player", known = known,
@@ -320,7 +320,7 @@ local function action_catalog(player, unit)
             out[#out + 1] = {id = id, name = plain(L(a.TextKey)), help = a.Help and plain(L(a.Help)) or "", hotkey = action_hotkey(a), enabled = enabled,
                 reason = reason, promotion = a.CommandType == GameInfoTypes.COMMAND_PROMOTION,
                 build = a.MissionType == GameInfoTypes.MISSION_BUILD,
-                client = ({INTERFACEMODE_MOVE_TO="move", INTERFACEMODE_RANGE_ATTACK="range_attack", MISSION_FOUND="found_city", MISSION_FORTIFY="fortify", MISSION_SLEEP="sleep", MISSION_SKIP="skip",
+                client = ({INTERFACEMODE_MOVE_TO="move", INTERFACEMODE_RANGE_ATTACK="range_attack", MISSION_ALERT="alert", MISSION_HEAL="heal", COMMAND_DELETE="disband", COMMAND_UPGRADE="upgrade", AUTOMATE_EXPLORE="explore", AUTOMATE_BUILD="automate_build", MISSION_PILLAGE="pillage", MISSION_FOUND="found_city", MISSION_FORTIFY="fortify", MISSION_SLEEP="sleep", MISSION_SKIP="skip",
                     INTERFACEMODE_ESTABLISH_TRADE_ROUTE="trade_route", MISSION_ESTABLISH_TRADE_ROUTE="trade_route",
                     MISSION_CHANGE_TRADE_UNIT_HOME_CITY="trade_home", MISSION_CHANGE_ADMIRAL_PORT="admiral_port"})[a.Type] or ""}
         end

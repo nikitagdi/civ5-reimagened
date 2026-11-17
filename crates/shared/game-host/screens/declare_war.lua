@@ -42,7 +42,11 @@ local function data(player,args)
         return {kind="declare_war",reason="explicit",enabled=false,disabled_reason="Choose a contacted rival team first.",
             diplomacy=array(),protectors=array(),allied_city_states=array(),deals_from_them=array(),deals_from_you=array(),vote_promises=array(),routes=array()}
     end
-    local team,id,t,reason,popup=context(player,args)
+    local ok,team,id,t,reason,popup=pcall(context,player,args)
+    if not ok then
+        return {kind="declare_war",reason="explicit",enabled=false,disabled_reason=tostring(team):gsub("^.-:%d+: ", ""),
+            diplomacy=array(),protectors=array(),allied_city_states=array(),deals_from_them=array(),deals_from_you=array(),vote_promises=array(),routes=array()}
+    end
     local p,q=Players[player],Players[id]
     local row=person(id)
     row.team,row.is_city_state,row.is_human=team,q:IsMinorCiv(),q:IsHuman()

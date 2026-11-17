@@ -103,7 +103,7 @@
 
   <div class="end-turn-queue" data-part="end-turn.queue" data-bind-if="{{hud != null}}">
     <span class="end-turn-queue-label" data-l10n="end_turn.queue"></span>
-    <div class="end-turn-player" data-bind-for="p:{{hud.turn.queue}}" data-bind-class-toggle="end-turn-active:{{p.active && !p.human}}; end-turn-unknown:{{!p.known}}">
+    <div class="end-turn-player" data-bind-for="p:{{hud.turn.queue}}" data-bind-filter="{{p.human}}" data-bind-class-toggle="end-turn-active:{{p.active && !p.human}}; end-turn-unknown:{{!p.known}}">
       <span class="end-turn-player-name" data-bind-value="{{p.name}}"></span>
       <span class="end-turn-human" data-bind-for="s:{{turn.seats}}" data-bind-filter="{{s.player == p.key}}" data-bind-class-toggle="end-turn-active:{{!s.finished && s.may_act}}"><span class="end-turn-ready" data-bind-if="{{s.finished}}" data-l10n="end_turn.done"></span><span data-bind-if="{{!s.finished}}" data-l10n="end_turn.moving"></span></span>
     </div>

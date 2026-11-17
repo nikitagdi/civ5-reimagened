@@ -12,6 +12,7 @@ struct Subscription {
     last_sent: Option<u64>,
     waiting: Option<u32>,
     dirty: bool,
+    has_root: bool,
 }
 
 #[derive(Default)]
@@ -59,7 +60,10 @@ impl RemoteRoots {
             } if actual == screen && json.len() <= 512 * 1024 => {
                 let json: serde_json::Value = match serde_json::from_str(json) {
                     Ok(v @ serde_json::Value::Object(_)) => v,
-                    _ => return Some(clear_error(writer, screen, "invalid screen JSON object")),
+                    _ => {
+                        subscription.has_root = false;
+                        return Some(clear_error(writer, screen, "invalid screen JSON object"));
+                    }
                 };
                 let sample = serde_json::json!({ "model": { screen: json } }).to_string();
                 Sample::parse(Schema::v1(), &sample)
@@ -72,6 +76,7 @@ impl RemoteRoots {
             QueryAnswer::Error { reason } => Err(reason.clone()),
             _ => Err("unexpected screen response".into()),
         };
+        subscription.has_root = result.is_ok();
         result.err().map(|e| clear_error(writer, screen, &e))
     }
 
@@ -126,16 +131,29 @@ impl RemoteRoots {
             };
             let s = self.subscriptions.entry((*name).into()).or_default();
             if args != s.args {
-                s.args = args;
-                s.dirty = true;
-                if let Err(e) = put(writer, name, &Value::None) {
+                if *name == "hud" && s.has_root {
+                    // Focus changes invalidate only the facts owned by the changed argument.
+                    // Global research, resources, turn state and popup facts remain usable.
+                    for field in ["city", "unit"] {
+                        let previous = s.args.iter().find(|(k, _)| k == field);
+                        let next = args.iter().find(|(k, _)| k == field);
+                        if previous != next
+                            && let Err(e) = writer.set_value(&format!("hud.{field}"), Value::None)
+                        {
+                            errors.push(e.to_string());
+                        }
+                    }
+                } else if let Err(e) = put(writer, name, &Value::None) {
                     errors.push(e);
                 }
+                s.args = args;
+                s.dirty = true;
             }
             if !connected || !self.connected {
                 if let Err(e) = put(writer, name, &Value::None) {
                     errors.push(e);
                 }
+                s.has_root = false;
                 s.waiting = None;
                 s.revision = None;
             }
@@ -143,6 +161,7 @@ impl RemoteRoots {
                 && s.last_sent
                     .is_some_and(|t| now_ms.saturating_sub(t) >= 15_000)
             {
+                s.has_root = false;
                 s.waiting = None;
                 s.revision = None;
                 errors.push(clear_error(writer, name, "screen query timed out"));
@@ -276,22 +295,33 @@ mod tests {
         assert_eq!(remote.subscriptions["hud"].waiting, Some(1));
         let answer = QueryAnswer::Screen {
             screen: "hud".into(),
-            json: "{}".into(),
+            json: r#"{"top":{"tourism":17},"city":{"id":3},"unit":{"id":4},"popup_count":2}"#
+                .into(),
         };
         remote.answer(1, &answer, &mut store.writer(Owner::Source));
         assert!(store.get::<Option<Hud>>().unwrap().is_some());
         ui.selection.city = Some(Key::new(0, 3));
         ui.selection.unit = Some(Key::new(0, 4));
         tick(&mut remote, &mut store, &ui, 249, 1, true);
-        assert!(store.get::<Option<Hud>>().unwrap().is_none());
+        let retained = store.get::<Option<Hud>>().unwrap().as_ref().unwrap();
+        assert_eq!(retained.top.tourism, Some(17));
+        assert_eq!(retained.popup_count, 2);
+        assert!(retained.city.is_none());
+        assert!(retained.unit.is_none());
         tick(&mut remote, &mut store, &ui, 250, 1, true);
         assert_eq!(remote.subscriptions["hud"].waiting, Some(2));
         ui.selection.unit = None;
         tick(&mut remote, &mut store, &ui, 500, 2, true);
         remote.answer(2, &answer, &mut store.writer(Owner::Source));
         assert!(
-            store.get::<Option<Hud>>().unwrap().is_none(),
-            "stale focus is discarded"
+            store
+                .get::<Option<Hud>>()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .unit
+                .is_none(),
+            "stale focus is discarded while shared facts survive"
         );
         tick(&mut remote, &mut store, &ui, 501, 2, true);
         remote.answer(3, &answer, &mut store.writer(Owner::Source));
@@ -324,6 +354,41 @@ mod tests {
                 args: vec![("city".into(), 3)]
             }
         );
+    }
+
+    #[test]
+    fn unit_focus_change_preserves_city_and_global_hud_facts() {
+        use ui2_model::{Key, generated::Hud};
+        let mut remote = RemoteRoots::default();
+        let mut store = ModelStore::new(Schema::v1());
+        let mut ui = Ui::default();
+        ui.selection.city = Some(Key::new(0, 3));
+        ui.selection.unit = Some(Key::new(0, 4));
+        remote.frame(0, 1, true, &ui, &mut store.writer(Owner::Source), |q| {
+            if matches!(q, Query::Screen { screen, .. } if screen == "hud") {
+                1
+            } else {
+                0
+            }
+        });
+        let answer = QueryAnswer::Screen {
+            screen: "hud".into(),
+            json: r#"{"top":{"tourism":17,"resources":[{"id":0,"available":2}]},"research":{"techs":[{"id":1}]},"city":{"id":3},"unit":{"id":4},"popup":{"id":7,"screen":"techs"}}"#.into(),
+        };
+        assert!(
+            remote
+                .answer(1, &answer, &mut store.writer(Owner::Source))
+                .is_none()
+        );
+        let before = store.get::<Option<Hud>>().unwrap().clone().unwrap();
+        ui.selection.unit = Some(Key::new(0, 5));
+        remote.frame(250, 1, true, &ui, &mut store.writer(Owner::Source), |_| 2);
+        let after = store.get::<Option<Hud>>().unwrap().as_ref().unwrap();
+        assert_eq!(after.city, before.city);
+        assert_eq!(after.top, before.top);
+        assert_eq!(after.research, before.research);
+        assert_eq!(after.popup, before.popup);
+        assert!(after.unit.is_none());
     }
 
     #[test]

@@ -1192,3 +1192,5 @@
 "nav.notification-log" = "Notification log (F7)"
 "nav.game-menu" = "Game menu (Ctrl+M)"
 "nav.fold" = "Windows (Alt+W)"
+
+"declare_war.unavailable" = "This rival is unavailable. Choose a living, contacted rival team and try again."

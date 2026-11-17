@@ -18,6 +18,34 @@ export async function run(context) {
       await page.setViewportSize(viewport);
       await page.waitForTimeout(1000);
       const label = `${viewport.width}x${viewport.height}`;
+      const strip = await partBox(page, "top");
+      check(`${label} top strip fits viewport`, strip && strip.x >= 0 && strip.x + strip.w <= viewport.width);
+      check(`${label} science and policies stay directly accessible`,
+        !!await partBox(page, "top.menu.tech") && !!await partBox(page, "top.menu.policies"));
+      if (viewport.width === 1920) {
+        for (const destination of ["religion", "cities", "economy", "military", "diplomacy"]) {
+          check(`${label} ${destination} stays in the strip`, !!await partBox(page, `top.menu.${destination}`));
+        }
+      }
+      check(`${label} empty resources have no dash cells`, !texts(await probe(page), "top.resources").includes("—"));
+      if (process.env.UI2_SHOT) await page.screenshot({ path: `${process.env.UI2_SHOT}-${label}.png` });
+      const flag = await partBox(page, "unit-flag");
+      if (!flag) throw new Error("A visible flag is required for tooltip placement");
+      await page.mouse.move(flag.cx, flag.cy);
+      await waitFor(page, p => texts(p, "on-map.unit-tip").length > 0, "flag tooltip");
+      const tip = await partBox(page, "on-map.unit-tip");
+      check(`${label} flag tooltip stays beside its map node`, tip && Math.abs(tip.x - flag.x) < 300 && Math.abs(tip.y - flag.y) < 250);
+      await page.mouse.move(viewport.width / 2, 4);
+      await page.waitForTimeout(300);
+      check(`${label} flag tooltip closes after hover leaves`, !await partBox(page, "on-map.unit-tip"));
+      const actionBoxes = [];
+      for (const part of ["unit.act.fortify", "unit.act.skip", "unit-panel.action"]) {
+        const boxes = await page.evaluate(part => window.__civ5test.ui2Rects([part]), part);
+        actionBoxes.push(...boxes.filter(box => box.w > 0 && box.h > 0));
+      }
+      check(`${label} unit actions use two compact rows`,
+        actionBoxes.length > 0 && new Set(actionBoxes.map(box => Math.round(box.y))).size === 2
+        && actionBoxes.every(box => box.h <= 44 && box.w <= 60));
       const fold = await partBox(page, "top.menu.fold");
       if (fold && !(await partBox(page, "top.menu.tech"))) {
         await page.keyboard.press("Alt+w");
@@ -36,7 +64,9 @@ export async function run(context) {
         !overlaps(right[0], right[1]) && !overlaps(right[0], right[2]) && !overlaps(right[1], right[2]));
       check(`${label} dial clears minimap`,
         !overlaps(await partBox(page, "helm.dial"), await partBox(page, "helm.minimap")));
+      check(`${label} corner list starts closed`, !await partBox(page, "tech-panel"));
       await clickPart(page, "tech-panel.toggle");
+      await waitFor(page, p => texts(p, "tech-panel.choose").length > 0 || texts(p, "tech-panel.name").length > 0, "expanded research corner");
       const research = await partBox(page, "tech-panel");
       check(`${label} research clears right HUD`, right.every(box => !overlaps(research, box)));
       await clickPart(page, "top.menu.cities");
@@ -53,6 +83,8 @@ export async function run(context) {
       check(`${label} full screen hides HUD panels`, texts(full, "helm.state").length === 0
         && texts(full, "top.yield.science").length === 0 && texts(full, "civ-ribbon.name").length === 0);
       await intent(page, "window.close", {window: "techs"});
+      await waitFor(page, p => !p.ui.windows.includes("techs"), "closed technology window");
+      check(`${label} navigation closes the More menu`, !await partBox(page, "top.menu.victory"));
       for (const window of ["economy", "military", "trade_routes", "espionage", "culture", "victory", "demographics", "congress", "notification_log", "game_menu", "advisor"]) {
         await intent(page, "window.open", { window });
         await waitFor(page, p => p.ui.windows.includes(window), `${window} window`);
@@ -64,6 +96,11 @@ export async function run(context) {
         await waitFor(page, p => !p.ui.windows.includes(window), `closed ${window}`);
       }
 
+      await page.evaluate(() => window.__civ5test.ui2Intent({ name: "window.open", args: { window: "declare_war", a: 999, b: -1 } }));
+      await waitFor(page, p => texts(p, "declare-war.reason").length > 0 || texts(p, "declare-war.unavailable").length > 0, "invalid rival reason");
+      check(`${label} invalid rival has an explanation`, true);
+      await intent(page, "window.close", { window: "declare_war" });
+      await clickPart(page, "tech-panel.toggle");
     }
   });
 }

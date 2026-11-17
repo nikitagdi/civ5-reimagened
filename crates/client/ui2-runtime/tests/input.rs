@@ -1095,6 +1095,35 @@ fn input_modal_screen_takes_hotkeys_tab_and_esc() {
 }
 
 #[test]
+fn input_tooltip_closes_when_its_owner_becomes_hidden_without_pointer_motion() {
+    let mut f = Fx::new();
+    let visible = at(0.0, 0.0, 50.0, 20.0);
+    let hidden = with(visible.clone(), |r| r.display = Display::None);
+    let records = vec![f.kit.record(visible), f.kit.record(hidden)];
+    let set = f.kit.set(
+        vec![Cond {
+            up: 0,
+            kind: CondKind::Active,
+        }],
+        records,
+    );
+    let owner = TNode::el(set).tooltip(TemplateId(1));
+    let hud = f.layer(Layer::Hud, "hud").child(owner);
+    let tips = f.layer(Layer::Tooltip, "tips");
+    f.kit.template("doc", vec![hud, tips]);
+    let tip = f.el("tip-box", at(0.0, 0.0, 80.0, 30.0));
+    f.kit.template("tip", vec![tip]);
+    let mut h = Host::with(f.kit.finish().expect("package"), Env::default());
+    h.ptr(PointerPhase::Move, 10.0, 10.0);
+    h.frame();
+    assert!(h.rt.tooltip().is_some());
+    h.ptr(PointerPhase::Down, 10.0, 10.0);
+    h.frame();
+    assert!(h.rt.tooltip().is_none());
+    assert!(h.rt.dump_rects(Some("tip-box")).is_empty());
+}
+
+#[test]
 fn input_tooltip_shows_under_its_node_while_hovered() {
     let mut h = kb_host(false);
     assert_eq!(h.rt.tooltip(), None);

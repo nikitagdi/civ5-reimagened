@@ -55,4 +55,8 @@
 <symbol id="i-congress" viewBox="0 0 16 16"><path d="M1 14h14M2 6h12L8 2zM3 7v5M6 7v5M10 7v5M13 7v5"/></symbol>
 <symbol id="i-notices" viewBox="0 0 16 16"><path d="M3 2h10v12H3zM5 5h6M5 8h6M5 11h4"/></symbol>
 </defs>
+<symbol id="i-pencil" viewBox="0 0 16 16"><path d="M3 10 11 2l3 3-8 8-4 1zM9 4l3 3"/></symbol>
+<symbol id="i-hex" viewBox="0 0 16 16"><path d="M8 1 14 4.5v7L8 15l-6-3.5v-7z"/></symbol>
+<symbol id="i-settings" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12M5 2v4M11 6v4M6 10v4"/></symbol>
+<symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></symbol>
 </svg>

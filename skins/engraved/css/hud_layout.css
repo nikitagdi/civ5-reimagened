@@ -1,43 +1,89 @@
-/* Shared HUD bounds keep the corner, notifications and turn plate disjoint. */
+/* Shared bounds follow the document order and keep the map between the instruments clear. */
 .helm { width: 424px; height: 450px; }
 .helm .side { width: 176px; }
-.end-turn-queue { max-height: 48px; }
 .chat { left: 580px; bottom: 0; width: 470px; }
-.civ_ribbon-panel { top: 56px; bottom: 458px; width: 240px; pointer-events: auto; }
+.civ_ribbon-panel { top: 56px; bottom: auto; max-height: 566px; width: 240px; pointer-events: auto; }
 .civ_ribbon-panel.civ_ribbon-left { left: 0; right: auto; }
 .civ_ribbon-toggle { position: relative; top: auto; right: auto; bottom: auto; width: auto; height: 32px; pointer-events: auto; }
-.civ_ribbon-panel.civ_ribbon-folded { bottom: auto; }
-.notes { right: 248px; top: 56px; bottom: 458px; width: 330px; }
-.notes .list { width: 330px; max-height: 100%; min-height: 0; flex: 1; overflow-y: auto; scrollbar-width: none; }
-.notes .more { flex: none; }
+.civ_ribbon-corner { flex: none; gap: 4px; padding: 4px; }
+.civ_ribbon-corner button { display: flex; align-items: center; justify-content: center; padding: 4px 8px; border: 1px solid var(--engrave); background: var(--lacquer-2); }
+.civ_ribbon-scroll { flex: 0 1 auto; }
+.civ_ribbon-major { min-height: 48px; gap: 2px 8px; padding: 6px 8px; }
+.civ_ribbon-connection { font-size: 11px; }
+.civ_ribbon-tip { position: absolute; left: 0; top: 0; }
+.notes { right: 248px; top: 56px; bottom: auto; width: 330px; max-height: 566px; gap: 6px; }
+.notes .list { width: 330px; max-height: 510px; min-height: 0; flex: 0 1 auto; overflow-y: auto; scrollbar-width: none; }
+.notes .more, .notification-log-log { flex: none; }
+.notification-log-icon-badge { width: 32px; height: 32px; flex: none; display: flex; align-items: center; justify-content: center; border: 1px solid var(--engrave); border-radius: 16px; }
+.notification-log-card { min-height: 60px; flex: none; background: var(--lacquer); }
+.notification-log-dismiss { width: 24px; height: 24px; font-size: 0; }
+.info-corner { width: 368px; min-height: 40px; max-height: 100%; display: flex; flex-direction: column; gap: 0; background: var(--lacquer); border: 1px solid var(--engrave); pointer-events: auto; }
+.info-corner.info-corner-cities { width: 680px; }
+.unit-lists-corner { width: 100%; border: 0; border-bottom: 1px solid var(--engrave); justify-content: flex-end; gap: 4px; }
+.unit-lists-corner button { display: flex; align-items: center; justify-content: center; width: 32px; height: 30px; border: 1px solid var(--engrave); }
+.unit-lists-corner button:hover { background: var(--lacquer-2); }
 .unit-lists-research { flex: 0 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: none; }
-.unit-lists-column .city_list-panel { position: relative; left: auto; top: auto; order: 1; width: 680px; max-height: 360px; min-height: 120px; flex: 0 1 auto; }
+.unit-lists-column .tech_panel { width: 100%; border: 0; }
+.unit-lists-column .city_list-panel { position: relative; left: auto; top: auto; width: 680px; max-height: 360px; min-height: 120px; flex: 0 1 auto; }
+.unit-lists-panel { width: 100%; border: 0; }
+.unit-lists-cities { width: 100%; min-height: 0; max-height: 168px; flex: 0 1 auto; }
+.unit-lists-ribbon { width: 100%; padding: 4px; border-top: 1px solid var(--engrave); }
 .unit-lists-column .unit { max-height: 420px; overflow-y: auto; scrollbar-width: none; }
-.unit-lists-cities { min-height: 0; }
+.unit-panel-catalog { display: flex; flex-direction: column; gap: 6px; }
+.unit .title { gap: 8px; align-items: center; }
+.unit-panel-rename-button { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 3px; flex: none; border: 1px solid var(--engrave); }
+.unit-panel-experience { display: flex; align-items: center; justify-content: flex-end; gap: 8px; height: 16px; }
+.unit-panel-xp-track { width: 96px; height: 3px; background: var(--engrave); }
+.unit-panel-xp-fill { height: 3px; background: var(--brass); }
+.unit-panel-xp { margin-left: 0; font-size: 11px; }
+.unit-panel-actions { display: grid; grid-template-columns: none; grid-template-rows: repeat(2, 42px); grid-auto-columns: 56px; grid-auto-flow: column; gap: 4px; height: 88px; max-height: 88px; overflow-x: auto; overflow-y: hidden; margin-top: 0; }
+.unit-panel-action { width: auto; height: 42px; min-height: 42px; padding: 6px; align-items: center; justify-content: center; }
+.unit-panel-action-name { display: none; }
+.unit-panel-action .i { width: 20px; height: 20px; }
+.unit-panel-key { position: absolute; right: 3px; top: 1px; font-size: 10px; line-height: 12px; }
+.end-turn-queue { left: 16px; right: 16px; bottom: 168px; height: 48px; max-height: 48px; align-items: flex-start; }
+.end-turn-player { min-height: 22px; max-width: 112px; flex: none; }
+.end-turn-queue-label { line-height: 22px; }
+.minimap-buttons button { display: flex; align-items: center; justify-content: center; height: 32px; padding: 6px; }
 .minimap-top-stack { left: 580px; right: 586px; width: auto; margin-left: 0; }
+.top { min-width: 0; max-width: 100%; }
+.top .research, .top .menus, .top .yields { flex: none; }
+.top .research { width: 304px; }
+.top .res { flex: 0 1 auto; padding: 0 12px; }
+.top-panel-resource-list { gap: 12px; }
+.top .spacer { min-width: 0; }
+.menus.screens { position: relative; gap: 4px; padding: 0 8px; }
+.menus .primary, .menus .secondary { display: flex; gap: 4px; }
+.menus .fold { display: flex; }
+.menus .drop { display: none; }
+.menus.open .drop { position: absolute; left: 0; top: 100%; display: flex; flex-direction: column; gap: 4px; padding: 6px; background: var(--lacquer); border: 1px solid var(--engrave); }
 @media (height < 900px) {
   .helm { width: 404px; height: 404px; }
   .helm .side { width: 196px; }
-  .helm .minimap { width: 332px; height: 116px; }
-  .helm .minimap .mm { width: 332px; height: 116px; }
-  .civ_ribbon-panel, .notes { bottom: 412px; }
-  .unit-lists-column { top: 56px; }
+  .helm .minimap, .helm .minimap .mm { width: 332px; height: 116px; }
+  .civ_ribbon-panel, .notes { bottom: auto; max-height: 300px; }
+  .notes .list { max-height: 252px; }
+  .unit-lists-column { top: 48px; }
+  .info-corner { max-height: 392px; }
+  .unit-lists-cities { max-height: 104px; }
   .minimap-options { max-height: 340px; right: 412px; }
   .unit-lists-column .city_list-panel { max-height: 224px; }
-  .unit-lists-column .unit { max-height: 360px; }
+  .unit-lists-column .unit { max-height: 320px; }
+  .end-turn-queue { bottom: 136px; }
+  .unit-panel-actions { grid-template-rows: repeat(2, 38px); grid-auto-columns: 48px; height: 80px; max-height: 80px; }
+  .unit-panel-action { height: 38px; min-height: 38px; }
 }
 @media (width < 1500px) {
   .chat { left: 452px; bottom: 0; width: 340px; }
   .minimap-top-stack { left: 452px; right: 586px; }
+  .top .research { width: 264px; }
+  .menus .secondary { display: none; }
+  .menus.open .secondary { position: absolute; left: 0; top: 100%; display: flex; flex-direction: column; gap: 4px; padding: 6px; background: var(--lacquer); border: 1px solid var(--engrave); }
+  .menus.open .drop { margin-top: 172px; }
 }
-
 .notes.notes-no-ribbon { right: 0; }
-.notes.notes-ribbon-folded { top: 96px; }
+.notes.notes-ribbon-folded { top: 104px; }
 .unit-lists-column.unit-lists-left-ribbon { left: 248px; }
-.unit-lists-left-ribbon .unit, .unit-lists-left-ribbon .unit-lists-ribbon { left: -248px; position: relative; }
+.unit-lists-left-ribbon .unit { left: -248px; position: relative; }
 .minimap-top-stack.minimap-stack-left-ribbon { left: 936px; right: 338px; }
 @media (width < 1500px) { .minimap-top-stack.minimap-stack-left-ribbon { left: 688px; } }
-
-/* The notification history shares the bounded HUD column. */
-.notification-log-panel { max-height: none; }
-.notification-log-log { flex: none; }
