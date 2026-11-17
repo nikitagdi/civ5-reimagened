@@ -293,6 +293,8 @@ export interface WinArgs {
   readonly open: boolean;
   readonly a: number | null;
   readonly b: number | null;
+  readonly popup_id: number | null;
+  readonly popup_decision: boolean;
 }
 
 export interface WinCity {
@@ -407,6 +409,14 @@ export interface HudUnit {
   readonly id: number;
   readonly promotions: HudPromotion[];
   readonly actions: HudAction[];
+}
+
+export interface HudPopup {
+  readonly id: number;
+  readonly screen: string;
+  readonly a: number | null;
+  readonly b: number | null;
+  readonly decision: boolean;
 }
 
 export interface TechsPrerequisite {
@@ -554,6 +564,8 @@ export interface Hud {
   readonly top: HudTop;
   readonly city: HudCity | null;
   readonly unit: HudUnit | null;
+  readonly popup: HudPopup | null;
+  readonly popup_count: number;
 }
 
 export interface Techs {

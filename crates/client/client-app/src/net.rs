@@ -91,7 +91,7 @@ fn log_event(ev: &ClientEvent) {
             tracing::warn!(?why, "net.stream: the stream is broken, reconnecting")
         }
         ClientEvent::OrderAnswered { id, outcome } => match outcome {
-            O::Applied | O::Queued => {
+            O::Applied | O::ScreenApplied { .. } | O::Queued => {
                 tracing::debug!(id, ?outcome, "cmd.result: the order was answered")
             }
             O::Rejected { .. } | O::Lost => {

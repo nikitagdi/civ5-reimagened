@@ -362,6 +362,15 @@ impl V2Ui {
                 self.actions.screen_error(&error, now_ms);
             }
         }
+        if self.sample.is_none() {
+            let popup = self
+                .store
+                .get::<Option<ui2_model::generated::Hud>>()
+                .and_then(Option::as_ref)
+                .and_then(|hud| hud.popup.clone());
+            self.actions
+                .sync_popup(popup.as_ref(), &mut self.store, net.sink(), now_ms);
+        }
         let source_ms = (now() - t_source) as f32;
         // A sample is a fixed picture: its windows and focus are not judged against a game.
         if self.sample.is_none() {

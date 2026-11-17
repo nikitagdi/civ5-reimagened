@@ -297,6 +297,7 @@ impl Frontend for ClassicFrontend {
                     O::Queued => {}
                     // "Already ended": the turn is ended all the same.
                     O::Applied
+                    | O::ScreenApplied { .. }
                     | O::Rejected {
                         code: RejectCode::TurnEnded,
                         ..

@@ -408,6 +408,7 @@ pub struct RealCore {
     events: Arc<Mutex<Vec<GameEvent>>>,
     /// Events taken from the core's queue and not yet turned into journal entries.
     backlog: Vec<GameEvent>,
+    popups: Vec<crate::popups::CorePopup>,
     /// Wars between humans that extend the timer, not yet reported by `turn`.
     pending_wars: Vec<HumanWar>,
     map: MapInfo,
@@ -457,6 +458,7 @@ impl RealCore {
             build_id,
             events,
             backlog: Vec::new(),
+            popups: Vec::new(),
             pending_wars: Vec::new(),
             map: MapInfo::default(),
             turn: 0,
@@ -525,6 +527,37 @@ impl RealCore {
                 _ => None,
             })
             .collect();
+        for event in &fresh {
+            if let GameEvent::PopupInfo {
+                popup_type,
+                data1,
+                data2,
+                data3,
+                player,
+                text,
+                flag,
+                option1,
+                option2,
+            } = event
+                && let Ok(player) = PlayerId::try_from(*player)
+                && player >= 0
+            {
+                self.popups.push(crate::popups::CorePopup {
+                    player,
+                    popup_type: *popup_type,
+                    popup: crate::popups::Popup {
+                        data1: *data1,
+                        data2: *data2,
+                        data3: *data3,
+                        text: (!text.is_empty()).then(|| text.clone()),
+                        flag: *flag,
+                        option1: *option1,
+                        option2: *option2,
+                        ..Default::default()
+                    },
+                });
+            }
+        }
         self.backlog.extend(fresh);
         if wars.is_empty() {
             return;
@@ -1481,6 +1514,11 @@ impl Core for RealCore {
             .iter()
             .find(|r| r.other == b)
             .is_some_and(|r| r.flags.can_make_peace()))
+    }
+
+    fn popups(&mut self) -> Vec<crate::popups::CorePopup> {
+        self.pull();
+        std::mem::take(&mut self.popups)
     }
 
     fn events(&mut self) -> Vec<CoreEvent> {

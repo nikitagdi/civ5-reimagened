@@ -47,6 +47,7 @@ return {
             assert(tech and not team_of(player):IsHasTech(args.a), "technology is unavailable")
             assert(args.b == nil or args.b == 0 or args.b == 1, "queue flag must be 0 or 1")
             net.send("sendResearch", args.a, 0, -1, args.b or 0)
+            if args.popup_id then net.popup_done(args.popup_id) end
         end,
     },
 }

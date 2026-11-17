@@ -464,7 +464,11 @@ impl<C: Core> Worker<C> {
         let same = if changed { Done::Changed } else { Done::Same };
         match r {
             Ok(()) => {
-                fb.result(player, id, CommandOutcome::Applied);
+                fb.result(
+                    player,
+                    id,
+                    self.screen_effect.take().unwrap_or(CommandOutcome::Applied),
+                );
                 if let Some(seat) = self.seats.get_mut(&player) {
                     seat.applied_upto = Some(id);
                 }

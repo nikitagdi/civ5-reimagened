@@ -319,6 +319,11 @@ pub trait Core {
     /// The core allows white peace between the two players now.
     fn can_make_peace(&mut self, a: PlayerId, b: PlayerId) -> Result<bool, CoreError>;
 
+    /// Drains player popups independently of journal delivery.
+    fn popups(&mut self) -> Vec<crate::popups::CorePopup> {
+        Vec::new()
+    }
+
     /// Drains the core's log since the previous call.
     fn events(&mut self) -> Vec<CoreEvent>;
     /// Digest of the state seen by the team (`-1`: the whole state), for tests and query noise.

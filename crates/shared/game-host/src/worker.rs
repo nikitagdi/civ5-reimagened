@@ -186,6 +186,8 @@ impl Fb {
 pub struct Worker<C: Core> {
     // Drop the interpreter before the core whose objects it references.
     pub(crate) screens: Option<crate::screens::Screens>,
+    pub(crate) popups: crate::popups::Popups,
+    pub(crate) screen_effect: Option<protocol::CommandOutcome>,
     pub(crate) core: C,
     pub(crate) cfg: WorkerConfig,
     pub(crate) game: protocol::GameId,
@@ -287,6 +289,8 @@ impl<C: Core> Worker<C> {
     fn start(core: C, init: WorkerInit, save: Option<Save>, now_ms: u64) -> (Self, Vec<Out>) {
         let mut w = Worker {
             screens: None,
+            popups: Default::default(),
+            screen_effect: None,
             core,
             cfg: init.cfg.clone(),
             game: init.game,
@@ -632,6 +636,23 @@ impl<C: Core> Worker<C> {
 
     /// Moves the events of the core into the journals of the seats.
     pub(crate) fn collect_events(&mut self) {
+        for raw in self.core.popups() {
+            let result = self.screen_runtime().and_then(|runtime| {
+                runtime
+                    .popup_kind(raw.popup_type)
+                    .map_err(|e| e.to_string())
+            });
+            match result {
+                Ok(Some(kind)) => {
+                    let mut popup = raw.popup;
+                    popup.kind = kind;
+                    if let Err(reason) = self.inject_popup(raw.player, popup) {
+                        tracing::error!(%reason, "popup enqueue failed");
+                    }
+                }
+                _ => self.popups.unknown(&format!("enum_{}", raw.popup_type)),
+            }
+        }
         for ev in self.core.events() {
             self.journal_pending
                 .route(ev.to, self.seats.keys().copied(), &ev.entry);
@@ -993,6 +1014,7 @@ impl<C: Core> Worker<C> {
                         reason: "the game is starting".into(),
                     };
                 }
+                self.collect_events();
                 self.screen_data(player, &screen, &args).map_or_else(
                     |reason| QueryAnswer::Error { reason },
                     |json| QueryAnswer::Screen { screen, json },

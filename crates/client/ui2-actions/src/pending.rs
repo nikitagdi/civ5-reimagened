@@ -174,9 +174,44 @@ impl UiActions {
     /// (it goes in the next [`reconcile`](Self::reconcile) once the replica has caught up); a rejection, a loss
     /// or a rollback shows a toast and clears the row at once. Orders the module did not send are ignored.
     pub fn on_event(&mut self, ev: &ActionEvent, now_ms: u64) {
+        self.popup_outcome(ev);
         match ev {
             ActionEvent::Answered { id, outcome } => match outcome {
                 CommandOutcome::Queued => {}
+                CommandOutcome::ScreenApplied {
+                    screen,
+                    open,
+                    close,
+                    popup_done,
+                } => {
+                    if self
+                        .state
+                        .entries
+                        .iter()
+                        .any(|e| e.id == *id && !e.answered)
+                    {
+                        if *close && let Some(w) = self.state.edit().windows.remote_mut(screen) {
+                            w.open = false;
+                        }
+                        if let Some(done) = popup_done
+                            && let Some(popup) = self.popup.as_mut().filter(|p| p.id == *done)
+                        {
+                            popup.finished = true;
+                        }
+                        if let Some(open) = open
+                            && let Some(w) = self.state.edit().windows.remote_mut(&open.screen)
+                        {
+                            w.open = true;
+                            w.a = open.a;
+                            w.b = open.b;
+                            w.popup_id = None;
+                            w.popup_decision = false;
+                        }
+                        if let Some(e) = self.state.entries.iter_mut().find(|e| e.id == *id) {
+                            e.answered = true;
+                        }
+                    }
+                }
                 CommandOutcome::Applied => {
                     if let Some(e) = self.state.entries.iter_mut().find(|e| e.id == *id) {
                         e.answered = true;
@@ -209,7 +244,10 @@ impl UiActions {
                 }
             }
             ActionEvent::QueryResult { .. } => {}
-            ActionEvent::NewGame => self.state.new_game(),
+            ActionEvent::NewGame => {
+                self.clear_popup();
+                self.state.new_game();
+            }
         }
     }
 

@@ -12,8 +12,26 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
     let Some(window) = intent.variant("window").and_then(WindowId::from_u16) else {
         return;
     };
+    if ctx
+        .ui
+        .ui()
+        .windows
+        .remote(window.as_str())
+        .is_some_and(|w| w.open && w.popup_id.is_some() && w.popup_decision)
+    {
+        return;
+    }
     match intent.name() {
         "window.open" => {
+            if ctx
+                .ui
+                .ui()
+                .windows
+                .remote(window.as_str())
+                .is_some_and(|w| w.popup_id.is_some())
+            {
+                return;
+            }
             open(ctx, window, intent.key("city"));
             if let Some(w) = ctx.ui.edit().windows.remote_mut(window.as_str()) {
                 w.a = intent.int("a");

@@ -20,7 +20,9 @@ pub enum Outcome {
 impl Outcome {
     fn of(o: &CommandOutcome) -> Option<Outcome> {
         match o {
-            CommandOutcome::Applied => Some(Outcome::Applied),
+            CommandOutcome::Applied | CommandOutcome::ScreenApplied { .. } => {
+                Some(Outcome::Applied)
+            }
             CommandOutcome::Rejected { code, .. } => Some(Outcome::Rejected(*code)),
             CommandOutcome::Lost => Some(Outcome::Lost),
             CommandOutcome::Queued => None,

@@ -1482,6 +1482,19 @@ fn samples() -> Pins {
             text: Some("New city".into()),
         },
     );
+    p.add(
+        "CommandOutcome::ScreenApplied (v17)",
+        &CommandOutcome::ScreenApplied {
+            screen: "techs".into(),
+            open: Some(ScreenOpen {
+                screen: "techs".into(),
+                a: Some(9),
+                b: None,
+            }),
+            popup_done: Some(12),
+            close: true,
+        },
+    );
     p
 }
 
@@ -1576,12 +1589,17 @@ fn assert_compatible_pin(version: u32, additions: &[&str]) {
 
 #[test]
 fn v14_samples_keep_their_bytes() {
-    assert_compatible_pin(14, &["(v15)", "(v16)"]);
+    assert_compatible_pin(14, &["(v15)", "(v16)", "(v17)"]);
 }
 
 #[test]
 fn v15_samples_keep_their_bytes() {
-    assert_compatible_pin(15, &["(v16)"]);
+    assert_compatible_pin(15, &["(v16)", "(v17)"]);
+}
+
+#[test]
+fn v16_samples_keep_their_bytes() {
+    assert_compatible_pin(16, &["(v17)"]);
 }
 
 /// v14 additions: the terrain share of the mods (mod API 1.2).

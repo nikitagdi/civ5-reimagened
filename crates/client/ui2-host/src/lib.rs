@@ -45,7 +45,7 @@ pub use ui2_draw::ExtTexture;
 /// The mouse button of a `map.click` (the model's enum, not the platform's).
 pub use ui2_model::generated::MouseButton as MapButton;
 /// Server-built screen roots compiled into this model.
-pub use ui2_model::generated::SCREEN_NAMES;
+pub use ui2_model::generated::{Hud, SCREEN_NAMES};
 /// The game's screens a skin may open (or ask the host for).
 pub use ui2_model::wire::ScreenId;
 /// The intents on the wire, and those of the mods' panels and scripts for their Rust halves.

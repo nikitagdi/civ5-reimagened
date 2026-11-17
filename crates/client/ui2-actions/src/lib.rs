@@ -15,6 +15,7 @@
 mod intent;
 mod modintent;
 mod pending;
+mod popups;
 mod reconcile;
 pub mod route;
 mod settings;
@@ -56,6 +57,7 @@ pub struct FormError {
 /// The actions module of one game session.
 pub struct UiActions {
     schema: &'static Schema,
+    popup: Option<popups::PopupSession>,
     state: UiState,
     /// Form errors already reported, by origin (for markup the node) and intent name.
     logged: HashSet<(Origin, Arc<str>)>,
@@ -79,6 +81,7 @@ impl UiActions {
     pub fn new(schema: &'static Schema, device: Box<dyn SettingsStore>) -> UiActions {
         UiActions {
             schema,
+            popup: None,
             state: UiState::new(),
             logged: HashSet::new(),
             form_errors: Vec::new(),

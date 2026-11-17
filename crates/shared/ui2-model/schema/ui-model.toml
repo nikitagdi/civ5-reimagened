@@ -1,4 +1,4 @@
-version = "1.1"
+version = "1.2"
 
 # The UI view model, schema 1.0. Source of the generated Rust types, the path table and the JS typings
 # (`cargo xtask ui gen-model`). A new field, root or enum value is a minor version; removing, renaming or
@@ -255,6 +255,8 @@ open = "bool"
 open = "bool"
 a = "i32?"
 b = "i32?"
+popup_id = "i32?"
+popup_decision = "bool"
 
 [type.WinCity]
 open = "bool"

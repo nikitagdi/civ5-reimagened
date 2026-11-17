@@ -8,6 +8,13 @@ use serde_json::Value as Json;
 const MAX_JSON: usize = 512 * 1024;
 const MAX_MESSAGES: usize = 256;
 
+pub(crate) struct ActionOutput {
+    pub messages: Vec<NetMessage>,
+    pub done: Option<i32>,
+    pub open: Option<protocol::ScreenOpen>,
+    pub close: bool,
+}
+
 pub(crate) struct Screens {
     lua: Lua,
 }
@@ -27,6 +34,8 @@ impl Screens {
     pub fn load(&self) -> lua_sys::Result<()> {
         self.lua
             .exec(include_str!("_lib.lua"), "=screens/_lib.lua")?;
+        let popups: Table = self.lua.load(include_str!("_popups.lua")).eval()?;
+        self.lua.globals().raw_set("__popups", popups)?;
         let registry = self.lua.create_table();
         for (name, source) in super::REGISTRY {
             let screen: Table = self
@@ -38,6 +47,83 @@ impl Screens {
             registry.raw_set(*name, screen)?;
         }
         self.lua.globals().raw_set("__screens", registry)
+    }
+
+    pub fn popup_kind(&self, number: i32) -> lua_sys::Result<Option<String>> {
+        let enums: Table = self.lua.globals().get("ButtonPopupTypes")?;
+        for pair in enums.pairs::<String, LuaValue>() {
+            let (name, value) = pair?;
+            if matches!(value, LuaValue::Number(n) if n == f64::from(number)) {
+                return Ok(Some(name));
+            }
+        }
+        Ok(None)
+    }
+
+    pub fn context(&self, entry: Option<&crate::popups::Entry>) -> lua_sys::Result<()> {
+        let value = match entry {
+            Some(entry) => LuaValue::Table(self.popup_table(&entry.popup, entry.head.id)?),
+            None => LuaValue::Nil,
+        };
+        self.lua.globals().raw_set("__popup", value)
+    }
+
+    fn popup_table(&self, p: &crate::popups::Popup, id: i32) -> lua_sys::Result<Table<'_>> {
+        let t = self.lua.create_table();
+        t.raw_set("id", id)?;
+        t.raw_set("kind", p.kind.as_str())?;
+        t.raw_set("data1", p.data1)?;
+        t.raw_set("data2", p.data2)?;
+        t.raw_set("data3", p.data3)?;
+        t.raw_set("flag", p.flag)?;
+        t.raw_set("option1", p.option1)?;
+        t.raw_set("option2", p.option2)?;
+        if let Some(text) = &p.text {
+            t.raw_set("text", text.as_str())?;
+        }
+        Ok(t)
+    }
+
+    pub fn map_popup(
+        &self,
+        popup: &crate::popups::Popup,
+        id: i32,
+    ) -> lua_sys::Result<Option<crate::popups::PopupHead>> {
+        let mappings: Table = self.lua.globals().raw_get("__popups")?;
+        let LuaValue::Table(mapping) = mappings.raw_get(popup.kind.as_str())? else {
+            return Ok(None);
+        };
+        let screen: String = mapping.get("screen")?;
+        if !screen
+            .as_bytes()
+            .first()
+            .is_some_and(u8::is_ascii_lowercase)
+            || !screen
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+        {
+            return Err(LuaError::msg("invalid popup screen name"));
+        }
+        let payload = self.popup_table(popup, id)?;
+        let argument = |name| -> lua_sys::Result<Option<i32>> {
+            match mapping.raw_get(name)? {
+                LuaValue::Nil => Ok(None),
+                LuaValue::Number(n)
+                    if n.fract() == 0.0 && n >= i32::MIN as f64 && n <= i32::MAX as f64 =>
+                {
+                    Ok(Some(n as i32))
+                }
+                LuaValue::Function(f) => f.call(payload.clone()),
+                _ => Err(LuaError::msg("invalid popup argument expression")),
+            }
+        };
+        Ok(Some(crate::popups::PopupHead {
+            id,
+            screen,
+            a: argument("a")?,
+            b: argument("b")?,
+            decision: mapping.get("decision")?,
+        }))
     }
 
     fn screen(&self, name: &str) -> lua_sys::Result<Table<'_>> {
@@ -61,6 +147,10 @@ impl Screens {
                 return Err(LuaError::msg("invalid or duplicate screen argument"));
             }
             table.raw_set(key.as_str(), *value as f64)?;
+        }
+        if let LuaValue::Table(popup) = self.lua.globals().raw_get("__popup")? {
+            table.raw_set("popup_id", popup.raw_get::<_, i32>("id")?)?;
+            table.raw_set("popup", popup)?;
         }
         Ok(table)
     }
@@ -88,7 +178,7 @@ impl Screens {
         action: &str,
         args: &[(String, i64)],
         text: Option<&str>,
-    ) -> lua_sys::Result<Vec<NetMessage>> {
+    ) -> lua_sys::Result<ActionOutput> {
         if text.is_some_and(|s| s.len() > 256 || s.chars().any(char::is_control)) {
             return Err(LuaError::msg("invalid screen action text"));
         }
@@ -119,8 +209,49 @@ impl Screens {
                     Ok(())
                 }),
         )?;
-        function.call::<_, ()>((i32::from(player), arguments, net))?;
-        let result = messages.borrow().clone();
+        let done = Rc::new(RefCell::new(None));
+        let done_output = Rc::clone(&done);
+        net.raw_set(
+            "popup_done",
+            self.lua.create_function(move |_, id: i32| {
+                if done_output.borrow().is_some() {
+                    return Err(LuaError::msg("popup already finished"));
+                }
+                *done_output.borrow_mut() = Some(id);
+                Ok(())
+            }),
+        )?;
+        let value: LuaValue = function.call((i32::from(player), arguments, net))?;
+        let (open, close) = match value {
+            LuaValue::Nil => (None, false),
+            LuaValue::Table(t) => {
+                let close = t.raw_get::<_, Option<bool>>("close")?.unwrap_or(false);
+                let open = match t.raw_get("open")? {
+                    LuaValue::Nil => None,
+                    LuaValue::Table(o) => {
+                        let screen: String = o.get("screen")?;
+                        self.screen(&screen)?;
+                        if screen == "hud" {
+                            return Err(LuaError::msg("service screen has no window"));
+                        }
+                        Some(protocol::ScreenOpen {
+                            screen,
+                            a: o.raw_get("a")?,
+                            b: o.raw_get("b")?,
+                        })
+                    }
+                    _ => return Err(LuaError::msg("invalid action open result")),
+                };
+                (open, close)
+            }
+            _ => return Err(LuaError::msg("action result must be a table")),
+        };
+        let result = ActionOutput {
+            messages: messages.borrow().clone(),
+            done: *done.borrow(),
+            open,
+            close,
+        };
         self.lua.gc_collect()?;
         Ok(result)
     }
@@ -211,6 +342,81 @@ mod tests {
     }
 
     #[test]
+    fn popup_mapping_names_and_arguments_are_valid() {
+        let r = runtime();
+        let mappings: Table = r.lua.globals().raw_get("__popups").unwrap();
+        for pair in mappings.pairs::<String, Table>() {
+            let (kind, _) = pair.unwrap();
+            assert!(kind.starts_with("BUTTONPOPUP_"));
+            let popup = crate::popups::Popup {
+                kind,
+                data1: 3,
+                data2: 4,
+                data3: 5,
+                ..Default::default()
+            };
+            let head = r.map_popup(&popup, 7).unwrap().unwrap();
+            assert!(!head.screen.is_empty());
+        }
+        let popup = crate::popups::Popup {
+            kind: "BUTTONPOPUP_TECH_AWARD".into(),
+            data3: 5,
+            ..Default::default()
+        };
+        assert_eq!(r.map_popup(&popup, 7).unwrap().unwrap().a, Some(5));
+        assert!(
+            r.map_popup(&crate::popups::Popup::default(), 8)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn actions_return_transitions_and_stage_popup_completion() {
+        let r = runtime();
+        r.lua
+            .exec(
+                r#"
+            __screens.test.actions.next = function(player, args, net)
+                net.popup_done(9)
+                net.send("sendResearch", 3, 0, -1, 0)
+                return {open = {screen = "techs", a = 2, b = 3}, close = true}
+            end
+            __screens.test.actions.invalid = function(player, args, net)
+                net.popup_done(9)
+                return {open = {screen = "missing"}}
+            end
+            __screens.test.actions.fail_done = function(player, args, net)
+                net.popup_done(9)
+                error("discard staged completion")
+            end
+        "#,
+                "=transitions",
+            )
+            .unwrap();
+        let result = r.action(0, "test", "next", &[], None).unwrap();
+        assert_eq!(result.done, Some(9));
+        assert!(result.close);
+        assert_eq!(
+            result.open,
+            Some(protocol::ScreenOpen {
+                screen: "techs".into(),
+                a: Some(2),
+                b: Some(3)
+            })
+        );
+        assert_eq!(result.messages.len(), 1);
+        assert!(r.action(0, "test", "invalid", &[], None).is_err());
+        assert!(r.action(0, "test", "fail_done", &[], None).is_err());
+        let result = r
+            .action(0, "test", "research", &[("a".into(), 3)], None)
+            .unwrap();
+        assert_eq!(result.done, None);
+        assert!(!result.close);
+        assert_eq!(result.open, None);
+    }
+
+    #[test]
     fn data_and_messages_keep_the_explicit_seat_and_arguments() {
         let r = runtime();
         let json: Json =
@@ -226,7 +432,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(
-            messages,
+            messages.messages,
             vec![NetMessage::new("sendResearch", &[12, 0, -1, 1]).unwrap()]
         );
         assert!(r.action(3, "test", "forbidden", &[], None).is_err());
@@ -234,6 +440,7 @@ mod tests {
         assert_eq!(
             r.action(3, "test", "research", &[("a".into(), 2)], None)
                 .unwrap()
+                .messages
                 .len(),
             1
         );
@@ -365,12 +572,14 @@ mod tests {
         assert_eq!(hud.unit.as_ref().unwrap().promotions.len(), 1);
         assert_eq!(
             r.action(3, "hud", "alert", &[("a".into(), 4)], None)
-                .unwrap(),
+                .unwrap()
+                .messages,
             [NetMessage::new("sendPushMission", &[4, 10, 0, 0, 0, 0]).unwrap()]
         );
         assert_eq!(
             r.action(3, "hud", "upgrade", &[("a".into(), 4)], None)
-                .unwrap(),
+                .unwrap()
+                .messages,
             [NetMessage::new("sendDoCommand", &[4, 12, 0, 0, 0]).unwrap()]
         );
         assert!(

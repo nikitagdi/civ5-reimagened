@@ -232,7 +232,30 @@ fn run_game<C: Core>(
     // From here every call of the core thread is watched: heartbeats while one runs long (`watch.rs`).
     let watch = Watch::spawn(game, out.queue(), PACE, watch::budget_from_env()).with_record(record);
     worker.set_trace_level(turntrace::Level::from_env());
+    // Opt-in acceptance fixture, scoped to a numeric seat. No client can enable it.
+    let mut popup_fixture = std::env::var("CIV5_TEST_POPUPS")
+        .ok()
+        .and_then(|v| v.parse::<i8>().ok());
     loop {
+        if worker.phase().1 == protocol::TurnPhase::Humans
+            && let Some(player) = popup_fixture.take()
+        {
+            for kind in [
+                "BUTTONPOPUP_TECH_TREE",
+                "BUTTONPOPUP_CHOOSETECH",
+                "BUTTONPOPUP_TECH_TREE",
+            ] {
+                if let Err(reason) = worker.inject_popup(
+                    player,
+                    game_host::popups::Popup {
+                        kind: kind.into(),
+                        ..Default::default()
+                    },
+                ) {
+                    tracing::error!(%reason, "popup acceptance fixture failed");
+                }
+            }
+        }
         let input = if worker.wants_step() {
             match rx.try_recv() {
                 Ok(input) => Some(input),

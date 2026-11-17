@@ -752,6 +752,8 @@ fn ui2_json(p: &client_app::V2Probe) -> Value {
         "reload": p.reload.as_ref().map(|r| json!({ "rev": r.rev, "appliedAt": r.applied_at, "skin": r.skin })),
         "ui": {
             "windows": p.windows,
+            "popup": p.popup,
+            "popup_count": p.popup_count,
             "state": p.skin_state.iter().cloned().collect::<serde_json::Map<String, Value>>(),
         },
         "texts": texts,

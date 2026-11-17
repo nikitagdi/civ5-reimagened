@@ -11,10 +11,13 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
         ctx.refuse(RefuseWhy::NoScreen);
         return;
     }
-    let args = ["a", "b", "c", "d"]
+    let mut args: Vec<_> = ["a", "b", "c", "d"]
         .into_iter()
         .filter_map(|name| intent.int(name).map(|n| (name.to_owned(), i64::from(n))))
         .collect();
+    if let Some(id) = ctx.ui.ui().windows.remote(screen).and_then(|w| w.popup_id) {
+        args.push(("popup_id".into(), i64::from(id)));
+    }
     ctx.send(
         Command::ScreenAction {
             screen: screen.to_owned(),

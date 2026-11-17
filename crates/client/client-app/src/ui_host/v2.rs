@@ -339,6 +339,9 @@ pub struct V2Probe {
     /// The game windows open in the UI's own state (`ui.windows.*`): `production`, `research`, `menu`, `chat`,
     /// `notes_log`.
     pub windows: Vec<&'static str>,
+    /// Seat popup head and queue length for acceptance checks, without payload text.
+    pub popup: Option<serde_json::Value>,
+    pub popup_count: i32,
     /// The skin's own state: each declared path (without `state.`) and its value as JSON.
     pub skin_state: Vec<(String, serde_json::Value)>,
     /// The skin changes and hot reloads done on the screen: how many, the last one's package hash and when it was
@@ -1410,6 +1413,12 @@ impl V2Frontend {
             let (panels, scripts) = probe_parts(ui);
             let rects = answer_rects(ui);
             let windows = probe_windows(ui);
+            let hud = ui
+                .store()
+                .get::<Option<ui2_host::Hud>>()
+                .and_then(Option::as_ref);
+            let popup = hud.and_then(|h| h.popup.as_ref()).map(|p| serde_json::json!({"id": p.id, "screen": p.screen.as_ref(), "a": p.a, "b": p.b, "decision": p.decision}));
+            let popup_count = hud.map_or(0, |h| h.popup_count);
             let skin_state = ui
                 .skin_state()
                 .iter()
@@ -1433,6 +1442,8 @@ impl V2Frontend {
                         p.rects = rects;
                     }
                     p.windows = windows;
+                    p.popup = popup;
+                    p.popup_count = popup_count;
                     p.skin_state = skin_state;
                     p.reload = reload;
                 }

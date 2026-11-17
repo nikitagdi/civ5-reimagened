@@ -314,3 +314,48 @@ fn default_hud_service_projects_answers_and_refreshes_after_queue_only_orders() 
             .is_none()
     );
 }
+
+#[test]
+fn popup_hud_answer_opens_a_window_and_close_sends_a_numbered_dismissal() {
+    let (mut net, mut ui) = setup();
+    net.settle();
+    let query = net
+        .srv
+        .log
+        .iter()
+        .find_map(|(_, msg)| match msg {
+            ClientMsg::Query {
+                id,
+                q: Query::Screen { screen, .. },
+            } if screen == "hud" => Some(*id),
+            _ => None,
+        })
+        .unwrap();
+    let event = ui2_actions::ActionEvent::QueryResult {
+        id: query,
+        answer: QueryAnswer::Screen { screen: "hud".into(), json: r#"{"popup":{"id":7,"screen":"techs","a":2,"b":3,"decision":false},"popup_count":2}"#.into() },
+    };
+    ui.frame(V2Frame {
+        world: None,
+        net: Some(&mut NetSink::new(&mut net.core)),
+        events: &[event],
+        mods: None,
+        now_ms: 1100.0,
+    });
+    assert!(ui.actions().ui().windows.techs.open);
+    assert_eq!(ui.actions().ui().windows.techs.popup_id, Some(7));
+    frame(&mut ui, &mut net);
+    net.settle();
+    assert!(net.srv.log.iter().any(|(_, msg)| matches!(msg, ClientMsg::Query { q: Query::Screen {screen, args}, .. } if screen == "techs" && args.contains(&("popup_id".into(), 7)))));
+    ui.push_intent(intent(
+        "window.close",
+        vec![("window", Value::Str("techs".into()))],
+    ));
+    frame(&mut ui, &mut net);
+    net.settle();
+    assert!(!ui.actions().ui().windows.techs.open);
+    assert!(net.srv.log.iter().any(|(_, msg)| matches!(msg, ClientMsg::Cmd(cmd) if matches!(&cmd.cmd, protocol::Command::ScreenAction { screen, action, args, .. } if screen == "hud" && action == "popup_done" && args == &vec![("a".into(), 7)]))));
+    ui.reset_source();
+    frame(&mut ui, &mut net);
+    assert_eq!(ui.actions().ui().windows.techs.popup_id, None);
+}

@@ -555,7 +555,9 @@ fn rejected(id: CmdId, code: RejectCode, reason: &str) -> CommandResult {
 
 fn count_result(stats: &GameStats, r: &CommandResult) {
     match &r.outcome {
-        CommandOutcome::Applied => stats::bump(&stats.applied),
+        CommandOutcome::Applied | CommandOutcome::ScreenApplied { .. } => {
+            stats::bump(&stats.applied)
+        }
         CommandOutcome::Queued => stats::bump(&stats.queued),
         CommandOutcome::Lost => stats::bump(&stats.lost),
         CommandOutcome::Rejected { code, .. } => {
@@ -2395,7 +2397,9 @@ impl GameActor {
     fn note_result(&mut self, player: PlayerId, r: &CommandResult) {
         if self.info.rec.is_on() {
             let (outcome, code, reason) = match &r.outcome {
-                CommandOutcome::Applied => ("Applied", None, None),
+                CommandOutcome::Applied | CommandOutcome::ScreenApplied { .. } => {
+                    ("Applied", None, None)
+                }
                 CommandOutcome::Queued => ("Queued", None, None),
                 CommandOutcome::Lost => ("Lost", None, None),
                 CommandOutcome::Rejected { code, reason } => {
@@ -2424,7 +2428,7 @@ impl GameActor {
             );
         }
         let outcome = match &r.outcome {
-            CommandOutcome::Applied => "Applied".to_owned(),
+            CommandOutcome::Applied | CommandOutcome::ScreenApplied { .. } => "Applied".to_owned(),
             CommandOutcome::Lost => "Lost".to_owned(),
             CommandOutcome::Rejected { code, .. } => format!("Rejected:{code:?}"),
             CommandOutcome::Queued => return,

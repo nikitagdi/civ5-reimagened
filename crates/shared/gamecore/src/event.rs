@@ -200,6 +200,9 @@ pub enum GameEvent {
     },
     /// `GC_EVENT_POPUP_INFO`: ruins, natural wonder, golden age ...
     PopupInfo {
+        flag: i32,
+        option1: bool,
+        option2: bool,
         popup_type: i32,
         data1: i32,
         data2: i32,
@@ -323,13 +326,19 @@ impl GameEvent {
                     text: text(),
                 }
             }
-            (ffi::GC_EVENT_POPUP_INFO, &[popup_type, data1, data2, data3, player]) => {
+            (ffi::GC_EVENT_POPUP_INFO, [popup_type, data1, data2, data3, player, rest @ ..])
+                if rest.is_empty() || rest.len() == 3 =>
+            {
                 GameEvent::PopupInfo {
-                    popup_type,
-                    data1,
-                    data2,
-                    data3,
-                    player,
+                    popup_type: *popup_type,
+                    data1: *data1,
+                    data2: *data2,
+                    data3: *data3,
+                    player: *player,
+                    // SIMPLIFIED(SIMP-410): older native events omit flags and options.
+                    flag: rest.first().copied().unwrap_or(0),
+                    option1: rest.get(1).is_some_and(|v| *v != 0),
+                    option2: rest.get(2).is_some_and(|v| *v != 0),
                     text: text(),
                 }
             }
@@ -486,6 +495,9 @@ mod tests {
         assert_eq!(
             t(7, &[1, 2, 3, 4, 5]),
             GameEvent::PopupInfo {
+                flag: 0,
+                option1: false,
+                option2: false,
                 popup_type: 1,
                 data1: 2,
                 data2: 3,
@@ -494,6 +506,15 @@ mod tests {
                 text: "x".into()
             }
         );
+        assert!(matches!(
+            t(7, &[1, 2, 3, 4, 5, 6, 1, 0]),
+            GameEvent::PopupInfo {
+                flag: 6,
+                option1: true,
+                option2: false,
+                ..
+            }
+        ));
         assert_eq!(
             t(10, &[1, 2, 0]),
             GameEvent::WarState {

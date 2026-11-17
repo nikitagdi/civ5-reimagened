@@ -148,6 +148,20 @@ pub enum CommandOutcome {
     Queued,
     /// The order was not applied: the worker died before it.
     Lost,
+    /// A successful screen action with window transitions.
+    ScreenApplied {
+        screen: String,
+        open: Option<ScreenOpen>,
+        popup_done: Option<i32>,
+        close: bool,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScreenOpen {
+    pub screen: String,
+    pub a: Option<i32>,
+    pub b: Option<i32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

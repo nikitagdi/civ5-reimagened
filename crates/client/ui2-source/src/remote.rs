@@ -106,10 +106,14 @@ impl RemoteRoots {
                     })
                     .collect::<Vec<_>>()
             } else if let Some(window) = ui.windows.remote(name).filter(|w| w.open) {
-                [("a", window.a), ("b", window.b)]
-                    .into_iter()
-                    .filter_map(|(k, v)| v.map(|v| (k.into(), i64::from(v))))
-                    .collect::<Vec<_>>()
+                [
+                    ("a", window.a),
+                    ("b", window.b),
+                    ("popup_id", window.popup_id),
+                ]
+                .into_iter()
+                .filter_map(|(k, v)| v.map(|v| (k.into(), i64::from(v))))
+                .collect::<Vec<_>>()
             } else {
                 if self.subscriptions.remove(*name).is_some()
                     && let Err(e) = put(writer, name, &Value::None)
@@ -143,7 +147,7 @@ impl RemoteRoots {
             }
             if connected
                 && s.waiting.is_none()
-                && (s.dirty || s.revision != Some(revision))
+                && (*name == "hud" || s.dirty || s.revision != Some(revision))
                 && s.last_sent.is_none_or(|t| now_ms.saturating_sub(t) >= 250)
             {
                 let id = query(Query::Screen {

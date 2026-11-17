@@ -414,8 +414,8 @@ mod tests {
     }
 
     #[test]
-    fn protocol_version_is_16() {
-        assert_eq!(PROTOCOL_VERSION, 16);
+    fn protocol_version_is_17() {
+        assert_eq!(PROTOCOL_VERSION, 17);
     }
 
     /// New ClientMsg variants keep tags 2..=5 (after Hello = 0, Ping = 1).

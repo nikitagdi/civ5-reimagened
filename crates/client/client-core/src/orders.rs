@@ -135,7 +135,9 @@ impl Orders {
         }
         let text = rollback_text(&r.outcome);
         match &r.outcome {
-            CommandOutcome::Applied => stats.orders_applied += 1,
+            CommandOutcome::Applied | CommandOutcome::ScreenApplied { .. } => {
+                stats.orders_applied += 1
+            }
             CommandOutcome::Lost => stats.orders_lost += 1,
             CommandOutcome::Rejected {
                 code: RejectCode::Expired,
@@ -203,7 +205,9 @@ pub(crate) fn query_kind(q: &Query) -> &'static str {
 /// `Expired` and `Lost` are told plainly: after a reconnect the result of an expired order is unknown.
 pub(crate) fn rollback_text(outcome: &CommandOutcome) -> Option<String> {
     let text = match outcome {
-        CommandOutcome::Applied | CommandOutcome::Queued => return None,
+        CommandOutcome::Applied | CommandOutcome::ScreenApplied { .. } | CommandOutcome::Queued => {
+            return None;
+        }
         CommandOutcome::Lost => "The server restarted before it applied the order".to_string(),
         CommandOutcome::Rejected { code, reason } => match code {
             RejectCode::Core if reason.is_empty() => "The order was refused".to_string(),

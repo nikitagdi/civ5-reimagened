@@ -2,9 +2,9 @@
 //! Generated model types: one struct per root and type, one enum per enum.
 
 /// Schema version this file was generated from.
-pub const SCHEMA_VERSION: (u16, u16) = (1, 1);
+pub const SCHEMA_VERSION: (u16, u16) = (1, 2);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x861afcd87ed44c0a;
+pub const SCHEMA_HASH: u64 = 0xb26eba5b06cfdb67;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -3509,6 +3509,8 @@ pub struct WinArgs {
     pub open: bool,
     pub a: Option<i32>,
     pub b: Option<i32>,
+    pub popup_id: Option<i32>,
+    pub popup_decision: bool,
 }
 
 impl crate::model::Model for WinArgs {
@@ -3520,6 +3522,10 @@ impl crate::model::Model for WinArgs {
         crate::model::Model::diff(&self.a, &old.a, at, out);
         at.field = base.child(2);
         crate::model::Model::diff(&self.b, &old.b, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.popup_id, &old.popup_id, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.popup_decision, &old.popup_decision, at, out);
         at.field = base;
     }
 
@@ -3528,15 +3534,19 @@ impl crate::model::Model for WinArgs {
             crate::model::Model::to_value(&self.open),
             crate::model::Model::to_value(&self.a),
             crate::model::Model::to_value(&self.b),
+            crate::model::Model::to_value(&self.popup_id),
+            crate::model::Model::to_value(&self.popup_decision),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(3)?;
+        let f = v.as_struct(5)?;
         Ok(WinArgs {
             open: crate::model::Model::from_value(&f[0])?,
             a: crate::model::Model::from_value(&f[1])?,
             b: crate::model::Model::from_value(&f[2])?,
+            popup_id: crate::model::Model::from_value(&f[3])?,
+            popup_decision: crate::model::Model::from_value(&f[4])?,
         })
     }
 }
@@ -3588,15 +3598,15 @@ impl crate::model::Model for Windows {
         let base = at.field;
         at.field = base.child(0);
         crate::model::Model::diff(&self.techs, &old.techs, at, out);
-        at.field = base.child(4);
+        at.field = base.child(6);
         crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(7);
-        crate::model::Model::diff(&self.research, &old.research, at, out);
         at.field = base.child(9);
-        crate::model::Model::diff(&self.menu, &old.menu, at, out);
+        crate::model::Model::diff(&self.research, &old.research, at, out);
         at.field = base.child(11);
-        crate::model::Model::diff(&self.chat, &old.chat, at, out);
+        crate::model::Model::diff(&self.menu, &old.menu, at, out);
         at.field = base.child(13);
+        crate::model::Model::diff(&self.chat, &old.chat, at, out);
+        at.field = base.child(15);
         crate::model::Model::diff(&self.notes_log, &old.notes_log, at, out);
         at.field = base;
     }
@@ -4280,6 +4290,53 @@ impl crate::model::Model for HudUnit {
             id: crate::model::Model::from_value(&f[0])?,
             promotions: crate::model::Model::from_value(&f[1])?,
             actions: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HudPopup {
+    pub id: i32,
+    pub screen: ::std::sync::Arc<str>,
+    pub a: Option<i32>,
+    pub b: Option<i32>,
+    pub decision: bool,
+}
+
+impl crate::model::Model for HudPopup {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.screen, &old.screen, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.a, &old.a, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.b, &old.b, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.decision, &old.decision, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.screen),
+            crate::model::Model::to_value(&self.a),
+            crate::model::Model::to_value(&self.b),
+            crate::model::Model::to_value(&self.decision),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(HudPopup {
+            id: crate::model::Model::from_value(&f[0])?,
+            screen: crate::model::Model::from_value(&f[1])?,
+            a: crate::model::Model::from_value(&f[2])?,
+            b: crate::model::Model::from_value(&f[3])?,
+            decision: crate::model::Model::from_value(&f[4])?,
         })
     }
 }
@@ -5045,15 +5102,15 @@ impl crate::model::Model for Ui {
         crate::model::Model::diff(&self.map_mode, &old.map_mode, at, out);
         at.field = base.child(7);
         crate::model::Model::diff(&self.windows, &old.windows, at, out);
-        at.field = base.child(23);
+        at.field = base.child(25);
         crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(27);
+        at.field = base.child(29);
         crate::model::Model::diff(&self.chat, &old.chat, at, out);
-        at.field = base.child(30);
+        at.field = base.child(32);
         crate::model::Model::diff(&self.pending, &old.pending, at, out);
-        at.field = base.child(35);
+        at.field = base.child(37);
         crate::model::Model::diff(&self.turn_pending, &old.turn_pending, at, out);
-        at.field = base.child(36);
+        at.field = base.child(38);
         crate::model::Model::diff(&self.errors, &old.errors, at, out);
         at.field = base;
     }
@@ -5092,6 +5149,8 @@ pub struct Hud {
     pub top: HudTop,
     pub city: Option<HudCity>,
     pub unit: Option<HudUnit>,
+    pub popup: Option<HudPopup>,
+    pub popup_count: i32,
 }
 
 impl crate::model::Model for Hud {
@@ -5105,6 +5164,10 @@ impl crate::model::Model for Hud {
         crate::model::Model::diff(&self.city, &old.city, at, out);
         at.field = base.child(37);
         crate::model::Model::diff(&self.unit, &old.unit, at, out);
+        at.field = base.child(46);
+        crate::model::Model::diff(&self.popup, &old.popup, at, out);
+        at.field = base.child(52);
+        crate::model::Model::diff(&self.popup_count, &old.popup_count, at, out);
         at.field = base;
     }
 
@@ -5114,16 +5177,20 @@ impl crate::model::Model for Hud {
             crate::model::Model::to_value(&self.top),
             crate::model::Model::to_value(&self.city),
             crate::model::Model::to_value(&self.unit),
+            crate::model::Model::to_value(&self.popup),
+            crate::model::Model::to_value(&self.popup_count),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(4)?;
+        let f = v.as_struct(6)?;
         Ok(Hud {
             research: crate::model::Model::from_value(&f[0])?,
             top: crate::model::Model::from_value(&f[1])?,
             city: crate::model::Model::from_value(&f[2])?,
             unit: crate::model::Model::from_value(&f[3])?,
+            popup: crate::model::Model::from_value(&f[4])?,
+            popup_count: crate::model::Model::from_value(&f[5])?,
         })
     }
 }

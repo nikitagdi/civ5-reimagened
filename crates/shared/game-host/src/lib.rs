@@ -17,6 +17,7 @@ pub mod map_scripts;
 mod orders;
 mod owners;
 mod peace;
+pub mod popups;
 pub mod real;
 pub mod replica;
 pub mod saves;

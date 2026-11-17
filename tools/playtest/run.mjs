@@ -56,6 +56,7 @@ const SCENARIOS = {
   "ui2-host": () => import("./scenarios/ui2-host.mjs"),
   // UI v2 orders through the skin (turn dial, production and research windows) and the server's answers: --attach.
   "ui2-screens": () => import("./scenarios/ui2-screens.mjs"),
+    "ui2-popups": () => import("./scenarios/ui2-popups.mjs"),
   "ui2-hud-extras": () => import("./scenarios/ui2-hud-extras.mjs"),
   "ui2-actions": () => import("./scenarios/ui2-actions.mjs"),
   "ui2-golden": () => import("./scenarios/ui2-golden.mjs"), // UI v2 pixels against our own references (tools/ui-convert/golden.toml); --record writes them

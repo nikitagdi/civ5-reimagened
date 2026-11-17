@@ -62,9 +62,18 @@ id = "i32"
 promotions = { list = "HudPromotion", key = "id" }
 actions = { list = "HudAction", key = "id" }
 
+[type.HudPopup]
+id = "i32"
+screen = "str"
+a = "i32?"
+b = "i32?"
+decision = "bool"
+
 [model.hud]
 _optional = true
 research = "HudResearch"
 top = "HudTop"
 city = "HudCity?"
 unit = "HudUnit?"
+popup = "HudPopup?"
+popup_count = "i32"
