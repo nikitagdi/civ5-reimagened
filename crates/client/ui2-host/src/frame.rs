@@ -109,6 +109,8 @@ impl V2FrameReport {
             ("ui2.source_ms", f64::from(self.source_ms)),
             ("ui2.runtime_ms", f64::from(r.cpu_ms)),
             ("ui2.resolve_ms", f64::from(self.resolve_ms)),
+            ("ui2.keys_ms", f64::from(r.keys_ms)),
+            ("ui2.input_ms", f64::from(r.input_ms)),
             ("ui2.source.roots", f64::from(self.source.roots_built)),
             ("ui2.source.reads", f64::from(self.source.getter_calls)),
             ("ui2.source.units", f64::from(self.source.spent_units)),

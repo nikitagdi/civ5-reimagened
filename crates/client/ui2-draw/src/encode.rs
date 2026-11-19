@@ -404,6 +404,8 @@ fn encode_glyphs(g: &Glyphs, sigma: f32, anchor: u16, ctx: &mut EncodeCtx<'_>, o
     let (xform, clip) = place(&transform, &g.clip, ctx, out);
     let page = ctx.mask_side as f32;
     let layer_base = ctx.glyphs.layer_base();
+    // The atlas holds linear coverage: the run's contrast exponent makes its alpha (see `glyph_contrast`).
+    let contrast = f16_bits(crate::glyphs::glyph_contrast(g.color, g.size_px));
     for pos in &g.glyphs {
         let moved = GlyphPos {
             x: pos.x + shift.x,
@@ -414,6 +416,7 @@ fn encode_glyphs(g: &Glyphs, sigma: f32, anchor: u16, ctx: &mut EncodeCtx<'_>, o
         let mut i = Ui2Instance::of_kind(KIND_MASK);
         i.colors[0] = g.color.0;
         i.extra[0] = f16_bits(sigma);
+        i.extra[1] = contrast;
         i.xform = xform;
         i.clip = clip;
         i.anchor = anchor;
@@ -1008,6 +1011,9 @@ mod tests {
             transform: None,
             clip: None,
         };
+        // Every glyph carries the run's contrast exponent (black text, 14 px).
+        let contrast = f16_bits(crate::glyphs::glyph_contrast(run.color, run.size_px));
+        assert_ne!(contrast, 0);
         for (blur, sigma) in [(6.0, 3.0), (0.0, 0.0), (-2.0, 0.0), (f32::NAN, 0.0)] {
             let mut rig = Rig::new();
             let e = rig.encode(&one(Item::GlyphShadow(crate::GlyphShadow {
@@ -1018,14 +1024,14 @@ mod tests {
             assert_eq!(e.unresolved, 2);
             for i in &e.instances {
                 assert_eq!(i.kind, KIND_MASK);
-                assert_eq!(i.extra, [f16_bits(sigma), 0, 0, 0], "blur {blur}");
+                assert_eq!(i.extra, [f16_bits(sigma), contrast, 0, 0], "blur {blur}");
                 assert_eq!(i.colors[0], [0, 0, 0, 160]);
             }
         }
-        // A sharp run leaves `extra` zero.
+        // A sharp run has no sigma, only the contrast.
         let mut rig = Rig::new();
         let e = rig.encode(&one(Item::Glyphs(run)));
-        assert!(e.instances.iter().all(|i| i.extra == [0; 4]));
+        assert!(e.instances.iter().all(|i| i.extra == [0, contrast, 0, 0]));
     }
 
     #[test]

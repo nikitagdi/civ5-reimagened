@@ -1,8 +1,13 @@
 // `ui2-remarks`: owner remarks on the engraved HUD, live against a real-core server:
 //   node tools/playtest/run.mjs --scenario ui2-remarks --attach http://127.0.0.1:8870 --out <dir>
-// Env: UI2_DSF (device pixel ratio, default 1), UI2_SHOT (path prefix for screenshots).
-import { writeFileSync } from "node:fs";
+// Env: UI2_DSF (device pixel ratio, default 1), UI2_SHOT (path prefix for screenshots; with it the text of the top
+// strip and of a city banner is measured, `result.sharpness`, and zoomed 4 x).
+import { readFileSync, writeFileSync } from "node:fs";
 import { openPage, act, until, appUrl } from "../lib/browser.mjs";
+import { sharpness, zoom } from "../lib/sharpness.mjs";
+
+/** The top strip's text, CSS px (the same crop as the mockup's in `ui2-mockup-shots.mjs`). */
+export const STRIP = { x: 0, y: 0, width: 1600, height: 30 };
 import { DEV_PASSWORD } from "../lib/game.mjs";
 import { ensureCity } from "../lib/screen-city.mjs";
 import { partBox, clickPart } from "./ui2-v1.mjs";
@@ -44,6 +49,13 @@ export async function run({ server, opts }) {
     check("the canvas backing store has one pixel per device pixel", result.canvas.canvases.every(([w, h, cw, ch]) => cw === 0 || (Math.abs(w - cw * Math.max(dsf, result.canvas.dpr)) <= 1 && Math.abs(h - ch * Math.max(dsf, result.canvas.dpr)) <= 1)), JSON.stringify(result.canvas));
     await shot(page, "hud");
     await shot(page, "topleft", { x: 0, y: 0, width: 520, height: 420 });
+    // The text of the top strip, measured (`lib/sharpness.mjs`) and zoomed 4 x: the same crop as `ui2-mockup-shots`
+    // takes of the mockup in Chrome.
+    if (shotPrefix) {
+      await shot(page, "strip", STRIP);
+      result.sharpness = { strip: sharpness(readFileSync(`${shotPrefix}-strip.png`)) };
+      writeFileSync(`${shotPrefix}-strip-x4.png`, zoom(readFileSync(`${shotPrefix}-strip.png`), null, 4));
+    }
 
     // 5. No window without a close control in the top left corner at the start.
     const corner = await probe(page);
@@ -71,6 +83,11 @@ export async function run({ server, opts }) {
       const pad = 12;
       await shot(page, "banner", { x: Math.max(0, banner.x - pad), y: Math.max(0, banner.y - pad), width: banner.w + 2 * pad, height: banner.h + 2 * pad });
       result.banner = banner;
+      if (shotPrefix) {
+        const png = readFileSync(`${shotPrefix}-banner.png`);
+        (result.sharpness ??= {}).banner = sharpness(png);
+        writeFileSync(`${shotPrefix}-banner-x4.png`, zoom(png, null, 4));
+      }
     }
     check("1. a city banner is on the map", !!banner);
 
@@ -93,6 +110,13 @@ export async function run({ server, opts }) {
     await shot(page, "tech-tip");
     const tip = await partBox(page, "techs.tip");
     result.row = row; result.tip = tip;
+    if (tip && shotPrefix) {
+      // Small text on a dark panel: the tooltip's paragraphs, measured and zoomed.
+      await shot(page, "tip", { x: tip.x, y: tip.y, width: Math.min(tip.w, 1600 - tip.x), height: Math.min(tip.h, 900 - tip.y) });
+      const png = readFileSync(`${shotPrefix}-tip.png`);
+      (result.sharpness ??= {}).tip = sharpness(png);
+      writeFileSync(`${shotPrefix}-tip-x4.png`, zoom(png, null, 4));
+    }
     check("4. the technology tooltip is shown", !!tip);
     // Left edges aligned (or pushed inside the screen), right under or right above the row, not over it.
     check("4. the technology tooltip hangs at its row", tip && Math.abs(tip.x - Math.min(row.x, 1600 - tip.w)) <= 2

@@ -103,6 +103,8 @@ impl Inherit {
 pub(crate) struct Emitted {
     pub items: u32,
     pub glyphs: u32,
+    /// Items left out because their clip rectangle hides them wholly.
+    pub culled: u32,
 }
 
 /// The layer a chunk root paints into: the layer of its layer root (the HUD for a root outside layers).
@@ -454,6 +456,12 @@ impl<'a> Emitter<'a> {
     }
 
     fn push(&mut self, item: Item) {
+        // What its clip rectangle hides wholly is left out: the rows of a long list or a large tree scrolled out of
+        // their container cost no instance, no upload and no fragment work.
+        if item.clipped_away() {
+            self.stats.culled += 1;
+            return;
+        }
         self.stats.items += 1;
         match &item {
             Item::Glyphs(g) | Item::GlyphShadow(GlyphShadow { glyphs: g, .. }) => {
@@ -1597,6 +1605,8 @@ impl<'a> Emitter<'a> {
             &record,
             &mut |n, st| self.child_state(n, st),
             &content_root,
+            // Under a clip that encloses nothing every item would be left out: the subtree is not walked.
+            &|st: &Inherit| st.clip.is_some_and(|c| c.rect.w <= 0.0 || c.rect.h <= 0.0),
         );
         for (n, st) in &phases.negative {
             self.paint_context(*n, st);

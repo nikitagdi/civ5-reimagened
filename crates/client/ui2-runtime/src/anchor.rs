@@ -65,6 +65,8 @@ pub(crate) struct Anchors {
     ids: HashMap<AnchorId, u32>,
     next: u32,
     changes: Vec<AnchorChange>,
+    /// Bumped by every placement written (the hit-test lists of anchor chunks are keyed by it).
+    pub(crate) placed: u64,
 }
 
 impl Anchors {
@@ -205,7 +207,11 @@ impl Anchors {
             } else {
                 u.pos
             };
-            e.screen = Some((pos, u.scale, u.visible));
+            let screen = Some((pos, u.scale, u.visible));
+            if e.screen != screen {
+                self.placed = self.placed.wrapping_add(1);
+            }
+            e.screen = screen;
             if let Some(slot) = e.slot {
                 scene.set_anchor(
                     slot,

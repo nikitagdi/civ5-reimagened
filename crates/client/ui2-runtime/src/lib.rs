@@ -165,6 +165,10 @@ pub struct Runtime {
     islands: island::IslandIndex,
     /// The panels: the skin's top-level parts and the mounted mod fragments.
     panels: panel::Panels,
+    /// When the key maps and hotkey labels are built again.
+    keys: input::hotkeys::KeysWatch,
+    /// Time (ms) and count of the input events handled since the last frame.
+    input_time: (f32, u32),
 }
 
 impl Runtime {
@@ -201,6 +205,8 @@ impl Runtime {
             anchors: anchor::Anchors::default(),
             islands: island::IslandIndex::default(),
             panels: panel::Panels::default(),
+            keys: input::hotkeys::KeysWatch::default(),
+            input_time: (0.0, 0),
         };
         if !env_ok {
             rt.report_bad_env(env);
@@ -271,6 +277,9 @@ impl Runtime {
     /// Sets or clears interaction states on a node (`HOVER` is better set with [`set_hover`](Self::set_hover),
     /// which handles the ancestor chain). Nodes whose conditions test those states restyle in the next frame.
     pub fn set_state(&mut self, id: NodeId, bits: StateBits, on: bool) {
+        if bits.contains(StateBits::DISABLED) {
+            self.keys.touch();
+        }
         style::select::set_state(&mut self.arena, id, bits, on);
     }
 
@@ -393,6 +402,10 @@ impl Runtime {
     /// Takes the changes of a model frame: queues the bindings that read a changed field (nothing is
     /// evaluated before the next frame).
     pub fn apply_delta(&mut self, d: &FrameDelta, m: &ModelStore) {
+        // The model's key overrides (`ui.keys.*`) may be among the changes.
+        if !d.ops.is_empty() {
+            self.keys.touch();
+        }
         self.binder.apply_delta(&mut self.arena, &self.pkg, d, m);
     }
 
@@ -402,6 +415,7 @@ impl Runtime {
         self.binder.loc.set_game(&self.pkg, Some(Rc::clone(&loc)));
         self.svc.loc = Some(loc);
         self.binder.queue_localized();
+        self.keys.touch();
     }
 
     /// Sets where game asset pictures are found (the renderer's texture ids). Every game asset picture is

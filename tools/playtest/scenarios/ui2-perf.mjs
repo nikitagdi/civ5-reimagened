@@ -27,7 +27,11 @@
 // tile steps aside. A blocker the skin has no screen for (a policy choice) stops the turns: the table says how many ran.
 // The frame data come from `__civ5test.ui2()` read once per animation frame (only new UI v2 frames are kept): that read
 // costs the page some time of its own, so the frame rate of these phases is not the bench's.
-// Output: `<logs>/ui2-perf.json` (meta, raw series summaries, `table`), the same table printed, and `numbers.table`.
+// - frames (`ui2-perf-frames.mjs`): the CPU time of a frame, classic UI against UI v2 (the HUD and each window, idle and
+//   with the mouse moving, the technology tree scrolled), split into UI v2's phases (`__civ5test.ui2Frames()`).
+// Env UI2_PERF_ROWS: `all` (the default) runs every row, `frames` the frame phases only.
+// Output: `<logs>/ui2-perf.json` (meta, raw series summaries, `table`), the same table printed, and `numbers.table`;
+// the frame phases: `<logs>/ui2-perf-frames.json`.
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -39,6 +43,7 @@ import { DEV_PASSWORD, moveAUnit } from "../lib/game.mjs";
 import { FOUND_CITY } from "../lib/policy.mjs";
 import { frames, pct, round } from "../lib/bench.mjs";
 import { gcPauses } from "./ui2-n6.mjs";
+import { frameCost, frameTable } from "./ui2-perf-frames.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const UP_MS = Number(process.env.UI2_UP_MS ?? 420000);
@@ -676,6 +681,22 @@ export async function run(ctx) {
     return result;
   }
   const remote = remoteSession();
+  // `UI2_PERF_ROWS`: `all` (default), or `frames` (the frame cost per window against the classic UI only, see
+  // `ui2-perf-frames.mjs`), or `game` (the rows below without the frame cost).
+  const wanted = (process.env.UI2_PERF_ROWS ?? "all").split(",");
+  if (wanted.includes("all") || wanted.includes("frames")) {
+    const fr = await frameCost(base, o, check);
+    const table = frameTable(fr);
+    console.log(`ui2-perf frame cost (classic vs UI v2, ${fr.meta.viewport.width}x${fr.meta.viewport.height}):\n${table}`);
+    for (const r of fr.rows) console.log(`  ${r.metric}: ${r.value} | limit ${r.limit} | ${r.verdict}${r.note ? ` | ${r.note}` : ""}`);
+    try { writeFileSync(path.join(o.logDir, "ui2-perf-frames.json"), JSON.stringify({ ...fr, table }, null, 2)); } catch { /* no log dir */ }
+    result.numbers.frames = { rows: fr.rows, errors: fr.errors, json: path.join(o.logDir, "ui2-perf-frames.json") };
+    if (!wanted.includes("all") && !wanted.includes("game")) {
+      result.pass = result.checks.every((c) => c.pass);
+      result.durationMs = Date.now() - started;
+      return result;
+    }
+  }
   // Everything goes to `<logs>/ui2-perf.json`; the report keeps the meta and the table.
   const n = {};
   BUILT.clear();

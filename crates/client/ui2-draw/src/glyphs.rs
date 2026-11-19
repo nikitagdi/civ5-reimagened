@@ -38,8 +38,29 @@ pub const KEEP_FRAMES: u64 = 2;
 /// Most glyph pages a store keeps track of in a chunk's page mask (`u8`).
 pub const MAX_GLYPH_PAGES: u32 = 8;
 
+/// The contrast exponent of a glyph run: the shader raises the linear coverage of the atlas to it (`alpha = c^e`).
+///
+/// The UI blends in the target's space (gamma space on the browser's canvas, as the browser does). Linear coverage
+/// blended there makes light text on a dark panel thin and dark text on a light one heavy; the exponent undoes that
+/// by the text's luminance `l` (sRGB luma of its colour, 0 to 1): light text takes `1 / 2.2` (its edges blend as in
+/// linear light), dark text `1 / 1.4` (a little fuller than plain coverage, as DirectWrite's and Skia's text
+/// contrast make it). Small sizes get more ink still (stem darkening): the gamma grows by up to a quarter from
+/// 16 device px down to 10 and below, so 11-14 px stems keep a dark core instead of two grey columns.
+pub fn glyph_contrast(color: crate::Color, size_px: f32) -> f32 {
+    let [r, g, b, _] = color.0.map(|v| f32::from(v) / 255.0);
+    let l = (0.2126 * r + 0.7152 * g + 0.0722 * b).clamp(0.0, 1.0);
+    let gamma = 1.4 + 0.8 * l;
+    let small = if size_px.is_finite() {
+        ((16.0 - size_px) / 6.0).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    1.0 / (gamma * (1.0 + 0.25 * small))
+}
+
 /// The glyph key of `pos` in `run`, the whole pixel its bitmap origin is placed at, and the whole-pixel baseline.
-// SIMPLIFIED(SIMP-246): glyphs are unhinted and sit at 4 horizontal subpixel positions (pen x rounded to a quarter pixel), baseline on a whole pixel
+/// Glyphs sit at 4 horizontal subpixel positions (pen x rounded to a quarter pixel), baseline on a whole pixel;
+/// their bitmaps are rasterized at the run's device size and hinted vertically when small (`ui2_text::raster`).
 pub fn glyph_key(run: &Glyphs, pos: &GlyphPos) -> (GlyphKey, i32, i32) {
     let (px, sub) = quantize_x(pos.x);
     let key = GlyphKey::new(run.face, pos.glyph, run.size_px, run.wght, sub);

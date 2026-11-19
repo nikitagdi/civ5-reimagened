@@ -117,6 +117,9 @@ impl Runtime {
     /// kind)` once per runtime: a command repeated every frame is reported the first time only.
     pub fn apply_island(&mut self, ctx: &ScriptCtxId, cmds: &[IslandCmd]) -> Vec<UiError> {
         let mut out = Vec::new();
+        if !cmds.is_empty() {
+            self.keys.touch();
+        }
         for cmd in cmds {
             if let Err(msg) = self.island_cmd(ctx, cmd) {
                 let who = match ctx {

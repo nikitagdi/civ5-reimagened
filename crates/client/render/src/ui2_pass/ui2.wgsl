@@ -574,18 +574,69 @@ fn blurred_mask(in: VsOut, layer: i32, sigma: f32) -> f32 {
     return sum / (total * total);
 }
 
+// A blurred glyph (a text shadow): the same cut Gaussian as `blurred_mask`, but over whole texels read one by
+// one, each turned into its alpha by the contrast exponent first: the shadow is the blur of what the sharp glyph
+// shows (the browser blurs the text's drawn alpha the same way). Texels outside the sprite read nothing.
+fn blurred_glyph(in: VsOut, layer: i32, sigma: f32, contrast: f32) -> f32 {
+    let slot = in.grad;
+    let size = in.size.xy;
+    let dims = vec2<f32>(textureDimensions(mask).xy);
+    let texel = (slot.zw - slot.xy) / size;
+    // This fragment in texels from the sprite's top left corner, and the sprite's corner texel in the page.
+    let base = (in.local_uv.zw - slot.xy) / texel;
+    let corner = slot.xy * dims;
+    let s = min(sigma, BLUR_MAX_SIGMA);
+    let stretch = max(sigma / BLUR_MAX_SIGMA, 1.0);
+    let r = min(i32(ceil(2.0 * s)), 8);
+    let k = -0.5 / (s * s);
+    var total = 0.0;
+    for (var i = -r; i <= r; i++) {
+        total += exp(k * f32(i * i));
+    }
+    var sum = 0.0;
+    for (var j = -r; j <= r; j++) {
+        let ty = floor(base.y + f32(j) * stretch);
+        if ty < 0.0 || ty >= size.y {
+            continue;
+        }
+        var row = 0.0;
+        for (var i = -r; i <= r; i++) {
+            let tx = floor(base.x + f32(i) * stretch);
+            if tx < 0.0 || tx >= size.x {
+                continue;
+            }
+            let c = textureLoad(mask, vec2<i32>(corner + vec2<f32>(tx, ty) + vec2<f32>(0.5)), layer, 0).r;
+            row += exp(k * f32(i * i)) * ink(c, contrast);
+        }
+        sum += exp(k * f32(j * j)) * row;
+    }
+    return sum / (total * total);
+}
+
+// The alpha of a glyph's linear coverage `c` under the run's contrast exponent `e` (0: an icon, used as it is).
+fn ink(c: f32, e: f32) -> f32 {
+    if e > 0.0 && c > 0.0 {
+        return pow(min(c, 1.0), e);
+    }
+    return c;
+}
+
 // MASK: coverage of a glyph or an icon times the colour, blurred when the instance has a sigma (a text
-// shadow). Glyph coverage already carries the rasterizer's gamma, so it is used as it is.
+// shadow). A glyph's coverage is linear: it is raised to the run's contrast exponent (`size.w`, from
+// `ui2_draw::glyph_contrast`: by the text's luminance and size) before any blur, so a shadow is the blur of what
+// the sharp text shows; an icon (no exponent) is used as it is.
 fn shade_mask(in: VsOut) -> vec4<f32> {
     let layer = i32((in.prim.x >> 16u) & 0xffu);
     let sigma = in.size.z;
-    var cov = 0.0;
+    let contrast = in.size.w;
     if sigma > 0.0 && in.size.x > 0.0 && in.size.y > 0.0 {
-        cov = blurred_mask(in, layer, sigma);
-    } else {
-        cov = textureSampleLevel(mask, mask_smp, in.local_uv.zw, layer, 0.0).r;
+        if contrast > 0.0 {
+            return premul(unpack_color(in.colors.x)) * blurred_glyph(in, layer, sigma, contrast);
+        }
+        return premul(unpack_color(in.colors.x)) * blurred_mask(in, layer, sigma);
     }
-    return premul(unpack_color(in.colors.x)) * cov;
+    let cov = textureSampleLevel(mask, mask_smp, in.local_uv.zw, layer, 0.0).r;
+    return premul(unpack_color(in.colors.x)) * ink(cov, contrast);
 }
 
 // A texel of external texture `entry` of the draw (level 0, so the branch needs no derivatives).

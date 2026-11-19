@@ -16,6 +16,7 @@ pub mod classic;
 pub mod game_icons;
 pub mod v2;
 mod v2_mods;
+pub mod v2_perf;
 
 use std::rc::Rc;
 

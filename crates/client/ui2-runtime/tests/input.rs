@@ -1520,3 +1520,74 @@ fn explicit_enter_confirmation_precedes_previous_focus_and_ignores_repeats() {
     assert_eq!(h.named(NamedKey::Enter, "Enter"), TAKEN);
     assert_eq!(h.intents()[0].name.as_ref(), "turn.cancel");
 }
+
+#[test]
+fn input_key_maps_are_built_only_when_what_they_read_changed() {
+    let mut h = kb_host(false);
+    // Idle frames build no key map (the zero-work rule holds for the keys too) and the keys still act.
+    for _ in 0..3 {
+        let s = h.frame().stats;
+        assert!(!s.keys_rebuilt && s.keys_ms == 0.0, "{s:?}");
+    }
+    assert_eq!(h.letter("KeyW"), TAKEN);
+    h.intents();
+    // A node that becomes disabled loses its key in the next frame, and gets it back once enabled.
+    let w = h.part("hk-hud");
+    h.rt.set_state(w, StateBits::DISABLED, true);
+    assert!(h.frame().stats.keys_rebuilt);
+    assert_eq!(h.letter("KeyW"), PASS);
+    assert!(!h.frame().stats.keys_rebuilt, "nothing changed since");
+    h.rt.set_state(w, StateBits::DISABLED, false);
+    assert!(h.frame().stats.keys_rebuilt);
+    assert_eq!(h.letter("KeyW"), TAKEN);
+    h.intents();
+    // A model change may carry a key override: the maps are built again, once.
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../skins/engraved/sample/hud.json");
+    let mut json: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).expect("sample")).expect("json");
+    json["model"]["game"]["me"] = serde_json::json!("3:7");
+    json["model"]["top"]["gold"] = serde_json::json!(999);
+    let sample = Sample::parse(Schema::v1(), &json.to_string()).expect("sample");
+    sample.apply(&mut h.store).expect("apply");
+    assert!(h.frame().stats.keys_rebuilt);
+    assert!(!h.frame().stats.keys_rebuilt);
+}
+
+#[test]
+fn input_hit_test_skips_what_a_clip_leaves_out() {
+    // The rows of a scroll container are hit inside its clip and never outside it; scrolled, the hit follows.
+    let mut h = Host::new(false);
+    assert_eq!(h.rt.node_at(520.0, 15.0), Some(h.part("mark")));
+    assert_eq!(
+        h.rt.node_at(520.0, 200.0),
+        None,
+        "below the clip: the tall content is cut"
+    );
+    assert_eq!(h.wheel(550.0, 50.0, -3.0), TAKEN);
+    h.frame();
+    assert_eq!(
+        h.rt.node_at(520.0, 15.0),
+        Some(h.part("tall")),
+        "scrolled: the mark left the view"
+    );
+    assert_eq!(h.rt.node_at(320.0, 320.0), Some(h.part("spill")));
+    assert_eq!(h.rt.node_at(400.0, 320.0), None);
+}
+
+#[test]
+fn input_events_are_timed_into_the_next_frame() {
+    let mut h = Host::new(false);
+    let t = std::rc::Rc::new(std::cell::Cell::new(0.0f64));
+    let tick = std::rc::Rc::clone(&t);
+    h.rt.set_clock(Box::new(move || {
+        tick.set(tick.get() + 0.5);
+        tick.get()
+    }));
+    h.ptr(PointerPhase::Move, 45.0, 35.0);
+    h.ptr(PointerPhase::Move, 46.0, 35.0);
+    let s = h.frame().stats;
+    assert_eq!((s.input_events, s.input_ms), (2, 1.0));
+    let s = h.frame().stats;
+    assert_eq!((s.input_events, s.input_ms), (0, 0.0), "counted once");
+}

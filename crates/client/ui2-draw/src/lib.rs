@@ -734,6 +734,89 @@ impl Item {
     pub fn has_glyphs(&self) -> bool {
         matches!(self, Item::Glyphs(_) | Item::GlyphShadow(_))
     }
+
+    /// The transform and the clip of the item.
+    fn space(&self) -> (Option<Affine2>, Option<&Clip>) {
+        match self {
+            Item::Box(b) => (b.transform, b.clip.as_ref()),
+            Item::EllipticBox(e) => (e.base.transform, e.base.clip.as_ref()),
+            Item::Shadow(s) | Item::InsetShadow(s) => (s.transform, s.clip.as_ref()),
+            Item::Mask(m) => (m.transform, m.clip.as_ref()),
+            Item::Image(i) => (i.transform, i.clip.as_ref()),
+            Item::Glyphs(g) | Item::GlyphShadow(GlyphShadow { glyphs: g, .. }) => {
+                (g.transform, g.clip.as_ref())
+            }
+        }
+    }
+
+    /// A rectangle (chunk space, device px) that holds every pixel the item can touch, when the item is not
+    /// transformed; `None` for a transformed item or one without a finite extent. Generous on purpose (glyph runs are
+    /// bounded by their font size, blurs by one and a half radius): it is used to leave out what lies outside the
+    /// item's clip, never to clip.
+    pub fn bounds(&self) -> Option<Rect> {
+        let grow = |r: Rect, d: f32| Rect::new(r.x - d, r.y - d, r.w + 2.0 * d, r.h + 2.0 * d);
+        let glyphs = |g: &Glyphs, blur: f32| -> Option<Rect> {
+            let (mut x0, mut x1, mut y0, mut y1) = (f32::MAX, f32::MIN, f32::MAX, f32::MIN);
+            for p in &g.glyphs {
+                x0 = x0.min(p.x);
+                x1 = x1.max(p.x);
+                y0 = y0.min(p.y);
+                y1 = y1.max(p.y);
+            }
+            if g.glyphs.is_empty() {
+                return None;
+            }
+            // A glyph reaches at most about a font size left of its pen and two to the right, one and a half above
+            // the baseline and one below.
+            let s = g.size_px.abs().max(1.0);
+            let b = blur.max(0.0) * 1.5 + 1.0;
+            Some(Rect::new(
+                x0 - s - b,
+                y0 - 1.5 * s - b,
+                (x1 - x0) + 3.0 * s + 2.0 * b,
+                (y1 - y0) + 2.5 * s + 2.0 * b,
+            ))
+        };
+        if self.space().0.is_some() {
+            return None;
+        }
+        let r = match self {
+            Item::Box(b) => b.rect,
+            Item::EllipticBox(e) => e.base.rect,
+            Item::Shadow(s) => {
+                let moved = Rect::new(
+                    s.rect.x + s.offset.x,
+                    s.rect.y + s.offset.y,
+                    s.rect.w,
+                    s.rect.h,
+                );
+                grow(moved, s.spread.max(0.0) + s.blur.max(0.0) * 1.5 + 1.0)
+            }
+            Item::InsetShadow(s) => s.rect,
+            Item::Mask(m) => m.rect,
+            Item::Image(i) => i.rect,
+            Item::Glyphs(g) => glyphs(g, 0.0)?,
+            Item::GlyphShadow(gs) => glyphs(&gs.glyphs, gs.blur)?,
+        };
+        (r.x.is_finite() && r.y.is_finite() && r.w.is_finite() && r.h.is_finite()).then_some(r)
+    }
+
+    /// True when nothing of the item can be seen: it is untransformed and lies wholly outside its clip rectangle.
+    /// A chunk builder may leave such an item out (a list scrolled out of its container, a row below the fold).
+    pub fn clipped_away(&self) -> bool {
+        let Some(rect) = self.space().1.and_then(|c| c.rect) else {
+            return false;
+        };
+        let Some(b) = self.bounds() else {
+            return false;
+        };
+        b.x >= rect.x + rect.w
+            || b.y >= rect.y + rect.h
+            || b.x + b.w <= rect.x
+            || b.y + b.h <= rect.y
+            || rect.w <= 0.0
+            || rect.h <= 0.0
+    }
 }
 
 /// The items of one chunk, in drawing order (later over earlier), and the anchor of the chunk.
