@@ -9,7 +9,7 @@
 }
 .banner .cb { position: relative; display: flex; flex-direction: column; align-items: center; white-space: nowrap; }
 /* CityBombard is a vertical strip. Its second frame has the red rim. */
-.banner .strike { position: absolute; bottom: 100%; left: 50%; margin: 0 0 2px -20px; width: 40px; height: 40px; border-radius: 20px; overflow: hidden; pointer-events: auto; }
+.banner .strike { position: absolute; bottom: 100%; left: 50%; margin: 0 0 2px -70px; width: 40px; height: 40px; border-radius: 20px; overflow: hidden; pointer-events: auto; }
 .banner .strike img { position: absolute; left: 0; top: -40px; width: 40px; height: 160px; }
 .banner .strike:hover { box-shadow: 0 0 0 1px var(--brass); }
 .banner .str {
