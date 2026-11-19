@@ -11,6 +11,10 @@ pub struct Popup {
     pub data1: i32,
     pub data2: i32,
     pub data3: i32,
+    /// Fourth and fifth integers of an array popup (captured city: Great Works taken, player that
+    /// may be liberated or -1); `None` when the core event had none.
+    pub data4: Option<i32>,
+    pub data5: Option<i32>,
     pub flag: i32,
     pub option1: bool,
     pub option2: bool,

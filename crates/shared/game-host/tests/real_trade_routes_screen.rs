@@ -129,7 +129,11 @@ fn trade_routes_data_and_actions_validate_through_the_real_worker() {
         .expect("a granary and a second city provide a food destination");
     let plot = destination["plot"].as_i64().unwrap();
     let connection = destination["connection_id"].as_i64().unwrap();
+    // `totals.used` is the core's `GetNumTradeRoutesUsed`: the trade units on the map (idle
+    // caravans included), so establishing a route with one of them keeps it; the route itself
+    // shows up in `routes.yours` at once (the caravan becomes the route's unit).
     let used = choice["totals"]["used"].as_i64().unwrap();
+    let yours = choice["routes"]["yours"].as_array().unwrap().len();
     for (qid, action, unit, plot, connection) in [
         (21, "establish", route, plot, connection),
         (22, "rehome", home, i64::from(target), 0),
@@ -151,7 +155,17 @@ fn trade_routes_data_and_actions_validate_through_the_real_worker() {
         match outcome {
             protocol::CommandOutcome::Applied | protocol::CommandOutcome::ScreenApplied { .. } => {
                 if action == "establish" {
-                    assert!(query(&mut h, qid, 0)["totals"]["used"].as_i64().unwrap() > used);
+                    let fresh = query(&mut h, qid, 0);
+                    let routes = fresh["routes"]["yours"].as_array().unwrap();
+                    assert_eq!(routes.len(), yours + 1, "the established route is listed");
+                    assert!(
+                        routes
+                            .iter()
+                            .any(|r| r["to"]["city_id"] == destination["city_id"]
+                                && r["from"]["city_id"]
+                                    == choice["choose"]["unit"]["home_city_id"])
+                    );
+                    assert_eq!(fresh["totals"]["used"].as_i64().unwrap(), used);
                 } else {
                     let args = vec![
                         ("a".into(), if action == "rehome" { 3 } else { 4 }),

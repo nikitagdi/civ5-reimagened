@@ -199,6 +199,8 @@ pub enum GameEvent {
         text: String,
     },
     /// `GC_EVENT_POPUP_INFO`: ruins, natural wonder, golden age ...
+    /// Arguments `(type, data1, data2, data3, player, flags, option1, option2[, data4, data5])`:
+    /// the core sends the eight-value form, and the ten-value form for a captured city.
     PopupInfo {
         flag: i32,
         option1: bool,
@@ -207,6 +209,10 @@ pub enum GameEvent {
         data1: i32,
         data2: i32,
         data3: i32,
+        /// The fourth and fifth integers of an array popup (captured city: Great Works taken, player
+        /// that may be liberated or -1); `None` when the event has no such value.
+        data4: Option<i32>,
+        data5: Option<i32>,
         /// The active player at the moment of the popup (v2).
         player: i32,
         text: String,
@@ -326,16 +332,19 @@ impl GameEvent {
                     text: text(),
                 }
             }
+            // Five values: cores before the full payload (no flags, options); eight: every popup;
+            // ten: an array popup with five integers (captured city).
             (ffi::GC_EVENT_POPUP_INFO, [popup_type, data1, data2, data3, player, rest @ ..])
-                if rest.is_empty() || rest.len() == 3 =>
+                if matches!(rest.len(), 0 | 3 | 5) =>
             {
                 GameEvent::PopupInfo {
                     popup_type: *popup_type,
                     data1: *data1,
                     data2: *data2,
                     data3: *data3,
+                    data4: rest.get(3).copied(),
+                    data5: rest.get(4).copied(),
                     player: *player,
-                    // SIMPLIFIED(SIMP-410): older native events omit flags and options.
                     flag: rest.first().copied().unwrap_or(0),
                     option1: rest.get(1).is_some_and(|v| *v != 0),
                     option2: rest.get(2).is_some_and(|v| *v != 0),
@@ -502,6 +511,8 @@ mod tests {
                 data1: 2,
                 data2: 3,
                 data3: 4,
+                data4: None,
+                data5: None,
                 player: 5,
                 text: "x".into()
             }
@@ -512,6 +523,8 @@ mod tests {
                 flag: 6,
                 option1: true,
                 option2: false,
+                data4: None,
+                data5: None,
                 ..
             }
         ));
@@ -551,6 +564,62 @@ mod tests {
             assert!(
                 matches!(t(kind, &bad), GameEvent::Unknown { .. }),
                 "kind {kind}"
+            );
+        }
+    }
+
+    #[test]
+    fn popup_event_forms() {
+        let t = |args: &[i32], text| GameEvent::from_raw(&ev(7, args, text));
+        // The eight-value form of every popup: flags and both options.
+        assert_eq!(
+            t(&[30, 7, -1, -1, 0, 0x40, 0, 1], Some("text")),
+            GameEvent::PopupInfo {
+                popup_type: 30,
+                data1: 7,
+                data2: -1,
+                data3: -1,
+                data4: None,
+                data5: None,
+                player: 0,
+                flag: 0x40,
+                option1: false,
+                option2: true,
+                text: "text".into()
+            }
+        );
+        // The ten-value capture form: data4 (Great Works) and data5 (liberation player, -1 = none)
+        // come after the eight-value prefix.
+        assert_eq!(
+            t(&[12, 8192, 150, 40, 1, 0, 1, 1, 2, 3], None),
+            GameEvent::PopupInfo {
+                popup_type: 12,
+                data1: 8192,
+                data2: 150,
+                data3: 40,
+                data4: Some(2),
+                data5: Some(3),
+                player: 1,
+                flag: 0,
+                option1: true,
+                option2: true,
+                text: String::new()
+            }
+        );
+        assert!(matches!(
+            t(&[12, 8192, 150, 40, 1, 0, 0, 1, 0, -1], None),
+            GameEvent::PopupInfo {
+                data4: Some(0),
+                data5: Some(-1),
+                option1: false,
+                ..
+            }
+        ));
+        // Any other count is not a popup.
+        for n in [0usize, 4, 6, 7, 9, 11] {
+            assert!(
+                matches!(t(&vec![1; n], None), GameEvent::Unknown { kind: 7, .. }),
+                "{n} values"
             );
         }
     }

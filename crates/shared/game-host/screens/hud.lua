@@ -171,6 +171,11 @@ local function minimap_data(player)
     return {observer = p:IsObserver(), religion = religion, pantheon = pantheon, beliefs = beliefs}
 end
 
+-- A localized core text without its markup (colours, line breaks, icons).
+local function core_text(text)
+    return (text:gsub("%[NEWLINE%]", " "):gsub("%[COLOR[^%]]*%]", ""):gsub("%[ENDCOLOR%]", ""):gsub("%[ICON_[^%]]*%]", ""):gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
 local function city_data(city)
     if not city then return nil end
     local queue, reasons = array(), array()
@@ -189,16 +194,19 @@ local function city_data(city)
             needed = g and g[2] and city[g[2]](city, item) or 0,
         }
     end
+    -- Units and buildings: the reason the core writes into the tooltip sink of canTrain / canConstruct.
     for _, kind in ipairs({
-        {0, "Units", "CanTrain"}, {1, "Buildings", "CanConstruct"},
+        {0, "Units", "CanTrain", "CanTrainTooltip"}, {1, "Buildings", "CanConstruct", "CanConstructTooltip"},
         {2, "Projects", "CanCreate"}, {4, "Processes", "CanMaintain"},
     }) do
         for item in GameInfo[kind[2]]() do
             if not city[kind[3]](city, item.ID, 0, 0) then
-                -- SIMPLIFIED(SIMP-324): Lua availability getters omit native tooltip reasons, so locked options use a general explanation.
+                local why = kind[4] and city[kind[4]] and city[kind[4]](city, item.ID)
+                why = type(why) == "string" and core_text(why) or ""
+                -- SIMPLIFIED(SIMP-324): projects and processes (and the few unit/building refusals the core does not explain) have no core reason text, so they use a general explanation.
                 reasons[#reasons + 1] = {
                     id = kind[1] * 65536 + item.ID, order = kind[1], item = item.ID,
-                    reason = "Production requirements are not met in this city.",
+                    reason = why ~= "" and why or "Production requirements are not met in this city.",
                 }
             end
         end

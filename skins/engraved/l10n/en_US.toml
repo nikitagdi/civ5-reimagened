@@ -255,6 +255,7 @@
 "city_rename.yes" = "Yes"
 "city_captured.gold" = "Plundered gold"
 "city_captured.culture" = "Culture"
+"city_captured.great_works" = "Great Works"
 "city_captured.annex_help" = "Annexing gives you control of production, citizens and buildings. Occupation remains until a Courthouse is built."
 "city_captured.view" = "View city first"
 "city_captured.keep" = "Keep as puppet"

@@ -21,13 +21,67 @@ local function branch_reason(p, branch)
     if not p:CanUnlockPolicyBranch(branch.ID) then return "Branch already opened or insufficient culture" end
 end
 
+local function names(rows)
+    local out = {}
+    for _, row in ipairs(rows) do out[#out + 1] = L(row.Description) end
+    return table.concat(out, ", ")
+end
+
+-- The first check of CvPlayerPolicies::CanAdoptPolicy that fails, in the core's order, read through
+-- the seat's own getters (the core writes no reason text for policies; the original screen also
+-- derives its lock state from these getters).
+local function adopt_refusal(p, policy)
+    local branch = policy.PolicyBranchType and GameInfo.PolicyBranchTypes[policy.PolicyBranchType]
+    local stored, cost = p:GetJONSCulture(), p:GetNextPolicyCost()
+    local tenet = (policy.Level or 0) > 0
+    if cost > 0 and stored < cost and p:GetNumFreePolicies() == 0 and (not tenet or p:GetNumFreeTenets() == 0) then
+        return "Requires " .. (cost - stored) .. " more culture"
+    end
+    if not branch then return "Comes with its branch; it cannot be adopted on its own" end
+    if not p:IsPolicyBranchUnlocked(branch.ID) then return "Open the " .. L(branch.Description) .. " branch first" end
+    if yes(branch.PurchaseByLevel) and (policy.Level or 0) > 1 then
+        local this, previous = 1, 0
+        for other in GameInfo.Policies{PolicyBranchType = branch.Type} do
+            if p:HasPolicy(other.ID) then
+                if other.Level == policy.Level then this = this + 1 elseif other.Level == policy.Level - 1 then previous = previous + 1 end
+            end
+        end
+        if this >= previous then return "Requires more tenets at the previous level" end
+    end
+    if GameInfo.Policy_PrereqORPolicies then
+        local any, missing = false, {}
+        for link in GameInfo.Policy_PrereqORPolicies{PolicyType = policy.Type} do
+            local prev = GameInfo.Policies[link.PrereqPolicy]
+            if prev then
+                if p:HasPolicy(prev.ID) then any = true end
+                missing[#missing + 1] = prev
+            end
+        end
+        if #missing > 0 and not any then return "Requires one of: " .. names(missing) end
+    end
+    local missing = {}
+    for link in GameInfo.Policy_PrereqPolicies{PolicyType = policy.Type} do
+        local prev = GameInfo.Policies[link.PrereqPolicy]
+        if prev and not p:HasPolicy(prev.ID) then missing[#missing + 1] = prev end
+    end
+    if #missing > 0 then return "Requires " .. names(missing) end
+    for link in GameInfo.Policy_Disables{PolicyDisable = policy.Type} do
+        local by = GameInfo.Policies[link.PolicyType]
+        if by and p:HasPolicy(by.ID) then return "Disabled by " .. L(by.Description) end
+    end
+    local tech = policy.TechPrereq and GameInfo.Technologies[policy.TechPrereq]
+    if tech and not team_of(p:GetID()):IsHasTech(tech.ID) then return "Requires " .. L(tech.Description) end
+end
+
 local function policy_reason(p, policy)
     if not enabled() then return "Social policies are disabled" end
     if p:GetNumCities() == 0 then return "Found a city first" end
     if p:HasPolicy(policy.ID) then return "Already adopted" end
     if p:IsPolicyBlocked(policy.ID) then return "Policy branch is blocked" end
-    -- SIMPLIFIED(SIMP-363): native boolean availability has no structured lock explanation; use a general prerequisite reason.
-    if not p:CanAdoptPolicy(policy.ID) then return "Requires culture, an open branch and prerequisite policies" end
+    if not p:CanAdoptPolicy(policy.ID) then
+        -- A refusal none of the core's own checks explains comes from a scripted rule (PlayerCanAdoptPolicy).
+        return adopt_refusal(p, policy) or "A game rule forbids adopting this policy now"
+    end
 end
 
 local function data(player, args)

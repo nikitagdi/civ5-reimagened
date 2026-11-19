@@ -132,3 +132,31 @@ fn authenticated_capture_choices_complete_and_annex_opens_city() {
         assert(done==21 and sent[3]==13)
     "#, "=capture-integration").unwrap();
 }
+
+#[test]
+fn capture_event_great_works_and_liberation_come_from_the_event() {
+    runtime().exec(r#"
+        local done, sent
+        local net={send=function(...) sent={...} end, popup_done=function(id) done=id end}
+        Teams=Teams or {}
+        Teams[3]={IsHasMet=function(_,team) return team==5 end}
+        Players[5]={GetTeam=function() return 5 end,IsMinorCiv=function() return false end,GetCivilizationType=function() return 0 end}
+        -- Ten-value capture event: data4 = Great Works captured, data5 = player that may be liberated.
+        local args={a=7,popup_id=31,popup={kind='BUTTONPOPUP_CITY_CAPTURED',data1=7,data2=25,data3=4,data4=2,data5=5}}
+        local root=city_captured.data(3,args)
+        assert(root.loot.great_works_count==2)
+        local liberate=root.options[1]
+        assert(liberate.key=='liberate' and liberate.enabled and liberate.reason==nil and liberate.liberate_to~=nil)
+        local result=city_captured.actions.liberate(3,args,net)
+        assert(done==31 and sent[1]=='SendLiberateMinor' and sent[2]==5 and sent[3]==7 and result.close)
+        -- -1: nobody may be liberated; the option says why and the action refuses.
+        args.popup.data5=-1; done=nil; sent=nil
+        root=city_captured.data(3,args)
+        assert(not root.options[1].enabled and #root.options[1].reason>0 and root.options[1].liberate_to==nil)
+        assert(not pcall(city_captured.actions.liberate,3,args,net) and not done and not sent)
+        -- An eight-value event (no data4/data5) captures nothing and liberates nobody.
+        args.popup.data4=nil; args.popup.data5=nil
+        root=city_captured.data(3,args)
+        assert(root.loot.great_works_count==0 and not root.options[1].enabled)
+    "#, "=capture-liberation").unwrap();
+}

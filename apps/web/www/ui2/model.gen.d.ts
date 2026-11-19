@@ -841,6 +841,7 @@ export interface CityCapturedLoot {
   readonly gold: number;
   readonly culture: number;
   readonly great_works: CityCapturedWork[];
+  readonly great_works_count: number;
 }
 
 export interface CityCapturedOption {

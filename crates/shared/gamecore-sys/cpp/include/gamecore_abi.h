@@ -132,7 +132,8 @@ typedef struct gc_event {
  *  3 NOTIFICATION_ADDED: args: id, type, x, y, data1, data2, player
  *  4 NOTIFICATION_REMOVED: args: id, player
  *  6 DIPLO_AUTO_DECLINED: args: ai_player, kind, human (who was offered)
- *  7 POPUP_INFO: args: popup_type, data1, data2, data3, player (the active player at the moment of the popup)
+ *  7 POPUP_INFO: args: popup_type, data1, data2, data3, player (the active player at the moment of the popup), then (headless) flags,
+ *    option1 0/1, option2 0/1; BUTTONPOPUP_CITY_CAPTURED appends data4 (Great Works captured) and data5 (player that may be liberated, -1)
  * 11 MESSAGE: args as in v1; emitted for any human addressee, not only the active player. */
 #define GC_EVENT_PLAYER_TURN_ENDED 12  /* args: player, ended (1 sent the end of turn, 0 cancelled it) */
 #define GC_EVENT_SLOT_CHANGED 13       /* args: player, slot_status (SlotStatus), connected, kicked; text: the nick */

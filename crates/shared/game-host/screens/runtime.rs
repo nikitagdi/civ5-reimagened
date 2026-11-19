@@ -85,6 +85,12 @@ impl Screens {
         t.raw_set("data1", p.data1)?;
         t.raw_set("data2", p.data2)?;
         t.raw_set("data3", p.data3)?;
+        if let Some(v) = p.data4 {
+            t.raw_set("data4", v)?;
+        }
+        if let Some(v) = p.data5 {
+            t.raw_set("data5", v)?;
+        }
         t.raw_set("flag", p.flag)?;
         t.raw_set("option1", p.option1)?;
         t.raw_set("option2", p.option2)?;

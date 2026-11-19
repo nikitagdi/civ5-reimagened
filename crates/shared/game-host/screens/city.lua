@@ -18,6 +18,25 @@ end
 local function plain(key)
     return L(key):gsub("%[NEWLINE%]", "\n"):gsub("%[COLOR[^%]]*%]", ""):gsub("%[ENDCOLOR%]", ""):gsub("%[ICON_([^%]]+)%]", "%1 ")
 end
+-- Markup of an already localized core text.
+local function markup(text)
+    return (text:gsub("%[NEWLINE%]", "\n"):gsub("%[COLOR[^%]]*%]", ""):gsub("%[ENDCOLOR%]", ""):gsub("%[ICON_([^%]]+)%]", "%1 "):gsub("^%s+", ""):gsub("%s+$", ""))
+end
+-- The reasons the core itself writes for a locked unit or building (the tooltip sink of
+-- CvCity::canTrain / canConstruct, plus the purchase checks), as the original city screens show them.
+-- Per order: production, gold purchase, faith purchase. Read-only; the city belongs to the seat.
+local lock_tips = {
+    [0] = {"CanTrainTooltip", "GetPurchaseUnitTooltip", "GetFaithPurchaseUnitTooltip"},
+    [1] = {"CanConstructTooltip", "GetPurchaseBuildingTooltip", "GetFaithPurchaseBuildingTooltip"},
+}
+local function core_reason(c, order, which, id)
+    local getter = lock_tips[order] and lock_tips[order][which]
+    if not getter or not c[getter] then return nil end
+    local text = c[getter](c, id)
+    if type(text) ~= "string" then return nil end
+    text = markup(text)
+    if text ~= "" then return text end
+end
 local function turns(n) if n and n >= 0 and n < 32767 then return n end end
 local function own(player, id, edit)
     assert(type(id) == "number" and id == math.floor(id), "city id is required")
@@ -97,9 +116,9 @@ return {
                 local faith = purchasable(c, order, row.ID, 5, false)
                 if build or gold or faith or c[k[3]](c, row.ID, 0, 1) then
                     local opt = {item = order * 65536 + row.ID, name = L(row.Description), kind = item_kind(row, k), icon = icon(row.IconAtlas, row.PortraitIndex), turns = k[4] and turns(c[k[4]](c, row.ID, 0)), cost = k[5] and c[k[5]](c, row.ID), can_build = editable and build, effect = plain(row.Help or row.Description), help = plain(row.Help or row.Description)}
-                    -- SIMPLIFIED(SIMP-350): Native availability booleans have no complete server tooltip; use explicit general refusal text.
-                    opt.reason = reason or (not build and "Production requirements are not met in this city." or nil)
-                    for _, currency in ipairs({{"gold", gold, 2, k[6]}, {"faith", faith, 5, k[7]}}) do
+                    -- SIMPLIFIED(SIMP-350): projects and processes have no core reason text (canCreate / canMaintain write none, the original screen shows none either), nor do the few unit/building refusals the core does not explain: those use a general line.
+                    opt.reason = reason or (not build and (core_reason(c, order, 1, row.ID) or "Production requirements are not met in this city.") or nil)
+                    for _, currency in ipairs({{"gold", gold, 2, k[6], 2}, {"faith", faith, 5, k[7], 3}}) do
                         local key, possible, y, getter = currency[1], currency[2], currency[3], currency[4]
                         if possible and getter then
                             local cost = c[getter](c, row.ID, true)
@@ -108,7 +127,9 @@ return {
                             opt["buy_" .. key] = cost
                             opt[key .. "_state"] = ok and "ok" or (money[key] < cost and "short" or "off")
                             opt[key .. "_short"] = money[key] < cost and cost - money[key] or nil
-                            if not ok then opt.buy_reason = reason or "Insufficient funds or purchase requirements are not met." end
+                            if not ok and not opt.buy_reason then
+                                opt.buy_reason = reason or core_reason(c, order, currency[5], row.ID) or "Insufficient funds or purchase requirements are not met."
+                            end
                         end
                     end
                     options[#options + 1] = opt

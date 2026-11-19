@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 2);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x047c20ee5f6c5b30;
+pub const SCHEMA_HASH: u64 = 0xec7ccf431c8876bc;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -20243,6 +20243,7 @@ pub struct CityCapturedLoot {
     pub gold: i32,
     pub culture: i32,
     pub great_works: crate::model::KeyedList<CityCapturedWork>,
+    pub great_works_count: i32,
 }
 
 impl crate::model::Model for CityCapturedLoot {
@@ -20254,6 +20255,8 @@ impl crate::model::Model for CityCapturedLoot {
         crate::model::Model::diff(&self.culture, &old.culture, at, out);
         at.field = base.child(2);
         crate::model::Model::diff(&self.great_works, &old.great_works, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.great_works_count, &old.great_works_count, at, out);
         at.field = base;
     }
 
@@ -20262,15 +20265,17 @@ impl crate::model::Model for CityCapturedLoot {
             crate::model::Model::to_value(&self.gold),
             crate::model::Model::to_value(&self.culture),
             crate::model::Model::to_value(&self.great_works),
+            crate::model::Model::to_value(&self.great_works_count),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(3)?;
+        let f = v.as_struct(4)?;
         Ok(CityCapturedLoot {
             gold: crate::model::Model::from_value(&f[0])?,
             culture: crate::model::Model::from_value(&f[1])?,
             great_works: crate::model::Model::from_value(&f[2])?,
+            great_works_count: crate::model::Model::from_value(&f[3])?,
         })
     }
 }
@@ -42581,15 +42586,15 @@ impl crate::model::Model for CityCaptured {
         crate::model::Model::diff(&self.minor_buyout, &old.minor_buyout, at, out);
         at.field = base.child(7);
         crate::model::Model::diff(&self.loot, &old.loot, at, out);
-        at.field = base.child(15);
+        at.field = base.child(16);
         crate::model::Model::diff(&self.options, &old.options, at, out);
-        at.field = base.child(24);
-        crate::model::Model::diff(&self.can_view, &old.can_view, at, out);
         at.field = base.child(25);
-        crate::model::Model::diff(&self.may_annex, &old.may_annex, at, out);
+        crate::model::Model::diff(&self.can_view, &old.can_view, at, out);
         at.field = base.child(26);
-        crate::model::Model::diff(&self.happiness, &old.happiness, at, out);
+        crate::model::Model::diff(&self.may_annex, &old.may_annex, at, out);
         at.field = base.child(27);
+        crate::model::Model::diff(&self.happiness, &old.happiness, at, out);
+        at.field = base.child(28);
         crate::model::Model::diff(&self.reason, &old.reason, at, out);
         at.field = base;
     }
