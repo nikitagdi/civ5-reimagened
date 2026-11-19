@@ -242,11 +242,17 @@ local function map_data(player)
             local owner = civ and L(civ.ShortDescription) or "Unknown civilization"
             for c in other:Cities() do
                 if c:GetOwner() == id and (id == player or (c:IsRevealed(p:GetTeam(), false) and visible(c:Plot(), p:GetTeam()))) then
+                    local own = id == player
+                    local food, need, rate = 0, 0, 0
+                    if own then food, need, rate = c:GetFood(), c:GrowthThreshold(), c:FoodDifference() end
                     cities[#cities + 1] = {key = key_city(id, c:GetID()), hover_key = key_city(id, c:GetID()), name = c:GetName(), owner = owner,
                         strength = math.floor(c:GetStrengthValue() / 100), hp = c:GetMaxHitPoints() - c:GetDamage(), hp_max = c:GetMaxHitPoints(),
-                        growth_turns = id == player and turns(c:GetFoodTurnsLeft()) or nil,
-                        resistance_turns = id == player and c:IsResistance() and c:GetResistanceTurns() or nil,
-                        razing_turns = id == player and c:IsRazing() and c:GetRazingTurns() or nil}
+                        growth_turns = own and turns(c:GetFoodTurnsLeft()) or nil,
+                        resistance_turns = own and c:IsResistance() and c:GetResistanceTurns() or nil,
+                        razing_turns = own and c:IsRazing() and c:GetRazingTurns() or nil,
+                        -- The banner's food bar and growth cell (the original CityBannerManager: growing, stagnant, starving).
+                        food = food, food_needed = need, food_rate = rate,
+                        starve_turns = rate < 0 and math.max(1, math.ceil(food / -rate)) or nil}
                 end
             end
             for u in other:Units() do
@@ -304,6 +310,44 @@ local function plain(text)
     return (text:gsub("%[NEWLINE%]", " "):gsub("%[COLOR[^%]]*%]", ""):gsub("%[ENDCOLOR%]", ""))
 end
 
+-- The order of the unit panel's buttons: a fixed weight per kind of order, so that a button keeps its place whatever
+-- else the unit can do (move, attacks, fortify and sleep, builds, special orders, upgrade, automation, delete last).
+local ACTION_WEIGHT = {
+    INTERFACEMODE_MOVE_TO = 10, INTERFACEMODE_ROUTE_TO = 11, INTERFACEMODE_ATTACK = 20, INTERFACEMODE_RANGE_ATTACK = 21,
+    INTERFACEMODE_AIRSTRIKE = 22, INTERFACEMODE_AIR_SWEEP = 23, INTERFACEMODE_NUKE = 24, INTERFACEMODE_PARADROP = 25,
+    INTERFACEMODE_REBASE = 26,
+    MISSION_FORTIFY = 30, MISSION_GARRISON = 30, MISSION_SLEEP = 31, MISSION_ALERT = 32, MISSION_HEAL = 33,
+    MISSION_AIRPATROL = 34, MISSION_PILLAGE = 60, MISSION_EMBARK = 61, MISSION_DISEMBARK = 61, MISSION_FOUND = 62,
+    COMMAND_UPGRADE = 70, COMMAND_WAKE = 85, COMMAND_CANCEL = 86, COMMAND_CANCEL_ALL = 86, MISSION_SKIP = 90,
+    COMMAND_DELETE = 99,
+}
+local function action_weight(a)
+    if a.CommandType == GameInfoTypes.COMMAND_PROMOTION then return 5 end
+    if a.MissionType == GameInfoTypes.MISSION_BUILD then return 40 end
+    local w = ACTION_WEIGHT[a.Type]
+    if w then return w end
+    if type(a.Type) == "string" and a.Type:find("^AUTOMATE_") then return 80 end
+    return 63
+end
+
+-- The action's own picture: the icon of its row in the tables the original UnitPanel reads (missions, commands,
+-- automations, interface modes, builds), or the promotion's portrait.
+local ACTION_TABLES = {"Missions", "Commands", "Automates", "InterfaceModes", "Builds", "Controls"}
+local function action_icon(a)
+    if type(a.Type) ~= "string" then return "" end
+    local ok, found = pcall(function()
+        for _, name in ipairs(ACTION_TABLES) do
+            local rows = GameInfo[name]
+            local row = rows and rows[a.Type]
+            if row and row.IconAtlas and row.IconIndex then return icon(row.IconAtlas, row.IconIndex) end
+        end
+        local p = GameInfo.UnitPromotions and GameInfo.UnitPromotions[a.Type]
+        if p and p.IconAtlas and p.PortraitIndex then return icon(p.IconAtlas, p.PortraitIndex) end
+        return ""
+    end)
+    return ok and found or ""
+end
+
 local function action_catalog(player, unit)
     local out, id = array(), 0
     while GameInfoActions[id] do
@@ -321,10 +365,15 @@ local function action_catalog(player, unit)
                 build = a.MissionType == GameInfoTypes.MISSION_BUILD,
                 client = ({INTERFACEMODE_MOVE_TO="move", INTERFACEMODE_RANGE_ATTACK="range_attack", MISSION_ALERT="alert", MISSION_HEAL="heal", COMMAND_DELETE="disband", COMMAND_UPGRADE="upgrade", AUTOMATE_EXPLORE="explore", AUTOMATE_BUILD="automate_build", MISSION_PILLAGE="pillage", MISSION_FOUND="found_city", MISSION_FORTIFY="fortify", MISSION_SLEEP="sleep", MISSION_SKIP="skip",
                     INTERFACEMODE_ESTABLISH_TRADE_ROUTE="trade_route", MISSION_ESTABLISH_TRADE_ROUTE="trade_route",
-                    MISSION_CHANGE_TRADE_UNIT_HOME_CITY="trade_home", MISSION_CHANGE_ADMIRAL_PORT="admiral_port"})[a.Type] or ""}
+                    MISSION_CHANGE_TRADE_UNIT_HOME_CITY="trade_home", MISSION_CHANGE_ADMIRAL_PORT="admiral_port"})[a.Type] or "",
+                icon = action_icon(a), weight = action_weight(a)}
         end
         id = id + 1
     end
+    table.sort(out, function(x, y)
+        if x.weight ~= y.weight then return x.weight < y.weight end
+        return x.id < y.id
+    end)
     return out
 end
 
@@ -364,6 +413,8 @@ return {
                     id = resource.ID, usage = usage, available = p:GetNumResourceAvailable(resource.ID, true),
                     used = p:GetNumResourceUsed(resource.ID), total = p:GetNumResourceTotal(resource.ID, true),
                     name = L(resource.Description), icon = "resource:" .. resource.ID,
+                    glyph = type(resource.IconString) == "string" and resource.IconString:match("^%[(ICON_[%w_]+)%]$") and
+                        "font:" .. resource.IconString:match("^%[(ICON_[%w_]+)%]$") or "",
                     revealed = not resource.TechReveal or team:IsHasTech(GameInfoTypes[resource.TechReveal]),
                     imported = p:GetResourceImport(resource.ID), exported = p:GetResourceExport(resource.ID),
                 }

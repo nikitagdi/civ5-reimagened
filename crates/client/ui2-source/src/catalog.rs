@@ -13,6 +13,8 @@ use crate::trigger::Roots;
 pub struct Item {
     pub name: Text,
     pub icon: AssetRef,
+    /// The unit flag glyph (units only): the cell of the unit's `UnitFlagAtlas`.
+    pub flag: AssetRef,
 }
 
 impl Item {
@@ -22,6 +24,7 @@ impl Item {
             // keys, so they go into the model as raw text and a language switch does not translate them.
             name: Text::raw(&e.name),
             icon: icon(e.icon_atlas.as_deref(), e.icon_index),
+            flag: icon(e.flag_atlas.as_deref(), e.flag_index),
         }
     }
 }
@@ -166,6 +169,7 @@ impl Catalog {
                     // named by number until the rules tables of the asset pipeline name them.
                     name: Text::raw(&format!("Process {id}")),
                     icon: AssetRef::default(),
+                    flag: AssetRef::default(),
                 };
             }
             OrderType::Other(_) => return Item::default(),

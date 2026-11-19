@@ -292,6 +292,13 @@ This is what a skin author uses most.
 - **Texts.** `data-l10n="<key>"` with `data-l10n-args` for the arguments, as in `"top.turns" = "{1_Num}
   {1_Num: plural 1?turn; other?turns;}"`. A key is lower case words joined by dots.
 - **Less common attributes.** `data-asset="render:minimap"` shows a game asset (the element needs a size in CSS).
+  A game picture is named the same way: `icon:<atlas>:<index>` (a cell of an icon atlas), `unit:`, `leader:`,
+  `civ:` and the other game namespaces, and `font:ICON_<NAME>` for an icon of the game's text font (the yield and
+  resource icons, as `[ICON_GOLD]` in the game's texts). The pictures come with the game's UI set, which loads after
+  the skin: until then the element is empty.
+- **Keys of a closed menu.** A key binds only on a node that is shown. A menu whose items carry keys keeps them
+  working while it is closed with a row of zero-size buttons outside it that hold the same keys and actions
+  (`.hk` in the engraved strip): a zero-size node still counts as shown.
   `data-tooltip="<id>"` names a `<template data-layer="tooltip" id="<id>">`, a child of the `tooltip` layer root
   that holds exactly one element; while the node is hovered the runtime shows that element in the tooltip layer
   under the node. Its bindings read the model and the skin state, not the loop variables of the node: a row of a

@@ -1,148 +1,62 @@
 <!-- SIMPLIFIED(SIMP-462): The native unit catalog has no spy identity or move-spy action; relocate spies from the espionage overview. -->
+<!-- The selected unit, compact: portrait, name, type and level on one line, the experience bar with the promotions
+     under it, one row of stats, then the orders in one wrapping row in the catalog's order (the HUD service sorts it by
+     the order weights: move, attacks, fortify, builds, special orders, upgrade, automation, delete last). The name of
+     an order is in its tooltip. -->
 <section class="unit plate tr" data-part="unit" data-bind-if="{{unit != null}}">
-  <div class="head">
-    <div class="portrait" data-part="unit.portrait">
+  <div class="u-head">
+    <div class="u-por" data-part="unit.portrait">
       <svg class="i fill sil"><use href="#i-unit"/></svg>
       <img class="pic" data-bind-src="{{unit.portrait}}">
     </div>
-    <div class="info">
-      <div class="title" data-part="unit.title">
+    <div class="u-info">
+      <div class="u-title" data-part="unit.title">
         <span class="nm" data-bind-value="{{unit.name}}">Bogatyr</span>
-        <button class="unit-panel-rename-button" data-part="unit-panel.rename-open" data-on-click="intent window.open(window: 'unit_rename', a: hud.unit.id)" data-tooltip="unit-rename-tip" data-bind-if="{{hud != null && hud.unit != null}}"><svg class="i"><use href="#i-pencil"/></svg></button>
         <span class="ty" data-bind-value="{{unit.type_name}}">Knight</span>
         <span class="state" data-bind-if="{{unit.activity == 'hold'}}" data-l10n="unit.holding">Holding</span>
         <span class="state" data-bind-if="{{unit.activity == 'sleep'}}" data-l10n="unit.resting">Fortified</span>
         <span class="state" data-bind-if="{{unit.activity == 'heal'}}" data-l10n="unit.healing">Healing</span>
         <span class="state" data-bind-if="{{unit.pending}}" data-l10n="unit.pending">Waiting</span>
         <span class="lvl" data-l10n="unit.level" data-l10n-args="{{unit.level}}">Level 2</span>
+        <button class="ren" data-part="unit-panel.rename-open" data-on-click="intent window.open(window: 'unit_rename', a: hud.unit.id)" data-tooltip="unit-rename-tip" data-bind-if="{{hud != null && hud.unit != null}}"><svg class="i"><use href="#i-pencil"/></svg></button>
       </div>
-      <div class="stats">
-        <div class="stat">
-          <div class="k"><svg class="i"><use href="#i-str"/></svg><span data-l10n="unit.strength">Strength</span></div>
-          <div class="v"><span data-bind-value="{{unit.strength}}">20</span><span class="rng" data-bind-if="{{unit.ranged > 0}}" data-l10n="unit.ranged" data-l10n-args="{{unit.ranged}}">ranged 18</span></div>
-        </div>
-        <div class="stat sep">
-          <div class="k"><svg class="i"><use href="#i-moves"/></svg><span data-l10n="unit.moves">Moves</span></div>
-          <div class="v">
-            <span data-bind-value="{{round(unit.moves * 10) / 10}}">2</span>
-            <span class="of" data-l10n="unit.of" data-l10n-args="{{unit.max_moves}}">of 4</span>
-            <div class="pips">
-              <div class="pip" data-bind-if="{{unit.max_moves >= 1}}" data-bind-class-toggle="on:{{unit.moves >= 1}}"></div>
-              <div class="pip" data-bind-if="{{unit.max_moves >= 2}}" data-bind-class-toggle="on:{{unit.moves >= 2}}"></div>
-              <div class="pip" data-bind-if="{{unit.max_moves >= 3}}" data-bind-class-toggle="on:{{unit.moves >= 3}}"></div>
-              <div class="pip" data-bind-if="{{unit.max_moves >= 4}}" data-bind-class-toggle="on:{{unit.moves >= 4}}"></div>
-              <div class="pip" data-bind-if="{{unit.max_moves >= 5}}" data-bind-class-toggle="on:{{unit.moves >= 5}}"></div>
-            </div>
-          </div>
-        </div>
-        <div class="stat sep">
-          <div class="k"><svg class="i"><use href="#i-hp"/></svg><span data-l10n="unit.health">Health</span></div>
-          <div class="v">
-            <span data-bind-value="{{round(unit.hp_fraction * 100)}}%">100%</span>
-            <div class="hpbar"><div class="fill" data-bind-class-toggle="low:{{unit.hp_fraction < 0.5}}" data-bind-style-width="{{unit.hp_fraction * 100}}%" style="width: 100%"></div></div>
-          </div>
-        </div>
+      <div class="u-xp" data-bind-if="{{hud != null && hud.unit != null}}" data-bind-class-toggle="full:{{unit.promotion_ready}}">
+        <b data-bind-value="{{unit.xp}}/{{hud.unit.xp_next}}">12/30</b>
+        <div class="trk"><div class="fill" data-bind-style-width="{{clamp(unit.xp / max(hud.unit.xp_next, 1), 0, 1) * 100}}%" style="width: 40%"></div></div>
+        <span data-l10n="unit_panel.xp_short">XP</span>
       </div>
-      <div class="promos" data-part="unit.promotions">
-        <span class="lbl" data-l10n="unit.promotions">Promotions</span>
-        <span class="ready" data-bind-if="{{unit.promotion_ready}}" data-l10n="unit.promotion_ready">ready</span>
-        <div class="chip" data-bind-for="p:{{unit.promotions}}">
-          <svg class="i"><use href="#i-str"/></svg>
-          <span data-bind-value="{{p.name}}">Shock I</span>
-        </div>
-        <span class="none" data-bind-if="{{len(unit.promotions) == 0 && !unit.promotion_ready}}" data-l10n="unit.no_promotions">none</span>
+      <div class="u-promos" data-part="unit.promotions" data-bind-if="{{len(unit.promotions) > 0}}">
+        <img class="pr" data-bind-for="p:{{unit.promotions}}" data-bind-src="{{p.icon}}" data-tooltip="unit-promotion-tip" data-on-pointerenter="set state.unit_panel.promo = p.id">
+      </div>
+      <div class="u-stats">
+        <span class="s" data-bind-if="{{unit.strength > 0}}"><svg class="i"><use href="#i-str"/></svg><span data-bind-value="{{unit.strength}}">20</span></span>
+        <span class="s" data-bind-if="{{unit.ranged > 0}}"><svg class="i"><use href="#i-bow"/></svg><span data-bind-value="{{unit.ranged}}">18</span><small data-l10n="unit_panel.range" data-l10n-args="{{unit.range}}">r2</small></span>
+        <span class="s"><svg class="i"><use href="#i-moves"/></svg><span data-bind-value="{{round(unit.moves * 10) / 10}}">2</span><small data-bind-value="/{{unit.max_moves}}">/4</small></span>
+        <span class="s" data-bind-class-toggle="hp-mid:{{unit.hp_fraction < 0.66}}; hp-lo:{{unit.hp_fraction < 0.33}}"><svg class="i"><use href="#i-hp"/></svg><span data-bind-value="{{round(unit.hp_fraction * 100)}}%">100%</span><div class="uhp" data-bind-if="{{unit.hp_fraction < 1}}"><div class="fill" data-bind-style-width="{{unit.hp_fraction * 100}}%"></div></div></span>
       </div>
     </div>
   </div>
 
-  <div class="unit-panel-catalog" data-bind-if="{{hud != null && hud.unit != null}}">
-    <div class="unit-panel-experience"><div class="unit-panel-xp-track"><div class="unit-panel-xp-fill" data-bind-style-width="{{clamp(unit.xp / max(hud.unit.xp_next, 1), 0, 1) * 100}}%"></div></div><span class="unit-panel-xp" data-l10n="unit_panel.xp" data-l10n-args="{{unit.xp}}, {{hud.unit.xp_next}}"></span></div>
-    <div class="unit-panel-actions" data-part="unit.actions" data-slot="hud.unit.actions">
-      <button class="unit-panel-action"
-        data-part="unit.act.found-city"
-        data-bind-for="a:{{hud.unit.catalog}}"
-        data-bind-filter="{{a.client == 'found_city'}}"
-        data-bind-hotkey="{{a.hotkey}}"
-        data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}"
-        data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}"
-        data-tooltip="unit-panel-action-tip"
-        data-on-pointerenter="set state.unit_panel.hover = a.id"
-        data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)">
-        <svg class="i"><use href="#i-settler"/></svg>
-        <span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span>
-        <span class="unit-panel-key" data-hotkey-label></span>
-      </button>
-      <button class="unit-panel-action"
-        data-part="unit.act.fortify"
-        data-bind-for="a:{{hud.unit.catalog}}"
-        data-bind-filter="{{a.client == 'fortify'}}"
-        data-bind-hotkey="{{a.hotkey}}"
-        data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}"
-        data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}"
-        data-tooltip="unit-panel-action-tip"
-        data-on-pointerenter="set state.unit_panel.hover = a.id"
-        data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)">
-        <svg class="i"><use href="#i-fortify"/></svg>
-        <span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span>
-        <span class="unit-panel-key" data-hotkey-label></span>
-      </button>
-      <button class="unit-panel-action"
-        data-part="unit.act.sleep"
-        data-bind-for="a:{{hud.unit.catalog}}"
-        data-bind-filter="{{a.client == 'sleep'}}"
-        data-bind-hotkey="{{a.hotkey}}"
-        data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}"
-        data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}"
-        data-tooltip="unit-panel-action-tip"
-        data-on-pointerenter="set state.unit_panel.hover = a.id"
-        data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)">
-        <svg class="i"><use href="#i-sleep"/></svg>
-        <span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span>
-        <span class="unit-panel-key" data-hotkey-label></span>
-      </button>
-      <button class="unit-panel-action"
-        data-part="unit.act.skip"
-        data-bind-for="a:{{hud.unit.catalog}}"
-        data-bind-filter="{{a.client == 'skip'}}"
-        data-bind-hotkey="{{a.hotkey}}"
-        data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}"
-        data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}"
-        data-tooltip="unit-panel-action-tip"
-        data-on-pointerenter="set state.unit_panel.hover = a.id"
-        data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)">
-        <svg class="i"><use href="#i-moves"/></svg>
-        <span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span>
-        <span class="unit-panel-key" data-hotkey-label></span>
-      </button>
-      <button class="unit-panel-action"
-        data-part="unit-panel.action"
-        data-bind-for="a:{{hud.unit.catalog}}"
-        data-bind-filter="{{a.client != 'found_city' && a.client != 'fortify' && a.client != 'sleep' && a.client != 'skip'}}"
-        data-bind-hotkey="{{a.hotkey}}"
-        data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}"
-        data-bind-class-toggle="unit-panel-promotion:{{a.promotion}}; unit-panel-build:{{a.build}}"
-        data-tooltip="unit-panel-action-tip"
-        data-on-pointerenter="set state.unit_panel.hover = a.id"
-        data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)">
-        <svg class="i" data-bind-if="{{a.promotion}}"><use href="#i-str"/></svg>
-        <svg class="i" data-bind-if="{{a.build}}"><use href="#i-worker"/></svg>
-        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'move'}}"><use href="#i-move"/></svg>
-        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'range_attack'}}"><use href="#i-bow"/></svg>
-        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'alert'}}"><use href="#i-alert"/></svg>
-        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'heal'}}"><use href="#i-hp"/></svg>
-        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'disband'}}"><use href="#i-del"/></svg>
-        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'upgrade'}}"><use href="#i-upgrade"/></svg>
-        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'explore'}}"><use href="#i-tour"/></svg>
-        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'automate_build'}}"><use href="#i-worker"/></svg>
-        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'pillage'}}"><use href="#i-pillage"/></svg>
-        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'trade_route'}}"><use href="#i-routes"/></svg>
-        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'trade_home'}}"><use href="#i-cities"/></svg>
-        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == 'admiral_port'}}"><use href="#i-ship"/></svg>
-        <!-- SIMPLIFIED(SIMP-520): Unclassified native catalog entries use the command icon and retain their complete hover help. -->
-        <svg class="i" data-bind-if="{{!a.promotion && !a.build && a.client == ''}}"><use href="#i-move"/></svg>
-        <span class="unit-panel-action-name" data-bind-value="{{a.name}}"></span>
-        <span class="unit-panel-key" data-hotkey-label></span>
-      </button>
+  <div class="u-acts" data-part="unit.actions" data-slot="hud.unit.actions">
+    <div class="row" data-bind-if="{{hud != null && hud.unit != null}}">
+    <button class="ua"
+      data-part="unit-panel.action"
+      data-bind-for="a:{{hud.unit.catalog}}"
+      data-bind-hotkey="{{a.hotkey}}"
+      data-bind-disabled="{{!a.enabled || unit.pending || len(ui.pending) > 0}}"
+      data-bind-class-toggle="is-rec:{{a.promotion}}; danger:{{a.client == 'disband'}}"
+      data-tooltip="unit-panel-action-tip"
+      data-on-pointerenter="set state.unit_panel.hover = a.id"
+      data-on-click="call unit_panel.act(a.id, a.client, event.alt, event.shift)">
+      <img class="ai" data-bind-src="{{a.icon}}">
+      <!-- The orders the playtests reach by name: a mark over the whole button carries the name and the key. -->
+      <span class="mk" data-part="unit.act.found-city" data-bind-if="{{a.client == 'found_city'}}"><span class="hk" data-hotkey-label></span></span>
+      <span class="mk" data-part="unit.act.fortify" data-bind-if="{{a.client == 'fortify'}}"><span class="hk" data-hotkey-label></span></span>
+      <span class="mk" data-part="unit.act.sleep" data-bind-if="{{a.client == 'sleep'}}"><span class="hk" data-hotkey-label></span></span>
+      <span class="mk" data-part="unit.act.skip" data-bind-if="{{a.client == 'skip'}}"><span class="hk" data-hotkey-label></span></span>
+      <span class="mk" data-part="unit.act.disband" data-bind-if="{{a.client == 'disband'}}"><span class="hk" data-hotkey-label></span></span>
+      <span class="mk" data-bind-if="{{a.client != 'found_city' && a.client != 'fortify' && a.client != 'sleep' && a.client != 'skip' && a.client != 'disband'}}"><span class="hk" data-hotkey-label></span></span>
+    </button>
     </div>
   </div>
 </section>

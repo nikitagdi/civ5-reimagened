@@ -171,6 +171,45 @@ fn rename_modal_validates_the_target_and_closes_only_after_emitting_the_text_act
 }
 
 #[test]
+fn unit_catalog_is_ordered_by_weight_and_names_the_original_action_icons() {
+    script().exec(r#"
+        GameInfoTypes.MISSION_BUILD = 20
+        GameInfoActions[0].Type = 'COMMAND_DELETE'
+        GameInfoActions[2] = {Visible=true, TextKey="Farm", Type="BUILD_FARM", MissionType=20, MissionData=1, CommandType=-1}
+        GameInfoActions[3] = {Visible=true, TextKey="Fortify", Type="MISSION_FORTIFY", MissionType=10, CommandType=-1}
+        GameInfo.Missions = {MISSION_FORTIFY = {IconAtlas='UNIT_ACTION_ATLAS', IconIndex=7}}
+        GameInfo.Builds = {BUILD_FARM = {IconAtlas='UNIT_ACTION_ATLAS', IconIndex=12}}
+        local unit = Players[3]:GetUnitByID(4)
+        unit.CanStartMission = function() return true end
+        local rows = screen.data(3, {unit=4}).unit.catalog
+        assert(#rows == 4)
+        -- fortify (30), the farm (40), the upgrade (no row type: 63), delete last (99)
+        assert(rows[1].weight == 30 and rows[1].icon == 'icon:UNIT_ACTION_ATLAS:7', rows[1].icon)
+        assert(rows[2].weight == 40 and rows[2].icon == 'icon:UNIT_ACTION_ATLAS:12')
+        assert(rows[3].weight == 63 and rows[3].icon == '')
+        assert(rows[4].weight == 99 and rows[4].client == 'disband')
+        for i = 2, #rows do assert(rows[i - 1].weight <= rows[i].weight) end
+    "#, "=action-order").unwrap();
+}
+
+#[test]
+fn city_food_of_the_banner_reads_storage_threshold_and_surplus() {
+    script()
+        .exec(
+            r#"
+        local c = screen.data(3, {}).map.cities[1]
+        assert(c.food == 12 and c.food_needed == 30 and c.food_rate == -5)
+        -- starving: 12 food at -5 a turn lasts 3 turns
+        assert(c.starve_turns == 3)
+        Players[3]:GetCityByID(3).FoodDifference = function() return 4 end
+        assert(screen.data(3, {}).map.cities[1].starve_turns == nil)
+    "#,
+            "=banner-food",
+        )
+        .unwrap();
+}
+
+#[test]
 fn unit_catalog_exposes_window_actions_only_when_native_applicability_allows() {
     script().exec(r#"
         local unit = Players[3]:GetUnitByID(4)
@@ -179,8 +218,11 @@ fn unit_catalog_exposes_window_actions_only_when_native_applicability_allows() {
         GameInfoActions[3] = {Visible=true, TextKey="Home", Type="MISSION_CHANGE_TRADE_UNIT_HOME_CITY", MissionType=10}
         GameInfoActions[4] = {Visible=true, TextKey="Port", Type="MISSION_CHANGE_ADMIRAL_PORT", MissionType=10}
         local rows = screen.data(3, {unit=4}).unit.catalog
-        assert(#rows==5 and rows[3].client=='trade_route' and rows[3].enabled)
-        assert(rows[4].client=='trade_home' and rows[5].client=='admiral_port')
+        -- the catalog is in weight order: the window actions are found by their client action
+        local by = {}
+        for _, row in ipairs(rows) do by[row.client] = row end
+        assert(#rows==5 and by.trade_route and by.trade_route.enabled)
+        assert(by.trade_home and by.admiral_port)
         unit.CanMakeTradeRoute = function() return false end
         assert(#screen.data(3, {unit=4}).unit.catalog==4)
         hud_busy = true

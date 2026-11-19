@@ -1,5 +1,7 @@
 //! The game's pictures for UI v2's skins: `icon:<ATLAS>:<index>` (the model's icons: unit portraits, techs,
-//! buildings, resources) is a cell of one of the game's icon atlases.
+//! buildings, resources, unit flag glyphs, unit actions) is a cell of one of the game's icon atlases; `<ns>:<id>` and
+//! `<ns>:<TYPE>` of the catalog's tables name the same cells; `font:<ICON_NAME>` is a glyph of the game's icon fonts
+//! (the yield and resource pictures the original draws in texts and in its top panel, `[ICON_GOLD]`).
 //!
 //! The classic UI set (the game session's) carries the atlas table: for each atlas and icon size, the texture file and
 //! how many icons it holds per row and per column. A picture is that texture of the set and the cell's rectangle in
@@ -95,6 +97,89 @@ pub fn icon_image(store: &UiStore, name: &str) -> Result<ExtImage, &'static str>
     })
 }
 
+/// `font:<ICON_NAME>`: the name of a glyph of the game's icon fonts (the pictures the original draws inside texts,
+/// `[ICON_GOLD]`); `None` for any other name.
+pub fn parse_font_icon(name: &str) -> Option<&str> {
+    let icon = name.strip_prefix("font:")?;
+    (icon.starts_with("ICON_")
+        && icon.len() > 5
+        && icon.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_'))
+    .then_some(icon)
+}
+
+/// The icon fonts of the set, read on the first `font:` picture: the font file and glyph code of each icon name
+/// (`IconFontMapping`), and the parsed `.ggxml` of each font file.
+#[derive(Default)]
+struct IconFonts {
+    /// Icon name to (font file stem, glyph code).
+    icons: BTreeMap<String, (String, u32)>,
+    fonts: BTreeMap<String, Option<ui_text::Font>>,
+}
+
+impl IconFonts {
+    fn read(store: &UiStore) -> IconFonts {
+        let Some(tables) = store
+            .bytes(asset_format::UI_TABLES_ID)
+            .and_then(|b| asset_format::UiTables::decode(&b).ok())
+        else {
+            return IconFonts::default();
+        };
+        let files: BTreeMap<&str, &str> = tables
+            .icon_textures
+            .iter()
+            .map(|(k, f)| (k.as_str(), f.as_str()))
+            .collect();
+        let icons = tables
+            .icons
+            .iter()
+            .filter_map(|i| {
+                Some((
+                    i.name.clone(),
+                    ((*files.get(i.texture.as_str())?).to_owned(), i.glyph),
+                ))
+            })
+            .collect();
+        IconFonts {
+            icons,
+            fonts: BTreeMap::new(),
+        }
+    }
+
+    /// The glyph's texture and its rectangle in it.
+    fn image(&mut self, store: &UiStore, icon: &str) -> Result<ExtImage, &'static str> {
+        let (stem, code) = self
+            .icons
+            .get(icon)
+            .cloned()
+            .ok_or("the set has no such font icon")?;
+        let font = self
+            .fonts
+            .entry(stem.clone())
+            .or_insert_with(|| {
+                let text = store.text_of_name(&format!("{stem}.ggxml"))?;
+                ui_text::Font::parse(&stem, &text).ok()
+            })
+            .as_ref()
+            .ok_or("the icon font is not in the set")?;
+        if !font.has_glyph(code) {
+            return Err("the icon font has no such glyph");
+        }
+        let layer = font.style(0).map_or(0, |s| s.layers[0]);
+        let texture = usize::try_from(layer)
+            .ok()
+            .and_then(|i| font.textures().get(i))
+            .or_else(|| font.textures().first())
+            .ok_or("the icon font has no texture")?;
+        let info = store
+            .texture_info(&texture.src)
+            .ok_or("the set has not the icon font's texture")?;
+        Ok(ExtImage {
+            texture: ExtTexture(info.id.0),
+            uv: font.glyph(code).uv,
+        })
+    }
+}
+
 /// At most this many names without a picture are logged.
 const LOGGED_MISSES: usize = 32;
 
@@ -110,6 +195,8 @@ pub struct GameIcons {
     missed: Rc<Cell<u64>>,
     /// The names without a picture logged so far.
     logged: Rc<RefCell<BTreeSet<String>>>,
+    /// The icon fonts of the current set (`font:` names), read on first use.
+    fonts: Rc<RefCell<Option<IconFonts>>>,
 }
 
 impl GameIcons {
@@ -123,6 +210,7 @@ impl GameIcons {
         };
         if !same {
             *cur = store;
+            *self.fonts.borrow_mut() = None;
         }
         !same
     }
@@ -171,10 +259,18 @@ impl GameIcons {
 
     fn resolve(&self, name: &str) -> Option<ExtImage> {
         let found = match self.store.borrow().as_ref() {
-            Some(s) => {
-                let aliases = self.aliases.borrow();
-                icon_image(s, aliases.get(name).map_or(name, String::as_str))
-            }
+            Some(s) => match parse_font_icon(name) {
+                Some(icon) => {
+                    let mut fonts = self.fonts.borrow_mut();
+                    fonts
+                        .get_or_insert_with(|| IconFonts::read(s))
+                        .image(s, icon)
+                }
+                None => {
+                    let aliases = self.aliases.borrow();
+                    icon_image(s, aliases.get(name).map_or(name, String::as_str))
+                }
+            },
             None => Err("the UI set is not loaded yet"),
         };
         match found {
@@ -320,6 +416,27 @@ mod tests {
         assert_eq!(icons.logged.borrow().len(), 1);
         assert!(icons.set_catalog(None));
         assert!(resolve("unit:5").is_none());
+    }
+
+    #[test]
+    fn font_icon_names_are_read() {
+        assert_eq!(parse_font_icon("font:ICON_GOLD"), Some("ICON_GOLD"));
+        assert_eq!(parse_font_icon("font:ICON_RES_IRON"), Some("ICON_RES_IRON"));
+        for bad in [
+            "font:",
+            "font:ICON_",
+            "font:GOLD",
+            "font:ICON_A:1",
+            "icon:ICON_GOLD",
+            "ICON_GOLD",
+        ] {
+            assert_eq!(parse_font_icon(bad), None, "{bad:?}");
+        }
+        // Without an icon table in the set, a font icon has no picture (and is not taken for an atlas cell).
+        let icons = GameIcons::default();
+        icons.set_store(Some(store()));
+        assert!(icons.resolver()("font:ICON_GOLD").is_none());
+        assert_eq!(icons.counts(), (0, 1));
     }
 
     #[test]

@@ -1,95 +1,103 @@
-<header class="top" data-part="top" data-bind-if="{{!ui.windows.city.open}}">
-  <div class="grp research" data-part="top.research">
-    <button class="ring" data-bind-disabled="{{hud != null && !hud.top.science_enabled}}" data-on-click="intent window.open(window: 'techs')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'science'"><svg class="i"><use href="#i-sci"/></svg></button>
-    <button class="body" data-bind-disabled="{{hud != null && !hud.top.science_enabled}}" data-bind-if="{{research.current != null}}" data-on-click="intent window.open(window: 'techs')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'science'">
-      <div class="line">
-        <span><span class="name" data-bind-value="{{research.current.name}}">Education</span>&nbsp;&nbsp;<span class="turns" data-bind-if="{{research.current.turns != null}}" data-l10n="top.turns" data-l10n-args="{{research.current.turns}}">3 turns</span></span>
-        <span class="next" data-bind-if="{{research.next != null}}" data-l10n="top.next" data-l10n-args="{{research.next.name}}">Astronomy next</span>
-      </div>
-      <div class="scale" data-part="top.research.scale">
-        <div class="fill" data-bind-style-width="{{research.current.fraction * 100}}%" style="width: 62%"></div>
-        <div class="ticks" data-bind-style-background-size="{{100 * (1 - research.current.fraction) / max(research.current.turns != null ? research.current.turns : 1, 1)}}% 100%" style="background-size: 12.6667% 100%"></div>
-      </div>
-    </button>
-    <button class="pick" data-part="top.research.pick" data-bind-disabled="{{hud != null && !hud.top.science_enabled}}" data-bind-if="{{research.current == null}}" data-on-click="intent window.open(window: 'research')"><span data-l10n="research.title">Choose research</span></button>
-  </div>
-
-  <div class="grp menus screens sep" data-part="top.menu" data-bind-class-toggle="open:{{state.top.menu}}">
-    <!-- SIMPLIFIED(SIMP-500): folded HUD navigation shortcuts require expanding the menu; the runtime registers hotkeys only on visible nodes. -->
-    <div class="primary">
-      <button data-hotkey="F6" data-tooltip="nav-tech-tip" class="mbtn" data-part="top.menu.tech" data-bind-disabled="{{hud != null && !hud.top.science_enabled}}" data-on-click="set state.top.menu = false; intent window.open(window: 'techs')"><svg class="i"><use href="#i-tech"/></svg></button>
-      <button data-hotkey="F5" data-tooltip="tip-policies" class="mbtn" data-part="top.menu.policies" data-bind-disabled="{{hud != null && !hud.top.culture_enabled}}" data-on-click="set state.top.menu = false; intent window.open(window: 'policies')"><svg class="i"><use href="#i-policy"/></svg></button>
-      <button data-hotkey="Ctrl+KeyR" data-tooltip="nav-religion-tip" class="mbtn" data-part="top.menu.religion" data-bind-disabled="{{hud != null && !hud.top.faith_enabled}}" data-on-click="set state.top.menu = false; intent window.open(window: 'religion_overview')"><svg class="i"><use href="#i-religion"/></svg></button>
-    </div>
-    <div class="secondary">
-      <button data-hotkey="Ctrl+KeyC" data-tooltip="tip-city-list" class="mbtn" data-part="top.menu.cities" data-on-click="set state.top.menu = false; intent window.open(window: 'city_list')"><svg class="i"><use href="#i-cities"/></svg></button>
-      <button data-tooltip="nav-lists-tip" class="mbtn" data-part="top.menu.lists" data-on-click="set state.top.menu = false; call unit_lists.toggle()"><svg class="i"><use href="#i-queue"/></svg></button>
-      <button data-hotkey="F2" data-tooltip="nav-economy-tip" class="mbtn" data-part="top.menu.economy" data-on-click="set state.top.menu = false; intent window.open(window: 'economy')"><svg class="i"><use href="#i-econ"/></svg></button>
-      <button data-hotkey="F3" data-tooltip="nav-military-tip" class="mbtn" data-part="top.menu.military" data-on-click="set state.top.menu = false; intent window.open(window: 'military')"><svg class="i"><use href="#i-military"/></svg></button>
-      <button class="mbtn" data-part="top.menu.diplomacy" data-tooltip="corner-diplomacy-tip" data-on-click="set state.top.menu = false; call civ_ribbon.toggle()"><svg class="i"><use href="#i-diplo"/></svg></button>
-    </div>
-    <button class="mbtn fold" data-part="top.menu.fold" data-hotkey="Alt+KeyW" data-tooltip="nav-fold-tip" data-on-click="set state.top.menu = !state.top.menu"><svg class="i"><use href="#i-menu"/></svg></button>
-    <div class="drop" data-part="top.menu.list" data-slot="hud.menu">
-      <button data-hotkey="F8" data-tooltip="nav-victory-tip" class="mbtn" data-part="top.menu.victory" data-on-click="set state.top.menu = false; intent window.open(window: 'victory')"><svg class="i"><use href="#i-victory"/></svg></button>
-      <button data-hotkey="F4" data-tooltip="nav-demographics-tip" class="mbtn" data-part="top.menu.demographics" data-on-click="set state.top.menu = false; intent window.open(window: 'demographics')"><svg class="i"><use href="#i-demo"/></svg></button>
-      <button data-hotkey="Ctrl+KeyE" data-tooltip="nav-espionage-tip" class="mbtn" data-part="top.menu.espionage" data-on-click="set state.top.menu = false; intent window.open(window: 'espionage')"><svg class="i"><use href="#i-spy"/></svg></button>
-      <button data-hotkey="F9" data-tooltip="nav-trade-routes-tip" class="mbtn" data-part="top.menu.trade-routes" data-on-click="set state.top.menu = false; intent window.open(window: 'trade_routes')"><svg class="i"><use href="#i-routes"/></svg></button>
-      <button data-hotkey="Ctrl+KeyT" data-tooltip="nav-culture-tip" class="mbtn" data-part="top.menu.culture" data-on-click="set state.top.menu = false; intent window.open(window: 'culture')"><svg class="i"><use href="#i-cult"/></svg></button>
-      <button data-hotkey="F10" data-tooltip="nav-congress-tip" class="mbtn" data-part="top.menu.congress" data-on-click="set state.top.menu = false; intent window.open(window: 'congress')"><svg class="i"><use href="#i-congress"/></svg></button>
-      <button data-hotkey="F7" data-tooltip="nav-notification-log-tip" class="mbtn" data-part="top.menu.notification-log" data-on-click="set state.top.menu = false; intent window.open(window: 'notification_log')"><svg class="i"><use href="#i-notices"/></svg></button>
-      <div data-part="top.main-menu"><button data-hotkey="Ctrl+KeyM" data-tooltip="nav-game-menu-tip" class="mbtn" data-part="top.main-menu.button" data-on-click="set state.top.menu = false; intent window.open(window: 'game_menu')"><svg class="i"><use href="#i-menu"/></svg></button></div>
-    </div>
-  </div>
+<!-- The thin top strip: each counter is the button to its window (as the original's top panel); tourism, strategic
+     resources, turn, date and timer on the right, then the chat and the "more" menu. Under it on the left the current
+     research. -->
+<header class="top" data-part="top" data-bind-if="{{!ui.windows.city.open}}" data-bind-class-toggle="open:{{state.top.menu}}">
+  <button class="ctr" data-part="top.yield.science" data-bind-disabled="{{hud != null && !hud.top.science_enabled}}" data-on-click="intent window.open(window: 'techs')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'science'">
+    <img class="yi" data-asset="font:ICON_RESEARCH">
+    <span class="v c-sci" data-bind-value="{{fmt.signed(top.science_rate)}}">+48</span>
+  </button>
+  <button class="ctr" data-part="top.yield.gold" data-on-click="intent window.open(window: 'economy')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'gold'">
+    <img class="yi" data-asset="font:ICON_GOLD">
+    <span class="v c-gold" data-bind-value="{{top.gold}}">312</span>
+    <span class="d pos" data-bind-class-toggle="neg:{{top.gold_rate < 0}}" data-bind-value="({{fmt.signed(top.gold_rate)}})">(+21)</span>
+  </button>
+  <button class="ctr" data-part="top.yield.trade" data-bind-if="{{hud != null}}" data-on-click="intent window.open(window: 'trade_routes')" data-tooltip="top-routes-tip">
+    <img class="yi" data-asset="font:ICON_INTERNATIONAL_TRADE">
+    <span class="v" data-bind-value="{{hud.top.trade_used}}">3</span><span class="d" data-bind-value="/{{hud.top.trade_available}}">/5</span>
+  </button>
+  <button class="ctr hap" data-part="top.yield.happiness" data-bind-class-toggle="bad:{{top.mood == 'unhappy'}}; worse:{{top.mood == 'very_unhappy'}}" data-on-click="intent window.open(window: 'economy', a: 1)" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'happiness'">
+    <img class="yi" data-bind-if="{{top.mood == 'content'}}" data-asset="font:ICON_HAPPINESS_1">
+    <img class="yi" data-bind-if="{{top.mood == 'unhappy'}}" data-asset="font:ICON_HAPPINESS_3">
+    <img class="yi" data-bind-if="{{top.mood == 'very_unhappy'}}" data-asset="font:ICON_HAPPINESS_4">
+    <span class="v" data-bind-value="{{top.happiness}}">7</span>
+  </button>
+  <button class="ctr" data-part="top.yield.golden-age" data-bind-class-toggle="ga-on:{{top.golden_age.active}}" data-on-click="intent window.open(window: 'economy', a: 1)" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'golden_age'">
+    <img class="yi" data-asset="font:ICON_GOLDEN_AGE">
+    <span class="v" data-bind-if="{{top.golden_age.active}}" data-l10n="top.turns" data-l10n-args="{{top.golden_age.turns}}">9 turns</span>
+    <span class="v" data-bind-if="{{!top.golden_age.active}}" data-bind-value="{{top.golden_age.progress}}">412</span><span class="d" data-bind-if="{{!top.golden_age.active}}" data-bind-value="/{{top.golden_age.threshold}}">/650</span>
+  </button>
+  <button class="ctr" data-part="top.yield.culture" data-bind-disabled="{{hud != null && !hud.top.culture_enabled}}" data-on-click="intent window.open(window: 'policies')" data-tooltip="tip-policies">
+    <img class="yi" data-asset="font:ICON_CULTURE">
+    <span class="v c-cult" data-bind-value="{{fmt.signed(top.culture_rate)}}">+31</span>
+    <span class="d" data-bind-if="{{top.policy_turns != null}}" data-l10n="top.turns" data-l10n-args="{{top.policy_turns}}">6 turns</span>
+  </button>
+  <button class="ctr" data-part="top.yield.faith" data-bind-disabled="{{hud != null && !hud.top.faith_enabled}}" data-on-click="intent window.open(window: 'religion_overview')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'faith'">
+    <img class="yi" data-asset="font:ICON_PEACE">
+    <span class="v" data-bind-value="{{top.faith}}">140</span>
+    <span class="d" data-bind-value="({{fmt.signed(top.faith_rate)}})">(+9)</span>
+  </button>
 
   <div class="spacer" data-part="top.extra" data-slot="hud.top.extra"></div>
 
-  <div class="grp yields" data-part="top.yields">
-    <button class="yield" data-part="top.yield.science" data-bind-disabled="{{hud != null && !hud.top.science_enabled}}" data-on-click="intent window.open(window: 'techs')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'science'">
-      <svg class="i c-sci"><use href="#i-sci"/></svg>
-      <span class="v" data-bind-value="{{fmt.signed(top.science_rate)}}">+48</span>
-    </button>
-    <div class="yield" data-part="top.yield.gold" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'gold'">
-      <svg class="i c-gold"><use href="#i-gold"/></svg>
-      <span class="v" data-bind-value="{{top.gold}}">312</span>
-      <span class="d" data-bind-class-toggle="neg:{{top.gold_rate < 0}}" data-bind-value="{{fmt.signed(top.gold_rate)}}">+21</span>
-    </div>
-    <div class="yield" data-part="top.yield.happiness" data-bind-class-toggle="top-panel-negative:{{top.happiness < 0}}" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'happiness'">
-      <svg class="i c-happy"><use href="#i-happy"/></svg>
-      <span class="v" data-bind-value="{{top.happiness}}">7</span>
-    </div>
-    <div class="yield top-panel-age" data-part="top.yield.golden-age" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'golden_age'" data-bind-class-toggle="top-panel-active:{{top.golden_age.active}}">
-      <svg class="i c-gold"><use href="#i-happy"/></svg>
-      <span class="v" data-bind-if="{{top.golden_age.active}}" data-l10n="top.turns" data-l10n-args="{{top.golden_age.turns}}"></span>
-      <span class="d muted" data-bind-value="{{top.golden_age.progress}}/{{top.golden_age.threshold}}"></span>
-      <div class="top-panel-progress"><div class="top-panel-fill" data-bind-style-width="{{clamp(top.golden_age.progress / max(top.golden_age.threshold, 1), 0, 1) * 100}}%"></div></div>
-    </div>
-    <button class="yield" data-part="top.yield.culture" data-bind-disabled="{{hud != null && !hud.top.culture_enabled}}" data-on-click="intent window.open(window: 'policies')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'culture'">
-      <svg class="i c-cult"><use href="#i-cult"/></svg>
-      <span class="v" data-bind-value="{{fmt.signed(top.culture_rate)}}">+31</span>
-      <span class="d muted" data-bind-if="{{top.policy_turns != null}}" data-l10n="top.turns" data-l10n-args="{{top.policy_turns}}">6 turns</span>
-      <div class="top-panel-progress"><div class="top-panel-fill" data-bind-style-width="{{clamp(top.culture / max(top.policy_cost, 1), 0, 1) * 100}}%"></div></div>
-    </button>
-    <button class="yield" data-part="top.yield.faith" data-bind-disabled="{{hud != null && !hud.top.faith_enabled}}" data-on-click="intent window.open(window: 'religion_overview')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'faith'">
-      <svg class="i c-faith"><use href="#i-faith"/></svg>
-      <span class="v" data-bind-value="{{top.faith}}">140</span>
-      <span class="d" data-bind-class-toggle="neg:{{top.faith_rate < 0}}" data-bind-value="{{fmt.signed(top.faith_rate)}}">+9</span>
-    </button>
-    <div class="yield" data-part="top.yield.tourism" data-bind-if="{{top.tourism != null}}" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'tourism'">
-      <svg class="i c-tour"><use href="#i-tour"/></svg>
-      <span class="v" data-bind-value="{{top.tourism}}">4</span>
-    </div>
-    <div class="yield" data-part="top.yield.trade" data-bind-if="{{hud != null}}"><span class="v" data-bind-value="{{hud.top.trade_used}}/{{hud.top.trade_available}}"></span><span class="d muted" data-l10n="top_panel.routes"></span></div>
-    <button class="yield top-panel-gp" data-part="top.yield.gp" data-bind-if="{{hud != null && hud.lists.nearest != null}}" data-on-click="intent window.open(window: 'city', a: hud.lists.nearest.city_id)" data-tooltip="top-panel-gp-tip"><img class="unit-lists-icon" data-bind-src="{{hud.lists.nearest.icon}}"><span class="v" data-l10n="top.turns" data-l10n-args="{{hud.lists.nearest.turns}}"></span></button>
+  <button class="ctr grp" data-part="top.yield.tourism" data-bind-if="{{top.tourism != null}}" data-on-click="intent window.open(window: 'culture')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'tourism'">
+    <img class="yi" data-asset="font:ICON_TOURISM">
+    <span class="v c-tour" data-bind-value="{{top.tourism}}">4</span>
+  </button>
+  <button class="ctr grp res" data-part="top.resources" data-bind-if="{{hud != null}}" data-on-click="call unit_lists.open('resources')">
+    <span class="rs" data-bind-for="r:{{hud.top.resources}}" data-bind-filter="{{r.usage == 1 && r.revealed && (r.available != 0 || r.total > 0)}}" data-bind-class-toggle="neg:{{r.available < 0}}; off:{{r.available == 0}}" data-tooltip="top-panel-resource-tip" data-on-pointerenter="set state.top.resource = r.id">
+      <img class="yi" data-bind-src="{{r.glyph}}">
+      <span class="v" data-bind-value="{{r.available}}">2</span>
+    </span>
+  </button>
+  <div class="when grp" data-part="top.turn" data-tooltip="top-era-tip">
+    <span class="turn"><span data-l10n="top.turn_label">Turn</span><b data-bind-value="{{game.turn}}">87</b></span>
+    <span class="date" data-bind-value="{{game.year_text}}">1250 AD</span>
+  </div>
+  <div class="timer grp" data-part="top.timer" data-bind-if="{{turn.timer != null}}" data-bind-class-toggle="paused:{{turn.timer.stopped}}">
+    <span data-bind-value="{{fmt.mmss(turn.timer.left_s)}}">0:42</span>
+    <div class="trk"><div class="fill" data-bind-style-width="{{clamp(turn.timer.left_s / max(turn.timer.total_s, 1), 0, 1) * 100}}%"></div></div>
+  </div>
+  <button class="tbtn" data-part="top.chat" data-bind-class-toggle="on:{{state.chat.open}}" data-on-click="call chat.toggle()" data-tooltip="top-chat-tip">
+    <svg class="i"><use href="#i-chat"/></svg>
+    <span class="badge" data-bind-if="{{state.chat.unread > 0}}" data-bind-value="{{state.chat.unread}}">2</span>
+  </button>
+  <button class="tbtn" data-part="top.menu.fold" data-hotkey="Alt+KeyW" data-bind-class-toggle="on:{{state.top.menu}}" data-on-click="set state.top.menu = !state.top.menu" data-tooltip="nav-fold-tip"><svg class="i"><use href="#i-menu"/></svg></button>
+
+  <!-- The "more" menu: the windows no counter opens, and the game menu. Its keys work while it is closed: the
+       hotkeys are on the zero-size buttons at the end of the strip, which are always there. -->
+  <div class="hpop menupop" data-part="top.menu.list" data-slot="hud.menu">
+    <button class="mi" data-part="top.menu.military" data-on-click="set state.top.menu = false; intent window.open(window: 'military')"><svg class="i"><use href="#i-military"/></svg><span data-l10n="more.military">Military overview</span><span class="key" data-l10n="keycap.f3">F3</span></button>
+    <button class="mi" data-part="top.menu.diplomacy" data-on-click="set state.top.menu = false; call civ_ribbon.toggle()"><svg class="i"><use href="#i-diplo"/></svg><span data-l10n="more.diplomacy">Diplomacy</span><span class="key" data-l10n="keycap.digit1">1</span></button>
+    <button class="mi" data-part="top.menu.victory" data-on-click="set state.top.menu = false; intent window.open(window: 'victory')"><svg class="i"><use href="#i-victory"/></svg><span data-l10n="more.victory">Victory progress</span><span class="key" data-l10n="keycap.f8">F8</span></button>
+    <button class="mi" data-part="top.menu.demographics" data-on-click="set state.top.menu = false; intent window.open(window: 'demographics')"><svg class="i"><use href="#i-demo"/></svg><span data-l10n="more.demographics">Demographics</span><span class="key" data-l10n="keycap.f4">F4</span></button>
+    <button class="mi" data-part="top.menu.espionage" data-on-click="set state.top.menu = false; intent window.open(window: 'espionage')"><svg class="i"><use href="#i-spy"/></svg><span data-l10n="more.espionage">Espionage</span><span class="key" data-l10n="keycap.ctrl_e">Ctrl+E</span></button>
+    <button class="mi" data-part="top.menu.trade-routes" data-on-click="set state.top.menu = false; intent window.open(window: 'trade_routes')"><svg class="i"><use href="#i-routes"/></svg><span data-l10n="more.trade_routes">Trade routes</span><span class="key" data-l10n="keycap.f9">F9</span></button>
+    <button class="mi" data-part="top.menu.congress" data-on-click="set state.top.menu = false; intent window.open(window: 'congress')"><svg class="i"><use href="#i-congress"/></svg><span data-l10n="more.congress">World Congress</span><span class="key" data-l10n="keycap.f10">F10</span></button>
+    <button class="mi" data-part="top.menu.notification-log" data-on-click="set state.top.menu = false; intent window.open(window: 'notification_log')"><svg class="i"><use href="#i-notices"/></svg><span data-l10n="more.notification_log">Notification log</span><span class="key" data-l10n="keycap.f7">F7</span></button>
+    <button class="mi" data-part="top.menu.cities" data-on-click="set state.top.menu = false; intent window.open(window: 'city_list')"><svg class="i"><use href="#i-cities"/></svg><span data-l10n="more.cities">Cities</span><span class="key" data-l10n="keycap.ctrl_c">Ctrl+C</span></button>
+    <button class="mi" data-part="top.menu.lists" data-on-click="set state.top.menu = false; call unit_lists.toggle()"><svg class="i"><use href="#i-queue"/></svg><span data-l10n="more.lists">Units, resources, great people</span></button>
+    <div class="rule"></div>
+    <div data-part="top.main-menu"><button class="mi" data-part="top.main-menu.button" data-on-click="set state.top.menu = false; intent window.open(window: 'game_menu')"><svg class="i"><use href="#i-menu"/></svg><span data-l10n="more.game_menu">Game menu</span><span class="key" data-l10n="keycap.ctrl_m">Ctrl+M</span></button></div>
   </div>
 
-  <div class="grp res sep" data-part="top.resources">
-    <button class="mbtn top-panel-resource-fold" data-on-click="set state.top.resources = !state.top.resources" data-l10n="top_panel.resources"></button>
-    <div data-bind-if="{{hud != null}}" class="top-panel-resource-list" data-bind-class-toggle="top-panel-expanded:{{state.top.resources}}">
-    <div class="yield sec" data-bind-for="r:{{hud.top.resources}}" data-bind-filter="{{r.revealed && (r.available != 0 || r.used > 0 || r.total > 0)}}" data-bind-class-toggle="off:{{!r.revealed || r.available == 0}}; top-panel-negative:{{r.revealed && r.available < 0}}" data-tooltip="top-panel-resource-tip" data-on-pointerenter="set state.top.resource = r.id">
-      <img class="rico" data-bind-src="{{r.icon}}">
-      <span class="v" data-bind-if="{{r.revealed}}" data-bind-value="{{r.available}}">2</span><span class="v" data-bind-if="{{!r.revealed}}">—</span>
-    </div>
-    </div>
+  <!-- The window keys: always present, zero size, so that a key works whether or not its button is on the screen
+       (a counter, or an item of the closed "more" menu). -->
+  <div class="hk">
+    <button data-hotkey="F6" data-bind-disabled="{{hud != null && !hud.top.science_enabled}}" data-on-click="intent window.open(window: 'techs')"></button>
+    <button data-hotkey="F5" data-bind-disabled="{{hud != null && !hud.top.culture_enabled}}" data-on-click="intent window.open(window: 'policies')"></button>
+    <button data-hotkey="Ctrl+KeyR" data-bind-disabled="{{hud != null && !hud.top.faith_enabled}}" data-on-click="intent window.open(window: 'religion_overview')"></button>
+    <button data-hotkey="F2" data-on-click="intent window.open(window: 'economy')"></button>
+    <button data-hotkey="F3" data-on-click="set state.top.menu = false; intent window.open(window: 'military')"></button>
+    <button data-hotkey="F4" data-on-click="set state.top.menu = false; intent window.open(window: 'demographics')"></button>
+    <button data-hotkey="F7" data-on-click="set state.top.menu = false; intent window.open(window: 'notification_log')"></button>
+    <button data-hotkey="F8" data-on-click="set state.top.menu = false; intent window.open(window: 'victory')"></button>
+    <button data-hotkey="F9" data-on-click="set state.top.menu = false; intent window.open(window: 'trade_routes')"></button>
+    <button data-hotkey="F10" data-on-click="set state.top.menu = false; intent window.open(window: 'congress')"></button>
+    <button data-hotkey="Ctrl+KeyE" data-on-click="set state.top.menu = false; intent window.open(window: 'espionage')"></button>
+    <button data-hotkey="Ctrl+KeyT" data-on-click="intent window.open(window: 'culture')"></button>
+    <button data-hotkey="Ctrl+KeyC" data-on-click="set state.top.menu = false; intent window.open(window: 'city_list')"></button>
+    <button data-hotkey="Ctrl+KeyM" data-on-click="set state.top.menu = false; intent window.open(window: 'game_menu')"></button>
   </div>
 
+  <div data-include="parts/chat.html"></div>
 </header>

@@ -58,6 +58,7 @@ const SCENARIOS = {
   "ui2-screens": () => import("./scenarios/ui2-screens.mjs"),
   "ui2-remarks": () => import("./scenarios/ui2-remarks.mjs"),
   "ui2-maplink": () => import("./scenarios/ui2-maplink.mjs"), // UI v2 and the map: movement preview, plot tooltip, map options, notifications
+  "ui2-hud-shots": () => import("./scenarios/ui2-hud-shots.mjs"), // the HUD in its states, screenshots for the design look
   "ui2-popups": () => import("./scenarios/ui2-popups.mjs"),
   "ui2-screen-techs": () => import("./scenarios/ui2-screen-techs.mjs"),
   "ui2-screen-tech_panel": () => import("./scenarios/ui2-screen-tech_panel.mjs"),

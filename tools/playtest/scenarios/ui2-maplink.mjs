@@ -25,7 +25,8 @@ async function rects(page, part) {
 
 /** The flag buttons of the map (40 x 48 CSS px each), with their list keys. */
 async function flags(page) {
-  return (await rects(page, "unit-flag")).filter(r => Math.abs(r.w - 40) <= 2 && Math.abs(r.h - 48) <= 2
+  // The flag button: the flag on its pole, 32 x 86.
+  return (await rects(page, "unit-flag")).filter(r => Math.abs(r.w - 32) <= 2 && Math.abs(r.h - 86) <= 2
     && r.x > 0 && r.y > 60 && r.x + r.w < VIEW.width && r.y + r.h < VIEW.height - 200);
 }
 

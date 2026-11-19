@@ -674,6 +674,7 @@ dependencies = [
  "tungstenite",
  "ui",
  "ui-client",
+ "ui-text",
  "ui2-actions",
  "ui2-host",
  "ui2-model",

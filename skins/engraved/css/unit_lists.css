@@ -1,4 +1,4 @@
-.unit-lists-column { position: absolute; left: 0; top: 56px; bottom: 0; width: 567px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.unit-lists-column { position: absolute; left: 0; top: 96px; bottom: 0; width: 567px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .unit-lists-column .unit { position: relative; left: auto; bottom: auto; flex: none; margin-top: auto; pointer-events: auto; }
 .unit-lists-corner { width: 368px; flex: none; display: flex; height: 40px; align-items: center; justify-content: space-between; padding: 0 8px; border: 1px solid var(--engrave); background: var(--lacquer); pointer-events: auto; }
 .unit-lists-corner button { padding: 4px; font-size: 11px; color: var(--bone-2); }
@@ -26,10 +26,8 @@
 .unit-lists-ribbon-icon { width: 32px; height: 32px; }
 .unit-lists-moves { height: 3px; background: var(--engrave); }
 .unit-lists-moves-fill { height: 3px; background: var(--brass); }
-.unit-lists-research { flex: none; pointer-events: auto; }
-.unit-lists-column .tech_panel { position: relative; top: auto; left: auto; }
 @media (height < 900px) {
-  .unit-lists-column { width: 440px; top: 48px; gap: 4px; }
+  .unit-lists-column { gap: 4px; }
   .unit-lists-panel { max-height: 224px; }
   .unit-lists-ribbon { width: 440px; }
 }

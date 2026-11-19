@@ -3,12 +3,12 @@
      node, so a list row names its item through ui.* (the production rows set ui.production.hover). -->
 <template data-layer="tooltip" id="tip-policies">
   <div class="tip" data-part="tip.policies">
-    <div class="th" data-l10n="nav.policies">Policies (F5)</div>
-    <div class="tl" data-bind-if="{{top.policy_turns != null}}" data-l10n="tip.policies.next" data-l10n-args="{{top.policy_turns}}">Next policy in 6 turns</div>
-    <div class="trow" data-bind-for="b:{{top.policies}}" data-bind-class-toggle="off:{{!b.unlocked}}">
+    <div class="th hd"><span data-l10n="tip.policies.title">Social policies</span><span class="key" data-l10n="keycap.f5">F5</span></div>
+    <div class="trow" data-bind-for="b:{{top.policies}}" data-bind-filter="{{b.unlocked}}">
       <span class="nm" data-bind-value="{{b.name}}">Tradition</span>
-      <span class="n" data-l10n="tip.policies.owned" data-l10n-args="{{b.owned}}, {{b.total}}">4 of 5</span>
+      <span class="n" data-bind-value="{{b.owned}}/{{b.total}}">4/5</span>
     </div>
+    <div class="trow"><span class="pt"><b data-bind-value="{{fmt.signed(top.culture_rate)}}">+31</b><span data-l10n="tip.policies.per_turn">per turn</span></span><span data-bind-if="{{top.policy_turns != null}}" data-l10n="tip.policies.next" data-l10n-args="{{top.policy_turns}}">next in 6 turns</span></div>
   </div>
 </template>
 

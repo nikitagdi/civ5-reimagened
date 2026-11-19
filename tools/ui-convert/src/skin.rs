@@ -554,7 +554,9 @@ api = "1.0"
                 ("advisor.science".to_string(), StateValue::Int(0)),
                 ("archaeology.confirm".to_string(), StateValue::Int(0)),
                 ("chat.draft".to_string(), StateValue::Str("".to_string())),
+                ("chat.open".to_string(), StateValue::Bool(false)),
                 ("chat.pick".to_string(), StateValue::Bool(false)),
+                ("chat.unread".to_string(), StateValue::Int(0)),
                 ("city.buy_tiles".to_string(), StateValue::Bool(false)),
                 ("city.hover".to_string(), StateValue::Int(-1)),
                 (
@@ -1004,6 +1006,7 @@ api = "1.0"
                     StateValue::Str("".to_string())
                 ),
                 ("unit_panel.hover".to_string(), StateValue::Int(-1)),
+                ("unit_panel.promo".to_string(), StateValue::Int(-1)),
                 ("unit_panel.valid".to_string(), StateValue::Bool(false)),
                 (
                     "victory.hover".to_string(),
@@ -1018,6 +1021,7 @@ api = "1.0"
         assert_eq!(
             skin.scripts.files,
             [
+                "js/chat.js",
                 "js/minimap.js",
                 "js/unit_lists.js",
                 "js/unit_panel.js",

@@ -1,190 +1,61 @@
 /* Engraved: city banners and unit flags on the map. Each is laid out around the origin of the map layer, which the
    host moves to its object's point on the screen: a banner stands on the point, a flag is centred on it. */
 
-/* ---------- city banners ---------- */
+/* ---------- city banners: one row, as the original's ---------- */
+/* A wide box centred on the city's point; the banner row stands at its bottom, the strength tab over it. */
 .banner {
-  position: absolute;
-  left: -140px;
-  top: -76px;
-  width: 280px;
-  height: 76px;
+  position: absolute; left: -300px; top: -58px; width: 600px; height: 58px;
+  display: flex; justify-content: center; align-items: flex-end; pointer-events: none;
 }
-
-/* The tab with the city's strength over the banner. */
+.banner .cb { display: flex; flex-direction: column; align-items: center; white-space: nowrap; }
 .banner .str {
-  position: absolute;
-  left: 88px;
-  top: -30px;
-  width: 104px;
-  height: 34px;
-  padding-top: 6px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 6px;
-  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%, 0 10px);
-  background-color: var(--lacquer);
-  box-shadow: inset 0 0 0 1px var(--engrave);
-  font: 500 14px/20px var(--sans);
-  color: var(--bone);
-  pointer-events: auto;
+  height: 20px; padding: 0 10px; display: flex; align-items: center; gap: 4px; margin-bottom: -1px;
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%, 0 6px);
+  background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave);
+  font: 500 12px/16px var(--sans); color: var(--bone); pointer-events: auto;
 }
-
-.banner .str svg.i {
-  margin-top: 2px;
-  color: var(--bone-2);
-}
-
+.banner .str svg.i { width: 12px; height: 12px; color: var(--bone-2); }
 .banner .body {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 280px;
-  height: 76px;
-  display: flex;
-  overflow: hidden;
-  border-radius: 4px;
-  background-color: var(--lacquer);
-  box-shadow: inset 0 0 0 1px var(--engrave);
-  text-align: left;
-  pointer-events: auto;
-  transition: background-color 150ms var(--ease);
+  position: relative; height: 34px; display: flex; align-items: center; padding: 0 10px 0 0; overflow: hidden;
+  border-radius: 3px; background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave), 0 4px 12px rgba(0, 0, 0, 0.35);
+  text-align: left; pointer-events: auto; transition: background-color 150ms var(--ease);
 }
-
-.banner.mine .body:hover {
-  background-color: var(--lacquer-2);
-}
-
-.banner.sel .body {
-  box-shadow: inset 0 0 0 1px var(--brass), 0 0 0 1px var(--brass);
-}
-
-.banner.fog .body {
-  background-color: var(--lacquer-0);
-}
-
-/* The flank in the owner's colours: the size and the turns to grow. */
+.banner.mine .body:hover { background-color: var(--lacquer-2); }
+.banner.sel .body { box-shadow: inset 0 0 0 1px var(--brass), 0 0 0 1px var(--brass), 0 4px 12px rgba(0, 0, 0, 0.35); }
+.banner.fog .body { background-color: var(--lacquer-0); }
 .banner .flank {
-  width: 56px;
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  background-color: var(--civ-red);
-  color: var(--civ-yellow);
-  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.35);
+  align-self: stretch; width: 34px; flex: none; display: flex; align-items: center; justify-content: center;
+  background-color: var(--civ-red); box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.35);
 }
-
-.banner .flank .size {
-  font: 500 30px/30px var(--serif);
+.banner .flank .size { font: 500 21px/24px var(--serif); color: var(--civ-yellow); }
+.banner .gw { align-self: stretch; display: flex; }
+.banner .grow {
+  min-width: 34px; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 8px 0 6px;
+  font: 500 12px/14px var(--sans); color: var(--bone-3); box-shadow: inset -1px 0 0 var(--engrave);
 }
-
-.banner .flank .grow {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  line-height: 16px;
+.banner .grow svg.i { width: 12px; height: 12px; }
+.banner .grow.g-up { color: #8fc15f; background-color: rgba(134, 176, 97, 0.12); }
+.banner .grow.g-down { color: #e0705c; background-color: rgba(207, 111, 92, 0.14); }
+.banner .gbar {
+  position: relative; width: 5px; height: 24px; flex: none; margin-right: 2px;
+  background-color: var(--lacquer-0); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
 }
-
-.banner .flank .grow svg.i {
-  width: 12px;
-  height: 12px;
-}
-
-.banner .main {
-  flex: 1;
-  min-width: 0;
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.banner .name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 26px;
-  white-space: nowrap;
-}
-
-.banner .name .nm {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font: 500 21px/26px var(--serif);
-  color: var(--bone);
-}
-
-.banner .name .cap {
-  width: 14px;
-  height: 14px;
-  color: var(--civ-yellow);
-}
-
-.banner .prod {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 18px;
-  font-size: 13px;
-  line-height: 18px;
-  color: var(--bone-2);
-  white-space: nowrap;
-}
-
-.banner .prod svg.i {
-  width: 14px;
-  height: 14px;
-  color: var(--y-prod);
-}
-
-.banner .prod .what {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.banner .prod .t {
-  flex: none;
-  margin-left: auto;
-  font-weight: 500;
-  color: var(--bone);
-}
-
-.banner .prod.none {
-  color: var(--neg);
-}
-
-.banner .scale {
-  height: 3px;
-}
-
-.banner .scale .fill {
-  background-color: var(--y-prod);
-}
-
-/* The city's health, while it is damaged: a hairline at the bottom of the banner. */
-.banner .hp {
-  position: absolute;
-  left: 56px;
-  right: 0;
-  bottom: 0;
-  height: 2px;
-  background-color: var(--lacquer-3);
-}
-
-.banner .hp .fill {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  background-color: var(--neg);
-}
-
+.banner .gbar .fill { position: absolute; left: 0; right: 0; bottom: 0; background-color: var(--engrave-hi); }
+.banner .g-up .gbar .fill { background-color: #8fc15f; }
+.banner .g-down .gbar .fill { background-color: #e0705c; }
+.banner .name { display: flex; align-items: center; gap: 6px; padding: 0 14px 0 10px; }
+.banner .name .nm { font: 500 19px/24px var(--serif); color: var(--bone); }
+.banner .name .cap { width: 12px; height: 12px; color: var(--civ-yellow); }
+.banner .prod { display: flex; align-items: center; gap: 5px; font-size: 12px; line-height: 16px; color: var(--bone-2); }
+.banner .prod .yi { width: 16px; height: 16px; }
+.banner .prod .what { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.banner .prod .t { margin-left: 3px; font: 500 13px/16px var(--sans); color: var(--bone); }
+.banner .prod.none .what { color: var(--neg); }
+.banner .scale { position: absolute; left: 34px; right: 0; bottom: 0; height: 3px; }
+.banner .scale .fill { background-color: var(--y-prod); }
+/* The city's health, while it is damaged: a hairline over the banner. */
+.banner .chp { position: absolute; left: 0; right: 0; top: 0; height: 3px; background-color: var(--lacquer-0); }
+.banner .chp .fill { position: absolute; left: 0; top: 0; bottom: 0; background-color: var(--y-gold); }
 /* ---------- yield and resource icons of the map options ---------- */
 /* Centred on the plot: the resource above, the yields below, as the original's icon managers place them. */
 .map-icons {
@@ -348,87 +219,30 @@
 }
 
 /* ---------- unit flags ---------- */
-.uflag {
-  position: absolute;
-  left: -20px;
-  top: -28px;
-  width: 40px;
-  height: 48px;
-  pointer-events: auto;
-}
-
-.uflag:disabled {
-  cursor: default;
-}
-
-.uflag .hp {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 40px;
-  height: 4px;
-  background-color: var(--lacquer);
-  box-shadow: 0 0 0 1px var(--lacquer);
-}
-
-.uflag .hp .fill {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  background-color: var(--y-food);
-}
-
-.uflag .hp .fill.low {
-  background-color: var(--neg);
-}
-
-/* The shield in the owner's colours; the game's icon of the unit over a mark of its domain. */
+/* The flag hangs over the unit's point on a pole that ends at the point. */
+.uflag { position: absolute; left: -16px; top: -86px; width: 32px; height: 86px; pointer-events: auto; }
+.uflag .pole { position: absolute; left: 15px; top: 38px; width: 2px; height: 48px; background-color: var(--brass); opacity: 0.8; }
+.uflag .hp { position: absolute; left: -4px; top: -9px; width: 40px; height: 5px; background-color: var(--lacquer-0); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6); }
+.uflag .hp .fill { position: absolute; left: 0; top: 0; bottom: 0; background-color: var(--y-food); }
+.uflag .hp .fill.on-map-hp-mid { background-color: var(--y-gold); }
+.uflag .hp .fill.low { background-color: var(--neg); }
+/* The shape of the unit's kind in the owner's colours; the original flag glyph on it. */
 .uflag .flag {
-  position: absolute;
-  left: 4px;
-  top: 8px;
-  width: 32px;
-  height: 40px;
-  padding-top: 6px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  position: absolute; left: 0; top: 0; width: 32px; height: 40px;
   clip-path: polygon(0 0, 100% 0, 100% 72%, 50% 100%, 0 72%);
   background-color: var(--civ-red);
-  color: var(--civ-yellow);
 }
+.uflag .flag.f-civ { clip-path: polygon(30% 0, 70% 0, 100% 24%, 100% 64%, 70% 88%, 30% 88%, 0 64%, 0 24%); }
+.uflag .flag.f-emb { clip-path: none; height: 32px; border-radius: 16px; }
+.uflag .flag.f-fort { clip-path: polygon(0 20%, 20% 0, 80% 0, 100% 20%, 100% 100%, 0 100%); height: 36px; }
+.uflag .flag .glyph { position: absolute; left: 6px; top: 6px; width: 20px; height: 20px; }
+.uflag .flag .pic { position: absolute; left: 4px; top: 3px; width: 24px; height: 24px; }
+.uflag.spent .flag .glyph, .uflag.spent .flag .pic { opacity: 0.4; }
+.uflag.spent .pole { opacity: 0.45; }
+.uflag.sel .flag { box-shadow: inset 0 0 0 2px var(--civ-yellow); }
+.uflag.war .pole { background-color: var(--neg); opacity: 1; }
+.uflag.wait .pole { background-color: var(--civ-yellow); opacity: 1; }
 
-.uflag .flag .dom {
-  width: 18px;
-  height: 18px;
-  margin-top: 1px;
-}
-
-.uflag .flag .pic {
-  position: absolute;
-  left: 2px;
-  top: 2px;
-  width: 28px;
-  height: 28px;
-}
-
-.uflag.sel .flag {
-  box-shadow: inset 0 0 0 2px var(--brass);
-}
-
-.uflag.wait .hp {
-  box-shadow: 0 0 0 1px var(--brass);
-}
-
-.uflag.war .hp {
-  box-shadow: 0 0 0 1px var(--neg);
-}
-
-.on-map-tip { width: 320px; max-height: 440px; overflow-y: auto; scrollbar-width: none; }
+.on-map-tip { width: 300px; max-height: 440px; overflow-y: auto; scrollbar-width: none; }
 .on-map-promotions { display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--brass); }
 .on-map-status { font-size: 10px; max-width: 48px; overflow: hidden; text-overflow: ellipsis; color: var(--brass); }
-.uflag .flag.on-map-civilian { clip-path: none; height: 32px; border-radius: 3px; }
-.uflag .flag.on-map-embarked { clip-path: none; height: 32px; border-radius: 16px; }
-.uflag .flag.on-map-fortified { clip-path: polygon(0 20%, 20% 0, 80% 0, 100% 20%, 100% 100%, 0 100%); }
-.uflag .hp .fill.on-map-hp-mid { background-color: var(--brass); }

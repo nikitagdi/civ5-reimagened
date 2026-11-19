@@ -49,7 +49,7 @@ export async function withHud({ server, opts }, scenario, test) {
 export async function run(context) {
   return withHud(context, "ui2-screen-top_panel", async (page, check) => {
     check("real science shown", texts(await probe(page), "top.yield.science").some(t => /\d/.test(t)));
-    if (!await clickPart(page, "top.menu.tech")) throw new Error("Technology button missing");
+    if (!await clickPart(page, "top.yield.science")) throw new Error("Technology button missing");
     await waitFor(page, p => p.ui.windows.includes("techs"), "technology window");
     check("science opens registered technology window", true);
     await intent(page, "window.close", { window: "techs" });

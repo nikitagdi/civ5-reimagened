@@ -26,7 +26,7 @@ export async function run({ server, opts }) {
     if (first.screen === "login") await act(page, { kind: "login", nick, password: DEV_PASSWORD });
     await until(page, s => s.screen === "play" && s.turn !== null, 90000, "prepared game");
     await ensureCity(page);
-    if (!await clickPart(page, "top.menu.policies")) throw new Error("policy menu missing");
+    if (!await clickPart(page, "top.yield.culture")) throw new Error("policy menu missing");
     const before = await waitFor(page, p => texts(p, "policies.name").length >= 9, "real branches");
     if (!before.ui.windows.includes("policies")) throw new Error("policy window not registered");
     const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["policies.unlock"]));

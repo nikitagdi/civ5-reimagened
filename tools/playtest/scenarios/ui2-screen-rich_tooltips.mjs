@@ -6,7 +6,7 @@ export async function run({server,opts}) {
     const page=browser.page;
     // SIMPLIFIED(SIMP-421): the skin host has no query callback or service-root subscription API for hover requests.
     // Lead hover integration owns the Query::Screen transport and the tooltip owner.
-    if(!await clickPart(page,"top.menu.tech")) throw new Error("Tech tree entry is missing");
+    if(!await clickPart(page,"top.yield.science")) throw new Error("Tech tree entry is missing");
     await waitTech(page,p=>texts(p,"techs.name").length>50,"real technology catalog");
     const rows=await page.evaluate(()=>window.__civ5test.ui2Rects(["techs.row"]));
     const row=rows.find(r=>r.x>=0 && r.y>=72 && r.x+r.w<=1366 && r.y+r.h<=700 && r.w>100);

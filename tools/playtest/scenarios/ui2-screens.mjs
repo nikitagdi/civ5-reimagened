@@ -32,10 +32,10 @@ export async function run({ server, opts }) {
     await until(page, s => s.screen === "play" && s.turn !== null, 90000, "running real game");
     await waitFor(page, p => p?.state === "running" && p.frames > 10, "UI v2");
     await ensureCity(page);
-    if (!await clickPart(page, "top.menu.tech")) throw new Error("technology HUD button is missing");
+    if (!await clickPart(page, "top.yield.science")) throw new Error("technology HUD button is missing");
     const before = await waitFor(page, p => texts(p, "techs.name").length > 50, "server technology catalog");
     check("techs window contains the full real catalog", before.ui.windows.includes("techs"));
-    check("full-screen tree suppresses HUD panels", ["top.research", "notes.log", "tech-panel", "helm"].every(part => texts(before, part).length === 0));
+    check("full-screen tree suppresses HUD panels", ["top.research", "notes.log", "helm"].every(part => texts(before, part).length === 0));
     const statuses = texts(before, "techs.status");
     const index = statuses.indexOf("Available");
     if (index < 0) throw new Error("no available technology in new game");

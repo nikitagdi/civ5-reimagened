@@ -136,7 +136,7 @@ async function installSampler(page) {
             if (P.withState) {
               const s = window.__civ5test.state();
               row.turn = s?.turn ?? null;
-              const dial = (p.texts ?? []).filter((x) => x.part === "helm.dial").map((x) => x.text).find((x) => /^\d+$/.test(x));
+              const dial = (p.texts ?? []).filter((x) => x.part === "top.turn").map((x) => x.text).find((x) => /^\d+$/.test(x));
               row.dial = dial === undefined ? null : Number(dial);
             }
             P.rows.push(row);
@@ -421,7 +421,7 @@ async function latePartner(o) {
   const deadline = Date.now() + 10000;
   for (;;) {
     const p = await ui2(page);
-    const dial = (p?.texts ?? []).filter((x) => x.part === "helm.dial").map((x) => x.text);
+    const dial = (p?.texts ?? []).filter((x) => x.part === "top.turn").map((x) => x.text);
     if (dial.includes(String(cur + 1)) || Date.now() > deadline) break;
     await sleep(100);
   }

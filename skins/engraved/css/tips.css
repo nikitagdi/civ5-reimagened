@@ -1,6 +1,6 @@
 /* Engraved: tooltips (the tooltip layer). The runtime puts a tooltip's root under the hovered node by `left`/`top`;
    the root is positioned absolutely in the layer. Every tooltip root is, whatever its own class: one left in the
-   flow would stay at the corner of the screen. */
+   flow would stay at the corner of the screen. Compact: tight padding and lines, paired facts on one line. */
 
 .tips-layer > div {
   position: absolute;
@@ -12,22 +12,39 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 264px;
+  width: 248px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px;
+  gap: 2px;
+  padding: 6px 10px;
   border-radius: 4px;
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 12px;
+  line-height: 16px;
   color: var(--bone-2);
-  background-color: var(--lacquer-0);
-  box-shadow: inset 0 0 0 1px var(--engrave-hi), 0 8px 24px rgba(0, 0, 0, 0.5);
+  background-color: var(--lacquer);
+  box-shadow: inset 0 0 0 1px var(--engrave), 0 6px 16px rgba(0, 0, 0, 0.35);
 }
 
 .tip .th {
-  font-weight: 500;
+  font: 500 13px/18px var(--sans);
   color: var(--bone);
+}
+
+.tip .th.hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 3px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--engrave);
+}
+
+.tip .key {
+  height: 16px;
+  min-width: 16px;
+  font-size: 11px;
+  border-bottom-width: 1px;
 }
 
 .tip .tl {
@@ -45,9 +62,15 @@
   white-space: nowrap;
 }
 
-.tip .trow .n {
+.tip .trow .n,
+.tip .trow b {
   font-weight: 500;
   color: var(--bone);
+}
+
+.tip .trow .pt {
+  display: flex;
+  gap: 4px;
 }
 
 .tip .trow.off {
@@ -62,5 +85,5 @@
 .tip .topt {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }

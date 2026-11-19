@@ -320,14 +320,14 @@ async function screensViaClassic(b, numbers, check, shot) {
   const lua0 = await luaErrors(page);
   const runs = [];
   const screens = [
-    ["economy", "top.menu.economy", "EconomicOverview"],
+    ["economy", "top.yield.gold", "EconomicOverview"],
     ["military", "top.menu.military", "MilitaryOverview"],
     ["victory", "top.menu.victory", "VictoryProgress"],
     ["demographics", "top.menu.demographics", "Demographics"],
   ];
-  // The technology and policy screens are UI v2 windows of the skin now (server screens): their buttons open them in
+  // The technology and policy screens are UI v2 windows of the skin now (server screens): their buttons (the science and culture counters of the strip) open them in
   // UI v2; Escape closes them. Explicit screen.open intents below still exercise the classic handoff.
-  for (const [label, part, win] of [["tech_tree", "top.menu.tech", "techs"], ["policies", "top.menu.policies", "policies"]]) {
+  for (const [label, part, win] of [["tech_tree", "top.yield.science", "techs"], ["policies", "top.yield.culture", "policies"]]) {
     const r = await clickPart(page, part);
     const rect = r;
     check(`screen ${label}: the skin's button ${part} is there`, !!r, JSON.stringify(rect));
@@ -536,8 +536,8 @@ export async function run(ctx) {
           year: yearText(st.year),
         } : null;
         const gold = partTexts(probe, "top.yield.gold");
-        // The turn and the year are on the turn dial of the helm.
-        const date = partTexts(probe, "helm.dial");
+        // The turn and the year are on the right of the top strip.
+        const date = partTexts(probe, "top.turn");
         shown = {
           gold: gold[0] ?? null,
           science: partTexts(probe, "top.yield.science")[0] ?? null,

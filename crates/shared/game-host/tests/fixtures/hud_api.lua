@@ -138,6 +138,9 @@ function city:GetStrengthValue() return 1800 end
 function city:GetMaxHitPoints() return 200 end
 function city:GetDamage() return 10 end
 function city:GetFoodTurnsLeft() return 8 end
+function city:GetFood() return 12 end
+function city:GrowthThreshold() return 30 end
+function city:FoodDifference() return -5 end
 function city:IsResistance() return false end
 function city:IsRazing() return false end
 function unit:IsEmbarked() return false end

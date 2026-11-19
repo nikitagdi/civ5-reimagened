@@ -262,7 +262,7 @@ async function step1(alice, bob, check, n) {
   }
 }
 
-/** 2. The top strip and the dial against `state()` (they settle within a few frames of the model; 10 s at most). */
+/** 2. The top strip (counters, turn and date) against `state()` (they settle within a few frames of the model; 10 s at most). */
 async function step2(page, check, n) {
   let shown = null;
   let want = null;
@@ -271,7 +271,7 @@ async function step2(page, check, n) {
     const st = await state(page);
     const probe = await ui2(page);
     want = st?.top ? { gold: String(st.top.gold), science: signed(st.top.scienceRate), turn: String(st.turn), year: yearText(st.year) } : null;
-    const date = partTexts(probe, "helm.dial");
+    const date = partTexts(probe, "top.turn");
     shown = {
       gold: partTexts(probe, "top.yield.gold")[0] ?? null,
       science: partTexts(probe, "top.yield.science")[0] ?? null,
@@ -288,6 +288,8 @@ async function step2(page, check, n) {
 /** Chat: a line typed into alice's chat field reaches bob's chat log. */
 async function chat(alice, bob, check, n, shot) {
   const line = `hello from ${alice.nick} ${Date.now() % 1000}`;
+  // The chat is a dropdown under the strip's chat button: both players open it (bob to see the log).
+  for (const page of [alice.page, bob.page]) if (!(await partBox(page, "chat.field"))) await clickPart(page, "top.chat");
   const field = await clickPart(alice.page, "chat.field");
   if (!field) throw new Error("alice: no chat field on the screen");
   await sleep(300);
@@ -553,13 +555,12 @@ async function step4(alice, check, n, shot) {
   // The production window was opened from the city screen: a second Escape returns to the map.
   await page.keyboard.press("Escape");
   await waitUi(page, (q) => partTexts(q, "city.name").length === 0, 3000);
-  // The tooltip of the strip's policies button.
-  let pol = await partBox(page, "top.menu.policies");
-  if (!pol) { await clickPart(page, "top.menu.fold"); pol = await partBox(page, "top.menu.policies"); }
+  // The tooltip of the strip's policies button: the culture counter is that button (title and key on one line).
+  const pol = await partBox(page, "top.yield.culture");
   if (pol) await page.mouse.move(pol.cx, pol.cy);
   const ptip = await waitUi(page, (q) => partTexts(q, "tip.policies").length > 0, 3000);
   p.policiesTip = { ms: ptip.ms, texts: partTexts(ptip.probe, "tip.policies"), windows: ptip.probe?.ui?.windows };
-  check("4. the policies button shows its tooltip while hovered", !!pol && ptip.ok && p.policiesTip.texts.includes("Social policies (F5)"), JSON.stringify(p.policiesTip));
+  check("4. the policies button shows its tooltip while hovered", !!pol && ptip.ok && p.policiesTip.texts.includes("Social policies") && p.policiesTip.texts.includes("F5"), JSON.stringify(p.policiesTip));
   await shot(alice, "policies-tooltip");
   await page.mouse.move(VP.width / 2, VP.height / 2);
 }
@@ -595,8 +596,8 @@ async function step6(alice, check, n, shot) {
     if (after === before + 1) break;
     await sleep(250);
   }
-  const dial = await waitUi(page, (p) => partTexts(p, "helm.dial").includes(String(before + 1)), 10000);
-  n.step6 = { before, after, ms: Date.now() - t0, dial: partTexts(dial.probe, "helm.dial") };
+  const dial = await waitUi(page, (p) => partTexts(p, "top.turn").includes(String(before + 1)), 10000);
+  n.step6 = { before, after, ms: Date.now() - t0, dial: partTexts(dial.probe, "top.turn") };
   check("6. a click on the dial ends the turn: state().turn +1", after === before + 1, `turn ${before} -> ${after} in ${n.step6.ms} ms`);
   check("6. the dial shows the new turn", dial.ok, JSON.stringify(n.step6.dial));
   await sleep(1500);

@@ -360,10 +360,12 @@ export interface UnitFlag {
   readonly color2: number;
   readonly plot: Plot;
   readonly icon: string;
+  readonly flag: string;
   readonly hp_fraction: number;
   readonly domain: Domain;
   readonly mine: boolean;
   readonly waiting: boolean;
+  readonly spent: boolean;
   readonly at_war: boolean;
   readonly cargo: boolean;
 }
@@ -2716,6 +2718,7 @@ export interface HudResource {
   readonly id: number;
   readonly name: string;
   readonly icon: string;
+  readonly glyph: string;
   readonly revealed: boolean;
   readonly imported: number;
   readonly exported: number;
@@ -2815,6 +2818,8 @@ export interface HudUnitAction {
   readonly promotion: boolean;
   readonly build: boolean;
   readonly client: string;
+  readonly icon: string;
+  readonly weight: number;
 }
 
 export interface HudPopup {
@@ -2853,6 +2858,10 @@ export interface HudMapCity {
   readonly growth_turns: number | null;
   readonly resistance_turns: number | null;
   readonly razing_turns: number | null;
+  readonly food: number;
+  readonly food_needed: number;
+  readonly food_rate: number;
+  readonly starve_turns: number | null;
 }
 
 export interface HudMap {

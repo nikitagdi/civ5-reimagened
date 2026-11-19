@@ -174,8 +174,8 @@ export async function run(ctx) {
           if (after === before + 1) break;
           await sleep(250);
         }
-        const dial = await waitUi(page, (p) => partTexts(p, "helm.dial").includes(String(before + 1)), 10000);
-        n.turn = { before, after, ms: Date.now() - tEnd, dial: partTexts(dial.probe, "helm.dial"), helm: partTexts(dial.probe, "helm.state") };
+        const dial = await waitUi(page, (p) => partTexts(p, "top.turn").includes(String(before + 1)), 10000);
+        n.turn = { before, after, ms: Date.now() - tEnd, dial: partTexts(dial.probe, "top.turn"), helm: partTexts(dial.probe, "helm.state") };
         check("dial click ends the turn: state().turn +1", after === before + 1, `turn ${before} -> ${after} in ${n.turn.ms} ms`);
         check("the dial shows the new turn", dial.ok, JSON.stringify(n.turn.dial));
         await sleep(1500);

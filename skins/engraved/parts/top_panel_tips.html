@@ -7,9 +7,6 @@
     </div>
   </div>
 </div></template>
-<template id="top-panel-gp-tip" data-layer="tooltip"><div class="tip top-panel-tip"><div data-bind-if="{{hud != null && hud.lists.nearest != null}}"><div class="th" data-bind-value="{{hud.lists.nearest.name}}"></div><div class="tl" data-bind-value="{{hud.lists.nearest.city_name}}"></div><div class="trow"><span data-bind-value="{{hud.lists.nearest.progress}}/{{hud.lists.nearest.threshold}}"></span><span data-bind-value="{{fmt.signed(hud.lists.nearest.per_turn)}}"></span><span data-l10n="top.turns" data-l10n-args="{{hud.lists.nearest.turns}}"></span></div></div></div></template>
-<template id="minimap-renderer-tip" data-layer="tooltip"><div class="tip top-panel-tip" data-l10n="minimap.renderer_reason"></div></template>
-<template id="minimap-timer-tip" data-layer="tooltip"><div class="tip top-panel-tip" data-l10n="minimap.timer_reason"></div></template>
 <template id="end-turn-tip" data-layer="tooltip">
   <div class="tip top-panel-tip" data-part="end-turn.tip"><div data-bind-if="{{hud != null}}">
     <div class="th" data-l10n="end_turn.title"></div>
@@ -32,4 +29,8 @@
   </div>
 </div></template>
 
-<template id="unit-panel-action-tip" data-layer="tooltip"><div class="tip top-panel-tip" data-part="unit-panel.action-tip"><div data-bind-if="{{hud != null && hud.unit != null}}"><div data-bind-for="a:{{hud.unit.catalog}}" data-bind-filter="{{a.id == state.unit_panel.hover}}"><div class="th" data-bind-value="{{a.name}}"></div><div class="tl" data-bind-value="{{a.help}}"></div><div class="tl unit-panel-reason" data-bind-value="{{a.reason}}"></div></div></div></div></template>
+<template id="unit-panel-action-tip" data-layer="tooltip"><div class="tip top-panel-tip" data-part="unit-panel.action-tip"><div data-bind-if="{{hud != null && hud.unit != null}}"><div data-bind-for="a:{{hud.unit.catalog}}" data-bind-filter="{{a.id == state.unit_panel.hover}}"><div class="th hd"><span data-bind-value="{{a.name}}"></span><span class="key" data-bind-if="{{a.hotkey != ''}}" data-bind-value="{{a.hotkey}}"></span></div><div class="tl" data-bind-value="{{a.help}}"></div><div class="tl unit-panel-reason" data-bind-if="{{a.reason != null}}" data-bind-value="{{a.reason}}"></div></div></div></div></template>
+<template id="unit-promotion-tip" data-layer="tooltip"><div class="tip top-panel-tip" data-part="unit-panel.promotion-tip"><div data-bind-if="{{hud != null && hud.unit != null}}"><div data-bind-for="p:{{hud.unit.promotions}}" data-bind-filter="{{p.id == state.unit_panel.promo}}"><div class="th" data-bind-value="{{p.name}}"></div><div class="tl" data-bind-value="{{p.help}}"></div></div></div></div></template>
+<template id="top-routes-tip" data-layer="tooltip"><div class="tip top-panel-tip"><div data-bind-if="{{hud != null}}"><div class="th" data-l10n="top_panel.routes_title">Trade routes</div><div class="trow"><span data-l10n="top_panel.routes_used">In use</span><span class="n" data-bind-value="{{hud.top.trade_used}}/{{hud.top.trade_available}}"></span></div><div class="tl lk" data-l10n="top_panel.routes_open">Click: trade routes</div></div></div></template>
+<template id="top-chat-tip" data-layer="tooltip"><div class="tip top-panel-tip"><div class="th" data-l10n="chat.title">Chat</div><div class="tl" data-bind-if="{{state.chat.unread > 0}}" data-l10n="chat.unread" data-l10n-args="{{state.chat.unread}}"></div></div></template>
+<template id="top-era-tip" data-layer="tooltip"><div class="tip top-panel-tip"><div class="th" data-bind-value="{{game.era.name}}"></div><div class="trow"><span data-l10n="top.turn_label">Turn</span><span class="n" data-bind-value="{{game.turn}}"></span></div><div class="tl" data-bind-value="{{game.year_text}}"></div></div></template>

@@ -156,6 +156,8 @@ hp_fraction = "f32"
 growth_turns = "i16?"
 production = "BannerProd?"
 
+# `icon` is the unit's portrait, `flag` the white glyph of the original unit flag (the unit's `UnitFlagAtlas` cell),
+# which the owner's colour tints; `spent`: an own unit with no moves left this turn.
 [type.UnitFlag]
 key = "key<unit>"
 owner = "key<player>"
@@ -163,10 +165,12 @@ color = "color"
 color2 = "color"
 plot = "Plot"
 icon = "asset"
+flag = "asset"
 hp_fraction = "f32"
 domain = "Domain"
 mine = "bool"
 waiting = "bool"
+spent = "bool"
 at_war = "bool"
 cargo = "bool"
 

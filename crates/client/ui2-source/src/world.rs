@@ -301,8 +301,8 @@ impl GameRead for WorldRead<'_> {
                 art_define: None,
                 icon_atlas: (!e.art.icon_atlas.is_empty()).then(|| e.art.icon_atlas.clone()),
                 icon_index: optional(e.art.icon_index),
-                flag_atlas: None,
-                flag_index: None,
+                flag_atlas: (!e.art.flag_atlas.is_empty()).then(|| e.art.flag_atlas.clone()),
+                flag_index: optional(e.art.flag_index),
                 art_style: None,
                 strategic_view: None,
             })

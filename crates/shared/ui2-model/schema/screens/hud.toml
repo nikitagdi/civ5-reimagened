@@ -9,10 +9,13 @@ cost = "i32"
 [type.HudResearch]
 techs = { list = "HudTech", key = "id" }
 
+# `glyph` is the resource's font icon (`font:ICON_RES_IRON`), the small picture the original draws in text and in
+# its top panel; `icon` its portrait.
 [type.HudResource]
 id = "i16"
 name = "str"
 icon = "asset"
+glyph = "asset"
 revealed = "bool"
 imported = "i32"
 exported = "i32"
@@ -96,6 +99,9 @@ promotions = { list = "HudPromotion", key = "id" }
 actions = { list = "HudAction", key = "id" }
 catalog = { list = "HudUnitAction", key = "id" }
 
+# The catalog comes sorted by `weight` (move, attacks, fortify and sleep, builds, special orders, upgrade,
+# automation, delete last), so that the buttons keep their places; `icon` is the action's own picture in the game
+# (its mission, command, build or promotion row), empty when it has none.
 [type.HudUnitAction]
 id = "i32"
 name = "text"
@@ -106,6 +112,8 @@ reason = "text?"
 promotion = "bool"
 build = "bool"
 client = "str"
+icon = "asset"
+weight = "i16"
 
 [type.HudPopup]
 id = "i32"
@@ -154,6 +162,12 @@ hp_max = "i32"
 growth_turns = "i32?"
 resistance_turns = "i32?"
 razing_turns = "i32?"
+# Own cities: food stored, needed to grow, and the surplus per turn (negative: starving, the city loses a citizen in
+# `starve_turns`).
+food = "i32"
+food_needed = "i32"
+food_rate = "i32"
+starve_turns = "i32?"
 
 [type.HudMap]
 units = { list = "HudMapUnit", key = "key" }

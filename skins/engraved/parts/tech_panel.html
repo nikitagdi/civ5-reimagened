@@ -1,12 +1,21 @@
-<!-- HUD data comes from research/current, top/science_rate and hud/research/techs. -->
-<aside class="tech_panel" data-part="tech-panel">
-  <header class="tech_panel-tabs"><button data-part="tech-panel.fold" data-on-click="toggle state.tech_panel.open" data-l10n="tech_panel.title">Research</button><button data-bind-if="{{state.tech_panel.open}}" data-on-click="set state.tech_panel.open = false" data-l10n="techs.close">Close</button></header>
-  <div class="tech_panel-content" data-bind-if="{{state.tech_panel.open}}">
-    <button class="tech_panel-current" data-part="tech-panel.current" data-bind-if="{{research.current != null}}" data-on-click="call tech_panel.tree()">
-      <img class="tech_panel-portrait" data-bind-src="{{research.current.icon}}"><div class="tech_panel-details"><span class="tech_panel-name" data-part="tech-panel.name" data-bind-value="{{research.current.name}}"></span><div class="tech_panel-line"><span data-bind-value="{{research.current.progress}}"></span><span data-l10n="common.ratio">/</span><span data-bind-value="{{research.current.cost}}"></span><span class="tech_panel-rate" data-bind-value="{{fmt.signed(top.science_rate)}}"></span></div><span data-bind-if="{{research.current.turns != null}}" data-l10n="top.turns" data-l10n-args="{{research.current.turns}}"></span></div>
-    </button>
-    <div class="tech_panel-scale" data-bind-if="{{research.current != null}}"><div class="tech_panel-forecast" data-bind-style-width="{{min(1, (research.current.progress + max(0, top.science_rate)) / max(1, research.current.cost)) * 100}}%"></div><div class="tech_panel-fill" data-bind-style-width="{{research.current.fraction * 100}}%"></div><div class="tech_panel-ticks" data-bind-if="{{top.science_rate > 0}}" data-bind-style-background-size="{{min(1, top.science_rate / max(1, research.current.cost)) * 100}}% 100%"></div></div>
-    <div data-bind-if="{{research.current == null && state.tech_panel.done}}"><span class="tech_panel-name" data-bind-value="{{state.tech_panel.last_name}}"></span><span class="tech_panel-done" data-l10n="tech_panel.complete">Research complete</span><div class="tech_panel-scale"><div class="tech_panel-full"></div></div></div>
-    <button class="tech_panel-choose" data-part="tech-panel.choose" data-bind-if="{{research.current == null}}" data-on-click="call tech_panel.tree()" data-l10n="research.title">Choose research</button>
-  </div>
-</aside>
+<!-- The current research, under the strip on the left: the technology's portrait, its name, turns and a thin scale;
+     with nothing researched, the call to choose. -->
+<section class="rsch plate br" data-part="top.research" data-bind-if="{{!ui.windows.city.open}}" data-bind-class-toggle="choose:{{research.current == null}}">
+  <button class="rsch-now" data-bind-if="{{research.current != null}}" data-bind-disabled="{{hud != null && !hud.top.science_enabled}}" data-on-click="intent window.open(window: 'techs')" data-tooltip="top-panel-tip" data-on-pointerenter="set state.top.hover = 'science'">
+    <img class="rpic" data-bind-src="{{research.current.icon}}">
+    <span class="b">
+      <span class="l1"><span class="nm" data-bind-value="{{research.current.name}}">Education</span><span class="tn" data-bind-if="{{research.current.turns != null}}"><b data-bind-value="{{research.current.turns}}">3</b><span data-l10n="top.turns_word" data-l10n-args="{{research.current.turns}}">turns</span></span></span>
+      <span class="scale">
+        <span class="fill" data-bind-style-width="{{research.current.fraction * 100}}%" style="width: 62%"></span>
+        <span class="ticks" data-bind-style-background-size="{{100 * (1 - research.current.fraction) / max(research.current.turns != null ? research.current.turns : 1, 1)}}% 100%" style="background-size: 12.5% 100%"></span>
+      </span>
+    </span>
+  </button>
+  <button class="rsch-pick" data-part="top.research.pick" data-bind-if="{{research.current == null}}" data-bind-disabled="{{hud != null && !hud.top.science_enabled}}" data-on-click="intent window.open(window: 'research')">
+    <span class="rph"><img class="yi" data-asset="font:ICON_RESEARCH"></span>
+    <span class="b">
+      <span class="l1"><span class="nm" data-l10n="research.title">Choose research</span><span class="key" data-l10n="keycap.f6">F6</span></span>
+      <span class="l2" data-bind-if="{{state.tech_panel.done}}" data-l10n="tech_panel.researched" data-l10n-args="{{state.tech_panel.last_name}}">Telegraph researched</span>
+    </span>
+  </button>
+</section>

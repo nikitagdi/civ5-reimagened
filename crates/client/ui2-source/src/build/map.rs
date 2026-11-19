@@ -93,17 +93,21 @@ pub fn banner(c: &City, seat: u8, players: &[Player], catalog: &Catalog) -> City
 pub fn flag(u: &Unit, seat: u8, players: &[Player], catalog: &Catalog) -> UnitFlag {
     let (color, color2) = colors(players, u.owner);
     let mine = u.owner.cast_unsigned() == seat;
+    let item = catalog.unit(u.unit_type);
     UnitFlag {
         key: entity_key(u.owner, u.id),
         owner: player_key(u.owner),
         color,
         color2,
         plot: Plot { x: u.x, y: u.y },
-        icon: catalog.unit(u.unit_type).icon,
+        icon: item.icon,
+        flag: item.flag,
         hp_fraction: fraction(i32::from(u.hp), i32::from(u.max_hp)),
         domain: domain(u.domain),
         mine,
         waiting: mine && waiting(u),
+        // The original greys the flag of an own unit that has no moves left this turn.
+        spent: mine && u.moves_left <= 0,
         at_war: !mine && find(players, u.owner).is_some_and(|p| p.flags.at_war_with_viewer()),
         cargo: u.flags.cargo(),
     }

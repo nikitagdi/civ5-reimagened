@@ -20,13 +20,13 @@ export async function run(context) {
       const label = `${viewport.width}x${viewport.height}`;
       const strip = await partBox(page, "top");
       check(`${label} top strip fits viewport`, strip && strip.x >= 0 && strip.x + strip.w <= viewport.width);
+      // Each counter of the strip is the button to its window; the other windows are in the "more" menu.
       check(`${label} science and policies stay directly accessible`,
-        !!await partBox(page, "top.menu.tech") && !!await partBox(page, "top.menu.policies"));
-      if (viewport.width === 1920) {
-        for (const destination of ["religion", "cities", "economy", "military", "diplomacy"]) {
-          check(`${label} ${destination} stays in the strip`, !!await partBox(page, `top.menu.${destination}`));
-        }
+        !!await partBox(page, "top.yield.science") && !!await partBox(page, "top.yield.culture"));
+      for (const counter of ["gold", "trade", "happiness", "faith"]) {
+        check(`${label} the ${counter} counter is in the strip`, !!await partBox(page, `top.yield.${counter}`));
       }
+      check(`${label} the strip is 32 px high`, strip && Math.round(strip.h) === 32, JSON.stringify(strip));
       check(`${label} empty resources have no dash cells`, !texts(await probe(page), "top.resources").includes("—"));
       if (process.env.UI2_SHOT) await page.screenshot({ path: `${process.env.UI2_SHOT}-${label}.png` });
       const flag = await partBox(page, "unit-flag");
@@ -38,27 +38,40 @@ export async function run(context) {
       await page.mouse.move(viewport.width / 2, 4);
       await page.waitForTimeout(300);
       check(`${label} flag tooltip closes after hover leaves`, !await partBox(page, "on-map.unit-tip"));
+      // The orders: 38 px buttons in one wrapping row, in the catalog's order (the HUD service sorts it by weight:
+      // found a city, fortify, sleep, then skip, delete last). A part's rectangles are its first instance and its
+      // descendants', and each order's marker covers its button: the buttons are the distinct rectangles no other
+      // action rectangle contains. The markers in reading order follow the weights.
+      const markers = ["unit.act.found-city", "unit.act.fortify", "unit.act.sleep", "unit.act.skip", "unit.act.disband"];
       const actionBoxes = [];
-      for (const part of ["unit.act.fortify", "unit.act.skip", "unit-panel.action"]) {
-        const boxes = await page.evaluate(part => window.__civ5test.ui2Rects([part]), part);
-        actionBoxes.push(...boxes.filter(box => box.w > 0 && box.h > 0));
+      const markerAt = {};
+      for (const part of ["unit-panel.action", ...markers]) {
+        const boxes = (await page.evaluate(part => window.__civ5test.ui2Rects([part]), part))
+          .filter(box => box.part === part && box.w > 0 && box.h > 0);
+        actionBoxes.push(...boxes);
+        if (part !== "unit-panel.action" && boxes.length) markerAt[part] = boxes.reduce((a, b) => (b.w * b.h > a.w * a.h ? b : a));
       }
-      // A part's rectangles include its descendants' (the icon and the hotkey label of each button): only the buttons
-      // themselves, the rectangles no other action rectangle contains, stand in rows.
-      const inside = (a, b) => a !== b && a.x >= b.x - 1 && a.y >= b.y - 1 && a.x + a.w <= b.x + b.w + 1 && a.y + a.h <= b.y + b.h + 1;
-      const buttons = actionBoxes.filter(box => !actionBoxes.some(other => inside(box, other)));
-      check(`${label} unit actions use two compact rows`,
-        buttons.length > 0 && new Set(buttons.map(box => Math.round(box.y))).size === 2
-        && buttons.every(box => box.h <= 44 && box.w <= 60),
-        JSON.stringify(buttons.map(box => [box.part, box.x, box.y, box.w, box.h])));
-      const fold = await partBox(page, "top.menu.fold");
-      if (fold && !(await partBox(page, "top.menu.tech"))) {
-        await page.keyboard.press("Alt+w");
-        const end = Date.now() + 5000;
-        while (!(await partBox(page, "top.menu.tech")) && Date.now() < end) await page.waitForTimeout(50);
-        check(`${label} menu shortcut reveals destinations`, !!(await partBox(page, "top.menu.tech")));
-        await clickPart(page, "top.menu.fold");
+      const key = box => [box.x, box.y, box.w, box.h].map(Math.round).join(",");
+      const distinct = [...new Map(actionBoxes.map(box => [key(box), box])).values()];
+      const inside = (a, b) => key(a) !== key(b) && a.x >= b.x - 1 && a.y >= b.y - 1 && a.x + a.w <= b.x + b.w + 1 && a.y + a.h <= b.y + b.h + 1;
+      const buttons = distinct.filter(box => !distinct.some(other => inside(box, other)));
+      const rows = [...new Set(buttons.map(box => Math.round(box.y)))];
+      const placed = markers.filter(part => markerAt[part]).map(part => markerAt[part]);
+      const reading = placed.every((box, i) => i === 0 || Math.round(box.y) > Math.round(placed[i - 1].y)
+        || (Math.round(box.y) === Math.round(placed[i - 1].y) && box.x > placed[i - 1].x));
+      check(`${label} unit actions are 38 px buttons in one wrapping row, in order`,
+        buttons.length > 1 && placed.length > 1 && buttons.every(box => box.h <= 40 && box.w <= 40) && rows.length <= 2 && reading,
+        JSON.stringify({ buttons: buttons.map(box => [box.x, box.y, box.w, box.h]), order: markers.filter(part => markerAt[part]).map(part => [part, Math.round(markerAt[part].x), Math.round(markerAt[part].y)]) }));
+      // The "more" menu: closed at first, Alt+W opens it with the other windows, the button closes it.
+      check(`${label} the more menu starts closed`, !(await partBox(page, "top.menu.military")));
+      await page.keyboard.press("Alt+w");
+      const end = Date.now() + 5000;
+      while (!(await partBox(page, "top.menu.military")) && Date.now() < end) await page.waitForTimeout(50);
+      for (const destination of ["military", "diplomacy", "victory", "demographics", "espionage", "congress", "notification-log", "cities", "lists"]) {
+        check(`${label} ${destination} is in the more menu`, !!await partBox(page, `top.menu.${destination}`));
       }
+      check(`${label} the game menu is in the more menu`, !!await partBox(page, "top.main-menu.button"));
+      await clickPart(page, "top.menu.fold");
       const current = await probe(page);
       check(`${label} ribbon has no window`, !current.ui.windows.includes("civ_ribbon"));
       // One after the other: the page answers one rectangle request at a time.
@@ -69,20 +82,21 @@ export async function run(context) {
         !overlaps(right[0], right[1]) && !overlaps(right[0], right[2]) && !overlaps(right[1], right[2]));
       check(`${label} dial clears minimap`,
         !overlaps(await partBox(page, "helm.dial"), await partBox(page, "helm.minimap")));
-      check(`${label} corner list starts closed`, !await partBox(page, "tech-panel"));
-      await clickPart(page, "tech-panel.toggle");
-      await waitFor(page, p => texts(p, "tech-panel.choose").length > 0 || texts(p, "tech-panel.name").length > 0, "expanded research corner");
-      const research = await partBox(page, "tech-panel");
-      check(`${label} research clears right HUD`, right.every(box => !overlaps(research, box)));
+      check(`${label} corner list starts closed`, !await partBox(page, "unit-lists.corner"));
+      // The research block: under the strip on the left, clear of the right HUD.
+      const research = await partBox(page, "top.research");
+      check(`${label} research sits under the strip on the left`, research && research.x < 2 && Math.abs(research.y - 32) < 2,
+        JSON.stringify(research));
+      check(`${label} research clears right HUD`, research && right.every(box => !overlaps(research, box)));
       await clickPart(page, "top.menu.cities");
       await waitFor(page, p => p.ui.windows.includes("city_list"), "city corner section");
       const cities = await partBox(page, "city-list");
       if (!cities) throw new Error(`${label} city section missing`);
       check(`${label} city section clears unit and right HUD`,
         !overlaps(cities, await partBox(page, "unit")) && right.every(box => !overlaps(cities, box)));
-      check(`${label} city section replaces research`, !(await partBox(page, "tech-panel")));
+      check(`${label} city section clears the research block`, !overlaps(cities, research));
       await intent(page, "window.close", {window: "city_list"});
-      await clickPart(page, "top.menu.tech");
+      await clickPart(page, "top.yield.science");
       await waitFor(page, p => p.ui.windows.includes("techs"), "technology window");
       const full = await probe(page);
       check(`${label} full screen hides HUD panels`, texts(full, "helm.state").length === 0
@@ -105,7 +119,6 @@ export async function run(context) {
       await waitFor(page, p => texts(p, "declare-war.reason").length > 0 || texts(p, "declare-war.unavailable").length > 0, "invalid rival reason");
       check(`${label} invalid rival has an explanation`, true);
       await intent(page, "window.close", { window: "declare_war" });
-      await clickPart(page, "tech-panel.toggle");
     }
   });
 }

@@ -21,6 +21,8 @@ mod-manifest.workspace = true
 render.workspace = true
 interim-ui.workspace = true
 ui-client.workspace = true
+# The game's icon fonts as pictures of UI v2's skins (`font:ICON_GOLD`).
+ui-text.workspace = true
 replica.workspace = true
 # UI v2 (`?ui=v2`): the skin registry and the UI v2 instance.
 ui2-host.workspace = true
