@@ -453,7 +453,8 @@ fn enums_of_the_model() {
         "ItemKind",
         &["unit", "building", "wonder", "project", "process"],
     );
-    eq("MapMode", &["select", "move", "range_attack"]);
+    // "target" and the map.target / map.cancel intents: the map targeting mode of model 1.4.
+    eq("MapMode", &["select", "move", "range_attack", "target"]);
     eq(
         "ProdTab",
         &["all", "units", "buildings", "wonders", "other"],
@@ -513,6 +514,16 @@ const INTENTS: &[(&str, &[&str])] = &[
     ("unit.move", &["unit: key<unit>", "plot: Plot"]),
     ("unit.range_attack", &["unit: key<unit>", "plot: Plot"]),
     ("map.click", &["plot: Plot", "button: MouseButton"]),
+    (
+        "map.target",
+        &[
+            "kind: TargetKind",
+            "unit: key<unit>?",
+            "city: key<city>?",
+            "a: i32?",
+        ],
+    ),
+    ("map.cancel", &[]),
     ("turn.primary", &[]),
     ("turn.end", &["force: bool"]),
     ("turn.cancel", &[]),
