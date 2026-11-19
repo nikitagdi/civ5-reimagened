@@ -678,6 +678,17 @@ impl<C: Core> Worker<C> {
             }
         }
         self.expire_move_questions();
+        // The leaders' lines go to the seat's leader session; a seat that never opened a screen has none to show them in.
+        for message in self.core.leader_messages() {
+            if !self.seats.contains_key(&message.human) {
+                continue;
+            }
+            if let Some(runtime) = self.screens.as_ref()
+                && let Err(e) = runtime.leader_message(&message)
+            {
+                tracing::warn!(player = message.human, error = %e, "leader message not delivered");
+            }
+        }
         for ev in self.core.events() {
             self.journal_pending
                 .route(ev.to, self.seats.keys().copied(), &ev.entry);
