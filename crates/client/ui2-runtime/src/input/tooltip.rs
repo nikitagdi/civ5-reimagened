@@ -2,7 +2,7 @@
 //! its tooltip template lives in the `tooltip` layer; it goes when the hover leaves the node or the node goes.
 //!
 //! The instance is made when the hover arrives (its bindings, text and layout run in the next frame like any
-//! new node). After that frame's layout it is placed once: its left edge at the node's left edge, 4 px under the
+//! new node). After that frame's layout it is placed (and again whenever its size changes): its left edge at the node's left edge, 4 px under the
 //! node's bottom edge (or 4 px above its top edge when it fits there and not below), pushed back inside the
 //! viewport, by `left`/`top` set on its root (which the skin positions absolutely), and laid out again in the same
 //! frame. The instance carries the list key of the
@@ -43,8 +43,9 @@ pub(crate) struct Tooltip {
     pub owner: NodeId,
     /// The top-level nodes of the instance.
     pub roots: Vec<NodeId>,
-    /// Placed after its first layout.
-    pub placed: bool,
+    /// The size of its root when it was last placed (`None` before its first layout). A tooltip whose content
+    /// grows or shrinks later (a core reply arriving after the hover) is placed again for its new size.
+    pub placed: Option<Vec2>,
 }
 
 impl Runtime {
@@ -138,7 +139,7 @@ impl Runtime {
         self.input.tooltip = Some(Tooltip {
             owner,
             roots,
-            placed: false,
+            placed: None,
         });
     }
 
@@ -152,16 +153,18 @@ impl Runtime {
             self.remove_tooltip();
             return false;
         }
-        if t.placed {
-            return false;
-        }
-        let (owner, root) = (t.owner, t.roots.first().copied());
-        if let Some(t) = self.input.tooltip.as_mut() {
-            t.placed = true;
-        }
+        let (owner, root, placed) = (t.owner, t.roots.first().copied(), t.placed);
         let Some(root) = root.filter(|&r| self.arena.contains(r)) else {
             return false;
         };
+        // Placed for the size it has now: nothing to do (an idle frame reads one size).
+        let size = self.geo().size(root);
+        if placed == Some(size) {
+            return false;
+        }
+        if let Some(t) = self.input.tooltip.as_mut() {
+            t.placed = Some(size);
+        }
         let mut g = self.geo();
         let (mut opos, mut osize) = (g.abs(owner), g.size(owner));
         // A node of a map anchor is where the host put the anchor, not where the layout has it.

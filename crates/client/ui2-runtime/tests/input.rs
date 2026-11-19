@@ -1151,6 +1151,51 @@ fn input_tooltip_closes_when_its_owner_becomes_hidden_without_pointer_motion() {
 }
 
 #[test]
+fn input_tooltip_is_placed_again_when_its_size_changes() {
+    let mut f = Fx::new();
+    // A node at the bottom of the viewport (1920 x 1080): its tooltip goes above it.
+    let owner = f
+        .el("owner", at(0.0, 1040.0, 50.0, 20.0))
+        .tooltip(TemplateId(1));
+    let hud = f.layer(Layer::Hud, "hud").child(owner);
+    let tips = f.layer(Layer::Tooltip, "tips");
+    f.kit.template("doc", vec![hud, tips]);
+    // The tooltip grows (as when a core reply fills it after the hover); `:disabled` stands for that here.
+    let (small, tall) = (
+        f.kit.record(at(0.0, 0.0, 80.0, 30.0)),
+        f.kit.record(at(0.0, 0.0, 80.0, 90.0)),
+    );
+    let set = f.kit.set(
+        vec![Cond {
+            up: 0,
+            kind: CondKind::Disabled,
+        }],
+        vec![small, tall],
+    );
+    let name = f.kit.str("tip-box");
+    f.kit.template("tip", vec![TNode::el(set).part(name)]);
+    let mut h = Host::with(f.kit.finish().expect("package"), Env::default());
+    h.ptr(PointerPhase::Move, 10.0, 1050.0);
+    h.frame();
+    let rect = |h: &Host| {
+        let r = h.rt.dump_rects(Some("tip-box"));
+        assert_eq!(r.len(), 1, "{r:?}");
+        (r[0].x, r[0].y, r[0].w, r[0].h)
+    };
+    assert_eq!(rect(&h), (0.0, 1006.0, 80.0, 30.0));
+    let tip = h.rt.tooltip().expect("tooltip");
+    h.rt.set_state(tip, StateBits::DISABLED, true);
+    h.frame();
+    // Its bottom stays 4 px above the node: it is not left hanging over the node.
+    assert_eq!(rect(&h), (0.0, 946.0, 80.0, 90.0));
+    // Then idle frames stay free.
+    for _ in 0..5 {
+        let s = h.frame().stats;
+        assert_eq!((s.layout_runs, s.chunks_rebuilt, s.visited), (0, 0, 0));
+    }
+}
+
+#[test]
 fn input_tooltip_shows_under_its_node_while_hovered() {
     let mut h = kb_host(false);
     assert_eq!(h.rt.tooltip(), None);

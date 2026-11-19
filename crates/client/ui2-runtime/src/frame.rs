@@ -137,7 +137,8 @@ impl Runtime {
             text,
             self.style_env.scale.viewport_css,
         );
-        // A new tooltip is placed once its size is known, and laid out again where it goes.
+        // A tooltip is placed once its size is known (and again when its size changes), and laid out again where
+        // it goes.
         if self.place_tooltip() {
             let again = layout::pass(
                 &mut self.arena,

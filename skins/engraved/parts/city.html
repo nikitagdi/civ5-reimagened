@@ -24,6 +24,8 @@
       <div class="cv-ph">
         <b data-l10n="city.production">Production</b>
         <span class="cv-rate cv-end" data-l10n="city.per_turn" data-l10n-args="{{fmt.signed(city.production.rate)}}"></span>
+<!-- The production window, always: a city that builds something can change it there too. -->
+<button class="btn sm" data-part="city.choose-production" data-bind-disabled="{{city.view_only}}" data-on-click="intent window.open(window: 'production', city: city.map_city)" data-l10n="banner.choose">Choose production</button>
       </div>
       <div class="cv-now" data-bind-if="{{city.production.current != null}}">
         <img class="gi s64 round" data-bind-src="{{city.production.current.icon}}">
@@ -40,8 +42,7 @@
       </div>
       <div class="cv-none" data-bind-if="{{city.production.current == null}}">
         <span class="why neg" data-l10n="prod.nothing">Choose production</span>
-        <button class="btn sm" data-part="city.choose-production" data-bind-disabled="{{city.view_only}}" data-on-click="intent window.open(window: 'production', city: city.map_city)" data-l10n="banner.choose">Choose production</button>
-      </div>
+              </div>
       <div class="cv-q">
         <div class="cv-qh"><span data-l10n="prod.queue">Queue</span><b data-bind-value="{{len(city.production.queue)}}"></b><span class="cv-end" data-l10n="prod.turns_head">Turns</span></div>
         <div class="lrow cv-qi" data-bind-for="q:{{city.production.queue}}" data-bind-class-toggle="cv-after:{{q.after_repeat}}">

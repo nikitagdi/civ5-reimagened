@@ -121,8 +121,9 @@ export async function run({ server, opts }) {
     // Left edges aligned (or pushed inside the screen), right under or right above the row, not over it.
     check("4. the technology tooltip hangs at its row", tip && Math.abs(tip.x - Math.min(row.x, 1600 - tip.w)) <= 2
       && (Math.abs(tip.y - (row.y + row.h)) <= 8 || Math.abs(tip.y + tip.h - row.y) <= 8), JSON.stringify({ row, tip }));
-    // The unlock chips: 18 px squares inside the rows.
-    const chips = rects.filter(r => r.w >= 16 && r.w <= 20 && r.h >= 16 && r.h <= 20 && r.keys && r.keys.includes("/"));
+    // The unlock chips: the kit's small round icons (32 px squares; they were 18 px before the kit) inside the
+    // rows, each an item of its row's unlock list (a key under the row's key).
+    const chips = rects.filter(r => r.w >= 30 && r.w <= 34 && r.h >= 30 && r.h <= 34 && r.keys && r.keys.includes("/"));
     result.chips = chips.length;
     const chip = chips.find(c => c.x > row.x && c.x < row.x + row.w && c.y > row.y && c.y < row.y + row.h) ?? chips[0];
     check("3. the rows show unlock chips", !!chip);
