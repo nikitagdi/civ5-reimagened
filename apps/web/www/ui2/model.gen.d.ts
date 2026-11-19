@@ -1096,6 +1096,7 @@ export interface CityStateTributeGold {
   readonly enabled: boolean;
   readonly amount: number;
   readonly influence_loss: number;
+  readonly tooltip: Text;
   readonly reason: Text;
 }
 
@@ -1104,6 +1105,7 @@ export interface CityStateTributeUnit {
   readonly unit_name: Text;
   readonly icon: string;
   readonly influence_loss: number;
+  readonly tooltip: Text;
   readonly reason: Text;
 }
 
@@ -4134,6 +4136,7 @@ export interface TradeRoutesReligion {
 }
 
 export interface TradeRoutesTooltipLine {
+  readonly id: string;
   readonly key: TradeRoutesTerm;
   readonly value: number;
   readonly arg: string | null;

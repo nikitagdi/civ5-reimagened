@@ -17,7 +17,7 @@ local function context(player, args)
         assert(p.data1 == player, "This civilian question belongs to another seat")
         e.recipient, e.unit = p.data2, p.data3
     elseif e.kind == "barbarian_ransom" then e.unit = p.data1 end
-    -- SIMPLIFIED(SIMP-460): native command/build/gift prompts omit the selected-unit snapshot; affirmative replay stays unavailable.
+    -- SIMPLIFIED(SIMP-460): command and rebuild prompts come only from the core's selection-based action handler, which a server never runs, and gift prompts from the original client, so no payload names their unit; affirmative replay stays unavailable.
     return e
 end
 local function owned(player, e)

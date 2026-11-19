@@ -193,6 +193,7 @@ improvement = "CityStateGiftsImprovement"
 enabled = "bool"
 amount = "i32"
 influence_loss = "i32"
+tooltip = "text"
 reason = "text"
 
 [type.CityStateTributeUnit]
@@ -200,9 +201,11 @@ enabled = "bool"
 unit_name = "text"
 icon = "asset"
 influence_loss = "i32"
+tooltip = "text"
 reason = "text"
 
 [type.CityStateTribute]
+# The core's gold tribute score (tribute is possible at zero and above); the needed values are how much each demand still lacks.
 pressure = "i32?"
 pressure_gold_needed = "i32?"
 pressure_unit_needed = "i32?"

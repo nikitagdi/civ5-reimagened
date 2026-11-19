@@ -72,31 +72,37 @@
                   "total": 14,
                   "lines": [
                     {
+                      "id": "base",
                       "key": "base",
                       "value": 1,
                       "arg": null
                     },
                     {
+                      "id": "dest_city_gold",
                       "key": "dest_city_gold",
                       "value": 2.4,
                       "arg": "Mecca"
                     },
                     {
+                      "id": "origin_city_gold",
                       "key": "origin_city_gold",
                       "value": 1.1,
                       "arg": "St. Petersburg"
                     },
                     {
+                      "id": "policies",
                       "key": "policies",
                       "value": 1,
                       "arg": null
                     },
                     {
+                      "id": "different_resources",
                       "key": "different_resources",
                       "value": 1.5,
                       "arg": "3"
                     },
                     {
+                      "id": "sea_route_mult",
                       "key": "sea_route_mult",
                       "value": 2,
                       "arg": null
@@ -109,21 +115,25 @@
                   "total": 8,
                   "lines": [
                     {
+                      "id": "base",
                       "key": "base",
                       "value": 1,
                       "arg": null
                     },
                     {
+                      "id": "origin_city_gold",
                       "key": "origin_city_gold",
                       "value": 1.2,
                       "arg": "St. Petersburg"
                     },
                     {
+                      "id": "buildings",
                       "key": "buildings",
                       "value": 1.8,
                       "arg": "Mecca"
                     },
                     {
+                      "id": "sea_route_mult",
                       "key": "sea_route_mult",
                       "value": 2,
                       "arg": null
@@ -136,11 +146,13 @@
                   "total": 4,
                   "lines": [
                     {
+                      "id": "tech_difference",
                       "key": "tech_difference",
                       "value": 4,
                       "arg": "4"
                     },
                     {
+                      "id": "cultural_influence",
                       "key": "cultural_influence",
                       "value": 0,
                       "arg": null
