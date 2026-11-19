@@ -210,6 +210,23 @@ pub fn pick_variant<'a>(rows: &[&'a LandmarkArt], cell: u32, salt: u32) -> Optio
     }
     Some(rows[mix(cell, salt) as usize % rows.len()])
 }
+/// The farm system's row among tied rows: one of the `FARM` rows of the owner's era (of any era when none is), as a
+/// function of the plot; `None` when no row is a farm's.
+fn farm_row<'a>(rows: &[&'a LandmarkArt], era: LandmarkEra, cell: u32) -> Option<&'a LandmarkArt> {
+    let farms: Vec<&LandmarkArt> = rows
+        .iter()
+        .copied()
+        .filter(|r| r.layout == "FARM")
+        .collect();
+    let own: Vec<&LandmarkArt> = farms
+        .iter()
+        .copied()
+        .filter(|r| r.era == era.name())
+        .collect();
+    let list = if own.is_empty() { farms } else { own };
+    (!list.is_empty()).then(|| list[mix(cell, 0) as usize % list.len()])
+}
+
 /// A number from a plot and a salt (splitmix64 of both).
 pub fn mix(cell: u32, salt: u32) -> u32 {
     let mut z = (u64::from(cell) << 32 | u64::from(salt)).wrapping_add(0x9e37_79b9_7f4a_7c15);
@@ -302,7 +319,16 @@ pub fn plan_plot<'a>(
             techs: owner.techs,
         };
         if let Some((found, rows)) = candidates(art, &q) {
-            if let Some(row) = pick_variant(&rows, cell, 0) {
+            let picked = pick_variant(&rows, cell, 0);
+            // A row that draws nothing beside the `FARM` rows of the pair (a farm on wheat): the library's choice
+            // draws nothing, the farm system draws the farm of the owner's era all the same.
+            // re: cvFarmSimSystem::OnImprovementCreated 0x08a1a894 (rand() % numVariants[era] of the farm rows,
+            // apart from cvLandmarkLibrary's deterministic choice)
+            let picked = match picked {
+                Some(r) if r.model.is_none() => farm_row(&rows, owner.era, cell).or(picked),
+                other => other,
+            };
+            if let Some(row) = picked {
                 out.push(Wanted {
                     row,
                     kind: Kind::Improvement,
@@ -748,5 +774,68 @@ mod tests {
         );
         assert_eq!(w.len(), 1);
         assert!(w[0].row.model.is_none());
+    }
+
+    /// A farm on wheat (live report: the worker finished it and no farm appeared): the pair's rows of the real table
+    /// are a `SNAPSHOT` row with no model (the landmark library's choice, which draws nothing) and the `FARM` rows of
+    /// each era and state. The farm system draws the farm of its era and state there, and the wheat is no raw resource.
+    #[test]
+    fn a_farm_on_wheat_draws_the_farm_of_its_state_beside_the_empty_landmark_row() {
+        const FARM: &str = "ART_DEF_IMPROVEMENT_FARM";
+        const WHEAT: &str = "ART_DEF_RESOURCE_WHEAT";
+        let none = |state: &str| LandmarkArt {
+            model: None,
+            ..row(FARM, WHEAT, "Any", state, None, "x")
+        };
+        let farm = |era: &str, state: &str, model: &str| LandmarkArt {
+            layout: "FARM".into(),
+            ..row(FARM, WHEAT, era, state, None, model)
+        };
+        let t = table(vec![
+            none("Any"),
+            none("UnderConstruction"),
+            farm("Ancient", "UnderConstruction", "md:hb_medieval_farm"),
+            farm("Ancient", "Constructed", "md:medieval_farm"),
+            farm("Ancient", "Pillaged", "md:pl_medieval_farm"),
+            farm("Industrial", "Constructed", "md:modern_farm"),
+            row(
+                IMPROVEMENT_NONE,
+                WHEAT,
+                "Any",
+                "Any",
+                None,
+                "md:wheat_decal",
+            ),
+        ]);
+        let a = owner(LandmarkEra::Ancient);
+        for cell in 0..20 {
+            let built = plan_plot(&t, &plot(Some(FARM), Some(WHEAT)), &a, cell);
+            assert_eq!(models(&built), ["md:medieval_farm"], "{cell}");
+            assert_eq!(built[0].kind, Kind::Improvement);
+        }
+        let building = PlotDecor {
+            building: Some(FARM.into()),
+            ..plot(None, Some(WHEAT))
+        };
+        assert_eq!(
+            models(&plan_plot(&t, &building, &a, 3)),
+            ["md:hb_medieval_farm"]
+        );
+        let pillaged = PlotDecor {
+            pillaged: true,
+            ..plot(Some(FARM), Some(WHEAT))
+        };
+        assert_eq!(
+            models(&plan_plot(&t, &pillaged, &a, 3)),
+            ["md:pl_medieval_farm"]
+        );
+        let ind = owner(LandmarkEra::Industrial);
+        let built = plan_plot(&t, &plot(Some(FARM), Some(WHEAT)), &ind, 3);
+        assert_eq!(models(&built), ["md:modern_farm"]);
+        // Raw, the wheat is its own landmark.
+        assert_eq!(
+            models(&plan_plot(&t, &plot(None, Some(WHEAT)), &a, 3)),
+            ["md:wheat_decal"]
+        );
     }
 }
