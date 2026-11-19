@@ -96,7 +96,7 @@ fn ai_table_is_checked_valued_and_sent_by_the_core_for_the_seat() {
         for _,it in ipairs(items) do assert(it.from==0 or it.from==2) end
         if op=='check' then local out={};for i=1,#items do out[i]=true end;return out end
         if op=='pockets' then return {{from=0,type=0,data1=0,data2=0,max=100},{from=0,type=3,data1=5,data2=0,max=3},
-          {from=2,type=3,data1=2,data2=0,max=1},{from=2,type=6,data1=0,data2=0,max=1}} end
+          {from=2,type=3,data1=2,data2=0,max=1},{from=2,type=6,data1=0,data2=0,max=1},{from=0,type=7,data1=0,data2=0,max=1}} end
         if op=='evaluate' then return {response=verdict,value=40,mine=10,theirs=50,peace=false,cant_match=false} end
         if op=='equalize' then return {ok=true,good=false,cant_match=false,items={{type=3,from=2,data1=2,data2=1,data3=0},{type=0,from=0,data1=60,data2=0,data3=0},{type=4,from=0,data1=1,data2=1,data3=0}}} end
         if op=='blob' then return 'abcd' end
@@ -117,6 +117,11 @@ fn ai_table_is_checked_valued_and_sent_by_the_core_for_the_seat() {
       screen.actions.add(0,{a=1,b=3,c=2,d=0},net)
       screen.actions.add_max(0,{a=0,b=3,c=5,d=0},net)
       assert(not pcall(screen.actions.add,0,{a=1,b=0,c=0},net), "the AI's gold is not in its pockets")
+      -- A pact goes on both sides at once and comes off both sides at once (TradeLogic).
+      screen.actions.add(0,{a=0,b=7,c=0,d=0},net)
+      root=screen.data(0,{a=2})
+      assert(#root.table.us==2 and #root.table.them==2)
+      screen.actions.remove(0,{a=1,b=7,c=0,d=0},net)
       root=screen.data(0,{a=2})
       assert(#root.table.them==1 and root.table.them[1].amount==1 and not root.table.them[1].editable)
       assert(#root.table.us==1 and root.table.us[1].amount==3 and root.table.us[1].editable and root.table.us[1].amount_max==3)
@@ -142,4 +147,113 @@ fn ai_table_is_checked_valued_and_sent_by_the_core_for_the_seat() {
       for _,c in ipairs(calls) do assert(c.seat==0) end
       assert(screen.actions.close(0,{},net).open.screen=='leader')
     "#,"=deal-ai").unwrap();
+}
+
+#[test]
+fn ai_peace_table_demands_and_the_core_only_items() {
+    let lua = Lua::new().unwrap();
+    lua.exec(r#"
+      TradeableItems={TRADE_ITEM_GOLD=0,TRADE_ITEM_GOLD_PER_TURN=1,TRADE_ITEM_CITIES=2,TRADE_ITEM_RESOURCES=3,TRADE_ITEM_OPEN_BORDERS=6,
+        TRADE_ITEM_DEFENSIVE_PACT=7,TRADE_ITEM_RESEARCH_AGREEMENT=8,TRADE_ITEM_PEACE_TREATY=13,TRADE_ITEM_THIRD_PARTY_PEACE=14,
+        TRADE_ITEM_THIRD_PARTY_WAR=15,TRADE_ITEM_ALLOW_EMBASSY=17,TRADE_ITEM_VOTE_COMMITMENT=20}
+      FromUIDiploEventTypes={FROM_UI_DIPLO_EVENT_HUMAN_DEMAND=5}
+    "#, "=enums").unwrap();
+    lua.exec(include_str!("../screens/_lib.lua"), "=helpers")
+        .unwrap();
+    let screen: Table = lua
+        .load(include_str!("../screens/deal.lua"))
+        .eval()
+        .unwrap();
+    lua.globals().raw_set("screen", screen).unwrap();
+    lua.exec(r#"
+      function L(s) return s end
+      GameDefines={MAX_MAJOR_CIVS=4,PEACE_TREATY_LENGTH=10}
+      Game={GetGameSpeedType=function() return 0 end,GetResourceUsageType=function() return 0 end,GetGameTurn=function() return 1 end}
+      local resources={}
+      setmetatable(resources,{__call=function() return function() return nil end end})
+      GameInfo={Civilizations={[0]={Type='CIVILIZATION_TEST',ShortDescription='Civilization'}},Leaders={[0]={Type='LEADER_TEST',Description='Leader'}},Resources=resources,GameSpeeds={[0]={DealDuration=30}}}
+      Map={GetPlot=function(x,y) return {GetPlotCity=function() return {GetName=function() return 'Town ' .. x .. ',' .. y end} end} end}
+      local war=true
+      Players={};Teams={}
+      for id=0,3 do
+        local pid=id
+        Players[id]={IsAlive=function() return true end,GetTeam=function() return pid end,IsHuman=function() return pid==0 end,IsTurnActive=function() return true end,GetGold=function() return 100 end,GetCivilizationType=function() return 0 end,GetLeaderType=function() return 0 end}
+        Teams[id]={IsHasMet=function() return true end,IsAtWar=function(_,t) return war and ((pid==0 and t==1) or (pid==1 and t==0)) end,CanDeclareWar=function() return false end}
+      end
+      -- The core: at war the AI's city at 4,5 and a war on team 3 can be added; a vote of the seat on proposal 7 (a repeal), choice 2.
+      local calls,verdict,demand={},'accept','accept'
+      GcUiDealQuery=function(seat,ai,items,op,mode)
+        calls[#calls+1]={op=op,items=items,mode=mode}
+        assert(seat==0 and ai==1)
+        if op=='check' then local out={};for i=1,#items do out[i]=true end;return out end
+        if op=='pockets' then return {{from=1,type=2,data1=4,data2=5,data3=0,max=1,flag1=false},{from=1,type=15,data1=3,data2=0,data3=0,max=1,flag1=false},
+          {from=0,type=20,data1=7,data2=2,data3=4,max=4,flag1=true,label='Repeal: Embargo: Yes'},{from=1,type=0,data1=0,data2=0,data3=0,max=50,flag1=false}} end
+        if op=='evaluate' then return {response=verdict,value=0,mine=0,theirs=0,peace=true,cant_match=false} end
+        if op=='equalize' then return {ok=false,good=false,cant_match=false,items={}} end
+        if op=='demand' then return {response=demand,code=demand=='accept' and 0 or 3} end
+        if op=='blob' then return '00ff' end
+        error('unknown op ' .. op)
+      end
+      GcUiDiploText=function(seat,ai,name) return name end
+      GcUiLeaderGreeting=function() return "Hello" end
+      local plain_sent,deals={},{}
+      local net={send=function(...) plain_sent[#plain_sent+1]={...} end,send_deal=function(...) deals[#deals+1]={...} end}
+      leader_begin(0,1,true)
+      -- At war without peace talks the table is closed.
+      local root=screen.data(0,{a=1})
+      assert(not root.editable and #root.side_note>0)
+      assert(not pcall(screen.actions.add,0,{a=1,b=0,c=0},net))
+      -- Peace talks: the core's treaties are on the table and stay there.
+      local s=leader_session(0,1)
+      s.deal_mode,s.peace_items='peace',{{type=13,from=0,data1=0,data2=0,data3=0,flag1=false},{type=13,from=1,data1=0,data2=0,data3=0,flag1=false},{type=14,from=1,data1=2,data2=0,data3=0,flag1=false}}
+      root=screen.data(0,{a=1})
+      assert(root.state=='peace' and root.editable and #root.table.us==1 and #root.table.them==2)
+      assert(root.table.us[1].fixed and not root.table.us[1].removable and root.table.us[1].turns==10)
+      assert(root.table.them[2].label=='Peace with Civilization' and root.question.key=='end_war')
+      assert(not pcall(screen.actions.remove,0,{a=0,b=13,c=0,d=0},net), "a treaty cannot be removed")
+      local pk={}
+      for _,sec in ipairs(root.pockets.them) do pk[sec.key]=sec end
+      for _,sec in ipairs(root.pockets.us) do pk['us_' .. sec.key]=sec end
+      assert(pk.cities.items[1].label=='Town 4,5' and pk.cities.items[1].ref.data1==4 and pk.cities.items[1].ref.data2==5)
+      assert(pk.third_war.items[1].label=='War on Civilization')
+      local vote=pk.us_votes.items[1]
+      assert(vote.label=='Repeal: Embargo: Yes' and vote.amount==4 and vote.ref.data1==15 and vote.ref.data2==2)
+      screen.actions.add(0,{a=1,b=2,c=4,d=5},net)
+      screen.actions.add(0,{a=0,b=20,c=15,d=2},net)
+      root=screen.data(0,{a=1})
+      assert(#root.table.them==3 and #root.table.us==2)
+      screen.actions.clear(0,{},net)
+      root=screen.data(0,{a=1})
+      assert(#root.table.us==1 and #root.table.them==2, "clearing keeps the treaties")
+      screen.actions.add(0,{a=0,b=20,c=15,d=2},net)
+      verdict='accept'
+      local r=screen.actions.propose(0,{},net)
+      assert(r.close and r.open.screen=='leader' and #deals==1 and deals[1][1]=='sendNetDealAccepted')
+      local vote_item
+      for _,c in ipairs(calls) do if c.op=='blob' then for _,it in ipairs(c.items) do if it.type==20 then vote_item=it end end end end
+      assert(vote_item and vote_item.data1==7 and vote_item.data2==2 and vote_item.data3==4 and vote_item.flag1==true and vote_item.from==0)
+      assert(leader_session(0,1).deal_mode==nil and #plain_sent==0)
+
+      -- A demand at peace: their side only, the AI's answer goes out as the seat's event, the deal when it gives in.
+      war=false
+      s.deal_mode='demand'
+      root=screen.data(0,{a=1})
+      assert(root.state=='demand' and root.right_button.key=='demand' and not root.right_button.enabled and not root.pockets_visible.us and root.question==nil)
+      assert(not pcall(screen.actions.add,0,{a=0,b=20,c=15,d=2},net), "a demand asks for their items only")
+      screen.actions.add_max(0,{a=1,b=0,c=0},net)
+      assert(screen.data(0,{a=1}).table.them[1].amount==50)
+      assert(not pcall(screen.actions.ask,0,{},net))
+      demand='refuse_too_much'
+      r=screen.actions.demand(0,{},net)
+      assert(r.open.screen=='leader' and #plain_sent==1 and plain_sent[1][1]=='sendFromUIDiploEvent' and plain_sent[1][2]==1 and plain_sent[1][3]==5 and plain_sent[1][4]==3 and plain_sent[1][5]==-1)
+      assert(#deals==1 and leader_session(0,1).phrase=='HUMAN_DEMAND_REFUSE_TOO_MUCH' and leader_session(0,1).deal_mode==nil)
+      s.deal_mode='demand'
+      screen.data(0,{a=1})
+      screen.actions.add(0,{a=1,b=0,c=0},net)
+      demand='accept'
+      screen.actions.demand(0,{},net)
+      assert(plain_sent[2][4]==0 and #deals==2 and deals[2][1]=='sendNetDemandAccepted' and deals[2][2]=='00ff' and deals[2][3]==1)
+      assert(leader_session(0,1).phrase=='HUMAN_DEMAND_YES')
+      assert(not pcall(screen.actions.demand,0,{},net), "no demand without the demand table")
+    "#,"=deal-ai-peace").unwrap();
 }

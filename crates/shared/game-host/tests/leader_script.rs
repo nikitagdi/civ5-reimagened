@@ -39,7 +39,7 @@ fn leader_session_greets_discusses_and_sends_only_the_seats_own_events() {
       local keys={}
       for _,a in ipairs(root.main_actions) do keys[a.key]=a end
       assert(keys.discuss.enabled and keys.trade.enabled and keys.goodbye.enabled and keys.declare_war.enabled)
-      assert(not keys.demand.enabled and #keys.demand.reason>0)
+      assert(keys.demand.enabled and keys.make_peace==nil)
       assert(screen.data(0,{a=1}).phrase=='Greetings' and #greetings==1, "a refresh keeps the session")
       assert(leader_session(3)==nil, "another seat has no session")
 
@@ -83,7 +83,11 @@ fn leader_session_greets_discusses_and_sends_only_the_seats_own_events() {
       local trade=act('trade')
       assert(trade.close and trade.open.screen=='deal' and trade.open.a==1)
       assert(leader_session(0,1).trade_phrase=='LETS_HEAR_IT for 0')
-      for _,action in ipairs({'demand','make_peace','respond','switch'}) do
+      local demand=act('demand')
+      assert(demand.close and demand.open.screen=='deal' and leader_session(0,1).deal_mode=='demand')
+      act('trade')
+      assert(leader_session(0,1).deal_mode==nil, "Trade opens a plain table again")
+      for _,action in ipairs({'make_peace','respond','switch'}) do
         local ok,why=pcall(act,action,{a=1});assert(not ok and #why>0)
       end
       assert(act('declare_war').open.a==1)
@@ -96,4 +100,55 @@ fn leader_session_greets_discusses_and_sends_only_the_seats_own_events() {
       end
       assert(#sent==3)
     "#,"=leader-session").unwrap();
+}
+
+#[test]
+fn peace_talks_ask_the_core_for_the_seats_terms() {
+    let lua = Lua::new().unwrap();
+    lua.exec(include_str!("../screens/_lib.lua"), "=helpers")
+        .unwrap();
+    let screen: Table = lua
+        .load(include_str!("../screens/leader.lua"))
+        .eval()
+        .unwrap();
+    lua.globals().raw_set("screen", screen).unwrap();
+    lua.exec(r#"
+      function L(s) return s end
+      GameDefines={MAX_MAJOR_CIVS=4};GameInfoTypes={}
+      GameInfo={Civilizations={[0]={Type='CIVILIZATION_TEST',ShortDescription='Civilization'}},Leaders={[0]={Type='LEADER_TEST',Description='Leader'}},PolicyBranchTypes={}}
+      Game={GetGameTurn=function() return 5 end}
+      FromUIDiploEventTypes={};DiploUIStateTypes={}
+      GcUiLeaderGreeting=function() return "We meet in war" end
+      GcUiDiploText=function(seat,ai,name) return name end
+      local terms={willing=false,too_soon=true,items={}}
+      local asked={}
+      GcUiDealQuery=function(seat,ai,items,op) asked[#asked+1]={seat,ai,op,#items}; return terms end
+      local turn=true
+      Players={};Teams={}
+      for id=0,3 do local pid=id
+        Players[id]={IsAlive=function() return true end,IsHuman=function() return pid==0 end,GetTeam=function() return pid end,IsTurnActive=function() return turn end,GetCivilizationType=function() return 0 end,GetLeaderType=function() return 0 end,IsDenouncedPlayer=function() return false end,GetApproachTowardsUsGuess=function() return 0 end,GetCapitalCity=function() return nil end,GetLateGamePolicyTree=function() return -1 end,GetOpinionTable=function() return {} end,IsDoF=function() return false end,GetNumCities=function() return 0 end,GetScore=function() return 100 end}
+        Teams[id]={IsAtWar=function(_,t) return (pid==0 and t==1) or (pid==1 and t==0) end,IsHasMet=function() return true end,CanDeclareWar=function() return false end,IsAllowsOpenBordersToTeam=function() return false end}
+      end
+      local net={send=function() error('peace talks send nothing') end}
+      local function act(name,args) return screen.actions[name](0,args or {},net) end
+      local root=screen.data(0,{a=1})
+      local keys={}
+      for _,a in ipairs(root.main_actions) do keys[a.key]=a end
+      assert(root.at_war and keys.make_peace.enabled and not keys.demand.enabled and not keys.trade.enabled)
+      -- The AI that declines says why, in the leader's own words; the window stays.
+      assert(act('make_peace')==nil and screen.data(0,{a=1}).phrase=='TOO_SOON_NO_PEACE')
+      terms.too_soon=false
+      act('make_peace')
+      assert(screen.data(0,{a=1}).phrase=='NO_PEACE')
+      assert(asked[1][1]==0 and asked[1][2]==1 and asked[1][3]=='peace' and asked[1][4]==0)
+      -- The AI that wants peace opens the table with the core's treaties.
+      terms={willing=true,too_soon=false,items={{type=13,from=0,data1=0,data2=0,data3=0},{type=13,from=1,data1=0,data2=0,data3=0}}}
+      local r=act('make_peace')
+      assert(r.close and r.open.screen=='deal' and r.open.a==1)
+      local s=leader_session(0,1)
+      assert(s.deal_mode=='peace' and #s.peace_items==2 and s.trade_phrase=='PEACE_WHAT_WILL_HUMAN_OFFER')
+      assert(not pcall(act,'demand'), "no demands at war")
+      turn=false
+      assert(not pcall(act,'make_peace'), "only during the seat's turn")
+    "#,"=leader-peace").unwrap();
 }

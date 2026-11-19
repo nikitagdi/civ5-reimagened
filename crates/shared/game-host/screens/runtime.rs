@@ -19,7 +19,7 @@ const TEXT_MESSAGES: &[&str] = &[
 ];
 /// The net messages that carry a deal: the core's own deal blob (`GcUiDealQuery(..., "blob")`, the hex of
 /// `ICvDeal1::Write`), never a client's text.
-const DEAL_MESSAGES: &[&str] = &["sendNetDealAccepted"];
+const DEAL_MESSAGES: &[&str] = &["sendNetDealAccepted", "sendNetDemandAccepted"];
 /// The longest deal blob, in hex digits: a full trade table (each item is some 40 bytes) with room to spare.
 const MAX_DEAL_TEXT: usize = 8192;
 
@@ -376,7 +376,9 @@ impl Screens {
                             {
                                 args.push(*n as i32);
                             }
-                            _ => return Err(LuaError::msg("send_deal arguments are whole numbers")),
+                            _ => {
+                                return Err(LuaError::msg("send_deal arguments are whole numbers"));
+                            }
                         }
                     }
                     if !DEAL_MESSAGES.contains(&name.as_str()) {
@@ -385,7 +387,9 @@ impl Screens {
                     if blob.is_empty()
                         || blob.len() > MAX_DEAL_TEXT
                         || blob.len() % 2 != 0
-                        || !blob.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                        || !blob
+                            .bytes()
+                            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
                     {
                         return Err(LuaError::msg("invalid deal blob"));
                     }
@@ -763,6 +767,9 @@ mod tests {
             __screens.test.actions.rename = function(player, args, net)
                 net.send_deal("SendRenameCity", "00", 1)
             end
+            __screens.test.actions.demand = function(player, args, net)
+                net.send_deal("sendNetDemandAccepted", "0a1b", 2)
+            end
         "#,
                 "=send-deal-test",
             )
@@ -787,6 +794,10 @@ mod tests {
             assert!(r.action(3, "test", "deal", &[], None).is_err(), "{bad:.8}");
         }
         assert!(r.action(3, "test", "rename", &[], None).is_err());
+        let m = r.action(3, "test", "demand", &[], None).unwrap();
+        let mut expected = NetMessage::new("sendNetDemandAccepted", &[2]).unwrap();
+        expected.text = "0a1b".into();
+        assert_eq!(m.messages, vec![expected]);
     }
 
     #[test]

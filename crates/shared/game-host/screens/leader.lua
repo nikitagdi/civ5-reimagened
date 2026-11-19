@@ -1,8 +1,7 @@
 -- The leader screen of a seat talking to an AI: the original's LeaderHeadRoot (greeting, discuss, trade, war) and the
 -- human-invoked DiscussionDialog, on the seat's leader session (_lib.lua). Every change of the game is the seat's
 -- ordered net message (sendFromUIDiploEvent); the AI's reply reaches the session as the core's leader message.
-local peace_reason = "Peace talks with an AI are not available yet."
-local demand_reason = "Demands of an AI are not available yet."
+local not_turn = "Only during your turn."
 local function target(player,id)
     assert(type(id)=="number" and id==math.floor(id) and id>=0 and id<GameDefines.MAX_MAJOR_CIVS and id~=player,"Choose another major leader.")
     local p=Players[id]
@@ -89,14 +88,13 @@ return {data=function(player,args)
         {key="borders",label="Open borders",value=Teams[qt]:IsAllowsOpenBordersToTeam(Players[player]:GetTeam()) and "Their borders are open" or "Closed"},
         {key="friendship",label="Friendship",value=Players[player]:IsDoF(id) and "Declaration of friendship" or "None"}})
     local can_war=not args.popup and turn and team:CanDeclareWar(qt)
-    local not_turn="Only during your turn."
     local actions=array()
     local rows={
         {"discuss","Discuss",turn and not war,not turn and not_turn or (war and "Not while you are at war." or nil)},
         {"trade","Trade",turn and not war,not turn and not_turn or (war and "Not while you are at war." or nil)},
-        -- SIMPLIFIED(SIMP-457): demands of an AI and peace talks with it are not offered yet; the dossier, the greeting, the discussion and trade are.
-        {"demand","Demand",false,demand_reason},
-        {war and "make_peace" or "declare_war",war and "Make peace" or "Declare war",not war and can_war,war and peace_reason or (not can_war and "War cannot be declared now." or nil)},
+        {"demand","Demand",turn and not war,not turn and not_turn or (war and "Not while you are at war." or nil)},
+        {war and "make_peace" or "declare_war",war and "Make peace" or "Declare war",war and turn and not args.popup or (not war and can_war),
+            war and not_turn or (not can_war and "War cannot be declared now." or nil)},
         {"goodbye","Goodbye",not args.popup,nil},
     }
     for _,r in ipairs(rows) do
@@ -123,7 +121,7 @@ return {data=function(player,args)
 end,actions={
     discuss=function(player)
         local s,p=current(player)
-        assert(Players[player]:IsTurnActive(),"Only during your turn.")
+        assert(Players[player]:IsTurnActive(),not_turn)
         assert(not team_of(player):IsAtWar(p:GetTeam()),"Not while you are at war.")
         -- FROM_UI_DIPLO_EVENT_HUMAN_WANTS_DISCUSSION changes nothing but the leader's line: it is read here, not sent.
         s.mode="discussion"
@@ -134,6 +132,33 @@ end,actions={
         assert(Players[player]:IsTurnActive(),"Only during your turn.")
         assert(not team_of(player):IsAtWar(p:GetTeam()),"Not while you are at war.")
         s.trade_phrase=plain(GcUiDiploText(player,s.ai,"LETS_HEAR_IT"))
+        s.deal_mode=nil
+        return {close=true,open={screen="deal",a=s.ai}}
+    end,
+    -- UI.OnHumanDemand: the trade screen in demand mode, their side only; the deal screen asks the AI and sends its answer.
+    demand=function(player)
+        local s,p=current(player)
+        assert(Players[player]:IsTurnActive(),not_turn)
+        assert(not team_of(player):IsAtWar(p:GetTeam()),"Not while you are at war.")
+        s.trade_phrase=plain(GcUiDiploText(player,s.ai,"LETS_HEAR_IT"))
+        s.deal_mode="demand"
+        return {close=true,open={screen="deal",a=s.ai}}
+    end,
+    -- FROM_UI_DIPLO_EVENT_HUMAN_NEGOTIATE_PEACE: it changes nothing but the asking machine's screen, so it is read here for
+    -- the seat, not sent. An AI that wants peace opens the trade screen with the peace treaties on it (DoTradeScreenOpened,
+    -- its price for this seat kept by the core's deal queries); one that does not says why.
+    make_peace=function(player)
+        local s,p=current(player)
+        assert(Players[player]:IsTurnActive(),not_turn)
+        assert(team_of(player):IsAtWar(p:GetTeam()),"You are not at war.")
+        assert(GcUiDealQuery,"Peace talks need the game core.")
+        local q=GcUiDealQuery(player,s.ai,{},"peace")
+        if not (q.willing and #q.items>0) then
+            s.mode,s.phrase="main",plain(GcUiDiploText(player,s.ai,q.too_soon and "TOO_SOON_NO_PEACE" or "NO_PEACE"))
+            return
+        end
+        s.trade_phrase=plain(GcUiDiploText(player,s.ai,"PEACE_WHAT_WILL_HUMAN_OFFER"))
+        s.deal_mode,s.peace_items="peace",q.items
         return {close=true,open={screen="deal",a=s.ai}}
     end,
     topic=function(player,args,net)
@@ -172,8 +197,7 @@ end,actions={
         local s=current(player)
         s.mode=(s.mode=="coop_target" or s.mode=="confirm_denounce") and "discussion" or "main"
     end,
-    demand=function() error(demand_reason) end,
-    make_peace=function() error(peace_reason) end,
+
     -- SIMPLIFIED(SIMP-003): the AI's own requests are still declined by the core (rt_diplo); there is nothing for the seat to respond to.
     respond=function() error("There is no request to answer.") end,
     switch=function() error("Say goodbye before talking to another leader.") end,

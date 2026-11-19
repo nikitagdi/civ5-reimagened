@@ -213,10 +213,19 @@ fn talk_discuss_and_trade_with_an_ai_are_seat_scoped_and_ordered() {
             .map(|s| s["key"].as_str().unwrap().to_owned())
             .collect()
     };
-    assert!(pockets(&table, "us").contains(&"embassy".to_owned()), "{table}");
+    assert!(
+        pockets(&table, "us").contains(&"embassy".to_owned()),
+        "{table}"
+    );
     let embassy = 17;
     assert_eq!(
-        act(&mut h, 0, "deal", "add", &[("a", 0), ("b", embassy), ("c", 0), ("d", 0)]),
+        act(
+            &mut h,
+            0,
+            "deal",
+            "add",
+            &[("a", 0), ("b", embassy), ("c", 0), ("d", 0)]
+        ),
         CommandOutcome::Applied
     );
     let before = digest(&mut h);
@@ -234,13 +243,26 @@ fn talk_discuss_and_trade_with_an_ai_are_seat_scoped_and_ordered() {
     assert!(!has, "drafting and asking enact nothing");
 
     // The gift of an embassy: the AI accepts, the deal goes out as the seat's order and the core enacts it.
-    assert_eq!(act(&mut h, 0, "deal", "clear", &[]), CommandOutcome::Applied);
     assert_eq!(
-        act(&mut h, 0, "deal", "add", &[("a", 0), ("b", embassy), ("c", 0), ("d", 0)]),
+        act(&mut h, 0, "deal", "clear", &[]),
+        CommandOutcome::Applied
+    );
+    assert_eq!(
+        act(
+            &mut h,
+            0,
+            "deal",
+            "add",
+            &[("a", 0), ("b", embassy), ("c", 0), ("d", 0)]
+        ),
         CommandOutcome::Applied
     );
     match act(&mut h, 0, "deal", "propose", &[]) {
-        CommandOutcome::ScreenApplied { open: Some(o), close: true, .. } => {
+        CommandOutcome::ScreenApplied {
+            open: Some(o),
+            close: true,
+            ..
+        } => {
             assert_eq!(o.screen, "leader")
         }
         other => panic!("the AI accepts a gift: {other:?}"),

@@ -36,10 +36,9 @@ fn leader_greets_with_the_core_and_unoffered_dialogue_is_an_explained_refusal() 
         !root["phrase"].as_str().unwrap().is_empty(),
         "the AI's own greeting: {root}"
     );
-    // Demands, peace talks and answers to AI requests are not offered yet (SIMP-457, SIMP-003); a topic, a war target
-    // or a confirmation need the discussion first.
+    // Peace talks need a war and an answer needs the AI's request; a topic, a war target or a confirmation need the
+    // discussion first.
     for action in [
-        "demand",
         "make_peace",
         "topic",
         "respond",

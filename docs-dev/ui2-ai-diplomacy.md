@@ -34,15 +34,23 @@ The original game runs the leader screen on the human's own machine, with that h
 | `GcUiDealQuery(..., "pockets")` | what each side may still add (`IsPossibleToTradeItem`) |
 | `GcUiDealQuery(..., "evaluate")` | the verdict of `DoHumanOfferDealToThisAI` |
 | `GcUiDealQuery(..., "equalize", mode)` | `DoEqualizeDealWithHuman` on a copy |
-| `GcUiDealQuery(..., "blob")` | the deal as `sendNetDealAccepted` carries it |
+| `GcUiDealQuery(..., "demand")` | the decision half of `DoHumanDemand` (its async draw included) |
+| `GcUiDealQuery(..., "peace")` | `HUMAN_NEGOTIATE_PEACE` and `DoTradeScreenOpened` for the seat: willing, too soon, the price, the opening table |
+| `GcUiDealQuery(..., "blob")` | the deal as `sendNetDealAccepted` or `sendNetDemandAccepted` carries it |
 
 **Commands (ordered, journaled).** Everything that changes the game is the seat's own net message, submitted by the screen action as an ordinary order and delivered by the core as the sender:
 
 - a discussion topic, a war together or a denunciation: `sendFromUIDiploEvent(ai, event, arg1, arg2)`;
 - an accepted offer: `sendNetDealAccepted(ai, value, mine, theirs)` with the core's own deal blob (`net.send_deal`, lowercase hex of whole bytes, at most 8192 digits, only on deal messages);
+- a demand: `sendFromUIDiploEvent(ai, HUMAN_DEMAND, answer, -1)` with the AI's answer (it starts the AI's demand timer on every machine), then `sendNetDemandAccepted(ai)` with the deal blob when the AI gives in, as `DoHumanDemand` sends them;
+- peace: the accepted peace deal, as any other accepted offer;
 - war: the existing `declare_war` window.
 
-Talk and Discuss send nothing: they only produce the leader's line, as in the original (`HUMAN_WANTS_DISCUSSION` changes no state, so the line is read instead of sent).
+Talk, Discuss and Make peace send nothing: they only produce the leader's line, as in the original (`HUMAN_WANTS_DISCUSSION` and `HUMAN_NEGOTIATE_PEACE` change no synchronized state, so the line is read instead of sent).
+
+**Peace price per seat.** The original keeps the AI's price of peace in `m_iCachedValueOfPeaceWithHuman`, set by `DoTradeScreenOpened` on the asking machine. A server has one AI for every seat, so the core's queries compute the seat's terms on a local deal and lend the value to the AI's cache only while a verdict or an equalize runs; the value carried by `sendNetDealAccepted` already has it folded in (FIX-0026). Two seats at war with one AI talk peace in the same turn, each at its own price.
+
+**The table's kind.** The leader session holds what the deal screen opens as: a trade, a demand (their side only, a Demand button) or peace talks (the treaties and the allies' peace on the table, fixed). Leaving the table clears it.
 
 **Replies.** The core now reports every leader message as `GC_EVENT_DIPLO_LEADER_MESSAGE` (AI, state, human, animation, data, request flag, answer; the line). `RealCore::leader_messages` drains them and the worker hands each one to the seat's session (`__leader_message`). A line from another AI, or for a seat without a session, is dropped. The state picks the mode: the human-invoked discussion stays in the discussion menu, every other line returns to the leader's root.
 
@@ -56,20 +64,19 @@ Done:
 
 - Talk opens the leader window with the AI's greeting and mood, opinion reasons and relations (`diplo.begin_diplo`, `leader`).
 - The discussion menu: friendship, denounce (confirmed), do not settle, stop spying, stop converting, stop digging (hidden once asked), a war together with a target list, never mind. The AI's replies come back to the seat.
-- Trade with an AI: the core's pockets for both sides (gold, gold per turn, luxury and strategic resources, embassy, open borders, defensive pact, research agreement), the table checked item by item, "what would make this work" in its three forms, propose with the AI's verdict and the leader's line, and an accepted deal enacted as the seat's order. Closing the table returns to the leader.
+- Trade with an AI: the core's pockets for both sides (gold, gold per turn, luxury and strategic resources, embassy, open borders, defensive pact, research agreement, trade agreement, cities, a third team's peace and war, World Congress votes; pacts and agreements go on both sides at once, as in TradeLogic), the table checked item by item, "what would make this work" in its three forms, propose with the AI's verdict and the leader's line, and an accepted deal enacted as the seat's order. Closing the table returns to the leader.
+- Peace talks: the AI refuses (too soon, or not wanted) in its own words, or opens the table with the treaties at the seat's own price; "what will end this war", and a peace it accepts is enacted in order.
+- Demands: their side only; the AI's answer is the seat's ordered event and the deal follows when it gives in.
 
 Remaining:
 
-- Peace talks (`make_peace`): `HUMAN_NEGOTIATE_PEACE`, the AI's peace price and the peace treaty on the table. The AI's peace value is cached per AI (`m_iCachedValueOfPeaceWithHuman`), so two seats negotiating peace with one AI in one turn need a per-seat value first.
-- Demands of an AI (`DoHumanDemand` draws from the asynchronous random numbers on the asker's machine).
 - AI-initiated requests and messages as popups answered by the seat: the core must keep them for seats that answer them, as it does for the move war question, instead of declining them (`SIMP-003`). Their trade screens (AI offer, demand, request, concessions) and the `TRADE_SCREEN_CLOSED` event belong here.
-- Cities, other civilizations' wars and peace, and votes on the AI table; proposing a deal to a human.
+- Proposing a deal to a human.
 
 ## Simplifications
 
 - `SIMP-003` (core): the AI's own requests are still declined by the core; the leader screen's `respond` has nothing to answer.
-- `SIMP-456`: the AI table offers gold, income, resources, embassies, open borders, defensive pacts and research agreements; a human draft cannot be proposed.
-- `SIMP-457`: no demands and no peace talks with an AI yet.
+- `SIMP-456`: a draft with a human holds gold, income and resources and cannot be proposed. The AI table has every item of the original (a declaration of friendship is traded between humans only there too).
 - `SIMP-450`: deal history omits the item kinds without a model kind.
 
 ## Tests
@@ -80,5 +87,6 @@ cargo test -p game-host screens::runtime::tests::send_deal
 cargo test -p gamecore event
 # real core (Linux):
 cargo test -p game-host --test real_ai_diplomacy -- --test-threads=1
+cargo test -p game-host --test real_ai_peace -- --test-threads=1
 cargo test -p game-host --test real_screen_purity -- --test-threads=1
 ```
