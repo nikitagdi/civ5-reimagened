@@ -550,6 +550,8 @@
   line-height: 14px;
   font-weight: 500;
   color: var(--brass);
+  /* An outlined tag here, not the kit's filled badge: brass text on the kit's brass fill could not be read. */
+  background-color: transparent;
   box-shadow: inset 0 0 0 1px rgba(201, 163, 106, 0.5);
 }
 

@@ -73,6 +73,12 @@
   gap: 4px;
 }
 
+/* The resource's count and name ("6 Iron"): one line, side by side. */
+.tip .trow .n.pr {
+  display: flex;
+  gap: 4px;
+}
+
 .tip .trow.off {
   color: var(--bone-3);
 }

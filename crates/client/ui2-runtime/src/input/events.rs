@@ -2,7 +2,8 @@
 //!
 //! An event runs the handlers of its node, then of each ancestor (it bubbles) until a handler with `stop`.
 //! `pointerenter`, `pointerleave`, `focus` and `blur` run on their node only. A node that is disabled, or
-//! inside a disabled node, gets no events. The steps of a handler, in order:
+//! inside a disabled node, gets no events but `pointerenter` and `pointerleave` (which Chrome dispatches to
+//! disabled controls too). The steps of a handler, in order:
 //!
 //! - `intent name(args)` → a [`WireIntent`] with named arguments (positional ones, of mod intents, are named
 //!   by their index) and the origin [`Origin::Markup`] (the template node index), or [`Origin::Hotkey`] when a
@@ -101,9 +102,11 @@ impl Runtime {
         }
     }
 
-    /// Runs an event on one node, without bubbling.
+    /// Runs an event on one node, without bubbling. `pointerenter` and `pointerleave` run on a disabled node too
+    /// (as Chrome dispatches pointer events to disabled controls): a disabled row still names itself for its
+    /// tooltip.
     pub(crate) fn dispatch_here(&mut self, id: NodeId, ev: Event) {
-        if !self.disabled(id) {
+        if matches!(ev, Event::Pointerenter | Event::Pointerleave) || !self.disabled(id) {
             self.run_handlers(id, ev, false);
         }
     }

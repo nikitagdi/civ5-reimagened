@@ -185,7 +185,13 @@ impl TextInputBridge for WebTextInput {
                 };
                 let _ = self.area.set_selection_range_with_direction(a, b, dir);
                 self.place(*rect);
-                if !self.focused {
+                // Focused before, but a press on the canvas may have taken the page's focus since (the UI keeps its
+                // field focused): take it back, or the keys would go to the canvas.
+                let has_focus = web_sys::window()
+                    .and_then(|w| w.document())
+                    .and_then(|d| d.active_element())
+                    .is_some_and(|e| e == *self.area.unchecked_ref::<web_sys::Element>());
+                if !self.focused || !has_focus {
                     self.restore = web_sys::window()
                         .and_then(|w| w.document())
                         .and_then(|d| d.active_element())

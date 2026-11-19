@@ -1035,7 +1035,8 @@ local function map_data(player)
                     if own then food, need, rate = c:GetFood(), c:GrowthThreshold(), c:FoodDifference() end
                     cities[#cities + 1] = {key = key_city(id, c:GetID()), hover_key = key_city(id, c:GetID()), name = c:GetName(), owner = owner,
                         strength = math.floor(c:GetStrengthValue() / 100), hp = c:GetMaxHitPoints() - c:GetDamage(), hp_max = c:GetMaxHitPoints(),
-                        growth_turns = own and turns(c:GetFoodTurnsLeft()) or nil,
+                        -- Turns to grow only while the city grows: the core's count means nothing for a starving city.
+                        growth_turns = own and rate > 0 and turns(c:GetFoodTurnsLeft()) or nil,
                         resistance_turns = own and c:IsResistance() and c:GetResistanceTurns() or nil,
                         razing_turns = own and c:IsRazing() and c:GetRazingTurns() or nil,
                         -- The banner's food bar and growth cell (the original CityBannerManager: growing, stagnant, starving).

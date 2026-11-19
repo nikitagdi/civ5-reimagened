@@ -1196,6 +1196,27 @@ fn input_tooltip_is_placed_again_when_its_size_changes() {
 }
 
 #[test]
+fn input_disabled_node_still_gets_pointer_enter_and_leave_and_its_tooltip() {
+    // As Chrome does for a disabled control: the pointer's arrival and departure reach it (a researched technology
+    // still names itself for its tooltip); a click does not.
+    let mut h = kb_host(false);
+    let tip = h.part("tip");
+    h.rt.set_state(tip, StateBits::DISABLED, true);
+    h.frame();
+    h.ptr(PointerPhase::Move, 310.0, 10.0);
+    assert!(h.rt.tooltip().is_some());
+    assert_eq!(h.script_names(), vec!["enter"]);
+    h.click(310.0, 10.0);
+    assert!(
+        h.rt.drain_output().is_empty(),
+        "no click on a disabled node"
+    );
+    h.ptr(PointerPhase::Move, 950.0, 700.0);
+    assert_eq!(h.rt.tooltip(), None);
+    assert_eq!(h.script_names(), vec!["leave"]);
+}
+
+#[test]
 fn input_tooltip_shows_under_its_node_while_hovered() {
     let mut h = kb_host(false);
     assert_eq!(h.rt.tooltip(), None);
