@@ -2,7 +2,7 @@
  <section class="win pop w-xl gm-win">
   <div class="hd">
    <img class="gi s48" data-bind-if="{{game_menu != null}}" data-bind-src="{{game_menu.player.civ_icon}}">
-   <div class="ttl stack"><span class="kick" data-bind-if="{{game_menu != null}}" data-bind-value="{{game_menu.turn}}"></span><b data-bind-if="{{!state.menu.options}}" data-l10n="menu.title"></b><b data-bind-if="{{state.menu.options}}" data-l10n="menu.options"></b></div>
+   <div class="ttl stack"><span class="kick" data-bind-if="{{game_menu != null}}" data-l10n="menu.saves.turn" data-l10n-args="{{game_menu.turn}}"></span><b data-bind-if="{{!state.menu.options}}" data-l10n="menu.title"></b><b data-bind-if="{{state.menu.options}}" data-l10n="menu.options"></b></div>
    <div class="close"><span class="key" data-l10n="key.escape">Esc</span><button class="x" data-on-click="intent window.close(window: 'game_menu')"><svg class="i"><use href="#i-close"/></svg></button></div>
   </div>
   <div class="wbd empty" data-bind-if="{{game_menu == null}}" data-l10n="menu.loading"></div>

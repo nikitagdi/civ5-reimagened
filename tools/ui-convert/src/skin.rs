@@ -767,7 +767,6 @@ api = "1.0"
                 ),
                 ("free_gp.selected".to_string(), StateValue::Int(-1)),
                 ("goody.sel".to_string(), StateValue::Int(-1)),
-                ("hud.covered".to_string(), StateValue::Bool(false)),
                 ("ideology.confirm".to_string(), StateValue::Int(-1)),
                 ("ideology.details".to_string(), StateValue::Int(-1)),
                 ("ideology.folded".to_string(), StateValue::Int(0)),
@@ -1023,7 +1022,6 @@ api = "1.0"
                 "js/confirm.js",
                 "js/message.js",
                 "js/goody_choice.js",
-                "js/hud_cover.js",
             ]
         );
         // The first state is the one the converter scans with.

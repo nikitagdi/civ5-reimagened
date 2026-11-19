@@ -26,7 +26,7 @@
         <span class="tn" data-bind-if="{{t.turns != null}}" data-l10n="top.turns" data-l10n-args="{{t.turns}}">5 turns</span>
         <span class="tn na" data-bind-if="{{t.turns == null}}">—</span>
       </div>
-      <div class="none" data-bind-if="{{len(research.options) == 0}}" data-l10n="research.none">Nothing can be researched now</div>
+      <div class="none" data-bind-if="{{research.known && len(research.options) == 0}}" data-l10n="research.none">Nothing can be researched now</div>
     </div>
     <div class="queued" data-bind-if="{{len(research.queue) > 0}}">
       <div class="foot" data-l10n="research.queued">Queued research</div>

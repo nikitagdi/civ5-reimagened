@@ -64,6 +64,11 @@ export async function run(ctx) {
       await waitFor(b.page, (p) => p?.state === "running" && p.frames > 10, `${b.nick}: UI v2 running`, 180000);
     }
     const A = alice.page, B = bob.page;
+    // The ribbon starts folded behind its toggle (the notifications keep the right edge): both open it with 1.
+    for (const pg of [A, B]) {
+      await pg.keyboard.press("1");
+      await waitFor(pg, (p) => texts(p, "civ-ribbon.name").length > 0, "the unfolded civilization ribbon", 30000);
+    }
 
     // The ribbon lists both humans (met or not, as the original multiplayer list does); only the host has a kick button.
     await waitFor(A, (p) => texts(p, "civ-ribbon.kick").length === 1, "alice: one kick button (bob's seat)", 60000);

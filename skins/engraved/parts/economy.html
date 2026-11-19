@@ -10,7 +10,7 @@
 <div class="facts" data-bind-if="{{economy != null}}">
 <span><b class="c-gold" data-bind-value="{{fmt.int(economy.finance.treasury)}}"></b><span data-l10n="economy.col_gold"></span></span>
 <span><b data-bind-value="{{fmt.signed(economy.finance.net)}}"></b><span data-l10n="economy.net_per_turn"></span></span>
-<span data-bind-if="{{economy.options.happiness}}"><b class="c-happy" data-bind-value="{{fmt.signed(economy.happiness.total)}}"></b><span data-l10n="economy.happy"></span></span>
+<span data-bind-if="{{economy.options.happiness}}"><b class="c-happy" data-bind-class-toggle="c-neg:{{top.happiness < 0}}" data-bind-value="{{fmt.signed(top.happiness)}}"></b><span data-l10n="economy.happy"></span></span>
 <span><b data-bind-value="{{len(economy.cities)}}"></b><span data-l10n="unit_lists.cities"></span></span>
 </div>
 <div class="close"><span class="key" data-l10n="key.escape"></span><button class="x" data-part="economy.close" data-bind-hotkey="{{'Enter'}}" data-on-click="intent window.close(window: 'economy')"><svg class="i"><use href="#i-close"/></svg></button></div>
