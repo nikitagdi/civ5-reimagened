@@ -1,6 +1,7 @@
 [enum]
 LeaderMoodKey = ["war", "denounced", "liberated", "friendly", "neutral", "guarded", "hostile", "afraid"]
 LeaderMode = ["main", "discussion", "response", "coop_target", "confirm_denounce", "confirm_war"]
+LeaderAction = ["discuss", "trade", "demand", "declare_war", "make_peace", "goodbye"]
 LeaderTone = ["normal", "warn", "war"]
 LeaderConfirmKind = ["denounce", "war"]
 
@@ -46,10 +47,8 @@ label = "text"
 value = "text"
 note = "text?"
 
-# `key` is the screen action the button sends (`discuss`, `trade`, `demand`, `declare_war`, `make_peace`, `goodbye`):
-# a string, as `screen.act`'s `action` and `state.leader.hover` take it.
 [type.LeaderActionRow]
-key = "str"
+key = "LeaderAction"
 label = "text"
 visible = "bool"
 enabled = "bool"

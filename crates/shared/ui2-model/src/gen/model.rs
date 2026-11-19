@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 5);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x2abbda38a8b7de15;
+pub const SCHEMA_HASH: u64 = 0x3eb9da14ac645143;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -12542,6 +12542,92 @@ impl crate::model::Model for LeaderMode {
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
         match v {
             crate::value::Value::Enum(n) => LeaderMode::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 6,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum LeaderAction {
+    #[default]
+    Discuss = 0,
+    Trade = 1,
+    Demand = 2,
+    DeclareWar = 3,
+    MakePeace = 4,
+    Goodbye = 5,
+}
+
+impl LeaderAction {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 6] = ["discuss", "trade", "demand", "declare_war", "make_peace", "goodbye"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [LeaderAction] = &[LeaderAction::Discuss, LeaderAction::Trade, LeaderAction::Demand, LeaderAction::DeclareWar, LeaderAction::MakePeace, LeaderAction::Goodbye];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<LeaderAction> {
+        match v {
+            0 => Some(LeaderAction::Discuss),
+            1 => Some(LeaderAction::Trade),
+            2 => Some(LeaderAction::Demand),
+            3 => Some(LeaderAction::DeclareWar),
+            4 => Some(LeaderAction::MakePeace),
+            5 => Some(LeaderAction::Goodbye),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<LeaderAction> {
+        match s {
+            "discuss" => Some(LeaderAction::Discuss),
+            "trade" => Some(LeaderAction::Trade),
+            "demand" => Some(LeaderAction::Demand),
+            "declare_war" => Some(LeaderAction::DeclareWar),
+            "make_peace" => Some(LeaderAction::MakePeace),
+            "goodbye" => Some(LeaderAction::Goodbye),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for LeaderAction {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => LeaderAction::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
                 value: *n,
                 count: 6,
             }),
@@ -34900,7 +34986,7 @@ impl crate::model::Keyed for LeaderRelation {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct LeaderActionRow {
-    pub key: ::std::sync::Arc<str>,
+    pub key: LeaderAction,
     pub label: crate::value::Text,
     pub visible: bool,
     pub enabled: bool,
@@ -34952,7 +35038,7 @@ impl crate::model::Model for LeaderActionRow {
 
 impl crate::model::Keyed for LeaderActionRow {
     fn key(&self) -> crate::value::Key {
-        crate::value::Key::from_text(&self.key)
+        crate::value::Key::from_enum(self.key as u16)
     }
 }
 

@@ -154,6 +154,7 @@ export type HudTopTone = "plain" | "positive" | "negative";
 export type IdeologyVictoryKind = "culture" | "diplomacy" | "domination" | "science";
 export type LeaderMoodKey = "war" | "denounced" | "liberated" | "friendly" | "neutral" | "guarded" | "hostile" | "afraid";
 export type LeaderMode = "main" | "discussion" | "response" | "coop_target" | "confirm_denounce" | "confirm_war";
+export type LeaderAction = "discuss" | "trade" | "demand" | "declare_war" | "make_peace" | "goodbye";
 export type LeaderTone = "normal" | "warn" | "war";
 export type LeaderConfirmKind = "denounce" | "war";
 export type MessageKind = "text" | "wonder" | "natural_wonder" | "golden_age" | "new_era" | "goody_hut" | "great_person" | "barbarian_camp";
@@ -3122,7 +3123,7 @@ export interface LeaderRelation {
 }
 
 export interface LeaderActionRow {
-  readonly key: string;
+  readonly key: LeaderAction;
   readonly label: Text;
   readonly visible: boolean;
   readonly enabled: boolean;

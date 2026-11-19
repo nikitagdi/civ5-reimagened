@@ -1,6 +1,6 @@
 {
 "version": "1.5",
-"hash": "2abbda38a8b7de15",
+"hash": "3eb9da14ac645143",
 "roots": [
 {"name":"meta","type":"Meta","field":0,"owner":"source"},
 {"name":"game","type":"Game","field":6,"owner":"source"},
@@ -364,7 +364,7 @@
 {"name":"LeaderMood","fields":[{"name":"key","type":"LeaderMoodKey"},{"name":"label","type":"text"},{"name":"reasons","type":"list<LeaderMoodReason>","key":"key"}]},
 {"name":"LeaderPhraseTarget","fields":[{"name":"name","type":"text"},{"name":"civ","type":"text"},{"name":"emblem","type":"asset"},{"name":"color_bg","type":"str"},{"name":"color_fg","type":"str"}]},
 {"name":"LeaderRelation","fields":[{"name":"key","type":"str"},{"name":"label","type":"text"},{"name":"value","type":"text"},{"name":"note","type":"text?"}]},
-{"name":"LeaderActionRow","fields":[{"name":"key","type":"str"},{"name":"label","type":"text"},{"name":"visible","type":"bool"},{"name":"enabled","type":"bool"},{"name":"reason","type":"text?"},{"name":"tooltip","type":"text?"}]},
+{"name":"LeaderActionRow","fields":[{"name":"key","type":"LeaderAction"},{"name":"label","type":"text"},{"name":"visible","type":"bool"},{"name":"enabled","type":"bool"},{"name":"reason","type":"text?"},{"name":"tooltip","type":"text?"}]},
 {"name":"LeaderResponse","fields":[{"name":"key","type":"str"},{"name":"index","type":"i32"},{"name":"label","type":"text"},{"name":"hint","type":"text?"},{"name":"tone","type":"LeaderTone"},{"name":"enabled","type":"bool"},{"name":"reason","type":"text?"}]},
 {"name":"LeaderTarget","fields":[{"name":"player","type":"i32"},{"name":"name","type":"text"},{"name":"civ","type":"text"},{"name":"emblem","type":"asset"},{"name":"color_bg","type":"str"},{"name":"color_fg","type":"str"},{"name":"meta","type":"text"},{"name":"score","type":"i32"}]},
 {"name":"LeaderText","fields":[{"name":"key","type":"str"},{"name":"text","type":"text"}]},
@@ -726,6 +726,7 @@
 {"name":"IdeologyVictoryKind","variants":["culture","diplomacy","domination","science"]},
 {"name":"LeaderMoodKey","variants":["war","denounced","liberated","friendly","neutral","guarded","hostile","afraid"]},
 {"name":"LeaderMode","variants":["main","discussion","response","coop_target","confirm_denounce","confirm_war"]},
+{"name":"LeaderAction","variants":["discuss","trade","demand","declare_war","make_peace","goodbye"]},
 {"name":"LeaderTone","variants":["normal","warn","war"]},
 {"name":"LeaderConfirmKind","variants":["denounce","war"]},
 {"name":"MessageKind","variants":["text","wonder","natural_wonder","golden_age","new_era","goody_hut","great_person","barbarian_camp"]},
@@ -3743,7 +3744,7 @@
 {"path":"leader.relation[].note","type":"text?"},
 {"path":"leader.at_war","type":"bool"},
 {"path":"leader.main_actions","type":"list<LeaderActionRow>","list_key":"key"},
-{"path":"leader.main_actions[].key","type":"str"},
+{"path":"leader.main_actions[].key","type":"LeaderAction"},
 {"path":"leader.main_actions[].label","type":"text"},
 {"path":"leader.main_actions[].visible","type":"bool"},
 {"path":"leader.main_actions[].enabled","type":"bool"},

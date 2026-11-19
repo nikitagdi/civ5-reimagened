@@ -219,7 +219,9 @@ fn checked(pkg: &crate::Pkg, tmpl: NodeRef, v: &[MValue]) -> bool {
 }
 
 /// The value of an action argument: a bare model path gives the field as the model holds it (a key, an enum,
-/// a whole struct such as a plot); anything else is evaluated and converted to the expected type.
+/// a whole struct such as a plot); anything else is evaluated and converted to the expected type. An enum
+/// field sent where a string is expected (the profile check accepts it) is sent as its variant name, as the
+/// expression language reads it: the model's index would not fit the string.
 fn arg_value(host: &mut Host<'_>, e: &Expr, ty: Option<&Type>) -> MValue {
     use ui2_package::profile::expr::EvalHost;
     let mut paths = Vec::new();
@@ -248,7 +250,17 @@ fn arg_value(host: &mut Host<'_>, e: &Expr, ty: Option<&Type>) -> MValue {
         if let Resolved::Path(_) = resolve_path(host.vars, segs, &mut buf)
             && let Slot::Field(_) = host.plan.lookup(&buf)
         {
-            return host.raw_path(segs);
+            let raw = host.raw_path(segs);
+            let wants_str = matches!(
+                ty.map(|t| match t {
+                    Type::Option(inner) => inner.as_ref(),
+                    t => t,
+                }),
+                Some(Type::Scalar(MScalar::Str))
+            );
+            if !(wants_str && matches!(raw, MValue::Enum(_))) {
+                return raw;
+            }
         }
     }
     to_model(&eval(e, host), ty)
@@ -934,7 +946,11 @@ impl Binder {
                         .map(|a| arg_value(&mut host, &a.value, None))
                         .collect(),
                     Some(Action::Set { path, value }) => {
-                        let ty = plan.schema.resolve(path).ok().map(|f| f.ty);
+                        // A skin state path has the type of its default (a string state takes an enum's name).
+                        let ty = plan.schema.resolve(path).ok().map(|f| f.ty).or_else(|| {
+                            matches!(plan.state_default(path), Some(Value::Str(_)))
+                                .then_some(Type::Scalar(MScalar::Str))
+                        });
                         vec![arg_value(&mut host, value, ty.as_ref())]
                     }
                     Some(Action::Toggle { path }) => {

@@ -116,6 +116,13 @@ impl Plan {
         slot
     }
 
+    /// The default of a skin state path (`state.<name>`), read or not by a row.
+    pub fn state_default(&self, path: &str) -> Option<&Value> {
+        let rest = path.strip_prefix("state.")?;
+        let i = self.state_names.iter().position(|n| n == rest)?;
+        self.state.get(i)
+    }
+
     /// A slot already resolved (evaluation never resolves: every path of a row was resolved when the row was
     /// made).
     pub fn lookup(&self, path: &str) -> Slot {

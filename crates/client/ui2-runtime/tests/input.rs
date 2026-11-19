@@ -1617,6 +1617,63 @@ fn static_keys_use_optional_action_map_overrides() {
     assert_eq!(h.rt.drain_output().script_events[0].name.as_ref(), "pick");
 }
 
+/// An enum field passed where a string is expected (an intent's `str` argument, a string skin state) is sent as
+/// its variant name, as the expression language reads it, not as the model's index (which the intent and the
+/// state refuse); where the receiver takes the enum, the index stays.
+#[test]
+fn enum_field_sent_to_a_string_receiver_is_its_variant_name() {
+    let mut f = Fx::new();
+    f.kit.state_default("hover", Lit::Str(String::new()));
+    let button = f.el("button", at(0.0, 0.0, 30.0, 30.0)).bind(on(
+        Event::Click,
+        vec![
+            intent("pick.str", &[("action", "top.kind")]),
+            intent("pick.enum", &[("kind", "top.kind")]),
+            Action::Set {
+                path: "state.hover".into(),
+                value: e("top.kind"),
+            },
+        ],
+    ));
+    f.kit.template("doc", vec![button]);
+    let schema = Box::leak(Box::new(
+        Schema::parse(
+            "version = \"1.0\"\n[enum]\nKind = [\"alpha\", \"beta\"]\n[model.top]\nkind = \"Kind\"\n\
+             [intent.\"pick.str\"]\naction = \"str\"\n[intent.\"pick.enum\"]\nkind = \"Kind\"\n",
+        )
+        .expect("schema"),
+    ));
+    let mut h = Host {
+        rt: Runtime::new(
+            f.kit.finish().expect("package"),
+            Env::default(),
+            Services::default(),
+        )
+        .expect("runtime"),
+        engine: TextEngine::new(),
+        store: ModelStore::new(schema),
+        scene: Scene::new(1.0),
+        now: 0.0,
+    };
+    let sample = Sample::parse(schema, r#"{"model":{"top":{"kind":"beta"}}}"#).expect("sample");
+    h.store
+        .writer(ui2_model::Owner::Source)
+        .put(DynamicRoot::<false>(sample.roots()[0].1.clone()))
+        .expect("apply");
+    h.frame();
+    h.click(15.0, 15.0);
+    let out = h.rt.drain_output();
+    let args: Vec<_> = out.intents.iter().map(|i| i.args[0].1.clone()).collect();
+    assert_eq!(args, vec![MValue::Str("beta".into()), MValue::Enum(1)]);
+    assert_eq!(
+        out.state_writes,
+        vec![StateOp {
+            path: "state.hover".into(),
+            value: MValue::Str("beta".into()),
+        }]
+    );
+}
+
 #[test]
 fn wheel_handler_and_scroll_binding_share_state() {
     let mut f = Fx::new();
