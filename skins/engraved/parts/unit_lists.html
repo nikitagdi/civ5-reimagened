@@ -1,8 +1,7 @@
 <nav class="unit-lists-corner" data-part="unit-lists.corner">
   <button data-part="tech-panel.toggle" data-on-click="call unit_lists.open('tech')" data-tooltip="corner-research-tip"><svg class="i"><use href="#i-tech"/></svg></button>
   <button data-part="unit-lists.units-open" data-on-click="call unit_lists.open('units')" data-tooltip="corner-units-tip"><svg class="i"><use href="#i-military"/></svg></button>
-  <button data-on-click="intent window.open(window: 'city_list')" data-tooltip="corner-cities-tip"><svg class="i"><use href="#i-cities"/></svg></button>
   <button data-part="unit-lists.resources-open" data-on-click="call unit_lists.open('resources')" data-tooltip="corner-resources-tip"><svg class="i"><use href="#i-iron"/></svg></button>
   <button data-part="unit-lists.gp-open" data-on-click="call unit_lists.open('gp')" data-tooltip="corner-gp-tip"><svg class="i"><use href="#i-person"/></svg></button>
-  <button data-on-click="call unit_lists.open('')" data-tooltip="corner-close-tip"><svg class="i"><use href="#i-close"/></svg></button>
+  <button data-part="unit-lists.close" data-bind-hotkey="{{'Escape'}}" data-on-click="call unit_lists.open('')" data-tooltip="corner-close-tip"><svg class="i"><use href="#i-close"/></svg></button>
 </nav>

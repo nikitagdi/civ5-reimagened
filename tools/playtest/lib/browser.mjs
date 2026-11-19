@@ -116,7 +116,12 @@ export async function openPage(o) {
     executablePath: process.env.CHROMIUM_PATH || undefined,
     args,
   });
-  const context = await browser.newContext({ viewport: o.viewport ?? { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+  // `deviceScaleFactor: null` leaves the scale to the browser (`--force-device-scale-factor` in `chromeArgs`): an
+  // emulated scale gives the canvas a backing store in CSS px.
+  const context = await browser.newContext({
+    viewport: o.viewport ?? { width: 1280, height: 720 },
+    ...(o.deviceScaleFactor === null ? {} : { deviceScaleFactor: o.deviceScaleFactor ?? 1 }),
+  });
   const page = await context.newPage();
   // The performance cores for every process of this browser; again at each load (a navigation can start a new
   // renderer process). `cpuPin` holds the last result.

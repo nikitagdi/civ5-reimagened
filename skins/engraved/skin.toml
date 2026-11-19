@@ -44,7 +44,7 @@ city_list = { sort = "population", desc = true }
 city = { hover_yield = "", tiles_open = false, hover_kind = "", buy_tiles = false, sell = -1, hover = -1, queue_mode = 0, repeat_order = false }
 tech_award = { hover = "" }
 tech_panel = { open = false, last_id = -1, last_name = "", done = false }
-techs = { hover = -1, x = 0.0 }
+techs = { hover = -1, unlock = -1, x = 0.0 }
 demographics = { hover = "population" }
 victory = { view = "summary", hover = "irr" }
 espionage = { agents_sort = "name", agents_sort_desc = false, own_sort = "name", own_sort_desc = false, other_sort = "civilization", other_sort_desc = false, intrigue_sort = "turn", intrigue_sort_desc = true, tab = "overview", moving = -1, hover_agent = -1, hover_city = -1, selected = -1, ask = -1, confirm = "" }

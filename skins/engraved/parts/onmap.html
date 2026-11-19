@@ -6,9 +6,10 @@
     <span data-bind-value="{{c.strength}}">18</span>
   </div>
   <button class="body" data-bind-disabled="{{!c.mine || ui.map_mode != 'select'}}" data-on-click="call city.open(c.key)">
+    <!-- A bound colour is not passed on to the children: each text and icon on the plate binds the ink colour itself. -->
     <div class="flank" data-bind-style-background-color="{{c.color}}" data-bind-style-color="{{c.color2}}">
-      <span class="size" data-bind-value="{{c.size}}">8</span>
-      <span class="grow" data-bind-if="{{c.growth_turns != null}}"><svg class="i"><use href="#i-food"/></svg><span data-bind-value="{{c.growth_turns}}">9</span></span>
+      <span class="size" data-bind-style-color="{{c.color2}}" data-bind-value="{{c.size}}">8</span>
+      <span class="grow" data-bind-if="{{c.growth_turns != null}}"><svg class="i"><use href="#i-food"/></svg><span data-bind-style-color="{{c.color2}}" data-bind-value="{{c.growth_turns}}">9</span></span>
     </div>
     <div class="main">
       <div class="name">
@@ -43,23 +44,23 @@
   <div class="hp"><div class="fill" data-bind-class-toggle="low:{{u.hp_fraction < 0.33}}; on-map-hp-mid:{{u.hp_fraction >= 0.33 && u.hp_fraction < 0.66}}" data-bind-style-width="{{u.hp_fraction * 100}}%" style="width: 100%"></div></div>
   <div data-bind-if="{{hud != null}}"><div data-bind-for="s:{{hud.map.units}}" data-bind-filter="{{s.key == u.key}}">
   <div class="flag" data-bind-if="{{s.shape == 'military'}}" data-bind-style-background-color="{{u.color}}" data-bind-style-color="{{u.color2}}">
-    <svg class="i dom" data-bind-if="{{u.domain == 'sea'}}"><use href="#i-ship"/></svg>
-    <svg class="i dom" data-bind-if="{{u.domain != 'sea'}}"><use href="#i-sword"/></svg>
+    <svg class="i dom" data-bind-if="{{u.domain == 'sea'}}" data-bind-style-color="{{u.color2}}"><use href="#i-ship"/></svg>
+    <svg class="i dom" data-bind-if="{{u.domain != 'sea'}}" data-bind-style-color="{{u.color2}}"><use href="#i-sword"/></svg>
     <img class="pic" data-bind-src="{{u.icon}}">
   </div>
   <div class="flag on-map-civilian" data-bind-if="{{s.shape == 'civilian' || s.shape == 'trade'}}" data-bind-style-background-color="{{u.color}}" data-bind-style-color="{{u.color2}}">
-    <svg class="i dom" data-bind-if="{{u.domain == 'sea'}}"><use href="#i-ship"/></svg>
-    <svg class="i dom" data-bind-if="{{u.domain != 'sea'}}"><use href="#i-sword"/></svg>
+    <svg class="i dom" data-bind-if="{{u.domain == 'sea'}}" data-bind-style-color="{{u.color2}}"><use href="#i-ship"/></svg>
+    <svg class="i dom" data-bind-if="{{u.domain != 'sea'}}" data-bind-style-color="{{u.color2}}"><use href="#i-sword"/></svg>
     <img class="pic" data-bind-src="{{u.icon}}">
   </div>
   <div class="flag on-map-embarked" data-bind-if="{{s.shape == 'embarked'}}" data-bind-style-background-color="{{u.color}}" data-bind-style-color="{{u.color2}}">
-    <svg class="i dom" data-bind-if="{{u.domain == 'sea'}}"><use href="#i-ship"/></svg>
-    <svg class="i dom" data-bind-if="{{u.domain != 'sea'}}"><use href="#i-sword"/></svg>
+    <svg class="i dom" data-bind-if="{{u.domain == 'sea'}}" data-bind-style-color="{{u.color2}}"><use href="#i-ship"/></svg>
+    <svg class="i dom" data-bind-if="{{u.domain != 'sea'}}" data-bind-style-color="{{u.color2}}"><use href="#i-sword"/></svg>
     <img class="pic" data-bind-src="{{u.icon}}">
   </div>
   <div class="flag on-map-fortified" data-bind-if="{{s.shape == 'fortified' || s.shape == 'garrison'}}" data-bind-style-background-color="{{u.color}}" data-bind-style-color="{{u.color2}}">
-    <svg class="i dom" data-bind-if="{{u.domain == 'sea'}}"><use href="#i-ship"/></svg>
-    <svg class="i dom" data-bind-if="{{u.domain != 'sea'}}"><use href="#i-sword"/></svg>
+    <svg class="i dom" data-bind-if="{{u.domain == 'sea'}}" data-bind-style-color="{{u.color2}}"><use href="#i-ship"/></svg>
+    <svg class="i dom" data-bind-if="{{u.domain != 'sea'}}" data-bind-style-color="{{u.color2}}"><use href="#i-sword"/></svg>
     <img class="pic" data-bind-src="{{u.icon}}">
   </div></div></div>
 </button>

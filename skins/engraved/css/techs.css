@@ -61,3 +61,12 @@
 
 .techs-tip-content { display: flex; flex-direction: column; gap: 8px; line-height: 20px; }
 .techs-tip-unlock { display: flex; align-items: center; gap: 8px; }
+
+/* The tooltip of one unlock square. */
+.techs-unlock-tip { width: 280px; padding: 10px 12px; background: var(--lacquer); border: 1px solid var(--engrave); color: var(--bone); font-size: 13px; line-height: 18px; }
+.techs-unlock-tip-item { display: flex; align-items: center; gap: 10px; }
+.techs-unlock-tip-icon { width: 48px; height: 48px; flex: none; border: 1px solid var(--engrave); }
+.techs-unlock-tip-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.techs-unlock-tip-name { font: 500 16px/20px var(--serif); }
+.techs-unlock-tip-kind { color: var(--bone-2); }
+.techs-unlock-tip-of { display: flex; gap: 4px; color: var(--bone-3); font-size: 12px; }

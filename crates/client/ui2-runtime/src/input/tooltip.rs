@@ -2,9 +2,10 @@
 //! its tooltip template lives in the `tooltip` layer; it goes when the hover leaves the node or the node goes.
 //!
 //! The instance is made when the hover arrives (its bindings, text and layout run in the next frame like any
-//! new node). After that frame's layout it is placed once: its top left corner at the node's left edge, 4 px
-//! under the node's bottom edge, pushed back inside the viewport, by `left`/`top` set on its root (which the
-//! skin positions absolutely), and laid out again in the same frame. The instance carries the list key of the
+//! new node). After that frame's layout it is placed once: its left edge at the node's left edge, 4 px under the
+//! node's bottom edge (or 4 px above its top edge when it fits there and not below), pushed back inside the
+//! viewport, by `left`/`top` set on its root (which the skin positions absolutely), and laid out again in the same
+//! frame. The instance carries the list key of the
 //! node's innermost list item, so its bindings read that item.
 
 use glam::Vec2;
@@ -19,6 +20,21 @@ use crate::style::{self, OverValue};
 
 /// The gap between a node and its tooltip, CSS px.
 pub const TOOLTIP_GAP: f32 = 4.0;
+
+/// The top of a tooltip of height `tip` for a node at `y` of height `h` in a viewport of height `vh` (CSS px):
+/// under the node when it fits there, above it when it fits there instead, otherwise on the side with more room,
+/// pushed back inside the viewport.
+// SIMPLIFIED(SIMP-200): a tooltip goes under or above its node (left edges aligned, 4 px gap, pushed back inside the viewport); it is never put beside the node
+pub(crate) fn tooltip_top(y: f32, h: f32, tip: f32, vh: f32) -> f32 {
+    let below = y + h + TOOLTIP_GAP;
+    let above = y - TOOLTIP_GAP - tip;
+    let top = if below + tip <= vh || (above < 0.0 && vh - (y + h) >= y) {
+        below
+    } else {
+        above
+    };
+    top.min(vh - tip).max(0.0)
+}
 
 /// A tooltip on screen.
 #[derive(Debug, Clone, PartialEq)]
@@ -155,12 +171,9 @@ impl Runtime {
         }
         let (tpos, tsize) = (g.abs(root), g.size(root));
         let vp = Vec2::from(self.style_env.scale.viewport_css);
-        // SIMPLIFIED(SIMP-200): the tooltip always goes under its node (left edges aligned, 4 px gap) and is only pushed back inside the viewport; there is no choice of another side when it does not fit below
         let want = Vec2::new(
             opos.x.min(vp.x - tsize.x).max(0.0),
-            (opos.y + osize.y + TOOLTIP_GAP)
-                .min(vp.y - tsize.y)
-                .max(0.0),
+            tooltip_top(opos.y, osize.y, tsize.y, vp.y),
         );
         // `left`/`top` move the box by as much as they change (its containing block stays).
         let current = |prop: PropId| {
@@ -188,5 +201,21 @@ impl Runtime {
         }
         self.arena.mark(root, bits);
         bits.contains(crate::arena::Dirty::LAYOUT)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::tooltip_top;
+
+    #[test]
+    fn a_tooltip_goes_under_its_node_or_above_it_when_it_does_not_fit_under() {
+        // Room under the node.
+        assert_eq!(tooltip_top(100.0, 20.0, 200.0, 900.0), 124.0);
+        // No room under, room above: above, its bottom 4 px over the node.
+        assert_eq!(tooltip_top(768.0, 68.0, 500.0, 900.0), 264.0);
+        // Room on neither side: the side with more room, pushed inside the viewport.
+        assert_eq!(tooltip_top(600.0, 68.0, 800.0, 900.0), 0.0);
+        assert_eq!(tooltip_top(200.0, 68.0, 800.0, 900.0), 100.0);
     }
 }

@@ -1157,10 +1157,11 @@ fn input_tooltip_shows_under_its_node_while_hovered() {
     h.frame();
     assert!(h.rt.dump_rects(Some("tip-box")).is_empty());
 
-    // Near the corner of the viewport it is pushed back inside (1920 x 1080).
+    // Near the corner of the viewport (1920 x 1080) it does not fit under its node (top 1060): it goes 4 px above
+    // the node instead of over it, and is pushed back inside horizontally.
     h.ptr(PointerPhase::Move, 1910.0, 1070.0);
     h.frame();
-    assert_eq!(rect(&h), (1840.0, 1050.0, 80.0, 30.0));
+    assert_eq!(rect(&h), (1840.0, 1026.0, 80.0, 30.0));
 }
 
 #[test]

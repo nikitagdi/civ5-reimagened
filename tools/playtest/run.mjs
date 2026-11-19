@@ -56,6 +56,7 @@ const SCENARIOS = {
   "ui2-host": () => import("./scenarios/ui2-host.mjs"),
   // UI v2 orders through the skin (turn dial, production and research windows) and the server's answers: --attach.
   "ui2-screens": () => import("./scenarios/ui2-screens.mjs"),
+  "ui2-remarks": () => import("./scenarios/ui2-remarks.mjs"),
   "ui2-popups": () => import("./scenarios/ui2-popups.mjs"),
   "ui2-screen-techs": () => import("./scenarios/ui2-screen-techs.mjs"),
   "ui2-screen-tech_panel": () => import("./scenarios/ui2-screen-tech_panel.mjs"),

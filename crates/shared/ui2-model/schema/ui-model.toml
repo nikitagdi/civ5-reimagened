@@ -125,6 +125,8 @@ icon = "asset"
 turns = "i16?"
 fraction = "f32"
 
+# `color` is the owner's plate colour (a banner's or a flag's background), `color2` the colour of the icon and text
+# on it: the background and icon colours of a civilization, the other way round for a city-state (as the original).
 [type.CityBanner]
 key = "key<city>"
 owner = "key<player>"

@@ -6,7 +6,8 @@
 //! (`screen = pos + scale * chunk`). The binding gives the anchor its object (kind and key); new anchors,
 //! changed objects and removed anchors are handed to the host in [`FrameOutput::anchor_changes`]. The host
 //! projects the objects with its camera and calls [`Runtime::set_anchor_screen`], which writes the scene's
-//! anchor table and the placement hit-testing uses: no style, layout or draw list work.
+//! anchor table and the placement hit-testing uses: no style, layout or draw list work. The point is rounded to a
+//! whole device pixel (drawing and hit-testing alike).
 //!
 //! [`FrameOutput::anchor_changes`]: crate::FrameOutput::anchor_changes
 
@@ -196,12 +197,20 @@ impl Anchors {
             else {
                 continue;
             };
-            e.screen = Some((u.pos, u.scale, u.visible));
+            // On a whole device pixel: a chunk laid out on the pixel grid stays on it, so its text and edges are as
+            // sharp as the HUD's (a projected point is fractional; a glyph moved by a fraction of a pixel is
+            // resampled and blurred).
+            let pos = if u.pos.is_finite() {
+                u.pos.round()
+            } else {
+                u.pos
+            };
+            e.screen = Some((pos, u.scale, u.visible));
             if let Some(slot) = e.slot {
                 scene.set_anchor(
                     slot,
                     AnchorXform {
-                        pos: u.pos,
+                        pos,
                         scale: u.scale,
                         visible: u.visible,
                     },

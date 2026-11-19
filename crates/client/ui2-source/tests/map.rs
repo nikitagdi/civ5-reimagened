@@ -54,8 +54,9 @@ fn the_reference_city_banners() {
         CityBanner {
             key: city_key(CATHERINE, MOSCOW),
             owner: Key::from_i32(0),
-            color: 0x8b00_00ff,
-            color2: 0xffd7_00ff,
+            // The plate in the background colour (the core's secondary), the text in the icon colour (primary).
+            color: 0xffd7_00ff,
+            color2: 0x8b00_00ff,
             name: "Moscow".into(),
             plot: Plot { x: 40, y: 20 },
             size: 14,
@@ -142,7 +143,32 @@ fn the_reference_unit_flags() {
         .get(Key::new(u32::from(MONTEZUMA.cast_unsigned()), 1))
         .expect("the jaguar");
     assert!(!jaguar.mine && jaguar.at_war && !jaguar.waiting);
-    assert_eq!(jaguar.color, 0x8b00_02ff);
+    // The flag in the owner's background colour, the icon in its icon colour.
+    assert_eq!((jaguar.color, jaguar.color2), (0xffd7_00ff, 0x8b00_02ff));
+}
+
+#[test]
+fn a_city_state_wears_its_colours_the_other_way_round() {
+    // As the original banners and flags: a major civilization's plate is its background colour (the core's
+    // secondary) with the icon colour (primary) on it; a city-state's plate is its primary colour.
+    let mut f = game();
+    for p in &mut f.players {
+        if p.id == MONTEZUMA {
+            p.flags = ui2_source::read::PlayerFlags(p.flags.0 | MINOR);
+        }
+    }
+    let mut rig = Rig::new(session());
+    rig.frame(&mut f);
+    let m = map(&rig);
+    let city = &m.cities[4];
+    assert_eq!((city.color, city.color2), (0x8b00_02ff, 0xffd7_00ff));
+    let jaguar = m
+        .units
+        .get(Key::new(u32::from(MONTEZUMA.cast_unsigned()), 1))
+        .expect("the jaguar");
+    assert_eq!((jaguar.color, jaguar.color2), (0x8b00_02ff, 0xffd7_00ff));
+    let moscow = &m.cities[0];
+    assert_eq!((moscow.color, moscow.color2), (0xffd7_00ff, 0x8b00_00ff));
 }
 
 #[test]

@@ -22,7 +22,8 @@ pub(crate) struct Piece {
 }
 
 /// The game's markup in a shown text: `[NEWLINE]` breaks the line, `[COLOR_X]...[ENDCOLOR]` colors a piece,
-/// `[ICON_X]` is cut out (the flag says one was). Other bracketed words stay as they are. A text without
+/// `[ICON_X]` is cut out (the flag says one was), the marks of `[LINK=X]...[\LINK]` are cut out around their text.
+/// Other bracketed words stay as they are. A text without
 /// markup is one piece.
 pub(crate) fn split_markup(s: &str) -> (Vec<Piece>, bool) {
     let mut pieces = Vec::new();
@@ -62,6 +63,9 @@ pub(crate) fn split_markup(s: &str) -> (Vec<Piece>, bool) {
                 }
                 color = Some(t["COLOR_".len()..].to_string());
             }
+            // A link into the game's encyclopedia (`[LINK=IMPROVEMENT_FORT]Fort[\LINK]`): the text stays, the
+            // link marks go.
+            t if t.starts_with("LINK=") || t == "\\LINK" => {}
             t if word && t.starts_with("ICON_") => {
                 // SIMPLIFIED(SIMP-228): icons in game texts ([ICON_*]) are cut out and reported once; the profile allows no pictures inside text
                 icons = true;
@@ -224,6 +228,14 @@ mod tests {
         assert_eq!(
             split_markup("[Esc] to close [x"),
             (vec![p("[Esc] to close [x", None)], false)
+        );
+    }
+
+    #[test]
+    fn markup_keeps_the_text_of_a_link() {
+        assert_eq!(
+            split_markup("Construct a [LINK=IMPROVEMENT_FORT]Fort[\\LINK]"),
+            (vec![p("Construct a Fort", None)], false)
         );
     }
 }

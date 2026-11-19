@@ -88,6 +88,16 @@ export async function partBox(page, part) {
 
 export async function clickPart(page, part) {
   let b = await partBox(page, part);
+  // The tabs of the info corner are there only while the corner is open: the strip's lists button opens it.
+  if (!b && (part === "tech-panel.toggle" || /^unit-lists\.\w+-open$/.test(part))) {
+    if (await clickPart(page, "top.menu.lists")) {
+      const end = Date.now() + 5000;
+      while (!b && Date.now() < end) {
+        await page.waitForTimeout(50);
+        b = await partBox(page, part);
+      }
+    }
+  }
   if (!b && (part.startsWith("top.menu.") || part === "top.main-menu.button") && part !== "top.menu.fold") {
     const fold = await partBox(page, "top.menu.fold");
     if (fold) {

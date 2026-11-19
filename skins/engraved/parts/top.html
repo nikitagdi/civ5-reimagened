@@ -23,6 +23,7 @@
     </div>
     <div class="secondary">
       <button data-hotkey="Ctrl+KeyC" data-tooltip="tip-city-list" class="mbtn" data-part="top.menu.cities" data-on-click="set state.top.menu = false; intent window.open(window: 'city_list')"><svg class="i"><use href="#i-cities"/></svg></button>
+      <button data-tooltip="nav-lists-tip" class="mbtn" data-part="top.menu.lists" data-on-click="set state.top.menu = false; call unit_lists.toggle()"><svg class="i"><use href="#i-queue"/></svg></button>
       <button data-hotkey="F2" data-tooltip="nav-economy-tip" class="mbtn" data-part="top.menu.economy" data-on-click="set state.top.menu = false; intent window.open(window: 'economy')"><svg class="i"><use href="#i-econ"/></svg></button>
       <button data-hotkey="F3" data-tooltip="nav-military-tip" class="mbtn" data-part="top.menu.military" data-on-click="set state.top.menu = false; intent window.open(window: 'military')"><svg class="i"><use href="#i-military"/></svg></button>
       <button class="mbtn" data-part="top.menu.diplomacy" data-tooltip="corner-diplomacy-tip" data-on-click="set state.top.menu = false; call civ_ribbon.toggle()"><svg class="i"><use href="#i-diplo"/></svg></button>

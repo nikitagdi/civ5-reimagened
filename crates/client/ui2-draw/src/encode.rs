@@ -17,8 +17,8 @@ use crate::instance::{
 use crate::pages::{ExtSlots, Pages};
 use crate::tables::{Clip, Tables};
 use crate::{
-    BoxItem, ChunkItems, Fill, Glyphs, Gradient, GradientShape, ImageItem, Item, MaskItem,
-    NineSlice, Rect, ShadowItem,
+    BoxItem, ChunkItems, Fill, GlyphPos, Glyphs, Gradient, GradientShape, ImageItem, Item,
+    MaskItem, NineSlice, Rect, ShadowItem,
 };
 
 /// What the encoder works on besides the items.
@@ -392,11 +392,25 @@ fn encode_glyphs(g: &Glyphs, sigma: f32, anchor: u16, ctx: &mut EncodeCtx<'_>, o
     if g.glyphs.is_empty() {
         return;
     }
-    let (xform, clip) = place(&g.transform, &g.clip, ctx, out);
+    // A transform that only moves the run (a `translate`, a centring by percentages) is applied to the pen
+    // positions here, before they are put on the pixel grid: through the transform table it would move whole-pixel
+    // quads by a fraction of a pixel and the atlas would be resampled (blurred text).
+    let (shift, transform) = match g.transform {
+        Some(m) if m.matrix2 == glam::Mat2::IDENTITY && m.translation.is_finite() => {
+            (m.translation, None)
+        }
+        other => (glam::Vec2::ZERO, other),
+    };
+    let (xform, clip) = place(&transform, &g.clip, ctx, out);
     let page = ctx.mask_side as f32;
     let layer_base = ctx.glyphs.layer_base();
     for pos in &g.glyphs {
-        let (key, px, baseline) = glyph_key(g, pos);
+        let moved = GlyphPos {
+            x: pos.x + shift.x,
+            y: pos.y + shift.y,
+            ..*pos
+        };
+        let (key, px, baseline) = glyph_key(g, &moved);
         let mut i = Ui2Instance::of_kind(KIND_MASK);
         i.colors[0] = g.color.0;
         i.extra[0] = f16_bits(sigma);
@@ -1012,5 +1026,40 @@ mod tests {
         let mut rig = Rig::new();
         let e = rig.encode(&one(Item::Glyphs(run)));
         assert!(e.instances.iter().all(|i| i.extra == [0; 4]));
+    }
+
+    #[test]
+    fn a_moved_run_is_placed_on_the_pixel_grid_not_through_the_transform_table() {
+        let run = |transform: Option<Affine2>| Glyphs {
+            face: ui2_text::FaceId(0),
+            size_px: 14.0,
+            wght: 400.0,
+            color: Color::rgba(255, 255, 255, 255),
+            glyphs: vec![(5, 10.0, 20.0).into()],
+            transform,
+            clip: None,
+        };
+        let key = |x: f32| {
+            let (_, sub) = ui2_text::quantize_x(x);
+            ui2_text::GlyphKey::new(ui2_text::FaceId(0), 5, 14.0, 400.0, sub)
+        };
+        // A translation by a fraction of a pixel moves the pen: the glyph is rasterized at that subpixel position
+        // and its quad stays on whole pixels (no transform record).
+        let mut rig = Rig::new();
+        let e = rig.encode(&one(Item::Glyphs(run(Some(Affine2::from_translation(
+            Vec2::new(0.3, 0.6),
+        ))))));
+        assert_eq!(e.instances.len(), 1);
+        assert_eq!(e.instances[0].xform, 0);
+        assert!(e.xforms.is_empty());
+        assert!(rig.glyphs.is_pending(&key(10.3)));
+        assert!(!rig.glyphs.is_pending(&key(10.0)));
+        // A transform that scales or turns the run still goes through the table.
+        let mut rig = Rig::new();
+        let e = rig.encode(&one(Item::Glyphs(run(Some(
+            Affine2::from_scale(Vec2::splat(2.0)) * Affine2::from_translation(Vec2::new(0.3, 0.0)),
+        )))));
+        assert_ne!(e.instances[0].xform, 0);
+        assert!(rig.glyphs.is_pending(&key(10.0)));
     }
 }

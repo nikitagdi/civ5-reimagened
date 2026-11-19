@@ -1,5 +1,12 @@
 /* Engraved: tooltips (the tooltip layer). The runtime puts a tooltip's root under the hovered node by `left`/`top`;
-   the root is positioned absolutely in the layer. */
+   the root is positioned absolutely in the layer. Every tooltip root is, whatever its own class: one left in the
+   flow would stay at the corner of the screen. */
+
+.tips-layer > div {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
 
 .tip {
   position: absolute;

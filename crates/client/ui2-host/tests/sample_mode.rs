@@ -169,11 +169,17 @@ fn banners_the_sample_does_not_place_stand_where_the_layout_puts_them() {
             .map(|r| (r.x, r.y))
             .collect();
         moved.sort_by(|a, b| a.1.total_cmp(&b.1));
-        assert_eq!(
-            moved,
-            vec![(30.0, 12.5), (30.0, 22.5), (30.0, 32.5)],
-            "moved by (30, 12.5) CSS px at dpr {dpr}"
-        );
+        // An anchor stands on a whole device pixel: 12.5 CSS px is 12.5 device px at dpr 1 (13 after rounding),
+        // 25 at dpr 2.
+        let dy = (12.5 * dpr).round() / dpr;
+        let want = [(30.0, dy), (30.0, 10.0 + dy), (30.0, 20.0 + dy)];
+        assert_eq!(moved.len(), want.len(), "{moved:?}");
+        for (got, want) in moved.iter().zip(want) {
+            assert!(
+                (got.0 - want.0).abs() < 1e-3 && (got.1 - want.1).abs() < 1e-3,
+                "moved by (30, 12.5) CSS px at dpr {dpr}: {moved:?}"
+            );
+        }
     }
 }
 

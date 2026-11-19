@@ -24,10 +24,19 @@ pub fn domain(v: i8) -> Domain {
     }
 }
 
-/// The owner's two colours, black when the owner is not among the players.
+/// The owner's colours as a banner or a flag wears them: the plate (`color`) and what is drawn on it (`color2`),
+/// black when the owner is not among the players.
+///
+/// The core gives a player's colours as the game's `PlayerColors` lists them: the primary one is the icon colour,
+/// the secondary one the background colour. The original city banners and unit flags paint their plate in the
+/// background colour and the icon and text on it in the icon colour, the other way round for a city-state.
 fn colors(players: &[Player], owner: i8) -> (u32, u32) {
     find(players, owner).map_or((0x0000_00ff, 0x0000_00ff), |p| {
-        (p.color_primary, p.color_secondary)
+        if p.flags.minor() {
+            (p.color_primary, p.color_secondary)
+        } else {
+            (p.color_secondary, p.color_primary)
+        }
     })
 }
 
