@@ -11,10 +11,11 @@ export async function run(ctx) {
     check("yes on the exit question leaves for the lobby",true);
   },{a:-1});
 
+ // No id at all: a negative id now names a unit to delete, so the "nothing pending" case sends none.
  if (!Number.isInteger(id)) return popupScenario(ctx,"confirm",async(page,check)=>{
    await waitPopup(page,p=>texts(p,"confirm.text").some(t=>/no matching/i.test(t)),"honest unavailable event");
    check("no event is manufactured",true);
- },{a:-1});
+ });
   return popupScenario(ctx,"confirm",async(page,check)=>{
     await waitPopup(page,p=>texts(p,"confirm.choice").length>=2,"real confirmation choices");
     await page.keyboard.press("Escape");
