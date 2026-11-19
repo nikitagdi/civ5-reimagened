@@ -1,31 +1,8 @@
-.pantheon-screen { position: absolute; inset: 48px 0 0; padding: 16px 24px 24px; display: flex; align-items: center; justify-content: center; background: rgba(12,10,8,.6); }
-.pantheon-window { position: relative; width: 880px; max-width: 100%; max-height: 100%; display: flex; flex-direction: column; background: var(--lacquer); color: var(--bone); border: 1px solid var(--engrave); border-radius: 4px; }
-.pantheon-head { display: flex; align-items: center; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--engrave); }
-.pantheon-title { font: 500 28px/32px var(--serif); }
-.pantheon-head p { font-size: 13px; color: var(--bone-2); }
-.pantheon-emblem { width: 48px; height: 48px; }
-.pantheon-icon { width: 32px; height: 32px; flex-shrink: 0; }
-.pantheon-list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
-.pantheon-row { width: 100%; display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-left: 2px solid transparent; text-align: left; color: var(--bone); }
-.pantheon-row:hover { background: var(--lacquer-2); border-color: var(--brass); }
-.pantheon-label { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.pantheon-label b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pantheon-label span { font-size: 13px; color: var(--bone-2); }
-.pantheon-footer { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--engrave); color: var(--bone-3); font-size: 12px; }
-.pantheon-button { padding: 10px 16px; color: var(--bone); background: var(--lacquer-2); border: 1px solid var(--engrave); border-radius: 4px; }
-.pantheon-button:hover { border-color: var(--brass); }
-.pantheon-reason { padding: 12px 24px; color: var(--neg); }
-.pantheon-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(12,10,8,.7); }
-.pantheon-dialog { width: 520px; max-width: 90%; max-height: 90%; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 16px; padding: 24px; background: var(--lacquer); border: 1px solid var(--engrave); }
-
-.pantheon-screen { pointer-events: auto; }
-
-.pantheon-window { min-height: 0; }
-.pantheon-head { padding: 14px 24px; flex-shrink: 0; }
-.pantheon-head p { margin: 4px 0 0; line-height: 18px; }
-.pantheon-label { gap: 3px; }
-.pantheon-row { min-height: 56px; padding: 8px 20px; border-bottom: 1px solid var(--engrave); }
-.pantheon-row:disabled { color: var(--bone-3); cursor: default; }
-.pantheon-row:disabled:hover { border-left-color: transparent; }
-.pantheon-footer { flex-shrink: 0; }
-.pantheon-dialog .pantheon-confirm-control { background: var(--brass); color: var(--brass-ink); }
+/* pantheon: one belief per row and the confirm overlay; the frame, rows and buttons are the kit's */
+.pan-win { height: 820px; }
+.pan-win .ttl.stack .sub { align-self: stretch; }
+.pan-why { padding: 12px 24px 0; }
+.pan-row { flex: none; gap: 14px; min-height: 64px; padding: 8px 24px; text-align: left; box-shadow: inset 0 -1px 0 var(--line-soft); }
+.pan-row .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pan-row .tx b { font: 500 16px/20px var(--serif); }
+.pan-row .tx span { font-size: 13px; line-height: 18px; color: var(--bone-2); }

@@ -1,38 +1,8 @@
-<template data-layer="tooltip" id="trade-routes-tip"><div class="trade-routes-tooltip">
-<div data-bind-for="r:{{trade_routes.routes.yours}}" data-bind-filter="{{state.trade_routes.tip_list == 'yours' && r.id == state.trade_routes.tip && r.tooltip != null}}">
-<div class="trade-routes-tip-block" data-bind-for="b:{{r.tooltip.blocks}}">
-<strong data-l10n="trade_routes.tip_my_gold" data-bind-if="{{b.key == 'my_gold'}}"></strong><strong data-l10n="trade_routes.tip_their_gold" data-bind-if="{{b.key == 'their_gold'}}"></strong><strong data-l10n="trade_routes.tip_my_science" data-bind-if="{{b.key == 'my_science'}}"></strong><strong data-l10n="trade_routes.tip_their_science" data-bind-if="{{b.key == 'their_science'}}"></strong>
-<span class="trade-routes-value" data-bind-value="{{b.owner}}"></span>
-<div class="trade-routes-tip-line" data-bind-for="l:{{b.lines}}">
-<span data-l10n="trade_routes.term_base" data-bind-if="{{l.key == 'base'}}"></span><span data-l10n="trade_routes.term_city_gold" data-bind-if="{{l.key == 'origin_city_gold' || l.key == 'dest_city_gold'}}"></span><span data-l10n="trade_routes.term_policies" data-bind-if="{{l.key == 'policies'}}"></span><span data-l10n="trade_routes.term_buildings" data-bind-if="{{l.key == 'buildings'}}"></span><span data-l10n="trade_routes.term_resource" data-bind-if="{{l.key == 'different_resources'}}"></span><span data-l10n="trade_routes.term_exclusive" data-bind-if="{{l.key == 'exclusive_connection'}}"></span><span data-l10n="trade_routes.term_other_trait" data-bind-if="{{l.key == 'other_trait'}}"></span><span data-l10n="trade_routes.term_river" data-bind-if="{{l.key == 'river'}}"></span><span data-l10n="trade_routes.term_sea" data-bind-if="{{l.key == 'sea_route_mult'}}"></span><span data-l10n="trade_routes.term_techs" data-bind-if="{{l.key == 'tech_difference'}}"></span><span data-l10n="trade_routes.term_influence" data-bind-if="{{l.key == 'cultural_influence'}}"></span>
-<span data-bind-if="{{l.arg != null}}" data-bind-value="{{l.arg}}"></span>
-<span class="trade-routes-value" data-bind-value="{{l.value}}"></span>
-</div>
-<span data-l10n="trade_routes.tip_total" data-l10n-args="{{b.total}}"></span>
+<template data-layer="tooltip" id="trade-routes-tip"><div class="tip tip-route">
+<div data-bind-for="q:{{trade_routes.lists}}" data-bind-filter="{{q.key == state.trade_routes.tip_list}}"><div data-bind-for="r:{{q.items}}" data-bind-filter="{{r.id == state.trade_routes.tip && r.tooltip != null}}">
+<div class="tgrp" data-bind-for="b:{{r.tooltip.blocks}}">
+<div class="th hd"><span><span data-l10n="trade_routes.tip_my_gold" data-bind-if="{{b.key == 'my_gold'}}"></span><span data-l10n="trade_routes.tip_their_gold" data-bind-if="{{b.key == 'their_gold'}}"></span><span data-l10n="trade_routes.tip_my_science" data-bind-if="{{b.key == 'my_science'}}"></span><span data-l10n="trade_routes.tip_their_science" data-bind-if="{{b.key == 'their_science'}}"></span></span><b data-bind-value="{{b.total}}"></b></div>
+<div class="trow" data-bind-for="l:{{b.lines}}"><span><span data-l10n="trade_routes.term_base" data-bind-if="{{l.key == 'base'}}"></span><span data-l10n="trade_routes.term_city_gold" data-bind-if="{{l.key == 'origin_city_gold' || l.key == 'dest_city_gold'}}"></span><span data-l10n="trade_routes.term_policies" data-bind-if="{{l.key == 'policies'}}"></span><span data-l10n="trade_routes.term_buildings" data-bind-if="{{l.key == 'buildings'}}"></span><span data-l10n="trade_routes.term_resource" data-bind-if="{{l.key == 'different_resources'}}"></span><span data-l10n="trade_routes.term_exclusive" data-bind-if="{{l.key == 'exclusive_connection'}}"></span><span data-l10n="trade_routes.term_other_trait" data-bind-if="{{l.key == 'other_trait'}}"></span><span data-l10n="trade_routes.term_river" data-bind-if="{{l.key == 'river'}}"></span><span data-l10n="trade_routes.term_sea" data-bind-if="{{l.key == 'sea_route_mult'}}"></span><span data-l10n="trade_routes.term_techs" data-bind-if="{{l.key == 'tech_difference'}}"></span><span data-l10n="trade_routes.term_influence" data-bind-if="{{l.key == 'cultural_influence'}}"></span></span><span class="pt"><span data-bind-if="{{l.arg != null}}" data-bind-value="{{l.arg}}"></span><b data-bind-value="{{l.value}}"></b></span></div>
 </div>
 </div>
-<div data-bind-for="r:{{trade_routes.routes.available}}" data-bind-filter="{{state.trade_routes.tip_list == 'available' && r.id == state.trade_routes.tip && r.tooltip != null}}">
-<div class="trade-routes-tip-block" data-bind-for="b:{{r.tooltip.blocks}}">
-<strong data-l10n="trade_routes.tip_my_gold" data-bind-if="{{b.key == 'my_gold'}}"></strong><strong data-l10n="trade_routes.tip_their_gold" data-bind-if="{{b.key == 'their_gold'}}"></strong><strong data-l10n="trade_routes.tip_my_science" data-bind-if="{{b.key == 'my_science'}}"></strong><strong data-l10n="trade_routes.tip_their_science" data-bind-if="{{b.key == 'their_science'}}"></strong>
-<span class="trade-routes-value" data-bind-value="{{b.owner}}"></span>
-<div class="trade-routes-tip-line" data-bind-for="l:{{b.lines}}">
-<span data-l10n="trade_routes.term_base" data-bind-if="{{l.key == 'base'}}"></span><span data-l10n="trade_routes.term_city_gold" data-bind-if="{{l.key == 'origin_city_gold' || l.key == 'dest_city_gold'}}"></span><span data-l10n="trade_routes.term_policies" data-bind-if="{{l.key == 'policies'}}"></span><span data-l10n="trade_routes.term_buildings" data-bind-if="{{l.key == 'buildings'}}"></span><span data-l10n="trade_routes.term_resource" data-bind-if="{{l.key == 'different_resources'}}"></span><span data-l10n="trade_routes.term_exclusive" data-bind-if="{{l.key == 'exclusive_connection'}}"></span><span data-l10n="trade_routes.term_other_trait" data-bind-if="{{l.key == 'other_trait'}}"></span><span data-l10n="trade_routes.term_river" data-bind-if="{{l.key == 'river'}}"></span><span data-l10n="trade_routes.term_sea" data-bind-if="{{l.key == 'sea_route_mult'}}"></span><span data-l10n="trade_routes.term_techs" data-bind-if="{{l.key == 'tech_difference'}}"></span><span data-l10n="trade_routes.term_influence" data-bind-if="{{l.key == 'cultural_influence'}}"></span>
-<span data-bind-if="{{l.arg != null}}" data-bind-value="{{l.arg}}"></span>
-<span class="trade-routes-value" data-bind-value="{{l.value}}"></span>
-</div>
-<span data-l10n="trade_routes.tip_total" data-l10n-args="{{b.total}}"></span>
-</div>
-</div>
-<div data-bind-for="r:{{trade_routes.routes.to_you}}" data-bind-filter="{{state.trade_routes.tip_list == 'to_you' && r.id == state.trade_routes.tip && r.tooltip != null}}">
-<div class="trade-routes-tip-block" data-bind-for="b:{{r.tooltip.blocks}}">
-<strong data-l10n="trade_routes.tip_my_gold" data-bind-if="{{b.key == 'my_gold'}}"></strong><strong data-l10n="trade_routes.tip_their_gold" data-bind-if="{{b.key == 'their_gold'}}"></strong><strong data-l10n="trade_routes.tip_my_science" data-bind-if="{{b.key == 'my_science'}}"></strong><strong data-l10n="trade_routes.tip_their_science" data-bind-if="{{b.key == 'their_science'}}"></strong>
-<span class="trade-routes-value" data-bind-value="{{b.owner}}"></span>
-<div class="trade-routes-tip-line" data-bind-for="l:{{b.lines}}">
-<span data-l10n="trade_routes.term_base" data-bind-if="{{l.key == 'base'}}"></span><span data-l10n="trade_routes.term_city_gold" data-bind-if="{{l.key == 'origin_city_gold' || l.key == 'dest_city_gold'}}"></span><span data-l10n="trade_routes.term_policies" data-bind-if="{{l.key == 'policies'}}"></span><span data-l10n="trade_routes.term_buildings" data-bind-if="{{l.key == 'buildings'}}"></span><span data-l10n="trade_routes.term_resource" data-bind-if="{{l.key == 'different_resources'}}"></span><span data-l10n="trade_routes.term_exclusive" data-bind-if="{{l.key == 'exclusive_connection'}}"></span><span data-l10n="trade_routes.term_other_trait" data-bind-if="{{l.key == 'other_trait'}}"></span><span data-l10n="trade_routes.term_river" data-bind-if="{{l.key == 'river'}}"></span><span data-l10n="trade_routes.term_sea" data-bind-if="{{l.key == 'sea_route_mult'}}"></span><span data-l10n="trade_routes.term_techs" data-bind-if="{{l.key == 'tech_difference'}}"></span><span data-l10n="trade_routes.term_influence" data-bind-if="{{l.key == 'cultural_influence'}}"></span>
-<span data-bind-if="{{l.arg != null}}" data-bind-value="{{l.arg}}"></span>
-<span class="trade-routes-value" data-bind-value="{{l.value}}"></span>
-</div>
-<span data-l10n="trade_routes.tip_total" data-l10n-args="{{b.total}}"></span>
-</div>
-</div>
-</div></template>
+</div></div></template>

@@ -1,5 +1,8 @@
 {
   "model": {
+    "top": {"science_rate":48,"gold":312,"gold_rate":21,"happiness":7,"mood":"content","golden_age":{"active":false,"turns":0,"progress":412,"threshold":650},"culture":214,"culture_rate":31,"policy_cost":400,"policy_turns":6,"faith":140,"faith_rate":9,"tourism":4,"resources":[{"id":"0:1","name":"Horses","icon":"icon:RESOURCE_ATLAS:1","available":2,"used":0,"total":2},{"id":"0:2","name":"Iron","icon":"icon:RESOURCE_ATLAS:2","available":4,"used":0,"total":4},{"id":"0:3","name":"Coal","icon":"icon:RESOURCE_ATLAS:3","available":0,"used":3,"total":3}],"policies":[{"id":1,"name":"Tradition","unlocked":true,"owned":4,"total":5},{"id":2,"name":"Patronage","unlocked":true,"owned":1,"total":5}]},
+    "game": {"turn":87,"year":1250,"year_text":{"k":"year.ad","a":["1250"]},"era":{"id":3,"name":"Medieval era"},"me":"0:0","phase":"humans","mode":"simultaneous","winner":null},
+    "turn": {"state":"unit_needs_orders","blocker":null,"units_waiting":5,"finished":false,"can_cancel":false,"timer":null,"ready":3,"humans":4,"seats":[{"player":"0:0","name":"Catherine","me":true,"finished":false,"may_act":true,"online":true},{"player":"0:1","name":"Harun al-Rashid","me":false,"finished":true,"may_act":true,"online":true},{"player":"0:2","name":"Montezuma","me":false,"finished":true,"may_act":true,"online":true},{"player":"0:3","name":"Ramesses","me":false,"finished":true,"may_act":true,"online":true}]},
     "free_great_person": {
       "mode": "faith",
       "title": "Great Person for faith",
@@ -13,7 +16,7 @@
           "unit": 85,
           "key": "UNIT_WRITER",
           "name": "Great Writer",
-          "icon": "",
+          "icon": "unit:UNIT_WRITER",
           "strategy": "Writes a Great Work of Writing, or a political treatise for an instant burst of culture.",
           "abilities": [
             {
@@ -34,7 +37,7 @@
           "unit": 83,
           "key": "UNIT_ARTIST",
           "name": "Great Artist",
-          "icon": "",
+          "icon": "unit:UNIT_ARTIST",
           "strategy": "Creates a Great Work of Art, or starts a Golden Age.",
           "abilities": [
             {
@@ -55,7 +58,7 @@
           "unit": 84,
           "key": "UNIT_MUSICIAN",
           "name": "Great Musician",
-          "icon": "",
+          "icon": "unit:UNIT_MUSICIAN",
           "strategy": "Creates a Great Work of Music, or tours a foreign civilization for tourism.",
           "abilities": [
             {
@@ -76,7 +79,7 @@
           "unit": 86,
           "key": "UNIT_SCIENTIST",
           "name": "Great Scientist",
-          "icon": "",
+          "icon": "unit:UNIT_SCIENTIST",
           "strategy": "Gives an instant burst of science, or builds an Academy for science every turn.",
           "abilities": [
             {
@@ -97,7 +100,7 @@
           "unit": 87,
           "key": "UNIT_MERCHANT",
           "name": "Great Merchant",
-          "icon": "",
+          "icon": "unit:UNIT_MERCHANT",
           "strategy": "Trade mission to a city-state for gold and influence, or a Customs House.",
           "abilities": [
             {
@@ -118,7 +121,7 @@
           "unit": 88,
           "key": "UNIT_ENGINEER",
           "name": "Great Engineer",
-          "icon": "",
+          "icon": "unit:UNIT_ENGINEER",
           "strategy": "Hurries production in a city, or builds a Manufactory.",
           "abilities": [
             {
@@ -139,7 +142,7 @@
           "unit": 89,
           "key": "UNIT_GREAT_GENERAL",
           "name": "Great General",
-          "icon": "",
+          "icon": "unit:UNIT_GREAT_GENERAL",
           "strategy": "Boosts nearby land units in combat, or builds a Citadel.",
           "abilities": [
             {
@@ -160,7 +163,7 @@
           "unit": 90,
           "key": "UNIT_GREAT_ADMIRAL",
           "name": "Great Admiral",
-          "icon": "",
+          "icon": "unit:UNIT_GREAT_ADMIRAL",
           "strategy": "Boosts nearby ships and can heal the fleet once.",
           "abilities": [
             {
@@ -181,7 +184,7 @@
           "unit": 91,
           "key": "UNIT_PROPHET",
           "name": "Great Prophet",
-          "icon": "",
+          "icon": "unit:UNIT_PROPHET",
           "strategy": "Spreads or enhances your religion, or builds a Holy Site.",
           "abilities": [
             {

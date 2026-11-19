@@ -5,6 +5,7 @@
   <title>Engraved</title>
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/kit.css">
   <link rel="stylesheet" href="css/hud.css">
   <link rel="stylesheet" href="css/onmap.css">
   <link rel="stylesheet" href="css/production.css">
@@ -59,17 +60,7 @@
   </div>
   <div class="layer" data-layer="hud">
     <div data-include="icons.svg"></div>
-    <div data-part="hud-root" data-bind-if="{{!ui.windows.economy.open && !ui.windows.military.open && !ui.windows.trade_routes.open}}">
-    <div data-bind-if="{{!ui.windows.espionage.open && !ui.windows.victory.open && !ui.windows.demographics.open}}">
-    <div data-bind-if="{{!ui.windows.culture.open && !ui.windows.great_work.open && !ui.windows.archaeology.open}}">
-    <div data-bind-if="{{!ui.windows.city_state.open && !ui.windows.congress.open && !ui.windows.mp_vote.open}}">
-    <div data-bind-if="{{!ui.windows.notification_log.open && !ui.windows.game_menu.open && !ui.windows.advisor.open}}">
-    <div data-bind-if="{{!ui.windows.end_game.open}}">
-    <div data-bind-if="{{!ui.windows.techs.open && !ui.windows.city.open && !ui.windows.policies.open}}">
-    <div data-bind-if="{{!ui.windows.ideology.open && !ui.windows.pantheon.open && !ui.windows.religion.open}}">
-    <div data-bind-if="{{!ui.windows.religion_overview.open && !ui.windows.diplo.open && !ui.windows.leader.open}}">
-    <div data-bind-if="{{!ui.windows.city_captured.open && !ui.windows.free_great_person.open}}">
-    <div data-bind-if="{{!ui.windows.deal.open || deal == null || deal.partner == null || deal.partner.is_human}}">
+    <div data-part="hud-root" data-bind-if="{{!ui.windows.economy.open && !ui.windows.military.open && !ui.windows.trade_routes.open && !ui.windows.espionage.open && !ui.windows.victory.open && !ui.windows.demographics.open && !ui.windows.culture.open && !ui.windows.great_work.open && !ui.windows.archaeology.open && !ui.windows.city_state.open && !ui.windows.congress.open && !ui.windows.mp_vote.open && !ui.windows.notification_log.open && !ui.windows.game_menu.open && !ui.windows.advisor.open && !ui.windows.end_game.open && !ui.windows.techs.open && !ui.windows.city.open && !ui.windows.policies.open && !ui.windows.ideology.open && !ui.windows.pantheon.open && !ui.windows.religion.open && !ui.windows.religion_overview.open && !ui.windows.diplo.open && !ui.windows.leader.open && !ui.windows.city_captured.open && !ui.windows.free_great_person.open && (!ui.windows.deal.open || deal == null || deal.partner == null || deal.partner.is_human)}}">
       <div data-include="parts/notification_log_panel.html"></div>
       <div data-include="parts/helm.html"></div>
       <div data-include="parts/civ_ribbon.html"></div>
@@ -77,29 +68,9 @@
       <div data-include="parts/minimap_options.html"></div>
       <div class="mods" data-part="mods" data-slot="mods"></div>
     </div>
-    </div>
-    </div>
-    </div>
-    </div>
-    </div>
-    </div>
-    </div>
-    </div>
-    </div>
-    </div>
   </div>
   <div class="layer" data-layer="window">
-    <div data-part="windows-root" data-bind-if="{{!ui.windows.economy.open && !ui.windows.military.open && !ui.windows.trade_routes.open}}">
-    <div data-bind-if="{{!ui.windows.espionage.open && !ui.windows.victory.open && !ui.windows.demographics.open}}">
-    <div data-bind-if="{{!ui.windows.culture.open && !ui.windows.great_work.open && !ui.windows.archaeology.open}}">
-    <div data-bind-if="{{!ui.windows.city_state.open && !ui.windows.congress.open && !ui.windows.mp_vote.open}}">
-    <div data-bind-if="{{!ui.windows.notification_log.open && !ui.windows.game_menu.open && !ui.windows.advisor.open}}">
-    <div data-bind-if="{{!ui.windows.end_game.open}}">
-    <div data-bind-if="{{!ui.windows.techs.open && !ui.windows.city.open && !ui.windows.policies.open}}">
-    <div data-bind-if="{{!ui.windows.ideology.open && !ui.windows.pantheon.open && !ui.windows.religion.open}}">
-    <div data-bind-if="{{!ui.windows.religion_overview.open && !ui.windows.diplo.open && !ui.windows.leader.open}}">
-    <div data-bind-if="{{!ui.windows.city_captured.open && !ui.windows.free_great_person.open}}">
-    <div data-bind-if="{{!ui.windows.deal.open || deal == null || deal.partner == null || deal.partner.is_human}}">
+    <div data-part="windows-root" data-bind-if="{{!ui.windows.economy.open && !ui.windows.military.open && !ui.windows.trade_routes.open && !ui.windows.espionage.open && !ui.windows.victory.open && !ui.windows.demographics.open && !ui.windows.culture.open && !ui.windows.great_work.open && !ui.windows.archaeology.open && !ui.windows.city_state.open && !ui.windows.congress.open && !ui.windows.mp_vote.open && !ui.windows.notification_log.open && !ui.windows.game_menu.open && !ui.windows.advisor.open && !ui.windows.end_game.open && !ui.windows.techs.open && !ui.windows.city.open && !ui.windows.policies.open && !ui.windows.ideology.open && !ui.windows.pantheon.open && !ui.windows.religion.open && !ui.windows.religion_overview.open && !ui.windows.diplo.open && !ui.windows.leader.open && !ui.windows.city_captured.open && !ui.windows.free_great_person.open && (!ui.windows.deal.open || deal == null || deal.partner == null || deal.partner.is_human)}}">
       <div class="unit-lists-column" data-bind-class-toggle="unit-lists-left-ribbon:{{state.civ_ribbon.left && state.civ_ribbon.visible}}">
         <!-- The info corner is there only while one of its lists is open (the strip's lists button opens it). -->
         <div class="info-corner" data-bind-if="{{state.unit_lists.section != '' || ui.windows.city_list.open}}" data-bind-class-toggle="info-corner-cities:{{ui.windows.city_list.open}}">
@@ -109,19 +80,7 @@
         </div>
         <div data-include="parts/unit.html"></div>
       </div>
-      <!-- After the corner column: the strip's dropdowns hang over it and must be on top of it. -->
-      <div data-include="parts/top.html"></div>
       <div data-include="parts/tech_panel.html"></div>
-    </div>
-    </div>
-    </div>
-    </div>
-    </div>
-    </div>
-    </div>
-    </div>
-    </div>
-    </div>
     </div>
     <div data-include="parts/unit_rename.html"></div>
     <div data-include="parts/diplo.html"></div>
@@ -161,6 +120,9 @@
     <div data-include="parts/game_menu.html"></div>
     <div data-include="parts/advisor.html"></div>
     <div data-include="parts/end_game.html"></div>
+    <!-- The top strip last: above every window and its dim (windows start under it), and its dropdowns over the info
+         corner. Only the full-screen technology tree covers it. -->
+    <div data-bind-if="{{!ui.windows.techs.open && top != null}}"><div data-include="parts/top.html"></div></div>
   </div>
   <div class="layer tips-layer" data-layer="tooltip">
     <div data-include="parts/tips.html"></div>

@@ -1,226 +1,141 @@
-<div class="espionage-screen" data-part="espionage" data-screen="espionage" data-esc="call espionage.back()" data-bind-if="{{ui.windows.espionage.open}}">
-<section class="espionage-window">
-<header class="espionage-head">
-<img class="espionage-icon" data-bind-if="{{espionage != null}}" data-bind-src="{{espionage.player.icon}}">
-<h1 data-l10n="espionage.title" >
-</h1>
-<button data-l10n="espionage.tab_overview" data-on-click="set state.espionage.tab = 'overview'">
-</button>
-<button data-l10n="espionage.tab_intrigue" data-on-click="set state.espionage.tab = 'intrigue'">
-</button>
-<div class="espionage-counts" data-bind-if="{{espionage != null}}">
-<span class="espionage-value" data-bind-value="{{espionage.counts.alive}}" >
-</span>
-<span data-l10n="espionage.agents" >
-</span>
-<span class="espionage-value" data-bind-value="{{espionage.counts.killed}}" >
-</span>
-<span data-l10n="espionage.killed" >
-</span>
+<div class="ovl" data-part="espionage" data-screen="espionage" data-esc="call espionage.back()" data-bind-if="{{ui.windows.espionage.open}}">
+<section class="win ov w-spy" role="dialog" data-part="espionage.window">
+<div class="hd">
+<img class="gi s48" data-bind-if="{{espionage != null}}" data-bind-src="{{espionage.player.icon}}">
+<div class="ttl"><b data-l10n="espionage.title"></b></div>
+<div class="tabs">
+<button class="tab" data-l10n="espionage.tab_overview" data-bind-class-toggle="on:{{state.espionage.tab == 'overview'}}" data-on-click="set state.espionage.tab = 'overview'"></button>
+<button class="tab" data-l10n="espionage.tab_intrigue" data-bind-class-toggle="on:{{state.espionage.tab == 'intrigue'}}" data-on-click="set state.espionage.tab = 'intrigue'"></button>
 </div>
-<button data-l10n="espionage.close" data-part="espionage.close" data-bind-if="{{state.espionage.confirm == '' && state.espionage.ask < 0 && state.espionage.moving < 0}}" data-on-click="intent window.close(window: 'espionage'); set state.espionage.moving = -1">
-</button>
-</header>
-<div data-l10n="espionage.loading" data-bind-if="{{espionage == null}}">
+<div class="facts" data-bind-if="{{espionage != null}}">
+<span><b data-bind-value="{{espionage.counts.alive}}"></b><span data-l10n="espionage.agents"></span></span>
+<span><b data-bind-value="{{espionage.counts.killed}}"></b><span data-l10n="espionage.killed"></span></span>
 </div>
-<div class="espionage-content" data-bind-if="{{espionage != null}}">
-<div data-l10n="espionage.disabled" class="espionage-empty" data-part="espionage.disabled" data-bind-if="{{!espionage.enabled}}">
+<div class="close"><span class="key" data-l10n="key.escape"></span><button class="x" data-part="espionage.close" data-bind-if="{{state.espionage.confirm == '' && state.espionage.ask < 0 && state.espionage.moving < 0}}" data-on-click="intent window.close(window: 'espionage'); set state.espionage.moving = -1"><svg class="i"><use href="#i-close"/></svg></button></div>
 </div>
-<div data-l10n="espionage.not_started" class="espionage-empty" data-part="espionage.not-started" data-bind-if="{{espionage.enabled && !espionage.started}}">
+<div class="empty" data-l10n="espionage.loading" data-bind-if="{{espionage == null}}"></div>
+<div class="ec" data-bind-if="{{espionage != null}}">
+<div class="empty" data-l10n="espionage.disabled" data-part="espionage.disabled" data-bind-if="{{!espionage.enabled}}"></div>
+<div class="empty" data-l10n="espionage.not_started" data-part="espionage.not-started" data-bind-if="{{espionage.enabled && !espionage.started}}"></div>
+<div class="spy-body" data-bind-if="{{espionage.enabled && espionage.started && state.espionage.tab == 'overview'}}">
+<div class="tbl">
+<div class="hn" data-l10n="espionage.agent_heading"></div>
+<div class="thead ag-h">
+<button class="h" data-bind-class-toggle="on:{{state.espionage.agents_sort == 'name'}}" data-on-click="set state.espionage.agents_sort_desc = state.espionage.agents_sort == 'name' ? !state.espionage.agents_sort_desc : false; set state.espionage.agents_sort = 'name'" data-l10n="espionage.sort_name"></button>
+<button class="h" data-bind-class-toggle="on:{{state.espionage.agents_sort == 'place'}}" data-on-click="set state.espionage.agents_sort_desc = state.espionage.agents_sort == 'place' ? !state.espionage.agents_sort_desc : false; set state.espionage.agents_sort = 'place'" data-l10n="espionage.sort_place"></button>
+<button class="h" data-bind-class-toggle="on:{{state.espionage.agents_sort == 'activity'}}" data-on-click="set state.espionage.agents_sort_desc = state.espionage.agents_sort == 'activity' ? !state.espionage.agents_sort_desc : false; set state.espionage.agents_sort = 'activity'" data-l10n="espionage.sort_activity"></button>
 </div>
-<div class="espionage-overview" data-bind-if="{{espionage.enabled && espionage.started && state.espionage.tab == 'overview'}}">
-<div class="espionage-agent-list espionage-scroll">
-<h2 data-l10n="espionage.agent_heading" >
-</h2><div class="espionage-sort"><button data-l10n="espionage.sort_name" data-on-click="set state.espionage.agents_sort_desc = state.espionage.agents_sort == 'name' ? !state.espionage.agents_sort_desc : false; set state.espionage.agents_sort = 'name'"></button><button data-l10n="espionage.sort_place" data-on-click="set state.espionage.agents_sort_desc = state.espionage.agents_sort == 'place' ? !state.espionage.agents_sort_desc : false; set state.espionage.agents_sort = 'place'"></button><button data-l10n="espionage.sort_activity" data-on-click="set state.espionage.agents_sort_desc = state.espionage.agents_sort == 'activity' ? !state.espionage.agents_sort_desc : false; set state.espionage.agents_sort = 'activity'"></button></div>
-<div class="espionage-agent" data-part="espionage.agent" data-bind-for="a:{{espionage.agents}}" data-bind-sort="{{state.espionage.agents_sort == 'place' ? a.place.city : state.espionage.agents_sort == 'activity' ? a.activity_text : a.name}}" data-bind-sort-desc="{{state.espionage.agents_sort_desc}}" data-bind-filter="{{state.espionage.moving < 0 || state.espionage.moving == a.id}}">
-<div class="espionage-agent-body">
-<div class="espionage-line">
-<span class="espionage-name" data-bind-value="{{a.name}}" data-part="espionage.agent-name">
-</span>
-<span class="espionage-value" data-bind-value="{{a.rank_text}}" >
-</span>
-<span data-l10n="espionage.spy_role" data-bind-if="{{a.role == 'spy'}}"></span><span data-l10n="espionage.diplomat_role" data-bind-if="{{a.role == 'diplomat'}}"></span>
+<div class="scr">
+<div class="mvc" data-bind-if="{{state.espionage.moving >= 0}}"><span class="prose sm" data-l10n="espionage.move_hint"></span><button class="btn sm" data-l10n="espionage.cancel_move" data-on-click="set state.espionage.moving = -1; intent window.open(window: 'espionage')"></button></div>
+<div class="ag" data-part="espionage.agent" data-bind-for="a:{{espionage.agents}}" data-bind-sort="{{state.espionage.agents_sort == 'place' ? a.place.city : state.espionage.agents_sort == 'activity' ? a.activity_text : a.name}}" data-bind-sort-desc="{{state.espionage.agents_sort_desc}}" data-bind-filter="{{state.espionage.moving < 0 || state.espionage.moving == a.id}}" data-bind-class-toggle="dead:{{a.dead}}">
+<span class="gl lg"><svg class="i"><use href="#i-spy"/></svg></span>
+<div class="bd">
+<div class="l1"><b data-part="espionage.agent-name" data-bind-value="{{a.name}}"></b><span class="rank" data-bind-value="{{a.rank_text}}"></span><span class="tag mute" data-l10n="espionage.spy_role" data-bind-if="{{a.role == 'spy'}}"></span><span class="tag mute" data-l10n="espionage.diplomat_role" data-bind-if="{{a.role == 'diplomat'}}"></span></div>
+<div class="l2" data-bind-if="{{a.place != null}}"><img class="gi s24" data-bind-src="{{a.place.icon}}"><span data-part="espionage.agent-place" data-bind-value="{{a.place.city}}"></span></div>
+<div class="l2 na" data-l10n="espionage.unassigned" data-bind-if="{{a.place == null && !a.dead}}"></div>
+<div class="l3" data-bind-if="{{!a.dead}}"><span data-part="espionage.agent-activity" data-bind-value="{{a.activity_text}}"></span><span class="gauge" data-bind-if="{{a.progress_pct != null}}"><span class="fill fc" data-bind-style-width="{{clamp(a.progress_pct + a.progress_per_turn_pct, 0, 100)}}%"></span><span class="fill" data-bind-style-width="{{a.progress_pct}}%"></span></span><b class="pct" data-bind-if="{{a.progress_pct != null}}"><span data-bind-value="{{a.progress_pct}}"></span><span data-l10n="demographics.unit_own_percent"></span></b><span data-bind-if="{{a.turns_left != null}}" data-bind-value="{{a.turns_left}}"></span><span class="tag pos" data-l10n="espionage.surveillance" data-bind-if="{{a.surveillance}}"></span></div>
+<div class="killed" data-bind-if="{{a.dead}}"><svg class="i"><use href="#i-close"/></svg><span data-bind-value="{{a.death_text}}"></span></div>
 </div>
-<div class="espionage-line" data-bind-if="{{a.place != null}}">
-<img class="espionage-icon" data-bind-src="{{a.place.icon}}">
-<span class="espionage-place" data-bind-value="{{a.place.city}}" data-part="espionage.agent-place">
-</span>
-</div>
-<span data-l10n="espionage.unassigned" data-bind-if="{{a.place == null && !a.dead}}">
-</span>
-<div class="espionage-line">
-<span class="espionage-activity" data-bind-value="{{a.activity_text}}" data-part="espionage.agent-activity">
-</span>
-<span class="espionage-value" data-bind-value="{{a.progress_pct}}" >
-</span>
-<span class="espionage-value" data-bind-value="{{a.turns_left}}" >
-</span>
-</div>
-<div class="espionage-bar" data-bind-if="{{a.progress_pct != null}}">
-<div class="espionage-fill" data-bind-style-width="{{a.progress_pct}}%">
+<div class="bt" data-bind-if="{{!a.dead}}">
+<button class="btn sm" data-l10n="espionage.move" data-part="espionage.move" data-on-click="set state.espionage.moving = a.id; intent window.open(window: 'espionage', a: a.id)"></button>
+<button class="btn sm" data-l10n="espionage.view" data-bind-disabled="{{!a.can_view}}" data-tooltip="espionage-agent-tip" data-on-pointerenter="set state.espionage.hover_agent = a.id"></button>
+<button class="btn sm" data-l10n="espionage.coup" data-bind-if="{{a.is_cs}}" data-bind-disabled="{{!a.can_coup}}" data-tooltip="espionage-agent-tip" data-on-pointerenter="set state.espionage.hover_agent = a.id" data-on-click="set state.espionage.selected = a.id; set state.espionage.confirm = 'coup'"></button>
+<button class="btn sm" data-l10n="espionage.hideout" data-part="espionage.hideout" data-bind-if="{{a.place != null}}" data-on-click="set state.espionage.selected = a.id; set state.espionage.confirm = 'hideout'"></button>
 </div>
 </div>
-<span class="espionage-death" data-bind-value="{{a.death_text}}" data-bind-if="{{a.dead}}">
-</span>
-<span data-l10n="espionage.surveillance" data-bind-if="{{a.surveillance && !a.dead}}">
-</span>
-</div>
-<div class="espionage-agent-actions" data-bind-if="{{!a.dead}}">
-<button data-l10n="espionage.move" data-part="espionage.move" data-on-click="set state.espionage.moving = a.id; intent window.open(window: 'espionage', a: a.id)">
-</button>
-<button data-l10n="espionage.view" data-bind-disabled="{{!a.can_view}}" data-tooltip="espionage-agent-tip" data-on-pointerenter="set state.espionage.hover_agent = a.id">
-</button>
-<button data-l10n="espionage.coup" data-bind-if="{{a.is_cs}}" data-bind-disabled="{{!a.can_coup}}" data-tooltip="espionage-agent-tip" data-on-pointerenter="set state.espionage.hover_agent = a.id" data-on-click="set state.espionage.selected = a.id; set state.espionage.confirm = 'coup'">
-</button>
-<button data-l10n="espionage.hideout" data-part="espionage.hideout" data-bind-if="{{a.place != null}}" data-on-click="set state.espionage.selected = a.id; set state.espionage.confirm = 'hideout'">
-</button>
+<div class="empty" data-l10n="espionage.no_spies" data-bind-if="{{espionage.counts.alive == 0}}"></div>
 </div>
 </div>
-<div class="espionage-moving" data-bind-if="{{state.espionage.moving >= 0}}">
-<p data-l10n="espionage.move_hint" >
-</p>
-<button data-l10n="espionage.cancel_move" data-on-click="set state.espionage.moving = -1; intent window.open(window: 'espionage')">
-</button>
+<div class="spy-r">
+<div class="tbl t-cities">
+<div class="hn"><span data-l10n="espionage.own_cities"></span><span class="cnt" data-bind-value="{{len(espionage.own_cities)}}"></span></div>
+<div class="thead">
+<span class="h"></span>
+<button class="h" data-bind-class-toggle="on:{{state.espionage.own_sort == 'name'}}" data-on-click="set state.espionage.own_sort_desc = state.espionage.own_sort == 'name' ? !state.espionage.own_sort_desc : false; set state.espionage.own_sort = 'name'" data-l10n="espionage.sort_name"></button>
+<span class="h r" data-l10n="economy.col_population"></span><span class="h" data-l10n="espionage.sort_potential"></span><span class="h"></span><span class="h"></span>
 </div>
-<div data-l10n="espionage.no_spies" data-bind-if="{{espionage.counts.alive == 0}}">
-</div>
-</div>
-<div class="espionage-city-lists">
-<div class="espionage-city-section">
-<h2 data-l10n="espionage.own_cities" >
-</h2><div class="espionage-sort"><button data-l10n="espionage.sort_name" data-on-click="set state.espionage.own_sort_desc = state.espionage.own_sort == 'name' ? !state.espionage.own_sort_desc : false; set state.espionage.own_sort = 'name'"></button><button data-l10n="espionage.sort_population" data-on-click="set state.espionage.own_sort_desc = state.espionage.own_sort == 'population' ? !state.espionage.own_sort_desc : true; set state.espionage.own_sort = 'population'"></button><button data-l10n="espionage.sort_potential" data-on-click="set state.espionage.own_sort_desc = state.espionage.own_sort == 'potential' ? !state.espionage.own_sort_desc : true; set state.espionage.own_sort = 'potential'"></button></div>
-<div class="espionage-scroll">
-<div class="espionage-city" data-part="espionage.own-cities-row" data-bind-for="c:{{espionage.own_cities}}" data-bind-sort="{{state.espionage.own_sort == 'population' ? c.population : state.espionage.own_sort == 'potential' ? c.potential : c.name}}" data-bind-sort-desc="{{state.espionage.own_sort_desc}}" data-bind-class-toggle="espionage-dim:{{state.espionage.moving >= 0 && !c.can_move}}">
-<img class="espionage-icon" data-bind-src="{{c.icon}}">
-<span class="espionage-city-name" data-bind-value="{{c.name}}" >
-</span>
-<span class="espionage-value" data-bind-value="{{c.population}}" >
-</span>
-<div class="espionage-city-potential">
-<span class="espionage-value" data-bind-value="{{c.potential}}" >
-</span>
-<div class="espionage-bar" data-bind-if="{{c.potential_rel != null}}">
-<div class="espionage-fill" data-bind-style-width="{{clamp(c.potential_rel, 0, 1) * 100}}%">
+<div class="scr">
+<div class="trow" data-part="espionage.own-cities-row" data-bind-for="c:{{espionage.own_cities}}" data-bind-sort="{{state.espionage.own_sort == 'population' ? c.population : state.espionage.own_sort == 'potential' ? c.potential : c.name}}" data-bind-sort-desc="{{state.espionage.own_sort_desc}}" data-bind-class-toggle="dis:{{state.espionage.moving >= 0 && !c.can_move}}">
+<span class="c"><img class="gi s24" data-bind-src="{{c.icon}}"></span>
+<span class="c nm ell" data-bind-value="{{c.name}}"></span>
+<span class="c r" data-bind-value="{{c.population}}"></span>
+<span class="c pot"><span class="gauge" data-bind-if="{{c.potential_rel != null}}"><span class="fill" data-bind-style-width="{{clamp(c.potential_rel, 0, 1) * 100}}%"></span></span><b data-bind-value="{{c.potential}}"></b></span>
+<span class="c eye"><svg class="i" data-bind-if="{{c.agent_id != null}}"><use href="#i-spy"/></svg></span>
+<span class="c"><button class="btn sm" data-l10n="espionage.choose_own_cities" data-part="espionage.choose-own-cities" data-bind-if="{{state.espionage.moving >= 0}}" data-bind-disabled="{{!c.can_move}}" data-on-click="set state.espionage.ask = c.id"></button></span>
 </div>
 </div>
 </div>
-<button data-l10n="espionage.choose_own_cities" data-part="espionage.choose-own-cities" data-bind-if="{{state.espionage.moving >= 0}}" data-bind-disabled="{{!c.can_move}}" data-on-click="set state.espionage.ask = c.id">
-</button>
-<div class="espionage-confirm-dim" data-bind-if="{{state.espionage.ask == c.id}}">
-<div class="espionage-confirm">
-<div class="espionage-question">
-<span data-l10n="espionage.send_to" >
-</span>
-<span class="espionage-value" data-bind-value="{{c.name}}" >
-</span>
+<div class="tbl t-cities">
+<div class="hn"><span data-l10n="espionage.other_cities"></span><span class="cnt" data-bind-value="{{len(espionage.other_cities)}}"></span></div>
+<div class="thead">
+<span class="h"></span>
+<button class="h" data-bind-class-toggle="on:{{state.espionage.other_sort == 'name'}}" data-on-click="set state.espionage.other_sort_desc = state.espionage.other_sort == 'name' ? !state.espionage.other_sort_desc : false; set state.espionage.other_sort = 'name'" data-l10n="espionage.sort_name"></button>
+<span class="h r" data-l10n="economy.col_population"></span><span class="h" data-l10n="espionage.sort_potential"></span><span class="h"></span><span class="h"></span>
 </div>
-<div class="espionage-dialog-body">
-<p data-l10n="espionage.spy_help" >
-</p>
-<p data-l10n="espionage.diplomat_help" data-bind-if="{{c.ask_role}}">
-</p>
-</div>
-<div class="espionage-actions">
-<button data-l10n="espionage.role_spy" data-part="espionage.send-spy-own-cities" data-on-click="intent screen.act(screen: 'espionage', action: 'move', a: state.espionage.moving, b: c.player, c: c.raw_city_id, d: 0); set state.espionage.ask = -1; set state.espionage.moving = -1">
-</button>
-<button data-l10n="espionage.role_diplomat" data-bind-if="{{c.ask_role}}" data-part="espionage.send-diplomat-own-cities" data-on-click="intent screen.act(screen: 'espionage', action: 'move', a: state.espionage.moving, b: c.player, c: c.raw_city_id, d: 1); set state.espionage.ask = -1; set state.espionage.moving = -1">
-</button>
-<button data-l10n="espionage.cancel_own_cities" data-bind-hotkey="{{'Escape'}}" data-on-click="set state.espionage.ask = -1">
-</button>
+<div class="scr">
+<div class="trow" data-part="espionage.other-cities-row" data-bind-for="c:{{espionage.other_cities}}" data-bind-sort="{{state.espionage.other_sort == 'civilization' ? c.civ_name : state.espionage.other_sort == 'population' ? c.population : state.espionage.other_sort == 'potential' ? c.potential : c.name}}" data-bind-sort-desc="{{state.espionage.other_sort_desc}}" data-bind-class-toggle="dis:{{state.espionage.moving >= 0 && !c.can_move}}">
+<span class="c"><img class="gi s24" data-bind-src="{{c.icon}}"></span>
+<span class="c nm ell" data-bind-value="{{c.name}}"></span>
+<span class="c r" data-bind-value="{{c.population}}"></span>
+<span class="c pot"><span class="gauge" data-bind-if="{{c.potential_rel != null}}"><span class="fill" data-bind-style-width="{{clamp(c.potential_rel, 0, 1) * 100}}%"></span></span><b data-bind-value="{{c.potential}}"></b></span>
+<span class="c eye"><svg class="i" data-bind-if="{{c.agent_id != null}}"><use href="#i-spy"/></svg></span>
+<span class="c"><button class="btn sm" data-l10n="espionage.choose_other_cities" data-part="espionage.choose-other-cities" data-bind-if="{{state.espionage.moving >= 0}}" data-bind-disabled="{{!c.can_move}}" data-on-click="set state.espionage.ask = c.id"></button></span>
 </div>
 </div>
 </div>
 </div>
 </div>
+<div class="tbl t-intr" data-bind-if="{{state.espionage.tab == 'intrigue'}}">
+<div class="thead">
+<button class="h" data-bind-class-toggle="on:{{state.espionage.intrigue_sort == 'turn'}}" data-on-click="set state.espionage.intrigue_sort_desc = state.espionage.intrigue_sort == 'turn' ? !state.espionage.intrigue_sort_desc : true; set state.espionage.intrigue_sort = 'turn'" data-l10n="espionage.sort_turn"></button>
+<button class="h" data-bind-class-toggle="on:{{state.espionage.intrigue_sort == 'source'}}" data-on-click="set state.espionage.intrigue_sort_desc = state.espionage.intrigue_sort == 'source' ? !state.espionage.intrigue_sort_desc : false; set state.espionage.intrigue_sort = 'source'" data-l10n="espionage.sort_source"></button>
+<button class="h" data-bind-class-toggle="on:{{state.espionage.intrigue_sort == 'text'}}" data-on-click="set state.espionage.intrigue_sort_desc = state.espionage.intrigue_sort == 'text' ? !state.espionage.intrigue_sort_desc : false; set state.espionage.intrigue_sort = 'text'" data-l10n="espionage.sort_text"></button>
 </div>
-<div class="espionage-city-section">
-<h2 data-l10n="espionage.other_cities" >
-</h2><div class="espionage-sort"><button data-l10n="espionage.sort_civilization" data-on-click="set state.espionage.other_sort_desc = state.espionage.other_sort == 'civilization' ? !state.espionage.other_sort_desc : false; set state.espionage.other_sort = 'civilization'"></button><button data-l10n="espionage.sort_name" data-on-click="set state.espionage.other_sort_desc = state.espionage.other_sort == 'name' ? !state.espionage.other_sort_desc : false; set state.espionage.other_sort = 'name'"></button><button data-l10n="espionage.sort_population" data-on-click="set state.espionage.other_sort_desc = state.espionage.other_sort == 'population' ? !state.espionage.other_sort_desc : true; set state.espionage.other_sort = 'population'"></button><button data-l10n="espionage.sort_potential" data-on-click="set state.espionage.other_sort_desc = state.espionage.other_sort == 'potential' ? !state.espionage.other_sort_desc : true; set state.espionage.other_sort = 'potential'"></button></div>
-<div class="espionage-scroll">
-<div class="espionage-city" data-part="espionage.other-cities-row" data-bind-for="c:{{espionage.other_cities}}" data-bind-sort="{{state.espionage.other_sort == 'civilization' ? c.civ_name : state.espionage.other_sort == 'population' ? c.population : state.espionage.other_sort == 'potential' ? c.potential : c.name}}" data-bind-sort-desc="{{state.espionage.other_sort_desc}}" data-bind-class-toggle="espionage-dim:{{state.espionage.moving >= 0 && !c.can_move}}">
-<img class="espionage-icon" data-bind-src="{{c.icon}}">
-<span class="espionage-city-name" data-bind-value="{{c.name}}" >
-</span>
-<span class="espionage-value" data-bind-value="{{c.population}}" >
-</span>
-<div class="espionage-city-potential">
-<span class="espionage-value" data-bind-value="{{c.potential}}" >
-</span>
-<div class="espionage-bar" data-bind-if="{{c.potential_rel != null}}">
-<div class="espionage-fill" data-bind-style-width="{{clamp(c.potential_rel, 0, 1) * 100}}%">
+<div class="scr">
+<div class="trow" data-part="espionage.intrigue" data-bind-for="i:{{espionage.intrigue}}" data-bind-sort="{{state.espionage.intrigue_sort == 'source' ? i.source.name : state.espionage.intrigue_sort == 'text' ? i.text : i.turn}}" data-bind-sort-desc="{{state.espionage.intrigue_sort_desc}}">
+<span class="c" data-bind-value="{{i.turn}}"></span><span class="c nm ell" data-bind-value="{{i.source.name}}"></span><span class="c tn" data-bind-value="{{i.text}}"></span>
 </div>
-</div>
-</div>
-<button data-l10n="espionage.choose_other_cities" data-part="espionage.choose-other-cities" data-bind-if="{{state.espionage.moving >= 0}}" data-bind-disabled="{{!c.can_move}}" data-on-click="set state.espionage.ask = c.id">
-</button>
-<div class="espionage-confirm-dim" data-bind-if="{{state.espionage.ask == c.id}}">
-<div class="espionage-confirm">
-<div class="espionage-question">
-<span data-l10n="espionage.send_to" >
-</span>
-<span class="espionage-value" data-bind-value="{{c.name}}" >
-</span>
-</div>
-<div class="espionage-dialog-body">
-<p data-l10n="espionage.spy_help" >
-</p>
-<p data-l10n="espionage.diplomat_help" data-bind-if="{{c.ask_role}}">
-</p>
-</div>
-<div class="espionage-actions">
-<button data-l10n="espionage.role_spy" data-part="espionage.send-spy-other-cities" data-on-click="intent screen.act(screen: 'espionage', action: 'move', a: state.espionage.moving, b: c.player, c: c.raw_city_id, d: 0); set state.espionage.ask = -1; set state.espionage.moving = -1">
-</button>
-<button data-l10n="espionage.role_diplomat" data-bind-if="{{c.ask_role}}" data-part="espionage.send-diplomat-other-cities" data-on-click="intent screen.act(screen: 'espionage', action: 'move', a: state.espionage.moving, b: c.player, c: c.raw_city_id, d: 1); set state.espionage.ask = -1; set state.espionage.moving = -1">
-</button>
-<button data-l10n="espionage.cancel_other_cities" data-bind-hotkey="{{'Escape'}}" data-on-click="set state.espionage.ask = -1">
-</button>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="espionage-sort" data-bind-if="{{state.espionage.tab == 'intrigue'}}"><button data-l10n="espionage.sort_turn" data-on-click="set state.espionage.intrigue_sort_desc = state.espionage.intrigue_sort == 'turn' ? !state.espionage.intrigue_sort_desc : true; set state.espionage.intrigue_sort = 'turn'"></button><button data-l10n="espionage.sort_source" data-on-click="set state.espionage.intrigue_sort_desc = state.espionage.intrigue_sort == 'source' ? !state.espionage.intrigue_sort_desc : false; set state.espionage.intrigue_sort = 'source'"></button><button data-l10n="espionage.sort_text" data-on-click="set state.espionage.intrigue_sort_desc = state.espionage.intrigue_sort == 'text' ? !state.espionage.intrigue_sort_desc : false; set state.espionage.intrigue_sort = 'text'"></button></div><div class="espionage-intrigue espionage-scroll" data-bind-if="{{state.espionage.tab == 'intrigue'}}">
-<div class="espionage-intrigue-row" data-part="espionage.intrigue" data-bind-for="i:{{espionage.intrigue}}" data-bind-sort="{{state.espionage.intrigue_sort == 'source' ? i.source.name : state.espionage.intrigue_sort == 'text' ? i.text : i.turn}}" data-bind-sort-desc="{{state.espionage.intrigue_sort_desc}}">
-<span class="espionage-value" data-bind-value="{{i.turn}}" >
-</span>
-<span class="espionage-source" data-bind-value="{{i.source.name}}" >
-</span>
-<span class="espionage-message" data-bind-value="{{i.text}}" >
-</span>
-</div>
-<div data-l10n="espionage.no_intrigue" class="espionage-empty" data-bind-if="{{len(espionage.intrigue) == 0}}">
-</div>
-</div>
-<div class="espionage-confirm-dim" data-bind-if="{{state.espionage.confirm != ''}}">
-<div class="espionage-confirm">
-<div data-bind-for="a:{{espionage.agents}}" data-bind-filter="{{a.id == state.espionage.selected}}">
-<div class="espionage-question">
-<span class="espionage-value" data-bind-value="{{a.name}}" >
-</span>
-<span data-l10n="espionage.question_hideout" data-bind-if="{{state.espionage.confirm == 'hideout'}}"></span><span data-l10n="espionage.question_coup" data-bind-if="{{state.espionage.confirm == 'coup'}}"></span>
-</div>
-<div data-bind-if="{{state.espionage.confirm == 'coup' && a.coup != null}}" class="espionage-dialog-body">
-<p data-l10n="espionage.coup_risk" >
-</p>
-<span class="espionage-value" data-bind-value="{{a.coup.chance_pct}}" >
-</span>
-<span class="espionage-value" data-bind-value="{{a.coup.ally}}" >
-</span>
-</div>
-<div class="espionage-actions">
-<button data-l10n="espionage.cancel_confirm" data-bind-hotkey="{{'Escape'}}" data-on-click="set state.espionage.confirm = ''">
-</button>
-<button data-l10n="espionage.confirm_coup" data-part="espionage.confirm-coup" data-bind-if="{{state.espionage.confirm == 'coup'}}" data-bind-disabled="{{!a.can_coup}}" data-on-click="intent screen.act(screen: 'espionage', action: 'coup', a: a.id); set state.espionage.confirm = ''">
-</button>
-<button data-l10n="espionage.confirm_hideout" data-part="espionage.confirm-hideout" data-bind-if="{{state.espionage.confirm == 'hideout'}}" data-on-click="intent screen.act(screen: 'espionage', action: 'hideout', a: a.id); set state.espionage.confirm = ''; set state.espionage.moving = -1">
-</button>
-</div>
-</div>
+<div class="empty" data-l10n="espionage.no_intrigue" data-bind-if="{{len(espionage.intrigue) == 0}}"></div>
 </div>
 </div>
 </div>
 </section>
+
+<div data-bind-if="{{espionage != null}}">
+<div class="wlayer dimmed" data-bind-for="c:{{espionage.own_cities}}" data-bind-filter="{{state.espionage.ask == c.id}}">
+<section class="win pop w-s" role="dialog">
+<div class="hd"><div class="ttl"><b data-l10n="espionage.send_to"></b><b data-bind-value="{{c.name}}"></b></div></div>
+<div class="wbd"><div class="prose sm" data-l10n="espionage.spy_help"></div><div class="prose sm sec" data-l10n="espionage.diplomat_help" data-bind-if="{{c.ask_role}}"></div></div>
+<div class="wft">
+<button class="btn c" data-l10n="espionage.cancel_own_cities" data-bind-hotkey="{{'Escape'}}" data-on-click="set state.espionage.ask = -1"></button>
+<button class="btn c" data-l10n="espionage.role_diplomat" data-bind-if="{{c.ask_role}}" data-part="espionage.send-diplomat-own-cities" data-on-click="intent screen.act(screen: 'espionage', action: 'move', a: state.espionage.moving, b: c.player, c: c.raw_city_id, d: 1); set state.espionage.ask = -1; set state.espionage.moving = -1"></button>
+<button class="btn primary c" data-l10n="espionage.role_spy" data-part="espionage.send-spy-own-cities" data-on-click="intent screen.act(screen: 'espionage', action: 'move', a: state.espionage.moving, b: c.player, c: c.raw_city_id, d: 0); set state.espionage.ask = -1; set state.espionage.moving = -1"></button>
+</div>
+</section>
+</div>
+<div class="wlayer dimmed" data-bind-for="c:{{espionage.other_cities}}" data-bind-filter="{{state.espionage.ask == c.id}}">
+<section class="win pop w-s" role="dialog">
+<div class="hd"><div class="ttl"><b data-l10n="espionage.send_to"></b><b data-bind-value="{{c.name}}"></b></div></div>
+<div class="wbd"><div class="prose sm" data-l10n="espionage.spy_help"></div><div class="prose sm sec" data-l10n="espionage.diplomat_help" data-bind-if="{{c.ask_role}}"></div></div>
+<div class="wft">
+<button class="btn c" data-l10n="espionage.cancel_other_cities" data-bind-hotkey="{{'Escape'}}" data-on-click="set state.espionage.ask = -1"></button>
+<button class="btn c" data-l10n="espionage.role_diplomat" data-bind-if="{{c.ask_role}}" data-part="espionage.send-diplomat-other-cities" data-on-click="intent screen.act(screen: 'espionage', action: 'move', a: state.espionage.moving, b: c.player, c: c.raw_city_id, d: 1); set state.espionage.ask = -1; set state.espionage.moving = -1"></button>
+<button class="btn primary c" data-l10n="espionage.role_spy" data-part="espionage.send-spy-other-cities" data-on-click="intent screen.act(screen: 'espionage', action: 'move', a: state.espionage.moving, b: c.player, c: c.raw_city_id, d: 0); set state.espionage.ask = -1; set state.espionage.moving = -1"></button>
+</div>
+</section>
+</div>
+<div class="wlayer dimmed" data-bind-if="{{state.espionage.confirm != ''}}">
+<section class="win pop w-s" role="dialog">
+<div data-bind-for="a:{{espionage.agents}}" data-bind-filter="{{a.id == state.espionage.selected}}">
+<div class="hd"><div class="ttl"><b data-bind-value="{{a.name}}"></b><b data-l10n="espionage.question_hideout" data-bind-if="{{state.espionage.confirm == 'hideout'}}"></b><b data-l10n="espionage.question_coup" data-bind-if="{{state.espionage.confirm == 'coup'}}"></b></div></div>
+<div class="wbd" data-bind-if="{{state.espionage.confirm == 'coup' && a.coup != null}}"><div class="prose sm" data-l10n="espionage.coup_risk"></div><div class="chips"><span class="chip" data-bind-value="{{a.coup.chance_pct}}"></span><span class="chip" data-bind-value="{{a.coup.ally}}"></span></div></div>
+<div class="wft">
+<button class="btn c" data-l10n="espionage.cancel_confirm" data-bind-hotkey="{{'Escape'}}" data-on-click="set state.espionage.confirm = ''"></button>
+<button class="btn danger c" data-l10n="espionage.confirm_coup" data-part="espionage.confirm-coup" data-bind-if="{{state.espionage.confirm == 'coup'}}" data-bind-disabled="{{!a.can_coup}}" data-on-click="intent screen.act(screen: 'espionage', action: 'coup', a: a.id); set state.espionage.confirm = ''"></button>
+<button class="btn primary c" data-l10n="espionage.confirm_hideout" data-part="espionage.confirm-hideout" data-bind-if="{{state.espionage.confirm == 'hideout'}}" data-on-click="intent screen.act(screen: 'espionage', action: 'hideout', a: a.id); set state.espionage.confirm = ''; set state.espionage.moving = -1"></button>
+</div>
+</div>
+</section>
+</div>
+</div>
 </div>

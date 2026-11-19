@@ -1,352 +1,125 @@
-<div class="victory-screen" data-part="victory" data-screen="victory" data-esc="call victory.back()" data-bind-if="{{ui.windows.victory.open}}">
-<section class="victory-window">
-<header class="victory-head">
-<img class="victory-icon" data-bind-if="{{victory != null}}" data-bind-src="{{victory.player.icon}}">
-<h1 data-l10n="victory.title" >
-</h1>
-<div class="victory-facts" data-bind-if="{{victory != null}}">
-<span class="victory-value" data-bind-value="{{victory.turn}}" >
-</span>
-<span data-l10n="victory.turn" >
-</span>
-<span class="victory-value" data-bind-value="{{victory.time.turns_left}}" >
-</span>
-<span data-l10n="victory.left" >
-</span>
+<div class="ovl" data-part="victory" data-screen="victory" data-esc="call victory.back()" data-bind-if="{{ui.windows.victory.open}}">
+<section class="win ov w-vic" role="dialog" data-part="victory.window">
+<div class="hd">
+<img class="gi s48" data-bind-if="{{victory != null}}" data-bind-src="{{victory.player.icon}}">
+<div class="ttl"><b data-l10n="victory.title"></b></div>
+<div class="facts" data-bind-if="{{victory != null}}">
+<span><b data-bind-value="{{victory.turn}}"></b><span data-l10n="victory.turn"></span></span>
+<span><b data-bind-value="{{victory.time.turns_left}}"></b><span data-l10n="victory.left"></span></span>
 </div>
-<button data-l10n="victory.close" data-part="victory.close" data-bind-hotkey="{{'Enter'}}" data-bind-if="{{state.victory.view == 'summary'}}" data-on-click="intent window.close(window: 'victory')">
-</button>
-</header>
-<div data-l10n="victory.loading" data-bind-if="{{victory == null}}">
+<div class="close"><span class="key" data-l10n="key.escape"></span><button class="x" data-part="victory.close" data-bind-hotkey="{{'Enter'}}" data-bind-if="{{state.victory.view == 'summary'}}" data-on-click="intent window.close(window: 'victory')"><svg class="i"><use href="#i-close"/></svg></button></div>
 </div>
-<div class="victory-body" data-bind-if="{{victory != null}}">
-<aside class="victory-ledger victory-scroll">
-<div class="victory-ledger-row">
-<span data-l10n="victory.score" >
-</span>
-<span class="victory-value" data-bind-value="{{fmt.int(victory.score.total)}}" >
-</span>
+<div class="empty" data-l10n="victory.loading" data-bind-if="{{victory == null}}"></div>
+<div class="ob side-l-wide" data-bind-if="{{victory != null}}">
+<aside class="scr aside">
+<div class="kpi">
+<div><span data-l10n="victory.score"></span><b data-bind-value="{{fmt.int(victory.score.total)}}"></b></div>
+<div><span data-l10n="victory.rank"></span><b data-bind-value="{{victory.score.rank}}"></b></div>
 </div>
-<div class="victory-ledger-row">
-<span data-l10n="victory.rank" >
-</span>
-<span class="victory-value" data-bind-value="{{victory.score.rank}}" >
-</span>
+<div class="kv led">
+<div class="r tot gut" data-bind-if="{{victory.time.enabled}}"><span class="k" data-l10n="victory.time_limit"></span><span class="small" data-bind-value="{{victory.time.max_turn}}"></span><b data-bind-value="{{victory.time.turns_left}}"></b></div>
+<div class="sect lg"><span data-l10n="victory.score_category"></span><span class="rule"></span></div>
+<div class="r gut" data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'cities'}}"><span class="k" data-l10n="victory.score_cities"></span><b data-bind-value="{{i.value}}"></b></div>
+<div class="r gut" data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'population'}}"><span class="k" data-l10n="victory.score_population"></span><b data-bind-value="{{i.value}}"></b></div>
+<div class="r gut" data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'land'}}"><span class="k" data-l10n="victory.score_land"></span><b data-bind-value="{{i.value}}"></b></div>
+<div class="r gut" data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'wonders'}}"><span class="k" data-l10n="victory.score_wonders"></span><b data-bind-value="{{i.value}}"></b></div>
+<div class="r gut" data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'technologies'}}"><span class="k" data-l10n="victory.score_technologies"></span><b data-bind-value="{{i.value}}"></b></div>
+<div class="r gut" data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'future_techs'}}"><span class="k" data-l10n="victory.score_future_techs"></span><b data-bind-value="{{i.value}}"></b></div>
+<div class="r gut" data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'policies'}}"><span class="k" data-l10n="victory.score_policies"></span><b data-bind-value="{{i.value}}"></b></div>
+<div class="r gut" data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'great_works'}}"><span class="k" data-l10n="victory.score_great_works"></span><b data-bind-value="{{i.value}}"></b></div>
+<div class="r gut" data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'religion'}}"><span class="k" data-l10n="victory.score_religion"></span><b data-bind-value="{{i.value}}"></b></div>
+<div class="r gut" data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'scenario_1'}}"><span class="k" data-l10n="victory.score_scenario_1"></span><b data-bind-value="{{i.value}}"></b></div>
+<div class="r gut" data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'scenario_2'}}"><span class="k" data-l10n="victory.score_scenario_2"></span><b data-bind-value="{{i.value}}"></b></div>
+<div class="r gut" data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'scenario_3'}}"><span class="k" data-l10n="victory.score_scenario_3"></span><b data-bind-value="{{i.value}}"></b></div>
+<div class="r gut" data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'scenario_4'}}"><span class="k" data-l10n="victory.score_scenario_4"></span><b data-bind-value="{{i.value}}"></b></div>
+<div class="r tot gut score"><span class="k" data-l10n="victory.total"></span><b data-bind-value="{{fmt.int(victory.score.total)}}"></b></div>
 </div>
-<div data-bind-if="{{victory.time.enabled}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.time_limit" >
-</span>
-<span class="victory-value" data-bind-value="{{victory.time.max_turn}}" >
-</span>
+<div class="mp">
+<button class="btn sm" data-l10n="victory.score_ranking" data-part="victory.score-ranking" data-bind-if="{{victory.time.enabled}}" data-on-click="set state.victory.view = 'score'"></button>
+<div class="mp" data-bind-if="{{victory.proposals.visible}}">
+<div class="sect"><span data-l10n="victory.proposals"></span><span class="rule"></span></div>
+<div class="btns">
+<button class="btn sm" data-l10n="victory.proposal_irr" data-bind-for="p:{{victory.proposals.items}}" data-bind-filter="{{p.key == 'irr'}}" data-bind-disabled="{{!p.enabled}}" data-tooltip="victory-proposal-tip" data-on-pointerenter="set state.victory.hover = 'irr'" data-on-click="intent screen.act(screen: 'victory', action: 'propose', a: 0)"></button>
+<button class="btn sm" data-l10n="victory.proposal_cc" data-bind-for="p:{{victory.proposals.items}}" data-bind-filter="{{p.key == 'cc'}}" data-bind-disabled="{{!p.enabled}}" data-tooltip="victory-proposal-tip" data-on-pointerenter="set state.victory.hover = 'cc'" data-on-click="intent screen.act(screen: 'victory', action: 'propose', a: 1)"></button>
+<button class="btn sm" data-l10n="victory.proposal_scrap" data-bind-for="p:{{victory.proposals.items}}" data-bind-filter="{{p.key == 'scrap'}}" data-bind-disabled="{{!p.enabled}}" data-tooltip="victory-proposal-tip" data-on-pointerenter="set state.victory.hover = 'scrap'" data-on-click="intent screen.act(screen: 'victory', action: 'propose', a: 2)"></button>
 </div>
-</div>
-<h2 data-l10n="victory.score_category" >
-</h2>
-<div data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'cities'}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.score_cities" >
-</span>
-<span class="victory-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-<div data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'population'}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.score_population" >
-</span>
-<span class="victory-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-<div data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'land'}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.score_land" >
-</span>
-<span class="victory-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-<div data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'wonders'}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.score_wonders" >
-</span>
-<span class="victory-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-<div data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'technologies'}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.score_technologies" >
-</span>
-<span class="victory-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-<div data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'future_techs'}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.score_future_techs" >
-</span>
-<span class="victory-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-<div data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'policies'}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.score_policies" >
-</span>
-<span class="victory-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-<div data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'great_works'}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.score_great_works" >
-</span>
-<span class="victory-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-<div data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'religion'}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.score_religion" >
-</span>
-<span class="victory-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-<div data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'scenario_1'}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.score_scenario_1" >
-</span>
-<span class="victory-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-<div data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'scenario_2'}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.score_scenario_2" >
-</span>
-<span class="victory-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-<div data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'scenario_3'}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.score_scenario_3" >
-</span>
-<span class="victory-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-<div data-bind-for="i:{{victory.score.items}}" data-bind-filter="{{i.key == 'scenario_4'}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.score_scenario_4" >
-</span>
-<span class="victory-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-<div class="victory-ledger-row">
-<span data-l10n="victory.total" >
-</span>
-<span class="victory-value" data-bind-value="{{fmt.int(victory.score.total)}}" >
-</span>
-</div>
-<button data-l10n="victory.score_ranking" class="victory-button" data-part="victory.score-ranking" data-bind-if="{{victory.time.enabled}}" data-on-click="set state.victory.view = 'score'">
-</button>
-<div data-bind-if="{{victory.proposals.visible}}">
-<h2 data-l10n="victory.proposals" >
-</h2>
-<div data-bind-for="p:{{victory.proposals.items}}" data-bind-filter="{{p.key == 'irr'}}">
-<button data-l10n="victory.proposal_irr" class="victory-button" data-bind-disabled="{{!p.enabled}}" data-tooltip="victory-proposal-tip" data-on-pointerenter="set state.victory.hover = 'irr'" data-on-click="intent screen.act(screen: 'victory', action: 'propose', a: 0)">
-</button>
-</div>
-<div data-bind-for="p:{{victory.proposals.items}}" data-bind-filter="{{p.key == 'cc'}}">
-<button data-l10n="victory.proposal_cc" class="victory-button" data-bind-disabled="{{!p.enabled}}" data-tooltip="victory-proposal-tip" data-on-pointerenter="set state.victory.hover = 'cc'" data-on-click="intent screen.act(screen: 'victory', action: 'propose', a: 1)">
-</button>
-</div>
-<div data-bind-for="p:{{victory.proposals.items}}" data-bind-filter="{{p.key == 'scrap'}}">
-<button data-l10n="victory.proposal_scrap" class="victory-button" data-bind-disabled="{{!p.enabled}}" data-tooltip="victory-proposal-tip" data-on-pointerenter="set state.victory.hover = 'scrap'" data-on-click="intent screen.act(screen: 'victory', action: 'propose', a: 2)">
-</button>
 </div>
 </div>
 </aside>
-<div class="victory-main">
-<div class="victory-summary" data-bind-if="{{state.victory.view == 'summary'}}">
-<div class="victory-quadrants">
-<div class="victory-quadrant victory-scroll">
-<h2 data-l10n="victory.domination" >
-</h2>
-<div data-l10n="victory.disabled_domination" data-bind-if="{{!victory.domination.enabled}}">
-</div>
-<div data-bind-if="{{victory.domination.enabled}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.hold" >
-</span>
-<span class="victory-value" data-bind-value="{{victory.domination.own_count}}" >
-</span>
-</div>
-<div class="victory-ledger-row" data-part="victory.domination-leader" data-bind-if="{{victory.domination.leader != null}}">
-<span data-l10n="victory.leading" data-l10n-args="{{victory.domination.leader.count}}"></span>
-<span class="victory-value" data-bind-value="{{victory.domination.leader.name}}"></span>
-</div>
-<div class="victory-capitals">
-<div class="victory-capital" data-bind-for="c:{{victory.domination.capitals}}">
-<img class="victory-civ" data-bind-src="{{c.icon}}">
-<span class="victory-name" data-bind-value="{{c.capital_name}}" >
-</span>
-<img class="victory-owner" data-bind-if="{{c.owner_icon != null}}" data-bind-src="{{c.owner_icon}}">
+<div class="vmain">
+<div class="vic" data-bind-if="{{state.victory.view == 'summary'}}">
+<div class="vb">
+<div class="vh"><b data-l10n="victory.domination"></b></div>
+<div class="empty" data-l10n="victory.disabled_domination" data-bind-if="{{!victory.domination.enabled}}"></div>
+<div class="lead" data-bind-if="{{victory.domination.enabled}}"><span data-l10n="victory.hold"></span><b data-bind-value="{{victory.domination.own_count}}"></b></div>
+<div class="lead" data-part="victory.domination-leader" data-bind-if="{{victory.domination.enabled && victory.domination.leader != null}}"><span data-l10n="victory.leading" data-l10n-args="{{victory.domination.leader.count}}"></span><b data-bind-value="{{victory.domination.leader.name}}"></b></div>
+<div class="caps" data-bind-if="{{victory.domination.enabled}}">
+<div class="capc" data-bind-for="c:{{victory.domination.capitals}}"><div class="w"><img class="gi s48" data-bind-src="{{c.icon}}"><img class="gi s22 held" data-bind-if="{{c.owner_icon != null}}" data-bind-src="{{c.owner_icon}}"></div><span class="cn" data-bind-value="{{c.capital_name}}"></span></div>
 </div>
 </div>
+<div class="vb bl">
+<div class="vh"><b data-l10n="victory.science"></b></div>
+<div class="empty" data-l10n="victory.disabled_science" data-bind-if="{{!victory.science.enabled}}"></div>
+<div class="vcol" data-bind-if="{{victory.science.enabled}}">
+<div class="lead" data-l10n="victory.apollo_done" data-bind-if="{{victory.science.apollo_built}}"></div>
+<div class="lead" data-l10n="victory.apollo_not_done" data-bind-if="{{!victory.science.apollo_built}}"></div>
+<div class="vrow"><span class="vl"><b data-bind-value="{{victory.science.prereq_done}}"></b><span data-l10n="victory.of"></span><b data-bind-value="{{victory.science.prereq_total}}"></b></span></div>
+<div class="gauge t"><div class="fill sci" data-bind-style-width="{{victory.science.prereq_total > 0 ? victory.science.prereq_done / victory.science.prereq_total * 100 : 0}}%"></div></div>
+<div class="parts">
+<div class="part" data-bind-for="p:{{victory.science.parts}}" data-bind-class-toggle="on:{{p.built}}"><img class="gi s22" data-bind-src="{{p.icon}}"><span data-l10n="victory.part_booster_1" data-bind-if="{{p.key == 'booster_1'}}"></span><span data-l10n="victory.part_booster_2" data-bind-if="{{p.key == 'booster_2'}}"></span><span data-l10n="victory.part_booster_3" data-bind-if="{{p.key == 'booster_3'}}"></span><span data-l10n="victory.part_cockpit" data-bind-if="{{p.key == 'cockpit'}}"></span><span data-l10n="victory.part_stasis_chamber" data-bind-if="{{p.key == 'stasis_chamber'}}"></span><span data-l10n="victory.part_engine" data-bind-if="{{p.key == 'engine'}}"></span></div>
+</div>
+<div class="vrow"><span data-l10n="victory.apollo_teams"></span><b data-bind-value="{{victory.science.apollo_teams}}"></b></div>
+<div class="more"><button class="btn sm" data-l10n="victory.space_details" data-part="victory.space-details" data-on-click="set state.victory.view = 'space_race'"></button></div>
 </div>
 </div>
-<div class="victory-quadrant victory-scroll">
-<h2 data-l10n="victory.science" >
-</h2>
-<div data-l10n="victory.disabled_science" data-bind-if="{{!victory.science.enabled}}">
-</div>
-<div data-bind-if="{{victory.science.enabled}}">
-<div data-l10n="victory.apollo_done" data-bind-if="{{victory.science.apollo_built}}">
-</div>
-<div data-l10n="victory.apollo_not_done" data-bind-if="{{!victory.science.apollo_built}}">
-</div>
-<div class="victory-line">
-<span class="victory-value" data-bind-value="{{victory.science.prereq_done}}" >
-</span>
-<span data-l10n="victory.of" >
-</span>
-<span class="victory-value" data-bind-value="{{victory.science.prereq_total}}" >
-</span>
-</div>
-<div class="victory-bar">
-<div class="victory-fill" data-bind-style-width="{{victory.science.prereq_total > 0 ? victory.science.prereq_done / victory.science.prereq_total * 100 : 0}}%">
+<div class="vb bt">
+<div class="vh"><b data-l10n="victory.diplomacy"></b></div>
+<div class="empty" data-l10n="victory.disabled_diplomacy" data-bind-if="{{!victory.diplomatic.enabled}}"></div>
+<div class="vcol" data-bind-if="{{victory.diplomatic.enabled}}">
+<div class="lead" data-l10n="victory.no_league" data-bind-if="{{!victory.diplomatic.league_active}}"></div>
+<div class="lead" data-l10n="victory.un" data-bind-if="{{victory.diplomatic.un_active}}"></div>
+<div class="vrow"><span data-l10n="victory.session"></span><b data-bind-value="{{victory.diplomatic.turns_to_session}}"></b></div>
+<div class="vrow"><span data-l10n="victory.votes"></span><b class="vl"><span data-bind-value="{{victory.diplomatic.delegates_controlled}}"></span><span data-l10n="victory.of"></span><span data-bind-value="{{victory.diplomatic.delegates_needed}}"></span></b></div>
+<div class="gauge t"><div class="fill" data-bind-style-width="{{victory.diplomatic.delegates_needed > 0 ? clamp(victory.diplomatic.delegates_controlled / victory.diplomatic.delegates_needed, 0, 1) * 100 : 0}}%"></div></div>
 </div>
 </div>
-<div class="victory-parts">
-<div class="victory-part" data-bind-for="p:{{victory.science.parts}}" data-bind-class-toggle="victory-built:{{p.built}}">
-<img class="victory-part-icon" data-bind-src="{{p.icon}}">
-<span data-l10n="victory.part_booster_1" data-bind-if="{{p.key == 'booster_1'}}">
-</span>
-<span data-l10n="victory.part_booster_2" data-bind-if="{{p.key == 'booster_2'}}">
-</span>
-<span data-l10n="victory.part_booster_3" data-bind-if="{{p.key == 'booster_3'}}">
-</span>
-<span data-l10n="victory.part_cockpit" data-bind-if="{{p.key == 'cockpit'}}">
-</span>
-<span data-l10n="victory.part_stasis_chamber" data-bind-if="{{p.key == 'stasis_chamber'}}">
-</span>
-<span data-l10n="victory.part_engine" data-bind-if="{{p.key == 'engine'}}">
-</span>
-</div>
-</div>
-<div class="victory-ledger-row">
-<span data-l10n="victory.apollo_teams" >
-</span>
-<span class="victory-value" data-bind-value="{{victory.science.apollo_teams}}" >
-</span>
-</div>
-<button data-l10n="victory.space_details" class="victory-button" data-part="victory.space-details" data-on-click="set state.victory.view = 'space_race'">
-</button>
-</div>
-</div>
-</div>
-<div class="victory-quadrants">
-<div class="victory-quadrant victory-scroll">
-<h2 data-l10n="victory.diplomacy" >
-</h2>
-<div data-l10n="victory.disabled_diplomacy" data-bind-if="{{!victory.diplomatic.enabled}}">
-</div>
-<div data-bind-if="{{victory.diplomatic.enabled}}">
-<div data-l10n="victory.no_league" data-bind-if="{{!victory.diplomatic.league_active}}">
-</div>
-<div data-l10n="victory.un" data-bind-if="{{victory.diplomatic.un_active}}">
-</div>
-<div class="victory-ledger-row">
-<span data-l10n="victory.session" >
-</span>
-<span class="victory-value" data-bind-value="{{victory.diplomatic.turns_to_session}}" >
-</span>
-</div>
-<div class="victory-ledger-row">
-<span data-l10n="victory.votes" >
-</span>
-<span class="victory-value" data-bind-value="{{victory.diplomatic.delegates_controlled}}" >
-</span>
-</div>
-<div class="victory-ledger-row">
-<span data-l10n="victory.votes_needed" >
-</span>
-<span class="victory-value" data-bind-value="{{victory.diplomatic.delegates_needed}}" >
-</span>
-</div>
-</div>
-</div>
-<div class="victory-quadrant victory-scroll">
-<h2 data-l10n="victory.culture" >
-</h2>
-<div data-l10n="victory.disabled_culture" data-bind-if="{{!victory.culture.enabled}}">
-</div>
-<div data-bind-if="{{victory.culture.enabled}}">
-<div class="victory-ledger-row">
-<span data-l10n="victory.influential" >
-</span>
-<span class="victory-value" data-bind-value="{{victory.culture.influential_count}}" >
-</span>
-</div>
-<div class="victory-ledger-row">
-<span data-l10n="victory.rivals" >
-</span>
-<span class="victory-value" data-bind-value="{{victory.culture.rivals_count}}" >
-</span>
-</div>
-<div class="victory-capitals">
-<div class="victory-capital" data-bind-for="c:{{victory.culture.civs}}">
-<img class="victory-civ" data-bind-src="{{c.icon}}" data-bind-style-opacity="{{clamp(c.influence_pct, 0, 100) / 100}}">
-<span class="victory-value" data-bind-value="{{c.influence_pct}}" >
-</span>
+<div class="vb blt">
+<div class="vh"><b data-l10n="victory.culture"></b></div>
+<div class="empty" data-l10n="victory.disabled_culture" data-bind-if="{{!victory.culture.enabled}}"></div>
+<div class="vcol" data-bind-if="{{victory.culture.enabled}}">
+<div class="lead"><span data-l10n="victory.influential"></span><b data-bind-value="{{victory.culture.influential_count}}"></b></div>
+<div class="lead"><span data-l10n="victory.rivals"></span><b data-bind-value="{{victory.culture.rivals_count}}"></b></div>
+<div class="infl">
+<div class="capc" data-bind-for="c:{{victory.culture.civs}}"><div class="w"><img class="gi s48" data-bind-src="{{c.icon}}" data-bind-style-opacity="{{0.35 + clamp(c.influence_pct, 0, 100) / 154}}"></div><span class="pc"><span data-bind-value="{{c.influence_pct}}"></span><span data-l10n="demographics.unit_own_percent"></span></span></div>
 </div>
 </div>
 </div>
 </div>
+<div class="tbl t-rank" data-bind-if="{{state.victory.view == 'score'}}">
+<div class="hn" data-l10n="victory.ranking_title"></div>
+<div class="scr">
+<div class="trow" data-part="victory.ranking-row" data-bind-for="r:{{victory.ranking}}" data-bind-class-toggle="out:{{!r.alive}}">
+<span class="c rk" data-bind-value="{{r.rank}}"></span>
+<span class="c"><img class="gi s32" data-bind-src="{{r.icon}}"><b class="nm ell" data-l10n="victory.you" data-bind-if="{{r.is_you}}"></b><b class="nm ell" data-bind-if="{{!r.is_you}}" data-bind-value="{{r.name}}"></b></span>
+<span class="c small" data-bind-value="{{r.civ_name}}"></span>
+<span class="c r sc" data-part="victory.ranking-score" data-bind-value="{{fmt.int(r.score)}}"></span>
+<span class="c"><span class="tag neg" data-l10n="victory.eliminated" data-bind-if="{{!r.alive}}"></span></span>
 </div>
 </div>
-<div class="victory-details victory-scroll" data-bind-if="{{state.victory.view == 'score'}}">
-<h2 data-l10n="victory.ranking_title" >
-</h2>
-<div class="victory-ranking-row" data-part="victory.ranking-row" data-bind-for="r:{{victory.ranking}}">
-<span class="victory-value" data-bind-value="{{r.rank}}" >
-</span>
-<img class="victory-icon" data-bind-src="{{r.icon}}">
-<span data-l10n="victory.you" data-bind-if="{{r.is_you}}">
-</span>
-<span class="victory-name" data-bind-value="{{r.name}}" data-bind-if="{{!r.is_you}}">
-</span>
-<span class="victory-name" data-bind-value="{{r.civ_name}}" >
-</span>
-<span class="victory-score" data-bind-value="{{fmt.int(r.score)}}" data-part="victory.ranking-score">
-</span>
-<span data-l10n="victory.eliminated" data-bind-if="{{!r.alive}}">
-</span>
+</div>
+<div class="tbl t-space" data-bind-if="{{state.victory.view == 'space_race'}}">
+<div class="hn" data-l10n="victory.space_title"></div>
+<div class="scr">
+<div class="trow" data-bind-for="r:{{victory.space_race}}" data-bind-sort="{{(r.apollo ? 100 : 0) + r.parts_built}}" data-bind-sort-desc="{{true}}">
+<span class="c"><img class="gi s32" data-bind-src="{{r.icon}}"><b class="nm ell" data-l10n="victory.you_space" data-bind-if="{{r.is_you}}"></b><b class="nm ell" data-bind-if="{{!r.is_you}}" data-bind-value="{{r.name}}"></b></span>
+<span class="c r sc" data-bind-value="{{r.parts_built}}"></span>
+<span class="c"><span class="tag lit" data-l10n="victory.apollo" data-bind-if="{{r.apollo}}"></span></span>
 </div>
 </div>
-<div class="victory-details victory-scroll" data-bind-if="{{state.victory.view == 'space_race'}}">
-<h2 data-l10n="victory.space_title" >
-</h2>
-<div class="victory-ranking-row" data-bind-for="r:{{victory.space_race}}" data-bind-sort="{{(r.apollo ? 100 : 0) + r.parts_built}}" data-bind-sort-desc="{{true}}">
-<img class="victory-icon" data-bind-src="{{r.icon}}">
-<span data-l10n="victory.you_space" data-bind-if="{{r.is_you}}">
-</span>
-<span class="victory-name" data-bind-value="{{r.name}}" data-bind-if="{{!r.is_you}}">
-</span>
-<span class="victory-value" data-bind-value="{{r.parts_built}}" >
-</span>
-<span data-l10n="victory.apollo" data-bind-if="{{r.apollo}}">
-</span>
 </div>
+<div class="wft" data-bind-if="{{state.victory.view != 'summary'}}">
+<button class="btn" data-part="victory.back-summary" data-bind-hotkey="{{'Enter'}}" data-on-click="set state.victory.view = 'summary'"><span data-l10n="victory.back"></span><span class="key" data-l10n="key.enter"></span></button>
 </div>
-<button data-l10n="victory.back" class="victory-button" data-part="victory.back-summary" data-bind-hotkey="{{'Enter'}}" data-bind-if="{{state.victory.view != 'summary'}}" data-on-click="set state.victory.view = 'summary'">
-</button>
 </div>
 </div>
 </section>

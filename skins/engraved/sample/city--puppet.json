@@ -1,5 +1,8 @@
 {
   "model": {
+    "top": {"science_rate":48,"gold":312,"gold_rate":21,"happiness":7,"mood":"content","golden_age":{"active":false,"turns":0,"progress":412,"threshold":650},"culture":214,"culture_rate":31,"policy_cost":400,"policy_turns":6,"faith":140,"faith_rate":9,"tourism":4,"resources":[{"id":"0:1","name":"Horses","icon":"icon:RESOURCE_ATLAS:1","available":2,"used":0,"total":2},{"id":"0:2","name":"Iron","icon":"icon:RESOURCE_ATLAS:2","available":4,"used":0,"total":4},{"id":"0:3","name":"Coal","icon":"icon:RESOURCE_ATLAS:3","available":0,"used":3,"total":3}],"policies":[{"id":1,"name":"Tradition","unlocked":true,"owned":4,"total":5},{"id":2,"name":"Patronage","unlocked":true,"owned":1,"total":5}]},
+    "game": {"turn":87,"year":1250,"year_text":{"k":"year.ad","a":["1250"]},"era":{"id":3,"name":"Medieval era"},"me":"0:0","phase":"humans","mode":"simultaneous","winner":null},
+    "turn": {"state":"unit_needs_orders","blocker":null,"units_waiting":5,"finished":false,"can_cancel":false,"timer":null,"ready":3,"humans":4,"seats":[{"player":"0:0","name":"Catherine","me":true,"finished":false,"may_act":true,"online":true},{"player":"0:1","name":"Harun al-Rashid","me":false,"finished":true,"may_act":true,"online":true},{"player":"0:2","name":"Montezuma","me":false,"finished":true,"may_act":true,"online":true},{"player":"0:3","name":"Ramesses","me":false,"finished":true,"may_act":true,"online":true}]},
     "city": {
       "city": 8192,
       "name": "Puppet city",
@@ -46,6 +49,7 @@
       "yields": [
         {
           "key": "food",
+          "icon": "font:ICON_FOOD",
           "value": 12,
           "enabled": true,
           "breakdown": [
@@ -61,6 +65,7 @@
         },
         {
           "key": "production",
+          "icon": "font:ICON_PRODUCTION",
           "value": 86,
           "enabled": true,
           "breakdown": [
@@ -80,6 +85,7 @@
         },
         {
           "key": "gold",
+          "icon": "font:ICON_GOLD",
           "value": 64,
           "enabled": true,
           "breakdown": [
@@ -99,6 +105,7 @@
         },
         {
           "key": "science",
+          "icon": "font:ICON_RESEARCH",
           "value": 142,
           "enabled": true,
           "breakdown": [
@@ -118,6 +125,7 @@
         },
         {
           "key": "faith",
+          "icon": "font:ICON_PEACE",
           "value": 18,
           "enabled": true,
           "breakdown": [
@@ -133,6 +141,7 @@
         },
         {
           "key": "culture",
+          "icon": "font:ICON_CULTURE",
           "value": 41,
           "enabled": true,
           "breakdown": [
@@ -156,6 +165,7 @@
         },
         {
           "key": "tourism",
+          "icon": "font:ICON_TOURISM",
           "value": 38,
           "enabled": true,
           "breakdown": [
@@ -171,6 +181,7 @@
         },
         {
           "key": "golden_age",
+          "icon": "font:ICON_GOLDEN_AGE",
           "value": 12,
           "enabled": true,
           "breakdown": [
@@ -756,54 +767,63 @@
       "focus_options": [
         {
           "key": "default",
+          "icon": null,
           "enabled": false,
           "id": -1,
           "reason": "Annex the puppet to manage this city."
         },
         {
           "key": "food",
+          "icon": "font:ICON_FOOD",
           "enabled": false,
           "id": 0,
           "reason": "Annex the puppet to manage this city."
         },
         {
           "key": "production",
+          "icon": "font:ICON_PRODUCTION",
           "enabled": false,
           "id": 1,
           "reason": "Annex the puppet to manage this city."
         },
         {
           "key": "gold",
+          "icon": "font:ICON_GOLD",
           "enabled": false,
           "id": 2,
           "reason": "Annex the puppet to manage this city."
         },
         {
           "key": "science",
+          "icon": "font:ICON_RESEARCH",
           "enabled": false,
           "id": 4,
           "reason": "Annex the puppet to manage this city."
         },
         {
           "key": "culture",
+          "icon": "font:ICON_CULTURE",
           "enabled": false,
           "id": 5,
           "reason": "Annex the puppet to manage this city."
         },
         {
           "key": "great_people",
+          "icon": "font:ICON_GREAT_PEOPLE",
           "enabled": false,
           "id": 3,
           "reason": "Annex the puppet to manage this city."
         },
         {
           "key": "faith",
+          "icon": "font:ICON_PEACE",
           "enabled": false,
           "id": 8,
           "reason": "Annex the puppet to manage this city."
         },
         {
           "key": "golden_age",
+          "icon": "font:ICON_GOLDEN_AGE",
           "enabled": false,
           "id": 9,
           "reason": "Annex the puppet to manage this city."
@@ -829,6 +849,7 @@
               "yields": [
                 {
                   "key": "science",
+                  "icon": "font:ICON_RESEARCH",
                   "value": 24
                 }
               ],
@@ -857,6 +878,7 @@
               "yields": [
                 {
                   "key": "science",
+                  "icon": "font:ICON_RESEARCH",
                   "value": 12
                 }
               ],
@@ -885,10 +907,12 @@
               "yields": [
                 {
                   "key": "science",
+                  "icon": "font:ICON_RESEARCH",
                   "value": 12
                 },
                 {
                   "key": "culture",
+                  "icon": "font:ICON_CULTURE",
                   "value": 1
                 }
               ],
@@ -917,6 +941,7 @@
               "yields": [
                 {
                   "key": "gold",
+                  "icon": "font:ICON_GOLD",
                   "value": 9
                 }
               ],
@@ -945,6 +970,7 @@
               "yields": [
                 {
                   "key": "production",
+                  "icon": "font:ICON_PRODUCTION",
                   "value": 12
                 }
               ],
@@ -973,6 +999,7 @@
               "yields": [
                 {
                   "key": "production",
+                  "icon": "font:ICON_PRODUCTION",
                   "value": 4
                 }
               ],
@@ -1008,18 +1035,22 @@
               "yields": [
                 {
                   "key": "production",
+                  "icon": "font:ICON_PRODUCTION",
                   "value": 3
                 },
                 {
                   "key": "science",
+                  "icon": "font:ICON_RESEARCH",
                   "value": 3
                 },
                 {
                   "key": "gold",
+                  "icon": "font:ICON_GOLD",
                   "value": 3
                 },
                 {
                   "key": "culture",
+                  "icon": "font:ICON_CULTURE",
                   "value": 1
                 }
               ],
@@ -1050,6 +1081,7 @@
               "yields": [
                 {
                   "key": "culture",
+                  "icon": "font:ICON_CULTURE",
                   "value": 3
                 }
               ],
@@ -1080,6 +1112,7 @@
               "yields": [
                 {
                   "key": "culture",
+                  "icon": "font:ICON_CULTURE",
                   "value": 1
                 }
               ],
@@ -1110,6 +1143,7 @@
               "yields": [
                 {
                   "key": "culture",
+                  "icon": "font:ICON_CULTURE",
                   "value": 3
                 }
               ],
@@ -1152,6 +1186,7 @@
               "yields": [
                 {
                   "key": "gold",
+                  "icon": "font:ICON_GOLD",
                   "value": 5
                 }
               ],
@@ -1172,6 +1207,7 @@
               "yields": [
                 {
                   "key": "culture",
+                  "icon": "font:ICON_CULTURE",
                   "value": 2
                 }
               ],
@@ -1192,10 +1228,12 @@
               "yields": [
                 {
                   "key": "faith",
+                  "icon": "font:ICON_PEACE",
                   "value": 3
                 },
                 {
                   "key": "culture",
+                  "icon": "font:ICON_CULTURE",
                   "value": 1
                 }
               ],
@@ -1216,6 +1254,7 @@
               "yields": [
                 {
                   "key": "culture",
+                  "icon": "font:ICON_CULTURE",
                   "value": 3
                 }
               ],
@@ -1453,10 +1492,12 @@
               "yields": [
                 {
                   "key": "food",
+                  "icon": "font:ICON_FOOD",
                   "value": 2
                 },
                 {
                   "key": "production",
+                  "icon": "font:ICON_PRODUCTION",
                   "value": 1
                 }
               ],
@@ -1483,18 +1524,22 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 4
             },
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 3
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 2
             },
             {
               "key": "science",
+              "icon": "font:ICON_RESEARCH",
               "value": 1
             }
           ],
@@ -1513,10 +1558,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 3
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 1
             }
           ],
@@ -1535,6 +1582,7 @@
           "yields": [
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 4
             }
           ],
@@ -1553,6 +1601,7 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 4
             }
           ],
@@ -1571,10 +1620,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 2
             },
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 2
             }
           ],
@@ -1593,10 +1644,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 1
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 4
             }
           ],
@@ -1615,10 +1668,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 2
             },
             {
               "key": "science",
+              "icon": "font:ICON_RESEARCH",
               "value": 2
             }
           ],
@@ -1637,10 +1692,12 @@
           "yields": [
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 3
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 1
             }
           ],
@@ -1659,10 +1716,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 3
             },
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 1
             }
           ],
@@ -1681,10 +1740,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 2
             },
             {
               "key": "culture",
+              "icon": "font:ICON_CULTURE",
               "value": 2
             }
           ],
@@ -1703,10 +1764,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 1
             },
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 3
             }
           ],
@@ -1725,10 +1788,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 1
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 3
             }
           ],
@@ -1747,10 +1812,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 2
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 2
             }
           ],
@@ -1769,14 +1836,17 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 3
             },
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 1
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 1
             }
           ],
@@ -1795,10 +1865,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 3
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 1
             }
           ],
@@ -1817,6 +1889,7 @@
           "yields": [
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 4
             }
           ],
@@ -1835,6 +1908,7 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 4
             }
           ],
@@ -1853,10 +1927,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 2
             },
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 2
             }
           ],
@@ -1875,10 +1951,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 1
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 4
             }
           ],
@@ -1897,10 +1975,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 2
             },
             {
               "key": "science",
+              "icon": "font:ICON_RESEARCH",
               "value": 2
             }
           ],
@@ -1919,10 +1999,12 @@
           "yields": [
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 3
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 1
             }
           ],
@@ -1941,10 +2023,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 3
             },
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 1
             }
           ],
@@ -1963,10 +2047,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 2
             },
             {
               "key": "culture",
+              "icon": "font:ICON_CULTURE",
               "value": 2
             }
           ],
@@ -1985,10 +2071,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 1
             },
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 3
             }
           ],
@@ -2007,10 +2095,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 1
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 3
             }
           ],
@@ -2029,10 +2119,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 2
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 2
             }
           ],
@@ -2051,14 +2143,17 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 3
             },
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 1
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 1
             }
           ],
@@ -2077,10 +2172,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 3
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 1
             }
           ],
@@ -2099,6 +2196,7 @@
           "yields": [
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 4
             }
           ],
@@ -2117,6 +2215,7 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 4
             }
           ],
@@ -2135,10 +2234,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 2
             },
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 2
             }
           ],
@@ -2157,10 +2258,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 2
             },
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 1
             }
           ],
@@ -2179,10 +2282,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 2
             },
             {
               "key": "science",
+              "icon": "font:ICON_RESEARCH",
               "value": 2
             }
           ],
@@ -2201,10 +2306,12 @@
           "yields": [
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 3
             },
             {
               "key": "gold",
+              "icon": "font:ICON_GOLD",
               "value": 1
             }
           ],
@@ -2223,10 +2330,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 3
             },
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 1
             }
           ],
@@ -2245,10 +2354,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 2
             },
             {
               "key": "culture",
+              "icon": "font:ICON_CULTURE",
               "value": 2
             }
           ],
@@ -2267,10 +2378,12 @@
           "yields": [
             {
               "key": "food",
+              "icon": "font:ICON_FOOD",
               "value": 1
             },
             {
               "key": "production",
+              "icon": "font:ICON_PRODUCTION",
               "value": 3
             }
           ],

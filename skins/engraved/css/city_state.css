@@ -1,38 +1,42 @@
-.city-state-screen { position: absolute; inset: 48px 0 0; display: flex; align-items: center; justify-content: center; pointer-events: auto; background: rgba(12,10,8,.55); }
-.city-state-window { position: relative; display: flex; flex-direction: column; width: 1120px; max-width: 94%; max-height: 90%; border: 1px solid #4d4032; border-radius: 4px; background: #1b1815; color: #ebe2d2; overflow: hidden; }
-.city-state-content { min-height: 0; display: flex; flex-direction: column; }
-.city-state-head { display: flex; align-items: center; gap: 24px; padding: 16px 24px; border-bottom: 1px solid #4d4032; flex-shrink: 0; }
-.city-state-head img { width: 40px; height: 40px; }
-.city-state-head h1 { font-family: 'Alegreya'; font-size: 28px; font-weight: 500; margin: 0; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.city-state-head span { color: #b2a794; font-size: 13px; }
-.city-state-speech { font-family: 'Alegreya'; padding: 16px 24px; border-bottom: 1px solid #4d4032; }
-.city-state-columns { display: grid; grid-template-columns: 2fr 1fr; min-height: 0; }
-.city-state-ledger, .city-state-actions { min-height: 0; padding: 20px 24px; overflow-y: auto; scrollbar-width: none; }
-.city-state-actions { background: #14120f; border-left: 1px solid #4d4032; }
-.city-state-influence { display: flex; gap: 12px; align-items: center; }
-.city-state-influence strong { font-size: 20px; }
-.city-state-influence span { color: #b2a794; font-size: 12px; }
-.city-state-scale { height: 8px; background: #352d25; margin: 24px 0; }
-.city-state-scale div { height: 8px; background: #86b061; }
-.city-state-line { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid #352d25; font-size: 13px; }
-.city-state-ledger h2 { font-size: 14px; font-weight: 500; color: #b2a794; margin: 20px 0 8px; }
-.city-state-quest { padding: 12px 0; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid #352d25; font-size: 13px; }
-.city-state-quest span { color: #b2a794; }
-.city-state-menu { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
-.city-state-window button { appearance: none; padding: 12px 16px; background: #26221d; border: 1px solid #4d4032; border-radius: 4px; color: #ebe2d2; cursor: pointer; text-align: left; }
-.city-state-window button:hover { border-color: #c9a36a; }
-.city-state-window button:focus-visible { outline: 1px solid #c9a36a; outline-offset: -3px; }
-.city-state-window button:disabled { opacity: .45; cursor: not-allowed; }
-.city-state-menu button { display: flex; flex-direction: column; gap: 4px; min-height: 56px; }
-.city-state-menu button span { font-size: 13px; }
-.city-state-menu .city-state-reason { color: #cf6f5c; }
-.city-state-question { padding: 24px; display: flex; flex-direction: column; gap: 12px; }
-.city-state-shade { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(12,10,8,.55); }
-.city-state-confirm { width: 480px; max-width: 92%; padding: 24px; background: #1b1815; border: 1px solid #c9a36a; }
-.city-state-confirm h2 { font-family: 'Alegreya'; font-size: 24px; font-weight: 500; margin: 0; }
-.city-state-confirm p { color: #b2a794; font-size: 13px; line-height: 20px; }
-.city-state-confirm > div { display: flex; gap: 8px; }
-.city-state-confirm button { flex: 1; }
-.city-state-loading, .city-state-idle { padding: 24px; }
-.city-state-error { color: #cf6f5c; font-size: 13px; padding: 4px 24px; }
-.city-state-tooltip { width: 320px; padding: 16px; background: #1b1815; border: 1px solid #4d4032; color: #ebe2d2; white-space: pre-wrap; font-size: 13px; }
+/* City-state: the kit window; only its geometry, the influence track and the two-column body live here. */
+.cs-win { width: 1120px; }
+.cs-content { min-height: 0; display: flex; flex-direction: column; }
+.cs-speech { flex: none; margin: 16px 24px; }
+.cs-body { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 380px; }
+.cs-info { min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 14px; }
+.cs-side { min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 20px; display: flex; flex-direction: column; gap: 10px; background-color: var(--lacquer-0); box-shadow: inset 1px 0 0 var(--engrave); }
+.cs-side .btn.tall { height: auto; min-height: 56px; padding-top: 8px; padding-bottom: 8px; }
+.cs-a { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; text-align: left; }
+.cs-a small { font-size: 12px; line-height: 16px; font-weight: 400; color: var(--bone-2); white-space: normal; }
+.btn.primary.cs-a small { color: var(--brass-ink); }
+.cs-a.cs-on { box-shadow: inset 0 0 0 1px var(--brass); }
+.cs-back { align-self: flex-start; }
+.cs-pad { padding: 0 24px 8px; }
+
+/* status line and influence track */
+.cs-status { display: flex; align-items: baseline; gap: 10px; font-size: 13px; }
+.cs-rt { margin-left: auto; }
+.cs-grid .kv .r { justify-content: flex-start; gap: 8px; }
+.cs-grid .kv .k { margin-right: auto; }
+.cs-name { font: 500 20px/24px var(--sans); color: var(--bone-2); }
+.cs-name.pos { color: var(--pos); }
+.cs-name.neg { color: var(--neg); }
+.cs-infl { font: 500 20px/24px var(--sans); }
+.cs-scale .fill { background-color: var(--pos); }
+.cs-scale.neg .fill { background-color: var(--neg); }
+.cs-tick { position: absolute; top: -3px; bottom: -3px; width: 1px; background-color: var(--engrave-hi); }
+.cs-mark { position: absolute; top: -5px; width: 12px; height: 16px; margin-left: -6px; border-radius: 6px; background-color: var(--lacquer); box-shadow: inset 0 0 0 2px var(--pos); }
+
+/* facts in two columns, quests */
+.cs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.cs-res { flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.cs-res .yv { font-weight: 400; }
+.cs-q { align-items: center; gap: 12px; min-height: 48px; padding: 4px 0; box-shadow: inset 0 -1px 0 var(--line-soft); }
+.cs-qt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cs-qt b { font-weight: 500; }
+.cs-qt span { font-size: 12px; line-height: 16px; color: var(--bone-3); }
+.cs-shade { position: absolute; top: 0; }
+
+@media (max-width: 1600px) {
+  .cs-body { grid-template-columns: minmax(0, 1fr) 320px; }
+}

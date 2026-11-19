@@ -1,34 +1,12 @@
-.archaeology-screen { position: absolute; inset: 48px 0 0; display: flex; align-items: flex-start; justify-content: center; padding-top: 28px; pointer-events: auto; background: rgba(12,10,8,.42); }
-.archaeology-window { position: relative; display: flex; flex-direction: column; width: 680px; max-width: 94%; max-height: 88%; border: 1px solid #4d4032; border-radius: 4px; background: #1b1815; color: #ebe2d2; overflow: hidden; }
-.archaeology-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; gap: 24px; border-bottom: 1px solid #4d4032; flex-shrink: 0; }
-.archaeology-head h1 { font-family: 'Alegreya'; font-size: 28px; font-weight: 500; margin: 0; }
-.archaeology-content { min-height: 0; overflow-y: auto; scrollbar-width: none; }
-.archaeology-intro { display: flex; align-items: center; gap: 16px; padding: 16px 24px; }
-.archaeology-intro img { width: 48px; height: 48px; }
-.archaeology-find { display: flex; justify-content: space-between; gap: 24px; padding: 20px 24px; background: #14120f; border-top: 1px solid #4d4032; border-bottom: 1px solid #4d4032; }
-.archaeology-find h2 { font-family: 'Alegreya'; font-size: 22px; font-weight: 500; margin: 0 0 8px; }
-.archaeology-find span { color: #b2a794; font-size: 13px; }
-.archaeology-participant { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
-.archaeology-participant img { width: 20px; height: 20px; }
-.archaeology-work { display: flex; gap: 24px; align-items: center; padding: 12px 24px; }
-.archaeology-window button { appearance: none; cursor: pointer; background: #26221d; color: #ebe2d2; border: 1px solid #4d4032; padding: 10px 16px; text-align: left; }
-.archaeology-window button:hover { border-color: #c9a36a; }
-.archaeology-window button:focus-visible { outline: 1px solid #c9a36a; outline-offset: -3px; }
-.archaeology-window button:disabled { opacity: .45; cursor: not-allowed; }
-.archaeology-window .archaeology-choice { display: flex; flex-direction: column; gap: 8px; width: 100%; min-height: 84px; border: 0; border-bottom: 1px solid #352d25; background: #1b1815; padding: 16px 24px; }
-.archaeology-window .archaeology-choice:hover { background: #26221d; }
-.archaeology-choice span { font-size: 13px; line-height: 20px; color: #b2a794; }
-.archaeology-window .archaeology-warning { color: #cf6f5c; font-size: 13px; }
-.archaeology-warning { padding: 8px 24px; margin: 0; }
-.archaeology-window .archaeology-diplomacy { color: #b9c662; }
-.archaeology-footer { padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-top: 1px solid #4d4032; flex-shrink: 0; }
-.archaeology-footer span { font-size: 12px; color: #8a8072; }
-.archaeology-confirm-shade { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(12,10,8,.55); }
-.archaeology-confirm { width: 400px; max-width: 92%; padding: 24px; border: 1px solid #c9a36a; border-radius: 4px; background: #1b1815; }
-.archaeology-confirm h2 { font-family: 'Alegreya'; font-size: 22px; font-weight: 500; margin: 0; }
-.archaeology-confirm p { font-size: 13px; color: #b2a794; line-height: 20px; }
-.archaeology-confirm-buttons { display: flex; gap: 8px; }
-.archaeology-confirm-buttons button { flex: 1; }
-.archaeology-window .archaeology-primary { background: #c9a36a; color: #1b1815; }
-.archaeology-idle, .archaeology-loading { padding: 24px; }
-.archaeology-errors { color: #cf6f5c; font-size: 13px; padding: 4px 24px; }
+/* Archaeology: a kit popup; the find, then the choices as kit cards. */
+.ar-win { width: 760px; }
+.ar-find { display: flex; flex-direction: column; gap: 8px; }
+.ar-fh { display: flex; align-items: center; gap: 10px; }
+.ar-fh b { font: 500 20px/24px var(--serif); }
+.ar-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ar-choice { flex-direction: row; align-items: flex-start; gap: 12px; text-align: left; }
+.ar-ct { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ar-civ { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--bone-2); }
+.ar-shade { position: absolute; top: 0; }
+.ar-find .kv .r { justify-content: flex-start; gap: 8px; }
+.ar-find .kv .k { margin-right: auto; }

@@ -221,6 +221,8 @@
 /* ---------- unit flags ---------- */
 /* The flag hangs over the unit's point on a pole that ends at the point. */
 .uflag { position: absolute; left: -16px; top: -86px; width: 32px; height: 86px; pointer-events: auto; }
+/* The holder of the flag shape: placed at the flag's top (a button would centre a flow child). */
+.uflag .fw { position: absolute; left: 0; top: 0; width: 32px; }
 .uflag .pole { position: absolute; left: 15px; top: 38px; width: 2px; height: 48px; background-color: var(--brass); opacity: 0.8; }
 .uflag .hp { position: absolute; left: -4px; top: -9px; width: 40px; height: 5px; background-color: var(--lacquer-0); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6); }
 .uflag .hp .fill { position: absolute; left: 0; top: 0; bottom: 0; background-color: var(--y-food); }
@@ -235,7 +237,8 @@
 .uflag .flag.f-civ { clip-path: polygon(30% 0, 70% 0, 100% 24%, 100% 64%, 70% 88%, 30% 88%, 0 64%, 0 24%); }
 .uflag .flag.f-emb { clip-path: none; height: 32px; border-radius: 16px; }
 .uflag .flag.f-fort { clip-path: polygon(0 20%, 20% 0, 80% 0, 100% 20%, 100% 100%, 0 100%); height: 36px; }
-.uflag .flag .glyph { position: absolute; left: 6px; top: 6px; width: 20px; height: 20px; }
+/* The glyph is a white mask: a stroke makes the runtime draw it in its text colour, the owner's second colour. */
+.uflag .flag .glyph { position: absolute; left: 6px; top: 6px; width: 20px; height: 20px; stroke: currentColor; }
 .uflag .flag .pic { position: absolute; left: 4px; top: 3px; width: 24px; height: 24px; }
 .uflag.spent .flag .glyph, .uflag.spent .flag .pic { opacity: 0.4; }
 .uflag.spent .pole { opacity: 0.45; }

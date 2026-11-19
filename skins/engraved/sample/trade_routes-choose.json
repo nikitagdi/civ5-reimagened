@@ -1,5 +1,8 @@
 {
   "model": {
+    "top": {"science_rate":48,"gold":312,"gold_rate":21,"happiness":7,"mood":"content","golden_age":{"active":false,"turns":0,"progress":412,"threshold":650},"culture":214,"culture_rate":31,"policy_cost":400,"policy_turns":6,"faith":140,"faith_rate":9,"tourism":4,"resources":[{"id":"0:1","name":"Horses","icon":"icon:RESOURCE_ATLAS:1","available":2,"used":0,"total":2},{"id":"0:2","name":"Iron","icon":"icon:RESOURCE_ATLAS:2","available":4,"used":0,"total":4},{"id":"0:3","name":"Coal","icon":"icon:RESOURCE_ATLAS:3","available":0,"used":3,"total":3}],"policies":[{"id":1,"name":"Tradition","unlocked":true,"owned":4,"total":5},{"id":2,"name":"Patronage","unlocked":true,"owned":1,"total":5}]},
+    "game": {"turn":87,"year":1250,"year_text":{"k":"year.ad","a":["1250"]},"era":{"id":3,"name":"Medieval era"},"me":"0:0","phase":"humans","mode":"simultaneous","winner":null},
+    "turn": {"state":"unit_needs_orders","blocker":null,"units_waiting":5,"finished":false,"can_cancel":false,"timer":null,"ready":3,"humans":4,"seats":[{"player":"0:0","name":"Catherine","me":true,"finished":false,"may_act":true,"online":true},{"player":"0:1","name":"Harun al-Rashid","me":false,"finished":true,"may_act":true,"online":true},{"player":"0:2","name":"Montezuma","me":false,"finished":true,"may_act":true,"online":true},{"player":"0:3","name":"Ramesses","me":false,"finished":true,"may_act":true,"online":true}]},
     "trade_routes": {
       "player": {
         "name": "Catherine",
@@ -1358,7 +1361,744 @@
           }
         ]
       },
-      "new_home": null
+      "new_home": null,
+      "lists": [
+        {
+          "key": "yours",
+          "items": [
+            {
+              "id": 1,
+              "domain": "sea",
+              "from": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8193,
+                "city": "St. Petersburg",
+                "owner_name": "Russia"
+              },
+              "to": {
+                "player": 1,
+                "icon": "civ:CIVILIZATION_ARABIA",
+                "color_bg": 795556607,
+                "color_fg": 3655583487,
+                "city_id": 9001,
+                "city": "Mecca",
+                "owner_name": "Arabia"
+              },
+              "my_gold": 14,
+              "my_science": 4,
+              "their_gold": 8,
+              "their_science": 0,
+              "food": 0,
+              "production": 0,
+              "my_religion": {
+                "key": "RELIGION_ORTHODOXY",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Orthodoxy",
+                "pressure": 6
+              },
+              "their_religion": {
+                "key": "RELIGION_ISLAM",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Islam",
+                "pressure": 4
+              },
+              "turns_left": 18,
+              "tooltip": {
+                "route_id": 1,
+                "blocks": [
+                  {
+                    "key": "my_gold",
+                    "owner": "You",
+                    "total": 14,
+                    "lines": [
+                      {
+                        "id": "base",
+                        "key": "base",
+                        "value": 1,
+                        "arg": null
+                      },
+                      {
+                        "id": "dest_city_gold",
+                        "key": "dest_city_gold",
+                        "value": 2.4,
+                        "arg": "Mecca"
+                      },
+                      {
+                        "id": "origin_city_gold",
+                        "key": "origin_city_gold",
+                        "value": 1.1,
+                        "arg": "St. Petersburg"
+                      },
+                      {
+                        "id": "policies",
+                        "key": "policies",
+                        "value": 1,
+                        "arg": null
+                      },
+                      {
+                        "id": "different_resources",
+                        "key": "different_resources",
+                        "value": 1.5,
+                        "arg": "3"
+                      },
+                      {
+                        "id": "sea_route_mult",
+                        "key": "sea_route_mult",
+                        "value": 2,
+                        "arg": null
+                      }
+                    ]
+                  },
+                  {
+                    "key": "their_gold",
+                    "owner": "Harun al-Rashid",
+                    "total": 8,
+                    "lines": [
+                      {
+                        "id": "base",
+                        "key": "base",
+                        "value": 1,
+                        "arg": null
+                      },
+                      {
+                        "id": "origin_city_gold",
+                        "key": "origin_city_gold",
+                        "value": 1.2,
+                        "arg": "St. Petersburg"
+                      },
+                      {
+                        "id": "buildings",
+                        "key": "buildings",
+                        "value": 1.8,
+                        "arg": "Mecca"
+                      },
+                      {
+                        "id": "sea_route_mult",
+                        "key": "sea_route_mult",
+                        "value": 2,
+                        "arg": null
+                      }
+                    ]
+                  },
+                  {
+                    "key": "my_science",
+                    "owner": "You",
+                    "total": 4,
+                    "lines": [
+                      {
+                        "id": "tech_difference",
+                        "key": "tech_difference",
+                        "value": 4,
+                        "arg": "4"
+                      },
+                      {
+                        "id": "cultural_influence",
+                        "key": "cultural_influence",
+                        "value": 0,
+                        "arg": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": 2,
+              "domain": "land",
+              "from": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8195,
+                "city": "Kazan",
+                "owner_name": "Russia"
+              },
+              "to": {
+                "player": 3,
+                "icon": "civ:CIVILIZATION_EGYPT",
+                "color_bg": 1262123775,
+                "color_fg": 3923550463,
+                "city_id": 9002,
+                "city": "Thebes",
+                "owner_name": "Egypt"
+              },
+              "my_gold": 10,
+              "my_science": 3,
+              "their_gold": 5,
+              "their_science": 2,
+              "food": 0,
+              "production": 0,
+              "my_religion": {
+                "key": "RELIGION_ORTHODOXY",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Orthodoxy",
+                "pressure": 5
+              },
+              "their_religion": null,
+              "turns_left": 11
+            },
+            {
+              "id": 3,
+              "domain": "sea",
+              "from": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8194,
+                "city": "Novgorod",
+                "owner_name": "Russia"
+              },
+              "to": {
+                "player": 5,
+                "icon": "civ:CIVILIZATION_JAPAN",
+                "color_bg": 3907180799,
+                "color_fg": 2333743871,
+                "city_id": 9003,
+                "city": "Kyoto",
+                "owner_name": "Japan"
+              },
+              "my_gold": 16,
+              "my_science": 5,
+              "their_gold": 9,
+              "their_science": 3,
+              "food": 0,
+              "production": 0,
+              "my_religion": {
+                "key": "RELIGION_ORTHODOXY",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Orthodoxy",
+                "pressure": 6
+              },
+              "their_religion": {
+                "key": "RELIGION_SHINTO",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Shinto",
+                "pressure": 6
+              },
+              "turns_left": 4
+            },
+            {
+              "id": 4,
+              "domain": "land",
+              "from": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8196,
+                "city": "Rostov",
+                "owner_name": "Russia"
+              },
+              "to": {
+                "player": 22,
+                "icon": "civ:MINOR_CIV_GENEVA",
+                "color_bg": 1026961151,
+                "color_fg": 3957510911,
+                "city_id": 9004,
+                "city": "Geneva",
+                "owner_name": "Geneva"
+              },
+              "my_gold": 8,
+              "my_science": 0,
+              "their_gold": 0,
+              "their_science": 0,
+              "food": 0,
+              "production": 0,
+              "my_religion": {
+                "key": "RELIGION_ORTHODOXY",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Orthodoxy",
+                "pressure": 4
+              },
+              "their_religion": null,
+              "turns_left": 21
+            },
+            {
+              "id": 5,
+              "domain": "sea",
+              "from": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8200,
+                "city": "Arkhangelsk",
+                "owner_name": "Russia"
+              },
+              "to": {
+                "player": 23,
+                "icon": "civ:MINOR_CIV_SINGAPORE",
+                "color_bg": 1026961151,
+                "color_fg": 3957510911,
+                "city_id": 9005,
+                "city": "Singapore",
+                "owner_name": "Singapore"
+              },
+              "my_gold": 15,
+              "my_science": 0,
+              "their_gold": 0,
+              "their_science": 0,
+              "food": 0,
+              "production": 0,
+              "my_religion": null,
+              "their_religion": null,
+              "turns_left": 9
+            },
+            {
+              "id": 6,
+              "domain": "land",
+              "from": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8199,
+                "city": "Pskov",
+                "owner_name": "Russia"
+              },
+              "to": {
+                "player": 26,
+                "icon": "civ:MINOR_CIV_FLORENCE",
+                "color_bg": 1026961151,
+                "color_fg": 3957510911,
+                "city_id": 9006,
+                "city": "Florence",
+                "owner_name": "Florence"
+              },
+              "my_gold": 7,
+              "my_science": 0,
+              "their_gold": 0,
+              "their_science": 0,
+              "food": 0,
+              "production": 0,
+              "my_religion": {
+                "key": "RELIGION_ORTHODOXY",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Orthodoxy",
+                "pressure": 4
+              },
+              "their_religion": null,
+              "turns_left": 27
+            },
+            {
+              "id": 7,
+              "domain": "land",
+              "from": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8192,
+                "city": "Moscow",
+                "owner_name": "Russia"
+              },
+              "to": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8194,
+                "city": "Novgorod",
+                "owner_name": "Russia"
+              },
+              "my_gold": 0,
+              "my_science": 0,
+              "their_gold": 0,
+              "their_science": 0,
+              "food": 6,
+              "production": 0,
+              "my_religion": null,
+              "their_religion": null,
+              "turns_left": 14
+            },
+            {
+              "id": 8,
+              "domain": "land",
+              "from": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8197,
+                "city": "Smolensk",
+                "owner_name": "Russia"
+              },
+              "to": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8192,
+                "city": "Moscow",
+                "owner_name": "Russia"
+              },
+              "my_gold": 0,
+              "my_science": 0,
+              "their_gold": 0,
+              "their_science": 0,
+              "food": 0,
+              "production": 4.5,
+              "my_religion": null,
+              "their_religion": null,
+              "turns_left": 25
+            }
+          ]
+        },
+        {
+          "key": "available",
+          "items": [
+            {
+              "id": 9,
+              "domain": "land",
+              "from": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8192,
+                "city": "Moscow",
+                "owner_name": "Russia"
+              },
+              "to": {
+                "player": 2,
+                "icon": "civ:CIVILIZATION_AZTEC",
+                "color_bg": 745499391,
+                "color_fg": 4038699263,
+                "city_id": 9007,
+                "city": "Tenochtitlan",
+                "owner_name": "Aztec"
+              },
+              "my_gold": 11,
+              "my_science": 4,
+              "their_gold": 6,
+              "their_science": 0,
+              "food": 0,
+              "production": 0,
+              "my_religion": {
+                "key": "RELIGION_ORTHODOXY",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Orthodoxy",
+                "pressure": 6
+              },
+              "their_religion": {
+                "key": "RELIGION_TENGRIISM",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Tengriism",
+                "pressure": 3
+              },
+              "turns_left": null
+            },
+            {
+              "id": 10,
+              "domain": "land",
+              "from": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8192,
+                "city": "Moscow",
+                "owner_name": "Russia"
+              },
+              "to": {
+                "player": 1,
+                "icon": "civ:CIVILIZATION_ARABIA",
+                "color_bg": 795556607,
+                "color_fg": 3655583487,
+                "city_id": 9001,
+                "city": "Mecca",
+                "owner_name": "Arabia"
+              },
+              "my_gold": 9,
+              "my_science": 3,
+              "their_gold": 5,
+              "their_science": 1,
+              "food": 0,
+              "production": 0,
+              "my_religion": {
+                "key": "RELIGION_ORTHODOXY",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Orthodoxy",
+                "pressure": 6
+              },
+              "their_religion": {
+                "key": "RELIGION_ISLAM",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Islam",
+                "pressure": 4
+              },
+              "turns_left": null
+            },
+            {
+              "id": 11,
+              "domain": "sea",
+              "from": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8193,
+                "city": "St. Petersburg",
+                "owner_name": "Russia"
+              },
+              "to": {
+                "player": 4,
+                "icon": "civ:CIVILIZATION_GERMANY",
+                "color_bg": 1247109375,
+                "color_fg": 3907178751,
+                "city_id": 9008,
+                "city": "Berlin",
+                "owner_name": "Germany"
+              },
+              "my_gold": 13,
+              "my_science": 2,
+              "their_gold": 8,
+              "their_science": 6,
+              "food": 0,
+              "production": 0,
+              "my_religion": {
+                "key": "RELIGION_ORTHODOXY",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Orthodoxy",
+                "pressure": 5
+              },
+              "their_religion": {
+                "key": "RELIGION_PROTESTANTISM",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Protestantism",
+                "pressure": 5
+              },
+              "turns_left": null
+            },
+            {
+              "id": 12,
+              "domain": "land",
+              "from": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8195,
+                "city": "Kazan",
+                "owner_name": "Russia"
+              },
+              "to": {
+                "player": 27,
+                "icon": "civ:MINOR_CIV_ALMATY",
+                "color_bg": 1026961151,
+                "color_fg": 3957510911,
+                "city_id": 9009,
+                "city": "Almaty",
+                "owner_name": "Almaty"
+              },
+              "my_gold": 5,
+              "my_science": 0,
+              "their_gold": 0,
+              "their_science": 0,
+              "food": 0,
+              "production": 0,
+              "my_religion": {
+                "key": "RELIGION_ORTHODOXY",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Orthodoxy",
+                "pressure": 4
+              },
+              "their_religion": null,
+              "turns_left": null
+            },
+            {
+              "id": 13,
+              "domain": "land",
+              "from": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8192,
+                "city": "Moscow",
+                "owner_name": "Russia"
+              },
+              "to": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8195,
+                "city": "Kazan",
+                "owner_name": "Russia"
+              },
+              "my_gold": 0,
+              "my_science": 0,
+              "their_gold": 0,
+              "their_science": 0,
+              "food": 5.5,
+              "production": 0,
+              "my_religion": null,
+              "their_religion": null,
+              "turns_left": null
+            },
+            {
+              "id": 14,
+              "domain": "land",
+              "from": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8192,
+                "city": "Moscow",
+                "owner_name": "Russia"
+              },
+              "to": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8195,
+                "city": "Kazan",
+                "owner_name": "Russia"
+              },
+              "my_gold": 0,
+              "my_science": 0,
+              "their_gold": 0,
+              "their_science": 0,
+              "food": 0,
+              "production": 4,
+              "my_religion": null,
+              "their_religion": null,
+              "turns_left": null
+            }
+          ]
+        },
+        {
+          "key": "to_you",
+          "items": [
+            {
+              "id": 15,
+              "domain": "land",
+              "from": {
+                "player": 1,
+                "icon": "civ:CIVILIZATION_ARABIA",
+                "color_bg": 795556607,
+                "color_fg": 3655583487,
+                "city_id": 9011,
+                "city": "Medina",
+                "owner_name": "Arabia"
+              },
+              "to": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8195,
+                "city": "Kazan",
+                "owner_name": "Russia"
+              },
+              "my_gold": 7,
+              "my_science": 1,
+              "their_gold": 4,
+              "their_science": 2,
+              "food": 0,
+              "production": 0,
+              "my_religion": {
+                "key": "RELIGION_ISLAM",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Islam",
+                "pressure": 4
+              },
+              "their_religion": {
+                "key": "RELIGION_ORTHODOXY",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Orthodoxy",
+                "pressure": 5
+              },
+              "turns_left": 16
+            },
+            {
+              "id": 16,
+              "domain": "sea",
+              "from": {
+                "player": 5,
+                "icon": "civ:CIVILIZATION_JAPAN",
+                "color_bg": 3907180799,
+                "color_fg": 2333743871,
+                "city_id": 9013,
+                "city": "Osaka",
+                "owner_name": "Japan"
+              },
+              "to": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8193,
+                "city": "St. Petersburg",
+                "owner_name": "Russia"
+              },
+              "my_gold": 12,
+              "my_science": 0,
+              "their_gold": 6,
+              "their_science": 4,
+              "food": 0,
+              "production": 0,
+              "my_religion": {
+                "key": "RELIGION_SHINTO",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Shinto",
+                "pressure": 6
+              },
+              "their_religion": {
+                "key": "RELIGION_ORTHODOXY",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Orthodoxy",
+                "pressure": 6
+              },
+              "turns_left": 8
+            },
+            {
+              "id": 17,
+              "domain": "land",
+              "from": {
+                "player": 3,
+                "icon": "civ:CIVILIZATION_EGYPT",
+                "color_bg": 1262123775,
+                "color_fg": 3923550463,
+                "city_id": 9012,
+                "city": "Alexandria",
+                "owner_name": "Egypt"
+              },
+              "to": {
+                "player": 0,
+                "icon": "civ:CIVILIZATION_RUSSIA",
+                "color_bg": 1847335167,
+                "color_fg": 3837808383,
+                "city_id": 8196,
+                "city": "Rostov",
+                "owner_name": "Russia"
+              },
+              "my_gold": 9,
+              "my_science": 3,
+              "their_gold": 4,
+              "their_science": 0,
+              "food": 0,
+              "production": 0,
+              "my_religion": null,
+              "their_religion": {
+                "key": "RELIGION_ORTHODOXY",
+                "icon": "icon:RELIGION_ATLAS:0",
+                "name": "Orthodoxy",
+                "pressure": 4
+              },
+              "turns_left": 19
+            }
+          ]
+        }
+      ]
     }
   },
   "ui": {

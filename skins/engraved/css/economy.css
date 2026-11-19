@@ -1,53 +1,87 @@
-/* Economy keeps the ledger and city table independently scrollable. */
-.economy-screen { position: absolute; left: 0; right: 0; top: 48px; bottom: 0; background: rgba(12,10,8,.62); pointer-events: auto; }
-.economy-window { position: absolute; left: 96px; right: 96px; top: 16px; bottom: 132px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-radius: 6px; background: var(--lacquer); color: var(--bone); box-shadow: inset 0 0 0 1px var(--engrave), 0 24px 64px rgba(0,0,0,.5); }
-.economy-head { height: 72px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 24px; box-shadow: inset 0 -1px 0 var(--engrave); }
-.economy-head h1 { font: 500 28px/32px var(--serif); }
-.economy-head button { height: 72px; padding: 0 16px; font-size: 14px; color: var(--bone-3); }
-.economy-head button.economy-active { background: var(--lacquer-2); color: var(--bone); box-shadow: inset 0 -2px 0 var(--brass); }
-.economy-head-facts { margin-left: auto; display: flex; gap: 24px; }
-.economy-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.economy-general { flex: 1; min-height: 0; display: flex; }
-.economy-ledger { width: 340px; flex: none; background: var(--lacquer-0); box-shadow: inset -1px 0 0 var(--engrave); }
-.economy-scroll { overflow-y: auto; scrollbar-width: none; min-height: 0; }
-.economy-ledger-row { width: 100%; height: 28px; padding: 0 20px 0 24px; display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--bone-2); box-shadow: inset 0 -1px 0 rgba(77,64,50,.6); }
-.economy-ledger-row > .economy-value { margin-left: auto; font-weight: 500; color: var(--bone); }
-.economy-ledger-row:hover { background: var(--lacquer-2); }
-.economy-sub { height: 24px; padding-left: 48px; color: var(--bone-3); box-shadow: none; }
-.economy-kpis { padding: 16px 0; }
-.economy-kpis .economy-value { font: 500 28px/32px var(--serif); }
-.economy-kpis .economy-ledger-row { height: 44px; }
-.economy-window h2 { height: 32px; padding: 8px 24px 0; font-size: 13px; color: var(--bone-2); }
-.economy-table { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.economy-horizontal { flex: 1; display: flex; flex-direction: column; overflow-x: auto; scrollbar-width: none; }
-.economy-table-inner { min-width: 1020px; flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.economy-city-row { display: flex; align-items: center; gap: 12px; padding: 0 20px; height: 40px; flex: none; font-size: 13px; }
-.economy-city-row > span, .economy-city-row > div, .economy-city-row > button { width: 52px; flex: none; min-width: 0; text-align: right; }
-.economy-city-row > .economy-cell { display: flex; flex-direction: column; gap: 3px; }
-.economy-city-row > .economy-city-name-cell { width: 160px; }
-.economy-city-row > .economy-order { flex: 1; min-width: 150px; text-align: left; }
-.economy-table-head { height: 36px; font-size: 12px; color: var(--bone-3); box-shadow: inset 0 -1px 0 var(--engrave); }
-.economy-city-list { flex: 1; }
-.economy-city-list .economy-city-row:hover { background: var(--lacquer-2); }
-.economy-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; text-align: left; }
-.economy-cell small, .economy-modifier { font-size: 11px; color: var(--bone-3); }
-.economy-order-line { display: flex; align-items: center; gap: 8px; }
-.economy-order-line .economy-name { flex: 1; }
-.economy-bar { position: relative; height: 4px; background: var(--lacquer-3); }
-.economy-bar > div { position: absolute; top: 0; bottom: 0; left: 0; }
-.economy-food { background: var(--y-food); }
-.economy-forecast { background: var(--y-food); opacity: .45; }
-.economy-production { background: var(--y-prod); }
-.economy-health { background: var(--neg); }
-.economy-health.economy-health-high { background: var(--y-food); }
-.economy-health.economy-health-medium { background: var(--y-gold); }
-.economy-table-head button { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.economy-icon { width: 18px; height: 18px; flex: none; }
-.economy-total { height: 40px; color: var(--bone-2); box-shadow: inset 0 1px 0 var(--engrave); }
-.economy-table footer { padding: 12px 24px; color: var(--bone-3); font-size: 12px; box-shadow: inset 0 1px 0 var(--engrave); }
-.economy-happiness { display: flex; flex: 1; min-height: 0; }
-.economy-happy-col { flex: 1; min-width: 0; box-shadow: inset -1px 0 0 var(--engrave); }
-.economy-section-head { height: 64px; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: inset 0 -1px 0 var(--engrave); }
-.economy-section-head .economy-value { font: 500 28px/32px var(--serif); }
-.economy-tip { width: 300px; padding: 12px 0; background: var(--lacquer); border-radius: 4px; box-shadow: inset 0 0 0 1px var(--engrave); }
-@media (width < 1500px) { .economy-window { left: 24px; right: 24px; bottom: 24px; } .economy-ledger { width: 240px; } .economy-head-facts { gap: 8px; } .economy-head { gap: 8px; } }
+/* Overview windows (economy, military, trade routes, espionage, victory, demographics): the layer, the window geometry,
+   the body layouts and the cells they share; frames, headers, tabs, tables, tags, gauges, scales and facts are the kit's. */
+/* The overview layer is the dim itself (under the top strip); its window sits 32 px lower than in a full-screen frame. */
+.ovl { position: absolute; left: 0; right: 0; top: 32px; bottom: 0; background-color: rgba(12, 10, 8, 0.62); pointer-events: auto; }
+.win.ov .hd > .facts { margin-left: auto; }
+.win.ov { left: 120px; right: 120px; top: 32px; bottom: 24px; }
+.win.ov.w-econ { left: 96px; right: 96px; bottom: 180px; }
+.win.ov.w-mil { left: 260px; right: 260px; }
+.win.ov.w-vic { left: 200px; right: 200px; top: 64px; bottom: 136px; }
+.win.ov.w-trade { left: 120px; right: 120px; top: 64px; bottom: 260px; }
+.win.ov.w-spy { left: 96px; right: 96px; }
+.ec { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ob { flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); }
+.ob.side-l { grid-template-columns: minmax(280px, 340px) 1fr; }
+.ob.side-l-wide { grid-template-columns: minmax(300px, 380px) 1fr; }
+.ob.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+.aside { background-color: var(--lacquer-0); box-shadow: inset -1px 0 0 var(--engrave); }
+.colsep { box-shadow: inset 1px 0 0 var(--engrave); }
+.ob .sect.lg, .scr .sect.lg { padding: 0 20px 6px 24px; }
+
+/* ledger: kit facts rows with a left gutter, sub rows and totals */
+.led .r { width: 100%; min-height: 28px; padding: 0 20px 0 24px; gap: 8px; }
+.led .r.sub { min-height: 24px; padding-left: 48px; }
+.led .r.sub b { font-weight: 400; color: var(--bone-2); }
+.led .r.tot { min-height: 36px; font-size: 14px; box-shadow: inset 0 -1px 0 var(--line-soft); }
+.led .r.tot b { font-size: 16px; }
+.led .r:hover { background-color: var(--lacquer-2); }
+.led .tg, .sect .tg { width: 16px; height: 16px; border-radius: 3px; flex: none; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1px var(--engrave); font: 500 12px/1 var(--sans); color: var(--bone-2); }
+.led .r { align-items: center; }
+.led .r .k { flex: 1; min-width: 0; }
+.led .r.gut { padding-left: 48px; }
+.led .tg.nil { visibility: hidden; }
+
+
+/* big readings */
+.kpi { display: grid; grid-template-columns: 1fr 1fr; padding: 20px 20px 16px 24px; column-gap: 16px; }
+.kpi div { display: flex; flex-direction: column; }
+.kpi span { font-size: 12px; line-height: 16px; color: var(--bone-3); }
+.kpi b { font: 500 28px/32px var(--serif); color: var(--bone); }
+
+/* cells */
+.trow .z { color: var(--bone-3); }
+.nm { font-weight: 500; }
+.small { font-size: 12px; color: var(--bone-3); font-weight: 400; }
+.arr.dn { transform: rotate(180deg); }
+.capi { color: var(--civ-yellow); width: 12px; height: 12px; flex: none; }
+.scale .fill.fc, .gauge .fill.fc { opacity: 0.45; }
+.scale.food .fill { background-color: var(--y-food); }
+.scale.prod .fill { background-color: var(--y-prod); }
+.hn { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 20px 0 24px; font-size: 14px; font-weight: 500; color: var(--bone); flex: none; }
+.hn .cnt { font-weight: 400; font-size: 12px; color: var(--bone-3); }
+
+/* economy */
+.t-city, .t-trade { flex: 1; min-width: 0; }
+.t-city .ti { min-width: 1020px; }
+.t-trade .ti { min-width: 1060px; }
+.hx { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-x: auto; scrollbar-width: none; }
+.ti { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.t-city .thead, .t-city .trow { grid-template-columns: 52px 36px minmax(150px, 230px) 44px 48px 76px 48px 48px 56px 40px 40px minmax(200px, 1fr); }
+.t-city .trow { height: 40px; flex: none; }
+.t-city .trow.total { box-shadow: inset 0 1px 0 var(--engrave); color: var(--bone-2); font-weight: 500; }
+.t-city .trow > .pop { flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; }
+.t-city .pop b { font-weight: 500; font-size: 14px; line-height: 16px; }
+.t-city .trow > .cty { flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; }
+.t-city .cty .l { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.t-city .trow > .ord { flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; padding-right: 2px; text-align: left; }
+.t-city .ord .l { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.t-city .ord .l .ell { flex: 1; }
+.t-city .ord .l .t { font-weight: 500; }
+.t-city .ord:hover .l .ell { text-decoration-line: underline; }
+.t-city .mod { font-size: 11px; color: var(--bone-3); margin-left: 4px; }
+.hpb { width: 64px; }
+.fill.hp-lo { background-color: var(--neg); }
+.fill.hp-md { background-color: var(--y-gold); }
+.fill.hp-hi { background-color: var(--y-food); }
+.tbl .hint { flex: none; padding: 12px 24px; font-size: 12px; color: var(--bone-3); box-shadow: inset 0 1px 0 var(--engrave); }
+
+/* happiness and resources */
+.hap-col { display: flex; flex-direction: column; min-height: 0; }
+.hap-col .hh { display: flex; align-items: baseline; justify-content: space-between; padding: 18px 20px 14px 24px; box-shadow: inset 0 -1px 0 var(--engrave); flex: none; }
+.hap-col .hh .t { font-size: 14px; font-weight: 500; color: var(--bone); }
+.hap-col .hh b { font: 500 28px/32px var(--serif); }
+
+@media (width < 1500px) {
+  .win.ov.w-econ { left: 24px; right: 24px; bottom: 24px; }
+  .ob.side-l { grid-template-columns: 240px 1fr; }
+}

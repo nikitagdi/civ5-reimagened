@@ -1,23 +1,24 @@
-<div class="ideology-screen" data-screen="ideology" data-esc="call policies.escape()" data-part="ideology" data-bind-if="{{ui.windows.ideology.open && ideology != null}}">
-  <section class="ideology-window">
-    <div class="ideology-head"><b class="ideology-title" data-l10n="ideology.title">Choose an ideology</b><span data-bind-value="{{ideology.civ_name}}"></span><button class="ideology-button" data-on-click="intent window.close(window: 'ideology')" data-l10n="ideology.back">Back</button></div>
-    <span class="ideology-reason" data-bind-if="{{ideology.reason != null}}" data-bind-value="{{ideology.reason}}"></span>
-    <div class="ideology-cards">
-      <div class="ideology-card" data-bind-for="o:{{ideology.options}}">
-        <div class="ideology-crest"><img class="ideology-icon" data-bind-src="{{o.icon}}"></div>
-        <b class="ideology-title" data-part="ideology.name" data-bind-value="{{o.name}}"></b>
-        <div class="ideology-victories"><span data-bind-for="v:{{o.victories}}" ><span data-bind-if="{{v.kind == 'culture'}}" data-l10n="ideology.victory.culture">Culture</span><span data-bind-if="{{v.kind == 'diplomacy'}}" data-l10n="ideology.victory.diplomacy">Diplomacy</span><span data-bind-if="{{v.kind == 'domination'}}" data-l10n="ideology.victory.domination">Domination</span><span data-bind-if="{{v.kind == 'science'}}" data-l10n="ideology.victory.science">Science</span></span></div>
-        <div class="ideology-free"><b data-bind-value="{{o.free_tenets}}"></b><span data-l10n="ideology.free">free tenets</span></div>
-        <div class="ideology-adopters"><span data-bind-for="a:{{o.adopted_by}}" data-bind-value="{{a.name}}"></span></div>
-        <button class="ideology-button ideology-choose-control" data-part="ideology.choose" data-bind-disabled="{{!ideology.enabled}}" data-on-click="set state.ideology.confirm = o.id; set state.ideology.name = o.name" data-l10n="ideology.adopt">Adopt</button>
-        <button class="ideology-button" data-part="ideology.details" data-on-click="set state.ideology.details = o.id" data-l10n="ideology.tenets">Tenets</button>
+<div class="wlayer dimmed" data-screen="ideology" data-esc="call policies.escape()" data-part="ideology" data-bind-if="{{ui.windows.ideology.open && ideology != null}}">
+  <section class="win w-xl">
+    <div class="hd"><div class="ttl stack"><span class="kick" data-bind-value="{{ideology.civ_name}}"></span><b data-l10n="ideology.title">Choose an ideology</b></div><div class="close"><span class="key" data-l10n="key.escape">Esc</span><button class="x" data-on-click="intent window.close(window: 'ideology')"><svg class="i"><use href="#i-close"/></svg></button></div></div>
+    <div class="wbd">
+      <span class="why neg" data-bind-if="{{ideology.reason != null}}" data-bind-value="{{ideology.reason}}"></span>
+      <div class="ido-cards">
+        <div class="card ido" data-bind-for="o:{{ideology.options}}">
+          <img class="gi s128 ring" data-bind-src="{{o.icon}}">
+          <b class="ido-nm" data-part="ideology.name" data-bind-value="{{o.name}}"></b>
+          <div class="chips"><span class="tag" data-bind-for="v:{{o.victories}}"><span data-bind-if="{{v.kind == 'culture'}}" data-l10n="ideology.victory.culture">Culture</span><span data-bind-if="{{v.kind == 'diplomacy'}}" data-l10n="ideology.victory.diplomacy">Diplomacy</span><span data-bind-if="{{v.kind == 'domination'}}" data-l10n="ideology.victory.domination">Domination</span><span data-bind-if="{{v.kind == 'science'}}" data-l10n="ideology.victory.science">Science</span></span></div>
+          <div class="ido-free"><b data-bind-value="{{o.free_tenets}}"></b><span data-l10n="ideology.free">free tenets</span></div>
+          <div class="chips"><span class="chip" data-bind-for="a:{{o.adopted_by}}" data-bind-value="{{a.name}}"></span></div>
+          <button class="btn primary c" data-part="ideology.choose" data-bind-disabled="{{!ideology.enabled}}" data-on-click="set state.ideology.confirm = o.id; set state.ideology.name = o.name" data-l10n="ideology.adopt">Adopt</button><button class="btn c" data-part="ideology.details" data-on-click="set state.ideology.details = o.id" data-l10n="ideology.tenets">Tenets</button>
+        </div>
       </div>
     </div>
-    <div class="ideology-overlay" data-bind-if="{{state.ideology.details >= 0}}">
-      <div class="ideology-dialog"><div data-bind-for="o:{{ideology.options}}" data-bind-filter="{{o.id == state.ideology.details}}"><b class="ideology-title" data-bind-value="{{o.name}}"></b>
-        <div class="ideology-level" data-bind-for="l:{{o.levels}}"><button class="ideology-button" data-on-click="set state.ideology.folded = l.level" data-l10n="ideology.level" data-l10n-args="{{l.level}}">Level</button><button class="ideology-button" data-bind-if="{{state.ideology.folded == l.level}}" data-on-click="set state.ideology.folded = 0" data-l10n="ideology.expand">Expand</button><div data-bind-if="{{state.ideology.folded != l.level}}"><div class="ideology-tenet" data-bind-for="t:{{l.tenets}}"><b data-bind-value="{{t.name}}"></b><span data-bind-value="{{t.effect}}"></span></div></div></div>
-      </div><button class="ideology-button" data-on-click="set state.ideology.details = -1" data-l10n="ideology.back">Back</button></div>
+    <div class="wlayer in" data-bind-if="{{state.ideology.details >= 0}}">
+      <div class="win pop w-l ido-det"><div class="wbd"><div class="ido-dl" data-bind-for="o:{{ideology.options}}" data-bind-filter="{{o.id == state.ideology.details}}"><b class="ido-nm" data-bind-value="{{o.name}}"></b>
+        <div class="ido-lv" data-bind-for="l:{{o.levels}}"><button class="sect lg" data-on-click="set state.ideology.folded = state.ideology.folded == l.level ? 0 : l.level" data-l10n="ideology.level" data-l10n-args="{{l.level}}">Level</button><div class="kv" data-bind-if="{{state.ideology.folded != l.level}}"><div class="r ido-t" data-bind-for="t:{{l.tenets}}"><b data-bind-value="{{t.name}}"></b><span data-bind-value="{{t.effect}}"></span></div></div></div>
+      </div></div><div class="wft"><button class="btn c" data-on-click="set state.ideology.details = -1" data-l10n="ideology.back">Back</button></div></div>
     </div>
-    <div class="ideology-overlay" data-bind-if="{{state.ideology.confirm >= 0 && state.ideology.details < 0}}"><div class="ideology-dialog"><b class="ideology-title" data-l10n="ideology.confirm" data-l10n-args="{{state.ideology.name}}">Adopt ideology?</b><button class="ideology-button ideology-confirm-control" data-part="ideology.confirm" data-bind-hotkey="'Enter'" data-on-click="intent screen.act(screen: 'ideology', action: 'choose', a: state.ideology.confirm); set state.ideology.confirm = -1" data-l10n="ideology.adopt">Adopt</button><button class="ideology-button" data-on-click="set state.ideology.confirm = -1" data-l10n="ideology.back">Back</button></div></div>
+    <div class="wlayer in" data-bind-if="{{state.ideology.confirm >= 0 && state.ideology.details < 0}}"><div class="win pop w-s"><div class="hd"><div class="ttl"><b data-l10n="ideology.confirm" data-l10n-args="{{state.ideology.name}}">Adopt ideology?</b></div></div><div class="wft"><button class="btn c" data-on-click="set state.ideology.confirm = -1" data-l10n="ideology.back">Back</button><button class="btn primary c" data-part="ideology.confirm" data-bind-hotkey="'Enter'" data-on-click="intent screen.act(screen: 'ideology', action: 'choose', a: state.ideology.confirm); set state.ideology.confirm = -1"><span data-l10n="ideology.adopt">Adopt</span><span class="key" data-hotkey-label>Enter</span></button></div></div></div>
   </section>
 </div>

@@ -1,36 +1,13 @@
-/* SIMPLIFIED(SIMP-366): secondary emblems, color chips and decorative chrome are reduced where asset mappings are unverified. */
-.ideology-screen { position: absolute; inset: 48px 0 0; padding: 24px; display: flex; justify-content: center; align-items: center; background: rgba(12,10,8,.6); }
-.ideology-window { position: relative; width: 100%; max-width: 1320px; max-height: 100%; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 20px; background: var(--lacquer); color: var(--bone); border: 1px solid var(--engrave); border-radius: 4px; }
-.ideology-head { display: flex; align-items: center; gap: 24px; padding: 24px; border-bottom: 1px solid var(--engrave); }
-.ideology-title { font: 500 28px/32px var(--serif); }
-.ideology-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; padding: 0 24px 24px; }
-.ideology-card { min-width: 0; display: flex; flex-direction: column; gap: 24px; padding: 24px; border: 1px solid var(--engrave); background: var(--lacquer-0); }
-.ideology-card:hover { border-color: var(--brass); }
-.ideology-crest { height: 120px; display: flex; align-items: center; justify-content: center; background: var(--lacquer-2); }
-.ideology-icon { width: 96px; height: 96px; border: 1px solid var(--engrave); border-radius: 50%; }
-.ideology-card b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ideology-victories { display: flex; flex-wrap: wrap; gap: 12px; color: var(--bone-2); }
-.ideology-free { display: flex; gap: 12px; color: var(--y-cult); }
-.ideology-adopters { display: flex; flex-wrap: wrap; gap: 12px; min-height: 72px; }
-.ideology-button { display: block; padding: 10px 16px; background: var(--lacquer-2); color: var(--bone); border: 1px solid var(--engrave); border-radius: 4px; }
-.ideology-button:hover { border-color: var(--brass); }
-.ideology-button:disabled { color: var(--bone-3); }
-.ideology-reason { padding: 0 24px; color: var(--neg); }
-.ideology-overlay { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; background: rgba(12,10,8,.75); }
-.ideology-dialog { width: 720px; max-height: 90%; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 16px; padding: 24px; background: var(--lacquer); border: 1px solid var(--engrave); }
-.ideology-level { padding: 12px 0; }
-.ideology-tenet { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-bottom: 1px solid var(--engrave); }
-
-.ideology-screen { pointer-events: auto; }
-
-.ideology-head { padding: 16px 24px; }
-.ideology-head > button { margin-left: auto; }
-.ideology-cards { gap: 16px; padding: 0 20px 20px; }
-.ideology-card { padding: 16px; gap: 12px; }
-.ideology-crest { height: 140px; }
-.ideology-adopters { min-height: 40px; font-size: 13px; }
-.ideology-victories { font-size: 12px; gap: 8px; }
-.ideology-victories > span { padding: 3px 6px; border: 1px solid var(--engrave); }
-.ideology-card .ideology-choose-control, .ideology-dialog .ideology-confirm-control { background: var(--brass); color: var(--brass-ink); }
-.ideology-button:disabled { opacity: .5; }
-@media (height < 900px) { .ideology-window { gap: 12px; } .ideology-crest { height: 100px; } .ideology-icon { width: 72px; height: 72px; } }
+/* ideology: three cards, the tenets and the confirm overlays; the frame, cards, tags, chips and buttons are the kit's */
+.ido-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ido { align-items: center; gap: 14px; padding: 24px 20px 20px; }
+.ido .ring { border-radius: 64px; box-shadow: 0 0 0 8px var(--lacquer-0), 0 0 0 9px var(--engrave); margin: 8px; }
+.ido-nm { font: 500 26px/32px var(--serif); }
+.ido .btn { align-self: stretch; }
+.ido-free { display: flex; align-items: baseline; gap: 6px; font-size: 13px; color: var(--bone-2); }
+.ido-free b { font-size: 18px; color: var(--bone); }
+.ido .chips { justify-content: center; }
+.ido-dl { display: flex; flex-direction: column; gap: 12px; }
+.ido-lv { display: flex; flex-direction: column; gap: 4px; }
+.ido-t { flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 0; }
+.ido-t span { font-size: 12px; line-height: 16px; }

@@ -1,377 +1,220 @@
 <div class="city-screen" data-part="city" data-screen="city" data-bind-if="{{ui.windows.city.open}}">
   <span class="city-loading" data-bind-if="{{city == null}}" data-l10n="city.loading">Loading city</span>
-  <div data-bind-if="{{city != null}}">
-    <header class="city-head">
-      <button class="city-nav" data-hotkey="ArrowLeft" data-bind-disabled="{{!city.can_cycle}}" data-on-click="set state.city.sell = -1; intent window.open(window: 'city', a: city.prev_city, b: 0)" data-l10n="city.previous">Previous</button>
-      <div class="city-title">
-        <span class="city-name" data-part="city.name" data-bind-value="{{city.name}}"></span>
-        <span class="city-defense">
-          <svg class="i">
-            <use href="#i-str"/>
-          </svg>
-          <b data-bind-value="{{city.strength}}"></b>
-        </span>
-        <div class="city-status">
-          <span data-bind-if="{{city.hp < city.max_hp}}" data-bind-value="{{city.hp}}"></span>
-          <span data-bind-for="s:{{city.status}}" data-bind-value="{{s.text}}"></span>
-          <span data-bind-if="{{city.demand != null}}" data-bind-value="{{city.demand.text}}"></span>
+  <div class="cv" data-bind-if="{{city != null}}">
+    <header class="plate cv-head">
+      <button class="cv-nav" data-hotkey="ArrowLeft" data-bind-disabled="{{!city.can_cycle}}" data-on-click="set state.city.sell = -1; intent window.open(window: 'city', a: city.prev_city, b: 0)"><svg class="i"><use href="#i-left"/></svg></button>
+      <div class="cv-title">
+        <div class="cv-name">
+          <img class="gi s32" data-bind-src="{{city.civ}}">
+          <b data-part="city.name" data-bind-value="{{city.name}}"></b>
+          <svg class="i fill cv-cap" data-bind-if="{{city.capital}}"><use href="#i-star"/></svg>
+          <button class="ibtn sm" data-part="city.rename" data-bind-disabled="{{!city.can_rename}}" data-on-click="intent window.open(window: 'city_rename', a: city.city, b: 0)"><svg class="i"><use href="#i-pencil"/></svg></button>
+        </div>
+        <div class="cv-sub">
+          <span class="yv"><img class="gi" data-asset="font:ICON_STRENGTH"><span data-bind-value="{{city.strength}}"></span></span>
+          <span class="tag neg" data-bind-if="{{city.hp < city.max_hp}}" data-l10n="prod.stored" data-l10n-args="{{city.hp}}, {{city.max_hp}}"></span>
+          <span class="chip" data-bind-for="s:{{city.status}}"><span data-bind-value="{{s.text}}"></span><b data-bind-if="{{s.turns != null}}" data-l10n="top.turns" data-l10n-args="{{s.turns}}"></b></span>
+          <span class="chip" data-bind-if="{{city.demand != null}}"><img class="gi s16" data-bind-if="{{city.demand.icon != null}}" data-bind-src="{{city.demand.icon}}"><span data-bind-value="{{city.demand.text}}"></span><b data-bind-if="{{city.demand.kind == 'wltkd'}}" data-l10n="top.turns" data-l10n-args="{{city.demand.turns}}"></b></span>
         </div>
       </div>
-      <button data-part="city.rename" data-bind-disabled="{{!city.can_rename}}" data-on-click="intent window.open(window: 'city_rename', a: city.city, b: 0)" data-l10n="city.rename">Rename</button>
-      <button class="city-nav" data-hotkey="ArrowRight" data-bind-disabled="{{!city.can_cycle}}" data-on-click="set state.city.sell = -1; intent window.open(window: 'city', a: city.next_city, b: 0)" data-l10n="city.next">Next</button>
+      <button class="cv-nav" data-hotkey="ArrowRight" data-bind-disabled="{{!city.can_cycle}}" data-on-click="set state.city.sell = -1; intent window.open(window: 'city', a: city.next_city, b: 0)"><svg class="i"><use href="#i-right"/></svg></button>
     </header>
     <!-- SIMPLIFIED(SIMP-359): Catalog/building groups omit collapsing and segmented forecasts; foreign-city inspection and full yield/GP previews remain follow-up work. -->
-    <aside class="city-side city-left">
-      <div class="city-section city-line">
+    <aside class="plate br cv-side cv-left">
+      <div class="cv-ph">
         <b data-l10n="city.production">Production</b>
-        <button data-part="city.choose-production" data-bind-disabled="{{city.view_only}}" data-on-click="intent window.open(window: 'production', city: city.map_city)" data-l10n="banner.choose">Choose production</button>
-        <span class="city-rate" data-l10n="city.per_turn" data-l10n-args="{{fmt.signed(city.production.rate)}}"></span>
+        <span class="cv-rate cv-end" data-l10n="city.per_turn" data-l10n-args="{{fmt.signed(city.production.rate)}}"></span>
       </div>
-      <div class="city-current" data-bind-if="{{city.production.current != null}}">
-        <img class="city-current-icon" data-bind-src="{{city.production.current.icon}}">
-        <b data-part="city.current" data-bind-value="{{city.production.current.name}}"></b>
-        <div class="city-bar">
-          <i data-bind-style-width="{{city.production.current.needed > 0 ? min(100, city.production.current.stored / city.production.current.needed * 100) : 0}}%">
-          </i>
+      <div class="cv-now" data-bind-if="{{city.production.current != null}}">
+        <img class="gi s64 round" data-bind-src="{{city.production.current.icon}}">
+        <div class="cv-nb">
+          <div class="cv-l1"><b data-part="city.current" data-bind-value="{{city.production.current.name}}"></b><span class="cv-end" data-bind-if="{{city.production.current.turns != null}}" data-l10n="top.turns" data-l10n-args="{{city.production.current.turns}}"></span></div>
+          <div class="scale t prod">
+            <div class="fill nx" data-bind-style-width="{{city.production.current.needed > 0 ? clamp((city.production.current.stored + city.production.rate) / city.production.current.needed, 0, 1) * 100 : 0}}%"></div>
+            <div class="fill" data-bind-style-width="{{city.production.current.needed > 0 ? clamp(city.production.current.stored / city.production.current.needed, 0, 1) * 100 : 0}}%"></div>
+            <div class="ticks" data-bind-if="{{city.production.current.needed > 0 && city.production.rate > 0}}" data-bind-style-background-size="{{100 * city.production.rate / city.production.current.needed}}% 100%"></div>
+          </div>
+          <div class="cv-marks" data-l10n="prod.stored" data-l10n-args="{{city.production.current.stored}}, {{city.production.current.needed}}"></div>
+          <div class="cv-mini"><span data-l10n="city.overflow">Overflow</span><b data-bind-value="{{city.production.overflow}}"></b><span data-l10n="city.chop">Chopping</span><b data-bind-value="{{city.production.chop}}"></b></div>
         </div>
-        <div class="city-line">
-          <span data-l10n="prod.stored" data-l10n-args="{{city.production.current.stored}}, {{city.production.current.needed}}"></span>
-          <span data-bind-if="{{city.production.current.turns != null}}" data-l10n="top.turns" data-l10n-args="{{city.production.current.turns}}"></span>
-        </div>
       </div>
-      <div class="city-section city-warning" data-bind-if="{{city.production.current == null}}" data-l10n="prod.nothing">Choose production</div>
-      <div class="city-line city-section">
-        <span data-l10n="city.overflow">Overflow</span>
-        <span data-bind-value="{{city.production.overflow}}"></span>
-        <span data-l10n="city.chop">Chopping</span>
-        <span data-bind-value="{{city.production.chop}}"></span>
+      <div class="cv-none" data-bind-if="{{city.production.current == null}}">
+        <span class="why neg" data-l10n="prod.nothing">Choose production</span>
+        <button class="btn sm" data-part="city.choose-production" data-bind-disabled="{{city.view_only}}" data-on-click="intent window.open(window: 'production', city: city.map_city)" data-l10n="banner.choose">Choose production</button>
       </div>
-      <div class="city-section city-line">
-        <b data-l10n="prod.queue">Queue</b>
-        <span data-bind-value="{{len(city.production.queue)}}"></span>
-        <span class="city-column-turns" data-l10n="prod.turns_head">Turns</span>
-      </div>
-      <div class="city-queue">
-        <div class="city-line" data-bind-for="q:{{city.production.queue}}">
-          <img class="city-item-icon" data-bind-src="{{q.icon}}">
-          <span class="city-ellipsis" data-part="city.queue" data-bind-value="{{q.name}}"></span>
-          <span data-bind-if="{{q.turns != null}}" data-l10n="top.turns" data-l10n-args="{{q.turns}}"></span>
-          <span data-bind-if="{{q.repeat}}" data-l10n="city.repeating">Repeat</span>
+      <div class="cv-q">
+        <div class="cv-qh"><span data-l10n="prod.queue">Queue</span><b data-bind-value="{{len(city.production.queue)}}"></b><span class="cv-end" data-l10n="prod.turns_head">Turns</span></div>
+        <div class="lrow cv-qi" data-bind-for="q:{{city.production.queue}}" data-bind-class-toggle="cv-after:{{q.after_repeat}}">
+          <span class="cv-n" data-bind-value="{{q.number}}"></span>
+          <img class="gi s24" data-bind-src="{{q.icon}}">
+          <span class="ell cv-nm" data-part="city.queue" data-bind-value="{{q.name}}"></span>
+          <svg class="i" data-bind-if="{{q.repeat}}"><use href="#i-repeat"/></svg>
+          <span class="cv-t" data-bind-value="{{q.turns}}"></span>
           <!-- SIMPLIFIED(SIMP-353): Explicit queue controls replace dragging and modifier shortcuts in the city production list. -->
-          <button data-part="city.queue-up" data-bind-disabled="{{city.view_only || !city.my_turn || q.slot == 0}}" data-on-click="intent screen.act(screen: 'city', action: 'move_order', a: q.slot, b: q.slot - 1, d: city.city)" data-l10n="city.up">Up</button>
-          <button data-bind-disabled="{{city.view_only || !city.my_turn || q.slot == len(city.production.queue) - 1}}" data-on-click="intent screen.act(screen: 'city', action: 'move_order', a: q.slot, b: q.slot + 1, d: city.city)" data-l10n="city.down">Down</button>
-          <button data-part="city.queue-remove" data-bind-disabled="{{city.view_only || !city.my_turn}}" data-on-click="intent screen.act(screen: 'city', action: 'pop_order', a: q.slot, d: city.city)" data-l10n="city.remove">Remove</button>
+          <button class="x sm" data-part="city.queue-up" data-bind-disabled="{{city.view_only || !city.my_turn || q.slot == 0}}" data-on-click="intent screen.act(screen: 'city', action: 'move_order', a: q.slot, b: q.slot - 1, d: city.city)"><svg class="i"><use href="#i-grow-up"/></svg></button>
+          <button class="x sm" data-bind-disabled="{{city.view_only || !city.my_turn || q.slot == len(city.production.queue) - 1}}" data-on-click="intent screen.act(screen: 'city', action: 'move_order', a: q.slot, b: q.slot + 1, d: city.city)"><svg class="i"><use href="#i-grow-down"/></svg></button>
+          <button class="x sm" data-part="city.queue-remove" data-bind-disabled="{{city.view_only || !city.my_turn}}" data-on-click="intent screen.act(screen: 'city', action: 'pop_order', a: q.slot, d: city.city)"><svg class="i"><use href="#i-close"/></svg></button>
         </div>
       </div>
-      <div class="city-section city-line">
+      <div class="cv-ch">
         <b data-l10n="city.add">Add to queue</b>
-        <button data-on-click="intent window.open(window: 'production', city: city.map_city)" data-l10n="city.details">Details</button>
+        <button class="btn sm cv-end" data-on-click="intent window.open(window: 'production', city: city.map_city)" data-l10n="city.details">Details</button>
       </div>
-      <div class="city-line city-modes">
-        <button data-bind-class-toggle="city-selected:{{state.city.queue_mode == 0}}" data-on-click="set state.city.queue_mode = 0" data-l10n="city.append">Append</button>
-        <button data-bind-class-toggle="city-selected:{{state.city.queue_mode == 1}}" data-on-click="set state.city.queue_mode = 1" data-l10n="city.front">To front</button>
-        <button data-bind-class-toggle="city-selected:{{state.city.queue_mode == 2}}" data-on-click="set state.city.queue_mode = 2" data-l10n="city.replace">Replace</button>
-        <button data-on-click="set state.city.repeat_order = !state.city.repeat_order" data-bind-class-toggle="city-selected:{{state.city.repeat_order}}" data-l10n="city.repeating">Repeat</button>
+      <div class="cv-modes">
+        <div class="seg">
+          <button class="o" data-bind-class-toggle="on:{{state.city.queue_mode == 0}}" data-on-click="set state.city.queue_mode = 0" data-l10n="city.append">Append</button>
+          <button class="o" data-bind-class-toggle="on:{{state.city.queue_mode == 1}}" data-on-click="set state.city.queue_mode = 1" data-l10n="city.front">To front</button>
+          <button class="o" data-bind-class-toggle="on:{{state.city.queue_mode == 2}}" data-on-click="set state.city.queue_mode = 2" data-l10n="city.replace">Replace</button>
+        </div>
+        <button class="opt" data-bind-class-toggle="on:{{state.city.repeat_order}}" data-on-click="set state.city.repeat_order = !state.city.repeat_order"><span class="chk"><svg class="i"><use href="#i-check"/></svg></span><span data-l10n="city.repeating">Repeat</span></button>
       </div>
-      <div class="city-catalog-head">
+      <div class="cv-cols cv-colh">
+        <span></span>
         <span data-l10n="prod.col.item">Item</span>
-        <span data-l10n="prod.col.turns">Turns</span>
-        <span data-l10n="city.gold">Gold</span>
-        <span data-l10n="city.faith">Faith</span>
+        <span class="r" data-l10n="prod.col.turns">Turns</span>
+        <span class="r" data-l10n="city.gold">Gold</span>
+        <span class="r" data-l10n="city.faith">Faith</span>
       </div>
-      <div class="city-scroll" data-part="city.scroll">
-        <div class="city-group" data-bind-for="g:{{city.production.groups}}">
-          <b class="city-section">
-            <span data-bind-if="{{g.kind == 'unit'}}" data-l10n="city.group.unit">Units</span>
-            <span data-bind-if="{{g.kind == 'building'}}" data-l10n="city.group.building">Buildings</span>
-            <span data-bind-if="{{g.kind == 'wonder_project'}}" data-l10n="city.group.wonder_project">Wonders and projects</span>
-            <span data-bind-if="{{g.kind == 'process'}}" data-l10n="city.group.process">Processes</span>
-          </b>
-          <div class="city-option" data-bind-for="o:{{g.options}}" data-tooltip="city-tip" data-on-pointerenter="set state.city.hover = o.item; set state.city.hover_kind = 'option'">
-            <img class="city-item-icon" data-bind-src="{{o.icon}}">
-            <button class="city-ellipsis city-option-name" data-part="city.option" data-bind-disabled="{{!o.can_build}}" data-on-click="call city.push(o.item)" data-bind-value="{{o.name}}">
-            </button>
-            <span data-bind-value="{{o.turns}}"></span>
-            <button class="city-gold" data-bind-class-toggle="city-short:{{o.gold_state == 'short'}}" data-bind-if="{{o.buy_gold != null}}" data-bind-disabled="{{o.gold_state != 'ok'}}" data-on-click="intent screen.act(screen: 'city', action: 'purchase', a: o.item, b: 0, d: city.city)">
-              <span data-bind-value="{{o.buy_gold}}"></span>
-              <svg class="i">
-                <use href="#i-gold"/>
-              </svg>
-            </button>
-            <button class="city-faith" data-bind-class-toggle="city-short:{{o.faith_state == 'short'}}" data-bind-if="{{o.buy_faith != null}}" data-bind-disabled="{{o.faith_state != 'ok'}}" data-on-click="intent screen.act(screen: 'city', action: 'purchase', a: o.item, b: 1, d: city.city)">
-              <span data-bind-value="{{o.buy_faith}}"></span>
-              <svg class="i">
-                <use href="#i-faith"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-        <span class="city-warning" data-bind-value="{{city.disabled_reason}}"></span>
-        <div class="city-line" data-bind-for="a:{{city.annex_preview}}">
-          <span data-bind-value="{{a.label}}"></span>
-          <span data-bind-value="{{a.value}}"></span>
-        </div>
-      </div>
-      <div class="city-section city-line">
-        <span data-l10n="city.gold">Gold</span>
-        <span data-bind-value="{{city.treasury.gold}}"></span>
-        <span data-l10n="city.faith">Faith</span>
-        <span data-bind-value="{{city.treasury.faith}}"></span>
-      </div>
-    </aside>
-    <aside class="city-side city-right">
-      <div class="city-section city-line">
-        <b class="city-population" data-bind-value="{{city.population}}"></b>
-        <span data-bind-value="{{city.population_label}}"></span>
-        <span data-bind-if="{{city.food.state == 'growing'}}" data-l10n="city.growth.growing" data-l10n-args="{{city.food.turns}}"></span>
-        <span data-bind-if="{{city.food.state == 'stagnant'}}" data-l10n="city.growth.stagnant"></span>
-        <span data-bind-if="{{city.food.state == 'starving'}}" data-l10n="city.growth.starving" data-l10n-args="{{city.food.turns}}"></span>
-      </div>
-      <div class="city-bar city-food">
-        <i data-bind-style-width="{{city.food.threshold > 0 ? min(100, city.food.stored / city.food.threshold * 100) : 0}}%">
-        </i>
-      </div>
-      <div class="city-food-detail">
-        <span data-l10n="prod.stored" data-l10n-args="{{city.food.stored}}, {{city.food.threshold}}"></span>
-        <span data-bind-value="{{fmt.signed(city.food.net)}}"></span>
-        <span data-l10n="city.yield.food">Food</span>
-      </div>
-      <div class="city-income" data-part="city.yields">
-        <div class="city-yield" data-bind-for="y:{{city.yields}}" data-tooltip="city-yield-tip" data-on-pointerenter="set state.city.hover_yield = y.key">
-          <div class="city-line">
-            <svg class="i city-yield-food" data-bind-if="{{y.key == 'food'}}">
-              <use href="#i-food"/>
-            </svg>
-            <svg class="i city-yield-production" data-bind-if="{{y.key == 'production'}}">
-              <use href="#i-prod"/>
-            </svg>
-            <svg class="i city-yield-gold" data-bind-if="{{y.key == 'gold'}}">
-              <use href="#i-gold"/>
-            </svg>
-            <svg class="i city-yield-science" data-bind-if="{{y.key == 'science'}}">
-              <use href="#i-sci"/>
-            </svg>
-            <svg class="i city-yield-culture" data-bind-if="{{y.key == 'culture'}}">
-              <use href="#i-cult"/>
-            </svg>
-            <svg class="i city-yield-faith" data-bind-if="{{y.key == 'faith'}}">
-              <use href="#i-faith"/>
-            </svg>
-            <svg class="i city-yield-tourism" data-bind-if="{{y.key == 'tourism'}}">
-              <use href="#i-tour"/>
-            </svg>
-            <svg class="i city-yield-golden_age" data-bind-if="{{y.key == 'golden_age'}}">
-              <use href="#i-happy"/>
-            </svg>
-            <b data-bind-value="{{fmt.signed(y.value)}}"></b>
-          </div>
-          <span data-bind-if="{{y.key == 'food'}}" data-l10n="city.yield.food">Food</span>
-          <span data-bind-if="{{y.key == 'production'}}" data-l10n="city.yield.production">Production</span>
-          <span data-bind-if="{{y.key == 'gold'}}" data-l10n="city.yield.gold">Gold</span>
-          <span data-bind-if="{{y.key == 'science'}}" data-l10n="city.yield.science">Science</span>
-          <span data-bind-if="{{y.key == 'culture'}}" data-l10n="city.yield.culture">Culture</span>
-          <span data-bind-if="{{y.key == 'faith'}}" data-l10n="city.yield.faith">Faith</span>
-          <span data-bind-if="{{y.key == 'tourism'}}" data-l10n="city.yield.tourism">Tourism</span>
-          <span data-bind-if="{{y.key == 'golden_age'}}" data-l10n="city.yield.golden_age">Golden Age</span>
-        </div>
-      </div>
-      <div class="city-section city-line">
-        <span data-l10n="city.border">Border growth</span>
-        <span data-l10n="prod.stored" data-l10n-args="{{city.border.stored}}, {{city.border.threshold}}"></span>
-      </div>
-      <div class="city-bar city-culture">
-        <i data-bind-style-width="{{min(100, city.border.stored / max(1, city.border.threshold) * 100)}}%">
-        </i>
-      </div>
-      <div class="city-section city-line">
-        <b data-l10n="city.focus">Citizen focus</b>
-        <button data-bind-disabled="{{!city.can_reset_tiles}}" data-on-click="intent screen.act(screen: 'city', action: 'reset_tiles', d: city.city)" data-l10n="city.reset">Reset tiles</button>
-      </div>
-      <div class="city-focus">
-        <button data-part="city.focus" data-bind-for="f:{{city.focus_options}}" data-bind-disabled="{{!f.enabled}}" data-bind-class-toggle="city-selected:{{city.focus == f.key}}" data-tooltip="city-tip" data-on-pointerenter="set state.city.hover = f.id; set state.city.hover_kind = 'focus'" data-on-click="intent screen.act(screen: 'city', action: 'set_focus', a: f.id, d: city.city)">
-          <span data-bind-if="{{f.key == 'default'}}" data-l10n="city.focus.default">Default focus</span>
-          <span data-bind-if="{{f.key == 'food'}}" data-l10n="city.focus.food">Food</span>
-          <span data-bind-if="{{f.key == 'production'}}" data-l10n="city.focus.production">Production</span>
-          <span data-bind-if="{{f.key == 'gold'}}" data-l10n="city.focus.gold">Gold</span>
-          <span data-bind-if="{{f.key == 'science'}}" data-l10n="city.focus.science">Science</span>
-          <span data-bind-if="{{f.key == 'culture'}}" data-l10n="city.focus.culture">Culture</span>
-          <span data-bind-if="{{f.key == 'faith'}}" data-l10n="city.focus.faith">Faith</span>
-          <span data-bind-if="{{f.key == 'golden_age'}}" data-l10n="city.focus.golden_age">Golden Age</span>
-          <span data-bind-if="{{f.key == 'great_people'}}" data-l10n="city.focus.great_people">Great People</span>
-        </button>
-      </div>
-      <div class="city-line city-section">
-        <button data-bind-disabled="{{city.view_only || !city.my_turn}}" data-bind-class-toggle="city-selected:{{city.avoid_growth}}" data-on-click="intent screen.act(screen: 'city', action: 'avoid_growth', a: city.avoid_growth ? 0 : 1, d: city.city)" data-l10n="city.avoid">Avoid growth</button>
-        <button data-bind-disabled="{{city.view_only || !city.my_turn}}" data-bind-class-toggle="city-selected:{{city.manual_specialists}}" data-on-click="intent screen.act(screen: 'city', action: 'manual_specialists', a: city.manual_specialists ? 0 : 1, d: city.city)" data-l10n="city.manual">Manual specialists</button>
-      </div>
-      <div class="city-scroll">
-        <div class="city-section" data-bind-for="p:{{city.great_people}}" data-tooltip="city-gp-tip" data-on-pointerenter="set state.city.hover_yield = p.key">
-          <div class="city-line">
-            <img class="city-item-icon" data-bind-src="{{p.icon}}">
-            <b data-bind-value="{{p.name}}"></b>
-            <span data-l10n="prod.stored" data-l10n-args="{{p.progress}}, {{p.threshold}}"></span>
-            <span data-bind-if="{{p.turns != null}}" data-l10n="top.turns" data-l10n-args="{{p.turns}}"></span>
-          </div>
-          <div class="city-bar city-science">
-            <i data-bind-style-width="{{min(100, p.progress / max(1, p.threshold) * 100)}}%">
-            </i>
-          </div>
-        </div>
-        <div class="city-section city-line">
-          <span data-l10n="city.unemployed">Unemployed</span>
-          <span data-bind-value="{{city.unemployed}}"></span>
-          <button data-bind-disabled="{{city.view_only || !city.my_turn || city.unemployed == 0}}" data-on-click="intent screen.act(screen: 'city', action: 'unemployed_to_work', a: 0, d: city.city)" data-l10n="city.work">Put to work</button>
-        </div>
-        <div class="city-group" data-bind-for="g:{{city.building_groups}}">
-          <div class="city-section city-line">
-            <b >
-              <span data-bind-if="{{g.key == 'specialist'}}" data-l10n="city.building.specialist">Specialist buildings</span>
-              <span data-bind-if="{{g.key == 'great_work'}}" data-l10n="city.building.great_work">Great Work buildings</span>
-              <span data-bind-if="{{g.key == 'wonder'}}" data-l10n="city.building.wonder">Wonders</span>
-              <span data-bind-if="{{g.key == 'other'}}" data-l10n="city.building.other">Other buildings</span>
-            </b>
+      <div class="scr" data-part="city.scroll">
+        <div class="cv-grp" data-bind-for="g:{{city.production.groups}}">
+          <div class="sect cv-gh">
+            <b data-bind-value="{{g.kind == 'unit' ? loc('city.group.unit') : g.kind == 'building' ? loc('city.group.building') : g.kind == 'process' ? loc('city.group.process') : loc('city.group.wonder_project')}}"></b>
             <span data-bind-value="{{g.count}}"></span>
-            <span class="city-upkeep" data-l10n="city.upkeep" data-l10n-args="{{g.maintenance}}"></span>
+            <span class="rule"></span>
           </div>
-          <div class="city-building" data-bind-for="b:{{g.buildings}}" data-tooltip="city-tip" data-on-pointerenter="set state.city.hover = b.id; set state.city.hover_kind = 'building'">
-            <div class="city-line">
-              <img class="city-item-icon" data-bind-src="{{b.icon}}">
-              <span class="city-ellipsis" data-bind-value="{{b.name}}"></span>
-              <span class="city-upkeep" data-l10n="city.upkeep" data-l10n-args="{{b.maintenance}}"></span>
-              <button data-bind-if="{{b.can_sell}}" data-on-click="set state.city.sell = b.id" data-l10n="city.sell">Sell</button>
-              <span data-bind-value="{{b.sell_refund}}"></span>
-            </div>
-            <div class="city-building-yields">
-              <span class="city-mini-yield" data-bind-for="y:{{b.yields}}">
-                <svg class="i city-yield-food" data-bind-if="{{y.key == 'food'}}">
-                  <use href="#i-food"/>
-                </svg>
-                <svg class="i city-yield-production" data-bind-if="{{y.key == 'production'}}">
-                  <use href="#i-prod"/>
-                </svg>
-                <svg class="i city-yield-gold" data-bind-if="{{y.key == 'gold'}}">
-                  <use href="#i-gold"/>
-                </svg>
-                <svg class="i city-yield-science" data-bind-if="{{y.key == 'science'}}">
-                  <use href="#i-sci"/>
-                </svg>
-                <svg class="i city-yield-culture" data-bind-if="{{y.key == 'culture'}}">
-                  <use href="#i-cult"/>
-                </svg>
-                <svg class="i city-yield-faith" data-bind-if="{{y.key == 'faith'}}">
-                  <use href="#i-faith"/>
-                </svg>
-                <svg class="i city-yield-tourism" data-bind-if="{{y.key == 'tourism'}}">
-                  <use href="#i-tour"/>
-                </svg>
-                <svg class="i city-yield-golden_age" data-bind-if="{{y.key == 'golden_age'}}">
-                  <use href="#i-happy"/>
-                </svg>
-                <b data-bind-value="{{fmt.signed(y.value)}}"></b>
-                <span data-bind-if="{{y.key == 'food'}}" data-l10n="city.yield.food">Food</span>
-                <span data-bind-if="{{y.key == 'production'}}" data-l10n="city.yield.production">Production</span>
-                <span data-bind-if="{{y.key == 'gold'}}" data-l10n="city.yield.gold">Gold</span>
-                <span data-bind-if="{{y.key == 'science'}}" data-l10n="city.yield.science">Science</span>
-                <span data-bind-if="{{y.key == 'culture'}}" data-l10n="city.yield.culture">Culture</span>
-                <span data-bind-if="{{y.key == 'faith'}}" data-l10n="city.yield.faith">Faith</span>
-                <span data-bind-if="{{y.key == 'tourism'}}" data-l10n="city.yield.tourism">Tourism</span>
-                <span data-bind-if="{{y.key == 'golden_age'}}" data-l10n="city.yield.golden_age">Golden Age</span></span>
-            </div>
+          <div class="lrow cv-cols cv-opt" data-bind-for="o:{{g.options}}" data-bind-class-toggle="dis:{{!o.can_build}}" data-tooltip="city-tip" data-on-pointerenter="set state.city.hover = o.item; set state.city.hover_kind = 'option'">
+            <img class="gi s24" data-bind-src="{{o.icon}}">
+            <button class="ell cv-nm" data-part="city.option" data-bind-disabled="{{!o.can_build}}" data-on-click="call city.push(o.item)" data-bind-value="{{o.name}}"></button>
+            <span class="r cv-t" data-bind-value="{{o.turns}}"></span>
+            <button class="r cv-buy" data-bind-class-toggle="short:{{o.gold_state == 'short'}}" data-bind-if="{{o.buy_gold != null}}" data-bind-disabled="{{o.gold_state != 'ok'}}" data-on-click="intent screen.act(screen: 'city', action: 'purchase', a: o.item, b: 0, d: city.city)"><em data-bind-if="{{o.gold_state == 'short' && o.gold_short != null}}" data-bind-value="{{fmt.signed(0 - o.gold_short)}}"></em><span data-bind-value="{{o.buy_gold}}"></span><img class="gi s16" data-asset="font:ICON_GOLD"></button>
+            <span data-bind-if="{{o.buy_gold == null}}"></span>
+            <button class="r cv-buy" data-bind-class-toggle="short:{{o.faith_state == 'short'}}" data-bind-if="{{o.buy_faith != null}}" data-bind-disabled="{{o.faith_state != 'ok'}}" data-on-click="intent screen.act(screen: 'city', action: 'purchase', a: o.item, b: 1, d: city.city)"><em data-bind-if="{{o.faith_state == 'short' && o.faith_short != null}}" data-bind-value="{{fmt.signed(0 - o.faith_short)}}"></em><span data-bind-value="{{o.buy_faith}}"></span><img class="gi s16" data-asset="font:ICON_PEACE"></button>
+          </div>
+        </div>
+        <span class="why cv-pad" data-bind-value="{{city.disabled_reason}}"></span>
+        <div class="kv cv-pad">
+          <div class="r" data-bind-for="a:{{city.annex_preview}}"><span class="k" data-bind-value="{{a.label}}"></span><b data-bind-class-toggle="neg:{{a.tone == 'negative'}}" data-bind-value="{{a.value}}"></b></div>
+        </div>
+      </div>
+      <div class="cv-mods">
+        <span class="yv cv-end"><img class="gi" data-asset="font:ICON_GOLD"><span data-bind-value="{{city.treasury.gold}}"></span></span>
+        <span class="yv"><img class="gi" data-asset="font:ICON_PEACE"><span data-bind-value="{{city.treasury.faith}}"></span></span>
+      </div>
+    </aside>
+    <aside class="plate bl cv-side cv-right">
+      <div class="cv-grow">
+        <div class="cv-size"><b data-bind-value="{{city.population}}"></b><span data-bind-value="{{city.population_label}}"></span></div>
+        <div class="cv-gr" data-part="city.growth">
+          <div class="cv-l1">
+            <span data-bind-if="{{city.food.state == 'growing'}}" data-l10n="city.growth.growing" data-l10n-args="{{city.food.turns}}"></span>
+            <span data-bind-if="{{city.food.state == 'stagnant'}}" data-l10n="city.growth.stagnant"></span>
+            <span class="c-neg" data-bind-if="{{city.food.state == 'starving'}}" data-l10n="city.growth.starving" data-l10n-args="{{city.food.turns}}"></span>
+            <span class="yv c-food cv-end" data-bind-class-toggle="neg:{{city.food.net < 0}}"><img class="gi" data-asset="font:ICON_FOOD"><span data-bind-value="{{fmt.signed(city.food.net)}}"></span></span>
+          </div>
+          <div class="scale t food">
+            <div class="fill nx" data-bind-style-width="{{city.food.threshold > 0 ? clamp((city.food.stored + max(0, city.food.net)) / city.food.threshold, 0, 1) * 100 : 0}}%"></div>
+            <div class="fill" data-bind-style-width="{{city.food.threshold > 0 ? clamp(city.food.stored / city.food.threshold, 0, 1) * 100 : 0}}%"></div>
+          </div>
+          <div class="cv-marks">
+            <span data-l10n="prod.stored" data-l10n-args="{{city.food.stored}}, {{city.food.threshold}}"></span>
+            <button class="opt" data-bind-disabled="{{city.view_only || !city.my_turn}}" data-bind-class-toggle="on:{{city.avoid_growth}}" data-on-click="intent screen.act(screen: 'city', action: 'avoid_growth', a: city.avoid_growth ? 0 : 1, d: city.city)"><span class="chk"><svg class="i"><use href="#i-check"/></svg></span><span data-l10n="city.avoid">Avoid growth</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="cv-yields" data-part="city.yields">
+        <div class="cv-yc" data-bind-for="y:{{city.yields}}" data-tooltip="city-yield-tip" data-on-pointerenter="set state.city.hover_yield = y.key">
+          <span class="yv lg" data-bind-class-toggle="neg:{{y.value < 0}}"><img class="gi" data-bind-src="{{y.icon}}"><span data-bind-value="{{fmt.signed(y.value)}}"></span></span>
+          <span class="cv-lb" data-bind-value="{{y.key == 'food' ? loc('city.yield.food') : y.key == 'production' ? loc('city.yield.production') : y.key == 'gold' ? loc('city.yield.gold') : y.key == 'science' ? loc('city.yield.science') : y.key == 'culture' ? loc('city.yield.culture') : y.key == 'faith' ? loc('city.yield.faith') : y.key == 'tourism' ? loc('city.yield.tourism') : loc('city.yield.golden_age')}}"></span>
+        </div>
+      </div>
+      <div class="cv-border">
+        <div class="cv-l1"><span data-l10n="city.border">Border growth</span><span class="cv-end" data-bind-if="{{city.border.turns != null}}" data-l10n="top.turns" data-l10n-args="{{city.border.turns}}"></span></div>
+        <div class="scale cult"><div class="fill" data-bind-style-width="{{clamp(city.border.stored / max(1, city.border.threshold), 0, 1) * 100}}%"></div></div>
+        <div class="cv-marks" data-l10n="prod.stored" data-l10n-args="{{city.border.stored}}, {{city.border.threshold}}"></div>
+      </div>
+      <div class="cv-focus">
+        <div class="cv-sh">
+          <b data-l10n="city.focus">Citizen focus</b>
+          <button class="btn sm cv-end" data-bind-disabled="{{!city.can_reset_tiles}}" data-on-click="intent screen.act(screen: 'city', action: 'reset_tiles', d: city.city)" data-l10n="city.reset">Reset tiles</button>
+        </div>
+        <div class="cv-fgrid">
+          <button class="cv-fo" data-part="city.focus" data-bind-for="f:{{city.focus_options}}" data-bind-disabled="{{!f.enabled}}" data-bind-class-toggle="on:{{city.focus == f.key}}" data-tooltip="city-tip" data-on-pointerenter="set state.city.hover = f.id; set state.city.hover_kind = 'focus'" data-on-click="intent screen.act(screen: 'city', action: 'set_focus', a: f.id, d: city.city)">
+            <img class="gi s16" data-bind-if="{{f.icon != null}}" data-bind-src="{{f.icon}}">
+            <span data-bind-value="{{f.key == 'default' ? loc('city.focus.default') : f.key == 'food' ? loc('city.focus.food') : f.key == 'production' ? loc('city.focus.production') : f.key == 'gold' ? loc('city.focus.gold') : f.key == 'science' ? loc('city.focus.science') : f.key == 'culture' ? loc('city.focus.culture') : f.key == 'faith' ? loc('city.focus.faith') : f.key == 'great_people' ? loc('city.focus.great_people') : loc('city.focus.golden_age')}}"></span>
+          </button>
+        </div>
+      </div>
+      <div class="scr cv-rs">
+        <div class="sect cv-gh" data-bind-if="{{len(city.great_people) > 0}}"><b data-l10n="city.focus.great_people">Great People</b><span class="rule"></span></div>
+        <div class="cv-gpr" data-bind-for="p:{{city.great_people}}" data-tooltip="city-gp-tip" data-on-pointerenter="set state.city.hover_yield = p.key">
+          <img class="gi s24" data-bind-src="{{p.icon}}">
+          <b class="ell" data-bind-value="{{p.name}}"></b>
+          <span class="r sec" data-l10n="prod.stored" data-l10n-args="{{p.progress}}, {{p.threshold}}"></span>
+          <span class="r" data-bind-value="{{p.turns}}"></span>
+          <div class="scale cv-gpbar" data-bind-class-toggle="prod:{{p.yield == 'production'}}; gold:{{p.yield == 'gold'}}; cult:{{p.yield == 'culture'}}; faith:{{p.yield == 'faith'}}"><div class="fill" data-bind-style-width="{{clamp(p.progress / max(1, p.threshold), 0, 1) * 100}}%"></div></div>
+        </div>
+        <div class="cv-unemp">
+          <span class="sec" data-l10n="city.unemployed">Unemployed</span>
+          <b data-bind-value="{{city.unemployed}}"></b>
+          <button class="btn sm cv-end" data-bind-disabled="{{city.view_only || !city.my_turn || city.unemployed == 0}}" data-on-click="intent screen.act(screen: 'city', action: 'unemployed_to_work', a: 0, d: city.city)" data-l10n="city.work">Put to work</button>
+        </div>
+        <button class="opt cv-pad" data-bind-disabled="{{city.view_only || !city.my_turn}}" data-bind-class-toggle="on:{{city.manual_specialists}}" data-on-click="intent screen.act(screen: 'city', action: 'manual_specialists', a: city.manual_specialists ? 0 : 1, d: city.city)"><span class="chk"><svg class="i"><use href="#i-check"/></svg></span><span data-l10n="city.manual">Manual specialists</span></button>
+        <div data-part="city.group" data-bind-for="g:{{city.building_groups}}">
+          <div class="sect cv-gh">
+            <b data-bind-value="{{g.key == 'specialist' ? loc('city.building.specialist') : g.key == 'great_work' ? loc('city.building.great_work') : g.key == 'wonder' ? loc('city.building.wonder') : loc('city.building.other')}}"></b>
+            <span data-bind-value="{{g.count}}"></span>
+            <span class="rule"></span>
+            <span class="cv-up" data-l10n="city.upkeep" data-l10n-args="{{g.maintenance}}"></span>
+          </div>
+          <div class="lrow cv-bd" data-part="city.building" data-bind-for="b:{{g.buildings}}" data-tooltip="city-tip" data-on-pointerenter="set state.city.hover = b.id; set state.city.hover_kind = 'building'">
+            <img class="gi s24" data-bind-src="{{b.icon}}">
+            <span class="ell cv-nm" data-bind-value="{{b.name}}"></span>
             <!-- SIMPLIFIED(SIMP-480): Specialist slots use filled/total counts with assign/remove controls. -->
-            <div class="city-line" data-bind-if="{{b.specialist != null}}">
-              <span data-l10n="city.specialist_slots">Specialist slots</span>
-              <span data-l10n="city.slots" data-l10n-args="{{b.specialist.filled}}, {{b.specialist.slots}}"></span>
-              <button data-bind-disabled="{{!b.specialist.can_add}}" data-on-click="intent screen.act(screen: 'city', action: 'add_specialist', a: b.specialist.id, b: b.id, d: city.city)" data-l10n="city.assign">Assign</button>
-              <button data-bind-disabled="{{city.view_only || !city.my_turn || b.specialist.filled == 0}}" data-on-click="intent screen.act(screen: 'city', action: 'remove_specialist', a: b.specialist.id, b: b.id, d: city.city)" data-l10n="city.remove">Remove</button>
-            </div>
+            <span class="sec cv-slots" data-bind-if="{{b.specialist != null}}" data-l10n="city.slots" data-l10n-args="{{b.specialist.filled}}, {{b.specialist.slots}}"></span>
+            <button class="x sm" data-bind-if="{{b.specialist != null}}" data-bind-disabled="{{!b.specialist.can_add}}" data-on-click="intent screen.act(screen: 'city', action: 'add_specialist', a: b.specialist.id, b: b.id, d: city.city)"><svg class="i"><use href="#i-person"/></svg></button>
+            <button class="x sm" data-bind-if="{{b.specialist != null}}" data-bind-disabled="{{city.view_only || !city.my_turn || b.specialist.filled == 0}}" data-on-click="intent screen.act(screen: 'city', action: 'remove_specialist', a: b.specialist.id, b: b.id, d: city.city)"><svg class="i"><use href="#i-close"/></svg></button>
+            <span class="yv cv-y" data-bind-for="y:{{b.yields}}"><span data-bind-value="{{fmt.signed(y.value)}}"></span><img class="gi" data-bind-src="{{y.icon}}"></span>
+            <span class="yv cv-mt" data-bind-if="{{b.maintenance > 0}}"><span data-bind-value="{{b.maintenance}}"></span><img class="gi" data-asset="font:ICON_GOLD"></span>
+            <button class="btn sm cv-sell" data-part="city.sell" data-bind-if="{{b.can_sell}}" data-on-click="set state.city.sell = b.id" data-l10n="city.sell">Sell</button>
           </div>
         </div>
-        <div class="city-section city-line">
-          <button data-part="city.tiles-toggle" data-bind-class-toggle="city-selected:{{state.city.tiles_open}}" data-on-click="set state.city.tiles_open = !state.city.tiles_open" data-l10n="city.tiles">City tiles</button>
-          <button data-on-click="set state.city.buy_tiles = !state.city.buy_tiles" data-l10n="city.purchases">Show purchases</button>
+        <div class="sect cv-gh">
+          <button class="opt" data-part="city.tiles-toggle" data-bind-class-toggle="on:{{state.city.tiles_open}}" data-on-click="set state.city.tiles_open = !state.city.tiles_open"><span class="chk"><svg class="i"><use href="#i-check"/></svg></span><b data-l10n="city.tiles">City tiles</b></button>
+          <span class="rule"></span>
         </div>
-        <div class="city-tiles" data-part="city.tiles" data-bind-if="{{state.city.tiles_open}}">
-          <div class="city-tile city-line" data-bind-for="t:{{city.tiles}}" data-tooltip="city-tile-tip" data-on-pointerenter="set state.city.hover = t.index">
-            <span data-bind-value="{{t.index}}"></span>
-            <button data-bind-disabled="{{city.view_only || !city.my_turn || t.state == 'unowned' || t.state == 'blocked' || t.state == 'enemy'}}" data-on-click="intent screen.act(screen: 'city', action: 'toggle_tile', a: t.index, d: city.city)">
-              <span data-bind-if="{{t.state == 'worked'}}" data-l10n="city.tile.worked">Worked</span>
-              <span data-bind-if="{{t.state == 'unworked'}}" data-l10n="city.tile.unworked">Not worked</span>
-              <span data-bind-if="{{t.state == 'locked'}}" data-l10n="city.tile.locked">Locked by you</span>
-              <span data-bind-if="{{t.state == 'center'}}" data-l10n="city.tile.center">City center</span>
-              <span data-bind-if="{{t.state == 'unowned'}}" data-l10n="city.tile.unowned">Unowned</span>
-              <span data-bind-if="{{t.state == 'other'}}" data-l10n="city.tile.other">Worked by another city</span>
-              <span data-bind-if="{{t.state == 'enemy'}}" data-l10n="city.tile.enemy">Enemy</span>
-              <span data-bind-if="{{t.state == 'blocked'}}" data-l10n="city.tile.blocked">Blockaded</span>
-            </button>
-            <span class="city-tile-yields">
-              <span class="city-mini-yield" data-bind-for="y:{{t.yields}}">
-                <svg class="i city-yield-food" data-bind-if="{{y.key == 'food'}}">
-                  <use href="#i-food"/>
-                </svg>
-                <svg class="i city-yield-production" data-bind-if="{{y.key == 'production'}}">
-                  <use href="#i-prod"/>
-                </svg>
-                <svg class="i city-yield-gold" data-bind-if="{{y.key == 'gold'}}">
-                  <use href="#i-gold"/>
-                </svg>
-                <svg class="i city-yield-science" data-bind-if="{{y.key == 'science'}}">
-                  <use href="#i-sci"/>
-                </svg>
-                <svg class="i city-yield-culture" data-bind-if="{{y.key == 'culture'}}">
-                  <use href="#i-cult"/>
-                </svg>
-                <svg class="i city-yield-faith" data-bind-if="{{y.key == 'faith'}}">
-                  <use href="#i-faith"/>
-                </svg>
-                <svg class="i city-yield-tourism" data-bind-if="{{y.key == 'tourism'}}">
-                  <use href="#i-tour"/>
-                </svg>
-                <svg class="i city-yield-golden_age" data-bind-if="{{y.key == 'golden_age'}}">
-                  <use href="#i-happy"/>
-                </svg>
-                <b data-bind-value="{{fmt.signed(y.value)}}"></b>
-                <span data-bind-if="{{y.key == 'food'}}" data-l10n="city.yield.food">Food</span>
-                <span data-bind-if="{{y.key == 'production'}}" data-l10n="city.yield.production">Production</span>
-                <span data-bind-if="{{y.key == 'gold'}}" data-l10n="city.yield.gold">Gold</span>
-                <span data-bind-if="{{y.key == 'science'}}" data-l10n="city.yield.science">Science</span>
-                <span data-bind-if="{{y.key == 'culture'}}" data-l10n="city.yield.culture">Culture</span>
-                <span data-bind-if="{{y.key == 'faith'}}" data-l10n="city.yield.faith">Faith</span>
-                <span data-bind-if="{{y.key == 'tourism'}}" data-l10n="city.yield.tourism">Tourism</span>
-                <span data-bind-if="{{y.key == 'golden_age'}}" data-l10n="city.yield.golden_age">Golden Age</span></span>
-            </span>
-            <button data-bind-if="{{state.city.buy_tiles && t.buy_price != null}}" data-bind-disabled="{{t.buy_state != 'ok'}}" data-on-click="intent screen.act(screen: 'city', action: 'buy_plot', a: t.x, b: t.y, d: city.city)">
-              <span data-bind-value="{{t.buy_price}}"></span>
-              <svg class="i">
-                <use href="#i-gold"/>
-              </svg>
-            </button>
+        <div data-part="city.tiles" data-bind-if="{{state.city.tiles_open}}">
+          <div class="lrow cv-tile" data-part="city.tile" data-bind-for="t:{{city.tiles}}" data-tooltip="city-tile-tip" data-on-pointerenter="set state.city.hover = t.index">
+            <span class="cv-t sec" data-bind-value="{{t.index}}"></span>
+            <button class="ell cv-nm" data-bind-disabled="{{city.view_only || !city.my_turn || t.state == 'unowned' || t.state == 'blocked' || t.state == 'enemy'}}" data-on-click="intent screen.act(screen: 'city', action: 'toggle_tile', a: t.index, d: city.city)" data-bind-value="{{t.state == 'worked' ? loc('city.tile.worked') : t.state == 'unworked' ? loc('city.tile.unworked') : t.state == 'locked' ? loc('city.tile.locked') : t.state == 'center' ? loc('city.tile.center') : t.state == 'unowned' ? loc('city.tile.unowned') : t.state == 'other' ? loc('city.tile.other') : t.state == 'enemy' ? loc('city.tile.enemy') : loc('city.tile.blocked')}}"></button>
+            <span class="yv cv-y" data-bind-for="y:{{t.yields}}"><span data-bind-value="{{y.value}}"></span><img class="gi" data-bind-src="{{y.icon}}"></span>
+            <button class="cv-buy" data-bind-class-toggle="short:{{t.buy_state == 'short'}}" data-bind-if="{{state.city.buy_tiles && t.buy_price != null}}" data-bind-disabled="{{t.buy_state != 'ok'}}" data-on-click="intent screen.act(screen: 'city', action: 'buy_plot', a: t.x, b: t.y, d: city.city)"><span data-bind-value="{{t.buy_price}}"></span><img class="gi s16" data-asset="font:ICON_GOLD"></button>
           </div>
         </div>
       </div>
     </aside>
-    <footer class="city-foot">
-      <button data-bind-disabled="{{!city.task.enabled}}" data-on-click="intent window.open(window: 'city_rename', a: city.city, b: city.task.mode)">
-        <span data-bind-if="{{city.task.kind == 'raze'}}" data-l10n="city.task.raze">Raze city</span>
-        <span data-bind-if="{{city.task.kind == 'unraze'}}" data-l10n="city.task.unraze">Stop razing</span>
-        <span data-bind-if="{{city.task.kind == 'annex'}}" data-l10n="city.task.annex">Annex city</span>
-        <span data-bind-if="{{city.task.kind == 'none'}}" data-l10n="city.task.none">No city task</span>
-      </button>
-      <span class="city-warning" data-bind-value="{{city.task.reason}}"></span>
-      <button class="city-primary" data-part="city.close" data-on-click="set state.city.sell = -1; intent window.close(window: 'city')" data-l10n="city.return">Return to map</button>
+    <footer class="plate tltr cv-foot">
+      <button class="opt" data-bind-class-toggle="on:{{state.city.buy_tiles}}" data-on-click="set state.city.buy_tiles = !state.city.buy_tiles"><span class="chk"><svg class="i"><use href="#i-check"/></svg></span><span data-l10n="city.purchases">Show purchases</span></button>
+      <button class="btn cv-end" data-part="city.task" data-bind-class-toggle="danger:{{city.task.enabled && city.task.kind == 'raze'}}" data-bind-disabled="{{!city.task.enabled}}" data-on-click="intent window.open(window: 'city_rename', a: city.city, b: city.task.mode)" data-bind-value="{{city.task.kind == 'raze' ? loc('city.task.raze') : city.task.kind == 'unraze' ? loc('city.task.unraze') : city.task.kind == 'annex' ? loc('city.task.annex') : loc('city.task.none')}}"></button>
+      <span class="why cv-why" data-bind-if="{{city.task.reason != null}}" data-bind-value="{{city.task.reason}}"></span>
+      <button class="btn primary cv-ret" data-part="city.close" data-on-click="set state.city.sell = -1; intent window.close(window: 'city')"><span data-l10n="city.return">Return to map</span><span class="key" data-l10n="key.escape">Esc</span></button>
     </footer>
-    <div class="city-confirm" data-bind-if="{{state.city.sell >= 0}}">
-      <section class="city-dialog">
-        <b data-l10n="city.confirm_sell">Sell this building?</b>
-        <div data-bind-for="g:{{city.building_groups}}">
-          <div data-bind-for="b:{{g.buildings}}" data-bind-filter="{{b.id == state.city.sell}}">
-            <b data-bind-value="{{b.name}}"></b>
-            <span data-bind-value="{{b.sell_refund}}"></span>
-            <span data-bind-value="{{b.maintenance}}"></span>
+    <div class="wlayer dimmed" data-bind-if="{{state.city.sell >= 0}}">
+      <section class="win pop w-s" role="dialog">
+        <div class="hd"><div class="ttl"><b data-l10n="city.confirm_sell">Sell this building?</b></div></div>
+        <div class="wbd">
+          <div data-bind-for="g:{{city.building_groups}}">
+            <div class="who" data-bind-for="b:{{g.buildings}}" data-bind-filter="{{b.id == state.city.sell}}">
+              <img class="gi s48" data-bind-src="{{b.icon}}">
+              <div class="tx"><b data-bind-value="{{b.name}}"></b><span data-l10n="city.upkeep" data-l10n-args="{{b.maintenance}}"></span></div>
+              <span class="yv cv-end"><span data-bind-value="{{b.sell_refund}}"></span><img class="gi" data-asset="font:ICON_GOLD"></span>
+            </div>
           </div>
+          <span class="prose sm sec" data-l10n="city.sell_warning">You can sell only one building per turn.</span>
         </div>
-        <span data-l10n="city.sell_warning">You can sell only one building per turn.</span>
-        <button data-on-click="set state.city.sell = -1" data-l10n="city.keep">Keep it</button>
-        <button class="city-primary" data-on-click="intent screen.act(screen: 'city', action: 'sell_building', a: state.city.sell, d: city.city); set state.city.sell = -1" data-l10n="city.sell">Sell</button>
+        <div class="wft">
+          <button class="btn c" data-on-click="set state.city.sell = -1" data-l10n="city.keep">Keep it</button>
+          <button class="btn primary c" data-on-click="intent screen.act(screen: 'city', action: 'sell_building', a: state.city.sell, d: city.city); set state.city.sell = -1" data-l10n="city.sell">Sell</button>
+        </div>
       </section>
     </div>
   </div>

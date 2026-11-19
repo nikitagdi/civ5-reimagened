@@ -1,34 +1,19 @@
-.city_list-panel { pointer-events: auto; position: absolute; left: 0; top: 48px; width: 680px; max-height: 60%; display: flex; flex-direction: column; background: var(--lacquer); color: var(--bone); border: 1px solid var(--engrave); }
-.city_list-header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--engrave); }
-.city_list-header b { font: 500 24px/30px var(--serif); flex: 1; }
-.city_list-panel button { color: var(--bone); font-size: 13px; padding: 6px; background: transparent; }
-.city_list-panel button:hover { background: var(--lacquer-2); }
-.city_list-panel button:disabled { opacity: .5; }
-.city_list-head, .city_list-row { display: grid; grid-template-columns: 112px 1fr 84px 208px; gap: 12px; align-items: center; padding: 4px 16px; }
-.city_list-head { border-bottom: 1px solid var(--engrave); font-size: 12px; }
-.city_list-scroll { overflow-y: auto; scrollbar-width: none; min-height: 0; }
-.city_list-row { min-height: 44px; }
-.city_list-row:hover { background: var(--lacquer-2); }
-.city_list-growth { display: flex; gap: 6px; align-items: center; font-size: 12px; }
-.city_list-growth b { font: 500 20px/24px var(--serif); }
-.city_list-name { display: flex; gap: 6px; align-items: center; min-width: 0; font-family: var(--serif); text-align: left; }
-.city_list-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.city_list-status { font-size: 11px; color: var(--bone-3); }
-.city_list-strength { text-align: right; }
-.city_list-strike { font-size: 11px; color: var(--neg); }
-.city_list-hp { height: 4px; background: var(--lacquer-3); }
-.city_list-hp i { display: block; height: 100%; background: var(--y-gold); }
-.city_list-production { display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
-.city_list-production span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-@media (width < 1500px) { .city_list-panel { pointer-events: auto; width: 600px; max-height: 48%; } .city_list-head, .city_list-row { grid-template-columns: 100px 1fr 72px 170px; gap: 8px; } }
-
-.city_list-screen { pointer-events: auto; }
-
-.city_list-growth { display: grid; grid-template-columns: 28px 1fr; gap: 2px 6px; }
-.city_list-growth b { grid-row: span 2; }
-.city_list-growth > span { color: var(--bone-3); font-size: 11px; }
-.city_list-name { font-size: 17px; }
-.city_list-icon { width: 28px; height: 28px; flex-shrink: 0; }
-.city_list-production { align-items: center; }
-.city_list-panel .city_list-active { color: var(--brass); }
-.city_list-head { color: var(--bone-3); }
+/* City list: the panel of the info corner; header, table, tags and gauges are the kit's. */
+.city_list-panel { pointer-events: auto; position: absolute; left: 0; top: 48px; width: 680px; max-height: 60%; display: flex; flex-direction: column; background-color: var(--lacquer); color: var(--bone); box-shadow: inset 0 0 0 1px var(--engrave), 0 16px 40px rgba(0, 0, 0, 0.45); }
+.city_list-panel .hd.cl-hd { height: 56px; padding-left: 20px; }
+.city_list-panel .hd .ttl b { font-size: 24px; line-height: 30px; }
+.t-cl .thead, .t-cl .trow { grid-template-columns: 112px 1fr 84px 208px; column-gap: 12px; padding: 0 16px; }
+.t-cl .trow { min-height: 44px; }
+.t-cl .thead .h.r { justify-content: flex-end; }
+.t-cl .grow { gap: 8px; }
+.t-cl .grow b { font: 500 20px/24px var(--serif); }
+.t-cl .grow .g { display: flex; flex-direction: column; font-size: 11px; line-height: 14px; color: var(--bone-3); }
+.t-cl .cname { text-align: left; }
+.t-cl .cname .nm { font: 500 17px/22px var(--serif); }
+.t-cl .cstr { flex-direction: column; align-items: flex-end; gap: 4px; justify-content: center; }
+.t-cl .cstr .gauge { width: 56px; }
+.t-cl .cstr .fill { background-color: var(--y-gold); }
+.t-cl .cprod { text-align: left; }
+.t-cl .cprod .ell { flex: 1; }
+.t-cl .cprod:disabled { color: var(--bone-3); }
+@media (width < 1500px) { .city_list-panel { width: 600px; max-height: 48%; } .t-cl .thead, .t-cl .trow { grid-template-columns: 100px 1fr 72px 170px; column-gap: 8px; } }

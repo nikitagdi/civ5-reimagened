@@ -328,6 +328,9 @@
             "hp": 190,
             "hp_max": 200,
             "growth_turns": 8,
+            "food": 14,
+            "food_needed": 38,
+            "food_rate": 3,
             "hover_key": "0:3"
           }
         ]

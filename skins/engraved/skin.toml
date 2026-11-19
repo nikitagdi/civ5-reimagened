@@ -30,7 +30,7 @@ on_map = { unit = "", city = "" }
 minimap = { options = false, streamer = false, banners = true, flags = true, grid = false, routes = true, yields = false, resources = false }
 leader = { hover = "" }
 deal = { side = 0, kind = -1, item = 0, amount = 0 }
-civ_ribbon = { visible = true, left = false, hover = -1 }
+civ_ribbon = { visible = false, left = false, hover = -1 }
 declare_war = { diplomacy = false, protectors = false, allies = false, deals = false, routes = false }
 diplo = { tab = "relations", deal = -1, hover = -1 }
 policies = { visible = false, tab = "", expanded = false, confirm = -1, kind = "adopt_policy", name = "", tenet_level = 0, hover = -1 }
@@ -50,7 +50,7 @@ victory = { view = "summary", hover = "irr" }
 espionage = { agents_sort = "name", agents_sort_desc = false, own_sort = "name", own_sort_desc = false, other_sort = "civilization", other_sort_desc = false, intrigue_sort = "turn", intrigue_sort_desc = true, tab = "overview", moving = -1, hover_agent = -1, hover_city = -1, selected = -1, ask = -1, confirm = "" }
 trade_routes = { tab = "", sort = "from", sort_desc = false, choose_sort = "city", collapse_yours = false, collapse_majors = false, collapse_city_states = false, confirm = -1, hover = -1, overview = false, tip = -1, tip_list = "" }
 military = { sort = "name", sort_desc = false }
-economy = { tab = "", sort = "population", sort_desc = false, hover = "", happy_open = "", open_income_cities = false, open_income_diplomacy = false, open_income_religion = false, open_income_connections = false, open_expense_units = false, open_expense_buildings = false, open_expense_improvements = false, open_expense_diplomacy = false }
+economy = { tab = "", sort = "population", sort_desc = true, hover = "", happy_open = "", open_income_cities = false, open_income_diplomacy = false, open_income_religion = false, open_income_connections = false, open_expense_units = false, open_expense_buildings = false, open_expense_improvements = false, open_expense_diplomacy = false }
 mp_vote = { pending = false }
 congress = { picker = "none", choice = "", slot = 0, confirm = "none", rename = false, rename_text = "", tip = "" }
 cs = { menu = "main", confirm = "none", tip = "" }

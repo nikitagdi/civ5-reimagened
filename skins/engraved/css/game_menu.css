@@ -1,35 +1,22 @@
-.game-menu-screen { position: absolute; inset: 48px 0 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(12,10,8,.55); pointer-events: auto; }
-.game-menu-window { width: 600px; max-width: 100%; max-height: 100%; display: flex; flex-direction: column; background: var(--lacquer); border: 1px solid var(--engrave); border-radius: 6px; box-shadow: 0 24px 64px rgba(0,0,0,.5); }
-.game-menu-head { flex: none; min-height: 70px; padding: 12px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--engrave); }
-.game-menu-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.game-menu-kicker { font-size: 12px; line-height: 16px; color: var(--bone-3); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.game-menu-title { font: 500 26px/32px var(--serif); color: var(--bone); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.game-menu-icon { width: 48px; height: 48px; flex: none; border-radius: 24px; background: var(--lacquer-0); }
-.game-menu-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
-.game-menu-prose { font-size: 15px; line-height: 24px; color: var(--bone); }
-.game-menu-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--engrave); font-size: 13px; color: var(--bone-2); }
-.game-menu-value { color: var(--brass); }
-.game-menu-foot { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 16px 20px; border-top: 1px solid var(--engrave); flex-wrap: wrap; }
-.game-menu-note { flex: 1; font-size: 12px; color: var(--bone-3); }
-.game-menu-button { appearance: none; min-height: 40px; min-width: 140px; padding: 8px 16px; border: 1px solid var(--engrave); border-radius: 6px; background: var(--lacquer-2); color: var(--bone); font: 500 14px/20px var(--sans); }
-.game-menu-button.game-menu-primary { background: var(--brass); color: var(--brass-ink); }
-.game-menu-button:hover { background: var(--lacquer-3); }
-.game-menu-button:disabled { opacity: .45; }
-.game-menu-advisor { display: flex; align-items: center; gap: 12px; }
-.game-menu-tip { padding: 12px; background: var(--lacquer); color: var(--bone); max-width: 360px; }
-@media (height < 900px) { .game-menu-screen { padding: 16px; } }
-
-.game-menu-content { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.game-menu-window { width: 1040px; height: 640px; }
-.game-menu-layout { display: flex; flex: 1; min-height: 0; }
-.game-menu-side { flex: none; width: 300px; padding: 24px; display: flex; flex-direction: column; gap: 12px; border-right: 1px solid var(--engrave); overflow-y: auto; scrollbar-width: none; }
-.game-menu-main { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; background: var(--lacquer-0); }
-.game-menu-tabs { display: flex; flex: none; gap: 12px; padding: 12px; border-bottom: 1px solid var(--engrave); }
-.game-menu-tab { appearance: none; border: 0; background: var(--lacquer-0); color: var(--bone-2); padding: 8px 12px; }
-.game-menu-tab.game-menu-active { color: var(--brass); border-bottom: 2px solid var(--brass); }
-.game-menu-options { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.game-menu-input { appearance: none; width: 100px; background: var(--lacquer-0); border: 1px solid var(--engrave); color: var(--bone); padding: 8px; }
-.game-menu-toggle { appearance: none; width: 32px; height: 24px; background: var(--lacquer-0); border: 1px solid var(--engrave-hi); }
-.game-menu-toggle.game-menu-on { background: var(--brass); }
-.game-menu-trait { color: var(--bone-2); font-size: 13px; line-height: 20px; }
-@media (width < 1500px) { .game-menu-side { width: 260px; } }
+/* game menu: the player's side beside the game details, and the options in two columns; the frame, tabs, rows,
+   toggles, fields and buttons are the kit's */
+.gm-win { height: 640px; }
+.gm { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px 1fr; }
+.gm .side { min-height: 0; padding: 24px; display: flex; flex-direction: column; gap: 20px; box-shadow: inset -1px 0 0 var(--engrave); overflow-y: auto; scrollbar-width: none; }
+.gm .who { gap: 16px; }
+.gm .who .tx b { font-size: 26px; line-height: 30px; }
+.setic { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.setic .c { display: flex; flex-direction: column; align-items: stretch; gap: 2px; font-size: 11px; line-height: 14px; color: var(--bone-3); text-align: center; }
+.setic .c b { font-size: 12px; font-weight: 500; color: var(--bone); }
+.gm-list { margin-top: auto; }
+.gm .det { min-height: 0; display: flex; flex-direction: column; background-color: var(--lacquer-0); }
+.gm-opts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 48px; row-gap: 2px; align-content: start; padding: 20px 28px 24px; }
+.gm-num { width: 72px; }
+.gm-hk { display: flex; flex-direction: column; gap: 4px; }
+.gm-opts { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; column-gap: 16px; row-gap: 0; align-items: center; }
+.gm-opts .lb { min-height: 40px; display: flex; align-items: center; font-size: 14px; color: var(--bone); }
+.gm-opts .lb.dis { color: var(--bone-3); font-size: 12px; }
+/* the knob of the toggle is a background layer of the kit .tgl */
+.gm-opts .tgl { background-image: linear-gradient(var(--bone-3), var(--bone-3)); background-size: 14px 14px; background-repeat: no-repeat; background-position: 3px 3px; margin-right: 32px; }
+.gm-opts .tgl.on { background-image: linear-gradient(var(--lacquer), var(--lacquer)); background-position: 19px 3px; }
+.gm-num { margin-right: 32px; }

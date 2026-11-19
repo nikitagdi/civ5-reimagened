@@ -7,11 +7,15 @@
   --lacquer-3: #302a24;
   --engrave: #4d4032;
   --engrave-hi: #6a5845;
+  --line-soft: rgba(77, 64, 50, 0.6);
+  --line-dead: #352d25;
   --bone: #ebe2d2;
   --bone-2: #b2a794;
   --bone-3: #8a8072;
+  --ink-dead: #5e554a;
   --brass: #c9a36a;
   --brass-ink: #1b1815;
+  --brass-soft: rgba(201, 163, 106, 0.5);
   --civ-red: #6e1c18;
   --civ-yellow: #e4c04e;
 
@@ -24,6 +28,8 @@
   --y-happy: #b9c662;
   --y-tour: #cc86b4;
   --neg: #cf6f5c;
+  --neg-ink: #e59a88;
+  --pos: #86b061;
 
   /* Synonyms for mods (the same names in every skin). */
   --ui-surface: var(--lacquer);
@@ -46,5 +52,6 @@
 
   --sans: "Fira Sans", system-ui, sans-serif;
   --serif: "Alegreya", Georgia, serif;
+  --sh-menu: 0 12px 32px rgba(0, 0, 0, 0.5);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }

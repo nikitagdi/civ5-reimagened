@@ -1,652 +1,155 @@
-<div class="economy-screen" data-part="economy" data-screen="economy" data-bind-if="{{ui.windows.economy.open}}">
-<section class="economy-window">
-<header class="economy-head">
-<img class="economy-icon" data-bind-if="{{economy != null}}" data-bind-src="{{economy.player.icon}}">
-<img class="economy-icon" data-bind-if="{{economy != null}}" data-bind-src="{{economy.player.icon}}">
-<h1 data-l10n="economy.title" >
-</h1>
-<button data-l10n="economy.general" data-part="economy.tab-general" data-bind-class-toggle="economy-active:{{!(state.economy.tab == 'happiness' || (state.economy.tab == '' && economy.open_tab == 'happiness'))}}" data-on-click="set state.economy.tab = 'general'">
-</button>
-<button data-l10n="economy.happiness" data-part="economy.tab-happiness" data-bind-class-toggle="economy-active:{{state.economy.tab == 'happiness' || (state.economy.tab == '' && economy.open_tab == 'happiness')}}" data-on-click="set state.economy.tab = 'happiness'" data-bind-disabled="{{economy == null || !economy.options.happiness}}">
-</button>
-<div class="economy-head-facts" data-bind-if="{{economy != null}}">
-<span class="economy-value" data-bind-value="{{economy.player.civ_name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{fmt.int(economy.finance.treasury)}}" >
-</span>
-<span class="economy-value" data-bind-value="{{fmt.signed(economy.finance.net)}}" >
-</span>
+<div class="ovl" data-part="economy" data-screen="economy" data-bind-if="{{ui.windows.economy.open}}">
+<section class="win ov w-econ" role="dialog" data-part="economy.window">
+<div class="hd">
+<img class="gi s48" data-bind-if="{{economy != null}}" data-bind-src="{{economy.player.icon}}">
+<div class="ttl"><b data-l10n="economy.title"></b></div>
+<div class="tabs">
+<button class="tab" data-l10n="economy.general" data-part="economy.tab-general" data-bind-class-toggle="on:{{!(state.economy.tab == 'happiness' || (state.economy.tab == '' && economy.open_tab == 'happiness'))}}" data-on-click="set state.economy.tab = 'general'"></button>
+<button class="tab" data-l10n="economy.happiness" data-part="economy.tab-happiness" data-bind-class-toggle="on:{{state.economy.tab == 'happiness' || (state.economy.tab == '' && economy.open_tab == 'happiness')}}" data-on-click="set state.economy.tab = 'happiness'" data-bind-disabled="{{economy == null || !economy.options.happiness}}"></button>
 </div>
-<button data-l10n="economy.close" data-part="economy.close" data-bind-hotkey="{{'Enter'}}" data-on-click="intent window.close(window: 'economy')">
-</button>
-</header>
-<div data-l10n="economy.loading" data-bind-if="{{economy == null}}">
+<div class="facts" data-bind-if="{{economy != null}}">
+<span><b class="c-gold" data-bind-value="{{fmt.int(economy.finance.treasury)}}"></b><span data-l10n="economy.col_gold"></span></span>
+<span><b data-bind-value="{{fmt.signed(economy.finance.net)}}"></b><span data-l10n="economy.net_per_turn"></span></span>
+<span data-bind-if="{{economy.options.happiness}}"><b class="c-happy" data-bind-value="{{fmt.signed(economy.happiness.total)}}"></b><span data-l10n="economy.happy"></span></span>
+<span><b data-bind-value="{{len(economy.cities)}}"></b><span data-l10n="unit_lists.cities"></span></span>
 </div>
-<div class="economy-content" data-bind-if="{{economy != null}}">
-<div class="economy-general" data-bind-if="{{state.economy.tab == 'general' || (state.economy.tab == '' && economy.open_tab != 'happiness') || !economy.options.happiness}}">
-<aside class="economy-ledger economy-scroll">
-<div class="economy-kpis">
-<div class="economy-ledger-row">
-<span data-l10n="economy.treasury" >
-</span>
-<span class="economy-value" data-bind-value="{{fmt.int(economy.finance.treasury)}}" >
-</span>
+<div class="close"><span class="key" data-l10n="key.escape"></span><button class="x" data-part="economy.close" data-bind-hotkey="{{'Enter'}}" data-on-click="intent window.close(window: 'economy')"><svg class="i"><use href="#i-close"/></svg></button></div>
 </div>
-<div class="economy-ledger-row">
-<span data-l10n="economy.net_per_turn" >
-</span>
-<span class="economy-value" data-bind-value="{{fmt.signed(economy.finance.net)}}" >
-</span>
+<div class="empty" data-l10n="economy.loading" data-bind-if="{{economy == null}}"></div>
+<div class="ec" data-bind-if="{{economy != null}}">
+<div class="ob side-l" data-bind-if="{{state.economy.tab == 'general' || (state.economy.tab == '' && economy.open_tab != 'happiness') || !economy.options.happiness}}">
+<aside class="scr aside"><div class="kpi">
+<div><span data-l10n="economy.treasury"></span><b class="c-gold" data-bind-value="{{fmt.int(economy.finance.treasury)}}"></b></div>
+<div><span data-l10n="economy.net_per_turn"></span><b data-bind-value="{{fmt.signed(economy.finance.net)}}"></b></div>
 </div>
-</div>
-<div class="economy-ledger-row">
-<span data-l10n="economy.gross_income" >
-</span>
-<span class="economy-value" data-bind-value="{{fmt.signed(economy.finance.gross)}}" >
-</span>
-</div>
-<div class="economy-ledger-row">
-<span data-l10n="economy.total_expenses" >
-</span>
-<span class="economy-value" data-bind-value="{{fmt.signed(-economy.finance.expenses)}}" >
-</span>
-</div>
-<div data-bind-if="{{economy.finance.science_loss != null}}">
-<div class="economy-ledger-row">
-<span data-l10n="economy.science_loss" >
-</span>
-<span class="economy-value" data-bind-value="{{economy.finance.science_loss}}" >
-</span>
-</div>
-</div>
-<h2 data-l10n="economy.income" >
-</h2>
+<div class="kv led">
+<div class="r tot gut"><span class="k" data-l10n="economy.gross_income"></span><b class="c-food" data-bind-value="{{fmt.signed(economy.finance.gross)}}"></b></div>
+<div class="r tot gut"><span class="k" data-l10n="economy.total_expenses"></span><b class="c-neg" data-bind-value="{{fmt.signed(-economy.finance.expenses)}}"></b></div>
+<div class="r gut" data-bind-if="{{economy.finance.science_loss != null}}"><span class="k" data-l10n="economy.science_loss"></span><b class="c-neg" data-bind-value="{{economy.finance.science_loss}}"></b></div>
+<div class="sect lg"><span data-l10n="economy.income"></span><span class="rule"></span></div>
 <div data-bind-for="r:{{economy.finance.income}}" data-bind-filter="{{r.key == 'cities'}}">
-<button class="economy-ledger-row" data-on-click="toggle state.economy.open_income_cities" data-on-pointerenter="set state.economy.hover = 'cities'">
-<span data-l10n="economy.ledger_income_cities" >
-</span>
-<span class="economy-value" data-bind-value="{{r.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.open_income_cities}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{r.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
+<button class="r" data-on-click="toggle state.economy.open_income_cities" data-on-pointerenter="set state.economy.hover = 'cities'"><span class="tg" data-bind-class-toggle="nil:{{len(r.items) == 0}}" data-bind-value="{{state.economy.open_income_cities ? '−' : '+'}}">+</span><span class="k" data-l10n="economy.ledger_income_cities"></span><b data-bind-value="{{r.value}}"></b></button>
+<div class="r sub" data-bind-for="i:{{r.items}}" data-bind-filter="{{state.economy.open_income_cities}}"><span class="k ell" data-bind-value="{{i.name}}"></span><b data-bind-value="{{i.value}}"></b></div>
 </div>
 <div data-bind-for="r:{{economy.finance.income}}" data-bind-filter="{{r.key == 'diplomacy'}}">
-<button class="economy-ledger-row" data-on-click="toggle state.economy.open_income_diplomacy" data-on-pointerenter="set state.economy.hover = 'diplomacy'">
-<span data-l10n="economy.ledger_income_diplomacy" >
-</span>
-<span class="economy-value" data-bind-value="{{r.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.open_income_diplomacy}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{r.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
+<button class="r" data-on-click="toggle state.economy.open_income_diplomacy" data-on-pointerenter="set state.economy.hover = 'diplomacy'"><span class="tg" data-bind-class-toggle="nil:{{len(r.items) == 0}}" data-bind-value="{{state.economy.open_income_diplomacy ? '−' : '+'}}">+</span><span class="k" data-l10n="economy.ledger_income_diplomacy"></span><b data-bind-value="{{r.value}}"></b></button>
+<div class="r sub" data-bind-for="i:{{r.items}}" data-bind-filter="{{state.economy.open_income_diplomacy}}"><span class="k ell" data-bind-value="{{i.name}}"></span><b data-bind-value="{{i.value}}"></b></div>
 </div>
 <div data-bind-for="r:{{economy.finance.income}}" data-bind-filter="{{r.key == 'religion'}}">
-<button class="economy-ledger-row" data-on-click="toggle state.economy.open_income_religion" data-on-pointerenter="set state.economy.hover = 'religion'">
-<span data-l10n="economy.ledger_income_religion" >
-</span>
-<span class="economy-value" data-bind-value="{{r.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.open_income_religion}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{r.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
+<button class="r" data-on-click="toggle state.economy.open_income_religion" data-on-pointerenter="set state.economy.hover = 'religion'"><span class="tg" data-bind-class-toggle="nil:{{len(r.items) == 0}}" data-bind-value="{{state.economy.open_income_religion ? '−' : '+'}}">+</span><span class="k" data-l10n="economy.ledger_income_religion"></span><b data-bind-value="{{r.value}}"></b></button>
+<div class="r sub" data-bind-for="i:{{r.items}}" data-bind-filter="{{state.economy.open_income_religion}}"><span class="k ell" data-bind-value="{{i.name}}"></span><b data-bind-value="{{i.value}}"></b></div>
 </div>
 <div data-bind-for="r:{{economy.finance.income}}" data-bind-filter="{{r.key == 'connections'}}">
-<button class="economy-ledger-row" data-on-click="toggle state.economy.open_income_connections" data-on-pointerenter="set state.economy.hover = 'connections'" data-tooltip="economy-connections">
-<span data-l10n="economy.ledger_income_connections" >
-</span>
-<span class="economy-value" data-bind-value="{{r.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.open_income_connections}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{r.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
+<button class="r" data-on-click="toggle state.economy.open_income_connections" data-on-pointerenter="set state.economy.hover = 'connections'" data-tooltip="economy-connections"><span class="tg" data-bind-class-toggle="nil:{{len(r.items) == 0}}" data-bind-value="{{state.economy.open_income_connections ? '−' : '+'}}">+</span><span class="k" data-l10n="economy.ledger_income_connections"></span><b data-bind-value="{{r.value}}"></b></button>
+<div class="r sub" data-bind-for="i:{{r.items}}" data-bind-filter="{{state.economy.open_income_connections}}"><span class="k ell" data-bind-value="{{i.name}}"></span><b data-bind-value="{{i.value}}"></b></div>
 </div>
-</div>
-</div>
-<h2 data-l10n="economy.expense" >
-</h2>
+<div class="sect lg"><span data-l10n="economy.expense"></span><span class="rule"></span></div>
 <div data-bind-for="r:{{economy.finance.expense}}" data-bind-filter="{{r.key == 'units'}}">
-<button class="economy-ledger-row" data-on-click="toggle state.economy.open_expense_units" data-on-pointerenter="set state.economy.hover = 'units'" data-tooltip="economy-units">
-<span data-l10n="economy.ledger_expense_units" >
-</span>
-<span class="economy-value" data-bind-value="{{r.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.open_expense_units}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{r.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
+<button class="r" data-on-click="toggle state.economy.open_expense_units" data-on-pointerenter="set state.economy.hover = 'units'" data-tooltip="economy-units"><span class="tg" data-bind-class-toggle="nil:{{len(r.items) == 0}}" data-bind-value="{{state.economy.open_expense_units ? '−' : '+'}}">+</span><span class="k" data-l10n="economy.ledger_expense_units"></span><b data-bind-value="{{r.value}}"></b></button>
+<div class="r sub" data-bind-for="i:{{r.items}}" data-bind-filter="{{state.economy.open_expense_units}}"><span class="k ell" data-bind-value="{{i.name}}"></span><b data-bind-value="{{i.value}}"></b></div>
 </div>
 <div data-bind-for="r:{{economy.finance.expense}}" data-bind-filter="{{r.key == 'buildings'}}">
-<button class="economy-ledger-row" data-on-click="toggle state.economy.open_expense_buildings" data-on-pointerenter="set state.economy.hover = 'buildings'">
-<span data-l10n="economy.ledger_expense_buildings" >
-</span>
-<span class="economy-value" data-bind-value="{{r.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.open_expense_buildings}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{r.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
+<button class="r" data-on-click="toggle state.economy.open_expense_buildings" data-on-pointerenter="set state.economy.hover = 'buildings'"><span class="tg" data-bind-class-toggle="nil:{{len(r.items) == 0}}" data-bind-value="{{state.economy.open_expense_buildings ? '−' : '+'}}">+</span><span class="k" data-l10n="economy.ledger_expense_buildings"></span><b data-bind-value="{{r.value}}"></b></button>
+<div class="r sub" data-bind-for="i:{{r.items}}" data-bind-filter="{{state.economy.open_expense_buildings}}"><span class="k ell" data-bind-value="{{i.name}}"></span><b data-bind-value="{{i.value}}"></b></div>
 </div>
 <div data-bind-for="r:{{economy.finance.expense}}" data-bind-filter="{{r.key == 'improvements'}}">
-<button class="economy-ledger-row" data-on-click="toggle state.economy.open_expense_improvements" data-on-pointerenter="set state.economy.hover = 'improvements'">
-<span data-l10n="economy.ledger_expense_improvements" >
-</span>
-<span class="economy-value" data-bind-value="{{r.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.open_expense_improvements}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{r.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
+<button class="r" data-on-click="toggle state.economy.open_expense_improvements" data-on-pointerenter="set state.economy.hover = 'improvements'"><span class="tg" data-bind-class-toggle="nil:{{len(r.items) == 0}}" data-bind-value="{{state.economy.open_expense_improvements ? '−' : '+'}}">+</span><span class="k" data-l10n="economy.ledger_expense_improvements"></span><b data-bind-value="{{r.value}}"></b></button>
+<div class="r sub" data-bind-for="i:{{r.items}}" data-bind-filter="{{state.economy.open_expense_improvements}}"><span class="k ell" data-bind-value="{{i.name}}"></span><b data-bind-value="{{i.value}}"></b></div>
 </div>
 <div data-bind-for="r:{{economy.finance.expense}}" data-bind-filter="{{r.key == 'diplomacy'}}">
-<button class="economy-ledger-row" data-on-click="toggle state.economy.open_expense_diplomacy" data-on-pointerenter="set state.economy.hover = 'diplomacy'">
-<span data-l10n="economy.ledger_expense_diplomacy" >
-</span>
-<span class="economy-value" data-bind-value="{{r.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.open_expense_diplomacy}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{r.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
+<button class="r" data-on-click="toggle state.economy.open_expense_diplomacy" data-on-pointerenter="set state.economy.hover = 'diplomacy'"><span class="tg" data-bind-class-toggle="nil:{{len(r.items) == 0}}" data-bind-value="{{state.economy.open_expense_diplomacy ? '−' : '+'}}">+</span><span class="k" data-l10n="economy.ledger_expense_diplomacy"></span><b data-bind-value="{{r.value}}"></b></button>
+<div class="r sub" data-bind-for="i:{{r.items}}" data-bind-filter="{{state.economy.open_expense_diplomacy}}"><span class="k ell" data-bind-value="{{i.name}}"></span><b data-bind-value="{{i.value}}"></b></div>
 </div>
 </div>
 </aside>
-<div class="economy-table">
-<div class="economy-horizontal economy-scroll">
-<div class="economy-table-inner">
-<div class="economy-table-head economy-city-row">
-<button data-l10n="economy.col_population" data-on-click="set state.economy.sort_desc = state.economy.sort == 'population' ? !state.economy.sort_desc : false; set state.economy.sort = 'population'">
-</button>
-<button data-l10n="economy.col_growth_turns" data-on-click="set state.economy.sort_desc = state.economy.sort == 'growth_turns' ? !state.economy.sort_desc : false; set state.economy.sort = 'growth_turns'">
-</button>
-<button class="economy-city-name-cell" data-l10n="economy.col_name" data-on-click="set state.economy.sort_desc = state.economy.sort == 'name' ? !state.economy.sort_desc : false; set state.economy.sort = 'name'">
-</button>
-<button data-l10n="economy.col_defense" data-on-click="set state.economy.sort_desc = state.economy.sort == 'defense' ? !state.economy.sort_desc : false; set state.economy.sort = 'defense'">
-</button>
-<button data-l10n="economy.col_food_per_turn" data-on-click="set state.economy.sort_desc = state.economy.sort == 'food_per_turn' ? !state.economy.sort_desc : false; set state.economy.sort = 'food_per_turn'">
-</button>
-<button data-l10n="economy.col_production" data-on-click="set state.economy.sort_desc = state.economy.sort == 'production' ? !state.economy.sort_desc : false; set state.economy.sort = 'production'">
-</button>
-<button data-l10n="economy.col_science" data-on-click="set state.economy.sort_desc = state.economy.sort == 'science' ? !state.economy.sort_desc : false; set state.economy.sort = 'science'">
-</button>
-<button data-l10n="economy.col_gold" data-on-click="set state.economy.sort_desc = state.economy.sort == 'gold' ? !state.economy.sort_desc : false; set state.economy.sort = 'gold'">
-</button>
-<button data-l10n="economy.col_culture" data-on-click="set state.economy.sort_desc = state.economy.sort == 'culture' ? !state.economy.sort_desc : false; set state.economy.sort = 'culture'">
-</button>
-<button data-l10n="economy.col_faith" data-on-click="set state.economy.sort_desc = state.economy.sort == 'faith' ? !state.economy.sort_desc : false; set state.economy.sort = 'faith'">
-</button>
-<button data-l10n="economy.col_golden_age" data-on-click="set state.economy.sort_desc = state.economy.sort == 'golden_age' ? !state.economy.sort_desc : false; set state.economy.sort = 'golden_age'">
-</button>
-<button class="economy-order" data-l10n="economy.col_order" data-on-click="set state.economy.sort_desc = state.economy.sort == 'order' ? !state.economy.sort_desc : false; set state.economy.sort = 'order'">
-</button>
+<div class="tbl t-city">
+<div class="hx"><div class="ti">
+<div class="thead">
+<button class="h" data-bind-class-toggle="on:{{state.economy.sort == 'population'}}" data-on-click="set state.economy.sort_desc = state.economy.sort == 'population' ? !state.economy.sort_desc : false; set state.economy.sort = 'population'" data-l10n="economy.col_population"></button>
+<button class="h r" data-bind-class-toggle="on:{{state.economy.sort == 'growth_turns'}}" data-on-click="set state.economy.sort_desc = state.economy.sort == 'growth_turns' ? !state.economy.sort_desc : false; set state.economy.sort = 'growth_turns'" data-l10n="economy.col_growth_turns"></button>
+<button class="h" data-bind-class-toggle="on:{{state.economy.sort == 'name'}}" data-on-click="set state.economy.sort_desc = state.economy.sort == 'name' ? !state.economy.sort_desc : false; set state.economy.sort = 'name'" data-l10n="economy.col_name"></button>
+<button class="h r" data-bind-class-toggle="on:{{state.economy.sort == 'defense'}}" data-on-click="set state.economy.sort_desc = state.economy.sort == 'defense' ? !state.economy.sort_desc : false; set state.economy.sort = 'defense'"><img class="gi s16" data-asset="font:ICON_STRENGTH"></button>
+<button class="h r" data-bind-class-toggle="on:{{state.economy.sort == 'food_per_turn'}}" data-on-click="set state.economy.sort_desc = state.economy.sort == 'food_per_turn' ? !state.economy.sort_desc : false; set state.economy.sort = 'food_per_turn'"><img class="gi s16" data-asset="font:ICON_FOOD"></button>
+<button class="h r" data-bind-class-toggle="on:{{state.economy.sort == 'production'}}" data-on-click="set state.economy.sort_desc = state.economy.sort == 'production' ? !state.economy.sort_desc : false; set state.economy.sort = 'production'"><img class="gi s16" data-asset="font:ICON_PRODUCTION"></button>
+<button class="h r" data-bind-class-toggle="on:{{state.economy.sort == 'science'}}" data-on-click="set state.economy.sort_desc = state.economy.sort == 'science' ? !state.economy.sort_desc : false; set state.economy.sort = 'science'"><img class="gi s16" data-asset="font:ICON_RESEARCH"></button>
+<button class="h r" data-bind-class-toggle="on:{{state.economy.sort == 'gold'}}" data-on-click="set state.economy.sort_desc = state.economy.sort == 'gold' ? !state.economy.sort_desc : false; set state.economy.sort = 'gold'"><img class="gi s16" data-asset="font:ICON_GOLD"></button>
+<button class="h r" data-bind-class-toggle="on:{{state.economy.sort == 'culture'}}" data-on-click="set state.economy.sort_desc = state.economy.sort == 'culture' ? !state.economy.sort_desc : false; set state.economy.sort = 'culture'"><img class="gi s16" data-asset="font:ICON_CULTURE"></button>
+<button class="h r" data-bind-class-toggle="on:{{state.economy.sort == 'faith'}}" data-on-click="set state.economy.sort_desc = state.economy.sort == 'faith' ? !state.economy.sort_desc : false; set state.economy.sort = 'faith'"><img class="gi s16" data-asset="font:ICON_PEACE"></button>
+<button class="h r" data-bind-class-toggle="on:{{state.economy.sort == 'golden_age'}}" data-on-click="set state.economy.sort_desc = state.economy.sort == 'golden_age' ? !state.economy.sort_desc : false; set state.economy.sort = 'golden_age'"><img class="gi s16" data-asset="font:ICON_GOLDEN_AGE"></button>
+<button class="h" data-bind-class-toggle="on:{{state.economy.sort == 'order'}}" data-on-click="set state.economy.sort_desc = state.economy.sort == 'order' ? !state.economy.sort_desc : false; set state.economy.sort = 'order'" data-l10n="economy.col_order"></button>
 </div>
-<div class="economy-city-list economy-scroll">
-<div class="economy-city-row" data-part="economy.city-row" data-bind-for="c:{{economy.cities}}" data-bind-sort="{{state.economy.sort == 'population' ? c.population : state.economy.sort == 'growth_turns' ? c.growth_turns : state.economy.sort == 'name' ? c.name : state.economy.sort == 'defense' ? c.defense : state.economy.sort == 'food_per_turn' ? c.food_per_turn : state.economy.sort == 'production' ? c.production : state.economy.sort == 'science' ? c.science : state.economy.sort == 'gold' ? c.gold : state.economy.sort == 'culture' ? c.culture : state.economy.sort == 'faith' ? c.faith : state.economy.sort == 'golden_age' ? c.golden_age : state.economy.sort == 'order' ? c.order.name : c.name}}" data-bind-sort-desc="{{state.economy.sort_desc}}">
-<div class="economy-cell">
-<span class="economy-value" data-bind-value="{{c.population}}" >
-</span>
-<div class="economy-bar">
-<div class="economy-food" data-bind-style-width="{{clamp(c.food_stored / c.food_threshold, 0, 1) * 100}}%">
-</div>
-<div class="economy-forecast" data-bind-style-width="{{clamp((c.food_stored + c.food_per_turn) / c.food_threshold, 0, 1) * 100}}%">
-</div>
-</div>
-</div>
-<span class="economy-value" data-bind-value="{{c.starving ? '−' : (c.growth_turns == null ? '−' : fmt.int(c.growth_turns))}}" >
-</span>
-<div class="economy-cell economy-city-name-cell">
-<span class="economy-name" data-bind-value="{{c.name}}" data-part="economy.city-name">
-</span>
-<small data-l10n="economy.capital" data-bind-if="{{c.capital}}">
-</small>
-<small data-l10n="economy.puppet" data-bind-if="{{c.puppet}}">
-</small>
-<small data-l10n="economy.occupied" data-bind-if="{{c.occupied}}">
-</small>
-<div class="economy-bar" data-bind-if="{{c.health_pct != null}}">
-<div class="economy-health" data-bind-class-toggle="economy-health-high:{{c.health_pct > 66}}; economy-health-medium:{{c.health_pct > 33 && c.health_pct <= 66}}" data-bind-style-width="{{c.health_pct}}%">
-</div>
-</div>
-</div>
-<span class="economy-value" data-bind-value="{{c.defense}}" >
-</span>
-<span class="economy-value" data-bind-value="{{c.food_per_turn}}" >
-</span>
-<div class="economy-cell">
-<span class="economy-value" data-bind-value="{{c.production}}" >
-</span>
-<span class="economy-modifier" data-bind-value="{{fmt.signed(c.production_mod_pct)}}" >
-</span>
-</div>
-<span class="economy-value" data-bind-value="{{economy.options.science ? fmt.int(c.science) : '−'}}" >
-</span>
-<span class="economy-value" data-bind-value="{{c.gold}}" >
-</span>
-<span class="economy-value" data-bind-value="{{fmt.fixed(c.culture, 2)}}" >
-</span>
-<span class="economy-value" data-bind-value="{{economy.options.religion ? fmt.int(c.faith) : '−'}}" >
-</span>
-<span class="economy-value" data-part="economy.golden-age" data-bind-value="{{c.golden_age == null ? '−' : fmt.int(c.golden_age)}}" >
-</span>
-<button class="economy-order" data-part="economy.production" data-bind-disabled="{{c.puppet}}" data-tooltip="economy-puppet" data-on-click="intent window.close(window: 'economy'); intent window.open(window: 'production', city: c.city_key)">
-<div data-bind-if="{{c.order != null}}">
-<div class="economy-order-line">
-<img class="economy-icon" data-bind-src="{{c.order.icon}}">
-<span class="economy-name" data-bind-value="{{c.order.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{c.order.turns}}" >
-</span>
-</div>
-<div class="economy-bar" data-bind-if="{{c.order.cost != null && c.order.cost > 0}}">
-<div class="economy-production" data-bind-style-width="{{clamp(c.order.stored / c.order.cost, 0, 1) * 100}}%">
-</div>
-</div>
-</div>
-<span data-l10n="economy.choose" data-bind-if="{{c.order == null}}">
-</span>
+<div class="scr">
+<div class="trow" data-part="economy.city-row" data-bind-for="c:{{economy.cities}}" data-bind-sort="{{state.economy.sort == 'population' ? c.population : state.economy.sort == 'growth_turns' ? c.growth_turns : state.economy.sort == 'name' ? c.name : state.economy.sort == 'defense' ? c.defense : state.economy.sort == 'food_per_turn' ? c.food_per_turn : state.economy.sort == 'production' ? c.production : state.economy.sort == 'science' ? c.science : state.economy.sort == 'gold' ? c.gold : state.economy.sort == 'culture' ? c.culture : state.economy.sort == 'faith' ? c.faith : state.economy.sort == 'golden_age' ? c.golden_age : state.economy.sort == 'order' ? c.order.name : c.name}}" data-bind-sort-desc="{{state.economy.sort_desc}}">
+<div class="c pop"><b data-bind-value="{{c.population}}"></b><div class="scale food"><div class="fill fc" data-bind-style-width="{{clamp((c.food_stored + c.food_per_turn) / c.food_threshold, 0, 1) * 100}}%"></div><div class="fill" data-bind-style-width="{{clamp(c.food_stored / c.food_threshold, 0, 1) * 100}}%"></div><div class="ticks" data-bind-if="{{c.growth_turns != null && c.growth_turns > 0}}" data-bind-style-background-size="{{100 / c.growth_turns}}% 100%"></div></div></div>
+<span class="c r" data-bind-class-toggle="c-neg:{{c.starving}}" data-bind-value="{{c.starving ? '−' : (c.growth_turns == null ? '−' : fmt.int(c.growth_turns))}}"></span>
+<div class="c cty"><div class="l"><span class="nm ell" data-part="economy.city-name" data-bind-value="{{c.name}}"></span><svg class="i fill capi" data-bind-if="{{c.capital}}"><use href="#i-star"/></svg><span class="tag" data-l10n="economy.puppet" data-bind-if="{{c.puppet}}"></span><span class="tag neg" data-l10n="economy.occupied" data-bind-if="{{c.occupied}}"></span></div><div class="gauge hpb" data-bind-if="{{c.health_pct != null}}"><div class="fill hp-lo" data-bind-class-toggle="hp-hi:{{c.health_pct > 66}}; hp-md:{{c.health_pct > 33 && c.health_pct <= 66}}" data-bind-style-width="{{c.health_pct}}%"></div></div></div>
+<span class="c r" data-bind-value="{{c.defense}}"></span>
+<span class="c r" data-bind-class-toggle="c-neg:{{c.food_per_turn < 0}}" data-bind-value="{{fmt.signed(c.food_per_turn)}}"></span>
+<span class="c r"><span data-bind-value="{{c.production}}"></span><span class="mod" data-bind-if="{{c.production_mod_pct != 0}}" data-bind-value="{{fmt.signed(c.production_mod_pct)}}"></span></span>
+<span class="c r" data-bind-value="{{economy.options.science ? fmt.int(c.science) : '−'}}"></span>
+<span class="c r" data-bind-value="{{c.gold}}"></span>
+<span class="c r" data-bind-value="{{fmt.fixed(c.culture, 2)}}"></span>
+<span class="c r" data-bind-value="{{economy.options.religion ? fmt.int(c.faith) : '−'}}"></span>
+<span class="c r" data-part="economy.golden-age" data-bind-value="{{c.golden_age == null ? '−' : fmt.int(c.golden_age)}}"></span>
+<button class="c ord" data-part="economy.production" data-bind-disabled="{{c.puppet}}" data-tooltip="economy-puppet" data-on-click="intent window.close(window: 'economy'); intent window.open(window: 'production', city: c.city_key)">
+<div class="l" data-bind-if="{{c.order != null}}"><img class="gi s22" data-bind-src="{{c.order.icon}}"><span class="ell" data-bind-value="{{c.order.name}}"></span><span class="t" data-bind-value="{{c.order.turns}}"></span></div>
+<div class="scale prod" data-bind-if="{{c.order != null && c.order.cost != null && c.order.cost > 0}}"><div class="fill fc" data-bind-style-width="{{clamp((c.order.stored + c.order.per_turn) / c.order.cost, 0, 1) * 100}}%"></div><div class="fill" data-bind-style-width="{{clamp(c.order.stored / c.order.cost, 0, 1) * 100}}%"></div><div class="ticks" data-bind-if="{{c.order.turns != null && c.order.turns > 0}}" data-bind-style-background-size="{{100 / c.order.turns}}% 100%"></div></div>
+<span class="z" data-l10n="economy.choose" data-bind-if="{{c.order == null}}"></span>
 </button>
 </div>
-<div data-l10n="economy.no_cities" data-bind-if="{{len(economy.cities) == 0}}">
-</div>
-</div>
-<div class="economy-city-row economy-total">
-<span class="economy-value" data-bind-value="{{economy.totals.population}}" >
-</span>
-<span class="economy-value" data-bind-value="{{''}}" >
-</span>
-<span class="economy-city-name-cell" data-l10n="economy.empire" >
-</span>
-<span class="economy-value" data-bind-value="{{''}}" >
-</span>
-<span class="economy-value" data-bind-value="{{economy.totals.food}}" >
-</span>
-<span class="economy-value" data-bind-value="{{economy.totals.production}}" >
-</span>
-<span class="economy-value" data-bind-value="{{economy.totals.science}}" >
-</span>
-<span class="economy-value" data-bind-value="{{economy.totals.gold}}" >
-</span>
-<span class="economy-value" data-bind-value="{{fmt.fixed(economy.totals.culture, 2)}}" >
-</span>
-<span class="economy-value" data-bind-value="{{economy.totals.faith}}" >
-</span>
-<span class="economy-value" data-bind-value="{{economy.totals.golden_age}}" >
-</span>
-<span class="economy-order" data-bind-value="{{''}}" >
-</span>
-</div>
-</div>
-</div>
-<footer data-l10n="economy.hint" >
-</footer>
-</div>
-</div>
-<div class="economy-happiness" data-bind-if="{{!(state.economy.tab == 'general' || (state.economy.tab == '' && economy.open_tab != 'happiness') || !economy.options.happiness)}}">
-<div class="economy-happy-col economy-scroll">
-<div class="economy-section-head">
-<span data-l10n="economy.happy" >
-</span>
-<span class="economy-value" data-bind-value="{{economy.happiness.total}}" >
-</span>
-</div>
-<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.key == 'luxuries' && h.value != 0}}">
-<button class="economy-ledger-row" data-on-click="set state.economy.happy_open = state.economy.happy_open == 'luxuries' ? '' : 'luxuries'">
-<span data-l10n="economy.happy_luxuries" >
-</span>
-<span class="economy-value" data-bind-value="{{h.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.happy_open == 'luxuries'}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{h.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-</div>
-<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.key == 'variety' && h.value != 0}}">
-<button class="economy-ledger-row" data-on-click="set state.economy.happy_open = state.economy.happy_open == 'variety' ? '' : 'variety'">
-<span data-l10n="economy.happy_variety" >
-</span>
-<span class="economy-value" data-bind-value="{{h.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.happy_open == 'variety'}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{h.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-</div>
-<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.key == 'extra_per_luxury' && h.value != 0}}">
-<button class="economy-ledger-row" data-on-click="set state.economy.happy_open = state.economy.happy_open == 'extra_per_luxury' ? '' : 'extra_per_luxury'">
-<span data-l10n="economy.happy_extra_per_luxury" >
-</span>
-<span class="economy-value" data-bind-value="{{h.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.happy_open == 'extra_per_luxury'}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{h.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-</div>
-<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.key == 'other_luxury' && h.value != 0}}">
-<button class="economy-ledger-row" data-on-click="set state.economy.happy_open = state.economy.happy_open == 'other_luxury' ? '' : 'other_luxury'">
-<span data-l10n="economy.happy_other_luxury" >
-</span>
-<span class="economy-value" data-bind-value="{{h.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.happy_open == 'other_luxury'}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{h.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-</div>
-<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.key == 'local' && h.value != 0}}">
-<button class="economy-ledger-row" data-on-click="set state.economy.happy_open = state.economy.happy_open == 'local' ? '' : 'local'">
-<span data-l10n="economy.happy_local" >
-</span>
-<span class="economy-value" data-bind-value="{{h.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.happy_open == 'local'}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{h.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-</div>
-<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.key == 'buildings' && h.value != 0}}">
-<button class="economy-ledger-row" data-on-click="set state.economy.happy_open = state.economy.happy_open == 'buildings' ? '' : 'buildings'">
-<span data-l10n="economy.happy_buildings" >
-</span>
-<span class="economy-value" data-bind-value="{{h.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.happy_open == 'buildings'}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{h.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-</div>
-<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.key == 'connections' && h.value != 0}}">
-<button class="economy-ledger-row" data-on-click="set state.economy.happy_open = state.economy.happy_open == 'connections' ? '' : 'connections'">
-<span data-l10n="economy.happy_connections" >
-</span>
-<span class="economy-value" data-bind-value="{{h.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.happy_open == 'connections'}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{h.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-</div>
-<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.key == 'city_states' && h.value != 0}}">
-<button class="economy-ledger-row" data-on-click="set state.economy.happy_open = state.economy.happy_open == 'city_states' ? '' : 'city_states'">
-<span data-l10n="economy.happy_city_states" >
-</span>
-<span class="economy-value" data-bind-value="{{h.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.happy_open == 'city_states'}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{h.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-</div>
-<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.key == 'policies' && h.value != 0}}">
-<button class="economy-ledger-row" data-on-click="set state.economy.happy_open = state.economy.happy_open == 'policies' ? '' : 'policies'">
-<span data-l10n="economy.happy_policies" >
-</span>
-<span class="economy-value" data-bind-value="{{h.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.happy_open == 'policies'}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{h.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-</div>
-<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.key == 'religion' && h.value != 0}}">
-<button class="economy-ledger-row" data-on-click="set state.economy.happy_open = state.economy.happy_open == 'religion' ? '' : 'religion'">
-<span data-l10n="economy.happy_religion" >
-</span>
-<span class="economy-value" data-bind-value="{{h.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.happy_open == 'religion'}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{h.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-</div>
-<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.key == 'natural_wonders' && h.value != 0}}">
-<button class="economy-ledger-row" data-on-click="set state.economy.happy_open = state.economy.happy_open == 'natural_wonders' ? '' : 'natural_wonders'">
-<span data-l10n="economy.happy_natural_wonders" >
-</span>
-<span class="economy-value" data-bind-value="{{h.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.happy_open == 'natural_wonders'}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{h.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-</div>
-<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.key == 'free_per_city' && h.value != 0}}">
-<button class="economy-ledger-row" data-on-click="set state.economy.happy_open = state.economy.happy_open == 'free_per_city' ? '' : 'free_per_city'">
-<span data-l10n="economy.happy_free_per_city" >
-</span>
-<span class="economy-value" data-bind-value="{{h.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.happy_open == 'free_per_city'}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{h.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-</div>
-<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.key == 'world_congress' && h.value != 0}}">
-<button class="economy-ledger-row" data-on-click="set state.economy.happy_open = state.economy.happy_open == 'world_congress' ? '' : 'world_congress'">
-<span data-l10n="economy.happy_world_congress" >
-</span>
-<span class="economy-value" data-bind-value="{{h.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.happy_open == 'world_congress'}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{h.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-</div>
-<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.key == 'difficulty' && h.value != 0}}">
-<button class="economy-ledger-row" data-on-click="set state.economy.happy_open = state.economy.happy_open == 'difficulty' ? '' : 'difficulty'">
-<span data-l10n="economy.happy_difficulty" >
-</span>
-<span class="economy-value" data-bind-value="{{h.value}}" >
-</span>
-</button>
-<div data-bind-if="{{state.economy.happy_open == 'difficulty'}}">
-<div class="economy-ledger-row economy-sub" data-bind-for="i:{{h.items}}">
-<span class="economy-name" data-bind-value="{{i.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{i.value}}" >
-</span>
-</div>
-</div>
-</div>
-</div>
-<div class="economy-happy-col economy-scroll">
-<div class="economy-section-head">
-<span data-l10n="economy.unhappy" >
-</span>
-<span class="economy-value" data-bind-value="{{economy.unhappiness.total}}" >
-</span>
-</div>
-<div class="economy-ledger-row">
-<span data-l10n="economy.unhappy_cities" >
-</span>
-<span class="economy-value" data-bind-value="{{fmt.fixed(economy.unhappiness.cities.value, 2)}}" >
-</span>
-</div>
-<div class="economy-ledger-row">
-<span data-l10n="economy.unhappy_occupied_cities" >
-</span>
-<span class="economy-value" data-bind-value="{{fmt.fixed(economy.unhappiness.occupied_cities.value, 2)}}" >
-</span>
-</div>
-<div class="economy-ledger-row">
-<span data-l10n="economy.unhappy_population" >
-</span>
-<span class="economy-value" data-bind-value="{{fmt.fixed(economy.unhappiness.population.value, 2)}}" >
-</span>
-</div>
-<div class="economy-ledger-row">
-<span data-l10n="economy.unhappy_occupied_population" >
-</span>
-<span class="economy-value" data-bind-value="{{fmt.fixed(economy.unhappiness.occupied_population.value, 2)}}" >
-</span>
-</div>
-<div class="economy-ledger-row">
-<span data-l10n="economy.public_opinion" >
-</span>
-<span class="economy-value" data-bind-value="{{fmt.fixed(economy.unhappiness.public_opinion, 2)}}" >
-</span>
-</div>
-<h2 data-l10n="economy.by_city" >
-</h2>
-<div class="economy-ledger-row economy-sub" data-bind-for="c:{{economy.unhappiness.by_city}}">
-<span class="economy-name" data-bind-value="{{c.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{fmt.fixed(c.value, 2)}}" >
-</span>
-</div>
-</div>
-<div class="economy-happy-col economy-scroll">
-<div class="economy-section-head">
-<span data-l10n="economy.resources" >
-</span>
-<span class="economy-value" data-bind-value="{{len(economy.resources.available)}}" >
-</span>
-</div>
-<h2 data-l10n="economy.resources_available" >
-</h2>
-<div class="economy-ledger-row" data-bind-for="r:{{economy.resources.available}}">
-<img class="economy-icon" data-bind-src="{{r.icon}}">
-<span class="economy-name" data-bind-value="{{r.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{r.count}}" >
-</span>
-</div>
-<h2 data-l10n="economy.resources_imported" >
-</h2>
-<div class="economy-ledger-row" data-bind-for="r:{{economy.resources.imported}}">
-<img class="economy-icon" data-bind-src="{{r.icon}}">
-<span class="economy-name" data-bind-value="{{r.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{r.count}}" >
-</span>
-</div>
-<h2 data-l10n="economy.resources_exported" >
-</h2>
-<div class="economy-ledger-row" data-bind-for="r:{{economy.resources.exported}}">
-<img class="economy-icon" data-bind-src="{{r.icon}}">
-<span class="economy-name" data-bind-value="{{r.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{r.count}}" >
-</span>
-</div>
-<h2 data-l10n="economy.resources_local" >
-</h2>
-<div class="economy-ledger-row" data-bind-for="r:{{economy.resources.local}}">
-<img class="economy-icon" data-bind-src="{{r.icon}}">
-<span class="economy-name" data-bind-value="{{r.name}}" >
-</span>
-<span class="economy-value" data-bind-value="{{r.count}}" >
-</span>
-</div>
+<div class="empty" data-l10n="economy.no_cities" data-bind-if="{{len(economy.cities) == 0}}"></div>
+</div>
+<div class="trow total">
+<span class="c" data-bind-value="{{economy.totals.population}}"></span><span class="c"></span><span class="c" data-l10n="economy.empire"></span><span class="c"></span>
+<span class="c r" data-bind-value="{{fmt.signed(economy.totals.food)}}"></span>
+<span class="c r" data-bind-value="{{economy.totals.production}}"></span>
+<span class="c r" data-bind-value="{{economy.totals.science}}"></span>
+<span class="c r" data-bind-value="{{economy.totals.gold}}"></span>
+<span class="c r" data-bind-value="{{fmt.fixed(economy.totals.culture, 2)}}"></span>
+<span class="c r" data-bind-value="{{economy.totals.faith}}"></span>
+<span class="c r" data-bind-value="{{economy.totals.golden_age}}"></span>
+<span class="c"></span>
+</div>
+</div></div>
+<div class="hint" data-l10n="economy.hint"></div>
+</div>
+</div>
+<div class="ob cols3" data-bind-if="{{!(state.economy.tab == 'general' || (state.economy.tab == '' && economy.open_tab != 'happiness') || !economy.options.happiness)}}">
+<div class="hap-col">
+<div class="hh"><span class="t" data-l10n="economy.happy"></span><b class="c-happy" data-bind-value="{{economy.happiness.total}}"></b></div>
+<div class="scr"><div class="kv led">
+<div data-bind-for="h:{{economy.happiness.items}}" data-bind-filter="{{h.value != 0}}">
+<button class="r" data-on-click="set state.economy.happy_open = state.economy.happy_open == h.key ? '' : h.key"><span class="tg" data-bind-class-toggle="nil:{{len(h.items) == 0}}" data-bind-value="{{state.economy.happy_open == h.key ? '−' : '+'}}">+</span><span class="k"><span data-l10n="economy.happy_luxuries" data-bind-if="{{h.key == 'luxuries'}}"></span><span data-l10n="economy.happy_variety" data-bind-if="{{h.key == 'variety'}}"></span><span data-l10n="economy.happy_extra_per_luxury" data-bind-if="{{h.key == 'extra_per_luxury'}}"></span><span data-l10n="economy.happy_other_luxury" data-bind-if="{{h.key == 'other_luxury'}}"></span><span data-l10n="economy.happy_local" data-bind-if="{{h.key == 'local'}}"></span><span data-l10n="economy.happy_buildings" data-bind-if="{{h.key == 'buildings'}}"></span><span data-l10n="economy.happy_connections" data-bind-if="{{h.key == 'connections'}}"></span><span data-l10n="economy.happy_city_states" data-bind-if="{{h.key == 'city_states'}}"></span><span data-l10n="economy.happy_policies" data-bind-if="{{h.key == 'policies'}}"></span><span data-l10n="economy.happy_religion" data-bind-if="{{h.key == 'religion'}}"></span><span data-l10n="economy.happy_natural_wonders" data-bind-if="{{h.key == 'natural_wonders'}}"></span><span data-l10n="economy.happy_free_per_city" data-bind-if="{{h.key == 'free_per_city'}}"></span><span data-l10n="economy.happy_world_congress" data-bind-if="{{h.key == 'world_congress'}}"></span><span data-l10n="economy.happy_difficulty" data-bind-if="{{h.key == 'difficulty'}}"></span></span><b data-bind-value="{{h.value}}"></b></button>
+<div class="r sub" data-bind-for="i:{{h.items}}" data-bind-filter="{{state.economy.happy_open == h.key}}"><span class="k ell" data-bind-value="{{i.name}}"></span><b data-bind-value="{{i.value}}"></b></div>
+</div>
+</div></div>
+</div>
+<div class="hap-col colsep">
+<div class="hh"><span class="t" data-l10n="economy.unhappy"></span><b class="c-neg" data-bind-value="{{economy.unhappiness.total}}"></b></div>
+<div class="scr"><div class="kv led">
+<div class="r gut"><span class="k" data-l10n="economy.unhappy_cities"></span><span class="small" data-bind-value="{{economy.unhappiness.cities.count}}"></span><b data-bind-value="{{fmt.fixed(economy.unhappiness.cities.value, 2)}}"></b></div>
+<div class="r gut"><span class="k" data-l10n="economy.unhappy_occupied_cities"></span><span class="small" data-bind-value="{{economy.unhappiness.occupied_cities.count}}"></span><b data-bind-value="{{fmt.fixed(economy.unhappiness.occupied_cities.value, 2)}}"></b></div>
+<div class="r gut"><span class="k" data-l10n="economy.unhappy_population"></span><span class="small" data-bind-value="{{economy.unhappiness.population.count}}"></span><b data-bind-value="{{fmt.fixed(economy.unhappiness.population.value, 2)}}"></b></div>
+<div class="r gut"><span class="k" data-l10n="economy.unhappy_occupied_population"></span><span class="small" data-bind-value="{{economy.unhappiness.occupied_population.count}}"></span><b data-bind-value="{{fmt.fixed(economy.unhappiness.occupied_population.value, 2)}}"></b></div>
+<div class="r gut"><span class="k" data-l10n="economy.public_opinion"></span><b data-bind-value="{{fmt.fixed(economy.unhappiness.public_opinion, 2)}}"></b></div>
+<div class="sect lg"><span data-l10n="economy.by_city"></span><span class="rule"></span></div>
+<div class="r sub" data-bind-for="c:{{economy.unhappiness.by_city}}"><span class="k ell" data-bind-value="{{c.name}}"></span><b data-bind-value="{{fmt.fixed(c.value, 2)}}"></b></div>
+</div></div>
+</div>
+<div class="hap-col colsep">
+<div class="hh"><span class="t" data-l10n="economy.resources"></span><b data-bind-value="{{len(economy.resources.available)}}"></b></div>
+<div class="scr"><div class="kv led">
+<div class="sect lg"><span data-l10n="economy.resources_available"></span><span class="rule"></span></div>
+<div class="r" data-bind-for="r:{{economy.resources.available}}"><img class="gi s24" data-bind-src="{{r.icon}}"><span class="k ell" data-bind-value="{{r.name}}"></span><b data-bind-value="{{r.count}}"></b></div>
+<div class="sect lg"><span data-l10n="economy.resources_imported"></span><span class="rule"></span></div>
+<div class="r" data-bind-for="r:{{economy.resources.imported}}"><img class="gi s24" data-bind-src="{{r.icon}}"><span class="k ell" data-bind-value="{{r.name}}"></span><b data-bind-value="{{r.count}}"></b></div>
+<div class="sect lg"><span data-l10n="economy.resources_exported"></span><span class="rule"></span></div>
+<div class="r" data-bind-for="r:{{economy.resources.exported}}"><img class="gi s24" data-bind-src="{{r.icon}}"><span class="k ell" data-bind-value="{{r.name}}"></span><b data-bind-value="{{r.count}}"></b></div>
+<div class="sect lg"><span data-l10n="economy.resources_local"></span><span class="rule"></span></div>
+<div class="r" data-bind-for="r:{{economy.resources.local}}"><img class="gi s24" data-bind-src="{{r.icon}}"><span class="k ell" data-bind-value="{{r.name}}"></span><b data-bind-value="{{r.count}}"></b></div>
+</div></div>
 </div>
 </div>
 </div>
 </section>
 </div>
-

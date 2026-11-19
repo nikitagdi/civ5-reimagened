@@ -1,37 +1,30 @@
-.mp-vote-screen { position: absolute; inset: 48px 0 0; pointer-events: auto; display: flex; align-items: center; justify-content: center; background: rgba(12,10,8,.55); }
-.mp-vote-window { width: 1040px; max-width: 94%; max-height: 88%; display: flex; flex-direction: column; border: 1px solid #4d4032; border-radius: 4px; background: #1b1815; color: #ebe2d2; overflow: hidden; }
-.mp-vote-head { display: flex; align-items: center; gap: 24px; padding: 16px 24px; border-bottom: 1px solid #4d4032; flex-shrink: 0; }
-.mp-vote-head h1 { margin: 0; font-family: 'Alegreya'; font-size: 28px; font-weight: 500; }
-.mp-vote-head > span { flex: 1; color: #b2a794; font-size: 13px; }
-.mp-vote-window button { appearance: none; padding: 12px 16px; border: 1px solid #4d4032; border-radius: 4px; background: #26221d; color: #ebe2d2; cursor: pointer; text-align: left; }
-.mp-vote-window button:hover { border-color: #c9a36a; }
-.mp-vote-window button:focus-visible { outline: 1px solid #c9a36a; outline-offset: -3px; }
-.mp-vote-window button:disabled { opacity: .45; cursor: not-allowed; }
+/* Multiplayer vote: a kit window; the proposal with the tally on the left, the roster on the right. */
+.mp-vote-window { width: 1040px; max-height: 100%; }
+.mp-vote-head h1 { font: 500 30px/36px var(--serif); }
+.mp-vote-head > span { flex: 1; font-size: 13px; color: var(--bone-2); }
 .mp-vote-content { min-height: 0; overflow-y: auto; scrollbar-width: none; }
 .mp-vote-columns { display: grid; grid-template-columns: 1.6fr 1fr; min-height: 440px; }
 .mp-vote-proposal { display: flex; flex-direction: column; padding: 24px; min-width: 0; }
-.mp-vote-proposal h2, .mp-vote-candidate-list h2 { font-family: 'Alegreya'; font-size: 24px; font-weight: 500; margin: 0 0 12px; }
-.mp-vote-proposal p { font-size: 13px; line-height: 20px; color: #b2a794; }
-.mp-vote-stats { display: flex; padding: 16px 0; margin: 12px 0; border-top: 1px solid #4d4032; border-bottom: 1px solid #4d4032; }
+.mp-vote-proposal h2, .mp-vote-candidate-list h2 { font: 500 24px/30px var(--serif); margin-bottom: 12px; }
+.mp-vote-proposal p, .mp-vote-candidate-list p { font-size: 13px; line-height: 20px; color: var(--bone-2); }
+.mp-vote-stats { display: flex; padding: 16px 0; margin: 12px 0; box-shadow: inset 0 1px 0 var(--engrave), inset 0 -1px 0 var(--engrave); }
 .mp-vote-stats > div { flex: 1; display: flex; flex-direction: column; gap: 4px; padding-right: 12px; }
-.mp-vote-stats span { font-size: 12px; color: #8a8072; }
-.mp-vote-stats strong { font-family: 'Alegreya'; font-size: 24px; font-weight: 500; }
-.mp-vote-scale { height: 8px; margin: 8px 0; background: #352d25; }
-.mp-vote-scale > div { height: 8px; background: #86b061; }
-.mp-vote-waiting { color: #b2a794; font-size: 12px; }
+.mp-vote-stats span { font-size: 12px; color: var(--bone-3); }
+.mp-vote-stats strong { font: 500 24px/30px var(--serif); }
+.mp-vote-scale { margin: 8px 0; }
+.mp-vote-scale .fill { background-color: var(--pos); }
+.mp-vote-waiting { font-size: 12px; color: var(--bone-2); }
 .mp-vote-buttons { display: flex; gap: 8px; margin-top: auto; padding-top: 24px; }
-.mp-vote-buttons button { flex: 1; }
-.mp-vote-window .mp-vote-primary { background: #c9a36a; color: #1b1815; }
-.mp-vote-roster { padding: 16px 20px; background: #14120f; border-left: 1px solid #4d4032; }
-.mp-vote-roster h3 { margin: 0; padding: 8px 0; font-size: 12px; font-weight: 400; color: #8a8072; }
-.mp-vote-player { display: flex; gap: 12px; align-items: center; min-height: 48px; padding: 8px 0; border-bottom: 1px solid #352d25; }
-.mp-vote-player img, .mp-vote-candidate img { width: 24px; height: 24px; flex-shrink: 0; }
+.mp-vote-buttons .btn { flex: 1; }
+.mp-vote-roster { padding: 16px 20px; background-color: var(--lacquer-0); box-shadow: inset 1px 0 0 var(--engrave); }
+.mp-vote-roster h3 { padding: 8px 0; font-size: 12px; font-weight: 400; color: var(--bone-3); }
+.mp-vote-player { display: flex; gap: 12px; align-items: center; min-height: 48px; padding: 8px 0; box-shadow: inset 0 -1px 0 var(--line-soft); }
+.mp-vote-player img, .mp-vote-candidate img { width: 24px; height: 24px; flex: none; }
 .mp-vote-player > div { min-width: 0; display: flex; flex-direction: column; flex: 1; gap: 4px; }
 .mp-vote-player strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.mp-vote-player span { color: #b2a794; font-size: 12px; }
-.mp-vote-candidate-list { max-width: 600px; margin: 0 auto; padding: 24px; }
-.mp-vote-candidate-list p { font-size: 13px; line-height: 20px; color: #b2a794; }
-.mp-vote-candidate { width: 100%; display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+.mp-vote-player span { font-size: 12px; color: var(--bone-2); }
+.mp-vote-candidate-list { width: 600px; margin: 0 auto; padding: 24px; }
+.mp-vote-candidate { width: 100%; justify-content: flex-start; gap: 12px; margin: 8px 0; }
 .mp-vote-candidate span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mp-vote-message { padding: 12px 24px; color: #b2a794; font-size: 13px; }
-.mp-vote-error { color: #cf6f5c; padding: 4px 24px; font-size: 13px; }
+.mp-vote-message { padding: 12px 24px; font-size: 13px; color: var(--bone-2); }
+.mp-vote-error { padding: 4px 24px; }

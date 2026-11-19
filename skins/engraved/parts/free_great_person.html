@@ -1,10 +1,25 @@
-<div class="free_great_person-screen" data-part="free-great-person" data-screen="free_great_person" data-esc="none" data-bind-if="{{ui.windows.free_great_person.open}}">
-  <section class="free_great_person-window" data-bind-if="{{free_great_person != null}}">
-    <header class="free_great_person-header"><b data-bind-value="{{free_great_person.title}}"></b><span data-part="free-great-person.remaining" data-bind-value="{{free_great_person.remaining}}"></span><button data-bind-if="{{free_great_person.can_close}}" data-on-click="set state.free_gp.selected = -1; intent window.close(window: 'free_great_person')" data-l10n="free_gp.close">Close</button></header>
-    <div class="free_great_person-instructions" data-bind-value="{{free_great_person.instructions}}"></div>
-    <div class="free_great_person-columns"><div class="free_great_person-list">
-      <div class="free_great_person-row" data-bind-for="p:{{free_great_person.people}}" data-bind-class-toggle="free_great_person-selected:{{state.free_gp.selected == p.unit}}"><button data-part="free-great-person.row" data-bind-disabled="{{!p.available}}" data-on-click="set state.free_gp.selected = p.unit"><img class="free_great_person-icon" data-bind-src="{{p.icon}}"><b data-part="free-great-person.name" data-bind-value="{{p.name}}"></b><span class="free_great_person-summary" data-bind-value="{{p.strategy}}"></span></button><span class="free_great_person-reason" data-part="free-great-person.reason" data-bind-value="{{p.reason}}"></span></div>
-    </div><aside class="free_great_person-detail"><span data-bind-if="{{state.free_gp.selected < 0}}" data-l10n="free_gp.pick">Pick a row to review its abilities.</span><div class="free_great_person-person" data-bind-for="p:{{free_great_person.people}}" data-bind-filter="{{p.unit == state.free_gp.selected}}"><img class="free_great_person-detail-icon" data-bind-src="{{p.icon}}"><b data-bind-value="{{p.name}}"></b><span data-bind-value="{{free_great_person.appears_in}}"></span><span data-bind-value="{{p.strategy}}"></span><div class="free_great_person-ability" data-bind-for="a:{{p.abilities}}"><span data-bind-value="{{a.label}}"></span><b data-bind-value="{{a.text}}"></b></div></div></aside></div>
-    <footer class="free_great_person-footer"><span data-l10n="free_gp.review">Review the choice before confirming.</span><div data-bind-for="p:{{free_great_person.people}}" data-bind-filter="{{p.unit == state.free_gp.selected}}"><button class="free_great_person-primary" data-part="free-great-person.confirm" data-bind-hotkey="'Enter'" data-bind-disabled="{{!p.available || free_great_person.remaining == 0}}" data-on-click="call free_gp.confirm(p.unit)" data-l10n="free_gp.confirm">Confirm</button></div></footer>
+<div class="wlayer dimmed" data-part="free-great-person" data-screen="free_great_person" data-esc="none" data-bind-if="{{ui.windows.free_great_person.open}}">
+  <section class="win pop w-l fg-win" data-bind-if="{{free_great_person != null}}">
+    <div class="hd">
+      <div class="ttl"><b data-bind-value="{{free_great_person.title}}"></b></div>
+      <div class="facts"><b data-part="free-great-person.remaining" data-l10n="free_gp.left" data-l10n-args="{{free_great_person.remaining}}"></b></div>
+      <div class="close" data-bind-if="{{free_great_person.can_close}}"><span class="key" data-l10n="key.escape">Esc</span><button class="x" data-on-click="set state.free_gp.selected = -1; intent window.close(window: 'free_great_person')"><svg class="i"><use href="#i-close"/></svg></button></div>
+      <span class="req" data-bind-if="{{!free_great_person.can_close}}" data-l10n="confirm.required"></span>
+    </div>
+    <div class="fg-lead" data-bind-value="{{free_great_person.instructions}}"></div>
+    <div class="fg-body">
+      <div class="scr fg-list">
+        <button class="lrow fg-row" data-bind-for="p:{{free_great_person.people}}" data-bind-class-toggle="sel:{{state.free_gp.selected == p.unit}}; dis:{{!p.available}}" data-part="free-great-person.row" data-bind-disabled="{{!p.available}}" data-on-click="set state.free_gp.selected = p.unit"><img class="gi s48 round" data-bind-src="{{p.icon}}"><span class="tx"><b data-part="free-great-person.name" data-bind-value="{{p.name}}"></b><span data-bind-value="{{p.strategy}}"></span><span class="why" data-part="free-great-person.reason" data-bind-if="{{p.reason != null}}" data-bind-value="{{p.reason}}"></span></span></button>
+      </div>
+      <div class="fg-det">
+        <div class="empty" data-bind-if="{{state.free_gp.selected < 0}}" data-l10n="free_gp.pick">Pick a row to review its abilities.</div>
+        <div class="fg-person" data-bind-for="p:{{free_great_person.people}}" data-bind-filter="{{p.unit == state.free_gp.selected}}">
+          <img class="gi s64 round" data-bind-src="{{p.icon}}"><b class="fg-nm" data-bind-value="{{p.name}}"></b><span class="why" data-bind-value="{{free_great_person.appears_in}}"></span>
+          <div class="prose sm" data-bind-value="{{p.strategy}}"></div>
+          <div class="kv"><div class="r fg-ab" data-bind-for="a:{{p.abilities}}"><span class="k" data-bind-value="{{a.label}}"></span><b data-bind-value="{{a.text}}"></b></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="wft"><span class="note" data-l10n="free_gp.review">Review the choice before confirming.</span><button class="btn primary c" data-bind-for="p:{{free_great_person.people}}" data-bind-filter="{{p.unit == state.free_gp.selected}}" data-part="free-great-person.confirm" data-bind-hotkey="'Enter'" data-bind-disabled="{{!p.available || free_great_person.remaining == 0}}" data-on-click="call free_gp.confirm(p.unit)" data-l10n="free_gp.confirm">Confirm</button><span class="btn primary c off" data-bind-if="{{state.free_gp.selected < 0}}" data-l10n="free_gp.confirm">Confirm</span></div>
   </section>
 </div>

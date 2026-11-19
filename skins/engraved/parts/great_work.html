@@ -1,24 +1,28 @@
-<div class="great-work-screen" data-part="great-work" data-screen="great_work" data-esc="intent window.close(window: 'great_work')" data-bind-if="{{ui.windows.great_work.open}}">
-  <section class="great-work-window">
-    <div class="great-work-loading" data-bind-if="{{great_work == null}}" data-l10n="great-work.loading">Loading great work</div>
-    <div class="great-work-content" data-bind-if="{{great_work != null}}">
-      <header class="great-work-head">
-        <div><h1 data-bind-if="{{great_work.artist != null}}" data-bind-value="{{great_work.artist}}"></h1><h1 data-bind-if="{{great_work.artist == null &amp;&amp; great_work.from_dig}}" data-l10n="great-work.written">Written artifact</h1><h1 data-bind-if="{{great_work.artist == null &amp;&amp; !great_work.from_dig}}" data-bind-value="{{great_work.name}}"></h1><span data-bind-value="{{great_work.class_name}}"></span></div>
-        <button data-on-click="intent window.close(window: 'great_work')" data-l10n="great-work.close">Close</button>
-      </header>
-      <div class="great-work-scroll">
-        <div class="great-work-frame">
-          <img class="great-work-image" data-bind-if="{{great_work.image_reason == null}}" data-bind-src="{{great_work.image}}">
-          <span class="great-work-missing" data-bind-if="{{great_work.image_reason != null}}" data-bind-value="{{great_work.image_reason}}"></span>
-        </div>
-        <p class="great-work-quote" data-bind-if="{{great_work.quote != null}}" data-bind-value="{{great_work.quote}}"></p>
-        <h2 data-part="great-work.name" data-bind-value="{{great_work.name}}"></h2>
-        <div class="great-work-origin"><span data-bind-value="{{great_work.civ_name}}"></span><span data-bind-value="{{great_work.era}}"></span></div>
+<div class="wlayer full" data-part="great-work" data-screen="great_work" data-esc="intent window.close(window: 'great_work')" data-bind-if="{{ui.windows.great_work.open}}">
+  <section class="win pop gw-win" role="dialog">
+    <div class="wbd empty" data-bind-if="{{great_work == null}}" data-l10n="great-work.loading">Loading great work</div>
+    <div class="hd" data-bind-if="{{great_work != null}}">
+      <img class="gi s32" data-bind-src="{{great_work.class == 'writing' ? 'font:ICON_GREAT_WRITER' : great_work.class == 'art' ? 'font:ICON_GREAT_ARTIST' : great_work.class == 'music' ? 'font:ICON_GREAT_MUSICIAN' : 'font:ICON_GREAT_WORK'}}">
+      <div class="ttl stack">
+        <span class="kick" data-bind-value="{{great_work.class_name}}"></span>
+        <b data-bind-if="{{great_work.artist != null}}" data-bind-value="{{great_work.artist}}"></b>
+        <b data-bind-if="{{great_work.artist == null &amp;&amp; great_work.from_dig}}" data-l10n="great-work.written">Written artifact</b>
+        <b data-bind-if="{{great_work.artist == null &amp;&amp; !great_work.from_dig}}" data-bind-value="{{great_work.name}}"></b>
       </div>
+      <button class="close" data-on-click="intent window.close(window: 'great_work')"><span class="key" data-l10n="key.escape">Esc</span><span class="x"><svg class="i"><use href="#i-close"/></svg></span></button>
     </div>
-    <footer class="great-work-footer">
-      <span data-bind-if="{{great_work != null &amp;&amp; great_work.location != null}}" data-bind-value="{{great_work.location}}"></span>
-      <button data-part="great-work.close" data-bind-hotkey="'Enter'" data-on-click="intent window.close(window: 'great_work')" data-l10n="great-work.close">Close</button>
-    </footer>
+    <div class="wbd gw-body" data-bind-if="{{great_work != null}}">
+      <div class="gw-frame">
+        <img class="gw-image" data-bind-if="{{great_work.image_reason == null}}" data-bind-src="{{great_work.image}}">
+        <span class="empty" data-bind-if="{{great_work.image_reason != null}}" data-bind-value="{{great_work.image_reason}}"></span>
+      </div>
+      <div class="quote" data-bind-if="{{great_work.quote != null}}"><span class="q" data-bind-value="{{great_work.quote}}"></span></div>
+      <b class="gw-name" data-part="great-work.name" data-bind-value="{{great_work.name}}"></b>
+      <span class="chip" data-bind-value="{{great_work.civ_name}}"></span><span class="chip ghost" data-bind-value="{{great_work.era}}"></span>
+    </div>
+    <div class="wft">
+      <span class="note" data-bind-if="{{great_work != null &amp;&amp; great_work.location != null}}" data-bind-value="{{great_work.location}}"></span>
+      <button class="btn primary c" data-part="great-work.close" data-bind-hotkey="'Enter'" data-on-click="intent window.close(window: 'great_work')"><span data-l10n="great-work.close">Close</span><span class="key" data-l10n="key.enter">Enter</span></button>
+    </div>
   </section>
 </div>

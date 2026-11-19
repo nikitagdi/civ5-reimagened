@@ -1,54 +1,104 @@
-<div class="city-state-screen" data-part="city-state" data-screen="city_state" data-esc="call city-state.back()" data-bind-if="{{ui.windows.city_state.open}}">
-  <section class="city-state-window">
-    <div class="city-state-loading" data-bind-if="{{city_state == null}}" data-l10n="city-state.loading">Loading city-state</div>
-    <div class="city-state-idle" data-part="city-state.reason" data-bind-if="{{city_state != null &amp;&amp; city_state.reason != null}}" data-bind-value="{{city_state.reason}}"></div>
-    <div class="city-state-content" data-bind-if="{{city_state != null &amp;&amp; city_state.minor != null}}">
-      <header class="city-state-head"><img data-bind-src="{{city_state.minor.emblem}}"><h1 data-part="city-state.name" data-bind-style-color="{{city_state.minor.name_color}}" data-bind-value="{{city_state.minor.name}}"></h1><span data-bind-value="{{city_state.minor.trait_name}}" data-tooltip="city-state-tip" data-on-pointerenter="call city-state.tip(city_state.minor.trait_tooltip)"></span><span data-bind-value="{{city_state.minor.personality_name}}" data-tooltip="city-state-tip" data-on-pointerenter="call city-state.tip(city_state.minor.personality_tooltip)"></span><button data-bind-if="{{city_state.view == 'diplo'}}" data-on-click="call city-state.locate()" data-bind-disabled="{{!city_state.minor.has_capital}}" data-l10n="city-state.locate">Find on map</button><button data-bind-hotkey="'Enter'" data-bind-if="{{city_state.view == 'diplo'}}" data-on-click="call city-state.back()" data-l10n="city-state.close">Close</button></header>
-      <div class="city-state-speech" data-bind-if="{{city_state.speech != null}}" data-bind-value="{{city_state.speech.text}}"></div>
-      <div class="city-state-columns" data-bind-if="{{city_state.view == 'diplo' &amp;&amp; city_state.status != null}}">
-        <div class="city-state-ledger">
-          <div class="city-state-influence" data-tooltip="city-state-tip" data-on-pointerenter="call city-state.tip(city_state.bully_text)"><strong data-bind-value="{{city_state.status.label}}"></strong><strong data-part="city-state.influence" data-bind-value="{{city_state.status.influence}}"></strong><span data-l10n="city-state.perturn" data-l10n-args="{{city_state.status.per_turn}}"></span><span data-l10n="city-state.rest" data-l10n-args="{{city_state.status.resting_point}}"></span></div>
-          <div class="city-state-scale"><div data-bind-style-width="{{city_state.status.scale_fill_pct}}%"></div></div>
-          <div class="city-state-line" data-bind-if="{{city_state.ally != null}}"><span data-l10n="city-state.ally">Ally</span><span data-bind-value="{{city_state.ally.name}}" data-tooltip="city-state-tip" data-on-pointerenter="call city-state.tip(city_state.ally.tooltip)"></span></div>
-          <div class="city-state-line" data-bind-for="row:{{city_state.protectors}}"><span data-l10n="city-state.protector">Protected by</span><span data-bind-value="{{row.name}}"></span></div>
-          <div class="city-state-line" data-bind-for="row:{{city_state.enemies}}"><span data-l10n="city-state.enemy">At war with</span><span data-bind-value="{{row.name}}"></span></div>
-          <div class="city-state-line" data-bind-for="row:{{city_state.bonuses}}"><span data-bind-value="{{row.kind}}"></span><span data-bind-value="{{row.text}}"></span></div>
-          <div class="city-state-line" data-bind-for="row:{{city_state.resources}}"><span data-bind-value="{{row.name}}"></span><span data-bind-value="{{row.count}}"></span></div>
-          <h2 data-l10n="city-state.quests">Quests</h2>
-          <div class="city-state-quest" data-tooltip="city-state-tip" data-on-pointerenter="call city-state.tip(quest.tooltip)" data-bind-for="quest:{{city_state.quests}}"><strong data-bind-value="{{quest.title}}"></strong><span data-bind-value="{{quest.detail}}"></span><span data-bind-if="{{quest.turns_left != null}}" data-l10n="city-state.turns" data-l10n-args="{{quest.turns_left}}"></span></div>
-          <p class="city-state-quest" data-bind-if="{{city_state.threat_barbarians}}" data-bind-value="{{city_state.threat_barbarians_text}}"></p>
-          <p class="city-state-quest" data-bind-if="{{city_state.threat_proxy_war}}" data-bind-value="{{city_state.threat_proxy_war_text}}"></p>
-          <p data-bind-value="{{city_state.no_quests_text}}"></p>
+<div class="wlayer dimmed" data-part="city-state" data-screen="city_state" data-esc="call city-state.back()" data-bind-if="{{ui.windows.city_state.open}}">
+  <section class="win cs-win" role="dialog">
+    <div class="wbd prose sec" data-bind-if="{{city_state == null}}" data-l10n="city-state.loading">Loading city-state</div>
+    <div class="wbd prose sec" data-part="city-state.reason" data-bind-if="{{city_state != null &amp;&amp; city_state.reason != null}}" data-bind-value="{{city_state.reason}}"></div>
+    <div class="cs-content" data-bind-if="{{city_state != null &amp;&amp; city_state.minor != null}}">
+      <div class="hd">
+        <img class="gi s48 round" data-bind-src="{{city_state.minor.emblem}}">
+        <div class="ttl"><b data-part="city-state.name" data-bind-style-color="{{city_state.minor.name_color}}" data-bind-value="{{city_state.minor.name}}"></b></div>
+        <span class="chip lg" data-bind-value="{{city_state.minor.trait_name}}" data-tooltip="city-state-tip" data-on-pointerenter="call city-state.tip(city_state.minor.trait_tooltip)"></span>
+        <span class="chip lg" data-bind-value="{{city_state.minor.personality_name}}" data-tooltip="city-state-tip" data-on-pointerenter="call city-state.tip(city_state.minor.personality_tooltip)"></span>
+        <div class="end" data-bind-if="{{city_state.view == 'diplo'}}">
+          <button class="btn sm" data-on-click="call city-state.locate()" data-bind-disabled="{{!city_state.minor.has_capital}}" data-l10n="city-state.locate">Find on map</button>
+          <button class="close" data-bind-hotkey="'Enter'" data-on-click="call city-state.back()"><span class="key" data-l10n="key.escape">Esc</span><span class="x"><svg class="i"><use href="#i-close"/></svg></span></button>
         </div>
-        <aside class="city-state-actions" data-bind-if="{{city_state.actions != null}}">
-          <span data-part="city-state.gold" data-l10n="city-state.gold" data-l10n-args="{{city_state.player_gold}}"></span>
-          <div class="city-state-menu" data-bind-if="{{state.cs.menu == 'main'}}">
-            <button data-part="city-state.gifts" data-bind-if="{{city_state.actions.gifts.visible}}" data-on-click="set state.cs.menu = 'gifts'" data-l10n="city-state.gift">Give a gift</button>
-            <button data-part="city-state.tribute" data-bind-if="{{city_state.actions.tribute.visible}}" data-on-click="set state.cs.menu = 'tribute'" data-l10n="city-state.tribute">Demand tribute</button>
-            <button data-bind-if="{{city_state.actions.peace.visible}}" data-bind-disabled="{{!city_state.actions.peace.enabled}}" data-on-click="intent screen.act(screen: 'city_state', action: 'peace', a: city_state.minor.id)"><span data-l10n="city-state.peace">Make peace</span><span data-bind-value="{{city_state.actions.peace.reason}}"></span></button>
-            <button data-bind-if="{{city_state.actions.pledge.visible}}" data-bind-disabled="{{!city_state.actions.pledge.enabled}}" data-on-click="intent screen.act(screen: 'city_state', action: 'pledge', a: city_state.minor.id, b: city_state.actions.pledge.state == 'pledged' ? 0 : 1)"><span data-bind-if="{{city_state.actions.pledge.state == 'pledged'}}" data-l10n="city-state.revoke">Revoke protection</span><span data-bind-if="{{city_state.actions.pledge.state == 'can_pledge'}}" data-l10n="city-state.pledge">Pledge protection</span><span class="city-state-reason" data-bind-value="{{city_state.actions.pledge.reason}}"></span></button>
-            <button data-bind-if="{{city_state.actions.unit_spawning.visible}}" data-on-click="intent screen.act(screen: 'city_state', action: 'unit_spawning', a: city_state.minor.id, b: city_state.actions.unit_spawning.on ? 1 : 0)"><span data-l10n="city-state.units">Toggle military unit gifts</span><span data-bind-value="{{city_state.actions.unit_spawning.subtitle}}"></span></button>
-            <button data-bind-if="{{city_state.actions.buyout.visible}}" data-bind-disabled="{{!city_state.actions.buyout.enabled}}" data-on-click="call city-state.resolve('buyout')"><span data-l10n="city-state.buyout">Buy out city-state</span><span data-bind-value="{{city_state.actions.buyout.cost}}"></span><span data-bind-value="{{city_state.actions.buyout.reason}}"></span></button>
-            <button data-bind-if="{{city_state.actions.war.visible}}" data-bind-disabled="{{!city_state.actions.war.enabled}}" data-on-click="call city-state.war()"><span data-l10n="city-state.war">Declare war</span><span data-bind-value="{{city_state.actions.war.reason}}"></span></button>
+      </div>
+      <div class="quote cs-speech" data-bind-if="{{city_state.speech != null}}"><span class="q" data-bind-value="{{city_state.speech.text}}"></span><span class="by" data-bind-value="{{city_state.speech.caption}}"></span></div>
+      <div class="cs-body" data-bind-if="{{city_state.view == 'diplo' &amp;&amp; city_state.status != null}}">
+        <div class="cs-info">
+          <div class="cs-status" data-tooltip="city-state-tip" data-on-pointerenter="call city-state.tip(city_state.bully_text)">
+            <b class="cs-name" data-bind-class-toggle="pos:{{city_state.status.style == 'friend' || city_state.status.style == 'ally'}}; neg:{{city_state.status.style == 'war' || city_state.status.style == 'negative'}}" data-bind-value="{{city_state.status.label}}"></b>
+            <b class="cs-infl" data-part="city-state.influence" data-bind-value="{{city_state.status.influence}}"></b>
+            <span class="sec cs-rt" data-l10n="city-state.perturn" data-l10n-args="{{city_state.status.per_turn}}"></span>
+            <span class="sec" data-l10n="city-state.rest" data-l10n-args="{{city_state.status.resting_point}}"></span>
           </div>
-          <div class="city-state-menu" data-bind-if="{{state.cs.menu == 'gifts' &amp;&amp; city_state.gifts != null}}">
-            <button data-part="city-state.gifts-back" data-on-click="set state.cs.menu = 'main'" data-l10n="city-state.back">Back to actions</button>
-            <button data-part="city-state.gold-gift" data-bind-for="gift:{{city_state.gifts.gold}}" data-bind-disabled="{{!gift.enabled}}" data-on-click="intent screen.act(screen: 'city_state', action: 'gift_gold', a: city_state.minor.id, b: gift.index)"><strong data-l10n="city-state.gold" data-l10n-args="{{gift.amount}}"></strong><span data-l10n="city-state.gain" data-l10n-args="{{gift.influence}}"></span><span class="city-state-reason" data-bind-value="{{gift.reason}}"></span></button>
-            <button disabled><span data-l10n="city-state.unitgift">Gift a unit</span><span data-bind-value="{{city_state.gifts.unit.reason}}"></span></button>
-            <button disabled><span data-l10n="city-state.improvement">Improve a tile</span><span data-bind-value="{{city_state.gifts.improvement.reason}}"></span></button>
+          <div class="scale t cs-scale" data-bind-class-toggle="neg:{{city_state.status.scale_side == 'negative'}}">
+            <div class="fill" data-bind-style-width="{{city_state.status.scale_fill_pct}}%"></div>
+            <div class="cs-tick" data-bind-style-left="{{city_state.status.friend_tick_pct}}%"></div>
+            <div class="cs-mark" data-bind-style-left="{{city_state.status.scale_marker_pct}}%"></div>
           </div>
-          <div class="city-state-menu" data-bind-if="{{state.cs.menu == 'tribute' &amp;&amp; city_state.tribute != null}}">
-            <button data-on-click="set state.cs.menu = 'main'" data-l10n="city-state.back">Back to actions</button>
-            <p class="city-state-line" data-bind-if="{{city_state.tribute.pressure != null}}"><span data-part="city-state.pressure" data-l10n="city-state.pressure" data-l10n-args="{{city_state.tribute.pressure}}"></span></p>
-            <button data-bind-disabled="{{!city_state.tribute.gold.enabled}}" data-tooltip="city-state-tip" data-on-pointerenter="call city-state.tip(city_state.tribute.gold.tooltip)" data-on-click="set state.cs.confirm = 'gold'"><span data-l10n="city-state.takegold" data-l10n-args="{{city_state.tribute.gold.amount}}"></span><span data-bind-value="{{city_state.tribute.gold.reason}}"></span><span data-bind-if="{{city_state.tribute.pressure_gold_needed != null &amp;&amp; city_state.tribute.pressure_gold_needed > 0}}" data-l10n="city-state.needed" data-l10n-args="{{city_state.tribute.pressure_gold_needed}}"></span></button>
-            <button data-bind-disabled="{{!city_state.tribute.unit.enabled}}" data-tooltip="city-state-tip" data-on-pointerenter="call city-state.tip(city_state.tribute.unit.tooltip)" data-on-click="set state.cs.confirm = 'unit'"><span data-l10n="city-state.takeunit">Take a worker</span><span data-bind-value="{{city_state.tribute.unit.reason}}"></span><span data-bind-if="{{city_state.tribute.pressure_unit_needed != null &amp;&amp; city_state.tribute.pressure_unit_needed > 0}}" data-l10n="city-state.needed" data-l10n-args="{{city_state.tribute.pressure_unit_needed}}"></span></button>
+          <div class="cs-grid">
+            <div class="kv">
+              <div class="r" data-bind-if="{{city_state.ally != null}}" data-tooltip="city-state-tip" data-on-pointerenter="call city-state.tip(city_state.ally.tooltip)"><span class="k" data-l10n="city-state.ally">Ally</span><img class="gi s24" data-bind-if="{{city_state.ally.emblem != null}}" data-bind-src="{{city_state.ally.emblem}}"><b data-bind-value="{{city_state.ally.name}}"></b></div>
+              <div class="r" data-bind-for="row:{{city_state.protectors}}"><span class="k" data-l10n="city-state.protector">Protected by</span><img class="gi s24" data-bind-src="{{row.emblem}}"><b data-bind-value="{{row.name}}"></b></div>
+              <div class="r" data-bind-for="row:{{city_state.enemies}}"><span class="k" data-l10n="city-state.enemy">At war with</span><img class="gi s24" data-bind-src="{{row.emblem}}"><b data-bind-value="{{row.name}}"></b></div>
+            </div>
+            <div class="kv">
+              <div class="r" data-bind-for="row:{{city_state.bonuses}}"><span class="k" data-bind-value="{{row.kind}}"></span><img class="gi s16" data-bind-src="{{row.icon}}"><b class="ell" data-bind-value="{{row.short}}"></b></div>
+              <div class="r cs-res"><span class="yv" data-bind-for="row:{{city_state.resources}}"><img class="gi" data-bind-src="{{row.icon}}"><span data-bind-value="{{row.count}}"></span></span></div>
+            </div>
+          </div>
+          <div class="sect lg"><span data-l10n="city-state.quests">Quests</span><span class="rule"></span></div>
+          <div class="lrow cs-q" data-tooltip="city-state-tip" data-on-pointerenter="call city-state.tip(quest.tooltip)" data-bind-for="quest:{{city_state.quests}}">
+            <img class="gi s24" data-bind-src="{{quest.icon}}">
+            <div class="cs-qt"><b data-bind-value="{{quest.title}}"></b><span data-bind-value="{{quest.detail}}"></span></div>
+            <span class="sec" data-bind-if="{{quest.turns_left != null}}" data-l10n="city-state.turns" data-l10n-args="{{quest.turns_left}}"></span>
+          </div>
+          <div class="why neg" data-bind-if="{{city_state.threat_barbarians}}" data-bind-value="{{city_state.threat_barbarians_text}}"></div>
+          <div class="why neg" data-bind-if="{{city_state.threat_proxy_war}}" data-bind-value="{{city_state.threat_proxy_war_text}}"></div>
+          <div class="why" data-bind-if="{{len(city_state.quests) == 0}}" data-bind-value="{{city_state.no_quests_text}}"></div>
+        </div>
+        <aside class="cs-side" data-bind-if="{{city_state.actions != null}}">
+          <div class="sect"><span data-l10n="city.actions">Actions</span><span class="rule"></span><span data-part="city-state.gold" data-l10n="city-state.gold" data-l10n-args="{{city_state.player_gold}}"></span></div>
+          <div class="btns col" data-bind-if="{{state.cs.menu == 'main'}}">
+            <button class="btn primary tall cs-a" data-part="city-state.gifts" data-bind-if="{{city_state.actions.gifts.visible}}" data-bind-class-toggle="off:{{!city_state.actions.gifts.enabled}}" data-on-click="set state.cs.menu = 'gifts'" data-l10n="city-state.gift">Give a gift</button>
+            <button class="btn tall cs-a" data-part="city-state.tribute" data-bind-if="{{city_state.actions.tribute.visible}}" data-on-click="set state.cs.menu = 'tribute'"><span data-l10n="city-state.tribute">Demand tribute</span><small data-bind-value="{{city_state.actions.tribute.subtitle}}"></small></button>
+            <button class="btn tall cs-a" data-bind-if="{{city_state.actions.peace.visible}}" data-bind-disabled="{{!city_state.actions.peace.enabled}}" data-on-click="intent screen.act(screen: 'city_state', action: 'peace', a: city_state.minor.id)"><span data-l10n="city-state.peace">Make peace</span><small data-bind-value="{{city_state.actions.peace.reason}}"></small></button>
+            <button class="btn tall cs-a" data-bind-if="{{city_state.actions.pledge.visible}}" data-bind-disabled="{{!city_state.actions.pledge.enabled}}" data-on-click="intent screen.act(screen: 'city_state', action: 'pledge', a: city_state.minor.id, b: city_state.actions.pledge.state == 'pledged' ? 0 : 1)"><span data-bind-if="{{city_state.actions.pledge.state == 'pledged'}}" data-l10n="city-state.revoke">Revoke protection</span><span data-bind-if="{{city_state.actions.pledge.state == 'can_pledge'}}" data-l10n="city-state.pledge">Pledge protection</span><small data-bind-value="{{city_state.actions.pledge.reason}}"></small></button>
+            <button class="btn tall cs-a" data-bind-if="{{city_state.actions.unit_spawning.visible}}" data-bind-class-toggle="cs-on:{{city_state.actions.unit_spawning.on}}" data-on-click="intent screen.act(screen: 'city_state', action: 'unit_spawning', a: city_state.minor.id, b: city_state.actions.unit_spawning.on ? 1 : 0)"><span data-l10n="city-state.units">Toggle military unit gifts</span><small data-bind-value="{{city_state.actions.unit_spawning.subtitle}}"></small></button>
+            <button class="btn tall cs-a" data-bind-if="{{city_state.actions.buyout.visible}}" data-bind-disabled="{{!city_state.actions.buyout.enabled}}" data-on-click="call city-state.resolve('buyout')"><span data-l10n="city-state.buyout">Buy out city-state</span><small data-bind-value="{{city_state.actions.buyout.reason}}"></small><small data-l10n="city-state.gold" data-l10n-args="{{city_state.actions.buyout.cost}}"></small></button>
+            <button class="btn danger tall cs-a" data-bind-if="{{city_state.actions.war.visible}}" data-bind-disabled="{{!city_state.actions.war.enabled}}" data-on-click="call city-state.war()"><span data-l10n="city-state.war">Declare war</span><small data-bind-value="{{city_state.actions.war.reason}}"></small></button>
+          </div>
+          <div class="btns col" data-bind-if="{{state.cs.menu == 'gifts' &amp;&amp; city_state.gifts != null}}">
+            <button class="btn sm cs-back" data-part="city-state.gifts-back" data-on-click="set state.cs.menu = 'main'" data-l10n="city-state.back">Back to actions</button>
+            <button class="btn tall cs-a" data-part="city-state.gold-gift" data-bind-for="gift:{{city_state.gifts.gold}}" data-bind-disabled="{{!gift.enabled}}" data-on-click="intent screen.act(screen: 'city_state', action: 'gift_gold', a: city_state.minor.id, b: gift.index)"><span data-l10n="city-state.gold" data-l10n-args="{{gift.amount}}"></span><small data-l10n="city-state.gain" data-l10n-args="{{gift.influence}}"></small><small data-bind-value="{{gift.reason}}"></small></button>
+            <button class="btn tall cs-a" disabled><span data-l10n="city-state.unitgift">Gift a unit</span><small data-bind-value="{{city_state.gifts.unit.reason}}"></small></button>
+            <button class="btn tall cs-a" disabled><span data-l10n="city-state.improvement">Improve a tile</span><small data-bind-value="{{city_state.gifts.improvement.reason}}"></small></button>
+          </div>
+          <div class="btns col" data-bind-if="{{state.cs.menu == 'tribute' &amp;&amp; city_state.tribute != null}}">
+            <button class="btn sm cs-back" data-on-click="set state.cs.menu = 'main'" data-l10n="city-state.back">Back to actions</button>
+            <div class="why" data-part="city-state.pressure" data-bind-if="{{city_state.tribute.pressure != null}}" data-l10n="city-state.pressure" data-l10n-args="{{city_state.tribute.pressure}}"></div>
+            <button class="btn tall cs-a" data-bind-disabled="{{!city_state.tribute.gold.enabled}}" data-tooltip="city-state-tip" data-on-pointerenter="call city-state.tip(city_state.tribute.gold.tooltip)" data-on-click="set state.cs.confirm = 'gold'"><span data-l10n="city-state.takegold" data-l10n-args="{{city_state.tribute.gold.amount}}"></span><small data-bind-value="{{city_state.tribute.gold.reason}}"></small><small data-bind-if="{{city_state.tribute.pressure_gold_needed != null &amp;&amp; city_state.tribute.pressure_gold_needed > 0}}" data-l10n="city-state.needed" data-l10n-args="{{city_state.tribute.pressure_gold_needed}}"></small></button>
+            <button class="btn tall cs-a" data-bind-disabled="{{!city_state.tribute.unit.enabled}}" data-tooltip="city-state-tip" data-on-pointerenter="call city-state.tip(city_state.tribute.unit.tooltip)" data-on-click="set state.cs.confirm = 'unit'"><span data-l10n="city-state.takeunit">Take a worker</span><small data-bind-value="{{city_state.tribute.unit.reason}}"></small><small data-bind-if="{{city_state.tribute.pressure_unit_needed != null &amp;&amp; city_state.tribute.pressure_unit_needed > 0}}" data-l10n="city-state.needed" data-l10n-args="{{city_state.tribute.pressure_unit_needed}}"></small></button>
           </div>
         </aside>
       </div>
-      <section class="city-state-question" data-bind-if="{{city_state.enter_land != null}}"><p data-bind-value="{{city_state.enter_land.text}}"></p><button disabled data-l10n="city-state.enter">Enter</button><button data-on-click="intent screen.act(screen: 'city_state', action: 'cancel')" data-l10n="city-state.stay">Stay out</button></section>
-      <section class="city-state-question" data-bind-if="{{city_state.liberate != null}}"><h2 data-bind-value="{{city_state.liberate.city_name}}"></h2><p data-bind-value="{{city_state.liberate.text}}"></p><button data-on-click="call city-state.resolve('liberate')" data-l10n="city-state.liberate">Liberate</button><button data-bind-disabled="{{!city_state.liberate.can_puppet}}" data-on-click="call city-state.resolve('puppet')" data-l10n="city-state.puppet">Keep as a puppet</button><button data-on-click="intent window.close(window: 'city_state')" data-l10n="city-state.annex">Annex</button></section>
+      <div class="wbd prose" data-bind-if="{{city_state.enter_land != null}}" data-bind-value="{{city_state.enter_land.text}}"></div>
+      <div class="wft" data-bind-if="{{city_state.enter_land != null}}">
+        <button class="btn c" disabled data-l10n="city-state.enter">Enter</button>
+        <button class="btn primary c" data-on-click="intent screen.act(screen: 'city_state', action: 'cancel')" data-l10n="city-state.stay">Stay out</button>
+      </div>
+      <div class="wbd" data-bind-if="{{city_state.liberate != null}}">
+        <div class="ttl stack"><span class="kick" data-bind-value="{{city_state.liberate.subtitle}}"></span><b data-bind-value="{{city_state.liberate.city_name}}"></b></div>
+        <div class="prose" data-bind-value="{{city_state.liberate.text}}"></div>
+        <div class="kv"><div class="r" data-bind-for="p:{{city_state.liberate.preview}}"><img class="gi s16" data-bind-src="{{p.icon}}"><span class="k" data-bind-value="{{p.text}}"></span></div></div>
+      </div>
+      <div class="wft" data-bind-if="{{city_state.liberate != null}}">
+        <button class="btn c" data-on-click="intent window.close(window: 'city_state')" data-l10n="city-state.annex">Annex</button>
+        <button class="btn c" data-bind-disabled="{{!city_state.liberate.can_puppet}}" data-on-click="call city-state.resolve('puppet')" data-l10n="city-state.puppet">Keep as a puppet</button>
+        <button class="btn primary c" data-on-click="call city-state.resolve('liberate')" data-l10n="city-state.liberate">Liberate</button>
+      </div>
     </div>
-    <div class="city-state-error" data-bind-for="error:{{ui.errors}}"><span data-bind-if="{{error.detail != null}}" data-part="city-state.error" data-bind-value="{{error.detail}}"></span></div>
-    <div class="city-state-shade" data-bind-if="{{state.cs.confirm != 'none'}}"><section class="city-state-confirm"><h2 data-l10n="city-state.confirm">Demand tribute?</h2><p data-l10n="city-state.consequence">This reduces influence and can anger their protectors.</p><div><button data-on-click="set state.cs.confirm = 'none'" data-l10n="city-state.no">No</button><button data-part="city-state.confirm" data-on-click="call city-state.tribute()" data-l10n="city-state.yes">Yes</button></div></section></div>
+    <div class="why neg cs-pad" data-bind-for="error:{{ui.errors}}"><span data-bind-if="{{error.detail != null}}" data-part="city-state.error" data-bind-value="{{error.detail}}"></span></div>
+    <div class="wlayer dimmed cs-shade" data-bind-if="{{state.cs.confirm != 'none'}}">
+      <section class="win pop w-s" role="dialog">
+        <div class="hd"><div class="ttl"><b data-l10n="city-state.confirm">Demand tribute?</b></div></div>
+        <div class="wbd prose sm sec" data-l10n="city-state.consequence">This reduces influence and can anger their protectors.</div>
+        <div class="wft">
+          <button class="btn c" data-on-click="set state.cs.confirm = 'none'" data-l10n="city-state.no">No</button>
+          <button class="btn primary c" data-part="city-state.confirm" data-on-click="call city-state.tribute()" data-l10n="city-state.yes">Yes</button>
+        </div>
+      </section>
+    </div>
   </section>
 </div>

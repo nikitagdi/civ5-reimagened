@@ -1,7 +1,7 @@
 <div class="unit-panel-rename" data-part="unit-panel.rename" data-screen="unit_rename" data-bind-if="{{ui.windows.unit_rename.open}}">
   <section class="unit-panel-rename-window" data-bind-if="{{unit_rename != null}}">
     <b data-l10n="unit_panel.rename"></b><span data-bind-value="{{unit_rename.name}}"></span>
-    <input class="unit-panel-input" type="text" data-part="unit-panel.rename-input" data-bind-model="state.unit_panel.draft" data-on-input="call unit_panel.validate()"/>
+    <input class="field" type="text" data-part="unit-panel.rename-input" data-bind-model="state.unit_panel.draft" data-on-input="call unit_panel.validate()"/>
     <span data-bind-if="{{!state.unit_panel.valid}}" data-l10n="unit_panel.name_rule"></span>
     <span data-bind-value="{{unit_rename.reason}}"></span>
     <div class="unit-panel-rename-footer"><button data-on-click="intent window.close(window: 'unit_rename')" data-l10n="unit_panel.cancel"></button><button class="unit-panel-primary" data-part="unit-panel.rename-accept" data-bind-hotkey="'Enter'" data-bind-disabled="{{!unit_rename.enabled || !state.unit_panel.valid || len(ui.pending) > 0}}" data-on-click="intent screen.act(screen: 'unit_rename', action: 'rename', a: unit_rename.unit, text: state.unit_panel.draft)" data-l10n="unit_panel.accept"></button></div>

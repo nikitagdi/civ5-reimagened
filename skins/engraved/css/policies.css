@@ -1,63 +1,59 @@
-.policies-screen { position: absolute; inset: 48px 0 0; padding: 16px 24px 24px; display: flex; justify-content: center; background: rgba(12,10,8,.6); }
-.policies-window { position: relative; width: 100%; max-width: 1800px; height: 100%; min-height: 0; display: flex; flex-direction: column; background: var(--lacquer); color: var(--bone); border: 1px solid var(--engrave); border-radius: 4px; overflow: hidden; }
-.policies-head { display: flex; align-items: center; gap: 20px; padding: 16px 24px; border-bottom: 1px solid var(--engrave); }
-.policies-title { font: 500 28px/32px var(--serif); }
-.policies-tab { padding: 8px; color: var(--bone-2); }
-.policies-tab:hover { color: var(--brass); }
-.policies-band { display: flex; align-items: center; gap: 16px; padding: 12px 24px; border-bottom: 1px solid var(--engrave); font-size: 13px; }
-.policies-band b { color: var(--y-cult); }
-.policies-meter { position: relative; height: 6px; margin: 0 24px; background: var(--lacquer-3); }
-.policies-fill { position: absolute; inset: 0 auto 0 0; background: var(--y-cult); }
-.policies-ticks { position: absolute; inset: 0; background-image: linear-gradient(to right, transparent calc(100% - 1px), var(--lacquer) calc(100% - 1px)); background-repeat: repeat-x; }
-.policies-grid { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; padding: 16px 20px; }
-.policies-card { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 300px; background: var(--lacquer-0); border: 1px solid var(--engrave); border-radius: 3px; padding: 12px; }
-.policies-card-head { display: flex; justify-content: space-between; gap: 8px; }
-.policies-card-head b { font: 500 20px/24px var(--serif); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.policies-card-head span { font-size: 12px; color: var(--bone-3); }
-.policies-effects { display: flex; flex-direction: column; gap: 4px; color: var(--bone-2); font-size: 12px; }
-.policies-effects span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* SIMPLIFIED(SIMP-361): policy trees use compact wrapping rows until bound dependency geometry is available. */
-.policies-tree { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; align-content: flex-start; }
-.policies-policy { width: 30%; min-height: 44px; padding: 6px; font-size: 12px; border: 1px solid var(--engrave); border-radius: 3px; color: var(--bone-3); background: var(--lacquer-2); overflow: hidden; }
-.policies-expanded .policies-policy { width: 100%; display: flex; flex-direction: column; text-align: left; gap: 6px; }
-.policies-adopted { color: var(--bone); background: #29232f; border-color: #786383; }
-.policies-available { color: var(--bone); border-color: var(--brass); }
-.policies-button { padding: 10px 16px; border: 1px solid var(--engrave); border-radius: 4px; background: var(--lacquer-2); color: var(--bone); }
-.policies-button:hover { border-color: var(--brass); }
-.policies-button:disabled { color: var(--bone-3); }
-.policies-reason { font-size: 12px; color: var(--neg); }
-.policies-blocked { border-color: var(--neg); }
-.policies-era-locked { opacity: .6; }
-.policies-ideology { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
-.policies-ideology-body { display: flex; gap: 16px; padding: 20px; }
-.policies-summary { width: 25%; display: flex; flex-direction: column; gap: 14px; }
-.policies-level { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.policies-slot { min-height: 88px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; border: 1px solid var(--engrave); color: var(--bone-2); }
-.policies-overlay { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; background: rgba(12,10,8,.7); }
-.policies-dialog { width: 620px; max-height: 90%; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 16px; padding: 24px; background: var(--lacquer); border: 1px solid var(--engrave); }
-.policies-tenet { display: flex; flex-direction: column; gap: 8px; width: 100%; padding: 12px; color: var(--bone); border-bottom: 1px solid var(--engrave); text-align: left; }
-.policies-tip { width: 360px; padding: 14px; background: var(--lacquer); border: 1px solid var(--engrave); color: var(--bone); }
-@media (width < 1500px) { .policies-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .policies-head { gap: 12px; padding: 12px; } .policies-title { font-size: 24px; } }
-
-.policies-escape { position: absolute; right: 32px; bottom: 8px; padding: 6px 12px; color: var(--bone-2); background: var(--lacquer); border: 1px solid var(--engrave); }
-
-
-.policies-feedback { position: absolute; left: 32px; bottom: 8px; max-width: 75%; max-height: 100px; overflow-y: auto; scrollbar-width: none; padding: 6px 12px; color: var(--neg); background: var(--lacquer); font-size: 12px; }
-
-.policies-screen { pointer-events: auto; }
-
-.policies-head { min-height: 64px; padding: 8px 24px; }
-.policies-head > .policies-close-control { margin-left: auto; }
-.policies-tab { align-self: stretch; border-bottom: 2px solid transparent; }
-.policies-active { color: var(--bone); border-bottom-color: var(--brass); }
-.policies-card-head { flex-wrap: wrap; align-items: baseline; }
-.policies-card-head b { flex: 1; }
-.policies-card-head > span { max-width: 100%; }
-.policies-tree { gap: 6px; }
-.policies-policy { width: 46%; display: flex; align-items: center; gap: 4px; text-align: left; }
-.policies-icon { width: 24px; height: 24px; flex-shrink: 0; }
-.policies-dialog .policies-confirm-control { background: var(--brass); color: var(--brass-ink); }
-.policies-button:disabled { border-color: var(--engrave); opacity: .65; }
-.policies-reason { line-height: 16px; }
-.policies-feedback { pointer-events: auto; }
-@media (height < 900px) { .policies-grid { padding: 12px; gap: 8px; } .policies-card { gap: 8px; padding: 10px; } }
+/* policies: the culture band, five columns of branch cards with the policy tree (game positions), the ideology tab
+   and the confirm overlays. The frame, tabs, scale, cards, facts and buttons are the kit's. */
+.win.w-pol { width: 1800px; height: 100%; }
+.pol-band { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 40px; padding: 12px 24px 14px; box-shadow: inset 0 -1px 0 var(--engrave); }
+.pol-meter { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.pol-meter .l1 { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--bone-2); white-space: nowrap; }
+.pol-meter .l1 .k { width: 76px; color: var(--bone-3); font-size: 12px; }
+.pol-meter .l1 b { font: 500 16px/20px var(--sans); color: var(--bone); }
+.pol-meter .l1 .r { margin-left: auto; color: var(--y-cult); font-weight: 500; }
+.pol-meter .scale { margin-left: 84px; }
+.scale .fill.pol-fill { background-color: var(--y-cult); }
+.pol-cult { color: var(--y-cult); }
+.pol-facts { display: flex; align-items: baseline; gap: 6px; font-size: 13px; color: var(--bone-2); white-space: nowrap; }
+.pol-facts b { font-size: 16px; font-weight: 500; color: var(--bone); }
+.pgrid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 16px 20px 20px; }
+.pbr { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; border-radius: 4px; background-color: var(--lacquer-0); box-shadow: inset 0 0 0 1px var(--engrave); }
+.pbr.lock { background-color: transparent; box-shadow: inset 0 0 0 1px var(--line-dead); }
+.pbr .bh { display: flex; align-items: center; gap: 10px; height: 48px; flex: none; padding: 0 14px 0 12px; box-shadow: inset 0 -1px 0 var(--engrave); }
+.pbr .bh b { font: 500 20px/24px var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.pbr .bh .n { margin-left: auto; font-size: 13px; color: var(--bone-2); white-space: nowrap; }
+.pbr .bh .n.done { color: var(--y-cult); }
+.pbr .bh .n.warn { color: var(--neg); }
+.pfx { flex: none; display: flex; flex-direction: column; gap: 2px; padding: 8px 14px 6px; font-size: 12px; line-height: 16px; color: var(--bone-2); }
+.pfx .done { color: var(--y-cult); }
+.pbr .tree { position: relative; flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.pbr .trail { position: absolute; left: 54px; right: 54px; top: 14px; height: 216px; }
+.pbr .tree.exp .trail { position: relative; left: 0; right: 0; margin: 14px 54px 0; }
+.pbr .ln { position: absolute; background-color: var(--engrave); }
+.pbr .ln.v { width: 1px; }
+.pbr .ln.h { height: 1px; }
+.pbr .ln.lit { background-color: rgba(169, 140, 204, 0.55); }
+.pn { position: absolute; width: 104px; height: 44px; margin-left: -52px; display: flex; align-items: center; gap: 6px; padding: 0 6px; border-radius: 4px; font-size: 12px; line-height: 14px; font-weight: 500; text-align: left; color: var(--bone); background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave-hi); }
+.pn .pnm { min-width: 0; overflow: hidden; }
+.pn.got { background-color: var(--lacquer-3); box-shadow: inset 0 0 0 1px rgba(169, 140, 204, 0.55); }
+.pn.can:hover { background-color: var(--lacquer-3); box-shadow: inset 0 0 0 1px var(--brass), 0 0 0 1px var(--brass); }
+.pn:disabled { color: var(--bone-3); font-weight: 400; }
+.pexp { padding: 8px 14px; }
+.pexp .pe { font-size: 12px; color: var(--bone-2); text-align: right; }
+.cover { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 8px 20px 20px; }
+.cover .ring { margin: 16px; border-radius: 40px; box-shadow: 0 0 0 16px var(--lacquer-0), 0 0 0 17px var(--engrave); }
+.pbr.lock .ring { opacity: 0.4; }
+.cover .btn { align-self: stretch; }
+.cover .why { justify-content: center; text-align: center; }
+.ibody { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320px, 1fr) minmax(0, 3fr); gap: 32px; }
+.isum { display: flex; flex-direction: column; gap: 16px; }
+.ilv { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.slot { min-height: 72px; text-align: left; color: var(--bone); }
+.ptenet { text-align: left; color: var(--bone); margin-bottom: 8px; }
+/* the policy tooltip (parts/screen_tips.html) */
+.policies-tip { width: 360px; padding: 14px; background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave); color: var(--bone); }
+/* shared by the policy, ideology, pantheon and religion screens */
+.policies-escape { position: absolute; right: 32px; bottom: 8px; }
+.policies-feedback { position: absolute; left: 32px; bottom: 8px; max-width: 75%; max-height: 100px; overflow-y: auto; scrollbar-width: none; padding: 6px 12px; color: var(--neg); background-color: var(--lacquer); font-size: 12px; pointer-events: auto; }
+.pol-facts b { margin-left: 22px; }
+.isum .ido-t { font: 500 20px/24px var(--serif); }
+.isum .cs { font-size: 13px; line-height: 19px; color: var(--bone-2); }
+.pbr .bh .n { line-height: 16px; }
+.pbr .bh .n { display: flex; }

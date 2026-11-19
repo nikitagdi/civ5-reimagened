@@ -1,30 +1,26 @@
 .unit-lists-column { position: absolute; left: 0; top: 96px; bottom: 0; width: 567px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .unit-lists-column .unit { position: relative; left: auto; bottom: auto; flex: none; margin-top: auto; pointer-events: auto; }
-.unit-lists-corner { width: 368px; flex: none; display: flex; height: 40px; align-items: center; justify-content: space-between; padding: 0 8px; border: 1px solid var(--engrave); background: var(--lacquer); pointer-events: auto; }
-.unit-lists-corner button { padding: 4px; font-size: 11px; color: var(--bone-2); }
-.unit-lists-corner button:hover { color: var(--brass); }
-.unit-lists-panel { width: 368px; flex: 0 1 auto; min-height: 120px; max-height: 360px; display: flex; flex-direction: column; background: var(--lacquer); border: 1px solid var(--engrave); pointer-events: auto; }
-.unit-lists-header { display: flex; justify-content: space-between; padding: 6px 12px; color: var(--bone-3); border-bottom: 1px solid var(--engrave); flex: none; }
+.unit-lists-corner { width: 368px; flex: none; display: flex; height: 44px; align-items: center; justify-content: space-between; padding: 0 8px; background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave); pointer-events: auto; }
+.unit-lists-panel { width: 368px; flex: 0 1 auto; min-height: 120px; max-height: 360px; display: flex; flex-direction: column; background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave); pointer-events: auto; }
+.ulh { display: flex; justify-content: space-between; height: 32px; padding: 0 12px; flex: none; }
 .unit-lists-body { overflow-y: auto; scrollbar-width: none; min-height: 0; }
-.unit-lists-unit, .unit-lists-resource, .unit-lists-gp { display: flex; width: 100%; align-items: center; gap: 8px; padding: 6px 12px; text-align: left; font-size: 12px; }
-.unit-lists-unit:hover, .unit-lists-gp:hover, .unit-lists-city:hover { background: var(--lacquer-3); }
-.unit-lists-selected { box-shadow: inset 0 0 0 1px var(--brass); }
-.unit-lists-spent { opacity: 0.6; }
+.ulr { width: 100%; padding: 4px 12px; gap: 8px; text-align: left; font-size: 12px; }
+.ulr.dis { opacity: 0.6; }
+.unit-lists-city:hover { background-color: var(--lacquer-3); }
 .unit-lists-promotable .unit-lists-name { color: var(--brass); }
 .unit-lists-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .unit-lists-status { color: var(--bone-3); width: 72px; font-size: 11px; }
-.unit-lists-icon { width: 20px; height: 20px; flex: none; }
 .unit-lists-wounded { color: var(--brass); }
 .unit-lists-critical { color: var(--neg); }
 .unit-lists-group { padding-top: 8px; }
 .unit-lists-group > b { padding: 0 12px; color: var(--brass); font-size: 12px; }
 .unit-lists-cities { width: 256px; flex: 1 1 auto; min-height: 56px; overflow-y: auto; scrollbar-width: none; pointer-events: auto; }
-.unit-lists-city { display: flex; width: 100%; min-height: 52px; gap: 12px; background: var(--lacquer); border-bottom: 1px solid var(--engrave); text-align: left; }
+.unit-lists-city { display: flex; width: 100%; min-height: 52px; gap: 12px; background-color: var(--lacquer); box-shadow: inset 0 -1px 0 var(--engrave); text-align: left; }
 .unit-lists-population { width: 40px; padding: 12px 8px; color: var(--brass); background: var(--lacquer-3); font: 500 20px/24px var(--serif); }
 .unit-lists-city-body { flex: 1; min-width: 0; padding: 6px 8px 6px 0; display: flex; flex-direction: column; }
 .unit-lists-city-production { display: flex; gap: 8px; font-size: 11px; color: var(--bone-2); }
 .unit-lists-ribbon { width: 512px; display: flex; gap: 4px; flex: none; overflow-x: auto; scrollbar-width: none; pointer-events: auto; }
-.unit-lists-ribbon-unit { position: relative; padding: 4px; border: 1px solid var(--engrave); background: var(--lacquer); flex: none; }
+.unit-lists-ribbon-unit { position: relative; padding: 4px; box-shadow: inset 0 0 0 1px var(--engrave); background-color: var(--lacquer); flex: none; }
 .unit-lists-ribbon-icon { width: 32px; height: 32px; }
 .unit-lists-moves { height: 3px; background: var(--engrave); }
 .unit-lists-moves-fill { height: 3px; background: var(--brass); }
@@ -34,4 +30,4 @@
   .unit-lists-ribbon { width: 440px; }
 }
 
-.unit-lists-group-header { display: block; width: 100%; text-align: left; padding: 6px 12px; color: var(--brass); background: var(--lacquer-2); font-size: 12px; }
+.ulg { width: 100%; padding: 6px 12px; background-color: var(--lacquer-2); }

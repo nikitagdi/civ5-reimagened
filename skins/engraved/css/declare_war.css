@@ -1,34 +1,16 @@
-.declare_war-panel { pointer-events: auto; position: absolute; left: 28%; right: 28%; top: 14%; bottom: 14%; display: flex; flex-direction: column; background: #1b1815; border: 1px solid #4d4032; border-radius: 4px; color: #ebe2d2; font: 13px/20px "Fira Sans"; }
-.declare_war-body { flex: 1; min-height: 0; padding: 24px 28px; overflow-y: auto; scrollbar-width: none; }
-.declare_war-sides { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
-.declare_war-side { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.declare_war-side div { display: flex; flex-direction: column; min-width: 0; }
-.declare_war-side b { font: 500 20px/24px "Alegreya"; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.declare_war-side span { color: #8a8072; }
-.declare_war-side img { width: 56px; height: 56px; border-radius: 28px; flex-shrink: 0; }
-.declare_war-swords { color: #cf6f5c; font-size: 28px; }
-.declare_war-panel h1 { font: 500 30px/36px "Alegreya"; margin: 20px 0 8px; }
-.declare_war-panel p { margin: 8px 0; }
-.declare_war-hint { color: #86b061; }
-.declare_war-section { border-top: 1px solid #4d4032; padding: 12px 0; margin-top: 16px; }
-.declare_war-section > button { display: block; background: transparent; border: 0; color: #b2a794; font-weight: 500; padding: 0 0 12px; }
-.declare_war-line { display: flex; justify-content: space-between; gap: 16px; padding: 4px 0; }
-.declare_war-muted { color: #8a8072; }
-.declare_war-icons { display: flex; flex-wrap: wrap; gap: 24px; }
-.declare_war-icons img { width: 28px; height: 28px; }
-.declare_war-icons b { font-size: 14px; }
-.declare_war-deals { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
-.declare_war-deals b { color: #8a8072; font-size: 12px; font-weight: 400; }
-.declare_war-route { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 8px 0; }
-.declare_war-route div, .declare_war-route span { display: flex; flex-wrap: wrap; gap: 6px; }
-.declare_war-footer { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-top: 1px solid #4d4032; }
-.declare_war-footer > span { margin-right: auto; color: #8a8072; font-size: 12px; }
-.declare_war-footer button { display: block; background: #26221d; border: 1px solid #4d4032; padding: 10px 16px; color: #ebe2d2; font-weight: 500; }
-.declare_war-footer .declare_war-confirm { color: #cf6f5c; border-color: #965341; }
-.declare_war-footer button:hover { background: #352d25; }
-.declare_war-footer button:disabled { color: #8a8072; border-color: #4d4032; }
-.declare_war-reason { color: #cf6f5c; }
-@media (max-width: 1600px) { .declare_war-panel { left: 20%; right: 20%; top: 64px; bottom: 24px; } .declare_war-footer { padding: 12px; } }
-
-.declare_war-footer .declare_war-enter { margin-right: auto; color: #8a8072; font-size: 12px; background: transparent; border: 0; padding: 0; }
-.declare_war-footer .declare_war-enter:hover { background: transparent; }
+/* Declare war / plunder: a kit popup; both sides face each other above the question, then folding sections. */
+.dw-win { width: 760px; max-height: 100%; }
+.dw-win { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.dw-body { gap: 12px; }
+.declare_war-sides { display: flex; align-items: center; gap: 24px; }
+.dw-them { margin-left: auto; text-align: right; }
+.dw-them .tx { align-items: flex-end; }
+.dw-x { font-size: 28px; }
+.dw-q { font: 500 30px/36px var(--serif); }
+.dw-sec { display: flex; flex-direction: column; gap: 4px; }
+.dw-sh { width: 100%; text-align: left; cursor: pointer; }
+.dw-sec .r { display: flex; justify-content: space-between; align-items: center; gap: 16px; min-height: 28px; font-size: 13px; color: var(--bone-2); box-shadow: inset 0 -1px 0 var(--line-soft); }
+.dw-deals { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.dw-deals b { display: block; font-size: 12px; line-height: 20px; font-weight: 400; color: var(--bone-3); }
+.dw-route { display: grid; grid-template-columns: 1.2fr 1fr 1fr; }
+.dw-route div, .dw-route span { display: flex; flex-wrap: wrap; gap: 6px; }

@@ -1,35 +1,17 @@
-.free_great_person-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--bone); background: rgba(0,0,0,.6); }
-.free_great_person-window { width: 760px; height: 696px; max-height: 90%; display: flex; flex-direction: column; background: var(--lacquer); border: 1px solid var(--engrave); border-radius: 4px; }
-.free_great_person-header { display: flex; align-items: center; gap: 20px; padding: 16px 24px; border-bottom: 1px solid var(--engrave); }
-.free_great_person-header b { font: 500 26px/32px var(--serif); flex: 1; }
-.free_great_person-header button { background: transparent; color: var(--bone-2); }
-.free_great_person-instructions { padding: 14px 24px; font-size: 14px; color: var(--bone-2); border-bottom: 1px solid var(--engrave); }
-.free_great_person-columns { flex: 1; min-height: 0; display: grid; grid-template-columns: 480px 1fr; }
-.free_great_person-list { overflow-y: auto; scrollbar-width: none; min-height: 0; }
-.free_great_person-row { padding: 10px 20px; border-left: 1px solid transparent; }
-.free_great_person-row:hover, .free_great_person-selected { background: var(--lacquer-2); border-left-color: var(--brass); }
-.free_great_person-row button { min-width: 0; width: 100%; display: flex; flex-direction: column; text-align: left; gap: 4px; background: transparent; color: var(--bone); font-size: 14px; }
-.free_great_person-row button:disabled { color: var(--bone-3); }
-.free_great_person-summary { width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; color: var(--bone-3); }
-.free_great_person-reason { font-size: 12px; color: var(--bone-3); }
-.free_great_person-detail { padding: 20px; background: var(--lacquer-0); border-left: 1px solid var(--engrave); overflow-y: auto; scrollbar-width: none; }
-.free_great_person-person { display: flex; flex-direction: column; gap: 16px; }
-.free_great_person-person > b { font: 500 24px/30px var(--serif); }
-.free_great_person-ability { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--engrave); font-size: 13px; }
-.free_great_person-footer { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-top: 1px solid var(--engrave); font-size: 12px; color: var(--bone-3); }
-.free_great_person-primary { display: block; padding: 12px 20px; background: var(--brass); color: var(--brass-ink); border-radius: 4px; }
-.free_great_person-primary:disabled { opacity: .4; }
-@media (height < 900px) { .free_great_person-window { height: 600px; } }
-
-.free_great_person-screen { pointer-events: auto; }
-
-.free_great_person-screen { top: 48px; }
-.free_great_person-window { max-width: 94%; }
-.free_great_person-columns { grid-template-columns: minmax(0,1fr) 280px; }
-.free_great_person-row { padding: 8px 16px; }
-.free_great_person-row button { display: grid; grid-template-columns: 40px minmax(0,1fr); gap: 2px 12px; align-items: center; }
-.free_great_person-icon { width: 40px; height: 40px; grid-row: span 2; border-radius: 20px; }
-.free_great_person-detail-icon { width: 48px; height: 48px; }
-.free_great_person-reason { display: block; padding-left: 52px; line-height: 16px; }
-.free_great_person-row button:disabled { opacity: .65; }
-.free_great_person-header, .free_great_person-footer, .free_great_person-instructions { flex-shrink: 0; }
+/* free great person: the list of people beside the chosen one's details; the frame, rows, facts and buttons are the kit's */
+.fg-win { height: 720px; }
+.fg-lead { flex: none; padding: 14px 24px 10px; font-size: 14px; line-height: 20px; color: var(--bone-2); box-shadow: inset 0 -1px 0 var(--engrave); }
+.fg-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 280px; }
+.fg-list { padding: 6px 0; }
+.fg-row { flex: none; display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 12px; align-items: center; min-height: 60px; padding: 4px 16px; text-align: left; color: var(--bone); }
+.fg-row .tx { display: flex; flex-direction: column; min-width: 0; }
+.fg-row .tx b { font: 500 15px/20px var(--sans); }
+.fg-row .tx span { font-size: 12px; line-height: 16px; color: var(--bone-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fg-row.dis .tx b { color: var(--bone-3); font-weight: 400; }
+.fg-det { min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 20px; display: flex; flex-direction: column; gap: 14px; background-color: var(--lacquer-0); box-shadow: inset 1px 0 0 var(--engrave); }
+.fg-person { display: flex; flex-direction: column; gap: 14px; }
+.fg-ab { flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 0; }
+.fg-ab .k { font-size: 12px; color: var(--bone-3); }
+.fg-ab b { white-space: normal; }
+.fg-row.dis .gi { opacity: 0.4; }
+.fg-nm { font: 500 22px/26px var(--serif); }

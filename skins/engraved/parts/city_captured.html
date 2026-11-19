@@ -1,12 +1,23 @@
-<div class="city_captured-screen" data-part="city-captured" data-screen="city_captured" data-esc="none" data-bind-if="{{ui.windows.city_captured.open && !ui.windows.city.open}}">
-  <section class="city_captured-window" data-bind-if="{{city_captured != null}}">
-    <header class="city_captured-header"><b data-part="city-captured.name" data-bind-value="{{city_captured.name}}"></b><span data-bind-value="{{city_captured.taken_from}}"></span><span data-bind-value="{{city_captured.founded_by}}"></span></header>
-    <div class="city_captured-loot" data-bind-if="{{city_captured.loot != null}}"><span data-l10n="city_captured.gold">Plundered gold</span><b data-bind-value="{{city_captured.loot.gold}}"></b><span data-l10n="city_captured.culture">Culture</span><b data-bind-value="{{city_captured.loot.culture}}"></b><span data-l10n="city_captured.great_works">Great Works</span><b data-bind-value="{{city_captured.loot.great_works_count}}"></b></div>
-    <div class="city_captured-scroll">
-      <div class="city_captured-option" data-bind-for="o:{{city_captured.options}}"><button data-part="city-captured.option" data-bind-disabled="{{!o.enabled}}" data-on-click="intent screen.act(screen: 'city_captured', action: o.key, a: city_captured.city)"><b data-bind-value="{{o.title}}"></b><span data-bind-value="{{o.text}}"></span><span data-bind-value="{{o.liberate_to}}"></span></button><span class="city_captured-reason" data-bind-value="{{o.reason}}"></span><span data-bind-value="{{o.forecast}}"></span></div>
-      <div class="city_captured-annex" data-bind-if="{{city_captured.mode == 'annex'}}"><span data-l10n="city_captured.annex_help">Annexing gives you control of production, citizens and buildings. Occupation remains until a Courthouse is built.</span><span data-bind-value="{{city_captured.happiness}}"></span></div>
-      <span class="city_captured-reason" data-part="city-captured.reason" data-bind-value="{{city_captured.reason}}"></span>
+<div class="wlayer dimmed" data-part="city-captured" data-screen="city_captured" data-esc="none" data-bind-if="{{ui.windows.city_captured.open && !ui.windows.city.open}}">
+  <section class="win pop w-l" data-bind-if="{{city_captured != null}}">
+    <div class="hd">
+      <div class="ttl"><b data-part="city-captured.name" data-bind-value="{{city_captured.name}}"></b></div>
+      <div class="facts"><span data-bind-value="{{city_captured.taken_from}}"></span><span data-bind-value="{{city_captured.founded_by}}"></span></div>
+      <span class="req" data-l10n="confirm.required"></span>
     </div>
-    <footer class="city_captured-footer"><button data-part="city-captured.view" data-bind-disabled="{{!city_captured.can_view}}" data-on-click="intent window.open(window: 'city', a: city_captured.city, b: 1)" data-l10n="city_captured.view">View city first</button><button data-bind-if="{{city_captured.mode == 'annex'}}" data-on-click="intent window.close(window: 'city_captured')" data-l10n="city_captured.keep">Keep as puppet</button><button class="city_captured-primary" data-bind-if="{{city_captured.mode == 'annex'}}" data-bind-disabled="{{city_captured.may_annex != true}}" data-on-click="intent screen.act(screen: 'city_captured', action: 'annex', a: city_captured.city)" data-l10n="city_captured.annex">Annex</button></footer>
+    <div class="cc-loot" data-bind-if="{{city_captured.loot != null}}">
+      <div class="lc"><span class="k" data-l10n="city_captured.gold">Plundered gold</span><b data-bind-value="{{city_captured.loot.gold}}"></b></div>
+      <div class="lc sep"><span class="k" data-l10n="city_captured.culture">Culture</span><b data-bind-value="{{city_captured.loot.culture}}"></b></div>
+      <div class="lc sep"><span class="k" data-l10n="city_captured.great_works">Great Works</span><span class="yv lg"><img class="gi" data-asset="font:ICON_GREAT_WORK"><span data-bind-value="{{city_captured.loot.great_works_count}}"></span><small class="ell" data-bind-for="w:{{city_captured.loot.great_works}}" data-bind-value="{{w.name}}"></small></span></div>
+    </div>
+    <div class="wbd">
+      <button class="card cc-opt" data-part="city-captured.option" data-bind-for="o:{{city_captured.options}}" data-bind-class-toggle="lock:{{!o.enabled}}; pick:{{o.enabled}}" data-bind-disabled="{{!o.enabled}}" data-on-click="intent screen.act(screen: 'city_captured', action: o.key, a: city_captured.city)">
+        <b data-bind-value="{{o.title}}"></b><span data-bind-value="{{o.text}}"></span><span data-bind-value="{{o.liberate_to}}"></span><span class="fx" data-bind-value="{{o.forecast}}"></span><span class="why" data-bind-value="{{o.reason}}"></span>
+        <span class="yv" data-bind-if="{{o.happiness != null}}"><img class="gi" data-asset="font:ICON_HAPPINESS_4"><span data-bind-value="{{o.happiness}}"></span></span>
+      </button>
+      <div class="prose sm sec cc-help" data-bind-if="{{city_captured.mode == 'annex'}}"><span data-l10n="city_captured.annex_help">Annexing gives you control of production, citizens and buildings. Occupation remains until a Courthouse is built.</span><span data-bind-if="{{city_captured.happiness != null}}" data-bind-value="{{city_captured.happiness}}"></span></div>
+      <span class="why neg" data-part="city-captured.reason" data-bind-if="{{city_captured.reason != null}}" data-bind-value="{{city_captured.reason}}"></span>
+    </div>
+    <div class="wft"><button class="btn" data-part="city-captured.view" data-bind-disabled="{{!city_captured.can_view}}" data-on-click="intent window.open(window: 'city', a: city_captured.city, b: 1)" data-l10n="city_captured.view">View city first</button><button class="btn c" data-bind-if="{{city_captured.mode == 'annex'}}" data-on-click="intent window.close(window: 'city_captured')" data-l10n="city_captured.keep">Keep as puppet</button><button class="btn primary c" data-bind-if="{{city_captured.mode == 'annex'}}" data-bind-disabled="{{city_captured.may_annex != true}}" data-on-click="intent screen.act(screen: 'city_captured', action: 'annex', a: city_captured.city)" data-l10n="city_captured.annex">Annex</button></div>
   </section>
 </div>

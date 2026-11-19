@@ -1,27 +1,35 @@
-<div class="end-game-screen" data-part="end-game" data-screen="end_game" data-bind-if="{{ui.windows.end_game.open}}" data-esc="none">
- <section class="end-game-window">
-  <div class="end-game-body" data-bind-if="{{end_game == null}}" data-l10n="ending.loading"></div>
-  <div class="end-game-content" data-bind-if="{{end_game != null}}">
-   <div class="end-game-head"><img class="end-game-icon" data-bind-src="{{end_game.civ.icon}}" data-bind-style-background-color="{{end_game.civ.color_bg}}"><div class="end-game-titles"><span class="end-game-kicker" data-bind-value="{{end_game.kicker}}"></span><span class="end-game-title" data-part="end-game.title" data-bind-value="{{end_game.title}}"></span></div></div>
-   <div class="end-game-tabs">
-    <button class="end-game-tab" data-l10n="ending.summary" data-on-click="set state.end_game.tab = 'summary'"></button>
-    <button class="end-game-tab" data-l10n="ending.demographics" data-on-click="set state.end_game.tab = 'demographics'"></button>
-    <button class="end-game-tab" data-part="end-game.ranking" data-l10n="ending.ranking" data-on-click="set state.end_game.tab = 'ranking'"></button>
-    <button class="end-game-tab" data-l10n="ending.replay" data-on-click="set state.end_game.tab = 'replay'"></button>
-   </div>
-   <div class="end-game-layout" data-bind-if="{{state.end_game.tab == 'summary'}}">
-    <div class="end-game-scene"><div class="end-game-story"><span class="end-game-headline" data-bind-value="{{end_game.headline}}"></span><div class="end-game-prose" data-bind-value="{{end_game.text}}"></div></div></div>
-    <div class="end-game-side">
-     <div class="end-game-row"><span data-l10n="ending.outcome"></span><b data-bind-value="{{end_game.outcome}}"></b></div>
-     <div class="end-game-row"><span data-l10n="ending.turn"></span><b data-bind-value="{{end_game.turn}}"></b></div>
-     <div class="end-game-row"><span data-l10n="ending.year"></span><b data-bind-value="{{end_game.year}}"></b></div>
-     <div class="end-game-kicker" data-l10n="ending.scores"></div>
-     <div><div class="end-game-score" data-part="end-game.score" data-bind-for="p:{{end_game.players}}" data-bind-class-toggle="end-game-me:{{p.me}}"><img class="end-game-icon" data-bind-src="{{p.civ_icon}}" data-bind-style-background-color="{{p.color_bg}}"><span class="end-game-name" data-bind-value="{{p.name}}"></span><b data-bind-value="{{p.score}}"></b></div></div>
-    </div>
-   </div>
-   <div class="end-game-ranking" data-bind-if="{{state.end_game.tab == 'ranking'}}"><div class="end-game-title" data-bind-value="{{end_game.ranking.title}}"></div><div class="end-game-prose" data-bind-value="{{end_game.ranking.sub}}"></div><div><div class="end-game-score" data-part="end-game.rank-row" data-bind-for="r:{{end_game.ranking.rows}}" data-bind-class-toggle="end-game-me:{{r.me}}"><span class="end-game-name" data-bind-value="{{r.name}}"></span><b data-bind-value="{{r.threshold}}"></b><span data-bind-if="{{r.me}}" data-bind-value="{{r.quote}}"></span></div></div></div>
-   <div class="end-game-body" data-bind-if="{{state.end_game.tab == 'demographics' || state.end_game.tab == 'replay'}}" data-l10n="ending.tabs.reason"></div>
-   <div class="end-game-foot"><button class="end-game-button" disabled data-l10n="ending.exit"></button><span class="end-game-note" data-bind-value="{{end_game.continue_reason}}"></span><button class="end-game-button end-game-primary" data-part="end-game.continue" data-bind-disabled="{{!end_game.can_continue}}" data-bind-hotkey="'Enter'" data-l10n="ending.continue" data-on-click="intent screen.act(screen: 'end_game', action: 'continue')"></button></div>
-  </div>
- </section>
+<div class="wlayer full" data-part="end-game" data-screen="end_game" data-bind-if="{{ui.windows.end_game.open}}" data-esc="none">
+<section class="win w-end" role="dialog" data-part="end-game.window">
+<div class="empty" data-bind-if="{{end_game == null}}" data-l10n="ending.loading"></div>
+<div class="ec" data-bind-if="{{end_game != null}}">
+<div class="hd tall">
+<img class="gi s48 round" data-bind-src="{{end_game.civ.icon}}">
+<div class="ttl stack"><span class="kick" data-bind-value="{{end_game.kicker}}"></span><b data-part="end-game.title" data-bind-value="{{end_game.title}}"></b></div>
+<div class="tabs">
+<button class="tab" data-l10n="ending.summary" data-bind-class-toggle="on:{{state.end_game.tab == 'summary'}}" data-on-click="set state.end_game.tab = 'summary'"></button>
+<button class="tab" data-l10n="ending.demographics" data-bind-class-toggle="on:{{state.end_game.tab == 'demographics'}}" data-on-click="set state.end_game.tab = 'demographics'"></button>
+<button class="tab" data-part="end-game.ranking" data-l10n="ending.ranking" data-bind-class-toggle="on:{{state.end_game.tab == 'ranking'}}" data-on-click="set state.end_game.tab = 'ranking'"></button>
+<button class="tab" data-l10n="ending.replay" data-bind-class-toggle="on:{{state.end_game.tab == 'replay'}}" data-on-click="set state.end_game.tab = 'replay'"></button>
+</div>
+</div>
+<div class="ob side-end" data-bind-if="{{state.end_game.tab == 'summary'}}">
+<div class="scene"><div class="card story"><b class="headline" data-bind-value="{{end_game.headline}}"></b><div class="prose" data-bind-value="{{end_game.text}}"></div></div></div>
+<aside class="scr aside">
+<div class="kv led">
+<div class="r"><span class="k" data-l10n="ending.outcome"></span><b data-bind-value="{{end_game.outcome}}"></b></div>
+<div class="r"><span class="k" data-l10n="ending.turn"></span><b data-bind-value="{{end_game.turn}}"></b></div>
+<div class="r"><span class="k" data-l10n="ending.year"></span><b data-bind-value="{{end_game.year}}"></b></div>
+<div class="sect lg"><span data-l10n="ending.scores"></span><span class="rule"></span></div>
+<div class="r sc" data-part="end-game.score" data-bind-for="p:{{end_game.players}}" data-bind-class-toggle="me:{{p.me}}"><span class="k"><img class="gi s24 round" data-bind-src="{{p.civ_icon}}"><span class="ell" data-bind-value="{{p.name}}"></span></span><b data-bind-value="{{p.score}}"></b></div>
+</div>
+</aside>
+</div>
+<div class="wbd" data-bind-if="{{state.end_game.tab == 'ranking'}}">
+<b class="rtitle" data-bind-value="{{end_game.ranking.title}}"></b><div class="prose sec" data-bind-value="{{end_game.ranking.sub}}"></div>
+<div class="kv"><div class="r sc" data-part="end-game.rank-row" data-bind-for="r:{{end_game.ranking.rows}}" data-bind-class-toggle="me:{{r.me}}"><span class="k ell" data-bind-value="{{r.name}}"></span><b><span data-bind-value="{{r.threshold}}"></span><span class="small" data-bind-if="{{r.me}}" data-bind-value="{{r.quote}}"></span></b></div></div>
+</div>
+<div class="empty" data-bind-if="{{state.end_game.tab == 'demographics' || state.end_game.tab == 'replay'}}" data-l10n="ending.tabs.reason"></div>
+<div class="wft"><button class="btn left" disabled data-l10n="ending.exit"></button><span class="note" data-bind-value="{{end_game.continue_reason}}"></span><button class="btn primary" data-part="end-game.continue" data-bind-disabled="{{!end_game.can_continue}}" data-bind-hotkey="'Enter'" data-on-click="intent screen.act(screen: 'end_game', action: 'continue')"><span data-l10n="ending.continue"></span><span class="key" data-l10n="key.enter"></span></button></div>
+</div>
+</section>
 </div>

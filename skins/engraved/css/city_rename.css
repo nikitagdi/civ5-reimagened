@@ -1,21 +1,5 @@
-.city_rename-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.65); color: var(--bone); }
-.city_rename-window { width: 480px; max-height: 90%; overflow-y: auto; scrollbar-width: none; background: var(--lacquer); border: 1px solid var(--engrave); border-radius: 4px; }
-.city_rename-header { display: flex; align-items: baseline; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--engrave); font: 500 26px/32px var(--serif); }
-.city_rename-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.city_rename-body { padding: 24px; display: flex; flex-direction: column; gap: 12px; }
-.city_rename-input { appearance: none; background: var(--lacquer-0); color: var(--bone); border: 1px solid var(--engrave-hi); padding: 10px 12px; font: 500 20px/24px var(--serif); }
-.city_rename-reason { display: block; padding: 0 24px 20px; color: var(--neg); font-size: 13px; }
-.city_rename-footer { padding: 12px 24px; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--engrave); }
-.city_rename-footer button { min-width: 132px; padding: 12px; color: var(--bone); background: var(--lacquer-2); border: 1px solid var(--engrave); border-radius: 4px; }
-.city_rename-footer .city_rename-primary { color: var(--brass-ink); background: var(--brass); }
-.city_rename-footer button:disabled { opacity: .4; }
-
-.city_rename-screen { pointer-events: auto; }
-
-.city_rename-window { max-width: 94%; }
-.city_rename-header { flex-wrap: wrap; font-size: 24px; line-height: 28px; }
-.city_rename-name { font: 400 13px/18px var(--sans); color: var(--bone-3); }
-.city_rename-input { min-height: 44px; }
-.city_rename-invalid { border-color: var(--neg); }
-.city_rename-body > span { font-size: 13px; line-height: 18px; }
-.city_rename-footer button { min-width: 112px; padding: 10px 16px; }
+/* city rename: the name field with its hint; the frame, field and buttons are the kit's */
+.cr-fld { display: flex; flex-direction: column; gap: 8px; }
+.cr-why { padding: 0 24px 16px; }
+/* The title is one of four mode labels: a flex row, so that the hidden ones leave no inline strut behind. */
+.cr-t { display: flex; }

@@ -1,43 +1,17 @@
-.religion_overview-screen { position: absolute; inset: 48px 0 0; padding: 24px; display: flex; align-items: center; justify-content: center; background: rgba(12,10,8,.6); }
-.religion_overview-window { position: relative; width: 1260px; max-width: 100%; height: 800px; max-height: 100%; display: flex; flex-direction: column; background: var(--lacquer); color: var(--bone); border: 1px solid var(--engrave); border-radius: 4px; }
-.religion_overview-head { display: flex; align-items: center; gap: 24px; padding: 20px 24px; border-bottom: 1px solid var(--engrave); }
-.religion_overview-title { font: 500 28px/32px var(--serif); }
-.religion_overview-button { padding: 10px 16px; border: 1px solid var(--engrave); color: var(--bone); background: var(--lacquer-2); border-radius: 4px; }
-.religion_overview-button:hover { border-color: var(--brass); }
-.religion_overview-mine { display: flex; flex: 1; min-height: 0; }
-.religion_overview-summary { width: 38%; min-width: 280px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; scrollbar-width: none; padding: 24px; border-right: 1px solid var(--engrave); background: var(--lacquer-0); }
-.religion_overview-beliefs { flex: 1; min-width: 0; overflow-y: auto; scrollbar-width: none; }
-.religion_overview-belief { display: flex; flex-direction: column; gap: 8px; padding: 20px 24px; border-bottom: 1px solid var(--engrave); }
-.religion_overview-belief span { font-size: 13px; color: var(--bone-2); }
-.religion_overview-income { display: flex; justify-content: space-between; gap: 20px; padding: 8px 0; border-bottom: 1px solid var(--engrave); }
-.religion_overview-people { display: flex; flex-wrap: wrap; gap: 12px; }
-.religion_overview-person { display: flex; align-items: center; gap: 6px; font-size: 13px; }
-.religion_overview-icon { width: 24px; height: 24px; flex-shrink: 0; }
-.religion_overview-menu { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--engrave); }
-.religion_overview-option { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px; color: var(--bone); text-align: left; }
-.religion_overview-option:hover { background: var(--lacquer-2); }
-.religion_overview-table { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
-.religion_overview-world-head { display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 100px; padding: 12px 24px; border-bottom: 1px solid var(--engrave); }
-.religion_overview-world-row { display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 100px; gap: 16px; align-items: center; padding: 14px 24px; border-bottom: 1px solid var(--engrave); font-size: 13px; }
-.religion_overview-world-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.religion_overview-belief-head { display: grid; grid-template-columns: 1.2fr .6fr 3fr 1.2fr; padding: 12px 24px; border-bottom: 1px solid var(--engrave); }
-.religion_overview-belief-row { display: grid; grid-template-columns: 1.2fr .6fr 3fr 1.2fr; gap: 16px; align-items: start; padding: 14px 24px; border-bottom: 1px solid var(--engrave); font-size: 13px; }
-.religion_overview-sort { color: var(--bone-2); text-align: left; }
-.religion_overview-active { color: var(--brass); }
-.religion_overview-footer { display: flex; align-items: center; gap: 16px; padding: 14px 24px; border-top: 1px solid var(--engrave); font-size: 13px; }
-.religion_overview-empty { display: block; padding: 24px; color: var(--bone-3); }
-.religion_overview-tip { width: 300px; padding: 14px; color: var(--bone); background: var(--lacquer); border: 1px solid var(--engrave); }
-
-.religion_overview-screen { pointer-events: auto; }
-
-.religion_overview-head { padding: 14px 24px; min-height: 56px; flex-shrink: 0; }
-.religion_overview-head > .religion_overview-button { margin-left: auto; }
-.religion_overview-sort { padding: 8px 4px; border-bottom: 2px solid transparent; }
-.religion_overview-active { border-bottom-color: var(--brass); color: var(--bone); }
-.religion_overview-summary { gap: 10px; padding: 20px 24px; }
-.religion_overview-summary > b { color: var(--y-faith); }
-.religion_overview-belief { gap: 4px; padding: 14px 24px; line-height: 18px; }
-.religion_overview-income { padding: 6px 0; }
-.religion_overview-option { padding: 8px 12px; font-size: 13px; }
-.religion_overview-button:disabled { color: var(--bone-3); opacity: .5; }
-.religion_overview-footer { flex-shrink: 0; }
+/* religion overview: your faith beside your beliefs, and the kit tables of world religions and beliefs; the frame,
+   tabs, tables, facts, chips, cards and buttons are the kit's */
+.ro-win { height: 760px; }
+.ro-mine { flex: 1; min-height: 0; display: grid; grid-template-columns: 360px minmax(0, 1fr); }
+.ro-sum { min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: inset -1px 0 0 var(--engrave); }
+.ro-sum > .btn { align-self: stretch; }
+.ro-menu { display: flex; flex-direction: column; border-radius: 4px; background-color: var(--lacquer-0); box-shadow: inset 0 0 0 1px var(--engrave); }
+.ro-opt { justify-content: space-between; padding: 6px 12px; text-align: left; }
+.ro-bl { min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 20px 24px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-content: start; background-color: var(--lacquer-0); }
+.ro-tbl { flex: 1; overflow-y: auto; scrollbar-width: none; }
+.tbl .ro-w { grid-template-columns: 32px minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 96px; }
+.tbl .ro-b { grid-template-columns: 32px minmax(0, 1fr) 120px minmax(0, 2fr) minmax(0, 1fr); }
+.tbl .trow.ro-w, .tbl .trow.ro-b { min-height: 44px; padding-top: 4px; padding-bottom: 4px; box-shadow: inset 0 -1px 0 var(--line-soft); }
+.trow.ro-b > span { font-size: 12px; line-height: 16px; color: var(--bone-2); }
+/* the prophet tooltip (parts/screen_tips.html) */
+.religion_overview-tip { width: 300px; padding: 14px; background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave); color: var(--bone); }
+.ro-nm { font: 500 20px/24px var(--serif); }

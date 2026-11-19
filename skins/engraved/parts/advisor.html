@@ -1,39 +1,44 @@
-<div class="advisor-screen" data-part="advisor" data-screen="advisor" data-bind-if="{{ui.windows.advisor.open}}">
- <section class="advisor-window">
-  <div class="advisor-head"><div class="advisor-titles"><span class="advisor-kicker" data-bind-if="{{advisor != null}}" data-bind-value="{{advisor.civ.name}}"></span><span class="advisor-title" data-l10n="advisor.title"></span></div></div>
-  <div class="advisor-body" data-bind-if="{{advisor == null}}" data-l10n="advisor.loading"></div>
-  <div class="advisor-content" data-bind-if="{{advisor != null}}">
-   <div class="advisor-kicker advisor-reason" data-part="advisor.reason" data-bind-value="{{advisor.reason}}"></div>
-   <div class="advisor-grid"><div class="advisor-cell" data-bind-for="r:{{advisor.roles}}" data-bind-filter="{{r.key == 'economic'}}">
-    <div class="advisor-role"><img class="advisor-icon" data-bind-src="{{r.portrait}}"><div class="advisor-role-title"><span class="advisor-name" data-part="advisor.economic.role" data-bind-value="{{r.name}}"></span><span class="advisor-kicker" data-bind-value="{{r.role}}"></span></div>
-     <button class="advisor-arrow" data-bind-disabled="{{state.advisor.economic == 0}}" data-l10n="advisor.previous" data-on-click="set state.advisor.economic = state.advisor.economic &gt; 0 ? state.advisor.economic - 1 : 0"></button>
-     <span class="advisor-count" data-bind-if="{{len(r.pages) &gt; 0}}"><span data-bind-value="{{state.advisor.economic + 1}}"></span><span data-l10n="advisor.of"></span><span data-bind-value="{{len(r.pages)}}"></span></span>
-     <button class="advisor-arrow" data-bind-disabled="{{state.advisor.economic + 1 &gt;= len(r.pages)}}" data-l10n="advisor.next" data-on-click="set state.advisor.economic = state.advisor.economic + 1 &lt; len(r.pages) ? state.advisor.economic + 1 : state.advisor.economic"></button>
-    </div>
-    <div class="advisor-pages"><div class="advisor-kicker" data-bind-if="{{len(r.pages) == 0}}" data-l10n="advisor.empty"></div><div data-part="advisor.economic.page" data-bind-for="p:{{r.pages}}" data-bind-filter="{{p.id == state.advisor.economic}}" data-bind-value="{{p.text}}"></div></div>
-   </div><div class="advisor-cell" data-bind-for="r:{{advisor.roles}}" data-bind-filter="{{r.key == 'military'}}">
-    <div class="advisor-role"><img class="advisor-icon" data-bind-src="{{r.portrait}}"><div class="advisor-role-title"><span class="advisor-name" data-part="advisor.military.role" data-bind-value="{{r.name}}"></span><span class="advisor-kicker" data-bind-value="{{r.role}}"></span></div>
-     <button class="advisor-arrow" data-bind-disabled="{{state.advisor.military == 0}}" data-l10n="advisor.previous" data-on-click="set state.advisor.military = state.advisor.military &gt; 0 ? state.advisor.military - 1 : 0"></button>
-     <span class="advisor-count" data-bind-if="{{len(r.pages) &gt; 0}}"><span data-bind-value="{{state.advisor.military + 1}}"></span><span data-l10n="advisor.of"></span><span data-bind-value="{{len(r.pages)}}"></span></span>
-     <button class="advisor-arrow" data-bind-disabled="{{state.advisor.military + 1 &gt;= len(r.pages)}}" data-l10n="advisor.next" data-on-click="set state.advisor.military = state.advisor.military + 1 &lt; len(r.pages) ? state.advisor.military + 1 : state.advisor.military"></button>
-    </div>
-    <div class="advisor-pages"><div class="advisor-kicker" data-bind-if="{{len(r.pages) == 0}}" data-l10n="advisor.empty"></div><div data-part="advisor.military.page" data-bind-for="p:{{r.pages}}" data-bind-filter="{{p.id == state.advisor.military}}" data-bind-value="{{p.text}}"></div></div>
-   </div><div class="advisor-cell" data-bind-for="r:{{advisor.roles}}" data-bind-filter="{{r.key == 'foreign'}}">
-    <div class="advisor-role"><img class="advisor-icon" data-bind-src="{{r.portrait}}"><div class="advisor-role-title"><span class="advisor-name" data-part="advisor.foreign.role" data-bind-value="{{r.name}}"></span><span class="advisor-kicker" data-bind-value="{{r.role}}"></span></div>
-     <button class="advisor-arrow" data-bind-disabled="{{state.advisor.foreign == 0}}" data-l10n="advisor.previous" data-on-click="set state.advisor.foreign = state.advisor.foreign &gt; 0 ? state.advisor.foreign - 1 : 0"></button>
-     <span class="advisor-count" data-bind-if="{{len(r.pages) &gt; 0}}"><span data-bind-value="{{state.advisor.foreign + 1}}"></span><span data-l10n="advisor.of"></span><span data-bind-value="{{len(r.pages)}}"></span></span>
-     <button class="advisor-arrow" data-bind-disabled="{{state.advisor.foreign + 1 &gt;= len(r.pages)}}" data-l10n="advisor.next" data-on-click="set state.advisor.foreign = state.advisor.foreign + 1 &lt; len(r.pages) ? state.advisor.foreign + 1 : state.advisor.foreign"></button>
-    </div>
-    <div class="advisor-pages"><div class="advisor-kicker" data-bind-if="{{len(r.pages) == 0}}" data-l10n="advisor.empty"></div><div data-part="advisor.foreign.page" data-bind-for="p:{{r.pages}}" data-bind-filter="{{p.id == state.advisor.foreign}}" data-bind-value="{{p.text}}"></div></div>
-   </div><div class="advisor-cell" data-bind-for="r:{{advisor.roles}}" data-bind-filter="{{r.key == 'science'}}">
-    <div class="advisor-role"><img class="advisor-icon" data-bind-src="{{r.portrait}}"><div class="advisor-role-title"><span class="advisor-name" data-part="advisor.science.role" data-bind-value="{{r.name}}"></span><span class="advisor-kicker" data-bind-value="{{r.role}}"></span></div>
-     <button class="advisor-arrow" data-bind-disabled="{{state.advisor.science == 0}}" data-l10n="advisor.previous" data-on-click="set state.advisor.science = state.advisor.science &gt; 0 ? state.advisor.science - 1 : 0"></button>
-     <span class="advisor-count" data-bind-if="{{len(r.pages) &gt; 0}}"><span data-bind-value="{{state.advisor.science + 1}}"></span><span data-l10n="advisor.of"></span><span data-bind-value="{{len(r.pages)}}"></span></span>
-     <button class="advisor-arrow" data-bind-disabled="{{state.advisor.science + 1 &gt;= len(r.pages)}}" data-l10n="advisor.next" data-on-click="set state.advisor.science = state.advisor.science + 1 &lt; len(r.pages) ? state.advisor.science + 1 : state.advisor.science"></button>
-    </div>
-    <div class="advisor-pages"><div class="advisor-kicker" data-bind-if="{{len(r.pages) == 0}}" data-l10n="advisor.empty"></div><div data-part="advisor.science.page" data-bind-for="p:{{r.pages}}" data-bind-filter="{{p.id == state.advisor.science}}" data-bind-value="{{p.text}}"></div></div>
-   </div></div>
-   <div class="advisor-foot"><span class="advisor-note" data-l10n="advisor.hint"></span><button class="advisor-button advisor-primary" data-part="advisor.close" data-bind-hotkey="'Enter'" data-l10n="advisor.close" data-on-click="intent window.close(window: 'advisor')"></button></div>
-  </div>
- </section>
+<div class="wlayer dimmed" data-part="advisor" data-screen="advisor" data-bind-if="{{ui.windows.advisor.open}}">
+<section class="win w-adv" role="dialog" data-part="advisor.window">
+<div class="hd tall"><div class="ttl stack"><span class="kick" data-bind-if="{{advisor != null}}" data-bind-value="{{advisor.civ.name}}"></span><b data-l10n="advisor.title"></b></div></div>
+<div class="empty" data-bind-if="{{advisor == null}}" data-l10n="advisor.loading"></div>
+<div class="ec" data-bind-if="{{advisor != null}}">
+<div class="reason" data-part="advisor.reason" data-bind-value="{{advisor.reason}}"></div>
+<div class="grid">
+<div class="cell" data-bind-for="r:{{advisor.roles}}" data-bind-filter="{{r.key == 'economic'}}">
+<div class="rh"><img class="gi s48 round" data-bind-src="{{r.portrait}}"><span class="tx"><b data-part="advisor.economic.role" data-bind-value="{{r.name}}"></b><span data-bind-value="{{r.role}}"></span></span>
+<button class="ibtn sm" data-bind-disabled="{{state.advisor.economic == 0}}" data-on-click="set state.advisor.economic = state.advisor.economic &gt; 0 ? state.advisor.economic - 1 : 0"><svg class="i dn"><use href="#i-moves"/></svg></button>
+<span class="small cnt" data-bind-if="{{len(r.pages) &gt; 0}}"><span data-bind-value="{{state.advisor.economic + 1}}"></span><span data-l10n="advisor.of"></span><span data-bind-value="{{len(r.pages)}}"></span></span>
+<button class="ibtn sm" data-bind-disabled="{{state.advisor.economic + 1 &gt;= len(r.pages)}}" data-on-click="set state.advisor.economic = state.advisor.economic + 1 &lt; len(r.pages) ? state.advisor.economic + 1 : state.advisor.economic"><svg class="i"><use href="#i-moves"/></svg></button>
+</div>
+<div class="pages"><div class="empty" data-bind-if="{{len(r.pages) == 0}}" data-l10n="advisor.empty"></div><div class="prose sm" data-part="advisor.economic.page" data-bind-for="p:{{r.pages}}" data-bind-filter="{{p.id == state.advisor.economic}}" data-bind-value="{{p.text}}"></div></div>
+</div>
+<div class="cell" data-bind-for="r:{{advisor.roles}}" data-bind-filter="{{r.key == 'military'}}">
+<div class="rh"><img class="gi s48 round" data-bind-src="{{r.portrait}}"><span class="tx"><b data-part="advisor.military.role" data-bind-value="{{r.name}}"></b><span data-bind-value="{{r.role}}"></span></span>
+<button class="ibtn sm" data-bind-disabled="{{state.advisor.military == 0}}" data-on-click="set state.advisor.military = state.advisor.military &gt; 0 ? state.advisor.military - 1 : 0"><svg class="i dn"><use href="#i-moves"/></svg></button>
+<span class="small cnt" data-bind-if="{{len(r.pages) &gt; 0}}"><span data-bind-value="{{state.advisor.military + 1}}"></span><span data-l10n="advisor.of"></span><span data-bind-value="{{len(r.pages)}}"></span></span>
+<button class="ibtn sm" data-bind-disabled="{{state.advisor.military + 1 &gt;= len(r.pages)}}" data-on-click="set state.advisor.military = state.advisor.military + 1 &lt; len(r.pages) ? state.advisor.military + 1 : state.advisor.military"><svg class="i"><use href="#i-moves"/></svg></button>
+</div>
+<div class="pages"><div class="empty" data-bind-if="{{len(r.pages) == 0}}" data-l10n="advisor.empty"></div><div class="prose sm" data-part="advisor.military.page" data-bind-for="p:{{r.pages}}" data-bind-filter="{{p.id == state.advisor.military}}" data-bind-value="{{p.text}}"></div></div>
+</div>
+<div class="cell" data-bind-for="r:{{advisor.roles}}" data-bind-filter="{{r.key == 'foreign'}}">
+<div class="rh"><img class="gi s48 round" data-bind-src="{{r.portrait}}"><span class="tx"><b data-part="advisor.foreign.role" data-bind-value="{{r.name}}"></b><span data-bind-value="{{r.role}}"></span></span>
+<button class="ibtn sm" data-bind-disabled="{{state.advisor.foreign == 0}}" data-on-click="set state.advisor.foreign = state.advisor.foreign &gt; 0 ? state.advisor.foreign - 1 : 0"><svg class="i dn"><use href="#i-moves"/></svg></button>
+<span class="small cnt" data-bind-if="{{len(r.pages) &gt; 0}}"><span data-bind-value="{{state.advisor.foreign + 1}}"></span><span data-l10n="advisor.of"></span><span data-bind-value="{{len(r.pages)}}"></span></span>
+<button class="ibtn sm" data-bind-disabled="{{state.advisor.foreign + 1 &gt;= len(r.pages)}}" data-on-click="set state.advisor.foreign = state.advisor.foreign + 1 &lt; len(r.pages) ? state.advisor.foreign + 1 : state.advisor.foreign"><svg class="i"><use href="#i-moves"/></svg></button>
+</div>
+<div class="pages"><div class="empty" data-bind-if="{{len(r.pages) == 0}}" data-l10n="advisor.empty"></div><div class="prose sm" data-part="advisor.foreign.page" data-bind-for="p:{{r.pages}}" data-bind-filter="{{p.id == state.advisor.foreign}}" data-bind-value="{{p.text}}"></div></div>
+</div>
+<div class="cell" data-bind-for="r:{{advisor.roles}}" data-bind-filter="{{r.key == 'science'}}">
+<div class="rh"><img class="gi s48 round" data-bind-src="{{r.portrait}}"><span class="tx"><b data-part="advisor.science.role" data-bind-value="{{r.name}}"></b><span data-bind-value="{{r.role}}"></span></span>
+<button class="ibtn sm" data-bind-disabled="{{state.advisor.science == 0}}" data-on-click="set state.advisor.science = state.advisor.science &gt; 0 ? state.advisor.science - 1 : 0"><svg class="i dn"><use href="#i-moves"/></svg></button>
+<span class="small cnt" data-bind-if="{{len(r.pages) &gt; 0}}"><span data-bind-value="{{state.advisor.science + 1}}"></span><span data-l10n="advisor.of"></span><span data-bind-value="{{len(r.pages)}}"></span></span>
+<button class="ibtn sm" data-bind-disabled="{{state.advisor.science + 1 &gt;= len(r.pages)}}" data-on-click="set state.advisor.science = state.advisor.science + 1 &lt; len(r.pages) ? state.advisor.science + 1 : state.advisor.science"><svg class="i"><use href="#i-moves"/></svg></button>
+</div>
+<div class="pages"><div class="empty" data-bind-if="{{len(r.pages) == 0}}" data-l10n="advisor.empty"></div><div class="prose sm" data-part="advisor.science.page" data-bind-for="p:{{r.pages}}" data-bind-filter="{{p.id == state.advisor.science}}" data-bind-value="{{p.text}}"></div></div>
+</div>
+</div>
+<div class="wft"><span class="note" data-l10n="advisor.hint"></span><button class="btn primary" data-part="advisor.close" data-bind-hotkey="'Enter'" data-on-click="intent window.close(window: 'advisor')"><span data-l10n="advisor.close"></span><span class="key" data-l10n="key.enter"></span></button></div>
+</div>
+</section>
 </div>

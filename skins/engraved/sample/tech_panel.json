@@ -48,7 +48,99 @@
             "owned": 2,
             "total": 5
           }
-        ]
+        ],
+        "tips": [
+          {
+            "kind": "science",
+            "title": "Science per turn",
+            "total": 48,
+            "lines": [
+              {
+                "key": "cities",
+                "label": "Cities",
+                "value": 48
+              }
+            ]
+          },
+          {
+            "kind": "gold",
+            "title": "Gold per turn",
+            "total": 21,
+            "lines": [
+              {
+                "key": "cities",
+                "label": "Cities",
+                "value": 21
+              }
+            ]
+          },
+          {
+            "kind": "happiness",
+            "title": "Empire happiness",
+            "total": 7,
+            "lines": [
+              {
+                "key": "cities",
+                "label": "Cities",
+                "value": 7
+              }
+            ]
+          },
+          {
+            "kind": "culture",
+            "title": "Culture per turn",
+            "total": 31,
+            "lines": [
+              {
+                "key": "cities",
+                "label": "Cities",
+                "value": 31
+              }
+            ]
+          },
+          {
+            "kind": "faith",
+            "title": "Faith per turn",
+            "total": 9,
+            "lines": [
+              {
+                "key": "cities",
+                "label": "Cities",
+                "value": 9
+              }
+            ]
+          },
+          {
+            "kind": "golden_age",
+            "title": "Golden age",
+            "total": 0,
+            "lines": [
+              {
+                "key": "cities",
+                "label": "Cities",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "kind": "tourism",
+            "title": "Tourism per turn",
+            "total": 4,
+            "lines": [
+              {
+                "key": "cities",
+                "label": "Cities",
+                "value": 4
+              }
+            ]
+          }
+        ],
+        "trade_used": 1,
+        "trade_available": 3,
+        "anarchy_turns": 0,
+        "science_enabled": true,
+        "culture_enabled": true,
+        "faith_enabled": true
       },
       "city": {
         "id": 3,
@@ -99,6 +191,137 @@
             "id": 103,
             "enabled": true,
             "cost": 210
+          }
+        ],
+        "name": "Fixture unit",
+        "xp_next": 60,
+        "catalog": [
+          {
+            "id": 0,
+            "name": "Alert",
+            "help": "Watch for enemies.",
+            "hotkey": "KeyA",
+            "enabled": true,
+            "promotion": false,
+            "build": false,
+            "client": ""
+          },
+          {
+            "id": 1,
+            "name": "Upgrade",
+            "hotkey": "KeyU",
+            "enabled": false,
+            "reason": "Not enough gold.",
+            "promotion": false,
+            "build": false,
+            "client": ""
+          }
+        ]
+      },
+      "turn": {
+        "blocker_kind": 8,
+        "reason": "A unit needs orders.",
+        "waiting_units": [
+          {
+            "key": "0:4",
+            "name": "Fixture unit"
+          }
+        ],
+        "queue": [
+          {
+            "key": "0:0",
+            "team": 0,
+            "name": "Rome",
+            "human": true,
+            "known": true,
+            "active": true
+          },
+          {
+            "key": "0:1",
+            "team": -1,
+            "name": "Unknown player",
+            "human": false,
+            "known": false,
+            "active": false
+          }
+        ]
+      },
+      "lists": {
+        "units": [
+          {
+            "key": "0:7",
+            "id": 7,
+            "name": "Fixture unit",
+            "icon": "unit:2",
+            "hp": 90,
+            "status": "awake",
+            "status_text": "",
+            "moves": 2,
+            "max_moves": 2,
+            "military": true,
+            "can_promote": false
+          }
+        ],
+        "great_people": [
+          {
+            "key": "scientist",
+            "name": "Great Scientist",
+            "rows": [
+              {
+                "city": "0:3",
+                "city_id": 3,
+                "name": "Capital",
+                "progress": 40,
+                "threshold": 100,
+                "per_turn": 3.5,
+                "turns": 18
+              }
+            ]
+          }
+        ],
+        "general_xp": 15,
+        "general_threshold": 100,
+        "admiral_xp": 10,
+        "admiral_threshold": 100
+      },
+      "minimap": {
+        "observer": false,
+        "religion": null,
+        "pantheon": null,
+        "beliefs": []
+      },
+      "map": {
+        "units": [
+          {
+            "key": "0:7",
+            "name": "Fixture unit",
+            "owner": "Rome",
+            "shape": "military",
+            "strength": 8,
+            "ranged_strength": 0,
+            "range": 0,
+            "hp": 90,
+            "hp_max": 100,
+            "moves": 2,
+            "moves_is_max": false,
+            "cargo": false,
+            "promotions": [],
+            "hover_key": "0:7"
+          }
+        ],
+        "cities": [
+          {
+            "key": "0:3",
+            "name": "Capital",
+            "owner": "Rome",
+            "strength": 18,
+            "hp": 190,
+            "hp_max": 200,
+            "growth_turns": 8,
+            "food": 14,
+            "food_needed": 38,
+            "food_rate": 3,
+            "hover_key": "0:3"
           }
         ]
       }
@@ -207,7 +430,7 @@
         "turns": null,
         "progress": 0,
         "cost": 520,
-        "fraction": 0.0
+        "fraction": 0
       },
       "queue": [],
       "options": [],
@@ -280,7 +503,7 @@
           "resistance": false,
           "can_shoot": false,
           "strength": 18,
-          "hp_fraction": 1.0,
+          "hp_fraction": 1,
           "growth_turns": 9,
           "production": {
             "item": "0:21",
@@ -340,7 +563,7 @@
           "resistance": false,
           "can_shoot": false,
           "strength": 12,
-          "hp_fraction": 1.0,
+          "hp_fraction": 1,
           "growth_turns": null,
           "production": null
         },
@@ -364,7 +587,7 @@
           "resistance": false,
           "can_shoot": false,
           "strength": 25,
-          "hp_fraction": 1.0,
+          "hp_fraction": 1,
           "growth_turns": null,
           "production": null
         }
@@ -380,7 +603,7 @@
             "y": 26
           },
           "icon": "icon:UNIT_FLAG_ATLAS:12",
-          "hp_fraction": 1.0,
+          "hp_fraction": 1,
           "domain": "land",
           "mine": true,
           "waiting": true,
@@ -551,11 +774,11 @@
       "strength": 20,
       "ranged": 0,
       "range": 0,
-      "moves": 2.0,
+      "moves": 2,
       "max_moves": 4,
       "hp": 100,
       "max_hp": 100,
-      "hp_fraction": 1.0,
+      "hp_fraction": 1,
       "domain": "land",
       "activity": "awake",
       "promotions": [],

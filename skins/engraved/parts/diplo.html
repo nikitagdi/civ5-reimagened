@@ -1,30 +1,93 @@
-<section class="diplo-panel" data-part="diplo" data-screen="diplo" data-bind-if="{{ui.windows.diplo.open}}">
-  <header class="diplo-header"><b data-l10n="diplo.title">Diplomacy</b><div class="diplo-facts" data-bind-if="{{diplo != null}}"><span data-bind-value="{{diplo.counts.majors_met}}"></span><span data-l10n="diplo.met">civilizations met</span><span data-bind-value="{{diplo.counts.city_states_met}}"></span><span data-l10n="diplo.cs_met">city-states met</span><span data-bind-if="{{diplo.league.active}}" data-bind-value="{{diplo.league.turns_to_session}}"></span><span data-bind-if="{{diplo.league.active}}" data-l10n="diplo.session">turns to Congress</span></div><button data-on-click="intent window.close(window: 'diplo')" data-l10n="diplo.close">Close</button></header>
-  <nav class="diplo-tabs"><button data-bind-class-toggle="diplo-on:{{state.diplo.tab == 'relations'}}" data-on-click="set state.diplo.tab = 'relations'" data-l10n="diplo.relations">Your relations</button><button data-part="diplo.global-tab" data-bind-class-toggle="diplo-on:{{state.diplo.tab == 'global'}}" data-on-click="set state.diplo.tab = 'global'" data-l10n="diplo.global">Global politics</button><button data-part="diplo.deals-tab" data-bind-class-toggle="diplo-on:{{state.diplo.tab == 'deals'}}" data-on-click="set state.diplo.tab = 'deals'; set state.diplo.deal = -1" data-l10n="diplo.deals">Deal history</button></nav>
-  <div class="diplo-body" data-bind-if="{{diplo != null}}">
-    <div class="diplo-relations" data-bind-if="{{state.diplo.tab == 'relations'}}">
-      <div class="diplo-column"><h2 data-l10n="diplo.civilizations">Civilizations and leaders</h2>
-        <div class="diplo-column-head"><span data-l10n="diplo.leader">Leader</span><span data-l10n="diplo.status">Status</span><span data-l10n="diplo.score">Score</span><span data-l10n="diplo.gold">Gold</span><span data-l10n="diplo.gpt">Per turn</span><span data-l10n="diplo.treaties">Treaties / resources</span></div>
-        <div class="diplo-scroll"><p class="diplo-empty" data-bind-if="{{len(diplo.majors) == 0}}" data-l10n="diplo.no_majors">You have not met any other civilizations.</p>
-          <div class="diplo-major" data-bind-for="m:{{diplo.majors}}" data-bind-class-toggle="diplo-war:{{m.status == 'war'}}">
-            <div class="diplo-who"><img class="diplo-portrait" data-bind-src="{{m.icon_leader}}"><div><b data-part="diplo.major-name" data-bind-value="{{m.name}}"></b><span data-bind-value="{{m.civ}}"></span></div></div>
-            <span data-part="diplo.major-status" class="diplo-status"><span data-bind-if="{{m.status == 'war'}}" data-l10n="diplo.status.war"></span><span data-bind-if="{{m.status == 'denounced_us'}}" data-l10n="diplo.status.denounced_us"></span><span data-bind-if="{{m.status == 'liberated_us'}}" data-l10n="diplo.status.liberated_us"></span><span data-bind-if="{{m.status == 'none'}}"><span data-bind-if="{{m.mood == 'human'}}" data-l10n="diplo.mood.human"></span><span data-bind-if="{{m.mood == 'friendly'}}" data-l10n="diplo.mood.friendly"></span><span data-bind-if="{{m.mood == 'neutral'}}" data-l10n="diplo.mood.neutral"></span><span data-bind-if="{{m.mood == 'guarded'}}" data-l10n="diplo.mood.guarded"></span><span data-bind-if="{{m.mood == 'hostile'}}" data-l10n="diplo.mood.hostile"></span><span data-bind-if="{{m.mood == 'afraid'}}" data-l10n="diplo.mood.afraid"></span></span></span><b class="diplo-number" data-bind-value="{{m.score}}"></b><span class="diplo-gold" data-bind-value="{{m.gold}}"></span><span class="diplo-number" data-bind-value="{{m.gold_per_turn}}"></span>
-            <div class="diplo-trade" data-bind-if="{{m.trade_visible}}"><span data-tooltip="tip-diplo-embassy" data-bind-value="{{m.embassy}}"></span><span data-tooltip="tip-diplo-borders" data-bind-value="{{m.borders}}"></span><span data-bind-if="{{m.defensive_pact == true}}" data-l10n="diplo.pact">Pact</span><span data-bind-if="{{m.research_agreement == true}}" data-l10n="diplo.research">Research</span><span data-bind-for="r:{{m.resources}}"><img class="diplo-resource" data-bind-src="{{r.icon}}"><span data-bind-value="{{r.count}}"></span></span></div>
-            <button class="diplo-go" data-bind-if="{{m.is_human}}" data-bind-disabled="{{!m.action_enabled}}" data-on-pointerenter="set state.diplo.hover = m.id" data-tooltip="tip-diplo-action" data-on-click="intent window.open(window: 'deal', a: m.id)" data-l10n="diplo.trade">Trade</button><button class="diplo-go" data-bind-if="{{!m.is_human}}" data-bind-disabled="{{!m.action_enabled}}" data-on-pointerenter="set state.diplo.hover = m.id" data-tooltip="tip-diplo-action" data-on-click="intent screen.act(screen: 'diplo', action: 'begin_diplo', a: m.id)" data-l10n="diplo.talk">Talk</button>
-            <div class="diplo-summary"><span data-bind-value="{{m.summary}}"></span><button class="diplo-go" data-part="diplo.declare-war" data-bind-if="{{m.can_declare_war}}" data-on-click="intent window.open(window: 'declare_war', a: m.team, b: -1)" data-l10n="civ_ribbon.war">War?</button></div>
+<div class="wlayer soft" data-part="diplo" data-screen="diplo" data-bind-if="{{ui.windows.diplo.open}}" data-esc="intent window.close(window: 'diplo')">
+  <section class="win dp-win" role="dialog">
+    <div class="hd">
+      <div class="lp" data-bind-if="{{diplo != null}}"><img class="gi s48 face" data-bind-src="{{diplo.me.icon_leader}}"><img class="gi s24 em" data-bind-src="{{diplo.me.icon_civ}}"></div>
+      <div class="ttl"><b data-l10n="diplo.title">Diplomacy</b></div>
+      <div class="facts" data-bind-if="{{diplo != null}}">
+        <span><b data-bind-value="{{diplo.counts.majors_met}}"></b><span data-l10n="diplo.met">civilizations met</span></span>
+        <span><b data-bind-value="{{diplo.counts.city_states_met}}"></b><span data-l10n="diplo.cs_met">city-states met</span></span>
+        <span data-bind-if="{{diplo.league.active}}"><b data-bind-value="{{diplo.league.turns_to_session}}"></b><span data-l10n="diplo.session">turns to Congress</span></span>
+      </div>
+      <button class="close" data-on-click="intent window.close(window: 'diplo')"><span class="key" data-l10n="key.escape">Esc</span><span class="x"><svg class="i"><use href="#i-close"/></svg></span></button>
+    </div>
+    <nav class="tabs band">
+      <button class="tab" data-bind-class-toggle="on:{{state.diplo.tab == 'relations'}}" data-on-click="set state.diplo.tab = 'relations'" data-l10n="diplo.relations">Your relations</button>
+      <button class="tab" data-part="diplo.global-tab" data-bind-class-toggle="on:{{state.diplo.tab == 'global'}}" data-on-click="set state.diplo.tab = 'global'" data-l10n="diplo.global">Global politics</button>
+      <button class="tab" data-part="diplo.deals-tab" data-bind-class-toggle="on:{{state.diplo.tab == 'deals'}}" data-on-click="set state.diplo.tab = 'deals'; set state.diplo.deal = -1"><span data-l10n="diplo.deals">Deal history</span><span class="cnt" data-bind-if="{{diplo != null}}" data-bind-value="{{len(diplo.deals)}}"></span></button>
+    </nav>
+    <div class="wbd flush dp-body" data-bind-if="{{diplo != null}}">
+      <div class="dp-rel" data-bind-if="{{state.diplo.tab == 'relations'}}">
+        <div class="dp-col">
+          <div class="dp-ch"><b data-l10n="diplo.civilizations">Civilizations and leaders</b><span data-bind-value="{{len(diplo.majors)}}"></span></div>
+          <div class="tbl dp-tbl">
+            <div class="thead dp-cols"><span class="h" data-l10n="diplo.leader">Leader</span><span class="h" data-l10n="diplo.status">Status</span><span class="h r" data-l10n="diplo.score">Score</span><span class="h r" data-l10n="diplo.gold">Gold</span><span class="h r" data-l10n="diplo.gpt">Per turn</span><span class="h" data-l10n="diplo.treaties">Treaties / resources</span><span class="h"></span></div>
+            <div class="scr">
+              <div class="empty" data-bind-if="{{len(diplo.majors) == 0}}" data-l10n="diplo.no_majors">You have not met any other civilizations.</div>
+              <div class="trow dp-cols dp-major" data-bind-for="m:{{diplo.majors}}">
+                <div class="c who"><div class="lp"><img class="gi s48 face" data-bind-src="{{m.icon_leader}}"><img class="gi s24 em" data-bind-src="{{m.icon_civ}}"></div><div class="tx"><b data-part="diplo.major-name" data-bind-class-toggle="c-neg:{{m.status == 'war'}}" data-bind-value="{{m.name}}"></b><span data-bind-value="{{m.civ}}"></span></div></div>
+                <div class="c" data-part="diplo.major-status"><span class="tag" data-bind-class-toggle="neg:{{m.status == 'war' || m.status == 'denounced_us' || (m.status == 'none' &amp;&amp; m.mood == 'hostile')}}; pos:{{m.status == 'liberated_us' || (m.status == 'none' &amp;&amp; m.mood == 'friendly')}}; mute:{{m.status == 'none' &amp;&amp; (m.mood == 'human' || m.mood == 'neutral' || m.mood == 'afraid')}}" data-bind-value="{{m.status == 'war' ? loc('diplo.status.war') : m.status == 'denounced_us' ? loc('diplo.status.denounced_us') : m.status == 'liberated_us' ? loc('diplo.status.liberated_us') : m.mood == 'human' ? loc('diplo.mood.human') : m.mood == 'friendly' ? loc('diplo.mood.friendly') : m.mood == 'neutral' ? loc('diplo.mood.neutral') : m.mood == 'guarded' ? loc('diplo.mood.guarded') : m.mood == 'hostile' ? loc('diplo.mood.hostile') : loc('diplo.mood.afraid')}}"></span></div>
+                <b class="c r" data-bind-value="{{m.score}}"></b>
+                <span class="c r c-gold" data-bind-value="{{m.gold}}"></span>
+                <span class="c r sec" data-bind-value="{{m.gold_per_turn == null ? '' : fmt.signed(m.gold_per_turn)}}"></span>
+                <div class="c dp-trade" data-bind-if="{{m.trade_visible}}">
+                  <span class="tag lit" data-bind-if="{{m.defensive_pact == true}}" data-l10n="diplo.pact">Pact</span>
+                  <span class="tag lit" data-bind-if="{{m.research_agreement == true}}" data-l10n="diplo.research">Research</span>
+                  <span class="yv dp-res" data-bind-for="r:{{m.resources}}"><img class="gi" data-bind-src="{{r.icon}}"><span data-bind-value="{{r.count}}"></span></span>
+                  <span class="tag mute" data-tooltip="tip-diplo-embassy" data-bind-value="{{m.embassy == 'both' ? loc('diplo.dir.both') : m.embassy == 'ours' ? loc('diplo.dir.ours') : m.embassy == 'theirs' ? loc('diplo.dir.theirs') : loc('diplo.dir.none')}}"></span>
+                  <span class="tag mute" data-tooltip="tip-diplo-borders" data-bind-value="{{m.borders == 'both' ? loc('diplo.dir.both') : m.borders == 'ours' ? loc('diplo.dir.ours') : m.borders == 'theirs' ? loc('diplo.dir.theirs') : loc('diplo.dir.none')}}"></span>
+                </div>
+                <span class="c" data-bind-if="{{!m.trade_visible}}"></span>
+                <div class="c dp-act">
+                  <button class="btn sm" data-bind-if="{{m.is_human}}" data-bind-disabled="{{!m.action_enabled}}" data-on-pointerenter="set state.diplo.hover = m.id" data-tooltip="tip-diplo-action" data-on-click="intent window.open(window: 'deal', a: m.id)" data-l10n="diplo.trade">Trade</button>
+                  <button class="btn sm" data-bind-if="{{!m.is_human}}" data-bind-disabled="{{!m.action_enabled}}" data-on-pointerenter="set state.diplo.hover = m.id" data-tooltip="tip-diplo-action" data-on-click="intent screen.act(screen: 'diplo', action: 'begin_diplo', a: m.id)" data-l10n="diplo.talk">Talk</button>
+                  <button class="btn sm danger" data-part="diplo.declare-war" data-bind-if="{{m.can_declare_war}}" data-on-click="intent window.open(window: 'declare_war', a: m.team, b: -1)" data-l10n="civ_ribbon.war">War?</button>
+                </div>
+                <span class="dp-sum ell" data-bind-value="{{m.summary}}"></span>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="diplo-legend"><span data-l10n="diplo.embassy">Embassies</span><span data-l10n="diplo.borders">Open borders</span><span data-l10n="diplo.direction">Both / ours / theirs / none</span><span data-l10n="diplo.turn_only">Talk and trade during your turn</span></div>
+        <div class="dp-col dp-minors">
+          <div class="dp-ch"><b data-l10n="diplo.city_states">City-states</b><span data-bind-value="{{len(diplo.city_states)}}"></span></div>
+          <div class="scr">
+            <div class="empty" data-bind-if="{{len(diplo.city_states) == 0}}" data-l10n="diplo.no_minors">You have not met any city-states.</div>
+            <div class="lrow dp-cs" data-bind-for="c:{{diplo.city_states}}">
+              <img class="gi s45 round" data-bind-src="{{c.icon}}">
+              <div class="dp-ct"><b data-bind-value="{{c.name}}"></b><span data-bind-value="{{c.trait}}"></span><span data-bind-value="{{c.ally_name}}"></span></div>
+              <div class="dp-inf">
+                <div class="dp-l1" data-bind-class-toggle="c-neg:{{c.status == 'war' || c.status == 'angry'}}"><span data-bind-value="{{c.status == 'allied' ? loc('diplo.cs.allied') : c.status == 'friends' ? loc('diplo.cs.friends') : c.status == 'angry' ? loc('diplo.cs.angry') : c.status == 'war' ? loc('diplo.cs.war') : loc('diplo.cs.neutral')}}"></span><b data-bind-value="{{c.influence}}"></b></div>
+                <div class="scale dp-scale" data-bind-class-toggle="neg:{{c.influence < 0}}"><div class="fill" data-bind-style-width="{{clamp((c.influence - diplo.influence_scale.min) / max(1, diplo.influence_scale.max - diplo.influence_scale.min), 0, 1) * 100}}%"></div></div>
+                <div class="dp-res-row"><span class="yv dp-res" data-bind-for="r:{{c.resources}}"><img class="gi" data-bind-src="{{r.icon}}"><span data-bind-value="{{r.count}}"></span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="diplo-column diplo-minors"><h2 data-l10n="diplo.city_states">City-states</h2><div class="diplo-scroll"><p class="diplo-empty" data-bind-if="{{len(diplo.city_states) == 0}}" data-l10n="diplo.no_minors">You have not met any city-states.</p>
-        <div class="diplo-cs" data-bind-for="c:{{diplo.city_states}}"><img class="diplo-portrait" data-bind-src="{{c.icon}}"><div class="diplo-cs-name"><b data-bind-value="{{c.name}}"></b><span data-bind-value="{{c.trait}}"></span><span data-bind-value="{{c.ally_name}}"></span></div><div class="diplo-influence"><span data-bind-value="{{c.status}}"></span><b data-bind-value="{{c.influence}}"></b><div class="diplo-scale"><i data-bind-style-width="{{clamp((c.influence - diplo.influence_scale.min) / (diplo.influence_scale.max - diplo.influence_scale.min), 0, 1) * 100}}%"></i></div><span data-bind-for="r:{{c.resources}}"><img class="diplo-resource" data-bind-src="{{r.icon}}"><span data-bind-value="{{r.count}}"></span></span></div></div>
-      </div></div>
+      <div class="scr dp-global" data-bind-if="{{state.diplo.tab == 'global'}}">
+        <div class="empty" data-bind-if="{{len(diplo.majors) == 0}}" data-l10n="diplo.no_majors">You have not met any other civilizations.</div>
+        <div class="dp-grow" data-bind-for="m:{{diplo.majors}}">
+          <div class="who"><div class="lp"><img class="gi s48 face" data-bind-src="{{m.icon_leader}}"><img class="gi s24 em" data-bind-src="{{m.icon_civ}}"></div><div class="tx"><b data-bind-value="{{m.name}}"></b><span data-bind-value="{{m.era}}"></span></div></div>
+          <div class="kv"><div class="r" data-bind-for="p:{{m.policies}}"><span class="k" data-bind-value="{{p.name}}"></span><b data-bind-value="{{p.count}}"></b></div></div>
+          <div class="chips"><span class="chip" data-bind-for="w:{{m.wonders}}"><img class="gi s16" data-bind-src="{{w.icon}}"><span data-bind-value="{{w.name}}"></span></span></div>
+          <div class="chips"><span class="chip" data-bind-for="r:{{m.relations}}" data-bind-class-toggle="warn:{{r.tone == 'bad'}}" data-bind-value="{{r.text}}"></span></div>
+        </div>
+      </div>
+      <div class="dp-hist" data-bind-if="{{state.diplo.tab == 'deals'}}">
+        <div class="empty" data-part="diplo.history-reason" data-bind-if="{{!diplo.deals_available}}" data-bind-value="{{diplo.deals_reason}}"></div>
+        <div class="empty" data-part="diplo.no-deals" data-bind-if="{{diplo.deals_available &amp;&amp; len(diplo.deals) == 0}}" data-l10n="diplo.no_deals">No deals.</div>
+        <div class="scr">
+          <div class="dp-deal" data-bind-for="d:{{diplo.deals}}">
+            <button class="lrow dp-dh" data-bind-class-toggle="sel:{{state.diplo.deal == d.id}}" data-on-click="set state.diplo.deal = d.id"><img class="gi s32 round" data-bind-src="{{d.partner_icon}}"><b data-part="diplo.deal-partner" data-bind-value="{{d.partner_name}}"></b><span class="sec" data-bind-value="{{d.partner_civ}}"></span><span class="tag dp-end" data-bind-class-toggle="lit:{{d.state == 'current'}}" data-bind-value="{{d.state}}"></span><span class="sec" data-l10n="prod.stored" data-l10n-args="{{d.start_turn}}, {{d.end_turn}}"></span></button>
+            <div class="kv dp-items" data-bind-if="{{state.diplo.deal == d.id}}">
+              <div class="r" data-bind-for="i:{{d.items}}"><span class="tag mute" data-bind-value="{{i.side}}"></span><span class="k" data-bind-value="{{i.name}}"></span><b data-bind-value="{{i.amount}}"></b><span class="sec" data-bind-if="{{i.duration != null}}" data-l10n="top.turns" data-l10n-args="{{i.duration}}"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="diplo-global diplo-scroll" data-bind-if="{{state.diplo.tab == 'global'}}"><div class="diplo-global-row" data-bind-for="m:{{diplo.majors}}"><div class="diplo-who"><img class="diplo-portrait" data-bind-src="{{m.icon_leader}}"><b data-bind-value="{{m.name}}"></b><span data-bind-value="{{m.era}}"></span></div><div><div class="diplo-policy" data-bind-for="p:{{m.policies}}"><span data-bind-value="{{p.name}}"></span><b data-bind-value="{{p.count}}"></b></div></div><div><span class="diplo-wonder" data-bind-for="w:{{m.wonders}}"><img class="diplo-resource" data-bind-src="{{w.icon}}"><span data-bind-value="{{w.name}}"></span></span></div><div><span class="diplo-relation" data-bind-for="r:{{m.relations}}" data-bind-class-toggle="diplo-war:{{r.tone == 'bad'}}" data-bind-value="{{r.text}}"></span></div></div><p class="diplo-empty" data-bind-if="{{len(diplo.majors) == 0}}" data-l10n="diplo.no_majors">You have not met any other civilizations.</p></div>
-    <div class="diplo-history" data-bind-if="{{state.diplo.tab == 'deals'}}"><p class="diplo-empty" data-part="diplo.history-reason" data-bind-if="{{!diplo.deals_available}}" data-bind-value="{{diplo.deals_reason}}"></p><p class="diplo-empty" data-part="diplo.no-deals" data-bind-if="{{diplo.deals_available &amp;&amp; len(diplo.deals) == 0}}" data-l10n="diplo.no_deals">No deals.</p><div class="diplo-scroll"><div class="diplo-deal" data-bind-for="d:{{diplo.deals}}"><button data-on-click="set state.diplo.deal = d.id"><span data-part="diplo.deal-partner" data-bind-value="{{d.partner_name}}"></span><span data-bind-value="{{d.state}}"></span><span data-bind-value="{{d.end_turn}}"></span></button><div data-bind-if="{{state.diplo.deal == d.id}}"><div class="diplo-deal-item" data-bind-for="i:{{d.items}}"><span data-bind-value="{{i.side}}"></span><span data-bind-value="{{i.name}}"></span><span data-bind-value="{{i.amount}}"></span><span data-bind-value="{{i.duration}}"></span></div></div></div></div></div>
-  </div>
-  <footer class="diplo-footer"><span data-bind-if="{{diplo != null}}" data-bind-value="{{diplo.open_block_reason}}"></span><button data-bind-hotkey="'Enter'" data-on-click="intent window.close(window: 'diplo')" data-l10n="diplo.close">Close</button></footer>
-</section>
-
-
-
+    <div class="wft">
+      <span class="note" data-bind-if="{{diplo != null}}"><span data-bind-if="{{diplo.open_block_reason == null}}" data-l10n="diplo.turn_only">Talk and trade during your turn</span><span data-bind-value="{{diplo.open_block_reason}}"></span></span>
+      <button class="btn" data-bind-hotkey="'Enter'" data-on-click="intent window.close(window: 'diplo')"><span data-l10n="diplo.close">Close</span><span class="key" data-l10n="key.enter">Enter</span></button>
+    </div>
+  </section>
+</div>

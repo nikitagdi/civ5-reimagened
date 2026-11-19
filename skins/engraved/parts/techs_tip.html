@@ -1,22 +1,23 @@
 <template data-layer="tooltip" id="techs-tip">
-  <div class="techs-tip" data-part="techs.tip"><div data-bind-if="{{techs != null}}"><div class="techs-tip-content" data-bind-for="t:{{techs.techs}}" data-bind-filter="{{t.id == state.techs.hover}}">
-    <div data-bind-if="{{len(ui.pending) > 0}}" data-l10n="techs.pending">Waiting for the server</div>
-    <div class="techs-tip-title" data-bind-value="{{t.name}}"></div><div data-bind-value="{{t.era_name}}"></div>
-    <div class="techs-tip-row"><span data-l10n="prod.cost">Cost</span><span data-bind-value="{{t.cost}}"></span></div>
-    <div data-bind-if="{{t.lock_reason != null}}" data-bind-value="{{t.lock_reason}}"></div>
-    <span data-l10n="tech_award.unlocks">Unlocks</span><div class="techs-tip-unlock" data-bind-for="u:{{t.unlocks}}"><img class="techs-unlock" data-bind-src="{{u.icon}}"><span data-bind-value="{{u.name}}"></span></div>
-    <div data-bind-value="{{t.help}}"></div>
-    <span data-bind-if="{{len(t.leads_to) > 0}}" data-l10n="tech_award.leads">Leads to</span><div data-bind-for="n:{{t.leads_to}}" data-bind-value="{{n.name}}"></div>
+  <div class="tip tt-tip" data-part="techs.tip"><div data-bind-if="{{techs != null}}"><div class="tt-tipc" data-bind-for="t:{{techs.techs}}" data-bind-filter="{{t.id == state.techs.hover}}">
+    <div class="why" data-bind-if="{{len(ui.pending) > 0}}" data-l10n="techs.pending">Waiting for the server</div>
+    <div class="who lg"><img class="gi s48 round" data-bind-src="{{t.icon}}"><span class="tx"><b data-bind-value="{{t.name}}"></b><span data-bind-value="{{t.era_name}}"></span></span></div>
+    <div class="kv"><div class="r"><span class="k" data-l10n="prod.cost">Cost</span><b data-bind-value="{{t.cost}}"></b></div><div class="r" data-part="techs.tip.core" data-bind-if="{{rich_tooltips != null && rich_tooltips.tech != null}}"><span class="k" data-l10n="rich_tooltips.progress">Progress</span><b data-bind-value="{{rich_tooltips.tech.progress}}"></b></div></div>
+    <div class="why neg" data-bind-if="{{t.lock_reason != null}}" data-bind-value="{{t.lock_reason}}"></div>
+    <div class="sect" data-l10n="tech_award.unlocks">Unlocks</div>
+    <span class="chip lg" data-bind-for="u:{{t.unlocks}}"><img class="gi s22 round" data-bind-src="{{u.icon}}"><span data-bind-value="{{u.name}}"></span></span>
+    <div class="prose sm sec" data-bind-value="{{t.help}}"></div>
+    <div class="chips" data-bind-if="{{len(t.leads_to) > 0}}"><span class="sect" data-l10n="tech_award.leads">Leads to</span><span class="chip" data-bind-for="n:{{t.leads_to}}" data-bind-value="{{n.name}}"></span></div>
   </div></div></div>
 </template>
 <!-- One square of a technology's unlocks: what it is (the unit, building, wonder, project or improvement) and what kind. -->
 <template data-layer="tooltip" id="techs-unlock-tip">
-  <div class="techs-unlock-tip" data-part="techs.unlock-tip"><div data-bind-if="{{techs != null}}"><div data-bind-for="t:{{techs.techs}}" data-bind-filter="{{t.id == state.techs.hover}}"><div class="techs-unlock-tip-item" data-bind-for="u:{{t.unlocks}}" data-bind-filter="{{u.idx == state.techs.unlock}}">
-    <img class="techs-unlock-tip-icon" data-bind-src="{{u.icon}}">
-    <div class="techs-unlock-tip-text">
-      <div class="techs-unlock-tip-name" data-part="techs.unlock-tip.name" data-bind-value="{{u.name}}"></div>
-      <div class="techs-unlock-tip-kind" data-part="techs.unlock-tip.kind"><span data-bind-if="{{u.kind == 'unit'}}" data-l10n="techs.kind.unit">Unit</span><span data-bind-if="{{u.kind == 'building'}}" data-l10n="techs.kind.building">Building</span><span data-bind-if="{{u.kind == 'wonder'}}" data-l10n="techs.kind.wonder">Wonder</span><span data-bind-if="{{u.kind == 'project'}}" data-l10n="techs.kind.project">Project</span><span data-bind-if="{{u.kind == 'resource'}}" data-l10n="techs.kind.resource">Resource</span><span data-bind-if="{{u.kind == 'improvement'}}" data-l10n="techs.kind.improvement">Worker action</span><span data-bind-if="{{u.kind == 'ability'}}" data-l10n="techs.kind.ability">Ability</span></div>
-      <div class="techs-unlock-tip-of"><span data-l10n="techs.unlocked_by">Unlocked by</span><span data-bind-value="{{t.name}}"></span></div>
-    </div>
+  <div class="tip" data-part="techs.unlock-tip"><div data-bind-if="{{techs != null}}"><div data-bind-for="t:{{techs.techs}}" data-bind-filter="{{t.id == state.techs.hover}}"><div class="who lg" data-bind-for="u:{{t.unlocks}}" data-bind-filter="{{u.idx == state.techs.unlock}}">
+    <img class="gi s48 round" data-bind-src="{{u.icon}}">
+    <span class="tx">
+      <b data-part="techs.unlock-tip.name" data-bind-value="{{u.name}}"></b>
+      <span data-part="techs.unlock-tip.kind"><span data-bind-if="{{u.kind == 'unit'}}" data-l10n="techs.kind.unit">Unit</span><span data-bind-if="{{u.kind == 'building'}}" data-l10n="techs.kind.building">Building</span><span data-bind-if="{{u.kind == 'wonder'}}" data-l10n="techs.kind.wonder">Wonder</span><span data-bind-if="{{u.kind == 'project'}}" data-l10n="techs.kind.project">Project</span><span data-bind-if="{{u.kind == 'resource'}}" data-l10n="techs.kind.resource">Resource</span><span data-bind-if="{{u.kind == 'improvement'}}" data-l10n="techs.kind.improvement">Worker action</span><span data-bind-if="{{u.kind == 'ability'}}" data-l10n="techs.kind.ability">Ability</span></span>
+      <span><span data-l10n="techs.unlocked_by">Unlocked by</span> <span data-bind-value="{{t.name}}"></span></span>
+    </span>
   </div></div></div></div>
 </template>

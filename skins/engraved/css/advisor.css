@@ -1,34 +1,13 @@
-.advisor-screen { position: absolute; inset: 48px 0 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(12,10,8,.55); pointer-events: auto; }
-.advisor-window { width: 600px; max-width: 100%; max-height: 100%; display: flex; flex-direction: column; background: var(--lacquer); border: 1px solid var(--engrave); border-radius: 6px; box-shadow: 0 24px 64px rgba(0,0,0,.5); }
-.advisor-head { flex: none; min-height: 70px; padding: 12px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--engrave); }
-.advisor-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.advisor-kicker { font-size: 12px; line-height: 16px; color: var(--bone-3); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.advisor-title { font: 500 26px/32px var(--serif); color: var(--bone); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.advisor-icon { width: 48px; height: 48px; flex: none; border-radius: 24px; background: var(--lacquer-0); }
-.advisor-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
-.advisor-prose { font-size: 15px; line-height: 24px; color: var(--bone); }
-.advisor-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--engrave); font-size: 13px; color: var(--bone-2); }
-.advisor-value { color: var(--brass); }
-.advisor-foot { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 16px 20px; border-top: 1px solid var(--engrave); flex-wrap: wrap; }
-.advisor-reason { padding: 8px 20px; }
-.advisor-note { flex: 1; font-size: 12px; color: var(--bone-3); }
-.advisor-button { appearance: none; min-height: 40px; min-width: 140px; padding: 8px 16px; border: 1px solid var(--engrave); border-radius: 6px; background: var(--lacquer-2); color: var(--bone); font: 500 14px/20px var(--sans); }
-.advisor-button.advisor-primary { background: var(--brass); color: var(--brass-ink); }
-.advisor-button:hover { background: var(--lacquer-3); }
-.advisor-button:disabled { opacity: .45; }
-.advisor-advisor { display: flex; align-items: center; gap: 12px; }
-.advisor-tip { padding: 12px; background: var(--lacquer); color: var(--bone); max-width: 360px; }
-@media (height < 900px) { .advisor-screen { padding: 16px; } }
-
-.advisor-content { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.advisor-window { width: 1040px; height: 600px; }
-.advisor-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; flex: 1; min-height: 0; }
-.advisor-cell { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-right: 1px solid var(--engrave); border-bottom: 1px solid var(--engrave); padding: 20px 24px; gap: 14px; }
-.advisor-role { display: flex; align-items: center; gap: 12px; }
-.advisor-role-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.advisor-name { font: 500 20px/24px var(--serif); color: var(--bone); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.advisor-arrow { appearance: none; width: 28px; height: 28px; border: 1px solid var(--engrave); border-radius: 4px; background: var(--lacquer); color: var(--bone-2); }
-.advisor-arrow:disabled { opacity: .4; }
-.advisor-pages { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; font-size: 14px; line-height: 22px; color: var(--bone); }
-.advisor-count { display: flex; gap: 4px; font-size: 12px; color: var(--bone-3); }
-@media (height < 900px) { .advisor-window { height: 620px; } .advisor-cell { padding: 12px 16px; } }
+/* Advisor counsel: four advisors in a grid; frame, header, footer, buttons and prose are the kit's. */
+.win.w-adv { width: 1040px; height: 600px; }
+.w-adv .reason { padding: 8px 20px; font-size: 12px; line-height: 16px; color: var(--bone-3); }
+.w-adv .grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.w-adv .cell { display: flex; flex-direction: column; gap: 14px; min-width: 0; min-height: 0; padding: 20px 24px; box-shadow: inset -1px -1px 0 var(--engrave); }
+.w-adv .rh { display: flex; align-items: center; gap: 12px; }
+.w-adv .rh .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.w-adv .rh .tx b { font: 500 16px/20px var(--serif); }
+.w-adv .rh .tx span { font-size: 12px; line-height: 16px; color: var(--bone-3); }
+.w-adv .pages { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.w-adv .cnt { display: flex; gap: 4px; }
+.w-adv .dn { transform: rotate(180deg); }
+@media (height < 900px) { .win.w-adv { height: 620px; } .w-adv .cell { padding: 12px 16px; } }

@@ -1,47 +1,27 @@
-.religion-screen { position: absolute; inset: 48px 0 0; padding: 24px; display: flex; align-items: center; justify-content: center; background: rgba(12,10,8,.6); }
-.religion-window { position: relative; width: 1440px; max-width: 100%; height: 760px; max-height: 100%; display: flex; flex-direction: column; background: var(--lacquer); color: var(--bone); border: 1px solid var(--engrave); border-radius: 4px; }
-.religion-head { display: flex; align-items: center; gap: 24px; padding: 20px 24px; border-bottom: 1px solid var(--engrave); }
-.religion-title { font: 500 28px/32px var(--serif); }
-.religion-symbols { display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none; padding: 16px; border-bottom: 1px solid var(--engrave); }
-.religion-symbol { min-width: 84px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px; color: var(--bone-2); }
-.religion-symbol img { width: 32px; height: 32px; }
-.religion-symbol span { width: 84px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; }
-.religion-symbol:disabled { opacity: .5; }
-.religion-selected { border: 1px solid var(--brass); }
-.religion-body { display: flex; flex: 1; min-height: 0; }
-.religion-main { flex: 1; min-width: 0; overflow-y: auto; scrollbar-width: none; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
-.religion-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.religion-slot { display: flex; flex-direction: column; min-width: 0; gap: 12px; padding: 16px; min-height: 156px; background: var(--lacquer-0); border: 1px solid var(--engrave); }
-.religion-slot b { font: 500 20px/24px var(--serif); }
-.religion-slot span { font-size: 13px; color: var(--bone-2); }
-.religion-slot button { margin-top: auto; }
-.religion-fixed { border-color: var(--engrave-hi); }
-.religion-side { width: 30%; min-width: 280px; padding: 20px; overflow-y: auto; scrollbar-width: none; border-left: 1px solid var(--engrave); background: var(--lacquer-0); display: flex; flex-direction: column; gap: 12px; }
-.religion-option { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-bottom: 1px solid var(--engrave); text-align: left; color: var(--bone); }
-.religion-option:hover { background: var(--lacquer-2); }
-.religion-option span { font-size: 13px; color: var(--bone-2); }
-.religion-button { padding: 10px 16px; border: 1px solid var(--engrave); border-radius: 4px; background: var(--lacquer-2); color: var(--bone); }
-.religion-button:hover { border-color: var(--brass); }
-.religion-button:disabled { color: var(--bone-3); }
-.religion-footer { padding: 14px 20px; border-top: 1px solid var(--engrave); display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-.religion-reason { color: var(--neg); font-size: 13px; }
-.religion-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(12,10,8,.7); }
-.religion-dialog { width: 520px; padding: 24px; display: flex; flex-direction: column; gap: 16px; background: var(--lacquer); border: 1px solid var(--engrave); }
-.religion-input { appearance: none; padding: 12px; background: var(--lacquer-0); border: 1px solid var(--brass); color: var(--bone); }
-.religion-tip { width: 300px; padding: 14px; background: var(--lacquer); border: 1px solid var(--engrave); color: var(--bone); }
-
-.religion-screen { pointer-events: auto; }
-
-.religion-head { padding: 14px 24px; min-height: 56px; }
-.religion-head > button { margin-left: auto; }
-.religion-symbols { gap: 4px; padding: 10px 16px; flex-shrink: 0; }
-.religion-symbol { min-width: 72px; border: 1px solid transparent; }
-.religion-symbol.religion-selected { border-color: var(--brass); background: var(--lacquer-2); }
-.religion-symbol:hover { background: var(--lacquer-2); }
-.religion-slot { gap: 8px; min-height: 144px; }
-.religion-slot .religion-button { text-align: left; }
-.religion-slot p { font-size: 13px; line-height: 18px; margin: 0; }
-.religion-footer .religion-finish-control, .religion-dialog .religion-confirm-control { background: var(--brass); color: var(--brass-ink); }
-.religion-button:disabled { opacity: .5; }
-.religion-footer, .religion-head { flex-shrink: 0; }
-@media (height < 900px) { .religion-main { padding: 16px; gap: 12px; } .religion-side { padding: 16px; } .religion-slot { padding: 12px; min-height: 124px; } }
+/* religion: the symbol strip, the belief slots and the list of beliefs beside them, the rename and confirm overlays;
+   the frame, cards, rows, field and buttons are the kit's */
+.rel-win { height: 820px; }
+.rel-sym { flex: none; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 10px 16px; box-shadow: inset 0 -1px 0 var(--engrave); }
+.rel-s { width: 104px; white-space: nowrap; flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 4px; border-radius: 4px; font-size: 12px; color: var(--bone-2); }
+.rel-s:hover { background-color: var(--lacquer-2); }
+.rel-s.on { background-color: var(--lacquer-2); box-shadow: inset 0 0 0 1px var(--brass); color: var(--bone); }
+.rel-s:disabled { opacity: 0.5; }
+.rel-body { flex: 1; min-height: 0; display: flex; }
+.rel-main > .btn { align-self: flex-start; }
+.rel-main { flex: 1; min-width: 0; overflow-y: auto; scrollbar-width: none; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.rel-nm { font: 500 28px/32px var(--serif); }
+.rel-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.rel-slot { min-height: 156px; gap: 8px; }
+.rel-slot .k { font-size: 12px; color: var(--bone-3); }
+.rel-slot > b { font: 500 18px/22px var(--serif); }
+.rel-slot .btn { margin-top: auto; align-self: flex-start; }
+.rel-side { width: 30%; min-width: 280px; overflow-y: auto; scrollbar-width: none; padding: 16px 0; display: flex; flex-direction: column; gap: 12px; background-color: var(--lacquer-0); box-shadow: inset 1px 0 0 var(--engrave); }
+.rel-side .why { padding: 0 20px; }
+.rel-side .btn { margin: 0 20px; }
+.rel-opt { width: 100%; gap: 12px; padding: 10px 20px; text-align: left; box-shadow: inset 0 -1px 0 var(--line-soft); }
+.rel-opt .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rel-opt .tx b { font-weight: 500; }
+.rel-opt .tx span { font-size: 12px; line-height: 16px; color: var(--bone-2); }
+/* the symbol tooltip (parts/screen_tips.html) */
+.religion-tip { width: 300px; padding: 14px; background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave); color: var(--bone); }
+.rel-win .kick { display: flex; gap: 4px; }

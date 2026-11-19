@@ -21,15 +21,6 @@ img.yi { width: 22px; height: 22px; flex: none; }
   gap: 8px;
 }
 
-/* The engraved scale: the fill is the progress, the ticks are turns (one tick per turn). */
-.scale { position: relative; height: 4px; background-color: var(--lacquer-3); }
-.scale .fill { position: absolute; left: 0; top: 0; bottom: 0; background-color: var(--y-sci); }
-.scale .ticks {
-  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
-  background-image: linear-gradient(to right, transparent calc(100% - 1px), var(--lacquer) calc(100% - 1px));
-  background-repeat: repeat-x;
-}
-
 /* The tooltips of the HUD's counters and orders. */
 .top-panel-tip { width: 280px; max-height: 480px; overflow-y: auto; scrollbar-width: none; }
 .top-panel-total { border-top: 1px solid var(--engrave); margin-top: 3px; padding-top: 3px; }
@@ -194,7 +185,7 @@ img.yi { width: 22px; height: 22px; flex: none; }
 }
 .notification-log-card .notification-log-lines { gap: 0; }
 .notification-log-card .notification-log-summary { font-size: 14px; line-height: 20px; color: var(--bone); }
-.notification-log-card .notification-log-kicker { font-size: 12px; line-height: 16px; color: var(--bone-3); }
+.notification-log-card .notification-log-kicker { display: flex; font-size: 12px; line-height: 16px; color: var(--bone-3); }
 .notification-log-dismiss {
   width: 24px; height: 24px; flex: none; display: flex; align-items: center; justify-content: center;
   border-radius: 4px; background-color: transparent; color: var(--bone-3); opacity: 0;
@@ -264,8 +255,6 @@ img.yi { width: 22px; height: 22px; flex: none; }
 /* The rename window of the unit (the pencil beside its name). */
 .unit-panel-rename { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #00000080; pointer-events: auto; }
 .unit-panel-rename-window { width: 400px; padding: 24px; display: flex; flex-direction: column; gap: 12px; background: var(--lacquer); border: 1px solid var(--brass); border-radius: 4px; }
-.unit-panel-input { appearance: none; display: block; outline: none; min-width: 0; padding: 8px; border: 1px solid var(--engrave); background: var(--lacquer-0); color: var(--bone); font: inherit; }
-.unit-panel-input:focus-visible { border-color: var(--brass); }
 .unit-panel-rename-footer { display: flex; justify-content: flex-end; gap: 12px; }
 .unit-panel-rename-footer button { display: block; padding: 6px 12px; border: 1px solid var(--engrave); }
 .unit-panel-rename-footer .unit-panel-primary { background: var(--brass); color: var(--brass-ink); }

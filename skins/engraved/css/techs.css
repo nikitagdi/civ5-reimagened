@@ -1,72 +1,58 @@
 /* SIMPLIFIED(SIMP-349): samples omit unresolved mockup asset names and crop tree coordinates to their visible columns; live data uses game icon-atlas references. */
 /* SIMPLIFIED(SIMP-343): the native tree scroller omits a scrubber and auto-centering; the legend stays static across modes. */
-.techs-screen { position: absolute; inset: 0; pointer-events: auto; background: rgba(12,10,8,.86); color: var(--bone); }
-.techs-window { position: absolute; inset: 0; display: flex; flex-direction: column; }
-.techs-head { height: 72px; flex-shrink: 0; padding: 0 24px; display: flex; align-items: center; gap: 24px; background: var(--lacquer); border-bottom: 1px solid var(--engrave); }
-.techs-head h1 { font: 500 30px/36px var(--serif); margin: 0; }
-.techs-facts { display: flex; gap: 8px; font-size: 13px; color: var(--bone-2); }
-.techs-science { color: var(--y-sci); }
-.techs-now { width: 220px; display: flex; flex-direction: column; gap: 8px; }
-.techs-queue { flex: 1; min-width: 0; display: flex; gap: 8px; overflow: hidden; }
-.techs-chip { display: flex; gap: 8px; padding: 6px; max-width: 150px; border: 1px solid var(--engrave); background: var(--lacquer-0); }
-.techs-close { margin-left: auto; color: var(--bone-2); padding: 8px; }
-.techs-mode { padding: 12px 24px; background: var(--lacquer-2); color: var(--y-sci); display: flex; gap: 12px; }
-.techs-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; }
-.techs-canvas { position: relative; }
-.techs-era { position: absolute; top: 0; height: 32px; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--bone-3); background: var(--lacquer-0); border: 1px solid var(--engrave); }
-.techs-era-current { background: var(--lacquer-2); color: var(--bone); border-bottom-color: var(--y-sci); }
-.techs-row { position: absolute; width: 232px; height: 68px; display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--lacquer-2); border: 1px solid var(--engrave-hi); border-radius: 3px; color: var(--bone); text-align: left; }
-.techs-current { border: 2px solid var(--brass); }
-.techs-researched { background: var(--lacquer-0); color: var(--bone-2); }
-.techs-locked { color: var(--bone-3); background: var(--lacquer-0); }
-.techs-free { border-color: var(--y-sci); }
-.techs-portrait { width: 48px; height: 48px; border: 1px solid var(--engrave-hi); border-radius: 24px; }
-.techs-body { flex: 1; min-width: 0; }
-.techs-line { display: flex; justify-content: space-between; gap: 6px; }
-.techs-name, .techs-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.techs-name { font: 500 16px/20px var(--serif); }
-.techs-status { font-size: 10px; color: var(--bone-3); }
-.techs-unlocks { display: flex; gap: 4px; height: 18px; }
-.techs-unlock { width: 18px; height: 18px; border: 1px solid var(--engrave); }
-.techs-pos { position: absolute; left: -22px; top: 22px; padding: 2px; color: var(--brass); background: var(--lacquer); border: 1px solid var(--engrave); }
-.techs-scale { position: relative; height: 4px; background: var(--lacquer-3); }
-.techs-fill, .techs-forecast { position: absolute; top: 0; bottom: 0; left: 0; background: var(--y-sci); }
-.techs-forecast { background: #3a4b60; }
-.techs-wire { position: absolute; height: 1px; background: var(--engrave-hi); }
-.techs-wire-v { position: absolute; width: 1px; background: var(--engrave-hi); }
-.techs-link-or .techs-wire { background: var(--y-gold); }
-.techs-link-or .techs-wire-v { background: var(--y-gold); }
-.techs-foot { padding: 14px 24px; background: var(--lacquer); border-top: 1px solid var(--engrave); color: var(--bone-3); font-size: 12px; }
-.techs-tip { width: 360px; max-height: 500px; overflow: auto; scrollbar-width: none; padding: 16px; background: var(--lacquer); border: 1px solid var(--engrave); color: var(--bone); display: flex; flex-direction: column; gap: 10px; }
-.techs-tip-title { font: 500 20px/24px var(--serif); }
-.techs-tip-row { display: flex; justify-content: space-between; gap: 12px; }
-@media (width < 1500px) { .techs-head { gap: 12px; } .techs-now { width: 180px; } .techs-queue { max-width: 250px; } }
-
-.techs-ticks { position: absolute; inset: 0; background-image: linear-gradient(to right, transparent calc(100% - 1px),var(--lacquer) calc(100% - 1px)); background-repeat: repeat-x; }
-.techs-researched .techs-status { color: var(--y-food); }
-.techs-link-or .techs-wire { background-image: linear-gradient(to right, var(--y-gold) 60%, transparent 60%); background-color: transparent; background-size: 8px 1px; background-repeat: repeat-x; }
-.techs-link-or .techs-wire-v { background-image: linear-gradient(to bottom, var(--y-gold) 60%, transparent 60%); background-color: transparent; background-size: 1px 8px; background-repeat: repeat-y; }
-.techs-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
-.techs-legend { display: flex; align-items: center; gap: 8px; }
-.techs-swatch { width: 20px; height: 10px; background: var(--lacquer-2); border: 1px solid var(--engrave-hi); }
-.techs-swatch-unavailable { background: var(--lacquer-0); border-color: var(--engrave); }
-.techs-swatch-current { border-color: var(--brass); }
-.techs-swatch-researched { background: var(--lacquer-0); }
-
-.techs-screen { pointer-events: auto; }
-
-.techs-close { display: flex; align-items: center; gap: 8px; }
-.techs-status { font-size: 11px; line-height: 14px; }
-
-
-.techs-tip-content { display: flex; flex-direction: column; gap: 8px; line-height: 20px; }
-.techs-tip-unlock { display: flex; align-items: center; gap: 8px; }
-
-/* The tooltip of one unlock square. */
-.techs-unlock-tip { width: 280px; padding: 10px 12px; background: var(--lacquer); border: 1px solid var(--engrave); color: var(--bone); font-size: 13px; line-height: 18px; }
-.techs-unlock-tip-item { display: flex; align-items: center; gap: 10px; }
-.techs-unlock-tip-icon { width: 48px; height: 48px; flex: none; border: 1px solid var(--engrave); }
-.techs-unlock-tip-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.techs-unlock-tip-name { font: 500 16px/20px var(--serif); }
-.techs-unlock-tip-kind { color: var(--bone-2); }
-.techs-unlock-tip-of { display: flex; gap: 4px; color: var(--bone-3); font-size: 12px; }
+/* techs: a full-screen kit window over the map; the tree is cards on a 316 x 96 grid (card 264 x 80, portrait 64,
+   unlocks 32). The header, scale, close, footer and tooltips are the kit's. */
+.wlayer.tt-layer { padding: 0; }
+.win.tt { left: 0; top: 0; right: 0; bottom: 0; width: 100%; height: 100%; border-radius: 0; background-color: transparent; box-shadow: none; }
+.win.tt > .hd, .win.tt > .wft { background-color: var(--lacquer); }
+.tt-sci { color: var(--y-sci); }
+.tt-now { display: flex; flex-direction: column; gap: 6px; width: 260px; flex: none; padding-left: 24px; box-shadow: inset 1px 0 0 var(--engrave); }
+.tt-now b { font: 500 16px/20px var(--sans); color: var(--bone); }
+.scale .fill.tt-fc { background-color: rgba(120, 166, 214, 0.38); }
+.tt-q { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding-left: 24px; overflow: hidden; box-shadow: inset 1px 0 0 var(--engrave); }
+.tt .qchip { display: flex; align-items: center; gap: 8px; height: 28px; max-width: 160px; padding: 0 10px 0 6px; border-radius: 4px; min-width: 0; flex: none; background-color: var(--lacquer-0); box-shadow: inset 0 0 0 1px var(--engrave); font-size: 13px; color: var(--bone); white-space: nowrap; }
+.tt .qchip .n { width: 18px; height: 18px; flex: none; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: var(--bone-2); box-shadow: inset 0 0 0 1px var(--engrave-hi); }
+.tt-mode { height: 48px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 24px; background-color: var(--lacquer-2); box-shadow: inset 0 -1px 0 var(--engrave); font-size: 14px; color: var(--bone); }
+.tt-mode b { font-weight: 500; }
+.tt-mode .sub { color: var(--bone-2); font-size: 13px; }
+.tt-mode .cnt { margin-left: auto; font-size: 18px; color: var(--y-sci); }
+.tt-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; background-color: rgba(12, 10, 8, 0.5); }
+.tt-canvas { position: relative; }
+.tt .era { position: absolute; top: 0; height: 32px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; color: var(--bone-3); background-color: var(--lacquer-0); box-shadow: inset 1px 0 0 var(--engrave), inset 0 -1px 0 var(--engrave); }
+.tt .era.cur { color: var(--bone); font-weight: 500; background-color: var(--lacquer-2); box-shadow: inset 1px 0 0 var(--engrave), inset 0 -2px 0 var(--y-sci); }
+.tt .era small { font-size: 12px; font-weight: 400; color: var(--bone-3); }
+.tt .ln { position: absolute; background-color: var(--engrave-hi); }
+.tt .ln.h { height: 2px; }
+.tt .ln.v { width: 2px; }
+.tt .tt-link.or .ln.h { background-color: transparent; background-image: linear-gradient(to right, var(--y-gold) 60%, transparent 60%); background-size: 10px 2px; background-repeat: repeat-x; }
+.tt .tt-link.or .ln.v { background-color: transparent; background-image: linear-gradient(to bottom, var(--y-gold) 60%, transparent 60%); background-size: 2px 10px; background-repeat: repeat-y; }
+.tt .tc { position: absolute; width: 264px; height: 80px; border-radius: 4px; display: flex; gap: 10px; padding: 8px 10px 8px 8px; text-align: left; color: var(--bone); background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave-hi); transition: background-color 120ms var(--ease); }
+.tt .tc .bd { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tt .tc .l1 { display: flex; align-items: baseline; gap: 8px; height: 20px; }
+.tt .tc .nm { flex: 1; font-size: 14px; font-weight: 500; }
+.tt .tc .tn { font-size: 13px; color: var(--bone-2); white-space: nowrap; }
+.tt .tc .st { font-size: 11px; line-height: 14px; color: var(--bone-3); }
+.tt .tc .un { display: flex; gap: 4px; }
+.tt .tc .pg { position: absolute; left: 82px; right: 10px; bottom: 4px; height: 3px; }
+.tt .tc .qb { position: absolute; top: 29px; left: -28px; height: 22px; min-width: 22px; padding: 0 5px; border-radius: 4px; display: flex; align-items: center; justify-content: center; background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--brass); font-size: 12px; font-weight: 500; color: var(--brass); }
+.tt .tc.res { background-color: var(--lacquer-0); box-shadow: inset 0 0 0 1px var(--engrave); }
+.tt .tc.res .nm { color: var(--bone-2); font-weight: 400; }
+.tt .tc.res .st { color: var(--y-food); }
+.tt .tc.cur { background-color: var(--lacquer-2); box-shadow: inset 0 0 0 1px var(--brass), 0 0 0 1px var(--brass); }
+.tt .tc.na { background-color: rgba(20, 18, 16, 0.55); box-shadow: inset 0 0 0 1px var(--engrave); }
+.tt .tc.na .nm { color: var(--bone-2); font-weight: 400; }
+.tt .tc.na .por { opacity: 0.7; }
+.tt .tc.free { box-shadow: inset 0 0 0 1px var(--y-sci), 0 0 0 1px rgba(120, 166, 214, 0.35); }
+.tt .tc.free .tn { color: var(--y-sci); font-weight: 500; }
+.tt-ft { height: 56px; justify-content: flex-start; gap: 28px; padding: 0 16px 0 24px; font-size: 12px; color: var(--bone-3); }
+.tt .legend { display: flex; gap: 16px; flex: none; }
+.tt-tip { width: 360px; }
+.tt-tipc { display: flex; flex-direction: column; gap: 10px; }
+@media (width < 1500px) { .tt-now { width: 200px; } }
+.wlayer.tt-layer { top: 0; }
+.tt .legend .li { padding-left: 30px; white-space: nowrap; background-repeat: no-repeat; background-position: 0 50%; background-size: 22px 12px; background-image: linear-gradient(var(--engrave-hi), var(--engrave-hi)); }
+.tt .legend .li.na { background-image: linear-gradient(var(--engrave), var(--engrave)); }
+.tt .legend .li.cur { background-image: linear-gradient(var(--brass), var(--brass)); }
+.tt .legend .li.res { background-image: linear-gradient(var(--lacquer-3), var(--lacquer-3)); }
+.tt .facts > span { display: flex; align-items: baseline; }
+.tt .tc .st { align-self: flex-start; display: flex; }

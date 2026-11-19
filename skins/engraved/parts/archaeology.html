@@ -1,33 +1,50 @@
-<div class="archaeology-screen" data-part="archaeology" data-screen="archaeology" data-esc="call archaeology.back()" data-bind-if="{{ui.windows.archaeology.open}}">
-  <section class="archaeology-window">
-    <header class="archaeology-head"><h1 data-l10n="archaeology.title">Archaeology find</h1><button data-on-click="call archaeology.back()" data-l10n="archaeology.back">Back</button></header>
-    <div class="archaeology-loading" data-bind-if="{{archaeology == null}}" data-l10n="archaeology.loading">Loading excavation</div>
-    <div class="archaeology-content" data-bind-if="{{archaeology != null}}">
-      <div class="archaeology-idle" data-part="archaeology.idle" data-bind-if="{{archaeology.reason != null}}" data-bind-value="{{archaeology.reason}}"></div>
-      <div data-bind-if="{{archaeology.find != null}}">
-        <div class="archaeology-intro"><img data-bind-src="{{archaeology.archaeologist}}"><span data-l10n="archaeology.near" data-l10n-args="{{archaeology.near_city}}"></span></div>
-        <div class="archaeology-find"><div><h2 data-bind-value="{{archaeology.find.kind_name}}"></h2><span data-bind-value="{{archaeology.find.era}}"></span></div><div><div class="archaeology-participant" data-bind-for="participant:{{archaeology.find.participants}}"><span data-bind-value="{{participant.role_name}}"></span><img data-bind-src="{{participant.civ}}"><span data-bind-value="{{participant.civ_name}}"></span></div></div></div>
-        <div class="archaeology-work" data-bind-if="{{archaeology.find.work != null}}"><span data-bind-value="{{archaeology.find.work.name}}"></span><button data-on-click="intent window.open(window: 'great_work', a: -1, b: archaeology.find.work.type_id)" data-l10n="archaeology.view">View the work</button></div>
+<div class="wlayer dimmed" data-part="archaeology" data-screen="archaeology" data-esc="call archaeology.back()" data-bind-if="{{ui.windows.archaeology.open}}">
+  <section class="win pop ar-win" role="dialog">
+    <div class="hd">
+      <img class="gi s48 round" data-bind-if="{{archaeology != null}}" data-bind-src="{{archaeology.archaeologist}}">
+      <div class="ttl stack"><span class="kick" data-bind-if="{{archaeology != null}}" data-l10n="archaeology.near" data-l10n-args="{{archaeology.near_city}}"></span><b data-l10n="archaeology.title">Archaeology find</b></div>
+      <button class="close" data-on-click="call archaeology.back()"><span class="key" data-l10n="key.escape">Esc</span><span class="x"><svg class="i"><use href="#i-close"/></svg></span></button>
+    </div>
+    <div class="wbd">
+      <div class="empty" data-bind-if="{{archaeology == null}}" data-l10n="archaeology.loading">Loading excavation</div>
+      <div class="prose sec" data-part="archaeology.idle" data-bind-if="{{archaeology != null &amp;&amp; archaeology.reason != null}}" data-bind-value="{{archaeology.reason}}"></div>
+      <div class="ar-find" data-bind-if="{{archaeology != null &amp;&amp; archaeology.find != null}}">
+        <div class="ar-fh"><b data-bind-value="{{archaeology.find.kind_name}}"></b><span class="tag mute" data-bind-value="{{archaeology.find.era}}"></span></div>
+        <div class="kv">
+          <div class="r" data-bind-for="participant:{{archaeology.find.participants}}"><span class="k" data-bind-value="{{participant.role_name}}"></span><img class="gi s24" data-bind-src="{{participant.civ}}"><b data-bind-value="{{participant.civ_name}}"></b></div>
+          <div class="r" data-bind-if="{{archaeology.find.work != null}}"><img class="gi s24" data-asset="font:ICON_GREAT_WRITER"><span class="k" data-bind-value="{{archaeology.find.work.name}}"></span><button class="btn sm" data-on-click="intent window.open(window: 'great_work', a: -1, b: archaeology.find.work.type_id)" data-l10n="archaeology.view">View the work</button></div>
+        </div>
       </div>
-      <p class="archaeology-warning" data-bind-if="{{archaeology.no_slot_warning != null}}" data-bind-value="{{archaeology.no_slot_warning}}"></p>
-      <div class="archaeology-choices">
-        <button class="archaeology-choice" data-part="archaeology.choice" data-bind-for="choice:{{archaeology.choices}}" data-bind-disabled="{{!choice.enabled}}" data-on-click="set state.archaeology.confirm = choice.id">
-          <strong data-part="archaeology.choice-title" data-bind-value="{{choice.title}}"></strong>
-          <span data-bind-value="{{choice.description}}"></span>
-          <span data-bind-if="{{choice.civ_name != null}}" data-bind-value="{{choice.civ_name}}"></span>
-          <span class="archaeology-diplomacy" data-bind-if="{{choice.diplomacy != null}}" data-bind-value="{{choice.diplomacy}}"></span>
-          <span class="archaeology-warning" data-bind-if="{{choice.reason != null}}" data-bind-value="{{choice.reason}}"></span>
+      <div class="why neg" data-bind-if="{{archaeology != null &amp;&amp; archaeology.no_slot_warning != null}}" data-bind-value="{{archaeology.no_slot_warning}}"></div>
+      <div class="ar-choices" data-bind-if="{{archaeology != null}}">
+        <button class="card pick ar-choice" data-part="archaeology.choice" data-bind-for="choice:{{archaeology.choices}}" data-bind-class-toggle="lock:{{!choice.enabled}}" data-bind-disabled="{{!choice.enabled}}" data-on-click="set state.archaeology.confirm = choice.id">
+          <img class="gi s48" data-bind-src="{{choice.kind == 'writing' ? 'font:ICON_GREAT_WRITER' : choice.kind == 'culture' ? 'font:ICON_CULTURE' : choice.kind == 'landmark' ? 'improvement:IMPROVEMENT_LANDMARK' : 'font:ICON_GREAT_WORK'}}">
+          <div class="ar-ct">
+            <b data-part="archaeology.choice-title" data-bind-value="{{choice.title}}"></b>
+            <span class="cs" data-bind-value="{{choice.description}}"></span>
+            <span class="ar-civ" data-bind-if="{{choice.civ_name != null}}"><img class="gi s24" data-bind-if="{{choice.civ != null}}" data-bind-src="{{choice.civ}}"><span data-bind-value="{{choice.civ_name}}"></span></span>
+            <span class="why" data-bind-if="{{choice.diplomacy != null}}" data-bind-value="{{choice.diplomacy}}"></span>
+            <span class="why neg" data-bind-if="{{choice.reason != null}}" data-bind-value="{{choice.reason}}"></span>
+          </div>
         </button>
       </div>
+      <div class="why neg" data-bind-for="error:{{ui.errors}}"><span data-part="archaeology.error" data-bind-if="{{error.detail != null}}" data-bind-value="{{error.detail}}"></span></div>
     </div>
-    <div class="archaeology-errors" data-bind-for="error:{{ui.errors}}"><span data-part="archaeology.error" data-bind-if="{{error.detail != null}}" data-bind-value="{{error.detail}}"></span></div>
-    <footer class="archaeology-footer"><button data-part="archaeology.back" data-on-click="call archaeology.back()" data-l10n="archaeology.back">Back</button><span data-l10n="archaeology.unresolved">Closing keeps the excavation awaiting a decision</span></footer>
-    <div class="archaeology-confirm-shade" data-bind-if="{{state.archaeology.confirm != 0}}">
-      <section class="archaeology-confirm">
-        <h2 data-l10n="archaeology.confirm">Confirm excavation choice</h2>
-        <p data-l10n="archaeology.consumed">The archaeologist is consumed when you accept.</p>
-        <div data-bind-if="{{archaeology != null}}"><p data-bind-for="choice:{{archaeology.choices}}" data-bind-filter="{{choice.id == state.archaeology.confirm}}" data-bind-value="{{choice.title}}"></p></div>
-        <div class="archaeology-confirm-buttons"><button data-part="archaeology.no" data-on-click="set state.archaeology.confirm = 0" data-l10n="archaeology.no">No</button><button class="archaeology-primary" data-part="archaeology.yes" data-on-click="call archaeology.choose()" data-l10n="archaeology.yes">Yes</button></div>
+    <div class="wft">
+      <span class="note" data-l10n="archaeology.unresolved">Closing keeps the excavation awaiting a decision</span>
+      <button class="btn c" data-part="archaeology.back" data-on-click="call archaeology.back()" data-l10n="archaeology.back">Back</button>
+    </div>
+    <div class="wlayer dimmed ar-shade" data-bind-if="{{state.archaeology.confirm != 0}}">
+      <section class="win pop w-s" role="dialog">
+        <div class="hd"><div class="ttl"><b data-l10n="archaeology.confirm">Confirm excavation choice</b></div></div>
+        <div class="wbd">
+          <div data-bind-if="{{archaeology != null}}"><b class="prose" data-bind-for="choice:{{archaeology.choices}}" data-bind-filter="{{choice.id == state.archaeology.confirm}}" data-bind-value="{{choice.title}}"></b></div>
+          <div class="prose sm sec" data-l10n="archaeology.consumed">The archaeologist is consumed when you accept.</div>
+        </div>
+        <div class="wft">
+          <button class="btn c" data-part="archaeology.no" data-on-click="set state.archaeology.confirm = 0" data-l10n="archaeology.no">No</button>
+          <button class="btn primary c" data-part="archaeology.yes" data-on-click="call archaeology.choose()" data-l10n="archaeology.yes">Yes</button>
+        </div>
       </section>
     </div>
   </section>

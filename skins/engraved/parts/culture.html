@@ -1,35 +1,34 @@
-<div class="culture-screen" data-part="culture" data-screen="culture" data-bind-if="{{ui.windows.culture.open}}">
-  <section class="culture-window">
-    <header class="culture-head">
-      <h1 data-l10n="culture.title">Culture</h1>
-      <div class="culture-facts" data-bind-if="{{culture != null}}">
+<div class="wlayer soft" data-part="culture" data-screen="culture" data-bind-if="{{ui.windows.culture.open}}" data-esc="intent window.close(window: 'culture')">
+  <section class="win cu-win" role="dialog">
+    <div class="hd">
+      <div class="ttl"><b data-l10n="culture.title">Culture</b></div>
+      <div class="facts" data-bind-if="{{culture != null}}">
         <span data-part="culture.summary" data-l10n="culture.summary" data-l10n-args="{{culture.summary.works}}, {{culture.summary.slots}}"></span>
-        <span class="culture-tourism" data-l10n="culture.tourism" data-l10n-args="{{culture.summary.tourism}}"></span>
+        <span class="c-tour" data-l10n="culture.tourism" data-l10n-args="{{culture.summary.tourism}}"></span>
         <span data-l10n="culture.influential" data-l10n-args="{{culture.summary.influential_on}}, {{culture.summary.influential_of}}"></span>
       </div>
-      <button class="culture-control culture-close" data-part="culture.close" data-on-click="intent window.close(window: 'culture')" data-l10n="culture.close">Close</button>
-    </header>
-    <nav class="culture-tabs">
-      <button class="culture-control" data-part="culture.tab.yours" data-bind-class-toggle="culture-active:{{state.culture.tab == 'yours'}}" data-on-click="set state.culture.tab = 'yours'" data-l10n="culture.yours">Your culture</button>
-      <button class="culture-control" data-part="culture.tab.swap" data-bind-class-toggle="culture-active:{{state.culture.tab == 'swap'}}" data-on-click="set state.culture.tab = 'swap'" data-l10n="culture.swap">Swap great works</button>
-      <button class="culture-control" data-part="culture.tab.victory" data-bind-class-toggle="culture-active:{{state.culture.tab == 'victory'}}" data-on-click="set state.culture.tab = 'victory'" data-l10n="culture.victory">Culture victory</button>
-      <button class="culture-control" data-part="culture.tab.influence" data-bind-class-toggle="culture-active:{{state.culture.tab == 'influence'}}" data-on-click="set state.culture.tab = 'influence'" data-l10n="culture.influence">Influence</button>
+      <button class="close" data-part="culture.close" data-on-click="intent window.close(window: 'culture')"><span class="key" data-l10n="key.escape">Esc</span><span class="x"><svg class="i"><use href="#i-close"/></svg></span></button>
+    </div>
+    <nav class="tabs band">
+      <button class="tab" data-part="culture.tab.yours" data-bind-class-toggle="on:{{state.culture.tab == 'yours'}}" data-on-click="set state.culture.tab = 'yours'" data-l10n="culture.yours">Your culture</button>
+      <button class="tab" data-part="culture.tab.swap" data-bind-class-toggle="on:{{state.culture.tab == 'swap'}}" data-on-click="set state.culture.tab = 'swap'" data-l10n="culture.swap">Swap great works</button>
+      <button class="tab" data-part="culture.tab.victory" data-bind-class-toggle="on:{{state.culture.tab == 'victory'}}" data-on-click="set state.culture.tab = 'victory'" data-l10n="culture.victory">Culture victory</button>
+      <button class="tab" data-part="culture.tab.influence" data-bind-class-toggle="on:{{state.culture.tab == 'influence'}}" data-on-click="set state.culture.tab = 'influence'" data-l10n="culture.influence">Influence</button>
     </nav>
-    <div class="culture-loading" data-bind-if="{{culture == null}}" data-l10n="culture.loading">Loading culture overview</div>
-    <main class="culture-body" data-bind-if="{{culture != null}}">
+    <div class="empty" data-bind-if="{{culture == null}}"><span data-l10n="culture.loading">Loading culture overview</span></div>
+    <main class="wbd flush culture-body" data-bind-if="{{culture != null}}">
       <section class="culture-pane" data-bind-if="{{state.culture.tab == 'yours'}}">
         <div class="culture-bar">
           <span data-l10n="culture.click">Click a slot to</span>
-          <button class="culture-control" data-bind-class-toggle="culture-active:{{state.culture.click_mode == 'move'}}" data-on-click="set state.culture.click_mode = 'move'" data-l10n="culture.move">Move</button>
-          <button class="culture-control" data-bind-class-toggle="culture-active:{{state.culture.click_mode == 'view'}}" data-on-click="set state.culture.click_mode = 'view'" data-l10n="culture.view">View</button>
-          <span data-bind-if="{{state.culture.pick >= 0}}" data-l10n="culture.destination">Choose a highlighted destination</span>
-          <button class="culture-control" data-on-click="set state.culture.pick = -1" data-l10n="culture.clear">Clear</button>
-          <button class="culture-control" data-on-click="set state.culture.sort_cities = 'culture'" data-l10n="culture.sortculture">Sort by culture</button>
+          <div class="seg"><button class="o" data-bind-class-toggle="on:{{state.culture.click_mode == 'move'}}" data-on-click="set state.culture.click_mode = 'move'" data-l10n="culture.move">Move</button><button class="o" data-bind-class-toggle="on:{{state.culture.click_mode == 'view'}}" data-on-click="set state.culture.click_mode = 'view'" data-l10n="culture.view">View</button></div>
+          <span class="spacer"></span><span data-bind-if="{{state.culture.pick >= 0}}" data-l10n="culture.destination">Choose a highlighted destination</span>
+          <button class="btn sm" data-on-click="set state.culture.pick = -1" data-l10n="culture.clear">Clear</button>
+          <button class="btn sm" data-on-click="set state.culture.sort_cities = 'culture'" data-l10n="culture.sortculture">Sort by culture</button>
         </div>
         <div class="culture-scroll" data-bind-scroll-x="state.culture.x" data-bind-scroll-y="state.culture.y">
           <div class="culture-ledger">
             <div class="culture-city-head">
-              <button class="culture-control culture-city-name" data-on-click="set state.culture.sort_cities = 'id'" data-l10n="culture.city">City</button>
+              <button class="h culture-city-name" data-on-click="set state.culture.sort_cities = 'id'" data-l10n="culture.city">City</button>
               <span class="culture-number" data-l10n="culture.culture">Culture</span>
               <span class="culture-number" data-l10n="culture.tourismlabel">Tourism</span>
               <span class="culture-number" data-l10n="culture.works">Works</span>
@@ -42,22 +41,22 @@
               <div class="culture-city-row" data-part="culture.city-row">
                 <div class="culture-city-name">
                   <span class="culture-ellipsis" data-part="culture.city-name" data-bind-value="{{cultureCity.name}}"></span>
-                  <span data-bind-if="{{cultureCity.capital}}" data-l10n="culture.capital">Capital</span>
-                  <span class="culture-tag" data-bind-if="{{cultureCity.puppet}}" data-l10n="culture.puppet">Puppet</span>
-                  <span class="culture-tag" data-bind-if="{{cultureCity.occupied}}" data-l10n="culture.occupied">Occupied</span>
-                  <div class="culture-health" data-bind-if="{{cultureCity.health != null}}"><div data-bind-style-width="{{cultureCity.health * 100}}%"></div></div>
+                  <span class="tag lit" data-bind-if="{{cultureCity.capital}}" data-l10n="culture.capital">Capital</span>
+                  <span class="tag" data-bind-if="{{cultureCity.puppet}}" data-l10n="culture.puppet">Puppet</span>
+                  <span class="tag neg" data-bind-if="{{cultureCity.occupied}}" data-l10n="culture.occupied">Occupied</span>
+                  <div class="scale culture-health" data-bind-if="{{cultureCity.health != null}}"><div class="fill" data-bind-style-width="{{cultureCity.health * 100}}%"></div></div>
                 </div>
-                <span class="culture-number culture-yield" data-bind-value="{{cultureCity.culture}}"></span>
-                <span class="culture-number culture-tourism" data-bind-value="{{cultureCity.tourism}}" data-tooltip="culture-tip" data-on-pointerenter="call culture.tip(cultureCity.tourism_tooltip)"></span>
+                <span class="culture-number c-cult" data-bind-value="{{cultureCity.culture}}"></span>
+                <span class="culture-number c-tour" data-bind-value="{{cultureCity.tourism}}" data-tooltip="culture-tip" data-on-pointerenter="call culture.tip(cultureCity.tourism_tooltip)"></span>
                 <span class="culture-number" data-bind-value="{{cultureCity.works}}" data-tooltip="culture-tip" data-on-pointerenter="call culture.tip(cultureCity.slots_tooltip)"></span>
                 <div class="culture-cell" data-bind-for="cell:{{cultureCity.cells}}" data-bind-class-toggle="culture-ghost:{{cell.state == 'not_built'}}">
                   <div class="culture-slots">
                     <button class="culture-slot" data-part="culture.slot" data-bind-for="slot:{{cell.slots}}"
                       data-bind-class-toggle="culture-filled:{{slot.work != null}}; culture-selected:{{state.culture.pick == slot.id}}; culture-compatible:{{state.culture.pick >= 0 &amp;&amp; state.culture.slot_type == slot.slot_type}}"
                       data-tooltip="culture-tip" data-on-pointerenter="call culture.slot-tip(slot.id)" data-on-click="call culture.slot(slot.id)" data-on-contextmenu="call culture.view(slot.id)">
-                      <span data-bind-if="{{slot.work != null}}" data-bind-value="{{slot.work.class}}"></span>
+                      <img class="gi s16" data-bind-if="{{slot.work != null}}" data-bind-src="{{slot.work.class == 'writing' ? 'font:ICON_GREAT_WRITER' : slot.work.class == 'art' ? 'font:ICON_GREAT_ARTIST' : slot.work.class == 'music' ? 'font:ICON_GREAT_MUSICIAN' : 'font:ICON_GREAT_WORK'}}">
                     </button>
-                    <span class="culture-yield" data-bind-if="{{cell.theme_bonus != null}}" data-bind-value="{{cell.theme_bonus}}" data-tooltip="culture-tip" data-on-pointerenter="call culture.tip(cell.theme_tooltip)"></span>
+                    <span class="c-cult" data-bind-if="{{cell.theme_bonus != null}}" data-bind-value="{{cell.theme_bonus}}" data-tooltip="culture-tip" data-on-pointerenter="call culture.tip(cell.theme_tooltip)"></span>
                   </div>
                   <span data-bind-if="{{cell.state == 'not_built'}}" data-l10n="culture.unbuilt">Not built</span>
                 </div>
@@ -65,9 +64,9 @@
               <div class="culture-extra" data-bind-for="extra:{{cultureCity.extra}}">
                 <span class="culture-extra-name" data-bind-value="{{extra.name}}"></span>
                 <button class="culture-slot" data-bind-for="slot:{{extra.slots}}" data-bind-class-toggle="culture-filled:{{slot.work != null}}; culture-selected:{{state.culture.pick == slot.id}}; culture-compatible:{{state.culture.pick >= 0 &amp;&amp; state.culture.slot_type == slot.slot_type}}" data-tooltip="culture-tip" data-on-pointerenter="call culture.slot-tip(slot.id)" data-on-click="call culture.slot(slot.id)" data-on-contextmenu="call culture.view(slot.id)">
-                  <span data-bind-if="{{slot.work != null}}" data-bind-value="{{slot.work.class}}"></span>
+                  <img class="gi s16" data-bind-if="{{slot.work != null}}" data-bind-src="{{slot.work.class == 'writing' ? 'font:ICON_GREAT_WRITER' : slot.work.class == 'art' ? 'font:ICON_GREAT_ARTIST' : slot.work.class == 'music' ? 'font:ICON_GREAT_MUSICIAN' : 'font:ICON_GREAT_WORK'}}">
                 </button>
-                <span class="culture-yield" data-bind-if="{{extra.theme_bonus != null}}" data-bind-value="{{extra.theme_bonus}}" data-tooltip="culture-tip" data-on-pointerenter="call culture.tip(extra.theme_tooltip)"></span>
+                <span class="c-cult" data-bind-if="{{extra.theme_bonus != null}}" data-bind-value="{{extra.theme_bonus}}" data-tooltip="culture-tip" data-on-pointerenter="call culture.tip(extra.theme_tooltip)"></span>
               </div>
             </div>
           </div>
@@ -76,14 +75,14 @@
       <section class="culture-pane" data-bind-if="{{state.culture.tab == 'swap'}}">
         <div class="culture-offers">
           <div class="culture-offer" data-bind-for="offer:{{culture.swap.offers}}">
-            <button class="culture-control" data-on-click="set state.culture.offer = offer.class_id">
-              <span data-bind-value="{{offer.class}}"></span>
+            <button class="btn tall culture-offer-btn" data-bind-class-toggle="primary:{{state.culture.offer == offer.class_id}}" data-on-click="set state.culture.offer = offer.class_id">
+              <img class="gi s24" data-bind-src="{{offer.class == 'writing' ? 'font:ICON_GREAT_WRITER' : offer.class == 'art' ? 'font:ICON_GREAT_ARTIST' : offer.class == 'music' ? 'font:ICON_GREAT_MUSICIAN' : 'font:ICON_GREAT_WORK'}}">
               <span data-bind-if="{{offer.work != null}}" data-part="culture.offer-name" data-bind-value="{{offer.work.name}}"></span>
               <span data-bind-if="{{offer.work == null}}" data-l10n="culture.nothing">Nothing offered</span>
             </button>
             <div class="culture-options" data-bind-if="{{state.culture.offer == offer.class_id}}">
-              <button class="culture-control" data-on-click="intent screen.act(screen: 'culture', action: 'offer', a: offer.class_id, b: -1)" data-l10n="culture.remove">Do not offer a work</button>
-              <button class="culture-control" data-bind-for="option:{{offer.options}}" data-on-click="intent screen.act(screen: 'culture', action: 'offer', a: offer.class_id, b: option.id)" data-tooltip="culture-tip" data-on-pointerenter="call culture.tip(option.tooltip)">
+              <button class="lrow" data-on-click="intent screen.act(screen: 'culture', action: 'offer', a: offer.class_id, b: -1)" data-l10n="culture.remove">Do not offer a work</button>
+              <button class="lrow" data-bind-for="option:{{offer.options}}" data-on-click="intent screen.act(screen: 'culture', action: 'offer', a: offer.class_id, b: option.id)" data-tooltip="culture-tip" data-on-pointerenter="call culture.tip(option.tooltip)">
                 <span class="culture-ellipsis" data-bind-value="{{option.name}}"></span>
                 <span data-bind-if="{{option.location != null}}" data-bind-value="{{option.location}}"></span>
               </button>
@@ -92,22 +91,22 @@
         </div>
         <div class="culture-scroll">
           <div class="culture-partner" data-bind-for="partner:{{culture.swap.partners}}">
-            <div class="culture-civ"><img data-bind-src="{{partner.civ}}"><span data-bind-value="{{partner.civ_name}}"></span></div>
-            <button class="culture-control" data-bind-disabled="{{partner.writing == null}}" data-bind-class-toggle="culture-selected:{{partner.writing != null &amp;&amp; state.culture.pair_work == partner.writing.id}}" data-on-click="call culture.pair(partner.writing.id)">
+            <div class="culture-civ"><img class="gi s32" data-bind-src="{{partner.civ}}"><span data-bind-value="{{partner.civ_name}}"></span></div>
+            <button class="btn" data-bind-disabled="{{partner.writing == null}}" data-bind-class-toggle="culture-selected:{{partner.writing != null &amp;&amp; state.culture.pair_work == partner.writing.id}}" data-on-click="call culture.pair(partner.writing.id)">
               <span data-bind-if="{{partner.writing != null}}" data-bind-value="{{partner.writing.name}}"></span><span data-bind-if="{{partner.writing == null}}" data-l10n="culture.nothing">Nothing offered</span>
             </button>
-            <button class="culture-control" data-bind-disabled="{{partner.art == null}}" data-bind-class-toggle="culture-selected:{{partner.art != null &amp;&amp; state.culture.pair_work == partner.art.id}}" data-on-click="call culture.pair(partner.art.id)">
+            <button class="btn" data-bind-disabled="{{partner.art == null}}" data-bind-class-toggle="culture-selected:{{partner.art != null &amp;&amp; state.culture.pair_work == partner.art.id}}" data-on-click="call culture.pair(partner.art.id)">
               <span data-bind-if="{{partner.art != null}}" data-bind-value="{{partner.art.name}}"></span><span data-bind-if="{{partner.art == null}}" data-l10n="culture.nothing">Nothing offered</span>
             </button>
-            <button class="culture-control" data-bind-disabled="{{partner.artifact == null}}" data-bind-class-toggle="culture-selected:{{partner.artifact != null &amp;&amp; state.culture.pair_work == partner.artifact.id}}" data-on-click="call culture.pair(partner.artifact.id)">
+            <button class="btn" data-bind-disabled="{{partner.artifact == null}}" data-bind-class-toggle="culture-selected:{{partner.artifact != null &amp;&amp; state.culture.pair_work == partner.artifact.id}}" data-on-click="call culture.pair(partner.artifact.id)">
               <span data-bind-if="{{partner.artifact != null}}" data-bind-value="{{partner.artifact.name}}"></span><span data-bind-if="{{partner.artifact == null}}" data-l10n="culture.nothing">Nothing offered</span>
             </button>
           </div>
         </div>
         <div class="culture-bar">
           <span class="culture-pair-label" data-bind-value="{{state.culture.pair_label}}"></span>
-          <button class="culture-control culture-primary" data-part="culture.swap-action" data-bind-disabled="{{state.culture.own_work &lt; 0}}" data-on-click="intent screen.act(screen: 'culture', action: 'swap', a: state.culture.pair_partner, b: state.culture.pair_work, c: state.culture.own_work)" data-l10n="culture.swapaction">Swap</button>
-          <button class="culture-control" data-on-click="call culture.clear()" data-l10n="culture.clear">Clear</button>
+          <button class="btn primary c" data-part="culture.swap-action" data-bind-disabled="{{state.culture.own_work &lt; 0}}" data-on-click="intent screen.act(screen: 'culture', action: 'swap', a: state.culture.pair_partner, b: state.culture.pair_work, c: state.culture.own_work)" data-l10n="culture.swapaction">Swap</button>
+          <button class="btn c" data-on-click="call culture.clear()" data-l10n="culture.clear">Clear</button>
           <span data-bind-if="{{state.culture.own_work &lt; 0}}" data-bind-value="{{state.culture.reason}}"></span>
         </div>
       </section>
@@ -116,9 +115,9 @@
         <div class="culture-scroll">
           <div class="culture-victory-row culture-labels"><span data-l10n="culture.civilization">Civilization</span><span data-l10n="culture.influence">Influence</span><span data-l10n="culture.tourismlabel">Tourism</span><span data-l10n="culture.ideology">Ideology</span><span data-l10n="culture.opinion">Public opinion</span><span data-l10n="culture.unhappiness">Unhappiness</span><span data-l10n="culture.happiness">Excess</span></div>
           <div class="culture-victory-row" data-bind-for="row:{{culture.victory.rows}}">
-            <div class="culture-civ"><img data-bind-src="{{row.civ}}"><span data-bind-value="{{row.civ_name}}"></span></div>
+            <div class="culture-civ"><img class="gi s32" data-bind-src="{{row.civ}}"><span data-bind-value="{{row.civ_name}}"></span></div>
             <span data-l10n="culture.ratio" data-l10n-args="{{row.influential_on}}, {{row.influential_of}}"></span>
-            <span class="culture-tourism" data-bind-value="{{row.tourism}}"></span>
+            <span class="c-tour" data-bind-value="{{row.tourism}}"></span>
             <span data-bind-if="{{row.ideology_name != null}}" data-bind-value="{{row.ideology_name}}"></span>
             <span data-bind-if="{{row.ideology_name == null}}" data-l10n="culture.noideology">No ideology</span>
             <span data-bind-if="{{row.opinion != null}}" data-bind-value="{{row.opinion}}" data-tooltip="culture-tip" data-on-pointerenter="call culture.tip(row.opinion_tooltip)"></span>
@@ -130,7 +129,7 @@
         </div>
       </section>
       <section class="culture-pane" data-bind-if="{{state.culture.tab == 'influence'}}">
-        <div class="culture-bar culture-sources"><span data-l10n="culture.source">Source</span><button class="culture-control" data-bind-for="source:{{culture.influence.sources}}" data-on-click="set state.culture.source = source.id" data-bind-class-toggle="culture-active:{{state.culture.source == source.id}}" data-bind-value="{{source.civ_name}}"></button></div>
+        <div class="culture-bar culture-sources"><span data-l10n="culture.source">Source</span><button class="tab" data-bind-for="source:{{culture.influence.sources}}" data-on-click="set state.culture.source = source.id" data-bind-class-toggle="on:{{state.culture.source == source.id}}" data-bind-value="{{source.civ_name}}"></button></div>
         <div class="culture-scroll">
           <div data-bind-for="source:{{culture.influence.sources}}" data-bind-filter="{{state.culture.source == source.id}}">
             <div class="culture-influence-row culture-labels"><span data-l10n="culture.civilization">Civilization</span><span data-l10n="culture.level">Level</span><span data-l10n="culture.accumulated">Tourism / culture</span><span data-l10n="culture.modifier">Modifier</span><span data-l10n="culture.perturn">Per turn</span><span data-l10n="culture.trend">Trend</span></div>
@@ -139,7 +138,7 @@
               <div data-tooltip="culture-tip" data-on-pointerenter="call culture.tip(row.level_tooltip)"><span data-bind-value="{{row.level_name}}"></span><span data-l10n="culture.percent" data-l10n-args="{{row.share * 100}}"></span></div>
               <div data-tooltip="culture-tip" data-on-pointerenter="call culture.tip(row.bars_tooltip)"><span data-bind-value="{{row.tourism_accum}}"></span><span data-bind-if="{{row.culture_accum != null}}" data-bind-value="{{row.culture_accum}}"></span></div>
               <span data-bind-value="{{row.modifier_pct}}" data-tooltip="culture-tip" data-on-pointerenter="call culture.tip(row.modifier_tooltip)"></span>
-              <span class="culture-tourism" data-bind-value="{{row.per_turn}}"></span>
+              <span class="c-tour" data-bind-value="{{row.per_turn}}"></span>
               <div data-bind-if="{{row.trend_name != null}}" data-tooltip="culture-tip" data-on-pointerenter="call culture.tip(row.trend_tooltip)"><span data-bind-value="{{row.trend_name}}"></span><span data-bind-if="{{row.turns_to_influential != null}}" data-l10n="culture.turns" data-l10n-args="{{row.turns_to_influential}}"></span></div>
               <span data-bind-if="{{row.trend_name == null}}">—</span>
             </div>
@@ -147,10 +146,10 @@
         </div>
       </section>
     </main>
-    <div class="culture-errors" data-bind-for="error:{{ui.errors}}"><span data-part="culture.error" data-bind-if="{{error.detail != null}}" data-bind-value="{{error.detail}}"></span></div>
-    <footer class="culture-footer" data-bind-if="{{culture != null}}">
-      <span data-bind-if="{{culture.antiquity != null}}" data-l10n="culture.sites" data-l10n-args="{{culture.antiquity.sites}}, {{culture.antiquity.hidden}}"></span>
-      <span data-l10n="culture.free" data-l10n-args="{{culture.summary.works}}, {{culture.summary.slots - culture.summary.works}}"></span>
+    <div class="why neg culture-errors" data-bind-for="error:{{ui.errors}}"><span data-part="culture.error" data-bind-if="{{error.detail != null}}" data-bind-value="{{error.detail}}"></span></div>
+    <footer class="wft" data-bind-if="{{culture != null}}">
+      <span class="note" data-bind-if="{{culture.antiquity != null}}" data-l10n="culture.sites" data-l10n-args="{{culture.antiquity.sites}}, {{culture.antiquity.hidden}}"></span>
+      <span class="note cu-free" data-l10n="culture.free" data-l10n-args="{{culture.summary.works}}, {{culture.summary.slots - culture.summary.works}}"></span>
     </footer>
   </section>
 </div>
