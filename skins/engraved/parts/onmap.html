@@ -43,16 +43,14 @@
   </div>
 </div>
 
-<!-- The yield and resource icons of the plots in view, while the map options show them (the host writes ui.map_icons). -->
+<!-- The yield and resource icons of the plots in view (the host writes ui.map_icons: the map options' plots and the open
+     city's), as the original's managers draw them: the yield atlas cells in two overlapping rows on the plot, the
+     resource on its back plate at the plot's upper left corner. -->
 <div class="map-icons" data-part="map.icons" data-bind-for="m:{{ui.map_icons}}" data-anchor="plot:{{m.cell}}">
-  <img class="map-resource" data-part="map.resource-icon" data-bind-if="{{m.has_resource && state.minimap.resources}}" data-bind-src="{{m.resource}}">
-  <div class="map-yields" data-part="map.yield-icons" data-bind-if="{{state.minimap.yields}}">
-    <span class="map-yield food" data-bind-if="{{m.food > 0}}"><svg class="i"><use href="#i-food"/></svg><span data-bind-value="{{m.food}}">2</span></span>
-    <span class="map-yield prod" data-bind-if="{{m.production > 0}}"><svg class="i"><use href="#i-prod"/></svg><span data-bind-value="{{m.production}}">1</span></span>
-    <span class="map-yield gold" data-bind-if="{{m.gold > 0}}"><svg class="i"><use href="#i-gold"/></svg><span data-bind-value="{{m.gold}}">1</span></span>
-    <span class="map-yield sci" data-bind-if="{{m.science > 0}}"><svg class="i"><use href="#i-sci"/></svg><span data-bind-value="{{m.science}}">1</span></span>
-    <span class="map-yield cult" data-bind-if="{{m.culture > 0}}"><svg class="i"><use href="#i-cult"/></svg><span data-bind-value="{{m.culture}}">1</span></span>
-    <span class="map-yield faith" data-bind-if="{{m.faith > 0}}"><svg class="i"><use href="#i-faith"/></svg><span data-bind-value="{{m.faith}}">1</span></span>
+  <div class="map-res" data-part="map.resource-icon" data-bind-if="{{m.has_resource}}"><img data-asset="ui:tx:ResourcesBack64.dds"><img data-bind-src="{{m.resource}}"></div>
+  <div class="map-yields" data-part="map.yield-icons" data-bind-if="{{len(m.yields) > 0}}">
+    <div class="map-ys"><div class="map-y" data-bind-for="y:{{m.yields}}" data-bind-filter="{{y.stack == 1}}"><img data-bind-src="{{y.icon}}"><img data-bind-if="{{y.number != null}}" data-bind-src="{{y.number}}"></div></div>
+    <div class="map-ys" data-bind-if="{{len(m.yields) > 4}}"><div class="map-y" data-bind-for="y:{{m.yields}}" data-bind-filter="{{y.stack == 2}}"><img data-bind-src="{{y.icon}}"><img data-bind-if="{{y.number != null}}" data-bind-src="{{y.number}}"></div></div>
   </div>
 </div>
 
@@ -79,7 +77,8 @@
   <div data-bind-if="{{plot_help != null}}">
     <div class="th" data-part="plot-tip.nature" data-bind-if="{{plot_help.revealed}}" data-bind-value="{{plot_help.nature}}">Grassland, Hills</div>
     <div class="tl" data-bind-if="{{!plot_help.revealed}}" data-l10n="plot_tip.unknown">Unexplored</div>
-    <div class="trow" data-part="plot-tip.resource" data-bind-if="{{plot_help.resource != null}}"><span data-l10n="plot_tip.resource">Resource</span><span class="n pr"><span data-bind-if="{{plot_help.resource_count > 1}}" data-bind-value="{{plot_help.resource_count}}">2</span><span data-bind-value="{{plot_help.resource}}">Iron</span></span></div>
+    <div class="pr" data-part="plot-tip.resource" data-bind-if="{{plot_help.resource_title != null}}" data-bind-value="{{plot_help.resource_title}}">2 IRON</div>
+    <div class="tl" data-bind-for="l:{{plot_help.resource_lines}}" data-bind-value="{{l.text}}"></div>
     <div class="tl lk" data-bind-if="{{plot_help.resource_tech != null}}" data-l10n="plot_tip.requires" data-l10n-args="{{plot_help.resource_tech}}"></div>
     <div class="trow" data-part="plot-tip.improvement" data-bind-if="{{plot_help.improvement != null}}"><span data-l10n="plot_tip.improvement">Improvement</span><span class="n" data-bind-value="{{plot_help.improvement}}">Mine</span><span class="plot-tip-bad" data-bind-if="{{plot_help.improvement_pillaged}}" data-l10n="plot_tip.pillaged"></span></div>
     <div class="trow" data-part="plot-tip.route" data-bind-if="{{plot_help.route != null}}"><span data-l10n="plot_tip.route">Route</span><span class="n" data-bind-value="{{plot_help.route}}">Road</span><span class="plot-tip-bad" data-bind-if="{{plot_help.route_pillaged}}" data-l10n="plot_tip.pillaged"></span></div>

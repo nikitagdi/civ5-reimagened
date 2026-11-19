@@ -11,6 +11,11 @@ key = "str"
 name = "text"
 value = "i32"
 
+# A line of the resource's tooltip under its title.
+[type.PlotHelpLine]
+idx = "i32"
+text = "text"
+
 [type.PlotHelpUnit]
 idx = "i32"
 name = "text"
@@ -56,6 +61,10 @@ nature = "text"
 resource = "text?"
 resource_count = "i32"
 resource_tech = "text?"
+# The original's resource tooltip (GenerateResourceToolTip): the quantity and the name in capitals, then its lines (the
+# help, the happiness and the yields of the improved resource).
+resource_title = "text?"
+resource_lines = { list = "PlotHelpLine", key = "idx" }
 improvement = "text?"
 improvement_pillaged = "bool"
 route = "text?"

@@ -482,14 +482,17 @@ export interface PathLabel {
   readonly turn: number;
 }
 
+export interface MapYield {
+  readonly slot: number;
+  readonly stack: number;
+  readonly amount: number;
+  readonly icon: string;
+  readonly number: string | null;
+}
+
 export interface MapIcon {
   readonly cell: number;
-  readonly food: number;
-  readonly production: number;
-  readonly gold: number;
-  readonly science: number;
-  readonly culture: number;
-  readonly faith: number;
+  readonly yields: MapYield[];
   readonly has_resource: boolean;
   readonly resource: string;
 }
@@ -3403,6 +3406,11 @@ export interface PlotHelpYield {
   readonly value: number;
 }
 
+export interface PlotHelpLine {
+  readonly idx: number;
+  readonly text: Text;
+}
+
 export interface PlotHelpUnit {
   readonly idx: number;
   readonly name: Text;
@@ -5111,6 +5119,8 @@ export interface PlotHelp {
   readonly resource: Text | null;
   readonly resource_count: number;
   readonly resource_tech: Text | null;
+  readonly resource_title: Text | null;
+  readonly resource_lines: PlotHelpLine[];
   readonly improvement: Text | null;
   readonly improvement_pillaged: boolean;
   readonly route: Text | null;

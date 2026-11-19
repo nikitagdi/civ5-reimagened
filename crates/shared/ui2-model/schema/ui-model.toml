@@ -286,16 +286,22 @@ cell = "i32"
 plot = "Plot"
 turn = "i16"
 
+# One yield picture of a plot, as the original's YieldIconManager draws it: the cell of the yield atlas that shows
+# `amount` icons of the yield (`icon`, one to five), the atlas cell of the number laid over it from six on (`number`);
+# `stack` is the row it stands in (1 or 2), `slot` its place among the plot's yields.
+[type.MapYield]
+slot = "i16"
+stack = "i16"
+amount = "i16"
+icon = "asset"
+number = "asset?"
+
 # The yield and resource icons of one plot in view, as the original's YieldIconManager and ResourceIconManager hang
-# them on the plot while the map options switch them on; `cell` packs the plot as `PathLabel.cell` does.
+# them on the plot while the map options switch them on, and the yields of the open city's plots (the original's city
+# view asks for them whatever the options); `cell` packs the plot as `PathLabel.cell` does.
 [type.MapIcon]
 cell = "i32"
-food = "i16"
-production = "i16"
-gold = "i16"
-science = "i16"
-culture = "i16"
-faith = "i16"
+yields = { list = "MapYield", key = "slot" }
 has_resource = "bool"
 resource = "asset"
 

@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 4);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x67ee73ce0873213e;
+pub const SCHEMA_HASH: u64 = 0xc7f17fade4bdb15a;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -18966,14 +18966,62 @@ impl crate::model::Keyed for PathLabel {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+pub struct MapYield {
+    pub slot: i16,
+    pub stack: i16,
+    pub amount: i16,
+    pub icon: crate::value::AssetRef,
+    pub number: Option<crate::value::AssetRef>,
+}
+
+impl crate::model::Model for MapYield {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.slot, &old.slot, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.stack, &old.stack, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.amount, &old.amount, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.number, &old.number, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.slot),
+            crate::model::Model::to_value(&self.stack),
+            crate::model::Model::to_value(&self.amount),
+            crate::model::Model::to_value(&self.icon),
+            crate::model::Model::to_value(&self.number),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(5)?;
+        Ok(MapYield {
+            slot: crate::model::Model::from_value(&f[0])?,
+            stack: crate::model::Model::from_value(&f[1])?,
+            amount: crate::model::Model::from_value(&f[2])?,
+            icon: crate::model::Model::from_value(&f[3])?,
+            number: crate::model::Model::from_value(&f[4])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for MapYield {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.slot))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct MapIcon {
     pub cell: i32,
-    pub food: i16,
-    pub production: i16,
-    pub gold: i16,
-    pub science: i16,
-    pub culture: i16,
-    pub faith: i16,
+    pub yields: crate::model::KeyedList<MapYield>,
     pub has_resource: bool,
     pub resource: crate::value::AssetRef,
 }
@@ -18984,17 +19032,7 @@ impl crate::model::Model for MapIcon {
         at.field = base.child(0);
         crate::model::Model::diff(&self.cell, &old.cell, at, out);
         at.field = base.child(1);
-        crate::model::Model::diff(&self.food, &old.food, at, out);
-        at.field = base.child(2);
-        crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(3);
-        crate::model::Model::diff(&self.gold, &old.gold, at, out);
-        at.field = base.child(4);
-        crate::model::Model::diff(&self.science, &old.science, at, out);
-        at.field = base.child(5);
-        crate::model::Model::diff(&self.culture, &old.culture, at, out);
-        at.field = base.child(6);
-        crate::model::Model::diff(&self.faith, &old.faith, at, out);
+        crate::model::Model::diff(&self.yields, &old.yields, at, out);
         at.field = base.child(7);
         crate::model::Model::diff(&self.has_resource, &old.has_resource, at, out);
         at.field = base.child(8);
@@ -19005,29 +19043,19 @@ impl crate::model::Model for MapIcon {
     fn to_value(&self) -> crate::value::Value {
         crate::value::Value::Struct(vec![
             crate::model::Model::to_value(&self.cell),
-            crate::model::Model::to_value(&self.food),
-            crate::model::Model::to_value(&self.production),
-            crate::model::Model::to_value(&self.gold),
-            crate::model::Model::to_value(&self.science),
-            crate::model::Model::to_value(&self.culture),
-            crate::model::Model::to_value(&self.faith),
+            crate::model::Model::to_value(&self.yields),
             crate::model::Model::to_value(&self.has_resource),
             crate::model::Model::to_value(&self.resource),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(9)?;
+        let f = v.as_struct(4)?;
         Ok(MapIcon {
             cell: crate::model::Model::from_value(&f[0])?,
-            food: crate::model::Model::from_value(&f[1])?,
-            production: crate::model::Model::from_value(&f[2])?,
-            gold: crate::model::Model::from_value(&f[3])?,
-            science: crate::model::Model::from_value(&f[4])?,
-            culture: crate::model::Model::from_value(&f[5])?,
-            faith: crate::model::Model::from_value(&f[6])?,
-            has_resource: crate::model::Model::from_value(&f[7])?,
-            resource: crate::model::Model::from_value(&f[8])?,
+            yields: crate::model::Model::from_value(&f[1])?,
+            has_resource: crate::model::Model::from_value(&f[2])?,
+            resource: crate::model::Model::from_value(&f[3])?,
         })
     }
 }
@@ -36680,6 +36708,44 @@ impl crate::model::Keyed for PlotHelpYield {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+pub struct PlotHelpLine {
+    pub idx: i32,
+    pub text: crate::value::Text,
+}
+
+impl crate::model::Model for PlotHelpLine {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.idx, &old.idx, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.idx),
+            crate::model::Model::to_value(&self.text),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(PlotHelpLine {
+            idx: crate::model::Model::from_value(&f[0])?,
+            text: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for PlotHelpLine {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.idx))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct PlotHelpUnit {
     pub idx: i32,
     pub name: crate::value::Text,
@@ -46743,6 +46809,8 @@ pub struct PlotHelp {
     pub resource: Option<crate::value::Text>,
     pub resource_count: i32,
     pub resource_tech: Option<crate::value::Text>,
+    pub resource_title: Option<crate::value::Text>,
+    pub resource_lines: crate::model::KeyedList<PlotHelpLine>,
     pub improvement: Option<crate::value::Text>,
     pub improvement_pillaged: bool,
     pub route: Option<crate::value::Text>,
@@ -46778,26 +46846,30 @@ impl crate::model::Model for PlotHelp {
         at.field = base.child(8);
         crate::model::Model::diff(&self.resource_tech, &old.resource_tech, at, out);
         at.field = base.child(9);
-        crate::model::Model::diff(&self.improvement, &old.improvement, at, out);
+        crate::model::Model::diff(&self.resource_title, &old.resource_title, at, out);
         at.field = base.child(10);
-        crate::model::Model::diff(&self.improvement_pillaged, &old.improvement_pillaged, at, out);
-        at.field = base.child(11);
-        crate::model::Model::diff(&self.route, &old.route, at, out);
-        at.field = base.child(12);
-        crate::model::Model::diff(&self.route_pillaged, &old.route_pillaged, at, out);
+        crate::model::Model::diff(&self.resource_lines, &old.resource_lines, at, out);
         at.field = base.child(13);
-        crate::model::Model::diff(&self.owner, &old.owner, at, out);
+        crate::model::Model::diff(&self.improvement, &old.improvement, at, out);
         at.field = base.child(14);
-        crate::model::Model::diff(&self.owner_relation, &old.owner_relation, at, out);
+        crate::model::Model::diff(&self.improvement_pillaged, &old.improvement_pillaged, at, out);
         at.field = base.child(15);
-        crate::model::Model::diff(&self.defense, &old.defense, at, out);
+        crate::model::Model::diff(&self.route, &old.route, at, out);
         at.field = base.child(16);
-        crate::model::Model::diff(&self.yields, &old.yields, at, out);
+        crate::model::Model::diff(&self.route_pillaged, &old.route_pillaged, at, out);
+        at.field = base.child(17);
+        crate::model::Model::diff(&self.owner, &old.owner, at, out);
+        at.field = base.child(18);
+        crate::model::Model::diff(&self.owner_relation, &old.owner_relation, at, out);
+        at.field = base.child(19);
+        crate::model::Model::diff(&self.defense, &old.defense, at, out);
         at.field = base.child(20);
+        crate::model::Model::diff(&self.yields, &old.yields, at, out);
+        at.field = base.child(24);
         crate::model::Model::diff(&self.city, &old.city, at, out);
-        at.field = base.child(28);
+        at.field = base.child(32);
         crate::model::Model::diff(&self.units, &old.units, at, out);
-        at.field = base.child(37);
+        at.field = base.child(41);
         crate::model::Model::diff(&self.combat, &old.combat, at, out);
         at.field = base;
     }
@@ -46813,6 +46885,8 @@ impl crate::model::Model for PlotHelp {
             crate::model::Model::to_value(&self.resource),
             crate::model::Model::to_value(&self.resource_count),
             crate::model::Model::to_value(&self.resource_tech),
+            crate::model::Model::to_value(&self.resource_title),
+            crate::model::Model::to_value(&self.resource_lines),
             crate::model::Model::to_value(&self.improvement),
             crate::model::Model::to_value(&self.improvement_pillaged),
             crate::model::Model::to_value(&self.route),
@@ -46828,7 +46902,7 @@ impl crate::model::Model for PlotHelp {
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(20)?;
+        let f = v.as_struct(22)?;
         Ok(PlotHelp {
             x: crate::model::Model::from_value(&f[0])?,
             y: crate::model::Model::from_value(&f[1])?,
@@ -46839,17 +46913,19 @@ impl crate::model::Model for PlotHelp {
             resource: crate::model::Model::from_value(&f[6])?,
             resource_count: crate::model::Model::from_value(&f[7])?,
             resource_tech: crate::model::Model::from_value(&f[8])?,
-            improvement: crate::model::Model::from_value(&f[9])?,
-            improvement_pillaged: crate::model::Model::from_value(&f[10])?,
-            route: crate::model::Model::from_value(&f[11])?,
-            route_pillaged: crate::model::Model::from_value(&f[12])?,
-            owner: crate::model::Model::from_value(&f[13])?,
-            owner_relation: crate::model::Model::from_value(&f[14])?,
-            defense: crate::model::Model::from_value(&f[15])?,
-            yields: crate::model::Model::from_value(&f[16])?,
-            city: crate::model::Model::from_value(&f[17])?,
-            units: crate::model::Model::from_value(&f[18])?,
-            combat: crate::model::Model::from_value(&f[19])?,
+            resource_title: crate::model::Model::from_value(&f[9])?,
+            resource_lines: crate::model::Model::from_value(&f[10])?,
+            improvement: crate::model::Model::from_value(&f[11])?,
+            improvement_pillaged: crate::model::Model::from_value(&f[12])?,
+            route: crate::model::Model::from_value(&f[13])?,
+            route_pillaged: crate::model::Model::from_value(&f[14])?,
+            owner: crate::model::Model::from_value(&f[15])?,
+            owner_relation: crate::model::Model::from_value(&f[16])?,
+            defense: crate::model::Model::from_value(&f[17])?,
+            yields: crate::model::Model::from_value(&f[18])?,
+            city: crate::model::Model::from_value(&f[19])?,
+            units: crate::model::Model::from_value(&f[20])?,
+            combat: crate::model::Model::from_value(&f[21])?,
         })
     }
 }

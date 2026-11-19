@@ -57,55 +57,18 @@
 .banner .chp { position: absolute; left: 0; right: 0; top: 0; height: 3px; background-color: var(--lacquer-0); }
 .banner .chp .fill { position: absolute; left: 0; top: 0; bottom: 0; background-color: var(--y-gold); }
 /* ---------- yield and resource icons of the map options ---------- */
-/* Centred on the plot: the resource above, the yields below, as the original's icon managers place them. */
-.map-icons {
-  position: absolute;
-  left: -40px;
-  top: -30px;
-  width: 80px;
-  height: 60px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  pointer-events: none;
-}
+/* YieldIconManager: 128 px atlas cells in two rows centred on the plot (10 px up), each overlapping the next by 40 of
+   its 128; ResourceIconManager: the 64 px icon on its plate at the plot's upper left corner. Drawn at a fixed size. */
+.map-icons { position: absolute; left: 0; top: 0; pointer-events: none; }
+.map-yields { position: absolute; left: -150px; top: -86px; width: 300px; height: 152px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.map-ys { display: flex; margin: -10px 0; }
+.map-y { position: relative; width: 64px; height: 64px; margin: 0 -10px; }
+.map-y img, .map-res img { position: absolute; left: 0; top: 0; width: 64px; height: 64px; }
+.map-res { position: absolute; left: -144px; top: -84px; width: 64px; height: 64px; }
 
-.map-resource {
-  width: 28px;
-  height: 28px;
-}
-
-.map-yields {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 2px;
-  max-width: 80px;
-}
-
-.map-yield {
-  display: flex;
-  align-items: center;
-  gap: 1px;
-  padding: 0 3px;
-  border-radius: 7px;
-  background-color: var(--lacquer);
-  font: 500 11px/14px var(--sans);
-  color: var(--bone);
-}
-
-.map-yield svg.i {
-  width: 11px;
-  height: 11px;
-}
-
-.map-yield.food svg.i { color: var(--y-food); }
-.map-yield.prod svg.i { color: var(--y-prod); }
-
-/* ---------- the city screen's tiles on the map: the citizen button on the plot, the price under it ---------- */
-.city-plot { position: absolute; left: -30px; top: -18px; width: 60px; height: 52px; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }
+/* ---------- the city screen's tiles on the map: the citizen button above the plot's yields (the original's
+   PlotButton stands 30 up), the price at the foot of the plot ---------- */
+.city-plot { position: absolute; left: -30px; top: -112px; width: 60px; height: 196px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; pointer-events: none; }
 .city-plot-work { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 16px; background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave); color: var(--bone-3); pointer-events: auto; cursor: pointer; }
 .city-plot-work svg.i { width: 18px; height: 18px; }
 .city-plot.worked .city-plot-work, .city-plot.locked .city-plot-work { background-color: var(--brass); color: var(--brass-ink); }

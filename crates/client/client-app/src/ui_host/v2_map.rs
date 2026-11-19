@@ -13,7 +13,7 @@ use std::rc::Rc;
 
 use platform::KeyValueStore;
 use protocol::{Catalog, PlotFlags, WorldView};
-use ui2_host::{MapIcon, ModelAsset, V2Ui};
+use ui2_host::{MapIcon, MapYield, ModelAsset, ModelList, ModelValue, V2Ui};
 
 /// The page store's key of the map options.
 pub const STORE_KEY: &str = "ui2.map_options";
@@ -113,6 +113,8 @@ pub struct RendererChange {
     pub routes: Option<bool>,
 }
 
+type IconsKey = ([i32; 4], u64, bool, bool, Vec<(i32, i32)>);
+
 /// The host side of the map options of a running UI v2.
 #[derive(Default)]
 pub struct MapLink {
@@ -121,8 +123,9 @@ pub struct MapLink {
     restored_for: Option<String>,
     /// The options the renderer and the store follow now.
     applied: Option<MapOptions>,
-    /// What the icons were made for: the hex rectangle of the view, the world revision, the switches.
-    icons_for: Option<([i32; 4], u64, bool, bool)>,
+    /// What the icons were made for: the hex rectangle of the view, the world revision, the switches, the open city's
+    /// plots.
+    icons_for: Option<IconsKey>,
 }
 
 impl MapLink {
@@ -188,7 +191,8 @@ impl MapLink {
         let Some(opts) = self.applied else {
             return;
         };
-        if !opts.yields && !opts.resources {
+        let forced = city_plots(ui);
+        if !opts.yields && !opts.resources && forced.is_empty() {
             if self.icons_for.take().is_some() {
                 ui.set_map_icons(Vec::new());
             }
@@ -197,13 +201,67 @@ impl MapLink {
         let Some(rect) = rect else {
             return;
         };
-        let key = (rect, revision, opts.yields, opts.resources);
-        if self.icons_for == Some(key) {
+        let key = (rect, revision, opts.yields, opts.resources, forced);
+        if self.icons_for.as_ref() == Some(&key) {
             return;
         }
+        ui.set_map_icons(map_icons(world, catalog, rect, opts, &key.4));
         self.icons_for = Some(key);
-        ui.set_map_icons(map_icons(world, catalog, rect, opts));
     }
+}
+
+/// The yield atlas of the original's `YieldIconManager.lua` (`g_Textures`, `g_OffsetXs`): food, production, gold and
+/// science are columns of `YieldAtlas.dds`, culture and faith have a texture each; a cell is 128 px.
+const YIELD_TEXTURES: [(&str, u32); 6] = [
+    ("YieldAtlas.dds", 0),
+    ("YieldAtlas.dds", 128),
+    ("YieldAtlas.dds", 256),
+    ("YieldAtlas.dds", 384),
+    ("YieldAtlas_128_Culture.dds", 0),
+    ("YieldAtlas_128_Faith.dds", 0),
+];
+
+/// The pictures of a plot's yields as `BuildAnchorYields` lays them out: one picture per yield above zero, in the order
+/// of the yields; the cell of `amount` icons (row `amount - 1`, the fifth row for five and more) and, from six on, the
+/// number over it (`YieldAtlas.dds`, rows 640 and 768); the first `m` pictures in the first stack, the rest in the
+/// second (`m` is 4 under five yields, else half of them, rounded up).
+pub fn yield_pictures(yields: [i8; 6]) -> Vec<MapYield> {
+    let shown: Vec<(usize, i16)> = yields
+        .iter()
+        .enumerate()
+        .filter(|(_, v)| **v > 0)
+        .map(|(i, v)| (i, i16::from(*v)))
+        .collect();
+    let n = shown.len();
+    let m = if n < 5 { 4 } else { n.div_ceil(2) };
+    shown
+        .into_iter()
+        .enumerate()
+        .map(|(slot, (yield_id, amount))| {
+            let (file, x) = YIELD_TEXTURES[yield_id];
+            let y = if amount > 4 {
+                512
+            } else {
+                128 * (amount as u32 - 1)
+            };
+            let number = (amount > 5).then(|| {
+                let nx = if amount > 12 {
+                    256
+                } else {
+                    128 * ((amount as u32 - 6) % 4)
+                };
+                let ny = if amount > 9 { 768 } else { 640 };
+                ModelAsset::new(&format!("ui:tx:YieldAtlas.dds@{nx},{ny},128,128"))
+            });
+            MapYield {
+                slot: slot as i16,
+                stack: if slot < m { 1 } else { 2 },
+                amount,
+                icon: ModelAsset::new(&format!("ui:tx:{file}@{x},{y},128,128")),
+                number,
+            }
+        })
+        .collect()
 }
 
 /// `icon:<atlas>:<index>` of a resource of the catalog.
@@ -213,13 +271,45 @@ fn resource_icon(catalog: Option<&Catalog>, id: i16) -> Option<ModelAsset> {
         .then(|| ModelAsset::new(&format!("icon:{}:{}", e.art.icon_atlas, e.art.icon_index)))
 }
 
+/// The plots of the open city screen (`city.tiles` while `ui.windows.city.open`): the original's city view asks for
+/// their yields (`Events.RequestYieldDisplay(YieldDisplayTypes.AREA, ...)` of the city's radius) whatever the options.
+fn city_plots(ui: &V2Ui) -> Vec<(i32, i32)> {
+    use ModelValue as Value;
+    let store = ui.store();
+    let field = |path: &str| store.resolve(path).ok().map(|f| f.id);
+    let open = field("ui.windows.city.open")
+        .and_then(|f| store.value(f, &[]))
+        .is_some_and(|v| matches!(v, Value::Bool(true)));
+    let (Some(tiles), Some(xf), Some(yf)) = (
+        field("city.tiles"),
+        field("city.tiles[].x"),
+        field("city.tiles[].y"),
+    ) else {
+        return Vec::new();
+    };
+    if !open {
+        return Vec::new();
+    }
+    let Some(keys) = store.list_keys(tiles, &[]) else {
+        return Vec::new();
+    };
+    let int = |f, k| match store.value(f, &[k]) {
+        Some(Value::I32(v)) => Some(*v),
+        _ => None,
+    };
+    keys.filter_map(|k| Some((int(xf, k)?, int(yf, k)?)))
+        .collect()
+}
+
 /// The rows of the revealed plots of `rect` (unwrapped hex rectangle, upper bounds exclusive) that have something to
-/// show: their yields while the yield icons are on, their resource (as the seat sees it) while the resource icons are.
+/// show: their yields while the yield icons are on (and always on the plots of `forced`, the open city's), their
+/// resource (as the seat sees it) while the resource icons are. The plots of `forced` come first.
 pub fn map_icons(
     world: &WorldView,
     catalog: Option<&Catalog>,
     rect: [i32; 4],
     opts: MapOptions,
+    forced: &[(i32, i32)],
 ) -> Vec<MapIcon> {
     let m = &world.map;
     let (w, h) = (i32::from(m.width), i32::from(m.height));
@@ -229,42 +319,44 @@ pub fn map_icons(
     }
     let [x0, y0, x1, y1] = rect;
     let mut seen = std::collections::BTreeSet::new();
-    for y in y0.max(0)..y1.min(h) {
-        for ux in x0..x1 {
-            let x = if m.wrap_x { ux.rem_euclid(w) } else { ux };
-            if !(0..w).contains(&x) || !seen.insert((x, y)) {
-                continue;
-            }
-            let Some(p) = m.plots.get((y * w + x) as usize) else {
-                continue;
-            };
-            if !p.flags.contains(PlotFlags::REVEALED) {
-                continue;
-            }
-            let yields = if opts.yields { p.yields } else { [0; 6] };
-            let resource = if opts.resources && p.resource >= 0 {
-                resource_icon(catalog, p.resource)
-            } else {
-                None
-            };
-            if yields.iter().all(|v| *v <= 0) && resource.is_none() {
-                continue;
-            }
-            let y16 = |i: usize| i16::from(yields[i].max(0));
-            out.push(MapIcon {
-                cell: x * 65_536 + y,
-                food: y16(0),
-                production: y16(1),
-                gold: y16(2),
-                science: y16(3),
-                culture: y16(4),
-                faith: y16(5),
-                has_resource: resource.is_some(),
-                resource: resource.unwrap_or_default(),
-            });
-            if out.len() >= MAX_ICONS {
-                return out;
-            }
+    let in_rect = (y0.max(0)..y1.min(h)).flat_map(|y| (x0..x1).map(move |ux| (ux, y)));
+    let cells = forced.iter().copied().chain(in_rect);
+    for (ux, y) in cells {
+        let x = if m.wrap_x { ux.rem_euclid(w) } else { ux };
+        if !(0..w).contains(&x) || !(0..h).contains(&y) || !seen.insert((x, y)) {
+            continue;
+        }
+        let Some(p) = m.plots.get((y * w + x) as usize) else {
+            continue;
+        };
+        if !p.flags.contains(PlotFlags::REVEALED) {
+            continue;
+        }
+        let yields = if opts.yields || forced.contains(&(x, y)) {
+            p.yields
+        } else {
+            [0; 6]
+        };
+        let resource = if opts.resources && p.resource >= 0 {
+            resource_icon(catalog, p.resource)
+        } else {
+            None
+        };
+        if yields.iter().all(|v| *v <= 0) && resource.is_none() {
+            continue;
+        }
+        let mut list = ModelList::default();
+        for pic in yield_pictures(yields) {
+            let _ = list.try_push(pic);
+        }
+        out.push(MapIcon {
+            cell: x * 65_536 + y,
+            yields: list,
+            has_resource: resource.is_some(),
+            resource: resource.unwrap_or_default(),
+        });
+        if out.len() >= MAX_ICONS {
+            return out;
         }
     }
     out
@@ -342,32 +434,113 @@ mod tests {
             ..MapOptions::default()
         };
         // The view spans one plot past each side of the wrapping map: each plot once.
-        let rows = map_icons(&w, Some(&c), [-1, 0, 4, 2], both);
+        let rows = map_icons(&w, Some(&c), [-1, 0, 4, 2], both, &[]);
         let cells: Vec<i32> = rows.iter().map(|r| r.cell).collect();
         assert_eq!(
             cells,
             [0, 1],
             "(0,0) and (0,1); the unrevealed and bare plots have none"
         );
-        assert_eq!((rows[0].food, rows[0].gold), (2, 1));
+        let amounts: Vec<i16> = rows[0].yields.iter().map(|y| y.amount).collect();
+        assert_eq!(amounts, [2, 1], "food 2 and gold 1");
         assert!(rows[0].has_resource && &*rows[0].resource.0 == "icon:RESOURCE_ATLAS:7");
         // Resources only: the ocean has nothing to show.
         let res = MapOptions {
             resources: true,
             ..MapOptions::default()
         };
-        let rows = map_icons(&w, Some(&c), [0, 0, 3, 2], res);
+        let rows = map_icons(&w, Some(&c), [0, 0, 3, 2], res, &[]);
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].food, 0, "the yields are off");
+        assert!(rows[0].yields.is_empty(), "the yields are off");
         // Yields only: no resource picture.
         let ys = MapOptions {
             yields: true,
             ..MapOptions::default()
         };
         assert!(
-            map_icons(&w, Some(&c), [0, 0, 3, 2], ys)
+            map_icons(&w, Some(&c), [0, 0, 3, 2], ys, &[])
                 .iter()
                 .all(|r| !r.has_resource)
         );
+    }
+
+    #[test]
+    fn the_open_city_shows_the_yields_of_its_plots_whatever_the_options() {
+        let (w, c) = world();
+        let off = MapOptions::default();
+        assert!(map_icons(&w, Some(&c), [0, 0, 3, 2], off, &[]).is_empty());
+        // The city's plots: (0,0) and the ocean (0,1); (1,0) is unrevealed, so nothing is shown there.
+        let rows = map_icons(&w, Some(&c), [0, 0, 3, 2], off, &[(0, 1), (1, 0), (0, 0)]);
+        let cells: Vec<i32> = rows.iter().map(|r| r.cell).collect();
+        assert_eq!(cells, [1, 0], "the city's plots first, in their order");
+        assert!(rows.iter().all(|r| !r.yields.is_empty() && !r.has_resource));
+        // With the yields on, the other plots in view come after the city's.
+        let ys = MapOptions {
+            yields: true,
+            ..MapOptions::default()
+        };
+        assert_eq!(
+            map_icons(&w, Some(&c), [0, 0, 3, 2], ys, &[(0, 1)])[0].cell,
+            1
+        );
+    }
+
+    #[test]
+    fn a_yield_picture_is_the_atlas_cell_of_its_amount_as_the_original_lays_it_out() {
+        let names = |v: &[MapYield]| -> Vec<(i16, String, Option<String>)> {
+            v.iter()
+                .map(|y| {
+                    (
+                        y.stack,
+                        y.icon.0.to_string(),
+                        y.number.as_ref().map(|n| n.0.to_string()),
+                    )
+                })
+                .collect()
+        };
+        // Food 1, production 4, gold 5, culture 2: four yields stand in one row.
+        let v = yield_pictures([1, 4, 5, 0, 2, 0]);
+        assert_eq!(
+            names(&v),
+            [
+                (1, "ui:tx:YieldAtlas.dds@0,0,128,128".into(), None),
+                (1, "ui:tx:YieldAtlas.dds@128,384,128,128".into(), None),
+                (1, "ui:tx:YieldAtlas.dds@256,512,128,128".into(), None),
+                (
+                    1,
+                    "ui:tx:YieldAtlas_128_Culture.dds@0,128,128,128".into(),
+                    None
+                ),
+            ]
+        );
+        // Six and more: the fifth row and the number over it (6..9 on row 640, 10 and more on 768, past 12 one cell).
+        let v = yield_pictures([6, 9, 10, 13, 0, 1]);
+        assert_eq!(
+            names(&v),
+            [
+                (
+                    1,
+                    "ui:tx:YieldAtlas.dds@0,512,128,128".into(),
+                    Some("ui:tx:YieldAtlas.dds@0,640,128,128".into())
+                ),
+                (
+                    1,
+                    "ui:tx:YieldAtlas.dds@128,512,128,128".into(),
+                    Some("ui:tx:YieldAtlas.dds@384,640,128,128".into())
+                ),
+                (
+                    1,
+                    "ui:tx:YieldAtlas.dds@256,512,128,128".into(),
+                    Some("ui:tx:YieldAtlas.dds@0,768,128,128".into())
+                ),
+                (
+                    2,
+                    "ui:tx:YieldAtlas.dds@384,512,128,128".into(),
+                    Some("ui:tx:YieldAtlas.dds@256,768,128,128".into())
+                ),
+                (2, "ui:tx:YieldAtlas_128_Faith.dds@0,0,128,128".into(), None),
+            ]
+        );
+        assert!(yield_pictures([0; 6]).is_empty());
     }
 }

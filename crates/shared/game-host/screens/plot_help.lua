@@ -27,6 +27,36 @@ end
 
 local SPECIAL = {FEATURE_JUNGLE = true, FEATURE_MARSH = true, FEATURE_OASIS = true, FEATURE_ICE = true}
 
+-- A localized text without the markup the skin's text does not draw (icons become their names).
+local function plain(text)
+    return (text:gsub("%[NEWLINE%]", " "):gsub("%[COLOR[^%]]*%]", ""):gsub("%[ENDCOLOR%]", "")
+        :gsub("%[ICON_([^%]]+)%]", ""):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+-- The original's GenerateResourceToolTip (ResourceTooltipGenerator.lua, basic help on): the quantity and the name in
+-- capitals, the resource's help, the happiness it gives improved, the yields it adds improved and worked.
+local function resource_tip(out, info, count)
+    local name = L(info.Description)
+    name = (Locale and Locale.ToUpper) and Locale.ToUpper(name) or name:upper()
+    out.resource_title = (count > 1 and (count .. " ") or "") .. name
+    local lines = out.resource_lines
+    local function add(text) lines[#lines + 1] = {idx = #lines, text = text} end
+    if info.Help then add("• " .. plain(L(info.Help))) end
+    if info.Happiness and info.Happiness ~= 0 then
+        add(L("TXT_KEY_RESOURCE_TOOLTIP_IMPROVED"))
+        add("• +" .. info.Happiness .. " " .. L("TXT_KEY_GAME_CONCEPT_SECTION_10"))
+    end
+    local parts = {}
+    for row in GameInfo.Resource_YieldChanges("ResourceType = '" .. info.Type .. "'") do
+        local y = GameInfo.Yields[row.YieldType]
+        if y then parts[#parts + 1] = (row.Yield > 0 and "+" or "") .. row.Yield .. " " .. L(y.Description) end
+    end
+    if #parts > 0 then
+        add(L("TXT_KEY_RESOURCE_TOOLTIP_IMPROVED_WORKED"))
+        add("• " .. table.concat(parts, " "))
+    end
+end
+
 -- `GetNatureString`: the feature (alone when it always has one terrain), else the mountain or the terrain (a lake),
 -- then hills and river.
 local function nature(plot)
@@ -97,7 +127,7 @@ return {
         local x, y = args.x, args.y
         assert(x and y and x == math.floor(x) and y == math.floor(y), "a plot is required")
         local out = {x = x, y = y, cell = x * 65536 + y, revealed = false, visible = false, nature = "",
-            yields = array(), units = array()}
+            yields = array(), units = array(), resource_lines = array()}
         local plot = Map.GetPlot(x, y)
         if not plot then return out end
         local p = Players[player]
@@ -111,6 +141,7 @@ return {
             local info = GameInfo.Resources[resource]
             out.resource = L(info.Description)
             out.resource_count = plot:GetNumResource()
+            resource_tip(out, info, out.resource_count)
             local tech = info.TechCityTrade and GameInfoTypes[info.TechCityTrade]
             if tech and tech >= 0 and not team_of(player):GetTeamTechs():HasTech(tech) then
                 out.resource_tech = L(GameInfo.Technologies[tech].Description)

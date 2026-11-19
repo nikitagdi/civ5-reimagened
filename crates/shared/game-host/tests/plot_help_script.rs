@@ -20,13 +20,21 @@ fn plot_help_follows_the_seat_fog_and_previews_combat() {
       GameInfo = {
         Terrains = {[0] = {Description = 'Grassland'}},
         Features = {[1] = {Type = 'FEATURE_FOREST', Description = 'Forest'}},
-        Resources = {[2] = {Description = 'Iron', TechCityTrade = 'TECH_MINING'}},
+        Resources = {[2] = {Type = 'RESOURCE_IRON', Description = 'Iron', TechCityTrade = 'TECH_MINING',
+          Help = 'Used by [ICON_PRODUCTION] units.[NEWLINE]Strategic.', Happiness = 0}},
+        Resource_YieldChanges = function(cond)
+          local rows = {}
+          if cond == "ResourceType = 'RESOURCE_IRON'" then rows = {{YieldType = 'YIELD_PRODUCTION', Yield = 1}} end
+          local i = 0
+          return function() i = i + 1; return rows[i] end
+        end,
         Technologies = {[3] = {Description = 'Mining'}},
         Improvements = {[4] = {Description = 'Mine'}},
         Routes = {[0] = {Description = 'Road'}},
         Yields = {[0] = {Description = 'Food'}, [1] = {Description = 'Production'}, [2] = {Description = 'Gold'},
           [3] = {Description = 'Science'}, [4] = {Description = 'Culture'}, [5] = {Description = 'Faith'}},
       }
+      GameInfo.Yields.YIELD_PRODUCTION = GameInfo.Yields[1]
       Game = {GetCombatPrediction = function() return 5 end}
       Teams = {}
       for t = 0, 2 do
@@ -74,6 +82,13 @@ fn plot_help_follows_the_seat_fog_and_previews_combat() {
       -- As GetNatureString: a feature that is not special keeps the terrain under it.
       assert(seen.nature == 'Forest, Grassland, TXT_KEY_PLOTROLL_HILL', seen.nature)
       assert(seen.resource == 'Iron' and seen.resource_count == 2 and seen.resource_tech == 'Mining')
+      -- The original's resource tooltip: the quantity and the name in capitals, the help without its markup, the
+      -- yields of the improved and worked resource (no happiness line for a strategic one).
+      assert(seen.resource_title == '2 IRON', seen.resource_title)
+      local lines = {}
+      for i, l in ipairs(seen.resource_lines) do assert(l.idx == i - 1); lines[i] = l.text end
+      assert(table.concat(lines, '|') == '• Used by units. Strategic.|TXT_KEY_RESOURCE_TOOLTIP_IMPROVED_WORKED|• +1 Production',
+        table.concat(lines, '|'))
       assert(seen.improvement == 'Mine' and seen.improvement_pillaged and seen.route == 'Road')
       assert(seen.owner == 'Germany' and seen.owner_relation == 'war' and seen.defense == 50)
       assert(#seen.yields == 2 and seen.yields[1].key == 'food' and seen.yields[2].value == 3)
@@ -93,6 +108,7 @@ fn plot_help_follows_the_seat_fog_and_previews_combat() {
       -- Never revealed: nothing but the plot itself.
       local dark = screen.data(0, {x = 3, y = 1})
       assert(not dark.revealed and dark.nature == '' and dark.resource == nil and dark.owner == nil and #dark.units == 0)
+      assert(dark.resource_title == nil and #dark.resource_lines == 0)
 
       -- Another seat's unit id gives no preview; a missing plot is an empty answer.
       local other = screen.data(0, {x = 1, y = 1, unit = 9})

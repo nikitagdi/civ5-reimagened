@@ -97,6 +97,51 @@ pub fn icon_image(store: &UiStore, name: &str) -> Result<ExtImage, &'static str>
     })
 }
 
+/// `<file>` or `<file>@<x>,<y>,<w>,<h>` (pixels of the image): the file and the rectangle; `None` for a malformed
+/// rectangle.
+pub fn parse_ui_texture(rest: &str) -> Option<(&str, Option<[u32; 4]>)> {
+    let Some((file, rect)) = rest.split_once('@') else {
+        return Some((rest, None));
+    };
+    let mut v = [0u32; 4];
+    let mut parts = rect.split(',');
+    for slot in &mut v {
+        *slot = parts.next()?.trim().parse().ok()?;
+    }
+    (parts.next().is_none() && !file.is_empty() && v[2] > 0 && v[3] > 0).then_some((file, Some(v)))
+}
+
+/// `ui:tx:<file>` (the whole texture of the UI set) or `ui:tx:<file>@x,y,w,h`: a rectangle of it in the image's pixels,
+/// as the original's `Image` controls take a texture offset and a size (the yield atlas of `YieldIconManager`).
+fn ui_texture_image(store: &UiStore, rest: &str) -> Result<ExtImage, &'static str> {
+    let (file, rect) = parse_ui_texture(rest).ok_or("a malformed rectangle of a UI texture")?;
+    let info = store
+        .texture_info(file)
+        .ok_or("the set has no such UI texture")?;
+    let uv = match rect {
+        None => [0.0, 0.0, 1.0, 1.0],
+        Some([x, y, w, h]) => {
+            if info.width == 0 || info.height == 0 {
+                return Err("the UI texture has no size");
+            }
+            let (tw, th) = (info.width as f32, info.height as f32);
+            if x + w > info.width || y + h > info.height {
+                return Err("the rectangle is outside the UI texture");
+            }
+            [
+                x as f32 / tw,
+                y as f32 / th,
+                (x + w) as f32 / tw,
+                (y + h) as f32 / th,
+            ]
+        }
+    };
+    Ok(ExtImage {
+        texture: ExtTexture(info.id.0),
+        uv,
+    })
+}
+
 /// `font:<ICON_NAME>`: the name of a glyph of the game's icon fonts (the pictures the original draws inside texts,
 /// `[ICON_GOLD]`); `None` for any other name.
 pub fn parse_font_icon(name: &str) -> Option<&str> {
@@ -266,13 +311,7 @@ impl GameIcons {
                         .get_or_insert_with(|| IconFonts::read(s))
                         .image(s, icon)
                 }
-                None if name.starts_with("ui:tx:") => s
-                    .texture_info(&name["ui:tx:".len()..])
-                    .map(|info| ExtImage {
-                        texture: ExtTexture(info.id.0),
-                        uv: [0.0, 0.0, 1.0, 1.0],
-                    })
-                    .ok_or("the set has no such UI texture"),
+                None if name.starts_with("ui:tx:") => ui_texture_image(s, &name["ui:tx:".len()..]),
                 None => {
                     let aliases = self.aliases.borrow();
                     icon_image(s, aliases.get(name).map_or(name, String::as_str))
@@ -437,6 +476,35 @@ mod tests {
         assert_eq!(image.uv, [0.0, 0.0, 1.0, 1.0]);
         assert!(store.is_loading(id));
         assert!(resolve("ui:tx:missing.dds").is_none());
+    }
+
+    #[test]
+    fn a_ui_texture_rectangle_draws_that_part_of_the_texture() {
+        assert_eq!(parse_ui_texture("a.dds"), Some(("a.dds", None)));
+        assert_eq!(
+            parse_ui_texture("a.dds@128,512,128,128"),
+            Some(("a.dds", Some([128, 512, 128, 128])))
+        );
+        for bad in [
+            "a.dds@1,2,3",
+            "a.dds@1,2,3,4,5",
+            "a.dds@1,2,0,4",
+            "@1,2,3,4",
+            "a.dds@x,2,3,4",
+        ] {
+            assert_eq!(parse_ui_texture(bad), None, "{bad:?}");
+        }
+        let icons = GameIcons::default();
+        icons.set_store(Some(store()));
+        let resolve = icons.resolver();
+        // units128.dds is 1024 x 1024 in the index.
+        let image = resolve("ui:tx:units128.dds@256,512,128,256").unwrap();
+        assert_eq!(image.uv, [0.25, 0.5, 0.375, 0.75]);
+        assert!(
+            resolve("ui:tx:units128.dds@1000,0,128,128").is_none(),
+            "past the right edge"
+        );
+        assert!(resolve("ui:tx:units128.dds@0,0").is_none());
     }
 
     #[test]

@@ -54,7 +54,7 @@ pub use ui2_model::generated::Note as ModelNote;
 /// Server-built screen roots compiled into this model.
 pub use ui2_model::generated::{Hud, SCREEN_NAMES};
 /// The map's selection state the host follows (the selected unit, the map mode) and the path badges it writes.
-pub use ui2_model::generated::{MapIcon, MapMode, PathLabel, Plot as ModelPlot};
+pub use ui2_model::generated::{MapIcon, MapMode, MapYield, PathLabel, Plot as ModelPlot};
 /// The map's targeting mode and the plots the server accepts for it (the `targets` root).
 pub use ui2_model::generated::{
     TargetKind, Targets, TargetsLook, TargetsPlot as TargetsPlotRow, UiTarget,
