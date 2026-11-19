@@ -810,7 +810,8 @@ fn ui2_json(p: &client_app::V2Probe) -> Value {
 }
 
 /// `ui2Frames()`: `{frames: [{app, cpu, source, runtime, bind, style, text, layout, keys, paint, resolve, js, input,
-/// place, prepare, probe (ms), binds, restyled, layoutRuns, chunks, visited, ops, inputEvents, uploadKb}]}`.
+/// place, prepare, probe (ms), binds, restyled, layoutRuns, chunks, visited, ops, inputEvents, uploadKb, draws,
+/// instances, fillKpx, shadowKpx, textureKpx, gpuMs (the `Ui2` pass on the GPU; null without timestamps)}]}`.
 fn ui2_frames_json(reset: bool) -> Value {
     let frames: Vec<Value> = client_app::ui2_frames(reset)
         .iter()
@@ -822,6 +823,8 @@ fn ui2_frames_json(reset: bool) -> Value {
                 "probe": f.probe, "binds": f.binds, "restyled": f.restyled, "layoutRuns": f.layout_runs,
                 "chunks": f.chunks, "visited": f.visited, "ops": f.ops, "inputEvents": f.input_events,
                 "uploadKb": f.upload_bytes as f64 / 1024.0,
+                "draws": f.gpu.draws, "instances": f.gpu.instances, "fillKpx": f.gpu.fill_kpx,
+                "shadowKpx": f.gpu.shadow_kpx, "textureKpx": f.gpu.texture_kpx, "gpuMs": f.gpu.gpu_ms,
             })
         })
         .collect();

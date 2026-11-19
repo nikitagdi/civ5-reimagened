@@ -1842,10 +1842,20 @@ impl Frontend for V2Frontend {
             cx.renderer.prepare_ui2(ui.scene_mut());
             let prepare_ms = clock() - t_prepare;
             render::perf::set_counter("ui2.prepare_ms", prepare_ms);
+            let s = cx.renderer.ui2_stats();
+            let kpx = |px: u64| u32::try_from(px / 1000).unwrap_or(u32::MAX);
             super::v2_perf::finish(
                 (t_prepare - t_place) as f32,
                 prepare_ms as f32,
-                cx.renderer.ui2_stats().upload_bytes,
+                s.upload_bytes,
+                super::v2_perf::Ui2Gpu {
+                    draws: s.draws,
+                    instances: u32::try_from(s.instances).unwrap_or(u32::MAX),
+                    fill_kpx: kpx(s.fill_px()),
+                    shadow_kpx: kpx(s.shadow_fill_px),
+                    texture_kpx: kpx(s.texture_fill_px),
+                    gpu_ms: cx.renderer.ui2_gpu_ms(),
+                },
                 cx.renderer.last_frame_cpu_ms(),
             );
         }

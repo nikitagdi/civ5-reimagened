@@ -201,9 +201,38 @@ debug = "line-tables-only"
 
 [profile.dev.package."*"]
 debug = false
+# Dependencies (wgpu, the text and layout stacks, serde, the codecs) are optimised in dev builds too, as game engines
+# do: they rarely change, so it costs one rebuild of them, not iteration time.
+# With the crates of the frame below at opt-level 1, a frame of the dev web bundle costs 5.9 ms of CPU instead of
+# 13.9 (the release: 3.6), and its wasm is 49 MB instead of 81.
+opt-level = 2
 
 [profile.release]
 panic = "abort"
+
+# The crates of the frame (the renderer, the client, the game replica, UI v2) at opt-level 1 in dev builds. Touching
+# one costs a few seconds more (the wasm client after a change in ui2-runtime: 15 s instead of 9; in render: 28
+# instead of 14); a dev bundle then shows the frame rates of the game, not those of unoptimised code.
+[profile.dev.package.render]
+opt-level = 1
+[profile.dev.package.client-app]
+opt-level = 1
+[profile.dev.package.client-core]
+opt-level = 1
+[profile.dev.package.replica]
+opt-level = 1
+[profile.dev.package.ui2-runtime]
+opt-level = 1
+[profile.dev.package.ui2-draw]
+opt-level = 1
+[profile.dev.package.ui2-text]
+opt-level = 1
+[profile.dev.package.ui2-host]
+opt-level = 1
+[profile.dev.package.ui2-source]
+opt-level = 1
+[profile.dev.package.ui2-model]
+opt-level = 1
 
 # The terrain-piece packer runs zstd level 19 over 300 pieces; unoptimised C makes the pipeline tests take minutes.
 [profile.dev.package.zstd-sys]
