@@ -1,5 +1,5 @@
 <div class="minimap-buttons">
-  <!-- SIMPLIFIED(SIMP-442): Strategic view, renderer overlays and timer administration have no client/session intents in this base. -->
+  <!-- SIMPLIFIED(SIMP-442): Strategic view and renderer overlays have no client intents in this base; of the turn timer the host can only pause and resume it (session.op): its length and mode are fixed when the game is created, the server takes no other timer order. -->
   <button disabled data-tooltip="minimap-view-tip"><svg class="i"><use href="#i-hex"/></svg></button>
   <button data-part="minimap.options-toggle" data-on-click="set state.minimap.options = !state.minimap.options" data-tooltip="minimap-options-tip"><svg class="i"><use href="#i-settings"/></svg></button>
   <button data-part="minimap.streamer-toggle" data-on-click="set state.minimap.streamer = !state.minimap.streamer" data-tooltip="minimap-streamer-tip"><svg class="i"><use href="#i-notices"/></svg></button>

@@ -22,22 +22,13 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
         return;
     }
     match intent.name() {
-        "window.open" => {
-            if ctx
-                .ui
-                .ui()
-                .windows
-                .remote(window.as_str())
-                .is_some_and(|w| w.popup_id.is_some())
-            {
-                return;
-            }
-            open(ctx, window, intent.key("city"));
-            if let Some(w) = ctx.ui.edit().windows.remote_mut(window.as_str()) {
-                w.a = intent.int("a");
-                w.b = intent.int("b");
-            }
-        }
+        "window.open" => open_with(
+            ctx,
+            window,
+            intent.key("city"),
+            intent.int("a"),
+            intent.int("b"),
+        ),
         "window.close" => close(&mut ctx.ui.edit().windows, window),
         "window.toggle" => {
             if is_open(&ctx.ui.ui().windows, window) {
@@ -47,6 +38,30 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
             }
         }
         _ => {}
+    }
+}
+
+/// Open a window with the arguments of a screen window. A window a popup opened stays as the popup asked.
+pub(crate) fn open_with(
+    ctx: &mut Ctx<'_>,
+    window: WindowId,
+    city: Option<Key>,
+    a: Option<i32>,
+    b: Option<i32>,
+) {
+    if ctx
+        .ui
+        .ui()
+        .windows
+        .remote(window.as_str())
+        .is_some_and(|w| w.popup_id.is_some())
+    {
+        return;
+    }
+    open(ctx, window, city);
+    if let Some(w) = ctx.ui.edit().windows.remote_mut(window.as_str()) {
+        w.a = a;
+        w.b = b;
     }
 }
 

@@ -358,6 +358,13 @@ impl LobbyActor {
                     );
                 }
                 let game = entry.game;
+                // The humans of the game when it saved: a seat kicked or given up before the save is not one of
+                // them, although the lobby may not have heard of that yet (its view would show the seat still taken).
+                let humans: Vec<String> = entry
+                    .seats
+                    .iter()
+                    .filter_map(|s| s.nick.as_deref().map(key))
+                    .collect();
                 self.saves.insert(*entry);
                 self.dirty = true;
                 // The players of that game get the lobby view once now: its list of saves is what their game menu
@@ -368,6 +375,7 @@ impl LobbyActor {
                     .filter(|k| {
                         matches!(self.places.get(*k), Some(Place::Seat { game: g, .. }) if *g == game)
                             && !self.away.contains(*k)
+                            && humans.contains(*k)
                     })
                     .cloned()
                     .collect();

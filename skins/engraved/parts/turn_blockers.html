@@ -1,0 +1,7 @@
+<!-- What else holds the end of turn after the first (the button names that one), and what the game only reminds of.
+     A click goes there as the notification would: the unit, the city, or the window of the choice. -->
+<div class="sub" data-part="helm.paused" data-bind-if="{{session.paused}}" data-l10n="turn.paused">The game is paused</div>
+<div data-part="helm.blockers" data-bind-if="{{len(turn.blockers) > 1 || len(turn.reminders) > 0}}">
+  <div class="sub" data-bind-for="b:{{turn.blockers}}" data-bind-filter="{{b.seq > 0}}" data-on-click="intent turn.blocker(seq: b.seq)"><span data-include="parts/turn_block_label.html"></span></div>
+  <div class="sub" data-bind-for="b:{{turn.reminders}}" data-on-click="intent turn.blocker(seq: b.seq)"><span data-include="parts/turn_block_label.html"></span></div>
+</div>

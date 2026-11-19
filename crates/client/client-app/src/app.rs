@@ -639,6 +639,11 @@ impl App {
             v2.set_css_size(p.css_size);
             v2.set_text_input(p.text_input);
             v2.set_mod_ui(Rc::clone(&mod_ui));
+            // The options window edits the classic client's options (the account follows them); a sample keeps
+            // its options in memory.
+            if !sample_offline {
+                v2.set_options_store(Rc::clone(&ui_kv), config_ui_volume);
+            }
             ui_host.register(Box::new(v2));
             ui_host.set_cold_wake(p.classic_cold);
         }

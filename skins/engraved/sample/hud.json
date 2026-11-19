@@ -486,6 +486,14 @@
           "may_act": true,
           "online": true
         }
+      ],
+      "blockers": [
+        { "seq": 0, "kind": "units", "text": null, "unit": "0:2", "city": null, "plot": { "x": 12, "y": 8 }, "window": null, "a": null, "b": null },
+        { "seq": 1, "kind": "units", "text": null, "unit": "0:3", "city": null, "plot": { "x": 13, "y": 8 }, "window": null, "a": null, "b": null },
+        { "seq": 2, "kind": "found_pantheon", "text": "Found a pantheon", "unit": null, "city": null, "plot": null, "window": "pantheon", "a": 0, "b": null }
+      ],
+      "reminders": [
+        { "seq": 1000, "kind": "unit_promotion", "text": null, "unit": "0:1", "city": null, "plot": { "x": 11, "y": 8 }, "window": null, "a": null, "b": null }
       ]
     },
     "map": {

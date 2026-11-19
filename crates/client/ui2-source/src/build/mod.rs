@@ -1,5 +1,6 @@
 //! Builders of the model roots: plain functions from HUD input records and session facts to generated root structs.
 
+pub mod blockers;
 pub mod chat;
 pub mod game;
 pub mod map;

@@ -1,0 +1,6 @@
+<!-- The name of one entry of turn.blockers or turn.reminders (`b`): the game's own summary of its notification, else
+     what a unit or the core's blocker needs. Included where `b` is bound. -->
+<span data-bind-if="{{b.text != null}}" data-bind-value="{{b.text}}">Choose research</span>
+<span data-bind-if="{{b.text == null && b.unit != null && b.kind != 'unit_promotion'}}" data-l10n="turn.unit">Unit needs orders</span>
+<span data-bind-if="{{b.text == null && b.kind == 'unit_promotion'}}" data-l10n="turn.block.promotion">Unit promotion available</span>
+<span data-bind-if="{{b.text == null && b.unit == null}}" data-l10n="turn.other">Something needs you</span>

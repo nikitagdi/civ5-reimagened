@@ -27,6 +27,28 @@ local function target(player, agent, owner, city)
     end
     return false
 end
+-- A coup staged from this window, by seat: the city-state city's name key and the turn the order went. The core
+-- settles a coup when it applies the order and tells the seat by a notification; the window shows that notification
+-- once (the original pops it up while the overview is open), until the seat closes it.
+local coups = {}
+local function coup_result(player)
+    local c = coups[player]
+    if not c then return nil end
+    if c.result then return c.result end
+    local p = Players[player]
+    local success = L("TXT_KEY_NOTIFICATION_SPY_YOU_STAGE_COUP_SUCCESS_S", c.city)
+    local failure = L("TXT_KEY_NOTIFICATION_SPY_YOU_STAGE_COUP_FAILURE_S", c.city)
+    -- The newest first: the list may have lost old entries since the order went.
+    for i = p:GetNumNotifications() - 1, 0, -1 do
+        local summary = p:GetNotificationSummaryStr(i)
+        if p:GetNotificationTurn(i) < c.turn then break end
+        if summary == success or summary == failure then
+            c.result = { success = summary == success, city = summary, text = p:GetNotificationStr(i) }
+            return c.result
+        end
+    end
+    return nil
+end
 local activities = {
     TXT_KEY_SPY_STATE_UNASSIGNED = "unassigned", TXT_KEY_SPY_STATE_TRAVELLING = "travelling",
     TXT_KEY_SPY_STATE_SURVEILLANCE = "surveillance", TXT_KEY_SPY_STATE_GATHERING_INTEL = "stealing",
@@ -44,9 +66,9 @@ return {
                 id = raw.AgentID, name = L(raw.Name), rank = raw.Rank == "TXT_KEY_SPY_RANK_2" and "special_agent" or (raw.Rank == "TXT_KEY_SPY_RANK_1" and "agent" or "recruit"),
                 rank_text = L(raw.Rank), role = raw.IsDiplomat and "diplomat" or "spy", activity = activities[raw.State] or "unassigned", activity_text = L(raw.State),
                 surveillance = raw.EstablishedSurveillance, dead = dead, can_view = false, is_cs = false, can_coup = false,
-                view_reason = "City viewing requires the city-window integration.", coup_reason = "A living spy established in an eligible city-state is required.",
+                view_reason = "The city window shows only your own cities.", coup_reason = "A living spy established in an eligible city-state is required.",
             }
-            -- SIMPLIFIED(SIMP-374): City-view routing and one-shot coup-result notifications require host integration.
+            -- SIMPLIFIED(SIMP-374): the original views the foreign city a spy watches in a read-only city screen; the city window here shows the seat's own cities only, so the view stays off (coup results are shown, see `coup_result`).
             if dead then counts.killed = counts.killed + 1; row.death_text = L(raw.State)
             else counts.alive = counts.alive + 1 end
             if not dead and raw.CityX >= 0 and raw.CityY >= 0 then
@@ -130,7 +152,8 @@ return {
         local who, name = civ(player)
         who.name, who.civ_name = L(GameInfo.Leaders[p:GetLeaderType()].Description), name
         return { player = who, enabled = enabled, started = #agents > 0, late_era = p:GetCurrentEra() > GameInfoTypes.ERA_RENAISSANCE,
-            counts = counts, agents = agents, own_cities = own, other_cities = other, intrigue = intrigue, move = moving }
+            counts = counts, agents = agents, own_cities = own, other_cities = other, intrigue = intrigue, move = moving,
+            coup_result = coup_result(player) }
     end,
     actions = {
         move = function(player, args, net)
@@ -151,9 +174,16 @@ return {
             net.send("SendMoveSpy", args.a, -1, -1, 0)
         end,
         coup = function(player, args, net)
-            spy(player, args.a)
+            local s = spy(player, args.a)
             assert(Players[player]:CanSpyStageCoup(args.a), "this agent cannot stage a coup now")
+            local plot = Map.GetPlot(s.CityX, s.CityY)
+            local city = plot and plot:GetPlotCity()
+            assert(city, "the agent is in no city")
+            coups[player] = { city = city:GetNameKey(), turn = Game.GetGameTurn() }
             net.send("SendStageCoup", args.a)
+        end,
+        coup_seen = function(player)
+            coups[player] = nil
         end,
     },
 }

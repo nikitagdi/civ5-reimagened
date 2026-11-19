@@ -23,6 +23,10 @@ const SOURCES: &[(&str, &str)] = &[
     ("build/map.rs", include_str!("../src/build/map.rs")),
     ("build/notes.rs", include_str!("../src/build/notes.rs")),
     ("build/chat.rs", include_str!("../src/build/chat.rs")),
+    (
+        "build/blockers.rs",
+        include_str!("../src/build/blockers.rs"),
+    ),
     ("build/unit.rs", include_str!("../src/build/unit.rs")),
     (
         "build/production.rs",

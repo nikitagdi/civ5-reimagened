@@ -32,16 +32,19 @@ test("ruin selection survives refresh and resets between events and openings",()
   s.values.set("goody.sel",2);s.model(null);s.model({id:5});assert.equal(s.values.get("goody.sel"),-1);
 });
 
-test("options Accept persists a draft while Cancel and reopen restore saved values",()=>{
+// The drafts and the store of the options are the host's (`ui2_actions::options`, its tests): the script keeps no
+// option of its own and only drops the drafts of a menu closed while its options were open.
+test("the menu opens on its details and a menu closed with open options drops their drafts",()=>{
   const s=skin("game_menu");
-  s.model({});s.call("menu.open");
-  s.values.set("opt.music",30);s.call("menu.cancel");assert.equal(s.values.get("opt.music"),70);
-  assert.equal(s.settings.size,0);
-  s.call("menu.open");s.values.set("opt.music",40);s.values.set("opt.auto_end_turn",true);
-  s.call("menu.accept");assert.equal(s.settings.get("options.music"),40);
-  s.model(null);s.model({});assert.equal(s.values.get("opt.music"),40);
-  assert.equal(s.values.get("opt.auto_end_turn"),true);
+  s.model({});assert.equal(s.values.get("menu.options"),false);assert.equal(s.values.get("menu.panel"),"details");
+  s.values.set("menu.options",true);s.model({});
+  assert.equal(s.values.get("menu.options"),true,"a refresh of the open menu keeps the options");
+  s.model(null);
+  assert.deepEqual(s.intents.map(i=>i.name),["options.cancel"]);
   assert.equal(s.values.get("menu.options"),false);
+  s.model({});s.model(null);
+  assert.equal(s.intents.length,1,"no drafts to drop");
+  assert.equal(s.settings.size,0,"no skin setting");
 });
 
 test("advisor pages clamp after refresh and reset on reopen",()=>{

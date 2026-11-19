@@ -1,6 +1,6 @@
 <section class="helm plate tl" data-part="helm" data-bind-if="{{!ui.windows.city.open}}">
-  <!-- SIMPLIFIED(SIMP-443): The session exposes a primary blocker and readiness; ordered decision targets and soft reminders need additional session data. -->
-  <!-- What the turn button does now, and who has ended the turn. -->
+  <!-- What the turn button does now (the first entry of turn.blockers, the core's own blocker), and who has ended
+       the turn. -->
   <div class="side" data-part="helm.state">
     <div class="st">
       <span data-bind-if="{{turn.state == 'next_turn'}}" data-l10n="turn.next">Next turn</span>
@@ -8,7 +8,7 @@
       <span data-bind-if="{{turn.state == 'city_needs_production'}}" data-l10n="turn.production">Choose production</span>
       <span data-bind-if="{{turn.state == 'research_needed'}}" data-l10n="turn.research">Choose research</span>
       <span data-bind-if="{{turn.state == 'policy_needed'}}" data-l10n="turn.policy">Choose a policy</span>
-      <span data-bind-if="{{turn.state == 'other_blocker'}}" data-l10n="turn.other">Something needs you</span>
+      <span data-bind-for="b:{{turn.blockers}}" data-bind-filter="{{b.seq == 0 && turn.state == 'other_blocker'}}"><span data-include="parts/turn_block_label.html"></span></span>
       <span data-bind-if="{{turn.state == 'waiting_others'}}" data-l10n="turn.waiting">Waiting for players</span>
       <span data-bind-if="{{turn.state == 'ai_moving'}}" data-l10n="turn.ai">Other civilizations move</span>
       <span data-bind-if="{{turn.state == 'ended'}}" data-l10n="turn.ended">Turn ended</span>
@@ -19,13 +19,10 @@
     <div class="hint" data-bind-if="{{turn.state != 'waiting_others' && turn.state != 'ai_moving' && turn.state != 'game_over'}}">
       <span class="key"><span data-l10n="key.enter">Enter</span></span>
       <span data-bind-if="{{turn.state == 'next_turn'}}" data-l10n="turn.do.end">End turn</span>
-      <span data-bind-if="{{turn.state == 'unit_needs_orders'}}" data-l10n="turn.do.unit">Next unit</span>
-      <span data-bind-if="{{turn.state == 'city_needs_production'}}" data-l10n="turn.do.production">Open the city</span>
-      <span data-bind-if="{{turn.state == 'research_needed'}}" data-l10n="turn.do.research">Open research</span>
-      <span data-bind-if="{{turn.state == 'policy_needed'}}" data-l10n="turn.do.policy">Open policies</span>
-      <span data-bind-if="{{turn.state == 'other_blocker'}}" data-l10n="turn.do.other">Open the log</span>
+      <span data-bind-if="{{len(turn.blockers) > 0}}" data-l10n="turn.do.choose">Go to it</span>
       <span data-bind-if="{{turn.state == 'ended'}}" data-l10n="turn.do.cancel">Take it back</span>
     </div>
+    <div data-include="parts/turn_blockers.html"></div>
     <div class="rule"></div>
     <div class="ph"><span data-l10n="turn.ready">Ready</span><span data-l10n="turn.ready_of" data-l10n-args="{{turn.ready}}, {{turn.humans}}">3 of 4</span></div>
     <div class="seats" data-part="helm.seats" data-bind-if="{{hud != null}}">

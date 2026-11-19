@@ -51,10 +51,6 @@ version = "str"
 quick_combat = "bool"
 quick_movement = "bool"
 quick_locked_reason = "text?"
-email_turn = "bool"
-email_address = "text?"
-autosave_every = "i32"
-autosave_keep = "i32"
 
 [type.GameMenuHotkeysActions]
 key = "str"

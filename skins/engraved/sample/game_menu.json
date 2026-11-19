@@ -164,11 +164,7 @@
       "options": {
         "quick_combat": true,
         "quick_movement": true,
-        "quick_locked_reason": "Set by the host for this game",
-        "email_turn": true,
-        "email_address": null,
-        "autosave_every": 5,
-        "autosave_keep": 10
+        "quick_locked_reason": "Set by the host for this game"
       },
       "hotkeys": [
         {

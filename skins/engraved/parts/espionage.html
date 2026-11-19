@@ -222,5 +222,6 @@
 </div>
 </div>
 </div>
+<div class="espionage-confirm-dim" data-part="espionage.coup-result" data-bind-if="{{espionage != null &amp;&amp; espionage.coup_result != null}}"><div class="espionage-confirm"><div class="espionage-question" data-bind-value="{{espionage.coup_result.city}}"></div><div class="espionage-dialog-body"><p data-bind-value="{{espionage.coup_result.text}}"></p></div><div class="espionage-actions"><button data-l10n="espionage.close" data-part="espionage.coup-seen" data-on-click="intent screen.act(screen: 'espionage', action: 'coup_seen')"></button></div></div></div>
 </section>
 </div>

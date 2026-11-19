@@ -347,13 +347,57 @@ fn menu_reads_game_rules_and_refuses_unavailable_session_actions() {
     // The game allows a save; the host check is the session's (`session.is_host`, `session.op`).
     assert_eq!(root["can_save"], true);
     assert!(root["save_reason"].is_null());
-    for action in ["save", "exit", "set_quick", "set_email", "set_autosave"] {
+    for action in ["save", "exit", "set_quick"] {
         let error = r
             .action(0, "game_menu", action, &[], None)
             .err()
             .expect("unavailable action");
         assert!(!error.to_string().is_empty());
     }
+    // No faked client options: the client's options window keeps those.
+    assert!(root["options"].get("email_turn").is_none());
+    assert!(root["options"].get("autosave_every").is_none());
+}
+
+#[test]
+fn menu_lists_the_game_action_keys_as_the_unit_panel_binds_them() {
+    let r = catalog_runtime();
+    r.lua()
+        .exec(
+            r#"
+        GameInfoActions={[0]={Type='MISSION_FORTIFY',TextKey='Fortify',Visible=true,HotKeyVal=18},
+            [1]={Type='COMMAND_DELETE',TextKey='Delete',Visible=true,HotKeyVal=108,CtrlDown=true},
+            [2]={Type='CONTROL_ENDTURN',TextKey='End turn',Visible=true,HotKeyVal=44},
+            [3]={Type='MISSION_EMBARK',TextKey='Embark',Visible=true},
+            [4]={Type='BUILD_ROAD',TextKey='Road',Visible=false,HotKeyVal=29},
+            [5]={Type='MISSION_SLEEP',TextKey='Sleep',Visible=true,HotKeyVal=31,ShiftDown=true}}
+        "#,
+            "=actions",
+        )
+        .unwrap();
+    let root = data(&r, "game_menu", 0);
+    let groups = root["hotkeys"].as_array().unwrap();
+    let keys: Vec<(String, String)> = groups
+        .iter()
+        .flat_map(|g| g["actions"].as_array().unwrap().iter())
+        .map(|a| {
+            (
+                a["key"].as_str().unwrap().to_owned(),
+                a["default"].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        keys,
+        [
+            ("MISSION_FORTIFY".to_owned(), "KeyF".to_owned()),
+            ("MISSION_SLEEP".to_owned(), "Shift+KeyS".to_owned()),
+            ("COMMAND_DELETE".to_owned(), "Ctrl+Delete".to_owned()),
+        ],
+        "no control, no action without a key, no hidden action"
+    );
+    assert_eq!(groups[0]["key"], "missions");
+    assert_eq!(groups[0]["count"], 2);
 }
 
 #[test]

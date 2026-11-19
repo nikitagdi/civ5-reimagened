@@ -1,15 +1,18 @@
-//! `turn.primary`, `turn.end`, `turn.cancel` and `screen.open`: the turn button and the screens that live
-//! outside the skin.
+//! `turn.primary`, `turn.end`, `turn.cancel`, `turn.blocker` and `screen.open`: the turn button, the list of what
+//! blocks the end of turn, and the screens that live outside the skin.
 
 use protocol::Command;
+use ui2_model::Key;
 use ui2_model::generated::{
-    Game, Meta, Phase, RefuseWhy, ScreenId, Turn, TurnPending, TurnUi, WindowId,
+    EndTurnBlock, Game, Map, Meta, Phase, Plot, RefuseWhy, ScreenId, Selection, Turn, TurnBlocker,
+    TurnPending, TurnUi, WindowId,
 };
 
 use ui2_model::target::TURN_TARGET;
 
 use crate::intent::Intent;
-use crate::route::{Ctx, unit, window};
+use crate::route::{Ctx, camera, unit, window};
+use crate::validate::entity_id;
 
 /// Run a `turn.*` or `screen.open` intent.
 pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
@@ -17,6 +20,7 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
         "turn.primary" => primary(ctx),
         "turn.end" => end(ctx, intent.flag("force").unwrap_or(false)),
         "turn.cancel" => cancel(ctx),
+        "turn.blocker" => blocker(ctx, intent.int("seq")),
         "screen.open" => {
             if let Some(screen) = intent.variant("screen").and_then(ScreenId::from_u16) {
                 open_screen(ctx, screen);
@@ -26,7 +30,8 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
     }
 }
 
-/// What the turn button does now, by the state the source computed for it.
+/// What the turn button does now, by the state the source computed for it: with a blocker, go to the first entry
+/// of `turn.blockers` (the core's own blocker); with none, end the turn.
 fn primary(ctx: &mut Ctx<'_>) {
     let Some(turn) = ctx.model.get::<Turn>() else {
         ctx.refuse(RefuseWhy::NoGame);
@@ -34,21 +39,129 @@ fn primary(ctx: &mut Ctx<'_>) {
     };
     match turn.state {
         TurnUi::NextTurn => end(ctx, false),
-        TurnUi::UnitNeedsOrders => unit::select_next(ctx),
-        TurnUi::CityNeedsProduction => {
-            let city = turn.blocker.as_ref().and_then(|b| b.city);
-            window::open(ctx, WindowId::Production, city);
-        }
-        TurnUi::ResearchNeeded => window::open(ctx, WindowId::Research, None),
-        TurnUi::PolicyNeeded => open_screen(ctx, ScreenId::Policies),
-        // The blockers the skin has no window for (a vote, a free item, a religion step) show up as
-        // notifications; the log is where the player finds out which.
-        TurnUi::OtherBlocker => open_screen(ctx, ScreenId::NotificationLog),
         TurnUi::Ended => cancel(ctx),
         TurnUi::WaitingOthers | TurnUi::AiMoving | TurnUi::GameOver => {
             ctx.refuse(RefuseWhy::CannotEndTurn);
         }
+        state => match turn.blockers.iter().next().cloned() {
+            Some(first) => go(ctx, &first),
+            None => by_state(ctx, state, turn.blocker.as_ref().and_then(|b| b.city)),
+        },
     }
+}
+
+/// A source without the list of blockers: the button's state alone says where to go.
+fn by_state(ctx: &mut Ctx<'_>, state: TurnUi, city: Option<Key>) {
+    match state {
+        TurnUi::UnitNeedsOrders => unit::select_next(ctx),
+        TurnUi::CityNeedsProduction => window::open(ctx, WindowId::Production, city),
+        TurnUi::ResearchNeeded => window::open(ctx, WindowId::Research, None),
+        TurnUi::PolicyNeeded => open_screen(ctx, ScreenId::Policies),
+        _ => open_screen(ctx, ScreenId::NotificationLog),
+    }
+}
+
+/// `turn.blocker`: one entry of `turn.blockers` or `turn.reminders`.
+fn blocker(ctx: &mut Ctx<'_>, seq: Option<i32>) {
+    let Some(turn) = ctx.model.get::<Turn>() else {
+        ctx.refuse(RefuseWhy::NoGame);
+        return;
+    };
+    let found = seq.and_then(|s| {
+        turn.blockers
+            .iter()
+            .chain(turn.reminders.iter())
+            .find(|e| e.seq == s)
+            .cloned()
+    });
+    match found {
+        Some(e) => go(ctx, &e),
+        // The list changed under the click (the entry was dealt with): the toast says so.
+        None => ctx.refuse(RefuseWhy::TurnChanged),
+    }
+}
+
+/// Go to what an entry needs, as its notification does in the original: select the unit and look at it, open the
+/// city's production, or open the window of the choice with its arguments.
+fn go(ctx: &mut Ctx<'_>, e: &TurnBlocker) {
+    if let Some(unit) = e.unit {
+        unit::select(ctx, unit);
+        if let Some(p) = &e.plot {
+            camera::to(ctx, p.x, p.y);
+        }
+        return;
+    }
+    let city = e.city.or_else(|| own_city_at(ctx, e.plot.as_ref()));
+    match e.kind {
+        EndTurnBlock::Production => {
+            window::open(ctx, WindowId::Production, city);
+            return;
+        }
+        // The original's choose-tech popup is the HUD's research panel here.
+        EndTurnBlock::Research => {
+            window::open(ctx, WindowId::Research, None);
+            return;
+        }
+        // The religion screen takes the city of the Great Prophet by its id.
+        EndTurnBlock::FoundReligion | EndTurnBlock::EnhanceReligion
+            if ctx.ui.ui().windows.remote("religion").is_some() =>
+        {
+            let id = city.map(entity_id);
+            window::open_with(ctx, WindowId::Religion, None, id, e.b);
+            return;
+        }
+        EndTurnBlock::CityRangeAttack if city.is_some() => {
+            if let Some(p) = &e.plot {
+                camera::to(ctx, p.x, p.y);
+            }
+            ctx.ui.edit().selection = Selection {
+                unit: None,
+                city,
+                plot: e.plot.clone(),
+            };
+            return;
+        }
+        // Units the replica has no entry for: the next unit that waits.
+        EndTurnBlock::Units
+        | EndTurnBlock::StackedUnits
+        | EndTurnBlock::UnitNeedsOrders
+        | EndTurnBlock::UnitPromotion => {
+            unit::select_next(ctx);
+            return;
+        }
+        _ => {}
+    }
+    if let Some(name) = e.window.as_deref()
+        && let Some(window) = WindowId::from_name(name)
+        && ctx.ui.ui().windows.remote(name).is_some()
+    {
+        window::open_with(ctx, window, None, e.a, e.b);
+        return;
+    }
+    // A skin without that window: the panel of the HUD that has the choice, else the plot, else the log.
+    match e.kind {
+        EndTurnBlock::Research | EndTurnBlock::FreeTech | EndTurnBlock::StealTech => {
+            window::open(ctx, WindowId::Research, None);
+        }
+        EndTurnBlock::Policy | EndTurnBlock::FreePolicy | EndTurnBlock::Ideology => {
+            open_screen(ctx, ScreenId::Policies);
+        }
+        _ => match &e.plot {
+            Some(p) => camera::to(ctx, p.x, p.y),
+            None => open_screen(ctx, ScreenId::NotificationLog),
+        },
+    }
+}
+
+/// The player's city on a plot, from the map's banners.
+fn own_city_at(ctx: &Ctx<'_>, plot: Option<&Plot>) -> Option<Key> {
+    let p = plot?;
+    ctx.model
+        .get::<Map>()?
+        .cities
+        .iter()
+        .find(|c| c.mine && c.plot.x == p.x && c.plot.y == p.y)
+        .map(|c| c.key)
 }
 
 /// End the turn. Refused unless the game is connected, the humans are moving and the player has not ended

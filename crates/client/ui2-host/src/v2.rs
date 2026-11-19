@@ -171,6 +171,8 @@ pub struct V2Ui {
     pub(crate) mods: crate::mods::Mods,
     /// Where the skins find the game's pictures; a new skin's runtime gets it too.
     assets: Option<ui2_runtime::AssetResolver>,
+    /// A text field has the focus (the runtime's last request to the text input): keys are not remapped.
+    pub(crate) text_focused: bool,
 }
 
 impl V2Ui {
@@ -195,6 +197,8 @@ impl V2Ui {
         let mut actions = UiActions::new(Schema::v1(), Box::new(MemorySettings::default()));
         // The `ui` root exists before the first frame, and the skin's own state with its defaults before the
         // runtime and the scripts first look at it.
+        // The options window's rows of the skin's hotkeys.
+        actions.set_skin_hotkeys(crate::options::skin_hotkeys(&pkg));
         actions.publish(&mut store);
         crate::state::mount(&pkg, &mut actions, &mut store);
         // The skin's scripts start on that model; a script that fails while loading comes back from a later frame
@@ -238,6 +242,7 @@ impl V2Ui {
             sample: None,
             mods: crate::mods::Mods::default(),
             assets: None,
+            text_focused: false,
         })
     }
 
@@ -388,6 +393,9 @@ impl V2Ui {
         if let Some(b) = self.text_bridge.as_mut() {
             b.request(&TextInputRequest::Blur);
         }
+        self.text_focused = false;
+        self.actions
+            .set_skin_hotkeys(crate::options::skin_hotkeys(&pkg));
         self.skin = skin;
         self.scripts = new_scripts;
         self.anchors.clear();
@@ -439,6 +447,7 @@ impl V2Ui {
         if let Some(b) = self.text_bridge.as_mut() {
             b.request(&TextInputRequest::Blur);
         }
+        self.text_focused = false;
     }
 
     /// Routes a protocol query answer to the HUD's outstanding requests.

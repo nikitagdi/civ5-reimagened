@@ -9,7 +9,8 @@
 //!    `UiActions::apply`, orders leaving through the frame's [`HostNet`] sink; the mod intents it accepted are kept
 //!    for the application ([`V2Ui::take_mod_intents`](crate::V2Ui::take_mod_intents));
 //! 4. the writes of the mods' Rust halves (`Owner::Mod`, [`crate::mods`]), then the source writes its roots from
-//!    the replica, the session, and the actions module's `ui` root and dismissed notes → `UiActions::reconcile` → `ModelStore::take_frame`;
+//!    the replica, the session, and the actions module's `ui` root and dismissed notes → `UiActions::reconcile` →
+//!    `UiActions::auto_end_turn` (the client's multiplayer auto end turn) → `ModelStore::take_frame`;
 //! 5. `Runtime::apply_delta` → the scripts' island commands (`Runtime::apply_island`; a refused one is logged and
 //!    reported with the frame's errors) → the panels of mods whose scripts were switched off show their
 //!    placeholder (`Runtime::set_panel_failed`) → `Runtime::frame` → the text bridge (the frame's request for the
@@ -376,6 +377,9 @@ impl V2Ui {
         if self.sample.is_none() {
             self.actions
                 .reconcile(&mut self.store, self.source.notification_ids(), now_ms);
+            // The multiplayer auto end turn of the client's options, on the frame's model.
+            self.actions
+                .auto_end_turn(&mut self.store, net.sink(), now_ms);
         }
 
         // 5. The runtime and the glyphs.
@@ -400,6 +404,9 @@ impl V2Ui {
         }
         let mut out = runtime.frame(frame_ms, &self.store, text, scene);
         // The text bridge: what the runtime asked of the focused field, then what the player typed since.
+        if let Some(req) = &out.text_input {
+            self.text_focused = matches!(req, platform::ui2::TextInputRequest::Focus { .. });
+        }
         if let Some(bridge) = self.text_bridge.as_mut() {
             if let Some(req) = &out.text_input {
                 bridge.request(req);

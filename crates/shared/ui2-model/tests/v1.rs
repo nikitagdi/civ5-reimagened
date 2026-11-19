@@ -312,6 +312,7 @@ fn roots_owners_and_enums() {
             "game",
             "top",
             "research",
+            "session",
             "players",
             "turn",
             "unit",
@@ -512,6 +513,7 @@ const INTENTS: &[(&str, &[&str])] = &[
     ("turn.primary", &[]),
     ("turn.end", &["force: bool"]),
     ("turn.cancel", &[]),
+    ("turn.blocker", &["seq: i32"]),
     ("production.choose", &["city: key<city>", "item: key<item>"]),
     (
         "production.replace",
@@ -557,8 +559,17 @@ const INTENTS: &[(&str, &[&str])] = &[
             "c: i32?",
             "d: i32?",
             "text: str?",
+            "then: SessionOp?",
         ],
     ),
+    ("session.op", &["op: SessionOp", "player: key<player>?"]),
+    ("options.edit", &[]),
+    ("options.set", &["key: str", "value: i32"]),
+    ("options.accept", &[]),
+    ("options.cancel", &[]),
+    ("options.reset", &[]),
+    ("hotkey.capture", &["id: str"]),
+    ("hotkey.clear", &["id: str"]),
 ];
 
 #[test]

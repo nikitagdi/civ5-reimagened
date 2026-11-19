@@ -29,6 +29,7 @@ export type BuyWith = "gold" | "faith";
 export type SessionOp = "save" | "leave" | "pause" | "resume" | "kick";
 export type SeatConn = "online" | "lost" | "none";
 export type SeatControl = "human" | "ai" | "closed";
+export type EndTurnBlock = "policy" | "research" | "production" | "units" | "diplo_vote" | "minor_quest" | "free_tech" | "stacked_units" | "unit_needs_orders" | "unit_promotion" | "city_range_attack" | "free_policy" | "free_items" | "found_pantheon" | "found_religion" | "enhance_religion" | "steal_tech" | "maya_long_count" | "faith_great_person" | "reformation" | "league_proposals" | "archaeology" | "league_votes" | "ideology" | "deal_received";
 export type AdvisorRolesKey = "economic" | "military" | "foreign" | "science";
 export type ArchaeologyStatus = "idle" | "pending";
 export type ArchaeologyKind = "battle_ranged" | "battle_melee" | "barbarian_camp" | "ancient_ruins" | "razed_city" | "writing";
@@ -543,6 +544,18 @@ export interface Pending {
   readonly since_ms: number;
 }
 
+export interface TurnBlocker {
+  readonly seq: number;
+  readonly kind: EndTurnBlock;
+  readonly text: string | null;
+  readonly unit: Key | null;
+  readonly city: Key | null;
+  readonly plot: Plot | null;
+  readonly window: string | null;
+  readonly a: number | null;
+  readonly b: number | null;
+}
+
 export interface SessionSeat {
   readonly player: Key;
   readonly nick: string | null;
@@ -563,6 +576,29 @@ export interface Toast {
   readonly kind: ToastKind;
   readonly why: RefuseWhy;
   readonly detail: string | null;
+}
+
+export interface UiOption {
+  readonly key: string;
+  readonly tab: string;
+  readonly name: Text;
+  readonly toggle: boolean;
+  readonly value: number;
+  readonly min: number;
+  readonly max: number;
+  readonly step: number;
+  readonly available: boolean;
+  readonly why: Text | null;
+}
+
+export interface UiHotkey {
+  readonly id: string;
+  readonly key: string;
+  readonly label: string;
+  readonly group: string;
+  readonly name: Text;
+  readonly more: number;
+  readonly fixed: boolean;
 }
 
 export interface AdvisorCiv {
@@ -2606,10 +2642,6 @@ export interface GameMenuOptions {
   readonly quick_combat: boolean;
   readonly quick_movement: boolean;
   readonly quick_locked_reason: Text | null;
-  readonly email_turn: boolean;
-  readonly email_address: Text | null;
-  readonly autosave_every: number;
-  readonly autosave_keep: number;
 }
 
 export interface GameMenuHotkeysActions {
@@ -4440,6 +4472,8 @@ export interface Turn {
   readonly ready: number;
   readonly humans: number;
   readonly seats: Seat[];
+  readonly blockers: TurnBlocker[];
+  readonly reminders: TurnBlocker[];
 }
 
 export interface Unit {
@@ -4496,6 +4530,10 @@ export interface Ui {
   readonly pending: Pending[];
   readonly turn_pending: TurnPending;
   readonly errors: Toast[];
+  readonly options: UiOption[];
+  readonly hotkeys: UiHotkey[];
+  readonly hotkey_capture: string | null;
+  readonly hotkey_clash: string | null;
 }
 
 export interface Advisor {

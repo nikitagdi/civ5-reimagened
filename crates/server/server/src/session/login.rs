@@ -96,7 +96,8 @@ pub(super) async fn handshake(
     }
     // The cookie of the page: no token and no password in the message, and the cookie names this nick.
     let mut by_cookie = false;
-    if result.is_err()
+    // A newer connection of the nick (`NickTaken`) ends the handshake: no other proof is tried.
+    if matches!(result, Err(ref e) if *e != RejectReason::NickTaken)
         && login.token.is_none()
         && login.password.is_empty()
         && let Some((cookie_nick, cookie_token)) = cookie
@@ -108,7 +109,7 @@ pub(super) async fn handshake(
                 .login(&nick, Proof::Token(cookie_token), label, conn.id, &mut kick);
         by_cookie = result.is_ok();
     }
-    if result.is_err() {
+    if matches!(result, Err(ref e) if *e != RejectReason::NickTaken) {
         result = password_login(
             &shared,
             peer,

@@ -463,6 +463,15 @@ impl Identity {
             Proof::Token(_) => None,
         };
         let mut inner = self.lock();
+        // The newer connection wins: a login that finishes late (a password login hashes for a while, a token login does
+        // not) must not replace a session of a connection made after its own. Session ids grow with each connection.
+        if inner
+            .live
+            .get(&key)
+            .is_some_and(|l| l.iter().any(|c| c.session > session))
+        {
+            return Err(RejectReason::NickTaken);
+        }
         let reserved = inner.reserved.contains(&key);
         let acct = inner
             .accounts
@@ -1099,6 +1108,24 @@ mod tests {
         assert_eq!(on_login(&live, 10), vec![1, 2, 3]);
         assert_eq!(on_login(&live, 99), vec![1, 2, 3]);
         assert!(on_login(&[], 1).is_empty());
+    }
+
+    /// A password login hashes for a while: the login of an older connection that finishes after the token login of a
+    /// newer one is refused, and the newer session stays (the e2e reconnect race).
+    #[test]
+    fn a_late_login_of_an_older_connection_does_not_replace_a_newer_session() {
+        let id = Identity::in_memory(wall());
+        let r = reg(&id, "bob");
+        let (g3, mut rx3) = login_token(&id, "bob", &r.token, 3);
+        g3.unwrap();
+        let (g2, _rx2) = login_pw(&id, "bob", H, 2);
+        assert_eq!(g2.err(), Some(RejectReason::NickTaken));
+        assert!(rx3.try_recv().is_err(), "the newer session is not kicked");
+        assert_eq!(id.live_count(), 1);
+        // A newer connection still replaces it.
+        let (g4, _rx4) = login_token(&id, "bob", &r.token, 4);
+        assert_eq!(g4.unwrap().replaced, vec![3]);
+        assert!(rx3.try_recv().is_ok());
     }
 
     #[test]

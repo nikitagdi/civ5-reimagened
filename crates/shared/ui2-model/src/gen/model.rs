@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 2);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0xe2fdf258915408a1;
+pub const SCHEMA_HASH: u64 = 0x7dfebbbb92c6dd6b;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -2175,6 +2175,149 @@ impl crate::model::Model for SeatControl {
             crate::value::Value::Enum(n) => SeatControl::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
                 value: *n,
                 count: 3,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum EndTurnBlock {
+    #[default]
+    Policy = 0,
+    Research = 1,
+    Production = 2,
+    Units = 3,
+    DiploVote = 4,
+    MinorQuest = 5,
+    FreeTech = 6,
+    StackedUnits = 7,
+    UnitNeedsOrders = 8,
+    UnitPromotion = 9,
+    CityRangeAttack = 10,
+    FreePolicy = 11,
+    FreeItems = 12,
+    FoundPantheon = 13,
+    FoundReligion = 14,
+    EnhanceReligion = 15,
+    StealTech = 16,
+    MayaLongCount = 17,
+    FaithGreatPerson = 18,
+    Reformation = 19,
+    LeagueProposals = 20,
+    Archaeology = 21,
+    LeagueVotes = 22,
+    Ideology = 23,
+    DealReceived = 24,
+}
+
+impl EndTurnBlock {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 25] = ["policy", "research", "production", "units", "diplo_vote", "minor_quest", "free_tech", "stacked_units", "unit_needs_orders", "unit_promotion", "city_range_attack", "free_policy", "free_items", "found_pantheon", "found_religion", "enhance_religion", "steal_tech", "maya_long_count", "faith_great_person", "reformation", "league_proposals", "archaeology", "league_votes", "ideology", "deal_received"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [EndTurnBlock] = &[EndTurnBlock::Policy, EndTurnBlock::Research, EndTurnBlock::Production, EndTurnBlock::Units, EndTurnBlock::DiploVote, EndTurnBlock::MinorQuest, EndTurnBlock::FreeTech, EndTurnBlock::StackedUnits, EndTurnBlock::UnitNeedsOrders, EndTurnBlock::UnitPromotion, EndTurnBlock::CityRangeAttack, EndTurnBlock::FreePolicy, EndTurnBlock::FreeItems, EndTurnBlock::FoundPantheon, EndTurnBlock::FoundReligion, EndTurnBlock::EnhanceReligion, EndTurnBlock::StealTech, EndTurnBlock::MayaLongCount, EndTurnBlock::FaithGreatPerson, EndTurnBlock::Reformation, EndTurnBlock::LeagueProposals, EndTurnBlock::Archaeology, EndTurnBlock::LeagueVotes, EndTurnBlock::Ideology, EndTurnBlock::DealReceived];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<EndTurnBlock> {
+        match v {
+            0 => Some(EndTurnBlock::Policy),
+            1 => Some(EndTurnBlock::Research),
+            2 => Some(EndTurnBlock::Production),
+            3 => Some(EndTurnBlock::Units),
+            4 => Some(EndTurnBlock::DiploVote),
+            5 => Some(EndTurnBlock::MinorQuest),
+            6 => Some(EndTurnBlock::FreeTech),
+            7 => Some(EndTurnBlock::StackedUnits),
+            8 => Some(EndTurnBlock::UnitNeedsOrders),
+            9 => Some(EndTurnBlock::UnitPromotion),
+            10 => Some(EndTurnBlock::CityRangeAttack),
+            11 => Some(EndTurnBlock::FreePolicy),
+            12 => Some(EndTurnBlock::FreeItems),
+            13 => Some(EndTurnBlock::FoundPantheon),
+            14 => Some(EndTurnBlock::FoundReligion),
+            15 => Some(EndTurnBlock::EnhanceReligion),
+            16 => Some(EndTurnBlock::StealTech),
+            17 => Some(EndTurnBlock::MayaLongCount),
+            18 => Some(EndTurnBlock::FaithGreatPerson),
+            19 => Some(EndTurnBlock::Reformation),
+            20 => Some(EndTurnBlock::LeagueProposals),
+            21 => Some(EndTurnBlock::Archaeology),
+            22 => Some(EndTurnBlock::LeagueVotes),
+            23 => Some(EndTurnBlock::Ideology),
+            24 => Some(EndTurnBlock::DealReceived),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<EndTurnBlock> {
+        match s {
+            "policy" => Some(EndTurnBlock::Policy),
+            "research" => Some(EndTurnBlock::Research),
+            "production" => Some(EndTurnBlock::Production),
+            "units" => Some(EndTurnBlock::Units),
+            "diplo_vote" => Some(EndTurnBlock::DiploVote),
+            "minor_quest" => Some(EndTurnBlock::MinorQuest),
+            "free_tech" => Some(EndTurnBlock::FreeTech),
+            "stacked_units" => Some(EndTurnBlock::StackedUnits),
+            "unit_needs_orders" => Some(EndTurnBlock::UnitNeedsOrders),
+            "unit_promotion" => Some(EndTurnBlock::UnitPromotion),
+            "city_range_attack" => Some(EndTurnBlock::CityRangeAttack),
+            "free_policy" => Some(EndTurnBlock::FreePolicy),
+            "free_items" => Some(EndTurnBlock::FreeItems),
+            "found_pantheon" => Some(EndTurnBlock::FoundPantheon),
+            "found_religion" => Some(EndTurnBlock::FoundReligion),
+            "enhance_religion" => Some(EndTurnBlock::EnhanceReligion),
+            "steal_tech" => Some(EndTurnBlock::StealTech),
+            "maya_long_count" => Some(EndTurnBlock::MayaLongCount),
+            "faith_great_person" => Some(EndTurnBlock::FaithGreatPerson),
+            "reformation" => Some(EndTurnBlock::Reformation),
+            "league_proposals" => Some(EndTurnBlock::LeagueProposals),
+            "archaeology" => Some(EndTurnBlock::Archaeology),
+            "league_votes" => Some(EndTurnBlock::LeagueVotes),
+            "ideology" => Some(EndTurnBlock::Ideology),
+            "deal_received" => Some(EndTurnBlock::DealReceived),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for EndTurnBlock {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => EndTurnBlock::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 25,
             }),
             other => Err(crate::value::ValueError::mismatch("enum", other)),
         }
@@ -18713,6 +18856,79 @@ impl crate::model::Keyed for Pending {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+pub struct TurnBlocker {
+    pub seq: i32,
+    pub kind: EndTurnBlock,
+    pub text: Option<::std::sync::Arc<str>>,
+    pub unit: Option<crate::value::Key>,
+    pub city: Option<crate::value::Key>,
+    pub plot: Option<Plot>,
+    pub window: Option<::std::sync::Arc<str>>,
+    pub a: Option<i32>,
+    pub b: Option<i32>,
+}
+
+impl crate::model::Model for TurnBlocker {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.seq, &old.seq, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.unit, &old.unit, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.plot, &old.plot, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.window, &old.window, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.a, &old.a, at, out);
+        at.field = base.child(10);
+        crate::model::Model::diff(&self.b, &old.b, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.seq),
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.text),
+            crate::model::Model::to_value(&self.unit),
+            crate::model::Model::to_value(&self.city),
+            crate::model::Model::to_value(&self.plot),
+            crate::model::Model::to_value(&self.window),
+            crate::model::Model::to_value(&self.a),
+            crate::model::Model::to_value(&self.b),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(9)?;
+        Ok(TurnBlocker {
+            seq: crate::model::Model::from_value(&f[0])?,
+            kind: crate::model::Model::from_value(&f[1])?,
+            text: crate::model::Model::from_value(&f[2])?,
+            unit: crate::model::Model::from_value(&f[3])?,
+            city: crate::model::Model::from_value(&f[4])?,
+            plot: crate::model::Model::from_value(&f[5])?,
+            window: crate::model::Model::from_value(&f[6])?,
+            a: crate::model::Model::from_value(&f[7])?,
+            b: crate::model::Model::from_value(&f[8])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for TurnBlocker {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.seq))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct SessionSeat {
     pub player: crate::value::Key,
     pub nick: Option<::std::sync::Arc<str>>,
@@ -18858,6 +19074,147 @@ impl crate::model::Model for Toast {
 impl crate::model::Keyed for Toast {
     fn key(&self) -> crate::value::Key {
         crate::value::Key::from_i32(i32::from(self.seq))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct UiOption {
+    pub key: ::std::sync::Arc<str>,
+    pub tab: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub toggle: bool,
+    pub value: i32,
+    pub min: i32,
+    pub max: i32,
+    pub step: i32,
+    pub available: bool,
+    pub why: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for UiOption {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.tab, &old.tab, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.toggle, &old.toggle, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.min, &old.min, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.max, &old.max, at, out);
+        at.field = base.child(7);
+        crate::model::Model::diff(&self.step, &old.step, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.available, &old.available, at, out);
+        at.field = base.child(9);
+        crate::model::Model::diff(&self.why, &old.why, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.tab),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.toggle),
+            crate::model::Model::to_value(&self.value),
+            crate::model::Model::to_value(&self.min),
+            crate::model::Model::to_value(&self.max),
+            crate::model::Model::to_value(&self.step),
+            crate::model::Model::to_value(&self.available),
+            crate::model::Model::to_value(&self.why),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(10)?;
+        Ok(UiOption {
+            key: crate::model::Model::from_value(&f[0])?,
+            tab: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            toggle: crate::model::Model::from_value(&f[3])?,
+            value: crate::model::Model::from_value(&f[4])?,
+            min: crate::model::Model::from_value(&f[5])?,
+            max: crate::model::Model::from_value(&f[6])?,
+            step: crate::model::Model::from_value(&f[7])?,
+            available: crate::model::Model::from_value(&f[8])?,
+            why: crate::model::Model::from_value(&f[9])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for UiOption {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct UiHotkey {
+    pub id: ::std::sync::Arc<str>,
+    pub key: ::std::sync::Arc<str>,
+    pub label: ::std::sync::Arc<str>,
+    pub group: ::std::sync::Arc<str>,
+    pub name: crate::value::Text,
+    pub more: i32,
+    pub fixed: bool,
+}
+
+impl crate::model::Model for UiHotkey {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.label, &old.label, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.group, &old.group, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.more, &old.more, at, out);
+        at.field = base.child(6);
+        crate::model::Model::diff(&self.fixed, &old.fixed, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.label),
+            crate::model::Model::to_value(&self.group),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.more),
+            crate::model::Model::to_value(&self.fixed),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(7)?;
+        Ok(UiHotkey {
+            id: crate::model::Model::from_value(&f[0])?,
+            key: crate::model::Model::from_value(&f[1])?,
+            label: crate::model::Model::from_value(&f[2])?,
+            group: crate::model::Model::from_value(&f[3])?,
+            name: crate::model::Model::from_value(&f[4])?,
+            more: crate::model::Model::from_value(&f[5])?,
+            fixed: crate::model::Model::from_value(&f[6])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for UiHotkey {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.id)
     }
 }
 
@@ -31126,10 +31483,6 @@ pub struct GameMenuOptions {
     pub quick_combat: bool,
     pub quick_movement: bool,
     pub quick_locked_reason: Option<crate::value::Text>,
-    pub email_turn: bool,
-    pub email_address: Option<crate::value::Text>,
-    pub autosave_every: i32,
-    pub autosave_keep: i32,
 }
 
 impl crate::model::Model for GameMenuOptions {
@@ -31141,14 +31494,6 @@ impl crate::model::Model for GameMenuOptions {
         crate::model::Model::diff(&self.quick_movement, &old.quick_movement, at, out);
         at.field = base.child(2);
         crate::model::Model::diff(&self.quick_locked_reason, &old.quick_locked_reason, at, out);
-        at.field = base.child(3);
-        crate::model::Model::diff(&self.email_turn, &old.email_turn, at, out);
-        at.field = base.child(4);
-        crate::model::Model::diff(&self.email_address, &old.email_address, at, out);
-        at.field = base.child(5);
-        crate::model::Model::diff(&self.autosave_every, &old.autosave_every, at, out);
-        at.field = base.child(6);
-        crate::model::Model::diff(&self.autosave_keep, &old.autosave_keep, at, out);
         at.field = base;
     }
 
@@ -31157,23 +31502,15 @@ impl crate::model::Model for GameMenuOptions {
             crate::model::Model::to_value(&self.quick_combat),
             crate::model::Model::to_value(&self.quick_movement),
             crate::model::Model::to_value(&self.quick_locked_reason),
-            crate::model::Model::to_value(&self.email_turn),
-            crate::model::Model::to_value(&self.email_address),
-            crate::model::Model::to_value(&self.autosave_every),
-            crate::model::Model::to_value(&self.autosave_keep),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(7)?;
+        let f = v.as_struct(3)?;
         Ok(GameMenuOptions {
             quick_combat: crate::model::Model::from_value(&f[0])?,
             quick_movement: crate::model::Model::from_value(&f[1])?,
             quick_locked_reason: crate::model::Model::from_value(&f[2])?,
-            email_turn: crate::model::Model::from_value(&f[3])?,
-            email_address: crate::model::Model::from_value(&f[4])?,
-            autosave_every: crate::model::Model::from_value(&f[5])?,
-            autosave_keep: crate::model::Model::from_value(&f[6])?,
         })
     }
 }
@@ -42385,6 +42722,8 @@ pub struct Turn {
     pub ready: i32,
     pub humans: i32,
     pub seats: crate::model::KeyedList<Seat>,
+    pub blockers: crate::model::KeyedList<TurnBlocker>,
+    pub reminders: crate::model::KeyedList<TurnBlocker>,
 }
 
 impl crate::model::Model for Turn {
@@ -42408,6 +42747,10 @@ impl crate::model::Model for Turn {
         crate::model::Model::diff(&self.humans, &old.humans, at, out);
         at.field = base.child(17);
         crate::model::Model::diff(&self.seats, &old.seats, at, out);
+        at.field = base.child(24);
+        crate::model::Model::diff(&self.blockers, &old.blockers, at, out);
+        at.field = base.child(36);
+        crate::model::Model::diff(&self.reminders, &old.reminders, at, out);
         at.field = base;
     }
 
@@ -42422,11 +42765,13 @@ impl crate::model::Model for Turn {
             crate::model::Model::to_value(&self.ready),
             crate::model::Model::to_value(&self.humans),
             crate::model::Model::to_value(&self.seats),
+            crate::model::Model::to_value(&self.blockers),
+            crate::model::Model::to_value(&self.reminders),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(9)?;
+        let f = v.as_struct(11)?;
         Ok(Turn {
             state: crate::model::Model::from_value(&f[0])?,
             blocker: crate::model::Model::from_value(&f[1])?,
@@ -42437,6 +42782,8 @@ impl crate::model::Model for Turn {
             ready: crate::model::Model::from_value(&f[6])?,
             humans: crate::model::Model::from_value(&f[7])?,
             seats: crate::model::Model::from_value(&f[8])?,
+            blockers: crate::model::Model::from_value(&f[9])?,
+            reminders: crate::model::Model::from_value(&f[10])?,
         })
     }
 }
@@ -42697,6 +43044,10 @@ pub struct Ui {
     pub pending: crate::model::KeyedList<Pending>,
     pub turn_pending: TurnPending,
     pub errors: crate::model::KeyedList<Toast>,
+    pub options: crate::model::KeyedList<UiOption>,
+    pub hotkeys: crate::model::KeyedList<UiHotkey>,
+    pub hotkey_capture: Option<::std::sync::Arc<str>>,
+    pub hotkey_clash: Option<::std::sync::Arc<str>>,
 }
 
 impl crate::model::Model for Ui {
@@ -42718,6 +43069,14 @@ impl crate::model::Model for Ui {
         crate::model::Model::diff(&self.turn_pending, &old.turn_pending, at, out);
         at.field = base.child(248);
         crate::model::Model::diff(&self.errors, &old.errors, at, out);
+        at.field = base.child(253);
+        crate::model::Model::diff(&self.options, &old.options, at, out);
+        at.field = base.child(264);
+        crate::model::Model::diff(&self.hotkeys, &old.hotkeys, at, out);
+        at.field = base.child(272);
+        crate::model::Model::diff(&self.hotkey_capture, &old.hotkey_capture, at, out);
+        at.field = base.child(273);
+        crate::model::Model::diff(&self.hotkey_clash, &old.hotkey_clash, at, out);
         at.field = base;
     }
 
@@ -42731,11 +43090,15 @@ impl crate::model::Model for Ui {
             crate::model::Model::to_value(&self.pending),
             crate::model::Model::to_value(&self.turn_pending),
             crate::model::Model::to_value(&self.errors),
+            crate::model::Model::to_value(&self.options),
+            crate::model::Model::to_value(&self.hotkeys),
+            crate::model::Model::to_value(&self.hotkey_capture),
+            crate::model::Model::to_value(&self.hotkey_clash),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(8)?;
+        let f = v.as_struct(12)?;
         Ok(Ui {
             selection: crate::model::Model::from_value(&f[0])?,
             map_mode: crate::model::Model::from_value(&f[1])?,
@@ -42745,6 +43108,10 @@ impl crate::model::Model for Ui {
             pending: crate::model::Model::from_value(&f[5])?,
             turn_pending: crate::model::Model::from_value(&f[6])?,
             errors: crate::model::Model::from_value(&f[7])?,
+            options: crate::model::Model::from_value(&f[8])?,
+            hotkeys: crate::model::Model::from_value(&f[9])?,
+            hotkey_capture: crate::model::Model::from_value(&f[10])?,
+            hotkey_clash: crate::model::Model::from_value(&f[11])?,
         })
     }
 }
@@ -44451,13 +44818,13 @@ impl crate::model::Model for GameMenu {
         crate::model::Model::diff(&self.save_reason, &old.save_reason, at, out);
         at.field = base.child(38);
         crate::model::Model::diff(&self.options, &old.options, at, out);
-        at.field = base.child(46);
+        at.field = base.child(42);
         crate::model::Model::diff(&self.hotkeys, &old.hotkeys, at, out);
-        at.field = base.child(57);
+        at.field = base.child(53);
         crate::model::Model::diff(&self.loading, &old.loading, at, out);
-        at.field = base.child(78);
+        at.field = base.child(74);
         crate::model::Model::diff(&self.kicked, &old.kicked, at, out);
-        at.field = base.child(81);
+        at.field = base.child(77);
         crate::model::Model::diff(&self.mods_reason, &old.mods_reason, at, out);
         at.field = base;
     }

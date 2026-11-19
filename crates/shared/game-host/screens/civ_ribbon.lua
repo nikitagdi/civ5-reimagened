@@ -23,7 +23,20 @@ return {data=function(player)
     local majors,minors=array(),array()
     for id=0,GameDefines.MAX_CIV_PLAYERS-1 do
         local q=Players[id]
-        if q and q:IsAlive() and (id==player or met(player,id)) then
+        -- Every human is listed, met or not, as the original multiplayer list does (an unmet one without its civilization).
+        local unmet_human=q and q:IsAlive() and q:IsHuman() and not q:IsMinorCiv() and id~=player and not met(player,id)
+        if unmet_human then
+            local unknown=L("TXT_KEY_POP_VOTE_RESULTS_UNMET_PLAYER")
+            local row={id=id,name=unknown,leader=unknown,civ=unknown,icon_leader="",icon_civ="",color_bg="",color_fg=""}
+            row.player_key="0:" .. id
+            row.is_me,row.is_human,row.met=false,true,false
+            row.team,row.score,row.at_war,row.mood,row.relation=q:GetTeam(),0,false,"human","unmet"
+            row.turn_state=q:IsTurnActive() and "moving" or (q:HasReceivedNetTurnComplete() and "done" or "waiting")
+            row.turn_live=q:IsTurnActive()
+            row.connection,row.is_host,row.deal,row.can_open,row.can_kick,row.can_declare_war="none",false,"none",false,false,false
+            row.action_reason="You have not met this player.";row.tip_portrait=row.action_reason
+            majors[#majors+1]=row
+        elseif q and q:IsAlive() and (id==player or met(player,id)) then
             local qt=q:GetTeam()
             local war=team:IsAtWar(qt)
             if q:IsMinorCiv() then
@@ -65,7 +78,9 @@ return {data=function(player)
     local league=Game.GetActiveLeague()
     -- Who sits where, the host, the connections and our ping are the session's: the skin joins the client's `session`
     -- root (the gateway's seat list) to these rows by `player_key`; the session fields here stay at their defaults.
-    -- SIMPLIFIED(SIMP-454): the per-player turn-duration statistics of the original ribbon are not kept by the gateway.
+    -- SIMPLIFIED(SIMP-454): the per-player turn-duration statistics of the original ribbon are not sent to clients (the
+    -- gateway's turn trace is for the administrator only), and a seat being taken by a hot join is not in the seat list
+    -- until it is attached: `hot_join` stays false.
     return {visible=true,side="right",mp=Game.IsNetworkMultiPlayer(),i_am_host=false,hot_join=false,
         corner={league={active=league~=nil,in_session=league and league:IsInSession() or false,
             turns_to_session=league and league:GetTurnsUntilSession() or 0,victory_session=false},has_spies=#spies>0,spies_unassigned=unassigned,
