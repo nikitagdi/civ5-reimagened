@@ -1,6 +1,6 @@
 use lua_sys::{Lua, Table};
 #[test]
-fn ribbon_keeps_self_first_and_refuses_unavailable_server_actions() {
+fn ribbon_keeps_self_first_opens_ai_leaders_and_refuses_unavailable_server_actions() {
     let lua = Lua::new().unwrap();
     lua.exec(include_str!("../screens/_lib.lua"), "=helpers")
         .unwrap();
@@ -26,10 +26,14 @@ fn ribbon_keeps_self_first_and_refuses_unavailable_server_actions() {
       assert(#root.majors==2 and root.majors[1].is_me and root.majors[1].player_key=='0:0')
       assert(root.majors[2].turn_state=='done' and root.majors[2].can_declare_war)
       assert(#root.session_reason>0)
-      for _,action in ipairs({'begin_diplo','propose_peace'}) do
-        local ok,why=pcall(screen.actions[action],0,{a=1},{send=function() error('must not emit') end})
-        assert(not ok and #why>0)
-        assert(not pcall(screen.actions[action],0,{a=2},{}))
-      end
+      local ok,why=pcall(screen.actions.propose_peace,0,{a=1},{send=function() error('must not emit') end})
+      assert(not ok and #why>0)
+      assert(not pcall(screen.actions.propose_peace,0,{a=2},{}))
+      -- A met AI leader opens the leader screen with the seat's session; an unmet one is refused.
+      Game.GetGameTurn=function() return 1 end
+      local opened=screen.actions.begin_diplo(0,{a=1},{send=function() error('must not emit') end})
+      assert(opened.open.screen=='leader' and opened.open.a==1 and leader_session(0,1))
+      assert(root.majors[2].action_reason==nil)
+      assert(not pcall(screen.actions.begin_diplo,0,{a=2},{}))
     "#,"=ribbon").unwrap();
 }

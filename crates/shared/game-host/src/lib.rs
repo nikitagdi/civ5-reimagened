@@ -33,7 +33,7 @@ mod world_build;
 
 pub use crate::core::{
     Core, CoreError, CoreErrorKind, CoreEvent, CorePhase, CorePump, CoreStart, CoreTurn,
-    EventTarget, MapInfo, Refusal, RefusalCode,
+    EventTarget, LeaderMessage, MapInfo, Refusal, RefusalCode,
 };
 pub use files::{GameFiles, LoadError, LoadReport, Progress, load_game_files};
 pub use replica::{

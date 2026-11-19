@@ -89,6 +89,7 @@ local function data(player, args)
         if p:GetCurrentResearch() == id then current = {key = tech.Type, name = row.name, icon = row.icon, turns = row.turns,
             progress = progress, cost = cost, fraction = row.fraction, forecast_fraction = row.forecast_fraction, turn_fraction = fraction(rate, cost)} end
     end
+    local queued_or = {}
     for _, spec in ipairs({{"Technology_PrereqTechs", "and", "prereqs"}, {"Technology_ORPrereqTechs", "or", "or_prereqs"}}) do
         for link in GameInfo[spec[1]]() do
             local from, to = bykey[link.PrereqTech], bykey[link.TechType]
@@ -98,10 +99,30 @@ local function data(player, args)
                 local found = false
                 for _, next in ipairs(from.leads_to) do if next.key == to.key then found = true end end
                 if not found then from.leads_to[#from.leads_to + 1] = {key = to.key, name = to.name} end
-                links[#links + 1] = {key = from.key .. ":" .. to.key .. ":" .. spec[2], from_col = from.col, from_row = from.row,
-                    to_col = to.col, to_row = to.row, kind = spec[2], state = to.state == "researched" and "done" or (from.state == "researched" and "live" or "idle")}
+                local edge = {key = from.key .. ":" .. to.key .. ":" .. spec[2], from_col = from.col, from_row = from.row,
+                    to_col = to.col, to_row = to.row, kind = spec[2],
+                    state = to.status == "researched" and "done" or (from.status == "researched" and "live" or "idle"),
+                    queued = false}
+                links[#links + 1] = edge
+                if to.queue_pos then
+                    local earlier = from.queue_pos and from.queue_pos < to.queue_pos
+                    if spec[2] == "and" and earlier then
+                        edge.queued = true
+                    elseif spec[2] == "or" then
+                        -- A researched alternative already meets the requirement. Otherwise the first queued
+                        -- alternative to complete meets it, even when more than one is in the queue.
+                        local pos = from.status == "researched" and 0 or (earlier and from.queue_pos or nil)
+                        local best = queued_or[to.key]
+                        if pos and (not best or pos < best.pos) then
+                            queued_or[to.key] = {pos = pos, edge = edge}
+                        end
+                    end
+                end
             end
         end
+    end
+    for _, alternative in pairs(queued_or) do
+        if alternative.pos > 0 then alternative.edge.queued = true end
     end
     table.sort(rows, function(a,b) if a.col ~= b.col then return a.col < b.col end; if a.row ~= b.row then return a.row < b.row end; return a.id < b.id end)
     table.sort(eras, function(a,b) return a.first_col < b.first_col end)

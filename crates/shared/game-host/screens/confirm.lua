@@ -1,4 +1,4 @@
--- Confirmation context is reconstructed from the authenticated per-seat queue head.
+-- Confirmation context comes from the per-seat queue head, or from a negative id naming a unit to delete.
 local kinds = {
     BUTTONPOPUP_BARBARIAN_RANSOM="barbarian_ransom", BUTTONPOPUP_RETURN_CIVILIAN="return_civilian",
     BUTTONPOPUP_GIFT_CONFIRM="gift_unit", BUTTONPOPUP_CONFIRMCOMMAND="confirm_command",
@@ -8,6 +8,11 @@ local kinds = {
 }
 local function choice(id, key, label, primary, reason)
     return {id=id, key=key, label=label, primary=primary, enabled=reason == nil, reason=reason}
+end
+local function disband_context(id)
+    local cmd = GameInfo.Commands["COMMAND_DELETE"]
+    return {id=id, kind="confirm_command", unit=-1-id, command=cmd.ID, data1=-1, data2=-1, disband=true,
+        text=plain(L("TXT_KEY_POPUP_ARE_YOU_SURE_ACTION", cmd.Description))}
 end
 local function context(player, args)
     local p = args.popup
@@ -29,6 +34,9 @@ local function order_reason(player,e)
     if not e.unit then return "The original unit and order context is unavailable" end
     local u=Players[player]:GetUnitByID(e.unit)
     if not u or u:GetOwner()~=player then return "The unit is no longer yours" end
+    if e.disband and (not Players[player]:IsTurnActive() or u:IsBusy() or u:IsDelayedDeath()) then
+        return "The unit cannot be deleted now"
+    end
     if e.kind=="improvement_rebuild" then
         if not e.mission or not GameInfo.Missions[e.mission] then return "The original build mission is unavailable" end
         if not u:CanStartMission(e.mission,e.data1 or 0,e.data2 or 0,nil,0) then return "The unit cannot perform this build mission here" end
@@ -71,14 +79,15 @@ local function model(player, e)
             -- SIMPLIFIED(SIMP-390): the combat warning carries no attacker, target or order in its payload, so the warned attack cannot be replayed; the player attacks again from the map.
             reason = "The warned order is not in the question; order it again from the map"
         end
-        r.choices = array({choice(1,"no",L("TXT_KEY_NO_BUTTON"),true), choice(0,"yes",L("TXT_KEY_YES_BUTTON"),false,reason)})
+        r.choices = array({choice(1,"no",L(e.disband and "TXT_KEY_POPUP_NO" or "TXT_KEY_NO_BUTTON"),true),
+            choice(0,"yes",L(e.disband and "TXT_KEY_POPUP_YES" or "TXT_KEY_YES_BUTTON"),false,reason)})
     end
     return r
 end
 return {
     data = function(player, args)
         assert(Players[player], "Unknown seat")
-        local e = context(player,args)
+        local e = not args.popup and args.a and args.a < 0 and disband_context(args.a) or context(player,args)
         if not e then
             return {id=args.a or -1, kind="confirm_command", title="Confirmation unavailable",
                 text="No matching confirmation event is pending for this seat", facts=array(),
@@ -87,6 +96,16 @@ return {
         return model(player,e)
     end,
     actions = {
+        disband = function(player, args, net)
+            assert(not args.popup_id and args.a and args.a < 0 and (args.b == 0 or args.b == 1), "Invalid unit confirmation")
+            if args.b == 0 then
+                local e = disband_context(args.a)
+                local reason = order_reason(player, e)
+                assert(not reason, reason)
+                net.send("sendDoCommand", e.unit, e.command, e.data1, e.data2, 0)
+            end
+            return {close=true}
+        end,
         choose = function(player,args,net)
             local e = assert(context(player,args), "This confirmation is no longer pending")
             assert(not e.resolved, "This confirmation was already answered")

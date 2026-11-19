@@ -51,6 +51,7 @@ pub const GC_EVENT_SLOT_CHANGED: i32 = 13;
 pub const GC_EVENT_HUMAN_PHASE_STARTED: i32 = 14;
 pub const GC_EVENT_HUMAN_WAR_DECLARED: i32 = 15;
 pub const GC_EVENT_PLAYER_TURN_STATUS: i32 = 16;
+pub const GC_EVENT_DIPLO_LEADER_MESSAGE: i32 = 17;
 
 // Refusal reasons (`gc_error.reason`).
 pub const GC_REASON_NONE: i32 = 0;
@@ -1561,6 +1562,10 @@ mod tests {
             (
                 "GC_EVENT_PLAYER_TURN_STATUS",
                 GC_EVENT_PLAYER_TURN_STATUS as i64,
+            ),
+            (
+                "GC_EVENT_DIPLO_LEADER_MESSAGE",
+                GC_EVENT_DIPLO_LEADER_MESSAGE as i64,
             ),
             ("GC_REASON_NONE", GC_REASON_NONE as i64),
             ("GC_REASON_NOT_HUMAN", GC_REASON_NOT_HUMAN as i64),

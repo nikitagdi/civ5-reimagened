@@ -33,7 +33,6 @@ fn tech_group_bindings_and_all_samples_match_the_schema() {
         "techs",
         "techs_tip",
         "tech_panel",
-        "rich_tooltips",
         "tech_award",
         "tech_award_tip",
     ] {

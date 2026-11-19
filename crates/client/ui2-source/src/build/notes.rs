@@ -258,27 +258,29 @@ pub const ACTIONS: &[(&str, NoteGo)] = &[
     ("NOTIFICATION_SPY_STOLE_TECH", NoteGo::StealTech),
     ("NOTIFICATION_MAYA_LONG_COUNT", NoteGo::MayaBonus),
     ("NOTIFICATION_FAITH_GREAT_PERSON", NoteGo::FaithGreatPerson),
-    // SIMPLIFIED(SIMP-448): the core opens a conversation with the AI for these (DoBeginDiploWithHuman...), which
-    // only the server could start; a click does nothing here. The wonder above has no server popup to show again,
-    // so its click looks at the wonder's city instead of the original's splash.
-    ("NOTIFICATION_TECH_STOLEN_SPY_IDENTIFIED", NoteGo::None),
-    ("NOTIFICATION_SPY_KILLED_A_SPY", NoteGo::None),
-    ("NOTIFICATION_INTRIGUE_DECEPTION", NoteGo::None),
+    // SIMPLIFIED(SIMP-448): the core opens a conversation with the AI the note names for these
+    // (DoBeginDiploWithHumanEspionageResult, DoBeginDiploWithHumanInDiscuss); a click opens that AI's leader window
+    // with its usual greeting instead, without the spy confrontation's answers or the offer to share the intrigue.
+    // The wonder above has no server popup to show again, so its click looks at the wonder's city instead of the
+    // original's splash.
+    ("NOTIFICATION_TECH_STOLEN_SPY_IDENTIFIED", NoteGo::Leader),
+    ("NOTIFICATION_SPY_KILLED_A_SPY", NoteGo::Leader),
+    ("NOTIFICATION_INTRIGUE_DECEPTION", NoteGo::Leader),
     (
         "NOTIFICATION_INTRIGUE_SNEAK_ATTACK_ARMY_AGAINST_KNOWN_CITY_KNOWN",
-        NoteGo::None,
+        NoteGo::Leader,
     ),
     (
         "NOTIFICATION_INTRIGUE_SNEAK_ATTACK_ARMY_AGAINST_KNOWN_CITY_UNKNOWN",
-        NoteGo::None,
+        NoteGo::Leader,
     ),
     (
         "NOTIFICATION_INTRIGUE_SNEAK_ATTACK_AMPHIB_AGAINST_KNOWN_CITY_UNKNOWN",
-        NoteGo::None,
+        NoteGo::Leader,
     ),
     (
         "NOTIFICATION_INTRIGUE_SNEAK_ATTACK_AMPHIB_AGAINST_KNOWN_CITY_KNOWN",
-        NoteGo::None,
+        NoteGo::Leader,
     ),
     ("NOTIFICATION_LEAGUE_CALL_FOR_PROPOSALS", NoteGo::League),
     ("NOTIFICATION_LEAGUE_CALL_FOR_VOTES", NoteGo::League),

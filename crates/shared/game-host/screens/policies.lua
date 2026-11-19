@@ -13,6 +13,19 @@ local function enabled()
 end
 local function yes(value) return value == true or value == 1 end
 
+-- The branch pictures from SocialPolicyPopup.xml, keyed by branch type rather than database row order.
+local backgrounds = {
+    POLICY_BRANCH_TRADITION = "ui:tx:SocialPoliciesTradition.dds",
+    POLICY_BRANCH_LIBERTY = "ui:tx:SocialPoliciesLiberty.dds",
+    POLICY_BRANCH_HONOR = "ui:tx:SocialPoliciesHonor.dds",
+    POLICY_BRANCH_PIETY = "ui:tx:SocialPoliciesPiety.dds",
+    POLICY_BRANCH_PATRONAGE = "ui:tx:SocialPoliciesPatronage.dds",
+    POLICY_BRANCH_COMMERCE = "ui:tx:SocialPoliciesCommerce.dds",
+    POLICY_BRANCH_RATIONALISM = "ui:tx:SocialPoliciesRationalism.dds",
+    POLICY_BRANCH_EXPLORATION = "ui:tx:PolicyBranch_Exploration.dds",
+    POLICY_BRANCH_AESTHETICS = "ui:tx:PolicyBranch_Aesthetics.dds",
+}
+
 local function effect(key)
     local policy = key and GameInfo.Policies[key]
     return policy and help(policy) or ""
@@ -137,6 +150,7 @@ local function data(player, args)
             end
             if not reason and not p:IsPolicyBranchUnlocked(b.ID) then must = true end
             branches[#branches + 1] = {id = b.ID, key = b.Type, name = L(b.Description), icon = icon(b.IconAtlas, b.PortraitIndex),
+                background = backgrounds[b.Type],
                 state = state, adopted = adopted, total = #policies, opener = effect(b.FreePolicy), finisher = effect(b.FreeFinishingPolicy),
                 finisher_done = p:IsPolicyBranchFinished(b.ID), era = era and L(era.Description) or "", can_unlock = reason == nil,
                 unlock_cost = p:IsPolicyBranchUnlocked(b.ID) and 0 or cost, disables = disables, reason = reason, tooltip = reason or plain(L(b.Help)), policies = policies, links = links}

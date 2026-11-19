@@ -55,6 +55,7 @@ reason = "text?"
 tooltip = "text"
 policies = { list = "PoliciesPolicy", key = "id" }
 links = { list = "PoliciesLink", key = "key" }
+background = "asset?"
 
 [type.PoliciesTenet]
 id = "i32"

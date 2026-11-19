@@ -3,10 +3,10 @@
 <!-- The city banner, one row as the original's: the size on a plate in the owner's colours, the growth cell (a thin
      food bar, an arrow and the turns: growing, stagnant, starving), the name, the production and its turns, a thin
      production bar; the strength in a small tab over it, the health under it while the city is damaged. -->
-<div class="banner" data-part="city-banner" data-bind-for="c:{{map.cities}}" data-bind-filter="{{state.minimap.banners && !ui.windows.city.open}}" data-anchor="city:{{c.key}}" data-tooltip="on-map-city-tip" data-on-pointerenter="call on_map.hover('city', c.key)" data-bind-class-toggle="mine:{{c.mine}}; sel:{{c.key == ui.selection.city}}; fog:{{!c.visible}}">
-  <div class="cb">
-    <!-- The original banner's range strike button: the city's ranged strike picks its target on the map. -->
-    <div class="str"><svg class="i"><use href="#i-str"/></svg><span data-bind-value="{{c.strength}}">18</span><button class="strike" data-part="city-banner.strike" data-bind-if="{{c.mine && c.can_shoot}}" data-on-click="intent map.target(kind: 'city', city: c.key)"><svg class="i"><use href="#i-bow"/></svg></button></div>
+<div class="banner" data-part="city-banner" data-bind-for="c:{{map.cities}}" data-bind-filter="{{state.minimap.banners && !ui.windows.city.open}}" data-anchor="city:{{c.key}}" data-bind-class-toggle="mine:{{c.mine}}; sel:{{c.key == ui.selection.city}}; fog:{{!c.visible}}">
+  <div class="cb" data-tooltip="on-map-city-tip" data-on-pointerenter="call on_map.hover('city', c.key)">
+    <button class="strike" data-part="city-banner.strike" data-bind-if="{{c.mine && c.can_shoot}}" data-tooltip="city-strike-tip" data-on-click="intent map.target(kind: 'city', city: c.key); stop"><img data-bind-src="{{'ui:tx:CityBombard.dds'}}"></button>
+    <div class="str"><svg class="i"><use href="#i-str"/></svg><span data-bind-value="{{c.strength}}">18</span></div>
     <button class="body" data-bind-disabled="{{!c.mine || ui.map_mode != 'select'}}" data-on-click="call city.open(c.key)">
       <div class="chp" data-bind-if="{{c.hp_fraction < 1}}"><div class="fill" data-bind-style-width="{{c.hp_fraction * 100}}%" style="width: 50%"></div></div>
       <!-- A bound colour is not passed on to the children: each text on the plate binds the ink colour itself. -->

@@ -1044,7 +1044,7 @@
           "row": 4,
           "era": 2,
           "state": "free",
-          "queue_pos": null,
+          "queue_pos": 1,
           "turns": 4,
           "cost": 2870,
           "progress": 2150,
@@ -1221,7 +1221,7 @@
           "row": 1,
           "era": 3,
           "state": "locked",
-          "queue_pos": null,
+          "queue_pos": 2,
           "turns": 20,
           "cost": 3560,
           "progress": 0,
@@ -1461,7 +1461,7 @@
           "row": 1,
           "era": 3,
           "state": "locked",
-          "queue_pos": null,
+          "queue_pos": 3,
           "turns": 22,
           "cost": 3920,
           "progress": 0,
@@ -1887,346 +1887,384 @@
       ],
       "links": [
         {
-          "key": "TECH_NAVIGATION>TECH_ARCHAEOLOGY",
+          "key": "TECH_NAVIGATION:TECH_ARCHAEOLOGY:and",
           "from_col": 0,
           "from_row": 0,
           "to_col": 1,
           "to_row": 1,
           "kind": "and",
-          "state": "live"
+          "state": "live",
+          "queued": false
         },
         {
-          "key": "TECH_ARCHITECTURE>TECH_SCIENTIFIC_THEORY",
+          "key": "TECH_ARCHITECTURE:TECH_SCIENTIFIC_THEORY:and",
           "from_col": 0,
           "from_row": 2,
           "to_col": 1,
           "to_row": 3,
           "kind": "and",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_ECONOMICS>TECH_INDUSTRIALIZATION",
+          "key": "TECH_ECONOMICS:TECH_INDUSTRIALIZATION:and",
           "from_col": 0,
           "from_row": 5,
           "to_col": 1,
           "to_row": 5,
           "kind": "and",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_METALLURGY>TECH_RIFLING",
+          "key": "TECH_METALLURGY:TECH_RIFLING:and",
           "from_col": 0,
           "from_row": 7,
           "to_col": 1,
           "to_row": 7,
           "kind": "and",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_CHEMISTRY>TECH_MILITARY_SCIENCE",
+          "key": "TECH_CHEMISTRY:TECH_MILITARY_SCIENCE:and",
           "from_col": 0,
           "from_row": 8,
           "to_col": 1,
           "to_row": 8,
           "kind": "and",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_ARCHAEOLOGY>TECH_BIOLOGY",
+          "key": "TECH_ARCHAEOLOGY:TECH_BIOLOGY:or",
           "from_col": 1,
           "from_row": 1,
           "to_col": 2,
           "to_row": 1,
           "kind": "or",
-          "state": "idle"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_SCIENTIFIC_THEORY>TECH_BIOLOGY",
+          "key": "TECH_SCIENTIFIC_THEORY:TECH_BIOLOGY:or",
           "from_col": 1,
           "from_row": 3,
           "to_col": 2,
           "to_row": 1,
           "kind": "or",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_SCIENTIFIC_THEORY>TECH_ELECTRICITY",
+          "key": "TECH_SCIENTIFIC_THEORY:TECH_ELECTRICITY:and",
           "from_col": 1,
           "from_row": 3,
           "to_col": 2,
           "to_row": 3,
           "kind": "and",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_INDUSTRIALIZATION>TECH_STEAM_POWER",
+          "key": "TECH_INDUSTRIALIZATION:TECH_STEAM_POWER:and",
           "from_col": 1,
           "from_row": 5,
           "to_col": 2,
           "to_row": 5,
           "kind": "and",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_INDUSTRIALIZATION>TECH_RAILROAD",
+          "key": "TECH_INDUSTRIALIZATION:TECH_RAILROAD:and",
           "from_col": 1,
           "from_row": 5,
           "to_col": 2,
           "to_row": 6,
           "kind": "and",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_RIFLING>TECH_RAILROAD",
+          "key": "TECH_RIFLING:TECH_RAILROAD:and",
           "from_col": 1,
           "from_row": 7,
           "to_col": 2,
           "to_row": 6,
           "kind": "and",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_MILITARY_SCIENCE>TECH_DYNAMITE",
+          "key": "TECH_MILITARY_SCIENCE:TECH_DYNAMITE:and",
           "from_col": 1,
           "from_row": 8,
           "to_col": 2,
           "to_row": 8,
           "kind": "and",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_BIOLOGY>TECH_REFRIGERATION",
+          "key": "TECH_BIOLOGY:TECH_REFRIGERATION:and",
           "from_col": 2,
           "from_row": 1,
           "to_col": 3,
           "to_row": 1,
           "kind": "and",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_ELECTRICITY>TECH_REFRIGERATION",
+          "key": "TECH_ELECTRICITY:TECH_REFRIGERATION:and",
           "from_col": 2,
           "from_row": 3,
           "to_col": 3,
           "to_row": 1,
           "kind": "and",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_ELECTRICITY>TECH_TELEGRAPH",
+          "key": "TECH_ELECTRICITY:TECH_TELEGRAPH:and",
           "from_col": 2,
           "from_row": 3,
           "to_col": 3,
           "to_row": 3,
           "kind": "and",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_TELEGRAPH>TECH_RADIO",
+          "key": "TECH_TELEGRAPH:TECH_RADIO:and",
           "from_col": 3,
           "from_row": 3,
           "to_col": 4,
           "to_row": 4,
           "kind": "and",
-          "state": "live"
+          "state": "live",
+          "queued": false
         },
         {
-          "key": "TECH_STEAM_POWER>TECH_REPLACEABLE_PARTS",
+          "key": "TECH_STEAM_POWER:TECH_REPLACEABLE_PARTS:and",
           "from_col": 2,
           "from_row": 5,
           "to_col": 3,
           "to_row": 6,
           "kind": "and",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_RAILROAD>TECH_REPLACEABLE_PARTS",
+          "key": "TECH_RAILROAD:TECH_REPLACEABLE_PARTS:and",
           "from_col": 2,
           "from_row": 6,
           "to_col": 3,
           "to_row": 6,
           "kind": "and",
-          "state": "done"
+          "state": "done",
+          "queued": false
         },
         {
-          "key": "TECH_DYNAMITE>TECH_COMBUSTION",
+          "key": "TECH_DYNAMITE:TECH_COMBUSTION:and",
           "from_col": 2,
           "from_row": 8,
           "to_col": 3,
           "to_row": 8,
           "kind": "and",
-          "state": "live"
+          "state": "live",
+          "queued": false
         },
         {
-          "key": "TECH_RAILROAD>TECH_COMBUSTION",
+          "key": "TECH_RAILROAD:TECH_COMBUSTION:and",
           "from_col": 2,
           "from_row": 6,
           "to_col": 3,
           "to_row": 8,
           "kind": "and",
-          "state": "live"
+          "state": "live",
+          "queued": false
         },
         {
-          "key": "TECH_REFRIGERATION>TECH_PLASTICS",
+          "key": "TECH_REFRIGERATION:TECH_PLASTICS:and",
           "from_col": 3,
           "from_row": 1,
           "to_col": 5,
           "to_row": 1,
           "kind": "and",
-          "state": "idle"
+          "state": "live",
+          "queued": false
         },
         {
-          "key": "TECH_RADIO>TECH_PLASTICS",
+          "key": "TECH_RADIO:TECH_PLASTICS:and",
           "from_col": 4,
           "from_row": 4,
           "to_col": 5,
           "to_row": 1,
           "kind": "and",
-          "state": "idle"
+          "state": "idle",
+          "queued": true
         },
         {
-          "key": "TECH_TELEGRAPH>TECH_ELECTRONICS",
+          "key": "TECH_TELEGRAPH:TECH_ELECTRONICS:and",
           "from_col": 3,
           "from_row": 3,
           "to_col": 4,
           "to_row": 3,
           "kind": "and",
-          "state": "live"
+          "state": "live",
+          "queued": false
         },
         {
-          "key": "TECH_REPLACEABLE_PARTS>TECH_FLIGHT",
+          "key": "TECH_REPLACEABLE_PARTS:TECH_FLIGHT:and",
           "from_col": 3,
           "from_row": 6,
           "to_col": 4,
           "to_row": 6,
           "kind": "and",
-          "state": "idle"
+          "state": "live",
+          "queued": false
         },
         {
-          "key": "TECH_COMBUSTION>TECH_FLIGHT",
+          "key": "TECH_COMBUSTION:TECH_FLIGHT:and",
           "from_col": 3,
           "from_row": 8,
           "to_col": 4,
           "to_row": 6,
           "kind": "and",
-          "state": "idle"
+          "state": "idle",
+          "queued": false
         },
         {
-          "key": "TECH_REPLACEABLE_PARTS>TECH_BALLISTICS",
+          "key": "TECH_REPLACEABLE_PARTS:TECH_BALLISTICS:and",
           "from_col": 3,
           "from_row": 6,
           "to_col": 4,
           "to_row": 7,
           "kind": "and",
-          "state": "live"
+          "state": "live",
+          "queued": false
         },
         {
-          "key": "TECH_PLASTICS>TECH_PENICILIN",
+          "key": "TECH_PLASTICS:TECH_PENICILIN:and",
           "from_col": 5,
           "from_row": 1,
           "to_col": 6,
           "to_row": 1,
           "kind": "and",
-          "state": "idle"
+          "state": "idle",
+          "queued": true
         },
         {
-          "key": "TECH_ELECTRONICS>TECH_ATOMIC_THEORY",
+          "key": "TECH_ELECTRONICS:TECH_ATOMIC_THEORY:and",
           "from_col": 4,
           "from_row": 3,
           "to_col": 5,
           "to_row": 3,
           "kind": "and",
-          "state": "idle"
+          "state": "idle",
+          "queued": false
         },
         {
-          "key": "TECH_ELECTRONICS>TECH_RADAR",
+          "key": "TECH_ELECTRONICS:TECH_RADAR:and",
           "from_col": 4,
           "from_row": 3,
           "to_col": 5,
           "to_row": 5,
           "kind": "and",
-          "state": "idle"
+          "state": "idle",
+          "queued": false
         },
         {
-          "key": "TECH_FLIGHT>TECH_RADAR",
+          "key": "TECH_FLIGHT:TECH_RADAR:and",
           "from_col": 4,
           "from_row": 6,
           "to_col": 5,
           "to_row": 5,
           "kind": "and",
-          "state": "idle"
+          "state": "idle",
+          "queued": false
         },
         {
-          "key": "TECH_BALLISTICS>TECH_COMBINED_ARMS",
+          "key": "TECH_BALLISTICS:TECH_COMBINED_ARMS:and",
           "from_col": 4,
           "from_row": 7,
           "to_col": 5,
           "to_row": 7,
           "kind": "and",
-          "state": "idle"
+          "state": "idle",
+          "queued": false
         },
         {
-          "key": "TECH_PLASTICS>TECH_ECOLOGY",
+          "key": "TECH_PLASTICS:TECH_ECOLOGY:and",
           "from_col": 5,
           "from_row": 1,
           "to_col": 6,
           "to_row": 0,
           "kind": "and",
-          "state": "idle"
+          "state": "idle",
+          "queued": false
         },
         {
-          "key": "TECH_PLASTICS>TECH_COMPUTERS",
+          "key": "TECH_PLASTICS:TECH_COMPUTERS:and",
           "from_col": 5,
           "from_row": 1,
           "to_col": 6,
           "to_row": 2,
           "kind": "and",
-          "state": "idle"
+          "state": "idle",
+          "queued": false
         },
         {
-          "key": "TECH_ATOMIC_THEORY>TECH_COMPUTERS",
+          "key": "TECH_ATOMIC_THEORY:TECH_COMPUTERS:and",
           "from_col": 5,
           "from_row": 3,
           "to_col": 6,
           "to_row": 2,
           "kind": "and",
-          "state": "idle"
+          "state": "idle",
+          "queued": false
         },
         {
-          "key": "TECH_ATOMIC_THEORY>TECH_NUCLEAR_FISSION",
+          "key": "TECH_ATOMIC_THEORY:TECH_NUCLEAR_FISSION:and",
           "from_col": 5,
           "from_row": 3,
           "to_col": 6,
           "to_row": 4,
           "kind": "and",
-          "state": "idle"
+          "state": "idle",
+          "queued": false
         },
         {
-          "key": "TECH_RADAR>TECH_NUCLEAR_FISSION",
+          "key": "TECH_RADAR:TECH_NUCLEAR_FISSION:and",
           "from_col": 5,
           "from_row": 5,
           "to_col": 6,
           "to_row": 4,
           "kind": "and",
-          "state": "idle"
+          "state": "idle",
+          "queued": false
         },
         {
-          "key": "TECH_RADAR>TECH_ROCKETRY",
+          "key": "TECH_RADAR:TECH_ROCKETRY:and",
           "from_col": 5,
           "from_row": 5,
           "to_col": 6,
           "to_row": 6,
           "kind": "and",
-          "state": "idle"
+          "state": "idle",
+          "queued": false
         },
         {
-          "key": "TECH_COMBINED_ARMS>TECH_ROCKETRY",
+          "key": "TECH_COMBINED_ARMS:TECH_ROCKETRY:and",
           "from_col": 5,
           "from_row": 7,
           "to_col": 6,
           "to_row": 6,
           "kind": "and",
-          "state": "idle"
+          "state": "idle",
+          "queued": false
         }
       ]
     }

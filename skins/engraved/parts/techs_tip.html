@@ -2,7 +2,7 @@
   <div class="tip tt-tip" data-part="techs.tip"><div data-bind-if="{{techs != null}}"><div class="tt-tipc" data-bind-for="t:{{techs.techs}}" data-bind-filter="{{t.id == state.techs.hover}}">
     <div class="why" data-bind-if="{{len(ui.pending) > 0}}" data-l10n="techs.pending">Waiting for the server</div>
     <div class="who lg"><img class="gi s48 round" data-bind-src="{{t.icon}}"><span class="tx"><b data-bind-value="{{t.name}}"></b><span data-bind-value="{{t.era_name}}"></span></span></div>
-    <div class="kv"><div class="r"><span class="k" data-l10n="prod.cost">Cost</span><b data-bind-value="{{t.cost}}"></b></div><div class="r" data-part="techs.tip.core" data-bind-if="{{rich_tooltips != null && rich_tooltips.tech != null}}"><span class="k" data-l10n="rich_tooltips.progress">Progress</span><b data-bind-value="{{rich_tooltips.tech.progress}}"></b></div></div>
+    <div class="kv"><div class="r"><span class="k" data-l10n="prod.cost">Cost</span><b data-bind-value="{{t.cost}}"></b></div><div class="r" data-part="techs.tip.core" data-bind-if="{{rich_tooltips != null && rich_tooltips.tech != null && rich_tooltips.tech.key == t.key}}"><span class="k" data-l10n="rich_tooltips.progress">Progress</span><b data-bind-value="{{rich_tooltips.tech.progress}}"></b></div></div>
     <div class="why neg" data-bind-if="{{t.lock_reason != null}}" data-bind-value="{{t.lock_reason}}"></div>
     <div class="sect" data-l10n="tech_award.unlocks">Unlocks</div>
     <span class="chip lg" data-bind-for="u:{{t.unlocks}}"><img class="gi s22 round" data-bind-src="{{u.icon}}"><span data-bind-value="{{u.name}}"></span></span>
@@ -10,14 +10,11 @@
     <div class="chips" data-bind-if="{{len(t.leads_to) > 0}}"><span class="sect" data-l10n="tech_award.leads">Leads to</span><span class="chip" data-bind-for="n:{{t.leads_to}}" data-bind-value="{{n.name}}"></span></div>
   </div></div></div>
 </template>
-<!-- One square of a technology's unlocks: what it is (the unit, building, wonder, project or improvement) and what kind. -->
 <template data-layer="tooltip" id="techs-unlock-tip">
-  <div class="tip" data-part="techs.unlock-tip"><div data-bind-if="{{techs != null}}"><div data-bind-for="t:{{techs.techs}}" data-bind-filter="{{t.id == state.techs.hover}}"><div class="who lg" data-bind-for="u:{{t.unlocks}}" data-bind-filter="{{u.idx == state.techs.unlock}}">
-    <img class="gi s48 round" data-bind-src="{{u.icon}}">
-    <span class="tx">
-      <b data-part="techs.unlock-tip.name" data-bind-value="{{u.name}}"></b>
-      <span data-part="techs.unlock-tip.kind"><span data-bind-if="{{u.kind == 'unit'}}" data-l10n="techs.kind.unit">Unit</span><span data-bind-if="{{u.kind == 'building'}}" data-l10n="techs.kind.building">Building</span><span data-bind-if="{{u.kind == 'wonder'}}" data-l10n="techs.kind.wonder">Wonder</span><span data-bind-if="{{u.kind == 'project'}}" data-l10n="techs.kind.project">Project</span><span data-bind-if="{{u.kind == 'resource'}}" data-l10n="techs.kind.resource">Resource</span><span data-bind-if="{{u.kind == 'improvement'}}" data-l10n="techs.kind.improvement">Worker action</span><span data-bind-if="{{u.kind == 'ability'}}" data-l10n="techs.kind.ability">Ability</span></span>
-      <span><span data-l10n="techs.unlocked_by">Unlocked by</span> <span data-bind-value="{{t.name}}"></span></span>
-    </span>
-  </div></div></div></div>
+  <div class="tip tt-tip" data-part="techs.unlock-tip" data-bind-class-toggle="tt-tip-loading:{{rich_tooltips == null || rich_tooltips.unlock == null || ui.tip.kind != 12 || rich_tooltips.unlock.tech != ui.tip.id || rich_tooltips.unlock.slot != ui.tip.slot}}">
+    <div data-bind-if="{{rich_tooltips != null && rich_tooltips.unlock != null}}">
+      <div class="who lg" data-bind-if="{{rich_tooltips.unlock.title}}"><img class="gi s48 round" data-bind-src="{{rich_tooltips.unlock.icon}}"><b data-part="techs.unlock-tip.name" data-bind-value="{{rich_tooltips.unlock.title}}"></b></div>
+      <div class="tt-unlock-line" data-part="techs.unlock-tip.line" data-bind-for="line:{{rich_tooltips.unlock.lines}}"><span data-bind-for="p:{{line.parts}}"><img class="gi s16" data-bind-if="{{p.icon != null}}" data-bind-src="{{p.icon}}"><span data-bind-value="{{p.text}}"></span></span></div>
+    </div>
+  </div>
 </template>

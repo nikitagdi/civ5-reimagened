@@ -22,6 +22,7 @@
         {
           "id": 0,
           "key": "POLICY_BRANCH_TRADITION",
+          "background": "ui:tx:SocialPoliciesTradition.dds",
           "name": "Tradition",
           "icon": "",
           "state": "complete",
@@ -130,6 +131,7 @@
         {
           "id": 1,
           "key": "POLICY_BRANCH_LIBERTY",
+          "background": "ui:tx:SocialPoliciesLiberty.dds",
           "name": "Liberty",
           "icon": "",
           "state": "closed",
@@ -238,6 +240,7 @@
         {
           "id": 2,
           "key": "POLICY_BRANCH_HONOR",
+          "background": "ui:tx:SocialPoliciesHonor.dds",
           "name": "Honor",
           "icon": "",
           "state": "closed",
@@ -346,6 +349,7 @@
         {
           "id": 3,
           "key": "POLICY_BRANCH_PIETY",
+          "background": "ui:tx:SocialPoliciesPiety.dds",
           "name": "Piety",
           "icon": "",
           "state": "closed",
@@ -459,6 +463,7 @@
         {
           "id": 4,
           "key": "POLICY_BRANCH_PATRONAGE",
+          "background": "ui:tx:SocialPoliciesPatronage.dds",
           "name": "Patronage",
           "icon": "",
           "state": "opened",
@@ -580,6 +585,7 @@
         {
           "id": 10,
           "key": "POLICY_BRANCH_AESTHETICS",
+          "background": "ui:tx:PolicyBranch_Aesthetics.dds",
           "name": "Aesthetics",
           "icon": "",
           "state": "closed",
@@ -688,6 +694,7 @@
         {
           "id": 5,
           "key": "POLICY_BRANCH_COMMERCE",
+          "background": "ui:tx:SocialPoliciesCommerce.dds",
           "name": "Commerce",
           "icon": "",
           "state": "closed",
@@ -796,6 +803,7 @@
         {
           "id": 11,
           "key": "POLICY_BRANCH_EXPLORATION",
+          "background": "ui:tx:PolicyBranch_Exploration.dds",
           "name": "Exploration",
           "icon": "",
           "state": "closed",
@@ -904,6 +912,7 @@
         {
           "id": 6,
           "key": "POLICY_BRANCH_RATIONALISM",
+          "background": "ui:tx:SocialPoliciesRationalism.dds",
           "name": "Rationalism",
           "icon": "",
           "state": "opened",

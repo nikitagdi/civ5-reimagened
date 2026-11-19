@@ -183,6 +183,7 @@ impl RemoteRoots {
                 ]
             } else if *name == "rich_tooltips"
                 && let Some(id) = ui.tip.id
+                && (ui.tip.kind != 12 || ui.windows.techs.open)
             {
                 // The game thing the pointer rests on in a window (`ui.tip`, set by the skin): another one clears the
                 // root and drops the answer on its way, as for the plot.
@@ -192,6 +193,9 @@ impl RemoteRoots {
                 ];
                 if let Some(city) = ui.tip.city {
                     args.push(("city".into(), i64::from(city)));
+                }
+                if let Some(slot) = ui.tip.slot {
+                    args.push(("slot".into(), i64::from(slot)));
                 }
                 args
             } else if let Some(window) = ui.windows.remote(name).filter(|w| w.open) {
@@ -317,7 +321,8 @@ mod tests {
         };
         tick(&mut remote, &mut store, &ui, 0);
         assert!(!remote.subscriptions.contains_key("rich_tooltips"));
-        // A technology row under the pointer, then a building seen from a city.
+        // A technology row, two different chips on it, then a building seen from a city.
+        ui.windows.techs.open = true;
         ui.tip.kind = 0;
         ui.tip.id = Some(12);
         tick(&mut remote, &mut store, &ui, 10);
@@ -331,18 +336,51 @@ mod tests {
                 .answer(1, &answer, &mut store.writer(Owner::Source))
                 .is_none()
         );
+        ui.tip.kind = 12;
+        ui.tip.slot = Some(0);
+        tick(&mut remote, &mut store, &ui, 300);
+        ui.tip.slot = Some(1);
+        tick(&mut remote, &mut store, &ui, 350);
+        assert_eq!(remote.subscriptions["rich_tooltips"].waiting, Some(2));
+        assert!(
+            remote
+                .answer(2, &answer, &mut store.writer(Owner::Source))
+                .is_none()
+        );
+        assert!(
+            store
+                .get::<Option<ui2_model::generated::RichTooltips>>()
+                .and_then(Option::as_ref)
+                .is_none()
+        );
+        tick(&mut remote, &mut store, &ui, 600);
+        assert_eq!(remote.subscriptions["rich_tooltips"].waiting, Some(3));
+        ui.windows.techs.open = false;
+        tick(&mut remote, &mut store, &ui, 650);
+        assert!(!remote.subscriptions.contains_key("rich_tooltips"));
         ui.tip.kind = 2;
         ui.tip.id = Some(3);
         ui.tip.city = Some(7);
-        tick(&mut remote, &mut store, &ui, 400);
+        ui.tip.slot = None;
+        tick(&mut remote, &mut store, &ui, 700);
         // Left: the subscription and its root go.
         ui.tip.id = None;
-        tick(&mut remote, &mut store, &ui, 700);
+        tick(&mut remote, &mut store, &ui, 1000);
         assert!(!remote.subscriptions.contains_key("rich_tooltips"));
         assert_eq!(
             *asked.borrow(),
             [
                 vec![("kind".to_string(), 0), ("id".to_string(), 12)],
+                vec![
+                    ("kind".to_string(), 12),
+                    ("id".to_string(), 12),
+                    ("slot".to_string(), 0)
+                ],
+                vec![
+                    ("kind".to_string(), 12),
+                    ("id".to_string(), 12),
+                    ("slot".to_string(), 1)
+                ],
                 vec![
                     ("kind".to_string(), 2),
                     ("id".to_string(), 3),

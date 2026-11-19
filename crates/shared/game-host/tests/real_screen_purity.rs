@@ -20,6 +20,8 @@ fn query_everything(h: &mut common::H, qid: &mut u64, extra: &[(String, i64)]) {
                 vec![],
                 vec![("a".into(), 0)],
                 vec![("a".into(), 1), ("b".into(), 0)],
+                // An AI leader: its greeting, its trade table and its valuation for the seat.
+                vec![("a".into(), 2)],
             ];
             sets.push(extra.to_vec());
             for args in sets {
@@ -55,6 +57,14 @@ fn screen_queries_leave_the_simulation_digest_unchanged() {
     for seat in [0, 1] {
         h.found_city(seat);
     }
+    // Both seats know AI 2, so the leader and trade screens of an AI are asked too.
+    let meet = lua_sys::Lua::new().unwrap();
+    game_host::Core::attach_screen_lua(h.w.core_mut(), &meet).unwrap();
+    meet.exec(
+        "for seat = 0, 1 do Teams[Players[seat]:GetTeam()]:Meet(Players[2]:GetTeam(), false) end",
+        "=purity-meet-ai",
+    )
+    .unwrap();
     let city =
         h.w.fresh_view(0)
             .unwrap()

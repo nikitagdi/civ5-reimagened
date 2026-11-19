@@ -268,6 +268,19 @@ pub enum GameEvent {
         player: i32,
         human: bool,
     },
+    /// `GC_EVENT_DIPLO_LEADER_MESSAGE`: a leader's line the core showed a human (`GameplayDiplomacyAILeaderMessage`): a
+    /// reply to the human's own diplomacy, or an AI request. `state` is the core's `DiploUIStateTypes`, `answer` how the
+    /// core answered it (`0` declined offer .. `4` dismissed, the `RtDiploAnswer` order).
+    DiploLeaderMessage {
+        ai_player: i32,
+        state: i32,
+        human: i32,
+        animation: i32,
+        data: i32,
+        request: bool,
+        answer: i32,
+        text: String,
+    },
     /// An event this host does not know, or a known kind with an unexpected argument count.
     Unknown {
         kind: i32,
@@ -395,6 +408,19 @@ impl GameEvent {
                     human: human == 1,
                 }
             }
+            (
+                ffi::GC_EVENT_DIPLO_LEADER_MESSAGE,
+                &[ai_player, state, human, animation, data, request, answer],
+            ) if matches!(request, 0 | 1) => GameEvent::DiploLeaderMessage {
+                ai_player,
+                state,
+                human,
+                animation,
+                data,
+                request: request == 1,
+                answer,
+                text: text(),
+            },
             // Strict: a number outside the ABI's tables or a flag other than 0 / 1 is not typed.
             (ffi::GC_EVENT_MESSAGE, &[player, x, y, kind, source, force])
                 if matches!(force, 0 | 1)
@@ -500,6 +526,23 @@ mod tests {
                 human: 0,
                 ..
             }
+        ));
+        assert!(matches!(
+            t(17, &[3, 16, 0, 5, -1, 0, 4]),
+            GameEvent::DiploLeaderMessage {
+                ai_player: 3,
+                state: 16,
+                human: 0,
+                animation: 5,
+                data: -1,
+                request: false,
+                answer: 4,
+                ..
+            }
+        ));
+        assert!(matches!(
+            t(17, &[3, 16, 0, 5, -1, 2, 4]),
+            GameEvent::Unknown { kind: 17, .. }
         ));
         assert_eq!(
             t(7, &[1, 2, 3, 4, 5]),

@@ -14,7 +14,7 @@ export type Domain = "sea" | "air" | "land" | "immobile" | "hover" | "other";
 export type Activity = "awake" | "hold" | "sleep" | "heal" | "sentry" | "intercept" | "mission" | "other";
 export type UnitActionKind = "move" | "range_attack" | "found_city" | "fortify" | "sleep" | "skip" | "heal" | "automate_build" | "automate_explore" | "cancel" | "disband" | "wake" | "alert" | "pillage" | "upgrade";
 export type NoteCat = "growth" | "great_people" | "diplomacy" | "military" | "production" | "research" | "policy" | "religion" | "other";
-export type NoteGo = "look" | "none" | "capital" | "unit" | "choose_tech" | "tech_award" | "steal_tech" | "policies" | "production" | "diplo_vote" | "city_state" | "deal" | "free_great_person" | "faith_great_person" | "maya_bonus" | "pantheon" | "reformation" | "found_religion" | "enhance_religion" | "espionage" | "league" | "league_project" | "culture" | "ideology" | "archaeology" | "great_work";
+export type NoteGo = "look" | "none" | "capital" | "unit" | "choose_tech" | "tech_award" | "steal_tech" | "policies" | "production" | "diplo_vote" | "city_state" | "deal" | "free_great_person" | "faith_great_person" | "maya_bonus" | "pantheon" | "reformation" | "found_religion" | "enhance_religion" | "espionage" | "league" | "league_project" | "culture" | "ideology" | "archaeology" | "great_work" | "leader";
 export type ChatTo = "all" | "player";
 export type ItemKind = "unit" | "building" | "wonder" | "project" | "process";
 export type MapMode = "select" | "move" | "range_attack" | "target";
@@ -580,6 +580,7 @@ export interface UiTip {
   readonly kind: number;
   readonly id: number | null;
   readonly city: number | null;
+  readonly slot: number | null;
 }
 
 export interface UiChat {
@@ -3500,6 +3501,7 @@ export interface PoliciesBranch {
   readonly tooltip: Text;
   readonly policies: PoliciesPolicy[];
   readonly links: PoliciesLink[];
+  readonly background: string | null;
 }
 
 export interface PoliciesTenet {
@@ -4082,6 +4084,25 @@ export interface RichTooltipsUnitShort {
   readonly religion: RichTooltipsUnitShortReligion | null;
 }
 
+export interface RichTooltipsUnlockPart {
+  readonly key: number;
+  readonly text: Text;
+  readonly icon: string | null;
+}
+
+export interface RichTooltipsUnlockLine {
+  readonly key: number;
+  readonly parts: RichTooltipsUnlockPart[];
+}
+
+export interface RichTooltipsUnlock {
+  readonly tech: number;
+  readonly slot: number;
+  readonly title: Text;
+  readonly icon: string;
+  readonly lines: RichTooltipsUnlockLine[];
+}
+
 export interface RichTooltipsUnique {
   readonly civ: Text;
   readonly replaces: Text;
@@ -4224,6 +4245,7 @@ export interface TechsLink {
   readonly to_row: number;
   readonly kind: TechsLinkKind;
   readonly state: TechsLinkState;
+  readonly queued: boolean;
 }
 
 export interface TradeRoutesPlayer {
@@ -5191,6 +5213,7 @@ export interface RichTooltips {
   readonly civ_note: RichTooltipsCivNote | null;
   readonly unit_action: RichTooltipsUnitAction | null;
   readonly unit_short: RichTooltipsUnitShort[];
+  readonly unlock: RichTooltipsUnlock | null;
 }
 
 export interface Targets {

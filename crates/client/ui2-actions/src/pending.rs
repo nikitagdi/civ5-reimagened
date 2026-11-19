@@ -4,7 +4,7 @@
 
 use protocol::{CmdId, CommandOutcome, RejectCode};
 use ui2_model::generated::{
-    Meta, Pending, RefuseWhy, ToastKind, Turn, TurnPending, Ui, WinCity, Windows,
+    Meta, Pending, RefuseWhy, ToastKind, Turn, TurnPending, Ui, WinArgs, WinCity, Windows,
 };
 use ui2_model::{KeyedList, ModelStore};
 
@@ -159,7 +159,10 @@ impl UiState {
         self.due.clear();
         self.dismissed.clear();
         self.last_chat_ms = None;
-        let old = self.ui().clone();
+        let mut old = self.ui().clone();
+        if old.windows.confirm.a.is_some_and(|id| id < 0) {
+            old.windows.confirm = WinArgs::default();
+        }
         *self.edit() = Ui {
             production: old.production,
             chat: old.chat,
@@ -195,7 +198,10 @@ impl UiActions {
                         .iter()
                         .any(|e| e.id == *id && !e.answered)
                     {
-                        if *close && let Some(w) = self.state.edit().windows.remote_mut(screen) {
+                        if *close
+                            && let Some(w) = self.state.edit().windows.remote_mut(screen)
+                            && (w.popup_id.is_none() || w.popup_id == *popup_done)
+                        {
                             w.open = false;
                         }
                         if let Some(done) = popup_done
@@ -205,6 +211,7 @@ impl UiActions {
                         }
                         if let Some(open) = open
                             && let Some(w) = self.state.edit().windows.remote_mut(&open.screen)
+                            && (w.popup_id.is_none() || w.popup_id == *popup_done)
                         {
                             w.open = true;
                             w.a = open.a;

@@ -268,11 +268,11 @@ fn anchor_point(
 ) -> Option<render::glam::Vec3> {
     use render::entities::LabelData;
     use ui2_host::{AnchorKind, ModelValue};
-    // The id of a city or a unit is the low 32 bits of its key.
-    let id = || match key {
-        ModelValue::Key(k) => Some(k.0 as u32 as i32),
-        ModelValue::I32(v) => Some(*v),
-        ModelValue::U32(v) => Some(*v as i32),
+    // City and unit ids are local to the owner. Skins may also supply an unscoped numeric id.
+    let entity = || match key {
+        ModelValue::Key(k) => Some((Some(i8::try_from(k.0 >> 32).ok()?), k.0 as u32 as i32)),
+        ModelValue::I32(v) => Some((None, *v)),
+        ModelValue::U32(v) => Some((None, *v as i32)),
         _ => None,
     };
     match kind {
@@ -293,27 +293,28 @@ fn anchor_point(
             Some(render::glam::Vec3::new(c.x, h, c.y))
         }
         AnchorKind::City => {
-            let id = id()?;
+            let (owner, id) = entity()?;
             labels.iter().find_map(|l| match &l.data {
-                LabelData::CityBanner(b) if b.city == id => Some(l.position),
+                LabelData::CityBanner(b) if b.city == id && owner.is_none_or(|o| o == b.owner) => {
+                    Some(l.position)
+                }
                 _ => None,
             })
         }
         AnchorKind::Unit => {
-            let id = id()?;
+            let (owner, id) = entity()?;
             labels
                 .iter()
                 .find_map(|l| match &l.data {
-                    LabelData::UnitFlag(f) if f.unit == id => Some(l.position),
+                    LabelData::UnitFlag(f)
+                        if f.unit == id && owner.is_none_or(|o| o == f.owner) =>
+                    {
+                        Some(l.position)
+                    }
                     _ => None,
                 })
                 .or_else(|| {
-                    // The owner is the high half of the key.
-                    let ModelValue::Key(k) = key else {
-                        return None;
-                    };
-                    let owner = i8::try_from(k.0 >> 32).ok()?;
-                    let (x, y) = unit_cell(owner, id)?;
+                    let (x, y) = unit_cell(owner?, id)?;
                     let c = render::hexgrid::cell_center(x, y);
                     let h = terrain.map_or(0.0, |t| render::terrain::terrain_height_at(t, c));
                     Some(render::glam::Vec3::new(
@@ -3139,6 +3140,19 @@ mod tests {
                     civilian: false,
                 }),
             },
+            WorldLabel {
+                cell: (5, 6),
+                position: at * 3.0,
+                data: LabelData::CityBanner(CityBanner {
+                    city: 7,
+                    owner: 3,
+                    name: "City-state".into(),
+                    population: 1,
+                    capital: true,
+                    hp: 0,
+                    max_hp: 0,
+                }),
+            },
         ];
         let key = |k: u64| ModelValue::Key(ui2_host::ModelKey(k));
         let none = |_: i8, _: i32| None;
@@ -3150,10 +3164,21 @@ mod tests {
             anchor_point(AnchorKind::City, &key(8), &labels, None, &none),
             None
         );
-        // The id is the low 32 bits of the key.
+        assert_eq!(
+            anchor_point(AnchorKind::City, &key((3 << 32) | 7), &labels, None, &none),
+            Some(at * 3.0)
+        );
+        assert_eq!(
+            anchor_point(AnchorKind::City, &key((2 << 32) | 7), &labels, None, &none),
+            None
+        );
+        assert_eq!(
+            anchor_point(AnchorKind::Unit, &key(9), &labels, None, &none),
+            Some(at * 2.0)
+        );
         assert_eq!(
             anchor_point(AnchorKind::Unit, &key((3 << 32) | 9), &labels, None, &none),
-            Some(at * 2.0)
+            None
         );
         let plot = ModelValue::Struct(vec![ModelValue::I32(2), ModelValue::I32(3)]);
         let c = render::hexgrid::cell_center(2, 3);

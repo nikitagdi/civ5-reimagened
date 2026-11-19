@@ -1,6 +1,6 @@
 # Server-built UI screens
 
-A screen is an optional model root fetched for the player's seat. Its schema filename, Lua filename and registry name share one lowercase name. Visible screens also use that name for their window and skin `data-screen`. The reserved `hud` service screen supplies HUD facts continuously and has no window. `techs` is the working example. The protocol version is 17 and the model version is 1.2.
+A screen is an optional model root fetched for the player's seat. Its schema filename, Lua filename and registry name share one lowercase name. Visible screens also use that name for their window and skin `data-screen`. The reserved `hud` service screen supplies HUD facts continuously and has no window. `techs` is the working example. The protocol version is 17 and the model version is 1.5.
 
 ## Adding a screen
 
@@ -197,7 +197,7 @@ node tools/playtest/run.mjs --scenario ui2-popups --attach http://127.0.0.1:8860
 
 `city_rename.rename` takes `a` as the seat-local city id and `text` as the proposed name. It validates the trimmed name before `net.send_text("SendRenameCity", name, city)`. `religion.found` preserves `text` with `net.send_text("SendFoundReligion", name, ...ints)`. Successful decisions finish `args.popup_id` transactionally. Capture decisions require `args.popup`; pending capture cities remain read-only across both screen actions and production commands.
 
-`rich_tooltips` is a service root in `SCREEN_NAMES`, excluded from `WINDOW_SCREEN_NAMES` and `WindowId`. Query it with `Query::Screen`, without opening a window. The skin names the thing under the pointer in `ui.tip` (`kind`, `id`, optional `city`; markup sets it on `pointerenter` and clears `id` on `pointerleave`); while `ui.tip.id` is set `RemoteRoots` asks `Query::Screen { screen: "rich_tooltips", args: [kind, id, city] }`, clears the root when the thing changes and drops late answers, as for the plot (`ui2-source/src/remote.rs`). The technology cards of the tree set it, and their tooltip shows the core's progress line (`techs.tip.core`); `parts/rich_tooltips.html` (`rich_tooltips-tip`) keeps the technology section of the generic template, which no element shows yet: the sections of the other kinds come with the windows that hover them.
+`rich_tooltips` is a service root excluded from the window registry. Hover sets `ui.tip` with the kind and object ID and, for a technology unlock, the chip slot. The host asks `Query::Screen` for that exact target. Changing the target clears its old result and discards late answers. Technology cards use the core progress line and unlock chips use the seat's item help. The server returns the help as lines of text and game font icon references. Leaving an unlock chip restores the parent card's hover. Closing the technology window ends its unlock subscription.
 
 Decision confirmation buttons bind `data-bind-hotkey="'Enter'"`. A visible, enabled explicit Enter hotkey in the active screen takes priority over the previously focused control. Repeats are consumed without resubmission. Group roots use `data-esc="call policies.escape()"` to cancel nested drafts before attempting the queue-protected window close.
 
@@ -222,8 +222,12 @@ owns the shared HUD bounds. `hud.top-center` is the existing toast/streamer slot
 Common native catalog actions preserve `unit.act.found-city`, `unit.act.fortify`,
 `unit.act.sleep` and `unit.act.skip`. Their filtered buttons share server validation
 and bound native hotkeys with `unit-panel.action`.
+Delete opens `confirm` with a negative ID encoding the unit. Native popup IDs are positive.
+Yes rechecks the seat's ownership and the core's availability before sending Delete.
+No, Escape, and Enter close the question without giving the order.
 `diplo.declare-war` opens `declare_war` with `a` as the rival team and `b=-1`.
 `deal-ai.*` names AI negotiation parts. Human negotiation retains `deal.*`.
+Talk with an AI (`diplo.begin_diplo`, `civ_ribbon.begin_diplo`) starts the seat's leader session and opens `leader`; the discussion, the trade table and the AI's replies are described in `docs-dev/ui2-ai-diplomacy.md`. A deal leaves a screen only through `net.send_deal(name, blob, ...)`, which accepts the deal messages (`sendNetDealAccepted`) with the core's own blob from `GcUiDealQuery` (lowercase hex, at most 8192 digits).
 Diplomacy tooltips are included through `parts/diplo_tips.html` in the tooltip layer.
 
 `ui2-hud-integration` checks HUD bounds at both supported acceptance resolutions,
@@ -251,7 +255,7 @@ node tools/playtest/run.mjs --scenario ui2-maplink --attach http://127.0.0.1:886
 
 The original's interface modes that ask for a plot (ranged attack, air strike, air sweep, rebase, nuke, paradrop, airlift, embark, disembark, route to, attack) and the city strike and city-state gifts share one map mode, `ui.map_mode == "target"` (model 1.4). `map.target {kind, unit?, city?, a?}` starts it: `kind` is `unit` (`a` is the interface mode's row, `-1` the unit's ranged attack), `city` (the city's strike), `gift_unit` or `gift_improvement` (`a` is the city-state). `ui.target` names what acts. The HUD catalog offers an action as `client = "target"` when the original's `CvUnit::CanDoInterfaceMode` would (`hud.lua`, `TARGET_MODES`).
 
-`targets` is a service root. While the mode lasts `RemoteRoots` asks `Query::Screen { screen: "targets", args: [kind, id, action] }` once, and again when the world changes. The script lists the revealed plots the core accepts for the seat, the radius to draw (`area`) and the look of the marks (`look`: the original's highlight styles). `reason` says why nothing can be chosen. The app draws the marks instead of the reach and path (`MovePreview`, `aim`). A left click on a listed plot sends the screen action `targets.go`, which checks the plot again and gives the order with the original's net message (`sendPushMission`, `sendDoTask` for the city strike, `sendGiftUnit`, `sendMinorGiftTileImprovement`); the mode ends. A left click elsewhere does nothing. A right click, Escape or the hint's cancel button ends the mode. In the mode a flag of another player's unit counts as a click on its plot.
+`targets` is a service root. While the mode lasts `RemoteRoots` asks `Query::Screen { screen: "targets", args: [kind, id, action] }` once, and again when the world changes. The script lists the revealed plots the core accepts for the seat, the radius to draw (`area`) and the look of the marks (`look`: the original's highlight styles). `reason` says why nothing can be chosen. The app draws the marks instead of the reach and path (`MovePreview`, `aim`). A left click on a listed plot sends the screen action `targets.go`, which checks the plot again and gives the order with the original's net message (`sendPushMission`, `sendDoTask` for the city strike, `sendGiftUnit`, `sendMinorGiftTileImprovement`); the mode ends. A left click elsewhere does nothing. A right click, Escape or the hint's cancel button ends the mode. The red strike button above an eligible owned city banner enters this mode. The end-turn reminder can still take the player to that city. In the mode a flag of another player's unit counts as a click on its plot.
 
 ```sh
 cargo test -p ui2-actions --test targeting

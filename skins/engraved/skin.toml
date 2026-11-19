@@ -5,7 +5,7 @@ id = "engraved"
 version = "0.1.0"
 title = "skin.title"
 entry = "index.html"
-model = "1.4"
+model = "1.5"
 api = "1.0"
 default = true
 
@@ -44,7 +44,7 @@ city_list = { sort = "population", desc = true }
 city = { hover_yield = "", tiles_open = false, hover_kind = "", buy_tiles = false, sell = -1, hover = -1, queue_mode = 0, repeat_order = false }
 tech_award = { hover = "" }
 tech_panel = { open = false, last_id = -1, last_name = "", done = false }
-techs = { hover = -1, unlock = -1, x = 0.0 }
+techs = { hover = -1, x = 0.0 }
 demographics = { hover = "population" }
 victory = { view = "summary", hover = "irr" }
 espionage = { agents_sort = "name", agents_sort_desc = false, own_sort = "name", own_sort_desc = false, other_sort = "civilization", other_sort_desc = false, intrigue_sort = "turn", intrigue_sort_desc = true, tab = "overview", moving = -1, hover_agent = -1, hover_city = -1, selected = -1, ask = -1, confirm = "" }
@@ -75,5 +75,5 @@ files = ["js/chat.js", "js/minimap.js", "js/unit_lists.js", "js/unit_panel.js", 
 reads = ["chat", "unit", "unit_rename", "production", "research", "hud", "ui.windows.techs", "techs", "city", "city_rename", "city_captured", "free_great_person", "policies", "ideology", "pantheon", "religion", "religion_overview", "ui", "civ_ribbon", "leader", "game", "culture", "archaeology", "city_state", "congress", "mp_vote", "turn", "end_game", "advisor", "game_menu", "confirm", "message", "goody_choice", "notification_log"]
 
 [verify]
-states = ["hud", "top_panel", "end_turn", "unit_panel", "unit_rename", "unit_lists", "minimap", "on_map", "hud-timer", "hud-chat", "production", "production-sorted", "research", "techs", "techs--free", "techs--steal", "tech_award", "rich_tooltips", "tech_panel", "tech_panel--done", "city", "city_list", "city_rename", "city_captured", "free_great_person", "city--puppet", "city--sell", "city_rename--invalid", "city_rename--raze", "city_rename--unraze", "city_rename--annex", "city_captured--annex", "free_great_person--faith", "free_great_person--maya", "policies", "ideology", "pantheon", "religion", "religion_overview", "diplo", "declare_war", "declare_war--plunder", "civ_ribbon", "deal", "leader", "diplo--global", "diplo--deals", "diplo--empty", "declare_war--citystate", "civ_ribbon--host", "deal--player", "deal--player-incoming", "economy", "military", "trade_routes", "espionage", "victory", "demographics", "demographics-whos-winning", "economy-happiness", "trade_routes-choose", "trade_routes-home", "trade_routes-port", "culture", "great_work", "archaeology", "archaeology--writing", "city_state", "city_state--enter", "city_state--liberate", "congress", "congress--propose", "congress--splash", "congress--project", "congress--empty", "mp_vote", "mp_vote--result", "mp_vote--concede", "mp_vote--diplo", "confirm", "message", "goody_choice", "notification_log", "game_menu", "end_game", "advisor"]
+states = ["hud", "top_panel", "end_turn", "unit_panel", "unit_rename", "unit_lists", "minimap", "on_map", "hud-timer", "hud-chat", "production", "production-sorted", "research", "techs", "techs--free", "techs--steal", "tech_award", "rich_tooltips", "tech_panel", "tech_panel--done", "city", "city_list", "city_rename", "city_captured", "free_great_person", "city--puppet", "city--sell", "city_rename--invalid", "city_rename--raze", "city_rename--unraze", "city_rename--annex", "city_captured--annex", "free_great_person--faith", "free_great_person--maya", "policies", "ideology", "pantheon", "religion", "religion_overview", "diplo", "declare_war", "declare_war--plunder", "civ_ribbon", "deal", "leader", "diplo--global", "diplo--deals", "diplo--empty", "declare_war--citystate", "civ_ribbon--host", "deal--player", "deal--player-incoming", "economy", "military", "trade_routes", "espionage", "victory", "demographics", "demographics-whos-winning", "economy-happiness", "trade_routes-choose", "trade_routes-home", "trade_routes-port", "culture", "great_work", "archaeology", "archaeology--writing", "city_state", "city_state--enter", "city_state--liberate", "congress", "congress--propose", "congress--splash", "congress--project", "congress--empty", "mp_vote", "mp_vote--result", "mp_vote--concede", "mp_vote--diplo", "confirm", "confirm--disband", "message", "goody_choice", "notification_log", "game_menu", "end_game", "advisor"]
 golden = [{ state = "hud", viewport = [1920, 1080], scale = 1.0 }]

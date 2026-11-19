@@ -191,6 +191,23 @@ pub struct CoreEvent {
     pub entry: JournalEntry,
 }
 
+/// A leader's line the core showed a human seat (`gDLL->GameplayDiplomacyAILeaderMessage`, `GC_EVENT_DIPLO_LEADER_MESSAGE`):
+/// the original shows it in that human's leader screen.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LeaderMessage {
+    pub human: PlayerId,
+    pub ai: PlayerId,
+    /// `DiploUIStateTypes` of the line.
+    pub state: i32,
+    pub animation: i32,
+    pub data: i32,
+    /// An AI request (the AI's turn waited for the answer), not a reply.
+    pub request: bool,
+    /// How the core answered it (`0` declined offer .. `4` dismissed).
+    pub answer: i32,
+    pub text: String,
+}
+
 /// Core for the worker. Methods that take a `team` or a `player` return what that viewer may know.
 pub trait Core {
     /// Bind the running game to a worker-owned screen interpreter.
@@ -321,6 +338,12 @@ pub trait Core {
 
     /// Drains player popups independently of journal delivery.
     fn popups(&mut self) -> Vec<crate::popups::CorePopup> {
+        Vec::new()
+    }
+
+    /// Drains the leaders' lines the core showed the human seats since the previous call (the replies to a seat's own
+    /// diplomacy and the AI requests), in order. A core without leaders answers none.
+    fn leader_messages(&mut self) -> Vec<LeaderMessage> {
         Vec::new()
     }
 

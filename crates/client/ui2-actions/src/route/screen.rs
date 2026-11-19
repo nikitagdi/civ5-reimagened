@@ -11,11 +11,30 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
         ctx.refuse(RefuseWhy::NoScreen);
         return;
     }
+    let window = ctx.ui.ui().windows.remote(screen);
+    let disband = screen == "confirm"
+        && action == "choose"
+        && window.is_some_and(|w| {
+            w.open
+                && w.popup_id.is_none()
+                && w.a.is_some_and(|a| a < 0 && Some(a) == intent.int("a"))
+        });
+    if disband
+        && ctx
+            .ui
+            .ui()
+            .pending
+            .iter()
+            .any(|order| order.target.as_ref() == screen)
+    {
+        return;
+    }
+    let action = if disband { "disband" } else { action };
     let mut args: Vec<_> = ["a", "b", "c", "d"]
         .into_iter()
         .filter_map(|name| intent.int(name).map(|n| (name.to_owned(), i64::from(n))))
         .collect();
-    if let Some(id) = ctx.ui.ui().windows.remote(screen).and_then(|w| w.popup_id) {
+    if let Some(id) = window.and_then(|w| w.popup_id) {
         args.push(("popup_id".into(), i64::from(id)));
     }
     // A session operation to run once the server applied the action: checked now, so a refused one sends nothing.

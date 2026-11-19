@@ -24,6 +24,7 @@
     </div>
     <div class="pgrid" data-bind-if="{{state.policies.tab == 'policies' || (state.policies.tab == '' && policies.open_tab == 'policies')}}">
       <div class="pbr" data-bind-for="b:{{policies.branches}}" data-bind-class-toggle="lock:{{b.state == 'blocked' || b.state == 'era_locked'}}">
+        <img class="branch-art" data-bind-if="{{b.background != null}}" data-bind-src="{{b.background}}">
         <div class="bh"><img class="gi s32" data-bind-src="{{b.icon}}"><b data-part="policies.name" data-bind-value="{{b.name}}"></b><span class="n" data-part="policies.status" data-bind-class-toggle="done:{{b.state == 'complete'}}; warn:{{b.state == 'blocked'}}"><span data-bind-if="{{b.state == 'opened'}}" data-l10n="policies.count" data-l10n-args="{{b.adopted}}, {{b.total}}">Adopted policies</span><span data-bind-if="{{b.state == 'complete'}}" data-l10n="policies.state.complete">Complete</span><span data-bind-if="{{b.state == 'closed'}}" data-l10n="policies.state.closed">Not adopted</span><span data-bind-if="{{b.state == 'era_locked'}}" data-l10n="policies.state.era_locked">Requires a later era</span><span data-bind-if="{{b.state == 'blocked'}}" data-l10n="policies.state.blocked">Blocked</span></span></div>
         <div class="pfx"><span class="ell" data-bind-value="{{b.opener}}"></span><span class="ell" data-bind-class-toggle="done:{{b.finisher_done}}" data-bind-value="{{b.finisher}}"></span></div>
         <div class="tree" data-bind-if="{{b.state == 'opened' || b.state == 'complete'}}" data-bind-class-toggle="exp:{{state.policies.expanded}}">

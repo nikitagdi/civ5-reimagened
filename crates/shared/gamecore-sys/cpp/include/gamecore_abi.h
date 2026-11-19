@@ -141,6 +141,7 @@ typedef struct gc_event {
 #define GC_EVENT_HUMAN_PHASE_STARTED 14 /* args: turn. The AI civs are done, the humans may act (autosave point of the turn start) */
 #define GC_EVENT_HUMAN_WAR_DECLARED 15 /* args: from_team, to_team, extends_timer (1 when a side of the declaration moves simultaneously now) */
 #define GC_EVENT_PLAYER_TURN_STATUS 16 /* args: status (0 = setTurnActive(true), 1 = setTurnActive(false)), player (any, AI and minors included), human (1 when the player is a human). Not sent by a replica. */
+#define GC_EVENT_DIPLO_LEADER_MESSAGE 17 /* args: ai_player, state (DiploUIStateTypes), human, animation, data1, request (1: an AI request), answer (how the core answered it: 0 declined offer, 1 refused demand, 2 refused request, 3 replied no, 4 dismissed); text: the leader's line. Every leader message the core shows a human (gDLL->GameplayDiplomacyAILeaderMessage: the replies to the human's own diplomacy and the AI's requests), also the ones DIPLO_AUTO_DECLINED reports. Not sent by a replica. */
 
 /* gc_host is copied by gc_create; user must outlive the instance.
  * read_file returns a whole file from the game-data layout (db/gameplay.db, db/loc-en_us.db,

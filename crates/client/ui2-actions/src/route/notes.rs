@@ -108,6 +108,12 @@ fn activate(ctx: &mut Ctx<'_>, note: &Note) {
                 open(ctx, WindowId::Deal, Some(note.data1), None);
             }
         }
+        // DoBeginDiploWithHuman...: the AI the note names (data1) talks to the player in its leader window.
+        NoteGo::Leader => {
+            if note.data1 >= 0 {
+                open(ctx, WindowId::Leader, Some(note.data1), None);
+            }
+        }
         NoteGo::FreeGreatPerson => open(ctx, WindowId::FreeGreatPerson, Some(0), None),
         NoteGo::FaithGreatPerson => open(ctx, WindowId::FreeGreatPerson, Some(1), None),
         NoteGo::MayaBonus => open(ctx, WindowId::FreeGreatPerson, Some(2), None),

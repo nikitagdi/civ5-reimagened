@@ -345,6 +345,22 @@ hp_max = "i32"
 embarked = "bool"
 religion = "RichTooltipsUnitShortReligion?"
 
+[type.RichTooltipsUnlockPart]
+key = "i32"
+text = "text"
+icon = "asset?"
+
+[type.RichTooltipsUnlockLine]
+key = "i32"
+parts = { list = "RichTooltipsUnlockPart", key = "key" }
+
+[type.RichTooltipsUnlock]
+tech = "i32"
+slot = "i32"
+title = "text"
+icon = "asset"
+lines = { list = "RichTooltipsUnlockLine", key = "key" }
+
 [model.rich_tooltips]
 _optional = true
 unavailable_reason = "text?"
@@ -360,6 +376,7 @@ player = "RichTooltipsPlayer?"
 civ_note = "RichTooltipsCivNote?"
 unit_action = "RichTooltipsUnitAction?"
 unit_short = { list = "RichTooltipsUnitShort", key = "key" }
+unlock = "RichTooltipsUnlock?"
 
 [type.RichTooltipsUnique]
 civ = "text"

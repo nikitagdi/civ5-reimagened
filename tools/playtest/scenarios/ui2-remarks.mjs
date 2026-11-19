@@ -131,11 +131,11 @@ export async function run({ server, opts }) {
       await page.mouse.move(chip.x + chip.w / 2, chip.y + chip.h / 2);
       await page.waitForTimeout(800);
       await shot(page, "unlock-tip");
-      const p = await probe(page);
-      const name = texts(p, "techs.unlock-tip.name");
-      result.unlock = { chip, name, kind: texts(p, "techs.unlock-tip.kind") };
-      check("3. an unlock chip shows its own tooltip with the item's name", name.length > 0, JSON.stringify(result.unlock));
-      check("3. the unlock tooltip names the kind", texts(p, "techs.unlock-tip.kind").length > 0);
+      const p = await waitFor(page, p => texts(p, "techs.unlock-tip.line").length > 0
+        || texts(p, "techs.unlock-tip.name").length > 0, "unlock help");
+      const name = texts(p, "techs.unlock-tip.name"), lines = texts(p, "techs.unlock-tip.line");
+      result.unlock = { chip, name, lines };
+      check("3. the unlock chip shows its description", name.length + lines.length > 0, JSON.stringify(result.unlock));
       const utip = await partBox(page, "techs.unlock-tip");
       check("3. the unlock tooltip hangs at its chip", utip && Math.abs(utip.x - chip.x) < 400 && Math.abs(utip.y - chip.y) < 400, JSON.stringify(utip));
     }

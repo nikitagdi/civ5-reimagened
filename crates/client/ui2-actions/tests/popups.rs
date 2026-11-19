@@ -19,6 +19,48 @@ fn sync(r: &mut Rig, head: Option<&HudPopup>) {
 }
 
 #[test]
+fn a_delete_request_cannot_replace_a_core_confirmation() {
+    let mut r = Rig::new();
+    r.one(
+        "screen.act",
+        &[
+            ("screen", s("hud")),
+            ("action", s("do_action")),
+            ("a", n(1)),
+            ("b", n(4)),
+        ],
+    );
+    let native = HudPopup {
+        id: 7,
+        screen: "confirm".into(),
+        a: Some(7),
+        b: None,
+        decision: true,
+    };
+    sync(&mut r, Some(&native));
+    r.actions.on_event(
+        &ActionEvent::Answered {
+            id: 1,
+            outcome: CommandOutcome::ScreenApplied {
+                screen: "hud".into(),
+                open: Some(ScreenOpen {
+                    screen: "confirm".into(),
+                    a: Some(-2),
+                    b: None,
+                }),
+                popup_done: None,
+                close: false,
+            },
+        },
+        r.now,
+    );
+    r.actions.publish(&mut r.store);
+    let w = &r.ui().windows.confirm;
+    assert!(w.open && w.popup_decision);
+    assert_eq!((w.a, w.popup_id), (Some(7), Some(7)));
+}
+
+#[test]
 fn informational_popup_opens_closes_dismisses_and_reconnects() {
     let mut r = Rig::new();
     let first = head(7, false);

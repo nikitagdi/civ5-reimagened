@@ -59,18 +59,19 @@ function tech_unlocks_for(player)
         "UnitClassType", "UnitType", civ)
     local buildings = tech_choices(GameInfo.BuildingClasses, "DefaultBuilding", GameInfo.Civilization_BuildingClassOverrides,
         "BuildingClassType", "BuildingType", civ)
-    return function(tech, indexed)
+    return function(tech, indexed, markup)
         local out, seen = array(), {}
+        local function caption(text) return markup and text or plain(text) end
         local function add(key, kind, name, asset)
             if seen[key] then return end
             seen[key] = true
             out[#out + 1] = {idx = indexed and #out or nil, key = key, kind = kind, name = name, icon = asset}
         end
         local function item(row, kind, name)
-            add(row.Type, kind, name and plain(name) or L(row.Description), icon(row.IconAtlas, row.PortraitIndex or row.IconIndex))
+            add(row.Type, kind, name and caption(name) or L(row.Description), icon(row.IconAtlas, row.PortraitIndex or row.IconIndex))
         end
         local function ability(key, name)
-            add("ability:" .. key, "ability", plain(name), tech_function_icon)
+            add("ability:" .. key, "ability", caption(name), tech_function_icon)
         end
         for unit in GameInfo.Units{PrereqTech = tech.Type} do
             if units[unit.Class] == unit.Type then item(unit, "unit") end
@@ -171,6 +172,43 @@ function __unit_plot(player, id)
     local u = p and p:GetUnitByID(id)
     if not u or u:IsDead() or u:IsDelayedDeath() then return true end
     return true, u:GetX(), u:GetY()
+end
+-- Leader sessions. The original's leader screen lives on the human's own machine; a server keeps one session per seat:
+-- the AI the seat talks to, the screen's mode and the leader's last line. Screen state, never game state: it changes in
+-- the seat's screen actions and when the core shows the seat a leader's line (__leader_message, after the seat's own
+-- diplomacy ran as an ordered command).
+local leader_sessions, leader_repeats = {}, {}
+function leader_session(player, ai)
+    local s = leader_sessions[player]
+    if s and (ai == nil or s.ai == ai) then return s end
+    return nil
+end
+-- Starts the seat's session with `ai` and its greeting. `count`: the seat opened it from its leader list, which the
+-- original counts per turn and partner (UI.ChangeStartDiploRepeatCount) for the repeat greetings.
+function leader_begin(player, ai, count)
+    local turn = Game.GetGameTurn()
+    local r = leader_repeats[player]
+    if not r or r.turn ~= turn or r.ai ~= ai then
+        r = {turn = turn, ai = ai, n = 0}
+        leader_repeats[player] = r
+    end
+    if count then r.n = r.n + 1 end
+    local s = {ai = ai, mode = "main", phrase = "", offers = 0}
+    local greeting = rawget(_G, "GcUiLeaderGreeting")
+    if greeting then s.phrase = plain(greeting(player, ai, r.n) or "") end
+    leader_sessions[player] = s
+    return s
+end
+function leader_end(player) leader_sessions[player] = nil end
+-- The core showed the seat a leader's line (gDLL->GameplayDiplomacyAILeaderMessage): its session shows it, in the
+-- discussion menu when the leader's state is the human-invoked discussion, else at the leader's root.
+function __leader_message(player, ai, state, text, request, answer)
+    local s = leader_sessions[player]
+    if not s or s.ai ~= ai then return end
+    local states = rawget(_G, "DiploUIStateTypes") or {}
+    s.phrase = plain(text)
+    s.state = state
+    s.mode = state == states.DIPLO_UI_STATE_DISCUSS_HUMAN_INVOKED and "discussion" or "main"
 end
 function __screen_call(f, ...)
     local scope = rawget(_G, "GcUiReadScope")
