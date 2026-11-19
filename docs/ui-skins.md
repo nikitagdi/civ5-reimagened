@@ -288,7 +288,8 @@ This is what a skin author uses most.
   attribute may hold several actions separated by `;`. The other actions are `set state.x = <expression>`,
   `toggle state.x`, `call <name>(<args>)` (an event for the skin's script) and `stop`. The events are `click`,
   `dblclick`, `contextmenu`, `pointerenter`, `pointerleave`, `pointerdown`, `pointerup`, `input`, `change`,
-  `submit`, `focus` and `blur`. Session operations (save, leave for the lobby, pause and resume the timer, kick) are
+  `submit`, `focus` and `blur`. `pointerenter`, `pointerleave`, `:hover` and tooltips also follow a pointer that
+  stands still while what is under it changes (a window opens or closes under it). Session operations (save, leave for the lobby, pause and resume the timer, kick) are
   the intent `session.op(op: 'save')`; the `session` root says who hosts and who sits where and is connected, and
   `screen.act(..., then: 'leave')` leaves once the server applied the action. What holds the end of turn is the
   ordered list `turn.blockers` (the first entry is the core's own blocker; it is empty when the turn can end) and

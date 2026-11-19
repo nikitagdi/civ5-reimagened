@@ -292,6 +292,10 @@ impl Runtime {
             &mut self.errors,
         );
         let paint_ms = anchor_ms + watch.lap();
+        // The geometry under a pointer that stands still may have changed (a window opened under it): its hover
+        // and tooltip follow now, as after a move; the new states are styled and painted in the next frame. An idle
+        // frame compares the hit-test key only. Its time is in `cpu_ms`.
+        self.rehover();
         let cpu_ms = watch.total();
         self.clock = clock;
         let (input_ms, input_events) = std::mem::take(&mut self.input_time);

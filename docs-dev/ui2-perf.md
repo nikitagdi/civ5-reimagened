@@ -41,7 +41,7 @@ Headless Chromium on a desktop GPU, release single-thread build, p50 of `frame.c
 | techs scroll | - | 4.89 | 4.11 | 1.87 | 0.85 |
 | city / policies / diplomacy / economy / trade routes idle | - | - | 3.8-4.05 | 0.11-0.24 | 0.11-0.12 |
 
-Budget: the HUD idle under 0.5 ms over the classic HUD, a window idle under 1 ms, the technology tree scrolling under 3 ms, and no window losing more than 10 % of the frame rate. What is left of an idle frame is the model source (about 0.06 ms: reading the store's changes) and the skin script tick (about 0.02 ms).
+Budget: the HUD idle under 0.5 ms over the classic HUD, a window idle under 1 ms, the technology tree scrolling under 3 ms, and no window losing more than 10 % of the frame rate. What is left of an idle frame is the model source (about 0.06 ms: reading the store's changes) and the skin script tick (about 0.02 ms). The idle rows of `ui2-perf` are judged on p95 as well, so a cost paid on one frame in twenty (a service root's answer every 250 ms at 60 fps, both roots: one in eight) fails them even when the mean is low.
 
 ## Why an idle frame is free
 
@@ -51,6 +51,8 @@ Budget: the HUD idle under 0.5 ms over the classic HUD, a window idle under 1 ms
 - **Culling.** Paint does not emit items whose clip leaves nothing (`ui2-draw` `Item::clipped_away`) and does not descend into subtrees whose clip is empty, so a scrolled list paints its visible rows only.
 - **Hit testing.** A pointer move walks only the subtrees whose clip contains the point, and reuses per-chunk lists of hittable boxes (page bounds and clip) cached under the arena's revision, its marks and the anchors' placements; a box is checked exactly only when its bounds contain the point.
 - **Input timing.** Input handled between frames is timed and counted into the next frame's stats (`ui2.input_ms`).
+- **Hover under a still pointer.** The runtime keeps the pointer's last position and the hit-test key (the arena's revision, its marks and the anchors' placements) the hover was tested under. After paint, a frame whose key changed (a window opened or closed under the pointer, a panel moved, a map anchor slid) tests the hover again at that position, with `pointerleave`/`pointerenter` and the tooltip as for a move (`Runtime::rehover`); the hit cache is the same one a move uses. An idle frame compares the key and does nothing else; frames that change geometry (a transition, the camera moving map anchors) pay one hit-test each, counted in `ui2.cpu_ms`.
+- **Server-built roots.** `hud` and `civ_ribbon` are asked again only when something the client sees may have changed them: the world's revision (every batch the server sends, including the replica journal of every seat's orders and the turn state), a focus argument or an order's final outcome, plus a backstop every 3 s (`SERVICE_REFRESH_MS` in `ui2-source/src/remote.rs`). An answer equal to the one whose root is in the model is not parsed or applied. Before, both were asked every 250 ms whatever happened and every answer was parsed and written (about 1.4 ms of `ui2.source_ms` each), which put the HUD's idle p95 at 1.2 ms.
 
 ## GPU
 

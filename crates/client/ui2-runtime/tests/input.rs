@@ -1196,6 +1196,85 @@ fn input_tooltip_is_placed_again_when_its_size_changes() {
 }
 
 #[test]
+fn input_hover_follows_a_window_that_opens_and_closes_under_a_still_pointer() {
+    // The HUD's `tip` (a tooltip, enter/leave handlers) and, in the window layer above it, `cover`: hidden until it
+    // is disabled (`:disabled` stands for a window being opened by the model here).
+    let mut f = Fx::new();
+    let tip = f
+        .el("tip", at(300.0, 0.0, 50.0, 20.0))
+        .tooltip(TemplateId(1))
+        .bind(on(Event::Pointerenter, vec![call("enter", &[])]))
+        .bind(on(Event::Pointerleave, vec![call("leave", &[])]));
+    let hud = f.layer(Layer::Hud, "hud").child(tip);
+    let shown = at(250.0, 0.0, 200.0, 100.0);
+    let hidden = with(shown.clone(), |r| r.display = Display::None);
+    let records = vec![f.kit.record(hidden), f.kit.record(shown)];
+    let set = f.kit.set(
+        vec![Cond {
+            up: 0,
+            kind: CondKind::Disabled,
+        }],
+        records,
+    );
+    let cover_name = f.kit.str("cover");
+    let cover = TNode::el(set)
+        .part(cover_name)
+        .bind(on(Event::Pointerenter, vec![call("cover-enter", &[])]))
+        .bind(on(Event::Pointerleave, vec![call("cover-leave", &[])]));
+    let window = f.layer(Layer::Window, "window").child(cover);
+    let tips = f.layer(Layer::Tooltip, "tips");
+    f.kit.template("doc", vec![hud, window, tips]);
+    let tip_box = f.el("tip-box", at(0.0, 0.0, 80.0, 30.0));
+    f.kit.template("tip", vec![tip_box]);
+    let mut h = Host::with(f.kit.finish().expect("package"), Env::default());
+
+    h.ptr(PointerPhase::Move, 310.0, 10.0);
+    h.frame();
+    assert_eq!(h.rt.hovered(), Some(h.part("tip")));
+    assert!(h.rt.tooltip().is_some());
+    assert_eq!(h.script_names(), vec!["enter"]);
+    // Idle frames with the pointer still: nothing is tested again, nothing is dispatched.
+    for _ in 0..5 {
+        let s = h.frame().stats;
+        assert_eq!((s.layout_runs, s.chunks_rebuilt, s.visited), (0, 0, 0));
+    }
+    assert!(h.rt.drain_output().is_empty());
+
+    // The window opens under the pointer, which does not move: the frame that lays it out moves the hover to it,
+    // the HUD node gets its leave and its tooltip goes.
+    let cover = h.part("cover");
+    h.rt.set_state(cover, StateBits::DISABLED, true);
+    h.frame();
+    assert_eq!(h.rt.hovered(), Some(cover));
+    assert_eq!(h.rt.tooltip(), None);
+    assert_eq!(h.script_names(), vec!["leave", "cover-enter"]);
+    h.frame();
+    assert!(h.rt.dump_rects(Some("tip-box")).is_empty());
+    for _ in 0..5 {
+        let s = h.frame().stats;
+        assert_eq!((s.layout_runs, s.chunks_rebuilt, s.visited), (0, 0, 0));
+    }
+    assert!(h.rt.drain_output().is_empty());
+
+    // It closes: the HUD node under the pointer is hovered again and its tooltip comes back.
+    h.rt.set_state(cover, StateBits::DISABLED, false);
+    h.frame();
+    assert_eq!(h.rt.hovered(), Some(h.part("tip")));
+    assert!(h.rt.tooltip().is_some());
+    assert_eq!(h.script_names(), vec!["cover-leave", "enter"]);
+
+    // A pointer that left the window is not tested again when the geometry changes.
+    h.send(pointer(PointerPhase::Left, 310.0, 10.0, None));
+    assert_eq!(h.rt.hovered(), None);
+    assert_eq!(h.script_names(), vec!["leave"]);
+    h.rt.set_state(cover, StateBits::DISABLED, true);
+    h.frame();
+    h.frame();
+    assert_eq!(h.rt.hovered(), None);
+    assert!(h.rt.drain_output().is_empty());
+}
+
+#[test]
 fn input_disabled_node_still_gets_pointer_enter_and_leave_and_its_tooltip() {
     // As Chrome does for a disabled control: the pointer's arrival and departure reach it (a researched technology
     // still names itself for its tooltip); a click does not.

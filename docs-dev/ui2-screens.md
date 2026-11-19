@@ -53,7 +53,7 @@ The worker creates its Lua state on the first request. A new or resumed worker s
 
 `intent screen.act(screen: '<name>', action: '<action>', a: ..., b: ..., c: ..., d: ..., text: ...)` sends `Command::ScreenAction` through the normal numbered order path. The optional `text` is an owned UTF-8 string on the wire and arrives as `args.text` in Lua, or nil when omitted. The server rejects values longer than 256 bytes or containing Unicode control characters as action errors. Numeric arguments cannot use the reserved name `text`. Waiting orders appear in `ui.pending`. The `techs.research` action accepts `a` as the technology id and `b` as 0 for replacement or 1 for append.
 
-`ui2_source::remote::RemoteRoots` owns subscriptions. An open window is queried immediately, then on WorldView revision changes at most every 250 ms with one request outstanding per subscription. Final outcomes of its own screen actions invalidate the subscription. Every final command outcome also invalidates `hud`, covering queue changes that leave the synchronized world unchanged. Closing clears the root and discards late responses. Reconnection resets pending subscriptions. Responses pass the same schema conversion as `Sample`. Failures clear the root and are reported through `UiActions::screen_error` into `ui.errors`.
+`ui2_source::remote::RemoteRoots` owns subscriptions. An open window is queried immediately, then on WorldView revision changes at most every 250 ms with one request outstanding per subscription. Final outcomes of its own screen actions invalidate the subscription. Every final command outcome also invalidates `hud`, covering queue changes that leave the synchronized world unchanged. The service roots `hud` and `civ_ribbon` follow the same rules (revision, focus arguments, outcomes) and are also asked every 3 s (`SERVICE_REFRESH_MS`) as a backstop; an idle game asks nothing else. An answer equal to the one whose root is in the model is neither parsed nor applied. Closing clears the root and discards late responses. Reconnection resets pending subscriptions. Responses pass the same schema conversion as `Sample`. Failures clear the root and are reported through `UiActions::screen_error` into `ui.errors`.
 
 The host supplies time, world revision and `HostNet::query`. Query answers reach it as `ActionEvent::QueryResult`. The host keeps the `hud` subscription active while v2 runs and feeds its validated root to `ui2_source::hud::HudScreen`, the default `HudExtras` implementation.
 
@@ -100,7 +100,7 @@ The scenario opens the HUD technology button, checks the full catalog, selects a
 
 `hud` is reserved during schema assembly. `SCREEN_NAMES` includes every registry screen. `WINDOW_SCREEN_NAMES` contains the screens with generated `WinArgs` and `WindowId` entries. `Windows::remote("hud")` returns `None`.
 
-`Query::Screen { screen: "hud", args }` accepts optional `city` and `unit` ids scoped to the requesting seat. The client chooses the open production city, falling back to the selected city, and the selected unit. Changing focus clears only the corresponding `hud.city` or `hud.unit` facts and rejects late answers with old arguments. Shared research, resources, turn and popup facts remain available during the refresh. Disconnects and new games clear the root. Refreshes use the open-window throttle and one outstanding request.
+`Query::Screen { screen: "hud", args }` accepts optional `city` and `unit` ids scoped to the requesting seat. The client chooses the open production city, falling back to the selected city, and the selected unit. Changing focus clears only the corresponding `hud.city` or `hud.unit` facts and rejects late answers with old arguments. Shared research, resources, turn and popup facts remain available during the refresh. Disconnects and new games clear the root. Refreshes use the open-window rules (revision changes, outcomes, the 250 ms throttle, one outstanding request) plus the 3 s backstop.
 
 The root has `research.techs` (status, zero-based queue position, turns, progress and cost), `top.resources` (strategic and luxury counts), `top.policies` (branch metadata and adopted counts), and `top.tourism`. Optional `city` contains its id, full slot-keyed queue, overflow and per-option lock explanations. Optional `unit` contains its id, promotions and applicable action rows. Omitted focus arguments omit the corresponding object. City and unit lookups enforce ownership.
 
@@ -205,8 +205,9 @@ Decision confirmation buttons bind `data-bind-hotkey="'Enter'"`. A visible, enab
 ## Integrated HUD and diplomacy
 
 `civ_ribbon` is a service root, excluded from `WindowId` and `WINDOW_SCREEN_NAMES`.
-The host polls `Query::Screen { screen: "civ_ribbon", args: [] }` every 250 ms,
-with one outstanding request and the same disconnect/reset handling as `hud`.
+The host keeps `Query::Screen { screen: "civ_ribbon", args: [] }` subscribed and refreshes it
+as `hud` (on world revision changes, every 3 s at the latest), with one outstanding request and the
+same disconnect/reset handling.
 `state.civ_ribbon.visible` folds the list while preserving the diplomacy corner.
 `Digit1` toggles it. `state.civ_ribbon.left` selects its side.
 

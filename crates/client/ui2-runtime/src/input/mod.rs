@@ -29,7 +29,8 @@
 //! pressed node; on release `pointerup` on the node under the pointer, then `click` (left button) or
 //! `contextmenu` (right) on the nearest node holding both the pressed and the released node, and `dblclick`
 //! after a second click on one node within [`DOUBLE_CLICK_MS`]; `pointerenter`/`pointerleave` as the hover
-//! chain changes. A left press moves the focus to the nearest focusable node at or above the pressed one, or
+//! chain changes, also under a pointer that stands still while the geometry under it changes (a window opens
+//! under it: the frame tests the hover again at its last position). A left press moves the focus to the nearest focusable node at or above the pressed one, or
 //! takes it from the UI (also a press in the world).
 
 pub(crate) mod controls;
@@ -121,6 +122,11 @@ pub(crate) struct InputState {
     pub hotkeys: Vec<(String, u8, NodeId)>,
     /// The hit-test lists of the chunks, kept while the geometry stays (see `hit::HitCache`).
     pub hit_cache: std::cell::RefCell<hit::HitCache>,
+    /// Where the pointer last was over the window (physical pixels); `None` once it left the window.
+    pointer: Option<(f64, f64)>,
+    /// The geometry key (`Runtime::hit_key`) the hover was last tested under: the frame tests it again at
+    /// `pointer` when the key changed (see `Runtime::rehover`).
+    hover_key: Option<(u64, u64)>,
 }
 
 impl InputState {
@@ -163,11 +169,17 @@ impl Runtime {
         Vec2::new(x as f32 / k, y as f32 / k)
     }
 
-    pub(crate) fn hit_at(&self, p: Vec2) -> Hit {
-        let key = (
+    /// The geometry a hit-test reads: the arena's revision (structure) and its marks mixed with the anchors'
+    /// placements. While it stays, a hit-test at one point gives the same answer.
+    fn hit_key(&self) -> (u64, u64) {
+        (
             self.arena.revision(),
             self.arena.marks() ^ self.anchors.placed.rotate_left(32),
-        );
+        )
+    }
+
+    pub(crate) fn hit_at(&self, p: Vec2) -> Hit {
+        let key = self.hit_key();
         let mut g = self.geo().with_cache(&self.input.hit_cache, key);
         // A screen whose root takes no pointer (`pointer-events: none`, as the city view over the map) blocks only
         // where its own panels are: the layers below take the rest.
@@ -273,6 +285,8 @@ impl Runtime {
 
     fn on_pointer(&mut self, p: &PointerEvent, now_ms: f64) -> InputOutcome {
         if p.phase == PointerPhase::Left {
+            self.input.pointer = None;
+            self.input.hover_key = None;
             self.update_hover(None);
             return match self.input.capture {
                 PointerCapture::Ui(_) => InputOutcome::Consumed,
@@ -280,6 +294,8 @@ impl Runtime {
             };
         }
         let at = self.css(p.position.x, p.position.y);
+        self.input.pointer = Some((p.position.x, p.position.y));
+        self.input.hover_key = Some(self.hit_key());
         let hit = self.hit_at(at);
         self.update_hover(hit.node);
         match p.phase {
@@ -513,6 +529,24 @@ impl Runtime {
             self.dispatch_here(id, Event::Pointerenter);
         }
         self.update_tooltip();
+    }
+
+    /// The geometry under a pointer that has not moved changed (a window opened under it, the panel under it went
+    /// or moved, a map anchor slid under it): the hover is tested again at the pointer's last position, with
+    /// `pointerleave`/`pointerenter` and the tooltip as for a move. The frame calls it after paint; it tests only
+    /// when the hit-test key changed since the last test, so an idle frame compares two numbers and the hit
+    /// cache is reused as for a move.
+    pub(crate) fn rehover(&mut self) {
+        let Some((x, y)) = self.input.pointer else {
+            return;
+        };
+        let key = self.hit_key();
+        if self.input.hover_key == Some(key) {
+            return;
+        }
+        self.input.hover_key = Some(key);
+        let hit = self.hit_at(self.css(x, y));
+        self.update_hover(hit.node);
     }
 
     /// A press in the world takes the focus from the UI.

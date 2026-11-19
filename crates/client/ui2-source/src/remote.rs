@@ -4,6 +4,20 @@ use std::collections::BTreeMap;
 use ui2_model::generated::{SCREEN_NAMES, TargetKind, Ui};
 use ui2_model::{ModelWriter, Sample, Schema, Value};
 
+/// The shortest time between two requests of one subscription, ms.
+const THROTTLE_MS: u64 = 250;
+
+/// The service roots (`hud`, `civ_ribbon`) are asked again after this long even when nothing the client sees says
+/// they changed, ms. Everything that changes them reaches the client as a world revision (every batch the server
+/// sends: the view, the replica journal of every seat's orders, the turn state with its timers and the seats that
+/// ended the turn), a focus argument or a final order outcome; this bounds what could slip past those.
+const SERVICE_REFRESH_MS: u64 = 3_000;
+
+/// Roots the host keeps subscribed while v2 runs, without a window.
+fn is_service(screen: &str) -> bool {
+    matches!(screen, "hud" | "civ_ribbon")
+}
+
 #[derive(Default)]
 struct Subscription {
     args: Vec<(String, i64)>,
@@ -13,6 +27,17 @@ struct Subscription {
     waiting: Option<u32>,
     dirty: bool,
     has_root: bool,
+    /// The answer whose root is in the model now, kept while it is whole: the same answer again (an unchanged
+    /// screen, the usual reply to a refresh) is not parsed or applied a second time.
+    applied: Option<String>,
+}
+
+impl Subscription {
+    /// The root is gone or no longer what the last answer made it.
+    fn forget_root(&mut self) {
+        self.has_root = false;
+        self.applied = None;
+    }
 }
 
 #[derive(Default)]
@@ -56,12 +81,16 @@ impl RemoteRoots {
         let result = match answer {
             QueryAnswer::Screen {
                 screen: actual,
-                json,
-            } if actual == screen && json.len() <= 512 * 1024 => {
-                let json: serde_json::Value = match serde_json::from_str(json) {
+                json: text,
+            } if actual == screen && text.len() <= 512 * 1024 => {
+                if subscription.has_root && subscription.applied.as_deref() == Some(text.as_str()) {
+                    // The root already holds exactly this answer: nothing to parse, nothing to write.
+                    return None;
+                }
+                let json: serde_json::Value = match serde_json::from_str(text) {
                     Ok(v @ serde_json::Value::Object(_)) => v,
                     _ => {
-                        subscription.has_root = false;
+                        subscription.forget_root();
                         return Some(clear_error(writer, screen, "invalid screen JSON object"));
                     }
                 };
@@ -72,12 +101,22 @@ impl RemoteRoots {
                         let (_, value) = s.roots().first().ok_or("missing screen root")?;
                         put(writer, screen, value)
                     })
+                    .map(|()| text)
             }
             QueryAnswer::Error { reason } => Err(reason.clone()),
             _ => Err("unexpected screen response".into()),
         };
-        subscription.has_root = result.is_ok();
-        result.err().map(|e| clear_error(writer, screen, &e))
+        match result {
+            Ok(text) => {
+                subscription.has_root = true;
+                subscription.applied = Some(text.clone());
+                None
+            }
+            Err(e) => {
+                subscription.forget_root();
+                Some(clear_error(writer, screen, &e))
+            }
+        }
     }
 
     /// Subscribe open registry windows. The host supplies a monotonic clock and the world's revision.
@@ -174,6 +213,8 @@ impl RemoteRoots {
             };
             let s = self.subscriptions.entry((*name).into()).or_default();
             if args != s.args {
+                // Whatever the root keeps of the old arguments is not the last answer any more.
+                s.applied = None;
                 if *name == "hud" && s.has_root {
                     // Focus changes invalidate only the facts owned by the changed argument.
                     // Global research, resources, turn state and popup facts remain usable.
@@ -196,7 +237,7 @@ impl RemoteRoots {
                 if let Err(e) = put(writer, name, &Value::None) {
                     errors.push(e);
                 }
-                s.has_root = false;
+                s.forget_root();
                 s.waiting = None;
                 s.revision = None;
             }
@@ -204,18 +245,18 @@ impl RemoteRoots {
                 && s.last_sent
                     .is_some_and(|t| now_ms.saturating_sub(t) >= 15_000)
             {
-                s.has_root = false;
+                s.forget_root();
                 s.waiting = None;
                 s.revision = None;
                 errors.push(clear_error(writer, name, "screen query timed out"));
             }
-            if connected
-                && s.waiting.is_none()
-                && (matches!(*name, "hud" | "civ_ribbon")
-                    || s.dirty
-                    || s.revision != Some(revision))
-                && s.last_sent.is_none_or(|t| now_ms.saturating_sub(t) >= 250)
-            {
+            // Asked when something the client sees may have changed it: its arguments or an order's outcome
+            // (`dirty`), or the world's revision. An idle game asks nothing, except a service root's slow refresh.
+            let since = s.last_sent.map(|t| now_ms.saturating_sub(t));
+            let due = s.dirty
+                || s.revision != Some(revision)
+                || (is_service(name) && since.is_none_or(|t| t >= SERVICE_REFRESH_MS));
+            if connected && s.waiting.is_none() && due && since.is_none_or(|t| t >= THROTTLE_MS) {
                 let id = query(Query::Screen {
                     screen: (*name).into(),
                     args: s.args.clone(),
@@ -480,7 +521,7 @@ mod tests {
     }
 
     #[test]
-    fn ribbon_service_polls_without_a_window_and_discards_disconnected_answers() {
+    fn ribbon_service_is_kept_without_a_window_and_discards_disconnected_answers() {
         use ui2_model::generated::CivRibbon;
         let mut remote = RemoteRoots::default();
         let mut store = ModelStore::new(Schema::v1());
@@ -518,18 +559,127 @@ mod tests {
                 .is_none()
         );
         assert!(store.get::<Option<CivRibbon>>().unwrap().is_some());
-        tick(&mut remote, &mut store, 249, true);
-        assert_eq!(remote.subscriptions["civ_ribbon"].waiting, None);
+        // The same world: not asked again until the slow refresh.
         tick(&mut remote, &mut store, 250, true);
+        assert_eq!(remote.subscriptions["civ_ribbon"].waiting, None);
+        tick(&mut remote, &mut store, SERVICE_REFRESH_MS - 1, true);
+        assert_eq!(remote.subscriptions["civ_ribbon"].waiting, None);
+        tick(&mut remote, &mut store, SERVICE_REFRESH_MS, true);
         assert_eq!(remote.subscriptions["civ_ribbon"].waiting, Some(2));
-        tick(&mut remote, &mut store, 251, false);
+        tick(&mut remote, &mut store, SERVICE_REFRESH_MS + 1, false);
         remote.answer(2, &answer, &mut store.writer(Owner::Source));
         assert!(store.get::<Option<CivRibbon>>().unwrap().is_none());
-        tick(&mut remote, &mut store, 500, true);
+        // Reconnected: asked at once (the throttle still holds).
+        tick(&mut remote, &mut store, SERVICE_REFRESH_MS + 250, true);
         assert_eq!(remote.subscriptions["civ_ribbon"].waiting, Some(3));
         remote.reset();
         remote.answer(3, &answer, &mut store.writer(Owner::Source));
         assert!(store.get::<Option<CivRibbon>>().unwrap().is_none());
+    }
+
+    #[test]
+    fn service_roots_stay_quiet_in_an_idle_game_and_follow_world_focus_and_outcomes() {
+        use ui2_model::{Key, generated::Hud};
+        let mut remote = RemoteRoots::default();
+        let mut store = ModelStore::new(Schema::v1());
+        let mut ui = Ui::default();
+        let mut asked: Vec<(String, u64)> = Vec::new();
+        let mut tick =
+            |remote: &mut RemoteRoots, store: &mut ModelStore, ui: &Ui, now: u64, revision: u64| {
+                let errors = remote.frame(
+                    now,
+                    revision,
+                    true,
+                    ui,
+                    &mut store.writer(Owner::Source),
+                    |q| {
+                        let Query::Screen { screen, .. } = q else {
+                            return 0;
+                        };
+                        asked.push((screen, now));
+                        asked.len() as u32
+                    },
+                );
+                assert!(errors.is_empty(), "{errors:?}");
+                asked.clone()
+            };
+        let hud = |tourism: i32| QueryAnswer::Screen {
+            screen: "hud".into(),
+            json: format!(r#"{{"top":{{"tourism":{tourism}}},"city":{{"id":3}}}}"#),
+        };
+        let ribbon = QueryAnswer::Screen {
+            screen: "civ_ribbon".into(),
+            json: "{}".into(),
+        };
+        fn answer(remote: &mut RemoteRoots, store: &mut ModelStore, screen: &str, a: &QueryAnswer) {
+            let id = remote.subscriptions[screen].waiting.expect("a request");
+            assert!(
+                remote
+                    .answer(id, a, &mut store.writer(Owner::Source))
+                    .is_none()
+            );
+        }
+        let first = tick(&mut remote, &mut store, &ui, 0, 1);
+        assert_eq!(first.len(), 2, "both service roots are asked at once");
+        answer(&mut remote, &mut store, "hud", &hud(17));
+        answer(&mut remote, &mut store, "civ_ribbon", &ribbon);
+        // An idle game: a minute of frames asks once per root and slow refresh, never at the frame rate.
+        let mut now = 0;
+        while now < 60_000 {
+            now += 10;
+            tick(&mut remote, &mut store, &ui, now, 1);
+            for screen in ["hud", "civ_ribbon"] {
+                if remote.subscriptions[screen].waiting.is_some() {
+                    let a = if screen == "hud" {
+                        hud(17)
+                    } else {
+                        ribbon.clone()
+                    };
+                    answer(&mut remote, &mut store, screen, &a);
+                }
+            }
+        }
+        let idle = tick(&mut remote, &mut store, &ui, now, 1).len() - 2;
+        assert_eq!(idle, 2 * (60_000 / SERVICE_REFRESH_MS) as usize, "{idle}");
+        // An unchanged answer is not parsed or applied again: a root taken away behind the subscription's back
+        // (nothing does that; here it shows the answer was skipped) stays away.
+        store.writer(Owner::Source).put(None::<Hud>).expect("clear");
+        now += SERVICE_REFRESH_MS;
+        tick(&mut remote, &mut store, &ui, now, 1);
+        answer(&mut remote, &mut store, "hud", &hud(17));
+        answer(&mut remote, &mut store, "civ_ribbon", &ribbon);
+        assert!(store.get::<Option<Hud>>().unwrap().is_none());
+        // A changed answer is applied.
+        now += SERVICE_REFRESH_MS;
+        tick(&mut remote, &mut store, &ui, now, 1);
+        answer(&mut remote, &mut store, "hud", &hud(18));
+        answer(&mut remote, &mut store, "civ_ribbon", &ribbon);
+        let root = |store: &ModelStore| store.get::<Option<Hud>>().unwrap().clone().unwrap();
+        assert_eq!(root(&store).top.tourism, Some(18));
+        // The world changes (a batch from the server): both are asked again once the throttle allows.
+        let before = tick(&mut remote, &mut store, &ui, now + 100, 2).len();
+        now += THROTTLE_MS;
+        let after = tick(&mut remote, &mut store, &ui, now, 2);
+        assert_eq!(after.len(), before + 2);
+        answer(&mut remote, &mut store, "hud", &hud(18));
+        answer(&mut remote, &mut store, "civ_ribbon", &ribbon);
+        // Another focus: its fact goes at once, and the next answer is applied even when its text is the one already
+        // applied (the root no longer holds all of it). The ribbon has no focus and is not asked.
+        assert!(root(&store).city.is_some());
+        ui.selection.city = Some(Key::new(0, 5));
+        now += THROTTLE_MS;
+        let focus = tick(&mut remote, &mut store, &ui, now, 2);
+        assert!(root(&store).city.is_none());
+        assert_eq!(focus.len(), after.len() + 1);
+        assert_eq!(focus.last(), Some(&("hud".to_string(), now)));
+        answer(&mut remote, &mut store, "hud", &hud(18));
+        assert!(root(&store).city.is_some());
+        // An order's final outcome asks the HUD again in an unchanged world.
+        now += THROTTLE_MS;
+        remote.invalidate("hud");
+        let outcome = tick(&mut remote, &mut store, &ui, now, 2);
+        assert_eq!(outcome.len(), focus.len() + 1);
+        assert_eq!(outcome.last(), Some(&("hud".to_string(), now)));
     }
 
     #[test]
