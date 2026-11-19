@@ -153,6 +153,10 @@ fn targets_list_what_the_core_accepts_for_the_seat_and_change_nothing() {
         "targets",
         &[("kind", 0), ("id", warrior), ("action", attack_row)],
     );
+    // The HUD's catalogs, its automate-explore test with an enemy next to the warrior among them. The archer's
+    // ranged attack and the warrior's attack are targeting orders.
+    let hud = screen(&mut h, 4, 0, "hud", &[("unit", archer)]);
+    let melee_hud = screen(&mut h, 7, 0, "hud", &[("unit", warrior)]);
     assert_eq!(
         digest(&mut h),
         before,
@@ -177,10 +181,6 @@ fn targets_list_what_the_core_accepts_for_the_seat_and_change_nothing() {
         before,
         "the HUD's targeting availability changed the simulation"
     );
-    // The HUD's catalogs (after the digest checks: its automate-explore test is not pure with an enemy near, which
-    // predates this mode). The archer's ranged attack and the warrior's attack are targeting orders.
-    let hud = screen(&mut h, 4, 0, "hud", &[("unit", archer)]);
-    let melee_hud = screen(&mut h, 7, 0, "hud", &[("unit", warrior)]);
     let attack = melee_hud["unit"]["catalog"]
         .as_array()
         .unwrap()
