@@ -245,3 +245,16 @@ cargo test -p ui2-source remote::tests
 cargo test -p game-host --test plot_help_script
 node tools/playtest/run.mjs --scenario ui2-maplink --attach http://127.0.0.1:8860 --out target/pt-maplink
 ```
+
+## Map targeting
+
+The original's interface modes that ask for a plot (ranged attack, air strike, air sweep, rebase, nuke, paradrop, airlift, embark, disembark, route to, attack) and the city strike and city-state gifts share one map mode, `ui.map_mode == "target"` (model 1.4). `map.target {kind, unit?, city?, a?}` starts it: `kind` is `unit` (`a` is the interface mode's row, `-1` the unit's ranged attack), `city` (the city's strike), `gift_unit` or `gift_improvement` (`a` is the city-state). `ui.target` names what acts. The HUD catalog offers an action as `client = "target"` when the original's `CvUnit::CanDoInterfaceMode` would (`hud.lua`, `TARGET_MODES`).
+
+`targets` is a service root. While the mode lasts `RemoteRoots` asks `Query::Screen { screen: "targets", args: [kind, id, action] }` once, and again when the world changes. The script lists the revealed plots the core accepts for the seat, the radius to draw (`area`) and the look of the marks (`look`: the original's highlight styles). `reason` says why nothing can be chosen. The app draws the marks instead of the reach and path (`MovePreview`, `aim`). A left click on a listed plot sends the screen action `targets.go`, which checks the plot again and gives the order with the original's net message (`sendPushMission`, `sendDoTask` for the city strike, `sendGiftUnit`, `sendMinorGiftTileImprovement`); the mode ends. A left click elsewhere does nothing. A right click, Escape or the hint's cancel button ends the mode. In the mode a flag of another player's unit counts as a click on its plot.
+
+```sh
+cargo test -p ui2-actions --test targeting
+cargo test -p game-host --test real_targets -- --test-threads=1
+node tools/playtest/run.mjs --scenario ui2-targets --attach http://127.0.0.1:8880 --out target/pt-targets
+```
+The scenario needs a server started with `CIV5_TEST_LUA=tools/playtest/fixtures/targets.lua`.

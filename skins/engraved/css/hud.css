@@ -304,3 +304,9 @@ img.yi { width: 22px; height: 22px; flex: none; }
 .minimap-buttons button svg.i { width: 14px; height: 14px; }
 .minimap-buttons button:hover, .minimap-buttons button.on { color: var(--bone); box-shadow: inset 0 0 0 1px var(--engrave-hi); }
 .minimap-buttons button:disabled { color: var(--bone-3); cursor: default; }
+/* The map's targeting mode: the order's name under the top strip, in the middle. */
+.aim-row { position: absolute; left: 0; right: 0; top: 56px; display: flex; justify-content: center; pointer-events: none; }
+.aim { display: flex; align-items: center; gap: 12px; padding: 6px 6px 6px 14px; border-radius: 6px; background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--brass); color: var(--bone); pointer-events: auto; }
+.aim .nm { font-weight: 500; }
+.aim .why { color: var(--bone-2); }
+.banner .strike { display: flex; align-items: center; margin-left: 4px; color: var(--brass); }

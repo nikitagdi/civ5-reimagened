@@ -1538,6 +1538,11 @@ impl V2Frontend {
             let selection = serde_json::json!({
                 "unit": sel.unit.map(|k| [(k.0 >> 32) as i64, i64::from(k.0 as u32 as i32)]),
                 "mode": format!("{:?}", ui.actions().ui().map_mode),
+                "target": ui.actions().ui().target.as_ref().map(|t| serde_json::json!({"kind": t.kind.as_str(), "a": t.a})),
+                "targets": ui.store().get::<Option<ui2_host::Targets>>().and_then(Option::as_ref).map(|r| serde_json::json!({
+                    "id": r.id, "action": r.action, "name": match &r.name { ui2_host::ModelText::Raw(s) => s.as_ref(), ui2_host::ModelText::Key { key, .. } => key.as_ref() }, "look": r.look.as_str(), "any": r.any,
+                    "plots": r.plots.iter().map(|p| [p.x, p.y]).collect::<Vec<_>>(), "area": r.area.len(),
+                })),
                 "path": ui.actions().ui().path.iter().map(|p| [i64::from(p.plot.x), i64::from(p.plot.y), i64::from(p.turn)]).collect::<Vec<_>>(),
             });
             let notes = ui
@@ -1994,7 +1999,10 @@ impl Frontend for V2Frontend {
             owner: (k.0 >> 32) as u32 as i32 as i8,
             unit: k.0 as u32 as i32,
             mode: match state.map_mode {
-                ui2_host::MapMode::Select => crate::play::FocusMode::Select,
+                // The targeting mode draws from `map_aim`; the focus keeps the ring.
+                ui2_host::MapMode::Select | ui2_host::MapMode::Target => {
+                    crate::play::FocusMode::Select
+                }
                 ui2_host::MapMode::Move => crate::play::FocusMode::Move,
                 ui2_host::MapMode::RangeAttack => crate::play::FocusMode::Ranged,
             },
@@ -2002,6 +2010,51 @@ impl Frontend for V2Frontend {
         Some(super::MapPreview {
             focus,
             pointer_on_world: self.pointer_on_world,
+        })
+    }
+
+    /// The targeting mode (`ui.map_mode` is `target`): the plots of the `targets` root once it answered for this
+    /// mode, none before.
+    fn map_aim(&self) -> Option<crate::play::Aim> {
+        let Stage::Running(ui) = &self.stage else {
+            return None;
+        };
+        if !self.game_up || self.sample_on {
+            return None;
+        }
+        let state = ui.actions().ui();
+        if state.map_mode != ui2_host::MapMode::Target {
+            return None;
+        }
+        let t = state.target.as_ref()?;
+        let id = |k: Option<ui2_host::ModelKey>| k.map_or(-1, |k| k.0 as u32 as i32);
+        let (id, action) = match t.kind {
+            ui2_host::TargetKind::Unit => (id(t.unit), t.a),
+            ui2_host::TargetKind::City => (id(t.city), 0),
+            _ => (t.a, 0),
+        };
+        let root = ui
+            .store()
+            .get::<Option<ui2_host::Targets>>()
+            .and_then(Option::as_ref)
+            .filter(|r| r.id == id && r.action == action);
+        let cells = |l: &ui2_host::ModelList<ui2_host::TargetsPlotRow>| {
+            l.iter()
+                .map(|p| (i32::from(p.x), i32::from(p.y)))
+                .collect::<Vec<_>>()
+        };
+        use crate::play::AimLook;
+        Some(crate::play::Aim {
+            look: match root.map(|r| r.look) {
+                Some(ui2_host::TargetsLook::Air) => AimLook::Air,
+                Some(ui2_host::TargetsLook::Sweep) => AimLook::Sweep,
+                Some(ui2_host::TargetsLook::Move) => AimLook::Move,
+                Some(ui2_host::TargetsLook::Attack) => AimLook::Attack,
+                Some(ui2_host::TargetsLook::Mark) => AimLook::Mark,
+                Some(ui2_host::TargetsLook::Fire) | None => AimLook::Fire,
+            },
+            plots: root.map(|r| cells(&r.plots)).unwrap_or_default(),
+            area: root.map(|r| cells(&r.area)).unwrap_or_default(),
         })
     }
 

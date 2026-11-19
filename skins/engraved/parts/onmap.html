@@ -5,7 +5,8 @@
      production bar; the strength in a small tab over it, the health under it while the city is damaged. -->
 <div class="banner" data-part="city-banner" data-bind-for="c:{{map.cities}}" data-bind-filter="{{state.minimap.banners && !ui.windows.city.open}}" data-anchor="city:{{c.key}}" data-tooltip="on-map-city-tip" data-on-pointerenter="call on_map.hover('city', c.key)" data-bind-class-toggle="mine:{{c.mine}}; sel:{{c.key == ui.selection.city}}; fog:{{!c.visible}}">
   <div class="cb">
-    <div class="str"><svg class="i"><use href="#i-str"/></svg><span data-bind-value="{{c.strength}}">18</span></div>
+    <!-- The original banner's range strike button: the city's ranged strike picks its target on the map. -->
+    <div class="str"><svg class="i"><use href="#i-str"/></svg><span data-bind-value="{{c.strength}}">18</span><button class="strike" data-part="city-banner.strike" data-bind-if="{{c.mine && c.can_shoot}}" data-on-click="intent map.target(kind: 'city', city: c.key)"><svg class="i"><use href="#i-bow"/></svg></button></div>
     <button class="body" data-bind-disabled="{{!c.mine || ui.map_mode != 'select'}}" data-on-click="call city.open(c.key)">
       <div class="chp" data-bind-if="{{c.hp_fraction < 1}}"><div class="fill" data-bind-style-width="{{c.hp_fraction * 100}}%" style="width: 50%"></div></div>
       <!-- A bound colour is not passed on to the children: each text on the plate binds the ink colour itself. -->
@@ -115,7 +116,7 @@
 <!-- SIMPLIFIED(SIMP-276): Unit flags still omit stack and cargo-count badges. -->
 <!-- The unit flag: the shape of its kind in the owner's colours, the original flag glyph on it (grey when the unit has
      no moves left), the health bar over it only while the unit is damaged. -->
-<button class="uflag" data-part="unit-flag" data-bind-for="u:{{map.units}}" data-bind-filter="{{state.minimap.flags && !ui.windows.city.open && (u.mine || (u.domain != 'air' && !u.cargo))}}" data-anchor="unit:{{u.key}}" data-tooltip="on-map-unit-tip" data-on-pointerenter="call on_map.hover('unit', u.key)" data-bind-class-toggle="sel:{{u.key == ui.selection.unit}}; wait:{{u.mine && u.waiting}}; war:{{u.at_war}}; spent:{{u.spent}}" data-bind-disabled="{{!u.mine}}" data-on-click="intent unit.select(unit: u.key)">
+<button class="uflag" data-part="unit-flag" data-bind-for="u:{{map.units}}" data-bind-filter="{{state.minimap.flags && !ui.windows.city.open && (u.mine || (u.domain != 'air' && !u.cargo))}}" data-anchor="unit:{{u.key}}" data-tooltip="on-map-unit-tip" data-on-pointerenter="call on_map.hover('unit', u.key)" data-bind-class-toggle="sel:{{u.key == ui.selection.unit}}; wait:{{u.mine && u.waiting}}; war:{{u.at_war}}; spent:{{u.spent}}" data-bind-disabled="{{!u.mine && ui.map_mode != 'target'}}" data-on-click="intent unit.select(unit: u.key)">
   <div class="pole"></div>
   <div class="hp" data-bind-if="{{u.hp_fraction < 1}}"><div class="fill" data-bind-class-toggle="low:{{u.hp_fraction < 0.33}}; on-map-hp-mid:{{u.hp_fraction >= 0.33 && u.hp_fraction < 0.66}}" data-bind-style-width="{{u.hp_fraction * 100}}%" style="width: 45%"></div></div>
   <div class="fw" data-bind-if="{{hud != null}}"><div class="flag" data-bind-for="s:{{hud.map.units}}" data-bind-filter="{{s.key == u.key}}" data-bind-style-background-color="{{u.color}}" data-bind-class-toggle="f-civ:{{s.shape == 'civilian' || s.shape == 'trade'}}; f-emb:{{s.shape == 'embarked'}}; f-fort:{{s.shape == 'fortified' || s.shape == 'garrison'}}">

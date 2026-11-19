@@ -347,7 +347,7 @@ impl Screens {
                         self.screen(&screen)?;
                         if matches!(
                             screen.as_str(),
-                            "hud" | "rich_tooltips" | "civ_ribbon" | "plot_help"
+                            "hud" | "rich_tooltips" | "civ_ribbon" | "plot_help" | "targets"
                         ) {
                             return Err(LuaError::msg("service screen has no window"));
                         }

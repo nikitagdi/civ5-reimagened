@@ -1078,10 +1078,30 @@ local function action_hotkey(a)
     return (a.CtrlDown and "Ctrl+" or "") .. (a.AltDown and "Alt+" or "") .. (a.ShiftDown and "Shift+" or "") .. code
 end
 
+-- The interface modes that ask for a plot (the `targets` screen scans them), with the core's CvUnit::CanDoInterfaceMode
+-- for each.
+local AIR = DomainTypes and DomainTypes.DOMAIN_AIR or 1
+local TARGET_MODES = {
+    INTERFACEMODE_RANGE_ATTACK = function(u) return u:CanRangeStrike() and u:GetDomainType() ~= AIR end,
+    INTERFACEMODE_AIRSTRIKE = function(u) return u:GetDomainType() == AIR and u:CanRangeStrike() end,
+    -- canAirSweep: the sweep's check at the unit's own plot (in range, seen) is the unit's own test.
+    INTERFACEMODE_AIR_SWEEP = function(u) return u:GetDomainType() == AIR and u:CanStartMission(GameInfoTypes.MISSION_AIR_SWEEP, u:GetX(), u:GetY(), u:GetPlot(), 0) end,
+    INTERFACEMODE_REBASE = function(u) return u:GetDomainType() == AIR end,
+    INTERFACEMODE_NUKE = function(u) return u:CanNuke() end,
+    INTERFACEMODE_PARADROP = function(u, visible) return u:CanParadrop(u:GetPlot(), visible) end,
+    INTERFACEMODE_AIRLIFT = function(u) return u:CanAirlift(u:GetPlot()) end,
+    INTERFACEMODE_EMBARK = function(u) return u:CanEmbark(u:GetPlot()) end,
+    INTERFACEMODE_DISEMBARK = function(u) return u:CanDisembark(u:GetPlot()) end,
+    INTERFACEMODE_ROUTE_TO = function(u) return u:CanBuildRoute() end,
+    INTERFACEMODE_ATTACK = function(u, visible)
+        return u:IsCanAttackWithMove() and not u:IsOutOfAttacks() and (visible or u:IsEnemyInMovementRange(false, u:IsCityAttackOnly()))
+    end,
+}
+
 local function action_available(unit, a, visible)
     if not a or not a.Visible then return false end
     if a.Type == "INTERFACEMODE_MOVE_TO" then return visible or unit:MovesLeft() > 0 end
-    if a.Type == "INTERFACEMODE_RANGE_ATTACK" then return unit:CanRangeStrike() end
+    if TARGET_MODES[a.Type] then return TARGET_MODES[a.Type](unit, visible) end
     if a.Type == "INTERFACEMODE_ESTABLISH_TRADE_ROUTE" then return unit:CanMakeTradeRoute(unit:GetPlot()) end
     if a.MissionType and a.MissionType >= 0 then
         return unit:CanStartMission(a.MissionType, a.MissionData, -1, unit:GetPlot(), visible and 1 or 0)
@@ -1089,7 +1109,8 @@ local function action_available(unit, a, visible)
     if a.CommandType and a.CommandType >= 0 then
         return unit:CanDoCommand(a.CommandType, a.CommandData, -1, visible and 1 or 0, 1)
     end
-    -- SIMPLIFIED(SIMP-440): Other interface-mode actions need client targeting intents and a seat-scoped applicability query.
+    -- SIMPLIFIED(SIMP-440): the group moves (INTERFACEMODE_MOVE_TO_TYPE, _MOVE_TO_ALL) are not offered: the client
+    -- selects one unit. The other modes that ask for a plot are above and in the `targets` screen.
     return false
 end
 
@@ -1151,7 +1172,7 @@ local function action_catalog(player, unit)
             out[#out + 1] = {id = id, name = plain(L(a.TextKey)), help = a.Help and plain(L(a.Help)) or "", hotkey = action_hotkey(a), enabled = enabled,
                 reason = reason, promotion = a.CommandType == GameInfoTypes.COMMAND_PROMOTION,
                 build = a.MissionType == GameInfoTypes.MISSION_BUILD,
-                client = ({INTERFACEMODE_MOVE_TO="move", INTERFACEMODE_RANGE_ATTACK="range_attack", MISSION_ALERT="alert", MISSION_HEAL="heal", COMMAND_DELETE="disband", COMMAND_UPGRADE="upgrade", AUTOMATE_EXPLORE="explore", AUTOMATE_BUILD="automate_build", MISSION_PILLAGE="pillage", MISSION_FOUND="found_city", MISSION_FORTIFY="fortify", MISSION_SLEEP="sleep", MISSION_SKIP="skip",
+                client = TARGET_MODES[a.Type] and "target" or ({INTERFACEMODE_MOVE_TO="move", MISSION_ALERT="alert", MISSION_HEAL="heal", COMMAND_DELETE="disband", COMMAND_UPGRADE="upgrade", AUTOMATE_EXPLORE="explore", AUTOMATE_BUILD="automate_build", MISSION_PILLAGE="pillage", MISSION_FOUND="found_city", MISSION_FORTIFY="fortify", MISSION_SLEEP="sleep", MISSION_SKIP="skip",
                     INTERFACEMODE_ESTABLISH_TRADE_ROUTE="trade_route", MISSION_ESTABLISH_TRADE_ROUTE="trade_route",
                     MISSION_CHANGE_TRADE_UNIT_HOME_CITY="trade_home", MISSION_CHANGE_ADMIRAL_PORT="admiral_port"})[a.Type] or "",
                 icon = action_icon(a), weight = action_weight(a)}

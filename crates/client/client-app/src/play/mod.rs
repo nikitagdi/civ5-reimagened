@@ -12,7 +12,7 @@ use client_core::OrderSink;
 use protocol::{Blocker, BlockerTarget, Command, Query, TeamId, UnitFlags, WorldView};
 
 pub use controller::{Hints, Mode, PATH_DWELL_MS, PlayController};
-pub use preview::{FocusMode, MapFocus, MovePreview, PreviewInput, TurnBadge};
+pub use preview::{Aim, AimLook, FocusMode, MapFocus, MovePreview, PreviewInput, TurnBadge};
 
 /// `EndTurnBlockingTypes::ENDTURN_BLOCKING_PRODUCTION` (CvEnums.h).
 const BLOCKING_PRODUCTION: i32 = 2;

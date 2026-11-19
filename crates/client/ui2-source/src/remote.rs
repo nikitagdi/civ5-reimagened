@@ -1,7 +1,7 @@
 //! Whole-root subscriptions for server-built screens. No game-core dependency.
 use protocol::{Query, QueryAnswer};
 use std::collections::BTreeMap;
-use ui2_model::generated::{SCREEN_NAMES, Ui};
+use ui2_model::generated::{SCREEN_NAMES, TargetKind, Ui};
 use ui2_model::{ModelWriter, Sample, Schema, Value};
 
 #[derive(Default)]
@@ -126,6 +126,22 @@ impl RemoteRoots {
                     args.push(("unit".into(), i64::from(unit.0 as u32 as i32)));
                 }
                 args
+            } else if *name == "targets"
+                && let Some(t) = ui.target.as_ref()
+            {
+                // The map's targeting mode: what acts and the order (`ui2_actions` matches its clicks against the
+                // answer by the same `id` and `action`). Asked again when the world changes.
+                let id = |k: Option<ui2_model::Key>| k.map_or(-1, |k| i64::from(k.0 as u32 as i32));
+                let (id, action) = match t.kind {
+                    TargetKind::Unit => (id(t.unit), i64::from(t.a)),
+                    TargetKind::City => (id(t.city), 0),
+                    TargetKind::GiftUnit | TargetKind::GiftImprovement => (i64::from(t.a), 0),
+                };
+                vec![
+                    ("kind".into(), i64::from(t.kind as u16)),
+                    ("id".into(), id),
+                    ("action".into(), action),
+                ]
             } else if *name == "rich_tooltips"
                 && let Some(id) = ui.tip.id
             {
@@ -383,6 +399,83 @@ mod tests {
                     ("unit".to_string(), 9)
                 ],
             ]
+        );
+    }
+
+    #[test]
+    fn targets_follow_the_targeting_mode_and_go_with_it() {
+        use ui2_model::Key;
+        use ui2_model::generated::{TargetKind, Targets, UiTarget};
+        let mut remote = RemoteRoots::default();
+        let mut store = ModelStore::new(Schema::v1());
+        let mut ui = Ui::default();
+        let asked: std::cell::RefCell<Vec<Vec<(String, i64)>>> = Default::default();
+        let tick = |remote: &mut RemoteRoots, store: &mut ModelStore, ui: &Ui, now, rev| {
+            remote.frame(
+                now,
+                rev,
+                true,
+                ui,
+                &mut store.writer(Owner::Source),
+                |q| match q {
+                    Query::Screen { screen, args } if screen == "targets" => {
+                        asked.borrow_mut().push(args);
+                        asked.borrow().len() as u32
+                    }
+                    _ => 0,
+                },
+            );
+        };
+        tick(&mut remote, &mut store, &ui, 0, 1);
+        assert!(!remote.subscriptions.contains_key("targets"));
+        // A unit's ranged attack: asked once with the unit's seat-local id and the order's row.
+        ui.target = Some(UiTarget {
+            kind: TargetKind::Unit,
+            unit: Some(Key::new(0, 8193)),
+            city: None,
+            a: -1,
+        });
+        tick(&mut remote, &mut store, &ui, 10, 1);
+        let answer = QueryAnswer::Screen {
+            screen: "targets".into(),
+            json: r#"{"id":8193,"action":-1,"name":"Ranged Attack","look":"fire","plots":[{"cell":655371,"x":10,"y":11}]}"#.into(),
+        };
+        assert!(
+            remote
+                .answer(1, &answer, &mut store.writer(Owner::Source))
+                .is_none()
+        );
+        let root = store.get::<Option<Targets>>().unwrap().as_ref().unwrap();
+        assert_eq!((root.id, root.plots.len()), (8193, 1));
+        // The same mode and world: not asked again; the world changes: asked again (the unit may have moved).
+        tick(&mut remote, &mut store, &ui, 400, 1);
+        assert_eq!(asked.borrow().len(), 1);
+        tick(&mut remote, &mut store, &ui, 700, 2);
+        assert_eq!(asked.borrow().len(), 2);
+        remote.answer(2, &answer, &mut store.writer(Owner::Source));
+        // A city's strike: the old plots go at once.
+        ui.target = Some(UiTarget {
+            kind: TargetKind::City,
+            unit: None,
+            city: Some(Key::new(0, 24577)),
+            a: 0,
+        });
+        tick(&mut remote, &mut store, &ui, 1000, 2);
+        assert!(store.get::<Option<Targets>>().unwrap().is_none());
+        // The mode ends: the subscription and its root go.
+        ui.target = None;
+        tick(&mut remote, &mut store, &ui, 1300, 2);
+        assert!(!remote.subscriptions.contains_key("targets"));
+        let want = |kind: i64, id: i64, action: i64| {
+            vec![
+                ("kind".to_string(), kind),
+                ("id".to_string(), id),
+                ("action".to_string(), action),
+            ]
+        };
+        assert_eq!(
+            *asked.borrow(),
+            [want(0, 8193, -1), want(0, 8193, -1), want(1, 24577, 0)]
         );
     }
 

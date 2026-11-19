@@ -30,6 +30,9 @@ fn city_state_gifts_and_orders_are_scoped_and_revalidated() {
         for _, name in ipairs({"CanMajorStartProtection", "CanMajorWithdrawProtection", "CanMajorBullyGold", "CanMajorBullyUnit"}) do m[name] = function() return true end end
         for _, name in ipairs({"GetMinorCivType", "GetMinorCivTrait", "GetPersonality", "GetFriendshipChangePerTurnTimes100", "GetMinorCivFriendshipAnchorWithMajor", "GetBuyoutCost", "GetGiftTileImprovementCost", "GetMinorCivCurrentCultureBonus", "GetMinorCivCurrentFaithBonus", "GetMinorCivCurrentHappinessBonus", "GetCurrentCapitalFoodBonus", "GetCurrentOtherCityFoodBonus"}) do m[name] = function() return 0 end end
         m.GetMinorCivFriendshipWithMajor = function() return 15 end
+        -- The gifts chosen on the map: no unit on its way; only an ally may improve a tile.
+        m.GetIncomingUnitCountdown = function() return -1 end
+        m.CanMajorGiftTileImprovement = function() return false end
         m.GetCapitalCity = function() return nil end
         m.GetAlly = function() return -1 end
         m.GetFriendshipFromGoldGift = function(self, player, amount) return amount / 10 end
@@ -76,6 +79,7 @@ fn city_state_gifts_and_orders_are_scoped_and_revalidated() {
         known = true
         local model = cs.data(0, {a = 1})
         assert(model.gifts.gold[1].enabled and not model.gifts.gold[2].enabled)
+        assert(model.gifts.unit.enabled and not model.gifts.improvement.enabled and model.gifts.improvement.reason ~= "")
         -- The original's quest order and formal texts; the contest standing and the turns left.
         assert(#model.quests == 2 and model.quests[1].type == "contest_culture" and model.quests[2].type == "connect_resource")
         assert(model.quests[1].contest_you == 40 and model.quests[1].contest_leader == 90 and model.quests[1].contest_you_lead == false)

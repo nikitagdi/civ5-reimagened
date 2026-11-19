@@ -13,7 +13,9 @@
     if (client === "trade_route" || client === "trade_home" || client === "admiral_port") {
       ui.intent("window.open", { "window": "trade_routes", a: client === "trade_home" ? 3 : (client === "admiral_port" ? 4 : 0), b: hud.unit.id });
     }
-    else if (client === "move" || client === "range_attack") ui.intent("unit.action", { unit: selected.key, action: client });
+    else if (client === "move") ui.intent("unit.action", { unit: selected.key, action: client });
+    // An order that asks for a plot: the map's targeting mode (the server lists the plots it accepts).
+    else if (client === "target") ui.intent("map.target", { kind: "unit", unit: selected.key, a: id });
     else ui.intent("screen.act", { screen: "hud", action: "do_action", a: hud.unit.id, b: id, c: alt ? 1 : 0, d: shift ? 1 : 0 });
   });
   ui.model.on("unit_rename", function (root) {

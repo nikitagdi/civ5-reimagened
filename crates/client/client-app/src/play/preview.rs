@@ -28,6 +28,32 @@ pub enum FocusMode {
     Ranged,
 }
 
+/// How the map draws the plots of a targeting mode (the server's `targets.look`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AimLook {
+    /// A ranged attack of a unit or a city: the radius and the targets (`Bombardment.lua`).
+    Fire,
+    /// An air strike or a nuke: the air range and the targets.
+    Air,
+    /// An air sweep.
+    Sweep,
+    /// A move to a plot (rebase, paradrop, airlift, route to).
+    Move,
+    /// A move-attack.
+    Attack,
+    /// The generic unit border of the original's other modes (embark, the gifts to a city-state).
+    Mark,
+}
+
+/// The map's targeting mode of the UI (the original's interface modes that ask for a plot): the plots a click gives
+/// the order on and the radius drawn around them, as the server listed them. Empty while its answer is on its way.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Aim {
+    pub look: AimLook,
+    pub plots: Vec<(i32, i32)>,
+    pub area: Vec<(i32, i32)>,
+}
+
 /// The unit the UI has selected (one of the seat's) and its mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MapFocus {
@@ -55,6 +81,8 @@ pub struct PreviewInput<'a> {
     pub now_ms: u64,
     /// The revision of the shown world: an answer of an earlier one is not drawn.
     pub revision: u64,
+    /// The UI's targeting mode: its plots replace the reach and the path.
+    pub aim: Option<&'a Aim>,
 }
 
 /// The preview's state between frames.
@@ -71,6 +99,8 @@ pub struct MovePreview {
     answer: Option<((i32, i16, i16), Vec<PathNode>)>,
     shown: Highlights,
     ranged: bool,
+    /// The targeting mode's look and radius while it is on.
+    aim: Option<(AimLook, Vec<(i32, i32)>)>,
     badges: Vec<TurnBadge>,
 }
 
@@ -103,6 +133,20 @@ impl MovePreview {
                 .find(|u| u.id == f.unit && u.owner == f.owner && u.owner == world.human)
                 .map(|u| (f, u))
         });
+        if let Some(aim) = input.aim {
+            // The targeting mode: the server's plots, the ring on the unit that acts; no reach, no path.
+            self.badges.clear();
+            self.ranged = false;
+            self.aim = Some((aim.look, aim.area.clone()));
+            self.shown = Highlights {
+                selected: unit.map(|(_, u)| (i32::from(u.x), i32::from(u.y))),
+                reachable: Vec::new(),
+                targets: aim.plots.clone(),
+                path: Vec::new(),
+            };
+            return None;
+        }
+        self.aim = None;
         let Some((focus, u)) = unit else {
             self.shown = Highlights::default();
             self.ranged = false;
@@ -208,7 +252,15 @@ impl MovePreview {
 
     /// The styles of `Highlights.xml` for the reach and the targets (the ranged mode's styles in that mode).
     pub fn highlight_set(&self) -> HighlightSet {
+        if let Some((look, area)) = &self.aim {
+            return super::highlight_calls::aim_set(*look, area, &self.shown.targets);
+        }
         super::highlight_calls::from_highlights(&self.shown, self.ranged)
+    }
+
+    /// The targeting mode's radius while it is on (for the test probe).
+    pub fn aim_area(&self) -> Option<&[(i32, i32)]> {
+        self.aim.as_ref().map(|(_, area)| area.as_slice())
     }
 
     /// The turn badges of the path.
@@ -315,7 +367,71 @@ mod tests {
             hover,
             now_ms,
             revision: 1,
+            aim: None,
         }
+    }
+
+    #[test]
+    fn a_targeting_mode_shows_the_servers_plots_and_radius_and_no_reach_or_path() {
+        let w = world();
+        let ctx = archer_ctx();
+        let aim = Aim {
+            look: AimLook::Fire,
+            plots: vec![(10, 11)],
+            area: vec![(9, 11), (10, 11)],
+        };
+        let mut p = MovePreview::default();
+        let mut i = input(
+            &w,
+            Some(&ctx),
+            archer(&w, FocusMode::Select),
+            Some((20, 3)),
+            5_000,
+        );
+        i.aim = Some(&aim);
+        assert_eq!(p.step(&i), None, "no path is asked while aiming");
+        let h = p.highlights();
+        assert_eq!(h.selected, Some((8, 11)), "the ring stays on the unit");
+        assert!(h.reachable.is_empty() && h.path.is_empty() && p.badges().is_empty());
+        assert_eq!(h.targets, [(10, 11)]);
+        let set = p.highlight_set();
+        let styles: Vec<(&str, i32, i32)> = set
+            .cells
+            .iter()
+            .map(|c| (c.style.as_str(), c.x, c.y))
+            .collect();
+        assert_eq!(
+            styles,
+            [
+                ("FireRangeBorder", 9, 11),
+                ("FireRangeBorder", 10, 11),
+                ("ValidFireTargetBorder", 10, 11)
+            ]
+        );
+        assert_eq!(p.aim_area(), Some(&[(9, 11), (10, 11)][..]));
+        // A city's strike or a gift has no unit: the plots without a ring.
+        let mut p = MovePreview::default();
+        let mut i = input(&w, None, None, None, 0);
+        let gift = Aim {
+            look: AimLook::Mark,
+            plots: vec![(7, 12)],
+            area: Vec::new(),
+        };
+        i.aim = Some(&gift);
+        p.step(&i);
+        assert_eq!(p.highlights().selected, None);
+        assert_eq!(p.highlights().targets, [(7, 12)]);
+        assert_eq!(p.highlight_set().cells[0].style, "GUHB");
+        // The mode ends: the usual preview comes back.
+        p.step(&input(
+            &w,
+            Some(&ctx),
+            archer(&w, FocusMode::Select),
+            None,
+            10,
+        ));
+        assert_eq!(p.aim_area(), None);
+        assert_eq!(p.highlights().reachable, [(9, 11), (9, 12)]);
     }
 
     #[test]
