@@ -84,7 +84,11 @@ icon = "asset"
 name = "str"
 pressure = "i32"
 
+# One component of a route's yield, in the original tooltip's order. A term can repeat (a building in each city,
+# one line per differing resource), so the line id names the term and its subject. "river" is a percentage,
+# "sea_route_mult" a multiplier, "tech_difference" a count of techs; the others are yields per turn.
 [type.TradeRoutesTooltipLine]
+id = "str"
 key = "TradeRoutesTerm"
 value = "f32"
 arg = "str?"
@@ -93,7 +97,7 @@ arg = "str?"
 key = "TradeRoutesBenefit"
 owner = "str"
 total = "f32"
-lines = { list = "TradeRoutesTooltipLine", key = "key" }
+lines = { list = "TradeRoutesTooltipLine", key = "id" }
 
 [type.TradeRoutesTooltip]
 route_id = "i32?"

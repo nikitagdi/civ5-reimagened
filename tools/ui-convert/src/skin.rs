@@ -782,8 +782,12 @@ api = "1.0"
                 ("military.sort_desc".to_string(), StateValue::Bool(false)),
                 ("minimap.banners".to_string(), StateValue::Bool(true)),
                 ("minimap.flags".to_string(), StateValue::Bool(true)),
+                ("minimap.grid".to_string(), StateValue::Bool(false)),
                 ("minimap.options".to_string(), StateValue::Bool(false)),
+                ("minimap.resources".to_string(), StateValue::Bool(false)),
+                ("minimap.routes".to_string(), StateValue::Bool(true)),
                 ("minimap.streamer".to_string(), StateValue::Bool(false)),
+                ("minimap.yields".to_string(), StateValue::Bool(false)),
                 ("mp_vote.pending".to_string(), StateValue::Bool(false)),
                 (
                     "notification.hover".to_string(),
@@ -948,6 +952,7 @@ api = "1.0"
                 ),
                 ("tech_panel.open".to_string(), StateValue::Bool(false)),
                 ("techs.hover".to_string(), StateValue::Int(-1)),
+                ("techs.unlock".to_string(), StateValue::Int(-1)),
                 ("techs.x".to_string(), StateValue::Float(0.0)),
                 ("top.hover".to_string(), StateValue::Str("".to_string())),
                 ("top.menu".to_string(), StateValue::Bool(false)),
@@ -982,6 +987,11 @@ api = "1.0"
                 ),
                 (
                     "trade_routes.tab".to_string(),
+                    StateValue::Str("".to_string())
+                ),
+                ("trade_routes.tip".to_string(), StateValue::Int(-1)),
+                (
+                    "trade_routes.tip_list".to_string(),
                     StateValue::Str("".to_string())
                 ),
                 (

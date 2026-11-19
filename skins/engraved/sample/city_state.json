@@ -263,14 +263,15 @@
         }
       },
       "tribute": {
-        "pressure": 108,
-        "pressure_gold_needed": 100,
-        "pressure_unit_needed": 140,
+        "pressure": 18,
+        "pressure_gold_needed": 0,
+        "pressure_unit_needed": 22,
         "tooltip": "Your units near Valletta outweigh its defence: you can demand gold.",
         "gold": {
           "enabled": true,
           "amount": 156,
-          "influence_loss": 30,
+          "influence_loss": 15,
+          "tooltip": "Tribute pressure 18: global military +38, local military +60, ...",
           "reason": ""
         },
         "unit": {
@@ -278,7 +279,8 @@
           "unit_name": "Worker",
           "icon": "unit:UNIT_WORKER",
           "influence_loss": 50,
-          "reason": "Needs more pressure: 108 of 140"
+          "tooltip": "Tribute pressure -22: worker demands are harder ...",
+          "reason": "Insufficient military pressure or tribute is blocked."
         },
         "confirm_influence_after": 22,
         "confirm_status_after": "Neutral"

@@ -12,9 +12,19 @@ fn war_confirmation_rechecks_team_unit_plot_and_stages_cancel() {
     lua.globals().raw_set("screen", screen).unwrap();
     lua.exec(r#"
       GameDefines={MAX_CIV_TEAMS=8,MAX_CIV_PLAYERS=8}
-      local can=true
-      local unit={GetOwner=function() return 0 end,CanMove=function() return true end,CanRangeStrikeAt=function(_,x,y) return x==4 and y==5 end}
-      Players={[0]={GetTeam=function() return 0 end,IsTurnActive=function() return true end,GetUnitByID=function(_,id) if id==9 then return unit end end},[1]={IsAlive=function() return true end}}
+      Locale={ConvertTextKey=function(key) return key end}
+      local can,moves=true,true
+      local unit={GetOwner=function() return 0 end,CanMove=function() return moves end}
+      local function civ(team)
+          return {GetTeam=function() return team end,IsAlive=function() return true end,IsMinorCiv=function() return false end,IsHuman=function() return true end,
+              GetCivilizationType=function() return team end,GetLeaderType=function() return team end,IsDoF=function() return false end,
+              IsDenouncedPlayer=function() return false end,GetTradeRoutes=function() return {} end,GetTradeRoutesToYou=function() return {} end}
+      end
+      Players={[0]=civ(0),[1]=civ(1)}
+      Players[0].IsTurnActive=function() return true end
+      Players[0].GetUnitByID=function(_,id) if id==9 then return unit end end
+      GameInfo={Civilizations={[0]={Type='CIVILIZATION_A',ShortDescription='A'},[1]={Type='CIVILIZATION_B',ShortDescription='B'}},
+          Leaders={[0]={Type='LEADER_A',Description='Leader A'},[1]={Type='LEADER_B',Description='Leader B'}}}
       Teams={[0]={IsHasMet=function(_,t) return t==1 end,CanDeclareWar=function() return can end},[1]={GetLeaderID=function() return 1 end}}
       MissionTypes={MISSION_MOVE_TO=0,MISSION_RANGE_ATTACK=1}
       Map={GetPlot=function(x,y) return {IsVisible=function() return true end,GetX=function() return x end,GetY=function() return y end} end}
@@ -26,15 +36,29 @@ fn war_confirmation_rechecks_team_unit_plot_and_stages_cancel() {
       end
       assert(screen.actions.confirm(0,{a=1,b=-1},net).close)
       assert(#sent==1 and sent[1][1]=='sendChangeWar' and sent[1][2]==1 and sent[1][3]==1)
-      local args={a=1,b=9,c=4,d=5,popup_id=7,popup={kind='BUTTONPOPUP_DECLAREWARRANGESTRIKE',data1=1,data2=4,data3=5}}
-      screen.actions.confirm(0,args,net)
-      assert(#sent==3 and sent[3][1]=='sendPushMission' and sent[3][2]==9 and sent[3][3]==1 and sent[3][4]==4 and sent[3][5]==5 and done==7)
-      args.c=6
+      -- The core's move question names the acting unit (data4) and its mission flags (data5).
+      local args={a=1,popup_id=7,popup={kind='BUTTONPOPUP_DECLAREWARMOVE',data1=1,data2=4,data3=5,data4=9,data5=0}}
+      local root=screen.data(0,args)
+      assert(root.enabled and root.reason=='move' and root.plot.x==4 and root.plot.y==5, tostring(root.disabled_reason))
+      assert(screen.actions.confirm(0,args,net).close)
+      assert(#sent==3 and sent[2][1]=='sendChangeWar' and sent[3][1]=='sendPushMission' and sent[3][2]==9 and sent[3][3]==0
+          and sent[3][4]==4 and sent[3][5]==5 and sent[3][6]==0 and sent[3][7]==0 and done==7)
+      -- A window that echoes another unit or plot is refused.
+      args.b=10
       assert(not pcall(screen.actions.confirm,0,args,net) and #sent==3)
-      args.c=4;args.b=10
+      args.b=9;args.c=6
       assert(not pcall(screen.actions.confirm,0,args,net) and #sent==3)
-      args.b=9;args.a=2
+      args.c=nil;args.a=2
       assert(not pcall(screen.actions.confirm,0,args,net) and #sent==3)
+      args.a=1
+      -- No named unit, a unit without moves, or a question raised by the client: shown, but "yes" is unavailable.
+      for _,change in ipairs({function() args.popup.data4=nil end,function() args.popup.data4=-1 end,function() args.popup.data4=9;moves=false end,
+          function() moves=true;args.popup.kind='BUTTONPOPUP_DECLAREWARRANGESTRIKE' end}) do
+          change()
+          root=screen.data(0,args)
+          assert(not root.enabled and #root.disabled_reason>0)
+          assert(not pcall(screen.actions.confirm,0,args,net) and #sent==3)
+      end
       can=false
       assert(not pcall(screen.actions.confirm,0,{a=1},net) and #sent==3)
       assert(not pcall(screen.actions.plunder,0,{},net) and #sent==3)

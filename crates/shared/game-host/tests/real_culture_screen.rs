@@ -56,6 +56,25 @@ fn culture_new_game_city_and_action_results() {
     assert_eq!(root["cities"].as_array().unwrap().len(), 1);
     assert!(root["summary"]["slots"].as_i64().unwrap() > 0);
     assert!(!root["columns"].as_array().unwrap().is_empty());
+    // The influence rows carry CultureOverview's tooltips as resolved text: the share of the target's culture and
+    // what the next level needs.
+    let rows: Vec<&serde_json::Value> = root["influence"]["sources"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|s| s["rows"].as_array().unwrap())
+        .collect();
+    assert!(!rows.is_empty());
+    for row in rows {
+        for key in ["level_tooltip", "bars_tooltip"] {
+            let text = row[key].as_str().unwrap();
+            assert!(
+                !text.is_empty() && !text.contains("TXT_KEY") && !text.contains('['),
+                "{key}: {text}"
+            );
+        }
+        assert!(row["level_tooltip"] != row["level_name"], "{row}");
+    }
     let action = |name: &str, args| Command::ScreenAction {
         screen: "culture".into(),
         action: name.into(),

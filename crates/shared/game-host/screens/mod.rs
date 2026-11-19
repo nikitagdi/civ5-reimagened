@@ -90,7 +90,43 @@ impl<C: Core> Worker<C> {
             self.popups.unknown(&popup.kind);
             return Ok(None);
         };
-        self.popups.push(player, popup, head).map(Some)
+        let question = popup.kind == crate::popups::DECLARE_WAR_MOVE;
+        let unit = popup.data4.filter(|unit| *unit >= 0);
+        let id = self.popups.push(player, popup, head)?;
+        if question {
+            let unit = unit.and_then(|unit| {
+                let at = self.screens.as_ref()?.unit_plot(player, unit).ok()??;
+                at.map(|(x, y)| (unit, x, y))
+            });
+            let watch = crate::popups::MoveWatch {
+                turn: self.turn,
+                unit,
+            };
+            self.popups.watch(player, id, watch);
+        }
+        Ok(Some(id))
+    }
+
+    /// A move's war question lapses when the turn changes or its unit moved or is gone: a seat whose client never answers it
+    /// keeps neither the question nor a blocked popup head (`MoveWatch`).
+    pub(crate) fn expire_move_questions(&mut self) {
+        let watched = self.popups.watched();
+        if watched.is_empty() {
+            return;
+        }
+        for (player, id, watch) in watched {
+            let stale = watch.turn != self.turn
+                || watch.unit.is_some_and(|(unit, x, y)| {
+                    match self.screens.as_ref().map(|s| s.unit_plot(player, unit)) {
+                        Some(Ok(Some(at))) => at != Some((x, y)),
+                        _ => false,
+                    }
+                });
+            if stale {
+                tracing::debug!(player, id, "move war question lapsed");
+                self.popups.remove(player, id);
+            }
+        }
     }
 
     pub(crate) fn screen_data(
@@ -117,6 +153,12 @@ impl<C: Core> Worker<C> {
             .filter(|e| e.head.screen == screen)
             .cloned();
         let result = self.screen_runtime().and_then(|runtime| {
+            if screen == "hud"
+                && let Err(reason) = runtime.answers_move_questions(player)
+            {
+                // Not a seat the core knows as a major civilization: its moves are never asked about.
+                tracing::debug!(player, %reason, "move war questions stay off");
+            }
             runtime.context(popup.as_ref()).map_err(|e| e.to_string())?;
             runtime
                 .data(player, screen, args)

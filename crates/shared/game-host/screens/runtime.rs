@@ -59,6 +59,29 @@ impl Screens {
         self.lua.globals().raw_set("__screens", registry)
     }
 
+    /// `__screen_call(f, ...)` of `_lib.lua`: a screen function run inside the core's read scope, which puts back
+    /// the synced state a Lua getter may change on this machine only.
+    fn scoped(&self) -> lua_sys::Result<Function<'_>> {
+        self.lua.globals().get("__screen_call")
+    }
+
+    /// The seat's client reads the HUD's popup head, so it answers the core's war question before a move: the core may
+    /// ask it (`GcUiSetMoveQuestions`; without it, or with the stub, nothing to do).
+    pub fn answers_move_questions(&self, player: i8) -> lua_sys::Result<()> {
+        if let LuaValue::Function(f) = self.lua.globals().raw_get("GcUiSetMoveQuestions")? {
+            let _: LuaValue = f.call((i32::from(player), true))?;
+        }
+        Ok(())
+    }
+
+    /// Where a seat's unit stands: `Some(Some((x, y)))`, `Some(None)` when it is gone, `None` without the core.
+    pub fn unit_plot(&self, player: i8, unit: i32) -> lua_sys::Result<Option<Option<(i32, i32)>>> {
+        let f: Function = self.lua.globals().get("__unit_plot")?;
+        let (known, x, y): (bool, Option<i32>, Option<i32>) =
+            self.scoped()?.call((f, i32::from(player), unit))?;
+        Ok(known.then_some(x.zip(y)))
+    }
+
     pub fn popup_kind(&self, number: i32) -> lua_sys::Result<Option<String>> {
         let enums: Table = self.lua.globals().get("ButtonPopupTypes")?;
         for pair in enums.pairs::<String, LuaValue>() {
@@ -85,6 +108,12 @@ impl Screens {
         t.raw_set("data1", p.data1)?;
         t.raw_set("data2", p.data2)?;
         t.raw_set("data3", p.data3)?;
+        if let Some(v) = p.data4 {
+            t.raw_set("data4", v)?;
+        }
+        if let Some(v) = p.data5 {
+            t.raw_set("data5", v)?;
+        }
         t.raw_set("flag", p.flag)?;
         t.raw_set("option1", p.option1)?;
         t.raw_set("option2", p.option2)?;
@@ -123,7 +152,7 @@ impl Screens {
                 {
                     Ok(Some(n as i32))
                 }
-                LuaValue::Function(f) => f.call(payload.clone()),
+                LuaValue::Function(f) => self.scoped()?.call((f, payload.clone())),
                 _ => Err(LuaError::msg("invalid popup argument expression")),
             }
         };
@@ -167,7 +196,9 @@ impl Screens {
 
     pub fn data(&self, player: i8, name: &str, args: &[(String, i64)]) -> lua_sys::Result<String> {
         let data: Function = self.screen(name)?.get("data")?;
-        let value: LuaValue = data.call((i32::from(player), self.args(args)?))?;
+        let value: LuaValue = self
+            .scoped()?
+            .call((data, i32::from(player), self.args(args)?))?;
         let mut remaining = MAX_JSON;
         let value = json(value, 0, &mut remaining)?;
         if !value.is_object() {
@@ -277,7 +308,9 @@ impl Screens {
                     Ok(())
                 }),
         )?;
-        let value: LuaValue = function.call((i32::from(player), arguments, net))?;
+        let value: LuaValue = self
+            .scoped()?
+            .call((function, i32::from(player), arguments, net))?;
         let (open, close) = match value {
             LuaValue::Nil => (None, false),
             LuaValue::Table(t) => {

@@ -27,11 +27,13 @@ fn espionage_orders_validate_before_emitting_messages() {
     lua.exec(r#"
         local sent={};local net={send=function(...) sent[#sent+1]={...} end}
         screen.actions.move(0,{a=0,b=1,c=8,d=1},net)
-        assert(sent[1][1]=="SendMoveSpy" and sent[1][2]==0 and sent[1][3]==0 and sent[1][4]==1 and sent[1][5]==8 and sent[1][6]==1)
+        -- The core's message arguments omit the sender: the worker submits them as the seat
+        -- (SendMoveSpy: spy, target player, target city, as diplomat; SendStageCoup: spy).
+        assert(#sent[1]==5 and sent[1][1]=="SendMoveSpy" and sent[1][2]==0 and sent[1][3]==1 and sent[1][4]==8 and sent[1][5]==1)
         screen.actions.hideout(0,{a=1},net)
-        assert(sent[2][4]==-1 and sent[2][5]==-1)
+        assert(#sent[2]==5 and sent[2][2]==1 and sent[2][3]==-1 and sent[2][4]==-1 and sent[2][5]==0)
         screen.actions.coup(0,{a=1},net)
-        assert(sent[3][1]=="SendStageCoup" and sent[3][2]==0 and sent[3][3]==1)
+        assert(#sent[3]==2 and sent[3][1]=="SendStageCoup" and sent[3][2]==1)
         for _,test in ipairs({{"move",0,{a=0,b=1,c=9,d=0}}, {"move",1,{a=0,b=1,c=8,d=0}},
             {"hideout",0,{a=0}}, {"coup",0,{a=0}}, {"coup",0,{a=2}}}) do
             local ok,reason=pcall(screen.actions[test[1]],test[2],test[3],net)

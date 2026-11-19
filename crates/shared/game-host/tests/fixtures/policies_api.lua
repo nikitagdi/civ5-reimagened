@@ -74,6 +74,7 @@ function p:GetPublicOpinionPreferredIdeology() return -1 end
 function p:GetPublicOpinionType() return 0 end
 function p:GetPublicOpinionTooltip() return "Content" end
 function p:GetPublicOpinionUnhappinessTooltip() return "No unhappiness" end
+function p:GetCivilizationAdjectiveKey() return "Own" end
 function p:GetBuildingClassCount() return 0 end
 function p:GetFaith() return faith end
 function p:GetTotalFaithPerTurn() return 5 end

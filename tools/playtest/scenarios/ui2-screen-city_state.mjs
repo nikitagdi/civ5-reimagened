@@ -30,6 +30,11 @@ export async function run({ server, opts }) {
     await page.mouse.click(row.x + row.w / 2, row.y + row.h / 2);
     await page.waitForFunction(old => window.__civ5test.ui2()?.texts.some(item => item.part === "city-state.influence" && item.text !== old), before, { timeout: 30000 });
     result.checks.push({ name: "gold gift changes server influence", pass: true });
+    // The tribute menu shows the core's numeric pressure (its breakdown is the buttons' tooltip).
+    await clickPart(page, "city-state.gifts-back");
+    await clickPart(page, "city-state.tribute");
+    await page.waitForFunction(() => window.__civ5test.ui2()?.texts.some(t => t.part === "city-state.pressure" && /-?\d/.test(t.text)), null, { timeout: 30000 });
+    result.checks.push({ name: "tribute menu shows the numeric pressure", pass: true });
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !window.__civ5test.ui2()?.ui.windows.includes("city_state"));
     result.pass = true;

@@ -142,17 +142,18 @@ return {
                 local city = p and p:GetCityByID(args.c)
                 assert(city and args.b ~= player and not p:IsMinorCiv() and city:IsCapital() and not team_of(player):IsAtWar(p:GetTeam()), "diplomats require a foreign capital at peace")
             end
-            net.send("SendMoveSpy", player, args.a, args.b, args.c, args.d)
+            -- The core message carries no sender: the worker submits it as this seat.
+            net.send("SendMoveSpy", args.a, args.b, args.c, args.d)
         end,
         hideout = function(player, args, net)
             local s = spy(player, args.a)
             assert(s.CityX >= 0 and s.CityY >= 0, "agent is already in the hideout")
-            net.send("SendMoveSpy", player, args.a, -1, -1, 0)
+            net.send("SendMoveSpy", args.a, -1, -1, 0)
         end,
         coup = function(player, args, net)
             spy(player, args.a)
             assert(Players[player]:CanSpyStageCoup(args.a), "this agent cannot stage a coup now")
-            net.send("SendStageCoup", player, args.a)
+            net.send("SendStageCoup", args.a)
         end,
     },
 }

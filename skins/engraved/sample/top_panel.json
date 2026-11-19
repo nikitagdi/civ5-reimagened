@@ -34,7 +34,57 @@
             "icon": "resource:0",
             "revealed": true,
             "imported": 0,
-            "exported": 0
+            "exported": 0,
+            "tip": [
+              {
+                "key": "1",
+                "text": "2 IRON",
+                "tone": "positive",
+                "bullet": false
+              },
+              {
+                "key": "2",
+                "text": "----------------",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "3",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "4",
+                "text": "3 Local Resources",
+                "tone": "positive",
+                "bullet": false
+              },
+              {
+                "key": "5",
+                "text": "Capital 3 Iron",
+                "tone": "plain",
+                "bullet": true
+              },
+              {
+                "key": "6",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "7",
+                "text": "-1 Required Resources:",
+                "tone": "negative",
+                "bullet": false
+              },
+              {
+                "key": "8",
+                "text": "1 Iron = 1 (+0) Swordsman",
+                "tone": "plain",
+                "bullet": true
+              }
+            ]
           },
           {
             "id": 1,
@@ -46,7 +96,8 @@
             "icon": "resource:1",
             "revealed": true,
             "imported": 0,
-            "exported": 0
+            "exported": 0,
+            "tip": []
           }
         ],
         "policies": [
@@ -70,6 +121,74 @@
                 "label": "Cities",
                 "value": 48
               }
+            ],
+            "text": [
+              {
+                "key": "1",
+                "text": "Progress towards WRITING 40/ 85",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "2",
+                "text": "2 Turns +11  3 TURNS +59",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "3",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "4",
+                "text": "+48 Science per turn",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "5",
+                "text": "+40 from Cities",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "6",
+                "text": "+8 from Trade Routes",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "7",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "8",
+                "text": "Research Agreements",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "9",
+                "text": "Greece",
+                "tone": "negative",
+                "bullet": true
+              },
+              {
+                "key": "10",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "11",
+                "text": "Each city increases technology costs by 5%.",
+                "tone": "plain",
+                "bullet": false
+              }
             ]
           },
           {
@@ -81,6 +200,104 @@
                 "key": "cities",
                 "label": "Cities",
                 "value": 21
+              }
+            ],
+            "text": [
+              {
+                "key": "1",
+                "text": "Available Gold: 127",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "2",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "3",
+                "text": "+21 Gold per turn",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "4",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "5",
+                "text": "Total Income: 30",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "6",
+                "text": "+24 from Cities",
+                "tone": "plain",
+                "bullet": true
+              },
+              {
+                "key": "7",
+                "text": "+6 from City Connections",
+                "tone": "plain",
+                "bullet": true
+              },
+              {
+                "key": "8",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "9",
+                "text": "Total Expenses: 9",
+                "tone": "negative",
+                "bullet": false
+              },
+              {
+                "key": "10",
+                "text": "Unit Maintenance: 4",
+                "tone": "negative",
+                "bullet": true
+              },
+              {
+                "key": "11",
+                "text": "Building Maintenance: 3",
+                "tone": "negative",
+                "bullet": true
+              },
+              {
+                "key": "12",
+                "text": "Improvement Maintenance: 2",
+                "tone": "negative",
+                "bullet": true
+              },
+              {
+                "key": "13",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "14",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "15",
+                "text": "Resources Available",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "16",
+                "text": "Greece 80 Gold(+6)",
+                "tone": "plain",
+                "bullet": true
               }
             ]
           },
@@ -94,6 +311,74 @@
                 "label": "Cities",
                 "value": 7
               }
+            ],
+            "text": [
+              {
+                "key": "1",
+                "text": "Total Happiness: 7",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "2",
+                "text": "Total Unhappiness: 12",
+                "tone": "negative",
+                "bullet": false
+              },
+              {
+                "key": "3",
+                "text": "City Count: 3",
+                "tone": "negative",
+                "bullet": true
+              },
+              {
+                "key": "4",
+                "text": "Population: 9",
+                "tone": "negative",
+                "bullet": true
+              },
+              {
+                "key": "5",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "6",
+                "text": "Total Happiness Sources: 19",
+                "tone": "positive",
+                "bullet": false
+              },
+              {
+                "key": "7",
+                "text": "Difficulty Level: 9",
+                "tone": "positive",
+                "bullet": true
+              },
+              {
+                "key": "8",
+                "text": "Luxury Resources: 8",
+                "tone": "positive",
+                "bullet": true
+              },
+              {
+                "key": "9",
+                "text": "  2 Silk 1 Wine",
+                "tone": "positive",
+                "bullet": false
+              },
+              {
+                "key": "10",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "11",
+                "text": "Local Resources 2 Silk 1 Wine",
+                "tone": "plain",
+                "bullet": false
+              }
             ]
           },
           {
@@ -105,6 +390,50 @@
                 "key": "cities",
                 "label": "Cities",
                 "value": 31
+              }
+            ],
+            "text": [
+              {
+                "key": "1",
+                "text": "Progress towards SOCIAL POLICY 120 / 210",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "2",
+                "text": "3 TURNS +3",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "3",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "4",
+                "text": "+31 Culture per turn",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "5",
+                "text": "+31 from Cities",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "6",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "7",
+                "text": "Each city increases policy costs by 10%.",
+                "tone": "plain",
+                "bullet": false
               }
             ]
           },
@@ -118,6 +447,50 @@
                 "label": "Cities",
                 "value": 9
               }
+            ],
+            "text": [
+              {
+                "key": "1",
+                "text": "Faith accumulated: 42",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "2",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "3",
+                "text": "+9 Faith per turn",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "4",
+                "text": "+9 from Cities",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "5",
+                "text": "Next Pantheon at 25",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "6",
+                "text": "",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "7",
+                "text": "Religions left to found: 4",
+                "tone": "plain",
+                "bullet": false
+              }
             ]
           },
           {
@@ -130,6 +503,26 @@
                 "label": "Cities",
                 "value": 0
               }
+            ],
+            "text": [
+              {
+                "key": "1",
+                "text": "Progress towards GOLDEN AGE 220 / 500",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "2",
+                "text": "Start a Golden Age: 40 TURNS",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "3",
+                "text": "+7 from Happiness",
+                "tone": "plain",
+                "bullet": false
+              }
             ]
           },
           {
@@ -141,6 +534,20 @@
                 "key": "cities",
                 "label": "Cities",
                 "value": 4
+              }
+            ],
+            "text": [
+              {
+                "key": "1",
+                "text": "Great Works: 1",
+                "tone": "plain",
+                "bullet": false
+              },
+              {
+                "key": "2",
+                "text": "Empty slots: 2",
+                "tone": "plain",
+                "bullet": false
               }
             ]
           }
@@ -265,6 +672,7 @@
             "icon": "unit:2",
             "hp": 90,
             "status": "awake",
+            "status_text": "",
             "moves": 2,
             "max_moves": 2,
             "military": true,

@@ -42,6 +42,45 @@ local function state(player, m)
         scale_side = influence < 0 and "negative" or influence > 0 and "positive" or "zero",
         scale_fill_pct = fill, scale_marker_pct = fill, friend_tick_pct = friend / math.max(1, ally) * 100}
 end
+-- CityStateStatusHelper's ktQuestsDisplayOrder: global quests, then personal support, then other personal quests.
+local quest_order = {"CONTEST_CULTURE", "CONTEST_FAITH", "CONTEST_TECHS", "INVEST", "KILL_CAMP", "GIVE_GOLD", "PLEDGE_TO_PROTECT",
+    "DENOUNCE_MAJOR", "TRADE_ROUTE", "SPREAD_RELIGION", "BULLY_CITY_STATE", "FIND_NATURAL_WONDER", "FIND_PLAYER", "KILL_CITY_STATE",
+    "GREAT_PERSON", "CONSTRUCT_WONDER", "CONNECT_RESOURCE", "ROUTE"}
+local function civ_short(id) return L(Players[id]:GetCivilizationShortDescriptionKey()) end
+-- One quest as GetActiveQuestToolTip words it: the formal text, contest standings and the turns left.
+local function quest_row(player, m, name, quest)
+    local d1, d2 = m:GetQuestData1(player, quest), m:GetQuestData2(player, quest)
+    local turns = m:GetQuestTurnsRemaining(player, quest, Game.GetGameTurn())
+    local row = {icon = "", detail = "", can_locate = false, turns_left = turns >= 0 and turns or nil}
+    local key = "TXT_KEY_CITY_STATE_QUEST_" .. name .. "_FORMAL"
+    if name == "CONNECT_RESOURCE" then
+        local info = GameInfo.Resources[d1]
+        row.title, row.icon = L(key, L(info.Description)), "resource:" .. info.Type
+    elseif name == "CONSTRUCT_WONDER" then row.title = L(key, L(GameInfo.Buildings[d1].Description))
+    elseif name == "GREAT_PERSON" then
+        local info = GameInfo.Units[d1]
+        row.title, row.icon = L(key, L(info.Description)), "unit:" .. info.Type
+    elseif name == "KILL_CITY_STATE" then row.title = L(key, L(Players[d1]:GetNameKey()))
+    elseif name == "FIND_PLAYER" or name == "GIVE_GOLD" or name == "PLEDGE_TO_PROTECT" or name == "BULLY_CITY_STATE" or name == "DENOUNCE_MAJOR" then
+        row.title = L(key, civ_short(d1))
+    elseif name == "SPREAD_RELIGION" then row.title = L(key, Game.GetReligionName(d1))
+    elseif name == "CONTEST_CULTURE" or name == "CONTEST_FAITH" or name == "CONTEST_TECHS" then
+        local leader, you = m:GetMinorCivContestValueForLeader(quest), m:GetMinorCivContestValueForPlayer(player, quest)
+        local lead = m:IsMinorCivContestLeader(player, quest)
+        row.contest_you, row.contest_leader, row.contest_you_lead = you, leader, lead
+        local base = "TXT_KEY_CITY_STATE_QUEST_" .. name
+        row.title = lead and L(base .. "_WINNING_FORMAL", you) or L(base .. "_LOSING_FORMAL", leader, you)
+    else
+        row.title = L(key)
+        if name == "KILL_CAMP" then
+            -- The original's quest button centres the map on the camp.
+            local plot = Map.GetPlot(d1, d2)
+            if plot and plot:IsRevealed(Players[player]:GetTeam(), false) then row.plot, row.can_locate = plot:GetPlotIndex(), true end
+        end
+    end
+    row.tooltip = turns >= 0 and row.title .. " " .. L("TXT_KEY_CITY_STATE_QUEST_TURNS_REMAINING_FORMAL", turns) or row.title
+    return row
+end
 local function data(player, args)
     if args.popup then
         local p=args.popup
@@ -126,12 +165,23 @@ local function data(player, args)
         unit = {enabled = false, reason = "Choose-unit map mode is unavailable in this skin."},
         improvement = {enabled = false, cost = m:GetGiftTileImprovementCost(player), reason = "Choose-improvement map mode is unavailable in this skin."}}
     local bully_gold, bully_unit = not at_war and m:CanMajorBullyGold(player), not at_war and m:CanMajorBullyUnit(player)
-    local loss = math.abs(GameDefines.MINOR_FRIENDSHIP_DROP_BULLY_GOLD_SUCCESS)
-    root.can_bully, root.bully_text = bully_gold, m:GetMajorBullyGoldDetails(player)
-    root.tribute = {tooltip = m:GetMajorBullyGoldDetails(player),
-        gold = {enabled = bully_gold, amount = m:GetMinorCivBullyGoldAmount(player), influence_loss = loss, reason = bully_gold and "" or "Insufficient military pressure or tribute is blocked."},
-        unit = {enabled = bully_unit, unit_name = L("TXT_KEY_UNIT_WORKER"), icon = "unit:UNIT_WORKER", reason = bully_unit and "" or "Insufficient military pressure or tribute is blocked."},
+    -- The defines are influence times 100 (CityStateDiploPopup divides them the same way).
+    local loss = math.floor(math.abs(GameDefines.MINOR_FRIENDSHIP_DROP_BULLY_GOLD_SUCCESS) / 100)
+    -- The original's tribute tooltips are the core's pressure breakdowns (each factor with its score, then the total).
+    local gold_details, unit_details = m:GetMajorBullyGoldDetails(player), m:GetMajorBullyUnitDetails(player)
+    local unit_loss = math.floor(math.abs(GameDefines.MINOR_FRIENDSHIP_DROP_BULLY_WORKER_SUCCESS or 0) / 100)
+    root.can_bully, root.bully_text = bully_gold, gold_details
+    root.tribute = {tooltip = gold_details,
+        gold = {enabled = bully_gold, amount = m:GetMinorCivBullyGoldAmount(player), influence_loss = loss, tooltip = gold_details, reason = bully_gold and "" or "Insufficient military pressure or tribute is blocked."},
+        unit = {enabled = bully_unit, unit_name = L("TXT_KEY_UNIT_WORKER"), icon = "unit:UNIT_WORKER", influence_loss = unit_loss, tooltip = unit_details, reason = bully_unit and "" or "Insufficient military pressure or tribute is blocked."},
         confirm_influence_after = status.influence - loss, confirm_status_after = ""}
+    if GcUiGetBullyScores and m:IsAlive() then
+        -- Tribute is possible at a score of zero and above.
+        local gold_score, unit_score = GcUiGetBullyScores(player, id)
+        root.tribute.pressure = gold_score
+        root.tribute.pressure_gold_needed = math.max(0, -gold_score)
+        root.tribute.pressure_unit_needed = math.max(0, -unit_score)
+    end
     local ally = m:GetAlly()
     root.ally = {kind = "none", name = L("TXT_KEY_CITY_STATE_NOBODY"), tooltip = "", refuses_bribes = refuses_bribes}
     if ally >= 0 then
@@ -156,13 +206,21 @@ local function data(player, args)
         local amount = m[query[2]](m, player)
         if amount ~= 0 then root.bonuses[#root.bonuses + 1] = {key = query[1], kind = query[1], text = tostring(amount), short = tostring(amount), icon = ""} end
     end
-    for _, quest in pairs(MinorCivQuestTypes or {}) do
-        if type(quest) == "number" and quest >= 0 and m:IsMinorCivActiveQuestForPlayer(player, quest) then
-            local turns = m:GetQuestTurnsRemaining(player, quest, Game.GetGameTurn())
-            root.quests[#root.quests + 1] = {key = "quest:" .. quest, type = tostring(quest), icon = "", title = "City-state quest",
-                detail = tostring(m:GetQuestData1(player, quest)), tooltip = tostring(m:GetQuestData2(player, quest)), turns_left = turns >= 0 and turns or nil, can_locate = false}
+    -- The original's quest list: CityStateStatusHelper's display order and formal texts.
+    local types = MinorCivQuestTypes or {}
+    for _, name in ipairs(quest_order) do
+        local quest = types["MINOR_CIV_QUEST_" .. name]
+        if type(quest) == "number" and m:IsMinorCivDisplayedQuestForPlayer(player, quest) then
+            local row = quest_row(player, m, name, quest)
+            row.key, row.type = "quest:" .. quest, string.lower(name)
+            root.quests[#root.quests + 1] = row
         end
     end
+    root.threat_barbarians = m:IsThreateningBarbariansEventActiveForPlayer(player)
+    root.threat_barbarians_text = L("TXT_KEY_CITY_STATE_QUEST_INVADING_BARBS_FORMAL")
+    root.threat_proxy_war = m:IsProxyWarActiveForMajor(player)
+    root.threat_proxy_war_text = L("TXT_KEY_CITY_STATE_QUEST_GIFT_UNIT_FORMAL")
+    if #root.quests > 0 or root.threat_barbarians or root.threat_proxy_war then root.no_quests_text = "" end
     if capital and Map and Map.GetNumPlots then
         local counts = {}
         for index = 0, Map.GetNumPlots() - 1 do
@@ -182,7 +240,6 @@ local function data(player, args)
         end
         table.sort(root.resources, function(a, b) return a.key < b.key end)
     end
-    -- SIMPLIFIED(SIMP-383): numeric tribute pressure and detailed quest text await seat-safe server query helpers. Native action availability, amounts and visible capital-radius resources are queried directly.
     return root
 end
 
@@ -240,7 +297,7 @@ return {data = data, actions = {
         return {close=true}
     end,
     enter_land = function()
-        -- SIMPLIFIED(SIMP-384): the whitelisted territory-entry message has no native dispatch handler, so movement fails closed.
+        -- SIMPLIFIED(SIMP-384): neither the core nor the original interface raises this question, and its game message has no handler in the core, so "enter" fails closed.
         error("Continuing movement requires the territory-entry handler in the game host.")
     end,
     liberate = function(player, args, net)

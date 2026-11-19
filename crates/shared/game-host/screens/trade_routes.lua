@@ -22,6 +22,77 @@ local function religion(id, pressure)
     if not info or not pressure or pressure <= 0 then return nil end
     return { key = info.Type, name = L(info.Description), icon = icon(info.IconAtlas, info.PortraitIndex), pressure = pressure }
 end
+-- The original's leader label in a route tooltip: the nickname in a network game, else the leader name.
+local function leader_name(id)
+    local p = Players[id]
+    local nick = p:GetNickName()
+    if nick and nick ~= "" and Game.IsNetworkMultiPlayer() then return nick end
+    return p:GetName()
+end
+local function line(lines, id, key, value, arg)
+    lines[#lines + 1] = {id = id, key = key, value = value, arg = arg}
+end
+-- TradeRouteHelpers' BuildTradeRouteToolTipString, as structured blocks: the origin owner's gold components and total,
+-- the destination owner's revenue, then each side's science from tech difference and cultural influence.
+-- Revenue of the seat is "my_*", of the other side "their_*", as the original's "your"/"their" headers.
+local function route_tooltip(player, from, to, domain)
+    local origin, dest = from:GetOwner(), to:GetOwner()
+    local p, q = Players[origin], Players[dest]
+    if p:GetInternationalTradeRouteTotal(from, to, domain, true) <= 0 then return nil end
+    local blocks = array()
+    local mine = origin == player
+    local lines = array()
+    line(lines, "base", "base", p:GetInternationalTradeRouteBaseBonus(from, to, true) / 100)
+    line(lines, "origin_city_gold", "origin_city_gold", p:GetInternationalTradeRouteGPTBonus(from, to, true) / 100, from:GetName())
+    line(lines, "dest_city_gold", "dest_city_gold", p:GetInternationalTradeRouteGPTBonus(from, to, false) / 100, to:GetName())
+    local n = p:GetInternationalTradeRoutePolicyBonus(from, to, domain)
+    if n ~= 0 then line(lines, "policies", "policies", n / 100) end
+    n = p:GetInternationalTradeRouteYourBuildingBonus(from, to, domain, true)
+    if n ~= 0 then line(lines, "buildings:origin", "buildings", n / 100, from:GetName()) end
+    n = p:GetInternationalTradeRouteTheirBuildingBonus(from, to, domain, true)
+    if n ~= 0 then line(lines, "buildings:dest", "buildings", n / 100, to:GetName()) end
+    local per_resource = 50 * (100 + p:GetInternationalTradeRouteResourceTraitModifier()) / 100 / 100
+    for info in GameInfo.Resources() do
+        local usage = Game.GetResourceUsageType(info.ID)
+        if (usage == ResourceUsageTypes.RESOURCEUSAGE_LUXURY or usage == ResourceUsageTypes.RESOURCEUSAGE_STRATEGIC)
+            and from:IsHasResourceLocal(info.ID) ~= to:IsHasResourceLocal(info.ID) then
+            line(lines, "resource:" .. info.Type, "different_resources", per_resource, L(info.Description))
+        end
+    end
+    n = p:GetInternationalTradeRouteExclusiveBonus(from, to)
+    if n ~= 0 then line(lines, "exclusive_connection", "exclusive_connection", n / 100) end
+    n = p:GetInternationalTradeRouteOtherTraitBonus(from, to, domain, true)
+    if n ~= 0 then line(lines, "other_trait", "other_trait", n / 100, L(q:GetCivilizationAdjectiveKey())) end
+    n = p:GetInternationalTradeRouteRiverModifier(from, to, domain, true)
+    if n ~= 0 then line(lines, "river", "river", n) end
+    local sea = domain == DomainTypes.DOMAIN_SEA and p:GetInternationalTradeRouteDomainModifier(domain) or 0
+    if sea ~= 0 then line(lines, "sea_route_mult", "sea_route_mult", (sea + 100) / 100) end
+    blocks[#blocks + 1] = {key = mine and "my_gold" or "their_gold", owner = leader_name(origin),
+        total = p:GetInternationalTradeRouteTotal(from, to, domain, true) / 100, lines = lines}
+    local tradee = q:GetInternationalTradeRouteTotal(from, to, domain, false)
+    if tradee ~= 0 then
+        lines = array()
+        n = q:GetInternationalTradeRouteBaseBonus(from, to, false)
+        if n ~= 0 then line(lines, "base", "base", n / 100) end
+        n = p:GetInternationalTradeRouteRiverModifier(from, to, domain, false)
+        if n ~= 0 then line(lines, "river", "river", n) end
+        if sea ~= 0 then line(lines, "sea_route_mult", "sea_route_mult", (sea + 100) / 100) end
+        n = q:GetInternationalTradeRouteTheirBuildingBonus(from, to, domain, false)
+        if n ~= 0 then line(lines, "buildings:dest", "buildings", n / 100, to:GetName()) end
+        blocks[#blocks + 1] = {key = mine and "their_gold" or "my_gold", owner = leader_name(dest), total = tradee / 100, lines = lines}
+    end
+    for _, side in ipairs({{origin, dest, true}, {dest, origin, false}}) do
+        local who, other, is_origin = side[1], side[2], side[3]
+        local science = Players[who]:GetInternationalTradeRouteScience(from, to, domain, is_origin) / 100
+        if science > 0 then
+            lines = array()
+            line(lines, "tech_difference", "tech_difference", Players[who]:GetNumTechDifference(other), leader_name(other))
+            line(lines, "cultural_influence", "cultural_influence", Players[who]:GetInfluenceTradeRouteScienceBonus(other))
+            blocks[#blocks + 1] = {key = (is_origin == mine) and "my_science" or "their_science", owner = leader_name(who), total = science, lines = lines}
+        end
+    end
+    return {blocks = blocks}
+end
 local function routes(player, list, reverse)
     local rows = array()
     for _, raw in ipairs(list) do
@@ -38,7 +109,8 @@ local function routes(player, list, reverse)
                 their_religion = religion(reverse and raw.ToReligion or raw.FromReligion, reverse and raw.ToPressure or raw.FromPressure),
             }
             if raw.TurnsLeft and raw.TurnsLeft >= 0 then row.turns_left = raw.TurnsLeft end
-            -- SIMPLIFIED(SIMP-372): Totals use native route yields; the component tooltip is not yet reconstructed.
+            row.tooltip = route_tooltip(player, raw.FromCity, raw.ToCity, raw.Domain)
+            if row.tooltip then row.tooltip.route_id = row.id end
             rows[#rows + 1] = row
         end
     end

@@ -2,6 +2,12 @@
 
 /* The game's raster icons: a font icon of a yield or resource (22 px glyphs, drawn at the size of the line). */
 img.yi { width: 22px; height: 22px; flex: none; }
+/* The lines of the original top strip tooltips: a dot, a value, positive or negative. */
+.top-panel-negative .v { color: var(--neg); }
+.top-panel-line { margin: 0; min-height: 8px; display: flex; align-items: center; gap: 6px; }
+.top-panel-line.top-panel-positive { color: var(--y-food); }
+.top-panel-line.top-panel-negative { color: var(--neg); }
+.top-panel-dot { width: 4px; height: 4px; flex: none; margin-left: 4px; border-radius: 2px; background: currentColor; }
 
 /* The shared slot for mod panels: a column on the right above the turn plate. Panels stack upwards from its bottom
    and switch their own pointer events on. */

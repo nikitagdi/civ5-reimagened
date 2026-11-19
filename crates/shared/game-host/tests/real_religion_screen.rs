@@ -56,6 +56,22 @@ fn new_game_religion_root_refuses_choices_without_a_prophet() {
     assert!(!root["symbols"].as_array().unwrap().is_empty());
     assert_eq!(root["slots"].as_array().unwrap().len(), 6);
     assert_eq!(root["enabled"], false);
+    // The popup's "founded in" label with the current game year, as the original builds it.
+    let lua = lua_sys::Lua::new().unwrap();
+    game_host::Core::attach_screen_lua(h.w.core_mut(), &lua).unwrap();
+    lua.exec(
+        r#"local year = Game.GetGameTurnYear()
+        expected = Locale.ConvertTextKey("TXT_KEY_CHOOSE_RELIGION_FOUNDED_IN",
+            Locale.ConvertTextKey(year < 0 and "TXT_KEY_TIME_BC" or "TXT_KEY_TIME_AD", math.abs(year)))"#,
+        "=founded-in",
+    )
+    .unwrap();
+    let expected: String = lua.globals().get("expected").unwrap();
+    assert_eq!(root["date"], expected.as_str());
+    assert!(
+        !expected.contains("TXT_KEY") && expected.chars().any(|c| c.is_ascii_digit()),
+        "{expected}"
+    );
     h.found_city(0);
     let city =
         h.w.fresh_view(0)

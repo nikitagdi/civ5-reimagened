@@ -64,5 +64,38 @@ fn overview_filters_contacts_uses_public_mood_and_refuses_unsupported_conversati
       assert(#minors==1 and minors[1].status=='angry' and minors[1].personality=='Friendly')
       assert(minors[1].ally_name==nil and minors[1].ally_id==nil)
 
+      -- Seat-scoped deal snapshots (the core's GcUiGetCurrentDeals / GcUiGetHistoricDeals shape).
+      TradeableItems={TRADE_ITEM_GOLD=0,TRADE_ITEM_GOLD_PER_TURN=1,TRADE_ITEM_MAPS=2,TRADE_ITEM_RESOURCES=3,TRADE_ITEM_CITIES=4,
+        TRADE_ITEM_UNITS=5,TRADE_ITEM_OPEN_BORDERS=6,TRADE_ITEM_DEFENSIVE_PACT=7,TRADE_ITEM_RESEARCH_AGREEMENT=8,
+        TRADE_ITEM_TRADE_AGREEMENT=9,TRADE_ITEM_PERMANENT_ALLIANCE=10,TRADE_ITEM_SURRENDER=11,TRADE_ITEM_TRUCE=12,
+        TRADE_ITEM_PEACE_TREATY=13,TRADE_ITEM_THIRD_PARTY_PEACE=14,TRADE_ITEM_THIRD_PARTY_WAR=15,TRADE_ITEM_THIRD_PARTY_EMBARGO=16,
+        TRADE_ITEM_ALLOW_EMBASSY=17,TRADE_ITEM_DECLARATION_OF_FRIENDSHIP=18,TRADE_ITEM_VOTE_COMMITMENT=19}
+      GameInfo.Resources[7]={Type='RESOURCE_SILK',Description='Silk'}
+      Game.GetResourceUsageType=function(id) assert(id==7); return 2 end
+      Teams[2].GetLeaderID=function() return 2 end
+      local asked={}
+      local function item(t,from,d1,d2,dur) return {type=t,from=from,data1=d1 or -1,data2=d2 or -1,data3=-1,duration=dur or 0,turns_left=0,flag1=false} end
+      GcUiGetCurrentDeals=function(seat) asked[#asked+1]=seat
+        return {{from=1,to=0,start_turn=10,final_turn=40,duration=30,items={
+          item(1,1,6,-1,30),item(3,0,7,1,30),item(6,1,-1,-1,30),item(2,0)}}} end
+      GcUiGetHistoricDeals=function(seat) asked[#asked+1]=seat
+        return {{from=0,to=2,start_turn=3,final_turn=3,duration=0,items={item(0,0,120),item(17,2),item(15,0,2)}}} end
+      local root=screen.data(0,{})
+      assert(asked[1]==0 and asked[2]==0, "the seat's own deals only")
+      assert(root.deals_available and root.deals_reason==nil and #root.deals==2)
+      local cur,old=root.deals[1],root.deals[2]
+      assert(cur.state=='current' and cur.partner_id==1 and cur.start_turn==10 and cur.end_turn==40 and cur.duration==30)
+      -- The map item has no model kind and is left out (SIMP-450 remainder).
+      assert(#cur.items==3)
+      assert(cur.items[1].side=='them' and cur.items[1].kind=='gold_per_turn' and cur.items[1].amount==6 and cur.items[1].duration==30)
+      assert(cur.items[2].side=='me' and cur.items[2].kind=='resource' and cur.items[2].group=='luxury' and cur.items[2].name=='Silk' and cur.items[2].amount==1)
+      assert(cur.items[3].kind=='open_borders' and cur.items[3].group=='other')
+      assert(old.state=='completed' and old.partner_id==2 and #old.items==3)
+      assert(old.items[1].kind=='gold' and old.items[1].amount==120 and old.items[1].duration==nil)
+      assert(old.items[2].kind=='embassy' and old.items[2].side=='them')
+      assert(old.items[3].kind=='third_party_war' and string.find(old.items[3].name,'Civilization'))
+      local keys={}
+      for _,d in ipairs(root.deals) do for _,i in ipairs(d.items) do assert(not keys[i.key]); keys[i.key]=true end end
+
     "#, "=overview").unwrap();
 }

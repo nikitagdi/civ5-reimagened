@@ -35,6 +35,23 @@ fn city_state_gifts_and_orders_are_scoped_and_revalidated() {
         m.GetFriendshipFromGoldGift = function(self, player, amount) return amount / 10 end
         m.GetMinorCivBullyGoldAmount = function() return 100 end
         m.GetMajorBullyGoldDetails = function() return "Pressure" end
+        m.GetMajorBullyUnitDetails = function() return "Worker pressure" end
+        GameDefines.MINOR_FRIENDSHIP_DROP_BULLY_WORKER_SUCCESS = -5000
+        -- Two displayed quests (a culture contest the seat trails and a resource), a barbarian threat, no proxy war.
+        MinorCivQuestTypes = {MINOR_CIV_QUEST_CONTEST_CULTURE = 7, MINOR_CIV_QUEST_CONNECT_RESOURCE = 3, MINOR_CIV_QUEST_ROUTE = 0}
+        GameInfo.Resources = {[5] = {Type = "RESOURCE_IRON", Description = "Iron"}}
+        Game = Game or {}
+        Game.GetGameTurn = function() return 20 end
+        m.IsMinorCivDisplayedQuestForPlayer = function(_, _, q) return q == 7 or q == 3 end
+        m.GetQuestData1 = function(_, _, q) return q == 3 and 5 or -1 end
+        m.GetQuestData2 = function() return -1 end
+        m.GetQuestTurnsRemaining = function(_, _, q) return q == 7 and 12 or -1 end
+        m.GetMinorCivContestValueForLeader = function() return 90 end
+        m.GetMinorCivContestValueForPlayer = function() return 40 end
+        m.IsMinorCivContestLeader = function() return false end
+        m.IsThreateningBarbariansEventActiveForPlayer = function() return true end
+        m.IsProxyWarActiveForMajor = function() return false end
+        GcUiGetBullyScores = function(seat, minor) assert(seat == 0 and minor == 1) return -20, 35 end
         Teams[0].CanChangeWarPeace = function() return true end
         Teams[0].CanDeclareWar = function() return true end
         Teams[0].GetNumTurnsLockedIntoWar = function() return 0 end
@@ -59,6 +76,17 @@ fn city_state_gifts_and_orders_are_scoped_and_revalidated() {
         known = true
         local model = cs.data(0, {a = 1})
         assert(model.gifts.gold[1].enabled and not model.gifts.gold[2].enabled)
+        -- The original's quest order and formal texts; the contest standing and the turns left.
+        assert(#model.quests == 2 and model.quests[1].type == "contest_culture" and model.quests[2].type == "connect_resource")
+        assert(model.quests[1].contest_you == 40 and model.quests[1].contest_leader == 90 and model.quests[1].contest_you_lead == false)
+        assert(model.quests[1].title == "TXT_KEY_CITY_STATE_QUEST_CONTEST_CULTURE_LOSING_FORMAL" and model.quests[1].turns_left == 12)
+        assert(model.quests[1].tooltip:find("TURNS_REMAINING", 1, true))
+        assert(model.quests[2].title == "TXT_KEY_CITY_STATE_QUEST_CONNECT_RESOURCE_FORMAL" and model.quests[2].icon == "resource:RESOURCE_IRON" and model.quests[2].turns_left == nil)
+        assert(model.threat_barbarians and not model.threat_proxy_war and model.no_quests_text == "")
+        -- The core's pressure breakdowns and scores; influence defines are times 100.
+        assert(model.tribute.gold.tooltip == "Pressure" and model.tribute.unit.tooltip == "Worker pressure")
+        assert(model.tribute.pressure == -20 and model.tribute.pressure_gold_needed == 20 and model.tribute.pressure_unit_needed == 0)
+        assert(model.tribute.gold.influence_loss == 0 and model.tribute.unit.influence_loss == 50)
         cs.actions.gift_gold(0, {a = 1, b = 0}, net)
         assert(sent[1][1] == "sendMinorGiftGold" and sent[1][2] == 1 and sent[1][3] == 250)
         assert(not pcall(cs.actions.gift_gold, 0, {a = 1, b = 1}, net))

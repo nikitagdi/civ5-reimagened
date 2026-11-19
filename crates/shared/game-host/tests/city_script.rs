@@ -103,6 +103,53 @@ fn city_data_matches_schema_and_keeps_duplicate_orders_separate() {
     .expect("city root matches schema");
 }
 
+/// The great person meter as the original city view computes it (specialists and buildings, modifiers by type), and the
+/// demand box with Lekmod's countdown.
+#[test]
+fn city_great_person_meter_and_demand_follow_the_original_view() {
+    let lua = lua();
+    lua.exec(
+        r#"
+        local c, p = city_test_city, city_test_player
+        GameInfo.Specialists = (function()
+            local spec = {ID=1, Type="SPEC", GreatPeopleUnitClass="UNITCLASS_SCIENTIST", GreatPeopleRateChange=3}
+            return setmetatable({[1]=spec, SPEC=spec}, {__call=function() local done=false; return function() if not done then done=true; return spec end end end})
+        end)()
+        GameInfo.UnitClasses = {UNITCLASS_SCIENTIST = {ID=9, Description="Great Scientist", DefaultUnit="UNIT_TEST"}}
+        GameInfo.Buildings[4].GreatPeopleRateChange = 2
+        c.GetSpecialistUpgradeThreshold = function() return 100 end
+        c.GetSpecialistGreatPersonProgressTimes100 = function() return 4050 end
+        c.GetGreatPeopleRateModifier = function() return 25 end
+        p.GetGreatPeopleRateModifier = function() return 10 end
+        p.GetPolicyGreatPeopleRateModifier = function() return 0 end
+        p.GetGreatScientistRateModifier = function() return 15 end
+        p.GetPolicyGreatScientistRateModifier = function() return 5 end
+        p.GetGoldenAgeTurns = function() return 0 end
+        Game.GetNumActiveLeagues = function() return 0 end
+        -- Demanded luxury with its countdown.
+        GameInfo.Resources = {[6] = {ID=6, Description="Silk"}}
+        c.GetResourceDemanded = function() return 6 end
+        c.GetResourceDemandedCountdown = function() return 11 end
+        c.GetWeLoveTheKingDayCounter = function() return 0 end
+        local root = screen.data(3, {a=7})
+        local gp = root.great_people[1]
+        -- 2 specialists x 3 + a building's 2 = 8, x (1 + (10 + 15 - 5 player, 5 policy, 25 city) / 100) = 8 x 1.5.
+        assert(gp.rate == 12 and gp.progress == 40 and gp.turns == 5, tostring(gp.rate) .. " " .. tostring(gp.turns))
+        local labels = {}
+        for _, m in ipairs(gp.modifiers) do labels[m.label] = m.value end
+        assert(labels.TXT_KEY_PLAYER_GP_MOD == 20 and labels.TXT_KEY_POLICY_GP_MOD == 5 and labels.TXT_KEY_CITY_GP_MOD == 25)
+        assert(root.demand.kind == 'resource' and root.demand.turns == 11 and root.demand.text == 'TXT_KEY_CITYVIEW_RESOURCE_DEMANDED')
+        c.GetWeLoveTheKingDayCounter = function() return 4 end
+        root = screen.data(3, {a=7})
+        assert(root.demand.kind == 'wltkd' and root.demand.turns == 4 and root.demand.text == 'TXT_KEY_CITYVIEW_WLTKD_COUNTER')
+        c.GetResourceDemanded = function() return -1 end
+        assert(screen.data(3, {a=7}).demand == nil, 'no demand box without a demand')
+    "#,
+        "=city-gp",
+    )
+    .unwrap();
+}
+
 #[test]
 fn city_list_only_uses_the_requesting_seat() {
     let lua = lua();

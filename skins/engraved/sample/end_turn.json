@@ -265,6 +265,7 @@
             "icon": "unit:2",
             "hp": 90,
             "status": "awake",
+            "status_text": "",
             "moves": 2,
             "max_moves": 2,
             "military": true,

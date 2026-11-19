@@ -3,16 +3,17 @@ local function color(key)
     return math.floor(c.Red * 255) * 16777216 + math.floor(c.Green * 255) * 65536 + math.floor(c.Blue * 255) * 256 + 255
 end
 
+-- MilitaryOverview's status column: its order and its texts; an automated unit reads as automated building (a worker
+-- at work) or exploring.
 local function status(u, player)
-    if u:IsEmbarked() then return "embarked", "Embarked" end
-    if u:IsGarrisoned() then return "garrison", "Garrisoned" end
-    -- SIMPLIFIED(SIMP-371): Lua exposes automation as a boolean; automated exploration shares this status.
-    if u:IsAutomated() then return "automated", "Automated" end
+    if u:IsEmbarked() then return "embarked", L"TXT_KEY_UNIT_STATUS_EMBARKED" end
+    if u:IsGarrisoned() then return "garrison", L"TXT_KEY_MISSION_GARRISON" end
+    if u:IsAutomated() then return "automated", L(u:IsWork() and "TXT_KEY_ACTION_AUTOMATE_BUILD" or "TXT_KEY_ACTION_AUTOMATE_EXPLORE") end
     local activity = u:GetActivityType()
-    if activity == ActivityTypes.ACTIVITY_HEAL then return "healing", "Healing" end
-    if activity == ActivityTypes.ACTIVITY_SENTRY then return "sentry", "Alert" end
-    if u:GetFortifyTurns() > 0 then return "fortified", "Fortified" end
-    if activity == ActivityTypes.ACTIVITY_SLEEP then return "sleeping", "Sleeping" end
+    if activity == ActivityTypes.ACTIVITY_HEAL then return "healing", L"TXT_KEY_MISSION_HEAL" end
+    if activity == ActivityTypes.ACTIVITY_SENTRY then return "sentry", L"TXT_KEY_MISSION_ALERT" end
+    if u:GetFortifyTurns() > 0 then return "fortified", L"TXT_KEY_UNIT_STATUS_FORTIFIED" end
+    if activity == ActivityTypes.ACTIVITY_SLEEP then return "sleeping", L"TXT_KEY_MISSION_SLEEP" end
     local build = u:GetBuildType()
     if build >= 0 then
         local info = GameInfo.Builds[build]

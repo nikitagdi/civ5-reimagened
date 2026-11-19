@@ -187,6 +187,10 @@
 <span class="victory-value" data-bind-value="{{victory.domination.own_count}}" >
 </span>
 </div>
+<div class="victory-ledger-row" data-part="victory.domination-leader" data-bind-if="{{victory.domination.leader != null}}">
+<span data-l10n="victory.leading" data-l10n-args="{{victory.domination.leader.count}}"></span>
+<span class="victory-value" data-bind-value="{{victory.domination.leader.name}}"></span>
+</div>
 <div class="victory-capitals">
 <div class="victory-capital" data-bind-for="c:{{victory.domination.capitals}}">
 <img class="victory-civ" data-bind-src="{{c.icon}}">

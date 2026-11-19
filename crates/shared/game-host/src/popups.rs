@@ -11,6 +11,10 @@ pub struct Popup {
     pub data1: i32,
     pub data2: i32,
     pub data3: i32,
+    /// Fourth and fifth integers of an array popup (captured city: Great Works taken, player that
+    /// may be liberated or -1); `None` when the core event had none.
+    pub data4: Option<i32>,
+    pub data5: Option<i32>,
     pub flag: i32,
     pub option1: bool,
     pub option2: bool,
@@ -38,6 +42,28 @@ pub struct PopupHead {
 pub struct Entry {
     pub head: PopupHead,
     pub popup: Popup,
+    /// For a move's war question: what makes it stale (`Popups::watch`).
+    pub(crate) watch: Option<MoveWatch>,
+}
+
+/// The core's war question for a move (`BUTTONPOPUP_DECLAREWARMOVE`) belongs to one order: the turn it was asked in and,
+/// when the core named the unit, where that unit stood. A seat whose client never answers it (the classic client) must
+/// not keep it, so it lapses when the turn changes or the unit moved or is gone.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct MoveWatch {
+    pub turn: i32,
+    /// (unit id, x, y) at the question.
+    pub unit: Option<(i32, i32, i32)>,
+}
+
+pub(crate) const DECLARE_WAR_MOVE: &str = "BUTTONPOPUP_DECLAREWARMOVE";
+
+/// The unit a move's war question names, when the core named one.
+fn question_unit(popup: &Popup) -> Option<i32> {
+    (popup.kind == DECLARE_WAR_MOVE)
+        .then_some(popup.data4)
+        .flatten()
+        .filter(|unit| *unit >= 0)
 }
 
 #[derive(Default)]
@@ -68,6 +94,10 @@ impl Popups {
     ) -> Result<i32, String> {
         let id = self.next.checked_add(1).ok_or("popup ids exhausted")?;
         let queue = self.seats.entry(player).or_default();
+        if let Some(unit) = question_unit(&popup) {
+            // A newer order of the same unit asks again: the older question is moot (one per unit, no pile-up).
+            queue.retain(|entry| question_unit(&entry.popup) != Some(unit));
+        }
         if queue.len() >= 64 {
             if let Some(index) = queue.iter().position(|entry| !entry.head.decision) {
                 queue.remove(index);
@@ -88,8 +118,42 @@ impl Popups {
         }
         self.next = id;
         head.id = id;
-        queue.push_back(Entry { head, popup });
+        queue.push_back(Entry {
+            head,
+            popup,
+            watch: None,
+        });
         Ok(id)
+    }
+
+    /// Marks a queued war question of a move with what makes it stale.
+    pub(crate) fn watch(&mut self, player: PlayerId, id: i32, watch: MoveWatch) {
+        if let Some(entry) = self
+            .seats
+            .get_mut(&player)
+            .and_then(|queue| queue.iter_mut().find(|entry| entry.head.id == id))
+        {
+            entry.watch = Some(watch);
+        }
+    }
+
+    /// The watched questions: (seat, popup id, watch).
+    pub(crate) fn watched(&self) -> Vec<(PlayerId, i32, MoveWatch)> {
+        self.seats
+            .iter()
+            .flat_map(|(player, queue)| {
+                queue
+                    .iter()
+                    .filter_map(move |entry| entry.watch.map(|w| (*player, entry.head.id, w)))
+            })
+            .collect()
+    }
+
+    /// Drops one entry wherever it is in the seat's queue.
+    pub(crate) fn remove(&mut self, player: PlayerId, id: i32) {
+        if let Some(queue) = self.seats.get_mut(&player) {
+            queue.retain(|entry| entry.head.id != id);
+        }
     }
 
     pub fn head(&self, player: PlayerId) -> Option<&Entry> {
@@ -167,6 +231,38 @@ mod tests {
         assert!(q.push(1, Popup::default(), head(false)).is_err());
         q.push(1, Popup::default(), head(true)).unwrap();
         assert_eq!(q.len(1), 65);
+    }
+
+    #[test]
+    fn one_move_question_per_unit_and_watched_entries_can_lapse() {
+        let mut q = Popups::default();
+        let question = |unit| Popup {
+            kind: DECLARE_WAR_MOVE.into(),
+            data4: Some(unit),
+            ..Popup::default()
+        };
+        let info = q.push(0, Popup::default(), head(false)).unwrap();
+        let first = q.push(0, question(9), head(true)).unwrap();
+        let other = q.push(0, question(10), head(true)).unwrap();
+        let again = q.push(0, question(9), head(true)).unwrap();
+        // The unit's newer order replaced its older question; other units and other popups stay.
+        let ids: Vec<i32> = q.seats[&0].iter().map(|e| e.head.id).collect();
+        assert_eq!(ids, vec![info, other, again]);
+        assert!(!ids.contains(&first));
+        // Questions without a named unit (-1) are never merged.
+        q.push(1, question(-1), head(true)).unwrap();
+        q.push(1, question(-1), head(true)).unwrap();
+        assert_eq!(q.len(1), 2);
+        let watch = MoveWatch {
+            turn: 3,
+            unit: Some((10, 4, 5)),
+        };
+        q.watch(0, other, watch);
+        assert_eq!(q.watched(), vec![(0, other, watch)]);
+        q.remove(0, other);
+        assert!(q.watched().is_empty());
+        assert_eq!(q.len(0), 2);
+        assert_eq!(q.head(0).unwrap().head.id, info);
     }
 
     #[test]

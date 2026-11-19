@@ -13,12 +13,21 @@ return {
         local era=GameInfo.Eras[p:GetCurrentEra()]
         local roles=array()
         local names={economic="Economic advisor",military="Military advisor",foreign="Foreign advisor",science="Science advisor"}
+        -- Seat-scoped read of the core's advisor counsel (same shape as Game.GetAdvisorCounsel: advisor enum -> zero-based texts).
+        local counsel=GcUiGetAdvisorCounsel and GcUiGetAdvisorCounsel(player)
+        local A=counsel and AdvisorTypes or {}
+        local advisor={economic=A.ADVISOR_ECONOMIC,military=A.ADVISOR_MILITARY,foreign=A.ADVISOR_FOREIGN,science=A.ADVISOR_SCIENCE}
         for _,key in ipairs({"economic","military","foreign","science"}) do
-            roles[#roles+1]={key=key,name=names[key],role=names[key],portrait="",pages=array()}
+            local pages=array()
+            local texts=counsel and counsel[advisor[key]]
+            if texts then
+                local i=0
+                while texts[i] do pages[#pages+1]={id=i,text=texts[i]};i=i+1 end
+            end
+            roles[#roles+1]={key=key,name=names[key],role=names[key],portrait="",pages=pages}
         end
-        -- SIMPLIFIED(SIMP-394): native GetAdvisorCounsel reads the global active player; a seat-scoped read-only bridge is required.
         return {civ={key=c.Type,name=L(c.ShortDescription),icon="civ:"..c.Type,color_bg=bg,color_fg=fg},
-            era=L(era.Description),roles=roles,reason="Counsel is unavailable until the game exposes a seat-scoped advisor query"}
+            era=L(era.Description),roles=roles,reason=not counsel and "Counsel is unavailable: this game core has no seat-scoped advisor query" or nil}
     end,
     actions={},
 }

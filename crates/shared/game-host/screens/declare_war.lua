@@ -28,6 +28,20 @@ local function context(player,args)
     local id,t=target(player,team)
     return team,id,t,reason,popup
 end
+-- The order a "yes" resumes: the core names the acting unit of a move question (data4) and its mission flags (data5).
+local function acting_unit(player,reason,popup)
+    -- SIMPLIFIED(SIMP-452): range-strike and plunder questions are raised by the original client interface, not by the core, so no payload names their unit; they stay unavailable while move questions resume.
+    if reason~="move" then error("This question does not name the unit that gave the order.") end
+    local id=popup.data4
+    assert(integer(id) and id>=0,"The game did not name the unit that gave this order.")
+    local unit=Players[player]:GetUnitByID(id)
+    assert(unit and unit:GetOwner()==player and unit:CanMove(),"The acting unit is unavailable.")
+    local plot=Map.GetPlot(popup.data2,popup.data3)
+    assert(plot and visible(plot,Players[player]:GetTeam()),"The target plot is not visible.")
+    local flags=popup.data5
+    if not integer(flags) then flags=0 end
+    return id,plot,flags
+end
 local function yields(route,from)
     local out=array()
     for _,spec in ipairs({{"gold",from and "FromGPT" or "ToGPT"},{"sci",from and "FromScience" or "ToScience"},{"food",from and "FromFood" or "ToFood"},{"prod",from and "FromProduction" or "ToProduction"}}) do
@@ -81,9 +95,10 @@ local function data(player,args)
     end
     local enabled=p:IsTurnActive() and team_of(player):CanDeclareWar(team)
     local why=not enabled and "War cannot be declared on this team now." or nil
-    -- Native events contain team/x/y, not the selected unit id. Never reinterpret x as a unit.
-    if popup then enabled=false;why="The pending unit order has no captured unit id. Cancel and issue an explicit declaration first." end
-    -- SIMPLIFIED(SIMP-452): native movement/attack/plunder questions fail closed until their payload captures the acting unit; explicit war works.
+    if enabled and popup then
+        local ok_unit,err=pcall(acting_unit,player,reason,popup)
+        if not ok_unit then enabled=false;why=tostring(err):gsub("^.-:%d+: ","") end
+    end
     return {kind="declare_war",reason=reason,me=person(player),target=row,question="Declare war on " .. row.civ .. "?",
         plot=popup and {x=popup.data2,y=popup.data3} or nil,diplomacy=diplomacy,protectors=protectors,allied_city_states=allies,
         deals_from_them=array(),deals_from_you=array(),vote_promises=array(),routes=routes,enabled=enabled,disabled_reason=why,
@@ -99,24 +114,16 @@ return {data=data,actions={
         local team,_,_,reason,popup=context(player,args)
         assert(Players[player]:IsTurnActive() and team_of(player):CanDeclareWar(team),"War cannot be declared on this team now.")
         assert(integer(args.a) and args.a==team,"The rival team changed.")
-        local unit,plot,mission
+        local unit,plot,flags
         if popup then
-            assert(integer(args.b) and args.b>=0,"An owned unit is required to resume this order.")
-            unit=Players[player]:GetUnitByID(args.b)
-            assert(unit and unit:GetOwner()==player and unit:CanMove(),"The acting unit is unavailable.")
-            assert(integer(args.c) and integer(args.d) and args.c==popup.data2 and args.d==popup.data3,"The target plot changed.")
-            plot=Map.GetPlot(args.c,args.d)
-            assert(plot and visible(plot,Players[player]:GetTeam()),"The target plot is not visible.")
-            if reason=="move" then mission=MissionTypes.MISSION_MOVE_TO
-            elseif reason=="range_attack" then
-                assert(unit:CanRangeStrikeAt(args.c,args.d,false,true),"This unit cannot attack that plot.")
-                mission=MissionTypes.MISSION_RANGE_ATTACK
-            else error("Plunder requires a captured route and warning team; this payload is incomplete.") end
+            unit,plot,flags=acting_unit(player,reason,popup)
+            -- The window may echo the unit and plot it showed; they must be the pending order's.
+            assert(args.b==nil or args.b==-1 or args.b==unit,"The acting unit changed.")
+            assert((args.c==nil or args.c==popup.data2) and (args.d==nil or args.d==popup.data3),"The target plot changed.")
         else assert(args.b==nil or args.b==-1,"An explicit declaration cannot resume a unit order.") end
-        assert(mission~=nil or not popup,"The follow-up mission is unavailable.")
         net.send("sendChangeWar",team,1)
-        -- SIMPLIFIED(SIMP-453): a resumed order addresses one validated unit, rather than the client's selected stack.
-        if unit then net.send("sendPushMission",args.b,mission,plot:GetX(),plot:GetY(),0,0) end
+        -- The original answer re-issues the move for the unit whose order asked; a v2 order addresses that one unit.
+        if unit then net.send("sendPushMission",unit,MissionTypes.MISSION_MOVE_TO,plot:GetX(),plot:GetY(),flags,0) end
         if args.popup_id then net.popup_done(args.popup_id) end
         return {close=true}
     end,

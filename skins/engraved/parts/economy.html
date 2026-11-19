@@ -267,7 +267,7 @@
 </span>
 <span class="economy-value" data-bind-value="{{economy.options.religion ? fmt.int(c.faith) : '−'}}" >
 </span>
-<span class="economy-value" data-bind-value="{{c.golden_age == null ? '−' : fmt.int(c.golden_age)}}" >
+<span class="economy-value" data-part="economy.golden-age" data-bind-value="{{c.golden_age == null ? '−' : fmt.int(c.golden_age)}}" >
 </span>
 <button class="economy-order" data-part="economy.production" data-bind-disabled="{{c.puppet}}" data-tooltip="economy-puppet" data-on-click="intent window.close(window: 'economy'); intent window.open(window: 'production', city: c.city_key)">
 <div data-bind-if="{{c.order != null}}">

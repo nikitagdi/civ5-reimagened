@@ -51,15 +51,27 @@ return {
         local ranking, space, capitals, cultural = array(), array(), array(), array()
         local cap_by_founder, cap_counts, team_seen = {}, {}, {}
         local apollo_teams, influence_count, rivals = 0, 0, 0
-        -- SIMPLIFIED(SIMP-376): Without original-capital coordinates, concealed capitals and the global domination leader remain unknown.
+        -- VictoryProgress' PopulateDomination: every major's original capital, whoever holds it now, and the leading team
+        -- (most capitals beyond its own members). Unmet founders and holders stay anonymous below, as the original's tooltips.
+        local team_caps, team_members, team_player = {}, {}, {}
         for id = 0, GameDefines.MAX_MAJOR_CIVS - 1 do
             local other = Players[id]
-            if other and other:IsEverAlive() then
+            if other and other:IsEverAlive() and not other:IsMinorCiv() then
+                local t = other:GetTeam()
+                team_members[t] = (team_members[t] or 0) + 1
+                if team_player[t] == nil then team_player[t] = id end
                 for city in other:Cities() do
-                    if city:Plot():IsRevealed(p:GetTeam(), false) and city:IsOriginalCapital() then
+                    if city:IsOriginalMajorCapital() then
                         cap_by_founder[city:GetOriginalOwner()] = city
+                        team_caps[t] = (team_caps[t] or 0) + 1
                     end
                 end
+            end
+        end
+        local lead_team, lead_caps, lead_members = -1, 0, 0
+        for t = 0, (GameDefines.MAX_CIV_TEAMS or GameDefines.MAX_MAJOR_CIVS) - 1 do
+            if team_members[t] and (team_caps[t] or 0) - team_members[t] > lead_caps - lead_members then
+                lead_team, lead_caps, lead_members = t, team_caps[t] or 0, team_members[t]
             end
         end
         for id = 0, GameDefines.MAX_MAJOR_CIVS - 1 do
@@ -72,14 +84,16 @@ return {
                 ranking[#ranking + 1] = row
                 local cap, capital = civ(id, known), cap_by_founder[id]
                 cap.id, cap.alive, cap.capital_name = id, other:IsAlive(), "Unknown capital"
+                if Teams[other:GetTeam()]:GetNumMembers() > 1 then cap.team = other:GetTeam() end
                 if capital then
                     cap.capital_name = known and capital:GetName() or "Unknown capital"
                     local owner = capital:GetOwner()
+                    local t = Players[owner]:GetTeam()
+                    cap_counts[t] = (cap_counts[t] or 0) + 1
                     if owner == player or met(player, owner) then
                         cap.owner, cap.owner_met, cap.owner_icon = owner, true, select(1, civ(owner, true)).icon
-                        local t = Players[owner]:GetTeam()
-                        cap_counts[t] = (cap_counts[t] or 0) + 1
-                        if Teams[t]:GetNumMembers() > 1 then cap.team = t end
+                    else
+                        cap.owner_met = false
                     end
                 end
                 capitals[#capitals + 1] = cap
@@ -135,12 +149,29 @@ return {
             diplo.un_active, diplo.turns_to_session = league:IsUnitedNations(), league:GetTurnsUntilVictorySession()
             diplo.delegates_needed, diplo.delegates_controlled = Game.GetVotesNeededForDiploVictory(), league:CalculateStartingVotesForMember(player)
         end
+        local leader
+        if lead_team >= 0 then
+            local total = 0
+            for _, n in pairs(team_members) do total = total + n end
+            local id = team_player[lead_team]
+            leader = { player = id, is_team = lead_members > 1, count = lead_caps, total = total }
+            if leader.is_team then
+                leader.player, leader.name = -1, L("TXT_KEY_MULTIPLAYER_DEFAULT_TEAM_NAME", lead_team + 1)
+            elseif id ~= player and not met(player, id) then
+                -- The original names an unmet human by nickname; a seat does not learn unmet players here.
+                leader.player, leader.name = -1, L("TXT_KEY_UNMET_PLAYER")
+            else
+                local q = Players[id]
+                local nick = q:GetNickName()
+                leader.name = (q:IsHuman() and nick and nick ~= "") and nick or q:GetName()
+            end
+        end
         local who, name = civ(player, true)
         who.name, who.civ_name = L(GameInfo.Leaders[p:GetLeaderType()].Description), name
         return {
             player = who, turn = turn, scenario = scenario, time = { enabled = Game.IsVictoryValid(GameInfoTypes.VICTORY_TIME), max_turn = Game.GetMaxTurns(), turns_left = math.max(0, Game.GetMaxTurns() - turn) },
             score = { total = p:GetScore(), rank = rank, items = score_items },
-            domination = { enabled = Game.IsVictoryValid(GameInfoTypes.VICTORY_DOMINATION), own_count = cap_counts[p:GetTeam()] or 0, capitals = capitals },
+            domination = { enabled = Game.IsVictoryValid(GameInfoTypes.VICTORY_DOMINATION), own_count = cap_counts[p:GetTeam()] or 0, capitals = capitals, leader = leader },
             science = { enabled = Game.IsVictoryValid(GameInfoTypes.VICTORY_SPACE_RACE), apollo_built = project_count(team, "PROJECT_APOLLO_PROGRAM") > 0, apollo_teams = apollo_teams, prereq_done = done, prereq_total = total, parts = parts(team) },
             diplomatic = diplo, culture = { enabled = Game.IsVictoryValid(GameInfoTypes.VICTORY_CULTURAL), influential_count = influence_count, rivals_count = rivals, civs = cultural },
             proposals = proposals(player), ranking = ranking, space_race = space,

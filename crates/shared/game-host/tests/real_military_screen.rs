@@ -71,4 +71,28 @@ fn military_data_and_actions_validate_through_the_real_worker() {
             .iter()
             .all(|u| u["unit_key"].as_str().unwrap().starts_with("1:"))
     );
+    // An exploring unit reads as automated exploring (the original's text), not as automated building.
+    let lua = lua_sys::Lua::new().unwrap();
+    game_host::Core::attach_screen_lua(h.w.core_mut(), &lua).unwrap();
+    lua.exec(
+        r#"explore = Locale.ConvertTextKey("TXT_KEY_ACTION_AUTOMATE_EXPLORE")
+        for u in Players[0]:Units() do if u:IsCombatUnit() then scout = u:GetID() end end"#,
+        "=explore",
+    )
+    .unwrap();
+    let explore: String = lua.globals().get("explore").unwrap();
+    let scout: i32 = lua.globals().get("scout").unwrap();
+    assert_eq!(
+        h.cmd(0, protocol::Command::UnitAutomateExplore { unit: scout }),
+        protocol::CommandOutcome::Applied
+    );
+    let root = query(&mut h, 4, 0);
+    let row = root["units"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|u| u["id"] == scout)
+        .expect("the exploring unit");
+    assert_eq!(row["status"], "automated", "{row}");
+    assert_eq!(row["status_text"], explore.as_str());
 }

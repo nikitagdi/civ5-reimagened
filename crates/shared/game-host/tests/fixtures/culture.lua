@@ -1,6 +1,6 @@
 known, war, building_present = false, false, true
 Locale = {ConvertTextKey = function(key) return key end}
-GameDefines = {MAX_MAJOR_CIVS = 2}
+GameDefines = {MAX_MAJOR_CIVS = 2, CULTURE_LEVEL_EXOTIC = 10, CULTURE_LEVEL_FAMILIAR = 30, CULTURE_LEVEL_POPULAR = 60, CULTURE_LEVEL_INFLUENTIAL = 100, CULTURE_LEVEL_DOMINANT = 200}
 GameInfoTypes = {GAMEOPTION_NO_CULTURE_OVERVIEW = 1}
 local function records(rows)
     return setmetatable(rows, {__call = function(self)
@@ -47,6 +47,7 @@ local function player(id)
         GetTurnsToInfluential = function() return 999 end, GetInfluenceTrend = function() return 0 end,
         GetTourismModifierWith = function() return 0 end, GetTourismModifierWithTooltip = function() return "No modifiers" end,
         GetInfluencePerTurn = function() return 0 end,
+        GetCivilizationShortDescriptionKey = function() return "Civilization " .. id end,
     }
 end
 Players = {[0] = player(0), [1] = player(1)}

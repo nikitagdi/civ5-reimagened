@@ -1,4 +1,9 @@
 local function yes(v) return v == true or v == 1 end
+-- ChooseReligionPopup's label: "Founded in" and the current game year.
+local function founded_in()
+    local year = Game.GetGameTurnYear()
+    return L("TXT_KEY_CHOOSE_RELIGION_FOUNDED_IN", L(year < 0 and "TXT_KEY_TIME_BC" or "TXT_KEY_TIME_AD", math.abs(year)))
+end
 local function belief(id)
     local b = GameInfo.Beliefs[id]
     if b then return {id = id, key = b.Type, name = L(b.ShortDescription), short_name = L(b.ShortDescription),
@@ -71,9 +76,9 @@ return {
         if p:HasCreatedReligion() then
             local r = GameInfo.Religions[rid]
             local holy = Game.GetHolyCityForReligion(rid, player)
-            -- SIMPLIFIED(SIMP-364): the founding date is omitted until a verified read-only query is exposed.
+            -- The popup's "founded in" label reads the current game year in the original too (ChooseReligionPopup).
             existing = {id = rid, key = r.Type, name = L(Game.GetReligionName(rid)), icon = icon(r.IconAtlas, r.PortraitIndex),
-                default_name = L(r.Description), holy_city = holy and (holy:GetOwner() == player or visible(holy:Plot(), p:GetTeam())) and holy:GetName() or "", founded = ""}
+                default_name = L(r.Description), holy_city = holy and (holy:GetOwner() == player or visible(holy:Plot(), p:GetTeam())) and holy:GetName() or "", founded = founded_in()}
             for index, id in ipairs(Game.GetBeliefsInReligion(rid)) do
                 local b = GameInfo.Beliefs[id]
                 if not yes(b.Reformation) then
@@ -97,9 +102,8 @@ return {
         end
         local civ = GameInfo.Civilizations[p:GetCivilizationType()]
         local why = pending(p, city, enhance)
-        local year = Game.GetGameTurnYear()
         return {mode = enhance and "enhance" or "found", city = city and {id = city:GetID(), key = key_city(player, city:GetID()), name = city:GetName()},
-            date = math.abs(year) .. (year < 0 and " BC" or " AD"), emblem = icon(civ.IconAtlas, civ.PortraitIndex),
+            date = founded_in(), emblem = icon(civ.IconAtlas, civ.PortraitIndex),
             symbols = symbols, religion = existing, slots = slots, enabled = why == nil, reason = why,
             custom_name_available = true}
     end,

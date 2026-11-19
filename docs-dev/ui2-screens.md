@@ -108,7 +108,7 @@ The root has `research.techs` (status, zero-based queue position, turns, progres
 
 `hud.alert`, `hud.pillage` and `hud.upgrade` take `a` as the seat's unit id. They recheck native availability before emitting `sendPushMission` or `sendDoCommand`. The existing `unit.action` intents route these three kinds through screen actions. Their buttons use the server's applicability and enabled state.
 
-- SIMP-324 uses a general production lock explanation because Lua availability getters expose booleans without native tooltip details. The queue, overflow and other HUD fields are populated. SIMP-310 and SIMP-250 have been removed from the resolved paths.
+- Locked units and buildings carry the core's own reason (`CanTrainTooltip` / `CanConstructTooltip`, the tooltip sink of `CvCity::canTrain` / `canConstruct`). SIMP-324 remains for projects and processes, for which the core writes no reason, and uses a general explanation there. The queue, overflow and other HUD fields are populated. SIMP-310 and SIMP-250 have been removed from the resolved paths.
 
 Run the service checks and browser scenario with the same real-core setup described above.
 
@@ -134,7 +134,7 @@ BUTTONPOPUP_TECH_AWARD = {
 }
 ```
 
-The payload supplies `id`, `kind`, `data1`, `data2`, `data3`, `flag`, `option1`, `option2` and optional `text`. The worker assigns increasing positive signed 32-bit ids for the lifetime of the game. `hud.popup` is the queue head `{id, screen, a, b, decision}` or null. `hud.popup_count` counts pending entries for that seat. HUD polling every 250 ms delivers events even when the world revision stays constant. The queue belongs to the worker and survives a client reconnect. A restarted worker begins a fresh queue.
+The payload supplies `id`, `kind`, `data1`, `data2`, `data3`, `flag`, `option1`, `option2`, optional `data4` and `data5` (the fourth and fifth integers of an array popup: for `BUTTONPOPUP_CITY_CAPTURED` the Great Works captured and the player that may be liberated, -1 for none; for `BUTTONPOPUP_DECLAREWARMOVE` the acting unit, -1 when unknown, and its move flags) and optional `text`. The worker assigns increasing positive signed 32-bit ids for the lifetime of the game. `hud.popup` is the queue head `{id, screen, a, b, decision}` or null. `hud.popup_count` counts pending entries for that seat. HUD polling every 250 ms delivers events even when the world revision stays constant. The queue belongs to the worker and survives a client reconnect. A restarted worker begins a fresh queue.
 
 The client opens the registered `ui.windows.<screen>` with `a`, `b`, `popup_id` and `popup_decision`. Screen queries and actions carry `popup_id`. The server rejects stale popup actions. Scripts receive the complete current payload in `args.popup` and its id in `args.popup_id`, scoped to the seat and matching screen. Avoid printing payload text.
 
@@ -151,7 +151,7 @@ end
 
 `net.popup_done(id)` stages completion. The worker validates the seat, head id and owning screen before submission, then removes the entry only after successful native batch submission. Lua errors, invalid transitions and native refusals retain the entry. Completion also closes its window. Existing end-turn blockers remain authoritative.
 
-The queue evicts the oldest informational entry on overflow and logs it. Unknown kinds are dropped with one warning per kind. SIMPLIFIED(SIMP-411): when every pending entry requires a decision, another decision exceeds the 64-entry soft bound to preserve it. Informational arrivals are rejected in that state. SIMPLIFIED(SIMP-410): legacy five-value native events supply zero flags and false options. The decoder also accepts eight values ordered as type, data1, data2, data3, player, flag, option1, option2. Embeddings and tests can call `Worker::inject_popup(player, Popup)` with the full named payload without a native event.
+The queue evicts the oldest informational entry on overflow and logs it. Unknown kinds are dropped with one warning per kind. SIMPLIFIED(SIMP-411): when every pending entry requires a decision, another decision exceeds the 64-entry soft bound to preserve it. Informational arrivals are rejected in that state. The core sends `GC_EVENT_POPUP_INFO` with eight values ordered as type, data1, data2, data3, player, flag, option1, option2, and with ten for a captured city and for a move that needs war (data4, data5 appended). A seat's move order into a rival's borders, city or unit at peace opens that question instead of moving, as the original game's move click does. The `declare_war` window then shows the move reason and its plot. Its confirm action declares war and replays the move for the named unit through `sendPushMission`. Cancel only finishes the popup. The decoder still reads the five-value form of older cores (zero flags, false options). Embeddings and tests can call `Worker::inject_popup(player, Popup)` with the full named payload without a native event.
 
 ## Action window transitions
 

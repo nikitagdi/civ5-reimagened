@@ -11,6 +11,7 @@ kind = "CityCapturedWorkKind"
 gold = "i32"
 culture = "i32"
 great_works = { list = "CityCapturedWork", key = "key" }
+great_works_count = "i32"
 [type.CityCapturedOption]
 key = "CityCapturedChoice"
 enabled = "bool"

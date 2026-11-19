@@ -1,6 +1,6 @@
 -- Seat-scoped diplomacy. Display names deliberately use leaders/civilizations, never account names.
 local ai_reason = "AI conversations are unavailable: the server has no seat-scoped leader session."
-local deals_reason = "Deal history is unavailable: the server has no read-only seat-scoped deal iterator."
+local deals_reason = "Deal history is unavailable: this game core has no read-only seat-scoped deal query."
 local function person(id)
     local p = Players[id]
     local civ, leader = GameInfo.Civilizations[p:GetCivilizationType()], GameInfo.Leaders[p:GetLeaderType()]
@@ -56,6 +56,70 @@ local function mood(player, p)
         if guess == GameInfoTypes["MAJOR_CIV_APPROACH_" .. string.upper(name)] then return name end
     end
     return "neutral"
+end
+-- Deal snapshots of the seat (read-only core queries; no scratch deal, no active player).
+local function deal_item(player, deal_key, n, it)
+    local T, team = TradeableItems, Players[player]:GetTeam()
+    local item = {key=deal_key .. "_" .. n, side=it.from == player and "me" or "them", group="other",
+        duration=it.duration > 0 and it.duration or nil}
+    local function civ_of_team(t)
+        local leader = Teams[t] and Teams[t]:GetLeaderID()
+        if leader == nil or leader < 0 or not Players[leader] then return "Unknown civilization" end
+        if leader ~= player and not met(player, leader) then return "Unknown civilization" end
+        return L(Players[leader]:GetCivilizationShortDescriptionKey())
+    end
+    if it.type == T.TRADE_ITEM_GOLD then
+        item.group, item.kind, item.name, item.amount, item.duration = "gold", "gold", "Gold", it.data1, nil
+    elseif it.type == T.TRADE_ITEM_GOLD_PER_TURN then
+        item.group, item.kind, item.name, item.amount = "gold", "gold_per_turn", "Gold per turn", it.data1
+    elseif it.type == T.TRADE_ITEM_RESOURCES then
+        local r = GameInfo.Resources[it.data1]
+        local usage = Game.GetResourceUsageType(it.data1)
+        item.group = usage == 1 and "strategic" or (usage == 2 and "luxury" or "other")
+        item.kind, item.name, item.amount = "resource", r and L(r.Description) or "Resource", it.data2
+    elseif it.type == T.TRADE_ITEM_CITIES then
+        local plot = Map.GetPlot(it.data1, it.data2)
+        local city = plot and plot:IsRevealed(team, false) and plot:GetPlotCity()
+        item.kind, item.name = "city", city and city:GetName() or "City"
+    elseif it.type == T.TRADE_ITEM_OPEN_BORDERS then item.kind, item.name = "open_borders", "Open borders"
+    elseif it.type == T.TRADE_ITEM_DEFENSIVE_PACT then item.kind, item.name = "defensive_pact", "Defensive pact"
+    elseif it.type == T.TRADE_ITEM_RESEARCH_AGREEMENT then item.kind, item.name = "research_agreement", "Research agreement"
+    elseif it.type == T.TRADE_ITEM_TRADE_AGREEMENT then item.kind, item.name = "trade_agreement", "Trade agreement"
+    elseif it.type == T.TRADE_ITEM_PEACE_TREATY then item.kind, item.name = "peace", "Peace treaty"
+    elseif it.type == T.TRADE_ITEM_TRUCE then item.kind, item.name = "peace", "Truce"
+    elseif it.type == T.TRADE_ITEM_ALLOW_EMBASSY then item.kind, item.name = "embassy", "Embassy"
+    elseif it.type == T.TRADE_ITEM_DECLARATION_OF_FRIENDSHIP then item.kind, item.name = "friendship", "Declaration of friendship"
+    elseif it.type == T.TRADE_ITEM_THIRD_PARTY_PEACE then
+        item.kind, item.name = "third_party_peace", "Make peace with " .. civ_of_team(it.data1)
+    elseif it.type == T.TRADE_ITEM_THIRD_PARTY_WAR then
+        item.kind, item.name = "third_party_war", "Declare war on " .. civ_of_team(it.data1)
+    elseif it.type == T.TRADE_ITEM_VOTE_COMMITMENT then
+        item.kind, item.name, item.amount = "vote", it.flag1 and "Vote commitment (repeal)" or "Vote commitment", it.data3
+    else
+        -- SIMPLIFIED(SIMP-450): maps, units, permanent alliance, surrender and embargo items (absent from the trade screen) have no model kind and are not listed.
+        return nil
+    end
+    return item
+end
+local function deals_of(player)
+    if not (GcUiGetCurrentDeals and GcUiGetHistoricDeals) then return nil end
+    local out = array()
+    for _, part in ipairs({{"current", GcUiGetCurrentDeals(player)}, {"completed", GcUiGetHistoricDeals(player)}}) do
+        for _, d in ipairs(part[2]) do
+            local id = #out + 1
+            local partner_id = d.from == player and d.to or d.from
+            local partner = person(partner_id)
+            local items = array()
+            for n, it in ipairs(d.items) do
+                local item = deal_item(player, id, n - 1, it)
+                if item then items[#items+1] = item end
+            end
+            out[id] = {id=id, state=part[1], partner_id=partner_id, partner_name=partner.name, partner_civ=partner.civ,
+                partner_icon=partner.icon_civ, partner_color_bg="", partner_color_fg="", start_turn=d.start_turn,
+                duration=d.duration, end_turn=d.final_turn, items=items}
+        end
+    end
+    return out
 end
 local function data(player)
     local p, team, tid = Players[player], team_of(player), Players[player]:GetTeam()
@@ -141,13 +205,13 @@ local function data(player)
     table.sort(majors,function(a,b) if a.score ~= b.score then return a.score>b.score end return a.id<b.id end)
     table.sort(minors,function(a,b) if a.influence ~= b.influence then return a.influence>b.influence end return a.id<b.id end)
     local league = Game.GetActiveLeague()
-    -- SIMPLIFIED(SIMP-450): client scratch-deal loaders are not used as server read APIs; history is explicitly unavailable.
+    local deals = deals_of(player)
     return {me=person(player), turn=Game.GetGameTurn(), can_open_diplo=active,
         open_block_reason=not active and "Only during your turn." or nil,
         league={active=league~=nil,in_session=league and league:IsInSession() or false,turns_to_session=league and league:GetTurnsUntilSession() or 0},
         counts=counts,majors=majors,city_states=minors,influence_scale={min=-60,max=180,
             friends=GameDefines.FRIENDSHIP_THRESHOLD_FRIENDS,allies=GameDefines.FRIENDSHIP_THRESHOLD_ALLIES},
-        deals=array(),deals_available=false,deals_reason=deals_reason}
+        deals=deals or array(),deals_available=deals~=nil,deals_reason=not deals and deals_reason or nil}
 end
 return {data=data,actions={
     begin_diplo=function(player,args)

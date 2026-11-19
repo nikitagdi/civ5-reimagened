@@ -23,8 +23,10 @@ fn diplomacy_root_is_well_formed_and_conversations_fail_with_a_reason() {
     let root = screen_helper::query_args(&mut h, "diplo", vec![]);
     assert_eq!(root["me"]["id"], 0);
     assert!(root["majors"].is_array() && root["city_states"].is_array());
-    assert_eq!(root["deals_available"], false);
-    assert!(!root["deals_reason"].as_str().unwrap().is_empty());
+    // The core's seat-scoped deal snapshots: history is available (empty in a new game).
+    assert_eq!(root["deals_available"], true);
+    assert!(root["deals_reason"].is_null());
+    assert!(root["deals"].as_array().unwrap().is_empty());
     // A new map may have no contacts. Prove the action always refuses with an explanation,
     // including every known AI when the seed starts within contact distance.
     let targets = std::iter::once(2).chain(
