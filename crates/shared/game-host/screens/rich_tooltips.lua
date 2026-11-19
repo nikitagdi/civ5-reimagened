@@ -8,37 +8,6 @@ local function turns(p, id, rate)
     local n = p:GetResearchTurnsLeft(id, true)
     if n >= 0 and n < 2147483647 then return n end
 end
-local function unlocks(player, tech)
-    local out, seen = array(), {}
-    local civ = GameInfo.Civilizations[Players[player]:GetCivilizationType()]
-    for _, spec in ipairs({{"Units", "unit", "UnitClass", "Civilization_UnitClassOverrides", "UnitType"},
-        {"Buildings", "building", "BuildingClass", "Civilization_BuildingClassOverrides", "BuildingType"},
-        {"Projects", "project", nil, nil, nil, "TechPrereq"}, {"Builds", "improvement"}}) do
-        for item in GameInfo[spec[1]]{[spec[6] or "PrereqTech"] = tech.Type} do
-            local chosen = item
-            if spec[4] then
-                for override in GameInfo[spec[4]]{CivilizationType = civ.Type} do
-                    if override[spec[3] .. "Type"] == item[spec[3]] then
-                        chosen = override[spec[5]] and GameInfo[spec[1]][override[spec[5]]] or nil
-                    end
-                end
-            end
-            if chosen and chosen[spec[6] or "PrereqTech"] == tech.Type and not seen[chosen.Type] then
-                seen[chosen.Type] = true
-                local kind = spec[2]
-                if kind == "building" then
-                    local class = GameInfo.BuildingClasses[chosen.BuildingClass]
-                    if class and (class.MaxGlobalInstances or -1) > 0 then kind = "wonder" end
-                end
-                if #out < 5 then out[#out + 1] = {idx = #out, key = chosen.Type, kind = kind,
-                    name = L(chosen.Description), icon = icon(chosen.IconAtlas, chosen.PortraitIndex or chosen.IconIndex)} end
-            end
-        end
-    end
-    -- SIMPLIFIED(SIMP-341): unlock chips cover civilization-specific units, buildings, projects and build actions; passive abilities/resources need a shared catalog.
-    for _, item in ipairs(out) do item.idx = nil end
-    return out
-end
 -- Numeric hover kinds: 0 tech, 1 unit type, 2 building, 3 improvement, 4 policy,
 -- 5 science progress, 6 city yields, 7 city religion, 8 player, 9 civilization, 10 unit action, 11 own unit.
 -- SIMPLIFIED(SIMP-345): EUI helpers are UI-context Lua, not server APIs; unsupported sections return a reason. The host must cache hover answers by seat, kind, id, city and world revision.
@@ -52,6 +21,7 @@ local function tech_tip(player, id)
     local tech = GameInfo.Technologies[id]
     if not tech then return nil end
     local p, team = Players[player], team_of(player)
+    local unlocks = tech_unlocks_for(player)
     local has = team:IsHasTech(id)
     local era = GameInfo.Eras[tech.Era]
     local leads, seen = array(), {}
@@ -68,7 +38,7 @@ local function tech_tip(player, id)
         state = has and "researched" or (p:GetCurrentResearch() == id and "current" or (p:CanResearch(id) and "available" or "unavailable")),
         researched = has, progress = team:GetTeamTechs():GetResearchProgress(id), cost = p:GetResearchCost(id),
         turns = not has and turns(p, id, p:GetScience()) or nil, science_rate = p:GetScience(), leads_to = leads,
-        unlocks = unlocks(player, tech), help = tech.Help and L(tech.Help) or ""}
+        unlocks = unlocks(tech), help = tech.Help and L(tech.Help) or ""}
 end
 return {
     data = function(player, args)
