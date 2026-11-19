@@ -109,7 +109,9 @@ export async function run(context) {
         await waitFor(page, p => p.ui.windows.includes(window), `${window} window`);
         const up = await probe(page);
         check(`${label} ${window} suppresses HUD panels`, texts(up, "helm.state").length === 0
-          && texts(up, "top.yield.science").length === 0 && texts(up, "civ-ribbon.name").length === 0);
+          && texts(up, "civ-ribbon.name").length === 0);
+        // The design keeps the 32 px strip lit above every window but the technology tree.
+        check(`${label} ${window} keeps the top strip`, texts(up, "top.yield.science").length > 0);
         check(`${label} ${window} hides notifications and unit corner`, !(await partBox(page, "notes")) && !(await partBox(page, "unit")));
         await intent(page, "window.close", { window });
         await waitFor(page, p => !p.ui.windows.includes(window), `closed ${window}`);

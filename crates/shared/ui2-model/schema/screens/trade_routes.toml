@@ -124,6 +124,10 @@ yours = { list = "TradeRoutesRoute", key = "id" }
 available = { list = "TradeRoutesRoute", key = "id" }
 to_you = { list = "TradeRoutesRoute", key = "id" }
 
+[type.TradeRoutesRouteList]
+key = "str"
+items = { list = "TradeRoutesRoute", key = "id" }
+
 [type.TradeRoutesYield]
 food = "f32"
 production = "f32"
@@ -160,5 +164,6 @@ tab = "TradeRoutesTab?"
 counts = "TradeRoutesCounts"
 totals = "TradeRoutesTotals"
 routes = "TradeRoutesRoutes"
+lists = { list = "TradeRoutesRouteList", key = "key" }
 choose = "TradeRoutesChoose?"
 new_home = "TradeRoutesNewHome?"

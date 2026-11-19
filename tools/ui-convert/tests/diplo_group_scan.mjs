@@ -11,7 +11,7 @@ let id = 0;
 function element(n) {
   if (n.nodeName === "#text") return {type:"text", id:id++, text:n.value, ws:!n.value.trim()};
   if (!n.tagName) return null;
-  return { type: "element", id: id++, tag: n.tagName, src: "diplo-group.html:1:1", attrs: (n.attrs || []).map(a => [a.name, a.value]), children: (n.content?.childNodes || n.childNodes || []).map(element).filter(Boolean) };
+  return { type: "element", id: id++, tag: n.tagName, ...(n.namespaceURI === "http://www.w3.org/2000/svg" ? {ns: "svg"} : {}), src: "diplo-group.html:1:1", attrs: (n.attrs || []).map(a => [a.name, a.value]), children: (n.content?.childNodes || n.childNodes || []).map(element).filter(Boolean) };
 }
 const dom = element(parse(source).childNodes.find(n => n.tagName === "html"));
 function simplify(n) {

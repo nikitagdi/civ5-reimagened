@@ -1338,7 +1338,12 @@ impl<'a> Emitter<'a> {
             }
             None => radii,
         };
-        let tint = with_alpha([255, 255, 255, 255], s.alpha);
+        // A picture with a `stroke` is a mask (the white glyphs of the original's unit flags): its pixels take the
+        // node's text colour, as the original tints them with the owner's colour. Without one it is drawn as it is.
+        let tint = match r.stroke {
+            ui2_package::style::Paint::Color(_) => self.color(r.color, s.alpha),
+            ui2_package::style::Paint::None => with_alpha([255, 255, 255, 255], s.alpha),
+        };
         if tint.is_transparent() {
             return;
         }

@@ -35,6 +35,8 @@ label = "str"
 value = "i32"
 [type.CityYield]
 key = "CityYieldKind"
+# The game's font glyph of the yield (font:ICON_*).
+icon = "asset"
 value = "i32"
 enabled = "bool"
 breakdown = { list = "CityBreakdown", key = "label" }
@@ -112,11 +114,14 @@ turns = "i32?"
 modifiers = { list = "CityBreakdown", key = "label" }
 [type.CityFocusOption]
 key = "CityFocus"
+# The game's font glyph of the focused yield; absent for the default focus.
+icon = "asset?"
 id = "i32"
 enabled = "bool"
 reason = "text?"
 [type.CityBuildingYield]
 key = "CityYieldKind"
+icon = "asset"
 value = "i32"
 [type.CitySpecialist]
 key = "str"

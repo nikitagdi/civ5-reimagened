@@ -1,3 +1,13 @@
+-- The game's help texts carry markup ([COLOR_*]...[ENDCOLOR], [NEWLINE], [ICON_*]); the screen shows plain text, and a
+-- policy's help that starts with the policy's own name (the original's tooltip title line) drops that name.
+local function plain(text)
+    return (tostring(text or ""):gsub("%[NEWLINE%]", " "):gsub("%[[^%]]*%]", ""):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""))
+end
+local function help(row)
+    local text, name = plain(L(row.Help)), plain(L(row.Description))
+    if name ~= "" and text:sub(1, #name) == name then text = (text:sub(#name + 1):gsub("^[%s:.,]+", "")) end
+    return text
+end
 local function enabled()
     return not Game.IsOption(GameOptionTypes.GAMEOPTION_NO_POLICIES)
 end
@@ -5,7 +15,7 @@ local function yes(value) return value == true or value == 1 end
 
 local function effect(key)
     local policy = key and GameInfo.Policies[key]
-    return policy and L(policy.Help) or ""
+    return policy and help(policy) or ""
 end
 
 local function branch_reason(p, branch)
@@ -117,7 +127,7 @@ local function data(player, args)
                 end
                 policies[#policies + 1] = {id = policy.ID, key = policy.Type, name = L(policy.Description),
                     icon = icon(policy.IconAtlas, policy.PortraitIndex), grid_x = policy.GridX, grid_y = policy.GridY,
-                    state = status, effect = L(policy.Help), requires = requires, reason = why}
+                    state = status, effect = help(policy), requires = requires, reason = why}
             end
             for link in GameInfo.PolicyBranch_Disables{PolicyBranchType = b.Type} do
                 local other = GameInfo.PolicyBranchTypes[link.PolicyBranchDisable]
@@ -129,7 +139,7 @@ local function data(player, args)
             branches[#branches + 1] = {id = b.ID, key = b.Type, name = L(b.Description), icon = icon(b.IconAtlas, b.PortraitIndex),
                 state = state, adopted = adopted, total = #policies, opener = effect(b.FreePolicy), finisher = effect(b.FreeFinishingPolicy),
                 finisher_done = p:IsPolicyBranchFinished(b.ID), era = era and L(era.Description) or "", can_unlock = reason == nil,
-                unlock_cost = p:IsPolicyBranchUnlocked(b.ID) and 0 or cost, disables = disables, reason = reason, tooltip = reason or L(b.Help), policies = policies, links = links}
+                unlock_cost = p:IsPolicyBranchUnlocked(b.ID) and 0 or cost, disables = disables, reason = reason, tooltip = reason or plain(L(b.Help)), policies = policies, links = links}
         end
     end
     local ideology
@@ -149,7 +159,7 @@ local function data(player, args)
             for _, tenet in ipairs(p:GetAvailableTenets(level)) do
                 local policy = GameInfo.Policies[tenet]
                 if policy then
-                    available[#available + 1] = {id = tenet, key = policy.Type, name = L(policy.Description), effect = L(policy.Help)}
+                    available[#available + 1] = {id = tenet, key = policy.Type, name = L(policy.Description), effect = help(policy)}
                     if not policy_reason(p, policy) then can_adopt = true end
                 end
             end
@@ -166,7 +176,7 @@ local function data(player, args)
                 end
                 if policy then state, reason = "adopted", "Already adopted" end
                 slots[#slots + 1] = {key = level .. "-" .. slot, state = state, reason = reason,
-                    tenet_id = policy and policy.ID, name = policy and L(policy.Description), effect = policy and L(policy.Help)}
+                    tenet_id = policy and policy.ID, name = policy and L(policy.Description), effect = policy and help(policy)}
             end
             counts[#counts + 1] = {level = level, count = #owned}
             levels[#levels + 1] = {level = level, adopted = #owned, slot_count = size, slots = slots, available = available}
@@ -179,11 +189,8 @@ local function data(player, args)
         -- ideology puts on this civilization) and its unhappiness tooltip, the switch button's tooltips.
         local label = L("TXT_KEY_CO_PUBLIC_OPINION_" .. opinion:upper())
         local civ = GameInfo.Civilizations[p:GetCivilizationType()]
-        local function plain(text)
-            return (tostring(text or ""):gsub("%[NEWLINE%]", " "):gsub("%[[^%]]*%]", ""):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""))
-        end
         ideology = {id = id, key = b.Type, name = L(b.Description), title = L("TXT_KEY_POLICYSCREEN_IDEOLOGY_TITLE", p:GetCivilizationAdjectiveKey(), b.Description),
-            icon = icon(b.IconAtlas, b.PortraitIndex), emblem = icon(civ.IconAtlas, civ.PortraitIndex), adopted_date = "", summary = L(b.Help),
+            icon = icon(b.IconAtlas, b.PortraitIndex), emblem = icon(civ.IconAtlas, civ.PortraitIndex), adopted_date = "", summary = plain(L(b.Help)),
             adopted_by_level = counts, levels = levels,
             public_opinion = {state = opinion, label = label, unhappiness = unhappy, tooltip = plain(p:GetPublicOpinionTooltip()),
                 unhappiness_tooltip = plain(p:GetPublicOpinionUnhappinessTooltip()), preferred = preferred and L(preferred.Description)},

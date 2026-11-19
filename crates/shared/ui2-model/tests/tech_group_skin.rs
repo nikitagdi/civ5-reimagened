@@ -71,6 +71,13 @@ fn tech_group_bindings_and_all_samples_match_the_schema() {
             }
             let name_end = tag.find(char::is_whitespace).unwrap_or(tag.len());
             let name = tag[..name_end].to_string();
+            // An inline svg is a picture, not markup: the converter checks only its symbol references.
+            if name == "svg" {
+                if !tag.ends_with('/') {
+                    rest = &rest[rest.find("</svg>").expect("closed svg") + "</svg>".len()..];
+                }
+                continue;
+            }
             tag = tag[name_end..].trim();
             let mut values = Vec::new();
             while !tag.is_empty() && tag != "/" {

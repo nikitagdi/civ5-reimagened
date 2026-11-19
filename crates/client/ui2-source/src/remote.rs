@@ -126,6 +126,19 @@ impl RemoteRoots {
                     args.push(("unit".into(), i64::from(unit.0 as u32 as i32)));
                 }
                 args
+            } else if *name == "rich_tooltips"
+                && let Some(id) = ui.tip.id
+            {
+                // The game thing the pointer rests on in a window (`ui.tip`, set by the skin): another one clears the
+                // root and drops the answer on its way, as for the plot.
+                let mut args = vec![
+                    ("kind".into(), i64::from(ui.tip.kind)),
+                    ("id".into(), i64::from(id)),
+                ];
+                if let Some(city) = ui.tip.city {
+                    args.push(("city".into(), i64::from(city)));
+                }
+                args
             } else if let Some(window) = ui.windows.remote(name).filter(|w| w.open) {
                 [
                     ("a", window.a),
@@ -222,6 +235,65 @@ mod tests {
     use super::*;
     use ui2_model::generated::Techs;
     use ui2_model::{ModelStore, Owner};
+
+    #[test]
+    fn rich_tooltips_follow_the_hovered_thing_and_go_when_it_is_left() {
+        let mut remote = RemoteRoots::default();
+        let mut store = ModelStore::new(Schema::v1());
+        let mut ui = Ui::default();
+        let asked: std::cell::RefCell<Vec<Vec<(String, i64)>>> = Default::default();
+        let tick = |remote: &mut RemoteRoots, store: &mut ModelStore, ui: &Ui, now| {
+            remote.frame(
+                now,
+                1,
+                true,
+                ui,
+                &mut store.writer(Owner::Source),
+                |q| match q {
+                    Query::Screen { screen, args } if screen == "rich_tooltips" => {
+                        asked.borrow_mut().push(args);
+                        asked.borrow().len() as u32
+                    }
+                    _ => 0,
+                },
+            );
+        };
+        tick(&mut remote, &mut store, &ui, 0);
+        assert!(!remote.subscriptions.contains_key("rich_tooltips"));
+        // A technology row under the pointer, then a building seen from a city.
+        ui.tip.kind = 0;
+        ui.tip.id = Some(12);
+        tick(&mut remote, &mut store, &ui, 10);
+        assert_eq!(remote.subscriptions["rich_tooltips"].waiting, Some(1));
+        let answer = QueryAnswer::Screen {
+            screen: "rich_tooltips".into(),
+            json: "{}".into(),
+        };
+        assert!(
+            remote
+                .answer(1, &answer, &mut store.writer(Owner::Source))
+                .is_none()
+        );
+        ui.tip.kind = 2;
+        ui.tip.id = Some(3);
+        ui.tip.city = Some(7);
+        tick(&mut remote, &mut store, &ui, 400);
+        // Left: the subscription and its root go.
+        ui.tip.id = None;
+        tick(&mut remote, &mut store, &ui, 700);
+        assert!(!remote.subscriptions.contains_key("rich_tooltips"));
+        assert_eq!(
+            *asked.borrow(),
+            [
+                vec![("kind".to_string(), 0), ("id".to_string(), 12)],
+                vec![
+                    ("kind".to_string(), 2),
+                    ("id".to_string(), 3),
+                    ("city".to_string(), 7)
+                ],
+            ]
+        );
+    }
 
     #[test]
     fn plot_help_follows_the_hovered_plot_and_drops_answers_for_a_plot_left() {

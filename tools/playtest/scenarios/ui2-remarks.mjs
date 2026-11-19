@@ -98,7 +98,7 @@ export async function run({ server, opts }) {
     const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["techs.list"]));
     const byKey = new Map();
     for (const rect of rects) {
-      if (!rect.keys || rect.keys.includes("/") || rect.node.includes("#") || Math.abs(rect.w - 232) > 2 || Math.abs(rect.h - 68) > 2) continue;
+      if (!rect.keys || rect.keys.includes("/") || rect.node.includes("#") || Math.abs(rect.w - 264) > 2 || Math.abs(rect.h - 80) > 2) continue;
       const old = byKey.get(rect.keys);
       if (!old || rect.w * rect.h > old.w * old.h) byKey.set(rect.keys, rect);
     }

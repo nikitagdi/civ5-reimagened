@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 3);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x27cdc852334fd594;
+pub const SCHEMA_HASH: u64 = 0xe69dccfeee297817;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -18883,6 +18883,43 @@ impl crate::model::Model for UiProduction {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+pub struct UiTip {
+    pub kind: i32,
+    pub id: Option<i32>,
+    pub city: Option<i32>,
+}
+
+impl crate::model::Model for UiTip {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.city),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(UiTip {
+            kind: crate::model::Model::from_value(&f[0])?,
+            id: crate::model::Model::from_value(&f[1])?,
+            city: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct UiChat {
     pub to: ChatTo,
     pub to_player: Option<crate::value::Key>,
@@ -19650,6 +19687,7 @@ impl crate::model::Keyed for CityBreakdown {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CityYield {
     pub key: CityYieldKind,
+    pub icon: crate::value::AssetRef,
     pub value: i32,
     pub enabled: bool,
     pub breakdown: crate::model::KeyedList<CityBreakdown>,
@@ -19661,10 +19699,12 @@ impl crate::model::Model for CityYield {
         at.field = base.child(0);
         crate::model::Model::diff(&self.key, &old.key, at, out);
         at.field = base.child(1);
-        crate::model::Model::diff(&self.value, &old.value, at, out);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
         at.field = base.child(2);
-        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        crate::model::Model::diff(&self.value, &old.value, at, out);
         at.field = base.child(3);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(4);
         crate::model::Model::diff(&self.breakdown, &old.breakdown, at, out);
         at.field = base;
     }
@@ -19672,6 +19712,7 @@ impl crate::model::Model for CityYield {
     fn to_value(&self) -> crate::value::Value {
         crate::value::Value::Struct(vec![
             crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.icon),
             crate::model::Model::to_value(&self.value),
             crate::model::Model::to_value(&self.enabled),
             crate::model::Model::to_value(&self.breakdown),
@@ -19679,12 +19720,13 @@ impl crate::model::Model for CityYield {
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(4)?;
+        let f = v.as_struct(5)?;
         Ok(CityYield {
             key: crate::model::Model::from_value(&f[0])?,
-            value: crate::model::Model::from_value(&f[1])?,
-            enabled: crate::model::Model::from_value(&f[2])?,
-            breakdown: crate::model::Model::from_value(&f[3])?,
+            icon: crate::model::Model::from_value(&f[1])?,
+            value: crate::model::Model::from_value(&f[2])?,
+            enabled: crate::model::Model::from_value(&f[3])?,
+            breakdown: crate::model::Model::from_value(&f[4])?,
         })
     }
 }
@@ -20225,6 +20267,7 @@ impl crate::model::Keyed for CityGreatPerson {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CityFocusOption {
     pub key: CityFocus,
+    pub icon: Option<crate::value::AssetRef>,
     pub id: i32,
     pub enabled: bool,
     pub reason: Option<crate::value::Text>,
@@ -20236,10 +20279,12 @@ impl crate::model::Model for CityFocusOption {
         at.field = base.child(0);
         crate::model::Model::diff(&self.key, &old.key, at, out);
         at.field = base.child(1);
-        crate::model::Model::diff(&self.id, &old.id, at, out);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
         at.field = base.child(2);
-        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
         at.field = base.child(3);
+        crate::model::Model::diff(&self.enabled, &old.enabled, at, out);
+        at.field = base.child(4);
         crate::model::Model::diff(&self.reason, &old.reason, at, out);
         at.field = base;
     }
@@ -20247,6 +20292,7 @@ impl crate::model::Model for CityFocusOption {
     fn to_value(&self) -> crate::value::Value {
         crate::value::Value::Struct(vec![
             crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.icon),
             crate::model::Model::to_value(&self.id),
             crate::model::Model::to_value(&self.enabled),
             crate::model::Model::to_value(&self.reason),
@@ -20254,12 +20300,13 @@ impl crate::model::Model for CityFocusOption {
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(4)?;
+        let f = v.as_struct(5)?;
         Ok(CityFocusOption {
             key: crate::model::Model::from_value(&f[0])?,
-            id: crate::model::Model::from_value(&f[1])?,
-            enabled: crate::model::Model::from_value(&f[2])?,
-            reason: crate::model::Model::from_value(&f[3])?,
+            icon: crate::model::Model::from_value(&f[1])?,
+            id: crate::model::Model::from_value(&f[2])?,
+            enabled: crate::model::Model::from_value(&f[3])?,
+            reason: crate::model::Model::from_value(&f[4])?,
         })
     }
 }
@@ -20273,6 +20320,7 @@ impl crate::model::Keyed for CityFocusOption {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CityBuildingYield {
     pub key: CityYieldKind,
+    pub icon: crate::value::AssetRef,
     pub value: i32,
 }
 
@@ -20282,6 +20330,8 @@ impl crate::model::Model for CityBuildingYield {
         at.field = base.child(0);
         crate::model::Model::diff(&self.key, &old.key, at, out);
         at.field = base.child(1);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(2);
         crate::model::Model::diff(&self.value, &old.value, at, out);
         at.field = base;
     }
@@ -20289,15 +20339,17 @@ impl crate::model::Model for CityBuildingYield {
     fn to_value(&self) -> crate::value::Value {
         crate::value::Value::Struct(vec![
             crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.icon),
             crate::model::Model::to_value(&self.value),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(2)?;
+        let f = v.as_struct(3)?;
         Ok(CityBuildingYield {
             key: crate::model::Model::from_value(&f[0])?,
-            value: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[1])?,
+            value: crate::model::Model::from_value(&f[2])?,
         })
     }
 }
@@ -20473,23 +20525,23 @@ impl crate::model::Model for CityBuilding {
         crate::model::Model::diff(&self.icon, &old.icon, at, out);
         at.field = base.child(3);
         crate::model::Model::diff(&self.yields, &old.yields, at, out);
-        at.field = base.child(6);
-        crate::model::Model::diff(&self.defense, &old.defense, at, out);
         at.field = base.child(7);
-        crate::model::Model::diff(&self.maintenance, &old.maintenance, at, out);
+        crate::model::Model::diff(&self.defense, &old.defense, at, out);
         at.field = base.child(8);
-        crate::model::Model::diff(&self.free, &old.free, at, out);
+        crate::model::Model::diff(&self.maintenance, &old.maintenance, at, out);
         at.field = base.child(9);
-        crate::model::Model::diff(&self.can_sell, &old.can_sell, at, out);
+        crate::model::Model::diff(&self.free, &old.free, at, out);
         at.field = base.child(10);
-        crate::model::Model::diff(&self.sell_refund, &old.sell_refund, at, out);
+        crate::model::Model::diff(&self.can_sell, &old.can_sell, at, out);
         at.field = base.child(11);
-        crate::model::Model::diff(&self.sell_reason, &old.sell_reason, at, out);
+        crate::model::Model::diff(&self.sell_refund, &old.sell_refund, at, out);
         at.field = base.child(12);
+        crate::model::Model::diff(&self.sell_reason, &old.sell_reason, at, out);
+        at.field = base.child(13);
         crate::model::Model::diff(&self.specialist, &old.specialist, at, out);
-        at.field = base.child(20);
+        at.field = base.child(21);
         crate::model::Model::diff(&self.great_works, &old.great_works, at, out);
-        at.field = base.child(27);
+        at.field = base.child(28);
         crate::model::Model::diff(&self.help, &old.help, at, out);
         at.field = base;
     }
@@ -20620,17 +20672,17 @@ impl crate::model::Model for CityTile {
         crate::model::Model::diff(&self.state, &old.state, at, out);
         at.field = base.child(6);
         crate::model::Model::diff(&self.yields, &old.yields, at, out);
-        at.field = base.child(9);
-        crate::model::Model::diff(&self.other_city, &old.other_city, at, out);
         at.field = base.child(10);
-        crate::model::Model::diff(&self.buy_price, &old.buy_price, at, out);
+        crate::model::Model::diff(&self.other_city, &old.other_city, at, out);
         at.field = base.child(11);
-        crate::model::Model::diff(&self.buy_state, &old.buy_state, at, out);
+        crate::model::Model::diff(&self.buy_price, &old.buy_price, at, out);
         at.field = base.child(12);
-        crate::model::Model::diff(&self.buy_short, &old.buy_short, at, out);
+        crate::model::Model::diff(&self.buy_state, &old.buy_state, at, out);
         at.field = base.child(13);
-        crate::model::Model::diff(&self.buy_reason, &old.buy_reason, at, out);
+        crate::model::Model::diff(&self.buy_short, &old.buy_short, at, out);
         at.field = base.child(14);
+        crate::model::Model::diff(&self.buy_reason, &old.buy_reason, at, out);
+        at.field = base.child(15);
         crate::model::Model::diff(&self.border_next, &old.border_next, at, out);
         at.field = base;
     }
@@ -37066,6 +37118,7 @@ pub struct ReligionOverviewMyBelief {
     pub type_label: crate::value::Text,
     pub name: crate::value::Text,
     pub effect: crate::value::Text,
+    pub icon: crate::value::AssetRef,
 }
 
 impl crate::model::Model for ReligionOverviewMyBelief {
@@ -37081,6 +37134,8 @@ impl crate::model::Model for ReligionOverviewMyBelief {
         crate::model::Model::diff(&self.name, &old.name, at, out);
         at.field = base.child(4);
         crate::model::Model::diff(&self.effect, &old.effect, at, out);
+        at.field = base.child(5);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
         at.field = base;
     }
 
@@ -37091,17 +37146,19 @@ impl crate::model::Model for ReligionOverviewMyBelief {
             crate::model::Model::to_value(&self.type_label),
             crate::model::Model::to_value(&self.name),
             crate::model::Model::to_value(&self.effect),
+            crate::model::Model::to_value(&self.icon),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(5)?;
+        let f = v.as_struct(6)?;
         Ok(ReligionOverviewMyBelief {
             key: crate::model::Model::from_value(&f[0])?,
             r#type: crate::model::Model::from_value(&f[1])?,
             type_label: crate::model::Model::from_value(&f[2])?,
             name: crate::model::Model::from_value(&f[3])?,
             effect: crate::model::Model::from_value(&f[4])?,
+            icon: crate::model::Model::from_value(&f[5])?,
         })
     }
 }
@@ -37455,6 +37512,7 @@ pub struct ReligionOverviewAnyBelief {
     pub effect: crate::value::Text,
     pub religion_name: ::std::sync::Arc<str>,
     pub religion_icon: Option<crate::value::AssetRef>,
+    pub icon: crate::value::AssetRef,
     pub known: bool,
 }
 
@@ -37478,6 +37536,8 @@ impl crate::model::Model for ReligionOverviewAnyBelief {
         at.field = base.child(7);
         crate::model::Model::diff(&self.religion_icon, &old.religion_icon, at, out);
         at.field = base.child(8);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base.child(9);
         crate::model::Model::diff(&self.known, &old.known, at, out);
         at.field = base;
     }
@@ -37492,12 +37552,13 @@ impl crate::model::Model for ReligionOverviewAnyBelief {
             crate::model::Model::to_value(&self.effect),
             crate::model::Model::to_value(&self.religion_name),
             crate::model::Model::to_value(&self.religion_icon),
+            crate::model::Model::to_value(&self.icon),
             crate::model::Model::to_value(&self.known),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(9)?;
+        let f = v.as_struct(10)?;
         Ok(ReligionOverviewAnyBelief {
             type_order: crate::model::Model::from_value(&f[0])?,
             key: crate::model::Model::from_value(&f[1])?,
@@ -37507,7 +37568,8 @@ impl crate::model::Model for ReligionOverviewAnyBelief {
             effect: crate::model::Model::from_value(&f[5])?,
             religion_name: crate::model::Model::from_value(&f[6])?,
             religion_icon: crate::model::Model::from_value(&f[7])?,
-            known: crate::model::Model::from_value(&f[8])?,
+            icon: crate::model::Model::from_value(&f[8])?,
+            known: crate::model::Model::from_value(&f[9])?,
         })
     }
 }
@@ -41467,6 +41529,44 @@ impl crate::model::Model for TradeRoutesRoutes {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+pub struct TradeRoutesRouteList {
+    pub key: ::std::sync::Arc<str>,
+    pub items: crate::model::KeyedList<TradeRoutesRoute>,
+}
+
+impl crate::model::Model for TradeRoutesRouteList {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.items, &old.items, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.items),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(2)?;
+        Ok(TradeRoutesRouteList {
+            key: crate::model::Model::from_value(&f[0])?,
+            items: crate::model::Model::from_value(&f[1])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for TradeRoutesRouteList {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_text(&self.key)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct TradeRoutesYield {
     pub food: f32,
     pub production: f32,
@@ -43076,6 +43176,7 @@ pub struct Ui {
     pub windows: Windows,
     pub production: UiProduction,
     pub chat: UiChat,
+    pub tip: UiTip,
     pub pending: crate::model::KeyedList<Pending>,
     pub turn_pending: TurnPending,
     pub errors: crate::model::KeyedList<Toast>,
@@ -43098,16 +43199,18 @@ impl crate::model::Model for Ui {
         at.field = base.child(239);
         crate::model::Model::diff(&self.chat, &old.chat, at, out);
         at.field = base.child(242);
+        crate::model::Model::diff(&self.tip, &old.tip, at, out);
+        at.field = base.child(246);
         crate::model::Model::diff(&self.pending, &old.pending, at, out);
-        at.field = base.child(247);
+        at.field = base.child(251);
         crate::model::Model::diff(&self.turn_pending, &old.turn_pending, at, out);
-        at.field = base.child(248);
+        at.field = base.child(252);
         crate::model::Model::diff(&self.errors, &old.errors, at, out);
-        at.field = base.child(253);
+        at.field = base.child(257);
         crate::model::Model::diff(&self.path, &old.path, at, out);
-        at.field = base.child(259);
+        at.field = base.child(263);
         crate::model::Model::diff(&self.hover, &old.hover, at, out);
-        at.field = base.child(264);
+        at.field = base.child(268);
         crate::model::Model::diff(&self.map_icons, &old.map_icons, at, out);
         at.field = base;
     }
@@ -43119,6 +43222,7 @@ impl crate::model::Model for Ui {
             crate::model::Model::to_value(&self.windows),
             crate::model::Model::to_value(&self.production),
             crate::model::Model::to_value(&self.chat),
+            crate::model::Model::to_value(&self.tip),
             crate::model::Model::to_value(&self.pending),
             crate::model::Model::to_value(&self.turn_pending),
             crate::model::Model::to_value(&self.errors),
@@ -43129,19 +43233,20 @@ impl crate::model::Model for Ui {
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(11)?;
+        let f = v.as_struct(12)?;
         Ok(Ui {
             selection: crate::model::Model::from_value(&f[0])?,
             map_mode: crate::model::Model::from_value(&f[1])?,
             windows: crate::model::Model::from_value(&f[2])?,
             production: crate::model::Model::from_value(&f[3])?,
             chat: crate::model::Model::from_value(&f[4])?,
-            pending: crate::model::Model::from_value(&f[5])?,
-            turn_pending: crate::model::Model::from_value(&f[6])?,
-            errors: crate::model::Model::from_value(&f[7])?,
-            path: crate::model::Model::from_value(&f[8])?,
-            hover: crate::model::Model::from_value(&f[9])?,
-            map_icons: crate::model::Model::from_value(&f[10])?,
+            tip: crate::model::Model::from_value(&f[5])?,
+            pending: crate::model::Model::from_value(&f[6])?,
+            turn_pending: crate::model::Model::from_value(&f[7])?,
+            errors: crate::model::Model::from_value(&f[8])?,
+            path: crate::model::Model::from_value(&f[9])?,
+            hover: crate::model::Model::from_value(&f[10])?,
+            map_icons: crate::model::Model::from_value(&f[11])?,
         })
     }
 }
@@ -43368,39 +43473,39 @@ impl crate::model::Model for City {
         crate::model::Model::diff(&self.food, &old.food, at, out);
         at.field = base.child(39);
         crate::model::Model::diff(&self.yields, &old.yields, at, out);
-        at.field = base.child(46);
+        at.field = base.child(47);
         crate::model::Model::diff(&self.border, &old.border, at, out);
-        at.field = base.child(50);
+        at.field = base.child(51);
         crate::model::Model::diff(&self.treasury, &old.treasury, at, out);
-        at.field = base.child(53);
+        at.field = base.child(54);
         crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(101);
+        at.field = base.child(102);
         crate::model::Model::diff(&self.great_people, &old.great_people, at, out);
-        at.field = base.child(113);
-        crate::model::Model::diff(&self.focus, &old.focus, at, out);
         at.field = base.child(114);
+        crate::model::Model::diff(&self.focus, &old.focus, at, out);
+        at.field = base.child(115);
         crate::model::Model::diff(&self.focus_options, &old.focus_options, at, out);
-        at.field = base.child(119);
-        crate::model::Model::diff(&self.avoid_growth, &old.avoid_growth, at, out);
-        at.field = base.child(120);
-        crate::model::Model::diff(&self.manual_specialists, &old.manual_specialists, at, out);
         at.field = base.child(121);
-        crate::model::Model::diff(&self.can_reset_tiles, &old.can_reset_tiles, at, out);
+        crate::model::Model::diff(&self.avoid_growth, &old.avoid_growth, at, out);
         at.field = base.child(122);
-        crate::model::Model::diff(&self.unemployed, &old.unemployed, at, out);
+        crate::model::Model::diff(&self.manual_specialists, &old.manual_specialists, at, out);
         at.field = base.child(123);
-        crate::model::Model::diff(&self.specialists, &old.specialists, at, out);
+        crate::model::Model::diff(&self.can_reset_tiles, &old.can_reset_tiles, at, out);
         at.field = base.child(124);
-        crate::model::Model::diff(&self.specialist_slots, &old.specialist_slots, at, out);
+        crate::model::Model::diff(&self.unemployed, &old.unemployed, at, out);
         at.field = base.child(125);
-        crate::model::Model::diff(&self.sold_this_turn, &old.sold_this_turn, at, out);
+        crate::model::Model::diff(&self.specialists, &old.specialists, at, out);
         at.field = base.child(126);
+        crate::model::Model::diff(&self.specialist_slots, &old.specialist_slots, at, out);
+        at.field = base.child(127);
+        crate::model::Model::diff(&self.sold_this_turn, &old.sold_this_turn, at, out);
+        at.field = base.child(128);
         crate::model::Model::diff(&self.building_groups, &old.building_groups, at, out);
-        at.field = base.child(159);
+        at.field = base.child(162);
         crate::model::Model::diff(&self.tiles, &old.tiles, at, out);
-        at.field = base.child(175);
+        at.field = base.child(179);
         crate::model::Model::diff(&self.task, &old.task, at, out);
-        at.field = base.child(181);
+        at.field = base.child(185);
         crate::model::Model::diff(&self.annex_preview, &old.annex_preview, at, out);
         at.field = base;
     }
@@ -45901,17 +46006,17 @@ impl crate::model::Model for ReligionOverview {
         crate::model::Model::diff(&self.pantheon, &old.pantheon, at, out);
         at.field = base.child(14);
         crate::model::Model::diff(&self.my_beliefs, &old.my_beliefs, at, out);
-        at.field = base.child(20);
+        at.field = base.child(21);
         crate::model::Model::diff(&self.faith, &old.faith, at, out);
-        at.field = base.child(29);
+        at.field = base.child(30);
         crate::model::Model::diff(&self.great_people, &old.great_people, at, out);
-        at.field = base.child(33);
+        at.field = base.child(34);
         crate::model::Model::diff(&self.auto_purchase, &old.auto_purchase, at, out);
-        at.field = base.child(42);
+        at.field = base.child(43);
         crate::model::Model::diff(&self.world, &old.world, at, out);
-        at.field = base.child(55);
-        crate::model::Model::diff(&self.religions_left, &old.religions_left, at, out);
         at.field = base.child(56);
+        crate::model::Model::diff(&self.religions_left, &old.religions_left, at, out);
+        at.field = base.child(57);
         crate::model::Model::diff(&self.all_beliefs, &old.all_beliefs, at, out);
         at.field = base;
     }
@@ -46212,6 +46317,7 @@ pub struct TradeRoutes {
     pub counts: TradeRoutesCounts,
     pub totals: TradeRoutesTotals,
     pub routes: TradeRoutesRoutes,
+    pub lists: crate::model::KeyedList<TradeRoutesRouteList>,
     pub choose: Option<TradeRoutesChoose>,
     pub new_home: Option<TradeRoutesNewHome>,
 }
@@ -46230,8 +46336,10 @@ impl crate::model::Model for TradeRoutes {
         at.field = base.child(17);
         crate::model::Model::diff(&self.routes, &old.routes, at, out);
         at.field = base.child(159);
+        crate::model::Model::diff(&self.lists, &old.lists, at, out);
+        at.field = base.child(208);
         crate::model::Model::diff(&self.choose, &old.choose, at, out);
-        at.field = base.child(223);
+        at.field = base.child(272);
         crate::model::Model::diff(&self.new_home, &old.new_home, at, out);
         at.field = base;
     }
@@ -46243,21 +46351,23 @@ impl crate::model::Model for TradeRoutes {
             crate::model::Model::to_value(&self.counts),
             crate::model::Model::to_value(&self.totals),
             crate::model::Model::to_value(&self.routes),
+            crate::model::Model::to_value(&self.lists),
             crate::model::Model::to_value(&self.choose),
             crate::model::Model::to_value(&self.new_home),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(7)?;
+        let f = v.as_struct(8)?;
         Ok(TradeRoutes {
             player: crate::model::Model::from_value(&f[0])?,
             tab: crate::model::Model::from_value(&f[1])?,
             counts: crate::model::Model::from_value(&f[2])?,
             totals: crate::model::Model::from_value(&f[3])?,
             routes: crate::model::Model::from_value(&f[4])?,
-            choose: crate::model::Model::from_value(&f[5])?,
-            new_home: crate::model::Model::from_value(&f[6])?,
+            lists: crate::model::Model::from_value(&f[5])?,
+            choose: crate::model::Model::from_value(&f[6])?,
+            new_home: crate::model::Model::from_value(&f[7])?,
         })
     }
 }

@@ -322,12 +322,14 @@ impl Ifc {
         };
         let mut lines = tm.break_lines(shaped, &opts);
         if let Some(e) = ell {
+            // The cut is paint only: the lines keep measuring their whole text (as Chrome sizes an ellipsized
+            // box by its content, then clips), so a cut never makes the box narrower or, at min-content, as
+            // wide as the ellipsis.
             for line in &mut lines.lines {
                 if line.width > width + 1e-3 {
                     ellipsize(line, runs, e, width);
                 }
             }
-            lines.width = lines.lines.iter().map(|l| l.width).fold(0.0, f32::max);
         }
         line_boxes(&mut lines, self.strut, runs, &self.boxes, ell);
         lines

@@ -41,8 +41,20 @@ pub trait EvalHost {
     /// The text of `loc(key, args...)` in the current language.
     fn loc(&mut self, key: &str, args: &[Value]) -> String;
     /// An integer written the way the current language groups digits (`1,234`).
+    /// The default groups by three with a comma, as the skins' only language (en_US) and the browser preview do.
     fn fmt_int(&mut self, n: i64) -> String {
-        n.to_string()
+        let digits = n.unsigned_abs().to_string();
+        let mut out = String::with_capacity(digits.len() + digits.len() / 3 + 1);
+        if n < 0 {
+            out.push('-');
+        }
+        for (i, c) in digits.chars().enumerate() {
+            if i > 0 && (digits.len() - i).is_multiple_of(3) {
+                out.push(',');
+            }
+            out.push(c);
+        }
+        out
     }
     /// One line for the log (a division by zero, an overflow).
     fn warn(&mut self, message: &str);

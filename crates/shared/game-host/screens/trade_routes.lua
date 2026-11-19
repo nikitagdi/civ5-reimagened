@@ -200,7 +200,8 @@ return {
         who.name, who.civ_name = L(GameInfo.Leaders[p:GetLeaderType()].Description), who.owner_name
         who.owner_name = nil
         local root = { player = who, tab = args.a == 1 and "available" or (args.a == 2 and "to_you" or "yours"),
-            counts = { yours = #yours, available = #available, to_you = #incoming }, totals = total, routes = { yours = yours, available = available, to_you = incoming } }
+            counts = { yours = #yours, available = #available, to_you = #incoming }, totals = total, routes = { yours = yours, available = available, to_you = incoming },
+            lists = { {key = "yours", items = yours}, {key = "available", items = available}, {key = "to_you", items = incoming} } }
         if args.b and args.b >= 0 then
             local unit = own_unit(player, args.b)
             if args.a == 3 or args.a == 4 then

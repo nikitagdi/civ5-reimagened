@@ -333,7 +333,7 @@ error.E1-008 = { what = "browser API in a skin script", hint = "a skin script ta
 error.E1-009 = { what = "included file not found", hint = "data-include names a file of the skin folder, relative to the skin root" }
 error.E2-010 = { what = "property outside the profile", hint = "remove the declaration or use a property of the profile reference; layout is block, flex, grid and absolute" }
 error.E2-011 = { what = "computed value cannot be stored", hint = "Chrome computed a value of another kind than the property's field holds; simplify the declaration" }
-error.E2-012 = { what = "icon paint on an element that is not an icon", hint = "fill and stroke style only svg icons" }
+error.E2-012 = { what = "icon paint on an element that is not an icon", hint = "fill and stroke style only svg icons; a stroke on an img makes the picture a mask in its color" }
 error.E2-013 = { what = "page background is not transparent", hint = "the world is drawn under the UI; give html and body no background (the preview backdrop is not part of the skin)" }
 error.E2-014 = { what = "scroll container without scrollbar-width: none", hint = "add scrollbar-width: none next to overflow: auto or scroll; the runtime draws no scrollbar, so Chrome's bar would change the layout" }
 error.E3-001 = { what = "at-rule outside the profile", hint = "a skin may use @media (width and height) and @font-face only" }

@@ -17,7 +17,7 @@ use ui2_model::{FrameDelta, ModelStore, Sample, Schema};
 use ui2_package::profile::expr::parse;
 use ui2_package::style::{
     BgBox, BgImage, BgRepeat, BgSize, BorderStyle, ColorV, Display, GradDir, Gradient, Len,
-    LenAuto, OutlineStyle, Position, Radius, Repeat, Shadow, Side, Stop, StyleRecord,
+    LenAuto, OutlineStyle, Paint, Position, Radius, Repeat, Shadow, Side, Stop, StyleRecord,
 };
 use ui2_package::{BindKind, ImageSrc, Layer, NodeKind, PropId};
 use ui2_runtime::testkit::{Kit, TNode, TplPiece, path};
@@ -224,9 +224,14 @@ fn rig() -> Rig {
         let id = kit.record(r);
         kit.plain(id)
     };
+    // A game glyph drawn as a mask: a stroke makes the picture take the text colour.
+    let mut glyph = block(16.0, 16.0);
+    glyph.stroke = Paint::Color(ColorV::Lit([255, 255, 255, 255]));
+    glyph.color = ColorV::Lit([200, 30, 40, 255]);
+    let glyph = plain(&mut kit, glyph);
     let sets = [layer, grad, corner, ellipse, picture, asset].map(|r| plain(&mut kit, r));
     let names = [
-        "grad", "corner", "ellipse", "picture", "portrait", "minimap", "bound",
+        "grad", "corner", "ellipse", "picture", "portrait", "minimap", "bound", "glyph",
     ]
     .map(|p| kit.str(p));
     let size = kit.tpl_of(vec![
@@ -249,6 +254,7 @@ fn rig() -> Rig {
             TNode::asset(portrait, sets[5]).part(names[4]),
             TNode::asset(minimap, sets[5]).part(names[5]),
             TNode::new(NodeKind::Image(ImageSrc::Bound(src)), sets[5]).part(names[6]),
+            TNode::asset(portrait, glyph).part(names[7]),
         ])],
     );
     let pkg = kit.finish().expect("package");
@@ -505,4 +511,21 @@ fn paint_idle_frames_do_nothing_and_a_style_change_builds_one_chunk() {
     let after = rig.items("corner");
     assert_ne!(before, after);
     assert_eq!(boxes(&after)[0].rect.w, 10.0);
+}
+
+#[test]
+fn a_game_picture_with_a_stroke_is_a_mask_in_the_text_colour() {
+    let mut rig = rig();
+    match rig.items("glyph").as_slice() {
+        [Item::Image(img)] => {
+            assert!(img.external.is_some());
+            assert_eq!(img.tint, Color([200, 30, 40, 255]));
+        }
+        other => panic!("{other:?}"),
+    }
+    // Without a stroke a game picture keeps its own colours.
+    match rig.items("portrait").as_slice() {
+        [Item::Image(img)] => assert_eq!(img.tint, Color([255, 255, 255, 255])),
+        other => panic!("{other:?}"),
+    }
 }

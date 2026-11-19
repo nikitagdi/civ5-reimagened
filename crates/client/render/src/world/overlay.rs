@@ -296,6 +296,8 @@ pub struct Overlay {
     ring_style: RingStyle,
     /// The turn and `fAlpha` of the ring when pinned (golden).
     ring_pin: Option<(f32, f32)>,
+    /// The size of the selection ring, 1 for the original's (see `ring::quad`).
+    ring_scale: f32,
 }
 
 /// Which players' border meshes must be built again.
@@ -357,6 +359,7 @@ impl Default for Overlay {
             hex_models: HexModels::default(),
             ring_style: RingStyle::default(),
             ring_pin: None,
+            ring_scale: 1.0,
         }
     }
 }
@@ -476,6 +479,12 @@ impl Overlay {
     /// values of a capture's `PSValidMoves` draw); `None` follows the clock again.
     pub fn set_ring_pin(&mut self, pin: Option<(f32, f32)>) {
         self.ring_pin = pin;
+    }
+
+    /// The size of the selection ring: 1 is the original's (its glow covers two hexes), the UI v2 design draws it
+    /// inside the unit's hex (0.85).
+    pub fn set_ring_scale(&mut self, scale: f32) {
+        self.ring_scale = scale;
     }
 
     /// The two textures of the ring (`ring::TEXTURES`). Returns how many were taken; without the
@@ -930,6 +939,7 @@ impl Overlay {
                     style: &self.ring_style,
                     time: self.time,
                     pin: self.ring_pin,
+                    scale: self.ring_scale,
                 },
             );
         }

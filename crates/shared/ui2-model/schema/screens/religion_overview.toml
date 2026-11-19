@@ -23,6 +23,7 @@ type = "ReligionOverviewBeliefType"
 type_label = "text"
 name = "text"
 effect = "text"
+icon = "asset"
 
 [type.ReligionOverviewIncome]
 key = "str"
@@ -78,6 +79,7 @@ type_label = "text"
 effect = "text"
 religion_name = "str"
 religion_icon = "asset?"
+icon = "asset"
 known = "bool"
 
 [model.religion_overview]

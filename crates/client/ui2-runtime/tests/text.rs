@@ -354,6 +354,60 @@ fn text_ellipsis_in_a_shrinking_flex_item_is_cut_at_the_item_width() {
     rig.idle();
 }
 
+/// The cut is paint only: an ellipsized item with a max-width keeps that width (Chrome sizes it by its whole
+/// text, then clips), not the narrower width of the kept text and the ellipsis.
+#[test]
+fn an_ellipsized_item_keeps_its_max_width() {
+    let mut kit = Kit::new();
+    kit.font("Fira Sans", 400, false, &font("FiraSans-Regular.ttf"));
+    let mut base = StyleRecord::initial();
+    base.display = Display::Block;
+    base.font_family = vec![kit.str("Fira Sans")];
+    base.font_size = Len::px(13.0);
+    let mut row = base.clone();
+    row.display = Display::Flex;
+    row.width = LenAuto::Len(Len::px(400.0));
+    let mut item = base.clone();
+    item.min_width = LenAuto::Len(Len::px(0.0));
+    item.max_width = ui2_package::style::LenNone::Len(Len::px(61.0));
+    item.text_wrap_mode = TextWrapMode::Nowrap;
+    item.overflow_x = Overflow::Hidden;
+    item.overflow_y = Overflow::Hidden;
+    item.text_overflow = TextOverflow::Ellipsis;
+    let [base, row, item] = [base, row, item].map(|r| kit.record(r));
+    let [base, row, item] = [base, row, item].map(|r| kit.plain(r));
+    let (part, text) = (kit.str("tx"), kit.str("Tenochtitlan and its long name"));
+    kit.template(
+        "doc",
+        vec![TNode::layer(Layer::Hud, base).child(
+            TNode::el(row).child(TNode::el(item).part(part).child(TNode::text(text, item))),
+        )],
+    );
+    let pkg = kit.finish().expect("package");
+    let mut engine = TextEngine::new();
+    load_faces(&pkg, &mut engine).expect("fonts");
+    let rt = Runtime::new(pkg, env(), Services::default()).expect("runtime");
+    let mut rig = Rig {
+        rt,
+        engine,
+        scene: Scene::new(1.0),
+        store: ModelStore::new(Schema::v1()),
+    };
+    rig.frame();
+    let boxr = rect(&rig.rt, "tx", "");
+    assert_eq!(boxr[2], 61.0, "the item is as wide as its max-width");
+    let ifc = rig
+        .rt
+        .node(rig.part("tx"))
+        .and_then(|n| n.ifc())
+        .expect("ifc");
+    assert!(
+        ifc.lines.lines[0].width <= 61.0 + 1e-3,
+        "the shown line is cut"
+    );
+    rig.idle();
+}
+
 #[test]
 fn text_ellipsis_cuts_and_fit_shrinks_one_line() {
     let mut rig = rig();

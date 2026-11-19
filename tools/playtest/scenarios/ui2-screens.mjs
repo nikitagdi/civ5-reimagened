@@ -40,10 +40,10 @@ export async function run({ server, opts }) {
     const index = statuses.indexOf("Available");
     if (index < 0) throw new Error("no available technology in new game");
     const name = texts(before, "techs.name")[index];
-    const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["techs.list"])); // the dump covers only the subtree of the first element of a part, so ask for the list that holds all rows; it also holds era headers and links: keep the 232 x 68 px cards
+    const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["techs.list"])); // the dump covers only the subtree of the first element of a part, so ask for the list that holds all rows; it also holds era headers and links: keep the 264 x 80 px cards
     const byKey = new Map();
     for (const rect of rects) {
-      if (!rect.keys || rect.keys.includes("/") || rect.node.includes("#") || Math.abs(rect.w - 232) > 2 || Math.abs(rect.h - 68) > 2) continue;
+      if (!rect.keys || rect.keys.includes("/") || rect.node.includes("#") || Math.abs(rect.w - 264) > 2 || Math.abs(rect.h - 80) > 2) continue;
       const old = byKey.get(rect.keys);
       if (!old || rect.w * rect.h > old.w * old.h) byKey.set(rect.keys, rect);
     }

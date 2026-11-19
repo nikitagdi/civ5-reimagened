@@ -364,7 +364,10 @@ fn roots_owners_and_enums() {
             "ui.production.focus",
             "ui.production.hover",
             "ui.chat.to",
-            "ui.chat.to_player"
+            "ui.chat.to_player",
+            "ui.tip.kind",
+            "ui.tip.id",
+            "ui.tip.city"
         ]
     );
     assert_eq!(key("players").as_deref(), Some("id"));

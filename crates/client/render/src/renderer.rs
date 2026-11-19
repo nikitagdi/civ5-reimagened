@@ -1985,6 +1985,11 @@ impl Renderer {
         self.world.overlay.set_ring_pin(pin);
     }
 
+    /// The size of the selection ring (`Overlay::set_ring_scale`).
+    pub fn set_ring_scale(&mut self, scale: f32) {
+        self.world.overlay.set_ring_scale(scale);
+    }
+
     /// The path to show (`MovementPath`); an empty one clears it.
     pub fn set_path(&mut self, path: PathInput) {
         self.world.movement_path.set_path(path);

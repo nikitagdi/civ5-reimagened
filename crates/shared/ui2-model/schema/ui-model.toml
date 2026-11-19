@@ -320,6 +320,14 @@ tab = { type = "ProdTab", js = true }
 focus = { type = "key<item>?", js = true }
 hover = { type = "key<item>?", js = true }
 
+# The game thing the pointer rests on in a window, for its rich tooltip: `kind` as `rich_tooltips` numbers them (0 tech,
+# 1 unit type, 2 building, 3 improvement, 4 policy, 5 belief, ...), `id` its row, `city` the city it is seen from. The
+# `rich_tooltips` service root follows it while `id` is set; the skin sets it on pointerenter and clears it on leave.
+[type.UiTip]
+kind = { type = "i32", js = true }
+id = { type = "i32?", js = true }
+city = { type = "i32?", js = true }
+
 [type.UiChat]
 to = { type = "ChatTo", js = true }
 to_player = { type = "key<player>?", js = true }
@@ -462,6 +470,7 @@ map_mode = "MapMode"
 windows = "Windows"
 production = "UiProduction"
 chat = "UiChat"
+tip = "UiTip"
 pending = { list = "Pending", key = "seq" }
 turn_pending = "TurnPending"
 errors = { list = "Toast", key = "seq" }

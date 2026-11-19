@@ -9,6 +9,8 @@ local focuses = {"default", "food", "production", "gold", "science", "culture", 
 local sales = {}
 local focus_ids = {-1, 0, 1, 2, 4, 5, 3, 8, 9}
 local yields = {"food", "production", "gold", "science", "culture", "faith"}
+-- The game's font glyph of each yield and focus, as the original draws it in its texts ([ICON_FOOD]).
+local glyphs = {food = "font:ICON_FOOD", production = "font:ICON_PRODUCTION", gold = "font:ICON_GOLD", science = "font:ICON_RESEARCH", culture = "font:ICON_CULTURE", faith = "font:ICON_PEACE", tourism = "font:ICON_TOURISM", golden_age = "font:ICON_GOLDEN_AGE", great_people = "font:ICON_GREAT_PEOPLE"}
 local function whole(n) return math.floor(n / 100) end
 local function color(name)
     local row = name and GameInfo.Colors[name]
@@ -145,7 +147,7 @@ return {
         ordinary.options = normal; ordinary.count = #normal; wonders.count = #wonders.options
         for i, key in ipairs(focuses) do
             local disabled = reason or (key == "faith" and Game.IsOption(GameInfoTypes.GAMEOPTION_NO_RELIGION) and "Religion is disabled." or nil)
-            focus[#focus + 1] = {key = key, id = focus_ids[i], enabled = not disabled, reason = disabled}
+            focus[#focus + 1] = {key = key, icon = glyphs[key], id = focus_ids[i], enabled = not disabled, reason = disabled}
         end
         local focus_key = "default"
         for i, id in ipairs(focus_ids) do if c:GetFocusType() == id then focus_key = focuses[i] end end
@@ -162,10 +164,10 @@ return {
                 breakdown[#breakdown + 1] = {label = source[2], value = c["GetBaseYieldRateFrom" .. source[1]](c, y)}
             end
             local value = y == 4 and c:GetJONSCulturePerTurn() or (y == 5 and c:GetFaithPerTurn() or c:GetYieldRate(y))
-            income[#income + 1] = {key = yields[y + 1], value = value, enabled = true, breakdown = breakdown}
+            income[#income + 1] = {key = yields[y + 1], icon = glyphs[yields[y + 1]], value = value, enabled = true, breakdown = breakdown}
         end
-        income[#income + 1] = {key = "tourism", value = c:GetBaseTourism(), enabled = true, breakdown = array()}
-        income[#income + 1] = {key = "golden_age", value = c:GetYieldRate(6), enabled = true, breakdown = array()}
+        income[#income + 1] = {key = "tourism", icon = glyphs.tourism, value = c:GetBaseTourism(), enabled = true, breakdown = array()}
+        income[#income + 1] = {key = "golden_age", icon = glyphs.golden_age, value = c:GetYieldRate(6), enabled = true, breakdown = array()}
         local building_groups = {}
         for _, key in ipairs({"specialist", "great_work", "wonder", "other"}) do
             local g = {key = key, count = 0, maintenance = 0, buildings = array()}
@@ -191,7 +193,7 @@ return {
                         local yi = GameInfo.Yields[change.YieldType]
                         if yi and yi.ID == y then v = v + change.Yield end
                     end
-                    if v ~= 0 then b.yields[#b.yields + 1] = {key = yields[y + 1], value = v} end
+                    if v ~= 0 then b.yields[#b.yields + 1] = {key = yields[y + 1], icon = glyphs[yields[y + 1]], value = v} end
                 end
                 if (row.GreatWorkCount or 0) > 0 then
                     local work_slots = array()
@@ -280,7 +282,7 @@ return {
                     t.buy_state = editable and c:CanBuyPlotAt(x, y, false) and "ok" or (money.gold < t.buy_price and "short" or "off")
                     if t.buy_state ~= "ok" then t.buy_reason = reason or "Insufficient gold or this plot cannot be purchased." end
                 end
-                for yi = 0, 5 do local v = plot:CalculateYield(yi, true); if v ~= 0 then t.yields[#t.yields + 1] = {key = yields[yi + 1], value = v} end end
+                for yi = 0, 5 do local v = plot:CalculateYield(yi, true); if v ~= 0 then t.yields[#t.yields + 1] = {key = yields[yi + 1], icon = glyphs[yields[yi + 1]], value = v} end end
                 tiles[#tiles + 1] = t
             end
         end

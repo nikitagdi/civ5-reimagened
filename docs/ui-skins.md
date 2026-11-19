@@ -295,7 +295,10 @@ This is what a skin author uses most.
   A game picture is named the same way: `icon:<atlas>:<index>` (a cell of an icon atlas), `unit:`, `leader:`,
   `civ:` and the other game namespaces, and `font:ICON_<NAME>` for an icon of the game's text font (the yield and
   resource icons, as `[ICON_GOLD]` in the game's texts). The pictures come with the game's UI set, which loads after
-  the skin: until then the element is empty.
+  the skin: until then the element is empty. A picture whose element has a `stroke` colour (any, e.g.
+  `stroke: currentColor`) is a mask: the game draws its pixels in the element's `color`, which a binding may set
+  (`data-bind-style-color`); the white glyphs of the unit flags take the owner's colour this way. The browser preview
+  ignores it and shows the picture untinted.
 - **Keys of a closed menu.** A key binds only on a node that is shown. A menu whose items carry keys keeps them
   working while it is closed with a row of zero-size buttons outside it that hold the same keys and actions
   (`.hk` in the engraved strip): a zero-size node still counts as shown.
@@ -878,7 +881,7 @@ Every code the converter and the profile's parsers report, with the text it prin
 | E2-008 | list too long | shorten the list to the number the profile table allows |
 | E2-010 | property outside the profile | remove the declaration or use a property of the profile reference; layout is block, flex, grid and absolute |
 | E2-011 | computed value cannot be stored | Chrome computed a value of another kind than the property's field holds; simplify the declaration |
-| E2-012 | icon paint on an element that is not an icon | fill and stroke style only svg icons |
+| E2-012 | icon paint on an element that is not an icon | fill and stroke style only svg icons; a stroke on an img makes the picture a mask in its color |
 | E2-013 | page background is not transparent | the world is drawn under the UI; give html and body no background (the preview backdrop is not part of the skin) |
 | E2-014 | scroll container without scrollbar-width: none | add scrollbar-width: none next to overflow: auto or scroll; the runtime draws no scrollbar, so Chrome's bar would change the layout |
 | E2-020 | grid feature outside the profile | write tracks as px, %, fr, auto, min-content, max-content, minmax() or repeat(&lt;count&gt;, ...); place items by line numbers or span &lt;count&gt;; grid lines and areas have no names |

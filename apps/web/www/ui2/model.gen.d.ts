@@ -560,6 +560,12 @@ export interface UiProduction {
   readonly hover: Key | null;
 }
 
+export interface UiTip {
+  readonly kind: number;
+  readonly id: number | null;
+  readonly city: number | null;
+}
+
 export interface UiChat {
   readonly to: ChatTo;
   readonly to_player: Key | null;
@@ -683,6 +689,7 @@ export interface CityBreakdown {
 
 export interface CityYield {
   readonly key: CityYieldKind;
+  readonly icon: string;
   readonly value: number;
   readonly enabled: boolean;
   readonly breakdown: CityBreakdown[];
@@ -778,6 +785,7 @@ export interface CityGreatPerson {
 
 export interface CityFocusOption {
   readonly key: CityFocus;
+  readonly icon: string | null;
   readonly id: number;
   readonly enabled: boolean;
   readonly reason: Text | null;
@@ -785,6 +793,7 @@ export interface CityFocusOption {
 
 export interface CityBuildingYield {
   readonly key: CityYieldKind;
+  readonly icon: string;
   readonly value: number;
 }
 
@@ -3561,6 +3570,7 @@ export interface ReligionOverviewMyBelief {
   readonly type_label: Text;
   readonly name: Text;
   readonly effect: Text;
+  readonly icon: string;
 }
 
 export interface ReligionOverviewIncome {
@@ -3624,6 +3634,7 @@ export interface ReligionOverviewAnyBelief {
   readonly effect: Text;
   readonly religion_name: string;
   readonly religion_icon: string | null;
+  readonly icon: string;
   readonly known: boolean;
 }
 
@@ -4269,6 +4280,11 @@ export interface TradeRoutesRoutes {
   readonly to_you: TradeRoutesRoute[];
 }
 
+export interface TradeRoutesRouteList {
+  readonly key: string;
+  readonly items: TradeRoutesRoute[];
+}
+
 export interface TradeRoutesYield {
   readonly food: number;
   readonly production: number;
@@ -4547,6 +4563,7 @@ export interface Ui {
   readonly windows: Windows;
   readonly production: UiProduction;
   readonly chat: UiChat;
+  readonly tip: UiTip;
   readonly pending: Pending[];
   readonly turn_pending: TurnPending;
   readonly errors: Toast[];
@@ -5121,6 +5138,7 @@ export interface TradeRoutes {
   readonly counts: TradeRoutesCounts;
   readonly totals: TradeRoutesTotals;
   readonly routes: TradeRoutesRoutes;
+  readonly lists: TradeRoutesRouteList[];
   readonly choose: TradeRoutesChoose | null;
   readonly new_home: TradeRoutesNewHome | null;
 }

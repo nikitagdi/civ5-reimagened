@@ -216,9 +216,22 @@ fn run_game<C: Core>(
     let now = || u64::try_from(clock.elapsed().as_millis()).unwrap_or(u64::MAX);
     let game = u64::from(init.game);
     let record = init.cfg.record;
-    let (mut worker, outs) = match save {
-        Some(save) => Worker::resume(core, init, save, now()),
-        None => Worker::new(core, init, now()),
+    // Opt-in acceptance fixture (`CIV5_TEST_LUA=<file>`): a Lua chunk run once against a new game before the clients'
+    // first snapshot, to reach later states (cities, techs, religions, met civilizations ...). No client can enable it.
+    let fixture =
+        std::env::var("CIV5_TEST_LUA")
+            .ok()
+            .and_then(|path| match std::fs::read_to_string(&path) {
+                Ok(code) => Some(code),
+                Err(e) => {
+                    tracing::error!(%path, error = %e, "the acceptance fixture is unreadable");
+                    None
+                }
+            });
+    let (mut worker, outs) = match (save, fixture) {
+        (Some(save), _) => Worker::resume(core, init, save, now()),
+        (None, Some(code)) => Worker::new_with_fixture(core, init, now(), &code),
+        (None, None) => Worker::new(core, init, now()),
     };
     // The game is built; from here the worker's own heartbeat goes (`Worker::finish`).
     pacer.stop();

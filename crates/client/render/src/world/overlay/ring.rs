@@ -146,11 +146,14 @@ pub fn trans_scale_rot(angle: f32) -> [[f32; 4]; 4] {
     ]
 }
 
-/// The quad around the cell, in the ground plane (`x`, `z`) with the texture's `(u, v)`.
-pub fn quad(cell: (i32, i32)) -> [GridVertex; 4] {
+/// The quad around the cell, in the ground plane (`x`, `z`) with the texture's `(u, v)`; `scale` 1 is the
+/// original's size (two hexes across, the glow filling them), a smaller one draws the ring and its glow inside the
+/// unit's own hex.
+pub fn quad(cell: (i32, i32), scale: f32) -> [GridVertex; 4] {
     let c = cell_center(cell.0, cell.1);
+    let half = QUAD_HALF * scale;
     let corner = |sx: f32, sy: f32, u: f32, v: f32| GridVertex {
-        position: [c.x + sx * QUAD_HALF.x, c.y + sy * QUAD_HALF.y, 0.0, 1.0],
+        position: [c.x + sx * half.x, c.y + sy * half.y, 0.0, 1.0],
         color: [1.0; 4],
         uv: [u, v],
     };
@@ -181,6 +184,8 @@ pub struct RingFrame<'a> {
     pub time: f32,
     /// The turn (radians) and `fAlpha` instead of those of `time`.
     pub pin: Option<(f32, f32)>,
+    /// The size of the quad, 1 for the original's ([`quad`]).
+    pub scale: f32,
 }
 
 /// The ring in the map of the overlay.
@@ -461,6 +466,7 @@ impl RingGpu {
             style,
             time,
             pin,
+            scale,
         } = *frame;
         let (angle, alpha) = pin.unwrap_or((style.angle(time), style.alpha(time)));
         self.shown = cell.is_some() && self.texture_group.is_some();
@@ -493,7 +499,7 @@ impl RingGpu {
                 alpha: [alpha, 0.0, 0.0, 0.0],
             }),
         );
-        queue.write_buffer(&self.vertices, 0, bytemuck::cast_slice(&quad(cell)));
+        queue.write_buffer(&self.vertices, 0, bytemuck::cast_slice(&quad(cell, scale)));
     }
 
     pub fn shown(&self) -> bool {
@@ -562,7 +568,7 @@ mod tests {
 
     #[test]
     fn the_quad_is_two_hexes_wide_around_the_cell() {
-        let q = quad((5, 3));
+        let q = quad((5, 3), 1.0);
         let c = cell_center(5, 3);
         assert!((c - Vec2::new(352.0, -166.27)).length() < 0.1);
         assert!((q[0].position[0] - (c.x - 64.0)).abs() < 1e-3);
@@ -571,6 +577,16 @@ mod tests {
         assert_eq!(QUAD_SIDE, 128.0);
         // The crest of the ring is on the rim of the hex's inscribed circle, 29 units out.
         assert!((CREST_RADIUS - 29.0).abs() < 0.1 && (FADE_RADIUS - 40.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn a_scaled_quad_shrinks_about_the_cell() {
+        let c = cell_center(5, 3);
+        let q = quad((5, 3), 0.85);
+        assert!((q[0].position[0] - (c.x - 64.0 * 0.85)).abs() < 1e-3);
+        assert!((q[2].position[1] - c.y - 73.9 * 0.85).abs() < 0.1);
+        // The glow fades out about the hex's inscribed circle (32 units), not past it.
+        const { assert!(FADE_RADIUS * 0.85 < 34.5) };
     }
 
     #[test]

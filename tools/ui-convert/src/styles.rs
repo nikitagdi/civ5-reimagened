@@ -443,7 +443,9 @@ impl Cx<'_> {
                 // Already reported where it is written.
                 continue;
             }
-            if ICON_PAINT.contains(&p) && !e.is_svg() {
+            // A stroke on a picture makes it a mask in its text colour (the white glyphs of the unit flags).
+            let mask = p == PropId::Stroke && e.tag.eq_ignore_ascii_case("img");
+            if ICON_PAINT.contains(&p) && !e.is_svg() && !mask {
                 if s.trim() != Profile::v1().def(p).initial {
                     self.errs.push(err_node(
                         self.dom,

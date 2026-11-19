@@ -66,6 +66,18 @@ impl<C: Core> Worker<C> {
             .ok_or_else(|| "screen interpreter is unavailable".into())
     }
 
+    /// Runs a Lua chunk against the running game with the screen interpreter's bindings (`Players`, `Teams`, `Game`,
+    /// `GameInfo` ...): what it changes stays changed. An acceptance fixture ([`Worker::new_with_fixture`]) and a test
+    /// helper, never a client command. What it changes is not among the inputs the replicas replay: run it before
+    /// the snapshot they start from.
+    pub fn run_fixture_lua(&mut self, code: &str) -> Result<(), String> {
+        let screens = self.screen_runtime()?;
+        screens
+            .lua()
+            .exec(code, "=test-fixture")
+            .map_err(|e| e.to_string())
+    }
+
     /// Inject a full popup through the same mapping and queue path as native events.
     /// Intended for embeddings and fixtures, never exposed as a client command.
     pub fn inject_popup(

@@ -277,16 +277,34 @@ impl<C: Core> Worker<C> {
     ///
     /// `Start::Load` needs the file read by the shell: use [`Worker::resume`].
     pub fn new(core: C, init: WorkerInit, now_ms: u64) -> (Self, Vec<Out>) {
-        Self::start(core, init, None, now_ms)
+        Self::start(core, init, None, now_ms, None)
+    }
+
+    /// [`Worker::new`] with an acceptance fixture: a Lua chunk run against the new game once it has started, before
+    /// the first replica snapshot, so that the clients start from the state it made ([`Worker::run_fixture_lua`]).
+    /// A failure is logged and the game goes on.
+    pub fn new_with_fixture(
+        core: C,
+        init: WorkerInit,
+        now_ms: u64,
+        fixture: &str,
+    ) -> (Self, Vec<Out>) {
+        Self::start(core, init, None, now_ms, Some(fixture))
     }
 
     /// Continues the game of a save (`Start::Load`): `save` is the file the shell read and decoded
     /// (`saves::decode`; a file that does not decode is the shell's `Fatal` with code 4).
     pub fn resume(core: C, init: WorkerInit, save: Save, now_ms: u64) -> (Self, Vec<Out>) {
-        Self::start(core, init, Some(save), now_ms)
+        Self::start(core, init, Some(save), now_ms, None)
     }
 
-    fn start(core: C, init: WorkerInit, save: Option<Save>, now_ms: u64) -> (Self, Vec<Out>) {
+    fn start(
+        core: C,
+        init: WorkerInit,
+        save: Option<Save>,
+        now_ms: u64,
+        fixture: Option<&str>,
+    ) -> (Self, Vec<Out>) {
         let mut w = Worker {
             screens: None,
             popups: Default::default(),
@@ -343,6 +361,12 @@ impl<C: Core> Worker<C> {
             return (w, frame.into_iter().chain([Out::Exit(2)]).collect());
         }
         let r = w.begin(&init, save.as_ref(), &mut fb);
+        if let (Ok(()), Some(code)) = (&r, fixture) {
+            match w.run_fixture_lua(code) {
+                Ok(()) => tracing::warn!("the acceptance fixture ran"),
+                Err(reason) => tracing::error!(%reason, "the acceptance fixture failed"),
+            }
+        }
         let outs = w.finish(fb, now_ms, r);
         (w, outs)
     }

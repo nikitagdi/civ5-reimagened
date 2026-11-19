@@ -1925,6 +1925,14 @@ impl App {
                 // The cells go through the styles of `Highlights.xml` (the table of calls) once the
                 // styles are in; before that B1's outlines stay.
                 let styles = renderer.has_highlight_styles();
+                // UI v2's design draws the selection ring inside the unit's hex: at 0.85 the glow fades by the hex's
+                // inscribed circle (40 of the original's units, 34 here, of 32) and the crest sits inside it; the classic UI
+                // keeps the original's size.
+                renderer.set_ring_scale(if self.ui_host.map_preview().is_some() {
+                    0.85
+                } else {
+                    1.0
+                });
                 if self.ui_host.map_preview().is_some() {
                     // A game UI with its own selection (UI v2): the app's movement preview draws for it.
                     shown = self.preview.highlights().clone();

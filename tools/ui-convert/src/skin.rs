@@ -588,7 +588,7 @@ api = "1.0"
                 ),
                 ("civ_ribbon.hover".to_string(), StateValue::Int(-1)),
                 ("civ_ribbon.left".to_string(), StateValue::Bool(false)),
-                ("civ_ribbon.visible".to_string(), StateValue::Bool(true)),
+                ("civ_ribbon.visible".to_string(), StateValue::Bool(false)),
                 ("confirm.dont_warn".to_string(), StateValue::Bool(false)),
                 ("confirm.hover".to_string(), StateValue::Int(-1)),
                 (
@@ -712,7 +712,7 @@ api = "1.0"
                     "economy.sort".to_string(),
                     StateValue::Str("population".to_string())
                 ),
-                ("economy.sort_desc".to_string(), StateValue::Bool(false)),
+                ("economy.sort_desc".to_string(), StateValue::Bool(true)),
                 ("economy.tab".to_string(), StateValue::Str("".to_string())),
                 (
                     "end_game.tab".to_string(),
