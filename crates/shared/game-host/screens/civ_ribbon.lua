@@ -57,7 +57,7 @@ return {data=function(player)
                 row.turn_live=q:IsTurnActive()
                 row.connection,row.is_host,row.deal,row.can_open,row.can_kick="none",false,"none",false,false
                 row.can_declare_war=id~=player and p:IsTurnActive() and team:CanDeclareWar(qt)
-                row.action_reason=id==player and "This is your civilization." or (q:IsHuman() and "Trade proposals need a validated server deal serializer." or "AI conversations need a seat-scoped server session.")
+                row.action_reason=id==player and "This is your civilization." or (q:IsHuman() and "Trade proposals need a validated server deal serializer." or (not p:IsTurnActive() and "Only during your turn." or nil))
                 row.tip_portrait=row.action_reason
                 if id~=player then
                     row.treaties={friendship=p:IsDoF(id),research=team:IsHasResearchAgreement(qt),defensive_pact=team:IsDefensivePact(qt),
@@ -87,6 +87,13 @@ return {data=function(player)
             culture_overview=not (GameInfoTypes.GAMEOPTION_NO_CULTURE_OVERVIEW_UI and Game.IsOption(GameInfoTypes.GAMEOPTION_NO_CULTURE_OVERVIEW_UI)),extra=array()},majors=majors,city_states=minors,
         session_reason="Turn-duration statistics are not kept by the server."}
 end,actions={
-    begin_diplo=function(player,args) other(player,args.a);error("AI conversations need a seat-scoped server session.") end,
+    -- A leader of the corner list opens the leader screen, as the diplomacy list's Talk does.
+    begin_diplo=function(player,args)
+        local q=other(player,args.a)
+        assert(not q:IsHuman(),"Trade with a human from the trade window.")
+        assert(Players[player]:IsTurnActive(),"Only during your turn.")
+        leader_begin(player,args.a,true)
+        return {open={screen="leader",a=args.a}}
+    end,
     propose_peace=function(player,args) other(player,args.a);error("Peace negotiation needs a server trade session.") end,
 }}
