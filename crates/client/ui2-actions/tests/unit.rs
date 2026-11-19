@@ -461,3 +461,37 @@ fn plots_outside_the_i16_range_are_a_form_error() {
     assert!(rig.toasts().is_empty());
     assert_eq!(rig.actions.take_form_errors().len(), 1);
 }
+
+#[test]
+fn the_host_writes_the_path_badges_into_ui_path() {
+    use ui2_model::generated::{PathLabel, Plot};
+    let mut rig = rig_with_units();
+    let badge = |x: i16, y: i16, turn: i16| PathLabel {
+        cell: i32::from(x) * 65_536 + i32::from(y),
+        plot: Plot { x, y },
+        turn,
+    };
+    rig.actions
+        .set_path(vec![badge(4, 4, 1), badge(5, 4, 2), badge(5, 4, 3)]);
+    rig.actions.publish(&mut rig.store);
+    let rows: Vec<(i16, i16, i16)> = rig
+        .ui()
+        .path
+        .iter()
+        .map(|p| (p.plot.x, p.plot.y, p.turn))
+        .collect();
+    assert_eq!(
+        rows,
+        [(4, 4, 1), (5, 4, 2)],
+        "a repeated plot keeps its first badge"
+    );
+    // The same rows again change nothing; none clear the list.
+    let rev = rig.store.revision();
+    rig.actions.set_path(vec![badge(4, 4, 1), badge(5, 4, 2)]);
+    rig.actions.publish(&mut rig.store);
+    assert_eq!(rig.store.revision(), rev);
+    rig.actions.set_path(Vec::new());
+    rig.actions.publish(&mut rig.store);
+    assert!(rig.ui().path.is_empty());
+    assert!(rig.sent().is_empty(), "the badges are local state");
+}

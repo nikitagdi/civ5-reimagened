@@ -15,6 +15,7 @@
 pub mod classic;
 pub mod game_icons;
 pub mod v2;
+pub mod v2_map;
 mod v2_mods;
 
 use std::rc::Rc;
@@ -106,6 +107,15 @@ pub struct InputCx<'a> {
 
 /// The movement path a game UI shows and the plot of its head selected unit.
 pub type Selection = (Vec<render::entities::PathStep>, Option<(i32, i32)>);
+
+/// What a game UI that leaves the movement preview to the app tells it each frame.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct MapPreview {
+    /// The selected unit and the map mode; `None`: nothing is selected.
+    pub focus: Option<crate::play::MapFocus>,
+    /// The pointer is over the map, not over one of the UI's panels.
+    pub pointer_on_world: bool,
+}
 
 /// The sounds a game UI asks for: the classic layer's button sounds and Lua requests, the options menu's volume
 /// knobs and the events and state the music follows.
@@ -207,6 +217,14 @@ pub trait Frontend {
     fn selection(&mut self, _ring: Option<(i32, i32)>) -> Option<Selection> {
         None
     }
+    /// The selection the app's movement preview follows (`crate::play::MovePreview`): `None` when the UI draws its
+    /// own highlights and path (the classic UI) or has no selection.
+    fn map_preview(&self) -> Option<MapPreview> {
+        None
+    }
+    /// The turn badges of the path the app's movement preview shows, for the UI to draw on its map layer, and the
+    /// plot the mouse has rested on for the tooltip delay (`None`: none, or the mouse moved on).
+    fn set_map_hints(&mut self, _badges: &[crate::play::TurnBadge], _hover: Option<(i16, i16)>) {}
     /// The UI's sounds (`None`: it has none).
     fn sounds(&self) -> Option<&dyn UiSoundSource> {
         None
@@ -840,6 +858,19 @@ impl UiHost {
             return None;
         }
         self.active_mut().and_then(|f| f.selection(ring))
+    }
+
+    /// The selection of the frontend on the screen for the app's movement preview (`None`: it draws its own, has
+    /// none, or a mod hides the game UI).
+    pub fn map_preview(&self) -> Option<MapPreview> {
+        self.shown().and_then(|f| f.map_preview())
+    }
+
+    /// The turn badges of the app's movement preview and the plot of the tooltip for the frontend on the screen.
+    pub fn set_map_hints(&mut self, badges: &[crate::play::TurnBadge], hover: Option<(i16, i16)>) {
+        if let Some(f) = self.active_mut() {
+            f.set_map_hints(badges, hover);
+        }
     }
 
     /// The active frontend's sounds.

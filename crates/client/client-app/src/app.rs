@@ -383,6 +383,8 @@ struct App {
     picker: Picker,
     /// Selection, orders and hotkeys of the game.
     play: PlayController,
+    /// The ring, reach, targets and path of a game UI that keeps its own selection (UI v2).
+    preview: crate::play::MovePreview,
     /// Interim production panel of the opened city (SIMP-001).
     production: ProductionChooser,
     /// The brain's actions of the selected unit, for the unit panel.
@@ -639,6 +641,7 @@ impl App {
             v2.set_css_size(p.css_size);
             v2.set_text_input(p.text_input);
             v2.set_mod_ui(Rc::clone(&mod_ui));
+            v2.set_store(Some(Rc::clone(&ui_kv)));
             ui_host.register(Box::new(v2));
             ui_host.set_cold_wake(p.classic_cold);
         }
@@ -699,6 +702,7 @@ impl App {
             map_controller: MapCameraController::new(1, 1),
             picker: Picker::default(),
             play,
+            preview: crate::play::MovePreview::default(),
             production: ProductionChooser::default(),
             unit_panel: UnitPanel::default(),
             question: None,
@@ -1444,7 +1448,10 @@ impl App {
                     self.play.close_city_window();
                     self.question = None;
                 }
-                ClientEvent::QueryResult { id, answer } => self.play.on_query_result(id, &answer),
+                ClientEvent::QueryResult { id, answer } => {
+                    self.play.on_query_result(id, &answer);
+                    self.preview.on_query_result(id, &answer);
+                }
                 ClientEvent::OrderAnswered {
                     id,
                     outcome: protocol::CommandOutcome::Applied,
@@ -1514,7 +1521,11 @@ impl App {
     /// The mouse is over a plot: the controller asks for the path of the selected unit there
     /// Not while the map is being dragged.
     fn hover_path(&mut self, now_ms: u64) {
-        if self.showcase_mode || !self.in_game() || self.ui_host.has_game_ui() {
+        if self.showcase_mode || !self.in_game() {
+            return;
+        }
+        if self.ui_host.has_game_ui() {
+            self.map_preview(now_ms);
             return;
         }
         // Not through a panel or a window: only the map (and its flags) shows a path.
@@ -1528,6 +1539,74 @@ impl App {
         };
         self.tooltip_cell = self.dwell.update(cell, now_ms);
         self.play_apply(|play, world| play.hover(world, cell, now_ms));
+    }
+
+    /// The movement preview of a game UI with its own selection (UI v2): the plot under the mouse when it is over
+    /// the map, the UI's focus and the unit's context make the ring, the reach, the path and its turn badges; a
+    /// path the tree does not hold is asked of the server after the dwell. A UI that draws its own (the classic
+    /// one) leaves the preview empty.
+    fn map_preview(&mut self, now_ms: u64) {
+        let Some(state) = self.ui_host.map_preview() else {
+            if !self.preview.highlights().is_empty() {
+                self.preview.clear();
+            }
+            return;
+        };
+        let Link::Net(n) = &self.net else {
+            return;
+        };
+        let cell = match self.map_controller.cursor() {
+            Some(at) if state.pointer_on_world && !self.map_controller.is_dragging() => {
+                let ray = self.map_controller.ray_at(at, &self.game_camera);
+                self.picker.pick(&self.bridge, &ray).map(|p| p.cell)
+            }
+            _ => None,
+        };
+        let preview = &mut self.preview;
+        n.handle.with(|core| {
+            let revision = core.revision();
+            let ask = {
+                let Some(world) = core.shown() else {
+                    return;
+                };
+                let cx = core.contexts();
+                let ctx = state.focus.and_then(|f| cx.unit(f.unit).get());
+                preview.step(&crate::play::PreviewInput {
+                    world,
+                    ctx,
+                    focus: state.focus,
+                    hover: cell,
+                    now_ms,
+                    revision,
+                })
+            };
+            if let Some(q) = ask {
+                let id = core.query(q);
+                preview.query_sent(id);
+            }
+        });
+        // The plot tooltip: the plot the mouse rested on for the delay (the original's tooltip delay), cleared as soon as
+        // the mouse moves on; the UI asks the server for the plot's help (`plot_help`) while it is set.
+        let rested = self
+            .dwell
+            .update(cell, now_ms)
+            .and_then(|(x, y)| Some((i16::try_from(x).ok()?, i16::try_from(y).ok()?)));
+        let badges = self.preview.badges().to_vec();
+        self.ui_host.set_map_hints(&badges, rested);
+        let preview = &self.preview;
+        crate::ui_host::v2::probe_preview(|| {
+            let h = preview.highlights();
+            serde_json::json!({
+                "hover": cell,
+                "rested": rested,
+                "selected": h.selected,
+                "reachable": h.reachable,
+                "targets": h.targets,
+                "path": h.path.iter().map(|s| [s.x, s.y, s.turn]).collect::<Vec<_>>(),
+                "badges": badges.iter().map(|b| [b.x, b.y, b.turn]).collect::<Vec<_>>(),
+                "styles": preview.highlight_set().cells.len(),
+            })
+        });
     }
 
     fn apply_effect(&mut self, effect: UiEffect) {
@@ -1738,6 +1817,7 @@ impl App {
                     n.clear_world = false;
                     self.play = PlayController::new();
                     self.play.set_layered(true);
+                    self.preview.clear();
                     self.production.close();
                     self.question = None;
                     // The screens and notes of that game, the tooltip, the trade route paths asked of it.
@@ -1845,7 +1925,17 @@ impl App {
                 // The cells go through the styles of `Highlights.xml` (the table of calls) once the
                 // styles are in; before that B1's outlines stay.
                 let styles = renderer.has_highlight_styles();
-                if self.ui_host.has_game_ui() {
+                if self.ui_host.map_preview().is_some() {
+                    // A game UI with its own selection (UI v2): the app's movement preview draws for it.
+                    shown = self.preview.highlights().clone();
+                    if styles {
+                        renderer.set_highlight_set(self.preview.highlight_set());
+                        shown.reachable.clear();
+                        shown.targets.clear();
+                    } else {
+                        renderer.set_highlight_set(Default::default());
+                    }
+                } else if self.ui_host.has_game_ui() {
                     // The game UI owns the highlights, the path and the selection ring.
                     if let Some((path, selected)) =
                         self.ui_host.selection(renderer.selection_ring())

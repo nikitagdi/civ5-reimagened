@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use common::{Rig, city_at, intent, key, s};
 use ui2_actions::{CameraReq, IntentError, MAX_MOD_INTENTS, Refused, Sent, StateNs};
-use ui2_model::generated::{Note, NoteCat, PlayerRow, Plot, RefuseWhy};
+use ui2_model::generated::{Note, NoteCat, NoteGo, PlayerRow, Plot, RefuseWhy};
 use ui2_model::wire::{ModIdx, Origin, StateOp, WireIntent};
 use ui2_model::{Key, KeyedList, Value};
 
@@ -152,7 +152,23 @@ fn note(id: u32, cat: NoteCat, at: Option<(i16, i16)>) -> Note {
         id: Key::from_u32(id),
         category: cat,
         plot: at.map(|(x, y)| Plot { x, y }),
+        go: if cat == NoteCat::Production {
+            NoteGo::Production
+        } else {
+            NoteGo::Look
+        },
+        dismissable: true,
         ..Note::default()
+    }
+}
+
+fn note_go(id: u32, go: NoteGo, data1: i32, data2: i32, at: Option<(i16, i16)>) -> Note {
+    Note {
+        go,
+        data1,
+        data2,
+        dismissable: false,
+        ..note(id, NoteCat::Other, at)
     }
 }
 
@@ -260,6 +276,93 @@ fn a_production_note_of_an_own_city_opens_its_window() {
     rig2.one("note.activate", &[("note", nk(2))]);
     assert!(!rig2.ui().windows.production.open);
     assert!(rig2.toasts().is_empty());
+}
+
+#[test]
+fn a_note_that_asks_for_a_choice_opens_the_window_of_that_choice() {
+    let mut rig = Rig::new();
+    rig.cities(vec![city_at(20, 6, 7, true)]);
+    rig.put(
+        KeyedList::from_vec(vec![
+            note_go(1, NoteGo::ChooseTech, 0, -1, None),
+            note_go(2, NoteGo::ChooseTech, 1, -1, None),
+            note_go(3, NoteGo::Policies, -1, -1, None),
+            note_go(4, NoteGo::Pantheon, -1, -1, None),
+            note_go(5, NoteGo::FoundReligion, -1, -1, Some((6, 7))),
+            note_go(6, NoteGo::Deal, 3, -1, None),
+            note_go(7, NoteGo::TechAward, 0, -1, None),
+        ])
+        .unwrap(),
+    );
+    rig.one("note.activate", &[("note", nk(1))]);
+    let techs = &rig.ui().windows.techs;
+    assert!(techs.open);
+    assert_eq!((techs.a, techs.b), (Some(1), None), "the chooser");
+    rig.one("note.activate", &[("note", nk(2))]);
+    assert_eq!(rig.ui().windows.techs.a, Some(2), "a free tech");
+    rig.one("note.activate", &[("note", nk(3))]);
+    assert!(rig.ui().windows.policies.open);
+    rig.one("note.activate", &[("note", nk(4))]);
+    assert_eq!(rig.ui().windows.pantheon.a, Some(0));
+    assert!(rig.ui().windows.pantheon.open);
+    rig.one("note.activate", &[("note", nk(5))]);
+    let religion = &rig.ui().windows.religion;
+    assert!(religion.open);
+    assert_eq!(
+        (religion.a, religion.b),
+        (Some(20), Some(0)),
+        "the holy city on the note's plot"
+    );
+    rig.one("note.activate", &[("note", nk(6))]);
+    assert_eq!(rig.ui().windows.deal.a, Some(3), "the other player");
+    rig.one("note.activate", &[("note", nk(7))]);
+    assert!(
+        !rig.ui().windows.tech_award.open,
+        "no tech given: nothing to show"
+    );
+    assert!(rig.sent().is_empty(), "no camera for a window");
+    assert!(rig.toasts().is_empty());
+}
+
+#[test]
+fn a_promotion_note_looks_at_the_unit_and_selects_it() {
+    let mut rig = Rig::new();
+    rig.units(vec![
+        common::unit_at(7, 3, 4, true, false),
+        common::unit_at(8, 9, 9, false, false),
+    ]);
+    rig.put(
+        KeyedList::from_vec(vec![
+            note_go(1, NoteGo::Unit, -1, 7, Some((0, 0))),
+            note_go(2, NoteGo::Unit, -1, 99, Some((0, 0))),
+        ])
+        .unwrap(),
+    );
+    rig.one("note.activate", &[("note", nk(1))]);
+    assert_eq!(rig.sent(), &[Sent::Camera(CameraReq::Plot(3, 4))]);
+    assert_eq!(rig.ui().selection.unit, Some(key(7)));
+    rig.one("note.activate", &[("note", nk(2))]);
+    assert_eq!(rig.sent().len(), 1, "a unit that is gone: nothing");
+    assert_eq!(rig.ui().selection.unit, Some(key(7)));
+}
+
+#[test]
+fn a_note_waiting_for_a_choice_cannot_be_dismissed() {
+    let mut rig = Rig::new();
+    rig.put(
+        KeyedList::from_vec(vec![
+            note_go(1, NoteGo::ChooseTech, 0, -1, None),
+            note(2, NoteCat::Growth, None),
+        ])
+        .unwrap(),
+    );
+    rig.one("note.dismiss", &[("note", nk(1))]);
+    assert!(rig.actions.dismissed().is_empty());
+    rig.one("note.dismiss", &[("note", nk(2))]);
+    assert_eq!(
+        rig.actions.dismissed().iter().copied().collect::<Vec<_>>(),
+        vec![Key::from_u32(2)]
+    );
 }
 
 fn modded(name: &str, origin: Origin) -> WireIntent {

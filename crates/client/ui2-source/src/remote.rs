@@ -112,6 +112,20 @@ impl RemoteRoots {
                     .collect::<Vec<_>>()
             } else if *name == "civ_ribbon" {
                 Vec::new()
+            } else if *name == "plot_help"
+                && let Some(plot) = ui.hover.iter().next().map(|h| (h.plot.x, h.plot.y))
+            {
+                // The plot the mouse rests on, and the selected unit for the combat preview. Another plot clears the
+                // root and drops the answer still on its way; the same plot is asked again only when the world
+                // changed (its revision).
+                let mut args = vec![
+                    ("x".into(), i64::from(plot.0)),
+                    ("y".into(), i64::from(plot.1)),
+                ];
+                if let Some(unit) = ui.selection.unit {
+                    args.push(("unit".into(), i64::from(unit.0 as u32 as i32)));
+                }
+                args
             } else if let Some(window) = ui.windows.remote(name).filter(|w| w.open) {
                 [
                     ("a", window.a),
@@ -208,6 +222,97 @@ mod tests {
     use super::*;
     use ui2_model::generated::Techs;
     use ui2_model::{ModelStore, Owner};
+
+    #[test]
+    fn plot_help_follows_the_hovered_plot_and_drops_answers_for_a_plot_left() {
+        use ui2_model::Key;
+        use ui2_model::generated::{HoverPlot, Plot, PlotHelp};
+        let at = |x: i16, y: i16| {
+            ui2_model::KeyedList::from_vec(vec![HoverPlot {
+                cell: i32::from(x) * 65_536 + i32::from(y),
+                plot: Plot { x, y },
+            }])
+            .unwrap()
+        };
+        let mut remote = RemoteRoots::default();
+        let mut store = ModelStore::new(Schema::v1());
+        let mut ui = Ui::default();
+        let asked: std::cell::RefCell<Vec<Vec<(String, i64)>>> = Default::default();
+        let tick = |remote: &mut RemoteRoots, store: &mut ModelStore, ui: &Ui, now, rev| {
+            remote.frame(
+                now,
+                rev,
+                true,
+                ui,
+                &mut store.writer(Owner::Source),
+                |q| match q {
+                    Query::Screen { screen, args } if screen == "plot_help" => {
+                        asked.borrow_mut().push(args);
+                        asked.borrow().len() as u32
+                    }
+                    _ => 0,
+                },
+            );
+        };
+        // No plot under the mouse: nothing is asked.
+        tick(&mut remote, &mut store, &ui, 0, 1);
+        assert!(!remote.subscriptions.contains_key("plot_help"));
+        ui.hover = at(4, 5);
+        ui.selection.unit = Some(Key::new(0, 9));
+        tick(&mut remote, &mut store, &ui, 10, 1);
+        assert_eq!(remote.subscriptions["plot_help"].waiting, Some(1));
+        let answer = |x: i16| QueryAnswer::Screen {
+            screen: "plot_help".into(),
+            json: format!(r#"{{"x":{x},"y":5,"revealed":true}}"#),
+        };
+        assert!(
+            remote
+                .answer(1, &answer(4), &mut store.writer(Owner::Source))
+                .is_none()
+        );
+        assert_eq!(
+            store
+                .get::<Option<PlotHelp>>()
+                .unwrap()
+                .as_ref()
+                .map(|p| p.x),
+            Some(4)
+        );
+        // The same plot and world: not asked again (the answer is kept for the revision).
+        tick(&mut remote, &mut store, &ui, 400, 1);
+        assert_eq!(asked.borrow().len(), 1);
+        // Another plot: the root goes at once and the next answer is for the new plot only.
+        ui.hover = at(6, 5);
+        tick(&mut remote, &mut store, &ui, 700, 1);
+        assert!(store.get::<Option<PlotHelp>>().unwrap().is_none());
+        assert_eq!(remote.subscriptions["plot_help"].waiting, Some(2));
+        ui.hover = at(7, 5);
+        tick(&mut remote, &mut store, &ui, 800, 1);
+        remote.answer(2, &answer(6), &mut store.writer(Owner::Source));
+        assert!(
+            store.get::<Option<PlotHelp>>().unwrap().is_none(),
+            "an answer for a plot left"
+        );
+        // The mouse leaves the map: the subscription and its root go.
+        ui.hover = Default::default();
+        tick(&mut remote, &mut store, &ui, 1100, 1);
+        assert!(!remote.subscriptions.contains_key("plot_help"));
+        assert_eq!(
+            *asked.borrow(),
+            [
+                vec![
+                    ("x".to_string(), 4),
+                    ("y".to_string(), 5),
+                    ("unit".to_string(), 9)
+                ],
+                vec![
+                    ("x".to_string(), 6),
+                    ("y".to_string(), 5),
+                    ("unit".to_string(), 9)
+                ],
+            ]
+        );
+    }
 
     #[test]
     fn ribbon_service_polls_without_a_window_and_discards_disconnected_answers() {

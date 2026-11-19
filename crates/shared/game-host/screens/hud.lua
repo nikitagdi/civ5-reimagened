@@ -305,7 +305,6 @@ local function plain(text)
 end
 
 local function action_catalog(player, unit)
-    -- SIMPLIFIED(SIMP-441): Combat prediction and plot help await hover-plot subscriptions; HUD focus currently supplies selection ids only.
     local out, id = array(), 0
     while GameInfoActions[id] do
         local a = GameInfoActions[id]

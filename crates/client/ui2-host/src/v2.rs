@@ -120,15 +120,19 @@ fn anchor_name(kind: AnchorKind, key: &Value) -> Option<String> {
     Some(match kind {
         AnchorKind::City => format!("city:{}", id()?),
         AnchorKind::Unit => format!("unit:{}", id()?),
-        AnchorKind::Plot => {
-            let Value::Struct(xy) = key else {
-                return None;
-            };
-            match (xy.first(), xy.get(1)) {
+        AnchorKind::Plot => match key {
+            Value::Struct(xy) => match (xy.first(), xy.get(1)) {
                 (Some(Value::I32(x)), Some(Value::I32(y))) => format!("plot:{x},{y}"),
                 _ => return None,
+            },
+            // A plot packed in one integer: x times 65536 plus y (`PathLabel.cell`).
+            Value::I32(v) if *v >= 0 => format!("plot:{},{}", v / 65_536, v % 65_536),
+            // The runtime hands an anchor's integer over as a key.
+            Value::Key(k) if k.0 <= i32::MAX as u64 => {
+                format!("plot:{},{}", k.0 / 65_536, k.0 % 65_536)
             }
-        }
+            _ => return None,
+        },
     })
 }
 
@@ -545,6 +549,45 @@ impl V2Ui {
     /// The actions module: the UI's own state (selection, windows, waiting orders, toasts, dismissed notes).
     pub fn actions(&self) -> &UiActions {
         &self.actions
+    }
+
+    /// The turn badges of the movement path the application previews (`ui.path`), shown from the next frame.
+    pub fn set_path_labels(&mut self, rows: Vec<ui2_model::generated::PathLabel>) {
+        self.actions.set_path(rows);
+    }
+
+    /// The plot the mouse has rested on over the map (`ui.hover`); the plot tooltip's service root follows it.
+    pub fn set_hover(&mut self, plot: Option<(i16, i16)>) {
+        self.actions.set_hover(plot);
+    }
+
+    /// The yield and resource icons of the plots in view (`ui.map_icons`), shown from the next frame.
+    pub fn set_map_icons(&mut self, rows: Vec<ui2_model::generated::MapIcon>) {
+        self.actions.set_map_icons(rows);
+    }
+
+    /// A boolean of the skin's own state (`state.<path>`); `None` when the skin does not declare it as one.
+    pub fn skin_bool(&self, path: &str) -> Option<bool> {
+        let f = self.store.resolve(&format!("state.{path}")).ok()?;
+        match self.store.value(f.id, &[])? {
+            Value::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    /// Sets a boolean of the skin's own state (`state.<path>`) from the host (a setting the host keeps for the
+    /// player, as the map options). `false`: the skin does not declare it as a boolean, nothing changed.
+    pub fn set_skin_bool(&mut self, path: &str, on: bool) -> bool {
+        if self.skin_bool(path).is_none() {
+            return false;
+        }
+        let op = ui2_model::wire::StateOp {
+            path: format!("state.{path}").into(),
+            value: Value::Bool(on),
+        };
+        self.actions
+            .state_ops(ui2_actions::StateNs::Skin, &[op], &mut self.store)
+            .is_empty()
     }
 
     /// An intent from outside the skin's markup (a click on the map picked by the application, a test hook):

@@ -1,0 +1,46 @@
+{
+  "model": {
+    "plot_help": {
+      "x": 9,
+      "y": 11,
+      "cell": 589835,
+      "revealed": true,
+      "visible": true,
+      "nature": "Grassland, Hills, River",
+      "resource": "Iron",
+      "resource_count": 2,
+      "resource_tech": null,
+      "improvement": "Mine",
+      "improvement_pillaged": false,
+      "route": "Road",
+      "route_pillaged": false,
+      "owner": "Germany",
+      "owner_relation": "war",
+      "defense": 25,
+      "yields": [
+        { "key": "food", "name": "Food", "value": 2 },
+        { "key": "production", "name": "Production", "value": 4 },
+        { "key": "gold", "name": "Gold", "value": 1 }
+      ],
+      "city": null,
+      "units": [
+        { "idx": 0, "name": "Spearman", "owner": "Germany", "relation": "war", "strength": 11, "hp": 70, "hp_max": 100, "embarked": false }
+      ],
+      "combat": {
+        "ranged": false,
+        "outcome": "small_victory",
+        "my_name": "Swordsman",
+        "their_name": "Spearman",
+        "my_strength": 16,
+        "their_strength": 14,
+        "my_damage": 24,
+        "their_damage": 38,
+        "my_hp": 100,
+        "their_hp": 70,
+        "hp_max": 100
+      }
+    }
+  },
+  "ui": { "hover": [{ "cell": 589835, "plot": { "x": 9, "y": 11 } }] },
+  "anchors": { "plot:9,11": [900, 420] }
+}

@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use crate::read::{Notification, ReadError};
-use ui2_model::r#gen::{Note, NoteCat, Plot};
+use ui2_model::r#gen::{Note, NoteCat, NoteGo, Plot};
 use ui2_model::{Key, KeyedList};
 
 use crate::CountingRead;
@@ -227,6 +227,155 @@ pub fn category(kind: u32) -> NoteCat {
         .map_or(NoteCat::Other, |(_, c)| *c)
 }
 
+/// What a click on a notification of each type does: the cases of the core's `CvNotifications::Activate`. A type
+/// not listed takes the core's default, a look at its plot.
+pub const ACTIONS: &[(&str, NoteGo)] = &[
+    ("NOTIFICATION_WONDER_COMPLETED_ACTIVE_PLAYER", NoteGo::Look),
+    (
+        "NOTIFICATION_GREAT_WORK_COMPLETED_ACTIVE_PLAYER",
+        NoteGo::GreatWork,
+    ),
+    ("NOTIFICATION_BUY_TILE", NoteGo::Capital),
+    ("NOTIFICATION_TECH", NoteGo::ChooseTech),
+    ("NOTIFICATION_FREE_TECH", NoteGo::ChooseTech),
+    ("NOTIFICATION_TECH_AWARD", NoteGo::TechAward),
+    ("NOTIFICATION_POLICY", NoteGo::Policies),
+    ("NOTIFICATION_FREE_POLICY", NoteGo::Policies),
+    ("NOTIFICATION_DIPLO_VOTE", NoteGo::DiploVote),
+    ("NOTIFICATION_MINOR_QUEST", NoteGo::CityState),
+    ("NOTIFICATION_PRODUCTION", NoteGo::Production),
+    ("NOTIFICATION_UNIT_PROMOTION", NoteGo::Unit),
+    ("NOTIFICATION_PLAYER_DEAL", NoteGo::Deal),
+    ("NOTIFICATION_PLAYER_DEAL_RECEIVED", NoteGo::Deal),
+    ("NOTIFICATION_FREE_GREAT_PERSON", NoteGo::FreeGreatPerson),
+    ("NOTIFICATION_FOUND_PANTHEON", NoteGo::Pantheon),
+    ("NOTIFICATION_ADD_REFORMATION_BELIEF", NoteGo::Reformation),
+    ("NOTIFICATION_FOUND_RELIGION", NoteGo::FoundReligion),
+    ("NOTIFICATION_ENHANCE_RELIGION", NoteGo::EnhanceReligion),
+    ("NOTIFICATION_SPY_CREATED_ACTIVE_PLAYER", NoteGo::Espionage),
+    ("NOTIFICATION_SPY_EVICTED", NoteGo::Espionage),
+    ("NOTIFICATION_SPY_PROMOTION", NoteGo::Espionage),
+    ("NOTIFICATION_SPY_STOLE_TECH", NoteGo::StealTech),
+    ("NOTIFICATION_MAYA_LONG_COUNT", NoteGo::MayaBonus),
+    ("NOTIFICATION_FAITH_GREAT_PERSON", NoteGo::FaithGreatPerson),
+    // SIMPLIFIED(SIMP-448): the core opens a conversation with the AI for these (DoBeginDiploWithHuman...), which
+    // only the server could start; a click does nothing here. The wonder above has no server popup to show again,
+    // so its click looks at the wonder's city instead of the original's splash.
+    ("NOTIFICATION_TECH_STOLEN_SPY_IDENTIFIED", NoteGo::None),
+    ("NOTIFICATION_SPY_KILLED_A_SPY", NoteGo::None),
+    ("NOTIFICATION_INTRIGUE_DECEPTION", NoteGo::None),
+    (
+        "NOTIFICATION_INTRIGUE_SNEAK_ATTACK_ARMY_AGAINST_KNOWN_CITY_KNOWN",
+        NoteGo::None,
+    ),
+    (
+        "NOTIFICATION_INTRIGUE_SNEAK_ATTACK_ARMY_AGAINST_KNOWN_CITY_UNKNOWN",
+        NoteGo::None,
+    ),
+    (
+        "NOTIFICATION_INTRIGUE_SNEAK_ATTACK_AMPHIB_AGAINST_KNOWN_CITY_UNKNOWN",
+        NoteGo::None,
+    ),
+    (
+        "NOTIFICATION_INTRIGUE_SNEAK_ATTACK_AMPHIB_AGAINST_KNOWN_CITY_KNOWN",
+        NoteGo::None,
+    ),
+    ("NOTIFICATION_LEAGUE_CALL_FOR_PROPOSALS", NoteGo::League),
+    ("NOTIFICATION_LEAGUE_CALL_FOR_VOTES", NoteGo::League),
+    ("NOTIFICATION_LEAGUE_VOTING_DONE", NoteGo::League),
+    ("NOTIFICATION_LEAGUE_VOTING_SOON", NoteGo::League),
+    ("NOTIFICATION_IDEOLOGY_CHOSEN", NoteGo::Culture),
+    (
+        "NOTIFICATION_CULTURE_VICTORY_SOMEONE_INFLUENTIAL",
+        NoteGo::Culture,
+    ),
+    ("NOTIFICATION_CULTURE_VICTORY_WITHIN_TWO", NoteGo::Culture),
+    (
+        "NOTIFICATION_CULTURE_VICTORY_WITHIN_TWO_ACTIVE_PLAYER",
+        NoteGo::Culture,
+    ),
+    ("NOTIFICATION_CULTURE_VICTORY_WITHIN_ONE", NoteGo::Culture),
+    (
+        "NOTIFICATION_CULTURE_VICTORY_WITHIN_ONE_ACTIVE_PLAYER",
+        NoteGo::Culture,
+    ),
+    (
+        "NOTIFICATION_CULTURE_VICTORY_NO_LONGER_INFLUENTIAL",
+        NoteGo::Culture,
+    ),
+    ("NOTIFICATION_CHOOSE_ARCHAEOLOGY", NoteGo::Archaeology),
+    ("NOTIFICATION_CHOOSE_IDEOLOGY", NoteGo::Ideology),
+    (
+        "NOTIFICATION_LEAGUE_PROJECT_COMPLETE",
+        NoteGo::LeagueProject,
+    ),
+];
+
+/// The types the player may not dismiss (the core's `MayUserDismiss`): they wait for a choice.
+// SIMPLIFIED(SIMP-449): a policy notification is never dismissable here; the core lets it go when the game has the
+// policy saving option, which this client does not read.
+pub const KEPT: &[&str] = &[
+    "NOTIFICATION_DIPLO_VOTE",
+    "NOTIFICATION_PRODUCTION",
+    "NOTIFICATION_TECH",
+    "NOTIFICATION_FREE_TECH",
+    "NOTIFICATION_FREE_POLICY",
+    "NOTIFICATION_FREE_GREAT_PERSON",
+    "NOTIFICATION_FOUND_PANTHEON",
+    "NOTIFICATION_FOUND_RELIGION",
+    "NOTIFICATION_ENHANCE_RELIGION",
+    "NOTIFICATION_SPY_STOLE_TECH",
+    "NOTIFICATION_MAYA_LONG_COUNT",
+    "NOTIFICATION_FAITH_GREAT_PERSON",
+    "NOTIFICATION_ADD_REFORMATION_BELIEF",
+    "NOTIFICATION_LEAGUE_CALL_FOR_PROPOSALS",
+    "NOTIFICATION_CHOOSE_ARCHAEOLOGY",
+    "NOTIFICATION_LEAGUE_CALL_FOR_VOTES",
+    "NOTIFICATION_CHOOSE_IDEOLOGY",
+    "NOTIFICATION_MP_IRR_PROPOSAL",
+    "NOTIFICATION_MP_CC_PROPOSAL",
+    "NOTIFICATION_MP_SCRAP_PROPOSAL",
+    "NOTIFICATION_MP_REMAP_PROPOSAL",
+    "NOTIFICATION_POLICY",
+];
+
+const NA: usize = ACTIONS.len();
+const ACTIONS_HASHED: [(u32, NoteGo); NA] = {
+    let mut out = [(0_u32, NoteGo::Look); NA];
+    let mut i = 0;
+    while i < NA {
+        out[i] = (type_hash(ACTIONS[i].0), ACTIONS[i].1);
+        i += 1;
+    }
+    out
+};
+
+const NK: usize = KEPT.len();
+const KEPT_HASHED: [u32; NK] = {
+    let mut out = [0_u32; NK];
+    let mut i = 0;
+    while i < NK {
+        out[i] = type_hash(KEPT[i]);
+        i += 1;
+    }
+    out
+};
+
+/// What a click on a notification of this type hash does.
+#[must_use]
+pub fn action(kind: u32) -> NoteGo {
+    ACTIONS_HASHED
+        .iter()
+        .find(|(h, _)| *h == kind)
+        .map_or(NoteGo::Look, |(_, g)| *g)
+}
+
+/// Whether the player may dismiss a notification of this type hash.
+#[must_use]
+pub fn dismissable(kind: u32) -> bool {
+    !KEPT_HASHED.contains(&kind)
+}
+
 /// `key<note>`: the notification's id.
 #[must_use]
 pub fn note_key(id: i32) -> Key {
@@ -242,6 +391,13 @@ pub fn rows(notes: &[Notification], dismissed: &BTreeSet<Key>) -> KeyedList<Note
         if n.dismissed || dismissed.contains(&id) {
             continue;
         }
+        let go = action(n.kind);
+        // A deal's note carries the other player as its x (OpenPlayerDealScreen(x)): it has no plot.
+        let (plot, data1) = if go == NoteGo::Deal {
+            (None, i32::from(n.x))
+        } else {
+            (n.plot().map(|(x, y)| Plot { x, y }), n.data1)
+        };
         // The core's ids are unique; a repeated one keeps its first row.
         let _ = out.try_push(Note {
             id,
@@ -249,7 +405,11 @@ pub fn rows(notes: &[Notification], dismissed: &BTreeSet<Key>) -> KeyedList<Note
             message: Arc::from(n.message.as_str()),
             summary: Arc::from(n.summary.as_str()),
             turn: n.turn,
-            plot: n.plot().map(|(x, y)| Plot { x, y }),
+            plot,
+            go,
+            data1,
+            data2: n.data2,
+            dismissable: dismissable(n.kind),
         });
     }
     out
@@ -316,5 +476,38 @@ mod tests {
         assert_eq!(category(0x70CB_3D66), NoteCat::Military);
         assert_eq!(category(0xBE97_25C6), NoteCat::Other, "generic");
         assert_eq!(category(12345), NoteCat::Other, "unknown");
+    }
+
+    #[test]
+    fn a_click_does_what_the_cores_activate_does_for_the_type() {
+        assert_eq!(action(0x5ACF_A6F7), NoteGo::ChooseTech, "tech");
+        assert_eq!(action(0x252B_FE28), NoteGo::Policies, "policy");
+        assert_eq!(action(0x7701_4C62), NoteGo::Production, "production");
+        assert_eq!(action(0x70CB_3D66), NoteGo::Look, "barbarian: the default");
+        assert_eq!(
+            action(type_hash("NOTIFICATION_UNIT_PROMOTION")),
+            NoteGo::Unit
+        );
+        assert_eq!(
+            action(type_hash("NOTIFICATION_FOUND_PANTHEON")),
+            NoteGo::Pantheon
+        );
+        assert_eq!(action(12345), NoteGo::Look, "unknown: the default");
+        let mut seen = std::collections::BTreeMap::new();
+        for (name, _) in ACTIONS {
+            if let Some(other) = seen.insert(type_hash(name), *name) {
+                panic!("{name} and {other} hash alike");
+            }
+        }
+    }
+
+    #[test]
+    fn the_notes_waiting_for_a_choice_may_not_be_dismissed() {
+        assert!(!dismissable(0x5ACF_A6F7), "tech");
+        assert!(!dismissable(0x7701_4C62), "production");
+        assert!(!dismissable(0x252B_FE28), "policy");
+        assert!(dismissable(0xCD6F_572E), "growth");
+        assert!(dismissable(0x70CB_3D66), "barbarian");
+        assert!(dismissable(12345), "unknown");
     }
 }

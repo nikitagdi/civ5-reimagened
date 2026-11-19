@@ -185,6 +185,168 @@
   background-color: var(--neg);
 }
 
+/* ---------- yield and resource icons of the map options ---------- */
+/* Centred on the plot: the resource above, the yields below, as the original's icon managers place them. */
+.map-icons {
+  position: absolute;
+  left: -40px;
+  top: -30px;
+  width: 80px;
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.map-resource {
+  width: 28px;
+  height: 28px;
+}
+
+.map-yields {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  max-width: 80px;
+}
+
+.map-yield {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background-color: var(--lacquer);
+  font: 500 11px/14px var(--sans);
+  color: var(--bone);
+}
+
+.map-yield svg.i {
+  width: 11px;
+  height: 11px;
+}
+
+.map-yield.food svg.i { color: var(--y-food); }
+.map-yield.prod svg.i { color: var(--y-prod); }
+
+/* ---------- the city screen's tiles on the map: the citizen button on the plot, the price under it ---------- */
+.city-plot { position: absolute; left: -30px; top: -18px; width: 60px; height: 52px; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }
+.city-plot-work { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 16px; background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--engrave); color: var(--bone-3); pointer-events: auto; cursor: pointer; }
+.city-plot-work svg.i { width: 18px; height: 18px; }
+.city-plot.worked .city-plot-work, .city-plot.locked .city-plot-work { background-color: var(--brass); color: var(--brass-ink); }
+.city-plot.locked .city-plot-work { box-shadow: inset 0 0 0 2px var(--bone); }
+.city-plot.off .city-plot-work, .city-plot-work:disabled, .city-plot-buy:disabled { opacity: 0.5; cursor: default; }
+.city-plot-buy { display: flex; align-items: center; gap: 2px; padding: 0 6px; height: 18px; border-radius: 9px; background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--y-gold); font: 500 12px/18px var(--sans); color: var(--bone); pointer-events: auto; cursor: pointer; }
+.city-plot-buy svg.i { width: 12px; height: 12px; color: var(--y-gold); }
+
+/* ---------- path turn badges ---------- */
+/* A badge is centred on its plot; it takes no pointer, so the map under it stays hoverable. */
+.path-turn {
+  position: absolute;
+  left: -12px;
+  top: -12px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background-color: var(--lacquer);
+  box-shadow: inset 0 0 0 2px var(--brass);
+  font: 500 14px/16px var(--sans);
+  color: var(--bone);
+  pointer-events: none;
+}
+
+/* ---------- the plot tooltip ---------- */
+/* It hangs to the lower right of the plot's centre (the mouse is on the plot) and takes no pointer. */
+.tip.plot-tip {
+  position: absolute;
+  left: 36px;
+  top: 12px;
+  width: 240px;
+  pointer-events: none;
+}
+
+.tip.plot-tip .trow {
+  justify-content: flex-start;
+}
+
+.plot-tip-yields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.plot-tip-yield {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 500;
+  color: var(--bone);
+}
+
+.plot-tip-yield svg.i {
+  width: 14px;
+  height: 14px;
+}
+
+.plot-tip-city,
+.plot-tip-combat {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--engrave);
+}
+
+.plot-tip-unit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--bone-2);
+}
+
+.plot-tip-unit svg.i {
+  width: 12px;
+  height: 12px;
+}
+
+.plot-tip-war { color: var(--neg); }
+.plot-tip-friend { color: var(--y-food); }
+.plot-tip-bad { color: var(--neg); }
+
+.plot-tip-bars {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.plot-tip-bar {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  background-color: var(--lacquer-3);
+}
+
+.plot-tip-bar .fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background-color: var(--y-food);
+}
+
+.plot-tip-bar .fill.their {
+  background-color: var(--neg);
+}
+
 /* ---------- unit flags ---------- */
 .uflag {
   position: absolute;

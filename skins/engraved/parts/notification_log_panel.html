@@ -1,5 +1,5 @@
 <div class="notes notification-log-panel" data-bind-class-toggle="notes-no-ribbon:{{!state.civ_ribbon.visible || state.civ_ribbon.left}}; notes-ribbon-folded:{{!state.civ_ribbon.visible}}" data-part="notes">
- <div class="list notification-log-cards" data-part="notes.list"><div class="notification-log-card" data-bind-for="n:{{notes}}" data-bind-sort="{{n.turn}}" data-bind-sort-desc="{{true}}" data-on-click="intent note.activate(note: n.id)" data-on-pointerenter="set state.notification.hover = n.summary" data-tooltip="notification-card-tip">
+ <div class="list notification-log-cards" data-part="notes.list"><div class="notification-log-card" data-part="notes.card" data-bind-for="n:{{notes}}" data-bind-sort="{{n.turn}}" data-bind-sort-desc="{{true}}" data-on-click="intent note.activate(note: n.id)" data-on-contextmenu="intent note.dismiss(note: n.id); stop" data-on-pointerenter="set state.notification.hover = n.summary" data-tooltip="notification-card-tip">
         <div class="notification-log-icon-badge">
         <svg class="i c-food" data-bind-if="{{n.category == 'growth'}}"><use href="#i-food"/></svg>
         <svg class="i c-sci" data-bind-if="{{n.category == 'great_people'}}"><use href="#i-person"/></svg>
@@ -11,7 +11,7 @@
         <svg class="i c-faith" data-bind-if="{{n.category == 'religion'}}"><use href="#i-faith"/></svg>
         <svg class="i sec" data-bind-if="{{n.category == 'other'}}"><use href="#i-star"/></svg>
       </div>
-  <span class="notification-log-lines"><span class="notification-log-summary" data-bind-value="{{n.summary}}"></span>        <div class="notification-log-kicker">
+  <span class="notification-log-lines"><span class="notification-log-summary" data-part="notes.card-summary" data-bind-value="{{n.summary}}"></span>        <div class="notification-log-kicker">
           <span data-bind-if="{{n.category == 'growth'}}" data-l10n="note.cat.growth">City growth</span>
           <span data-bind-if="{{n.category == 'great_people'}}" data-l10n="note.cat.great_people">Great people</span>
           <span data-bind-if="{{n.category == 'diplomacy'}}" data-l10n="note.cat.diplomacy">Diplomacy</span>
@@ -22,7 +22,7 @@
           <span data-bind-if="{{n.category == 'religion'}}" data-l10n="note.cat.religion">Religion</span>
           <span data-bind-if="{{n.category == 'other'}}" data-l10n="note.cat.other">Notice</span>
         </div></span>
-  <button class="notification-log-dismiss" data-tooltip="notification-dismiss-tip" data-on-click="intent note.dismiss(note: n.id); stop"><svg class="i"><use href="#i-close"/></svg></button>
+  <button class="notification-log-dismiss" data-part="notes.dismiss" data-bind-if="{{n.dismissable}}" data-tooltip="notification-dismiss-tip" data-on-click="intent note.dismiss(note: n.id); stop"><svg class="i"><use href="#i-close"/></svg></button>
  </div></div>
  <button class="notification-log-log" data-part="notes.log" data-l10n="notification.log" data-on-click="intent window.toggle(window: 'notification_log')"></button>
  <div data-include="parts/notes-extra.html"></div>

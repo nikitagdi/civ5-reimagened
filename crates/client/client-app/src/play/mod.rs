@@ -5,12 +5,14 @@ mod controller;
 pub mod highlight_calls;
 mod highlights;
 pub mod hotkeys;
+pub mod preview;
 pub mod selection;
 
 use client_core::OrderSink;
 use protocol::{Blocker, BlockerTarget, Command, Query, TeamId, UnitFlags, WorldView};
 
 pub use controller::{Hints, Mode, PATH_DWELL_MS, PlayController};
+pub use preview::{FocusMode, MapFocus, MovePreview, PreviewInput, TurnBadge};
 
 /// `EndTurnBlockingTypes::ENDTURN_BLOCKING_PRODUCTION` (CvEnums.h).
 const BLOCKING_PRODUCTION: i32 = 2;

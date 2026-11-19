@@ -454,6 +454,33 @@ fn input_modal_screen_blocks_the_layers_below() {
 }
 
 #[test]
+fn input_screen_whose_root_takes_no_pointer_blocks_only_its_panels() {
+    let mut f = Fx::new();
+    let hud = f.layer(Layer::Hud, "hud");
+    let panel = f.el("panel", at(10.0, 10.0, 100.0, 100.0));
+    let hud = hud.child(panel);
+    let window = f.layer(Layer::Window, "window");
+    let screen = f.el(
+        "screen",
+        with(at(0.0, 0.0, 1000.0, 800.0), |r| {
+            r.pointer_events = PointerEvents::None;
+        }),
+    );
+    let side = f.el("side", at(800.0, 0.0, 200.0, 800.0));
+    let window = window.child(screen.screen("city").child(side));
+    f.kit.template("doc", vec![hud, window]);
+    let mut h = Host::with(f.kit.finish().expect("package"), Env::default());
+    assert_eq!(h.rt.visible_screens(), vec![h.part("screen")]);
+    // The screen's panel takes the pointer.
+    assert_eq!(h.ptr(PointerPhase::Move, 900.0, 300.0), TAKEN);
+    assert_eq!(h.rt.hovered(), Some(h.part("side")));
+    // Elsewhere the layers below do: the HUD's panel and the world.
+    assert_eq!(h.ptr(PointerPhase::Move, 20.0, 20.0), TAKEN);
+    assert_eq!(h.rt.hovered(), Some(h.part("panel")));
+    assert_eq!(h.click(500.0, 500.0), (PASS, PASS));
+}
+
+#[test]
 fn input_screen_hidden_by_display_none_is_not_modal() {
     let mut f = Fx::new();
     let hud = f.layer(Layer::Hud, "hud");

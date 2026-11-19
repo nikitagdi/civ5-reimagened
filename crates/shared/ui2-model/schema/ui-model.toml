@@ -1,4 +1,4 @@
-version = "1.2"
+version = "1.3"
 
 # The UI view model, schema 1.0. Source of the generated Rust types, the path table and the JS typings
 # (`cargo xtask ui gen-model`). A new field, root or enum value is a minor version; removing, renaming or
@@ -16,6 +16,14 @@ Activity = ["awake", "hold", "sleep", "heal", "sentry", "intercept", "mission", 
 # The first twelve are the unit commands of the core; the last three are shown but have no order yet.
 UnitActionKind = ["move", "range_attack", "found_city", "fortify", "sleep", "skip", "heal", "automate_build", "automate_explore", "cancel", "disband", "wake", "alert", "pillage", "upgrade"]
 NoteCat = ["growth", "great_people", "diplomacy", "military", "production", "research", "policy", "religion", "other"]
+# What a click on a notification does, by its type (the core's CvNotifications::Activate). `look` moves the camera to
+# its plot; `none` does nothing the client can show.
+NoteGo = [
+  "look", "none", "capital", "unit", "choose_tech", "tech_award", "steal_tech", "policies", "production", "diplo_vote",
+  "city_state", "deal", "free_great_person", "faith_great_person", "maya_bonus", "pantheon", "reformation",
+  "found_religion", "enhance_religion", "espionage", "league", "league_project", "culture", "ideology", "archaeology",
+  "great_work",
+]
 ChatTo = ["all", "player"]
 ItemKind = ["unit", "building", "wonder", "project", "process"]
 MapMode = ["select", "move", "range_attack"]
@@ -169,6 +177,12 @@ message = "str"
 summary = "str"
 turn = "i16"
 plot = "Plot?"
+# 1.3: the click's action, the core's game data and extra game data of the notification, and whether the player may
+# dismiss it (the core's MayUserDismiss). A `deal` note has no plot and its data1 is the other player.
+go = "NoteGo"
+data1 = "i32"
+data2 = "i32"
+dismissable = "bool"
 
 [type.ChatRow]
 seq = "key<chat>"
@@ -247,6 +261,32 @@ short_gold = "i32?"
 unit = "key<unit>?"
 city = "key<city>?"
 plot = "Plot?"
+
+# A turn badge of the movement path under the mouse: the plot where a turn of the move ends (and the target), and
+# that turn (1: this turn), as the original's `PathHelpManager.lua` labels them. `cell` is the plot packed for a map
+# anchor (`data-anchor="plot:{{p.cell}}"`): x times 65536 plus y.
+[type.PathLabel]
+cell = "i32"
+plot = "Plot"
+turn = "i16"
+
+# The yield and resource icons of one plot in view, as the original's YieldIconManager and ResourceIconManager hang
+# them on the plot while the map options switch them on; `cell` packs the plot as `PathLabel.cell` does.
+[type.MapIcon]
+cell = "i32"
+food = "i16"
+production = "i16"
+gold = "i16"
+science = "i16"
+culture = "i16"
+faith = "i16"
+has_resource = "bool"
+resource = "asset"
+
+# The plot the mouse rests on; `cell` packs it as `PathLabel.cell` does.
+[type.HoverPlot]
+cell = "i32"
+plot = "Plot"
 
 [type.Win]
 open = "bool"
@@ -421,6 +461,13 @@ chat = "UiChat"
 pending = { list = "Pending", key = "seq" }
 turn_pending = "TurnPending"
 errors = { list = "Toast", key = "seq" }
+# The turn badges of the path of the selected unit to the plot under the mouse (written by the host).
+path = { list = "PathLabel", key = "cell" }
+# The plot the mouse has rested on over the map: no row or one (written by the host after the tooltip delay;
+# `plot_help` follows it). A list, so that the plot tooltip can hang on the plot as a map anchor.
+hover = { list = "HoverPlot", key = "cell" }
+# The yield and resource icons of the revealed plots in view while the map options show them (written by the host).
+map_icons = { list = "MapIcon", key = "cell" }
 
 # Intents: what the interface asks for, by name and with typed arguments.
 [intent."unit.select"]

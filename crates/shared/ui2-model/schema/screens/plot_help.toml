@@ -1,0 +1,70 @@
+# The plot under the mouse as the original's PlotMouseoverInclude / PlotHelp shows it, for the seat that asks: what
+# the seat has revealed (terrain, feature, resource, improvement, route, owner), what it sees now (yields, units, a
+# city's defence) and, when its selected military unit could attack an enemy there, the combat preview of the
+# original's EnemyUnitPanel. A service root: no window; the host asks for it after the mouse rested on a plot.
+[enum]
+PlotHelpRelation = ["own", "friend", "war"]
+PlotHelpOutcome = ["none", "ranged", "stalemate", "total_defeat", "total_victory", "major_victory", "small_victory", "major_defeat", "small_defeat"]
+
+[type.PlotHelpYield]
+key = "str"
+name = "text"
+value = "i32"
+
+[type.PlotHelpUnit]
+idx = "i32"
+name = "text"
+owner = "text"
+relation = "PlotHelpRelation"
+strength = "i32"
+hp = "i32"
+hp_max = "i32"
+embarked = "bool"
+
+[type.PlotHelpCity]
+name = "text"
+owner = "text"
+relation = "PlotHelpRelation"
+population = "i32"
+strength = "i32"
+hp = "i32"
+hp_max = "i32"
+
+[type.PlotHelpCombat]
+ranged = "bool"
+outcome = "PlotHelpOutcome"
+my_name = "text"
+their_name = "text"
+my_strength = "i32"
+their_strength = "i32"
+# Damage each side takes, and its hit points before the fight.
+my_damage = "i32"
+their_damage = "i32"
+my_hp = "i32"
+their_hp = "i32"
+hp_max = "i32"
+
+[model.plot_help]
+_optional = true
+x = "i16"
+y = "i16"
+# The plot packed for a map anchor: x times 65536 plus y.
+cell = "i32"
+revealed = "bool"
+visible = "bool"
+nature = "text"
+resource = "text?"
+resource_count = "i32"
+resource_tech = "text?"
+improvement = "text?"
+improvement_pillaged = "bool"
+route = "text?"
+route_pillaged = "bool"
+owner = "text?"
+owner_relation = "PlotHelpRelation"
+# The defence modifier of the plot in percent (hills, forest, a fort), as the core gives it to the seat's units.
+defense = "i32"
+yields = { list = "PlotHelpYield", key = "key" }
+city = "PlotHelpCity?"
+units = { list = "PlotHelpUnit", key = "idx" }
+combat = "PlotHelpCombat?"

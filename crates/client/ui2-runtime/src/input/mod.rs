@@ -47,7 +47,7 @@ use std::sync::Arc;
 use glam::Vec2;
 use platform::{InputEvent, MouseButton, PointerEvent, PointerPhase, WheelDelta, WheelEvent};
 use ui2_package::profile::action::Event;
-use ui2_package::style::Cursor;
+use ui2_package::style::{Cursor, PointerEvents};
 use ui2_package::{ARefId, ImageSrc, NodeKind, NodeRef, Package};
 
 use crate::arena::{Dirty, NodeId, StateBits};
@@ -163,7 +163,12 @@ impl Runtime {
 
     pub(crate) fn hit_at(&self, p: Vec2) -> Hit {
         let mut g = self.geo();
-        let modal = !g.visible_screens(&self.input.screens).is_empty();
+        // A screen whose root takes no pointer (`pointer-events: none`, as the city view over the map) blocks only
+        // where its own panels are: the layers below take the rest.
+        let modal = g.visible_screens(&self.input.screens).into_iter().any(|s| {
+            g.record(s)
+                .is_none_or(|r| r.pointer_events != PointerEvents::None)
+        });
         g.hit(p, modal)
     }
 

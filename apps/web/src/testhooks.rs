@@ -792,7 +792,10 @@ fn ui2_json(p: &client_app::V2Probe) -> Value {
             "popup": p.popup,
             "popup_count": p.popup_count,
             "state": p.skin_state.iter().cloned().collect::<serde_json::Map<String, Value>>(),
+            "selection": p.selection,
         },
+        "preview": p.preview,
+        "notes": p.notes,
         "texts": texts,
         "counters": counters,
     })

@@ -287,7 +287,10 @@ impl Screens {
                     LuaValue::Table(o) => {
                         let screen: String = o.get("screen")?;
                         self.screen(&screen)?;
-                        if matches!(screen.as_str(), "hud" | "rich_tooltips" | "civ_ribbon") {
+                        if matches!(
+                            screen.as_str(),
+                            "hud" | "rich_tooltips" | "civ_ribbon" | "plot_help"
+                        ) {
                             return Err(LuaError::msg("service screen has no window"));
                         }
                         Some(protocol::ScreenOpen {

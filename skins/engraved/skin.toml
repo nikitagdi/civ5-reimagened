@@ -5,7 +5,7 @@ id = "engraved"
 version = "0.1.0"
 title = "skin.title"
 entry = "index.html"
-model = "1.2"
+model = "1.3"
 api = "1.0"
 default = true
 
@@ -27,7 +27,7 @@ display = "Alegreya"
 unit_panel = { hover = -1, draft = "", valid = false }
 unit_lists = { section = "", sort = "name", desc = false, military_folded = false, civilian_folded = false }
 on_map = { unit = "", city = "" }
-minimap = { options = false, streamer = false, banners = true, flags = true }
+minimap = { options = false, streamer = false, banners = true, flags = true, grid = false, routes = true, yields = false, resources = false }
 leader = { hover = "" }
 deal = { side = 0, kind = -1, item = 0, amount = 0 }
 civ_ribbon = { visible = true, left = false, hover = -1 }

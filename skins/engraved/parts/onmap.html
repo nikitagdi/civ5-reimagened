@@ -39,6 +39,76 @@
   </button>
 </div>
 
+<!-- The yield and resource icons of the plots in view, while the map options show them (the host writes ui.map_icons). -->
+<div class="map-icons" data-part="map.icons" data-bind-for="m:{{ui.map_icons}}" data-anchor="plot:{{m.cell}}">
+  <img class="map-resource" data-part="map.resource-icon" data-bind-if="{{m.has_resource && state.minimap.resources}}" data-bind-src="{{m.resource}}">
+  <div class="map-yields" data-part="map.yield-icons" data-bind-if="{{state.minimap.yields}}">
+    <span class="map-yield food" data-bind-if="{{m.food > 0}}"><svg class="i"><use href="#i-food"/></svg><span data-bind-value="{{m.food}}">2</span></span>
+    <span class="map-yield prod" data-bind-if="{{m.production > 0}}"><svg class="i"><use href="#i-prod"/></svg><span data-bind-value="{{m.production}}">1</span></span>
+    <span class="map-yield gold" data-bind-if="{{m.gold > 0}}"><svg class="i"><use href="#i-gold"/></svg><span data-bind-value="{{m.gold}}">1</span></span>
+    <span class="map-yield sci" data-bind-if="{{m.science > 0}}"><svg class="i"><use href="#i-sci"/></svg><span data-bind-value="{{m.science}}">1</span></span>
+    <span class="map-yield cult" data-bind-if="{{m.culture > 0}}"><svg class="i"><use href="#i-cult"/></svg><span data-bind-value="{{m.culture}}">1</span></span>
+    <span class="map-yield faith" data-bind-if="{{m.faith > 0}}"><svg class="i"><use href="#i-faith"/></svg><span data-bind-value="{{m.faith}}">1</span></span>
+  </div>
+</div>
+
+<!-- The city screen's tiles on the map (the original's city view): a click works or frees the tile, as the list's
+     button does; with purchases shown, a purchasable plot carries its price. -->
+<div class="city-plot" data-part="map.city-tile" data-bind-for="t:{{city.tiles}}" data-bind-filter="{{ui.windows.city.open && city != null && t.cell != null}}" data-anchor="plot:{{t.cell}}" data-bind-class-toggle="worked:{{t.state == 'worked'}}; locked:{{t.state == 'locked'}}; center:{{t.state == 'center'}}; off:{{t.state == 'unowned' || t.state == 'enemy' || t.state == 'blocked' || t.state == 'other'}}" data-tooltip="city-tile-tip" data-on-pointerenter="set state.city.hover = t.index">
+  <button class="city-plot-work" data-part="map.city-tile.work" data-bind-if="{{t.state != 'center' && t.state != 'unowned'}}" data-bind-disabled="{{city.view_only || !city.my_turn || t.state == 'blocked' || t.state == 'enemy' || t.state == 'other'}}" data-on-click="intent screen.act(screen: 'city', action: 'toggle_tile', a: t.index, d: city.city); stop">
+    <span data-part="map.city-tile.locked" data-bind-if="{{t.state == 'locked'}}"><svg class="i"><use href="#i-lock"/></svg></span>
+    <span data-part="map.city-tile.worked" data-bind-if="{{t.state == 'worked'}}"><svg class="i"><use href="#i-person"/></svg></span>
+    <span data-bind-if="{{t.state != 'locked' && t.state != 'worked'}}"><svg class="i"><use href="#i-person"/></svg></span>
+  </button>
+  <button class="city-plot-buy" data-part="map.city-tile.buy" data-bind-if="{{state.city.buy_tiles && t.buy_price != null}}" data-bind-disabled="{{t.buy_state != 'ok'}}" data-on-click="intent screen.act(screen: 'city', action: 'buy_plot', a: t.x, b: t.y, d: city.city); stop">
+    <span data-bind-value="{{t.buy_price}}">50</span><svg class="i"><use href="#i-gold"/></svg>
+  </button>
+</div>
+
+<!-- The turn badges of the path of the selected unit to the plot under the mouse (the host writes ui.path): where each
+     turn of the move ends and at the target, as the original's PathHelpManager. -->
+<div class="path-turn" data-part="map.path-turn" data-bind-for="p:{{ui.path}}" data-anchor="plot:{{p.cell}}"><span data-bind-value="{{p.turn}}">1</span></div>
+
+<!-- The plot tooltip (the original's PlotMouseoverInclude and EnemyUnitPanel): it hangs on the plot the mouse rested on
+     (the host writes ui.hover after the delay) once the server answered for that plot (plot_help). -->
+<div class="tip plot-tip" data-part="map.plot-tip" data-bind-for="h:{{ui.hover}}" data-bind-filter="{{plot_help != null && plot_help.cell == h.cell}}" data-anchor="plot:{{h.cell}}">
+  <div data-bind-if="{{plot_help != null}}">
+    <div class="th" data-part="plot-tip.nature" data-bind-if="{{plot_help.revealed}}" data-bind-value="{{plot_help.nature}}">Grassland, Hills</div>
+    <div class="tl" data-bind-if="{{!plot_help.revealed}}" data-l10n="plot_tip.unknown">Unexplored</div>
+    <div class="trow" data-part="plot-tip.resource" data-bind-if="{{plot_help.resource != null}}"><span data-l10n="plot_tip.resource">Resource</span><span class="n"><span data-bind-if="{{plot_help.resource_count > 1}}" data-bind-value="{{plot_help.resource_count}} ">2 </span><span data-bind-value="{{plot_help.resource}}">Iron</span></span></div>
+    <div class="tl lk" data-bind-if="{{plot_help.resource_tech != null}}" data-l10n="plot_tip.requires" data-l10n-args="{{plot_help.resource_tech}}"></div>
+    <div class="trow" data-part="plot-tip.improvement" data-bind-if="{{plot_help.improvement != null}}"><span data-l10n="plot_tip.improvement">Improvement</span><span class="n" data-bind-value="{{plot_help.improvement}}">Mine</span><span class="plot-tip-bad" data-bind-if="{{plot_help.improvement_pillaged}}" data-l10n="plot_tip.pillaged"></span></div>
+    <div class="trow" data-part="plot-tip.route" data-bind-if="{{plot_help.route != null}}"><span data-l10n="plot_tip.route">Route</span><span class="n" data-bind-value="{{plot_help.route}}">Road</span><span class="plot-tip-bad" data-bind-if="{{plot_help.route_pillaged}}" data-l10n="plot_tip.pillaged"></span></div>
+    <div class="trow" data-part="plot-tip.owner" data-bind-if="{{plot_help.owner != null}}"><span data-l10n="plot_tip.owner">Owner</span><span class="n" data-bind-class-toggle="plot-tip-war:{{plot_help.owner_relation == 'war'}}; plot-tip-friend:{{plot_help.owner_relation == 'friend'}}" data-bind-value="{{plot_help.owner}}">Germany</span></div>
+    <div class="trow" data-bind-if="{{plot_help.defense != 0}}"><span data-l10n="plot_tip.defense">Defence</span><span class="n"><span data-bind-if="{{plot_help.defense > 0}}">+</span><span data-bind-value="{{plot_help.defense}}%">25%</span></span></div>
+    <div class="plot-tip-yields" data-part="plot-tip.yields">
+      <span class="plot-tip-yield" data-bind-for="y:{{plot_help.yields}}">
+        <svg class="i" data-bind-if="{{y.key == 'food'}}"><use href="#i-food"/></svg><svg class="i" data-bind-if="{{y.key == 'production'}}"><use href="#i-prod"/></svg><svg class="i" data-bind-if="{{y.key == 'gold'}}"><use href="#i-gold"/></svg><svg class="i" data-bind-if="{{y.key == 'science'}}"><use href="#i-sci"/></svg><svg class="i" data-bind-if="{{y.key == 'culture'}}"><use href="#i-cult"/></svg><svg class="i" data-bind-if="{{y.key == 'faith'}}"><use href="#i-faith"/></svg><span data-bind-value="{{y.value}}">2</span>
+      </span>
+    </div>
+    <div class="plot-tip-city" data-part="plot-tip.city" data-bind-if="{{plot_help.city != null}}">
+      <div class="trow"><span class="n" data-bind-value="{{plot_help.city.name}}">Berlin</span><span data-bind-value="{{plot_help.city.owner}}">Germany</span></div>
+      <div class="trow" data-bind-if="{{plot_help.city.hp_max > 0}}"><span data-l10n="plot_tip.city_defense">City defence</span><span class="n" data-bind-value="{{plot_help.city.strength}}">18</span><span data-bind-value="{{plot_help.city.hp}}/{{plot_help.city.hp_max}}">200/200</span></div>
+    </div>
+    <div class="plot-tip-unit" data-part="plot-tip.unit" data-bind-for="u:{{plot_help.units}}">
+      <span class="n" data-bind-class-toggle="plot-tip-war:{{u.relation == 'war'}}; plot-tip-friend:{{u.relation == 'friend'}}" data-bind-value="{{u.name}}">Spearman</span>
+      <span data-bind-if="{{u.relation != 'own'}}" data-bind-value="({{u.owner}})">(Germany)</span>
+      <span data-bind-if="{{u.strength > 0}}"><svg class="i"><use href="#i-str"/></svg><span data-bind-value="{{u.strength}}">11</span></span>
+      <span data-bind-if="{{u.hp < u.hp_max}}" data-bind-value="{{u.hp}}/{{u.hp_max}}">70/100</span>
+      <span data-bind-if="{{u.embarked}}" data-l10n="plot_tip.embarked"></span>
+    </div>
+    <div class="plot-tip-combat" data-part="plot-tip.combat" data-bind-if="{{plot_help.combat != null}}">
+      <div class="th" data-part="plot-tip.outcome" data-bind-class-toggle="plot-tip-war:{{plot_help.combat.outcome == 'total_defeat' || plot_help.combat.outcome == 'major_defeat' || plot_help.combat.outcome == 'small_defeat'}}; plot-tip-friend:{{plot_help.combat.outcome == 'total_victory' || plot_help.combat.outcome == 'major_victory' || plot_help.combat.outcome == 'small_victory'}}" ><span data-bind-if="{{plot_help.combat.outcome == 'ranged'}}" data-l10n="plot_tip.outcome.ranged"></span><span data-bind-if="{{plot_help.combat.outcome == 'stalemate' || plot_help.combat.outcome == 'none'}}" data-l10n="plot_tip.outcome.stalemate"></span><span data-bind-if="{{plot_help.combat.outcome == 'total_victory'}}" data-l10n="plot_tip.outcome.total_victory"></span><span data-bind-if="{{plot_help.combat.outcome == 'major_victory'}}" data-l10n="plot_tip.outcome.major_victory"></span><span data-bind-if="{{plot_help.combat.outcome == 'small_victory'}}" data-l10n="plot_tip.outcome.small_victory"></span><span data-bind-if="{{plot_help.combat.outcome == 'small_defeat'}}" data-l10n="plot_tip.outcome.small_defeat"></span><span data-bind-if="{{plot_help.combat.outcome == 'major_defeat'}}" data-l10n="plot_tip.outcome.major_defeat"></span><span data-bind-if="{{plot_help.combat.outcome == 'total_defeat'}}" data-l10n="plot_tip.outcome.total_defeat"></span></div>
+      <div class="trow"><span data-bind-value="{{plot_help.combat.my_name}}">Swordsman</span><span class="n" data-bind-value="{{plot_help.combat.my_strength}}">16</span><span class="n" data-bind-value="{{plot_help.combat.their_strength}}">14</span><span data-bind-value="{{plot_help.combat.their_name}}">Spearman</span></div>
+      <div class="trow" data-part="plot-tip.damage"><span data-l10n="plot_tip.damage">Damage taken</span><span class="n" data-bind-value="{{plot_help.combat.my_damage}}">24</span><span class="n" data-bind-value="{{plot_help.combat.their_damage}}">38</span></div>
+      <div class="plot-tip-bars">
+        <div class="plot-tip-bar"><div class="fill" data-bind-style-width="{{(plot_help.combat.my_hp - plot_help.combat.my_damage) * 100 / plot_help.combat.hp_max}}%" style="width: 76%"></div></div>
+        <div class="plot-tip-bar"><div class="fill their" data-bind-style-width="{{(plot_help.combat.their_hp - plot_help.combat.their_damage) * 100 / plot_help.combat.hp_max}}%" style="width: 32%"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- SIMPLIFIED(SIMP-276): Unit flags still omit stack and cargo-count badges. -->
 <button class="uflag" data-part="unit-flag" data-bind-for="u:{{map.units}}" data-bind-filter="{{state.minimap.flags && !ui.windows.city.open && (u.mine || (u.domain != 'air' && !u.cargo))}}" data-anchor="unit:{{u.key}}" data-tooltip="on-map-unit-tip" data-on-pointerenter="call on_map.hover('unit', u.key)" data-bind-class-toggle="mine:{{u.mine}}; sel:{{u.key == ui.selection.unit}}; wait:{{u.mine && u.waiting}}; war:{{u.at_war}}" data-bind-disabled="{{!u.mine}}" data-on-click="intent unit.select(unit: u.key)">
   <div class="hp"><div class="fill" data-bind-class-toggle="low:{{u.hp_fraction < 0.33}}; on-map-hp-mid:{{u.hp_fraction >= 0.33 && u.hp_fraction < 0.66}}" data-bind-style-width="{{u.hp_fraction * 100}}%" style="width: 100%"></div></div>

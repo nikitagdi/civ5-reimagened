@@ -18,6 +18,7 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("demographics", include_str!("demographics.lua")),
     ("techs", include_str!("techs.lua")),
     ("rich_tooltips", include_str!("rich_tooltips.lua")),
+    ("plot_help", include_str!("plot_help.lua")),
     ("tech_award", include_str!("tech_award.lua")),
     ("policies", include_str!("policies.lua")),
     ("ideology", include_str!("ideology.lua")),

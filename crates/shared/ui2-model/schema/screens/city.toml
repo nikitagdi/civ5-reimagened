@@ -156,6 +156,8 @@ index = "i32"
 x = "i32"
 y = "i32"
 plot = "i32"
+# The plot as a map anchor value (x * 65536 + y), for the tile controls on the map (absent from older servers).
+cell = "i32?"
 state = "CityTileState"
 yields = { list = "CityBuildingYield", key = "key" }
 other_city = "text?"

@@ -1,6 +1,6 @@
 <div class="notes" data-part="notes" data-bind-class-toggle="notes-no-ribbon:{{!state.civ_ribbon.visible || state.civ_ribbon.left}}; notes-ribbon-folded:{{!state.civ_ribbon.visible}}">
   <div class="list" data-part="notes.list">
-    <div class="note plate tl" data-bind-for="n:{{notes}}" data-bind-sort="{{n.turn}}" data-bind-sort-desc="{{true}}" data-on-click="intent note.activate(note: n.id)">
+    <div class="note plate tl" data-bind-for="n:{{notes}}" data-bind-sort="{{n.turn}}" data-bind-sort-desc="{{true}}" data-on-click="intent note.activate(note: n.id)" data-on-contextmenu="intent note.dismiss(note: n.id); stop">
       <div class="ic">
         <svg class="i c-food" data-bind-if="{{n.category == 'growth'}}"><use href="#i-food"/></svg>
         <svg class="i c-sci" data-bind-if="{{n.category == 'great_people'}}"><use href="#i-person"/></svg>
@@ -26,7 +26,7 @@
           <span data-bind-if="{{n.category == 'other'}}" data-l10n="note.cat.other">Notice</span>
         </div>
       </div>
-      <button class="x" data-on-click="intent note.dismiss(note: n.id); stop"><svg class="i"><use href="#i-close"/></svg></button>
+      <button class="x" data-bind-if="{{n.dismissable}}" data-on-click="intent note.dismiss(note: n.id); stop"><svg class="i"><use href="#i-close"/></svg></button>
     </div>
   </div>
   <button class="more" data-part="notes.log" data-hotkey="F7" data-on-click="intent screen.open(screen: 'notification_log')">

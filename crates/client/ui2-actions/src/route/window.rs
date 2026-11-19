@@ -12,31 +12,18 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
     let Some(window) = intent.variant("window").and_then(WindowId::from_u16) else {
         return;
     };
-    if ctx
-        .ui
-        .ui()
-        .windows
-        .remote(window.as_str())
-        .is_some_and(|w| w.open && w.popup_id.is_some() && w.popup_decision)
-    {
+    if held_by_decision(ctx, window) {
         return;
     }
     match intent.name() {
         "window.open" => {
-            if ctx
-                .ui
-                .ui()
-                .windows
-                .remote(window.as_str())
-                .is_some_and(|w| w.popup_id.is_some())
-            {
-                return;
-            }
-            open(ctx, window, intent.key("city"));
-            if let Some(w) = ctx.ui.edit().windows.remote_mut(window.as_str()) {
-                w.a = intent.int("a");
-                w.b = intent.int("b");
-            }
+            open_with(
+                ctx,
+                window,
+                intent.key("city"),
+                intent.int("a"),
+                intent.int("b"),
+            );
         }
         "window.close" => close(&mut ctx.ui.edit().windows, window),
         "window.toggle" => {
@@ -47,6 +34,40 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
             }
         }
         _ => {}
+    }
+}
+
+/// A server window that shows a decision the player owes (a popup waiting for an answer): no intent replaces it.
+fn held_by_decision(ctx: &Ctx<'_>, window: WindowId) -> bool {
+    ctx.ui
+        .ui()
+        .windows
+        .remote(window.as_str())
+        .is_some_and(|w| w.open && w.popup_id.is_some() && w.popup_decision)
+}
+
+/// Open a window with the arguments of a server window. A server window that shows a popup is left as it is.
+pub(crate) fn open_with(
+    ctx: &mut Ctx<'_>,
+    window: WindowId,
+    city: Option<Key>,
+    a: Option<i32>,
+    b: Option<i32>,
+) {
+    if held_by_decision(ctx, window)
+        || ctx
+            .ui
+            .ui()
+            .windows
+            .remote(window.as_str())
+            .is_some_and(|w| w.popup_id.is_some())
+    {
+        return;
+    }
+    open(ctx, window, city);
+    if let Some(w) = ctx.ui.edit().windows.remote_mut(window.as_str()) {
+        w.a = a;
+        w.b = b;
     }
 }
 

@@ -195,6 +195,57 @@ impl UiActions {
         self.settings.set(ns, key, json, self.clock_ms)
     }
 
+    /// The turn badges of the movement path the host previews (`ui.path`): the host owns the preview (the plot
+    /// under the mouse, the reach tree, the path query) and hands its badges here; the next
+    /// [`apply`](Self::apply) or [`publish`](Self::publish) writes them. The same rows change nothing.
+    pub fn set_path(&mut self, rows: Vec<ui2_model::generated::PathLabel>) {
+        if self.state.ui().path.iter().eq(rows.iter()) {
+            return;
+        }
+        // Each plot is one badge: a repeated plot keeps its first row.
+        let mut list = ui2_model::KeyedList::default();
+        for r in rows {
+            let _ = list.try_push(r);
+        }
+        self.state.edit().path = list;
+    }
+
+    /// The yield and resource icons of the plots in view the host shows while the map options switch them on
+    /// (`ui.map_icons`). The same rows change nothing; a repeated plot keeps its first row.
+    pub fn set_map_icons(&mut self, rows: Vec<ui2_model::generated::MapIcon>) {
+        if self.state.ui().map_icons.iter().eq(rows.iter()) {
+            return;
+        }
+        let mut list = ui2_model::KeyedList::default();
+        for r in rows {
+            let _ = list.try_push(r);
+        }
+        self.state.edit().map_icons = list;
+    }
+
+    /// The plot the mouse has rested on over the map (`ui.hover`, `None`: none), as the host's dwell decides; the
+    /// `plot_help` service root follows it. The same plot changes nothing.
+    pub fn set_hover(&mut self, plot: Option<(i16, i16)>) {
+        let now = self
+            .state
+            .ui()
+            .hover
+            .iter()
+            .next()
+            .map(|h| (h.plot.x, h.plot.y));
+        if now == plot {
+            return;
+        }
+        let mut list = ui2_model::KeyedList::default();
+        if let Some((x, y)) = plot {
+            let _ = list.try_push(ui2_model::generated::HoverPlot {
+                cell: i32::from(x) * 65_536 + i32::from(y),
+                plot: ui2_model::generated::Plot { x, y },
+            });
+        }
+        self.state.edit().hover = list;
+    }
+
     /// The notifications the player dismissed and the source must leave out.
     #[must_use]
     pub fn dismissed(&self) -> &BTreeSet<Key> {

@@ -42,10 +42,17 @@ pub use sink::{HostNet, NetSink, Offline, refused};
 pub use ui2_actions::ActionEvent;
 /// The renderer's texture id a game picture names ([`ExtImage::texture`]).
 pub use ui2_draw::ExtTexture;
+/// The asset reference of a game picture (`icon:<atlas>:<index>`).
+pub use ui2_model::AssetRef as ModelAsset;
+/// The notifications root, for the host's test probe.
+pub use ui2_model::KeyedList as ModelList;
 /// The mouse button of a `map.click` (the model's enum, not the platform's).
 pub use ui2_model::generated::MouseButton as MapButton;
+pub use ui2_model::generated::Note as ModelNote;
 /// Server-built screen roots compiled into this model.
 pub use ui2_model::generated::{Hud, SCREEN_NAMES};
+/// The map's selection state the host follows (the selected unit, the map mode) and the path badges it writes.
+pub use ui2_model::generated::{MapIcon, MapMode, PathLabel, Plot as ModelPlot};
 /// The game's screens a skin may open (or ask the host for).
 pub use ui2_model::wire::ScreenId;
 /// The intents on the wire, and those of the mods' panels and scripts for their Rust halves.

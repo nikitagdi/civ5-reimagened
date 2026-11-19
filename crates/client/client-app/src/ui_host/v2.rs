@@ -242,6 +242,16 @@ pub fn parse_background(value: &str) -> Option<[u8; 3]> {
     Some([byte(0)?, byte(2)?, byte(4)?])
 }
 
+/// A plot packed in one integer for a map anchor (`data-anchor="plot:{{p.cell}}"`): x times 65536 plus y.
+pub(crate) fn plot_cell(x: i16, y: i16) -> i32 {
+    i32::from(x) * 65_536 + i32::from(y)
+}
+
+/// The plot of [`plot_cell`]'s integer; `None` for a negative coordinate.
+pub(crate) fn cell_plot(v: i32) -> Option<(i32, i32)> {
+    (v >= 0).then_some((v / 65_536, v % 65_536))
+}
+
 /// Where a map anchor's object is in the world: a city's banner or a unit's flag as the renderer hangs them, or
 /// the centre of a plot on the relief. `None`: not on the map (not seen, gone). A unit the renderer hangs no flag
 /// for (the units' own pipeline draws them without labels) hangs over its cell (`unit_cell`: the cell of the unit
@@ -264,14 +274,18 @@ fn anchor_point(
     };
     match kind {
         AnchorKind::Plot => {
-            let ModelValue::Struct(xy) = key else {
-                return None;
+            let (x, y) = match key {
+                ModelValue::Struct(xy) => match (xy.first(), xy.get(1)) {
+                    (Some(ModelValue::I32(x)), Some(ModelValue::I32(y))) => (*x, *y),
+                    _ => return None,
+                },
+                // A plot packed in one integer (`PathLabel.cell`, `plot_cell`); the runtime hands an anchor's integer
+                // over as a key.
+                ModelValue::I32(v) => cell_plot(*v)?,
+                ModelValue::Key(k) => cell_plot(i32::try_from(k.0).ok()?)?,
+                _ => return None,
             };
-            let (Some(ModelValue::I32(x)), Some(ModelValue::I32(y))) = (xy.first(), xy.get(1))
-            else {
-                return None;
-            };
-            let c = render::hexgrid::cell_center(*x, *y);
+            let c = render::hexgrid::cell_center(x, y);
             let h = terrain.map_or(0.0, |t| render::terrain::terrain_height_at(t, c));
             Some(render::glam::Vec3::new(c.x, h, c.y))
         }
@@ -347,6 +361,25 @@ pub struct V2Probe {
     /// The skin changes and hot reloads done on the screen: how many, the last one's package hash and when it was
     /// applied (the frontend's clock, ms).
     pub reload: Option<ProbeReload>,
+    /// The selection of the UI's state: `{unit: [owner, id] | null, mode}`.
+    pub selection: Option<serde_json::Value>,
+    /// The app's movement preview for UI v2 (`probe_preview`): the ring, the reach, the path and its badges.
+    pub preview: Option<serde_json::Value>,
+    /// The notifications of the model (`{list: [{id, go, dismissable, summary, plot}], windows: {name: [a, b]}}`,
+    /// the open server windows with their arguments).
+    pub notes: Option<serde_json::Value>,
+}
+
+/// The app's movement preview as the probe shows it (`ui2().preview`); nothing unless the probe is on.
+pub fn probe_preview(make: impl FnOnce() -> serde_json::Value) {
+    if probe_on() {
+        let v = make();
+        PROBE.with(|p| {
+            if let Some(p) = p.borrow_mut().as_mut() {
+                p.preview = Some(v);
+            }
+        });
+    }
 }
 
 /// The last skin change or hot reload on the screen as the probe shows it (`ui2().reload`).
@@ -692,6 +725,10 @@ pub struct V2Frontend {
     input_factor: f32,
     /// The device scale of the last frame.
     k: f32,
+    /// The skin passed the last pointer event to the world: the pointer is over the map, not a panel.
+    pointer_on_world: bool,
+    /// The map options of the skin's minimap panel (grid, trade routes, yield and resource icons).
+    map: super::v2_map::MapLink,
 }
 
 /// A skin change on the screen: the skin asked for and its download (`None`: the package is in the cache).
@@ -751,7 +788,14 @@ impl V2Frontend {
             css_size: None,
             input_factor: 1.0,
             k: 1.0,
+            pointer_on_world: false,
+            map: super::v2_map::MapLink::default(),
         }
+    }
+
+    /// The page's store the map options are kept in for the player (`None`: for the session only).
+    pub fn set_store(&mut self, kv: Option<Rc<dyn platform::KeyValueStore>>) {
+        self.map.set_store(kv);
     }
 
     /// The CSS size of the surface (see [`Ui2Platform::css_size`]).
@@ -920,6 +964,7 @@ impl V2Frontend {
     /// The game was left: the next frame waits for the next game and rebuilds the model from it.
     pub fn new_game(&mut self) {
         self.game_up = false;
+        self.map.reset();
         if let Some(ui) = self.ui_mut() {
             ui.reset_source();
         }
@@ -1464,6 +1509,37 @@ impl V2Frontend {
                 .map(|(p, v)| (p.clone(), value_json(v)))
                 .collect();
             let reload = self.reloaded.clone();
+            let sel = &ui.actions().ui().selection;
+            let selection = serde_json::json!({
+                "unit": sel.unit.map(|k| [(k.0 >> 32) as i64, i64::from(k.0 as u32 as i32)]),
+                "mode": format!("{:?}", ui.actions().ui().map_mode),
+                "path": ui.actions().ui().path.iter().map(|p| [i64::from(p.plot.x), i64::from(p.plot.y), i64::from(p.turn)]).collect::<Vec<_>>(),
+            });
+            let notes = ui
+                .store()
+                .get::<ui2_host::ModelList<ui2_host::ModelNote>>()
+                .map(|n| {
+                    n.iter()
+                        .map(|n| {
+                            serde_json::json!({
+                                "id": n.id.to_js(),
+                                "go": n.go.as_str(),
+                                "dismissable": n.dismissable,
+                                "summary": n.summary.as_ref(),
+                                "plot": n.plot.as_ref().map(|p| [p.x, p.y]),
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            let win_args = ui2_host::SCREEN_NAMES
+                .iter()
+                .filter_map(|name| {
+                    let w = ui.actions().ui().windows.remote(name)?;
+                    w.open
+                        .then(|| ((*name).to_owned(), serde_json::json!([w.a, w.b])))
+                })
+                .collect::<serde_json::Map<_, _>>();
             let pkg = ui2_host::hash_hex(&ui.package().hash());
             PROBE.with(|p| {
                 if let Some(p) = p.borrow_mut().as_mut() {
@@ -1485,6 +1561,8 @@ impl V2Frontend {
                     p.popup_count = popup_count;
                     p.skin_state = skin_state;
                     p.reload = reload;
+                    p.selection = Some(selection);
+                    p.notes = Some(serde_json::json!({ "list": notes, "windows": win_args }));
                 }
             });
         }
@@ -1655,7 +1733,29 @@ impl Frontend for V2Frontend {
         let map_off = self.map_off;
         let pan = self.sample_pan.map(|v| sample_pan_offset(v, cx.now_ms));
         let clock = Rc::clone(&self.clock);
+        let mut map = std::mem::take(&mut self.map);
         if let Some(ui) = self.run(cx.session, cx.net, env, cx.now_ms, &mut look) {
+            // The map options of the skin's minimap panel: the renderer's grid and trade routes, the skin's icons.
+            if !ui.sample_mode() {
+                let change = map.follow(ui);
+                if let Some(on) = change.grid {
+                    cx.renderer.set_grid_visible(on);
+                }
+                if let Some(on) = change.routes {
+                    cx.renderer.set_show_trade(on);
+                }
+                let (w, h) = cx.size;
+                let rect =
+                    crate::m2::visible_cells(&cx.camera.view_proj(w as f32 / h.max(1) as f32));
+                if let Some(n) = cx.net {
+                    n.with(|core| {
+                        let revision = core.revision();
+                        if let Some(world) = core.shown() {
+                            map.icons(ui, rect, world, core.catalog(), revision);
+                        }
+                    });
+                }
+            }
             // The map anchors follow their objects through the camera, as the classic UI's banners do; on a sample,
             // they stand where the sample puts them (moved by a bench's pan). With the layer off nothing is placed.
             // `ui2.place_ms`: the placement (the projection of every anchor), outside `ui2.cpu_ms`.
@@ -1712,6 +1812,7 @@ impl Frontend for V2Frontend {
             cx.renderer.prepare_ui2(ui.scene_mut());
             render::perf::set_counter("ui2.prepare_ms", clock() - t_prepare);
         }
+        self.map = map;
         if let Some((x, y)) = look {
             cx.camera.look_at(render::hexgrid::cell_center(x, y));
         }
@@ -1721,6 +1822,12 @@ impl Frontend for V2Frontend {
         let Some(outcome) = self.route_input(&ev, cx.now_ms) else {
             return;
         };
+        // Where the pointer is for the movement preview: over the map when the skin let its event through; off
+        // the map once it left the window.
+        if let InputEvent::Pointer(p) = &ev {
+            self.pointer_on_world = p.phase != platform::PointerPhase::Left
+                && matches!(outcome, InputOutcome::PassToWorld);
+        }
         match outcome {
             InputOutcome::Consumed => {}
             // A press on the skin's minimap moves the camera like the classic minimap panel.
@@ -1810,6 +1917,46 @@ impl Frontend for V2Frontend {
             }
         }
         out
+    }
+
+    /// UI v2 keeps the selection in its `ui` root and leaves the ring, the reach and the path to the app.
+    fn map_preview(&self) -> Option<super::MapPreview> {
+        let Stage::Running(ui) = &self.stage else {
+            return None;
+        };
+        if !self.game_up || self.sample_on {
+            return None;
+        }
+        let state = ui.actions().ui();
+        let focus = state.selection.unit.map(|k| crate::play::MapFocus {
+            // A unit's key is its owner in the high half and its id in the low one.
+            owner: (k.0 >> 32) as u32 as i32 as i8,
+            unit: k.0 as u32 as i32,
+            mode: match state.map_mode {
+                ui2_host::MapMode::Select => crate::play::FocusMode::Select,
+                ui2_host::MapMode::Move => crate::play::FocusMode::Move,
+                ui2_host::MapMode::RangeAttack => crate::play::FocusMode::Ranged,
+            },
+        });
+        Some(super::MapPreview {
+            focus,
+            pointer_on_world: self.pointer_on_world,
+        })
+    }
+
+    fn set_map_hints(&mut self, badges: &[crate::play::TurnBadge], hover: Option<(i16, i16)>) {
+        let rows = badges
+            .iter()
+            .map(|b| ui2_host::PathLabel {
+                cell: plot_cell(b.x, b.y),
+                plot: ui2_host::ModelPlot { x: b.x, y: b.y },
+                turn: b.turn,
+            })
+            .collect();
+        if let Some(ui) = self.ui_mut() {
+            ui.set_path_labels(rows);
+            ui.set_hover(hover);
+        }
     }
 
     fn sounds(&self) -> Option<&dyn UiSoundSource> {
@@ -2901,9 +3048,22 @@ mod tests {
             anchor_point(AnchorKind::Plot, &plot, &labels, None, &none),
             Some(Vec3::new(c.x, 0.0, c.y))
         );
+        // A plot packed in one integer (the runtime hands an anchor's integer over as a key): x * 65536 + y.
         assert_eq!(
-            anchor_point(AnchorKind::Plot, &key(1), &labels, None, &none),
-            None
+            anchor_point(
+                AnchorKind::Plot,
+                &key(plot_cell(2, 3) as u64),
+                &labels,
+                None,
+                &none
+            ),
+            Some(Vec3::new(c.x, 0.0, c.y))
+        );
+        assert_eq!(cell_plot(plot_cell(70, 41)), Some((70, 41)));
+        assert_eq!(
+            anchor_point(AnchorKind::Plot, &key(u64::MAX), &labels, None, &none),
+            None,
+            "not a plot"
         );
         // A unit without a label of the renderer hangs over its cell (owner 3, id 10 stands on 2, 3).
         let cells = |owner: i8, id: i32| (owner == 3 && id == 10).then_some((2, 3));

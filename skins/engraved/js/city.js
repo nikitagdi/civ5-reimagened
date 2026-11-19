@@ -9,6 +9,8 @@
   ui.model.on("city", function (city) {
     if (!city || city.city !== cityId) {
       cityId = city ? city.city : null;
+      // The city view looks at its city: its tiles are worked on the map around it.
+      if (city && city.map_city != null) ui.intent("camera.to_city", {city: city.map_city});
       ui.state.set("city.sell", -1);
       ui.state.set("city.hover", -1);
       advance = null;

@@ -195,7 +195,7 @@ return {
                 end
             end
         end
-        -- SIMPLIFIED(SIMP-351): Plot controls use a scrollable list until the map marker layer is connected.
+        -- The tiles: the skin shows them on the map around the city (anchored on `cell`) and in the panel's list.
         local next_plot = c:GetNextBuyablePlot()
         for i = 0, c:GetNumCityPlots() - 1 do
             local plot = c:GetCityIndexPlot(i)
@@ -208,7 +208,7 @@ return {
                 elseif c:IsPlotBlockaded(plot) then state = "blocked"
                 elseif c:IsForcedWorkingPlot(plot) then state = "locked"
                 elseif c:IsWorkingPlot(plot) then state = "worked" end
-                local t = {index = i, x = x, y = y, plot = plot:GetPlotIndex(), state = state, yields = array(), border_next = next_plot and next_plot:GetPlotIndex() == plot:GetPlotIndex() or false}
+                local t = {index = i, x = x, y = y, cell = x * 65536 + y, plot = plot:GetPlotIndex(), state = state, yields = array(), border_next = next_plot and next_plot:GetPlotIndex() == plot:GetPlotIndex() or false}
                 if c:CanBuyPlotAt(x, y, true) then
                     t.buy_price = c:GetBuyPlotCost(x, y)
                     t.buy_state = editable and c:CanBuyPlotAt(x, y, false) and "ok" or (money.gold < t.buy_price and "short" or "off")

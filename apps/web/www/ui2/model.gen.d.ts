@@ -14,6 +14,7 @@ export type Domain = "sea" | "air" | "land" | "immobile" | "hover" | "other";
 export type Activity = "awake" | "hold" | "sleep" | "heal" | "sentry" | "intercept" | "mission" | "other";
 export type UnitActionKind = "move" | "range_attack" | "found_city" | "fortify" | "sleep" | "skip" | "heal" | "automate_build" | "automate_explore" | "cancel" | "disband" | "wake" | "alert" | "pillage" | "upgrade";
 export type NoteCat = "growth" | "great_people" | "diplomacy" | "military" | "production" | "research" | "policy" | "religion" | "other";
+export type NoteGo = "look" | "none" | "capital" | "unit" | "choose_tech" | "tech_award" | "steal_tech" | "policies" | "production" | "diplo_vote" | "city_state" | "deal" | "free_great_person" | "faith_great_person" | "maya_bonus" | "pantheon" | "reformation" | "found_religion" | "enhance_religion" | "espionage" | "league" | "league_project" | "culture" | "ideology" | "archaeology" | "great_work";
 export type ChatTo = "all" | "player";
 export type ItemKind = "unit" | "building" | "wonder" | "project" | "process";
 export type MapMode = "select" | "move" | "range_attack";
@@ -162,6 +163,8 @@ export type MpVoteProposalMyVote = "none" | "yes" | "no";
 export type MpVoteTeamsPlayersVote = "none" | "hidden" | "yes" | "no";
 export type NotificationLogTint = "food" | "production" | "gold" | "science" | "culture" | "faith" | "happiness" | "tourism" | "negative" | "neutral";
 export type PantheonMode = "pantheon" | "reformation";
+export type PlotHelpRelation = "own" | "friend" | "war";
+export type PlotHelpOutcome = "none" | "ranged" | "stalemate" | "total_defeat" | "total_victory" | "major_victory" | "small_victory" | "major_defeat" | "small_defeat";
 export type PoliciesTab = "policies" | "ideology";
 export type PoliciesBranchState = "opened" | "complete" | "closed" | "era_locked" | "blocked";
 export type PoliciesPolicyState = "adopted" | "available" | "locked" | "blocked";
@@ -372,6 +375,10 @@ export interface Note {
   readonly summary: string;
   readonly turn: number;
   readonly plot: Plot | null;
+  readonly go: NoteGo;
+  readonly data1: number;
+  readonly data2: number;
+  readonly dismissable: boolean;
 }
 
 export interface ChatRow {
@@ -458,6 +465,29 @@ export interface Selection {
   readonly unit: Key | null;
   readonly city: Key | null;
   readonly plot: Plot | null;
+}
+
+export interface PathLabel {
+  readonly cell: number;
+  readonly plot: Plot;
+  readonly turn: number;
+}
+
+export interface MapIcon {
+  readonly cell: number;
+  readonly food: number;
+  readonly production: number;
+  readonly gold: number;
+  readonly science: number;
+  readonly culture: number;
+  readonly faith: number;
+  readonly has_resource: boolean;
+  readonly resource: string;
+}
+
+export interface HoverPlot {
+  readonly cell: number;
+  readonly plot: Plot;
 }
 
 export interface Win {
@@ -805,6 +835,7 @@ export interface CityTile {
   readonly x: number;
   readonly y: number;
   readonly plot: number;
+  readonly cell: number | null;
   readonly state: CityTileState;
   readonly yields: CityBuildingYield[];
   readonly other_city: Text | null;
@@ -3274,6 +3305,47 @@ export interface PantheonBelief {
   readonly effect: string;
 }
 
+export interface PlotHelpYield {
+  readonly key: string;
+  readonly name: Text;
+  readonly value: number;
+}
+
+export interface PlotHelpUnit {
+  readonly idx: number;
+  readonly name: Text;
+  readonly owner: Text;
+  readonly relation: PlotHelpRelation;
+  readonly strength: number;
+  readonly hp: number;
+  readonly hp_max: number;
+  readonly embarked: boolean;
+}
+
+export interface PlotHelpCity {
+  readonly name: Text;
+  readonly owner: Text;
+  readonly relation: PlotHelpRelation;
+  readonly population: number;
+  readonly strength: number;
+  readonly hp: number;
+  readonly hp_max: number;
+}
+
+export interface PlotHelpCombat {
+  readonly ranged: boolean;
+  readonly outcome: PlotHelpOutcome;
+  readonly my_name: Text;
+  readonly their_name: Text;
+  readonly my_strength: number;
+  readonly their_strength: number;
+  readonly my_damage: number;
+  readonly their_damage: number;
+  readonly my_hp: number;
+  readonly their_hp: number;
+  readonly hp_max: number;
+}
+
 export interface PoliciesText {
   readonly id: number;
   readonly name: string;
@@ -4454,6 +4526,9 @@ export interface Ui {
   readonly pending: Pending[];
   readonly turn_pending: TurnPending;
   readonly errors: Toast[];
+  readonly path: PathLabel[];
+  readonly hover: HoverPlot[];
+  readonly map_icons: MapIcon[];
 }
 
 export interface Advisor {
@@ -4904,6 +4979,29 @@ export interface Pantheon {
   readonly beliefs: PantheonBelief[];
 }
 
+export interface PlotHelp {
+  readonly x: number;
+  readonly y: number;
+  readonly cell: number;
+  readonly revealed: boolean;
+  readonly visible: boolean;
+  readonly nature: Text;
+  readonly resource: Text | null;
+  readonly resource_count: number;
+  readonly resource_tech: Text | null;
+  readonly improvement: Text | null;
+  readonly improvement_pillaged: boolean;
+  readonly route: Text | null;
+  readonly route_pillaged: boolean;
+  readonly owner: Text | null;
+  readonly owner_relation: PlotHelpRelation;
+  readonly defense: number;
+  readonly yields: PlotHelpYield[];
+  readonly city: PlotHelpCity | null;
+  readonly units: PlotHelpUnit[];
+  readonly combat: PlotHelpCombat | null;
+}
+
 export interface Policies {
   readonly open_tab: PoliciesTab;
   readonly policies_enabled: boolean;
@@ -5069,6 +5167,7 @@ export interface Model {
   readonly mp_vote: MpVote | null;
   readonly notification_log: NotificationLog | null;
   readonly pantheon: Pantheon | null;
+  readonly plot_help: PlotHelp | null;
   readonly policies: Policies | null;
   readonly religion: Religion | null;
   readonly religion_overview: ReligionOverview | null;
