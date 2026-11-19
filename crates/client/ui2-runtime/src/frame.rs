@@ -92,9 +92,16 @@ impl Runtime {
             env: &self.style_env,
         };
         let mut binds = self.binder.pass(&mut self.arena, &bctx, &mut self.errors);
-        self.binder
-            .refresh_hotkey_labels(&mut self.arena, &self.pkg, m);
         let mut bind_ms = watch.lap();
+        let mut keys_ms = 0.0;
+        if self
+            .keys
+            .labels_stale(self.arena.revision(), binds.evaluated)
+        {
+            self.binder
+                .refresh_hotkey_labels(&mut self.arena, &self.pkg, m);
+            keys_ms += watch.lap();
+        }
         let change = std::mem::take(&mut self.env_change);
         let mut restyled = Vec::new();
         let mut styles = style::select::pass(
@@ -164,9 +171,12 @@ impl Runtime {
             let b = self.binder.pass(&mut self.arena, &bctx, &mut self.errors);
             binds.evaluated += b.evaluated;
             binds.visited += b.visited;
-            self.binder
-                .refresh_hotkey_labels(&mut self.arena, &self.pkg, m);
             bind_ms += watch.lap();
+            if self.keys.labels_stale(self.arena.revision(), b.evaluated) {
+                self.binder
+                    .refresh_hotkey_labels(&mut self.arena, &self.pkg, m);
+                keys_ms += watch.lap();
+            }
             let s = style::select::pass(
                 &mut self.arena,
                 self.pkg.styles(),
@@ -254,7 +264,17 @@ impl Runtime {
         let updates = self.binder.take_anchor_updates();
         self.anchors
             .sync(&mut self.arena, &self.pkg, scene, updates, &mut self.errors);
-        self.rebuild_hotkeys(m);
+        let anchor_ms = watch.lap();
+        // The key maps read the tree, the nodes' records and states and the model's key overrides: they are built
+        // again only when one of those may have changed in this frame (SIMP-330 is gone: no per-frame rebuild).
+        let keys_rebuilt = self.keys.map_stale(
+            self.arena.revision(),
+            binds.evaluated + styles.restyled + layout.runs,
+        );
+        if keys_rebuilt {
+            self.rebuild_hotkeys(m);
+            keys_ms += watch.lap();
+        }
         let paint = paint::pass(
             &mut self.arena,
             &paint::PaintCtx {
@@ -270,9 +290,10 @@ impl Runtime {
             scene,
             &mut self.errors,
         );
-        let paint_ms = watch.lap();
+        let paint_ms = anchor_ms + watch.lap();
         let cpu_ms = watch.total();
         self.clock = clock;
+        let (input_ms, input_events) = std::mem::take(&mut self.input_time);
         FrameOutput {
             cursor: self.cursor(),
             text_input: self.input.fields.take_request(),
@@ -286,6 +307,10 @@ impl Runtime {
                 text_ms,
                 bind_ms,
                 paint_ms,
+                keys_ms,
+                input_ms,
+                input_events,
+                keys_rebuilt,
                 restyled: styles.restyled,
                 layout_runs: layout.runs,
                 shaped_runs: texts.shaped,

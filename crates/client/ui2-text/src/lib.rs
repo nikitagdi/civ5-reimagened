@@ -25,7 +25,7 @@ pub use atlas::{AtlasConfig, AtlasError, AtlasSlot, AtlasStats, DirtyRect, Glyph
 pub use breaker::{BreakOptions, Ellipsized, Line, LineHeight, LineSegment, Lines, TextMeasure};
 use face::Face;
 pub use metrics::LineMetrics;
-pub use raster::{GAMMA, GlyphBitmap, GlyphKey, SUBPIXEL_STEPS, quantize_x};
+pub use raster::{GlyphBitmap, GlyphKey, HINT_MAX_PX, SUBPIXEL_STEPS, quantize_x};
 use shape::ShapeCache;
 pub use shape::{
     NumericFigure, NumericSpacing, NumericVariant, RunStyle, SHAPE_CACHE_CAPACITY, ShapeCacheStats,
@@ -57,7 +57,10 @@ pub enum TextError {
 pub struct TextEngine {
     faces: HashMap<FaceId, Face>,
     cache: ShapeCache,
-    gamma: [u8; 256],
+    /// Hint small sizes (see [`raster`]).
+    hinting: bool,
+    /// The hinting instances in use (rasterization takes `&self`).
+    hinters: std::sync::Mutex<raster::Hinters>,
 }
 
 impl Default for TextEngine {
@@ -72,7 +75,8 @@ impl TextEngine {
         Self {
             faces: HashMap::new(),
             cache: ShapeCache::new(SHAPE_CACHE_CAPACITY),
-            gamma: raster::gamma_lut(),
+            hinting: true,
+            hinters: std::sync::Mutex::default(),
         }
     }
 
@@ -87,6 +91,10 @@ impl TextEngine {
     pub fn load_face(&mut self, id: FaceId, bytes: Arc<[u8]>) -> Result<(), TextError> {
         let face = Face::parse(bytes)?;
         self.faces.insert(id, face);
+        // The hinting of a face that was there before is not the new one's.
+        if let Ok(h) = self.hinters.get_mut() {
+            h.forget(id);
+        }
         Ok(())
     }
 

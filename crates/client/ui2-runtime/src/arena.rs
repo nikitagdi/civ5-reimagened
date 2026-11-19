@@ -413,6 +413,8 @@ pub struct Arena {
     removed_binds: Vec<Range<u32>>,
     /// Nodes made since the end of the last frame (see [`Node::fresh`]).
     fresh: Vec<NodeId>,
+    /// Bumped by every [`Arena::mark`] that sets a flag, already set or not.
+    marks: u64,
 }
 
 impl Arena {
@@ -439,6 +441,13 @@ impl Arena {
     /// Bumped by every structural change (nodes made, removed or moved).
     pub fn revision(&self) -> u64 {
         self.revision
+    }
+
+    /// Bumped by every mark of a live node: anything a pass will look at again (a record, a box, a scroll offset,
+    /// a paint) changed since a value read before. Caches of what the passes produce (the hit-test lists) are keyed
+    /// by it together with [`Arena::revision`].
+    pub fn marks(&self) -> u64 {
+        self.marks
     }
 
     pub(crate) fn bump_revision(&mut self) {
@@ -690,6 +699,12 @@ impl Arena {
 
     /// Sets dirty flags; each flag that was not set yet queues the node for its pass.
     pub fn mark(&mut self, id: NodeId, bits: Dirty) {
+        if self.get(id).is_none() {
+            return;
+        }
+        if !bits.is_empty() {
+            self.marks = self.marks.wrapping_add(1);
+        }
         let Some(node) = self.get_mut(id) else {
             return;
         };

@@ -1,25 +1,40 @@
-//! Glyph rasterization: unhinted `skrifa` outlines filled by `ab_glyph_rasterizer`, gamma 2.2, 8-bit coverage.
+//! Glyph rasterization: `skrifa` outlines, hinted vertically at small sizes, filled by `ab_glyph_rasterizer`, 8-bit
+//! linear coverage.
 //!
-//! A glyph is rasterized at a device pixel size (CSS size times the scale factor `k` = DPR times UI scale) and at
-//! one of 4 horizontal subpixel offsets (0, 1/4, 1/2, 3/4 px). The baseline is expected to sit on a whole device
-//! pixel (the caller snaps it), so there is no vertical subpixel. Colour is not part of the key: one coverage
-//! bitmap serves every colour and hover state.
+//! A glyph is rasterized at its device pixel size (CSS size times the scale factor `k` = DPR times UI scale: never a
+//! bitmap of another size scaled) and at one of 4 horizontal subpixel offsets (0, 1/4, 1/2, 3/4 px). The baseline
+//! sits on a whole device pixel (the caller snaps it), so there is no vertical subpixel. Colour is not part of the
+//! key: one coverage bitmap serves every colour and hover state.
 //!
-//! The coverage is gamma-corrected as `c' = c^(1/2.2)`, the best fit to Chrome's text on Windows. Chrome hints
-//! small text vertically (DirectWrite), we do not, so pixels differ from Chrome's at 12-16 px; the geometry
-//! (advances, baselines) is what matches.
+//! Up to [`HINT_MAX_PX`] the outline is grid-fitted in y only by the automatic hinter in its light mode (as
+//! DirectWrite and FreeType's light hinting do): baseline, x-height, cap height and horizontal stems land on whole
+//! device pixels, so their edges are one sharp row instead of two grey ones; nothing moves in x, the advances and the
+//! subpixel positions stay those of layout. Above it the outline is drawn as designed.
+//!
+//! The coverage is linear (the fraction of the pixel the outline covers). The renderer turns it into the alpha it
+//! blends with by a contrast exponent that depends on the text colour and the size (see
+//! `ui2_draw::glyph_contrast`): light text on a dark panel and dark text on a light one then keep the weight of
+//! their design, and small sizes get a little more ink (stem darkening).
+
+use std::collections::HashMap;
 
 use ab_glyph_rasterizer::{Point, Rasterizer, point};
 use skrifa::instance::{LocationRef, Size};
-use skrifa::outline::{DrawSettings, OutlinePen};
+use skrifa::outline::{
+    DrawSettings, Engine, GlyphStyles, HintingInstance, HintingOptions, OutlineGlyphCollection,
+    OutlinePen, SmoothMode, Target,
+};
 use skrifa::{GlyphId, MetadataProvider};
 
 use crate::{FaceId, TextEngine};
 
+// SIMPLIFIED(SIMP-246): glyph coverage is grayscale (no LCD subpixel anti-aliasing), small sizes are grid-fitted by the automatic hinter's light vertical mode rather than the font's own instructions, and stem darkening is a contrast exponent on the coverage rather than an emboldened outline
 /// Number of horizontal subpixel positions of a glyph.
 pub const SUBPIXEL_STEPS: u8 = 4;
-/// The gamma applied to coverage.
-pub const GAMMA: f32 = 2.2;
+/// Largest device size (px) whose outlines are hinted.
+pub const HINT_MAX_PX: f32 = 48.0;
+/// Hinting instances kept (one per face, device size and weight in use); the cache starts again when it is full.
+const MAX_HINTERS: usize = 96;
 /// Largest bitmap side, device px; a glyph that would be bigger is rasterized empty.
 const MAX_SIDE: i64 = 2048;
 
@@ -90,18 +105,37 @@ pub struct GlyphBitmap {
     pub left: i32,
     /// Distance from the baseline up to the top edge, px (may be negative).
     pub top: i32,
-    /// `w * h` coverage bytes, row-major, gamma applied.
+    /// `w * h` coverage bytes, row-major, linear (255: the pixel is wholly inside the outline).
     pub coverage: Vec<u8>,
 }
 
-/// The gamma table: input is 8-bit linear coverage.
-pub(crate) fn gamma_lut() -> [u8; 256] {
-    let mut lut = [0u8; 256];
-    let inv = 1.0 / f64::from(GAMMA);
-    for (i, v) in lut.iter_mut().enumerate() {
-        *v = ((i as f64 / 255.0).powf(inv) * 255.0 + 0.5).floor() as u8;
+/// The hinting instances of the engine and the glyph styles of each face (the automatic hinter's analysis of the
+/// font, made once per face).
+#[derive(Default)]
+pub(crate) struct Hinters {
+    styles: HashMap<FaceId, GlyphStyles>,
+    /// By face, device size bits and weight; `None`: this face cannot be hinted at that size.
+    instances: HashMap<(FaceId, u32, u16), Option<HintingInstance>>,
+}
+
+impl Hinters {
+    /// Drops what was made for a face.
+    pub(crate) fn forget(&mut self, face: FaceId) {
+        self.styles.remove(&face);
+        self.instances.retain(|k, _| k.0 != face);
     }
-    lut
+}
+
+/// The light vertical hinting of [`TextEngine::raster_glyph`].
+fn hint_options(styles: GlyphStyles) -> HintingOptions {
+    HintingOptions {
+        engine: Engine::Auto(Some(styles)),
+        target: Target::Smooth {
+            mode: SmoothMode::Light,
+            symmetric_rendering: true,
+            preserve_linear_metrics: true,
+        },
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -158,8 +192,55 @@ impl OutlinePen for Recorder {
 }
 
 impl TextEngine {
-    /// Rasterizes a glyph (unhinted outline, gamma 2.2). A glyph without an outline, an unknown face or a glyph
-    /// id outside the face gives an empty bitmap.
+    /// Turns the vertical hinting of small sizes on or off (on by default; off gives the outlines as designed at
+    /// every size, for comparisons).
+    pub fn set_hinting(&mut self, on: bool) {
+        self.hinting = on;
+    }
+
+    /// Whether small sizes are hinted.
+    pub fn hinting(&self) -> bool {
+        self.hinting
+    }
+
+    /// Draws the outline of `glyph` with the hinting instance of its key into `rec`; false when there is none (a
+    /// size above [`HINT_MAX_PX`], hinting off, or a face the hinter cannot take).
+    fn draw_hinted(
+        &self,
+        key: GlyphKey,
+        outlines: &OutlineGlyphCollection,
+        glyph: &skrifa::outline::OutlineGlyph,
+        location: LocationRef,
+        rec: &mut Recorder,
+    ) -> bool {
+        let size = key.size_px();
+        if !(self.hinting && size > 0.0 && size <= HINT_MAX_PX) {
+            return false;
+        }
+        let Ok(mut h) = self.hinters.lock() else {
+            return false;
+        };
+        let Hinters { styles, instances } = &mut *h;
+        if instances.len() >= MAX_HINTERS {
+            instances.clear();
+        }
+        let hinter = instances
+            .entry((key.face, key.size_bits, key.wght))
+            .or_insert_with(|| {
+                let styles = styles
+                    .entry(key.face)
+                    .or_insert_with(|| GlyphStyles::new(outlines))
+                    .clone();
+                HintingInstance::new(outlines, Size::new(size), location, hint_options(styles)).ok()
+            });
+        let Some(hinter) = hinter.as_ref() else {
+            return false;
+        };
+        glyph.draw(DrawSettings::hinted(hinter, false), rec).is_ok()
+    }
+
+    /// Rasterizes a glyph (hinted vertically up to [`HINT_MAX_PX`], linear coverage). A glyph without an outline,
+    /// an unknown face or a glyph id outside the face gives an empty bitmap.
     pub fn raster_glyph(&self, key: GlyphKey) -> GlyphBitmap {
         let Ok(face) = self.face(key.face) else {
             return GlyphBitmap::default();
@@ -179,11 +260,14 @@ impl TextEngine {
             .as_ref()
             .map_or(LocationRef::default(), LocationRef::from);
         let mut rec = Recorder::default();
-        if glyph
-            .draw(DrawSettings::unhinted(Size::new(size), location), &mut rec)
-            .is_err()
-        {
-            return GlyphBitmap::default();
+        if !self.draw_hinted(key, &outlines, &glyph, location, &mut rec) {
+            rec = Recorder::default();
+            if glyph
+                .draw(DrawSettings::unhinted(Size::new(size), location), &mut rec)
+                .is_err()
+            {
+                return GlyphBitmap::default();
+            }
         }
         let (Some((min_x, min_y)), Some((max_x, max_y))) = (rec.min, rec.max) else {
             return GlyphBitmap::default();
@@ -241,8 +325,7 @@ impl TextEngine {
         }
         let mut coverage = vec![0u8; (w * h) as usize];
         r.for_each_pixel(|i, c| {
-            let linear = (c.clamp(0.0, 1.0) * 255.0 + 0.5) as usize;
-            coverage[i] = self.gamma[linear.min(255)];
+            coverage[i] = (c.clamp(0.0, 1.0) * 255.0 + 0.5) as u8;
         });
         GlyphBitmap {
             w: w as u32,

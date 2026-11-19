@@ -13,7 +13,9 @@
 //! The geometry repeats what painting computes, in CSS px instead of device pixels: positions relative to the
 //! containing block made absolute, scroll offsets of scroll containers, transforms around their origins.
 
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use glam::{Affine2, Vec2};
 use ui2_package::style::{
@@ -152,6 +154,25 @@ pub(crate) fn transform_about(r: &StyleRecord, pos: Vec2, size: Vec2) -> Affine2
     m * Affine2::from_translation(-origin)
 }
 
+/// A hittable box of a chunk as a hit-test finds it: the node, the state its parent passes down and its bounds in
+/// page space (see `Geo::entries`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct HitEntry {
+    node: NodeId,
+    state: HitState,
+    bounds: Edges,
+}
+
+/// The hittable boxes of the chunks, kept between hit-tests while the geometry does not change: the key is the
+/// arena's revision (structure) and its mark counter (every record, box, scroll offset or paint that changed marks a
+/// node) mixed with the anchors' placement counter (a map anchor the host moved). A pointer move over a large window
+/// then costs a scan of bounds instead of a walk of its tree.
+#[derive(Debug, Default)]
+pub(crate) struct HitCache {
+    key: Option<(u64, u64)>,
+    chunks: HashMap<NodeId, Rc<[HitEntry]>>,
+}
+
 /// Page geometry of the nodes, computed on demand and cached for one query.
 pub(crate) struct Geo<'a> {
     pub arena: &'a Arena,
@@ -160,6 +181,10 @@ pub(crate) struct Geo<'a> {
     abs: HashMap<u32, Vec2>,
     /// Map anchors and the device scale, to place anchor chunks on the screen.
     anchors: Option<(&'a Anchors, f32)>,
+    /// The point of the hit-test under way: subtrees under a clip that leaves it out are not walked.
+    point: Option<Vec2>,
+    /// The hit-test lists kept between queries, and the key they are valid for.
+    cache: Option<(&'a RefCell<HitCache>, (u64, u64))>,
 }
 
 impl<'a> Geo<'a> {
@@ -170,12 +195,20 @@ impl<'a> Geo<'a> {
             index,
             abs: HashMap::new(),
             anchors: None,
+            point: None,
+            cache: None,
         }
     }
 
     /// Hit-tests placed map anchors where the host put them (device scale `k`).
     pub fn with_anchors(mut self, anchors: &'a Anchors, k: f32) -> Self {
         self.anchors = Some((anchors, k));
+        self
+    }
+
+    /// Keeps and reuses the hit-test lists of the chunks in `cache` while `key` stays the same.
+    pub fn with_cache(mut self, cache: &'a RefCell<HitCache>, key: (u64, u64)) -> Self {
+        self.cache = Some((cache, key));
         self
     }
 
@@ -372,6 +405,10 @@ impl<'a> Geo<'a> {
                 .map(|node| node_record(index, pkg.styles(), node))
         };
         let content_root = |n: NodeId| arena.get(n).is_some_and(|node| node.ifc().is_some());
+        // A hit-test does not walk what lies under a clip that leaves the point out: nothing there can be hit.
+        let point = self.point;
+        let prune =
+            move |st: &HitState| point.is_some_and(|p| st.clip.is_some_and(|c| !c.contains(p)));
         let phases = stacking::phases(
             arena,
             id,
@@ -379,6 +416,7 @@ impl<'a> Geo<'a> {
             &record,
             &mut |n, st| self.child_state(n, st),
             &content_root,
+            &prune,
         );
         for (n, st) in phases.negative {
             self.context(n, st, out);
@@ -459,6 +497,35 @@ impl<'a> Geo<'a> {
             None if self.under_anchor(root) => return None,
             None => HitState::ROOT,
         };
+        if let Some((cache, key)) = self.cache {
+            // The chunk's hittable boxes in painting order with their page bounds, kept while the geometry stays:
+            // a pointer move then tests the bounds (a few compares a box) and only the boxes under the point exactly.
+            let cached = {
+                let mut c = cache.borrow_mut();
+                if c.key != Some(key) {
+                    c.chunks.clear();
+                    c.key = Some(key);
+                }
+                c.chunks.get(&root).cloned()
+            };
+            let entries = match cached {
+                Some(e) => e,
+                None => {
+                    let e = self.entries(root, start);
+                    cache.borrow_mut().chunks.insert(root, e.clone());
+                    e
+                }
+            };
+            for e in entries.iter().rev() {
+                if !e.bounds.contains(p) {
+                    continue;
+                }
+                if let Some(local) = self.on(e.node, &e.state, p) {
+                    return Some((e.node, local));
+                }
+            }
+            return None;
+        }
         let mut order = Vec::new();
         self.context(root, start, &mut order);
         for (n, s) in order.into_iter().rev() {
@@ -470,6 +537,61 @@ impl<'a> Geo<'a> {
             }
         }
         None
+    }
+
+    /// The hittable boxes of a chunk in painting order, with the state their parents pass and their bounds in page
+    /// space (the border box through its transforms, inside the overflow clips above): a point outside the bounds
+    /// cannot hit the box.
+    fn entries(&mut self, root: NodeId, start: HitState) -> Rc<[HitEntry]> {
+        // Every box, whatever the point: the list serves every point until the geometry changes.
+        let point = self.point.take();
+        let mut order = Vec::new();
+        self.context(root, start, &mut order);
+        self.point = point;
+        let mut out = Vec::with_capacity(order.len());
+        for (n, s) in order {
+            if !self.hittable(n) {
+                continue;
+            }
+            let Some(r) = self.record(n) else {
+                continue;
+            };
+            let m = s.xf * self.own_transform(n, r);
+            let (pos, size) = (self.abs(n), self.size(n));
+            let corners = [
+                pos,
+                pos + Vec2::new(size.x, 0.0),
+                pos + Vec2::new(0.0, size.y),
+                pos + size,
+            ]
+            .map(|c| m.transform_point2(c));
+            let lo = corners
+                .iter()
+                .fold(Vec2::splat(f32::INFINITY), |a, c| a.min(*c));
+            let hi = corners
+                .iter()
+                .fold(Vec2::splat(f32::NEG_INFINITY), |a, c| a.max(*c));
+            let own = Edges {
+                x0: lo.x,
+                y0: lo.y,
+                x1: hi.x,
+                y1: hi.y,
+            };
+            let bounds = match s.clip {
+                Some(c) => own.intersect(&c),
+                None => own,
+            };
+            // A box with no area left (or a transform that is not finite) is never hit.
+            if !(bounds.x1 > bounds.x0 && bounds.y1 > bounds.y0) {
+                continue;
+            }
+            out.push(HitEntry {
+                node: n,
+                state: s,
+                bounds,
+            });
+        }
+        out.into()
     }
 
     /// The roots of the chunks nested in a chunk (mod panels mounted into a skin node), outermost only, in
@@ -514,6 +636,7 @@ impl<'a> Geo<'a> {
     /// The node under a page point. `modal` says that a screen of the `window` layer is visible: what the
     /// window layer does not take is then blocked.
     pub fn hit(&mut self, p: Vec2, modal: bool) -> Hit {
+        self.point = Some(p);
         let roots = layer_roots(self.pkg, self.arena);
         for layer in [Layer::Window, Layer::Hud, Layer::Map] {
             for &(l, root, is_layer) in roots.iter().rev() {

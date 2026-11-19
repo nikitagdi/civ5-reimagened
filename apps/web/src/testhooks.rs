@@ -33,7 +33,8 @@
 //!   promise of the replica's own digest (`Replica::digest`: UI v2 actions must leave it as it is).
 //! - The game UIs: `act({kind: 'setUi', value: 'classic' | 'v2' | 'v2:<skin>', save?, cold?})` switches,
 //!   `state().ui` (see [`ui_json`]) tells which one is on the screen, `ui2()` (see [`ui2_json`]) is UI v2 as of its
-//!   last frame, `ui2Rects(parts)` a promise of the rectangles of `data-part` elements,
+//!   last frame, `ui2Frames(reset?)` the per-phase times of its recent frames, `ui2Rects(parts)` a promise of the
+//!   rectangles of `data-part` elements,
 //!   `ui2Intent({name, args})` queues a UI v2 intent (as a skin click sends it) for the next frame.
 //! - `waitTurn(n, timeoutMs?)`: a promise of the state once turn `n` is the human's.
 //! - `trap(kind)`: kills the module on purpose (`page`, `workerPanic`, `workerTrap`), for the crash report.
@@ -291,6 +292,13 @@ pub fn install() -> Option<Box<dyn TestPort>> {
     });
     set("ui2", ui2.as_ref());
     ui2.forget();
+    // `ui2Frames(reset?)`: where the time of each recent UI v2 frame went (`client_app::Ui2FrameTimes`), oldest
+    // first; `reset` empties the ring.
+    let frames = Closure::<dyn Fn(JsValue) -> JsValue>::new(|reset: JsValue| {
+        to_js(&ui2_frames_json(reset.as_bool().unwrap_or(false)))
+    });
+    set("ui2Frames", frames.as_ref());
+    frames.forget();
     // `ui2Rects(parts, timeoutMs?)`: a promise of the rectangles of the elements of the `data-part` names `parts`
     // (`Runtime::dump_rects`, CSS px), from the next UI v2 frame.
     let ask = Closure::<dyn Fn(JsValue) -> Result<f64, JsValue>>::new(|v: JsValue| {
@@ -799,6 +807,25 @@ fn ui2_json(p: &client_app::V2Probe) -> Value {
         "texts": texts,
         "counters": counters,
     })
+}
+
+/// `ui2Frames()`: `{frames: [{app, cpu, source, runtime, bind, style, text, layout, keys, paint, resolve, js, input,
+/// place, prepare, probe (ms), binds, restyled, layoutRuns, chunks, visited, ops, inputEvents, uploadKb}]}`.
+fn ui2_frames_json(reset: bool) -> Value {
+    let frames: Vec<Value> = client_app::ui2_frames(reset)
+        .iter()
+        .map(|f| {
+            json!({
+                "app": f.app, "cpu": f.cpu, "source": f.source, "runtime": f.runtime, "bind": f.bind,
+                "style": f.style, "text": f.text, "layout": f.layout, "keys": f.keys, "paint": f.paint,
+                "resolve": f.resolve, "js": f.js, "input": f.input, "place": f.place, "prepare": f.prepare,
+                "probe": f.probe, "binds": f.binds, "restyled": f.restyled, "layoutRuns": f.layout_runs,
+                "chunks": f.chunks, "visited": f.visited, "ops": f.ops, "inputEvents": f.input_events,
+                "uploadKb": f.upload_bytes as f64 / 1024.0,
+            })
+        })
+        .collect();
+    json!({ "frames": frames })
 }
 
 /// `state().ui`: `{active, choice, saved, skin, switching, switches, lastSwitchMs, failed: [{ui, why}], notice,

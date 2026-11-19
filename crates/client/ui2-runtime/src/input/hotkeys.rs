@@ -27,6 +27,46 @@ use crate::arena::NodeId;
 use crate::input::InputOutcome;
 use crate::input::hit;
 
+/// When the key maps (`data-hotkey` targets) and the hotkey labels must be built again. Both read the tree (its
+/// structure: the arena's revision), the nodes' records and state bits (display, visibility, `DISABLED`: they change
+/// only through bindings, restyles and layout of the frame), the dynamic hotkeys of bindings and the model's key
+/// overrides (`ui.keys.*`, a model delta). The runtime calls [`KeysWatch::touch`] for what reaches it outside the
+/// passes (a model delta, a new localizer, a state set by the host, a script island); a frame in which none of it
+/// happened rebuilds neither.
+#[derive(Debug, Default)]
+pub(crate) struct KeysWatch {
+    /// Bumped by [`touch`](Self::touch).
+    epoch: u64,
+    /// The arena revision and epoch the labels and the map were last built at.
+    labels_at: Option<(u64, u64)>,
+    map_at: Option<(u64, u64)>,
+}
+
+impl KeysWatch {
+    /// Something the key maps and labels read changed outside the passes.
+    pub fn touch(&mut self) {
+        self.epoch += 1;
+    }
+
+    /// Whether the labels must be refreshed after a binding pass that evaluated `evaluated` rows; when it says
+    /// yes the caller refreshes them.
+    pub fn labels_stale(&mut self, revision: u64, evaluated: u32) -> bool {
+        let at = (revision, self.epoch);
+        let stale = evaluated > 0 || self.labels_at != Some(at);
+        self.labels_at = Some(at);
+        stale
+    }
+
+    /// Whether the key maps must be built again in a frame whose passes did `work` (bindings evaluated, nodes
+    /// restyled, layout runs); when it says yes the caller rebuilds them.
+    pub fn map_stale(&mut self, revision: u64, work: u32) -> bool {
+        let at = (revision, self.epoch);
+        let stale = work > 0 || self.map_at != Some(at);
+        self.map_at = Some(at);
+        stale
+    }
+}
+
 /// The rank of a layer for hotkeys: higher wins; `None` never takes keys.
 fn rank(l: Layer) -> Option<u8> {
     match l {
@@ -159,15 +199,27 @@ impl Runtime {
         None
     }
 
+    /// Builds the key maps: the nodes with a static or a dynamic hotkey, in document order, that are shown, enabled
+    /// and on the top screen (when one is visible). Called by the frame when [`KeysWatch`] says so.
     pub(crate) fn rebuild_hotkeys(&mut self, store: &ui2_model::ModelStore) {
         let top = self.visible_screens().last().copied();
-        // SIMPLIFIED(SIMP-330): rebuild key maps once per frame to include structural and visibility changes.
         let mut winners = HashMap::new();
         let mut entries = Vec::new();
+        // Only the nodes that can have a key are looked at closely (a walk of their ancestors each).
+        let statics: HashMap<ui2_package::NodeRef, &ui2_package::Hotkey> = self
+            .pkg
+            .hotkeys()
+            .iter()
+            .rev()
+            .map(|h| (h.node, h))
+            .collect();
         for id in self.arena.preorder() {
             let Some(n) = self.arena.get(id) else {
                 continue;
             };
+            if !statics.contains_key(&n.tmpl()) && !self.binder.hotkeys.contains_key(&id) {
+                continue;
+            }
             if self.disabled(id) || !self.geo().shown(id) {
                 continue;
             }
@@ -179,7 +231,7 @@ impl Runtime {
                 continue;
             }
             let dynamic = self.binder.hotkeys.get(&id);
-            let static_key = self.pkg.hotkeys().iter().find(|h| h.node == n.tmpl());
+            let static_key = statics.get(&n.tmpl()).copied();
             let mut chord = dynamic.and_then(|s| parse_hotkey(s));
             if dynamic.is_none()
                 && let Some(h) = static_key

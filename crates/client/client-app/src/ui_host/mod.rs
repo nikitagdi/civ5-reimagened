@@ -17,6 +17,7 @@ pub mod game_icons;
 pub mod v2;
 pub mod v2_map;
 mod v2_mods;
+pub mod v2_perf;
 
 use std::rc::Rc;
 

@@ -44,7 +44,10 @@ pub(crate) struct Phases<S> {
 
 /// Walks the descendants of `root` that paint into the same chunk and sorts them into phases.
 /// `record` gives a node's effective record; `child_state(node, state)` the state a node passes to its
-/// children; `content_root(node)` whether a node paints its children itself (an inline formatting root).
+/// children; `content_root(node)` whether a node paints its children itself (an inline formatting root);
+/// `prune(state)` says that nothing a node passes `state` to can matter to the walk's caller (a clip that encloses
+/// nothing, or a point outside the clip of a hit-test): the node's descendants are not walked. States only narrow
+/// down the tree (clips intersect), so a pruned subtree holds nothing the caller would keep.
 pub(crate) fn phases<'a, S: Clone>(
     arena: &Arena,
     root: NodeId,
@@ -52,6 +55,7 @@ pub(crate) fn phases<'a, S: Clone>(
     record: &dyn Fn(NodeId) -> Option<&'a StyleRecord>,
     child_state: &mut dyn FnMut(NodeId, &S) -> S,
     content_root: &dyn Fn(NodeId) -> bool,
+    prune: &dyn Fn(&S) -> bool,
 ) -> Phases<S> {
     let mut out = Phases {
         negative: Vec::new(),
@@ -68,7 +72,7 @@ pub(crate) fn phases<'a, S: Clone>(
             }
         }
     };
-    if !content_root(root) {
+    if !content_root(root) && !prune(&state) {
         push_children(&mut stack, root, state);
     }
     // (z-index, tree order, node, state) of the contexts and positioned nodes.
@@ -102,7 +106,7 @@ pub(crate) fn phases<'a, S: Clone>(
         }
         let below = child_state(id, &s);
         out.flow.push((id, s));
-        if !content_root(id) {
+        if !content_root(id) && !prune(&below) {
             push_children(&mut stack, id, below);
         }
     }

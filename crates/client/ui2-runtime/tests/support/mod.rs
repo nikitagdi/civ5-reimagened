@@ -391,6 +391,10 @@ fn skin_texts(kit: &mut Kit) {
         };
         kit.l10n("en_US", key, value.trim_end().trim_end_matches('"'));
     }
+    // The fixture is the strip of an earlier design: the texts the current skin no longer has are its own.
+    if !src.contains("\n\"top.next\" = ") {
+        kit.l10n("en_US", "top.next", "{1} next");
+    }
 }
 
 /// The sample state of the strip (`sample/hud.json`) as JSON, for edits.

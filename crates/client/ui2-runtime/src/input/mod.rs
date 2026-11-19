@@ -119,6 +119,8 @@ pub(crate) struct InputState {
     pub fields: text_edit::Fields,
     pub event: events::EventData,
     pub hotkeys: Vec<(String, u8, NodeId)>,
+    /// The hit-test lists of the chunks, kept while the geometry stays (see `hit::HitCache`).
+    pub hit_cache: std::cell::RefCell<hit::HitCache>,
 }
 
 impl InputState {
@@ -162,7 +164,11 @@ impl Runtime {
     }
 
     pub(crate) fn hit_at(&self, p: Vec2) -> Hit {
-        let mut g = self.geo();
+        let key = (
+            self.arena.revision(),
+            self.arena.marks() ^ self.anchors.placed.rotate_left(32),
+        );
+        let mut g = self.geo().with_cache(&self.input.hit_cache, key);
         // A screen whose root takes no pointer (`pointer-events: none`, as the city view over the map) blocks only
         // where its own panels are: the layers below take the rest.
         let modal = g.visible_screens(&self.input.screens).into_iter().any(|s| {
@@ -207,6 +213,16 @@ impl Runtime {
     /// Takes one input event of the window (see the [module docs](crate::input)). `now_ms` is the host's
     /// clock.
     pub fn handle_input(&mut self, ev: &InputEvent, now_ms: f64) -> InputOutcome {
+        let t0 = self.clock.as_ref().map(|c| c());
+        let out = self.handle_input_untimed(ev, now_ms);
+        if let (Some(t0), Some(c)) = (t0, self.clock.as_ref()) {
+            self.input_time.0 += (c() - t0) as f32;
+        }
+        self.input_time.1 += 1;
+        out
+    }
+
+    fn handle_input_untimed(&mut self, ev: &InputEvent, now_ms: f64) -> InputOutcome {
         self.input.event = events::EventData::default();
         match ev {
             InputEvent::Pointer(p) => self.input.event.modifiers = p.modifiers,

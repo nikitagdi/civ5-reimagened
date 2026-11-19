@@ -4063,6 +4063,12 @@ impl Renderer {
         self.ui2.prepare_ms += (self.cpu_clock)() - started;
     }
 
+    /// The CPU time of the last finished frame (from `mark_frame_start`, or the end of the frame before, to the end
+    /// of its `render`), ms; `None` before one was timed.
+    pub fn last_frame_cpu_ms(&self) -> Option<f32> {
+        self.last_frame_cpu_ms
+    }
+
     /// The `ui2.*` counters of the last `prepare_ui2` (zero before the first).
     pub fn ui2_stats(&self) -> crate::Ui2Stats {
         self.ui2.stats()

@@ -1492,7 +1492,18 @@ impl V2Frontend {
         }
         self.cursor = report.cursor;
         publish(&report, load_ms);
-        if probe_on() {
+        let t_probe = (self.clock)();
+        // The probe's texts, windows and skin state change only with the tree or the model: a frame in which the
+        // runtime touched nothing and no model change came keeps the last ones (they are the costly part).
+        let changed = report.runtime.visited > 0 || report.delta_ops > 0;
+        if probe_on()
+            && (changed
+                || PROBE.with(|p| {
+                    p.borrow()
+                        .as_ref()
+                        .is_some_and(|p| p.frames == 0 || p.state != "running")
+                }))
+        {
             let texts = probe_texts(ui);
             let (panels, scripts) = probe_parts(ui);
             let rects = answer_rects(ui);
@@ -1565,7 +1576,26 @@ impl V2Frontend {
                     p.notes = Some(serde_json::json!({ "list": notes, "windows": win_args }));
                 }
             });
+        } else if probe_on() {
+            // Nothing the snapshot shows changed: the frame is counted, the scripts' status (cheap) and an answer
+            // to a rectangle request are taken.
+            let (_, scripts) = probe_parts(ui);
+            let rects = answer_rects(ui);
+            let reload = self.reloaded.clone();
+            PROBE.with(|p| {
+                if let Some(p) = p.borrow_mut().as_mut() {
+                    p.active = true;
+                    p.frames += 1;
+                    p.model_rev = report.model_revision;
+                    p.scripts = scripts;
+                    if rects.is_some() {
+                        p.rects = rects;
+                    }
+                    p.reload = reload;
+                }
+            });
         }
+        super::v2_perf::begin(&report, ((self.clock)() - t_probe) as f32);
         if !self.after_frame(&report) {
             return None;
         }
@@ -1810,7 +1840,14 @@ impl Frontend for V2Frontend {
             let t_prepare = clock();
             render::perf::set_counter("ui2.place_ms", t_prepare - t_place);
             cx.renderer.prepare_ui2(ui.scene_mut());
-            render::perf::set_counter("ui2.prepare_ms", clock() - t_prepare);
+            let prepare_ms = clock() - t_prepare;
+            render::perf::set_counter("ui2.prepare_ms", prepare_ms);
+            super::v2_perf::finish(
+                (t_prepare - t_place) as f32,
+                prepare_ms as f32,
+                cx.renderer.ui2_stats().upload_bytes,
+                cx.renderer.last_frame_cpu_ms(),
+            );
         }
         self.map = map;
         if let Some((x, y)) = look {

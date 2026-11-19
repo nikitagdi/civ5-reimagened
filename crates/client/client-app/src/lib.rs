@@ -37,6 +37,8 @@ pub use ui_host::v2::{
     ScriptHostFactory as Ui2ScriptHostFactory, Ui2Platform,
     parse_background as parse_ui2_background, valid_sample as valid_ui2_sample,
 };
+/// Where the time of each UI v2 frame went (the ring behind `window.__civ5test.ui2Frames()`).
+pub use ui_host::v2_perf::{Ui2FrameTimes, take as ui2_frames};
 
 thread_local! {
     static TRACE: std::cell::Cell<(timeline::Level, f64)> =

@@ -15,6 +15,14 @@ pub struct FrameStats {
     pub bind_ms: f32,
     /// Time of building draw lists (and handing them to the scene) in ms.
     pub paint_ms: f32,
+    /// Time of the key maps and hotkey labels in ms (0 when nothing they read changed).
+    pub keys_ms: f32,
+    /// Time of the input events handled since the last frame (hit-testing, hover, dispatch) in ms.
+    pub input_ms: f32,
+    /// Input events handled since the last frame.
+    pub input_events: u32,
+    /// The key maps and hotkey labels were rebuilt in this frame.
+    pub keys_rebuilt: bool,
     /// Nodes whose style record was selected again.
     pub restyled: u32,
     /// Layout runs (one per root laid out).

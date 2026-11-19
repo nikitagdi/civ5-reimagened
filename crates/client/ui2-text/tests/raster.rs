@@ -1,4 +1,4 @@
-//! Glyph rasterization: coverage, gamma, subpixel steps, the weight axis, determinism.
+//! Glyph rasterization: linear coverage, hinting, subpixel steps, the weight axis, determinism.
 
 mod common;
 
@@ -21,18 +21,15 @@ fn key(face: FaceId, glyph: u32, size: f32, wght: f32, sub: u8) -> GlyphKey {
     GlyphKey::new(face, glyph, size, wght, sub)
 }
 
-/// Sum of the coverage with the gamma undone: the glyph's area in px^2.
+/// Sum of the (linear) coverage: the glyph's area in px^2.
 fn area(b: &GlyphBitmap) -> f64 {
-    b.coverage
-        .iter()
-        .map(|&c| (f64::from(c) / 255.0).powf(2.2))
-        .sum()
+    b.coverage.iter().map(|&c| f64::from(c) / 255.0).sum()
 }
 
 fn centroid_x(b: &GlyphBitmap) -> f64 {
     let (mut s, mut m) = (0.0, 0.0);
     for (i, &c) in b.coverage.iter().enumerate() {
-        let lin = (f64::from(c) / 255.0).powf(2.2);
+        let lin = f64::from(c) / 255.0;
         s += lin;
         m += lin * ((i as u32 % b.w) as f64 + 0.5);
     }
@@ -110,7 +107,7 @@ fn space_and_unknown_things_rasterize_empty() {
 }
 
 #[test]
-fn coverage_sum_is_the_outline_area_and_gamma_brightens_it() {
+fn coverage_sum_is_the_outline_area() {
     let mut e = engine();
     let gid = glyph_of(&mut e, FIRA_400, 400.0, 'I');
     let size = 120.0;
@@ -136,9 +133,9 @@ fn coverage_sum_is_the_outline_area_and_gamma_brightens_it() {
         "area {got} vs outline {expected}"
     );
 
-    // With the gamma applied the raw byte sum is larger than the linear area.
-    let raw: f64 = bmp.coverage.iter().map(|&c| f64::from(c) / 255.0).sum();
-    assert!(raw > expected * 1.01, "{raw} vs {expected}");
+    // The coverage is linear (no gamma in the atlas: the renderer applies the text contrast): fully covered pixels
+    // are 255 and the bytes sum to the area.
+    assert!(bmp.coverage.iter().filter(|&&c| c == 255).count() > 100);
     // The bitmap sits on the baseline: the top of a capital is above it, the bottom at or just below.
     assert!(bmp.top > 0 && bmp.top as f32 <= size);
     assert!(bmp.top - bmp.h as i32 <= 0);
@@ -194,6 +191,64 @@ fn scale_factor_scales_the_bitmap() {
     let ratio = area(&b2) / area(&b1);
     assert!((ratio - 4.0).abs() < 0.2, "area ratio {ratio}");
     assert!((b2.h as f32 / b1.h as f32 - 2.0).abs() < 0.3);
+}
+
+/// The outer horizontal edges (the first and the last row with ink) that are half covered: an edge spread over two
+/// rows instead of sitting on one.
+fn soft_rows(b: &GlyphBitmap) -> usize {
+    let rows: Vec<u8> = (0..b.h as usize)
+        .map(|y| {
+            b.coverage[y * b.w as usize..(y + 1) * b.w as usize]
+                .iter()
+                .copied()
+                .max()
+                .unwrap_or(0)
+        })
+        .filter(|&m| m > 24)
+        .collect();
+    [rows.first(), rows.last()]
+        .into_iter()
+        .flatten()
+        .filter(|&&m| (48..=207).contains(&m))
+        .count()
+}
+
+#[test]
+fn hinting_puts_horizontal_edges_on_whole_pixels_and_leaves_x_alone() {
+    let mut e = engine();
+    let mut plain = engine();
+    plain.set_hinting(false);
+    assert!(e.hinting() && !plain.hinting());
+    let (mut soft_hinted, mut soft_plain) = (0, 0);
+    for (face, wght) in [(FIRA_400, 400.0), (FIRA_500, 500.0), (ALEGREYA, 400.0)] {
+        // Glyphs whose top and bottom are horizontal bars (cap height, x-height, baseline).
+        for c in ['E', 'T', 'Z', 'z', 'F', 'L'] {
+            let gid = glyph_of(&mut e, face, wght, c);
+            for size in [11.0, 12.0, 13.0, 14.0, 13.75, 16.5] {
+                let k = key(face, gid, size, wght, 0);
+                let (h, p) = (e.raster_glyph(k), plain.raster_glyph(k));
+                soft_hinted += soft_rows(&h);
+                soft_plain += soft_rows(&p);
+                // Light hinting moves nothing in x: the ink's horizontal centre stays where layout put it.
+                let dx = (centroid_x(&h) - centroid_x(&p)).abs();
+                assert!(dx < 0.08, "{c} {size}px: x moved by {dx}");
+                // The ink stays about the same (an edge lands on a row, it does not grow a stem).
+                let (ah, ap) = (area(&h), area(&p));
+                assert!(
+                    (ah / ap - 1.0).abs() < 0.2,
+                    "{c} {size}px: area {ah} vs {ap}"
+                );
+            }
+        }
+    }
+    assert!(
+        soft_hinted * 4 <= soft_plain,
+        "hinted text has {soft_hinted} half-covered rows, unhinted {soft_plain}"
+    );
+    // Above the hinting limit nothing changes.
+    let gid = glyph_of(&mut e, FIRA_400, 400.0, 'E');
+    let big = key(FIRA_400, gid, ui2_text::HINT_MAX_PX + 12.0, 400.0, 0);
+    assert_eq!(e.raster_glyph(big), plain.raster_glyph(big));
 }
 
 #[test]

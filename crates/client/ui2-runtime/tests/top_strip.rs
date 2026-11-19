@@ -136,9 +136,19 @@ fn top_strip_frame_times_its_passes_with_the_host_clock() {
     }));
     h.write(&support::sample_json());
     let s = h.frame().stats;
-    let parts = s.bind_ms + s.style_ms + s.text_ms + s.layout_ms + s.paint_ms;
-    assert_eq!(s.cpu_ms, 1.25, "five passes");
+    let parts = s.bind_ms + s.style_ms + s.text_ms + s.layout_ms + s.keys_ms + s.paint_ms;
+    // The first frame runs every pass: bindings, hotkey labels, styles, text, layout, anchors (counted to paint), key
+    // maps, paint: eight readings after the start.
+    assert_eq!(s.cpu_ms, 2.0, "eight timed steps");
     assert_eq!(parts, s.cpu_ms);
+    assert!(
+        s.keys_rebuilt && s.keys_ms == 0.5,
+        "labels and key maps are timed apart"
+    );
+    // A frame without changes builds no key map: only the passes' checks are timed.
+    let idle = h.frame().stats;
+    assert!(!idle.keys_rebuilt);
+    assert_eq!(idle.keys_ms, 0.0);
     // Without a clock the times stay zero.
     let mut plain = Host::new();
     plain.write(&support::sample_json());
