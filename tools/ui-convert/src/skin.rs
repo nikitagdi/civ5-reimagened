@@ -772,6 +772,7 @@ api = "1.0"
                 ("ideology.folded".to_string(), StateValue::Int(0)),
                 ("ideology.name".to_string(), StateValue::Str("".to_string())),
                 ("leader.hover".to_string(), StateValue::Str("".to_string())),
+                ("map_icons.resource".to_string(), StateValue::Int(-1)),
                 ("menu.exit".to_string(), StateValue::Bool(false)),
                 ("menu.options".to_string(), StateValue::Bool(false)),
                 (
