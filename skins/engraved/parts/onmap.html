@@ -83,7 +83,7 @@
     <div class="th" data-part="plot-tip.nature" data-bind-if="{{plot_help.revealed}}" data-bind-value="{{plot_help.nature}}">Grassland, Hills</div>
     <div class="tl" data-bind-if="{{!plot_help.revealed}}" data-l10n="plot_tip.unknown">Unexplored</div>
     <div class="pr" data-part="plot-tip.resource" data-bind-if="{{plot_help.resource_title != null}}" data-bind-value="{{plot_help.resource_title}}">2 IRON</div>
-    <div class="tl" data-bind-for="l:{{plot_help.resource_lines}}"><span data-bind-for="p:{{l.parts}}"><img class="gi s16" data-bind-if="{{p.icon != null}}" data-bind-src="{{p.icon}}"><span data-bind-value="{{p.text}}"></span></span></div>
+    <div class="tl map-res-line" data-bind-for="l:{{plot_help.resource_lines}}"><span data-bind-for="p:{{l.parts}}"><img class="gi s16" data-bind-if="{{p.icon != null}}" data-bind-src="{{p.icon}}"><span data-bind-value="{{p.text}}"></span></span></div>
     <div class="tl lk" data-bind-if="{{plot_help.resource_tech != null}}" data-l10n="plot_tip.requires" data-l10n-args="{{plot_help.resource_tech}}"></div>
     <div class="trow" data-part="plot-tip.improvement" data-bind-if="{{plot_help.improvement != null}}"><span data-l10n="plot_tip.improvement">Improvement</span><span class="n" data-bind-value="{{plot_help.improvement}}">Mine</span><span class="plot-tip-bad" data-bind-if="{{plot_help.improvement_pillaged}}" data-l10n="plot_tip.pillaged"></span></div>
     <div class="trow" data-part="plot-tip.route" data-bind-if="{{plot_help.route != null}}"><span data-l10n="plot_tip.route">Route</span><span class="n" data-bind-value="{{plot_help.route}}">Road</span><span class="plot-tip-bad" data-bind-if="{{plot_help.route_pillaged}}" data-l10n="plot_tip.pillaged"></span></div>

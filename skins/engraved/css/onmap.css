@@ -73,7 +73,9 @@
 .map-res { position: absolute; left: -32px; top: -32px; width: 64px; height: 64px; pointer-events: auto; }
 .map-res img { position: absolute; left: 0; top: 0; width: 64px; height: 64px; }
 .map-res-tip .tip { width: 260px; }
-.map-res-line { min-height: 16px; white-space: pre-wrap; }
+/* A line of text pieces and font pictures, in a row as the original's one string. */
+.map-res-line { display: flex; flex-wrap: wrap; align-items: center; min-height: 16px; white-space: pre-wrap; }
+.map-res-line > span { display: flex; align-items: center; }
 
 /* ---------- the city screen's tiles on the map: the citizen button above the plot's yields (the original's
    PlotButton stands 30 up), the price at the foot of the plot ---------- */
