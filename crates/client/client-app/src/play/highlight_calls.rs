@@ -176,6 +176,36 @@ pub fn highlight_set(input: &CallInput<'_>) -> HighlightSet {
     HighlightSet { cells: out }
 }
 
+/// The set of a UI's targeting mode (`super::Aim`): the radius and the plots a click gives the order on, in the
+/// styles of the original's mode. The ranged attacks as `Bombardment.lua` (the radius, then the targets); a move to a
+/// plot (rebase, paradrop, airlift) with the move range style `InGame.lua` gives it (:646, :676); the move-attack with
+/// the attack style of the move range; embark and the gifts with the generic unit border (`MODES`).
+pub fn aim_set(look: super::AimLook, area: &[(i32, i32)], targets: &[(i32, i32)]) -> HighlightSet {
+    use super::AimLook;
+    let mut out = Vec::new();
+    match look {
+        AimLook::Fire => {
+            cells(&mut out, &FIRE_RANGE, area);
+            cells(&mut out, &FIRE_TARGET, targets);
+        }
+        AimLook::Air => {
+            for call in &AIR_RANGE {
+                cells(&mut out, call, area);
+            }
+            cells(&mut out, &FIRE_TARGET, targets);
+        }
+        AimLook::Sweep => {
+            for call in &AIR_SWEEP {
+                cells(&mut out, call, targets);
+            }
+        }
+        AimLook::Move => cells(&mut out, &MOVE_RANGE, targets),
+        AimLook::Attack => cells(&mut out, &ATTACK_MOVE, targets),
+        AimLook::Mark => cells(&mut out, &MODES[0], targets),
+    }
+    HighlightSet { cells: out }
+}
+
 /// The set for B1's `Highlights` (what the controller computes) and the mode it is in.
 pub fn from_highlights(h: &Highlights, ranged: bool) -> HighlightSet {
     highlight_set(&CallInput {

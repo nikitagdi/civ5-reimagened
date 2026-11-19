@@ -8,41 +8,26 @@ local function turns(p, id, rate)
     local n = p:GetResearchTurnsLeft(id, true)
     if n >= 0 and n < 2147483647 then return n end
 end
-local function unlocks(player, tech)
-    local out, seen = array(), {}
-    local civ = GameInfo.Civilizations[Players[player]:GetCivilizationType()]
-    for _, spec in ipairs({{"Units", "unit", "UnitClass", "Civilization_UnitClassOverrides", "UnitType"},
-        {"Buildings", "building", "BuildingClass", "Civilization_BuildingClassOverrides", "BuildingType"},
-        {"Projects", "project", nil, nil, nil, "TechPrereq"}, {"Builds", "improvement"}}) do
-        for item in GameInfo[spec[1]]{[spec[6] or "PrereqTech"] = tech.Type} do
-            local chosen = item
-            if spec[4] then
-                for override in GameInfo[spec[4]]{CivilizationType = civ.Type} do
-                    if override[spec[3] .. "Type"] == item[spec[3]] then
-                        chosen = override[spec[5]] and GameInfo[spec[1]][override[spec[5]]] or nil
-                    end
-                end
-            end
-            if chosen and chosen[spec[6] or "PrereqTech"] == tech.Type and not seen[chosen.Type] then
-                seen[chosen.Type] = true
-                local kind = spec[2]
-                if kind == "building" then
-                    local class = GameInfo.BuildingClasses[chosen.BuildingClass]
-                    if class and (class.MaxGlobalInstances or -1) > 0 then kind = "wonder" end
-                end
-                if #out < 5 then out[#out + 1] = {idx = #out, key = chosen.Type, kind = kind,
-                    name = L(chosen.Description), icon = icon(chosen.IconAtlas, chosen.PortraitIndex or chosen.IconIndex)} end
-            end
-        end
-    end
-    -- SIMPLIFIED(SIMP-341): unlock chips cover civilization-specific units, buildings, projects and build actions; passive abilities/resources need a shared catalog.
-    return out
-end
 local function target(player, id)
     assert(type(id) == "number" and id == math.floor(id) and id >= 0 and id < GameDefines.MAX_MAJOR_CIVS,
         "a valid espionage target is required")
     assert(Players[id] and id ~= player and met(player, id), "espionage target is unavailable")
     return Players[id]
+end
+local function spy_city(p, target_id)
+    local found
+    for _, spy in ipairs(p:GetEspionageSpies()) do
+        if spy.State == "TXT_KEY_SPY_STATE_GATHERING_INTEL" and not spy.IsDiplomat and spy.CityX >= 0 and spy.CityY >= 0 then
+            local plot = Map.GetPlot(spy.CityX, spy.CityY)
+            local city = plot and plot:IsRevealed(p:GetTeam(), false) and plot:GetPlotCity()
+            if city and city:GetOwner() == target_id then
+                -- SIMPLIFIED(SIMP-342): the steal request names the target player, so omit the city if multiple spies qualify.
+                if found then return "" end
+                found = city:GetName()
+            end
+        end
+    end
+    return found or ""
 end
 local function data(player, args)
     local p, team = Players[player], team_of(player)
@@ -52,14 +37,18 @@ local function data(player, args)
     local steal
     if mode == "steal" then
         local other = target(player, args.b)
+        local civ = GameInfo.Civilizations[other:GetCivilizationType()]
+        local primary = other:GetPlayerColors()
+        local color = string.format("#%02x%02x%02x", math.floor(primary.x * 255 + .5),
+            math.floor(primary.y * 255 + .5), math.floor(primary.z * 255 + .5))
         steal = {player = args.b, name = L(GameInfo.Leaders[other:GetLeaderType()].Description),
-            civ = L(GameInfo.Civilizations[other:GetCivilizationType()].Description), icon = "", color = "",
-            spy_city = "", can_steal = p:GetNumTechsToSteal(args.b)}
-        -- SIMPLIFIED(SIMP-342): espionage target decoration omits spy-city and civilization colours.
+            civ = L(civ.Description), icon = icon(civ.IconAtlas, civ.PortraitIndex), color = color,
+            spy_city = spy_city(p, args.b), can_steal = p:GetNumTechsToSteal(args.b)}
     end
     local rows, queue, eras, links, bykey, byera = array(), array(), array(), array(), {}, {}
     local researched, cols, gridrows, current = 0, 0, 0, nil
     local currentEra = p:GetCurrentEra()
+    local unlocks = tech_unlocks_for(player)
     for tech in GameInfo.Technologies() do
         local id, pos = tech.ID, p:GetQueuePosition(tech.ID)
         local has, can = team:IsHasTech(id), p:CanResearch(id)
@@ -82,7 +71,7 @@ local function data(player, args)
             queue_position = pos, queue_pos = pos > 0 and pos or nil, turns = not has and turns(p, id, rate) or nil,
             cost = cost, progress = progress, fraction = fraction(progress, cost), forecast_fraction = fraction(progress + rate, cost),
             clickable = clickable, lock_reason = reason, help = tech.Help and L(tech.Help) or "",
-            prerequisites = array(), prereqs = array(), or_prereqs = array(), leads_to = array(), unlocks = unlocks(player, tech)}
+            prerequisites = array(), prereqs = array(), or_prereqs = array(), leads_to = array(), unlocks = unlocks(tech, true)}
         if mode == "steal" and clickable then row.steal_science = p:ScienceToStealAmount(args.b, id) end
         rows[#rows + 1], bykey[tech.Type] = row, row
         cols, gridrows = math.max(cols, tech.GridX + 1), math.max(gridrows, tech.GridY + 1)

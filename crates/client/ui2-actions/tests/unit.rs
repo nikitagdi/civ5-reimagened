@@ -240,7 +240,10 @@ fn move_and_range_attack_actions_only_set_the_mode() {
         &[("unit", kstr(3)), ("action", s("range_attack"))],
     )
     .unwrap();
-    assert_eq!(rig.ui().map_mode, MapMode::RangeAttack);
+    // The ranged attack is the map's targeting mode; the server picks the unit's row (-1).
+    assert_eq!(rig.ui().map_mode, MapMode::Target);
+    let t = rig.ui().target.clone().expect("a targeting mode");
+    assert_eq!((t.unit, t.a), (Some(key(3)), -1));
     assert!(rig.sent().is_empty());
 }
 
@@ -336,17 +339,10 @@ fn a_click_in_move_mode_orders_the_selected_unit_and_resets_the_mode() {
         &[("unit", kstr(1)), ("action", s("range_attack"))],
     )
     .unwrap();
-    rig.one("map.click", &[("plot", plot(9, 9)), ("button", s("left"))])
-        .unwrap();
-    assert_eq!(
-        rig.commands()[1],
-        Command::UnitRangeAttack {
-            unit: 1,
-            x: 9,
-            y: 9
-        }
-    );
-    assert_eq!(rig.ui().map_mode, MapMode::Select);
+    // A ranged attack waits for the server's targets (`tests/targeting.rs`): a click before them sends nothing.
+    rig.one("map.click", &[("plot", plot(9, 9)), ("button", s("left"))]);
+    assert_eq!(rig.commands().len(), 1);
+    assert_eq!(rig.ui().map_mode, MapMode::Target);
 }
 
 #[test]

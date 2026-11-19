@@ -268,8 +268,10 @@ pub fn generate(s: &Schema) -> String {
             .iter()
             .map(|r| r.name.as_str())
             .filter(|name| {
-                matches!(*name, "hud" | "rich_tooltips" | "civ_ribbon" | "plot_help")
-                    || window_names.contains(name)
+                matches!(
+                    *name,
+                    "hud" | "rich_tooltips" | "civ_ribbon" | "plot_help" | "targets"
+                ) || window_names.contains(name)
             })
             .collect::<Vec<_>>();
         let _ = writeln!(out, "\npub const SCREEN_NAMES: &[&str] = &{:?};", names);

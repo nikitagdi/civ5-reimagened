@@ -1,0 +1,24 @@
+{
+  "model": {
+    "top": {"science_rate":48,"gold":312,"gold_rate":21,"happiness":7,"mood":"content","golden_age":{"active":false,"turns":0,"progress":412,"threshold":650},"culture":214,"culture_rate":31,"policy_cost":400,"policy_turns":6,"faith":140,"faith_rate":9,"tourism":4,"resources":[],"policies":[]},
+    "game": {"turn":87,"year":1250,"year_text":{"k":"year.ad","a":["1250"]},"era":{"id":3,"name":"Medieval era"},"me":"0:0","phase":"humans","mode":"simultaneous","winner":null},
+    "turn": {"state":"unit_needs_orders","blocker":null,"units_waiting":5,"finished":false,"can_cancel":false,"timer":null,"ready":1,"humans":1,"seats":[]},
+    "targets": {
+      "id": 8193,
+      "action": 41,
+      "name": "Ranged Attack",
+      "look": "fire",
+      "plots": [
+        { "cell": 655371, "x": 10, "y": 11 }
+      ],
+      "area": [
+        { "cell": 589835, "x": 9, "y": 11 },
+        { "cell": 655371, "x": 10, "y": 11 },
+        { "cell": 589836, "x": 9, "y": 12 }
+      ],
+      "any": false,
+      "reason": null
+    }
+  },
+  "ui": { "map_mode": "target", "target": { "kind": "unit", "unit": "0:8193", "city": null, "a": 41 } }
+}

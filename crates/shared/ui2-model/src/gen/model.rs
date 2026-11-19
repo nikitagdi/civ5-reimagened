@@ -2,9 +2,9 @@
 //! Generated model types: one struct per root and type, one enum per enum.
 
 /// Schema version this file was generated from.
-pub const SCHEMA_VERSION: (u16, u16) = (1, 3);
+pub const SCHEMA_VERSION: (u16, u16) = (1, 4);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x770e117ebce315ad;
+pub const SCHEMA_HASH: u64 = 0x2d57d303f6754fe3;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -1105,14 +1105,15 @@ pub enum MapMode {
     Select = 0,
     Move = 1,
     RangeAttack = 2,
+    Target = 3,
 }
 
 impl MapMode {
     /// The names, indexed by the discriminant.
-    pub const NAMES: [&'static str; 3] = ["select", "move", "range_attack"];
+    pub const NAMES: [&'static str; 4] = ["select", "move", "range_attack", "target"];
 
     /// Every variant, in declaration order.
-    pub const ALL: &'static [MapMode] = &[MapMode::Select, MapMode::Move, MapMode::RangeAttack];
+    pub const ALL: &'static [MapMode] = &[MapMode::Select, MapMode::Move, MapMode::RangeAttack, MapMode::Target];
 
     /// The schema name of the variant (the same as [`name`](Self::name)).
     #[must_use]
@@ -1127,6 +1128,7 @@ impl MapMode {
             0 => Some(MapMode::Select),
             1 => Some(MapMode::Move),
             2 => Some(MapMode::RangeAttack),
+            3 => Some(MapMode::Target),
             _ => None,
         }
     }
@@ -1144,6 +1146,7 @@ impl MapMode {
             "select" => Some(MapMode::Select),
             "move" => Some(MapMode::Move),
             "range_attack" => Some(MapMode::RangeAttack),
+            "target" => Some(MapMode::Target),
             _ => None,
         }
     }
@@ -1168,7 +1171,87 @@ impl crate::model::Model for MapMode {
         match v {
             crate::value::Value::Enum(n) => MapMode::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
                 value: *n,
-                count: 3,
+                count: 4,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum TargetKind {
+    #[default]
+    Unit = 0,
+    City = 1,
+    GiftUnit = 2,
+    GiftImprovement = 3,
+}
+
+impl TargetKind {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 4] = ["unit", "city", "gift_unit", "gift_improvement"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [TargetKind] = &[TargetKind::Unit, TargetKind::City, TargetKind::GiftUnit, TargetKind::GiftImprovement];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<TargetKind> {
+        match v {
+            0 => Some(TargetKind::Unit),
+            1 => Some(TargetKind::City),
+            2 => Some(TargetKind::GiftUnit),
+            3 => Some(TargetKind::GiftImprovement),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<TargetKind> {
+        match s {
+            "unit" => Some(TargetKind::Unit),
+            "city" => Some(TargetKind::City),
+            "gift_unit" => Some(TargetKind::GiftUnit),
+            "gift_improvement" => Some(TargetKind::GiftImprovement),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for TargetKind {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => TargetKind::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 4,
             }),
             other => Err(crate::value::ValueError::mismatch("enum", other)),
         }
@@ -15424,6 +15507,92 @@ impl crate::model::Model for RichTooltipsTreatyStatus {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
+pub enum TargetsLook {
+    #[default]
+    Fire = 0,
+    Air = 1,
+    Sweep = 2,
+    Move = 3,
+    Attack = 4,
+    Mark = 5,
+}
+
+impl TargetsLook {
+    /// The names, indexed by the discriminant.
+    pub const NAMES: [&'static str; 6] = ["fire", "air", "sweep", "move", "attack", "mark"];
+
+    /// Every variant, in declaration order.
+    pub const ALL: &'static [TargetsLook] = &[TargetsLook::Fire, TargetsLook::Air, TargetsLook::Sweep, TargetsLook::Move, TargetsLook::Attack, TargetsLook::Mark];
+
+    /// The schema name of the variant (the same as [`name`](Self::name)).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this discriminant.
+    #[must_use]
+    pub const fn from_u16(v: u16) -> Option<TargetsLook> {
+        match v {
+            0 => Some(TargetsLook::Fire),
+            1 => Some(TargetsLook::Air),
+            2 => Some(TargetsLook::Sweep),
+            3 => Some(TargetsLook::Move),
+            4 => Some(TargetsLook::Attack),
+            5 => Some(TargetsLook::Mark),
+            _ => None,
+        }
+    }
+
+    /// The schema name of the variant.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        Self::NAMES[self as usize]
+    }
+
+    /// The variant with this schema name.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<TargetsLook> {
+        match s {
+            "fire" => Some(TargetsLook::Fire),
+            "air" => Some(TargetsLook::Air),
+            "sweep" => Some(TargetsLook::Sweep),
+            "move" => Some(TargetsLook::Move),
+            "attack" => Some(TargetsLook::Attack),
+            "mark" => Some(TargetsLook::Mark),
+            _ => None,
+        }
+    }
+}
+
+impl crate::model::Model for TargetsLook {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        if self != old {
+            out.push(crate::delta::Op::Set {
+                field: at.field,
+                keys: at.keys,
+                value: crate::value::Value::Enum(*self as u16),
+            });
+        }
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Enum(*self as u16)
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        match v {
+            crate::value::Value::Enum(n) => TargetsLook::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
+                value: *n,
+                count: 6,
+            }),
+            other => Err(crate::value::ValueError::mismatch("enum", other)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(u16)]
 pub enum TechAwardUnlockKind {
     #[default]
     Unit = 0,
@@ -18904,6 +19073,48 @@ impl crate::model::Model for HoverPlot {
 impl crate::model::Keyed for HoverPlot {
     fn key(&self) -> crate::value::Key {
         crate::value::Key::from_i32(i32::from(self.cell))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct UiTarget {
+    pub kind: TargetKind,
+    pub unit: Option<crate::value::Key>,
+    pub city: Option<crate::value::Key>,
+    pub a: i32,
+}
+
+impl crate::model::Model for UiTarget {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.kind, &old.kind, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.unit, &old.unit, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.city, &old.city, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.a, &old.a, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.kind),
+            crate::model::Model::to_value(&self.unit),
+            crate::model::Model::to_value(&self.city),
+            crate::model::Model::to_value(&self.a),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(4)?;
+        Ok(UiTarget {
+            kind: crate::model::Model::from_value(&f[0])?,
+            unit: crate::model::Model::from_value(&f[1])?,
+            city: crate::model::Model::from_value(&f[2])?,
+            a: crate::model::Model::from_value(&f[3])?,
+        })
     }
 }
 
@@ -40655,6 +40866,49 @@ impl crate::model::Model for RichTooltipsUpgrade {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+pub struct TargetsPlot {
+    pub cell: i32,
+    pub x: i16,
+    pub y: i16,
+}
+
+impl crate::model::Model for TargetsPlot {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.cell, &old.cell, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.x, &old.x, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.y, &old.y, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.cell),
+            crate::model::Model::to_value(&self.x),
+            crate::model::Model::to_value(&self.y),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(TargetsPlot {
+            cell: crate::model::Model::from_value(&f[0])?,
+            x: crate::model::Model::from_value(&f[1])?,
+            y: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for TargetsPlot {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.cell))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct TechAwardTech {
     pub key: ::std::sync::Arc<str>,
     pub name: crate::value::Text,
@@ -43925,6 +44179,7 @@ impl crate::model::Model for Production {
 pub struct Ui {
     pub selection: Selection,
     pub map_mode: MapMode,
+    pub target: Option<UiTarget>,
     pub windows: Windows,
     pub production: UiProduction,
     pub chat: UiChat,
@@ -43949,32 +44204,34 @@ impl crate::model::Model for Ui {
         at.field = base.child(6);
         crate::model::Model::diff(&self.map_mode, &old.map_mode, at, out);
         at.field = base.child(7);
+        crate::model::Model::diff(&self.target, &old.target, at, out);
+        at.field = base.child(12);
         crate::model::Model::diff(&self.windows, &old.windows, at, out);
-        at.field = base.child(235);
+        at.field = base.child(240);
         crate::model::Model::diff(&self.production, &old.production, at, out);
-        at.field = base.child(239);
+        at.field = base.child(244);
         crate::model::Model::diff(&self.chat, &old.chat, at, out);
-        at.field = base.child(242);
+        at.field = base.child(247);
         crate::model::Model::diff(&self.tip, &old.tip, at, out);
-        at.field = base.child(246);
-        crate::model::Model::diff(&self.pending, &old.pending, at, out);
         at.field = base.child(251);
+        crate::model::Model::diff(&self.pending, &old.pending, at, out);
+        at.field = base.child(256);
         crate::model::Model::diff(&self.turn_pending, &old.turn_pending, at, out);
-        at.field = base.child(252);
-        crate::model::Model::diff(&self.errors, &old.errors, at, out);
         at.field = base.child(257);
+        crate::model::Model::diff(&self.errors, &old.errors, at, out);
+        at.field = base.child(262);
         crate::model::Model::diff(&self.path, &old.path, at, out);
-        at.field = base.child(263);
-        crate::model::Model::diff(&self.hover, &old.hover, at, out);
         at.field = base.child(268);
+        crate::model::Model::diff(&self.hover, &old.hover, at, out);
+        at.field = base.child(273);
         crate::model::Model::diff(&self.map_icons, &old.map_icons, at, out);
-        at.field = base.child(278);
+        at.field = base.child(283);
         crate::model::Model::diff(&self.options, &old.options, at, out);
-        at.field = base.child(289);
+        at.field = base.child(294);
         crate::model::Model::diff(&self.hotkeys, &old.hotkeys, at, out);
-        at.field = base.child(297);
+        at.field = base.child(302);
         crate::model::Model::diff(&self.hotkey_capture, &old.hotkey_capture, at, out);
-        at.field = base.child(298);
+        at.field = base.child(303);
         crate::model::Model::diff(&self.hotkey_clash, &old.hotkey_clash, at, out);
         at.field = base;
     }
@@ -43983,6 +44240,7 @@ impl crate::model::Model for Ui {
         crate::value::Value::Struct(vec![
             crate::model::Model::to_value(&self.selection),
             crate::model::Model::to_value(&self.map_mode),
+            crate::model::Model::to_value(&self.target),
             crate::model::Model::to_value(&self.windows),
             crate::model::Model::to_value(&self.production),
             crate::model::Model::to_value(&self.chat),
@@ -44001,24 +44259,25 @@ impl crate::model::Model for Ui {
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(16)?;
+        let f = v.as_struct(17)?;
         Ok(Ui {
             selection: crate::model::Model::from_value(&f[0])?,
             map_mode: crate::model::Model::from_value(&f[1])?,
-            windows: crate::model::Model::from_value(&f[2])?,
-            production: crate::model::Model::from_value(&f[3])?,
-            chat: crate::model::Model::from_value(&f[4])?,
-            tip: crate::model::Model::from_value(&f[5])?,
-            pending: crate::model::Model::from_value(&f[6])?,
-            turn_pending: crate::model::Model::from_value(&f[7])?,
-            errors: crate::model::Model::from_value(&f[8])?,
-            path: crate::model::Model::from_value(&f[9])?,
-            hover: crate::model::Model::from_value(&f[10])?,
-            map_icons: crate::model::Model::from_value(&f[11])?,
-            options: crate::model::Model::from_value(&f[12])?,
-            hotkeys: crate::model::Model::from_value(&f[13])?,
-            hotkey_capture: crate::model::Model::from_value(&f[14])?,
-            hotkey_clash: crate::model::Model::from_value(&f[15])?,
+            target: crate::model::Model::from_value(&f[2])?,
+            windows: crate::model::Model::from_value(&f[3])?,
+            production: crate::model::Model::from_value(&f[4])?,
+            chat: crate::model::Model::from_value(&f[5])?,
+            tip: crate::model::Model::from_value(&f[6])?,
+            pending: crate::model::Model::from_value(&f[7])?,
+            turn_pending: crate::model::Model::from_value(&f[8])?,
+            errors: crate::model::Model::from_value(&f[9])?,
+            path: crate::model::Model::from_value(&f[10])?,
+            hover: crate::model::Model::from_value(&f[11])?,
+            map_icons: crate::model::Model::from_value(&f[12])?,
+            options: crate::model::Model::from_value(&f[13])?,
+            hotkeys: crate::model::Model::from_value(&f[14])?,
+            hotkey_capture: crate::model::Model::from_value(&f[15])?,
+            hotkey_clash: crate::model::Model::from_value(&f[16])?,
         })
     }
 }
@@ -46919,6 +47178,68 @@ impl crate::model::Model for RichTooltips {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+pub struct Targets {
+    pub id: i32,
+    pub action: i32,
+    pub name: crate::value::Text,
+    pub look: TargetsLook,
+    pub plots: crate::model::KeyedList<TargetsPlot>,
+    pub area: crate::model::KeyedList<TargetsPlot>,
+    pub any: bool,
+    pub reason: Option<crate::value::Text>,
+}
+
+impl crate::model::Model for Targets {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.id, &old.id, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.action, &old.action, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.name, &old.name, at, out);
+        at.field = base.child(3);
+        crate::model::Model::diff(&self.look, &old.look, at, out);
+        at.field = base.child(4);
+        crate::model::Model::diff(&self.plots, &old.plots, at, out);
+        at.field = base.child(8);
+        crate::model::Model::diff(&self.area, &old.area, at, out);
+        at.field = base.child(12);
+        crate::model::Model::diff(&self.any, &old.any, at, out);
+        at.field = base.child(13);
+        crate::model::Model::diff(&self.reason, &old.reason, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.id),
+            crate::model::Model::to_value(&self.action),
+            crate::model::Model::to_value(&self.name),
+            crate::model::Model::to_value(&self.look),
+            crate::model::Model::to_value(&self.plots),
+            crate::model::Model::to_value(&self.area),
+            crate::model::Model::to_value(&self.any),
+            crate::model::Model::to_value(&self.reason),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(8)?;
+        Ok(Targets {
+            id: crate::model::Model::from_value(&f[0])?,
+            action: crate::model::Model::from_value(&f[1])?,
+            name: crate::model::Model::from_value(&f[2])?,
+            look: crate::model::Model::from_value(&f[3])?,
+            plots: crate::model::Model::from_value(&f[4])?,
+            area: crate::model::Model::from_value(&f[5])?,
+            any: crate::model::Model::from_value(&f[6])?,
+            reason: crate::model::Model::from_value(&f[7])?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct TechAward {
     pub tech: Option<TechAwardTech>,
     pub era: crate::value::Text,
@@ -47460,6 +47781,10 @@ impl crate::model::Root for Option<RichTooltips> {
     const NAME: &'static str = "rich_tooltips";
 }
 
+impl crate::model::Root for Option<Targets> {
+    const NAME: &'static str = "targets";
+}
+
 impl crate::model::Root for Option<TechAward> {
     const NAME: &'static str = "tech_award";
 }
@@ -47536,6 +47861,7 @@ pub fn put_root(
         "religion" => crate::model::put_value::<Option<Religion>>(w, v),
         "religion_overview" => crate::model::put_value::<Option<ReligionOverview>>(w, v),
         "rich_tooltips" => crate::model::put_value::<Option<RichTooltips>>(w, v),
+        "targets" => crate::model::put_value::<Option<Targets>>(w, v),
         "tech_award" => crate::model::put_value::<Option<TechAward>>(w, v),
         "techs" => crate::model::put_value::<Option<Techs>>(w, v),
         "trade_routes" => crate::model::put_value::<Option<TradeRoutes>>(w, v),
@@ -47547,7 +47873,7 @@ pub fn put_root(
 
 pub const WINDOW_SCREEN_NAMES: &[&str] = &["advisor", "archaeology", "city", "city_captured", "city_list", "city_rename", "city_state", "confirm", "congress", "culture", "deal", "declare_war", "demographics", "diplo", "economy", "end_game", "espionage", "free_great_person", "game_menu", "goody_choice", "great_work", "ideology", "leader", "message", "military", "mp_vote", "notification_log", "pantheon", "policies", "religion", "religion_overview", "tech_award", "techs", "trade_routes", "unit_rename", "victory"];
 
-pub const SCREEN_NAMES: &[&str] = &["advisor", "archaeology", "city", "city_captured", "city_list", "city_rename", "city_state", "civ_ribbon", "confirm", "congress", "culture", "deal", "declare_war", "demographics", "diplo", "economy", "end_game", "espionage", "free_great_person", "game_menu", "goody_choice", "great_work", "hud", "ideology", "leader", "message", "military", "mp_vote", "notification_log", "pantheon", "plot_help", "policies", "religion", "religion_overview", "rich_tooltips", "tech_award", "techs", "trade_routes", "unit_rename", "victory"];
+pub const SCREEN_NAMES: &[&str] = &["advisor", "archaeology", "city", "city_captured", "city_list", "city_rename", "city_state", "civ_ribbon", "confirm", "congress", "culture", "deal", "declare_war", "demographics", "diplo", "economy", "end_game", "espionage", "free_great_person", "game_menu", "goody_choice", "great_work", "hud", "ideology", "leader", "message", "military", "mp_vote", "notification_log", "pantheon", "plot_help", "policies", "religion", "religion_overview", "rich_tooltips", "targets", "tech_award", "techs", "trade_routes", "unit_rename", "victory"];
 impl Windows {
     pub fn remote(&self, name: &str) -> Option<&WinArgs> {
         Some(match name {

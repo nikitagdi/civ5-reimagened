@@ -17,7 +17,8 @@ export type NoteCat = "growth" | "great_people" | "diplomacy" | "military" | "pr
 export type NoteGo = "look" | "none" | "capital" | "unit" | "choose_tech" | "tech_award" | "steal_tech" | "policies" | "production" | "diplo_vote" | "city_state" | "deal" | "free_great_person" | "faith_great_person" | "maya_bonus" | "pantheon" | "reformation" | "found_religion" | "enhance_religion" | "espionage" | "league" | "league_project" | "culture" | "ideology" | "archaeology" | "great_work";
 export type ChatTo = "all" | "player";
 export type ItemKind = "unit" | "building" | "wonder" | "project" | "process";
-export type MapMode = "select" | "move" | "range_attack";
+export type MapMode = "select" | "move" | "range_attack" | "target";
+export type TargetKind = "unit" | "city" | "gift_unit" | "gift_improvement";
 export type ProdTab = "all" | "units" | "buildings" | "wonders" | "other";
 export type TurnPending = "none" | "ending" | "cancelling";
 export type ToastKind = "refused" | "rejected" | "lost";
@@ -189,6 +190,7 @@ export type RichTooltipsRelation = "own" | "ally" | "war" | "other";
 export type RichTooltipsPortraitSide = "left" | "right";
 export type RichTooltipsPolicyStatus = "adopted" | "can_adopt" | "locked" | "blocked";
 export type RichTooltipsTreatyStatus = "active" | "partial" | "possible" | "unavailable";
+export type TargetsLook = "fire" | "air" | "sweep" | "move" | "attack" | "mark";
 export type TechAwardUnlockKind = "unit" | "building" | "wonder" | "project" | "resource" | "improvement" | "ability";
 export type TechsMode = "normal" | "free" | "steal";
 export type TechsOpenedBy = "menu" | "request";
@@ -495,6 +497,13 @@ export interface MapIcon {
 export interface HoverPlot {
   readonly cell: number;
   readonly plot: Plot;
+}
+
+export interface UiTarget {
+  readonly kind: TargetKind;
+  readonly unit: Key | null;
+  readonly city: Key | null;
+  readonly a: number;
 }
 
 export interface Win {
@@ -4076,6 +4085,12 @@ export interface RichTooltipsUpgrade {
   readonly tech: Text;
 }
 
+export interface TargetsPlot {
+  readonly cell: number;
+  readonly x: number;
+  readonly y: number;
+}
+
 export interface TechAwardTech {
   readonly key: string;
   readonly name: Text;
@@ -4621,6 +4636,7 @@ export interface Production {
 export interface Ui {
   readonly selection: Selection;
   readonly map_mode: MapMode;
+  readonly target: UiTarget | null;
   readonly windows: Windows;
   readonly production: UiProduction;
   readonly chat: UiChat;
@@ -5167,6 +5183,17 @@ export interface RichTooltips {
   readonly unit_short: RichTooltipsUnitShort[];
 }
 
+export interface Targets {
+  readonly id: number;
+  readonly action: number;
+  readonly name: Text;
+  readonly look: TargetsLook;
+  readonly plots: TargetsPlot[];
+  readonly area: TargetsPlot[];
+  readonly any: boolean;
+  readonly reason: Text | null;
+}
+
 export interface TechAward {
   readonly tech: TechAwardTech | null;
   readonly era: Text;
@@ -5280,6 +5307,7 @@ export interface Model {
   readonly religion: Religion | null;
   readonly religion_overview: ReligionOverview | null;
   readonly rich_tooltips: RichTooltips | null;
+  readonly targets: Targets | null;
   readonly tech_award: TechAward | null;
   readonly techs: Techs | null;
   readonly trade_routes: TradeRoutes | null;

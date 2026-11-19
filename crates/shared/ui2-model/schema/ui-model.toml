@@ -1,4 +1,4 @@
-version = "1.3"
+version = "1.4"
 
 # The UI view model, schema 1.0. Source of the generated Rust types, the path table and the JS typings
 # (`cargo xtask ui gen-model`). A new field, root or enum value is a minor version; removing, renaming or
@@ -26,7 +26,11 @@ NoteGo = [
 ]
 ChatTo = ["all", "player"]
 ItemKind = ["unit", "building", "wonder", "project", "process"]
-MapMode = ["select", "move", "range_attack"]
+MapMode = ["select", "move", "range_attack", "target"]
+# What a map targeting mode (`ui.target`, the original's interface modes that ask for a plot) acts with: a unit's order
+# (a row of the core's actions), a city's ranged strike, or a gift to a city-state (a unit of the player's, an
+# improvement on one of its plots).
+TargetKind = ["unit", "city", "gift_unit", "gift_improvement"]
 ProdTab = ["all", "units", "buildings", "wonders", "other"]
 TurnPending = ["none", "ending", "cancelling"]
 ToastKind = ["refused", "rejected", "lost"]
@@ -300,6 +304,15 @@ resource = "asset"
 cell = "i32"
 plot = "Plot"
 
+# The map's targeting mode (`ui.map_mode` is `target`): what acts and with what. `a` is the row of the core's actions
+# for a unit's order (-1: the unit's ranged attack) or the city-state's player id for a gift. The `targets` service
+# root follows it with the plots the core accepts.
+[type.UiTarget]
+kind = "TargetKind"
+unit = "key<unit>?"
+city = "key<city>?"
+a = "i32"
+
 [type.Win]
 open = "bool"
 
@@ -539,6 +552,8 @@ detail = "Detail?"
 [model.ui]
 selection = "Selection"
 map_mode = "MapMode"
+# The targeting mode while `map_mode` is `target`.
+target = "UiTarget?"
 windows = "Windows"
 production = "UiProduction"
 chat = "UiChat"
@@ -583,6 +598,17 @@ plot = "Plot"
 [intent."map.click"]
 plot = "Plot"
 button = "MouseButton"
+
+# Enter the map's targeting mode (the original's interface modes): a unit's order (`unit`, `a` the row of the core's
+# actions), a city's ranged strike (`city`), a gift to the city-state `a` (a unit, or an improvement on its plot). A
+# left click on a plot of `targets.plots` gives the order; a right click or Escape (`map.cancel`) leaves the mode.
+[intent."map.target"]
+kind = "TargetKind"
+unit = "key<unit>?"
+city = "key<city>?"
+a = "i32?"
+
+[intent."map.cancel"]
 
 [intent."turn.primary"]
 

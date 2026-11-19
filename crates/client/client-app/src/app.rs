@@ -1567,6 +1567,7 @@ impl App {
             }
             _ => None,
         };
+        let aim = self.ui_host.map_aim();
         let preview = &mut self.preview;
         n.handle.with(|core| {
             let revision = core.revision();
@@ -1583,6 +1584,7 @@ impl App {
                     hover: cell,
                     now_ms,
                     revision,
+                    aim: aim.as_ref(),
                 })
             };
             if let Some(q) = ask {
@@ -1610,6 +1612,8 @@ impl App {
                 "path": h.path.iter().map(|s| [s.x, s.y, s.turn]).collect::<Vec<_>>(),
                 "badges": badges.iter().map(|b| [b.x, b.y, b.turn]).collect::<Vec<_>>(),
                 "styles": preview.highlight_set().cells.len(),
+                // The targeting mode's radius (`null` outside the mode); its plots are `targets`.
+                "aim": preview.aim_area(),
             })
         });
     }

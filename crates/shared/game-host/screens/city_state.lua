@@ -160,10 +160,16 @@ local function data(player, args)
         gold[#gold + 1] = {key = key, index = index - 1, amount = amount, influence = m:GetFriendshipFromGoldGift(player, amount),
             enabled = enabled, reason = enabled and "" or at_war and "Gifts are unavailable during war." or refuses_bribes and "This city-state refuses gold gifts while allied to its current ally." or "Insufficient gold."}
     end
-    -- SIMPLIFIED(SIMP-382): unit and improvement map selection need client map-mode intents. Those entries expose explicit unavailable reasons.
+    -- The unit and the improvement are chosen on the map (the client's targeting mode, the `targets` screen), as the
+    -- original's INTERFACEMODE_GIFT_UNIT and _GIFT_TILE_IMPROVEMENT; CityStateDiploPopup's tests enable them.
+    -- SIMPLIFIED(SIMP-382): a unit gift is sent at the click on its plot, without the original's confirmation popup
+    -- (BUTTONPOPUP_GIFT_CONFIRM).
+    local unit_gift = not at_war and m:GetIncomingUnitCountdown(player) < 0
+    local improvement_gift = not at_war and m:CanMajorGiftTileImprovement(player)
     root.gifts = {gold = gold, gold_hint = tostring(status.friend_threshold) .. " / " .. tostring(status.ally_threshold),
-        unit = {enabled = false, reason = "Choose-unit map mode is unavailable in this skin."},
-        improvement = {enabled = false, cost = m:GetGiftTileImprovementCost(player), reason = "Choose-improvement map mode is unavailable in this skin."}}
+        unit = {enabled = unit_gift, reason = unit_gift and "" or at_war and "Gifts are unavailable during war." or "A gifted unit is still on its way."},
+        improvement = {enabled = improvement_gift, cost = m:GetGiftTileImprovementCost(player),
+            reason = improvement_gift and "" or "Only an ally with the gold can improve a tile of this city-state."}}
     local bully_gold, bully_unit = not at_war and m:CanMajorBullyGold(player), not at_war and m:CanMajorBullyUnit(player)
     -- The defines are influence times 100 (CityStateDiploPopup divides them the same way).
     local loss = math.floor(math.abs(GameDefines.MINOR_FRIENDSHIP_DROP_BULLY_GOLD_SUCCESS) / 100)

@@ -4,8 +4,8 @@
 use protocol::Command;
 use ui2_model::Key;
 use ui2_model::generated::{
-    EndTurnBlock, Game, Map, Meta, Phase, Plot, RefuseWhy, ScreenId, Selection, Turn, TurnBlocker,
-    TurnPending, TurnUi, WindowId,
+    EndTurnBlock, Game, Map, Meta, Phase, Plot, RefuseWhy, ScreenId, Selection, TargetKind, Turn,
+    TurnBlocker, TurnPending, TurnUi, WindowId,
 };
 
 use ui2_model::target::TURN_TARGET;
@@ -110,6 +110,7 @@ fn go(ctx: &mut Ctx<'_>, e: &TurnBlocker) {
             window::open_with(ctx, WindowId::Religion, None, id, e.b);
             return;
         }
+        // The original's blocker selects the city and starts its ranged strike (INTERFACEMODE_CITY_RANGE_ATTACK).
         EndTurnBlock::CityRangeAttack if city.is_some() => {
             if let Some(p) = &e.plot {
                 camera::to(ctx, p.x, p.y);
@@ -119,6 +120,7 @@ fn go(ctx: &mut Ctx<'_>, e: &TurnBlocker) {
                 city,
                 plot: e.plot.clone(),
             };
+            super::map::enter(ctx, TargetKind::City, None, city, None);
             return;
         }
         // Units the replica has no entry for: the next unit that waits.

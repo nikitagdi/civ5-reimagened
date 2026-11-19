@@ -3,7 +3,7 @@
 
 use protocol::Command;
 use ui2_model::Key;
-use ui2_model::generated::{Map, MapMode, Plot, RefuseWhy, Selection, UnitActionKind};
+use ui2_model::generated::{Map, MapMode, Plot, RefuseWhy, Selection, TargetKind, UnitActionKind};
 use ui2_model::target::unit_target;
 
 use crate::intent::Intent;
@@ -15,6 +15,11 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
     match intent.name() {
         "unit.select" => {
             if let Some(unit) = intent.key("unit") {
+                // In the targeting mode a unit's flag stands for its plot: another player's unit is a target, and
+                // so is one of the player's units when a unit is to be chosen (a gift).
+                if super::map::aims_at_unit(ctx, unit) {
+                    return;
+                }
                 select(ctx, unit);
             }
         }
@@ -49,6 +54,7 @@ pub(crate) fn select(ctx: &mut Ctx<'_>, unit: Key) {
         plot: Some(plot),
     };
     ui.map_mode = MapMode::Select;
+    ui.target = None;
 }
 
 /// Clear the unit selection and the map mode.
@@ -56,6 +62,7 @@ pub(crate) fn deselect(ctx: &mut Ctx<'_>) {
     let ui = ctx.ui.edit();
     ui.selection.unit = None;
     ui.map_mode = MapMode::Select;
+    ui.target = None;
 }
 
 /// The next of the player's units that wait for orders after the selected one (the first when none is
@@ -88,8 +95,8 @@ pub(crate) fn select_next(ctx: &mut Ctx<'_>) {
     camera::to(ctx, plot.x, plot.y);
 }
 
-/// A unit action. Move and ranged attack only set the map mode (the order goes with the click on a plot); the
-/// rest is one order.
+/// A unit action. Move only sets the map mode and the ranged attack starts the map's targeting mode (the order
+/// goes with the click on a plot); the rest is one order.
 fn action(ctx: &mut Ctx<'_>, unit: Key, kind: UnitActionKind) {
     if validate::own_unit(ctx.model, unit).is_none() {
         ctx.refuse(RefuseWhy::NoUnit);
@@ -101,15 +108,16 @@ fn action(ctx: &mut Ctx<'_>, unit: Key, kind: UnitActionKind) {
     }
     let id = entity_id(unit);
     let cmd = match kind {
-        UnitActionKind::Move | UnitActionKind::RangeAttack => {
+        UnitActionKind::Move => {
             if ctx.ui.ui().selection.unit != Some(unit) {
                 select(ctx, unit);
             }
-            ctx.ui.edit().map_mode = if kind == UnitActionKind::Move {
-                MapMode::Move
-            } else {
-                MapMode::RangeAttack
-            };
+            ctx.ui.edit().map_mode = MapMode::Move;
+            return;
+        }
+        // The unit's ranged attack (the server picks its row: the air strike of an air unit).
+        UnitActionKind::RangeAttack => {
+            super::map::enter(ctx, TargetKind::Unit, Some(unit), None, Some(-1));
             return;
         }
         UnitActionKind::FoundCity => Command::UnitFoundCity { unit: id },
@@ -143,6 +151,7 @@ fn action(ctx: &mut Ctx<'_>, unit: Key, kind: UnitActionKind) {
 /// back to `select` whether or not the order went.
 pub(crate) fn order_at(ctx: &mut Ctx<'_>, unit: Key, plot: (i16, i16), ranged: bool) {
     ctx.ui.edit().map_mode = MapMode::Select;
+    ctx.ui.edit().target = None;
     if validate::own_unit(ctx.model, unit).is_none() {
         ctx.refuse(RefuseWhy::NoUnit);
         return;

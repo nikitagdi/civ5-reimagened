@@ -19,7 +19,7 @@ pub fn assemble(base: &str, screens: &[(String, String)]) -> Result<String, Stri
         }
         if !matches!(
             name.as_str(),
-            "hud" | "rich_tooltips" | "civ_ribbon" | "plot_help"
+            "hud" | "rich_tooltips" | "civ_ribbon" | "plot_help" | "targets"
         ) {
             windows.push_str(&format!("{name} = \"WinArgs\"\n"));
         }
@@ -50,7 +50,7 @@ pub fn assemble(base: &str, screens: &[(String, String)]) -> Result<String, Stri
         .filter(|(n, _)| {
             !matches!(
                 n.as_str(),
-                "hud" | "rich_tooltips" | "civ_ribbon" | "plot_help"
+                "hud" | "rich_tooltips" | "civ_ribbon" | "plot_help" | "targets"
             )
         })
         .map(|(n, _)| format!(", \"{n}\""))

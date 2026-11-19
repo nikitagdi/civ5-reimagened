@@ -108,7 +108,7 @@ The root has `research.techs` (status, zero-based queue position, turns, progres
 
 `hud.alert`, `hud.pillage` and `hud.upgrade` take `a` as the seat's unit id. They recheck native availability before emitting `sendPushMission` or `sendDoCommand`. The existing `unit.action` intents route these three kinds through screen actions. Their buttons use the server's applicability and enabled state.
 
-- Locked units and buildings carry the core's own reason (`CanTrainTooltip` / `CanConstructTooltip`, the tooltip sink of `CvCity::canTrain` / `canConstruct`). SIMP-324 remains for projects and processes, for which the core writes no reason, and uses a general explanation there. The queue, overflow and other HUD fields are populated. SIMP-310 and SIMP-250 have been removed from the resolved paths.
+- Locked units and buildings use the core's reason when available (`CanTrainTooltip` / `CanConstructTooltip`). SIMPLIFIED(SIMP-324) uses a general explanation for projects, processes and unit or building refusals that have no core reason text. The queue, overflow and other HUD fields are populated. SIMP-310 and SIMP-250 have been removed from the resolved paths.
 
 Run the service checks and browser scenario with the same real-core setup described above.
 
@@ -153,7 +153,7 @@ end
 
 A decision that can no longer be answered (its city or unit is gone, the choice was made another way, such as production set from the city banner) would block the seat's queue for good: only its own screen action completes it and the client keeps its window open. A mapping in `_popups.lua` may therefore name `lapsed = function(player, popup)`, which returns a reason when the decision lapsed. Whenever the HUD is read and before every screen action, the worker asks it of the decisions at the head of the seat's queue (read scope) and drops the lapsed ones; a test that fails keeps the decision. Tests exist for captured cities, production, city renames, research and free techs, ideology, barbarian ransom and civilian return. The same decision asked again (same kind and payload) replaces the older one; a move's war question keeps its own rule.
 
-The queue evicts the oldest informational entry on overflow and logs it. Unknown kinds are dropped with one warning per kind. SIMPLIFIED(SIMP-411): when every pending entry is a distinct live decision, another one exceeds the 64-entry soft bound to preserve it. Informational arrivals are rejected in that state. The core sends `GC_EVENT_POPUP_INFO` with eight values ordered as type, data1, data2, data3, player, flag, option1, option2, and with ten for a captured city and for a move that needs war (data4, data5 appended). A seat's move order into a rival's borders, city or unit at peace opens that question instead of moving, as the original game's move click does. The `declare_war` window then shows the move reason and its plot. Its confirm action declares war and replays the move for the named unit through `sendPushMission`. Cancel only finishes the popup. The decoder still reads the five-value form of older cores (zero flags, false options). Embeddings and tests can call `Worker::inject_popup(player, Popup)` with the full named payload without a native event.
+The queue evicts the oldest informational entry on overflow and logs it. Unknown kinds are dropped with one warning per kind. Under SIMPLIFIED(SIMP-411), distinct live decisions can exceed the 64-entry soft bound so the queue preserves every decision. Once the queue has 64 or more entries and holds only decisions, it rejects new informational entries. The core sends `GC_EVENT_POPUP_INFO` with eight values ordered as type, data1, data2, data3, player, flag, option1, option2, and with ten for a captured city and for a move that needs war (data4, data5 appended). A seat's move order into a rival's borders, city or unit at peace opens that question instead of moving, as the original game's move click does. The `declare_war` window then shows the move reason and its plot. Its confirm action declares war and replays the move for the named unit through `sendPushMission`. Cancel only finishes the popup. The decoder still reads the five-value form of older cores (zero flags, false options). Embeddings and tests can call `Worker::inject_popup(player, Popup)` with the full named payload without a native event.
 
 ## Action window transitions
 
@@ -245,3 +245,16 @@ cargo test -p ui2-source remote::tests
 cargo test -p game-host --test plot_help_script
 node tools/playtest/run.mjs --scenario ui2-maplink --attach http://127.0.0.1:8860 --out target/pt-maplink
 ```
+
+## Map targeting
+
+The original's interface modes that ask for a plot (ranged attack, air strike, air sweep, rebase, nuke, paradrop, airlift, embark, disembark, route to, attack) and the city strike and city-state gifts share one map mode, `ui.map_mode == "target"` (model 1.4). `map.target {kind, unit?, city?, a?}` starts it: `kind` is `unit` (`a` is the interface mode's row, `-1` the unit's ranged attack), `city` (the city's strike), `gift_unit` or `gift_improvement` (`a` is the city-state). `ui.target` names what acts. The HUD catalog offers an action as `client = "target"` when the original's `CvUnit::CanDoInterfaceMode` would (`hud.lua`, `TARGET_MODES`).
+
+`targets` is a service root. While the mode lasts `RemoteRoots` asks `Query::Screen { screen: "targets", args: [kind, id, action] }` once, and again when the world changes. The script lists the revealed plots the core accepts for the seat, the radius to draw (`area`) and the look of the marks (`look`: the original's highlight styles). `reason` says why nothing can be chosen. The app draws the marks instead of the reach and path (`MovePreview`, `aim`). A left click on a listed plot sends the screen action `targets.go`, which checks the plot again and gives the order with the original's net message (`sendPushMission`, `sendDoTask` for the city strike, `sendGiftUnit`, `sendMinorGiftTileImprovement`); the mode ends. A left click elsewhere does nothing. A right click, Escape or the hint's cancel button ends the mode. In the mode a flag of another player's unit counts as a click on its plot.
+
+```sh
+cargo test -p ui2-actions --test targeting
+cargo test -p game-host --test real_targets -- --test-threads=1
+node tools/playtest/run.mjs --scenario ui2-targets --attach http://127.0.0.1:8880 --out target/pt-targets
+```
+The scenario needs a server started with `CIV5_TEST_LUA=tools/playtest/fixtures/targets.lua`.

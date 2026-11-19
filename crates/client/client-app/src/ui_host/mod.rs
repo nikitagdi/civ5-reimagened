@@ -223,6 +223,10 @@ pub trait Frontend {
     fn map_preview(&self) -> Option<MapPreview> {
         None
     }
+    /// The UI's targeting mode for the app's preview to draw (`None`: the UI is not choosing a plot).
+    fn map_aim(&self) -> Option<crate::play::Aim> {
+        None
+    }
     /// The turn badges of the path the app's movement preview shows, for the UI to draw on its map layer, and the
     /// plot the mouse has rested on for the tooltip delay (`None`: none, or the mouse moved on).
     fn set_map_hints(&mut self, _badges: &[crate::play::TurnBadge], _hover: Option<(i16, i16)>) {}
@@ -865,6 +869,11 @@ impl UiHost {
     /// none, or a mod hides the game UI).
     pub fn map_preview(&self) -> Option<MapPreview> {
         self.shown().and_then(|f| f.map_preview())
+    }
+
+    /// The targeting mode of the frontend on the screen, for the app's preview.
+    pub fn map_aim(&self) -> Option<crate::play::Aim> {
+        self.shown().and_then(|f| f.map_aim())
     }
 
     /// The turn badges of the app's movement preview and the plot of the tooltip for the frontend on the screen.

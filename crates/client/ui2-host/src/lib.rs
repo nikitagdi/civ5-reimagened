@@ -55,6 +55,10 @@ pub use ui2_model::generated::Note as ModelNote;
 pub use ui2_model::generated::{Hud, SCREEN_NAMES};
 /// The map's selection state the host follows (the selected unit, the map mode) and the path badges it writes.
 pub use ui2_model::generated::{MapIcon, MapMode, PathLabel, Plot as ModelPlot};
+/// The map's targeting mode and the plots the server accepts for it (the `targets` root).
+pub use ui2_model::generated::{
+    TargetKind, Targets, TargetsLook, TargetsPlot as TargetsPlotRow, UiTarget,
+};
 /// The game's screens a skin may open (or ask the host for).
 pub use ui2_model::wire::ScreenId;
 /// The intents on the wire, and those of the mods' panels and scripts for their Rust halves.

@@ -1,0 +1,32 @@
+# The plots a map targeting mode accepts (`ui.target`, the original's interface modes that ask for a plot), for the
+# seat that asks, as the core's own checks judge them now (CanRangeStrikeAt, CanParadropAt, CanRebaseAt, ...). Only
+# plots the seat has revealed, and for the attacks only plots it sees. A service root: no window; the host asks for it
+# when the mode starts and again when the world changes.
+[enum]
+# The highlight styles the map draws: `fire` a ranged attack (the radius and the targets, Bombardment.lua), `air` an
+# air strike or a nuke, `sweep` an air sweep, `move` a move to a plot (rebase, paradrop, airlift), `attack` a
+# move-attack, `mark` the plots the original marks with its generic unit border (embark, gifts).
+TargetsLook = ["fire", "air", "sweep", "move", "attack", "mark"]
+
+# A plot; `cell` packs it as `PathLabel.cell` does (x times 65536 plus y).
+[type.TargetsPlot]
+cell = "i32"
+x = "i16"
+y = "i16"
+
+[model.targets]
+_optional = true
+# What the answer is for: the acting unit's or city's id or the city-state's player id, and the action asked.
+id = "i32"
+action = "i32"
+# The order's name, for the hint.
+name = "text"
+look = "TargetsLook"
+# The plots a click gives the order on.
+plots = { list = "TargetsPlot", key = "cell" }
+# The radius drawn around them (the range of a ranged attack or of an air unit).
+area = { list = "TargetsPlot", key = "cell" }
+# Any revealed plot may be clicked and the core decides then (a route to a plot).
+any = "bool"
+# Why the mode can do nothing now, or none.
+reason = "text?"

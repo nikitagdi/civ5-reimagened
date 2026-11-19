@@ -300,6 +300,8 @@ impl UiActions {
             "unit.select" | "unit.select_next" | "unit.deselect" | "unit.action" | "unit.move"
             | "unit.range_attack" => route::unit::run(&mut ctx, intent),
             "map.click" => route::map::click(&mut ctx, intent),
+            "map.target" => route::map::target(&mut ctx, intent),
+            "map.cancel" => route::map::cancel(&mut ctx),
             "production.choose" | "production.replace" | "production.push" | "production.pop"
             | "production.move" | "production.buy" => route::production::run(&mut ctx, intent),
             "screen.act" => route::screen::run(&mut ctx, intent),

@@ -1,0 +1,9 @@
+<!-- The map's targeting mode (the original's interface modes that ask for a plot): the order's name, why nothing can be
+     chosen, and Escape (or a right click on the map) to leave it. The map marks the plots a click gives the order on. -->
+<div class="aim-row" data-bind-if="{{ui.map_mode == 'target'}}">
+  <div class="aim" data-part="hud.aim">
+    <span class="nm" data-bind-if="{{targets != null}}" data-bind-value="{{targets.name}}">Ranged Attack</span>
+    <span class="why" data-bind-if="{{targets != null && targets.reason != null}}" data-bind-value="{{targets.reason}}"></span>
+    <button class="btn sm" data-part="hud.aim.cancel" data-hotkey="Escape" data-on-click="intent map.cancel()"><span data-l10n="act.cancel">Cancel</span><span class="key" data-l10n="key.escape">Esc</span></button>
+  </div>
+</div>

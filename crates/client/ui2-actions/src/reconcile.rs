@@ -47,11 +47,26 @@ fn reconcile_state(state: &mut UiState, store: &ModelStore, core_notes: Option<&
 
 fn drop_gone(ui: &mut Ui, map: Option<&Map>, production: Option<&Option<Production>>) {
     if let Some(map) = map {
+        use ui2_model::generated::MapMode;
         if let Some(unit) = ui.selection.unit
             && map.units.get(unit).is_none()
         {
             ui.selection.unit = None;
-            ui.map_mode = ui2_model::generated::MapMode::Select;
+            if ui.map_mode != MapMode::Target {
+                ui.map_mode = MapMode::Select;
+            }
+        }
+        // A targeting mode whose unit or city is gone ends (a gift's city-state is judged by the server).
+        let lost = ui.target.as_ref().is_some_and(|t| {
+            t.unit.is_some_and(|u| map.units.get(u).is_none())
+                || t.city
+                    .is_some_and(|c| !map.cities.get(c).is_some_and(|c| c.mine))
+        });
+        if lost || (ui.map_mode == MapMode::Target) != ui.target.is_some() {
+            ui.target = None;
+            if ui.map_mode == MapMode::Target {
+                ui.map_mode = MapMode::Select;
+            }
         }
         if let Some(city) = ui.windows.production.city
             && !map.cities.get(city).is_some_and(|c| c.mine)
