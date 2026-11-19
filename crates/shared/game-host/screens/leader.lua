@@ -113,7 +113,7 @@ return {data=function(player,args)
             consequences=array({{key="opinion",text="Every leader who knows you both will hear of it."}})}
     end
     return {partner={id=id,name=L(leader.Description),leader_name=L(leader.Description),title="",civ=L(civ.ShortDescription),
-        capital=cap and cap:Plot():IsRevealed(Players[player]:GetTeam(),false) and cap:GetName() or "",cities=p:GetNumCities(),score=p:GetScore(),
+        capital=cap and cap:Plot():IsRevealed(Players[player]:GetTeam(),false) and cap:GetName() or nil,cities=p:GetNumCities(),score=p:GetScore(),
         ideology=ideology and L(ideology.Description) or nil,is_human=false,alive=true,team=qt,icon="leader:" .. leader.Type,
         emblem="civ:" .. civ.Type,color_bg="",color_fg=""},mood={key=mood(player,id),label=mood(player,id),reasons=reasons},
         mode=s.mode,speaker_line=L(leader.Description),phrase=s.phrase or "",can_close=not args.popup,relation=relation,at_war=war,main_actions=actions,

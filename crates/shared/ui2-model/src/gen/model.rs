@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 5);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x3eb9da14ac645143;
+pub const SCHEMA_HASH: u64 = 0x59b02ef3aaf64585;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -34709,7 +34709,7 @@ pub struct LeaderPartner {
     pub leader_name: crate::value::Text,
     pub title: crate::value::Text,
     pub civ: crate::value::Text,
-    pub capital: crate::value::Text,
+    pub capital: Option<crate::value::Text>,
     pub cities: i32,
     pub score: i32,
     pub ideology: Option<crate::value::Text>,

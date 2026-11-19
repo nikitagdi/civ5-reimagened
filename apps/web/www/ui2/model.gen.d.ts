@@ -3081,7 +3081,7 @@ export interface LeaderPartner {
   readonly leader_name: Text;
   readonly title: Text;
   readonly civ: Text;
-  readonly capital: Text;
+  readonly capital: Text | null;
   readonly cities: number;
   readonly score: number;
   readonly ideology: Text | null;

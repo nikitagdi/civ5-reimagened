@@ -1,6 +1,6 @@
 {
 "version": "1.5",
-"hash": "3eb9da14ac645143",
+"hash": "59b02ef3aaf64585",
 "roots": [
 {"name":"meta","type":"Meta","field":0,"owner":"source"},
 {"name":"game","type":"Game","field":6,"owner":"source"},
@@ -359,7 +359,7 @@
 {"name":"IdeologyTenet","fields":[{"name":"id","type":"i32"},{"name":"key","type":"str"},{"name":"name","type":"str"},{"name":"effect","type":"text"}]},
 {"name":"IdeologyLevel","fields":[{"name":"level","type":"i32"},{"name":"tenets","type":"list<IdeologyTenet>","key":"id"}]},
 {"name":"IdeologyOption","fields":[{"name":"id","type":"i32"},{"name":"key","type":"str"},{"name":"name","type":"str"},{"name":"icon","type":"asset"},{"name":"free_tenets","type":"i32"},{"name":"victories","type":"list<IdeologyVictory>","key":"kind"},{"name":"adopted_by","type":"list<IdeologyAdopter>","key":"key"},{"name":"levels","type":"list<IdeologyLevel>","key":"level"}]},
-{"name":"LeaderPartner","fields":[{"name":"id","type":"i32"},{"name":"name","type":"text"},{"name":"leader_name","type":"text"},{"name":"title","type":"text"},{"name":"civ","type":"text"},{"name":"capital","type":"text"},{"name":"cities","type":"i32"},{"name":"score","type":"i32"},{"name":"ideology","type":"text?"},{"name":"religion","type":"text?"},{"name":"is_human","type":"bool"},{"name":"alive","type":"bool"},{"name":"team","type":"i32"},{"name":"icon","type":"asset"},{"name":"emblem","type":"asset"},{"name":"color_bg","type":"str"},{"name":"color_fg","type":"str"}]},
+{"name":"LeaderPartner","fields":[{"name":"id","type":"i32"},{"name":"name","type":"text"},{"name":"leader_name","type":"text"},{"name":"title","type":"text"},{"name":"civ","type":"text"},{"name":"capital","type":"text?"},{"name":"cities","type":"i32"},{"name":"score","type":"i32"},{"name":"ideology","type":"text?"},{"name":"religion","type":"text?"},{"name":"is_human","type":"bool"},{"name":"alive","type":"bool"},{"name":"team","type":"i32"},{"name":"icon","type":"asset"},{"name":"emblem","type":"asset"},{"name":"color_bg","type":"str"},{"name":"color_fg","type":"str"}]},
 {"name":"LeaderMoodReason","fields":[{"name":"key","type":"str"},{"name":"text","type":"text"},{"name":"value","type":"i32?"}]},
 {"name":"LeaderMood","fields":[{"name":"key","type":"LeaderMoodKey"},{"name":"label","type":"text"},{"name":"reasons","type":"list<LeaderMoodReason>","key":"key"}]},
 {"name":"LeaderPhraseTarget","fields":[{"name":"name","type":"text"},{"name":"civ","type":"text"},{"name":"emblem","type":"asset"},{"name":"color_bg","type":"str"},{"name":"color_fg","type":"str"}]},
@@ -3707,7 +3707,7 @@
 {"path":"leader.partner.leader_name","type":"text"},
 {"path":"leader.partner.title","type":"text"},
 {"path":"leader.partner.civ","type":"text"},
-{"path":"leader.partner.capital","type":"text"},
+{"path":"leader.partner.capital","type":"text?"},
 {"path":"leader.partner.cities","type":"i32"},
 {"path":"leader.partner.score","type":"i32"},
 {"path":"leader.partner.ideology","type":"text?"},
