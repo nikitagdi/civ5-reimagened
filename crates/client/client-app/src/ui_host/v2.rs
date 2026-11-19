@@ -1567,6 +1567,8 @@ impl V2Frontend {
                     "plots": r.plots.iter().map(|p| [p.x, p.y]).collect::<Vec<_>>(), "area": r.area.len(),
                 })),
                 "path": ui.actions().ui().path.iter().map(|p| [i64::from(p.plot.x), i64::from(p.plot.y), i64::from(p.turn)]).collect::<Vec<_>>(),
+                // The orders waiting for the server (`ui.pending`): what keeps the buttons that wait for them disabled.
+                "pending": ui.actions().ui().pending.iter().map(|p| format!("{}:{}", p.intent, p.target)).collect::<Vec<_>>(),
             });
             let notes = ui
                 .store()
