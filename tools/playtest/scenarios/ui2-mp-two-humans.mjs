@@ -128,7 +128,8 @@ export async function run(ctx) {
     // The seat is the AI's now: it has no kick button, and (an AI the host has not met) it leaves the ribbon, whose
     // seats are all connected again; the turn waits for one human.
     await waitFor(A, (p) => texts(p, "civ-ribbon.kick").length === 0 && texts(p, "civ-ribbon.seat").every((t) => t !== "Connection lost" && t !== "Disconnected")
-      && texts(p, "helm.state").some((t) => / of 1$/.test(t)), "alice: bob's seat is the AI's", 90000);
+      // (The ready count "N of M" is in the queue line under the turn button since the kit, not on the button.)
+      && texts(p, "end-turn.queue").some((t) => /^\d+ of 1$/.test(t)), "alice: bob's seat is the AI's", 90000);
     check("the host's kick from the ribbon gives the seat to the AI", true);
     await shot(alice, "4-kicked");
     result.pass = result.checks.every((c) => c.pass);

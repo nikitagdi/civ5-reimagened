@@ -247,11 +247,29 @@ async function foundCity(page) {
   return `found ${settler.x},${settler.y}`;
 }
 
-// ---- the skin's layout at 1600 x 900 (as `ui2-actions` clicks it: css/hud.css, css/production.css, css/research.css)
-const DIAL = { x: VP.width - 8 - 108, y: VP.height - 392 + 8 + 108 };
-const PWIN = { left: 200, top: 60, right: 1160, bottom: VP.height - 56 };
-const DETAIL_X = PWIN.right - 156;
-const RWIN = { left: (VP.width - 520) / 2, top: 60, head: 64, pad: 8, row: 36 };
+// ---- the skin's layout: the driver clicks where the skin has laid its parts out (`ui2Rects`), not at fixed pixels,
+// so a new layout of the HUD or the windows does not leave it clicking empty space.
+/** The rectangles of a part's subtree (the part's own box first). */
+const rectsOf = (page, part) => page.evaluate((p) => window.__civ5test.ui2Rects([p], 5000), part).catch(() => []);
+/** The centre of a part's box, or null while it is not laid out. */
+async function centreOf(page, part) {
+  const b = (await rectsOf(page, part))?.[0];
+  return b && b.w > 0 && b.h > 0 ? [b.x + b.w / 2, b.y + b.h / 2] : null;
+}
+/** Clicks a part where it is; false when it is not on the screen. */
+async function clickAt(page, part) {
+  const c = await centreOf(page, part);
+  if (c) await page.mouse.click(c[0], c[1]);
+  return !!c;
+}
+/** The list rows of a part: one root rectangle per list key, inside the part's own box. */
+async function rowsOf(page, part) {
+  const rects = (await rectsOf(page, part)) ?? [];
+  const box = rects[0];
+  const rows = [];
+  for (const r of rects) if (r.keys && !r.keys.includes("/") && !rows.some((x) => x.keys === r.keys)) rows.push(r);
+  return box ? rows.filter((r) => r.y >= box.y && r.y + r.h <= box.y + box.h && r.w > 0 && r.h > 0) : rows;
+}
 /** The production the driver prefers, in order (see `settleBlockers`). */
 const PREFER = ["Worker", "Warrior", "Work Boat", "Scout"];
 /** What the driver has had built in this run. */
@@ -268,26 +286,6 @@ async function waitUi(page, pred, ms) {
     if (Date.now() - t0 > ms) return null;
     await sleep(150);
   }
-}
-
-/** The centre of a unit order button (rows of 488 px, 56 px buttons, 4 px gaps; Delete 60 px with 8 px more). */
-function actButton(acts, which) {
-  let x = 0;
-  let row = 0;
-  const boxes = [];
-  for (const a of acts) {
-    const lead = a === "unit.act.disband" ? 8 : 0;
-    const w = a === "unit.act.disband" ? 60 : 56;
-    let at = x === 0 ? lead : x + 4 + lead;
-    if (x > 0 && at + w > 488) {
-      row += 1;
-      at = lead;
-    }
-    boxes.push({ a, row, x: at, w });
-    x = at + w;
-  }
-  const box = boxes.find((b) => b.a === which);
-  return box ? [16 + box.x + box.w / 2, VP.height - 16 - 52 - (row - box.row) * 56 + 26] : null;
 }
 
 /**
@@ -309,28 +307,21 @@ async function settleBlockers(page) {
         steps.push(moved ? `moved ${stacked.name}` : `could not move ${stacked.name}`);
         if (moved) continue;
       }
-      await page.mouse.click(DIAL.x, DIAL.y);
+      await clickAt(page, "helm.dial");
       const sel = await waitUi(page, (q) => partsOf(q, "unit.act.").length > 0, 5000);
       const acts = partsOf(sel, "unit.act.");
       const pick = ["unit.act.fortify", "unit.act.sleep", "unit.act.skip"].find((a) => acts.includes(a));
-      const at = pick && actButton(acts, pick);
-      if (!at) return [...steps, `no order for ${JSON.stringify(acts)}`];
-      await page.mouse.click(at[0], at[1]);
+      if (!pick || !(await clickAt(page, pick))) return [...steps, `no order for ${JSON.stringify(acts)}`];
       await sleep(600);
       steps.push(pick);
     } else if (st === "Choose production") {
-      await page.mouse.click(DIAL.x, DIAL.y);
+      await clickAt(page, "helm.dial");
       if (!(await waitUi(page, (q) => partTexts(q, "production.head").length > 0, 5000))) return [...steps, "no production window"];
       // The rows of the list (their root rectangles, from `ui2Rects`), one after the other until a row has the focus
       // (the detail names it instead of its hint); each focused row's name is noted, then the preferred one is built.
+      // Only rows inside the list's box (a list may lay out rows below its scrolled view).
       const hint = partTexts(await ui2(page), "production.detail")[0] ?? null;
-      const rects = await page.evaluate(() => window.__civ5test.ui2Rects(["production.list"], 5000)).catch(() => []);
-      const rowRects = [];
-      for (const r of rects ?? []) if (!rowRects.some((x) => x.keys === r.keys)) rowRects.push(r);
-      // Only rows inside the window (a list may lay out rows below its scrolled view).
-      const visible = rowRects.filter((r) => r.y >= PWIN.top && r.y + r.h <= PWIN.bottom - 20);
-      rowRects.length = 0;
-      rowRects.push(...visible);
+      const rowRects = await rowsOf(page, "production.list");
       const named = [];
       for (const r of rowRects) {
         await page.mouse.click(r.x + r.w / 3, r.y + r.h / 2);
@@ -349,18 +340,20 @@ async function settleBlockers(page) {
         await sleep(250);
         q = await ui2(page);
       }
-      const short = partTexts(q, "production.orders").some((t) => /short/.test(t));
-      await page.mouse.click(DETAIL_X, PWIN.bottom - 20 - (short ? 20 : 0) - 164);
+      // The detail's build button: "choose" for a city that builds nothing, "build now" for one that does.
+      if (!(await clickAt(page, "production.choose"))) await clickAt(page, "production.build-now");
       await waitUi(page, (x) => partTexts(x, "production.current").length > 0 && !partTexts(x, "production.current").some((t) => /nothing/.test(t)), 5000);
       await page.keyboard.press("Escape");
       await waitUi(page, (x) => partTexts(x, "production.head").length === 0, 3000);
       steps.push(`build ${partTexts(q, "production.detail")[0] ?? "?"}`);
     } else if (st === "Choose research") {
-      await page.mouse.click(DIAL.x, DIAL.y);
+      await clickAt(page, "helm.dial");
       const open = await waitUi(page, (q) => partTexts(q, "research.list").length > 0, 5000);
       if (!open) return [...steps, "no research window"];
-      const now = partTexts(open, "research.window").includes("Now") ? 36 : 0;
-      await page.mouse.click(RWIN.left + 120, RWIN.top + RWIN.head + now + RWIN.pad + RWIN.row / 2);
+      // The first row of the choices.
+      const first = (await rowsOf(page, "research.list"))[0];
+      if (!first) return [...steps, "no research row"];
+      await page.mouse.click(first.x + first.w / 3, first.y + first.h / 2);
       await waitUi(page, (q) => partTexts(q, "research.list").length === 0, 5000);
       steps.push(`research ${partTexts(open, "research.list")[0] ?? "?"}`);
     } else {

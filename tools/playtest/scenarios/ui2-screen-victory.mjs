@@ -28,7 +28,8 @@ export async function run({ server, opts }) {
     await until(page, s => s.screen === 'play' && s.turn !== null, 90000, 'game');
     await waitFor(page, p => p?.state === 'running' && p.frames > 10, 'v2');
     await page.evaluate(() => window.__civ5test.ui2Intent({ name: 'window.open', args: { window: 'victory' } }));
-    await waitFor(page, p => p.ui.windows.includes('victory') && texts(p, 'victory').includes('Domination'), 'real victory summary');
+    // The summary's texts are in the `victory.window` part since the kit.
+    await waitFor(page, p => p.ui.windows.includes('victory') && texts(p, 'victory.window').includes('Domination'), 'real victory summary');
     if (!await clickPart(page, 'victory.score-ranking')) throw new Error('score detail button missing');
     await waitFor(page, p => texts(p, 'victory.ranking-score').length >= 2, 'real score rows');
     check('score ranking contains real participants', true);

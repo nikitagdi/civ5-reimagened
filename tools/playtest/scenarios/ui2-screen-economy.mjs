@@ -44,7 +44,9 @@ export async function run({ server, opts }) {
     const gap = texts(p, 'economy.golden-age');
     check('golden age points per city', gap.length > 0 && gap.every(t => /^\d+$/.test(t.trim())));
     if (!await clickPart(page, 'economy.tab-happiness')) throw new Error('happiness tab missing');
-    await waitFor(page, p => texts(p, 'economy').includes('Happiness'), 'happiness data');
+    // The happiness tab's own columns (the window part is `economy.window` since the kit; "Happiness" alone is also in
+    // the header facts, "Unhappiness" only in the tab).
+    await waitFor(page, p => texts(p, 'economy.window').includes('Unhappiness'), 'happiness data');
     await clickPart(page, 'economy.tab-general');
     if (!await clickPart(page, 'economy.production')) throw new Error('production cell missing');
     await waitFor(page, p => p.ui.windows.includes('production') && texts(p, 'production.head').length > 0, 'city production chooser');

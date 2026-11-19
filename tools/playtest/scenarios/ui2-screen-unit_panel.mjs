@@ -15,6 +15,8 @@ export async function run(context) {
     if (!await clickPart(page, "unit-panel.rename-open")) throw new Error("Rename button missing");
     await waitFor(page, p => p.ui.windows.includes("unit_rename"), "rename window");
     if (!await clickPart(page, "unit-panel.rename-input")) throw new Error("Name input missing");
+    // The field takes the keyboard through the page's text bridge, focused by the next UI frame: the keys wait for it.
+    await page.waitForFunction(() => document.activeElement?.tagName === "TEXTAREA" || document.activeElement?.tagName === "INPUT", null, { timeout: 5000 });
     await page.keyboard.press("Control+a");
     await page.keyboard.type("Test Guard");
     if (!await clickPart(page, "unit-panel.rename-accept")) throw new Error("Accept button missing");
