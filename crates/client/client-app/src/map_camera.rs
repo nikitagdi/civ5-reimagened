@@ -121,9 +121,16 @@ impl MapCameraController {
         self.click.take()
     }
 
-    /// A right button press and release within `DRAG_THRESHOLD_PX` (a command click), once.
+    /// The release of a right button press on the map (a command click: the move to the plot under the pointer),
+    /// once. The press may have moved: the right button does not drag.
     pub fn take_right_click(&mut self) -> Option<PhysicalPosition> {
         self.right_click.take()
+    }
+
+    /// The right button went down on the map and is not released yet: the original shows the selected unit's path
+    /// to the plot under the pointer while it is held (WorldView.lua, `rButtonDown`).
+    pub fn right_held(&self) -> bool {
+        self.right_down.is_some()
     }
 
     /// Camera ray through a physical pixel position.
@@ -163,6 +170,7 @@ impl MapCameraController {
             }
             InputEvent::Focused(false) => {
                 self.press = None;
+                self.right_down = None;
                 self.touch_press = None;
                 self.touches.clear();
                 self.keys = HeldKeys::default();
@@ -293,13 +301,10 @@ impl MapCameraController {
             }
             PointerPhase::Up => {
                 if ptr.button == Some(MouseButton::Right) {
-                    if let Some(down) = self.right_down.take() {
-                        let d = ((ptr.position.x - down.x).powi(2)
-                            + (ptr.position.y - down.y).powi(2))
-                        .sqrt();
-                        if d < f64::from(p::DRAG_THRESHOLD_PX) {
-                            self.right_click = Some(ptr.position);
-                        }
+                    // re: WorldView.lua `MovementRButtonUp`: the release orders the move to the plot under the
+                    // pointer, wherever the press began (the path followed the pointer while the button was held).
+                    if self.right_down.take().is_some() {
+                        self.right_click = Some(ptr.position);
                     }
                     return false;
                 }
@@ -310,10 +315,12 @@ impl MapCameraController {
             }
             PointerPhase::Cancel => {
                 self.press = None;
+                self.right_down = None;
                 false
             }
             PointerPhase::Left => {
                 self.cursor = None;
+                self.right_down = None;
                 self.end_press(ptr.position)
             }
         }
@@ -706,9 +713,38 @@ mod tests {
         assert_eq!(ctl.take_right_click(), Some(pos(52.0, 61.0)));
         assert_eq!(ctl.take_right_click(), None);
         assert_eq!(ctl.take_click(), None);
+    }
+
+    /// As the original's right button: held, the path follows the pointer; the release goes to the plot under the
+    /// pointer however far it moved; a release that leaves the window or loses the focus goes nowhere.
+    #[test]
+    fn a_held_right_button_goes_on_release_wherever_the_pointer_moved() {
+        let (mut ctl, mut cam) = setup();
+        let btn = Some(MouseButton::Right);
+        assert!(!ctl.right_held());
         ctl.handle(&mouse(PointerPhase::Down, 50.0, 60.0, btn), &mut cam);
+        assert!(ctl.right_held());
+        ctl.handle(&mouse(PointerPhase::Move, 150.0, 60.0, None), &mut cam);
+        assert!(
+            ctl.right_held() && !ctl.is_dragging(),
+            "the right button does not drag"
+        );
         ctl.handle(&mouse(PointerPhase::Up, 150.0, 60.0, btn), &mut cam);
-        assert_eq!(ctl.take_right_click(), None, "moved too far");
+        assert!(!ctl.right_held());
+        assert_eq!(ctl.take_right_click(), Some(pos(150.0, 60.0)));
+        ctl.handle(&mouse(PointerPhase::Down, 50.0, 60.0, btn), &mut cam);
+        ctl.handle(&mouse(PointerPhase::Left, 50.0, 60.0, None), &mut cam);
+        assert!(!ctl.right_held());
+        ctl.handle(&mouse(PointerPhase::Up, 50.0, 60.0, btn), &mut cam);
+        assert_eq!(
+            ctl.take_right_click(),
+            None,
+            "the press ended off the window"
+        );
+        ctl.handle(&mouse(PointerPhase::Down, 50.0, 60.0, btn), &mut cam);
+        ctl.handle(&InputEvent::Focused(false), &mut cam);
+        ctl.handle(&mouse(PointerPhase::Up, 50.0, 60.0, btn), &mut cam);
+        assert_eq!(ctl.take_right_click(), None, "the window lost the focus");
     }
 
     #[test]

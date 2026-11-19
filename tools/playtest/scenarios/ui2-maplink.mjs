@@ -2,10 +2,10 @@
 //   node tools/playtest/run.mjs --scenario ui2-maplink --attach http://127.0.0.1:8870 --out <dir>
 // Env: UI2_SHOT (path prefix for screenshots).
 //
-// 1. Movement preview: a selected unit has the selection ring on its plot and its reach outlined; the mouse over a
-//    plot shows the path with a turn badge where each turn ends and at the target (the skin's `map.path-turn`
-//    anchored on the plot); a plot outside this turn's reach gets its path from the server; the mouse over a panel
-//    shows none; a right click moves the unit; deselecting clears everything.
+// 1. Movement preview: a selected unit has the selection ring on its plot and its reach outlined and no path; with
+//    the right button held the mouse over a plot shows the path with a turn badge where each turn ends and at the
+//    target (the skin's `map.path-turn` anchored on the plot); a plot outside this turn's reach gets its path from
+//    the server; the release moves the unit; the mouse over a panel shows none; deselecting clears everything.
 // 2. The plot tooltip after the mouse rests on a plot; it goes at once when the mouse moves on; fog hides the plot.
 // 3. The map options (yields, resources, grid) and their keeping across a reload.
 // 4. Notification clicks: left does the core's activation for the type, right dismisses what may be dismissed.
@@ -96,8 +96,18 @@ export async function run({ server, opts }) {
     const box = { cx: flag.x + flag.w / 2, cy: flag.y + flag.h / 2 + 40 };
     await shot(page, "reach", around(box));
 
-    // The path under the mouse: try plots around the unit until one shows a path with badges.
+    // As the original: the selected unit alone shows no path; the path follows the mouse while the right button is
+    // held, and the release is the move.
     const offsets = [[110, 40], [-110, 40], [0, 120], [110, 120], [-110, 120], [200, 60], [-200, 60], [60, -40], [-60, -40]];
+    await page.mouse.move(box.cx + offsets[0][0], box.cy + offsets[0][1], { steps: 4 });
+    await page.waitForTimeout(700);
+    {
+      const p = await probe(page);
+      result.plain = p.preview;
+      check("1. a plain hover over a plot shows no path", p.preview?.hover && p.preview.path.length === 0 && p.preview.badges.length === 0 && p.ui.selection.path.length === 0, JSON.stringify(p.preview));
+    }
+    await page.mouse.down({ button: "right" });
+    // The path under the mouse with the right button held: try plots around the unit until one shows a path with badges.
     let near = null;
     for (const [dx, dy] of offsets) {
       await page.mouse.move(box.cx + dx, box.cy + dy, { steps: 4 });
@@ -109,7 +119,7 @@ export async function run({ server, opts }) {
       }
     }
     result.near = near;
-    check("1. the mouse over a plot shows the path to it", !!near, JSON.stringify(near?.preview ?? null));
+    check("1. with the right button held the mouse over a plot shows the path to it", !!near, JSON.stringify(near?.preview ?? null));
     if (near) {
       const last = near.preview.path[near.preview.path.length - 1];
       check("1. the path ends at the hovered plot", same([last[0], last[1]], near.preview.hover), JSON.stringify({ last, hover: near.preview.hover }));
@@ -139,6 +149,27 @@ export async function run({ server, opts }) {
     result.far = far;
     check("1. a plot of a later turn shows its path with a badge per turn", far && far.preview.badges.length >= 2, JSON.stringify(far?.preview ?? null));
     if (far) await shot(page, "path-far", around({ cx: far.at[0], cy: far.at[1] }, 320));
+
+    // The release of the right button over the near plot moves the unit there.
+    if (near) {
+      const target = near.preview.hover;
+      await page.mouse.move(near.at[0], near.at[1], { steps: 4 });
+      await page.waitForTimeout(300);
+      await page.mouse.up({ button: "right" });
+      const moved = await until(page, s => {
+        const u = s.units.find(v => v.id === id);
+        return u && (u.x !== unit.x || u.y !== unit.y);
+      }, 15000, "the unit moved").catch(() => null);
+      const u = moved?.units.find(v => v.id === id);
+      result.moved = u && [u.x, u.y];
+      check("1. releasing the right button moves the unit along the path", u && (same([u.x, u.y], target) || near.preview.path.some(s => s[0] === u.x && s[1] === u.y)), JSON.stringify({ to: result.moved, target }));
+      await page.waitForTimeout(800);
+      await shot(page, "moved", around({ cx: near.at[0], cy: near.at[1] }));
+      const after = await probe(page);
+      check("1. the path goes with the release", after.preview && after.preview.path.length === 0 && after.preview.badges.length === 0, JSON.stringify(after.preview));
+    } else {
+      await page.mouse.up({ button: "right" });
+    }
 
     // 2. The plot tooltip: after the mouse rested on a plot, the server's help for that plot hangs on it.
     if (near) {
@@ -184,23 +215,6 @@ export async function run({ server, opts }) {
       await page.waitForTimeout(400);
       const p = await probe(page);
       check("1. the mouse over a panel shows no path", p.preview && p.preview.hover == null && p.preview.badges.length === 0 && p.ui.selection.path.length === 0, JSON.stringify(p.preview));
-    }
-
-    // A right click on the near plot moves the unit there.
-    if (near) {
-      const target = near.preview.hover;
-      await page.mouse.move(near.at[0], near.at[1], { steps: 4 });
-      await page.waitForTimeout(300);
-      await page.mouse.click(near.at[0], near.at[1], { button: "right" });
-      const moved = await until(page, s => {
-        const u = s.units.find(v => v.id === id);
-        return u && (u.x !== unit.x || u.y !== unit.y);
-      }, 15000, "the unit moved").catch(() => null);
-      const u = moved?.units.find(v => v.id === id);
-      result.moved = u && [u.x, u.y];
-      check("1. a right click moves the unit along the path", u && (same([u.x, u.y], target) || near.preview.path.some(s => s[0] === u.x && s[1] === u.y)), JSON.stringify({ to: result.moved, target }));
-      await page.waitForTimeout(800);
-      await shot(page, "moved", around({ cx: near.at[0], cy: near.at[1] }));
     }
 
     // Deselecting clears the ring, the reach and the badges.

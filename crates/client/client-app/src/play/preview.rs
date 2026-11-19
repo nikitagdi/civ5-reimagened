@@ -4,7 +4,9 @@
 //! (the shot targets) and `PathHelpManager.lua` (the turn badges) show them.
 //!
 //! The UI owns the selection and the map mode; the app gives [`MovePreview::step`] that focus, the plot under the
-//! mouse, the shown world and the unit's context (its move tree, which comes with the focus the UI sends). A plot
+//! mouse, the shown world and the unit's context (its move tree, which comes with the focus the UI sends). As in the
+//! original's `WorldView.lua`, the path follows the mouse only while the right button is held (its release is the
+//! move) or in the move mode; a selected unit alone shows its ring and the plots it reaches. A plot
 //! the tree holds has its path there; for any other the path is asked (`Query::Path`) once the mouse has rested
 //! [`PATH_DWELL_MS`] on it, one question in flight at a time, and an answer for another plot, unit or world
 //! revision is not drawn.
@@ -78,6 +80,10 @@ pub struct PreviewInput<'a> {
     pub focus: Option<MapFocus>,
     /// The cell under the mouse when the mouse is over the map (not over a panel, not dragging).
     pub hover: Option<(i32, i32)>,
+    /// The right mouse button is held on the map: the path to `hover` shows while it is, as in the original
+    /// (WorldView.lua shows the path while `rButtonDown` in the selection mode, or in the move mode); a selected
+    /// unit alone shows its ring and reach, no path.
+    pub right_held: bool,
     pub now_ms: u64,
     /// The revision of the shown world: an answer of an earlier one is not drawn.
     pub revision: u64,
@@ -157,9 +163,12 @@ impl MovePreview {
         let tree = input.ctx.filter(|c| c.unit == u.id);
         let our_turn = world.status == TurnStatus::HumanTurn;
         let ranged = focus.mode == FocusMode::Ranged;
+        // The path follows the pointer only in the move mode or while the right button is held.
+        let pathing = focus.mode == FocusMode::Move || input.right_held;
         let mut ask = None;
         if let Some((x, y)) = self.hover
             && our_turn
+            && pathing
             && !ranged
             && (u.x, u.y) != (x, y)
             && !tree.is_some_and(|c| c.reaches(x, y))
@@ -171,7 +180,7 @@ impl MovePreview {
             ask = Some(Query::Path { unit: u.id, x, y });
         }
         let path = match self.hover {
-            Some((x, y)) if our_turn && !ranged && (u.x, u.y) != (x, y) => {
+            Some((x, y)) if our_turn && pathing && !ranged && (u.x, u.y) != (x, y) => {
                 let from_tree = tree.and_then(|c| c.path_to(x, y));
                 let answered = self
                     .answer
@@ -353,6 +362,7 @@ mod tests {
         })
     }
 
+    /// A frame with the right button held (the path follows the mouse).
     fn input<'a>(
         w: &'a WorldView,
         ctx: Option<&'a UnitContext>,
@@ -365,10 +375,73 @@ mod tests {
             ctx,
             focus,
             hover,
+            right_held: true,
             now_ms,
             revision: 1,
             aim: None,
         }
+    }
+
+    /// The original's WorldView.lua: a selected unit shows its ring and reach; the path to the plot under the
+    /// mouse (and the question for one the tree lacks) only while the right button is held or in the move mode.
+    #[test]
+    fn the_path_shows_only_while_the_right_button_is_held_or_in_the_move_mode() {
+        let w = world();
+        let ctx = archer_ctx();
+        let mut p = MovePreview::default();
+        let mut free = input(
+            &w,
+            Some(&ctx),
+            archer(&w, FocusMode::Select),
+            Some((10, 11)),
+            10,
+        );
+        free.right_held = false;
+        assert_eq!(p.step(&free), None);
+        let h = p.highlights();
+        assert_eq!(h.selected, Some((8, 11)));
+        assert_eq!(h.reachable, [(9, 11), (9, 12)], "the reach stays");
+        assert!(h.path.is_empty() && p.badges().is_empty(), "no path");
+        // A plot the tree lacks is not asked for either, however long the mouse rests.
+        let mut far = input(
+            &w,
+            Some(&ctx),
+            archer(&w, FocusMode::Select),
+            Some((20, 3)),
+            1_000,
+        );
+        far.right_held = false;
+        p.step(&far);
+        far.now_ms = 9_000;
+        assert_eq!(p.step(&far), None);
+        // The right button goes down: the path follows the mouse.
+        let held = input(
+            &w,
+            Some(&ctx),
+            archer(&w, FocusMode::Select),
+            Some((10, 11)),
+            9_010,
+        );
+        p.step(&held);
+        assert_eq!(p.highlights().path.len(), 3);
+        assert_eq!(p.badges().len(), 2);
+        // Released: the path goes.
+        let mut up = held;
+        up.right_held = false;
+        up.now_ms = 9_020;
+        p.step(&up);
+        assert!(p.highlights().path.is_empty() && p.badges().is_empty());
+        // The move mode (the Move order of the panel) shows it without the button.
+        let mut moving = input(
+            &w,
+            Some(&ctx),
+            archer(&w, FocusMode::Move),
+            Some((10, 11)),
+            9_030,
+        );
+        moving.right_held = false;
+        p.step(&moving);
+        assert_eq!(p.highlights().path.len(), 3);
     }
 
     #[test]

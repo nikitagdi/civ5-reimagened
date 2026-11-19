@@ -1568,6 +1568,7 @@ impl App {
             _ => None,
         };
         let aim = self.ui_host.map_aim();
+        let right_held = self.map_controller.right_held();
         let preview = &mut self.preview;
         n.handle.with(|core| {
             let revision = core.revision();
@@ -1582,6 +1583,7 @@ impl App {
                     ctx,
                     focus: state.focus,
                     hover: cell,
+                    right_held,
                     now_ms,
                     revision,
                     aim: aim.as_ref(),
