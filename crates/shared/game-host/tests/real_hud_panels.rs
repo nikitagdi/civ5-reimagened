@@ -25,6 +25,13 @@ fn start_unfounded() -> Option<common::H> {
     Some(common::H::with(worker, outs))
 }
 
+fn text(t: &ui2_model::Text) -> String {
+    match t {
+        ui2_model::Text::Raw(s) => s.to_string(),
+        ui2_model::Text::Key { key, .. } => key.to_string(),
+    }
+}
+
 fn hud(h: &mut common::H, id: u64, args: Vec<(String, i64)>) -> Hud {
     let before = h.frames.len();
     h.send(ToWorker::Query {
@@ -71,6 +78,102 @@ fn top_panel_sources_are_well_formed_after_founding() {
     assert!(top.resources.iter().all(|r| !r.name.is_empty()));
     assert!(top.trade_available >= top.trade_used);
     // Top-panel actions open local windows and emit no game mutation.
+}
+
+/// The top strip's tooltips are the original top panel's lines: every text key resolved, no markup left, the
+/// colours as tones, and the strategic resource tooltip with what uses the resource.
+#[test]
+fn top_panel_tooltips_are_the_original_lines() {
+    let Some(mut h) = start() else { return };
+    // Test-only bridge: the seat knows iron and may trade it, so its tooltip has the local and the usage parts.
+    let lua = lua_sys::Lua::new().unwrap();
+    // The screens' own attach: the core's Lua and the server localization.
+    game_host::Core::attach_screen_lua(h.w.core_mut(), &lua).unwrap();
+    lua.exec(
+        r#"
+        local r = GameInfo.Resources.RESOURCE_IRON
+        local team = Teams[Players[0]:GetTeam()]
+        for _, tech in ipairs({r.TechReveal, r.TechCityTrade}) do
+            if tech then team:SetHasTech(GameInfoTypes[tech], true) end
+        end
+        iron_id = r.ID
+        used_label = Locale.ConvertTextKey("TXT_KEY_PEDIA_REQ_RESRC_LABEL")
+        expenses = Locale.ConvertTextKey("TXT_KEY_TP_TOTAL_EXPENSES", Players[0]:CalculateUnitCost() + Players[0]:CalculateUnitSupply()
+            + Players[0]:GetBuildingGoldMaintenance() + Players[0]:GetImprovementGoldMaintenance())
+        -- The seat's own swordsman (a civilization may replace it with its unique unit).
+        local civ, unit = GameInfo.Civilizations[Players[0]:GetCivilizationType()].Type, GameInfo.Units.UNIT_SWORDSMAN
+        for o in GameInfo.Civilization_UnitClassOverrides{CivilizationType = civ, UnitClassType = "UNITCLASS_SWORDSMAN"} do
+            if o.UnitType then unit = GameInfo.Units[o.UnitType] end
+        end
+        swords = Locale.ConvertTextKey(unit.Description)
+    "#,
+        "=iron-known",
+    )
+    .unwrap();
+    let get = |name: &str| -> String { lua.globals().get(name).unwrap() };
+    let (used_label, expenses, swords) = (get("used_label"), get("expenses"), get("swords"));
+    let iron: i32 = lua.globals().get("iron_id").unwrap();
+    let top = hud(&mut h, 1, vec![]).top;
+    let clean =
+        |text: &str| !text.contains("TXT_KEY_") && !text.contains('[') && !text.contains(']');
+    for tip in top.tips.iter() {
+        assert!(!tip.text.is_empty(), "{:?} has lines", tip.kind);
+        for row in tip.text.iter() {
+            assert!(clean(&text(&row.text)), "{:?}: {:?}", tip.kind, row.text);
+        }
+    }
+    let gold = top
+        .tips
+        .iter()
+        .find(|t| t.kind == ui2_model::generated::HudTopTipKind::Gold)
+        .unwrap();
+    let plain = |s: &str| {
+        let mut out = String::new();
+        let mut inside = false;
+        for c in s.chars() {
+            match c {
+                '[' => inside = true,
+                ']' => inside = false,
+                c if !inside => out.push(c),
+                _ => {}
+            }
+        }
+        out.split_whitespace().collect::<Vec<_>>().join(" ")
+    };
+    let row = gold
+        .text
+        .iter()
+        .find(|r| text(&r.text) == plain(&expenses))
+        .unwrap_or_else(|| panic!("expenses line {expenses:?} in {:?}", gold.text));
+    assert_eq!(row.tone, ui2_model::generated::HudTopTone::Negative);
+    assert!(
+        gold.text.iter().any(|r| r.bullet),
+        "income and expenses are bullets"
+    );
+    let resource = top
+        .resources
+        .iter()
+        .find(|r| i32::from(r.id) == iron)
+        .expect("iron in the top strip");
+    let lines: Vec<String> = resource.tip.iter().map(|r| text(&r.text)).collect();
+    assert!(lines.iter().all(|l| clean(l)), "{lines:?}");
+    assert!(
+        lines.iter().any(|l| l.ends_with(&plain(&used_label))),
+        "the usage part: {lines:?}"
+    );
+    assert!(
+        resource
+            .tip
+            .iter()
+            .any(|r| r.bullet && text(&r.text).contains(&swords)),
+        "a unit that uses iron: {lines:?}"
+    );
+    // Luxuries and bonus resources have no tooltip of their own.
+    assert!(
+        top.resources
+            .iter()
+            .all(|r| r.usage == 1 || r.tip.is_empty())
+    );
 }
 
 #[test]
@@ -166,6 +269,47 @@ fn unit_lists_agree_with_the_owned_world_after_founding() {
         );
     }
     // Lists use client selection/camera/window intents; they do not mutate the core.
+}
+
+/// The unit list shows the original status text (a sleeping unit reads as the game's "sleep" mission) and puts
+/// combat units and civilians in their own stacks.
+#[test]
+fn unit_list_status_is_the_original_text() {
+    let Some(mut h) = start_unfounded() else {
+        return;
+    };
+    let lua = lua_sys::Lua::new().unwrap();
+    game_host::Core::attach_screen_lua(h.w.core_mut(), &lua).unwrap();
+    lua.exec(
+        r#"
+        sleep_text = Locale.ConvertTextKey("TXT_KEY_MISSION_SLEEP")
+        for u in Players[0]:Units() do
+            if u:IsCombatUnit() then warrior = u:GetID() else civilian = u:GetID() end
+        end
+    "#,
+        "=list-status",
+    )
+    .unwrap();
+    let sleep: String = lua.globals().get("sleep_text").unwrap();
+    let warrior: i32 = lua.globals().get("warrior").unwrap();
+    let civilian: i32 = lua.globals().get("civilian").unwrap();
+    let before = hud(&mut h, 1, vec![]).lists;
+    let row = |lists: &ui2_model::generated::HudLists, id: i32| {
+        lists.units.iter().find(|u| u.id == id).cloned().unwrap()
+    };
+    assert_eq!(
+        &*row(&before, warrior).status_text,
+        "",
+        "an idle unit shows no status"
+    );
+    assert!(row(&before, warrior).military && !row(&before, civilian).military);
+    assert_eq!(
+        h.cmd(0, protocol::Command::UnitSleep { unit: civilian }),
+        protocol::CommandOutcome::Applied
+    );
+    let after = hud(&mut h, 2, vec![]).lists;
+    // A civilian sleeps (combat units fortify instead).
+    assert_eq!(&*row(&after, civilian).status_text, sleep.as_str());
 }
 
 #[test]

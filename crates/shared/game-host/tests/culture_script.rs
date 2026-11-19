@@ -24,6 +24,22 @@ fn culture_validates_moves_offers_and_swaps_for_the_requesting_seat() {
         assert(#model.cities == 1 and #model.influence.sources == 1)
         assert(model.influence.sources[1].rows[1].known == false)
         assert(model.influence.sources[1].rows[1].name == nil)
+        -- The original tooltips: an unmet target's share text, what the next level needs; no trend text while static.
+        local row = model.influence.sources[1].rows[1]
+        assert(row.bars_tooltip == "TXT_KEY_CO_THIRD_PARTY_CULTURE_INFLUENCE_UNMET", row.bars_tooltip)
+        assert(row.level_tooltip == "TXT_KEY_CO_TOURISM_PERCENT_TT", row.level_tooltip)
+        assert(row.trend_tooltip == "")
+        Players[0].GetInfluenceTrend = function() return 1 end
+        Players[0].GetTurnsToInfluential = function() return 12 end
+        Players[0].GetInfluenceLevel = function() return 2 end
+        known = true
+        row = culture.data(0, {}).influence.sources[1].rows[1]
+        assert(row.trend_tooltip == "TXT_KEY_CO_INFLUENTIAL_TURNS_TT" and row.bars_tooltip == "TXT_KEY_CO_THIRD_PARTY_CULTURE_INFLUENCE")
+        assert(row.level_tooltip == "TXT_KEY_CO_TOURISM_PERCENT_TTTXT_KEY_CO_INFLUENCE_BONUSES_FAMILIAR", row.level_tooltip)
+        known = false
+        Players[0].GetInfluenceTrend = function() return 0 end
+        Players[0].GetTurnsToInfluential = function() return 999 end
+        Players[0].GetInfluenceLevel = function() return 0 end
         local first, second = model.cities[1].cells[1].slots[1].id, model.cities[1].cells[1].slots[2].id
         local again = culture.data(0, {})
         assert(again.cities[1].cells[1].slots[1].id == first)

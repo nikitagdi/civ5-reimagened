@@ -60,6 +60,17 @@ fn economy_data_and_actions_validate_through_the_real_worker() {
     assert_eq!(root["totals"]["population"], cities[0]["population"]);
     assert!(root["finance"]["treasury"].is_number());
     assert!(root["happiness"]["items"].as_array().unwrap().len() >= 10);
+    // Each city's golden age points: the core's yield for the city (Lekmod's column), totalled.
+    let lua = lua_sys::Lua::new().unwrap();
+    h.w.core_mut().gamecore_mut().attach_lua(&lua).unwrap();
+    lua.exec(
+        "local n = 0 for c in Players[0]:Cities() do n = n + c:GetYieldRate(YieldTypes.YIELD_GOLDEN_AGE_POINTS) end city_gap = n",
+        "=city-gap",
+    )
+    .unwrap();
+    let gap: i64 = lua.globals().get("city_gap").unwrap();
+    assert_eq!(cities[0]["golden_age"].as_i64(), Some(gap), "{}", cities[0]);
+    assert_eq!(root["totals"]["golden_age"].as_i64(), Some(gap));
     assert!(query(&mut h, 3, 1)["cities"].as_array().unwrap().is_empty());
     // No server actions: the production cell uses the existing client window intent.
 }

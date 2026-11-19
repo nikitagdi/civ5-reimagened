@@ -20,8 +20,10 @@ return {
         table.sort(rows, function(a,b) return a.name < b.name end)
         local why = reason(p, reform)
         local civ = GameInfo.Civilizations[p:GetCivilizationType()]
+        -- Game.GetReligionName reads the religion table at the id it gets: never ask it for "no religion" (-1).
+        local religion = p:GetReligionCreatedByPlayer()
         return {mode = reform and "reformation" or "pantheon", emblem = icon(civ.IconAtlas, civ.PortraitIndex),
-            religion_name = reform and L(Game.GetReligionName(p:GetReligionCreatedByPlayer())) or nil, beliefs = rows, enabled = why == nil, reason = why,
+            religion_name = reform and religion > 0 and L(Game.GetReligionName(religion)) or nil, beliefs = rows, enabled = why == nil, reason = why,
             completed = reform and not p:CanChooseReformationBelief() or (not reform and p:HasCreatedPantheon())}
     end,
     actions = {choose = function(player, args, net)

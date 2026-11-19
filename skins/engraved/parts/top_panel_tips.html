@@ -1,9 +1,7 @@
 <template id="top-panel-tip" data-layer="tooltip">
   <div class="tip top-panel-tip" data-part="top-panel.tip"><div data-bind-if="{{hud != null}}">
     <div data-bind-for="t:{{hud.top.tips}}" data-bind-filter="{{t.kind == state.top.hover}}">
-      <div class="th" data-bind-value="{{t.title}}"></div><div class="tl" data-bind-if="{{(t.kind == 'science' && !hud.top.science_enabled) || (t.kind == 'culture' && !hud.top.culture_enabled) || (t.kind == 'faith' && !hud.top.faith_enabled)}}" data-l10n="top_panel.disabled"></div>
-      <div class="trow" data-bind-for="r:{{t.lines}}"><span class="nm" data-bind-value="{{r.label}}"></span><span class="n" data-bind-value="{{round(r.value * 100) / 100}}"></span></div>
-      <div class="trow top-panel-total"><span class="nm" data-l10n="top_panel.total"></span><span class="n" data-bind-value="{{t.total}}"></span></div>
+      <div class="tl top-panel-line" data-bind-for="r:{{t.text}}" data-bind-class-toggle="top-panel-positive:{{r.tone == 'positive'}}; top-panel-negative:{{r.tone == 'negative'}}"><span class="top-panel-dot" data-bind-if="{{r.bullet}}"></span><span data-bind-value="{{r.text}}"></span></div>
     </div>
   </div>
 </div></template>
@@ -22,12 +20,13 @@
 <template id="top-panel-resource-tip" data-layer="tooltip">
   <div class="tip top-panel-tip" data-part="top-panel.resource-tip"><div data-bind-if="{{hud != null}}">
     <div data-bind-for="r:{{hud.top.resources}}" data-bind-filter="{{r.id == state.top.resource}}">
-      <div class="th" data-bind-value="{{r.name}}"></div><div class="tl" data-bind-if="{{!r.revealed}}" data-l10n="top_panel.unrevealed"></div><div class="tl" data-bind-if="{{!r.revealed}}" data-l10n="top_panel.unrevealed"></div>
-      <div class="trow" data-bind-if="{{r.revealed}}"><span class="nm" data-l10n="top_panel.available"></span><span class="n" data-bind-value="{{r.available}}"></span></div>
-      <div class="trow" data-bind-if="{{r.revealed}}"><span class="nm" data-l10n="top_panel.total"></span><span class="n" data-bind-value="{{r.total}}"></span></div>
-      <div class="trow" data-bind-if="{{r.revealed}}"><span class="nm" data-l10n="top_panel.used"></span><span class="n" data-bind-value="{{r.used}}"></span></div>
-      <div class="trow" data-bind-if="{{r.revealed}}"><span class="nm" data-l10n="top_panel.imported"></span><span class="n" data-bind-value="{{r.imported}}"></span></div>
-      <div class="trow" data-bind-if="{{r.revealed}}"><span class="nm" data-l10n="top_panel.exported"></span><span class="n" data-bind-value="{{r.exported}}"></span></div>
+      <div class="tl top-panel-line" data-bind-for="x:{{r.tip}}" data-bind-class-toggle="top-panel-positive:{{x.tone == 'positive'}}; top-panel-negative:{{x.tone == 'negative'}}"><span class="top-panel-dot" data-bind-if="{{x.bullet}}"></span><span data-bind-value="{{x.text}}"></span></div>
+      <div data-bind-if="{{len(r.tip) == 0}}">
+        <div class="th" data-bind-value="{{r.name}}"></div><div class="tl" data-bind-if="{{!r.revealed}}" data-l10n="top_panel.unrevealed"></div>
+        <div class="trow" data-bind-if="{{r.revealed}}"><span class="nm" data-l10n="top_panel.available"></span><span class="n" data-bind-value="{{r.available}}"></span></div>
+        <div class="trow" data-bind-if="{{r.revealed}}"><span class="nm" data-l10n="top_panel.total"></span><span class="n" data-bind-value="{{r.total}}"></span></div>
+        <div class="trow" data-bind-if="{{r.revealed}}"><span class="nm" data-l10n="top_panel.used"></span><span class="n" data-bind-value="{{r.used}}"></span></div>
+      </div>
     </div>
   </div>
 </div></template>

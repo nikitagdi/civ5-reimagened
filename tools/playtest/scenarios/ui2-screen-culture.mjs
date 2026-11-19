@@ -51,6 +51,9 @@ export async function run({ server, opts }) {
     result.checks.push({ name: "unavailable move displays the server reason", pass: true });
     await clickPart(page, "culture.tab.victory");
     await clickPart(page, "culture.tab.influence");
+    // The influence tab's texts (levels, trends and their tooltips) are resolved game text.
+    const shown = ((await page.evaluate(() => window.__civ5test.ui2()))?.texts ?? []).filter(t => (t.part ?? "").startsWith("culture"));
+    result.checks.push({ name: "influence tab shows resolved text", pass: shown.every(t => !/TXT_KEY_/.test(t.text)) });
     await page.keyboard.press("Escape");
     await waitFor(page, p => !p.ui.windows.includes("culture"), "closed culture");
     result.checks.push({ name: "Escape closes culture", pass: true });

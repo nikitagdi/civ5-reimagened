@@ -14,6 +14,10 @@
 .top-panel-tip { width: 360px; max-height: 500px; overflow-y: auto; scrollbar-width: none; }
 .top-panel-total { border-top: 1px solid var(--engrave); margin-top: 8px; padding-top: 8px; }
 .top-panel-negative .v { color: var(--neg); }
+.top-panel-line { margin: 0; min-height: 8px; display: flex; align-items: center; gap: 6px; }
+.top-panel-line.top-panel-positive { color: var(--y-food); }
+.top-panel-line.top-panel-negative { color: var(--neg); }
+.top-panel-dot { width: 4px; height: 4px; flex: none; margin-left: 4px; border-radius: 2px; background: currentColor; }
 .top-panel-active { color: var(--brass); }
 @media (width < 1500px) {
   .top .research { width: 264px; }

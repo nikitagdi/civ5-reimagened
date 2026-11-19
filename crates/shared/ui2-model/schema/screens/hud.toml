@@ -20,6 +20,8 @@ usage = "i8"
 available = "i32"
 used = "i32"
 total = "i32"
+# The original strategic resource tooltip, line by line (empty for other resources).
+tip = { list = "HudTopRow", key = "key" }
 
 [type.HudPolicy]
 id = "i16"
@@ -44,6 +46,7 @@ faith_enabled = "bool"
 [enum]
 HudFlagShape = ["military", "civilian", "embarked", "fortified", "garrison", "trade"]
 HudTopTipKind = ["science", "gold", "happiness", "culture", "faith", "golden_age", "tourism"]
+HudTopTone = ["plain", "positive", "negative"]
 
 # Values are yield units, including fractional yields returned in hundredths by the core.
 [type.HudTopLine]
@@ -56,6 +59,15 @@ kind = "HudTopTipKind"
 title = "text"
 total = "f32"
 lines = { list = "HudTopLine", key = "key" }
+# The original top panel tooltip, line by line.
+text = { list = "HudTopRow", key = "key" }
+
+# One line of an original tooltip: its text without markup, the tone of its colour, a bullet line or not.
+[type.HudTopRow]
+key = "str"
+text = "text"
+tone = "HudTopTone"
+bullet = "bool"
 
 [type.HudOrder]
 slot = "i32"
@@ -177,6 +189,8 @@ name = "str"
 icon = "asset"
 military = "bool"
 status = "Activity"
+# The original unit list's status text (empty when it shows none).
+status_text = "str"
 hp = "i32"
 moves = "f32"
 max_moves = "f32"

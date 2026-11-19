@@ -653,6 +653,7 @@ impl<C: Core> Worker<C> {
                 _ => self.popups.unknown(&format!("enum_{}", raw.popup_type)),
             }
         }
+        self.expire_move_questions();
         for ev in self.core.events() {
             self.journal_pending
                 .route(ev.to, self.seats.keys().copied(), &ev.entry);

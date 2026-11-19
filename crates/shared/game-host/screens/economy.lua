@@ -39,7 +39,8 @@ return {
         }
         local cities, gold, maintenance, connections = array(), array(), array(), array()
         local local_happy, building_happy, connected_happy, unhappy = array(), array(), array(), array()
-        local totals = { population = 0, food = 0, production = 0, science = 0, gold = 0, culture = 0, faith = 0 }
+        local totals = { population = 0, food = 0, production = 0, science = 0, gold = 0, culture = 0, faith = 0,
+            golden_age = options.happiness and 0 or nil }
         local occupied_count, occupied_pop = 0, 0
         for city in p:Cities() do
             local food = city:FoodDifference()
@@ -54,7 +55,11 @@ return {
                 science = city:GetYieldRate(YieldTypes.YIELD_SCIENCE), gold = city:GetYieldRate(YieldTypes.YIELD_GOLD),
                 culture = city:GetJONSCulturePerTurnTimes100() / 100, faith = city:GetFaithPerTurn(), order = order(city),
             }
-            -- SIMPLIFIED(SIMP-370): The bridge has no city golden-age yield getter; nullable values stay unknown.
+            -- Golden age points of the city (Lekmod's column of the general information tab; hidden without happiness).
+            if options.happiness then
+                row.golden_age = city:GetYieldRate(YieldTypes.YIELD_GOLDEN_AGE_POINTS)
+                totals.golden_age = totals.golden_age + row.golden_age
+            end
             if food > 0 then row.growth_turns = city:GetFoodTurnsLeft() end
             if damage > 0 then row.health_pct = math.floor(100 * (hp - damage) / hp) end
             cities[#cities + 1] = row

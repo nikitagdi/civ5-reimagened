@@ -40,6 +40,9 @@ export async function run({ server, opts }) {
     await page.evaluate(() => window.__civ5test.ui2Intent({ name: 'window.open', args: { window: 'economy' } }));
     const p = await waitFor(page, p => texts(p, 'economy.city-name').length > 0, 'real city row');
     check('own city appears', texts(p, 'economy.city-name').includes(founded.cities[0].name));
+    // Each city's golden age points come from the core (a number, not the unknown dash).
+    const gap = texts(p, 'economy.golden-age');
+    check('golden age points per city', gap.length > 0 && gap.every(t => /^\d+$/.test(t.trim())));
     if (!await clickPart(page, 'economy.tab-happiness')) throw new Error('happiness tab missing');
     await waitFor(page, p => texts(p, 'economy').includes('Happiness'), 'happiness data');
     await clickPart(page, 'economy.tab-general');

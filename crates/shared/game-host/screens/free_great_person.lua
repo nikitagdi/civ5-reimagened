@@ -30,7 +30,9 @@ local function choices(player, mode)
                 if branch and not p:IsPolicyBranchFinished(branch.ID) then why = "Needs the " .. L(branch.Description) .. " branch completed."
                 elseif row.Class == "UNITCLASS_PROPHET" and p:GetReligionCreatedByPlayer() < 0 and Game.GetNumReligionsStillToFound() <= 0 then why = "No religion can still be founded." end
             end
-            -- SIMPLIFIED(SIMP-357): Abilities use localized native help; per-game numeric ability projections and exact spawn-city selection need additional queries.
+            -- The original popup (ChooseFreeItem) shows each person's strategy text; the help text is the same unit's own.
+            -- SIMPLIFIED(SIMP-357): The window names the capital, where the core places every chosen Great Person except
+            -- a sea unit (the Great Admiral), whose coastal city the core draws at random only when the choice arrives.
             people[#people + 1] = {unit = row.ID, key = row.Type, name = L(row.Description), icon = icon(row.IconAtlas, row.PortraitIndex), strategy = L(row.Strategy or row.Help or row.Description), abilities = array({{index = 0, label = "Abilities", text = L(row.Help or row.Description)}}), available = not why, reason = why}
         end
     end

@@ -66,7 +66,20 @@ fn policy_group_data_validates_and_masks_unmet_identity() {
     assert_eq!(root["branches"][0]["state"], "blocked");
     let root = data(&lua, "policies", "cities=0");
     assert_eq!(root["branches"][0]["reason"], "Found a city first");
-    data(&lua, "policies", "cities=1; ideology=9");
+    let root = data(&lua, "policies", "cities=1; ideology=9");
+    // The ideology tab as the original: the opinion's own text, the core's pressure tooltip, the switch tooltip.
+    let opinion = &root["ideology"]["public_opinion"];
+    assert_eq!(opinion["label"], "TXT_KEY_CO_PUBLIC_OPINION_CONTENT");
+    assert_eq!(opinion["tooltip"], "Content");
+    assert_eq!(opinion["unhappiness_tooltip"], "No unhappiness");
+    assert_eq!(
+        root["ideology"]["title"],
+        "TXT_KEY_POLICYSCREEN_IDEOLOGY_TITLE"
+    );
+    assert_eq!(
+        root["ideology"]["switch"]["reason"],
+        "TXT_KEY_POLICYSCREEN_CHANGE_IDEOLOGY_DISABLED_TT"
+    );
     let root = data(&lua, "ideology", "");
     let unmet = root["options"][0]["adopted_by"]
         .as_array()
@@ -83,6 +96,12 @@ fn policy_group_data_validates_and_masks_unmet_identity() {
     assert!(root["world"][0].get("holy_city").is_none());
     let serialized = root.to_string();
     assert!(!serialized.contains("Hidden city") && !serialized.contains("Foreign civilization"));
-    data(&lua, "religion", "ownreligion=true");
+    let root = data(&lua, "religion", "ownreligion=true");
+    // "Founded in" with the current year, as the original popup labels it.
+    assert_eq!(
+        root["religion"]["founded"],
+        "TXT_KEY_CHOOSE_RELIGION_FOUNDED_IN"
+    );
+    assert_eq!(root["date"], "TXT_KEY_CHOOSE_RELIGION_FOUNDED_IN");
     data(&lua, "religion_overview", "");
 }

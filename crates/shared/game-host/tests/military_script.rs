@@ -40,6 +40,15 @@ fn military_counts_owned_groups_and_excludes_trade_units_from_supply() {
         assert(r.units[1].moves==0.5 and r.units[1].max_moves==2 and r.units[1].health_pct==50)
         assert(r.units[2].health_pct==nil and r.units[1].unit_key=="0:1")
         assert(#screen.data(1,{}).units==0 and next(screen.actions)==nil)
+        -- Automation reads as the original: building for a worker at work, exploring otherwise.
+        local u = Players[0].Units()()
+        local work = false
+        u.IsAutomated = function() return true end
+        u.IsWork = function() return work end
+        r = screen.data(0,{})
+        assert(r.units[1].status == "automated" and r.units[1].status_text == "TXT_KEY_ACTION_AUTOMATE_EXPLORE")
+        work = true
+        assert(screen.data(0,{}).units[1].status_text == "TXT_KEY_ACTION_AUTOMATE_BUILD")
     "#,
         "=assertions",
     )

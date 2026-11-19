@@ -24,7 +24,8 @@
   <div class="city-tip" data-bind-if="{{city != null}}">
     <div data-bind-for="p:{{city.great_people}}" data-bind-filter="{{p.key == state.city.hover_yield}}">
       <b data-bind-value="{{p.name}}"></b>
-      <div class="city-tip-row" data-bind-for="m:{{p.modifiers}}"><span data-bind-value="{{m.label}}"></span><b data-bind-value="{{fmt.signed(m.value)}}"></b></div>
+      <div class="city-tip-row" data-bind-if="{{p.rate != null}}"><span data-l10n="top.turns" data-l10n-args="{{p.turns}}"></span><b data-bind-value="{{fmt.signed(p.rate)}}"></b></div>
+      <div class="city-tip-row" data-bind-for="m:{{p.modifiers}}"><span data-bind-value="{{m.label}}"></span></div>
     </div>
   </div>
 </template>

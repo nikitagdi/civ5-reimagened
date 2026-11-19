@@ -206,13 +206,58 @@ return {
                 specialist_count = specialist_count + filled; slots = slots + allowed
             end
         end
+        -- CityView's great person meters: the rate from specialists and buildings with the player, policy, World
+        -- Congress, city and golden age modifiers by great person type, the turns left, and the modifier lines.
+        local league, golden
+        local by_class = {
+            UNITCLASS_WRITER = {"Writer", "GetArtsyGreatPersonRateModifier", true},
+            UNITCLASS_ARTIST = {"Artist", "GetArtsyGreatPersonRateModifier", true},
+            UNITCLASS_MUSICIAN = {"Musician", "GetArtsyGreatPersonRateModifier", true},
+            UNITCLASS_SCIENTIST = {"Scientist", "GetScienceyGreatPersonRateModifier"},
+            UNITCLASS_MERCHANT = {"Merchant", "GetScienceyGreatPersonRateModifier"},
+            UNITCLASS_ENGINEER = {"Engineer", "GetScienceyGreatPersonRateModifier"},
+        }
         for specialist in GameInfo.Specialists() do
             local cls = specialist.GreatPeopleUnitClass and GameInfo.UnitClasses[specialist.GreatPeopleUnitClass]
             if cls then
-                local progress = c:GetSpecialistGreatPersonProgress(specialist.ID)
-                if progress > 0 or c:GetSpecialistCount(specialist.ID) > 0 or gp_buildings[specialist.ID] then
+                if golden == nil then
+                    league = Game.GetNumActiveLeagues() > 0 and Game.GetActiveLeague()
+                    golden = p:GetGoldenAgeTurns() > 0
+                end
+                local threshold = c:GetSpecialistUpgradeThreshold(cls.ID)
+                local progress = c:GetSpecialistGreatPersonProgressTimes100(specialist.ID) / 100
+                local change = specialist.GreatPeopleRateChange * c:GetSpecialistCount(specialist.ID)
+                for building in GameInfo.Buildings{SpecialistType = specialist.Type} do
+                    if c:IsHasBuilding(building.ID) then change = change + building.GreatPeopleRateChange end
+                end
+                local player_mod, city_mod = p:GetGreatPeopleRateModifier(), c:GetGreatPeopleRateModifier()
+                local policy_mod, congress_mod, golden_mod = p:GetPolicyGreatPeopleRateModifier(), 0, 0
+                local kind = by_class[specialist.GreatPeopleUnitClass]
+                if kind then
+                    player_mod = player_mod + p["GetGreat" .. kind[1] .. "RateModifier"](p)
+                    policy_mod = policy_mod + p["GetPolicyGreat" .. kind[1] .. "RateModifier"](p)
+                    if league then congress_mod = congress_mod + league[kind[2]](league) end
+                    if kind[3] and golden then
+                        local mod = p["GetGoldenAgeGreat" .. kind[1] .. "RateModifier"](p)
+                        if mod > 0 then golden_mod = golden_mod + mod end
+                    end
+                end
+                -- The player modifier includes the policy and World Congress ones: shown apart.
+                player_mod = player_mod - policy_mod - congress_mod
+                change = ((player_mod + policy_mod + congress_mod + city_mod + golden_mod) / 100 + 1) * change
+                if progress > 0 or change > 0 then
                     local unit = GameInfo.Units[cls.DefaultUnit]
-                    gp[#gp + 1] = {key = specialist.Type, name = L(cls.Description), icon = unit and icon(unit.IconAtlas, unit.PortraitIndex) or "", ["yield"] = specialist.Type == "SPECIALIST_ENGINEER" and "production" or (specialist.Type == "SPECIALIST_MERCHANT" and "gold" or "science"), progress = progress, threshold = c:GetSpecialistUpgradeThreshold(cls.ID), modifiers = array({{label = "City modifier (%)", value = c:GetGreatPeopleRateModifier()}, {label = "Player modifier (%)", value = p:GetGreatPeopleRateModifier()}})}
+                    local modifiers = array()
+                    local function mod(key, value) if value ~= 0 then modifiers[#modifiers + 1] = {label = L(key, value), value = value} end end
+                    mod("TXT_KEY_PLAYER_GP_MOD", player_mod)
+                    mod("TXT_KEY_POLICY_GP_MOD", policy_mod)
+                    mod("TXT_KEY_CITY_GP_MOD", city_mod)
+                    mod("TXT_KEY_GOLDENAGE_GP_MOD", golden_mod)
+                    mod(congress_mod < 0 and "TXT_KEY_WORLD_CONGRESS_NEGATIVE_GP_MOD" or "TXT_KEY_WORLD_CONGRESS_POSITIVE_GP_MOD", congress_mod)
+                    gp[#gp + 1] = {key = specialist.Type, name = L(cls.Description), icon = unit and icon(unit.IconAtlas, unit.PortraitIndex) or "",
+                        ["yield"] = specialist.Type == "SPECIALIST_ENGINEER" and "production" or (specialist.Type == "SPECIALIST_MERCHANT" and "gold" or "science"),
+                        progress = math.floor(progress), threshold = threshold, rate = change > 0 and change or nil,
+                        turns = change > 0 and math.ceil((threshold - progress) / change) or nil, modifiers = modifiers}
                 end
             end
         end
@@ -246,12 +291,23 @@ return {
             if other:GetID() ~= c:GetID() and not other:IsPuppet() and other:GetOrderQueueLength() == 0 and not next_choose then next_choose = other:GetID() end
         end
         if #ids > 1 then previous = ids[(at - 2) % #ids + 1]; following = ids[at % #ids + 1] end
-        -- SIMPLIFIED(SIMP-352): Completion history needs events; detailed annex/GP rates and demand countdown remain unavailable rather than estimated.
+        -- SIMPLIFIED(SIMP-352): Completion history needs events, and the annex preview stays a fixed summary of the effects.
         local food = whole(c:FoodDifferenceTimes100())
         local growth = food > 0 and not c:IsFoodProduction() and "growing" or (food < 0 and "starving" or "stagnant")
+        -- CityView's demand box: the We Love the King Day counter, or the demanded luxury with the turns until the city
+        -- asks for another one (Lekmod's countdown).
         local demand
-        if c:GetWeLoveTheKingDayCounter() > 0 then demand = {kind = "wltkd", text = "We Love the King Day", turns = c:GetWeLoveTheKingDayCounter()}
-        elseif c:GetResourceDemanded() >= 0 then local r = GameInfo.Resources[c:GetResourceDemanded()]; if r then demand = {kind = "resource", text = L(r.Description), turns = 0} end end
+        local demanded = c:GetResourceDemanded(true)
+        if demanded ~= -1 then
+            local wltkd = c:GetWeLoveTheKingDayCounter()
+            local r = GameInfo.Resources[c:GetResourceDemanded()]
+            if wltkd > 0 then demand = {kind = "wltkd", text = L("TXT_KEY_CITYVIEW_WLTKD_COUNTER", wltkd), turns = wltkd}
+            elseif r then
+                local countdown = c:GetResourceDemandedCountdown()
+                demand = {kind = "resource", text = L("TXT_KEY_CITYVIEW_RESOURCE_DEMANDED", L(r.Description) .. " (" .. countdown .. ")"), turns = countdown,
+                    icon = "resource:" .. r.ID}
+            end
+        end
         local kind = c:IsRazing() and "unraze" or (c:IsPuppet() and "annex" or "raze")
         local task_ok = active and (kind == "unraze" or (kind == "annex" and not p:MayNotAnnex()) or (kind == "raze" and p:CanRaze(c))) and args.b ~= 1
         local civ = GameInfo.Civilizations[p:GetCivilizationType()]

@@ -428,8 +428,6 @@
 "top_panel.total" = "Total"
 "top_panel.available" = "Available"
 "top_panel.used" = "Used"
-"top_panel.imported" = "Imported"
-"top_panel.exported" = "Exported"
 "end_turn.queue" = "Turn order"
 "end_turn.done" = "Ready"
 "end_turn.title" = "End turn"
@@ -447,6 +445,7 @@
 "unit_lists.gp" = "People"
 "unit_lists.close" = "Close"
 "unit_lists.name" = "Name"
+"unit_lists.status" = "Status"
 "unit_lists.health" = "HP"
 "unit_lists.general" = "Great General"
 "unit_lists.admiral" = "Great Admiral"
@@ -480,7 +479,6 @@
 
 "top_panel.unrevealed" = "This resource has not been revealed. Research its revealing technology first."
 
-"top_panel.disabled" = "This feature is disabled by the game options."
 "diplo.title" = "Diplomacy"
 "diplo.met" = "civilizations met"
 "diplo.cs_met" = "city-states met"

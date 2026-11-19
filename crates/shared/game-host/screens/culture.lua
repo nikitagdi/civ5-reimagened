@@ -110,6 +110,10 @@ local function city_rows(player, catalog)
     return rows, total_slots, total_works
 end
 
+-- A core tooltip as one line of text: markup (colours, icons) dropped, line breaks as spaces.
+local function plain(text)
+    return (tostring(text or ""):gsub("%[NEWLINE%]", " "):gsub("%[[^%]]*%]", ""):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""))
+end
 local levels = {"unknown", "exotic", "familiar", "popular", "influential", "dominant"}
 local level_keys = {"TXT_KEY_CO_UNKNOWN", "TXT_KEY_CO_EXOTIC", "TXT_KEY_CO_FAMILIAR", "TXT_KEY_CO_POPULAR", "TXT_KEY_CO_INFLUENTIAL", "TXT_KEY_CO_DOMINANT"}
 local function influence(player, source)
@@ -130,14 +134,33 @@ local function influence(player, source)
                 trend_name = L("TXT_KEY_CO_" .. string.upper(trend))
             end
             local level_name = L(level_keys[level + 1])
+            -- CultureOverview's tooltips: the share of the target's lifetime culture, what the next level needs and
+            -- the bonuses the current one gives; the turns to influential while influence rises.
+            local share = culture > 0 and accumulated / culture or 0
+            local share_tip = known
+                and L("TXT_KEY_CO_THIRD_PARTY_CULTURE_INFLUENCE", p:GetCivilizationShortDescriptionKey(), share * 100, target:GetCivilizationShortDescriptionKey())
+                or L("TXT_KEY_CO_THIRD_PARTY_CULTURE_INFLUENCE_UNMET", p:GetCivilizationShortDescriptionKey(), share * 100)
+            local next_level = ({[0] = {"TXT_KEY_CO_EXOTIC", "CULTURE_LEVEL_EXOTIC"}, {"TXT_KEY_CO_FAMILIAR", "CULTURE_LEVEL_FAMILIAR"},
+                {"TXT_KEY_CO_POPULAR", "CULTURE_LEVEL_POPULAR", "TXT_KEY_CO_INFLUENCE_BONUSES_FAMILIAR"},
+                {"TXT_KEY_CO_INFLUENTIAL", "CULTURE_LEVEL_INFLUENTIAL", "TXT_KEY_CO_INFLUENCE_BONUSES_POPULAR"},
+                {"TXT_KEY_CO_DOMINANT", "CULTURE_LEVEL_DOMINANT", "TXT_KEY_CO_INFLUENCE_BONUSES_INFLUENTIAL"}})[level]
+            local level_tip
+            if next_level then
+                level_tip = L("TXT_KEY_CO_TOURISM_PERCENT_TT", share_tip, L(next_level[1]), GameDefines[next_level[2]])
+                if next_level[3] then level_tip = level_tip .. L(next_level[3]) end
+            else
+                level_tip = L"TXT_KEY_CO_INFLUENCE_BONUSES_DOMINANT"
+            end
+            local trend_tip = ""
+            if trend == "rising" and level < 4 then trend_tip = L("TXT_KEY_CO_INFLUENTIAL_TURNS_TT", turns) end
             rows[#rows + 1] = {id = id, known = known, name = ref.name, civ_name = ref.civ_name,
                 civ = ref.civ, color_bg = ref.color_bg, color_fg = ref.color_fg,
-                level = levels[level + 1], level_name = level_name, level_tooltip = level_name,
-                share = culture > 0 and accumulated / culture or 0, tourism_accum = accumulated,
-                culture_accum = known and culture or nil, bars_tooltip = tostring(accumulated),
+                level = levels[level + 1], level_name = level_name, level_tooltip = plain(level_tip),
+                share = share, tourism_accum = accumulated,
+                culture_accum = known and culture or nil, bars_tooltip = plain(share_tip),
                 modifier_pct = p:GetTourismModifierWith(id), modifier_tooltip = p:GetTourismModifierWithTooltip(id),
                 per_turn = math.floor(p:GetInfluencePerTurn(id)), trend = trend, trend_name = trend_name,
-                trend_tooltip = trend_name, turns_to_influential = level < 4 and turns >= 0 and turns < 999 and turns or nil}
+                trend_tooltip = plain(trend_tip), turns_to_influential = level < 4 and turns >= 0 and turns < 999 and turns or nil}
         end
     end
     return rows
@@ -205,7 +228,6 @@ local function data(player)
             sources[#sources + 1] = source
         end
     end
-    -- SIMPLIFIED(SIMP-380): influence level and trend tooltips use localized labels until detailed seat-safe tooltip queries are available.
     local antiquity
     if Map and Map.GetNumPlots and GameInfoTypes.RESOURCE_ARTIFACTS then
         antiquity = {sites = 0, hidden = 0}

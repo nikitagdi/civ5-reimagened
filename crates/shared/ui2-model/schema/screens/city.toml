@@ -105,8 +105,10 @@ icon = "asset"
 yield = "CityYieldKind"
 progress = "i32"
 threshold = "i32"
-rate = "i32?"
+# Great person points per turn (fractional with the modifiers), absent when none come in.
+rate = "f32?"
 turns = "i32?"
+# The original meter tooltip's modifier lines (their text includes the value).
 modifiers = { list = "CityBreakdown", key = "label" }
 [type.CityFocusOption]
 key = "CityFocus"

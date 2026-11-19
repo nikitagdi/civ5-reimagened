@@ -57,7 +57,10 @@ export async function run(context) {
     const r = rects.find(r => r.w > 0 && r.h > 0);
     if (!r) throw new Error("Gold yield missing");
     await page.mouse.move(r.x + r.w / 2, r.y + r.h / 2);
-    await waitFor(page, p => texts(p, "top-panel.tip").includes("Treasury"), "gold breakdown");
-    check("gold tooltip contains server sources", true);
+    // The original top panel's gold tooltip: its own text lines (treasury, income, expenses), every key resolved.
+    const tip = await waitFor(page, p => texts(p, "top-panel.tip").some(t => /gold/i.test(t) && /\d/.test(t)), "gold tooltip lines");
+    const lines = texts(tip, "top-panel.tip");
+    check("gold tooltip shows the original lines", lines.length > 3, lines.join(" | "));
+    check("gold tooltip has no raw text keys or markup", lines.every(t => !/TXT_KEY_|\[|\]/.test(t)), lines.join(" | "));
   });
 }

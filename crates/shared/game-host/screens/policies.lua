@@ -175,15 +175,19 @@ local function data(player, args)
         local unhappy = p:GetPublicOpinionUnhappiness()
         local preferred = GameInfo.PolicyBranchTypes[p:GetPublicOpinionPreferredIdeology()]
         local opinion = ({[0] = "content", "dissidents", "civil_resistance", "revolutionary_wave"})[p:GetPublicOpinionType()] or "content"
-        -- SIMPLIFIED(SIMP-360): omit unverified pressure totals/date and replace cached foreign-civ tooltip details with a seat-safe summary.
-        local label = ({content = "Content", dissidents = "Dissidents", civil_resistance = "Civil resistance", revolutionary_wave = "Revolutionary wave"})[opinion]
+        -- As SocialPolicyPopup's ideology tab: the opinion's own text, the core's public opinion tooltip (the pressure each
+        -- ideology puts on this civilization) and its unhappiness tooltip, the switch button's tooltips.
+        local label = L("TXT_KEY_CO_PUBLIC_OPINION_" .. opinion:upper())
         local civ = GameInfo.Civilizations[p:GetCivilizationType()]
-        ideology = {id = id, key = b.Type, name = L(b.Description), title = L(civ.Adjective) .. " " .. L(b.Description),
+        local function plain(text)
+            return (tostring(text or ""):gsub("%[NEWLINE%]", " "):gsub("%[[^%]]*%]", ""):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""))
+        end
+        ideology = {id = id, key = b.Type, name = L(b.Description), title = L("TXT_KEY_POLICYSCREEN_IDEOLOGY_TITLE", p:GetCivilizationAdjectiveKey(), b.Description),
             icon = icon(b.IconAtlas, b.PortraitIndex), emblem = icon(civ.IconAtlas, civ.PortraitIndex), adopted_date = "", summary = L(b.Help),
             adopted_by_level = counts, levels = levels,
-            public_opinion = {state = opinion, label = label, unhappiness = unhappy, tooltip = label .. "; unhappiness: " .. unhappy,
-                unhappiness_tooltip = p:GetPublicOpinionUnhappinessTooltip(), preferred = preferred and L(preferred.Description)},
-            switch = {available = unhappy > 0, reason = unhappy <= 0 and "Public opinion causes no unhappiness" or nil,
+            public_opinion = {state = opinion, label = label, unhappiness = unhappy, tooltip = plain(p:GetPublicOpinionTooltip()),
+                unhappiness_tooltip = plain(p:GetPublicOpinionUnhappinessTooltip()), preferred = preferred and L(preferred.Description)},
+            switch = {available = unhappy > 0, reason = unhappy <= 0 and L"TXT_KEY_POLICYSCREEN_CHANGE_IDEOLOGY_DISABLED_TT" or nil,
                 target = preferred and L(preferred.Description), target_id = preferred and preferred.ID,
                 anarchy_turns = GameDefines.SWITCH_POLICY_BRANCHES_ANARCHY_TURNS or 2, tenets_now = total,
                 tenets_kept = math.max(0, total - (GameDefines.SWITCH_POLICY_BRANCHES_TENETS_LOST or 2)), unhappiness_removed = unhappy}}

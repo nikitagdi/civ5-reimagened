@@ -12,7 +12,7 @@ fn economy_totals_empty_and_populated_seats_and_has_no_mutators() {
         GameOptionTypes = { GAMEOPTION_NO_SCIENCE = 1, GAMEOPTION_NO_RELIGION = 2, GAMEOPTION_NO_HAPPINESS = 3 }
         Game = { IsOption = function() return false end }
         GameDefines = { TRADE_ROUTE_BASE_GOLD = 100, TRADE_ROUTE_CITY_POP_GOLD_MULTIPLIER = 100 }
-        YieldTypes = { YIELD_PRODUCTION = 1, YIELD_SCIENCE = 2, YIELD_GOLD = 3 }
+        YieldTypes = { YIELD_PRODUCTION = 1, YIELD_SCIENCE = 2, YIELD_GOLD = 3, YIELD_GOLDEN_AGE_POINTS = 7 }
         OrderTypes = { ORDER_TRAIN = 0, ORDER_CONSTRUCT = 1, ORDER_CREATE = 2, ORDER_MAINTAIN = 3 }
         GameInfo = {
             Civilizations = {[0] = { Type = "CIVILIZATION_TEST", ShortDescription = "Civilization", DefaultPlayerColor = "test" }},
@@ -53,12 +53,17 @@ fn economy_totals_empty_and_populated_seats_and_has_no_mutators() {
         assert(#root.cities == 2 and root.totals.population == 5)
         assert(root.totals.gold == 8 and root.totals.culture == 2.5)
         assert(root.finance.expense[1].tooltip.avg_cost == 0)
-        assert(root.cities[1].golden_age == nil)
+        -- Each city's golden age points (its yield), and their sum.
+        assert(root.cities[1].golden_age == 4 and root.totals.golden_age == 8)
         assert(root.cities[1].city_key == "0:1")
         assert(next(screen.actions) == nil)
         local other = screen.data(1, {a=1})
         assert(#other.cities == 0 and other.totals.population == 0)
-        assert(other.open_tab == "happiness")
+        assert(other.open_tab == "happiness" and other.totals.golden_age == 0)
+        -- Without happiness the original hides the column: no value.
+        Game.IsOption = function(option) return option == GameOptionTypes.GAMEOPTION_NO_HAPPINESS end
+        root = screen.data(0, {})
+        assert(root.cities[1].golden_age == nil and root.totals.golden_age == nil)
     "#,
         "=assertions",
     )

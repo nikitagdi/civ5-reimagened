@@ -144,6 +144,7 @@ export type GameMenuKickedReason = "kicked_by_host" | "host_lost" | "net_lost";
 export type GreatWorkClass = "writing" | "art" | "music" | "artifact";
 export type HudFlagShape = "military" | "civilian" | "embarked" | "fortified" | "garrison" | "trade";
 export type HudTopTipKind = "science" | "gold" | "happiness" | "culture" | "faith" | "golden_age" | "tourism";
+export type HudTopTone = "plain" | "positive" | "negative";
 export type IdeologyVictoryKind = "culture" | "diplomacy" | "domination" | "science";
 export type LeaderMoodKey = "war" | "denounced" | "liberated" | "friendly" | "neutral" | "guarded" | "hostile" | "afraid";
 export type LeaderMode = "main" | "discussion" | "response" | "coop_target" | "confirm_denounce" | "confirm_war";
@@ -2695,6 +2696,7 @@ export interface HudResource {
   readonly available: number;
   readonly used: number;
   readonly total: number;
+  readonly tip: HudTopRow[];
 }
 
 export interface HudPolicy {
@@ -2730,6 +2732,14 @@ export interface HudTopTip {
   readonly title: Text;
   readonly total: number;
   readonly lines: HudTopLine[];
+  readonly text: HudTopRow[];
+}
+
+export interface HudTopRow {
+  readonly key: string;
+  readonly text: Text;
+  readonly tone: HudTopTone;
+  readonly bullet: boolean;
 }
 
 export interface HudOrder {
@@ -2852,6 +2862,7 @@ export interface HudListUnit {
   readonly icon: string;
   readonly military: boolean;
   readonly status: Activity;
+  readonly status_text: string;
   readonly hp: number;
   readonly moves: number;
   readonly max_moves: number;

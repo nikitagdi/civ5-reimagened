@@ -30,6 +30,48 @@ fn top_panel_has_fractional_yield_sources_and_resource_accounting() {
         .unwrap();
 }
 
+/// The tooltips are the original top panel's lines (text keys stand for their text here): tone from the colour markup,
+/// bullets, blank lines, resource icons as names.
+#[test]
+fn top_panel_tooltips_are_the_original_lines_with_tone_and_bullets() {
+    script()
+        .exec(
+            r#"
+        local top = screen.data(3, {}).top
+        local function find(rows, text)
+            for _, r in ipairs(rows) do if r.text == text then return r end end
+        end
+        local kinds = {}
+        for _, t in ipairs(top.tips) do kinds[t.kind] = t.text; assert(#t.text > 0, t.kind) end
+        -- Science: the current research, the rate, its sources.
+        assert(find(kinds.science, 'TXT_KEY_TP_SCIENCE_FROM_CITIES'), 'science from cities')
+        assert(find(kinds.science, 'TXT_KEY_TP_TECH_CITY_COST'), 'basic help')
+        -- Gold: income in the plain colour, expenses as negative bullets.
+        local expenses = find(kinds.gold, 'TXT_KEY_TP_TOTAL_EXPENSES')
+        assert(expenses and expenses.tone == 'negative' and not expenses.bullet)
+        local unit = find(kinds.gold, 'TXT_KEY_TP_UNIT_MAINT')
+        assert(unit and unit.bullet and unit.tone == 'negative')
+        assert(find(kinds.gold, 'TXT_KEY_TP_TOTAL_INCOME').tone == 'plain')
+        assert(find(kinds.gold, ''), 'blank lines stay')
+        -- Happiness: sources positive, the luxuries the seat has with their names.
+        local sources = find(kinds.happiness, 'TXT_KEY_TP_HAPPINESS_SOURCES')
+        assert(sources and sources.tone == 'positive')
+        assert(find(kinds.happiness, 'TXT_KEY_EO_LOCAL_RESOURCES 128 Silk'), 'local luxuries by name')
+        assert(find(kinds.faith, 'TXT_KEY_TP_FAITH_NEXT_PANTHEON'), 'pantheon threshold')
+        assert(find(kinds.tourism, 'TXT_KEY_TOP_PANEL_TOURISM_TOOLTIP_1'))
+        -- Strategic resources carry their own tooltip: what uses them, with the owned and queued (+1) units.
+        local iron = top.resources[1]
+        assert(iron.name == 'Iron' and #iron.tip > 0)
+        assert(find(iron.tip, '2 IRON'), 'available count and name')
+        local need = find(iron.tip, '2 Iron = 1 (+1) Fixture swordsman')
+        assert(need and need.bullet, 'a unit that needs it')
+        assert(#top.resources[2].tip == 0, 'luxuries have none')
+    "#,
+            "=top-panel-tips",
+        )
+        .unwrap();
+}
+
 #[test]
 fn end_turn_keeps_native_reason_and_anonymizes_unmet_queue_entries() {
     script()
@@ -97,6 +139,42 @@ fn unit_lists_include_only_owned_units_and_count_all_great_person_modifiers() {
         assert(lists.general_xp == 15 and lists.admiral_xp == 10)
     "#,
             "=unit-lists",
+        )
+        .unwrap();
+}
+
+/// The unit list's status column follows the original's order of precedence, and its two stacks are combat units
+/// and aircraft versus the rest.
+#[test]
+fn unit_list_status_follows_the_original_precedence() {
+    script()
+        .exec(
+            r#"
+        local unit = Players[3]:GetUnitByID(4)
+        local function status() return screen.data(3, {}).lists.units[1].status_text end
+        assert(status() == '' and screen.data(3, {}).lists.units[1].military)
+        unit.GetActivityType = function() return 2 end
+        assert(status() == 'TXT_KEY_MISSION_SLEEP')
+        unit.GetFortifyTurns = function() return 1 end
+        assert(status() == 'TXT_KEY_UNIT_STATUS_FORTIFIED', 'fortified before sleep')
+        unit.IsGarrisoned = function() return true end
+        assert(status() == 'TXT_KEY_MISSION_GARRISON', 'garrisoned before fortified')
+        unit.IsGarrisoned = function() return false end
+        unit.GetFortifyTurns = function() return 0 end
+        unit.GetActivityType = function() return 0 end
+        -- A worker's build in progress with its turns left.
+        GameInfo.Builds = {[5] = {Description = 'Farm'}}
+        unit.GetBuildType = function() return 5 end
+        unit.GetPlot = function() return {GetPlotCity = function() return nil end, GetBuildTurnsLeft = function(_, b) assert(b == 5); return 3 end} end
+        assert(status() == 'Farm (3)')
+        unit.IsCombatUnit = function() return false end
+        assert(not screen.data(3, {}).lists.units[1].military, 'a civilian')
+        -- An aircraft shows its base city.
+        unit.GetDomainType = function() return 1 end
+        unit.GetPlot = function() return {GetPlotCity = function() return {GetName = function() return 'Base' end} end} end
+        assert(status() == 'Base' and screen.data(3, {}).lists.units[1].military)
+    "#,
+            "=unit-list-status",
         )
         .unwrap();
 }
