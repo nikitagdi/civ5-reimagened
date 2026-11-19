@@ -25,6 +25,9 @@
   box-shadow: inset 0 0 0 1px var(--engrave), 0 6px 16px rgba(0, 0, 0, 0.35);
 }
 
+/* A tooltip with nothing to say for the hovered node (its root stays: a tooltip root is always there). */
+.tip.tip-none { display: none; }
+
 .tip .th {
   font: 500 13px/18px var(--sans);
   color: var(--bone);
