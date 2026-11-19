@@ -23,7 +23,8 @@ return {
                 trait={name="",short="",long=""}},
             settings=array(),details=array({{key="era",label="Current era",value=L(era.Description)}}),
             victories=array(),game_options=array(),mods=array(),mods_reason="The session mod catalog is not exposed to screen scripts",
-            can_save=false,save_reason="Saving requires the session save service",
+            -- The game itself never forbids a save; who may save (the host) is the session's to say (`session.is_host`).
+            can_save=true,
             options={quick_combat=option("GAMEOPTION_QUICK_COMBAT"),quick_movement=option("GAMEOPTION_QUICK_MOVEMENT"),
                 quick_locked_reason="Quick combat and movement are fixed when a network game is created",
                 email_turn=false,autosave_every=0,autosave_keep=0},hotkeys=array()}
@@ -77,9 +78,10 @@ return {
         return r
     end,
     actions={
-        -- SIMPLIFIED(SIMP-392): session save, exit, mail, autosave and hotkey application need host services; browser preference drafts remain local.
-        save=function() error("Saving requires the session save service") end,
-        exit=function() error("Leaving the game requires the client session handler") end,
+        -- SIMPLIFIED(SIMP-392): the interface options are kept per browser and are not yet applied to the game client (sound volumes, automatic end of turn, key rebinding); mail turns do not exist on this server and the autosave cadence is the server's configuration.
+        -- Saving and leaving are session operations: the skin sends `session.op(op: 'save' | 'leave')`.
+        save=function() error("Saving the game is a session operation") end,
+        exit=function() error("Leaving the game is a session operation") end,
         set_quick=function() error("Quick options are fixed when a network game is created") end,
         set_email=function() error(unavailable) end,
         set_autosave=function() error(unavailable) end,

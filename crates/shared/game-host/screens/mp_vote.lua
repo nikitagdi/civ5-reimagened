@@ -100,6 +100,7 @@ local function data(player, args)
             end
             local row = reference(player, id)
             row.key, row.score, row.is_you, row.is_human, row.is_observer = "player:" .. id, not observer and p:GetScore() or nil, id == player, p:IsHuman(), observer
+            row.player_key = "0:" .. id
             row.known, row.at_war = id == player or met(player, id), team_of(player):IsAtWar(p:GetTeam())
             row.eligible = proposal and Game.GetProposalVoterEligibility(proposal.id, id) or false
             local voted = proposal and Game.GetProposalVoterHasVoted(proposal.id, id)
@@ -117,7 +118,8 @@ local function data(player, args)
         group.multi = #group.players > 1 or group.key == "observers"
     end
     table.sort(root.teams, function(a, b) return (a.players[1].score or -1) > (b.players[1].score or -1) end)
-    -- SIMPLIFIED(SIMP-387): connection state belongs to the host session and is omitted. Names use localized leaders and civilizations, with nickname fields empty.
+    -- Nicknames and connections are the session's: the skin joins the client's `session` root by `player_key`, so the
+    -- nick and connected fields here stay empty.
     return root
 end
 

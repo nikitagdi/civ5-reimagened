@@ -63,9 +63,13 @@ local function model(player, e)
             reason=order_reason(player,e)
         elseif e.kind == "gift_unit" then
             reason = "The original gift recipient and unit context is unavailable"
+        elseif e.kind == "exit_game" then
+            -- Yes completes the question here; the skin sends it with `then: 'leave'`, so the client leaves for the
+            -- lobby once the server applied the answer.
+            reason = nil
         else
-            -- SIMPLIFIED(SIMP-390): replaying warned orders and leaving a session need host operations outside the screen channel.
-            reason = "This decision requires a session or confirmed-order handler"
+            -- SIMPLIFIED(SIMP-390): the combat warning carries no attacker, target or order in its payload, so the warned attack cannot be replayed; the player attacks again from the map.
+            reason = "The warned order is not in the question; order it again from the map"
         end
         r.choices = array({choice(1,"no",L("TXT_KEY_NO_BUTTON"),true), choice(0,"yes",L("TXT_KEY_YES_BUTTON"),false,reason)})
     end
@@ -113,8 +117,11 @@ return {
                     net.send("sendDoCommand",e.unit,e.command,e.data1 or 0,e.data2 or 0,e.alt and 1 or 0)
                 end
                 emitted=true
+            elseif e.kind == "exit_game" and args.b == 0 then
+                -- Nothing for the game: leaving is the session's (the chained `then: 'leave'` of the skin).
+                emitted=false
             elseif args.b == 0 then
-                error("This decision requires a session or confirmed-order handler")
+                error("The warned order is not in the question; order it again from the map")
             end
             net.popup_done(args.popup_id)
             return {close=true}

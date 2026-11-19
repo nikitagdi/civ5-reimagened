@@ -454,6 +454,28 @@ fn a_game_comes_back_after_a_restart_with_its_seats_host_numbers_and_saves() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// The host's "Save game" (`GameCtl::Save`) lands in the lobby view of the game's own players, who sit in it: their
+/// game menu lists the saves of the game from that view (the lobby broadcast skips seated players).
+#[test]
+fn the_hosts_save_reaches_the_lobby_view_of_the_players_of_the_game() {
+    let dir = dir_for("p-seated-saves");
+    let a = boot(&dir, "echo turns=1", |_| {});
+    let (mut alice, mut bob) = make_game(&a, "alice", "bob", false);
+    alice.ctl(GameCtl::Save);
+    for c in [&mut alice, &mut bob] {
+        let s = lobby_of(c, "the save of the game", |s| {
+            s.saves.iter().any(|x| x.game == 1)
+        });
+        assert!(
+            s.saves.iter().any(|x| x.id.starts_with("1-")),
+            "{:?}",
+            s.saves
+        );
+    }
+    a.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn a_game_without_anybody_online_sleeps_and_wakes_for_its_player() {
     let dir = dir_for("p-sleep");

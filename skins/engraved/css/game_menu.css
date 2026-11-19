@@ -33,3 +33,4 @@
 .game-menu-toggle.game-menu-on { background: var(--brass); }
 .game-menu-trait { color: var(--bone-2); font-size: 13px; line-height: 20px; }
 @media (width < 1500px) { .game-menu-side { width: 260px; } }
+.game-menu-ask { display: flex; flex-direction: column; gap: 8px; }

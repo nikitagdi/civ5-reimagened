@@ -10,8 +10,8 @@
 //! application carries them out the way it carries out the classic UI's `UI.LookAt` (see [`NetSink::look_at`]).
 
 use client_core::{ClientCore, OrderRefused};
-use protocol::{ChatTo, CmdId, Command, PlayerId, SeatView, TurnState};
-use ui2_actions::{CameraReq, OrderSink, Refused};
+use protocol::{ChatTo, CmdId, Command, GameCtl, PlayerId, SeatView, TurnState};
+use ui2_actions::{CameraReq, OrderSink, Refused, SessionOp};
 use ui2_model::r#gen::ScreenId;
 use ui2_source::SessionRead;
 
@@ -122,6 +122,23 @@ impl OrderSink for NetSink<'_> {
         } else {
             false
         }
+    }
+
+    /// The host and seat controls of the classic client (`GameCtl`): the gateway checks the authority.
+    fn session_op(&mut self, op: SessionOp) -> Result<(), Refused> {
+        self.core.game_ctl(game_ctl(op)).map_err(refused)
+    }
+}
+
+/// The gateway's control message of a session operation.
+#[must_use]
+pub fn game_ctl(op: SessionOp) -> GameCtl {
+    match op {
+        SessionOp::Save => GameCtl::Save,
+        SessionOp::Leave => GameCtl::Leave,
+        SessionOp::Pause => GameCtl::Pause(true),
+        SessionOp::Resume => GameCtl::Pause(false),
+        SessionOp::Kick(player) => GameCtl::Kick { player },
     }
 }
 
@@ -288,6 +305,26 @@ mod tests {
         );
         assert_eq!(sink.take_screen(), None, "taken once");
         assert!(!Offline.open_screen(ScreenId::Policies));
+    }
+
+    #[test]
+    fn session_operations_are_the_classic_game_controls_and_need_a_game() {
+        assert_eq!(game_ctl(SessionOp::Save), GameCtl::Save);
+        assert_eq!(game_ctl(SessionOp::Leave), GameCtl::Leave);
+        assert_eq!(game_ctl(SessionOp::Pause), GameCtl::Pause(true));
+        assert_eq!(game_ctl(SessionOp::Resume), GameCtl::Pause(false));
+        assert_eq!(game_ctl(SessionOp::Kick(3)), GameCtl::Kick { player: 3 });
+        let mut core = core();
+        let mut sink = NetSink::new(&mut core);
+        let r = OrderSink::session_op(&mut sink, SessionOp::Save);
+        assert!(
+            matches!(r, Err(Refused::NoConnection | Refused::NoGame)),
+            "{r:?}"
+        );
+        assert_eq!(
+            OrderSink::session_op(&mut Offline, SessionOp::Leave),
+            Err(Refused::NoConnection)
+        );
     }
 
     #[test]

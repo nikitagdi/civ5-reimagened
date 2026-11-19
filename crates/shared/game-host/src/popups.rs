@@ -66,6 +66,15 @@ fn question_unit(popup: &Popup) -> Option<i32> {
         .filter(|unit| *unit >= 0)
 }
 
+/// Two decisions ask the same thing: the kind and every integer and flag of the payload agree (the text is a rendering
+/// of them).
+fn same_question(a: &Popup, b: &Popup) -> bool {
+    a.kind == b.kind
+        && (a.data1, a.data2, a.data3, a.data4, a.data5)
+            == (b.data1, b.data2, b.data3, b.data4, b.data5)
+        && (a.flag, a.option1, a.option2) == (b.flag, b.option1, b.option2)
+}
+
 #[derive(Default)]
 pub(crate) struct Popups {
     next: i32,
@@ -98,6 +107,11 @@ impl Popups {
             // A newer order of the same unit asks again: the older question is moot (one per unit, no pile-up).
             queue.retain(|entry| question_unit(&entry.popup) != Some(unit));
         }
+        if head.decision && popup.kind != DECLARE_WAR_MOVE {
+            // The same question again (same kind and payload): one answer settles both, the newer one stays. A move's
+            // war question belongs to its order and follows its own rule above.
+            queue.retain(|entry| !(entry.head.decision && same_question(&entry.popup, &popup)));
+        }
         if queue.len() >= 64 {
             if let Some(index) = queue.iter().position(|entry| !entry.head.decision) {
                 queue.remove(index);
@@ -112,7 +126,8 @@ impl Popups {
                 );
                 return Err("popup queue full of decisions".into());
             } else {
-                // SIMPLIFIED(SIMP-411): decision-only overflow exceeds the soft bound to preserve every decision.
+                // SIMPLIFIED(SIMP-411): more than 64 distinct live decisions exceed the soft bound so that none is lost
+                // (a repeated question merges and a lapsed head is dropped, so only distinct live ones pile up).
                 tracing::error!(player, "popup queue decision-only overflow retained");
             }
         }
@@ -225,12 +240,32 @@ mod tests {
         assert!(q.done(0, decision, Some("other")).is_err());
         q.done(0, decision, Some("techs")).unwrap();
         assert_eq!(q.head(0).unwrap().head.id, 3);
-        for _ in 0..64 {
-            q.push(1, Popup::default(), head(true)).unwrap();
+        let distinct = |n| Popup {
+            data1: n,
+            ..Popup::default()
+        };
+        for n in 0..64 {
+            q.push(1, distinct(n), head(true)).unwrap();
         }
         assert!(q.push(1, Popup::default(), head(false)).is_err());
-        q.push(1, Popup::default(), head(true)).unwrap();
+        q.push(1, distinct(64), head(true)).unwrap();
         assert_eq!(q.len(1), 65);
+    }
+
+    #[test]
+    fn the_same_decision_asked_again_is_kept_once_and_the_newest_stays() {
+        let mut q = Popups::default();
+        let city = |n| Popup {
+            kind: "BUTTONPOPUP_CHOOSEPRODUCTION".into(),
+            data1: n,
+            ..Popup::default()
+        };
+        let old = q.push(0, city(7), head(true)).unwrap();
+        let other = q.push(0, city(8), head(true)).unwrap();
+        let info = q.push(0, city(7), head(false)).unwrap();
+        let again = q.push(0, city(7), head(true)).unwrap();
+        let ids: Vec<i32> = q.seats[&0].iter().map(|e| e.head.id).collect();
+        assert_eq!(ids, vec![other, info, again], "the older {old} went");
     }
 
     #[test]

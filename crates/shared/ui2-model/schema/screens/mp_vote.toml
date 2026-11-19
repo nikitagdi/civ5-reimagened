@@ -60,6 +60,8 @@ secret = "bool"
 [type.MpVoteTeamsPlayers]
 key = "str"
 player_id = "i32"
+# The row's player as the `session` root keys it: the skin joins the nick and the connection from there.
+player_key = "key<player>"
 nick = "text"
 leader = "text"
 civ_name = "text"

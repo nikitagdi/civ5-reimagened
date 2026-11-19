@@ -68,6 +68,9 @@ pub(crate) fn action_event(ev: &ClientEvent, game: &mut Option<GameId>) -> Optio
         ClientEvent::EndTurnCancelled { by_order } => Some(ActionEvent::EndTurnCancelled {
             by_order: *by_order,
         }),
+        ClientEvent::GameCtlRejected { reason, .. } => {
+            Some(ActionEvent::SessionRefused { reason: *reason })
+        }
         ClientEvent::Attached { game: g, .. } => {
             (game.replace(*g) != Some(*g)).then_some(ActionEvent::NewGame)
         }

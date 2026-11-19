@@ -28,6 +28,7 @@ RefuseWhy = [
   "cannot_buy", "bad_slot", "tech_unavailable", "cannot_end_turn", "cannot_cancel", "chat_empty",
   "chat_too_long", "chat_rate", "no_connection", "no_game", "too_many", "turn_changed", "too_big",
   "core", "turn_ended", "not_your_turn", "restarting", "invalid", "expired", "not_seated", "other",
+  "not_host", "no_such_player", "not_human", "self_kick", "last_human",
 ]
 # Windows are part of the skin and open over the map. Screens live outside it and are opened by the host.
 WindowId = ["production", "research", "menu", "chat", "notes_log"]
@@ -35,6 +36,10 @@ ScreenId = ["tech_tree", "policies", "religion", "diplomacy", "overview", "notif
 MouseButton = ["left", "right"]
 PushAt = ["back", "front"]
 BuyWith = ["gold", "faith"]
+# Session operations: what the session layer (not the game) does for the seat, each with its own authority check.
+SessionOp = ["save", "leave", "pause", "resume", "kick"]
+SeatConn = ["online", "lost", "none"]
+SeatControl = ["human", "ai", "closed"]
 
 [type]
 Plot = { x = "i16", y = "i16" }
@@ -284,6 +289,19 @@ intent = "str"
 target = "str"
 since_ms = "u32"
 
+[type.SessionSeat]
+player = "key<player>"
+nick = "str?"
+control = "SeatControl"
+conn = "SeatConn"
+host = "bool"
+me = "bool"
+
+[type.SessionSave]
+id = "str"
+name = "str"
+turn = "i32"
+
 [type.Toast]
 seq = "i32"
 kind = "ToastKind"
@@ -333,6 +351,15 @@ queue = { list = "Tech", key = "id" }
 options = { list = "Tech", key = "id" }
 known = "bool"
 blocked = "bool"
+
+# The session around the game (the gateway's seat list, the host, the saves): who sits where and whether they are
+# connected, the one source for every window that shows it. Only what the gateway already sends every seat.
+[model.session]
+is_host = "bool"
+paused = "bool"
+ping_ms = "i32?"
+seats = { list = "SessionSeat", key = "player" }
+saves = { list = "SessionSave", key = "id" }
 
 # The players of the game, in seat order.
 [model.players]
@@ -525,3 +552,11 @@ b = "i32?"
 c = "i32?"
 d = "i32?"
 text = "str?"
+# A session operation to run once the server applied the action (a confirmed exit leaves after its popup is done).
+then = "SessionOp?"
+
+# A session operation: save (host), leave to the lobby (any seat), pause and resume the turn timer (host), kick a human
+# seat to the AI (host; `player` names it). The session layer checks the authority; a refusal comes back as a toast.
+[intent."session.op"]
+op = "SessionOp"
+player = "key<player>?"

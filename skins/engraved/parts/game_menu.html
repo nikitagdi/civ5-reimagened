@@ -10,10 +10,12 @@
      <span data-bind-value="{{game_menu.player.civ}}"></span><span class="game-menu-trait" data-bind-value="{{game_menu.player.trait.short}}"></span>
      <div data-bind-for="s:{{game_menu.settings}}" class="game-menu-row"><span data-bind-value="{{s.label}}"></span><b data-bind-value="{{s.value}}"></b></div>
      <button class="game-menu-button game-menu-primary" data-part="game-menu.return" data-bind-hotkey="'Enter'" data-l10n="menu.return" data-on-click="intent window.close(window: 'game_menu')"></button>
-     <button class="game-menu-button" data-bind-disabled="{{!game_menu.can_save}}" data-l10n="menu.save" data-on-click="intent screen.act(screen: 'game_menu', action: 'save')"></button>
-     <span class="game-menu-kicker" data-bind-value="{{game_menu.save_reason}}"></span>
+     <button class="game-menu-button" data-part="game-menu.save" data-bind-disabled="{{!game_menu.can_save || !session.is_host}}" data-l10n="menu.save" data-on-click="intent session.op(op: 'save')"></button>
+     <span class="game-menu-kicker" data-bind-if="{{!session.is_host}}" data-l10n="menu.save.host"></span>
+     <div class="game-menu-kicker" data-part="game-menu.refused" data-bind-for="e:{{ui.errors}}" data-bind-filter="{{e.kind == 'rejected' || e.why == 'not_host'}}"><span data-bind-if="{{e.why == 'not_host'}}" data-l10n="menu.refused.host"></span><span data-bind-if="{{e.why != 'not_host'}}" data-l10n="menu.refused"></span></div>
      <button class="game-menu-button" data-part="game-menu.options" data-l10n="menu.options" data-on-click="call menu.open()"></button>
-     <button class="game-menu-button" disabled data-l10n="menu.exit"></button><span class="game-menu-kicker" data-l10n="menu.exit.reason"></span>
+     <button class="game-menu-button" data-part="game-menu.exit" data-bind-if="{{!state.menu.exit}}" data-l10n="menu.exit" data-on-click="set state.menu.exit = true"></button>
+     <div class="game-menu-ask" data-bind-if="{{state.menu.exit}}"><span class="game-menu-kicker" data-l10n="menu.exit.ask"></span><button class="game-menu-button" data-part="game-menu.exit-no" data-l10n="menu.cancel" data-on-click="set state.menu.exit = false"></button><button class="game-menu-button game-menu-primary" data-part="game-menu.exit-yes" data-l10n="menu.exit" data-on-click="intent session.op(op: 'leave'); set state.menu.exit = false"></button></div>
     </div>
     <div class="game-menu-main">
      <div class="game-menu-tabs"><button class="game-menu-tab" data-l10n="menu.details" data-on-click="set state.menu.panel = 'details'"></button><button class="game-menu-tab" data-bind-if="{{len(game_menu.mods) &gt; 0}}" data-l10n="menu.mods" data-on-click="set state.menu.panel = 'mods'"></button></div>
@@ -21,6 +23,7 @@
       <div><div class="game-menu-row" data-bind-for="d:{{game_menu.details}}"><span data-bind-value="{{d.label}}"></span><b data-bind-value="{{d.value}}"></b></div></div>
       <span class="game-menu-kicker" data-l10n="menu.victories"></span><div><span class="game-menu-row" data-bind-for="v:{{game_menu.victories}}" data-bind-value="{{v.name}}"></span></div>
       <span class="game-menu-kicker" data-l10n="menu.rules"></span><div><span class="game-menu-row" data-bind-for="o:{{game_menu.game_options}}" data-bind-value="{{o.name}}"></span></div>
+      <span class="game-menu-kicker" data-l10n="menu.saves"></span><span class="game-menu-row" data-bind-if="{{len(session.saves) == 0}}" data-l10n="menu.saves.none"></span><div><div class="game-menu-row" data-part="game-menu.save-row" data-bind-for="v:{{session.saves}}"><span data-bind-value="{{v.name}}"></span><b data-l10n="menu.saves.turn" data-l10n-args="{{v.turn}}"></b></div></div>
      </div>
      <div class="game-menu-body" data-bind-if="{{state.menu.panel == 'mods'}}"><div data-bind-for="m:{{game_menu.mods}}" class="game-menu-row"><span data-bind-value="{{m.name}}"></span><span data-bind-value="{{m.version}}"></span></div></div>
     </div>

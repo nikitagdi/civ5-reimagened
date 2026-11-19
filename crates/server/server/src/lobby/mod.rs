@@ -357,8 +357,23 @@ impl LobbyActor {
                         "a save of another core build is not listed"
                     );
                 }
+                let game = entry.game;
                 self.saves.insert(*entry);
                 self.dirty = true;
+                // The players of that game get the lobby view once now: its list of saves is what their game menu
+                // shows (the broadcast skips seated players, whose view would keep the saves of when they sat down).
+                let seated: Vec<String> = self
+                    .sessions
+                    .keys()
+                    .filter(|k| {
+                        matches!(self.places.get(*k), Some(Place::Seat { game: g, .. }) if *g == game)
+                            && !self.away.contains(*k)
+                    })
+                    .cloned()
+                    .collect();
+                for k in seated {
+                    self.send_lobby(shared, &k);
+                }
             }
             LobbyMsg::PurgeGame { game } => {
                 if self.saves.remove_game(game) > 0 {

@@ -128,12 +128,46 @@ impl<C: Core> Worker<C> {
         }
     }
 
+    /// Drops the decisions at the head of the seat's queue that can no longer be answered (`lapsed` of their mapping:
+    /// the city or unit is gone, the choice was made another way). Only a successful action of its own screen completes
+    /// a decision, and the client keeps its window open until then, so a lapsed head would block the queue for good.
+    /// A test that fails keeps the decision.
+    pub(crate) fn expire_lapsed_decisions(&mut self, player: PlayerId) {
+        for _ in 0..64 {
+            let Some(entry) = self
+                .popups
+                .head(player)
+                .filter(|e| e.head.decision)
+                .cloned()
+            else {
+                return;
+            };
+            let Ok(runtime) = self.screen_runtime() else {
+                return;
+            };
+            match runtime.popup_lapsed(player, &entry) {
+                Ok(Some(reason)) => {
+                    tracing::debug!(player, id = entry.head.id, kind = %entry.popup.kind, %reason, "decision lapsed");
+                    self.popups.remove(player, entry.head.id);
+                }
+                Ok(None) => return,
+                Err(e) => {
+                    tracing::warn!(player, kind = %entry.popup.kind, error = %e, "decision lapse test failed");
+                    return;
+                }
+            }
+        }
+    }
+
     pub(crate) fn screen_data(
         &mut self,
         player: PlayerId,
         screen: &str,
         args: &[(String, i64)],
     ) -> Result<String, String> {
+        if screen == "hud" {
+            self.expire_lapsed_decisions(player);
+        }
         let mut effective_args = args.to_vec();
         if screen == "city"
             && args.iter().any(|(name, value)| {
@@ -190,6 +224,9 @@ impl<C: Core> Worker<C> {
         cmd: &Command,
     ) -> Result<(), Refusal> {
         self.screen_effect = None;
+        if matches!(cmd, Command::ScreenAction { .. }) {
+            self.expire_lapsed_decisions(player);
+        }
         let city = match cmd {
             Command::CitySetProduction { city, .. }
             | Command::CityPurchase { city, .. }
@@ -440,6 +477,54 @@ mod tests {
         assert_eq!(hud(&mut worker, 0)["popup_count"], 0);
         assert!(worker.screen_or_core_command(0, &dismiss).is_err());
     }
+    #[test]
+    fn a_lapsed_decision_leaves_the_head_and_a_live_one_stays() {
+        let (mut worker, _) = Worker::new(FixtureCore::new(false, false), init(), 0);
+        let runtime = Screens::new().unwrap();
+        runtime.load().unwrap();
+        runtime
+            .lua()
+            .exec(
+                r#"
+            __screens.hud.data = function() return {} end
+            local owned = {[5] = true}
+            Players = {[0] = {GetCityByID = function(self, id) return owned[id] and {} or nil end}}
+        "#,
+                "=lapse",
+            )
+            .unwrap();
+        worker.screens = Some(runtime);
+        let captured = |city| Popup {
+            kind: "BUTTONPOPUP_CITY_CAPTURED".into(),
+            data1: city,
+            ..Default::default()
+        };
+        let lost = worker.inject_popup(0, captured(7)).unwrap().unwrap();
+        let live = worker.inject_popup(0, captured(5)).unwrap().unwrap();
+        assert!(worker.popups.capture_pending(0, 7));
+        let hud = |worker: &mut Worker<FixtureCore>| -> serde_json::Value {
+            serde_json::from_str(&worker.screen_data(0, "hud", &[]).unwrap()).unwrap()
+        };
+        let root = hud(&mut worker);
+        assert_eq!(root["popup"]["id"], live, "{lost} lapsed: its city is gone");
+        assert_eq!(root["popup_count"], 1);
+        assert!(!worker.popups.capture_pending(0, 7));
+        assert_eq!(
+            hud(&mut worker)["popup"]["id"],
+            live,
+            "a live decision stays"
+        );
+        // A lapse test that fails keeps the decision (fail closed).
+        worker
+            .screens
+            .as_ref()
+            .unwrap()
+            .lua()
+            .exec("Players = {[0] = {}}", "=broken")
+            .unwrap();
+        assert_eq!(hud(&mut worker)["popup"]["id"], live);
+    }
+
     #[test]
     fn pending_capture_blocks_city_mutations_even_behind_an_information_popup() {
         let (mut worker, _) = Worker::new(FixtureCore::new(false, false), init(), 0);

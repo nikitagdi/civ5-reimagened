@@ -5,6 +5,17 @@ local function seat_colors(p)
     end
     return rgba(primary),rgba(secondary)
 end
+-- A server core plays on after a victory by itself (the engine reports autorun, so the core sets GAMESTATE_EXTENDED
+-- instead of GAMESTATE_OVER, CvGame::testVictory): "one more turn" only closes the screen. GAMESTATE_OVER comes when
+-- every seated human is dead; the game is then over for everybody and the worker takes no more orders.
+local function over()
+    local states=rawget(_G,"GameplayGameStateTypes")
+    return Game.GetGameState~=nil and states~=nil and Game.GetGameState()==states.GAMESTATE_OVER
+end
+local function continue_reason(finished)
+    if not finished then return "The game has not ended" end
+    if over() then return "The game is over for every player" end
+end
 local victory_names={VICTORY_SPACE_RACE="science",VICTORY_DOMINATION="domination",VICTORY_CULTURAL="cultural",
     VICTORY_DIPLOMATIC="diplomatic",VICTORY_TIME="time",VICTORY_SCRAP="scrap"}
 return {
@@ -22,8 +33,8 @@ return {
             kicker=L(c.ShortDescription),title=finished and L(won and "TXT_KEY_VICTORY" or "TXT_KEY_DEFEAT") or "Game in progress",
             headline=v and L(v.Description) or "",text=v and L((won and v.VictoryText or v.DefeatText) or v.Description) or "",
             art="",delay_ms=v and victory_names[v.Type]=="science" and 7000 or 0,turn=Game.GetGameTurn(),
-            year=tostring(Game.GetTurnYear(Game.GetGameTurn())),can_continue=false,
-            continue_reason=finished and "Continuing requires a session extended-game operation" or "The game has not ended",
+            year=tostring(Game.GetTurnYear(Game.GetGameTurn())),can_continue=continue_reason(finished)==nil,
+            continue_reason=continue_reason(finished),
             players=array(),ranking={title=L("TXT_KEY_HISTORIC_RANKING"),sub="",my_score=score,rows=array()},finished=finished}
         for id=0,GameDefines.MAX_MAJOR_CIVS-1 do
             local other=Players[id]
@@ -50,8 +61,13 @@ return {
         return r
     end,
     actions={
-        -- SIMPLIFIED(SIMP-393): extended-game and exit are absent from the UI net allowlist; embedded demographics/replay require separate roots.
-        ["continue"]=function() error("Continuing requires a session extended-game operation") end,
-        exit=function() error("Leaving the game requires the client session handler") end,
+        -- SIMPLIFIED(SIMP-393): the embedded demographics and replay views of the original screen need roots of their own; the skin opens the demographics window instead.
+        ["continue"]=function()
+            local reason=continue_reason(Game.GetWinner()>=0)
+            assert(reason==nil,reason)
+            return {close=true}
+        end,
+        -- Leaving is a session operation: the skin sends `session.op(op: 'leave')`.
+        exit=function() error("Leaving the game is a session operation") end,
     },
 }

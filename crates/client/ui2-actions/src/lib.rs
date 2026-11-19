@@ -35,7 +35,7 @@ pub use intent::{Intent, IntentError};
 pub use modintent::MAX_MOD_INTENTS;
 pub use pending::ActionEvent;
 pub use settings::{MemorySettings, SettingsNs, SettingsStore};
-pub use sink::{CameraReq, OrderSink, RecordingSink, Refused, Sent};
+pub use sink::{CameraReq, OrderSink, RecordingSink, Refused, Sent, SessionOp};
 pub use state::{SkinId, StateError, StateNs};
 pub use ui::{MAX_TOASTS, TOAST_MS, UiState};
 
@@ -143,6 +143,16 @@ impl UiActions {
     ) {
         self.tick(now_ms);
         self.state.expire(now_ms);
+        // Session operations whose screen action the server applied (a confirmed exit), before this frame's intents.
+        for op in std::mem::take(&mut self.state.due) {
+            let mut ctx = Ctx {
+                ui: &mut self.state,
+                model: store,
+                sink,
+                now_ms,
+            };
+            route::session::request(&mut ctx, op);
+        }
         for wire in std::mem::take(intents) {
             if wire.name.starts_with("mods.") {
                 if let Err(error) = self.mod_intent(&wire) {
@@ -232,6 +242,7 @@ impl UiActions {
             "camera.to_plot" | "camera.to_city" | "camera.to_unit" => {
                 route::camera::run(&mut ctx, intent);
             }
+            "session.op" => route::session::run(&mut ctx, intent),
             other => {
                 // Every intent of the catalogue has a route; a new one that has none is a mistake of this
                 // module, and the player is told it did nothing.

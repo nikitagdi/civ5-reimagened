@@ -8,6 +8,7 @@ pub mod notes;
 pub mod production;
 pub mod research;
 pub mod screen;
+pub mod session;
 pub mod turn;
 pub mod unit;
 pub mod window;

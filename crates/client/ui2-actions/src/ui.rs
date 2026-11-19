@@ -28,6 +28,11 @@ pub struct UiState {
     pub(crate) entries: Vec<crate::pending::Entry>,
     /// When the last chat line was sent.
     pub(crate) last_chat_ms: Option<u64>,
+    /// Session operations that wait for the server to apply a screen action (`screen.act` with `then`), by the
+    /// action's order id.
+    pub(crate) after: Vec<(protocol::CmdId, crate::sink::SessionOp)>,
+    /// Session operations whose screen action was applied, run at the start of the next frame (they need the sink).
+    pub(crate) due: Vec<crate::sink::SessionOp>,
 }
 
 impl UiState {

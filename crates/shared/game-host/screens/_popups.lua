@@ -6,12 +6,52 @@ local function id(p) return p.id end
 local function zero() return 0 end
 local function one() return 1 end
 local function two() return 2 end
+-- `lapsed(player, popup)` names why a queued decision can no longer be answered (nil: still pending). The worker asks
+-- it of the seat's queue head and drops a lapsed decision, which only its own screen action could complete otherwise.
+-- Without the core's Players table (the stub, fixtures) nothing lapses.
+local function seat(player)
+    local players = rawget(_G, "Players")
+    return players and players[player]
+end
+local function city_gone(field)
+    return function(player, p)
+        local s = seat(player)
+        if s and not s:GetCityByID(p[field]) then return "The city is no longer yours" end
+    end
+end
+local function unit_gone(field)
+    return function(player, p)
+        local s = seat(player)
+        local u = s and s:GetUnitByID(p[field])
+        if s and (not u or u:IsDead() or u:IsDelayedDeath()) then return "The unit is gone" end
+    end
+end
+local function production_chosen(player, p)
+    local s = seat(player)
+    if not s then return nil end
+    local c = s:GetCityByID(p.data1)
+    if not c then return "The city is no longer yours" end
+    if c:GetOrderQueueLength() > 0 then return "The city already has production" end
+end
+local function research_chosen(player, p)
+    local s = seat(player)
+    if not s then return nil end
+    if p.data2 > 0 then
+        if s:GetNumFreeTechs() <= 0 then return "The free technology was taken" end
+    elseif s:GetCurrentResearch() >= 0 then
+        return "Research was chosen"
+    end
+end
+local function ideology_chosen(player)
+    local s = seat(player)
+    if s and s:GetLateGamePolicyTree() >= 0 then return "An ideology was adopted" end
+end
 return {
     BUTTONPOPUP_TECH_AWARD = {screen = "tech_award", a = d3, decision = false},
-    BUTTONPOPUP_CHOOSETECH = {screen = "techs", a = function(p) return p.data2 > 0 and 2 or 1 end, decision = true},
+    BUTTONPOPUP_CHOOSETECH = {screen = "techs", a = function(p) return p.data2 > 0 and 2 or 1 end, decision = true, lapsed = research_chosen},
     BUTTONPOPUP_TECH_TREE = {screen = "techs", decision = false},
     BUTTONPOPUP_CHOOSE_TECH_TO_STEAL = {screen = "techs", a = 3, b = d2, decision = true},
-    BUTTONPOPUP_CITY_CAPTURED = {screen = "city_captured", a = d1, b = zero, decision = true},
+    BUTTONPOPUP_CITY_CAPTURED = {screen = "city_captured", a = d1, b = zero, decision = true, lapsed = city_gone("data1")},
     BUTTONPOPUP_ANNEX_CITY = {screen = "city_captured", a = d1, b = one, decision = false},
     BUTTONPOPUP_CHOOSE_GOODY_HUT_REWARD = {screen = "goody_choice", a = id, b = d2, decision = true},
     BUTTONPOPUP_FOUND_PANTHEON = {screen = "pantheon", a = function(p) return p.data2 == 1 and 0 or 1 end, decision = true},
@@ -29,10 +69,10 @@ return {
     BUTTONPOPUP_LEAGUE_PROJECT_COMPLETED = {screen = "congress", a = two, b = d2, decision = false},
     BUTTONPOPUP_DIPLO_VOTE = {screen = "mp_vote", a = two, decision = true},
     BUTTONPOPUP_VOTE_RESULTS = {screen = "mp_vote", a = zero, decision = false},
-    BUTTONPOPUP_CHOOSEPRODUCTION = {screen = "city", a = d1, b = two, decision = true},
+    BUTTONPOPUP_CHOOSEPRODUCTION = {screen = "city", a = d1, b = two, decision = true, lapsed = production_chosen},
     BUTTONPOPUP_CHOOSECITYPURCHASE = {screen = "city", a = d1, decision = false},
     BUTTONPOPUP_CITY_PLOT_MANAGEMENT = {screen = "city", a = d1, decision = false},
-    BUTTONPOPUP_RENAME_CITY = {screen = "city_rename", a = d1, decision = true},
+    BUTTONPOPUP_RENAME_CITY = {screen = "city_rename", a = d1, decision = true, lapsed = city_gone("data1")},
     BUTTONPOPUP_NOTIFICATION_LOG = {screen = "notification_log", decision = false},
     BUTTONPOPUP_ADVISOR_INFO = {screen = "advisor", a = d1, decision = false},
     BUTTONPOPUP_ADVISOR_COUNSEL = {screen = "advisor", a = d1, decision = false},
@@ -67,10 +107,10 @@ return {
     BUTTONPOPUP_GOLDEN_AGE_REWARD = {screen = "message", a = id, decision = false},
     BUTTONPOPUP_GREAT_PERSON_REWARD = {screen = "message", a = id, decision = false},
     BUTTONPOPUP_WONDER_COMPLETED_ACTIVE_PLAYER = {screen = "message", a = id, decision = false},
-    BUTTONPOPUP_BARBARIAN_RANSOM = {screen = "confirm", a = id, decision = true},
+    BUTTONPOPUP_BARBARIAN_RANSOM = {screen = "confirm", a = id, decision = true, lapsed = unit_gone("data1")},
     BUTTONPOPUP_CONFIRMCOMMAND = {screen = "confirm", a = id, decision = true},
     BUTTONPOPUP_CONFIRM_IMPROVEMENT_REBUILD = {screen = "confirm", a = id, decision = true},
-    BUTTONPOPUP_RETURN_CIVILIAN = {screen = "confirm", a = id, decision = true},
+    BUTTONPOPUP_RETURN_CIVILIAN = {screen = "confirm", a = id, decision = true, lapsed = unit_gone("data3")},
     BUTTONPOPUP_GIFT_CONFIRM = {screen = "confirm", a = id, decision = true},
     BUTTONPOPUP_ADVISOR_MODAL = {screen = "confirm", a = id, decision = true},
     BUTTONPOPUP_DECLAREWARMOVE = {screen = "declare_war", a = d1, b = d2, decision = true},
@@ -81,7 +121,7 @@ return {
     BUTTONPOPUP_MINOR_CIV_ENTER_TERRITORY = {screen = "city_state", a = d1, b = one, decision = true},
     BUTTONPOPUP_LIBERATE_MINOR = {screen = "city_state", a = d1, b = two, decision = true},
     BUTTONPOPUP_CHOOSEPOLICY = {screen = "policies", decision = true},
-    BUTTONPOPUP_CHOOSE_IDEOLOGY = {screen = "ideology", decision = true},
+    BUTTONPOPUP_CHOOSE_IDEOLOGY = {screen = "ideology", decision = true, lapsed = ideology_chosen},
     BUTTONPOPUP_GREAT_WORK_COMPLETED_ACTIVE_PLAYER = {screen = "great_work", a = d1, decision = false},
     BUTTONPOPUP_ESPIONAGE_OVERVIEW = {screen = "espionage", decision = false},
     BUTTONPOPUP_RELIGION_OVERVIEW = {screen = "religion_overview", decision = false},

@@ -30,7 +30,7 @@ on_map = { unit = "", city = "" }
 minimap = { options = false, streamer = false, banners = true, flags = true }
 leader = { hover = "" }
 deal = { side = 0, kind = -1, item = 0, amount = 0 }
-civ_ribbon = { visible = true, left = false, hover = -1 }
+civ_ribbon = { visible = true, left = false, hover = -1, kick = -1 }
 declare_war = { diplomacy = false, protectors = false, allies = false, deals = false, routes = false }
 diplo = { tab = "relations", deal = -1, hover = -1 }
 policies = { visible = false, tab = "", expanded = false, confirm = -1, kind = "adopt_policy", name = "", tenet_level = 0, hover = -1 }
@@ -63,8 +63,8 @@ top = { menu = false, hover = "", resource = -1, resources = false }
 confirm = { dont_warn = false, hover = -1 }
 goody = { sel = -1 }
 notification = { hover = "" }
-menu = { options = false, panel = "details" }
-end_game = { tab = "summary" }
+menu = { options = false, panel = "details", exit = false }
+end_game = { tab = "summary", exit = false }
 advisor = { economic = 0, military = 0, foreign = 0, science = 0 }
 opt = { tab = "general", auto_end_turn = false, auto_end_turn_sp = false, next_unit_after_orders = true, auto_unit_cycle = true, air_rebase_rmb = true, civilian_yields = true, workers_keep_improvements = true, workers_keep_features = true, no_tile_recs = false, skip_reward_popups = false, policy_info_full = true, score_list = true, civ_ribbon = true, city_ribbon = true, unit_ribbon = true, city_advisor_recs = true, auto_close_city = false, auto_close_tech = false, clock = false, all_great_people = false, warn_unassigned = true, no_basic_help = false, scroll_inertia = true, zoom_dynamic = true, music = 70, effects = 80, ambience = 70, speech = 80, tooltip_delay = 500, tooltip_delay_ext = 1500, ui_scale = 100, ribbon_side = "right" }
 

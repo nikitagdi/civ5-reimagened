@@ -330,10 +330,19 @@ fn a_seat_that_goes_offline_rebuilds_the_turn_only() {
     rig.start(&mut f);
     rig.session.seats[1].conn = Conn::Lost { since_ms: 5 };
     let stats = rig.frame(&mut f);
-    assert_eq!(stats.roots_built, 1);
+    // Of the game roots only `turn`; the `session` root shows the seat's connection too (no game read for either).
+    assert_eq!(stats.roots_built, 2);
     assert!(f.calls.is_empty());
     let t = turn(&rig);
     assert!(!t.seats.get(Key::from_i32(i32::from(HARUN))).unwrap().online);
+    let s = rig
+        .store
+        .get::<ui2_model::r#gen::Session>()
+        .expect("session");
+    assert_eq!(
+        s.seats.get(Key::from_i32(i32::from(HARUN))).unwrap().conn,
+        ui2_model::r#gen::SeatConn::Lost
+    );
     let d = rig.delta().expect("a delta");
-    assert_eq!(d.ops.len(), 1);
+    assert_eq!(d.ops.len(), 2, "one op in turn, one in session");
 }

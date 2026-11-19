@@ -53,8 +53,8 @@ fn first_frame() -> Vec<&'static str> {
 /// Roots of the replica's game written by a full rebuild: top, research, game, turn, unit (none selected), notes,
 /// map, players, production (window closed).
 const GAME_ROOTS: u32 = 9;
-/// Roots of the session written on the first frame besides `meta`: chat.
-const SESSION_ROOTS: u32 = 1;
+/// Roots of the session written on the first frame besides `meta`: chat and session.
+const SESSION_ROOTS: u32 = 2;
 
 fn tech_row(tech: i16, status: TechStatus, queue: Option<u8>, turns: Option<i16>) -> TechState {
     TechState {

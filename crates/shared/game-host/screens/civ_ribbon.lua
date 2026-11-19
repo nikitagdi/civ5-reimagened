@@ -63,12 +63,14 @@ return {data=function(player)
     local unassigned=0
     for _,s in ipairs(spies) do if s.CityX<0 or s.CityY<0 then unassigned=unassigned+1 end end
     local league=Game.GetActiveLeague()
-    -- SIMPLIFIED(SIMP-454): connection/host/ping/hot-join statistics are unavailable to scripts; the existing seat list supplies live connection state in the skin.
+    -- Who sits where, the host, the connections and our ping are the session's: the skin joins the client's `session`
+    -- root (the gateway's seat list) to these rows by `player_key`; the session fields here stay at their defaults.
+    -- SIMPLIFIED(SIMP-454): the per-player turn-duration statistics of the original ribbon are not kept by the gateway.
     return {visible=true,side="right",mp=Game.IsNetworkMultiPlayer(),i_am_host=false,hot_join=false,
         corner={league={active=league~=nil,in_session=league and league:IsInSession() or false,
             turns_to_session=league and league:GetTurnsUntilSession() or 0,victory_session=false},has_spies=#spies>0,spies_unassigned=unassigned,
             culture_overview=not (GameInfoTypes.GAMEOPTION_NO_CULTURE_OVERVIEW_UI and Game.IsOption(GameInfoTypes.GAMEOPTION_NO_CULTURE_OVERVIEW_UI)),extra=array()},majors=majors,city_states=minors,
-        session_reason="Host, ping, hot-join and turn-duration statistics are unavailable to screen scripts."}
+        session_reason="Turn-duration statistics are not kept by the server."}
 end,actions={
     begin_diplo=function(player,args) other(player,args.a);error("AI conversations need a seat-scoped server session.") end,
     propose_peace=function(player,args) other(player,args.a);error("Peace negotiation needs a server trade session.") end,
