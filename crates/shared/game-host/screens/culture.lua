@@ -86,7 +86,7 @@ local function city_rows(player, catalog)
             local tooltip = built and city:GetThemingTooltip(b.class) or nil
             if b.extra then
                 if built then extra[#extra + 1] = {key = b.key, building = "building:" .. b.info.Type,
-                    name = L(b.info.Description), theme_bonus = bonus, theme_tooltip = tooltip, slots = entries} end
+                    name = plain(L(b.info.Description)), theme_bonus = bonus, theme_tooltip = tooltip, slots = entries} end
             else
                 local status = built and "built" or "not_built"
                 if not built and GameInfo.BuildingClasses[b.key].MaxPlayerInstances == 1 then
@@ -173,8 +173,8 @@ local function data(player)
     local catalog, columns = buildings(player), array()
     for _, b in ipairs(catalog) do
         if not b.extra then columns[#columns + 1] = {key = b.key, building = "building:" .. b.info.Type,
-            name = L(b.info.Description), slot_type = b.slot_type, slots = b.info.GreatWorkCount,
-            tooltip = L(b.info.Description)} end
+            name = plain(L(b.info.Description)), slot_type = b.slot_type, slots = b.info.GreatWorkCount,
+            tooltip = plain(L(b.info.Description))} end
     end
     local cities, total_slots, total_works = city_rows(player, catalog)
     local own_offers, partners, victory, sources = array(), array(), array(), array()

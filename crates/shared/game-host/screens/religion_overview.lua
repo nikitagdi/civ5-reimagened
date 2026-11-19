@@ -3,7 +3,7 @@ local function belief_row(id, key)
     local b = GameInfo.Beliefs[id]
     local kind = yes(b.Pantheon) and "pantheon" or yes(b.Founder) and "founder" or yes(b.Enhancer) and "enhancer"
         or yes(b.Reformation) and "reformation" or "follower"
-    return {key = key, type_order = ({pantheon=0,founder=1,follower=2,enhancer=3,reformation=4})[kind], type = kind, type_label = kind, name = L(b.ShortDescription), effect = L(b.Description), icon = icon(b.IconAtlas, b.PortraitIndex)}
+    return {key = key, type_order = ({pantheon=0,founder=1,follower=2,enhancer=3,reformation=4})[kind], type = kind, type_label = kind, name = L(b.ShortDescription), effect = plain(L(b.Description)), icon = icon(b.IconAtlas, b.PortraitIndex)}
 end
 local function purchase_options(p)
     local rows, people = array({{key = "none", kind = "none", id = -1, label = "Do not spend (remind me later)"}}), array()

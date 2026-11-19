@@ -6,6 +6,10 @@ function L(key, ...)
     if Locale and Locale.ConvertTextKey then return Locale.ConvertTextKey(key, ...) end
     error("server localization is unavailable")
 end
+-- A game text without its markup ([NEWLINE], [COLOR_*]/[ENDCOLOR], [ICON_*]): the skins show plain text.
+function plain(text)
+    return (tostring(text or ""):gsub("%[NEWLINE%]", " "):gsub("%[[^%]]*%]", ""):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""))
+end
 function icon(atlas, index)
     if not atlas or not index or index < 0 then return "" end
     return "icon:" .. atlas .. ":" .. index

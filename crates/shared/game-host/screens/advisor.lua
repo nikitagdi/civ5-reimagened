@@ -22,7 +22,7 @@ return {
             local texts=counsel and counsel[advisor[key]]
             if texts then
                 local i=0
-                while texts[i] do pages[#pages+1]={id=i,text=texts[i]};i=i+1 end
+                while texts[i] do pages[#pages+1]={id=i,text=plain(texts[i])};i=i+1 end
             end
             roles[#roles+1]={key=key,name=names[key],role=names[key],portrait="",pages=pages}
         end

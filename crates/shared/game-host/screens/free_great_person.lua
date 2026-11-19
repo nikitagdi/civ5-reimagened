@@ -33,7 +33,7 @@ local function choices(player, mode)
             -- The original popup (ChooseFreeItem) shows each person's strategy text; the help text is the same unit's own.
             -- SIMPLIFIED(SIMP-357): The window names the capital, where the core places every chosen Great Person except
             -- a sea unit (the Great Admiral), whose coastal city the core draws at random only when the choice arrives.
-            people[#people + 1] = {unit = row.ID, key = row.Type, name = L(row.Description), icon = icon(row.IconAtlas, row.PortraitIndex), strategy = L(row.Strategy or row.Help or row.Description), abilities = array({{index = 0, label = "Abilities", text = L(row.Help or row.Description)}}), available = not why, reason = why}
+            people[#people + 1] = {unit = row.ID, key = row.Type, name = L(row.Description), icon = icon(row.IconAtlas, row.PortraitIndex), strategy = plain(L(row.Strategy or row.Help or row.Description)), abilities = array({{index = 0, label = "Abilities", text = plain(L(row.Help or row.Description))}}), available = not why, reason = why}
         end
     end
     return people

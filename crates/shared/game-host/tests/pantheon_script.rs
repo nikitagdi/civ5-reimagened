@@ -3,6 +3,9 @@ use lua_sys::{Lua, Table};
 #[test]
 fn pantheon_and_reformation_recheck_the_live_belief_list() {
     let lua = Lua::new().unwrap();
+    // The helpers every screen script runs with (plain, icon, array).
+    lua.exec(include_str!("../screens/_lib.lua"), "=helpers")
+        .unwrap();
     let screen: Table = lua
         .load(include_str!("../screens/pantheon.lua"))
         .eval()

@@ -15,7 +15,7 @@ return {
         for _, id in ipairs(ids) do
             local b = GameInfo.Beliefs[id]
             if b then rows[#rows + 1] = {id = id, key = b.Type, name = L(b.ShortDescription), short_name = L(b.ShortDescription),
-                effect = L(b.Description), icon = icon(b.IconAtlas, b.PortraitIndex)} end
+                effect = plain(L(b.Description)), icon = icon(b.IconAtlas, b.PortraitIndex)} end
         end
         table.sort(rows, function(a,b) return a.name < b.name end)
         local why = reason(p, reform)

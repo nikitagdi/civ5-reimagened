@@ -142,6 +142,7 @@
 # A promotion in turn.blockers or turn.reminders (the other entries carry the game's text or use the keys above).
 "turn.block.promotion" = "Unit promotion available"
 "turn.paused" = "The game is paused"
+"turn.more" = "{1_Num} more"
 "turn.ready" = "Ready"
 "turn.ready_of" = "{1_Num} of {2_Num}"
 

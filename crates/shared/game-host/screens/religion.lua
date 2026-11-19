@@ -7,7 +7,7 @@ end
 local function belief(id)
     local b = GameInfo.Beliefs[id]
     if b then return {id = id, key = b.Type, name = L(b.ShortDescription), short_name = L(b.ShortDescription),
-        effect = L(b.Description), icon = icon(b.IconAtlas, b.PortraitIndex)} end
+        effect = plain(L(b.Description)), icon = icon(b.IconAtlas, b.PortraitIndex)} end
 end
 local function options(kind)
     local rows = array()

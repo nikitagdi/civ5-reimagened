@@ -47,7 +47,7 @@ return {
                 quick_locked_reason="Quick combat and movement are fixed when a network game is created"},hotkeys=array()}
         for trait in GameInfo.Leader_Traits{LeaderType=leader.Type} do
             local t=GameInfo.Traits[trait.TraitType]
-            if t then r.player.trait={name=L(t.ShortDescription),short=L(t.Description),long=L(t.Description)} end
+            if t then r.player.trait={name=plain(L(t.ShortDescription)),short=plain(L(t.Description)),long=plain(L(t.Description))} end
         end
         local function setting(key,label,info)
             if info then

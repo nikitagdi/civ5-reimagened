@@ -3,6 +3,9 @@ use lua_sys::{Lua, Table};
 #[test]
 fn religion_validates_packed_choices_city_prophet_and_text() {
     let lua = Lua::new().unwrap();
+    // The helpers every screen script runs with (plain, icon, array).
+    lua.exec(include_str!("../screens/_lib.lua"), "=helpers")
+        .unwrap();
     let screen: Table = lua
         .load(include_str!("../screens/religion.lua"))
         .eval()
