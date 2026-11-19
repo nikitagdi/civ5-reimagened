@@ -1274,6 +1274,10 @@ impl<'a> Emitter<'a> {
             }
         };
         let Some(ext) = ext else {
+            // Standalone UI textures may be absent from the active game's asset set.
+            if name.starts_with("ui:tx:") {
+                return;
+            }
             let path = instantiate::node_path(self.arena, self.cx.pkg, id);
             self.errors.report(UiError::at(
                 &path,

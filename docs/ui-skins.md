@@ -1026,4 +1026,6 @@ Scroll containers accept `data-bind-scroll-x="state.techs.x"` and `data-bind-scr
 
 `data-bind-src="item.icon"` accepts an asset value or string, with bare expressions or `{{ }}`. Game picture namespaces are `tech`, `unit`, `building`, `policy`, `belief`, `religion`, `resource`, `civ`, `leader`, `promotion`, `improvement`, `great_work` and `icon`. All accept `<namespace>:<atlas>:<index>`. Entries provided by the server catalog also accept numeric ids or database type names, such as `tech:3` or `unit:UNIT_SCOUT`. Unknown pictures use the existing placeholder and are logged once. SIMPLIFIED(SIMP-331): belief, religion and great-work catalog metadata is unavailable in the current catalog, so these namespaces require atlas and index payloads.
 
+A bound picture can also use `ui:tx:<file>` for a whole texture from the game's UI set. The runtime draws no picture if the texture is unavailable.
+
 SIMPLIFIED(SIMP-332): dashed borders remain outside the profile. The current painter emits continuous rounded border primitives, so dashed contours need additional geometry or shader support.

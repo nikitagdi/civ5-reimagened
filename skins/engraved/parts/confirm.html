@@ -6,8 +6,8 @@
       <div class="ttl stack"><span class="kick" data-bind-value="{{confirm.kicker}}"></span><b data-part="confirm.title" data-bind-value="{{confirm.title}}"></b></div>
       <div class="who cf-who" data-bind-if="{{confirm.advisor != null}}"><img class="gi s48 round" data-bind-src="{{confirm.advisor.portrait}}"><span class="tx" data-bind-value="{{confirm.advisor.name}}"></span></div>
     </div>
-    <div class="wbd" data-bind-if="{{confirm != null}}">
-      <div class="prose" data-part="confirm.text" data-bind-value="{{confirm.text}}"></div>
+    <div class="wbd" data-bind-if="{{confirm != null &amp;&amp; (confirm.text || confirm.consequence != null || confirm.dont_warn != null || len(confirm.facts) > 0)}}">
+      <div class="prose" data-part="confirm.text" data-bind-if="{{confirm.text}}" data-bind-value="{{confirm.text}}"></div>
       <div class="cf-conseq" data-bind-if="{{confirm.consequence != null}}" data-bind-value="{{confirm.consequence.text}}"></div>
       <div class="kv"><div class="r" data-bind-for="f:{{confirm.facts}}"><span class="k" data-bind-value="{{f.label}}"></span><b><span data-bind-value="{{f.value}}"></span><img class="gi s16" data-bind-if="{{f.yield != null}}" data-bind-src="{{f.yield == 'gold' ? 'font:ICON_GOLD' : f.yield == 'faith' ? 'font:ICON_PEACE' : f.yield == 'culture' ? 'font:ICON_CULTURE' : f.yield == 'science' ? 'font:ICON_RESEARCH' : f.yield == 'production' ? 'font:ICON_PRODUCTION' : f.yield == 'food' ? 'font:ICON_FOOD' : f.yield == 'tourism' ? 'font:ICON_TOURISM' : f.yield == 'influence' ? 'font:ICON_INFLUENCE' : 'font:ICON_HAPPINESS_1'}}"></b></div></div>
       <button class="opt" data-bind-if="{{confirm.dont_warn != null}}" data-control="checkbox" data-bind-model="state.confirm.dont_warn" data-bind-class-toggle="on:{{state.confirm.dont_warn}}"><span class="chk"><svg class="i"><use href="#i-check"/></svg></span><span data-bind-value="{{confirm.dont_warn.label}}"></span></button>

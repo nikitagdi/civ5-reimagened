@@ -38,6 +38,7 @@ fn the_exit_question_is_answered_here_and_leaving_is_left_to_the_session() {
     event(&r, "{id=9,kind='BUTTONPOPUP_CONFIRM_MENU'}");
     let root = data(&r, "confirm", 9);
     assert_eq!(root["kind"], "exit_game");
+    assert_eq!(root["text"], "");
     let yes = root["choices"]
         .as_array()
         .unwrap()
@@ -227,6 +228,10 @@ fn native_command_and_build_prompts_fail_closed_without_selected_unit_snapshot()
 fn message_acknowledgement_requires_current_queue_context() {
     let r = runtime();
     data(&r, "message", 8);
+    event(&r, "{id=8,kind='BUTTONPOPUP_TEXT'}");
+    assert!(data(&r, "message", 8).get("text").is_none());
+    event(&r, "{id=8,kind='BUTTONPOPUP_TEXT',text=''}");
+    assert!(data(&r, "message", 8).get("text").is_none());
     event(&r, "{id=8,kind='BUTTONPOPUP_TEXT',text='Event text'}");
     assert_eq!(data(&r, "message", 8)["text"], "Event text");
     assert!(
@@ -247,31 +252,62 @@ fn message_acknowledgement_requires_current_queue_context() {
 }
 
 #[test]
+fn confirm_without_body_preserves_facts_and_empty_text_is_normalized() {
+    let r = runtime();
+    event(
+        &r,
+        "{id=8,kind='BUTTONPOPUP_BARBARIAN_RANSOM',data1=7,text='  '}",
+    );
+    let root = data(&r, "confirm", 8);
+    assert_eq!(root["text"], "");
+    assert_eq!(root["facts"][0]["value"], 25);
+    event(
+        &r,
+        "{id=8,kind='BUTTONPOPUP_CONFIRM_MENU',text='Leave now?'}",
+    );
+    assert_eq!(data(&r, "confirm", 8)["text"], "Leave now?");
+}
+
+#[test]
 fn goody_choice_rechecks_eligibility_and_rejects_stale_or_foreign_answers() {
     let r = runtime();
     r.lua().exec(r#"
  local plot={GetX=function() return 4 end,GetY=function() return 5 end,GetPlotIndex=function() return 9 end}
  local unit={GetOwner=function() return 0 end,GetX=function() return 4 end,GetY=function() return 5 end,
- GetUnitType=function() return 2 end,GetName=function() return 'Explorer' end}
+ GetUnitType=function() return 2 end,GetName=function() return 'Explorer' end,
+ IsDead=function() return false end,IsDelayedDeath=function() return explorer_gone end}
  Players[0].GetUnitByID=function(self,id) if id==7 then return unit end end
- Players[0].CanGetGoody=function(self,p,id,u) return id==3 and not reward_locked end
- Map={GetPlot=function(x,y) if x==4 and y==5 then return plot end end,GetPlotByIndex=function(id) if id==9 then return plot end end}
- local goody={ID=3,Type='GOODY_TECH',Description='Technology'}
- GameInfo={Units={[2]={Type='UNIT_PATHFINDER'}},GoodyHuts=setmetatable({[3]=goody},{__call=function() local done=false;return function() if not done then done=true;return goody end end end})}
+ Players[0].CanGetGoody=function(self,p,id,u) return p==plot and u==unit and not reward_locked end
+ Map={GetPlot=function(x,y) if x==4 and y==5 then return plot end end}
+ local gold={ID=2,Type='GOODY_GOLD',ChooseDescription='Receive [ICON_GOLD] gold'}
+ local tech={ID=3,Type='GOODY_TECH',ChooseDescription='Discover a technology'}
+ GameInfo={Units={[2]={Type='UNIT_PATHFINDER'}},GoodyHuts=setmetatable({[2]=gold,[3]=tech},
+ {__call=function() local i=1;return function(t) i=i+1;return i==2 and gold or i==3 and tech or nil end end})}
  "#,"=goody-api").unwrap();
     event(
         &r,
         "{id=8,kind='BUTTONPOPUP_CHOOSE_GOODY_HUT_REWARD',data1=0,data2=7}",
     );
+    let root = data(&r, "goody_choice", 8);
     assert_eq!(
-        data(&r, "goody_choice", 8)["rewards"]
-            .as_array()
-            .unwrap()
-            .len(),
-        1
+        root["rewards"][0]["parts"],
+        serde_json::json!([
+            {"id": 0, "text": "Receive "},
+            {"id": 1, "icon": "font:ICON_GOLD"},
+            {"id": 2, "text": " gold"}
+        ])
+    );
+    assert_eq!(
+        root["rewards"][1]["parts"],
+        serde_json::json!([{"id": 0, "text": "Discover a technology"}])
     );
     let args = [("a".into(), 8), ("b".into(), 3)];
+    let cancel = [("a".into(), 8)];
     assert!(r.action(1, "goody_choice", "take", &args, None).is_err());
+    assert!(
+        r.action(0, "goody_choice", "cancel", &cancel, None)
+            .is_err()
+    );
     r.lua().exec("reward_locked=true", "=lock").unwrap();
     assert!(r.action(0, "goody_choice", "take", &args, None).is_err());
     r.lua().exec("reward_locked=false", "=unlock").unwrap();
@@ -288,10 +324,36 @@ fn goody_choice_rechecks_eligibility_and_rejects_stale_or_foreign_answers() {
             .as_array()
             .unwrap()
             .len(),
-        1
+        2
     );
+    r.lua()
+        .exec("explorer_gone=true", "=lost-explorer")
+        .unwrap();
+    let missing = data(&r, "goody_choice", 8);
+    assert_eq!(missing["id"], 8);
+    assert_eq!(missing["unit"]["id"], -1);
+    assert_eq!(missing["rewards"], serde_json::json!([]));
+    assert_eq!(
+        missing["reason"],
+        "The ruin explorer is no longer available"
+    );
+    assert!(
+        r.action(1, "goody_choice", "cancel", &cancel, None)
+            .is_err()
+    );
+    assert!(r.action(0, "goody_choice", "take", &args, None).is_err());
+    let out = r
+        .action(0, "goody_choice", "cancel", &cancel, None)
+        .unwrap();
+    assert!(out.messages.is_empty());
+    assert_eq!(out.done, Some(8));
+    assert!(out.close);
     r.context(None).unwrap();
     assert!(r.action(0, "goody_choice", "take", &args, None).is_err());
+    assert!(
+        r.action(0, "goody_choice", "cancel", &cancel, None)
+            .is_err()
+    );
 }
 
 #[test]

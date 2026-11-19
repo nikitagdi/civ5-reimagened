@@ -52,7 +52,7 @@
           <div class="scr">
             <div class="empty" data-bind-if="{{len(diplo.city_states) == 0}}" data-l10n="diplo.no_minors">You have not met any city-states.</div>
             <div class="lrow dp-cs" data-bind-for="c:{{diplo.city_states}}">
-              <img class="gi s45 round" data-bind-src="{{c.icon}}">
+              <img class="gi s45 round" data-bind-if="{{c.icon}}" data-bind-src="{{c.icon}}">
               <div class="dp-ct"><b data-bind-value="{{c.name}}"></b><span data-bind-value="{{c.trait}}"></span><span data-bind-value="{{c.ally_name}}"></span></div>
               <div class="dp-inf">
                 <div class="dp-l1" data-bind-class-toggle="c-neg:{{c.status == 'war' || c.status == 'angry'}}"><span data-bind-value="{{c.status == 'allied' ? loc('diplo.cs.allied') : c.status == 'friends' ? loc('diplo.cs.friends') : c.status == 'angry' ? loc('diplo.cs.angry') : c.status == 'war' ? loc('diplo.cs.war') : loc('diplo.cs.neutral')}}"></span><b data-bind-value="{{c.influence}}"></b></div>

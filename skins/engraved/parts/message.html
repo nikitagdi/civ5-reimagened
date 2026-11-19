@@ -10,9 +10,9 @@
       <img class="gi s128 mark" data-bind-src="{{message.art}}">
       <div class="cap" data-bind-if="{{message.band != null}}"><b data-bind-value="{{message.band.name}}"></b><span data-bind-value="{{message.band.note}}"></span></div>
     </div>
-    <div class="wbd" data-bind-if="{{message != null}}" data-bind-class-toggle="msg-text:{{message.title == null}}">
+    <div class="wbd" data-bind-if="{{message != null &amp;&amp; (message.text || message.quote != null || message.facts_title || len(message.facts) > 0)}}" data-bind-class-toggle="msg-text:{{message.title == null}}">
       <div class="quote" data-bind-if="{{message.quote != null}}"><span class="q" data-bind-value="{{message.quote.text}}"></span><span class="by" data-bind-value="{{message.quote.by}}"></span></div>
-      <div class="prose" data-part="message.text" data-bind-if="{{message.text != null}}" data-bind-value="{{message.text}}"></div>
+      <div class="prose" data-part="message.text" data-bind-if="{{message.text}}" data-bind-value="{{message.text}}"></div>
       <div class="sect" data-bind-if="{{message.facts_title != null}}"><span data-bind-value="{{message.facts_title}}"></span><i class="rule"></i></div>
       <div class="kv">
         <div class="r" data-bind-for="f:{{message.facts}}"><span class="k" data-bind-value="{{f.label}}"></span><b><span data-bind-value="{{f.value}}"></span><span class="yv" data-bind-for="y:{{f.yields}}"><span data-bind-value="{{y.value}}"></span><img class="gi" data-bind-src="{{y.yield == 'gold' ? 'font:ICON_GOLD' : y.yield == 'faith' ? 'font:ICON_PEACE' : y.yield == 'culture' ? 'font:ICON_CULTURE' : y.yield == 'science' ? 'font:ICON_RESEARCH' : y.yield == 'production' ? 'font:ICON_PRODUCTION' : y.yield == 'food' ? 'font:ICON_FOOD' : y.yield == 'tourism' ? 'font:ICON_TOURISM' : y.yield == 'influence' ? 'font:ICON_INFLUENCE' : 'font:ICON_HAPPINESS_1'}}"></span></b></div>

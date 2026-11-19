@@ -48,7 +48,7 @@ fn overview_filters_contacts_uses_public_mood_and_refuses_unsupported_conversati
       contacts=true
       MinorCivPersonalityTypes={MINOR_CIV_PERSONALITY_FRIENDLY=0,MINOR_CIV_PERSONALITY_NEUTRAL=1,MINOR_CIV_PERSONALITY_HOSTILE=2,MINOR_CIV_PERSONALITY_IRRATIONAL=3}
       GameInfo.MinorCivilizations={[0]={Type='MINOR_CIV_TEST'}}
-      GameInfo.MinorCivTraits={[0]={Description='Maritime'}}
+      GameInfo.MinorCivTraits={[0]={Description='Maritime',TraitIcon='CityStateMaritime.dds'}}
       local cs=Players[4]
       cs.IsAlive=function() return true end
       cs.IsMinorCiv=function() return true end
@@ -63,6 +63,9 @@ fn overview_filters_contacts_uses_public_mood_and_refuses_unsupported_conversati
       local minors=screen.data(0,{}).city_states
       assert(#minors==1 and minors[1].status=='angry' and minors[1].personality=='Friendly')
       assert(minors[1].ally_name==nil and minors[1].ally_id==nil)
+      assert(minors[1].icon=='ui:tx:CityStateMaritime.dds')
+      GameInfo.MinorCivTraits[0].TraitIcon=nil
+      assert(screen.data(0,{}).city_states[1].icon=='')
 
       -- Seat-scoped deal snapshots (the core's GcUiGetCurrentDeals / GcUiGetHistoricDeals shape).
       TradeableItems={TRADE_ITEM_GOLD=0,TRADE_ITEM_GOLD_PER_TURN=1,TRADE_ITEM_MAPS=2,TRADE_ITEM_RESOURCES=3,TRADE_ITEM_CITIES=4,

@@ -5,7 +5,7 @@
 <template data-layer="tooltip" id="city-yield-tip">
   <div class="city-tip" data-bind-if="{{city != null}}">
     <div data-bind-for="y:{{city.yields}}" data-bind-filter="{{y.key == state.city.hover_yield}}">
-      <div class="city-tip-row" data-bind-for="b:{{y.breakdown}}"><span data-bind-value="{{b.label}}"></span><b data-bind-value="{{fmt.signed(b.value)}}"></b></div>
+      <div class="city-tip-row" data-bind-for="b:{{y.breakdown}}"><span data-bind-value="{{b.label}}"></span><b data-bind-value="{{b.value > 0 ? '+' : ''}}{{round(b.value * 100) / 100}}"></b></div>
     </div>
   </div>
 </template>

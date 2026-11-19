@@ -158,12 +158,20 @@ return {
         status("puppet", c:IsPuppet(), "Puppet")
         status("resistance", c:IsResistance(), "Resistance", c:GetResistanceTurns())
         status("occupied", c:IsOccupied() and not c:IsNoOccupiedUnhappiness(), "Occupied")
+        local food = c:FoodDifferenceTimes100() / 100
         for y = 0, 5 do
             local breakdown = array()
             for _, source in ipairs({{"Terrain", "Worked tiles"}, {"Buildings", "Buildings"}, {"Specialists", "Specialists"}, {"Misc", "Other sources"}, {"Religion", "Religion"}}) do
                 breakdown[#breakdown + 1] = {label = source[2], value = c["GetBaseYieldRateFrom" .. source[1]](c, y)}
             end
-            local value = y == 4 and c:GetJONSCulturePerTurn() or (y == 5 and c:GetFaithPerTurn() or c:GetYieldRate(y))
+            local value
+            if y == 0 then
+                value = food
+                breakdown[#breakdown + 1] = {label = "Gross food", value = c:GetYieldRateTimes100(y) / 100}
+                breakdown[#breakdown + 1] = {label = "Food consumption", value = -c:FoodConsumption(true, 0)}
+            else
+                value = y == 4 and c:GetJONSCulturePerTurn() or (y == 5 and c:GetFaithPerTurn() or c:GetYieldRate(y))
+            end
             income[#income + 1] = {key = yields[y + 1], icon = glyphs[yields[y + 1]], value = value, enabled = true, breakdown = breakdown}
         end
         income[#income + 1] = {key = "tourism", icon = glyphs.tourism, value = c:GetBaseTourism(), enabled = true, breakdown = array()}
@@ -294,7 +302,6 @@ return {
         end
         if #ids > 1 then previous = ids[(at - 2) % #ids + 1]; following = ids[at % #ids + 1] end
         -- SIMPLIFIED(SIMP-352): Completion history needs events, and the annex preview stays a fixed summary of the effects.
-        local food = whole(c:FoodDifferenceTimes100())
         local growth = food > 0 and not c:IsFoodProduction() and "growing" or (food < 0 and "starving" or "stagnant")
         -- The turns of the growth line: until the next citizen while growing (the core's count), until the stored food
         -- runs out while starving (as the city banner counts them; the core's count is for growth only).

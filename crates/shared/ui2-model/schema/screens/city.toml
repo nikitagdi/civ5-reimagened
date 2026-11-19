@@ -27,17 +27,17 @@ icon = "asset?"
 [type.CityFood]
 stored = "i32"
 threshold = "i32"
-net = "i32"
+net = "f32"
 turns = "i32?"
 state = "CityGrowth"
 [type.CityBreakdown]
 label = "str"
-value = "i32"
+value = "f32"
 [type.CityYield]
 key = "CityYieldKind"
 # The game's font glyph of the yield (font:ICON_*).
 icon = "asset"
-value = "i32"
+value = "f32"
 enabled = "bool"
 breakdown = { list = "CityBreakdown", key = "label" }
 [type.CityBorder]
