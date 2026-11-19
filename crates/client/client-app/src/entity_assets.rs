@@ -266,8 +266,11 @@ impl EntityAssets {
                 {
                     Stage::Graphs(loader.request(id, &profile))
                 } else {
-                    tracing::info!(
-                        "the asset set has no {DGE_GRAPHS_ID}: the units play the clips of their actions"
+                    // Without the graphs a state plays every clip of its action, looping: a fortified unit
+                    // repeats its fortify entry (1500) for good. A set built without `client-data` is wrong.
+                    tracing::warn!(
+                        "the asset set has no {DGE_GRAPHS_ID} (set client-data): the units play the clips of \
+                         their actions, a fortified unit repeats its fortify entry"
                     );
                     Stage::Table(loader.request(LogicalId::new(ART_TABLE_B2_ID), &profile))
                 };
