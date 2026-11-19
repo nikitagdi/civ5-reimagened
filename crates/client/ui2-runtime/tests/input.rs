@@ -425,6 +425,22 @@ fn input_wheel_scrolls_the_container_under_the_pointer() {
     assert_eq!(h.wheel(950.0, 50.0, 1.0), PASS);
 }
 
+/// A scrolled container whose content shrinks keeps its offset within the new range after the next layout (as a
+/// browser clamps `scrollTop`): the content does not stay scrolled out of view.
+#[test]
+fn input_scroll_offset_follows_content_that_shrinks() {
+    let mut h = Host::new(false);
+    let scroll = h.part("scroll");
+    for _ in 0..20 {
+        h.wheel(550.0, 50.0, -1.0);
+    }
+    assert_eq!(h.rt.node(scroll).expect("scroll").scroll(), [0.0, 300.0]);
+    let tall = h.part("tall");
+    h.rt.remove(tall);
+    h.frame();
+    assert_eq!(h.rt.node(scroll).expect("scroll").scroll(), [0.0, 0.0]);
+}
+
 #[test]
 fn input_modal_screen_blocks_the_layers_below() {
     let mut h = Host::new(true);

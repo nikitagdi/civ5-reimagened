@@ -428,22 +428,54 @@ impl Runtime {
             // A virtual list in it may show other rows now.
             self.binder.windows_changed();
             self.write_scroll(id, new);
+            self.note_scrolled(id);
         }
     }
 
+    /// Runs after a layout: applies the scroll offsets the bindings wrote, then keeps every scrolled container
+    /// within its range (a container whose content shrank shows its end, as a browser clamps `scrollTop`).
     pub(crate) fn sync_scroll(&mut self) {
         for (id, axis, value) in std::mem::take(&mut self.binder.scroll_updates) {
             let range = hit::scroll_range(&self.arena, id);
             if let Some(n) = self.arena.get_mut(id) {
                 let index = usize::from(axis);
                 let max = if axis == 0 { range.x } else { range.y };
-                let value = value.clamp(0.0, max);
+                let value = value.clamp(0.0, max.max(0.0));
                 if n.scroll[index] != value {
                     n.scroll[index] = value;
                     self.arena.mark(id, Dirty::PAINT);
                     self.binder.windows_changed();
+                    self.note_scrolled(id);
                 }
             }
+        }
+        let mut keep = Vec::with_capacity(self.scrolled.len());
+        for id in std::mem::take(&mut self.scrolled) {
+            let range = hit::scroll_range(&self.arena, id);
+            let Some(n) = self.arena.get_mut(id) else {
+                continue;
+            };
+            let old = n.scroll;
+            let new = [
+                old[0].clamp(0.0, range.x.max(0.0)),
+                old[1].clamp(0.0, range.y.max(0.0)),
+            ];
+            if new != old {
+                n.scroll = new;
+                self.arena.mark(id, Dirty::PAINT);
+                self.binder.windows_changed();
+                self.write_scroll(id, new);
+            }
+            if new != [0.0, 0.0] {
+                keep.push(id);
+            }
+        }
+        self.scrolled = keep;
+    }
+
+    fn note_scrolled(&mut self, id: NodeId) {
+        if !self.scrolled.contains(&id) {
+            self.scrolled.push(id);
         }
     }
 

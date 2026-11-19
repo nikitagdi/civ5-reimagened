@@ -155,6 +155,8 @@ pub struct Runtime {
     clock: Option<ui2_draw::Clock>,
     /// Inline roots that fit their text to their box (`data-fit`).
     fit_roots: Vec<NodeId>,
+    /// Scroll containers with an offset: kept within their range when their content shrinks.
+    scrolled: Vec<NodeId>,
     /// Running transitions.
     anim: anim::Animator,
     /// Where game asset pictures are found.
@@ -200,6 +202,7 @@ impl Runtime {
             output: UiOutput::default(),
             clock: None,
             fit_roots: Vec::new(),
+            scrolled: Vec::new(),
             anim: anim::Animator::default(),
             assets: None,
             anchors: anchor::Anchors::default(),
