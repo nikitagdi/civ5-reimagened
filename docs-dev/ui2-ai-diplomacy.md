@@ -1,0 +1,104 @@
+# Diplomacy with AI players
+
+How a human seat talks and trades with an AI leader on the server. The screens are `diplo`, `leader` and `deal` (`crates/shared/game-host/screens`); the core side is described in the core fork's `headless/portable/ui-seat-queries.md`.
+
+## How the original does it
+
+The original game runs the leader screen on the human's own machine, with that human as the active player.
+
+- **Opening.** The leader list counts the opens per partner (`UI.ChangeStartDiploRepeatCount`) and calls `Player:DoBeginDiploWithHuman`. The AI picks a greeting (`CvDiplomacyAI::GetGreetHumanMessage`: war, peace wanted, friendship, hostility, repeats) and shows it through `gDLL->GameplayDiplomacyAILeaderMessage(ai, DIPLO_UI_STATE_DEFAULT_ROOT, text, animation)`. The greeting changes nothing in the game.
+- **Leader messages.** Every line the AI says to the human goes through `GameplayDiplomacyAILeaderMessage(ai, state, text, animation, data)`. The state (`DiploUIStateTypes`) selects what the screen shows: the root, the human-invoked discussion, the trade screen, an AI offer, demand or request, or a plain answer. The exe shows it only on the machine whose active player the line is for.
+- **Discussion.** The human's topics (declare friendship, denounce, do not settle near me, stop spying, stop converting, stop digging, a war together) go out as `Game.DoFromUIDiploEvent` → `gDLL->sendFromUIDiploEvent`, a network message. Every machine runs `CvDiplomacyAI::DoFromUIDiploEvent`; the AI's reply is a leader message on the asker's machine only.
+- **Trade.** The trade screen holds a scratch deal. `UI.DoProposeDeal` runs `CvDealAI::DoHumanOfferDealToThisAI` on the human's machine: `IsDealWithHumanAcceptable` values it, a gift is accepted too, and an accepted deal goes out as `gDLL->sendNetDealAccepted` with the deal. Every machine then runs `DoAcceptedDeal`, which adds and finalizes the deal (`CvGameDeals::FinalizeDeal` checks every item again) and says the leader's thanks on the proposer's machine. A refusal is a leader line (unacceptable, insulting, or a repeat after several offers). "What would make this work", "what do you want for this" and "what will you give me for this" run `DoEqualizeDealWithHuman` on the screen's deal.
+- **Peace and war.** War is `sendChangeWar` after a confirmation. Peace is `FROM_UI_DIPLO_EVENT_HUMAN_NEGOTIATE_PEACE`: the AI either refuses or prepares the trade screen with the peace items and its price (`DoTradeScreenOpened`, a value cached per AI on the asking machine).
+- **AI-initiated diplomacy.** `CvDiplomacyRequests` queues the AI's requests per human and sends one while that human's turn is active. The AI's turn stays active until the leader screen closes. The human answers with the `*_RESPONSE` events, `DEMAND_HUMAN_REFUSAL`, `REQUEST_HUMAN_REFUSAL` or by accepting the AI's deal. All of this is single-player only: in a network game the AI never contacts a human. `CvDiplomacyAI::DoContactMajorCivs` skips the human players when `CvPreGame::isNetworkMultiplayerGame()`, `DoFirstContact` queues no greeting ("don't show up in MP"), the war declaration scene is shown only outside network games, and `SendDealRequest` needs the target to be the active player.
+- **Notifications.** A click on a spy or intrigue notification starts a conversation with the AI it names (`DoBeginDiploWithHumanEspionageResult`, `DoBeginDiploWithHumanInDiscuss`).
+
+## What the headless runtime had
+
+- `rt_diplo` received every leader message, answered the AI's requests with the human's "no" and dismissed the rest (`SIMP-003`). It reported the declined ones as `GC_EVENT_DIPLO_AUTO_DECLINED`; the plain replies were never reported.
+- The trade functions of the classic client's UI (`GcUiProposeDeal`, `GcUiEqualize` and others) work on one scratch deal and the active player: a single-seat replica's API, unusable for several seats on one server.
+- Seat-scoped read-only queries existed for current, historic and proposed deals and for advisor counsel. The read scope (`GcUiReadScope`) puts back what a Lua getter may change.
+- The delivery of `sendNetDealAccepted` and `sendFromUIDiploEvent` already ran as the sender (`ActiveAs`), so replies were built for the right human.
+
+## Server design
+
+**Leader session per seat.** Every seat has at most one leader session (`_lib.lua`): the AI it talks to, the screen mode, the leader's last line, the refused-offer count and, per turn and partner, the open count for the repeat greetings. It is screen state of the worker's Lua, like a draft: it is never saved, never journaled and never changes the game. It plays the part of the original's local leader screen, one per seat instead of one per machine.
+
+**Queries (read-only, in the read scope).** All take the seat explicitly, switch the active player to the seat for the call only (`ActiveAs` changes the pregame field and nothing else) and use a local deal, never the shared scratch deal.
+
+| Function | Original |
+| --- | --- |
+| `GcUiLeaderGreeting(seat, ai, count)` | `GetGreetHumanMessage` with the seat's own open count |
+| `GcUiDiploText(seat, ai, name)` | `GetDiploStringForMessage` for a named line |
+| `GcUiDealQuery(seat, partner, items, "check")` | the trade screen adding the items in order |
+| `GcUiDealQuery(..., "pockets")` | what each side may still add (`IsPossibleToTradeItem`) |
+| `GcUiDealQuery(..., "evaluate")` | the verdict of `DoHumanOfferDealToThisAI` |
+| `GcUiDealQuery(..., "equalize", mode)` | `DoEqualizeDealWithHuman` on a copy |
+| `GcUiDealQuery(..., "demand")` | the decision half of `DoHumanDemand` (its async draw included) |
+| `GcUiDealQuery(..., "peace")` | `HUMAN_NEGOTIATE_PEACE` and `DoTradeScreenOpened` for the seat: willing, too soon, the price, the opening table |
+| `GcUiDealQuery(..., "blob")` | the deal as `sendNetDealAccepted` or `sendNetDemandAccepted` carries it |
+
+**Commands (ordered, journaled).** Everything that changes the game is the seat's own net message, submitted by the screen action as an ordinary order and delivered by the core as the sender:
+
+- a discussion topic, a war together or a denunciation: `sendFromUIDiploEvent(ai, event, arg1, arg2)`;
+- an accepted offer: `sendNetDealAccepted(ai, value, mine, theirs)` with the core's own deal blob (`net.send_deal`, lowercase hex of whole bytes, at most 8192 digits, only on deal messages);
+- a demand: `sendFromUIDiploEvent(ai, HUMAN_DEMAND, answer, -1)` with the AI's answer (it starts the AI's demand timer on every machine), then `sendNetDemandAccepted(ai)` with the deal blob when the AI gives in, as `DoHumanDemand` sends them;
+- peace: the accepted peace deal, as any other accepted offer;
+- war: the existing `declare_war` window.
+
+Talk, Discuss and Make peace send nothing: they only produce the leader's line, as in the original (`HUMAN_WANTS_DISCUSSION` and `HUMAN_NEGOTIATE_PEACE` change no synchronized state, so the line is read instead of sent).
+
+**Peace price per seat.** The original keeps the AI's price of peace in `m_iCachedValueOfPeaceWithHuman`, set by `DoTradeScreenOpened` on the asking machine. A server has one AI for every seat, so the core's queries compute the seat's terms on a local deal and lend the value to the AI's cache only while a verdict or an equalize runs; the value carried by `sendNetDealAccepted` already has it folded in (FIX-0026). Two seats at war with one AI talk peace in the same turn, each at its own price.
+
+**The table's kind.** The leader session holds what the deal screen opens as: a trade, a demand (their side only, a Demand button) or peace talks (the treaties and the allies' peace on the table, fixed). Leaving the table clears it.
+
+**Replies.** The core now reports every leader message as `GC_EVENT_DIPLO_LEADER_MESSAGE` (AI, state, human, animation, data, request flag, answer; the line). `RealCore::leader_messages` drains them and the worker hands each one to the seat's session (`__leader_message`). A line from another AI, or for a seat without a session, is dropped. The state picks the mode: the human-invoked discussion stays in the discussion menu, every other line returns to the leader's root.
+
+**Determinism.** Queries and actions run in the read scope; only their net messages change the game, after the action returned, in the order the worker applies orders. Each order is pumped before the next one is taken, so a verdict is always made on the state the deal is enacted in. The core's `FinalizeDeal` checks every item again when the deal is applied. The real-core test checks that talking, discussing, drafting and asking leave the simulation digest unchanged.
+
+**Multiplayer.** Two humans talking to the same AI in one turn have separate sessions, drafts and counts. Their messages are ordered by the worker; each reply is addressed to the human whose message caused it (the delivery runs with that human active), so it reaches that seat's session only. No protocol change: the screens use `Query::Screen`, `Command::ScreenAction` and the existing window transitions.
+
+## Status
+
+Done:
+
+- Talk opens the leader window with the AI's greeting and mood, opinion reasons and relations (`diplo.begin_diplo`, `leader`).
+- The discussion menu: friendship, denounce (confirmed), do not settle, stop spying, stop converting, stop digging (hidden once asked), a war together with a target list, never mind. The AI's replies come back to the seat.
+- Trade with an AI: the core's pockets for both sides (gold, gold per turn, luxury and strategic resources, embassy, open borders, defensive pact, research agreement, trade agreement, cities, a third team's peace and war, World Congress votes; pacts and agreements go on both sides at once, as in TradeLogic), the table checked item by item, "what would make this work" in its three forms, propose with the AI's verdict and the leader's line, and an accepted deal enacted as the seat's order. Closing the table returns to the leader.
+- Peace talks: the AI refuses (too soon, or not wanted) in its own words, or opens the table with the treaties at the seat's own price; "what will end this war", and a peace it accepts is enacted in order.
+- Demands: their side only; the AI's answer is the seat's ordered event and the deal follows when it gives in.
+
+- A spy or intrigue notification opens the leader window of the AI it names (model 1.5, note action `leader`).
+
+AI-initiated requests and messages: the server runs a network game, and the original's network game has none (see above), so no AI question, statement, offer or demand reaches a seat, and the core has nothing to hold. Giving seats the single-player AI diplomacy is a game rule change, not a port, and needs:
+
+1. the AI to contact humans in a network game for seats that answer it (`DoContactMajorCivs` and the greeting of `DoFirstContact`, behind the setup's `diplo_auto_decline` 0);
+2. a deal per queued request (`SendDealRequest` keeps the scratch deal only for the active player; a request would carry its own copy);
+3. the hold itself in the runtime: a question kept for its human instead of `SIMP-003`'s automatic answer, one at a time, settled by the delivery of the human's own `*_RESPONSE` event (or a deal or refusal), answered the automatic way when the human's turn ends or changes or the seat is no longer a seated human, and saved (runtime section version 4);
+4. the server side: the question queued as the seat's leader popup (`BUTTONPOPUP_DIPLOMACY` with the line), DiscussionDialog's answers in the leader window, the answer sent as the seat's order, and the popup lapsing when the core no longer holds the question.
+
+Items 3 and 4 were written and tested with script tests, but are not merged because nothing reaches them until 1 and 2 exist.
+
+Remaining:
+
+- Proposing a deal to a human.
+
+## Simplifications
+
+- `SIMP-003` (core): the AI's own requests are still declined by the core; the leader screen's `respond` has nothing to answer.
+- `SIMP-456`: a draft with a human holds gold, income and resources and cannot be proposed. The AI table has every item of the original (a declaration of friendship is traded between humans only there too).
+- `SIMP-450`: deal history omits the item kinds without a model kind.
+- `SIMP-448`: a spy or intrigue notification opens the AI's leader window with its usual greeting, not the spy confrontation with its answers or the offer to share the intrigue.
+
+## Tests
+
+```sh
+cargo test -p game-host --test leader_script --test deal_script --test diplo_script
+cargo test -p game-host screens::runtime::tests::send_deal
+cargo test -p gamecore event
+# real core (Linux):
+cargo test -p game-host --test real_ai_diplomacy -- --test-threads=1
+cargo test -p game-host --test real_ai_peace -- --test-threads=1
+cargo test -p game-host --test real_screen_purity -- --test-threads=1
+```

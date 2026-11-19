@@ -454,6 +454,7 @@ fn enums_of_the_model() {
         "ItemKind",
         &["unit", "building", "wonder", "project", "process"],
     );
+    // "target" and the map.target / map.cancel intents: the map targeting mode of model 1.4.
     eq("MapMode", &["select", "move", "range_attack", "target"]);
     eq(
         "ProdTab",

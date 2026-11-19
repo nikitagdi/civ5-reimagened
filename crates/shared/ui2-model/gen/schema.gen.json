@@ -1,6 +1,6 @@
 {
 "version": "1.5",
-"hash": "72a780fb290f71db",
+"hash": "f41e0706da5e6dba",
 "roots": [
 {"name":"meta","type":"Meta","field":0,"owner":"source"},
 {"name":"game","type":"Game","field":6,"owner":"source"},
@@ -583,7 +583,7 @@
 {"name":"Activity","variants":["awake","hold","sleep","heal","sentry","intercept","mission","other"]},
 {"name":"UnitActionKind","variants":["move","range_attack","found_city","fortify","sleep","skip","heal","automate_build","automate_explore","cancel","disband","wake","alert","pillage","upgrade"]},
 {"name":"NoteCat","variants":["growth","great_people","diplomacy","military","production","research","policy","religion","other"]},
-{"name":"NoteGo","variants":["look","none","capital","unit","choose_tech","tech_award","steal_tech","policies","production","diplo_vote","city_state","deal","free_great_person","faith_great_person","maya_bonus","pantheon","reformation","found_religion","enhance_religion","espionage","league","league_project","culture","ideology","archaeology","great_work"]},
+{"name":"NoteGo","variants":["look","none","capital","unit","choose_tech","tech_award","steal_tech","policies","production","diplo_vote","city_state","deal","free_great_person","faith_great_person","maya_bonus","pantheon","reformation","found_religion","enhance_religion","espionage","league","league_project","culture","ideology","archaeology","great_work","leader"]},
 {"name":"ChatTo","variants":["all","player"]},
 {"name":"ItemKind","variants":["unit","building","wonder","project","process"]},
 {"name":"MapMode","variants":["select","move","range_attack","target"]},

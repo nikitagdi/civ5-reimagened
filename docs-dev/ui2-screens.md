@@ -227,6 +227,7 @@ Yes rechecks the seat's ownership and the core's availability before sending Del
 No, Escape, and Enter close the question without giving the order.
 `diplo.declare-war` opens `declare_war` with `a` as the rival team and `b=-1`.
 `deal-ai.*` names AI negotiation parts. Human negotiation retains `deal.*`.
+Talk with an AI (`diplo.begin_diplo`, `civ_ribbon.begin_diplo`) starts the seat's leader session and opens `leader`; the discussion, the trade table and the AI's replies are described in `docs-dev/ui2-ai-diplomacy.md`. A deal leaves a screen only through `net.send_deal(name, blob, ...)`, which accepts the deal messages (`sendNetDealAccepted`) with the core's own blob from `GcUiDealQuery` (lowercase hex, at most 8192 digits).
 Diplomacy tooltips are included through `parts/diplo_tips.html` in the tooltip layer.
 
 `ui2-hud-integration` checks HUD bounds at both supported acceptance resolutions,

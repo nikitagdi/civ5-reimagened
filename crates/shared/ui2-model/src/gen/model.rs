@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 5);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x72a780fb290f71db;
+pub const SCHEMA_HASH: u64 = 0xf41e0706da5e6dba;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -825,14 +825,15 @@ pub enum NoteGo {
     Ideology = 23,
     Archaeology = 24,
     GreatWork = 25,
+    Leader = 26,
 }
 
 impl NoteGo {
     /// The names, indexed by the discriminant.
-    pub const NAMES: [&'static str; 26] = ["look", "none", "capital", "unit", "choose_tech", "tech_award", "steal_tech", "policies", "production", "diplo_vote", "city_state", "deal", "free_great_person", "faith_great_person", "maya_bonus", "pantheon", "reformation", "found_religion", "enhance_religion", "espionage", "league", "league_project", "culture", "ideology", "archaeology", "great_work"];
+    pub const NAMES: [&'static str; 27] = ["look", "none", "capital", "unit", "choose_tech", "tech_award", "steal_tech", "policies", "production", "diplo_vote", "city_state", "deal", "free_great_person", "faith_great_person", "maya_bonus", "pantheon", "reformation", "found_religion", "enhance_religion", "espionage", "league", "league_project", "culture", "ideology", "archaeology", "great_work", "leader"];
 
     /// Every variant, in declaration order.
-    pub const ALL: &'static [NoteGo] = &[NoteGo::Look, NoteGo::None, NoteGo::Capital, NoteGo::Unit, NoteGo::ChooseTech, NoteGo::TechAward, NoteGo::StealTech, NoteGo::Policies, NoteGo::Production, NoteGo::DiploVote, NoteGo::CityState, NoteGo::Deal, NoteGo::FreeGreatPerson, NoteGo::FaithGreatPerson, NoteGo::MayaBonus, NoteGo::Pantheon, NoteGo::Reformation, NoteGo::FoundReligion, NoteGo::EnhanceReligion, NoteGo::Espionage, NoteGo::League, NoteGo::LeagueProject, NoteGo::Culture, NoteGo::Ideology, NoteGo::Archaeology, NoteGo::GreatWork];
+    pub const ALL: &'static [NoteGo] = &[NoteGo::Look, NoteGo::None, NoteGo::Capital, NoteGo::Unit, NoteGo::ChooseTech, NoteGo::TechAward, NoteGo::StealTech, NoteGo::Policies, NoteGo::Production, NoteGo::DiploVote, NoteGo::CityState, NoteGo::Deal, NoteGo::FreeGreatPerson, NoteGo::FaithGreatPerson, NoteGo::MayaBonus, NoteGo::Pantheon, NoteGo::Reformation, NoteGo::FoundReligion, NoteGo::EnhanceReligion, NoteGo::Espionage, NoteGo::League, NoteGo::LeagueProject, NoteGo::Culture, NoteGo::Ideology, NoteGo::Archaeology, NoteGo::GreatWork, NoteGo::Leader];
 
     /// The schema name of the variant (the same as [`name`](Self::name)).
     #[must_use]
@@ -870,6 +871,7 @@ impl NoteGo {
             23 => Some(NoteGo::Ideology),
             24 => Some(NoteGo::Archaeology),
             25 => Some(NoteGo::GreatWork),
+            26 => Some(NoteGo::Leader),
             _ => None,
         }
     }
@@ -910,6 +912,7 @@ impl NoteGo {
             "ideology" => Some(NoteGo::Ideology),
             "archaeology" => Some(NoteGo::Archaeology),
             "great_work" => Some(NoteGo::GreatWork),
+            "leader" => Some(NoteGo::Leader),
             _ => None,
         }
     }
@@ -934,7 +937,7 @@ impl crate::model::Model for NoteGo {
         match v {
             crate::value::Value::Enum(n) => NoteGo::from_u16(*n).ok_or(crate::value::ValueError::EnumIndex {
                 value: *n,
-                count: 26,
+                count: 27,
             }),
             other => Err(crate::value::ValueError::mismatch("enum", other)),
         }

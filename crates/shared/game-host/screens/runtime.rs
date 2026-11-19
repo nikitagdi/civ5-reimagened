@@ -17,6 +17,11 @@ const TEXT_MESSAGES: &[&str] = &[
     "SendEnhanceReligion",
     "SendLeagueEditName",
 ];
+/// The net messages that carry a deal: the core's own deal blob (`GcUiDealQuery(..., "blob")`, the hex of
+/// `ICvDeal1::Write`), never a client's text.
+const DEAL_MESSAGES: &[&str] = &["sendNetDealAccepted", "sendNetDemandAccepted"];
+/// The longest deal blob, in hex digits: a full trade table (each item is some 40 bytes) with room to spare.
+const MAX_DEAL_TEXT: usize = 8192;
 
 pub(crate) struct ActionOutput {
     pub messages: Vec<NetMessage>,
@@ -80,6 +85,21 @@ impl Screens {
         let (known, x, y): (bool, Option<i32>, Option<i32>) =
             self.scoped()?.call((f, i32::from(player), unit))?;
         Ok(known.then_some(x.zip(y)))
+    }
+
+    /// A leader's line the core showed this seat: its leader session takes it (`__leader_message` of `_lib.lua`). Only
+    /// the screen state of the seat changes, never the game.
+    pub fn leader_message(&self, m: &crate::core::LeaderMessage) -> lua_sys::Result<()> {
+        let f: Function = self.lua.globals().get("__leader_message")?;
+        let _: LuaValue = f.call((
+            i32::from(m.human),
+            i32::from(m.ai),
+            m.state,
+            m.text.as_str(),
+            m.request,
+            m.answer,
+        ))?;
+        Ok(())
     }
 
     pub fn popup_kind(&self, number: i32) -> lua_sys::Result<Option<String>> {
@@ -325,6 +345,58 @@ impl Screens {
                         .filter(|m| gamecore::replica::net_message_from_ui(m.id))
                         .ok_or_else(|| LuaError::msg("unknown or forbidden UI net message"))?;
                     message.text = text;
+                    let mut output = output.borrow_mut();
+                    if output.len() >= MAX_MESSAGES {
+                        return Err(LuaError::msg("too many screen net messages"));
+                    }
+                    output.push(message);
+                    Ok(())
+                }),
+        )?;
+        // `net.send_deal(name, blob, ...)`: a deal message with the blob the core built for the seat's draft; the
+        // numbers after it are the message's numeric arguments.
+        let output = Rc::clone(&messages);
+        net.raw_set(
+            "send_deal",
+            self.lua
+                .create_function(move |_, all: Variadic<LuaValue<'_>>| {
+                    let text_of = |value: Option<&LuaValue<'_>>| match value {
+                        Some(LuaValue::String(s)) => Ok(String::from_utf8_lossy(&s.0).into_owned()),
+                        _ => Err(LuaError::msg("send_deal expects a name and a deal")),
+                    };
+                    let name = text_of(all.0.first())?;
+                    let blob = text_of(all.0.get(1))?;
+                    let mut args = Vec::new();
+                    for value in all.0.iter().skip(2) {
+                        match value {
+                            LuaValue::Number(n)
+                                if n.fract() == 0.0
+                                    && *n >= f64::from(i32::MIN)
+                                    && *n <= f64::from(i32::MAX) =>
+                            {
+                                args.push(*n as i32);
+                            }
+                            _ => {
+                                return Err(LuaError::msg("send_deal arguments are whole numbers"));
+                            }
+                        }
+                    }
+                    if !DEAL_MESSAGES.contains(&name.as_str()) {
+                        return Err(LuaError::msg("this net message carries no deal"));
+                    }
+                    if blob.is_empty()
+                        || blob.len() > MAX_DEAL_TEXT
+                        || blob.len() % 2 != 0
+                        || !blob
+                            .bytes()
+                            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                    {
+                        return Err(LuaError::msg("invalid deal blob"));
+                    }
+                    let mut message = NetMessage::new(&name, &args)
+                        .filter(|m| gamecore::replica::net_message_from_ui(m.id))
+                        .ok_or_else(|| LuaError::msg("unknown or forbidden UI net message"))?;
+                    message.text = blob;
                     let mut output = output.borrow_mut();
                     if output.len() >= MAX_MESSAGES {
                         return Err(LuaError::msg("too many screen net messages"));
@@ -681,6 +753,51 @@ mod tests {
         // A message that carries no text, and the ones a screen may not send at all, stay closed.
         assert!(r.action(3, "test", "plain", &[], None).is_err());
         assert!(r.action(3, "test", "turn", &[], None).is_err());
+    }
+
+    #[test]
+    fn send_deal_carries_a_bounded_hex_blob_on_deal_messages_only() {
+        let r = runtime();
+        r.lua
+            .exec(
+                r#"
+            __screens.test.actions.deal = function(player, args, net)
+                net.send_deal("sendNetDealAccepted", __blob, 2, 10, 20, 30)
+            end
+            __screens.test.actions.rename = function(player, args, net)
+                net.send_deal("SendRenameCity", "00", 1)
+            end
+            __screens.test.actions.demand = function(player, args, net)
+                net.send_deal("sendNetDemandAccepted", "0a1b", 2)
+            end
+        "#,
+                "=send-deal-test",
+            )
+            .unwrap();
+        let set = |blob: &str| r.lua.globals().raw_set("__blob", blob).unwrap();
+        set("0a1b");
+        let m = r.action(3, "test", "deal", &[], None).unwrap();
+        let mut expected = NetMessage::new("sendNetDealAccepted", &[2, 10, 20, 30]).unwrap();
+        expected.text = "0a1b".into();
+        assert_eq!(m.messages, vec![expected]);
+        // Long enough for a full table, but bounded; lowercase hex in whole bytes only.
+        set(&"ab".repeat(MAX_DEAL_TEXT / 2));
+        assert!(r.action(3, "test", "deal", &[], None).is_ok());
+        for bad in [
+            String::new(),
+            "abc".into(),
+            "0A".into(),
+            "zz".into(),
+            "ab".repeat(MAX_DEAL_TEXT / 2 + 1),
+        ] {
+            set(&bad);
+            assert!(r.action(3, "test", "deal", &[], None).is_err(), "{bad:.8}");
+        }
+        assert!(r.action(3, "test", "rename", &[], None).is_err());
+        let m = r.action(3, "test", "demand", &[], None).unwrap();
+        let mut expected = NetMessage::new("sendNetDemandAccepted", &[2]).unwrap();
+        expected.text = "0a1b".into();
+        assert_eq!(m.messages, vec![expected]);
     }
 
     #[test]

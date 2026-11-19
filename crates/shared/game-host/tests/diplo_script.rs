@@ -1,7 +1,7 @@
 use lua_sys::{Lua, Table};
 
 #[test]
-fn overview_filters_contacts_uses_public_mood_and_refuses_unsupported_conversations() {
+fn overview_filters_contacts_uses_public_mood_and_starts_seat_scoped_conversations() {
     let lua = Lua::new().unwrap();
     lua.exec(include_str!("../screens/_lib.lua"), "=helpers")
         .unwrap();
@@ -38,9 +38,17 @@ fn overview_filters_contacts_uses_public_mood_and_refuses_unsupported_conversati
       assert(not root.deals_available and #root.deals_reason>0 and #root.deals==0)
       assert(root.majors[1].action_enabled and root.majors[1].can_declare_war)
       assert(not root.majors[2].can_declare_war)
-      assert(not root.majors[2].action_enabled and #root.majors[2].action_reason>0)
-      local ok,reason=pcall(screen.actions.begin_diplo,0,{a=2},{send=function() error('must not send') end})
-      assert(not ok and string.find(reason,'seat%-scoped'))
+      assert(root.majors[2].action=='talk' and root.majors[2].action_enabled and root.majors[2].action_reason==nil)
+      -- Talk starts the seat's leader session (counted for the repeat greetings) and opens the leader window; nothing is sent.
+      local greeted={}
+      GcUiLeaderGreeting=function(seat,ai,count) greeted[#greeted+1]={seat,ai,count}; return "Hello [COLOR_POSITIVE_TEXT]there[ENDCOLOR]",1 end
+      local opened=screen.actions.begin_diplo(0,{a=2},{send=function() error('must not send') end})
+      assert(opened.open.screen=='leader' and opened.open.a==2)
+      assert(greeted[1][1]==0 and greeted[1][2]==2 and greeted[1][3]==1)
+      assert(leader_session(0,2).phrase=='Hello there' and leader_session(1)==nil)
+      screen.actions.begin_diplo(0,{a=2},{})
+      assert(greeted[2][3]==2, "the second talk of the turn is a repeat")
+      GcUiLeaderGreeting=nil
       assert(not pcall(screen.actions.begin_diplo,0,{a=1},{}))
       assert(not pcall(screen.actions.begin_diplo,0,{a=3},{}))
       contacts=false

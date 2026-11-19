@@ -1,4 +1,4 @@
-//! Live diplomacy roots and action refusals. Stub builds skip deliberately.
+//! Live diplomacy roots, Talk and its refusals. Stub builds skip deliberately.
 use game_host::Worker;
 use protocol::{Command, CommandOutcome, Start};
 #[path = "common/real.rs"]
@@ -8,7 +8,7 @@ mod common;
 mod screen_helper;
 
 #[test]
-fn diplomacy_root_is_well_formed_and_conversations_fail_with_a_reason() {
+fn diplomacy_root_is_well_formed_and_talk_opens_only_met_ai_leaders() {
     if gamecore::IMPLEMENTATION != "lekmod" {
         eprintln!("skipped: linked gamecore is the stub");
         return;
@@ -27,18 +27,16 @@ fn diplomacy_root_is_well_formed_and_conversations_fail_with_a_reason() {
     assert_eq!(root["deals_available"], true);
     assert!(root["deals_reason"].is_null());
     assert!(root["deals"].as_array().unwrap().is_empty());
-    // A new map may have no contacts. Prove the action always refuses with an explanation,
-    // including every known AI when the seed starts within contact distance.
-    let targets = std::iter::once(2).chain(
-        root["majors"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .filter(|p| p["is_human"] == false)
-            .map(|p| p["id"].as_i64().unwrap()),
-    );
-    for id in targets {
-        match h.cmd(
+    // Talk to a leader the seat has not met is refused with an explanation; a met AI opens its leader screen.
+    let known: Vec<i64> = root["majors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|p| p["is_human"] == false)
+        .map(|p| p["id"].as_i64().unwrap())
+        .collect();
+    let talk = |h: &mut common::H, id: i64| {
+        h.cmd(
             0,
             Command::ScreenAction {
                 screen: "diplo".into(),
@@ -46,9 +44,18 @@ fn diplomacy_root_is_well_formed_and_conversations_fail_with_a_reason() {
                 args: vec![("a".into(), id)],
                 text: None,
             },
-        ) {
+        )
+    };
+    if !known.contains(&2) {
+        match talk(&mut h, 2) {
             CommandOutcome::Rejected { reason, .. } => assert!(!reason.is_empty()),
-            other => panic!("unsupported conversation must fail: {other:?}"),
+            other => panic!("an unmet leader must be refused: {other:?}"),
+        }
+    }
+    for id in known {
+        match talk(&mut h, id) {
+            CommandOutcome::ScreenApplied { open: Some(o), .. } => assert_eq!(o.screen, "leader"),
+            other => panic!("a met AI opens its leader: {other:?}"),
         }
     }
 }

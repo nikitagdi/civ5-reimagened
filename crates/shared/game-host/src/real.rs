@@ -409,6 +409,8 @@ pub struct RealCore {
     /// Events taken from the core's queue and not yet turned into journal entries.
     backlog: Vec<GameEvent>,
     popups: Vec<crate::popups::CorePopup>,
+    /// Leaders' lines for the human seats, not yet taken by `leader_messages`.
+    leader_messages: Vec<crate::core::LeaderMessage>,
     /// Wars between humans that extend the timer, not yet reported by `turn`.
     pending_wars: Vec<HumanWar>,
     map: MapInfo,
@@ -459,6 +461,7 @@ impl RealCore {
             events,
             backlog: Vec::new(),
             popups: Vec::new(),
+            leader_messages: Vec::new(),
             pending_wars: Vec::new(),
             map: MapInfo::default(),
             turn: 0,
@@ -528,6 +531,32 @@ impl RealCore {
             })
             .collect();
         for event in &fresh {
+            if let GameEvent::DiploLeaderMessage {
+                ai_player,
+                state,
+                human,
+                animation,
+                data,
+                request,
+                answer,
+                text,
+            } = event
+                && let (Ok(human), Ok(ai)) =
+                    (PlayerId::try_from(*human), PlayerId::try_from(*ai_player))
+                && human >= 0
+                && ai >= 0
+            {
+                self.leader_messages.push(crate::core::LeaderMessage {
+                    human,
+                    ai,
+                    state: *state,
+                    animation: *animation,
+                    data: *data,
+                    request: *request,
+                    answer: *answer,
+                    text: text.clone(),
+                });
+            }
             if let GameEvent::PopupInfo {
                 popup_type,
                 data1,
@@ -1523,6 +1552,11 @@ impl Core for RealCore {
     fn popups(&mut self) -> Vec<crate::popups::CorePopup> {
         self.pull();
         std::mem::take(&mut self.popups)
+    }
+
+    fn leader_messages(&mut self) -> Vec<crate::core::LeaderMessage> {
+        self.pull();
+        std::mem::take(&mut self.leader_messages)
     }
 
     fn events(&mut self) -> Vec<CoreEvent> {

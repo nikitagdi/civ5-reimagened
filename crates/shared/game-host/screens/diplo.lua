@@ -1,5 +1,4 @@
 -- Seat-scoped diplomacy. Display names deliberately use leaders/civilizations, never account names.
-local ai_reason = "AI conversations are unavailable: the server has no seat-scoped leader session."
 local deals_reason = "Deal history is unavailable: this game core has no read-only seat-scoped deal query."
 local function person(id)
     local p = Players[id]
@@ -162,8 +161,8 @@ local function data(player)
                     row.defensive_pact, row.research_agreement = team:IsDefensivePact(qt), team:IsHasResearchAgreement(qt)
                     row.resources = resources(q)
                 else row.resources = array() end
-                row.action, row.action_enabled = q:IsHuman() and "trade" or "talk", q:IsHuman() and active
-                row.action_reason = not active and "Only during your turn." or (not q:IsHuman() and ai_reason or nil)
+                row.action, row.action_enabled = q:IsHuman() and "trade" or "talk", active
+                row.action_reason = not active and "Only during your turn." or nil
                 row.era = L(GameInfo.Eras[q:GetCurrentEra()].Description)
                 row.policies, row.wonders, row.relations = array(), array(), array()
                 for b in GameInfo.PolicyBranchTypes() do
@@ -219,7 +218,9 @@ return {data=data,actions={
         local p=Players[args.a]
         assert(args.a~=player and p and p:IsAlive() and not p:IsHuman() and met(player,args.a),"This leader is unavailable.")
         assert(Players[player]:IsTurnActive(),"Only during your turn.")
-        -- SIMPLIFIED(SIMP-451): beginning a conversation needs a seat-scoped server operation; direct AI mutation is forbidden.
-        error(ai_reason)
+        -- The original's leader list: UI.ChangeStartDiploRepeatCount, then DoBeginDiploWithHuman, whose greeting is the
+        -- only thing it changes (the leader screen of this machine). The seat's leader session holds both.
+        leader_begin(player,args.a,true)
+        return {open={screen="leader",a=args.a}}
     end,
 }}

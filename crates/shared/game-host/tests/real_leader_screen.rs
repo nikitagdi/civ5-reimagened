@@ -6,7 +6,7 @@ mod common;
 #[path = "common/city_screen.rs"]
 mod screen_helper;
 #[test]
-fn leader_dossier_is_real_and_dialogue_actions_are_explained_refusals() {
+fn leader_greets_with_the_core_and_unoffered_dialogue_is_an_explained_refusal() {
     if gamecore::IMPLEMENTATION != "lekmod" {
         eprintln!("skipped: linked gamecore is the stub");
         return;
@@ -31,18 +31,19 @@ fn leader_dossier_is_real_and_dialogue_actions_are_explained_refusals() {
     .unwrap();
     let root = screen_helper::query_args(&mut h, "leader", vec![("a".into(), 2)]);
     assert_eq!(root["partner"]["id"], 2);
-    assert!(root["phrase"].as_str().unwrap().is_empty());
-    assert!(!root["unavailable_reason"].as_str().unwrap().is_empty());
+    assert_eq!(root["available"], true);
+    assert!(
+        !root["phrase"].as_str().unwrap().is_empty(),
+        "the AI's own greeting: {root}"
+    );
+    // Peace talks need a war and an answer needs the AI's request; a topic, a war target or a confirmation need the
+    // discussion first.
     for action in [
-        "discuss",
-        "trade",
-        "demand",
         "make_peace",
         "topic",
         "respond",
         "coop_war",
         "confirm",
-        "back",
         "switch",
     ] {
         match h.cmd(
@@ -55,7 +56,7 @@ fn leader_dossier_is_real_and_dialogue_actions_are_explained_refusals() {
             },
         ) {
             CommandOutcome::Rejected { reason, .. } => assert!(!reason.is_empty()),
-            other => panic!("dialogue without a session must refuse: {other:?}"),
+            other => panic!("{action} must refuse here: {other:?}"),
         }
     }
     let war = h.cmd(

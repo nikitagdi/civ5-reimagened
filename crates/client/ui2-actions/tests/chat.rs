@@ -291,6 +291,8 @@ fn a_note_that_asks_for_a_choice_opens_the_window_of_that_choice() {
             note_go(5, NoteGo::FoundReligion, -1, -1, Some((6, 7))),
             note_go(6, NoteGo::Deal, 3, -1, None),
             note_go(7, NoteGo::TechAward, 0, -1, None),
+            note_go(8, NoteGo::Leader, 2, -1, Some((6, 7))),
+            note_go(9, NoteGo::Leader, -1, -1, None),
         ])
         .unwrap(),
     );
@@ -319,6 +321,17 @@ fn a_note_that_asks_for_a_choice_opens_the_window_of_that_choice() {
     assert!(
         !rig.ui().windows.tech_award.open,
         "no tech given: nothing to show"
+    );
+    // A spy or intrigue note: the AI it names talks to the player in its leader window.
+    rig.one("note.activate", &[("note", nk(8))]);
+    let leader = &rig.ui().windows.leader;
+    assert!(leader.open);
+    assert_eq!(leader.a, Some(2), "the AI of the note");
+    rig.one("note.activate", &[("note", nk(9))]);
+    assert_eq!(
+        rig.ui().windows.leader.a,
+        Some(2),
+        "no player named: nothing new"
     );
     assert!(rig.sent().is_empty(), "no camera for a window");
     assert!(rig.toasts().is_empty());

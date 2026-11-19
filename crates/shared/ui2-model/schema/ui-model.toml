@@ -17,12 +17,12 @@ Activity = ["awake", "hold", "sleep", "heal", "sentry", "intercept", "mission", 
 UnitActionKind = ["move", "range_attack", "found_city", "fortify", "sleep", "skip", "heal", "automate_build", "automate_explore", "cancel", "disband", "wake", "alert", "pillage", "upgrade"]
 NoteCat = ["growth", "great_people", "diplomacy", "military", "production", "research", "policy", "religion", "other"]
 # What a click on a notification does, by its type (the core's CvNotifications::Activate). `look` moves the camera to
-# its plot; `none` does nothing the client can show.
+# its plot; `none` does nothing the client can show; `leader` opens the leader window of the AI the note names (1.5).
 NoteGo = [
   "look", "none", "capital", "unit", "choose_tech", "tech_award", "steal_tech", "policies", "production", "diplo_vote",
   "city_state", "deal", "free_great_person", "faith_great_person", "maya_bonus", "pantheon", "reformation",
   "found_religion", "enhance_religion", "espionage", "league", "league_project", "culture", "ideology", "archaeology",
-  "great_work",
+  "great_work", "leader",
 ]
 ChatTo = ["all", "player"]
 ItemKind = ["unit", "building", "wonder", "project", "process"]
