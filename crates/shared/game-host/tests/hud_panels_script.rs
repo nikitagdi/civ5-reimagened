@@ -288,6 +288,27 @@ fn city_food_of_the_banner_reads_storage_threshold_and_surplus() {
 }
 
 #[test]
+fn unit_xp_threshold_is_available_for_combat_and_air_units() {
+    script()
+        .exec(
+            r#"
+            local unit = Players[3]:GetUnitByID(4)
+            local function xp_next() return screen.data(3, {unit=4}).unit.xp_next end
+            assert(xp_next() == 60)
+            unit.IsCombatUnit = function() return false end
+            local experience_needed = unit.ExperienceNeeded
+            unit.ExperienceNeeded = function() error("civilian XP should not be queried") end
+            assert(xp_next() == 0)
+            unit.GetDomainType = function() return 1 end
+            unit.ExperienceNeeded = experience_needed
+            assert(xp_next() == 60)
+            "#,
+            "=unit-xp",
+        )
+        .unwrap();
+}
+
+#[test]
 fn unit_catalog_exposes_window_actions_only_when_native_applicability_allows() {
     script().exec(r#"
         local unit = Players[3]:GetUnitByID(4)

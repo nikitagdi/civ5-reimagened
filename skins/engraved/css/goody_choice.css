@@ -4,6 +4,5 @@
 .gc-row.sel { box-shadow: inset 2px 0 0 var(--brass), inset 0 -1px 0 var(--line-soft); }
 .gc-row .ds { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .gc-row .ln { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 14px; line-height: 20px; }
-.gc-row small { font-size: 12px; line-height: 16px; color: var(--bone-3); }
 /* the take-button tooltip (parts/overview_tips.html) */
 .goody-choice-tip { padding: 12px; background-color: var(--lacquer); color: var(--bone); max-width: 360px; }

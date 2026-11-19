@@ -103,6 +103,28 @@ fn city_data_matches_schema_and_keeps_duplicate_orders_separate() {
     .expect("city root matches schema");
 }
 
+#[test]
+fn city_food_uses_net_growth_and_keeps_gross_food_and_consumption_in_the_breakdown() {
+    lua()
+        .exec(
+            r#"
+            city_test_city.FoodDifferenceTimes100 = function() return -875 end
+            local root = screen.data(3, {a=7})
+            local food = root.yields[1]
+            assert(food.key == "food" and food.value == -8.75)
+            assert(root.food.net == food.value and root.food.state == "starving")
+            assert(food.breakdown[6].label == "Gross food" and food.breakdown[6].value == 9.25)
+            assert(food.breakdown[7].label == "Food consumption" and food.breakdown[7].value == -18)
+            assert(root.yields[2].key == "production" and root.yields[2].value == 1)
+            city_test_city.FoodDifferenceTimes100 = function() return 25 end
+            root = screen.data(3, {a=7})
+            assert(root.food.state == "growing" and root.yields[1].value == 0.25)
+            "#,
+            "=net-food",
+        )
+        .unwrap();
+}
+
 /// The great person meter as the original city view computes it (specialists and buildings, modifiers by type), and the
 /// demand box with Lekmod's countdown.
 #[test]

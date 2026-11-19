@@ -266,6 +266,13 @@ impl GameIcons {
                         .get_or_insert_with(|| IconFonts::read(s))
                         .image(s, icon)
                 }
+                None if name.starts_with("ui:tx:") => s
+                    .texture_info(&name["ui:tx:".len()..])
+                    .map(|info| ExtImage {
+                        texture: ExtTexture(info.id.0),
+                        uv: [0.0, 0.0, 1.0, 1.0],
+                    })
+                    .ok_or("the set has no such UI texture"),
                 None => {
                     let aliases = self.aliases.borrow();
                     icon_image(s, aliases.get(name).map_or(name, String::as_str))
@@ -416,6 +423,20 @@ mod tests {
         assert_eq!(icons.logged.borrow().len(), 1);
         assert!(icons.set_catalog(None));
         assert!(resolve("unit:5").is_none());
+    }
+
+    #[test]
+    fn a_ui_texture_reference_draws_the_whole_texture() {
+        let icons = GameIcons::default();
+        let store = store();
+        let id = store.texture_id_of_name("units128.dds").unwrap();
+        icons.set_store(Some(store.clone()));
+        let resolve = icons.resolver();
+        let image = resolve("ui:tx:Units128.dds").unwrap();
+        assert_eq!(image.texture, ExtTexture(id.0));
+        assert_eq!(image.uv, [0.0, 0.0, 1.0, 1.0]);
+        assert!(store.is_loading(id));
+        assert!(resolve("ui:tx:missing.dds").is_none());
     }
 
     #[test]

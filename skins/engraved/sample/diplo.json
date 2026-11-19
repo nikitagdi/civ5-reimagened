@@ -682,7 +682,7 @@
         {
           "id": 22,
           "name": "Singapore",
-          "icon": "civ:MINOR_CIV_SINGAPORE",
+          "icon": "ui:tx:CityStateMercantile.dds",
           "color": "#78a6d6",
           "at_war": false,
           "influence": 148,
@@ -713,7 +713,7 @@
         {
           "id": 24,
           "name": "Florence",
-          "icon": "civ:MINOR_CIV_FLORENCE",
+          "icon": "ui:tx:CityStateCultured.dds",
           "color": "#a98ccc",
           "at_war": false,
           "influence": 96,
@@ -744,7 +744,7 @@
         {
           "id": 23,
           "name": "Zurich",
-          "icon": "civ:MINOR_CIV_ZURICH",
+          "icon": "ui:tx:CityStateMercantile.dds",
           "color": "#dcc057",
           "at_war": false,
           "influence": 52,
@@ -768,7 +768,7 @@
         {
           "id": 25,
           "name": "Kathmandu",
-          "icon": "civ:MINOR_CIV_KATHMANDU",
+          "icon": "ui:tx:CityStateReligious.dds",
           "color": "#cfcbc1",
           "at_war": false,
           "influence": 34,
@@ -792,7 +792,7 @@
         {
           "id": 26,
           "name": "Monaco",
-          "icon": "civ:MINOR_CIV_MONACO",
+          "icon": "ui:tx:CityStateCultured.dds",
           "color": "#78a6d6",
           "at_war": false,
           "influence": 12,
@@ -808,7 +808,7 @@
         {
           "id": 27,
           "name": "Hanoi",
-          "icon": "civ:MINOR_CIV_HANOI",
+          "icon": "ui:tx:CityStateMilitaristic.dds",
           "color": "#dcc057",
           "at_war": false,
           "influence": 0,
@@ -832,7 +832,7 @@
         {
           "id": 28,
           "name": "Almaty",
-          "icon": "civ:MINOR_CIV_ALMATY",
+          "icon": "ui:tx:CityStateMilitaristic.dds",
           "color": "#c78a52",
           "at_war": false,
           "influence": -24,
@@ -856,7 +856,7 @@
         {
           "id": 29,
           "name": "Kabul",
-          "icon": "civ:MINOR_CIV_KABUL",
+          "icon": "ui:tx:CityStateCultured.dds",
           "color": "#c78a52",
           "at_war": true,
           "influence": -60,

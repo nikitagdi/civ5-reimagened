@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 4);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x2d57d303f6754fe3;
+pub const SCHEMA_HASH: u64 = 0x67ee73ce0873213e;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -20524,7 +20524,7 @@ impl crate::model::Model for CityDemand {
 pub struct CityFood {
     pub stored: i32,
     pub threshold: i32,
-    pub net: i32,
+    pub net: f32,
     pub turns: Option<i32>,
     pub state: CityGrowth,
 }
@@ -20570,7 +20570,7 @@ impl crate::model::Model for CityFood {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CityBreakdown {
     pub label: ::std::sync::Arc<str>,
-    pub value: i32,
+    pub value: f32,
 }
 
 impl crate::model::Model for CityBreakdown {
@@ -20609,7 +20609,7 @@ impl crate::model::Keyed for CityBreakdown {
 pub struct CityYield {
     pub key: CityYieldKind,
     pub icon: crate::value::AssetRef,
-    pub value: i32,
+    pub value: f32,
     pub enabled: bool,
     pub breakdown: crate::model::KeyedList<CityBreakdown>,
 }

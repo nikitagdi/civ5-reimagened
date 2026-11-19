@@ -20,7 +20,7 @@
         <span class="lvl" data-l10n="unit.level" data-l10n-args="{{unit.level}}">Level 2</span>
         <button class="ren" data-part="unit-panel.rename-open" data-on-click="intent window.open(window: 'unit_rename', a: hud.unit.id)" data-tooltip="unit-rename-tip" data-bind-if="{{hud != null && hud.unit != null}}"><svg class="i"><use href="#i-pencil"/></svg></button>
       </div>
-      <div class="u-xp" data-bind-if="{{hud != null && hud.unit != null}}" data-bind-class-toggle="full:{{unit.promotion_ready}}">
+      <div class="u-xp" data-bind-if="{{hud != null && hud.unit != null && hud.unit.xp_next > 0}}" data-bind-class-toggle="full:{{unit.promotion_ready}}">
         <b data-bind-value="{{unit.xp}}/{{hud.unit.xp_next}}">12/30</b>
         <div class="trk"><div class="fill" data-bind-style-width="{{clamp(unit.xp / max(hud.unit.xp_next, 1), 0, 1) * 100}}%" style="width: 40%"></div></div>
         <span data-l10n="unit_panel.xp_short">XP</span>

@@ -16,140 +16,103 @@
       },
       "rewards": [
         {
-          "id": 0,
-          "key": "GOODY_GOLD",
-          "icon": "font:ICON_GOLD",
-          "parts": [
-            {
-              "text": "+90",
-              "icon": null,
-              "id": 0
-            },
-            {
-              "text": null,
-              "icon": "font:ICON_GOLD",
-              "id": 1
-            },
-            {
-              "text": "gold",
-              "icon": null,
-              "id": 2
-            }
-          ],
-          "sub": "Paid out at once"
-        },
-        {
-          "id": 5,
-          "key": "GOODY_TECH",
-          "icon": "tech:TECH_NAVIGATION",
-          "parts": [
-            {
-              "text": "Free technology: Navigation",
-              "icon": null,
-              "id": 0
-            }
-          ],
-          "sub": "The cheapest technology you can research"
-        },
-        {
           "id": 1,
           "key": "GOODY_POPULATION",
-          "icon": "font:ICON_FOOD",
           "parts": [
             {
-              "text": "+1 citizen in Kazan",
-              "icon": null,
-              "id": 0
+              "id": 0,
+              "text": "Invite the survivors to settle in one of your cities."
             }
-          ],
-          "sub": "Nearest city grows"
+          ]
         },
         {
           "id": 2,
           "key": "GOODY_CULTURE",
-          "icon": "font:ICON_CULTURE",
           "parts": [
             {
-              "text": "+20",
-              "icon": null,
-              "id": 0
+              "id": 0,
+              "text": "Learn from the tribe and gain "
             },
             {
-              "text": null,
-              "icon": "font:ICON_CULTURE",
-              "id": 1
+              "id": 1,
+              "icon": "font:ICON_CULTURE"
             },
             {
-              "text": "culture",
-              "icon": null,
-              "id": 2
+              "id": 2,
+              "text": " culture."
             }
-          ],
-          "sub": "Counts toward the next policy"
+          ]
         },
         {
           "id": 3,
           "key": "GOODY_PANTHEON_FAITH",
-          "icon": "font:ICON_PEACE",
           "parts": [
             {
-              "text": "+30",
-              "icon": null,
-              "id": 0
-            },
-            {
-              "text": null,
-              "icon": "font:ICON_PEACE",
-              "id": 1
-            },
-            {
-              "text": "faith",
-              "icon": null,
-              "id": 2
+              "id": 0,
+              "text": "Learn about the tribe's beliefs."
             }
-          ],
-          "sub": "Enough for a pantheon"
+          ]
         },
         {
-          "id": 9,
-          "key": "GOODY_UPGRADE_UNIT",
-          "icon": "unit:UNIT_SCOUT",
+          "id": 5,
+          "key": "GOODY_REVEAL_NEARBY_BARBS",
           "parts": [
             {
-              "text": "Upgrade this Pathfinder to Scout",
-              "icon": null,
-              "id": 0
+              "id": 0,
+              "text": "Ask the tribe where the nearby barbarian camps are."
             }
-          ],
-          "sub": "Keeps its promotions"
+          ]
+        },
+        {
+          "id": 6,
+          "key": "GOODY_GOLD",
+          "parts": [
+            {
+              "id": 0,
+              "text": "Trade with the tribe for "
+            },
+            {
+              "id": 1,
+              "icon": "font:ICON_GOLD"
+            },
+            {
+              "id": 2,
+              "text": " gold."
+            }
+          ]
         },
         {
           "id": 7,
           "key": "GOODY_MAP",
-          "icon": "goody:map",
           "parts": [
             {
-              "text": "Reveal the map within 8 tiles",
-              "icon": null,
-              "id": 0
+              "id": 0,
+              "text": "Explore the maps the tribe left behind."
             }
-          ],
-          "sub": null
+          ]
         },
         {
           "id": 8,
-          "key": "GOODY_REVEAL_NEARBY_BARBS",
-          "icon": "unit:UNIT_BARBARIAN_WARRIOR",
+          "key": "GOODY_TECH",
           "parts": [
             {
-              "text": "Locate a barbarian camp",
-              "icon": null,
-              "id": 0
+              "id": 0,
+              "text": "Learn a new technology from the tribe's tools."
             }
-          ],
-          "sub": "Nearest camp is revealed"
+          ]
+        },
+        {
+          "id": 10,
+          "key": "GOODY_UPGRADE_UNIT",
+          "parts": [
+            {
+              "id": 0,
+              "text": "Equip your explorer with the tribe's weapons."
+            }
+          ]
         }
-      ]
+      ],
+      "resolved": false
     }
   },
   "ui": {

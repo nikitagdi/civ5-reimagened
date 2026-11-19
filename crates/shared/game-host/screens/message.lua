@@ -17,7 +17,7 @@ local function root(player,args)
     end
     local r = {id=e.id, kind=e.kind, width=e.width or "medium", civ=e.civ, kicker=e.kicker,
         title=e.title, art=e.art, art_anchor=e.art_anchor or "center", icon=e.icon,
-        band=e.band, quote=e.quote, text=e.text, facts_title=e.facts_title,
+        band=e.band, quote=e.quote, text=e.text and e.text:find("%S") and e.text or nil, facts_title=e.facts_title,
         facts=e.facts or array(), button=e.button or "OK", available=true, resolved=e.resolved or false}
     if e.kind == "wonder" then
         local building = GameInfo.Buildings[e.data1]

@@ -133,10 +133,10 @@ local function data(player)
             if q:IsMinorCiv() then
                 local influence, ally = q:GetMinorCivFriendshipWithMajor(player), q:GetAlly()
                 local status = war and "war" or (q:IsAllies(player) and "allied" or (q:IsFriends(player) and "friends" or (influence < 0 and "angry" or "neutral")))
-                local minor = GameInfo.MinorCivilizations[q:GetMinorCivType()]
                 local trait = GameInfo.MinorCivTraits[q:GetMinorCivTrait()]
+                local texture = trait and trait.TraitIcon
                 local personality = ({[MinorCivPersonalityTypes.MINOR_CIV_PERSONALITY_FRIENDLY]="Friendly",[MinorCivPersonalityTypes.MINOR_CIV_PERSONALITY_NEUTRAL]="Neutral",[MinorCivPersonalityTypes.MINOR_CIV_PERSONALITY_HOSTILE]="Hostile",[MinorCivPersonalityTypes.MINOR_CIV_PERSONALITY_IRRATIONAL]="Irrational"})[q:GetPersonality()]
-                minors[#minors+1] = {id=id, name=L(q:GetCivilizationShortDescriptionKey()), icon=minor and "civ:" .. minor.Type or "", color="",
+                minors[#minors+1] = {id=id, name=L(q:GetCivilizationShortDescriptionKey()), icon=texture and texture ~= "" and "ui:tx:" .. texture or "", color="",
                     at_war=war, influence=influence, status=status, trait=trait and L(trait.Description) or "",
                     personality=personality or "", ally_id=ally >= 0 and (ally == player or met(player,ally)) and ally or nil,
                     ally_name=ally >= 0 and (ally == player or met(player,ally)) and person(ally).name or nil,

@@ -48,11 +48,31 @@
           "enabled": true,
           "breakdown": [
             {
-              "label": "Tiles and buildings",
+              "label": "Worked tiles",
+              "value": 40
+            },
+            {
+              "label": "Buildings",
+              "value": 15
+            },
+            {
+              "label": "Specialists",
+              "value": 2
+            },
+            {
+              "label": "Other sources",
+              "value": 3
+            },
+            {
+              "label": "Religion",
+              "value": 0
+            },
+            {
+              "label": "Gross food",
               "value": 60
             },
             {
-              "label": "Eaten by 24 citizens",
+              "label": "Food consumption",
               "value": -48
             }
           ]

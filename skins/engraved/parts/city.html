@@ -110,7 +110,7 @@
             <span data-bind-if="{{city.food.state == 'growing'}}" data-l10n="city.growth.growing" data-l10n-args="{{city.food.turns}}"></span>
             <span data-bind-if="{{city.food.state == 'stagnant'}}" data-l10n="city.growth.stagnant"></span>
             <span class="c-neg" data-bind-if="{{city.food.state == 'starving'}}" data-l10n="city.growth.starving" data-l10n-args="{{city.food.turns}}"></span>
-            <span class="yv c-food cv-end" data-bind-class-toggle="neg:{{city.food.net < 0}}"><img class="gi" data-asset="font:ICON_FOOD"><span data-bind-value="{{fmt.signed(city.food.net)}}"></span></span>
+            <span class="yv c-food cv-end" data-bind-class-toggle="neg:{{city.food.net < 0}}"><img class="gi" data-asset="font:ICON_FOOD"><span data-bind-value="{{city.food.net > 0 ? '+' : ''}}{{round(city.food.net * 100) / 100}}"></span></span>
           </div>
           <div class="scale t food">
             <div class="fill nx" data-bind-style-width="{{city.food.threshold > 0 ? clamp((city.food.stored + max(0, city.food.net)) / city.food.threshold, 0, 1) * 100 : 0}}%"></div>
@@ -124,7 +124,7 @@
       </div>
       <div class="cv-yields" data-part="city.yields">
         <div class="cv-yc" data-bind-for="y:{{city.yields}}" data-tooltip="city-yield-tip" data-on-pointerenter="set state.city.hover_yield = y.key">
-          <span class="yv lg" data-bind-class-toggle="neg:{{y.value < 0}}"><img class="gi" data-bind-src="{{y.icon}}"><span data-bind-value="{{fmt.signed(y.value)}}"></span></span>
+          <span class="yv lg" data-bind-class-toggle="neg:{{y.value < 0}}"><img class="gi" data-bind-src="{{y.icon}}"><span data-bind-value="{{y.value > 0 ? '+' : ''}}{{round(y.value * 100) / 100}}"></span></span>
           <span class="cv-lb" data-bind-value="{{y.key == 'food' ? loc('city.yield.food') : y.key == 'production' ? loc('city.yield.production') : y.key == 'gold' ? loc('city.yield.gold') : y.key == 'science' ? loc('city.yield.science') : y.key == 'culture' ? loc('city.yield.culture') : y.key == 'faith' ? loc('city.yield.faith') : y.key == 'tourism' ? loc('city.yield.tourism') : loc('city.yield.golden_age')}}"></span>
         </div>
       </div>

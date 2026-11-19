@@ -1008,6 +1008,8 @@ local function unit_actions(unit)
     return rows
 end
 
+local AIR = DomainTypes and DomainTypes.DOMAIN_AIR or 1
+
 local function unit_data(unit)
     if not unit then return nil end
     local promotions = array()
@@ -1017,7 +1019,9 @@ local function unit_data(unit)
                 icon = "promotion:" .. promotion.ID, help = promotion.Help and L(promotion.Help) or ""}
         end
     end
-    return {id = unit:GetID(), name = unit:GetName(), xp_next = unit:ExperienceNeeded(), promotions = promotions, actions = unit_actions(unit)}
+    local can_gain_xp = unit:IsCombatUnit() or unit:GetDomainType() == AIR
+    return {id = unit:GetID(), name = unit:GetName(), xp_next = can_gain_xp and unit:ExperienceNeeded() or 0,
+        promotions = promotions, actions = unit_actions(unit)}
 end
 
 local function map_data(player)
@@ -1081,7 +1085,6 @@ end
 
 -- The interface modes that ask for a plot (the `targets` screen scans them), with the core's CvUnit::CanDoInterfaceMode
 -- for each.
-local AIR = DomainTypes and DomainTypes.DOMAIN_AIR or 1
 local TARGET_MODES = {
     INTERFACEMODE_RANGE_ATTACK = function(u) return u:CanRangeStrike() and u:GetDomainType() ~= AIR end,
     INTERFACEMODE_AIRSTRIKE = function(u) return u:GetDomainType() == AIR and u:CanRangeStrike() end,

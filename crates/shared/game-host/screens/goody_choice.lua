@@ -1,54 +1,77 @@
-local function context(player,args)
-    local p=args.popup
-    if not p or p.kind~="BUTTONPOPUP_CHOOSE_GOODY_HUT_REWARD" or p.id~=args.a then return nil end
-    assert(p.data1==player, "This ruin choice belongs to another seat")
-    local unit=Players[player]:GetUnitByID(p.data2)
-    assert(unit and unit:GetOwner()==player, "The ruin explorer is no longer yours")
-    local plot=Map.GetPlot(unit:GetX(),unit:GetY())
-    assert(plot, "The ruin plot is unavailable")
-    return {id=p.id,unit=p.data2,plot=plot:GetPlotIndex()}
+local function context(player, args)
+    local popup = args.popup
+    if not popup or popup.kind ~= "BUTTONPOPUP_CHOOSE_GOODY_HUT_REWARD" or popup.id ~= args.a then return nil end
+    assert(popup.data1 == player, "This ruin choice belongs to another seat")
+    return popup
 end
-local function eligible(player,e)
-    local p=Players[player]
-    assert(p, "Unknown seat")
-    local u=p:GetUnitByID(e.unit)
-    assert(u and u:GetOwner()==player, "The ruin explorer is no longer yours")
-    local plot=Map.GetPlotByIndex(e.plot)
-    assert(plot and u:GetX()==plot:GetX() and u:GetY()==plot:GetY(), "The explorer has left the ruins")
-    return p,u,plot
+
+local function explorer(player, popup)
+    local unit = Players[player]:GetUnitByID(popup.data2)
+    if not unit or unit:GetOwner() ~= player or unit:IsDead() or unit:IsDelayedDeath() then
+        return nil, nil, "The ruin explorer is no longer available"
+    end
+    local plot = Map.GetPlot(unit:GetX(), unit:GetY())
+    if not plot then return nil, nil, "The ruin plot is unavailable" end
+    return unit, plot
 end
+
+-- The original puts its icons in the localized reward descriptions.
+local function reward_parts(text)
+    local parts, start = array(), 1
+    while true do
+        local first, last, glyph = text:find("%[(ICON_[%w_]+)%]", start)
+        if not first then break end
+        if first > start then parts[#parts + 1] = {id = #parts, text = text:sub(start, first - 1)} end
+        parts[#parts + 1] = {id = #parts, icon = "font:" .. glyph}
+        start = last + 1
+    end
+    if start <= #text then parts[#parts + 1] = {id = #parts, text = text:sub(start)} end
+    return parts
+end
+
 return {
-    data=function(player,args)
-        assert(Players[player], "Unknown seat")
-        local e=context(player,args)
-        if not e or e.id~=args.a then
-            return {id=args.a or -1, unit={id=-1,name="",icon=""},plot={x=0,y=0},rewards=array(),
-                reason="No matching ancient ruin event is pending for this seat", resolved=false}
+    data = function(player, args)
+        local p = assert(Players[player], "Unknown seat")
+        local popup = context(player, args)
+        local r = {id = popup and popup.id or -1, unit = {id = -1, name = "", icon = ""},
+            plot = {x = 0, y = 0}, rewards = array(), resolved = false}
+        if not popup then
+            r.reason = "No matching ancient ruin event is pending for this seat"
+            return r
         end
-        if e.resolved then return {id=e.id,unit=e.unit_view,plot=e.plot_view,rewards=array(),resolved=true} end
-        local p,u,plot=eligible(player,e)
-        local info=GameInfo.Units[u:GetUnitType()]
-        local r={id=e.id,unit={id=e.unit,name=u:GetName(),icon="unit:"..info.Type},
-            plot={x=plot:GetX(),y=plot:GetY()},rewards=array(),resolved=e.resolved or false}
-        if e.resolved then return r end
-        if e.submitted then r.reason="Awaiting the game response";return r end
+        local unit, plot, reason = explorer(player, popup)
+        if not unit then
+            r.reason = reason
+            return r
+        end
+        local info = GameInfo.Units[unit:GetUnitType()]
+        r.unit = {id = popup.data2, name = unit:GetName(), icon = info and "unit:" .. info.Type or ""}
+        r.plot = {x = plot:GetX(), y = plot:GetY()}
         for goody in GameInfo.GoodyHuts() do
-            if p:CanGetGoody(plot,goody.ID,u) then
-                r.rewards[#r.rewards+1]={id=goody.ID,key=goody.Type,icon=icon(goody.IconAtlas,goody.PortraitIndex),
-                    parts=array({{id=0,text=L(goody.ChooseDescription or goody.Description)}})}
+            if p:CanGetGoody(plot, goody.ID, unit) then
+                r.rewards[#r.rewards + 1] = {id = goody.ID, key = goody.Type,
+                    parts = reward_parts(L(goody.ChooseDescription or goody.Description))}
             end
         end
-        if #r.rewards==0 then r.reason="There are no eligible rewards for this explorer" end
+        if #r.rewards == 0 then r.reason = "There are no eligible rewards for this explorer" end
         return r
     end,
-    actions={take=function(player,args,net)
-        local e=context(player,args)
-        assert(e and e.id==args.a and not e.resolved, "This ancient ruin choice is no longer pending")
-        assert(not e.submitted, "A reward answer is already awaiting the game response")
-        local p,u,plot=eligible(player,e)
-        assert(args.b and GameInfo.GoodyHuts[args.b] and p:CanGetGoody(plot,args.b,u), "This reward is not eligible")
-        net.send("sendGoodyChoice",plot:GetX(),plot:GetY(),args.b,e.unit)
-        net.popup_done(args.popup_id)
-        return {close=true}
-    end},
+    actions = {
+        take = function(player, args, net)
+            local popup = assert(context(player, args), "This ancient ruin choice is no longer pending")
+            local unit, plot, reason = explorer(player, popup)
+            assert(unit, reason)
+            assert(args.b and GameInfo.GoodyHuts[args.b] and Players[player]:CanGetGoody(plot, args.b, unit),
+                "This reward is not eligible")
+            net.send("sendGoodyChoice", plot:GetX(), plot:GetY(), args.b, popup.data2)
+            net.popup_done(args.popup_id)
+            return {close = true}
+        end,
+        cancel = function(player, args, net)
+            local popup = assert(context(player, args), "This ancient ruin choice is no longer pending")
+            assert(not explorer(player, popup), "Choose a reward for the explorer")
+            net.popup_done(args.popup_id)
+            return {close = true}
+        end,
+    },
 }

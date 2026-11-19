@@ -40,7 +40,7 @@ end
 local function model(player, e)
     local p = Players[player]
     local r = {id=e.id, kind=e.kind, title=e.title or L("TXT_KEY_POPUP_ARE_YOU_SURE"),
-        text=e.text or "", kicker=e.kicker, icon=e.icon, civ=e.civ, advisor=e.advisor,
+        text=e.text and e.text:find("%S") and e.text or "", kicker=e.kicker, icon=e.icon, civ=e.civ, advisor=e.advisor,
         facts=array(), consequence=e.consequence, dont_warn=e.dont_warn, closable=false,
         esc_choice=e.esc_choice, enter_choice=e.enter_choice, choices=array(), resolved=e.resolved or false}
     if e.kind=="combat_warning" or e.kind=="confirm_command" then r.esc_choice=1;r.enter_choice=1 end

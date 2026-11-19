@@ -1141,6 +1141,7 @@
 "goody.required" = "One reward, cannot be skipped"
 "goody.take" = "Take reward"
 "goody.pick" = "Pick one reward to continue"
+"goody.close" = "Close"
 
 "notification.log" = "Notification log"
 "notification.close" = "Close"
