@@ -1148,6 +1148,8 @@ end
 local ACTION_TABLES = {"Missions", "Commands", "Automates", "InterfaceModes", "Builds", "Controls"}
 local function action_icon(a)
     if type(a.Type) ~= "string" then return "" end
+    -- The original unit panel uses BuildCity64 for this action. Cell zero of UnitActions is the prohibition glyph.
+    if a.Type == "MISSION_FOUND" then return "ui:tx:BuildCity64.dds" end
     local ok, found = pcall(function()
         for _, name in ipairs(ACTION_TABLES) do
             local rows = GameInfo[name]
@@ -1275,6 +1277,10 @@ return {
             assert(not unit:IsBusy() and not unit:IsDelayedDeath(), "The unit is busy.")
             local a = GameInfoActions[args.b]
             assert(action_available(unit, a, false), "The unit cannot perform this action here.")
+            if a.Type == "COMMAND_DELETE" then
+                -- Negative ids distinguish this request from the worker's popup ids.
+                return {open = {screen = "confirm", a = -1 - args.a}}
+            end
             assert((a.MissionType and a.MissionType >= 0) or (a.CommandType and a.CommandType >= 0), "Choose a target on the map.")
             if a.MissionType and a.MissionType >= 0 then
                 net.send("sendPushMission", args.a, a.MissionType, a.MissionData, -1, 0, args.d == 1 and 1 or 0)

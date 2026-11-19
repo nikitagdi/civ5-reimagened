@@ -1,6 +1,50 @@
 use lua_sys::{Lua, Table};
 
 #[test]
+fn policy_branch_art_follows_the_branch_type() {
+    let lua = Lua::new().unwrap();
+    lua.exec(include_str!("../screens/_lib.lua"), "=helpers")
+        .unwrap();
+    let screen: Table = lua
+        .load(include_str!("../screens/policies.lua"))
+        .eval()
+        .unwrap();
+    lua.globals().raw_set("screen", screen).unwrap();
+    lua.exec(r#"
+        local function rows(list)
+            return function()
+                local i = 0
+                return function() i = i + 1; return list[i] end
+            end
+        end
+        local function zero() return 0 end
+        local function no() return false end
+        local function none() return -1 end
+        Locale = {ConvertTextKey=function(key) return key end}
+        Game = {IsOption=no}
+        GameOptionTypes = {GAMEOPTION_NO_POLICIES=1}
+        GameInfo = {
+            PolicyBranchTypes=setmetatable({}, {__call=rows({
+                {ID=26, Type="POLICY_BRANCH_EXPLORATION", Description="Exploration"},
+                {ID=2, Type="POLICY_BRANCH_TRADITION", Description="Tradition"},
+                {ID=0, Type="POLICY_BRANCH_CUSTOM", Description="Custom"},
+            })}),
+            Policies=rows({}), PolicyBranch_Disables=rows({}), Civilizations={},
+        }
+        Players = {[3]={
+            GetJONSCulture=zero, GetTotalJONSCulturePerTurn=zero, GetNextPolicyCost=zero,
+            GetNumCities=zero, GetNumFreePolicies=zero, GetNumFreeTenets=zero, GetCivilizationType=zero,
+            IsPolicyBranchUnlocked=no, IsPolicyBranchFinished=no, IsPolicyBranchBlocked=no,
+            GetLateGamePolicyTree=none, GetDominantPolicyBranchForTitle=none,
+        }}
+        local branches = screen.data(3, {}).branches
+        assert(branches[1].background == "ui:tx:PolicyBranch_Exploration.dds")
+        assert(branches[2].background == "ui:tx:SocialPoliciesTradition.dds")
+        assert(branches[3].background == nil)
+    "#, "=branch-art").unwrap();
+}
+
+#[test]
 fn policies_recheck_seat_availability_before_emitting_orders() {
     let lua = Lua::new().unwrap();
     lua.exec(include_str!("../screens/_lib.lua"), "=helpers")

@@ -17,7 +17,13 @@ fn new_rig() -> Rig {
         unit_at(3, 5, 5, true, true),
         unit_at(9, 7, 7, false, true),
     ]);
-    rig.cities(vec![city_at(20, 10, 10, true), city_at(21, 11, 11, false)]);
+    let mut ready = city_at(20, 10, 10, true);
+    ready.can_shoot = true;
+    rig.cities(vec![
+        ready,
+        city_at(21, 11, 11, false),
+        city_at(22, 9, 9, true),
+    ]);
     rig
 }
 
@@ -170,6 +176,15 @@ fn a_foreign_unit_or_city_is_refused() {
     let mut rig = new_rig();
     rig.one("map.target", &[("kind", s("unit")), ("unit", kstr(1))]);
     rig.assert_refused("invalid");
+}
+
+#[test]
+fn a_city_without_a_strike_cannot_enter_targeting() {
+    let mut rig = new_rig();
+    rig.one("map.target", &[("kind", s("city")), ("city", kstr(22))]);
+    rig.assert_refused("action_unavailable");
+    assert!(rig.ui().target.is_none());
+    assert_eq!(rig.ui().map_mode, MapMode::Select);
 }
 
 #[test]

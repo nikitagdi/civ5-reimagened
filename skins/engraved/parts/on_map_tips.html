@@ -1,3 +1,6 @@
+<template id="city-strike-tip" data-layer="tooltip">
+  <div class="tip" data-l10n="on_map.strike"></div>
+</template>
 <template id="on-map-unit-tip" data-layer="tooltip">
   <div class="tip on-map-tip" data-part="on-map.unit-tip"><div data-bind-if="{{hud != null}}"><div data-bind-for="u:{{hud.map.units}}" data-bind-filter="{{u.hover_key == state.on_map.unit}}">
     <div class="th" data-bind-value="{{u.name}}"></div><div class="tl" data-bind-value="{{u.owner}}"></div>

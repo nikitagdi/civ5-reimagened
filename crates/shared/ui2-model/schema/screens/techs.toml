@@ -97,6 +97,7 @@ to_col = "i32"
 to_row = "i32"
 kind = "TechsLinkKind"
 state = "TechsLinkState"
+queued = "bool"
 [model.techs]
 _optional = true
 techs = { list = "TechsRow", key = "id" }

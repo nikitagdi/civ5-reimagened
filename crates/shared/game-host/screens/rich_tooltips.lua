@@ -9,8 +9,10 @@ local function turns(p, id, rate)
     if n >= 0 and n < 2147483647 then return n end
 end
 -- Numeric hover kinds: 0 tech, 1 unit type, 2 building, 3 improvement, 4 policy,
--- 5 science progress, 6 city yields, 7 city religion, 8 player, 9 civilization, 10 unit action, 11 own unit.
+-- 5 science progress, 6 city yields, 7 city religion, 8 player, 9 civilization, 10 unit action, 11 own unit,
+-- 12 technology unlock (technology id and chip slot).
 -- SIMPLIFIED(SIMP-345): EUI helpers are UI-context Lua, not server APIs; unsupported sections return a reason. The host must cache hover answers by seat, kind, id, city and world revision.
+-- Unlock help uses the skin's text colors for original color tags and retains the original line breaks and font icons.
 local function city_for(player, args)
     if args.city == nil then return nil end
     local city = Players[player]:GetCityByID(args.city)
@@ -18,6 +20,7 @@ local function city_for(player, args)
     return city
 end
 local function tech_tip(player, id)
+    -- SIMPLIFIED(SIMP-348): shared tooltip sections use a plain value ledger; conditional EUI details and progress rings await the help bridge.
     local tech = GameInfo.Technologies[id]
     if not tech then return nil end
     local p, team = Players[player], team_of(player)
@@ -40,11 +43,168 @@ local function tech_tip(player, id)
         turns = not has and turns(p, id, p:GetScience()) or nil, science_rate = p:GetScience(), leads_to = leads,
         unlocks = unlocks(tech), help = tech.Help and L(tech.Help) or ""}
 end
+
+-- Convert the original help's markup to inline text and font pictures. The keys are local to the reply.
+local function unlock_lines(texts)
+    local lines, parts = array(), array()
+    local function new_line()
+        lines[#lines + 1] = {key = #lines, parts = parts}
+        parts = array()
+    end
+    for _, text in ipairs(texts) do
+        if text ~= "" then
+            local at = 1
+            while at <= #text do
+                local first, last, tag = text:find("%[([%w_:]+)%]", at)
+                local chunk = text:sub(at, first and first - 1 or #text)
+                if chunk ~= "" then parts[#parts + 1] = {key = #parts, text = chunk} end
+                if not first then break end
+                if tag == "NEWLINE" then
+                    new_line()
+                elseif tag:match("^ICON_[%w_]+$") then
+                    parts[#parts + 1] = {key = #parts, text = "", icon = "font:" .. tag}
+                end
+                at = last + 1
+            end
+            new_line()
+        end
+    end
+    return lines
+end
+
+local function value(lines, tag, amount)
+    if amount and amount ~= 0 then lines[#lines + 1] = L(tag, amount) end
+end
+
+local function unlock_unit(p, item, lines)
+    if (item.Cost or 0) > 0 then value(lines, "TXT_KEY_PRODUCTION_COST", p:GetUnitProductionNeeded(item.ID)) end
+    if item.Domain ~= "DOMAIN_AIR" then value(lines, "TXT_KEY_PRODUCTION_MOVEMENT", item.Moves) end
+    value(lines, "TXT_KEY_PRODUCTION_RANGE", item.Range)
+    value(lines, "TXT_KEY_PRODUCTION_RANGED_STRENGTH", item.RangedCombat)
+    value(lines, "TXT_KEY_PRODUCTION_STRENGTH", item.Combat)
+    for resource in GameInfo.Resources() do
+        local count = Game.GetNumResourceRequiredForUnit(item.ID, resource.ID)
+        if count > 0 then
+            lines[#lines + 1] = L("TXT_KEY_PRODUCTION_RESOURCES_REQUIRED") .. " " .. count .. " "
+                .. (resource.IconString or "") .. " " .. L(resource.Description)
+        end
+    end
+    for row in GameInfo.Unit_FreePromotions{UnitType = item.Type} do
+        local promotion = GameInfo.UnitPromotions[row.PromotionType]
+        if promotion then
+            local name, help = L(promotion.Description), L(promotion.Help)
+            lines[#lines + 1] = help ~= "" and name .. ": " .. help or name
+        end
+    end
+end
+
+-- The no-city view in InfoTooltipInclude. Use the inspecting seat for costs and policy effects.
+local building_yields = {
+    {"CULTURE", "CULTURE"}, {"FAITH", "FAITH"}, {"FOOD", "FOOD"},
+    {"GOLD", "GOLD_CHANGE", "GOLD"}, {"SCIENCE", "SCIENCE_CHANGE", "SCIENCE"},
+    {"PRODUCTION", "PRODUCTION_CHANGE", "PRODUCTION"},
+}
+local building_tag = "TXT_KEY_PRODUCTION_BUILDING_"
+local function unlock_building(player, item, lines)
+    local p, id = Players[player], item.ID
+    if (item.Cost or 0) > 0 then value(lines, "TXT_KEY_PRODUCTION_COST", p:GetBuildingProductionNeeded(id)) end
+    if (item.UnlockedByLeague == true or item.UnlockedByLeague == 1)
+        and not Game.IsOption(GameInfoTypes.GAMEOPTION_NO_LEAGUES) and Game.GetNumActiveLeagues() > 0 then
+        local league = Game.GetActiveLeague()
+        if league then
+            lines[#lines + 1] = L("TXT_KEY_PEDIA_COST_LABEL") .. " "
+                .. L("TXT_KEY_LEAGUE_PROJECT_COST_PER_PLAYER", league:GetProjectBuildingCostPerPlayer(id))
+        end
+    end
+    value(lines, building_tag .. "MAINTENANCE", item.GoldMaintenance)
+    value(lines, building_tag .. "HAPPINESS",
+        (item.Happiness or 0) + (item.UnmoddedHappiness or 0) + p:GetExtraBuildingHappinessFromPolicies(id))
+    value(lines, building_tag .. "DEFENSE", (item.Defense or 0) / 100)
+    value(lines, building_tag .. "HITPOINTS", item.ExtraCityHitPoints)
+    for _, spec in ipairs(building_yields) do
+        local yield = GameInfo.Yields["YIELD_" .. spec[1]]
+        if yield then
+            local change = Game.GetBuildingYieldChange(id, yield.ID)
+            if spec[1] == "SCIENCE" then
+                change = change + p:GetPolicyBuildingClassYieldChange(GameInfo.BuildingClasses[item.BuildingClass].ID, yield.ID)
+            end
+            value(lines, building_tag .. spec[2], change)
+            if spec[3] then value(lines, building_tag .. spec[3], Game.GetBuildingYieldModifier(id, yield.ID)) end
+        end
+    end
+    local specialist = item.SpecialistType and GameInfo.Specialists[item.SpecialistType]
+    if specialist then
+        if (item.GreatPeopleRateChange or 0) ~= 0 then
+            lines[#lines + 1] = "[ICON_GREAT_PEOPLE] " .. L(specialist.GreatPeopleTitle) .. " " .. item.GreatPeopleRateChange
+        end
+        if (item.SpecialistCount or 0) > 0 then
+            lines[#lines + 1] = "[ICON_GREAT_PEOPLE] " .. L(specialist.Description .. "_SLOTS") .. " " .. item.SpecialistCount
+        end
+    end
+    if (item.GreatWorkCount or 0) > 0 and item.GreatWorkSlotType then
+        local slot = GameInfo.GreatWorkSlots[item.GreatWorkSlotType]
+        if slot then lines[#lines + 1] = L(slot.SlotsToolTipText, item.GreatWorkCount) end
+    end
+    local technology = item.EnhancedYieldTech and GameInfoTypes[item.EnhancedYieldTech]
+    if (item.TechEnhancedTourism or 0) > 0 and technology and team_of(player):IsHasTech(technology) then
+        value(lines, building_tag .. "TOURISM", item.TechEnhancedTourism)
+    end
+end
+
+local function unlock_tip(player, id, slot)
+    if not slot or slot < 0 or slot ~= math.floor(slot) then return nil end
+    local tech = GameInfo.Technologies[id]
+    if not tech then return nil end
+    local entry = tech_unlocks_for(player)(tech, true, true)[slot + 1]
+    if not entry then return nil end
+    local p, key, kind = Players[player], entry.key, entry.kind
+    local lines, item, title = {}, nil, plain(entry.name)
+    if kind == "unit" then
+        item = GameInfo.Units[key]
+        unlock_unit(p, item, lines)
+    elseif kind == "building" or kind == "wonder" then
+        item = GameInfo.Buildings[key]
+        unlock_building(player, item, lines)
+    elseif kind == "project" then
+        item = GameInfo.Projects[key]
+        value(lines, "TXT_KEY_PRODUCTION_COST", p:GetProjectProductionNeeded(item.ID))
+    elseif kind == "improvement" then
+        local build = GameInfo.Builds[key]
+        item = build.ImprovementType and GameInfo.Improvements[build.ImprovementType] or build
+        if item ~= build then
+            value(lines, building_tag .. "MAINTENANCE", item.GoldMaintenance)
+            for row in GameInfo.Improvement_Yields{ImprovementType = item.Type} do
+                local yield = GameInfo.Yields[row.YieldType]
+                if yield and row.Yield ~= 0 then
+                    lines[#lines + 1] = string.format("%+d %s %s", row.Yield, yield.IconString or "", L(yield.Description))
+                end
+            end
+            if item.Help ~= build.Help then lines[#lines + 1] = L(build.Help) end
+        end
+    elseif kind == "resource" then
+        title = plain(L(GameInfo.Resources[key].Description))
+        lines[#lines + 1] = entry.name
+    else
+        -- The original tech button captions already describe synthetic abilities and free promotions.
+        item = GameInfo.Processes[key]
+        title = item and plain(L(item.Description)) or ""
+        lines[#lines + 1] = entry.name
+    end
+    if item then
+        lines[#lines + 1] = L(item.Help)
+        if kind == "unit" or kind == "project" then
+            lines[#lines + 1] = L(item.Requirements)
+        end
+    end
+    return {tech = id, slot = slot, title = title, icon = entry.icon, lines = unlock_lines(lines)}
+end
+
 return {
     data = function(player, args)
         local kind, id = args.kind or args.a or 0, args.id or args.b
         if id == nil then return {} end
         assert(id == math.floor(id) and id >= 0, "object id must be non-negative")
+        if kind == 12 then return {unlock = unlock_tip(player, id, args.slot)} end
         local city = city_for(player, args)
         if kind == 0 then return {tech = tech_tip(player, id)} end
         if kind == 1 then

@@ -539,6 +539,17 @@
         "emblem": "",
         "text": "Proposes a deal: open borders for 10 gold per turn."
       },
+      "unlock": {
+        "tech": 7,
+        "slot": 0,
+        "title": "Swordsman",
+        "icon": "",
+        "lines": [
+          { "key": 0, "parts": [{ "key": 0, "text": "Cost: 70 ", "icon": null }, { "key": 1, "text": "", "icon": "font:ICON_PRODUCTION" }] },
+          { "key": 1, "parts": [{ "key": 0, "text": "Strength: 11", "icon": null }] },
+          { "key": 2, "parts": [{ "key": 0, "text": "Requires Iron", "icon": null }] }
+        ]
+      },
       "unit_action": {
         "key": "upgrade",
         "title": "Upgrade",

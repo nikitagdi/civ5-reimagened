@@ -255,19 +255,60 @@ fn unit_catalog_is_ordered_by_weight_and_names_the_original_action_icons() {
         GameInfoActions[0].Type = 'COMMAND_DELETE'
         GameInfoActions[2] = {Visible=true, TextKey="Farm", Type="BUILD_FARM", MissionType=20, MissionData=1, CommandType=-1}
         GameInfoActions[3] = {Visible=true, TextKey="Fortify", Type="MISSION_FORTIFY", MissionType=10, CommandType=-1}
-        GameInfo.Missions = {MISSION_FORTIFY = {IconAtlas='UNIT_ACTION_ATLAS', IconIndex=7}}
+        GameInfoActions[4] = {Visible=true, TextKey="Found city", Type="MISSION_FOUND", MissionType=11, CommandType=-1}
+        GameInfo.Missions = {MISSION_FORTIFY = {IconAtlas='UNIT_ACTION_ATLAS', IconIndex=7},
+            MISSION_FOUND = {IconAtlas='UNIT_ACTION_ATLAS', IconIndex=0}}
         GameInfo.Builds = {BUILD_FARM = {IconAtlas='UNIT_ACTION_ATLAS', IconIndex=12}}
         local unit = Players[3]:GetUnitByID(4)
         unit.CanStartMission = function() return true end
         local rows = screen.data(3, {unit=4}).unit.catalog
-        assert(#rows == 4)
-        -- fortify (30), the farm (40), the upgrade (no row type: 63), delete last (99)
+        assert(#rows == 5)
+        -- Fortify (30), the farm (40), found city (62), the upgrade (63), delete last (99).
         assert(rows[1].weight == 30 and rows[1].icon == 'icon:UNIT_ACTION_ATLAS:7', rows[1].icon)
         assert(rows[2].weight == 40 and rows[2].icon == 'icon:UNIT_ACTION_ATLAS:12')
-        assert(rows[3].weight == 63 and rows[3].icon == '')
-        assert(rows[4].weight == 99 and rows[4].client == 'disband')
+        assert(rows[3].weight == 62 and rows[3].icon == 'ui:tx:BuildCity64.dds')
+        assert(rows[4].weight == 63 and rows[4].icon == '')
+        assert(rows[5].weight == 99 and rows[5].client == 'disband')
         for i = 2, #rows do assert(rows[i - 1].weight <= rows[i].weight) end
     "#, "=action-order").unwrap();
+}
+
+#[test]
+fn delete_action_waits_for_yes_and_rechecks_the_unit() {
+    let lua = script();
+    let modal: Table = lua
+        .load(include_str!("../screens/confirm.lua"))
+        .eval()
+        .unwrap();
+    lua.globals().raw_set("modal", modal).unwrap();
+    lua.exec(r#"
+        local command = {ID=19, Description="TXT_KEY_COMMAND_DELETE", IconAtlas="UNIT_ACTION_ATLAS", IconIndex=11}
+        GameInfo.Commands = {[19]=command, COMMAND_DELETE=command}
+        GameInfoActions[1].Type, GameInfoActions[1].CommandType = "COMMAND_DELETE", command.ID
+        Locale.ConvertTextKey = function(key, action)
+            if key == "TXT_KEY_POPUP_ARE_YOU_SURE_ACTION" then
+                assert(action == command.Description)
+                return "Are you sure you want to [COLOR_WARNING_TEXT]delete the unit[ENDCOLOR]?"
+            end
+            return key
+        end
+        local sent = 0
+        local net = {send=function(name, id, command_id, data1, data2, alt)
+            assert(name == "sendDoCommand" and id == 4 and command_id == 19 and data1 == -1 and data2 == -1 and alt == 0)
+            sent = sent + 1
+        end}
+        local result = screen.actions.do_action(3, {a=4,b=1}, net)
+        assert(result.open.screen == "confirm" and result.open.a == -5 and sent == 0)
+        local question = modal.data(3, result.open)
+        assert(question.text == "Are you sure you want to delete the unit?")
+        assert(question.choices[2].enabled and question.esc_choice == 1 and question.enter_choice == 1)
+        assert(modal.actions.disband(3, {a=-5,b=1}, net).close and sent == 0)
+        assert(not pcall(modal.actions.disband, 3, {a=-6,b=0}, net))
+        hud_busy = true
+        assert(not pcall(modal.actions.disband, 3, {a=-5,b=0}, net))
+        hud_busy = false
+        assert(modal.actions.disband(3, {a=-5,b=0}, net).close and sent == 1)
+    "#, "=unit-delete").unwrap();
 }
 
 #[test]

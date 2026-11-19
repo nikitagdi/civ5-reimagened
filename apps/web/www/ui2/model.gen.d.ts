@@ -577,6 +577,7 @@ export interface UiTip {
   readonly kind: number;
   readonly id: number | null;
   readonly city: number | null;
+  readonly slot: number | null;
 }
 
 export interface UiChat {
@@ -3492,6 +3493,7 @@ export interface PoliciesBranch {
   readonly tooltip: Text;
   readonly policies: PoliciesPolicy[];
   readonly links: PoliciesLink[];
+  readonly background: string | null;
 }
 
 export interface PoliciesTenet {
@@ -4074,6 +4076,25 @@ export interface RichTooltipsUnitShort {
   readonly religion: RichTooltipsUnitShortReligion | null;
 }
 
+export interface RichTooltipsUnlockPart {
+  readonly key: number;
+  readonly text: Text;
+  readonly icon: string | null;
+}
+
+export interface RichTooltipsUnlockLine {
+  readonly key: number;
+  readonly parts: RichTooltipsUnlockPart[];
+}
+
+export interface RichTooltipsUnlock {
+  readonly tech: number;
+  readonly slot: number;
+  readonly title: Text;
+  readonly icon: string;
+  readonly lines: RichTooltipsUnlockLine[];
+}
+
 export interface RichTooltipsUnique {
   readonly civ: Text;
   readonly replaces: Text;
@@ -4216,6 +4237,7 @@ export interface TechsLink {
   readonly to_row: number;
   readonly kind: TechsLinkKind;
   readonly state: TechsLinkState;
+  readonly queued: boolean;
 }
 
 export interface TradeRoutesPlayer {
@@ -5181,6 +5203,7 @@ export interface RichTooltips {
   readonly civ_note: RichTooltipsCivNote | null;
   readonly unit_action: RichTooltipsUnitAction | null;
   readonly unit_short: RichTooltipsUnitShort[];
+  readonly unlock: RichTooltipsUnlock | null;
 }
 
 export interface Targets {

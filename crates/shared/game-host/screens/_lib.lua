@@ -59,18 +59,19 @@ function tech_unlocks_for(player)
         "UnitClassType", "UnitType", civ)
     local buildings = tech_choices(GameInfo.BuildingClasses, "DefaultBuilding", GameInfo.Civilization_BuildingClassOverrides,
         "BuildingClassType", "BuildingType", civ)
-    return function(tech, indexed)
+    return function(tech, indexed, markup)
         local out, seen = array(), {}
+        local function caption(text) return markup and text or plain(text) end
         local function add(key, kind, name, asset)
             if seen[key] then return end
             seen[key] = true
             out[#out + 1] = {idx = indexed and #out or nil, key = key, kind = kind, name = name, icon = asset}
         end
         local function item(row, kind, name)
-            add(row.Type, kind, name and plain(name) or L(row.Description), icon(row.IconAtlas, row.PortraitIndex or row.IconIndex))
+            add(row.Type, kind, name and caption(name) or L(row.Description), icon(row.IconAtlas, row.PortraitIndex or row.IconIndex))
         end
         local function ability(key, name)
-            add("ability:" .. key, "ability", plain(name), tech_function_icon)
+            add("ability:" .. key, "ability", caption(name), tech_function_icon)
         end
         for unit in GameInfo.Units{PrereqTech = tech.Type} do
             if units[unit.Class] == unit.Type then item(unit, "unit") end

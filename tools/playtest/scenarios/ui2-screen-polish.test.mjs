@@ -39,7 +39,6 @@ test("branch, victory and city-list captions cover their enum domains", () => {
   enumCaptions("city_list", "CityListStatus", "c.status", "city_list.status");
   enumCaptions("city_rename", "CityRenameMode", "city_rename.mode", "city_rename.mode");
   enumCaptions("techs", "TechsStatus", "t.status", "techs.status");
-  enumCaptions("rich_tooltips", "RichTooltipsUnlockKind", "v.kind", "rich_tooltips.kind");
 });
 
 test("city catalog and compact ledgers expose existing model fields", () => {

@@ -92,20 +92,23 @@ pub(crate) fn enter(
                 ctx.refuse(RefuseWhy::Invalid);
                 return;
             };
-            let Some(plot) = ctx
+            let Some(banner) = ctx
                 .model
                 .get::<Map>()
                 .and_then(|m| m.cities.get(c))
                 .filter(|b| b.mine)
-                .map(|b| b.plot.clone())
             else {
                 ctx.refuse(RefuseWhy::NotYourCity);
                 return;
             };
+            if !banner.can_shoot {
+                ctx.refuse(RefuseWhy::ActionUnavailable);
+                return;
+            }
             ctx.ui.edit().selection = Selection {
                 unit: None,
                 city: Some(c),
-                plot: Some(plot),
+                plot: Some(banner.plot.clone()),
             };
             UiTarget {
                 kind,

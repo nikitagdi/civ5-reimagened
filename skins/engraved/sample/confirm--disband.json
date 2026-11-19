@@ -1,0 +1,24 @@
+{
+  "model": {
+    "confirm": {
+      "id": -11,
+      "kind": "confirm_command",
+      "title": "Are you sure?",
+      "text": "Are you sure you want to Delete the Unit?",
+      "facts": [],
+      "closable": false,
+      "esc_choice": 1,
+      "enter_choice": 1,
+      "choices": [
+        {"id": 1, "key": "no", "label": "No", "primary": true, "enabled": true},
+        {"id": 0, "key": "yes", "label": "Yes", "primary": false, "enabled": true}
+      ],
+      "resolved": false
+    }
+  },
+  "ui": {
+    "windows": {
+      "confirm": {"open": true, "a": -11}
+    }
+  }
+}

@@ -4,7 +4,7 @@ mod common;
 
 use common::{Rig, city_at, key, kstr, n, plot, s, selected, unit_at};
 use protocol::Command;
-use ui2_actions::{CameraReq, Refused, Sent};
+use ui2_actions::{ActionEvent, CameraReq, Refused, Sent};
 use ui2_model::generated::{MapMode, UnitActionKind};
 use ui2_model::{Key, Value};
 
@@ -90,7 +90,7 @@ fn deselect_clears_unit_and_mode() {
 #[test]
 fn every_unit_action_is_one_command_stamped_with_the_turn() {
     type Make = fn(i32) -> Command;
-    let table: [(&str, Make); 10] = [
+    let table: [(&str, Make); 9] = [
         ("fortify", |unit| Command::UnitFortify { unit }),
         ("sleep", |unit| Command::UnitSleep { unit }),
         ("skip", |unit| Command::UnitSkip { unit }),
@@ -101,7 +101,6 @@ fn every_unit_action_is_one_command_stamped_with_the_turn() {
             unit,
         }),
         ("cancel", |unit| Command::UnitCancel { unit }),
-        ("disband", |unit| Command::UnitDisband { unit }),
         ("wake", |unit| Command::UnitWake { unit }),
     ];
     for (name, expect) in table {
@@ -126,6 +125,45 @@ fn every_unit_action_is_one_command_stamped_with_the_turn() {
         );
         assert!(rig.toasts().is_empty(), "{name}");
     }
+}
+
+#[test]
+fn disband_opens_confirm_without_an_order_and_keeps_the_original_unit() {
+    let mut rig = rig_with_units();
+    rig.one(
+        "unit.action",
+        &[("unit", kstr(1)), ("action", s("disband"))],
+    );
+    assert!(rig.commands().is_empty());
+    let window = &rig.ui().windows.confirm;
+    assert!(window.open);
+    assert_eq!(window.a, Some(-2));
+    assert_eq!(window.popup_id, None);
+
+    rig.one("unit.select", &[("unit", kstr(3))]);
+    for choice in [0, 1] {
+        rig.one(
+            "screen.act",
+            &[
+                ("screen", s("confirm")),
+                ("action", s("choose")),
+                ("a", n(-2)),
+                ("b", n(choice)),
+            ],
+        );
+    }
+    assert_eq!(
+        rig.commands(),
+        [Command::ScreenAction {
+            screen: "confirm".into(),
+            action: "disband".into(),
+            args: vec![("a".into(), -2), ("b".into(), 0)],
+            text: None,
+        }]
+    );
+    rig.actions.on_event(&ActionEvent::NewGame, rig.now);
+    rig.actions.publish(&mut rig.store);
+    assert!(!rig.ui().windows.confirm.open);
 }
 
 #[test]

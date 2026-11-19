@@ -3,7 +3,9 @@
 
 use protocol::Command;
 use ui2_model::Key;
-use ui2_model::generated::{Map, MapMode, Plot, RefuseWhy, Selection, TargetKind, UnitActionKind};
+use ui2_model::generated::{
+    Map, MapMode, Plot, RefuseWhy, Selection, TargetKind, UnitActionKind, WindowId,
+};
 use ui2_model::target::unit_target;
 
 use crate::intent::Intent;
@@ -96,7 +98,7 @@ pub(crate) fn select_next(ctx: &mut Ctx<'_>) {
 }
 
 /// A unit action. Move only sets the map mode and the ranged attack starts the map's targeting mode (the order
-/// goes with the click on a plot); the rest is one order.
+/// goes with the click on a plot). Disband opens a confirmation; the rest is one order.
 fn action(ctx: &mut Ctx<'_>, unit: Key, kind: UnitActionKind) {
     if validate::own_unit(ctx.model, unit).is_none() {
         ctx.refuse(RefuseWhy::NoUnit);
@@ -128,7 +130,11 @@ fn action(ctx: &mut Ctx<'_>, unit: Key, kind: UnitActionKind) {
         UnitActionKind::AutomateBuild => Command::UnitAutomateBuild { unit: id },
         UnitActionKind::AutomateExplore => Command::UnitAutomateExplore { unit: id },
         UnitActionKind::Cancel => Command::UnitCancel { unit: id },
-        UnitActionKind::Disband => Command::UnitDisband { unit: id },
+        UnitActionKind::Disband => {
+            // Local confirmation ids cannot collide with the core's positive popup ids.
+            super::window::open_with(ctx, WindowId::Confirm, None, Some(-1 - id), None);
+            return;
+        }
         UnitActionKind::Wake => Command::UnitWake { unit: id },
         UnitActionKind::Alert | UnitActionKind::Pillage | UnitActionKind::Upgrade => {
             Command::ScreenAction {

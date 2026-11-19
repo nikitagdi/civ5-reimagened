@@ -309,4 +309,3 @@ img.yi { width: 22px; height: 22px; flex: none; }
 .aim { display: flex; align-items: center; gap: 12px; padding: 6px 6px 6px 14px; border-radius: 6px; background-color: var(--lacquer); box-shadow: inset 0 0 0 1px var(--brass); color: var(--bone); pointer-events: auto; }
 .aim .nm { font-weight: 500; }
 .aim .why { color: var(--bone-2); }
-.banner .strike { display: flex; align-items: center; margin-left: 4px; color: var(--brass); }

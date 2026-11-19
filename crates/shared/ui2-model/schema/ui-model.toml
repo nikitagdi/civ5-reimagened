@@ -1,4 +1,4 @@
-version = "1.4"
+version = "1.5"
 
 # The UI view model, schema 1.0. Source of the generated Rust types, the path table and the JS typings
 # (`cargo xtask ui gen-model`). A new field, root or enum value is a minor version; removing, renaming or
@@ -348,6 +348,7 @@ hover = { type = "key<item>?", js = true }
 kind = { type = "i32", js = true }
 id = { type = "i32?", js = true }
 city = { type = "i32?", js = true }
+slot = { type = "i32?", js = true }
 
 [type.UiChat]
 to = { type = "ChatTo", js = true }

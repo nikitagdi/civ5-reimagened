@@ -50,6 +50,29 @@ fn techs_modes_recheck_eligibility_and_emit_only_research_messages() {
         assert(writing["ability:OpenBordersTradingAllowed"] and writing["ability:DefensivePactTradingAllowed"])
         assert(writing["ability:ResearchAgreementTradingAllowed"] and writing["ability:MapTrading"])
         assert(writing["ability:EmbarkedMoveChange"] and writing.RESOURCE_COAL.icon == "")
+        assert(not d.links[1].queued)
+        current = 1
+        Players[3].GetQueuePosition = function(_, id) return id > 0 and id or -1 end
+        local queued = screen.data(3, {})
+        assert(queued.links[1].queued and queued.links[1].state == "idle")
+        assert(queued.techs[2].queue_pos == 1 and queued.techs[3].queue_pos == 2)
+        assert(queued.techs[3].status == "queued")
+        local original_or = GameInfo.Technology_ORPrereqTechs
+        GameInfo.Technology_ORPrereqTechs = function()
+            local i = 0
+            local options = {{TechType="TECH_C", PrereqTech="TECH_B"}, {TechType="TECH_C", PrereqTech="TECH_A"}}
+            return function() i = i + 1; return options[i] end
+        end
+        local alternatives = screen.data(3, {}).links
+        assert(alternatives[1].queued and not alternatives[2].queued and not alternatives[3].queued)
+        local original_has = Teams[3].IsHasTech
+        Teams[3].IsHasTech = function() return false end
+        Players[3].GetQueuePosition = function(_, id) return id + 1 end
+        alternatives = screen.data(3, {}).links
+        assert(alternatives[1].queued and not alternatives[2].queued and alternatives[3].queued)
+        GameInfo.Technology_ORPrereqTechs, Teams[3].IsHasTech = original_or, original_has
+        current = -1
+        Players[3].GetQueuePosition = function() return -1 end
         local sent = 0
         local net = {send=function(name, id, free, target, append)
             assert(name == "sendResearch" and id == 1)

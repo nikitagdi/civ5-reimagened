@@ -32,21 +32,24 @@ GameInfo = { Technologies = rows({
         {ID=1, Type="UNITCLASS_DISABLED", DefaultUnit="UNIT_DISABLED"}}),
     Units=rows({
         {ID=0, Type="UNIT_DEFAULT", Class="UNITCLASS_TEST", PrereqTech="TECH_B", Description="Default unit"},
-        {ID=1, Type="UNIT_UNIQUE", Class="UNITCLASS_TEST", PrereqTech="TECH_B", Description="Unique unit", IconAtlas="UNIT_ATLAS", PortraitIndex=0},
+        {ID=1, Type="UNIT_UNIQUE", Class="UNITCLASS_TEST", PrereqTech="TECH_B", Description="Unique unit", IconAtlas="UNIT_ATLAS", PortraitIndex=0,
+            Cost=20, Combat=7, Moves=2, Domain="DOMAIN_LAND", Help="A [COLOR_POSITIVE_TEXT]guard[ENDCOLOR].[NEWLINE][ICON_FOOD] Rations"},
         {ID=2, Type="UNIT_FOREIGN", Class="UNITCLASS_TEST", PrereqTech="TECH_B", Description="Foreign unit"},
         {ID=3, Type="UNIT_DISABLED", Class="UNITCLASS_DISABLED", PrereqTech="TECH_B", Description="Disabled unit"}}),
     Civilization_UnitClassOverrides=rows({
         {ID=0, Type="UNIQUE", CivilizationType="CIV_TEST", UnitClassType="UNITCLASS_TEST", UnitType="UNIT_UNIQUE"},
         {ID=1, Type="DISABLED", CivilizationType="CIV_TEST", UnitClassType="UNITCLASS_DISABLED"}}),
     BuildingClasses=rows({{ID=0, Type="BUILDINGCLASS_WONDER", DefaultBuilding="BUILDING_WONDER", MaxGlobalInstances=1}}),
-    Buildings=rows({{ID=0, Type="BUILDING_WONDER", BuildingClass="BUILDINGCLASS_WONDER", PrereqTech="TECH_B", Description="Wonder"}}),
+    Buildings=rows({{ID=0, Type="BUILDING_WONDER", BuildingClass="BUILDINGCLASS_WONDER", PrereqTech="TECH_B", Description="Wonder",
+        Cost=50, GoldMaintenance=2, Help="Wonder effect."}}),
     Civilization_BuildingClassOverrides=rows({}),
     Resources=rows({
         {ID=0, Type="RESOURCE_IRON", TechReveal="TECH_B", Description="Iron", IconAtlas="RESOURCE_ATLAS", PortraitIndex=7},
         {ID=1, Type="RESOURCE_COAL", TechReveal="TECH_C", Description="Coal"}}),
-    Projects=rows({{ID=0, Type="PROJECT_TEST", TechPrereq="TECH_B", Description="Project"}}),
+    Projects=rows({{ID=0, Type="PROJECT_TEST", TechPrereq="TECH_B", Description="Project",
+        Help="Project effect.", Requirements="Requires a factory."}}),
     Improvements=rows({
-        {ID=0, Type="IMPROVEMENT_FARM", Description="Farm"},
+        {ID=0, Type="IMPROVEMENT_FARM", Description="Farm", Help="Improvement effect."},
         {ID=1, Type="IMPROVEMENT_FOREIGN", CivilizationType="CIV_TARGET", Description="Foreign improvement"}}),
     Builds=rows({
         {ID=0, Type="BUILD_FARM", PrereqTech="TECH_B", ImprovementType="IMPROVEMENT_FARM", ShowInTechTree=1,
@@ -54,10 +57,11 @@ GameInfo = { Technologies = rows({
         {ID=1, Type="BUILD_FOREIGN", PrereqTech="TECH_B", ImprovementType="IMPROVEMENT_FOREIGN", ShowInTechTree=1,
             Description="Build foreign improvement"},
         {ID=2, Type="BUILD_HIDDEN", PrereqTech="TECH_B", ShowInTechTree=0, Description="Hidden action"}}),
-    Processes=rows({{ID=0, Type="PROCESS_TEST", TechPrereq="TECH_B", Description="Wealth"}}),
+    Processes=rows({{ID=0, Type="PROCESS_TEST", TechPrereq="TECH_B", Description="Wealth", Help="Converts production to gold."}}),
     Routes=rows({{ID=0, Type="ROUTE_ROAD", Description="Road"}}),
     Route_TechMovementChanges=rows({{ID=0, Type="ROUTE_BOOST", TechType="TECH_B", RouteType="ROUTE_ROAD", MovementChange=-20}}),
-    Yields=rows({{ID=0, Type="YIELD_FOOD", Description="Food"}, {ID=1, Type="YIELD_GOLD", Description="Gold"}}),
+    Yields=rows({{ID=0, Type="YIELD_FOOD", Description="Food", IconString="[ICON_FOOD]"}, {ID=1, Type="YIELD_GOLD", Description="Gold"}}),
+    Improvement_Yields=rows({{ID=0, Type="FARM_FOOD", ImprovementType="IMPROVEMENT_FARM", YieldType="YIELD_FOOD", Yield=2}}),
     Improvement_TechYieldChanges=rows({
         {ID=0, Type="FOOD", TechType="TECH_B", ImprovementType="IMPROVEMENT_FARM", YieldType="YIELD_FOOD", Yield=1},
         {ID=1, Type="GOLD", TechType="TECH_B", ImprovementType="IMPROVEMENT_FARM", YieldType="YIELD_GOLD", Yield=2}}),
@@ -67,6 +71,7 @@ GameInfo = { Technologies = rows({
         {ID=0, Type="DRY", TechType="TECH_B", ImprovementType="IMPROVEMENT_FARM", YieldType="YIELD_FOOD", Yield=1}}),
     Technology_TradeRouteDomainExtraRange=rows({{ID=0, Type="LAND", TechType="TECH_B", DomainType="DOMAIN_LAND", Range=5}}),
     UnitPromotions=rows({{ID=0, Type="PROMOTION_TEST", Description="Promotion", Help="Promotion help", IconAtlas="PROMOTION_ATLAS", PortraitIndex=3}}),
+    Unit_FreePromotions=rows({{ID=0, Type="UNIT_PROMOTION", UnitType="UNIT_UNIQUE", PromotionType="PROMOTION_TEST"}}),
     Technology_FreePromotions=rows({{ID=0, Type="FREE_PROMOTION", TechType="TECH_B", PromotionType="PROMOTION_TEST"}})}
 local translations = {
     TXT_KEY_REVEALS_RESOURCE_ON_MAP="Reveals %s",
@@ -75,6 +80,12 @@ local translations = {
     TXT_KEY_FRESH_WATER="%s with fresh water: %s +%d",
     TXT_KEY_NO_FRESH_WATER="%s without fresh water: %s +%d",
     TXT_KEY_FASTER_MOVEMENT="Faster movement on %s",
+    TXT_KEY_PRODUCTION_COST="Cost: %d [ICON_PRODUCTION]",
+    TXT_KEY_PRODUCTION_MOVEMENT="Moves: %d",
+    TXT_KEY_PRODUCTION_STRENGTH="Strength: %d",
+    TXT_KEY_PRODUCTION_BUILDING_MAINTENANCE="Maintenance: %d [ICON_GOLD]",
+    TXT_KEY_PRODUCTION_BUILDING_FOOD="Food: %+d [ICON_FOOD]",
+    TXT_KEY_ENABLE_PRODUCITON_CONVERSION="Enables %s",
 }
 Locale={ConvertTextKey=function(key, ...)
     return translations[key] and string.format(translations[key], ...) or key
@@ -88,10 +99,17 @@ function by_unlock_key(unlocks)
     return by_key
 end
 free_count, current, off = 0, -1, false
-Game={IsOption=function() return off end, GetGameTurn=function() return 1 end}
+Game={IsOption=function() return off end, GetGameTurn=function() return 1 end,
+    GetNumResourceRequiredForUnit=function() return 0 end,
+    GetBuildingYieldChange=function(_, yield) return yield == 0 and 3 or 0 end,
+    GetBuildingYieldModifier=function() return 0 end}
 GameInfoTypes={GAMEOPTION_NO_SCIENCE=0}
 GameDefines={MAX_MAJOR_CIVS=22}
 local p={GetTeam=function() return 3 end, GetCivilizationType=function() return 0 end,
+    GetUnitProductionNeeded=function(_, id) assert(id == 1); return 25 end,
+    GetBuildingProductionNeeded=function(_, id) assert(id == 0); return 60 end,
+    GetExtraBuildingHappinessFromPolicies=function() return 0 end,
+    GetProjectProductionNeeded=function(_, id) assert(id == 0); return 75 end,
     GetLeaderType=function() return 0 end, GetScience=function() return 10 end,
     GetNumFreeTechs=function() return free_count end, GetQueuePosition=function(_, id) return id==current and 1 or -1 end,
     GetCurrentResearch=function() return current end, CanResearch=function(_, id) return id==1 end,
