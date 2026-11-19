@@ -33,6 +33,14 @@ impl Runtime {
         flagged && !self.disabled(id) && self.geo().shown(id)
     }
 
+    /// Whether the keyboard moved the focus to `id` (Tab, the arrows of a group): it has `FOCUS_VISIBLE`. A node a
+    /// press focused has not.
+    pub(crate) fn keyboard_focus(&self, id: NodeId) -> bool {
+        self.arena
+            .get(id)
+            .is_some_and(|n| n.state().contains(StateBits::FOCUS_VISIBLE))
+    }
+
     /// The focused node when it is a text field (it takes the keyboard but Esc and Tab).
     pub(crate) fn text_focus(&self) -> Option<NodeId> {
         self.focused().filter(|&f| {

@@ -1004,6 +1004,52 @@ fn input_focus_moves_with_presses_tab_and_keys() {
     assert_eq!(h.rt.focused(), None);
 }
 
+/// The live report: after a click on a unit's flag (a focusable button) Space did not skip the unit, it clicked the
+/// flag again. A press leaves the focus on what it pressed; Enter and Space go to a hotkey that takes them then, and
+/// to the focused node only when the keyboard put the focus there (Tab) or no hotkey takes the key.
+#[test]
+fn input_space_and_enter_reach_their_hotkeys_after_a_press_focused_a_button() {
+    let mut f = Fx::new();
+    let focusable = |t: TNode| t.flags(node_flags::FOCUSABLE);
+    let hud = f.layer(Layer::Hud, "hud");
+    let flag = focusable(f.el("flag", at(0.0, 0.0, 50.0, 50.0)))
+        .bind(on(Event::Click, vec![intent("turn.cancel", &[])]));
+    let skip = focusable(f.el("skip", at(100.0, 0.0, 50.0, 50.0)))
+        .hotkey("Space", 0)
+        .bind(on(Event::Click, vec![intent("turn.primary", &[])]));
+    let end = f
+        .el("end", at(200.0, 0.0, 50.0, 50.0))
+        .hotkey("Enter", 0)
+        .bind(on(Event::Click, vec![intent("turn.end", &[])]));
+    let other = focusable(f.el("other", at(300.0, 0.0, 50.0, 50.0))).bind(on(
+        Event::Click,
+        vec![intent("window.toggle", &[("window", "'research'")])],
+    ));
+    f.kit
+        .template("doc", vec![hud.children([flag, skip, end, other])]);
+    let mut h = Host::with(f.kit.finish().expect("package"), Env::default());
+    let names =
+        |h: &mut Host| -> Vec<String> { h.intents().iter().map(|i| i.name.to_string()).collect() };
+    // The flag is pressed: it has the focus, without the keyboard's mark.
+    h.click(25.0, 25.0);
+    assert_eq!(names(&mut h), ["turn.cancel"]);
+    assert_eq!(h.rt.focused(), Some(h.part("flag")));
+    // Space skips (the hotkey), Enter ends the turn (the hotkey); the flag is not clicked again.
+    assert_eq!(h.press(Key::Character(" ".into()), "Space"), TAKEN);
+    assert_eq!(names(&mut h), ["turn.primary"]);
+    assert_eq!(h.named(NamedKey::Enter, "Enter"), TAKEN);
+    assert_eq!(names(&mut h), ["turn.end"]);
+    assert_eq!(h.rt.focused(), Some(h.part("flag")), "the focus stays");
+    // Tab puts the focus on a node with the keyboard: Space is that node's (an explicit Enter hotkey still comes
+    // first, step 0 of the keyboard's order).
+    h.tab(false);
+    h.tab(false);
+    h.rt.drain_output();
+    assert_eq!(h.rt.focused(), Some(h.part("other")));
+    assert_eq!(h.press(Key::Character(" ".into()), "Space"), TAKEN);
+    assert_eq!(names(&mut h), ["window.toggle"]);
+}
+
 #[test]
 fn input_text_field_takes_the_keyboard_but_esc_and_tab() {
     let mut h = kb_host(false);

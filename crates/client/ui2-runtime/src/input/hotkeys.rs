@@ -4,7 +4,8 @@
 //! 1. a focused text field takes every key but Esc and Tab (the host's text bridge edits it);
 //! 2. Tab and Shift+Tab move the focus ([`focus`](super::focus));
 //! 3. a focused control takes its keys ([`controls`](super::controls): arrows, Page Up/Down, Home, End,
-//!    Esc of a select); Enter and Space click the focused node;
+//!    Esc of a select); Enter and Space click the focused node, unless a press of the pointer focused it and a
+//!    hotkey of step 5 takes the key (a clicked unit flag must not keep Space from skipping the unit);
 //! 4. Esc closes the top visible screen: `window.close` with the screen's window, origin `Hotkey`;
 //! 5. `data-hotkey` of the package: the key clicks its node (origin `Hotkey`) while the node is shown and not
 //!    disabled; the topmost layer wins (`window`, `hud`, `map`; never `tooltip`) and a visible screen blocks
@@ -110,7 +111,13 @@ impl Runtime {
         }
         match named {
             Some(NamedKey::Enter | NamedKey::Space) => {
-                if let Some(f) = self.focused() {
+                // A node the pointer focused (a press leaves the focus on the button it pressed: a unit flag, an
+                // order of the panel) keeps Enter and Space only while no hotkey takes them: in the original a click
+                // leaves no keyboard focus behind, so Space still skips the unit and Enter still ends the turn. A
+                // node the keyboard focused (Tab) gets them.
+                if let Some(f) = self.focused()
+                    && (self.keyboard_focus(f) || self.hotkey_target(k).is_none())
+                {
                     if !k.repeat {
                         self.dispatch(f, Event::Click, false);
                     }
