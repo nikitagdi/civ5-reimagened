@@ -262,8 +262,16 @@ async function production(page, check, n, shot) {
   // The arrow keys move the focus (the skin's script, `call prod.step`).
   const before = detailName(await ui2(page));
   await page.keyboard.press("ArrowDown");
-  const stepped = await waitUi(page, (q) => detailName(q) !== before, 3000);
-  p.arrow = { before, after: detailName(stepped.probe), ms: stepped.ms };
+  let stepped = await waitUi(page, (q) => detailName(q) !== before, 3000);
+  let key = "ArrowDown";
+  // The focused row may be the last one the window shows (the Units tab lists only a few): the focus stays there
+  // on ArrowDown, as it should, and ArrowUp must move it instead.
+  if (!stepped.ok) {
+    key = "ArrowUp";
+    await page.keyboard.press("ArrowUp");
+    stepped = await waitUi(page, (q) => detailName(q) !== before, 3000);
+  }
+  p.arrow = { before, key, after: detailName(stepped.probe), ms: stepped.ms };
   check("ArrowDown moves the focus to the next row (skin script)", stepped.ok, JSON.stringify(p.arrow));
   // Sorting by turns (the Turns column head writes `state.prod.sort`, the skin's own state the host mounts). With two
   // rows in the queue the column heads stand 300 px from the top.

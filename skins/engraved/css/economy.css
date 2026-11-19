@@ -9,6 +9,9 @@
 .win.ov.w-vic { left: 200px; right: 200px; top: 64px; bottom: 136px; }
 .win.ov.w-trade { left: 120px; right: 120px; top: 64px; bottom: 260px; }
 .win.ov.w-spy { left: 96px; right: 96px; }
+/* A short screen (1366 x 768): the windows the mockups leave room under take the height, so that the victory
+   score column shows its ranking button and the trade routes their list without scrolling. */
+@media (height < 900px) { .win.ov.w-vic { top: 32px; bottom: 24px; } .win.ov.w-trade { top: 32px; bottom: 24px; } }
 .ec { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .ob { flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); }
 .ob.side-l { grid-template-columns: minmax(280px, 340px) 1fr; }

@@ -256,11 +256,18 @@ async function centreOf(page, part) {
   const b = (await rectsOf(page, part))?.[0];
   return b && b.w > 0 && b.h > 0 ? [b.x + b.w / 2, b.y + b.h / 2] : null;
 }
-/** Clicks a part where it is; false when it is not on the screen. */
+/** Clicks a part where it is; false when it is not on the screen (asked a few times: a panel that is being rebuilt
+ * after a selection has no box for a frame or two). */
 async function clickAt(page, part) {
-  const c = await centreOf(page, part);
-  if (c) await page.mouse.click(c[0], c[1]);
-  return !!c;
+  for (let i = 0; i < 4; i++) {
+    const c = await centreOf(page, part);
+    if (c) {
+      await page.mouse.click(c[0], c[1]);
+      return true;
+    }
+    await sleep(250);
+  }
+  return false;
 }
 /** The list rows of a part: one root rectangle per list key, inside the part's own box. */
 async function rowsOf(page, part) {
@@ -308,7 +315,11 @@ async function settleBlockers(page) {
         if (moved) continue;
       }
       await clickAt(page, "helm.dial");
-      const sel = await waitUi(page, (q) => partsOf(q, "unit.act.").length > 0, 5000);
+      // The panel may still show the unit that just moved (only Delete left) for a frame or two: wait for the
+      // waiting unit's orders, else take what the panel shows.
+      const settle = ["unit.act.fortify", "unit.act.sleep", "unit.act.skip"];
+      const sel = (await waitUi(page, (q) => partsOf(q, "unit.act.").some((a) => settle.includes(a)), 5000))
+        ?? (await waitUi(page, (q) => partsOf(q, "unit.act.").length > 0, 1000));
       const acts = partsOf(sel, "unit.act.");
       const pick = ["unit.act.fortify", "unit.act.sleep", "unit.act.skip"].find((a) => acts.includes(a));
       if (!pick || !(await clickAt(page, pick))) return [...steps, `no order for ${JSON.stringify(acts)}`];

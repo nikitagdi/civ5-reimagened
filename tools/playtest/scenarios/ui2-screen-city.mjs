@@ -28,5 +28,7 @@ export const run = context => scenario(context,"ui2-screen-city",async ({page,ci
   await waitFor(page,p => texts(p,"city.queue").length === count,"queue removal");
   check("removing an order refreshes the queue",true);
   await clickPart(page,"city.close");
-  check("return closes the window",!(await probe(page)).ui.windows.includes("city"));
+  // The close is an intent: the window goes in a following frame.
+  const closed = await waitFor(page,p => !p.ui.windows.includes("city"),"city view closed",5000).then(() => true,() => false);
+  check("return closes the window",closed);
 });
