@@ -61,14 +61,19 @@
 .banner .chp { position: absolute; left: 0; right: 0; top: 0; height: 3px; background-color: var(--lacquer-0); }
 .banner .chp .fill { position: absolute; left: 0; top: 0; bottom: 0; background-color: var(--y-gold); }
 /* ---------- yield and resource icons of the map options ---------- */
-/* YieldIconManager: 128 px atlas cells in two rows centred on the plot (10 px up), each overlapping the next by 40 of
-   its 128; ResourceIconManager: the 64 px icon on its plate at the plot's upper left corner. Drawn at a fixed size. */
+/* YieldIconManager's AnchorInstance in its own pixels (the anchor scales them with the world): a stack centred on the
+   plot 10 px up, two rows growing down with padding -40 (an empty second row still takes its padding), each of 128 px
+   atlas cells growing right with padding -40. ResourceIconManager: the 64 px plate and icon centred on their anchor. */
 .map-icons { position: absolute; left: 0; top: 0; pointer-events: none; }
-.map-yields { position: absolute; left: -150px; top: -86px; width: 300px; height: 152px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.map-ys { display: flex; margin: -10px 0; }
-.map-y { position: relative; width: 64px; height: 64px; margin: 0 -10px; }
-.map-y img, .map-res img { position: absolute; left: 0; top: 0; width: 64px; height: 64px; }
-.map-res { position: absolute; left: -144px; top: -84px; width: 64px; height: 64px; }
+.map-yields { position: absolute; left: -300px; top: -310px; width: 600px; height: 600px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.map-ys { display: flex; }
+.map-ys2 { margin-top: -40px; }
+.map-y { position: relative; width: 128px; height: 128px; margin: 0 -20px; }
+.map-y img { position: absolute; left: 0; top: 0; width: 128px; height: 128px; }
+.map-res { position: absolute; left: -32px; top: -32px; width: 64px; height: 64px; pointer-events: auto; }
+.map-res img { position: absolute; left: 0; top: 0; width: 64px; height: 64px; }
+.map-res-tip .tip { width: 260px; }
+.map-res-line { min-height: 16px; white-space: pre-wrap; }
 
 /* ---------- the city screen's tiles on the map: the citizen button above the plot's yields (the original's
    PlotButton stands 30 up), the price at the foot of the plot ---------- */

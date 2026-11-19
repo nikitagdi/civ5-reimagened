@@ -11,10 +11,17 @@ key = "str"
 name = "text"
 value = "i32"
 
-# A line of the resource's tooltip under its title.
+# A piece of a tooltip line: text, or a picture of the game's font (`[ICON_*]` of the original's markup).
+[type.PlotHelpPart]
+key = "i32"
+text = "text"
+icon = "asset?"
+
+# A line of the resource's tooltip under its title: `text` without the markup, `parts` with its font pictures.
 [type.PlotHelpLine]
 idx = "i32"
 text = "text"
+parts = { list = "PlotHelpPart", key = "key" }
 
 [type.PlotHelpUnit]
 idx = "i32"

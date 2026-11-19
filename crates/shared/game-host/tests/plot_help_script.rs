@@ -31,7 +31,7 @@ fn plot_help_follows_the_seat_fog_and_previews_combat() {
         Technologies = {[3] = {Description = 'Mining'}},
         Improvements = {[4] = {Description = 'Mine'}},
         Routes = {[0] = {Description = 'Road'}},
-        Yields = {[0] = {Description = 'Food'}, [1] = {Description = 'Production'}, [2] = {Description = 'Gold'},
+        Yields = {[0] = {Description = 'Food'}, [1] = {Description = 'Production', IconString = '[ICON_PRODUCTION]'}, [2] = {Description = 'Gold'},
           [3] = {Description = 'Science'}, [4] = {Description = 'Culture'}, [5] = {Description = 'Faith'}},
       }
       GameInfo.Yields.YIELD_PRODUCTION = GameInfo.Yields[1]
@@ -82,13 +82,21 @@ fn plot_help_follows_the_seat_fog_and_previews_combat() {
       -- As GetNatureString: a feature that is not special keeps the terrain under it.
       assert(seen.nature == 'Forest, Grassland, TXT_KEY_PLOTROLL_HILL', seen.nature)
       assert(seen.resource == 'Iron' and seen.resource_count == 2 and seen.resource_tech == 'Mining')
-      -- The original's resource tooltip: the quantity and the name in capitals, the help without its markup, the
-      -- yields of the improved and worked resource (no happiness line for a strategic one).
+      -- The original's resource tooltip: the quantity and the name in capitals, the help (a line per [NEWLINE]) and
+      -- its rule, the yields of the improved and worked resource (no happiness line for a strategic one). `text` is a
+      -- line without markup, `parts` keeps the font pictures ([ICON_BULLET], the yield's icon string).
       assert(seen.resource_title == '2 IRON', seen.resource_title)
       local lines = {}
       for i, l in ipairs(seen.resource_lines) do assert(l.idx == i - 1); lines[i] = l.text end
-      assert(table.concat(lines, '|') == '• Used by units. Strategic.|TXT_KEY_RESOURCE_TOOLTIP_IMPROVED_WORKED|• +1 Production',
+      assert(table.concat(lines, '|') == 'Used by units.|Strategic.|---------------------|TXT_KEY_RESOURCE_TOOLTIP_IMPROVED_WORKED|+1 Production',
         table.concat(lines, '|'))
+      local function parts(l)
+        local out = {}
+        for _, p in ipairs(l.parts) do out[#out + 1] = p.icon or p.text end
+        return table.concat(out, '/')
+      end
+      assert(parts(seen.resource_lines[1]) == 'font:ICON_BULLET/Used by /font:ICON_PRODUCTION/ units.', parts(seen.resource_lines[1]))
+      assert(parts(seen.resource_lines[5]) == 'font:ICON_BULLET/+1/font:ICON_PRODUCTION/ Production', parts(seen.resource_lines[5]))
       assert(seen.improvement == 'Mine' and seen.improvement_pillaged and seen.route == 'Road')
       assert(seen.owner == 'Germany' and seen.owner_relation == 'war' and seen.defense == 50)
       assert(#seen.yields == 2 and seen.yields[1].key == 'food' and seen.yields[2].value == 3)

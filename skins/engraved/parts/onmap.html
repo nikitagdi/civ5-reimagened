@@ -44,14 +44,18 @@
 </div>
 
 <!-- The yield and resource icons of the plots in view (the host writes ui.map_icons: the map options' plots and the open
-     city's), as the original's managers draw them: the yield atlas cells in two overlapping rows on the plot, the
-     resource on its back plate at the plot's upper left corner. -->
-<div class="map-icons" data-part="map.icons" data-bind-for="m:{{ui.map_icons}}" data-anchor="plot:{{m.cell}}">
-  <div class="map-res" data-part="map.resource-icon" data-bind-if="{{m.has_resource}}"><img data-asset="ui:tx:ResourcesBack64.dds"><img data-bind-src="{{m.resource}}"></div>
-  <div class="map-yields" data-part="map.yield-icons" data-bind-if="{{len(m.yields) > 0}}">
+     city's), as the original's managers draw them. The yields: YieldIconManager's scaling world anchor on the plot's
+     centre, the 128 px atlas cells in two overlapping rows, at the size of the world at every zoom. The resource:
+     ResourceIconManager's anchor at the plot's upper left, the 64 px icon on its plate at a fixed size, with the
+     resource's own tooltip. -->
+<div class="map-icons" data-part="map.yield-icons" data-bind-for="m:{{ui.map_icons}}" data-bind-filter="{{len(m.yields) > 0}}" data-anchor="plot-scaled:{{m.cell}}">
+  <div class="map-yields">
     <div class="map-ys"><div class="map-y" data-bind-for="y:{{m.yields}}" data-bind-filter="{{y.stack == 1}}"><img data-bind-src="{{y.icon}}"><img data-bind-if="{{y.number != null}}" data-bind-src="{{y.number}}"></div></div>
-    <div class="map-ys" data-bind-if="{{len(m.yields) > 4}}"><div class="map-y" data-bind-for="y:{{m.yields}}" data-bind-filter="{{y.stack == 2}}"><img data-bind-src="{{y.icon}}"><img data-bind-if="{{y.number != null}}" data-bind-src="{{y.number}}"></div></div>
+    <div class="map-ys map-ys2"><div class="map-y" data-bind-for="y:{{m.yields}}" data-bind-filter="{{y.stack == 2}}"><img data-bind-src="{{y.icon}}"><img data-bind-if="{{y.number != null}}" data-bind-src="{{y.number}}"></div></div>
   </div>
+</div>
+<div class="map-icons" data-part="map.resource-icon" data-bind-for="m:{{ui.map_icons}}" data-bind-filter="{{m.has_resource}}" data-anchor="plot-corner:{{m.cell}}">
+  <div class="map-res" data-tooltip="map-resource-tip" data-on-pointerenter="set state.map_icons.resource = m.cell" data-on-pointerleave="set state.map_icons.resource = -1"><img data-asset="ui:tx:ResourcesBack64.dds"><img data-bind-src="{{m.resource}}"></div>
 </div>
 
 <!-- The city screen's tiles on the map (the original's city view): a click works or frees the tile, as the list's
@@ -72,13 +76,14 @@
 <div class="path-turn" data-part="map.path-turn" data-bind-for="p:{{ui.path}}" data-anchor="plot:{{p.cell}}"><span data-bind-value="{{p.turn}}">1</span></div>
 
 <!-- The plot tooltip (the original's PlotMouseoverInclude and EnemyUnitPanel): it hangs on the plot the mouse rested on
-     (the host writes ui.hover after the delay) once the server answered for that plot (plot_help). -->
-<div class="tip plot-tip" data-part="map.plot-tip" data-bind-for="h:{{ui.hover}}" data-bind-filter="{{plot_help != null && plot_help.cell == h.cell}}" data-anchor="plot:{{h.cell}}">
+     (the host writes ui.hover after the delay) once the server answered for that plot (plot_help). On a resource icon
+     the icon's own tooltip shows instead. -->
+<div class="tip plot-tip" data-part="map.plot-tip" data-bind-for="h:{{ui.hover}}" data-bind-filter="{{plot_help != null && plot_help.cell == h.cell && state.map_icons.resource != h.cell}}" data-anchor="plot:{{h.cell}}">
   <div data-bind-if="{{plot_help != null}}">
     <div class="th" data-part="plot-tip.nature" data-bind-if="{{plot_help.revealed}}" data-bind-value="{{plot_help.nature}}">Grassland, Hills</div>
     <div class="tl" data-bind-if="{{!plot_help.revealed}}" data-l10n="plot_tip.unknown">Unexplored</div>
     <div class="pr" data-part="plot-tip.resource" data-bind-if="{{plot_help.resource_title != null}}" data-bind-value="{{plot_help.resource_title}}">2 IRON</div>
-    <div class="tl" data-bind-for="l:{{plot_help.resource_lines}}" data-bind-value="{{l.text}}"></div>
+    <div class="tl" data-bind-for="l:{{plot_help.resource_lines}}"><span data-bind-for="p:{{l.parts}}"><img class="gi s16" data-bind-if="{{p.icon != null}}" data-bind-src="{{p.icon}}"><span data-bind-value="{{p.text}}"></span></span></div>
     <div class="tl lk" data-bind-if="{{plot_help.resource_tech != null}}" data-l10n="plot_tip.requires" data-l10n-args="{{plot_help.resource_tech}}"></div>
     <div class="trow" data-part="plot-tip.improvement" data-bind-if="{{plot_help.improvement != null}}"><span data-l10n="plot_tip.improvement">Improvement</span><span class="n" data-bind-value="{{plot_help.improvement}}">Mine</span><span class="plot-tip-bad" data-bind-if="{{plot_help.improvement_pillaged}}" data-l10n="plot_tip.pillaged"></span></div>
     <div class="trow" data-part="plot-tip.route" data-bind-if="{{plot_help.route != null}}"><span data-l10n="plot_tip.route">Route</span><span class="n" data-bind-value="{{plot_help.route}}">Road</span><span class="plot-tip-bad" data-bind-if="{{plot_help.route_pillaged}}" data-l10n="plot_tip.pillaged"></span></div>

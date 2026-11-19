@@ -255,6 +255,21 @@ pub(crate) fn cell_plot(v: i32) -> Option<(i32, i32)> {
     (v >= 0).then_some((v / 65_536, v % 65_536))
 }
 
+/// The scale of a `plot-scaled` anchor's chunk (CSS px of the chunk to CSS px of the screen) where the world shows
+/// `px_per_unit` device pixels per world unit and a CSS px is `k` device pixels: one CSS px of the chunk, the
+/// original's UI pixel, covers [`ui::tree::SCALING_WORLD_PER_PIXEL`] world units, as the children of the original's
+/// `WorldAnchor Scaling="True"` do (a 128 px cell of the yield atlas is 19.2 of the hex's 64 units at every zoom).
+/// SIMPLIFIED(SIMP-541): the exe's `Scaling` formula (`WorldAnchorControl::RecalcPosition`) is not recovered; the size
+/// is the classic client's (SIMP-uic-11), which a capture of the original (yield cells 39 px apart where a hex is about
+/// 176 px wide) puts within its measuring error. The anchor is hidden only where its point is off the screen or behind
+/// the relief, as the classic `WorldAnchor`; no zoom of the original's camera is known to hide the yields.
+fn world_anchor_scale(px_per_unit: f32, k: f32) -> f32 {
+    if !(px_per_unit.is_finite() && px_per_unit > 0.0 && k > 0.0) {
+        return 1.0;
+    }
+    px_per_unit * ui::tree::SCALING_WORLD_PER_PIXEL / k
+}
+
 /// Where a map anchor's object is in the world: a city's banner or a unit's flag as the renderer hangs them, or
 /// the centre of a plot on the relief. `None`: not on the map (not seen, gone). A unit the renderer hangs no flag
 /// for (the units' own pipeline draws them without labels) hangs over its cell (`unit_cell`: the cell of the unit
@@ -276,7 +291,7 @@ fn anchor_point(
         _ => None,
     };
     match kind {
-        AnchorKind::Plot => {
+        AnchorKind::Plot | AnchorKind::PlotScaled | AnchorKind::PlotCorner => {
             let (x, y) = match key {
                 ModelValue::Struct(xy) => match (xy.first(), xy.get(1)) {
                     (Some(ModelValue::I32(x)), Some(ModelValue::I32(y))) => (*x, *y),
@@ -290,7 +305,14 @@ fn anchor_point(
             };
             let c = render::hexgrid::cell_center(x, y);
             let h = terrain.map_or(0.0, |t| render::terrain::terrain_height_at(t, c));
-            Some(render::glam::Vec3::new(c.x, h, c.y))
+            // `ResourceIconManager.lua` hangs the resource icon at its `g_ResourceIconOffsetX/Y` from `GridToWorld`:
+            // 30 west and 15 north, at the height of the plot's centre (the renderer draws north as -Z).
+            let at = if kind == AnchorKind::PlotCorner {
+                c + render::glam::Vec2::new(-30.0, -15.0)
+            } else {
+                c
+            };
+            Some(render::glam::Vec3::new(at.x, h, at.y))
         }
         AnchorKind::City => {
             let (owner, id) = entity()?;
@@ -1851,7 +1873,26 @@ impl Frontend for V2Frontend {
                         world, wrap, &view_proj, viewport, eye, terrain,
                     );
                     shown.set(shown.get() + usize::from(s.visible));
-                    s.visible.then_some((s.pos, 1.0))
+                    if !s.visible {
+                        return None;
+                    }
+                    // A scaling world anchor: its chunk at the size of the world at its point (device px per world
+                    // unit, measured over a step east, back to CSS px).
+                    let scale = if kind == ui2_host::AnchorKind::PlotScaled {
+                        let step = 8.0;
+                        let east = render::entities::project_wrapped_label(
+                            world + render::glam::Vec3::X * step,
+                            wrap,
+                            &view_proj,
+                            viewport,
+                            eye,
+                            None,
+                        );
+                        world_anchor_scale((east.pos - s.pos).length() / step, k)
+                    } else {
+                        1.0
+                    };
+                    Some((s.pos, scale))
                 });
             }
             render::perf::set_counter("ui2.anchors", ui.anchor_count() as f64);
@@ -2070,6 +2111,9 @@ impl Frontend for V2Frontend {
             .collect();
         if let Some(ui) = self.ui_mut() {
             ui.set_path_labels(rows);
+            // The pointer on a resource icon of the map: the server's help for that plot carries the icon's tooltip
+            // (the original's `GenerateResourceToolTip`), so the plot is asked for at once, as the icon's tooltip shows.
+            let hover = super::v2_map::resource_hover(ui).or(hover);
             ui.set_hover(hover);
         }
     }

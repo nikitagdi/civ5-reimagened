@@ -7,7 +7,10 @@
 //! flips them in the panel, the host follows them every frame. The host keeps them for the player in the page's
 //! store (as the classic client keeps its map options) and puts them back into the skin's state when a skin comes up.
 //! The grid and the routes are the renderer's; the yield and resource icons are the skin's, hung on the plots in view
-//! (`ui.map_icons`, map anchors), as the original's Lua managers hang theirs on the plots the exe names.
+//! (`ui.map_icons`, map anchors), as the original's Lua managers hang theirs on the plots the exe names: the yields on a
+//! `plot-scaled` anchor (YieldIconManager's `WorldAnchor Scaling="True"`, sized with the world at every zoom), the
+//! resource on a `plot-corner` anchor (ResourceIconManager's unscaled anchor at the plot's upper left), whose own
+//! tooltip is the resource's (`resource_hover`).
 
 use std::rc::Rc;
 
@@ -208,6 +211,20 @@ impl MapLink {
         ui.set_map_icons(map_icons(world, catalog, rect, opts, &key.4));
         self.icons_for = Some(key);
     }
+}
+
+/// The skin's state that names the plot whose resource icon the pointer is on (`state.map_icons.resource`: a plot
+/// packed as `MapIcon.cell`, -1 for none): the skin sets it on the icon's `pointerenter` and clears it on
+/// `pointerleave`.
+const RESOURCE_HOVER: &str = "map_icons.resource";
+
+/// The plot of the resource icon under the pointer (`None`: none, or a skin without the state).
+pub fn resource_hover(ui: &V2Ui) -> Option<(i16, i16)> {
+    let cell = ui.skin_int(RESOURCE_HOVER).filter(|c| *c >= 0)?;
+    Some((
+        i16::try_from(cell / 65_536).ok()?,
+        i16::try_from(cell % 65_536).ok()?,
+    ))
 }
 
 /// The yield atlas of the original's `YieldIconManager.lua` (`g_Textures`, `g_OffsetXs`): food, production, gold and

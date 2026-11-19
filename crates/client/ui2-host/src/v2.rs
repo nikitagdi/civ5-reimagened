@@ -120,7 +120,7 @@ fn anchor_name(kind: AnchorKind, key: &Value) -> Option<String> {
     Some(match kind {
         AnchorKind::City => format!("city:{}", id()?),
         AnchorKind::Unit => format!("unit:{}", id()?),
-        AnchorKind::Plot => match key {
+        AnchorKind::Plot | AnchorKind::PlotScaled | AnchorKind::PlotCorner => match key {
             Value::Struct(xy) => match (xy.first(), xy.get(1)) {
                 (Some(Value::I32(x)), Some(Value::I32(y))) => format!("plot:{x},{y}"),
                 _ => return None,
@@ -580,6 +580,16 @@ impl V2Ui {
         let f = self.store.resolve(&format!("state.{path}")).ok()?;
         match self.store.value(f.id, &[])? {
             Value::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    /// An integer of the skin's own state (`state.<path>`); `None` when the skin does not declare it as one.
+    pub fn skin_int(&self, path: &str) -> Option<i64> {
+        let f = self.store.resolve(&format!("state.{path}")).ok()?;
+        match self.store.value(f.id, &[])? {
+            Value::I32(v) => Some(i64::from(*v)),
+            Value::U32(v) => Some(i64::from(*v)),
             _ => None,
         }
     }

@@ -4,7 +4,7 @@
 /// Schema version this file was generated from.
 pub const SCHEMA_VERSION: (u16, u16) = (1, 5);
 /// Hash of the canonical `schema.gen.json` this file was generated from.
-pub const SCHEMA_HASH: u64 = 0x5a73c0939a1a003c;
+pub const SCHEMA_HASH: u64 = 0x3eb9da14ac645143;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -36716,9 +36716,53 @@ impl crate::model::Keyed for PlotHelpYield {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
+pub struct PlotHelpPart {
+    pub key: i32,
+    pub text: crate::value::Text,
+    pub icon: Option<crate::value::AssetRef>,
+}
+
+impl crate::model::Model for PlotHelpPart {
+    fn diff(&self, old: &Self, at: &mut crate::delta::Cursor, out: &mut crate::delta::Ops) {
+        let base = at.field;
+        at.field = base.child(0);
+        crate::model::Model::diff(&self.key, &old.key, at, out);
+        at.field = base.child(1);
+        crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.icon, &old.icon, at, out);
+        at.field = base;
+    }
+
+    fn to_value(&self) -> crate::value::Value {
+        crate::value::Value::Struct(vec![
+            crate::model::Model::to_value(&self.key),
+            crate::model::Model::to_value(&self.text),
+            crate::model::Model::to_value(&self.icon),
+        ])
+    }
+
+    fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
+        let f = v.as_struct(3)?;
+        Ok(PlotHelpPart {
+            key: crate::model::Model::from_value(&f[0])?,
+            text: crate::model::Model::from_value(&f[1])?,
+            icon: crate::model::Model::from_value(&f[2])?,
+        })
+    }
+}
+
+impl crate::model::Keyed for PlotHelpPart {
+    fn key(&self) -> crate::value::Key {
+        crate::value::Key::from_i32(i32::from(self.key))
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct PlotHelpLine {
     pub idx: i32,
     pub text: crate::value::Text,
+    pub parts: crate::model::KeyedList<PlotHelpPart>,
 }
 
 impl crate::model::Model for PlotHelpLine {
@@ -36728,6 +36772,8 @@ impl crate::model::Model for PlotHelpLine {
         crate::model::Model::diff(&self.idx, &old.idx, at, out);
         at.field = base.child(1);
         crate::model::Model::diff(&self.text, &old.text, at, out);
+        at.field = base.child(2);
+        crate::model::Model::diff(&self.parts, &old.parts, at, out);
         at.field = base;
     }
 
@@ -36735,14 +36781,16 @@ impl crate::model::Model for PlotHelpLine {
         crate::value::Value::Struct(vec![
             crate::model::Model::to_value(&self.idx),
             crate::model::Model::to_value(&self.text),
+            crate::model::Model::to_value(&self.parts),
         ])
     }
 
     fn from_value(v: &crate::value::Value) -> Result<Self, crate::value::ValueError> {
-        let f = v.as_struct(2)?;
+        let f = v.as_struct(3)?;
         Ok(PlotHelpLine {
             idx: crate::model::Model::from_value(&f[0])?,
             text: crate::model::Model::from_value(&f[1])?,
+            parts: crate::model::Model::from_value(&f[2])?,
         })
     }
 }
@@ -46995,27 +47043,27 @@ impl crate::model::Model for PlotHelp {
         crate::model::Model::diff(&self.resource_title, &old.resource_title, at, out);
         at.field = base.child(10);
         crate::model::Model::diff(&self.resource_lines, &old.resource_lines, at, out);
-        at.field = base.child(13);
-        crate::model::Model::diff(&self.improvement, &old.improvement, at, out);
-        at.field = base.child(14);
-        crate::model::Model::diff(&self.improvement_pillaged, &old.improvement_pillaged, at, out);
-        at.field = base.child(15);
-        crate::model::Model::diff(&self.route, &old.route, at, out);
-        at.field = base.child(16);
-        crate::model::Model::diff(&self.route_pillaged, &old.route_pillaged, at, out);
         at.field = base.child(17);
-        crate::model::Model::diff(&self.owner, &old.owner, at, out);
+        crate::model::Model::diff(&self.improvement, &old.improvement, at, out);
         at.field = base.child(18);
-        crate::model::Model::diff(&self.owner_relation, &old.owner_relation, at, out);
+        crate::model::Model::diff(&self.improvement_pillaged, &old.improvement_pillaged, at, out);
         at.field = base.child(19);
-        crate::model::Model::diff(&self.defense, &old.defense, at, out);
+        crate::model::Model::diff(&self.route, &old.route, at, out);
         at.field = base.child(20);
-        crate::model::Model::diff(&self.yields, &old.yields, at, out);
+        crate::model::Model::diff(&self.route_pillaged, &old.route_pillaged, at, out);
+        at.field = base.child(21);
+        crate::model::Model::diff(&self.owner, &old.owner, at, out);
+        at.field = base.child(22);
+        crate::model::Model::diff(&self.owner_relation, &old.owner_relation, at, out);
+        at.field = base.child(23);
+        crate::model::Model::diff(&self.defense, &old.defense, at, out);
         at.field = base.child(24);
+        crate::model::Model::diff(&self.yields, &old.yields, at, out);
+        at.field = base.child(28);
         crate::model::Model::diff(&self.city, &old.city, at, out);
-        at.field = base.child(32);
+        at.field = base.child(36);
         crate::model::Model::diff(&self.units, &old.units, at, out);
-        at.field = base.child(41);
+        at.field = base.child(45);
         crate::model::Model::diff(&self.combat, &old.combat, at, out);
         at.field = base;
     }

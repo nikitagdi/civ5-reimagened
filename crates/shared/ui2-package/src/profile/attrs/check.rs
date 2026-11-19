@@ -303,7 +303,7 @@ impl C<'_> {
         };
         let ok = a.ty.alts.iter().all(|t| match t {
             TypeSig::Int => true,
-            TypeSig::Key(k) => kind == AnchorKind::Plot || k == kind.name(),
+            TypeSig::Key(k) => kind.is_plot() || k == kind.name(),
             _ => false,
         });
         if !ok || a.ty.alts.is_empty() {

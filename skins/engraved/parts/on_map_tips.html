@@ -22,3 +22,11 @@
     <div class="trow" data-bind-if="{{c.razing_turns != null}}"><span data-l10n="on_map.razing"></span><span class="n" data-bind-value="{{c.razing_turns}}"></span></div>
   </div></div></div>
 </template>
+<!-- The tooltip of a resource icon on the map: the original's GenerateResourceToolTip, from the server's help for the
+     icon's plot (the host asks for it while the pointer is on the icon), its markup as text and font pictures. -->
+<template id="map-resource-tip" data-layer="tooltip">
+  <div class="map-res-tip" data-part="map.resource-tip"><div class="tip" data-bind-if="{{plot_help != null && plot_help.cell == state.map_icons.resource && plot_help.resource_title != null}}">
+    <div class="pr" data-bind-value="{{plot_help.resource_title}}">COCONUT</div>
+    <div class="tl map-res-line" data-bind-for="l:{{plot_help.resource_lines}}"><span data-bind-for="p:{{l.parts}}"><img class="gi s16" data-bind-if="{{p.icon != null}}" data-bind-src="{{p.icon}}"><span data-bind-value="{{p.text}}"></span></span></div>
+  </div></div>
+</template>

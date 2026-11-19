@@ -314,7 +314,11 @@ This is what a skin author uses most.
   list names its item through `ui.*` (the production rows set `ui.production.hover`). `data-control` makes a checkbox,
   toggle, radio, slider or select that writes a state value named by `data-bind-model="state.x"`.
   `data-anchor="city:{{ c.id }}"` (also `unit` and `plot`) pins an element to a map object; it goes on the node
-  with `data-bind-for`, in the `map` layer. `data-fit="shrink"` with `data-fit-min` shrinks text to fit.
+  with `data-bind-for`, in the `map` layer. Two more plot kinds follow the original's world anchors:
+  `plot-scaled` stands on the plot's centre and draws its element at the size of the world there, growing and
+  shrinking with the camera's zoom (one CSS px is 0.15 world units, a hex being 64 wide: the yield icons);
+  `plot-corner` stands 30 units west and 15 north of the centre, about the plot's upper left vertex, at a fixed size
+  (the resource icons). `data-fit="shrink"` with `data-fit-min` shrinks text to fit.
   `data-ui2-island` marks a part of the page that a script drives (see "Skin scripts"). `skins/engraved` uses
   `data-asset` and `data-tooltip` (`parts/tips.html`) and not the others; the attribute grammar is in the profile file and its error texts are
   in "Error codes".

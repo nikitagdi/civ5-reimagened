@@ -15,7 +15,7 @@
 //! for          := [ IDENT ',' ] IDENT ':' '{{' expr '}}'
 //! class-toggle := CLASS ':' '{{' expr '}}' ( ';' CLASS ':' '{{' expr '}}' )*
 //! hotkey       := [ 'Ctrl+' ] [ 'Alt+' ] [ 'Shift+' ] KeyboardEvent.code
-//! anchor       := ( 'city' | 'unit' | 'plot' ) ':' '{{' expr '}}'
+//! anchor       := ( 'city' | 'unit' | 'plot' | 'plot-scaled' | 'plot-corner' ) ':' '{{' expr '}}'
 //! slot, part   := [a-z][a-z0-9-]* ( '.' [a-z0-9-]+ )*
 //! ```
 
@@ -1155,7 +1155,11 @@ impl Parser<'_> {
             return;
         };
         let Some(kind) = AnchorKind::from_name(kind.trim()) else {
-            self.fail(codes::ANCHOR, name, "the kind is city, unit or plot");
+            self.fail(
+                codes::ANCHOR,
+                name,
+                "the kind is city, unit, plot, plot-scaled or plot-corner",
+            );
             return;
         };
         let base = kind.name().len() + 1;

@@ -3407,9 +3407,16 @@ export interface PlotHelpYield {
   readonly value: number;
 }
 
+export interface PlotHelpPart {
+  readonly key: number;
+  readonly text: Text;
+  readonly icon: string | null;
+}
+
 export interface PlotHelpLine {
   readonly idx: number;
   readonly text: Text;
+  readonly parts: PlotHelpPart[];
 }
 
 export interface PlotHelpUnit {

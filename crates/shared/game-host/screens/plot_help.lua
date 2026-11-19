@@ -34,26 +34,39 @@ local function plain(text)
 end
 
 -- The original's GenerateResourceToolTip (ResourceTooltipGenerator.lua, basic help on): the quantity and the name in
--- capitals, the resource's help, the happiness it gives improved, the yields it adds improved and worked.
+-- capitals, the resource's help, the happiness it gives improved, the yields it adds improved and worked. Each line is
+-- the original's markup as text parts and font pictures (`markup_lines`); `text` is the same line without markup.
 local function resource_tip(out, info, count)
     local name = L(info.Description)
     name = (Locale and Locale.ToUpper) and Locale.ToUpper(name) or name:upper()
     out.resource_title = (count > 1 and (count .. " ") or "") .. name
     local lines = out.resource_lines
-    local function add(text) lines[#lines + 1] = {idx = #lines, text = text} end
-    if info.Help then add("• " .. plain(L(info.Help))) end
+    local function add(text)
+        for _, line in ipairs(markup_lines({text})) do
+            local words = {}
+            for _, p in ipairs(line.parts) do words[#words + 1] = p.text end
+            lines[#lines + 1] = {idx = #lines, text = plain(table.concat(words)), parts = line.parts}
+        end
+    end
+    if info.Help then
+        add("[ICON_BULLET]" .. L(info.Help))
+        add("---------------------")
+    end
     if info.Happiness and info.Happiness ~= 0 then
         add(L("TXT_KEY_RESOURCE_TOOLTIP_IMPROVED"))
-        add("• +" .. info.Happiness .. " " .. L("TXT_KEY_GAME_CONCEPT_SECTION_10"))
+        add("[ICON_BULLET]+" .. info.Happiness .. " [ICON_HAPPINESS_1] " .. L("TXT_KEY_GAME_CONCEPT_SECTION_10"))
     end
-    local parts = {}
+    local yields = ""
     for row in GameInfo.Resource_YieldChanges("ResourceType = '" .. info.Type .. "'") do
         local y = GameInfo.Yields[row.YieldType]
-        if y then parts[#parts + 1] = (row.Yield > 0 and "+" or "") .. row.Yield .. " " .. L(y.Description) end
+        if y then
+            yields = yields .. (yields == "" and "[ICON_BULLET]" or " ") .. (row.Yield > 0 and "+" or "") .. row.Yield
+                .. (y.IconString or "") .. " " .. L(y.Description)
+        end
     end
-    if #parts > 0 then
+    if yields ~= "" then
         add(L("TXT_KEY_RESOURCE_TOOLTIP_IMPROVED_WORKED"))
-        add("• " .. table.concat(parts, " "))
+        add(yields)
     end
 end
 

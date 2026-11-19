@@ -27,6 +27,7 @@ display = "Alegreya"
 unit_panel = { hover = -1, promo = -1, draft = "", valid = false }
 unit_lists = { section = "", sort = "name", desc = false, military_folded = false, civilian_folded = false }
 on_map = { unit = "", city = "" }
+map_icons = { resource = -1 }
 minimap = { options = false, streamer = false, banners = true, flags = true, grid = false, routes = true, yields = false, resources = false }
 leader = { hover = "" }
 deal = { side = 0, kind = -1, item = 0, amount = 0 }

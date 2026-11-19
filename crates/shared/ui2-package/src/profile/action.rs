@@ -81,6 +81,22 @@ names! {
         Unit => "unit",
         /// A map plot.
         Plot => "plot",
+        /// A map plot, its chunk drawn at the size of the world there (the original's `WorldAnchor Scaling="True"`:
+        /// the yield icons).
+        PlotScaled => "plot-scaled",
+        /// The point 30 west and 15 north of a plot's centre, about its upper left vertex (where the original's
+        /// `ResourceIconManager` hangs a resource icon).
+        PlotCorner => "plot-corner",
+    }
+}
+
+impl AnchorKind {
+    /// An anchor on a plot (any key or integer names it).
+    pub const fn is_plot(self) -> bool {
+        matches!(
+            self,
+            AnchorKind::Plot | AnchorKind::PlotScaled | AnchorKind::PlotCorner
+        )
     }
 }
 

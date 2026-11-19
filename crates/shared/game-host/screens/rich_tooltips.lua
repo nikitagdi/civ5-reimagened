@@ -44,33 +44,8 @@ local function tech_tip(player, id)
         unlocks = unlocks(tech), help = tech.Help and L(tech.Help) or ""}
 end
 
--- Convert the original help's markup to inline text and font pictures. The keys are local to the reply.
-local function unlock_lines(texts)
-    local lines, parts = array(), array()
-    local function new_line()
-        lines[#lines + 1] = {key = #lines, parts = parts}
-        parts = array()
-    end
-    for _, text in ipairs(texts) do
-        if text ~= "" then
-            local at = 1
-            while at <= #text do
-                local first, last, tag = text:find("%[([%w_:]+)%]", at)
-                local chunk = text:sub(at, first and first - 1 or #text)
-                if chunk ~= "" then parts[#parts + 1] = {key = #parts, text = chunk} end
-                if not first then break end
-                if tag == "NEWLINE" then
-                    new_line()
-                elseif tag:match("^ICON_[%w_]+$") then
-                    parts[#parts + 1] = {key = #parts, text = "", icon = "font:" .. tag}
-                end
-                at = last + 1
-            end
-            new_line()
-        end
-    end
-    return lines
-end
+-- Convert the original help's markup to inline text and font pictures (`markup_lines` of `_lib.lua`).
+local unlock_lines = markup_lines
 
 local function value(lines, tag, amount)
     if amount and amount ~= 0 then lines[#lines + 1] = L(tag, amount) end

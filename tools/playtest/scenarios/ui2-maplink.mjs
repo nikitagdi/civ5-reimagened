@@ -242,6 +242,30 @@ export async function run({ server, opts }) {
       result.resourceIcons = !!await partBox(page, "map.resource-icon");
       await page.waitForTimeout(600);
       await shot(page, "options-on");
+      // The yields hang on the original's scaling world anchor: zoomed out, a plot's cells are smaller on the screen.
+      await page.mouse.move(VIEW.width / 2, VIEW.height / 2);
+      const near = await partBox(page, "map.yield-icons");
+      for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, 400); await page.waitForTimeout(150); }
+      await page.waitForTimeout(1000);
+      const far = await partBox(page, "map.yield-icons");
+      await shot(page, "options-far");
+      result.yieldScale = { near: near?.w ?? null, far: far?.w ?? null };
+      check("3. the yield icons shrink with the camera's zoom", !!near && !!far && far.w < near.w * 0.9, JSON.stringify(result.yieldScale));
+      for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, -400); await page.waitForTimeout(150); }
+      await page.waitForTimeout(1000);
+      // A resource icon has the resource's own tooltip (the original's GenerateResourceToolTip), not the plot's.
+      const res = await partBox(page, "map.resource-icon");
+      if (res) {
+        await page.mouse.move(res.cx, res.cy);
+        let tip = null;
+        for (let t = 0; t < 40 && !tip; t++) { await page.waitForTimeout(150); tip = await partBox(page, "map.resource-tip"); }
+        result.resourceTip = tip ? { w: tip.w, h: tip.h } : null;
+        await shot(page, "resource-tip");
+        check("3. a resource icon shows the resource's tooltip", !!tip && tip.h > 20 && !await partBox(page, "map.plot-tip"), JSON.stringify(result.resourceTip));
+        await page.mouse.move(VIEW.width / 2, 40);
+      } else {
+        result.resourceTip = "no resource icon in view";
+      }
       // Kept for the player: a reload of the page brings them back.
       await page.reload();
       const again = await until(page, s => s.screen === "login" || s.screen === "play", 90000, "login or game after reload");

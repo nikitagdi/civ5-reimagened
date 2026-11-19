@@ -10,6 +10,35 @@ end
 function plain(text)
     return (tostring(text or ""):gsub("%[NEWLINE%]", " "):gsub("%[[^%]]*%]", ""):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""))
 end
+-- A game text's markup as lines of inline text and font pictures: [NEWLINE] starts a line, [ICON_*] is a picture of
+-- the game's font (`font:ICON_*`), other tags ([COLOR_*], [ENDCOLOR]) are dropped. Each text of `texts` starts a line.
+-- The keys are local to the reply.
+function markup_lines(texts)
+    local lines, parts = array(), array()
+    local function new_line()
+        lines[#lines + 1] = {key = #lines, parts = parts}
+        parts = array()
+    end
+    for _, text in ipairs(texts) do
+        if text ~= "" then
+            local at = 1
+            while at <= #text do
+                local first, last, tag = text:find("%[([%w_:]+)%]", at)
+                local chunk = text:sub(at, first and first - 1 or #text)
+                if chunk ~= "" then parts[#parts + 1] = {key = #parts, text = chunk} end
+                if not first then break end
+                if tag == "NEWLINE" then
+                    new_line()
+                elseif tag:match("^ICON_[%w_]+$") then
+                    parts[#parts + 1] = {key = #parts, text = "", icon = "font:" .. tag}
+                end
+                at = last + 1
+            end
+            new_line()
+        end
+    end
+    return lines
+end
 function icon(atlas, index)
     if not atlas or not index or index < 0 then return "" end
     return "icon:" .. atlas .. ":" .. index
