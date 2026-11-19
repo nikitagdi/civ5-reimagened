@@ -30,17 +30,17 @@ const LIBERTY: i16 = 1;
 
 /// Catalog tables read once per core.
 const CATALOG_TABLES: usize = 8;
-/// The reads of a rebuild once the catalog is known: the roots on screen first (the turn: the game record and the
-/// units; the game: the top bar's era; the top bar with its two lists), then the technologies, the notifications,
+/// The reads of a rebuild once the catalog is known: the roots on screen first (the turn: the game record, the
+/// units and the notifications; the game: the top bar's era; the top bar with its two lists), then the technologies,
 /// the cities (map), the players. Shared records are read once.
 const REBUILD: [&str; 9] = [
     "game_info",
     "units",
+    "notifications",
     "top_bar",
     "player_resources",
     "policy_branches",
     "techs",
-    "notifications",
     "cities",
     "players",
 ];
@@ -53,8 +53,8 @@ fn first_frame() -> Vec<&'static str> {
 /// Roots of the replica's game written by a full rebuild: top, research, game, turn, unit (none selected), notes,
 /// map, players, production (window closed).
 const GAME_ROOTS: u32 = 9;
-/// Roots of the session written on the first frame besides `meta`: chat.
-const SESSION_ROOTS: u32 = 1;
+/// Roots of the session written on the first frame besides `meta`: chat and session.
+const SESSION_ROOTS: u32 = 2;
 
 fn tech_row(tech: i16, status: TechStatus, queue: Option<u8>, turns: Option<i16>) -> TechState {
     TechState {
@@ -562,8 +562,8 @@ fn a_core_without_the_ui2_queries_leaves_their_fields_empty_and_is_not_asked_aga
         vec![
             "game_info",
             "units",
-            "top_bar",
             "notifications",
+            "top_bar",
             "cities",
             "players"
         ]

@@ -1,4 +1,4 @@
-/* game menu: the player's side beside the game details, and the options in two columns; the frame, tabs, rows,
+/* game menu: the player's side beside the game details, and the options one per row; the frame, tabs, rows,
    toggles, fields and buttons are the kit's */
 .gm-win { height: 640px; }
 .gm { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px 1fr; }
@@ -10,13 +10,9 @@
 .setic .c b { font-size: 12px; font-weight: 500; color: var(--bone); }
 .gm-list { margin-top: auto; }
 .gm .det { min-height: 0; display: flex; flex-direction: column; background-color: var(--lacquer-0); }
-.gm-opts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 48px; row-gap: 2px; align-content: start; padding: 20px 28px 24px; }
-.gm-num { width: 72px; }
-.gm-hk { display: flex; flex-direction: column; gap: 4px; }
-.gm-opts { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; column-gap: 16px; row-gap: 0; align-items: center; }
-.gm-opts .lb { min-height: 40px; display: flex; align-items: center; font-size: 14px; color: var(--bone); }
-.gm-opts .lb.dis { color: var(--bone-3); font-size: 12px; }
+.gm-opts { display: flex; flex-direction: column; padding: 12px 28px 24px; }
+.gm-opts .lb { flex: 1; min-width: 0; font-size: 14px; color: var(--bone); }
+.gm-opts .dis .lb { color: var(--bone-3); }
 /* the knob of the toggle is a background layer of the kit .tgl */
-.gm-opts .tgl { background-image: linear-gradient(var(--bone-3), var(--bone-3)); background-size: 14px 14px; background-repeat: no-repeat; background-position: 3px 3px; margin-right: 32px; }
+.gm-opts .tgl { background-image: linear-gradient(var(--bone-3), var(--bone-3)); background-size: 14px 14px; background-repeat: no-repeat; background-position: 3px 3px; }
 .gm-opts .tgl.on { background-image: linear-gradient(var(--lacquer), var(--lacquer)); background-position: 19px 3px; }
-.gm-num { margin-right: 32px; }

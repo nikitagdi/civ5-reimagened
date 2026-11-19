@@ -165,6 +165,31 @@ impl Screens {
         }))
     }
 
+    /// Why a queued decision can no longer be answered (its city or unit is gone, the choice was made another way):
+    /// the `lapsed(player, popup)` of its mapping, run in the read scope. `None`: still pending, or the mapping has
+    /// no such test. A decision stays until its screen action completes it, so a lapsed one would otherwise block
+    /// the seat's queue for good.
+    pub fn popup_lapsed(
+        &self,
+        player: i8,
+        entry: &crate::popups::Entry,
+    ) -> lua_sys::Result<Option<String>> {
+        let mappings: Table = self.lua.globals().raw_get("__popups")?;
+        let LuaValue::Table(mapping) = mappings.raw_get(entry.popup.kind.as_str())? else {
+            return Ok(None);
+        };
+        let LuaValue::Function(f) = mapping.raw_get("lapsed")? else {
+            return Ok(None);
+        };
+        let payload = self.popup_table(&entry.popup, entry.head.id)?;
+        let value: LuaValue = self.scoped()?.call((f, i32::from(player), payload))?;
+        Ok(match value {
+            LuaValue::Nil | LuaValue::Boolean(false) => None,
+            LuaValue::String(s) => Some(s.to_str()?.to_owned()),
+            _ => Some("the decision lapsed".into()),
+        })
+    }
+
     fn screen(&self, name: &str) -> lua_sys::Result<Table<'_>> {
         let registry: Table = self.lua.globals().raw_get("__screens")?;
         registry

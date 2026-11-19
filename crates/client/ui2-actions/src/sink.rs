@@ -33,6 +33,31 @@ impl Refused {
     }
 }
 
+/// A session operation: done by the session layer (the gateway's game actor), not by the game core. The gateway checks
+/// the authority (only the host saves, pauses and kicks; any seat leaves) and answers a refusal with its reason
+/// ([`ActionEvent::SessionRefused`](crate::ActionEvent::SessionRefused)).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SessionOp {
+    /// Save the game now; the save joins the lobby's list of saves.
+    Save,
+    /// Leave the game for the lobby; the seat stays the player's.
+    Leave,
+    /// Stop the turn timer (orders go on).
+    Pause,
+    /// Run the turn timer again.
+    Resume,
+    /// Give a human seat to the AI.
+    Kick(protocol::PlayerId),
+}
+
+impl SessionOp {
+    /// Only the host may ask for it.
+    #[must_use]
+    pub fn host_only(self) -> bool {
+        !matches!(self, SessionOp::Leave)
+    }
+}
+
 /// A request to move the camera. The position comes from the model.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CameraReq {
@@ -62,6 +87,16 @@ pub trait OrderSink {
 
     /// Open a screen that lives outside the skin; `false` if the host has no way to.
     fn open_screen(&mut self, s: ScreenId) -> bool;
+
+    /// Ask the session layer for a session operation. The answer comes later: a refusal as
+    /// [`ActionEvent::SessionRefused`](crate::ActionEvent::SessionRefused), a success as its effect (a save in
+    /// the list, the pause in the turn state, the seat list, the lobby). A host without a session refuses.
+    ///
+    /// # Errors
+    /// The request was not sent.
+    fn session_op(&mut self, _op: SessionOp) -> Result<(), Refused> {
+        Err(Refused::NoConnection)
+    }
 }
 
 /// One thing a [`RecordingSink`] was asked to do.
@@ -71,6 +106,7 @@ pub enum Sent {
     Chat { to: ChatTo, text: String },
     Camera(CameraReq),
     Screen(ScreenId),
+    Session(SessionOp),
 }
 
 /// A sink for tests: keeps everything it is given, numbers the orders and can refuse on demand.
@@ -148,5 +184,13 @@ impl OrderSink for RecordingSink {
             self.sent.push(Sent::Screen(s));
         }
         self.has_screens
+    }
+
+    fn session_op(&mut self, op: SessionOp) -> Result<(), Refused> {
+        if let Some(r) = self.refuse {
+            return Err(r);
+        }
+        self.sent.push(Sent::Session(op));
+        Ok(())
     }
 }

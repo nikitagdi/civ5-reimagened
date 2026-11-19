@@ -129,7 +129,7 @@ return {
         who.civ_name, who.name = who.name, L(GameInfo.Leaders[Players[player]:GetLeaderType()].Description)
         who.is_you, who.met = nil, nil
         local root = { player = who, participants = #pool, humans_only = humans, rows = rows }
-        -- SIMPLIFIED(SIMP-377): Native ranking popups route through the queue; a periodic opener still needs a host scheduler when the core emits no event.
+        -- "Who is winning" opens as the core asks: every PROGRESS_POPUP_TURN_FREQUENCY turns of a single-player game the core queues BUTTONPOPUP_WHOS_WINNING (see `_popups.lua`); the original never shows it in a multiplayer game, so no scheduler of its own opens it.
         if args.a == 1 then root.whos_winning = winning(player, live, all, args.b or Game.GetGameTurn()) end
         return root
     end,

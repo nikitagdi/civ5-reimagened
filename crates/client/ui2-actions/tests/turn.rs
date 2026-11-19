@@ -5,7 +5,10 @@ mod common;
 use common::{Rig, city_at, key, s, unit_at};
 use protocol::Command;
 use ui2_actions::{CameraReq, Sent};
-use ui2_model::generated::{Blocker, Meta, Phase, ScreenId, Turn, TurnPending, TurnUi};
+use ui2_model::generated::{
+    Blocker, EndTurnBlock, Meta, Phase, Plot, ScreenId, Turn, TurnBlocker, TurnPending, TurnUi,
+};
+use ui2_model::{KeyedList, Value};
 
 fn turn_in(state: TurnUi) -> Turn {
     Turn {
@@ -209,6 +212,119 @@ fn primary_refusals_come_from_what_it_opens() {
     let mut rig = Rig::new();
     rig.one("turn.primary", &[]).unwrap();
     rig.assert_refused("no_game");
+}
+
+fn entry(seq: i32, kind: EndTurnBlock) -> TurnBlocker {
+    TurnBlocker {
+        seq,
+        kind,
+        ..TurnBlocker::default()
+    }
+}
+
+fn with_blockers(state: TurnUi, blockers: Vec<TurnBlocker>, reminders: Vec<TurnBlocker>) -> Rig {
+    let mut rig = Rig::new();
+    rig.put(Turn {
+        state,
+        blockers: KeyedList::from_vec(blockers).unwrap(),
+        reminders: KeyedList::from_vec(reminders).unwrap(),
+        ..Turn::default()
+    });
+    rig
+}
+
+#[test]
+fn primary_goes_to_the_first_blocker_of_the_list() {
+    // The core's blocker is a unit: it is selected and looked at, not the next one that waits.
+    let first = TurnBlocker {
+        unit: Some(key(7)),
+        plot: Some(Plot { x: 4, y: 5 }),
+        ..entry(0, EndTurnBlock::StackedUnits)
+    };
+    let mut rig = with_blockers(TurnUi::UnitNeedsOrders, vec![first], vec![]);
+    rig.units(vec![
+        unit_at(5, 2, 3, true, true),
+        unit_at(7, 4, 5, true, true),
+    ]);
+    rig.one("turn.primary", &[]);
+    assert_eq!(rig.ui().selection.unit, Some(key(7)));
+    assert_eq!(rig.sent(), &[Sent::Camera(CameraReq::Plot(4, 5))]);
+
+    // A free technology: the technology window in its free mode, not the research panel.
+    let free = TurnBlocker {
+        window: Some("techs".into()),
+        a: Some(2),
+        ..entry(0, EndTurnBlock::FreeTech)
+    };
+    let mut rig = with_blockers(TurnUi::ResearchNeeded, vec![free], vec![]);
+    rig.one("turn.primary", &[]);
+    let w = rig.ui().windows.remote("techs").unwrap().clone();
+    assert!(w.open && w.a == Some(2) && w.b.is_none());
+    assert!(!rig.ui().windows.research.open);
+
+    // A production notification names a plot: the city on it.
+    let production = TurnBlocker {
+        plot: Some(Plot { x: 1, y: 1 }),
+        ..entry(0, EndTurnBlock::Production)
+    };
+    let mut rig = with_blockers(TurnUi::CityNeedsProduction, vec![production], vec![]);
+    rig.cities(vec![city_at(20, 1, 1, true)]);
+    rig.one("turn.primary", &[]);
+    assert_eq!(rig.ui().windows.production.city, Some(key(20)));
+
+    // A religion to found from the city on the plot: the religion window gets the city's id, `b` 0 = found.
+    let religion = TurnBlocker {
+        plot: Some(Plot { x: 1, y: 1 }),
+        window: Some("religion".into()),
+        b: Some(0),
+        ..entry(0, EndTurnBlock::FoundReligion)
+    };
+    let mut rig = with_blockers(TurnUi::OtherBlocker, vec![religion], vec![]);
+    rig.cities(vec![city_at(20, 1, 1, true)]);
+    rig.one("turn.primary", &[]);
+    let w = rig.ui().windows.remote("religion").unwrap().clone();
+    assert!(w.open && w.a == Some(20) && w.b == Some(0));
+
+    // With nothing in the list (no blocker), the button ends the turn whatever the reminders say.
+    let promotion = TurnBlocker {
+        unit: Some(key(5)),
+        ..entry(1000, EndTurnBlock::UnitPromotion)
+    };
+    let mut rig = with_blockers(TurnUi::NextTurn, vec![], vec![promotion]);
+    rig.one("turn.primary", &[]);
+    assert_eq!(rig.commands(), vec![Command::EndTurn { force: false }]);
+}
+
+#[test]
+fn turn_blocker_goes_to_any_entry_of_either_list() {
+    let pantheon = TurnBlocker {
+        window: Some("pantheon".into()),
+        a: Some(0),
+        ..entry(1, EndTurnBlock::FoundPantheon)
+    };
+    let promotion = TurnBlocker {
+        unit: Some(key(5)),
+        plot: Some(Plot { x: 2, y: 3 }),
+        ..entry(1000, EndTurnBlock::UnitPromotion)
+    };
+    let mut rig = with_blockers(
+        TurnUi::UnitNeedsOrders,
+        vec![entry(0, EndTurnBlock::Units), pantheon],
+        vec![promotion],
+    );
+    rig.units(vec![unit_at(5, 2, 3, true, true)]);
+    rig.one("turn.blocker", &[("seq", Value::I32(1))]);
+    let w = rig.ui().windows.remote("pantheon").unwrap().clone();
+    assert!(w.open && w.a == Some(0));
+    rig.one("turn.blocker", &[("seq", Value::I32(1000))]);
+    assert_eq!(rig.ui().selection.unit, Some(key(5)));
+    assert!(rig.toasts().is_empty());
+
+    // An entry that is gone (dealt with since the frame the skin drew): refused, nothing more is sent.
+    let sent = rig.sent().len();
+    rig.one("turn.blocker", &[("seq", Value::I32(7))]).unwrap();
+    assert_eq!(rig.why(), vec!["turn_changed"]);
+    assert_eq!(rig.sent().len(), sent);
 }
 
 #[test]

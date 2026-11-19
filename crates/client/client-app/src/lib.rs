@@ -20,6 +20,8 @@ mod lobby_art;
 pub mod m2;
 pub mod session;
 pub mod timeline;
+/// The client's options of UI v2: the classic store and the volume knobs.
+mod ui2_options;
 /// The game's interfaces: the host, the classic UI and UI v2.
 mod ui_host;
 

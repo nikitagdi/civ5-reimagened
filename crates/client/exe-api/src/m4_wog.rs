@@ -271,6 +271,13 @@ fn all_options() -> impl Iterator<Item = (&'static str, String)> {
         ])
 }
 
+/// The default (store text) of an option the options menu can change: what a reset gives it and a getter answers
+/// while nothing is stored. UI v2's options window uses the same defaults (`ui2_actions::options::CATALOGUE`).
+#[must_use]
+pub fn option_default(key: &str) -> Option<String> {
+    all_options().find(|(k, _)| *k == key).map(|(_, d)| d)
+}
+
 fn simp_mark(inner: &Rc<Inner>, path: &str, id: &'static str) {
     inner.registry.borrow_mut().add(path, Status::Simp(id));
 }

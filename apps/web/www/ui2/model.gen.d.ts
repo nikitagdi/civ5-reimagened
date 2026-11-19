@@ -21,12 +21,16 @@ export type MapMode = "select" | "move" | "range_attack";
 export type ProdTab = "all" | "units" | "buildings" | "wonders" | "other";
 export type TurnPending = "none" | "ending" | "cancelling";
 export type ToastKind = "refused" | "rejected" | "lost";
-export type RefuseWhy = "unsupported" | "no_screen" | "no_unit" | "action_unavailable" | "not_your_city" | "option_unavailable" | "cannot_buy" | "bad_slot" | "tech_unavailable" | "cannot_end_turn" | "cannot_cancel" | "chat_empty" | "chat_too_long" | "chat_rate" | "no_connection" | "no_game" | "too_many" | "turn_changed" | "too_big" | "core" | "turn_ended" | "not_your_turn" | "restarting" | "invalid" | "expired" | "not_seated" | "other";
+export type RefuseWhy = "unsupported" | "no_screen" | "no_unit" | "action_unavailable" | "not_your_city" | "option_unavailable" | "cannot_buy" | "bad_slot" | "tech_unavailable" | "cannot_end_turn" | "cannot_cancel" | "chat_empty" | "chat_too_long" | "chat_rate" | "no_connection" | "no_game" | "too_many" | "turn_changed" | "too_big" | "core" | "turn_ended" | "not_your_turn" | "restarting" | "invalid" | "expired" | "not_seated" | "other" | "not_host" | "no_such_player" | "not_human" | "self_kick" | "last_human";
 export type WindowId = "production" | "research" | "menu" | "chat" | "notes_log" | "advisor" | "archaeology" | "city" | "city_captured" | "city_list" | "city_rename" | "city_state" | "confirm" | "congress" | "culture" | "deal" | "declare_war" | "demographics" | "diplo" | "economy" | "end_game" | "espionage" | "free_great_person" | "game_menu" | "goody_choice" | "great_work" | "ideology" | "leader" | "message" | "military" | "mp_vote" | "notification_log" | "pantheon" | "policies" | "religion" | "religion_overview" | "tech_award" | "techs" | "trade_routes" | "unit_rename" | "victory";
 export type ScreenId = "tech_tree" | "policies" | "religion" | "diplomacy" | "overview" | "notification_log" | "economy" | "military" | "victory" | "demographics" | "chat";
 export type MouseButton = "left" | "right";
 export type PushAt = "back" | "front";
 export type BuyWith = "gold" | "faith";
+export type SessionOp = "save" | "leave" | "pause" | "resume" | "kick";
+export type SeatConn = "online" | "lost" | "none";
+export type SeatControl = "human" | "ai" | "closed";
+export type EndTurnBlock = "policy" | "research" | "production" | "units" | "diplo_vote" | "minor_quest" | "free_tech" | "stacked_units" | "unit_needs_orders" | "unit_promotion" | "city_range_attack" | "free_policy" | "free_items" | "found_pantheon" | "found_religion" | "enhance_religion" | "steal_tech" | "maya_long_count" | "faith_great_person" | "reformation" | "league_proposals" | "archaeology" | "league_votes" | "ideology" | "deal_received";
 export type AdvisorRolesKey = "economic" | "military" | "foreign" | "science";
 export type ArchaeologyStatus = "idle" | "pending";
 export type ArchaeologyKind = "battle_ranged" | "battle_melee" | "barbarian_camp" | "ancient_ruins" | "razed_city" | "writing";
@@ -578,11 +582,61 @@ export interface Pending {
   readonly since_ms: number;
 }
 
+export interface TurnBlocker {
+  readonly seq: number;
+  readonly kind: EndTurnBlock;
+  readonly text: string | null;
+  readonly unit: Key | null;
+  readonly city: Key | null;
+  readonly plot: Plot | null;
+  readonly window: string | null;
+  readonly a: number | null;
+  readonly b: number | null;
+}
+
+export interface SessionSeat {
+  readonly player: Key;
+  readonly nick: string | null;
+  readonly control: SeatControl;
+  readonly conn: SeatConn;
+  readonly host: boolean;
+  readonly me: boolean;
+}
+
+export interface SessionSave {
+  readonly id: string;
+  readonly name: string;
+  readonly turn: number;
+}
+
 export interface Toast {
   readonly seq: number;
   readonly kind: ToastKind;
   readonly why: RefuseWhy;
   readonly detail: string | null;
+}
+
+export interface UiOption {
+  readonly key: string;
+  readonly tab: string;
+  readonly name: Text;
+  readonly toggle: boolean;
+  readonly value: number;
+  readonly min: number;
+  readonly max: number;
+  readonly step: number;
+  readonly available: boolean;
+  readonly why: Text | null;
+}
+
+export interface UiHotkey {
+  readonly id: string;
+  readonly key: string;
+  readonly label: string;
+  readonly group: string;
+  readonly name: Text;
+  readonly more: number;
+  readonly fixed: boolean;
 }
 
 export interface AdvisorCiv {
@@ -2630,10 +2684,6 @@ export interface GameMenuOptions {
   readonly quick_combat: boolean;
   readonly quick_movement: boolean;
   readonly quick_locked_reason: Text | null;
-  readonly email_turn: boolean;
-  readonly email_address: Text | null;
-  readonly autosave_every: number;
-  readonly autosave_keep: number;
 }
 
 export interface GameMenuHotkeysActions {
@@ -3236,6 +3286,7 @@ export interface MpVoteProposal {
 export interface MpVoteTeamsPlayers {
   readonly key: string;
   readonly player_id: number;
+  readonly player_key: Key;
   readonly nick: Text;
   readonly leader: Text;
   readonly civ_name: Text;
@@ -4500,6 +4551,14 @@ export interface Research {
   readonly blocked: boolean;
 }
 
+export interface Session {
+  readonly is_host: boolean;
+  readonly paused: boolean;
+  readonly ping_ms: number | null;
+  readonly seats: SessionSeat[];
+  readonly saves: SessionSave[];
+}
+
 export interface Turn {
   readonly state: TurnUi;
   readonly blocker: Blocker | null;
@@ -4510,6 +4569,8 @@ export interface Turn {
   readonly ready: number;
   readonly humans: number;
   readonly seats: Seat[];
+  readonly blockers: TurnBlocker[];
+  readonly reminders: TurnBlocker[];
 }
 
 export interface Unit {
@@ -4570,6 +4631,10 @@ export interface Ui {
   readonly path: PathLabel[];
   readonly hover: HoverPlot[];
   readonly map_icons: MapIcon[];
+  readonly options: UiOption[];
+  readonly hotkeys: UiHotkey[];
+  readonly hotkey_capture: string | null;
+  readonly hotkey_clash: string | null;
 }
 
 export interface Advisor {
@@ -5171,6 +5236,7 @@ export interface Model {
   readonly game: Game;
   readonly top: Top;
   readonly research: Research;
+  readonly session: Session;
   readonly players: PlayerRow[];
   readonly turn: Turn;
   readonly unit: Unit | null;

@@ -587,6 +587,7 @@ api = "1.0"
                     StateValue::Str("".to_string())
                 ),
                 ("civ_ribbon.hover".to_string(), StateValue::Int(-1)),
+                ("civ_ribbon.kick".to_string(), StateValue::Int(-1)),
                 ("civ_ribbon.left".to_string(), StateValue::Bool(false)),
                 ("civ_ribbon.visible".to_string(), StateValue::Bool(false)),
                 ("confirm.dont_warn".to_string(), StateValue::Bool(false)),
@@ -714,6 +715,7 @@ api = "1.0"
                 ),
                 ("economy.sort_desc".to_string(), StateValue::Bool(true)),
                 ("economy.tab".to_string(), StateValue::Str("".to_string())),
+                ("end_game.exit".to_string(), StateValue::Bool(false)),
                 (
                     "end_game.tab".to_string(),
                     StateValue::Str("summary".to_string())
@@ -765,11 +767,13 @@ api = "1.0"
                 ),
                 ("free_gp.selected".to_string(), StateValue::Int(-1)),
                 ("goody.sel".to_string(), StateValue::Int(-1)),
+                ("hud.covered".to_string(), StateValue::Bool(false)),
                 ("ideology.confirm".to_string(), StateValue::Int(-1)),
                 ("ideology.details".to_string(), StateValue::Int(-1)),
                 ("ideology.folded".to_string(), StateValue::Int(0)),
                 ("ideology.name".to_string(), StateValue::Str("".to_string())),
                 ("leader.hover".to_string(), StateValue::Str("".to_string())),
+                ("menu.exit".to_string(), StateValue::Bool(false)),
                 ("menu.options".to_string(), StateValue::Bool(false)),
                 (
                     "menu.panel".to_string(),
@@ -795,57 +799,10 @@ api = "1.0"
                 ),
                 ("on_map.city".to_string(), StateValue::Str("".to_string())),
                 ("on_map.unit".to_string(), StateValue::Str("".to_string())),
-                ("opt.air_rebase_rmb".to_string(), StateValue::Bool(true)),
-                ("opt.all_great_people".to_string(), StateValue::Bool(false)),
-                ("opt.ambience".to_string(), StateValue::Int(70)),
-                ("opt.auto_close_city".to_string(), StateValue::Bool(false)),
-                ("opt.auto_close_tech".to_string(), StateValue::Bool(false)),
-                ("opt.auto_end_turn".to_string(), StateValue::Bool(false)),
-                ("opt.auto_end_turn_sp".to_string(), StateValue::Bool(false)),
-                ("opt.auto_unit_cycle".to_string(), StateValue::Bool(true)),
-                ("opt.city_advisor_recs".to_string(), StateValue::Bool(true)),
-                ("opt.city_ribbon".to_string(), StateValue::Bool(true)),
-                ("opt.civ_ribbon".to_string(), StateValue::Bool(true)),
-                ("opt.civilian_yields".to_string(), StateValue::Bool(true)),
-                ("opt.clock".to_string(), StateValue::Bool(false)),
-                ("opt.effects".to_string(), StateValue::Int(80)),
-                ("opt.music".to_string(), StateValue::Int(70)),
-                (
-                    "opt.next_unit_after_orders".to_string(),
-                    StateValue::Bool(true)
-                ),
-                ("opt.no_basic_help".to_string(), StateValue::Bool(false)),
-                ("opt.no_tile_recs".to_string(), StateValue::Bool(false)),
-                ("opt.policy_info_full".to_string(), StateValue::Bool(true)),
-                (
-                    "opt.ribbon_side".to_string(),
-                    StateValue::Str("right".to_string())
-                ),
-                ("opt.score_list".to_string(), StateValue::Bool(true)),
-                ("opt.scroll_inertia".to_string(), StateValue::Bool(true)),
-                (
-                    "opt.skip_reward_popups".to_string(),
-                    StateValue::Bool(false)
-                ),
-                ("opt.speech".to_string(), StateValue::Int(80)),
                 (
                     "opt.tab".to_string(),
                     StateValue::Str("general".to_string())
                 ),
-                ("opt.tooltip_delay".to_string(), StateValue::Int(500)),
-                ("opt.tooltip_delay_ext".to_string(), StateValue::Int(1500)),
-                ("opt.ui_scale".to_string(), StateValue::Int(100)),
-                ("opt.unit_ribbon".to_string(), StateValue::Bool(true)),
-                ("opt.warn_unassigned".to_string(), StateValue::Bool(true)),
-                (
-                    "opt.workers_keep_features".to_string(),
-                    StateValue::Bool(true)
-                ),
-                (
-                    "opt.workers_keep_improvements".to_string(),
-                    StateValue::Bool(true)
-                ),
-                ("opt.zoom_dynamic".to_string(), StateValue::Bool(true)),
                 ("pantheon.confirm".to_string(), StateValue::Int(-1)),
                 (
                     "pantheon.effect".to_string(),
@@ -1066,6 +1023,7 @@ api = "1.0"
                 "js/confirm.js",
                 "js/message.js",
                 "js/goody_choice.js",
+                "js/hud_cover.js",
             ]
         );
         // The first state is the one the converter scans with.

@@ -1,6 +1,6 @@
 <section class="helm plate tl" data-part="helm" data-bind-if="{{!ui.windows.city.open}}">
-  <!-- SIMPLIFIED(SIMP-443): The session exposes a primary blocker and readiness; ordered decision targets and soft reminders need additional session data. -->
-  <!-- The turn button, as the original's: what blocks the turn (or "Next turn"), how many things wait, its key and
+  <!-- The turn button, as the original's: what blocks the turn (the first entry of turn.blockers, or "Next turn"),
+       how many things wait, its key and
        the thin line of the turn timer. A click (or Enter) does what it says. -->
   <button class="endturn" data-part="helm.dial" data-hotkey="Enter" data-on-click="intent turn.primary()" data-tooltip="end-turn-tip" data-bind-disabled="{{ui.turn_pending != 'none' || turn.state == 'ai_moving' || turn.state == 'game_over' || (turn.state == 'waiting_others' && !turn.can_cancel)}}" data-bind-class-toggle="et-waiting:{{turn.state == 'waiting_others' || turn.state == 'ai_moving' || turn.state == 'ended' || turn.state == 'game_over'}}; et-ready:{{turn.state == 'next_turn'}}; et-choice:{{turn.state == 'city_needs_production' || turn.state == 'research_needed' || turn.state == 'policy_needed' || turn.state == 'other_blocker'}}">
     <span class="lbl" data-part="helm.state">
@@ -9,7 +9,7 @@
       <span data-bind-if="{{turn.state == 'city_needs_production'}}" data-l10n="turn.production">Choose production</span>
       <span data-bind-if="{{turn.state == 'research_needed'}}" data-l10n="turn.research">Choose research</span>
       <span data-bind-if="{{turn.state == 'policy_needed'}}" data-l10n="turn.policy">Choose a policy</span>
-      <span data-bind-if="{{turn.state == 'other_blocker'}}" data-l10n="turn.other">Something needs you</span>
+      <span data-bind-for="b:{{turn.blockers}}" data-bind-filter="{{b.seq == 0 && turn.state == 'other_blocker'}}"><span data-include="parts/turn_block_label.html"></span></span>
       <span data-bind-if="{{turn.state == 'waiting_others'}}" data-l10n="turn.waiting">Waiting for players</span>
       <span data-bind-if="{{turn.state == 'ai_moving'}}" data-l10n="turn.ai">Other civilizations move</span>
       <span data-bind-if="{{turn.state == 'ended'}}" data-l10n="turn.ended">Turn ended</span>
@@ -19,6 +19,7 @@
     <span class="key" data-hotkey-label>Enter</span>
     <span class="tl" data-bind-if="{{turn.timer != null && !turn.timer.stopped}}" data-bind-style-width="{{clamp(turn.timer.left_s / max(turn.timer.total_s, 1), 0, 1) * 100}}%"></span>
   </button>
+  <div data-include="parts/turn_blockers.html"></div>
 
   <!-- Who has ended the turn: one notch per human seat, and who still moves. -->
   <div class="ready" data-part="end-turn.queue">

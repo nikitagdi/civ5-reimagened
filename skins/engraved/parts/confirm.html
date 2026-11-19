@@ -14,7 +14,8 @@
     </div>
     <div class="wft" data-bind-if="{{confirm != null}}">
       <span class="note" data-bind-if="{{!confirm.closable}}" data-l10n="confirm.required"></span>
-      <button class="btn c" data-part="confirm.choice" data-bind-for="c:{{confirm.choices}}" data-bind-class-toggle="primary:{{c.primary}}" data-bind-disabled="{{!c.enabled}}" data-on-pointerenter="set state.confirm.hover = c.id" data-tooltip="confirm-choice-tip" data-bind-hotkey="{{confirm.enter_choice != null &amp;&amp; c.id == confirm.enter_choice ? 'Enter' : ''}}" data-on-click="intent screen.act(screen: 'confirm', action: 'choose', a: confirm.id, b: c.id, c: state.confirm.dont_warn ? 1 : 0)" data-bind-value="{{c.label}}"></button>
+      <button class="btn c" data-part="confirm.choice" data-bind-for="c:{{confirm.choices}}" data-bind-filter="{{confirm.kind != 'exit_game' || c.id != 0}}" data-bind-class-toggle="primary:{{c.primary}}" data-bind-disabled="{{!c.enabled}}" data-on-pointerenter="set state.confirm.hover = c.id" data-tooltip="confirm-choice-tip" data-bind-hotkey="{{confirm.enter_choice != null &amp;&amp; c.id == confirm.enter_choice ? 'Enter' : ''}}" data-on-click="intent screen.act(screen: 'confirm', action: 'choose', a: confirm.id, b: c.id, c: state.confirm.dont_warn ? 1 : 0)" data-bind-value="{{c.label}}"></button>
+      <button class="btn primary c" data-part="confirm.leave" data-bind-for="c:{{confirm.choices}}" data-bind-filter="{{confirm.kind == 'exit_game' &amp;&amp; c.id == 0}}" data-bind-disabled="{{!c.enabled}}" data-bind-value="{{c.label}}" data-on-click="intent screen.act(screen: 'confirm', action: 'choose', a: confirm.id, b: 0, c: 0, then: 'leave')"></button>
     </div>
   </section>
 </div>

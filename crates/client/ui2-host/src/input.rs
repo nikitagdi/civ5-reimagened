@@ -43,6 +43,12 @@ impl V2Ui {
     /// One window event between frames, in physical window pixels (see the [module docs](crate::input)).
     /// `now_ms` is the application's clock (double clicks).
     pub fn handle_input(&mut self, ev: &InputEvent, now_ms: f64) -> InputOutcome {
+        // The options window's key capture and the player's hotkeys (`crate::options`) come first.
+        if let InputEvent::Key(k) = ev
+            && let Some(out) = self.key_in(k, now_ms)
+        {
+            return out;
+        }
         self.skin.runtime.handle_input(ev, now_ms)
     }
 

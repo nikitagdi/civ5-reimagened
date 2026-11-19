@@ -1,7 +1,7 @@
 //! Named actions of registered remote screens.
 use crate::{intent::Intent, route::Ctx};
 use protocol::Command;
-use ui2_model::generated::{RefuseWhy, SCREEN_NAMES};
+use ui2_model::generated::{RefuseWhy, SCREEN_NAMES, Session, SessionOp as SessionOpName};
 
 pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
     let (Some(screen), Some(action)) = (intent.text("screen"), intent.text("action")) else {
@@ -18,7 +18,22 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
     if let Some(id) = ctx.ui.ui().windows.remote(screen).and_then(|w| w.popup_id) {
         args.push(("popup_id".into(), i64::from(id)));
     }
-    ctx.send(
+    // A session operation to run once the server applied the action: checked now, so a refused one sends nothing.
+    let then = match intent.variant("then").and_then(SessionOpName::from_u16) {
+        None => None,
+        Some(name) => {
+            let Some(op) = super::session::op_of(name, None) else {
+                ctx.refuse(RefuseWhy::NoSuchPlayer);
+                return;
+            };
+            if let Some(why) = super::session::precheck(ctx.model.get::<Session>(), op) {
+                ctx.refuse(why);
+                return;
+            }
+            Some(op)
+        }
+    };
+    let id = ctx.send(
         Command::ScreenAction {
             screen: screen.to_owned(),
             action: action.to_owned(),
@@ -29,4 +44,7 @@ pub(crate) fn run(ctx: &mut Ctx<'_>, intent: &Intent) {
         screen.to_owned(),
         None,
     );
+    if let (Some(id), Some(op)) = (id, then) {
+        ctx.ui.after.push((id, op));
+    }
 }

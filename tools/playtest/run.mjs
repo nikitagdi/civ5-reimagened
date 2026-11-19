@@ -105,6 +105,7 @@ const SCENARIOS = {
   "ui2-screen-end_game": () => import("./scenarios/ui2-screen-end_game.mjs"),
   "ui2-screen-advisor": () => import("./scenarios/ui2-screen-advisor.mjs"),
   "ui2-screen-mp_vote": () => import("./scenarios/ui2-screen-mp_vote.mjs"),
+  "ui2-mp-two-humans": () => import("./scenarios/ui2-mp-two-humans.mjs"),
   "ui2-hud-extras": () => import("./scenarios/ui2-hud-extras.mjs"),
   "ui2-actions": () => import("./scenarios/ui2-actions.mjs"),
   "ui2-golden": () => import("./scenarios/ui2-golden.mjs"), // UI v2 pixels against our own references (tools/ui-convert/golden.toml); --record writes them

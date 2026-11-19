@@ -1053,6 +1053,8 @@ pub fn run(files: &Files, seat: Option<u8>) -> Result<Report, String> {
             Sent::Chat { .. } => chats += 1,
             Sent::Camera(_) => cameras += 1,
             Sent::Screen(_) => screens += 1,
+            // A session operation never touches the replica either; this scenario sends none.
+            Sent::Session(op) => return Err(format!("an unexpected session operation: {op:?}")),
         }
     }
     if commands == 0 || chats == 0 || cameras == 0 || screens == 0 {

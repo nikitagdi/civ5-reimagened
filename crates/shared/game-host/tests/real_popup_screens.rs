@@ -76,7 +76,7 @@ fn popup_screens_answer_and_refuse_without_events() {
     probe(&mut h, next(), "goody_choice", Some("take"));
     probe(&mut h, next(), "notification_log", None);
     probe(&mut h, next(), "game_menu", Some("save"));
-    for action in ["exit", "set_quick", "set_email", "set_autosave"] {
+    for action in ["exit", "set_quick"] {
         probe(&mut h, next(), "game_menu", Some(action));
     }
     probe(&mut h, next(), "end_game", Some("continue"));

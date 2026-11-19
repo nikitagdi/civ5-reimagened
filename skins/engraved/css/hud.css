@@ -273,6 +273,8 @@ img.yi { width: 22px; height: 22px; flex: none; }
 }
 .endturn:hover { background-color: var(--lacquer-3); }
 .endturn .lbl { display: flex; font: 500 16px/20px var(--sans); color: var(--bone); white-space: nowrap; }
+/* The other blockers and the reminders under the turn button: one line each, a click goes there. */
+.helm .sub { display: flex; gap: 6px; padding: 2px 4px; font-size: 12px; line-height: 16px; color: var(--bone-2); }
 .endturn .sub { font-size: 12px; line-height: 16px; color: var(--bone-3); white-space: nowrap; }
 .endturn .key { margin-left: auto; }
 .endturn .tl { position: absolute; left: 4px; bottom: 4px; height: 2px; max-width: 360px; background-color: var(--brass); }

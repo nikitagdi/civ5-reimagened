@@ -124,6 +124,14 @@
 </div>
 </section>
 </div>
+<!-- The result of a coup the player staged: shown until it is acknowledged. -->
+<div class="wlayer dimmed" data-part="espionage.coup-result" data-bind-if="{{espionage.coup_result != null}}">
+<section class="win pop w-s" role="dialog">
+<div class="hd"><div class="ttl"><b data-bind-value="{{espionage.coup_result.city}}"></b></div></div>
+<div class="wbd"><div class="prose" data-bind-value="{{espionage.coup_result.text}}"></div></div>
+<div class="wft"><button class="btn primary c" data-l10n="espionage.close" data-part="espionage.coup-seen" data-bind-hotkey="'Enter'" data-on-click="intent screen.act(screen: 'espionage', action: 'coup_seen')"></button></div>
+</section>
+</div>
 <div class="wlayer dimmed" data-bind-if="{{state.espionage.confirm != ''}}">
 <section class="win pop w-s" role="dialog">
 <div data-bind-for="a:{{espionage.agents}}" data-bind-filter="{{a.id == state.espionage.selected}}">

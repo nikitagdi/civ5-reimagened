@@ -103,6 +103,8 @@ pub struct UiSource {
     pending: Roots,
     /// The last `meta` written, so an unchanged one is not written again.
     meta: Option<Meta>,
+    /// The last `session` written (built from the session alone, every frame, written when it changed).
+    session_root: Option<ui2_model::r#gen::Session>,
     /// The last `turn` written: the timer patch starts from it.
     turn: Option<Turn>,
     /// Read once per core, table by table over the first frames that read the game.
@@ -157,6 +159,7 @@ impl UiSource {
             session: None,
             pending: Roots::NONE,
             meta: None,
+            session_root: None,
             turn: None,
             catalog: Catalog::default(),
             cache: Cache::default(),
@@ -359,6 +362,11 @@ impl UiSource {
         if self.meta.as_ref() != Some(&meta) {
             write(w, meta.clone(), &mut stats);
             self.meta = Some(meta);
+        }
+        let root = session::session_root(session);
+        if self.session_root.as_ref() != Some(&root) {
+            write(w, root.clone(), &mut stats);
+            self.session_root = Some(root);
         }
 
         if self.session.is_none() {

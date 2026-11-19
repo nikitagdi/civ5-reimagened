@@ -6,9 +6,25 @@ mod common;
 
 use common::*;
 use protocol::{Conn, TurnPhase};
-use ui2_model::r#gen::{Blocker, Game, Meta, Phase, PlayerRow, Seat, Timer, Turn, TurnUi};
+use ui2_model::r#gen::{
+    Blocker, EndTurnBlock, Game, Meta, Phase, PlayerRow, Seat, Timer, Turn, TurnBlocker, TurnUi,
+};
 use ui2_model::{Key, KeyedList, Op};
 use ui2_source::testing::State;
+
+/// An entry of the turn's lists for a unit of Catherine's (the fixture puts unit `id` on plot (10 + id, 8)).
+fn waits(seq: usize, kind: EndTurnBlock, id: i32) -> TurnBlocker {
+    TurnBlocker {
+        seq: i32::try_from(seq).unwrap(),
+        kind,
+        unit: Some(ui2_source::build::entity_key(CATHERINE, id)),
+        plot: Some(ui2_model::r#gen::Plot {
+            x: 10 + i16::try_from(id).unwrap(),
+            y: 8,
+        }),
+        ..TurnBlocker::default()
+    }
+}
 
 fn turn(rig: &Rig) -> Turn {
     rig.store.get::<Turn>().cloned().expect("turn is written")
@@ -40,11 +56,11 @@ fn the_reference_readiness_and_players() {
             "catalog",
             "game_info",
             "units",
+            "notifications",
             "top_bar",
             "player_resources",
             "policy_branches",
             "techs",
-            "notifications",
             "cities",
             "players",
         ],
@@ -88,7 +104,29 @@ fn the_reference_readiness_and_players() {
                 seat(RAMESSES, "dora", false),
             ])
             .unwrap(),
+            // She ended the turn: nothing blocks her now. The Knight's promotion still reminds (the core names a
+            // unit while one could be promoted: promotions may be saved).
+            blockers: KeyedList::new(),
+            reminders: KeyedList::from_vec(vec![waits(1000, EndTurnBlock::UnitPromotion, BOGATYR)])
+                .unwrap(),
         }
+    );
+
+    // Before she ends it: the unit the core names first, then the other units that wait, in their order.
+    ts(&mut rig).seats[0].finished = false;
+    rig.frame(&mut f);
+    let t = turn(&rig);
+    assert_eq!(t.state, TurnUi::UnitNeedsOrders);
+    assert_eq!(
+        t.blockers,
+        KeyedList::from_vec(
+            [2, BOGATYR, 3, 4, 5]
+                .into_iter()
+                .enumerate()
+                .map(|(i, id)| waits(i, EndTurnBlock::Units, id))
+                .collect()
+        )
+        .unwrap()
     );
 
     let players = rig
@@ -330,10 +368,19 @@ fn a_seat_that_goes_offline_rebuilds_the_turn_only() {
     rig.start(&mut f);
     rig.session.seats[1].conn = Conn::Lost { since_ms: 5 };
     let stats = rig.frame(&mut f);
-    assert_eq!(stats.roots_built, 1);
+    // Of the game roots only `turn`; the `session` root shows the seat's connection too (no game read for either).
+    assert_eq!(stats.roots_built, 2);
     assert!(f.calls.is_empty());
     let t = turn(&rig);
     assert!(!t.seats.get(Key::from_i32(i32::from(HARUN))).unwrap().online);
+    let s = rig
+        .store
+        .get::<ui2_model::r#gen::Session>()
+        .expect("session");
+    assert_eq!(
+        s.seats.get(Key::from_i32(i32::from(HARUN))).unwrap().conn,
+        ui2_model::r#gen::SeatConn::Lost
+    );
     let d = rig.delta().expect("a delta");
-    assert_eq!(d.ops.len(), 1);
+    assert_eq!(d.ops.len(), 2, "one op in turn, one in session");
 }

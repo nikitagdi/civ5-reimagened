@@ -1,6 +1,15 @@
 import {popupScenario, texts, probe, waitPopup, clickRequired} from "./ui2-popup.mjs";
+import {until} from "../lib/browser.mjs";
 export async function run(ctx) {
   const id=Number(process.env.UI2_CONFIRM_ID);
+  // A server started with CIV5_TEST_POPUPS=0 CIV5_TEST_POPUP_LIST=BUTTONPOPUP_CONFIRM_MENU: "yes" answers the question,
+  // then the session takes the seat to the lobby (`screen.act` with `then: 'leave'`).
+  if (process.env.UI2_CONFIRM_EXIT) return popupScenario(ctx,"confirm",async(page,check)=>{
+    await waitPopup(page,p=>texts(p,"confirm.leave").length===1&&texts(p,"confirm.choice").length===1,"the exit question with yes and no");
+    await clickRequired(page,"confirm.leave");
+    await until(page,s=>s.screen==="lobby",60000,"the lobby after yes");
+    check("yes on the exit question leaves for the lobby",true);
+  },{a:-1});
 
  if (!Number.isInteger(id)) return popupScenario(ctx,"confirm",async(page,check)=>{
    await waitPopup(page,p=>texts(p,"confirm.text").some(t=>/no matching/i.test(t)),"honest unavailable event");

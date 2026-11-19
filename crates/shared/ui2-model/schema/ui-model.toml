@@ -36,6 +36,7 @@ RefuseWhy = [
   "cannot_buy", "bad_slot", "tech_unavailable", "cannot_end_turn", "cannot_cancel", "chat_empty",
   "chat_too_long", "chat_rate", "no_connection", "no_game", "too_many", "turn_changed", "too_big",
   "core", "turn_ended", "not_your_turn", "restarting", "invalid", "expired", "not_seated", "other",
+  "not_host", "no_such_player", "not_human", "self_kick", "last_human",
 ]
 # Windows are part of the skin and open over the map. Screens live outside it and are opened by the host.
 WindowId = ["production", "research", "menu", "chat", "notes_log"]
@@ -43,6 +44,13 @@ ScreenId = ["tech_tree", "policies", "religion", "diplomacy", "overview", "notif
 MouseButton = ["left", "right"]
 PushAt = ["back", "front"]
 BuyWith = ["gold", "faith"]
+# Session operations: what the session layer (not the game) does for the seat, each with its own authority check.
+SessionOp = ["save", "leave", "pause", "resume", "kick"]
+SeatConn = ["online", "lost", "none"]
+SeatControl = ["human", "ai", "closed"]
+# What holds the end of turn: the core's EndTurnBlockingTypes in their order (the index is the core's number), then the
+# reminders that do not block.
+EndTurnBlock = ["policy", "research", "production", "units", "diplo_vote", "minor_quest", "free_tech", "stacked_units", "unit_needs_orders", "unit_promotion", "city_range_attack", "free_policy", "free_items", "found_pantheon", "found_religion", "enhance_religion", "steal_tech", "maya_long_count", "faith_great_person", "reformation", "league_proposals", "archaeology", "league_votes", "ideology", "deal_received"]
 
 [type]
 Plot = { x = "i16", y = "i16" }
@@ -338,11 +346,63 @@ intent = "str"
 target = "str"
 since_ms = "u32"
 
+# One thing that holds the end of turn (or a reminder): what to select or open for it. `window` names the skin window
+# that takes the choice, with its arguments; `text` is the game's own summary of the notification behind it (none for
+# a unit, or a blocker no notification of the replica names).
+[type.TurnBlocker]
+seq = "i32"
+kind = "EndTurnBlock"
+text = "str?"
+unit = "key<unit>?"
+city = "key<city>?"
+plot = "Plot?"
+window = "str?"
+a = "i32?"
+b = "i32?"
+
+[type.SessionSeat]
+player = "key<player>"
+nick = "str?"
+control = "SeatControl"
+conn = "SeatConn"
+host = "bool"
+me = "bool"
+
+[type.SessionSave]
+id = "str"
+name = "str"
+turn = "i32"
+
 [type.Toast]
 seq = "i32"
 kind = "ToastKind"
 why = "RefuseWhy"
 detail = "str?"
+
+# One option of the client (the classic client's `civ5.options.<key>`), as the options window edits it: `value` is the
+# draft (a switch is 0 or 1; a number runs from `min` to `max` in steps of `step`). `why` says why it cannot apply.
+[type.UiOption]
+key = "str"
+tab = "str"
+name = "text"
+toggle = "bool"
+value = "i32"
+min = "i32"
+max = "i32"
+step = "i32"
+available = "bool"
+why = "text?"
+
+# One key the skin or the game binds, by its default key (`id`, `[Ctrl+][Alt+][Shift+]<code>`): `key` is the key the
+# draft gives it, `label` a short form of it; `more` other actions on the same key; a `fixed` key cannot be moved.
+[type.UiHotkey]
+id = "str"
+key = "str"
+label = "str"
+group = "str"
+name = "text"
+more = "i32"
+fixed = "bool"
 
 # Session and source state.
 [model.meta]
@@ -388,6 +448,15 @@ options = { list = "Tech", key = "id" }
 known = "bool"
 blocked = "bool"
 
+# The session around the game (the gateway's seat list, the host, the saves): who sits where and whether they are
+# connected, the one source for every window that shows it. Only what the gateway already sends every seat.
+[model.session]
+is_host = "bool"
+paused = "bool"
+ping_ms = "i32?"
+seats = { list = "SessionSeat", key = "player" }
+saves = { list = "SessionSave", key = "id" }
+
 # The players of the game, in seat order.
 [model.players]
 _list = "PlayerRow"
@@ -404,6 +473,9 @@ timer = "Timer?"
 ready = "i32"
 humans = "i32"
 seats = { list = "Seat", key = "player" }
+# Everything that holds the end of turn, in the core's order (the first is `blocker`), and the reminders that do not.
+blockers = { list = "TurnBlocker", key = "seq" }
+reminders = { list = "TurnBlocker", key = "seq" }
 
 # The selected unit; absent while nothing is selected.
 [model.unit]
@@ -481,6 +553,12 @@ path = { list = "PathLabel", key = "cell" }
 hover = { list = "HoverPlot", key = "cell" }
 # The yield and resource icons of the revealed plots in view while the map options show them (written by the host).
 map_icons = { list = "MapIcon", key = "cell" }
+# The options window: the client's options and the hotkeys (drafts until `options.accept`), the binding that waits
+# for a key press, and the key a binding was refused because another one has it.
+options = { list = "UiOption", key = "key" }
+hotkeys = { list = "UiHotkey", key = "id" }
+hotkey_capture = "str?"
+hotkey_clash = "str?"
 
 # Intents: what the interface asks for, by name and with typed arguments.
 [intent."unit.select"]
@@ -512,6 +590,10 @@ button = "MouseButton"
 force = "bool"
 
 [intent."turn.cancel"]
+
+# Go to one entry of `turn.blockers` or `turn.reminders` (by `seq`): select its unit or city, or open its window.
+[intent."turn.blocker"]
+seq = "i32"
 
 [intent."production.choose"]
 city = "key<city>"
@@ -587,3 +669,33 @@ b = "i32?"
 c = "i32?"
 d = "i32?"
 text = "str?"
+# A session operation to run once the server applied the action (a confirmed exit leaves after its popup is done).
+then = "SessionOp?"
+
+# A session operation: save (host), leave to the lobby (any seat), pause and resume the turn timer (host), kick a human
+# seat to the AI (host; `player` names it). The session layer checks the authority; a refusal comes back as a toast.
+[intent."session.op"]
+op = "SessionOp"
+player = "key<player>?"
+
+# The options window (`ui.options`, `ui.hotkeys`): `edit` takes the stored values as the drafts, `set` changes one
+# draft, `accept` stores and applies the drafts, `cancel` drops them, `reset` makes every draft its default.
+[intent."options.edit"]
+
+[intent."options.set"]
+key = "str"
+value = "i32"
+
+[intent."options.accept"]
+
+[intent."options.cancel"]
+
+[intent."options.reset"]
+
+# Wait for the next key press to bind it to the hotkey `id` (an empty `id` stops waiting); `clear` gives it back its
+# default key.
+[intent."hotkey.capture"]
+id = "str"
+
+[intent."hotkey.clear"]
+id = "str"

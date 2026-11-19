@@ -33,6 +33,35 @@ fn event(r: &Screens, payload: &str) {
 }
 
 #[test]
+fn the_exit_question_is_answered_here_and_leaving_is_left_to_the_session() {
+    let r = runtime();
+    event(&r, "{id=9,kind='BUTTONPOPUP_CONFIRM_MENU'}");
+    let root = data(&r, "confirm", 9);
+    assert_eq!(root["kind"], "exit_game");
+    let yes = root["choices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["key"] == "yes")
+        .unwrap();
+    assert_eq!(yes["enabled"], true);
+    for b in [0, 1] {
+        let out = r
+            .action(
+                0,
+                "confirm",
+                "choose",
+                &[("a".into(), 9), ("b".into(), b)],
+                None,
+            )
+            .unwrap();
+        assert!(out.messages.is_empty(), "nothing for the game");
+        assert_eq!(out.done, Some(9));
+        assert!(out.close);
+    }
+}
+
+#[test]
 fn confirm_scopes_pending_events_and_stages_ransom_completion() {
     let r = runtime();
     assert!(
@@ -315,15 +344,60 @@ fn menu_reads_game_rules_and_refuses_unavailable_session_actions() {
     assert_eq!(root["player"]["id"], 0);
     assert_eq!(root["options"]["quick_combat"], true);
     assert_eq!(root["settings"].as_array().unwrap().len(), 3);
-    assert_eq!(root["can_save"], false);
-    assert!(!root["save_reason"].as_str().unwrap().is_empty());
-    for action in ["save", "exit", "set_quick", "set_email", "set_autosave"] {
+    // The game allows a save; the host check is the session's (`session.is_host`, `session.op`).
+    assert_eq!(root["can_save"], true);
+    assert!(root["save_reason"].is_null());
+    for action in ["save", "exit", "set_quick"] {
         let error = r
             .action(0, "game_menu", action, &[], None)
             .err()
             .expect("unavailable action");
         assert!(!error.to_string().is_empty());
     }
+    // No faked client options: the client's options window keeps those.
+    assert!(root["options"].get("email_turn").is_none());
+    assert!(root["options"].get("autosave_every").is_none());
+}
+
+#[test]
+fn menu_lists_the_game_action_keys_as_the_unit_panel_binds_them() {
+    let r = catalog_runtime();
+    r.lua()
+        .exec(
+            r#"
+        GameInfoActions={[0]={Type='MISSION_FORTIFY',TextKey='Fortify',Visible=true,HotKeyVal=18},
+            [1]={Type='COMMAND_DELETE',TextKey='Delete',Visible=true,HotKeyVal=108,CtrlDown=true},
+            [2]={Type='CONTROL_ENDTURN',TextKey='End turn',Visible=true,HotKeyVal=44},
+            [3]={Type='MISSION_EMBARK',TextKey='Embark',Visible=true},
+            [4]={Type='BUILD_ROAD',TextKey='Road',Visible=false,HotKeyVal=29},
+            [5]={Type='MISSION_SLEEP',TextKey='Sleep',Visible=true,HotKeyVal=31,ShiftDown=true}}
+        "#,
+            "=actions",
+        )
+        .unwrap();
+    let root = data(&r, "game_menu", 0);
+    let groups = root["hotkeys"].as_array().unwrap();
+    let keys: Vec<(String, String)> = groups
+        .iter()
+        .flat_map(|g| g["actions"].as_array().unwrap().iter())
+        .map(|a| {
+            (
+                a["key"].as_str().unwrap().to_owned(),
+                a["default"].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        keys,
+        [
+            ("MISSION_FORTIFY".to_owned(), "KeyF".to_owned()),
+            ("MISSION_SLEEP".to_owned(), "Shift+KeyS".to_owned()),
+            ("COMMAND_DELETE".to_owned(), "Ctrl+Delete".to_owned()),
+        ],
+        "no control, no action without a key, no hidden action"
+    );
+    assert_eq!(groups[0]["key"], "missions");
+    assert_eq!(groups[0]["count"], 2);
 }
 
 #[test]
@@ -339,9 +413,32 @@ fn end_game_uses_winning_team_and_sorts_scores_and_historic_thresholds() {
     assert_eq!(root["finished"], true);
     assert_eq!(root["outcome"], "victory");
     assert_eq!(root["winner"]["player"], 0);
-    for action in ["continue", "exit"] {
-        assert!(r.action(0, "end_game", action, &[], None).is_err());
-    }
+    // After a victory the server core plays on (GAMESTATE_EXTENDED): one more turn closes the screen.
+    r.lua()
+        .exec(
+            "GameplayGameStateTypes={GAMESTATE_ON=0,GAMESTATE_OVER=1,GAMESTATE_EXTENDED=2}
+             Game.GetGameState=function() return game_state or 2 end",
+            "=state",
+        )
+        .unwrap();
+    let root = data(&r, "end_game", 0);
+    assert_eq!(root["can_continue"], true);
+    assert!(root["continue_reason"].is_null());
+    let out = r.action(0, "end_game", "continue", &[], None).unwrap();
+    assert!(out.close && out.messages.is_empty() && out.done.is_none());
+    // Every human dead (GAMESTATE_OVER): the game is over for everybody.
+    r.lua().exec("game_state=1", "=over").unwrap();
+    let root = data(&r, "end_game", 0);
+    assert_eq!(root["can_continue"], false);
+    assert!(!root["continue_reason"].as_str().unwrap().is_empty());
+    assert!(r.action(0, "end_game", "continue", &[], None).is_err());
+    // Leaving is the session's: the screen refuses it with a reason.
+    assert!(r.action(0, "end_game", "exit", &[], None).is_err());
+    // Not finished: nothing to continue.
+    r.lua()
+        .exec("winner_team=nil game_state=0", "=running")
+        .unwrap();
+    assert!(r.action(0, "end_game", "continue", &[], None).is_err());
 }
 
 fn catalog_runtime() -> Screens {

@@ -12,8 +12,11 @@
 
 #![forbid(unsafe_code)]
 
+pub mod auto_end;
+pub mod hotkeys;
 mod intent;
 mod modintent;
+pub mod options;
 mod pending;
 mod popups;
 mod reconcile;
@@ -31,11 +34,12 @@ use ui2_model::generated::{RefuseWhy, ToastKind, Ui};
 use ui2_model::wire::{ModIntent, Origin, WireIntent};
 use ui2_model::{Key, ModelStore, Schema};
 
+pub use hotkeys::Remap;
 pub use intent::{Intent, IntentError};
 pub use modintent::MAX_MOD_INTENTS;
 pub use pending::ActionEvent;
 pub use settings::{MemorySettings, SettingsNs, SettingsStore};
-pub use sink::{CameraReq, OrderSink, RecordingSink, Refused, Sent};
+pub use sink::{CameraReq, OrderSink, RecordingSink, Refused, Sent, SessionOp};
 pub use state::{SkinId, StateError, StateNs};
 pub use ui::{MAX_TOASTS, TOAST_MS, UiState};
 
@@ -72,6 +76,11 @@ pub struct UiActions {
     mods: Vec<Arc<str>>,
     /// Intents of mods waiting for the dispatcher.
     mod_out: Vec<ModIntent>,
+    /// The client's options and hotkeys (the options window).
+    client: options::ClientOptions,
+    /// The running skin's `data-hotkey` keys, kept for a new options store.
+    skin_keys: Vec<(String, Option<String>)>,
+    auto_end: auto_end::AutoEnd,
 }
 
 impl UiActions {
@@ -79,7 +88,7 @@ impl UiActions {
     /// model store until the first [`apply`](Self::apply) or [`publish`](Self::publish).
     #[must_use]
     pub fn new(schema: &'static Schema, device: Box<dyn SettingsStore>) -> UiActions {
-        UiActions {
+        let mut actions = UiActions {
             schema,
             popup: None,
             state: UiState::new(),
@@ -91,7 +100,12 @@ impl UiActions {
             clock_ms: 0,
             mods: Vec::new(),
             mod_out: Vec::new(),
-        }
+            client: options::ClientOptions::default(),
+            skin_keys: Vec::new(),
+            auto_end: auto_end::AutoEnd::default(),
+        };
+        actions.show_options();
+        actions
     }
 
     /// Show a remote-screen failure in the ordinary UI error list.
@@ -143,6 +157,16 @@ impl UiActions {
     ) {
         self.tick(now_ms);
         self.state.expire(now_ms);
+        // Session operations whose screen action the server applied (a confirmed exit), before this frame's intents.
+        for op in std::mem::take(&mut self.state.due) {
+            let mut ctx = Ctx {
+                ui: &mut self.state,
+                model: store,
+                sink,
+                now_ms,
+            };
+            route::session::request(&mut ctx, op);
+        }
         for wire in std::mem::take(intents) {
             if wire.name.starts_with("mods.") {
                 if let Err(error) = self.mod_intent(&wire) {
@@ -258,6 +282,11 @@ impl UiActions {
     }
 
     fn run(&mut self, intent: &Intent, store: &ModelStore, sink: &mut dyn OrderSink, now_ms: u64) {
+        // The options window: the client's options and hotkeys, no order.
+        if intent.name().starts_with("options.") || intent.name().starts_with("hotkey.") {
+            self.options_intent(intent, store, now_ms);
+            return;
+        }
         let mut ctx = Ctx {
             ui: &mut self.state,
             model: store,
@@ -277,12 +306,13 @@ impl UiActions {
             "research.choose" => route::research::run(&mut ctx, intent),
             "chat.send" => route::chat::send(&mut ctx, intent),
             "note.dismiss" | "note.activate" => route::notes::run(&mut ctx, intent),
-            "turn.primary" | "turn.end" | "turn.cancel" | "screen.open" => {
+            "turn.primary" | "turn.end" | "turn.cancel" | "turn.blocker" | "screen.open" => {
                 route::turn::run(&mut ctx, intent);
             }
             "camera.to_plot" | "camera.to_city" | "camera.to_unit" => {
                 route::camera::run(&mut ctx, intent);
             }
+            "session.op" => route::session::run(&mut ctx, intent),
             other => {
                 // Every intent of the catalogue has a route; a new one that has none is a mistake of this
                 // module, and the player is told it did nothing.

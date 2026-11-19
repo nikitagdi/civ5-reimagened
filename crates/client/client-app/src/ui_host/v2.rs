@@ -68,6 +68,9 @@ pub(crate) fn action_event(ev: &ClientEvent, game: &mut Option<GameId>) -> Optio
         ClientEvent::EndTurnCancelled { by_order } => Some(ActionEvent::EndTurnCancelled {
             by_order: *by_order,
         }),
+        ClientEvent::GameCtlRejected { reason, .. } => {
+            Some(ActionEvent::SessionRefused { reason: *reason })
+        }
         ClientEvent::Attached { game: g, .. } => {
             (game.replace(*g) != Some(*g)).then_some(ActionEvent::NewGame)
         }
@@ -729,6 +732,8 @@ pub struct V2Frontend {
     pointer_on_world: bool,
     /// The map options of the skin's minimap panel (grid, trade routes, yield and resource icons).
     map: super::v2_map::MapLink,
+    /// The client's options: the classic options store and the volume knobs of the options window.
+    client: crate::ui2_options::V2Client,
 }
 
 /// A skin change on the screen: the skin asked for and its download (`None`: the package is in the cache).
@@ -790,12 +795,19 @@ impl V2Frontend {
             k: 1.0,
             pointer_on_world: false,
             map: super::v2_map::MapLink::default(),
+            client: crate::ui2_options::V2Client::default(),
         }
     }
 
     /// The page's store the map options are kept in for the player (`None`: for the session only).
     pub fn set_store(&mut self, kv: Option<Rc<dyn platform::KeyValueStore>>) {
         self.map.set_store(kv);
+    }
+
+    /// The store of the client's options (the classic client's, which the account follows) and the volume of a knob
+    /// never saved: every skin that comes up edits them in its options window.
+    pub fn set_options_store(&mut self, kv: Rc<dyn platform::KeyValueStore>, volume_default: f32) {
+        self.client.set(kv, volume_default);
     }
 
     /// The CSS size of the surface (see [`Ui2Platform::css_size`]).
@@ -1216,6 +1228,7 @@ impl V2Frontend {
                 ui.set_asset_resolver(self.icons.resolver());
                 let bridge = self.text_bridge();
                 ui.set_text_bridge(bridge);
+                self.client.attach(&mut ui);
                 // The sample mode: the skin's sample comes next; the skin takes the screen once it played it.
                 if let Some(state) = &self.sample_state {
                     self.sample_on = false;
@@ -1486,6 +1499,7 @@ impl V2Frontend {
             self.screen_req = screen;
         }
         self.mod_ui.after_frame(ui);
+        self.client.after_frame(ui);
         // The camera eases to a plot the frame asked for, as the classic UI's `UI.LookAt` does.
         if look_at.is_some() {
             *look = look_at;
@@ -2007,9 +2021,8 @@ impl Frontend for V2Frontend {
     }
 
     fn sounds(&self) -> Option<&dyn UiSoundSource> {
-        // SIMPLIFIED(SIMP-265): UI v2 plays no interface sounds (button clicks, the original's screen sounds); the
-        // world's sounds and the music go on.
-        None
+        // The volume knobs of the options window; no interface sounds (SIMP-265, see `ui2_options`).
+        Some(&self.client)
     }
 }
 /// The counters of a frame go to `__civ5stats.counters`; the renderer adds its own `ui2.*` (draws per layer,

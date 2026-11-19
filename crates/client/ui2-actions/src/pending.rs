@@ -34,6 +34,8 @@ pub enum ActionEvent {
         id: u32,
         answer: protocol::QueryAnswer,
     },
+    /// The gateway refused a session operation (`ClientEvent::GameCtlRejected`).
+    SessionRefused { reason: protocol::GameCtlReason },
 }
 
 /// What the module remembers about an order it sent.
@@ -153,6 +155,8 @@ impl UiState {
     /// waiting orders, dismissed notes. The tab and chat choices and the toasts stay.
     fn new_game(&mut self) {
         self.entries.clear();
+        self.after.clear();
+        self.due.clear();
         self.dismissed.clear();
         self.last_chat_ms = None;
         let old = self.ui().clone();
@@ -175,6 +179,7 @@ impl UiActions {
     /// or a rollback shows a toast and clears the row at once. Orders the module did not send are ignored.
     pub fn on_event(&mut self, ev: &ActionEvent, now_ms: u64) {
         self.popup_outcome(ev);
+        self.chained_outcome(ev);
         match ev {
             ActionEvent::Answered { id, outcome } => match outcome {
                 CommandOutcome::Queued => {}
@@ -244,10 +249,45 @@ impl UiActions {
                 }
             }
             ActionEvent::QueryResult { .. } => {}
+            ActionEvent::SessionRefused { reason } => {
+                self.state.toast(
+                    ToastKind::Rejected,
+                    crate::route::session::refusal_why(*reason),
+                    None,
+                    now_ms,
+                );
+            }
             ActionEvent::NewGame => {
                 self.clear_popup();
                 self.state.new_game();
             }
+        }
+    }
+
+    /// A screen action with a session operation after it (`screen.act` with `then`): applied, the operation is due
+    /// for the next frame; refused, lost or rolled back, it is dropped with the action.
+    fn chained_outcome(&mut self, ev: &ActionEvent) {
+        let (id, applied) = match ev {
+            ActionEvent::Answered {
+                outcome: CommandOutcome::Queued,
+                ..
+            } => return,
+            ActionEvent::Answered { id, outcome } => (
+                *id,
+                matches!(
+                    outcome,
+                    CommandOutcome::Applied | CommandOutcome::ScreenApplied { .. }
+                ),
+            ),
+            ActionEvent::RolledBack { id, .. } => (*id, false),
+            _ => return,
+        };
+        let Some(at) = self.state.after.iter().position(|(x, _)| *x == id) else {
+            return;
+        };
+        let (_, op) = self.state.after.remove(at);
+        if applied {
+            self.state.due.push(op);
         }
     }
 

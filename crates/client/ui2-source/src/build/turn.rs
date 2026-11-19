@@ -103,8 +103,8 @@ pub fn blocker(info: &GameInfo, seat: u8) -> Option<Blocker> {
     })
 }
 
-/// `turn` from `Q_GAME` (the blocker), `Q_UNITS` (the units waiting), the session's turn state, seats and timer;
-/// `Q_PLAYERS` only for a seat without a human nick.
+/// `turn` from `Q_GAME` (the blocker), `Q_UNITS` (the units waiting), `Q_NOTIFICATIONS` (the list of blockers), the
+/// session's turn state, seats and timer; `Q_PLAYERS` only for a seat without a human nick.
 pub(crate) fn turn(read: &mut CountingRead<'_, '_>, cx: &Cx<'_>) -> Result<Turn, ReadError> {
     let seat = read.seat();
     let info = read.game_info()?;
@@ -166,6 +166,16 @@ pub(crate) fn turn(read: &mut CountingRead<'_, '_>, cx: &Cx<'_>) -> Result<Turn,
         all_finished,
         may_act,
     });
+    // The list of what blocks; a source without notifications lists the core's blocker and the units.
+    let notes = match read.notifications() {
+        Err(ReadError::Unsupported) => Arc::new(Vec::new()),
+        r => r?,
+    };
+    let (mut blockers, reminders) = super::blockers::build(&info, &units, &notes, seat);
+    if blocker_state(info.blocker) != Some(state) {
+        // The turn is ended, or not ours to end: nothing of it waits for the player now.
+        blockers = KeyedList::new();
+    }
     Ok(Turn {
         state,
         blocker: blocker(&info, seat),
@@ -176,6 +186,8 @@ pub(crate) fn turn(read: &mut CountingRead<'_, '_>, cx: &Cx<'_>) -> Result<Turn,
         ready,
         humans,
         seats,
+        blockers,
+        reminders,
     })
 }
 

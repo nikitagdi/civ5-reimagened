@@ -24,13 +24,14 @@ display = "Alegreya"
 # line being written, whether the choice of its addressee is open, whether the chat dropdown is open and how many lines
 # came while it was closed; whether the strip's "more" menu is open.
 [state]
+hud = { covered = false }
 unit_panel = { hover = -1, promo = -1, draft = "", valid = false }
 unit_lists = { section = "", sort = "name", desc = false, military_folded = false, civilian_folded = false }
 on_map = { unit = "", city = "" }
 minimap = { options = false, streamer = false, banners = true, flags = true, grid = false, routes = true, yields = false, resources = false }
 leader = { hover = "" }
 deal = { side = 0, kind = -1, item = 0, amount = 0 }
-civ_ribbon = { visible = false, left = false, hover = -1 }
+civ_ribbon = { visible = false, left = false, hover = -1, kick = -1 }
 declare_war = { diplomacy = false, protectors = false, allies = false, deals = false, routes = false }
 diplo = { tab = "relations", deal = -1, hover = -1 }
 policies = { visible = false, tab = "", expanded = false, confirm = -1, kind = "adopt_policy", name = "", tenet_level = 0, hover = -1 }
@@ -63,16 +64,16 @@ top = { menu = false, hover = "", resource = -1, resources = false }
 confirm = { dont_warn = false, hover = -1 }
 goody = { sel = -1 }
 notification = { hover = "" }
-menu = { options = false, panel = "details" }
-end_game = { tab = "summary" }
+menu = { options = false, panel = "details", exit = false }
+end_game = { tab = "summary", exit = false }
 advisor = { economic = 0, military = 0, foreign = 0, science = 0 }
-opt = { tab = "general", auto_end_turn = false, auto_end_turn_sp = false, next_unit_after_orders = true, auto_unit_cycle = true, air_rebase_rmb = true, civilian_yields = true, workers_keep_improvements = true, workers_keep_features = true, no_tile_recs = false, skip_reward_popups = false, policy_info_full = true, score_list = true, civ_ribbon = true, city_ribbon = true, unit_ribbon = true, city_advisor_recs = true, auto_close_city = false, auto_close_tech = false, clock = false, all_great_people = false, warn_unassigned = true, no_basic_help = false, scroll_inertia = true, zoom_dynamic = true, music = 70, effects = 80, ambience = 70, speech = 80, tooltip_delay = 500, tooltip_delay_ext = 1500, ui_scale = 100, ribbon_side = "right" }
+opt = { tab = "general" }
 
 
 # The production window's script: arrow keys move the focus; the sort is kept in the settings.
 [scripts]
-files = ["js/chat.js", "js/minimap.js", "js/unit_lists.js", "js/unit_panel.js", "js/production.js", "js/tech_panel.js", "js/techs.js", "js/city_rename.js", "js/city.js", "js/city_list.js", "js/free_great_person.js", "js/policies.js", "js/ideology.js", "js/pantheon.js", "js/religion.js", "js/religion_overview.js", "js/civ_ribbon.js", "js/leader.js", "js/economy.js", "js/military.js", "js/trade_routes.js", "js/espionage.js", "js/victory.js", "js/demographics.js", "js/culture.js", "js/archaeology.js", "js/city_state.js", "js/congress.js", "js/mp_vote.js", "js/end_game.js", "js/advisor.js", "js/game_menu.js", "js/confirm.js", "js/message.js", "js/goody_choice.js"]
-reads = ["chat", "unit", "unit_rename", "production", "research", "hud", "ui.windows.techs", "techs", "city", "city_rename", "city_captured", "free_great_person", "policies", "ideology", "pantheon", "religion", "religion_overview", "ui", "civ_ribbon", "leader", "game", "culture", "archaeology", "city_state", "congress", "mp_vote", "turn", "end_game", "advisor", "game_menu", "confirm", "message", "goody_choice", "notification_log"]
+files = ["js/chat.js", "js/minimap.js", "js/unit_lists.js", "js/unit_panel.js", "js/production.js", "js/tech_panel.js", "js/techs.js", "js/city_rename.js", "js/city.js", "js/city_list.js", "js/free_great_person.js", "js/policies.js", "js/ideology.js", "js/pantheon.js", "js/religion.js", "js/religion_overview.js", "js/civ_ribbon.js", "js/leader.js", "js/economy.js", "js/military.js", "js/trade_routes.js", "js/espionage.js", "js/victory.js", "js/demographics.js", "js/culture.js", "js/archaeology.js", "js/city_state.js", "js/congress.js", "js/mp_vote.js", "js/end_game.js", "js/advisor.js", "js/game_menu.js", "js/confirm.js", "js/message.js", "js/goody_choice.js", "js/hud_cover.js"]
+reads = ["chat", "unit", "unit_rename", "production", "research", "hud", "ui.windows.techs", "techs", "city", "city_rename", "city_captured", "free_great_person", "policies", "ideology", "pantheon", "religion", "religion_overview", "ui", "civ_ribbon", "leader", "game", "culture", "archaeology", "city_state", "congress", "mp_vote", "turn", "end_game", "advisor", "game_menu", "confirm", "message", "goody_choice", "notification_log", "deal"]
 
 [verify]
 states = ["hud", "top_panel", "end_turn", "unit_panel", "unit_rename", "unit_lists", "minimap", "on_map", "hud-timer", "hud-chat", "production", "production-sorted", "research", "techs", "techs--free", "techs--steal", "tech_award", "rich_tooltips", "tech_panel", "tech_panel--done", "city", "city_list", "city_rename", "city_captured", "free_great_person", "city--puppet", "city--sell", "city_rename--invalid", "city_rename--raze", "city_rename--unraze", "city_rename--annex", "city_captured--annex", "free_great_person--faith", "free_great_person--maya", "policies", "ideology", "pantheon", "religion", "religion_overview", "diplo", "declare_war", "declare_war--plunder", "civ_ribbon", "deal", "leader", "diplo--global", "diplo--deals", "diplo--empty", "declare_war--citystate", "civ_ribbon--host", "deal--player", "deal--player-incoming", "economy", "military", "trade_routes", "espionage", "victory", "demographics", "demographics-whos-winning", "economy-happiness", "trade_routes-choose", "trade_routes-home", "trade_routes-port", "culture", "great_work", "archaeology", "archaeology--writing", "city_state", "city_state--enter", "city_state--liberate", "congress", "congress--propose", "congress--splash", "congress--project", "congress--empty", "mp_vote", "mp_vote--result", "mp_vote--concede", "mp_vote--diplo", "confirm", "message", "goody_choice", "notification_log", "game_menu", "end_game", "advisor"]

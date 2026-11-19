@@ -22,6 +22,7 @@ pub mod error;
 pub mod frame;
 pub mod input;
 pub mod mods;
+pub mod options;
 pub mod registry;
 mod scripts;
 pub mod sink;
@@ -34,6 +35,7 @@ pub use error::{LoadFailure, SkinLoadError};
 pub use frame::{V2Frame, V2FrameReport};
 pub use input::{MAP_CLICK, map_click};
 pub use mods::{ModModelCheck, ModValue, ModWrite};
+pub use options::KvSettings;
 pub use registry::{
     ApiVersion, Fallback, RegistryError, SCRIPT_API, SkinEntry, SkinRegistry, hash_hex,
 };
