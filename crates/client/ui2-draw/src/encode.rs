@@ -387,7 +387,8 @@ fn nine_pieces(rect: Rect, uv: [f32; 4], n: &NineSlice) -> Vec<(Rect, [f32; 4])>
 }
 
 /// A run of glyphs: one mask instance per glyph. `sigma` (local px, 0: sharp) blurs every glyph's coverage
-/// (see [`crate::GlyphShadow`]); the shader grows the quad by the blur's reach.
+/// (see [`crate::GlyphShadow`]): the atlas holds the blurred alpha of such a glyph under its own key
+/// ([`ui2_text::GlyphKey::blurred`], the run's contrast applied before the blur), drawn like a sharp glyph.
 fn encode_glyphs(g: &Glyphs, sigma: f32, anchor: u16, ctx: &mut EncodeCtx<'_>, out: &mut Encoded) {
     if g.glyphs.is_empty() {
         return;
@@ -405,7 +406,9 @@ fn encode_glyphs(g: &Glyphs, sigma: f32, anchor: u16, ctx: &mut EncodeCtx<'_>, o
     let page = ctx.mask_side as f32;
     let layer_base = ctx.glyphs.layer_base();
     // The atlas holds linear coverage: the run's contrast exponent makes its alpha (see `glyph_contrast`).
-    let contrast = f16_bits(crate::glyphs::glyph_contrast(g.color, g.size_px));
+    let exponent = crate::glyphs::glyph_contrast(g.color, g.size_px);
+    // A shadow's bitmap is already alpha (the contrast went in before the blur): none here.
+    let contrast = if sigma > 0.0 { 0 } else { f16_bits(exponent) };
     for pos in &g.glyphs {
         let moved = GlyphPos {
             x: pos.x + shift.x,
@@ -413,9 +416,9 @@ fn encode_glyphs(g: &Glyphs, sigma: f32, anchor: u16, ctx: &mut EncodeCtx<'_>, o
             ..*pos
         };
         let (key, px, baseline) = glyph_key(g, &moved);
+        let key = key.blurred(sigma, exponent);
         let mut i = Ui2Instance::of_kind(KIND_MASK);
         i.colors[0] = g.color.0;
-        i.extra[0] = f16_bits(sigma);
         i.extra[1] = contrast;
         i.xform = xform;
         i.clip = clip;
@@ -1001,7 +1004,7 @@ mod tests {
     }
 
     #[test]
-    fn glyph_shadows_carry_their_sigma_and_keep_one_instance_per_glyph() {
+    fn glyph_shadows_ask_for_blurred_keys_and_keep_one_instance_per_glyph() {
         let run = Glyphs {
             face: ui2_text::FaceId(0),
             size_px: 14.0,
@@ -1011,8 +1014,9 @@ mod tests {
             transform: None,
             clip: None,
         };
-        // Every glyph carries the run's contrast exponent (black text, 14 px).
-        let contrast = f16_bits(crate::glyphs::glyph_contrast(run.color, run.size_px));
+        // A sharp glyph carries the run's contrast exponent (black text, 14 px).
+        let exponent = crate::glyphs::glyph_contrast(run.color, run.size_px);
+        let contrast = f16_bits(exponent);
         assert_ne!(contrast, 0);
         for (blur, sigma) in [(6.0, 3.0), (0.0, 0.0), (-2.0, 0.0), (f32::NAN, 0.0)] {
             let mut rig = Rig::new();
@@ -1022,10 +1026,25 @@ mod tests {
             })));
             assert_eq!(e.instances.len(), 2, "blur {blur}");
             assert_eq!(e.unresolved, 2);
+            // A blurred glyph is its own atlas entry, the contrast applied before the blur: the instance is drawn
+            // like a sharp glyph with no exponent of its own.
+            let want = if sigma > 0.0 {
+                [0; 4]
+            } else {
+                [0, contrast, 0, 0]
+            };
             for i in &e.instances {
                 assert_eq!(i.kind, KIND_MASK);
-                assert_eq!(i.extra, [f16_bits(sigma), contrast, 0, 0], "blur {blur}");
+                assert_eq!(i.extra, want, "blur {blur}");
                 assert_eq!(i.colors[0], [0, 0, 0, 160]);
+            }
+            for pos in &run.glyphs {
+                let key = glyph_key(&run, pos).0.blurred(sigma, exponent);
+                assert_eq!(key.sigma(), sigma, "blur {blur}");
+                assert!(
+                    rig.glyphs.is_pending(&key),
+                    "blur {blur}: {key:?} is asked for"
+                );
             }
         }
         // A sharp run has no sigma, only the contrast.

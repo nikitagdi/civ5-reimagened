@@ -31,7 +31,10 @@ use std::collections::HashMap;
 
 use bytemuck::{Pod, Zeroable};
 use draw_list::TextureId;
-use ui2_draw::instance::{ATTRIBUTES, AttrFormat, INSTANCE_SIZE};
+use ui2_draw::instance::{
+    ATTRIBUTES, AttrFormat, FLAG_BORDER, FLAG_ELLIPSE, FLAG_FILL, FLAG_INSET, INSTANCE_SIZE,
+    KIND_BOX, KIND_SHADOW, Ui2Instance, f16_to_f32,
+};
 use ui2_draw::tables::{HEIGHT as TABLE_HEIGHT, TEXEL_BYTES, WIDTH as TABLE_WIDTH};
 use ui2_draw::{LayerChange, LayerId, Scene};
 
@@ -42,8 +45,9 @@ pub use gpu_atlas::{ImageArray, MIN_LAYERS, MaskArray, MaskSource, glyph_room};
 
 /// Smallest layer buffer; buffers grow by 1.5x from here.
 const MIN_BUFFER: u64 = 64 * 1024;
-/// Vertices of the quad of one instance.
-const QUAD_VERTICES: u32 = 6;
+/// Vertices of one instance: four quads, the bands around the hole of a ring (a border-only box, an outer shadow:
+/// see `vs` in `ui2.wgsl`); every other primitive draws the first and gives the others no area.
+const QUAD_VERTICES: u32 = 24;
 /// External textures one draw binds (`EXT_SLOTS` in `ui2.wgsl`). With the coverage and image arrays that is 10
 /// sampled textures in the fragment stage, within the 16 of WebGL2.
 pub const EXT_SLOTS: usize = 8;
@@ -73,12 +77,27 @@ pub struct Ui2Stats {
     pub ext_missing: u32,
     /// Bind groups made for sets of external textures (a new set, or a new upload of one of its textures).
     pub ext_groups_made: u32,
+    /// Pixels the quads of the instances cover, summed (overdraw counts every layer of it), per layer in
+    /// [`LayerId::ALL`] order: the fill the fragment shader runs over. Local px before transforms and clips, so
+    /// a clipped list row counts whole.
+    pub layer_fill_px: [u64; 4],
+    /// Of the fill: the quads of blurred box shadows (the costliest fragments, an `erf` per pixel and axis).
+    pub shadow_fill_px: u64,
+    /// Of the fill: pictures and masks (glyphs, icons: one texture read per pixel).
+    pub texture_fill_px: u64,
 }
 
 impl Ui2Stats {
+    /// All of [`Ui2Stats::layer_fill_px`].
+    pub fn fill_px(&self) -> u64 {
+        self.layer_fill_px.iter().sum()
+    }
+
     /// Names as `__civ5stats.counters` and the stats table show them.
-    pub fn counters(&self) -> [(&'static str, u64); 12] {
+    pub fn counters(&self) -> [(&'static str, u64); 18] {
         let [map, hud, window, tooltip] = self.layer_draws.map(u64::from);
+        let kpx = |v: u64| v / 1000;
+        let [fmap, fhud, fwindow, ftooltip] = self.layer_fill_px.map(kpx);
         [
             ("ui2.draws", u64::from(self.draws)),
             ("ui2.draws.map", map),
@@ -92,6 +111,12 @@ impl Ui2Stats {
             ("ui2.atlas.glyph_mb", self.glyph_bytes >> 20),
             ("ui2.atlas.pages_mb", self.page_bytes >> 20),
             ("ui2.ext_missing", u64::from(self.ext_missing)),
+            ("ui2.fill_kpx", kpx(self.fill_px())),
+            ("ui2.fill_kpx.map", fmap),
+            ("ui2.fill_kpx.hud", fhud),
+            ("ui2.fill_kpx.window", fwindow),
+            ("ui2.fill_kpx.tooltip", ftooltip),
+            ("ui2.fill_kpx.shadow", kpx(self.shadow_fill_px)),
         ]
     }
 }
@@ -113,6 +138,88 @@ struct LayerBuf {
     len: usize,
     /// Scene revision of the layer the buffer holds.
     revision: u64,
+    /// The fill of the layer's quads (all, shadows, pictures and masks) and the revision it was summed at.
+    fill: Option<(u64, Fill)>,
+}
+
+/// Pixels the quads of a layer cover ([`Ui2Stats::layer_fill_px`]).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct Fill {
+    all: u64,
+    shadow: u64,
+    texture: u64,
+}
+
+/// The soft-edge margin of boxes, local px (`AA_MARGIN` in `ui2.wgsl`).
+const AA_MARGIN: f32 = 1.0;
+
+/// The hole of a ring as `vs` in `ui2.wgsl` leaves it out (before it is cut to the quad), relative to the
+/// rectangle: inside the padding edge of a border-only box, inside the element's own box for an outer shadow, the
+/// largest corner radius and the soft-edge margin away from the edges; none under a transform or an anchor.
+fn ring_hole(i: &Ui2Instance) -> Option<[[f32; 2]; 2]> {
+    if i.xform != 0 || i.anchor != 0 {
+        return None;
+    }
+    let r = i.radii.map(f16_to_f32);
+    let rmax = r.into_iter().fold(0.0f32, f32::max);
+    let ratio = f16_to_f32(i.extra[2]);
+    let ry = if i.flags & FLAG_ELLIPSE != 0 && ratio > 0.0 {
+        ratio.max(1.0)
+    } else {
+        1.0
+    };
+    let keep = [rmax + AA_MARGIN, rmax * ry + AA_MARGIN];
+    let (w, h) = (i.rect[2], i.rect[3]);
+    let hole = if i.kind == KIND_BOX && i.flags & (FLAG_FILL | FLAG_BORDER) == FLAG_BORDER {
+        let b = i.border.map(f16_to_f32);
+        [
+            [b[3] + keep[0], b[0] + keep[1]],
+            [w - b[1] - keep[0], h - b[2] - keep[1]],
+        ]
+    } else if i.kind == KIND_SHADOW && i.flags & FLAG_INSET == 0 {
+        [keep, [w - keep[0], h - keep[1]]]
+    } else {
+        return None;
+    };
+    (hole[1][0] > hole[0][0] && hole[1][1] > hole[0][1]).then_some(hole)
+}
+
+impl Fill {
+    /// The quads of `instances` as the vertex shader sizes them (a ring without its hole), before transforms and
+    /// clips.
+    fn of(instances: &[Ui2Instance]) -> Self {
+        let mut f = Fill::default();
+        for i in instances {
+            let (w, h) = (i.rect[2].max(0.0), i.rect[3].max(0.0));
+            let inset = i.flags & FLAG_INSET != 0;
+            // The quad, as `vs` makes it: (lo, hi) relative to the rectangle.
+            let (lo, hi) = if i.kind == KIND_BOX || (i.kind == KIND_SHADOW && inset) {
+                ([-AA_MARGIN; 2], [w + AA_MARGIN, h + AA_MARGIN])
+            } else if i.kind == KIND_SHADOW {
+                let grow = f16_to_f32(i.extra[1]) + 3.0 * f16_to_f32(i.extra[0]) + AA_MARGIN;
+                let (ox, oy) = (i.uv[0], i.uv[1]);
+                ([ox - grow, oy - grow], [w + ox + grow, h + oy + grow])
+            } else {
+                ([0.0; 2], [w, h])
+            };
+            let mut px = (hi[0] - lo[0]).max(0.0) * (hi[1] - lo[1]).max(0.0);
+            if let Some([hl, hh]) = ring_hole(i) {
+                let (x0, y0) = (hl[0].max(lo[0]), hl[1].max(lo[1]));
+                let (x1, y1) = (hh[0].min(hi[0]), hh[1].min(hi[1]));
+                if x1 > x0 && y1 > y0 {
+                    px -= (x1 - x0) * (y1 - y0);
+                }
+            }
+            let px = if px.is_finite() { px as u64 } else { 0 };
+            f.all += px;
+            if i.kind == KIND_SHADOW {
+                f.shadow += px;
+            } else if i.kind != KIND_BOX {
+                f.texture += px;
+            }
+        }
+        f
+    }
 }
 
 impl LayerBuf {
@@ -766,6 +873,19 @@ impl Ui2Pass {
             let (bytes, written) = self.upload_layer(device, queue, scene, layer, full);
             stats.upload_bytes += bytes;
             stats.layers_uploaded += u32::from(written);
+            // The fill is summed again only when the layer changed.
+            let lb = &mut self.layers[li];
+            let fill = match lb.fill {
+                Some((rev, fill)) if rev == lb.revision => fill,
+                _ => {
+                    let fill = Fill::of(scene.layer_instances(layer));
+                    lb.fill = Some((lb.revision, fill));
+                    fill
+                }
+            };
+            stats.layer_fill_px[li] = fill.all;
+            stats.shadow_fill_px += fill.shadow;
+            stats.texture_fill_px += fill.texture;
             // The scene's runs (instances by external texture, in paint order) gathered into as few draws as the
             // texture group allows; a run of an external texture that is not available stays in the draw and gets
             // no area in the vertex shader.

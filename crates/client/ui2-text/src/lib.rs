@@ -25,7 +25,9 @@ pub use atlas::{AtlasConfig, AtlasError, AtlasSlot, AtlasStats, DirtyRect, Glyph
 pub use breaker::{BreakOptions, Ellipsized, Line, LineHeight, LineSegment, Lines, TextMeasure};
 use face::Face;
 pub use metrics::LineMetrics;
-pub use raster::{GlyphBitmap, GlyphKey, HINT_MAX_PX, SUBPIXEL_STEPS, quantize_x};
+pub use raster::{
+    GlyphBitmap, GlyphKey, HINT_MAX_PX, MAX_BLUR_SIGMA, SUBPIXEL_STEPS, blur_bitmap, quantize_x,
+};
 use shape::ShapeCache;
 pub use shape::{
     NumericFigure, NumericSpacing, NumericVariant, RunStyle, SHAPE_CACHE_CAPACITY, ShapeCacheStats,

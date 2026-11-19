@@ -35,10 +35,13 @@ pub const SUBPIXEL_STEPS: u8 = 4;
 pub const HINT_MAX_PX: f32 = 48.0;
 /// Hinting instances kept (one per face, device size and weight in use); the cache starts again when it is full.
 const MAX_HINTERS: usize = 96;
+/// Largest standard deviation (device px) of a blurred glyph; a larger blur is drawn with this one.
+pub const MAX_BLUR_SIGMA: f32 = 16.0;
 /// Largest bitmap side, device px; a glyph that would be bigger is rasterized empty.
 const MAX_SIDE: i64 = 2048;
 
-/// Identity of a rasterized glyph: face, glyph, device size, weight and subpixel step.
+/// Identity of a rasterized glyph: face, glyph, device size, weight and subpixel step; for the blurred coverage
+/// of a text shadow also the blur and the contrast exponent ([`GlyphKey::blurred`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GlyphKey {
     /// Face the glyph belongs to.
@@ -51,6 +54,10 @@ pub struct GlyphKey {
     pub wght: u16,
     /// Subpixel step 0..=3: the glyph origin sits `subpx / 4` px right of a whole pixel.
     pub subpx: u8,
+    /// Standard deviation of the shadow blur in 1/8 device px; 0: the sharp glyph.
+    pub blur: u16,
+    /// Contrast exponent applied before the blur, in 1/255 (0: none); only with `blur`.
+    pub ink: u8,
 }
 
 impl GlyphKey {
@@ -62,7 +69,36 @@ impl GlyphKey {
             size_bits: size_px.to_bits(),
             wght: wght.round().clamp(1.0, 1000.0) as u16,
             subpx: subpx % SUBPIXEL_STEPS,
+            blur: 0,
+            ink: 0,
         }
+    }
+
+    /// The key of this glyph's shadow: its coverage raised to `contrast` (the alpha the sharp glyph shows, see
+    /// `ui2_draw::glyph_contrast`; 0 or not finite: none) and blurred by a Gaussian of standard deviation `sigma`
+    /// device px (cut at `ceil(2 * sigma)` texels, at most [`MAX_BLUR_SIGMA`]). The bitmap is the blurred alpha,
+    /// grown by the blur's reach, so a shadow is drawn from the atlas like a sharp glyph: one texture read per
+    /// pixel. `sigma` 0 or less gives the sharp key.
+    pub fn blurred(self, sigma: f32, contrast: f32) -> Self {
+        if !(sigma.is_finite() && sigma > 0.0) {
+            return Self {
+                blur: 0,
+                ink: 0,
+                ..self
+            };
+        }
+        let blur = (sigma.min(MAX_BLUR_SIGMA) * 8.0).round().max(1.0) as u16;
+        let ink = if contrast.is_finite() && contrast > 0.0 {
+            (contrast.min(1.0) * 255.0).round().max(1.0) as u8
+        } else {
+            0
+        };
+        Self { blur, ink, ..self }
+    }
+
+    /// The shadow blur's standard deviation in device px (0: sharp).
+    pub fn sigma(&self) -> f32 {
+        f32::from(self.blur) / 8.0
     }
 
     /// The key for a glyph drawn at pen position `pen_x` (device px), and the whole pixel its bitmap origin
@@ -242,6 +278,14 @@ impl TextEngine {
     /// Rasterizes a glyph (hinted vertically up to [`HINT_MAX_PX`], linear coverage). A glyph without an outline,
     /// an unknown face or a glyph id outside the face gives an empty bitmap.
     pub fn raster_glyph(&self, key: GlyphKey) -> GlyphBitmap {
+        if key.blur > 0 {
+            let sharp = self.raster_glyph(GlyphKey {
+                blur: 0,
+                ink: 0,
+                ..key
+            });
+            return blur_bitmap(&sharp, key.sigma(), f32::from(key.ink) / 255.0);
+        }
         let Ok(face) = self.face(key.face) else {
             return GlyphBitmap::default();
         };
@@ -334,5 +378,71 @@ impl TextEngine {
             top: top as i32,
             coverage,
         }
+    }
+}
+
+/// `bitmap`'s coverage raised to `contrast` (0: as it is) and blurred by the separable Gaussian of standard
+/// deviation `sigma` px sampled at whole pixels, cut at `ceil(2 * sigma)` pixels and renormalized; the bitmap grows
+/// by that reach on every side (its offsets move with it).
+pub fn blur_bitmap(bitmap: &GlyphBitmap, sigma: f32, contrast: f32) -> GlyphBitmap {
+    if bitmap.w == 0 || bitmap.h == 0 || sigma.is_nan() || sigma <= 0.0 {
+        return bitmap.clone();
+    }
+    let r = (2.0 * sigma).ceil() as usize;
+    let k = -0.5 / (sigma * sigma);
+    let weights: Vec<f32> = (0..=2 * r)
+        .map(|i| {
+            let d = i as f32 - r as f32;
+            (k * d * d).exp()
+        })
+        .collect();
+    let total: f32 = weights.iter().sum();
+    let weights: Vec<f32> = weights.iter().map(|w| w / total).collect();
+    let (w, h) = (bitmap.w as usize, bitmap.h as usize);
+    let (ow, oh) = (w + 2 * r, h + 2 * r);
+    let alpha: Vec<f32> = bitmap
+        .coverage
+        .iter()
+        .map(|&c| {
+            let c = f32::from(c) / 255.0;
+            if contrast > 0.0 && c > 0.0 {
+                c.powf(contrast)
+            } else {
+                c
+            }
+        })
+        .collect();
+    // Along x into the grown width (rows of the source), then along y into the grown height.
+    let mut rows = vec![0.0f32; ow * h];
+    for y in 0..h {
+        let src = &alpha[y * w..(y + 1) * w];
+        let dst = &mut rows[y * ow..(y + 1) * ow];
+        for (x, &a) in src.iter().enumerate() {
+            if a == 0.0 {
+                continue;
+            }
+            for (i, wt) in weights.iter().enumerate() {
+                dst[x + i] += a * wt;
+            }
+        }
+    }
+    let mut out = vec![0.0f32; ow * oh];
+    for y in 0..h {
+        for (j, wt) in weights.iter().enumerate() {
+            let dst = &mut out[(y + j) * ow..(y + j + 1) * ow];
+            for (d, &s) in dst.iter_mut().zip(&rows[y * ow..(y + 1) * ow]) {
+                *d += s * wt;
+            }
+        }
+    }
+    GlyphBitmap {
+        w: ow as u32,
+        h: oh as u32,
+        left: bitmap.left - r as i32,
+        top: bitmap.top + r as i32,
+        coverage: out
+            .iter()
+            .map(|&a| (a.clamp(0.0, 1.0) * 255.0 + 0.5) as u8)
+            .collect(),
     }
 }

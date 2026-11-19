@@ -946,6 +946,7 @@ api = "1.0"
                 ),
                 ("tech_panel.open".to_string(), StateValue::Bool(false)),
                 ("techs.hover".to_string(), StateValue::Int(-1)),
+                ("techs.unlock".to_string(), StateValue::Int(-1)),
                 ("techs.x".to_string(), StateValue::Float(0.0)),
                 ("top.hover".to_string(), StateValue::Str("".to_string())),
                 ("top.menu".to_string(), StateValue::Bool(false)),

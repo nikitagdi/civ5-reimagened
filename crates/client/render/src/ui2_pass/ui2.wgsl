@@ -1,4 +1,5 @@
-// UI v2 pass: one instanced quad per primitive, coverage from distance functions, analytic clips.
+// UI v2 pass: one instanced quad per primitive (four bands around the hole of a ring: a border-only box, an
+// outer shadow), coverage from distance functions, analytic clips.
 //
 // The instance layout is `ui2_draw::instance` (96 bytes, 12 attributes); that file is the source of truth for
 // the offsets, the `KIND_*`, `FILL_*` and `FLAG_*` values and the packing of the three meta words (`words`).
@@ -153,7 +154,7 @@ fn face(f: vec3<f32>, p: vec2<f32>, n: u32, i: u32) -> f32 {
     return select(FAR, dot(f.xy, p) + f.z, i < n);
 }
 
-// Two triangles: (0,0) (1,0) (0,1), (0,1) (1,0) (1,1).
+// Two triangles: (0,0) (1,0) (0,1), (0,1) (1,0) (1,1); every 6 vertices again (the bands of a ring).
 fn quad_corner(vi: u32) -> vec2<f32> {
     let i = vi % 6u;
     let x = select(0.0, 1.0, i == 1u || i == 4u || i == 5u);
@@ -196,13 +197,51 @@ fn vs(@builtin(vertex_index) vi: u32, inst: Instance) -> VsOut {
         lo = inst.uv.xy - vec2<f32>(grow);
         hi = inst.rect.zw + inst.uv.xy + vec2<f32>(grow);
     }
-    // A blurred mask (a glyph of a text shadow) grows by the reach of its blur; a placeholder without area stays
-    // without area.
-    let blurred_mask = kind == KIND_MASK && inst.extra.x > 0.0 && inst.rect.z > 0.0 && inst.rect.w > 0.0;
-    if blurred_mask {
-        let reach = mask_blur_reach(inst.extra.x) + AA_MARGIN;
-        lo = vec2<f32>(-reach);
-        hi = inst.rect.zw + vec2<f32>(reach);
+    // Rings: a border-only box draws nothing inside its padding edge, an outer shadow nothing inside the element's
+    // own box. Such a quad is drawn as four bands around that hole (vertices 6k..6k+5: band k), so the hole costs
+    // no fragments (a window's border and shadow cover the screen otherwise). The hole keeps the largest corner
+    // radius and the soft-edge margin from the edges, so every fragment it leaves out had no colour; under a
+    // transform (whose scale changes the margin) the quad stays whole. Every other primitive is band 0.
+    let band = vi / 6u;
+    let ry = select(1.0, inst.extra.z, (flags & FLAG_ELLIPSE) != 0u && inst.extra.z > 0.0);
+    let rmax = max(max(inst.radii.x, inst.radii.y), max(inst.radii.z, inst.radii.w));
+    let keep = vec2<f32>(rmax, rmax * max(ry, 1.0)) + vec2<f32>(AA_MARGIN);
+    var hole_lo = vec2<f32>(0.0);
+    var hole_hi = vec2<f32>(-1.0);
+    if xform_id == 0u && anchor_id == 0u {
+        if kind == KIND_BOX && (flags & (FLAG_FILL | FLAG_BORDER)) == FLAG_BORDER {
+            hole_lo = vec2<f32>(inst.border.w, inst.border.x) + keep;
+            hole_hi = inst.rect.zw - vec2<f32>(inst.border.y, inst.border.z) - keep;
+        } else if kind == KIND_SHADOW && (flags & FLAG_INSET) == 0u {
+            hole_lo = keep;
+            hole_hi = inst.rect.zw - keep;
+        }
+    }
+    hole_lo = max(hole_lo, lo);
+    hole_hi = min(hole_hi, hi);
+    let ring = hole_hi.x > hole_lo.x && hole_hi.y > hole_lo.y;
+    if band > 0u && !ring {
+        var none: VsOut;
+        none.pos = vec4<f32>(-2.0, -2.0, 0.0, 1.0);
+        return none;
+    }
+    if ring {
+        switch band {
+            case 0u: {
+                hi.y = hole_lo.y;
+            }
+            case 1u: {
+                lo.y = hole_hi.y;
+            }
+            case 2u: {
+                lo.y = hole_lo.y;
+                hi = vec2<f32>(hole_lo.x, hole_hi.y);
+            }
+            default: {
+                lo = vec2<f32>(hole_hi.x, hole_lo.y);
+                hi.y = hole_hi.y;
+            }
+        }
     }
     let local = mix(lo, hi, corner);
     let p = inst.rect.xy + local;
@@ -237,10 +276,6 @@ fn vs(@builtin(vertex_index) vi: u32, inst: Instance) -> VsOut {
         o.pos = vec4<f32>(-2.0, -2.0, 0.0, 1.0);
     }
     o.local_uv = vec4<f32>(local, mix(inst.uv.xy, inst.uv.zw, corner));
-    if blurred_mask {
-        // The sprite's uv continued past its rectangle (taps outside it read nothing, see `shade_mask`).
-        o.local_uv = vec4<f32>(local, inst.uv.xy + (inst.uv.zw - inst.uv.xy) * local / inst.rect.zw);
-    }
     o.size = vec4<f32>(inst.rect.zw, inst.extra.xy);
     o.radii = inst.radii;
     o.border = inst.border;
@@ -493,6 +528,12 @@ fn shade_shadow(in: VsOut, px: f32) -> vec4<f32> {
         }
         return premul(unpack_color(in.colors.x)) * (clamp(1.0 - hole, 0.0, 1.0) * own);
     }
+    // Inside the element's own box nothing is drawn: those fragments (most of a large window's shadow) skip the
+    // blur.
+    let own = inside(sd_box(local - half, half, in.radii, 1.0), px);
+    if own >= 1.0 {
+        return vec4<f32>(0.0);
+    }
     let shalf = max(half + vec2<f32>(spread), vec2<f32>(0.0));
     // CSS: a rounded corner grows with the spread, a square one stays square.
     let sradii = select(vec4<f32>(0.0), max(in.radii + vec4<f32>(spread), vec4<f32>(0.0)), in.radii > vec4<f32>(0.0));
@@ -504,113 +545,7 @@ fn shade_shadow(in: VsOut, px: f32) -> vec4<f32> {
         let corner = min(corner_radius(p, sradii), min(shalf.x, shalf.y));
         a = blurred_box(p, shalf, corner, sigma);
     }
-    let own = inside(sd_box(local - half, half, in.radii, 1.0), px);
     return premul(unpack_color(in.colors.x)) * (a * (1.0 - own));
-}
-
-// The largest sigma (texels) the glyph blur samples exactly; larger ones stretch its pattern.
-const BLUR_MAX_SIGMA: f32 = 4.0;
-
-// How far a blurred mask reaches past its sprite, local px: the kernel's cut-off radius (ceil(2 sigma) texels,
-// stretched above BLUR_MAX_SIGMA) plus the texel a bilinear tap reads beyond it.
-fn mask_blur_reach(sigma: f32) -> f32 {
-    let s = min(sigma, BLUR_MAX_SIGMA);
-    return ceil(2.0 * s) * max(sigma / BLUR_MAX_SIGMA, 1.0) + 1.0;
-}
-
-// The coverage of a mask sprite blurred by a Gaussian of `sigma` (a text shadow; the approximation is stated on
-// `ui2_draw::GlyphShadow`). One axis of the kernel: the Gaussian at whole texels, cut at ceil(2 sigma) texels
-// and renormalized, as bilinear taps: the centre texel alone, then the texel pairs (1, 2), (3, 4), ... on each
-// side merged into one tap between them (offset weighted by the pair, weight the pair's sum): at most 9 taps
-// for sigma <= 4. The 2D kernel is the product of two axes. Taps whose bilinear footprint leaves the sprite's
-// rectangle plus its 1 px margin of zeros (the atlas keeps one around every glyph) read nothing, so neighbours
-// in the atlas never bleed in.
-fn blurred_mask(in: VsOut, layer: i32, sigma: f32) -> f32 {
-    // The sprite: uv rectangle and size in texels (glyphs are drawn 1:1, a local px is a texel).
-    let slot = in.grad;
-    let size = in.size.xy;
-    let texel = (slot.zw - slot.xy) / size;
-    // This fragment in texels from the sprite's top left corner.
-    let base = (in.local_uv.zw - slot.xy) / texel;
-    let s = min(sigma, BLUR_MAX_SIGMA);
-    let stretch = max(sigma / BLUR_MAX_SIGMA, 1.0);
-    let r = i32(ceil(2.0 * s));
-    let k = -0.5 / (s * s);
-    var taps: array<vec2<f32>, 9>;
-    taps[0] = vec2<f32>(0.0, 1.0);
-    var n = 1;
-    var total = 1.0;
-    for (var a = 1; a <= r && n < 9; a += 2) {
-        let wa = exp(k * f32(a * a));
-        var off = f32(a);
-        var w = wa;
-        if a + 1 <= r {
-            let wb = exp(k * f32((a + 1) * (a + 1)));
-            off = (f32(a) * wa + f32(a + 1) * wb) / (wa + wb);
-            w = wa + wb;
-        }
-        taps[n] = vec2<f32>(off * stretch, w);
-        taps[n + 1] = vec2<f32>(-off * stretch, w);
-        n += 2;
-        total += 2.0 * w;
-    }
-    var sum = 0.0;
-    for (var j = 0; j < n; j++) {
-        let ty = base.y + taps[j].x;
-        if ty < -0.5 || ty > size.y + 0.5 {
-            continue;
-        }
-        var row = 0.0;
-        for (var i = 0; i < n; i++) {
-            let tx = base.x + taps[i].x;
-            if tx < -0.5 || tx > size.x + 0.5 {
-                continue;
-            }
-            let uv = slot.xy + vec2<f32>(tx, ty) * texel;
-            row += taps[i].y * textureSampleLevel(mask, mask_smp, uv, layer, 0.0).r;
-        }
-        sum += taps[j].y * row;
-    }
-    return sum / (total * total);
-}
-
-// A blurred glyph (a text shadow): the same cut Gaussian as `blurred_mask`, but over whole texels read one by
-// one, each turned into its alpha by the contrast exponent first: the shadow is the blur of what the sharp glyph
-// shows (the browser blurs the text's drawn alpha the same way). Texels outside the sprite read nothing.
-fn blurred_glyph(in: VsOut, layer: i32, sigma: f32, contrast: f32) -> f32 {
-    let slot = in.grad;
-    let size = in.size.xy;
-    let dims = vec2<f32>(textureDimensions(mask).xy);
-    let texel = (slot.zw - slot.xy) / size;
-    // This fragment in texels from the sprite's top left corner, and the sprite's corner texel in the page.
-    let base = (in.local_uv.zw - slot.xy) / texel;
-    let corner = slot.xy * dims;
-    let s = min(sigma, BLUR_MAX_SIGMA);
-    let stretch = max(sigma / BLUR_MAX_SIGMA, 1.0);
-    let r = min(i32(ceil(2.0 * s)), 8);
-    let k = -0.5 / (s * s);
-    var total = 0.0;
-    for (var i = -r; i <= r; i++) {
-        total += exp(k * f32(i * i));
-    }
-    var sum = 0.0;
-    for (var j = -r; j <= r; j++) {
-        let ty = floor(base.y + f32(j) * stretch);
-        if ty < 0.0 || ty >= size.y {
-            continue;
-        }
-        var row = 0.0;
-        for (var i = -r; i <= r; i++) {
-            let tx = floor(base.x + f32(i) * stretch);
-            if tx < 0.0 || tx >= size.x {
-                continue;
-            }
-            let c = textureLoad(mask, vec2<i32>(corner + vec2<f32>(tx, ty) + vec2<f32>(0.5)), layer, 0).r;
-            row += exp(k * f32(i * i)) * ink(c, contrast);
-        }
-        sum += exp(k * f32(j * j)) * row;
-    }
-    return sum / (total * total);
 }
 
 // The alpha of a glyph's linear coverage `c` under the run's contrast exponent `e` (0: an icon, used as it is).
@@ -621,20 +556,13 @@ fn ink(c: f32, e: f32) -> f32 {
     return c;
 }
 
-// MASK: coverage of a glyph or an icon times the colour, blurred when the instance has a sigma (a text
-// shadow). A glyph's coverage is linear: it is raised to the run's contrast exponent (`size.w`, from
-// `ui2_draw::glyph_contrast`: by the text's luminance and size) before any blur, so a shadow is the blur of what
-// the sharp text shows; an icon (no exponent) is used as it is.
+// MASK: coverage of a glyph or an icon times the colour, one texel per pixel. A glyph's coverage is linear: it
+// is raised to the run's contrast exponent (`size.w`, from `ui2_draw::glyph_contrast`: by the text's luminance
+// and size); an icon, and the blurred glyph of a text shadow (the atlas holds its alpha, blurred on the CPU, see
+// `ui2_text::GlyphKey::blurred`), have no exponent and are used as they are.
 fn shade_mask(in: VsOut) -> vec4<f32> {
     let layer = i32((in.prim.x >> 16u) & 0xffu);
-    let sigma = in.size.z;
     let contrast = in.size.w;
-    if sigma > 0.0 && in.size.x > 0.0 && in.size.y > 0.0 {
-        if contrast > 0.0 {
-            return premul(unpack_color(in.colors.x)) * blurred_glyph(in, layer, sigma, contrast);
-        }
-        return premul(unpack_color(in.colors.x)) * blurred_mask(in, layer, sigma);
-    }
     let cov = textureSampleLevel(mask, mask_smp, in.local_uv.zw, layer, 0.0).r;
     return premul(unpack_color(in.colors.x)) * ink(cov, contrast);
 }

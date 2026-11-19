@@ -12,6 +12,10 @@
 //! `cpu`); `place` the projection of the map anchors, `prepare` the renderer's take of the scene (uploads), `probe` the
 //! test hook's snapshot (0 without `?test=1`): all three outside `cpu`. `app` is the whole app frame before this one
 //! (the renderer's CPU time of a frame: update, UI, encoding), for the comparison with the classic UI.
+//!
+//! The GPU side ([`Ui2Gpu`]): what the `Ui2` pass draws (draw calls, instances, the pixels its quads cover per frame
+//! and of them the blurred box shadows and the textured quads) and the pass's GPU time from timestamp queries (a few
+//! frames old; `None` where the device has none, e.g. WebGL2).
 
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -51,6 +55,23 @@ pub struct Ui2FrameTimes {
     pub input_events: u32,
     /// Bytes the renderer wrote to the GPU for UI v2 in this frame.
     pub upload_bytes: u64,
+    /// What the pass drew.
+    pub gpu: Ui2Gpu,
+}
+
+/// The GPU side of a UI v2 frame.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Ui2Gpu {
+    /// Draw calls and instances of the `Ui2` pass.
+    pub draws: u32,
+    pub instances: u32,
+    /// Thousands of pixels the quads cover (overdraw included), and of them blurred box shadows and textured quads
+    /// (pictures, glyphs, icons).
+    pub fill_kpx: u32,
+    pub shadow_kpx: u32,
+    pub texture_kpx: u32,
+    /// GPU time of the pass, ms (timestamp queries; `None` without them).
+    pub gpu_ms: Option<f32>,
 }
 
 thread_local! {
@@ -93,15 +114,16 @@ fn open(t: Ui2FrameTimes) {
     OPEN.with(|o| *o.borrow_mut() = Some(t));
 }
 
-/// The second half: the placement, the renderer's take of the scene, the bytes it uploaded and the app's last frame.
-/// The record goes into the ring.
-pub fn finish(place_ms: f32, prepare_ms: f32, upload_bytes: u64, app_ms: Option<f32>) {
+/// The second half: the placement, the renderer's take of the scene, the bytes it uploaded, what the pass draws and
+/// the app's last frame. The record goes into the ring.
+pub fn finish(place_ms: f32, prepare_ms: f32, upload_bytes: u64, gpu: Ui2Gpu, app_ms: Option<f32>) {
     let Some(mut t) = OPEN.with(|o| o.borrow_mut().take()) else {
         return;
     };
     t.place = place_ms;
     t.prepare = prepare_ms;
     t.upload_bytes = upload_bytes;
+    t.gpu = gpu;
     t.app = app_ms;
     RING.with(|r| {
         let mut r = r.borrow_mut();
@@ -132,7 +154,7 @@ mod tests {
     fn a_record_needs_both_halves_and_the_ring_keeps_the_newest() {
         take(true);
         // A finish without a begin records nothing.
-        finish(1.0, 1.0, 0, None);
+        finish(1.0, 1.0, 0, Ui2Gpu::default(), None);
         assert!(take(false).is_empty());
         for i in 0..CAPACITY + 5 {
             open(Ui2FrameTimes {
@@ -140,7 +162,18 @@ mod tests {
                 probe: 0.5,
                 ..Ui2FrameTimes::default()
             });
-            finish(0.25, 0.75, 96, Some(3.0));
+            finish(
+                0.25,
+                0.75,
+                96,
+                Ui2Gpu {
+                    draws: 3,
+                    fill_kpx: 2073,
+                    gpu_ms: Some(0.4),
+                    ..Ui2Gpu::default()
+                },
+                Some(3.0),
+            );
         }
         let all = take(true);
         assert_eq!(all.len(), CAPACITY);
@@ -155,6 +188,10 @@ mod tests {
                 last.app
             ),
             (0.5, 0.25, 0.75, 96, Some(3.0))
+        );
+        assert_eq!(
+            (last.gpu.draws, last.gpu.fill_kpx, last.gpu.gpu_ms),
+            (3, 2073, Some(0.4))
         );
         assert!(take(false).is_empty(), "reset emptied the ring");
     }

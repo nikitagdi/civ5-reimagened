@@ -639,6 +639,14 @@ fn ui2_layers_draw_map_hud_window_tooltip_one_call_each() {
     assert_eq!(s.layer_draws, [1, 1, 1, 1]);
     assert_eq!(s.draws, 4);
     assert_eq!(s.instances, 4);
+    // The fill: each box's quad with its 1 px soft-edge margin, per layer (map, hud, window, tooltip).
+    assert_eq!(s.layer_fill_px, [42 * 22, 32 * 22, 22 * 22, 12 * 22]);
+    assert_eq!(s.fill_px(), (42 + 32 + 22 + 12) * 22);
+    assert_eq!((s.shadow_fill_px, s.texture_fill_px), (0, 0));
+    // A frame without a change keeps the sums.
+    let again = rig.frame(&mut scene);
+    assert_eq!(again, img);
+    assert_eq!(rig.pass.stats().layer_fill_px, s.layer_fill_px);
     let names: Vec<_> = s.counters().iter().map(|(n, _)| *n).collect();
     for n in [
         "ui2.draws",
@@ -646,6 +654,8 @@ fn ui2_layers_draw_map_hud_window_tooltip_one_call_each() {
         "ui2.draws.hud",
         "ui2.draws.window",
         "ui2.upload_bytes",
+        "ui2.fill_kpx",
+        "ui2.fill_kpx.shadow",
     ] {
         assert!(names.contains(&n), "{n}");
     }
@@ -2385,4 +2395,81 @@ fn ui2_a_map_layer_switched_off_draws_nothing() {
     );
     assert_eq!(s.layer_draws, [1, 1, 0, 0]);
     assert!(again == on, "the same pixels as before");
+}
+
+/// Rings (a border-only box, an outer shadow) are drawn as four bands around their hole; under a transform they
+/// stay one quad. The same items drawn both ways (moved by a whole 150 px through an element transform) give the
+/// same pixels: the bands leave no seam, cover nothing twice and leave out only fragments without colour. The
+/// fill counts the bands only.
+fn rings_on(test: &str, backends: wgpu::Backends) {
+    let Some(mut rig) = Rig::new(test, backends, (320, 160)) else {
+        return;
+    };
+    let items = |dx: f32| {
+        let transform = (dx != 0.0).then(|| Affine2::from_translation(Vec2::new(dx, 0.0)));
+        vec![
+            // A translucent border (seams and double cover would show) with rounded corners at a fractional place.
+            Item::Box(BoxItem {
+                rect: Rect::new(10.3, 8.6, 120.0, 50.0),
+                border: Border::uniform(3.0, Color::rgba(255, 255, 255, 160)),
+                radii: Radii::uniform(9.0),
+                transform,
+                ..BoxItem::default()
+            }),
+            // A blurred shadow, offset, under nothing (its hole is the element's own box).
+            Item::Shadow(ShadowItem {
+                rect: Rect::new(24.5, 84.0, 90.0, 40.0),
+                radii: Radii::uniform(6.0),
+                offset: Vec2::new(3.0, 5.0),
+                blur: 12.0,
+                spread: 2.0,
+                color: Color::rgba(255, 0, 0, 200),
+                transform,
+                ..ShadowItem::default()
+            }),
+        ]
+    };
+    let mut scene = Scene::new(1.0);
+    scene.set_chunk(LayerId::Hud, ChunkId(1), chunk(items(0.0)));
+    scene.set_chunk(LayerId::Hud, ChunkId(2), chunk(items(150.0)));
+    let img = rig.frame(&mut scene);
+    let w = rig.size.0;
+    let mut worst = 0u8;
+    let mut lit = 0;
+    for y in 0..rig.size.1 {
+        for x in 0..150 {
+            let a = px(&img, w, x, y);
+            let b = px(&img, w, x + 150, y);
+            for c in 0..4 {
+                worst = worst.max(a[c].abs_diff(b[c]));
+            }
+            lit += usize::from(a[3] > 0 || a[0] > 0);
+        }
+    }
+    assert!(lit > 2000, "the rings are drawn: {lit} pixels");
+    assert!(
+        worst <= 1,
+        "bands and a whole quad differ by {worst} levels"
+    );
+    // The middle of the box and of the shadow's element are untouched.
+    assert_eq!(px(&img, w, 70, 33)[..3], [0, 0, 0]);
+    assert_eq!(px(&img, w, 70, 104)[..3], [0, 0, 0]);
+    // Whole quads: the box with its 1 px margin, 122 x 52; the shadow grown by spread + 3 sigma + 1 = 21 px,
+    // 132 x 82. The holes: the box's 3 px border plus its 9 px radius and the margin in from every edge, 94 x 24;
+    // the shadow's element box less its 6 px radius and the margin, 76 x 26.
+    let s = rig.pass.stats();
+    let (box_quad, shadow_quad) = (122 * 52, 132 * 82);
+    let rings = (box_quad - 94 * 24) + (shadow_quad - 76 * 26);
+    assert_eq!(s.fill_px(), (box_quad + shadow_quad + rings) as u64);
+    assert_eq!(s.shadow_fill_px, (2 * shadow_quad - 76 * 26) as u64);
+}
+
+#[test]
+fn ui2_draws_rings_as_bands() {
+    rings_on("ui2_draws_rings_as_bands", wgpu::Backends::PRIMARY);
+}
+
+#[test]
+fn ui2_draws_rings_as_bands_on_gl() {
+    rings_on("ui2_draws_rings_as_bands_on_gl", wgpu::Backends::GL);
 }

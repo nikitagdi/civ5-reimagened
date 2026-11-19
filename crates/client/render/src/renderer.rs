@@ -4069,6 +4069,12 @@ impl Renderer {
         self.last_frame_cpu_ms
     }
 
+    /// The GPU time of the `Ui2` pass from timestamp queries (a frame two or three back), ms; `None` without
+    /// them (WebGL2, adapters without `TIMESTAMP_QUERY`) or before a result came back.
+    pub fn ui2_gpu_ms(&self) -> Option<f32> {
+        self.timer.gpu_ms(PassId::Ui2)
+    }
+
     /// The `ui2.*` counters of the last `prepare_ui2` (zero before the first).
     pub fn ui2_stats(&self) -> crate::Ui2Stats {
         self.ui2.stats()

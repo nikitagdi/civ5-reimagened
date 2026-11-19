@@ -6,7 +6,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use ui2_draw::glyphs::{GlyphStore, Lookup, glyph_key};
-use ui2_draw::instance::f16_bits;
 use ui2_draw::{
     ChunkBuilder, ChunkId, Color, FaceId, GlyphPos, GlyphShadow, Glyphs, Item, LayerChange,
     LayerId, Scene,
@@ -37,10 +36,12 @@ fn chunk_of(g: Glyphs) -> ui2_draw::ChunkItems {
     b.build()
 }
 
-/// A text shadow with blur under its text: the shadow run shares the text's atlas glyphs (moved by the offset),
-/// carries its sigma, keeps one instance per glyph through resolve, and is encoded again on a scale change.
+/// A text shadow with blur under its text: every shadow glyph is a sprite of its own in the atlas, the text's glyph
+/// blurred (sigma = blur / 2 = 2, so it grows by ceil(2 sigma) = 4 px on every side) at the text's place moved by
+/// the offset; it is drawn like a sharp glyph (no sigma in the instance), keeps one instance per glyph through
+/// resolve, and is encoded again on a scale change.
 #[test]
-fn glyph_shadows_share_the_texts_glyphs_and_carry_their_blur() {
+fn glyph_shadows_are_blurred_sprites_of_their_own_one_per_glyph() {
     let mut text = engine();
     let g = run_item(&mut text, "Gold", 1.0, 10.0, 30.0, WHITE);
     let shadow = Glyphs {
@@ -71,13 +72,22 @@ fn glyph_shadows_share_the_texts_glyphs_and_carry_their_blur() {
     let layer = s.layer_instances(LayerId::Hud);
     let (blurred, sharp) = layer.split_at(4);
     for (b, t) in blurred.iter().zip(sharp) {
-        assert_eq!(b.extra[0], f16_bits(2.0), "sigma is half the blur");
-        assert_eq!(t.extra[0], 0);
-        assert_eq!(b.uv, t.uv, "the same atlas glyph");
-        assert_eq!(b.atlas_layer, t.atlas_layer);
         assert_eq!(
-            [b.rect[0] - 2.0, b.rect[1] - 3.0, b.rect[2], b.rect[3]],
-            t.rect
+            b.extra, [0; 4],
+            "the blur is in the sprite: no sigma, no exponent"
+        );
+        assert_eq!(t.extra[0], 0);
+        assert_ne!(t.extra[1], 0, "the sharp glyph has its contrast exponent");
+        assert_ne!(b.uv, t.uv, "a sprite of its own");
+        assert_eq!(
+            [
+                b.rect[0] - 2.0 + 4.0,
+                b.rect[1] - 3.0 + 4.0,
+                b.rect[2] - 8.0,
+                b.rect[3] - 8.0
+            ],
+            t.rect,
+            "the text's glyph, moved by the offset and grown by the blur's reach"
         );
         assert_eq!(b.colors[0], [0, 0, 0, 200]);
     }

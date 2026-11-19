@@ -11,16 +11,26 @@
 //   renderer's take of the scene (prepare) and the test probe; with the work counters (bindings evaluated, nodes
 //   restyled, layout runs, chunks rebuilt, nodes visited, bytes uploaded). A build without the ring (older bundles)
 //   falls back to the `ui2.*` counters of `__civ5stats` sampled twice a second (single frames: indicative).
+// - the GPU side: what the `Ui2` pass draws per frame (draw calls, instances, the megapixels its quads cover, of them
+//   blurred box shadows and textured quads) and its GPU time from timestamp queries where the device has them
+//   (WebGPU; Playwright's own Chromium falls back to WebGL2 here, which has none: `CHROMIUM_PATH` at an installed
+//   Chrome gives WebGPU), with the frame's and the other passes' GPU times from `__civ5stats`.
 // Budgets (`FRAME_LIMITS`): generous multiples of the targets (an idle HUD under 0.5 ms over the classic UI, the open
 // technology tree under 1 ms, scrolling it under 3 ms), so a loaded machine does not flake; the targets themselves are
-// reported beside.
+// reported beside. The GPU budgets (`GPU_LIMITS`) are counts that do not depend on the machine (draw calls, fill per
+// screen area) and, where timestamps exist, the pass's GPU time.
+// Env: UI2_PERF_DSF (device scale, default 1), UI2_PERF_VIEWPORT (`1920x1080`, CSS px), UI2_PERF_UNCAPPED=1 (no vsync,
+// no frame limit: the frame rate is what the CPU or the GPU allows), UI2_PERF_PHASE_S (12).
 import { act, until, state, openPage, appUrl } from "../lib/browser.mjs";
 import { DEV_PASSWORD } from "../lib/game.mjs";
 import { ensureCity } from "../lib/screen-city.mjs";
 import { pct, round } from "../lib/bench.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-export const VP = { width: 1920, height: 1080 };
+const [vpw, vph] = (process.env.UI2_PERF_VIEWPORT ?? "1920x1080").split("x").map(Number);
+export const VP = { width: vpw || 1920, height: vph || 1080 };
+const DSF = Number(process.env.UI2_PERF_DSF ?? 1);
+const UNCAPPED = process.env.UI2_PERF_UNCAPPED === "1";
 const SKIN = process.env.UI2_PERF_SKIN ?? "engraved";
 /** Seconds per phase: `frame.cpu_ms` is the p50 of the last 10 s, so a phase is a little longer. */
 const PHASE_S = Number(process.env.UI2_PERF_PHASE_S ?? 12);
@@ -43,8 +53,16 @@ export const FRAME_LIMITS = {
   mouseMs: 6,
 };
 
+/** GPU budgets of the `Ui2` pass: draw calls, the fill as screens' worth of pixels, and the GPU time (timestamps). */
+export const GPU_LIMITS = {
+  draws: 64,
+  hudFillScreens: 1.5,
+  windowFillScreens: 6,
+  gpuMs: 4,
+};
+
 const FIELDS = ["app", "cpu", "source", "runtime", "bind", "style", "text", "layout", "keys", "paint", "resolve", "js", "input", "place", "prepare", "probe"];
-const COUNTS = ["binds", "restyled", "layoutRuns", "chunks", "visited", "uploadKb", "ops", "inputEvents"];
+const COUNTS = ["binds", "restyled", "layoutRuns", "chunks", "visited", "uploadKb", "ops", "inputEvents", "draws", "instances", "fillKpx", "shadowKpx", "textureKpx", "gpuMs"];
 
 function stat(xs) {
   const v = xs.filter((x) => typeof x === "number" && Number.isFinite(x));
@@ -64,6 +82,13 @@ async function counters(page) {
     const c = window.__civ5stats?.counters ?? {};
     const out = {};
     for (const [k, v] of Object.entries(c)) if (k.startsWith("frame.") || k.startsWith("ui2.")) out[k] = v;
+    // GPU times (timestamp queries, a few frames old; -1 or absent without them) of the whole frame and per pass.
+    const f = window.__civ5stats?.frame;
+    if (f && f.gpu_ms >= 0) out["gpu.frame_ms"] = f.gpu_ms;
+    for (const [name, p] of Object.entries(window.__civ5stats?.passes_full ?? {})) {
+      if (p && p.gpu_ms >= 0) out[`gpu.${name}_ms`] = p.gpu_ms;
+      if (p && name === "Ui2") { out["gpu.Ui2_draws"] = p.draws; out["gpu.Ui2_instances"] = p.instances; }
+    }
     return out;
   }).catch(() => ({}));
 }
@@ -117,6 +142,11 @@ async function phase(page, label, action) {
   const end = samples[samples.length - 1] ?? {};
   const r = await ring(page, true);
   const out = { label, frameCpuP50: end["frame.cpu_ms"] ?? null, fps: end["frame.fps"] ?? null, via: r ? "ring" : "counters" };
+  // GPU: the frame and the passes, sampled twice a second (means of the samples that had a time).
+  out.gpu = {};
+  // The fill per layer of the last sample (kpx; a build without the counters has none).
+  out.fillByLayer = Object.fromEntries(["map", "hud", "window", "tooltip", "shadow"].map((l) => [l, end[`ui2.fill_kpx.${l}`] ?? null]));
+  for (const k of new Set(samples.flatMap((s) => Object.keys(s).filter((x) => x.startsWith("gpu."))))) out.gpu[k.slice(4)] = stat(samples.map((s) => s[k]))?.mean ?? null;
   if (r && r.frames?.length) {
     out.ui2Frames = r.frames.length;
     for (const f of FIELDS) out[f] = stat(r.frames.map((x) => x[f]));
@@ -199,9 +229,12 @@ async function classicTechTree(page, open) {
  * detail)` gets one call per budget.
  */
 export async function frameCost(base, o, check) {
-  const b = await openPage({ headed: o.headed, logDir: o.logDir, viewport: VP, consoleFile: "console-ui2-perf-frames.log" });
+  const b = await openPage({
+    headed: o.headed, logDir: o.logDir, viewport: VP, consoleFile: "console-ui2-perf-frames.log", uncapped: UNCAPPED,
+    ...(DSF === 1 ? {} : { deviceScaleFactor: null, chromeArgs: [`--force-device-scale-factor=${DSF}`] }),
+  });
   const page = b.page;
-  const res = { meta: { viewport: VP, phaseS: PHASE_S, skin: SKIN }, phases: {}, rows: [], errors: [] };
+  const res = { meta: { viewport: VP, dsf: DSF, uncapped: UNCAPPED, browser: process.env.CHROMIUM_PATH ? "chrome" : "playwright", phaseS: PHASE_S, skin: SKIN }, phases: {}, rows: [], errors: [] };
   const map = { x: 560, y: 260, w: 800, h: 520 };
   const full = { x: 40, y: 40, w: VP.width - 80, h: VP.height - 80 };
   try {
@@ -209,6 +242,8 @@ export async function frameCost(base, o, check) {
     const city = await ensureCity(page);
     await settleMap(page);
     res.meta.dpr = await page.evaluate(() => devicePixelRatio);
+    res.meta.canvas = await page.evaluate(() => [...document.querySelectorAll("canvas")].map((c) => [c.width, c.height]).find(([w]) => w > 0) ?? null);
+    res.meta.backend = await page.evaluate(() => window.__civ5stats?.backend ?? null).catch(() => null);
     res.meta.threads = await page.evaluate(() => window.__civ5threads?.mode ?? "single").catch(() => null);
     // ---- the classic UI
     res.phases["classic hud idle"] = await phase(page, "classic hud idle", null);
@@ -253,6 +288,8 @@ export async function frameCost(base, o, check) {
   }
   // ---- the rows
   const P = res.phases;
+  // Device pixels of the screen.
+  const pixels = (res.meta.canvas ? res.meta.canvas[0] * res.meta.canvas[1] : VP.width * VP.height * DSF * DSF) || 1;
   const classic = P["classic hud idle"]?.frameCpuP50 ?? null;
   const classicMouse = P["classic hud mouse"]?.frameCpuP50 ?? null;
   const ms = (v) => (v === null || v === undefined ? "n/a" : `${round(v, 2)} ms`);
@@ -272,6 +309,15 @@ export async function frameCost(base, o, check) {
     else if (name.endsWith("mouse")) limit = FRAME_LIMITS.mouseMs;
     const parts = ["source", "runtime", "keys", "resolve", "js", "input", "place", "prepare", "probe"].map((f) => `${f} ${p[f]?.mean ?? "-"}`).join(", ");
     row(`${name}: UI v2 frame (own phases, mean)`, `${ms(ui2)} (${parts}); frame.cpu_ms p50 ${ms(p.frameCpuP50)}, over classic ${ms(extra)}`, limit === null ? "report" : `<= ${limit} ms`, limit === null || ui2 === null ? null : ui2 <= limit, `${p.ui2Frames ?? "?"} frames (${p.via})`);
+    // The GPU side (a build without it has no `draws` in the ring).
+    if (p.draws) {
+      const screens = (p.fillKpx?.mean ?? 0) * 1000 / pixels;
+      const fillLimit = name.startsWith("v2 hud") ? GPU_LIMITS.hudFillScreens : GPU_LIMITS.windowFillScreens;
+      row(`${name}: Ui2 draw calls`, `${p.draws.mean} (${p.instances?.mean ?? "?"} instances)`, `<= ${GPU_LIMITS.draws}`, p.draws.mean <= GPU_LIMITS.draws);
+      row(`${name}: Ui2 fill`, `${round(screens, 2)} screens (${round((p.fillKpx?.mean ?? 0) / 1000, 2)} Mpx; shadows ${round((p.shadowKpx?.mean ?? 0) / 1000, 2)}, textured ${round((p.textureKpx?.mean ?? 0) / 1000, 2)})`, `<= ${fillLimit} screens`, screens <= fillLimit);
+      const gpu = p.gpuMs?.mean ?? p.gpu?.Ui2_ms ?? null;
+      row(`${name}: Ui2 GPU time`, gpu === null ? "no timestamps" : ms(gpu), `<= ${GPU_LIMITS.gpuMs} ms`, gpu === null ? null : gpu <= GPU_LIMITS.gpuMs);
+    }
   }
   if (res.error) check("frame rows ran", false, res.error.split("\n")[0]);
   return res;
@@ -281,9 +327,10 @@ export async function frameCost(base, o, check) {
 export function frameTable(res) {
   const lines = [];
   const f = (x) => (x === null || x === undefined ? "-" : String(round(x, 3)));
-  lines.push(["phase", "frame.cpu p50", "fps", "ui2 total", "cpu", "source", "runtime", "bind", "style", "text", "layout", "keys", "paint", "resolve", "js", "input", "place", "prepare", "probe", "binds", "chunks", "upload kB"].join(" | "));
+  lines.push(["phase", "frame.cpu p50", "fps", "ui2 total", "cpu", "source", "runtime", "bind", "style", "text", "layout", "keys", "paint", "resolve", "js", "input", "place", "prepare", "probe", "binds", "chunks", "upload kB", "draws", "instances", "fill Mpx", "shadow Mpx", "textured Mpx", "ui2 gpu", "frame gpu"].join(" | "));
   for (const [name, p] of Object.entries(res.phases)) {
-    lines.push([name, f(p.frameCpuP50), f(p.fps), f(p.total?.mean), ...["cpu", "source", "runtime", "bind", "style", "text", "layout", "keys", "paint", "resolve", "js", "input", "place", "prepare", "probe", "binds", "chunks", "uploadKb"].map((k) => f(p[k]?.mean))].join(" | "));
+    const mpx = (k) => (p[k]?.mean === undefined ? null : p[k].mean / 1000);
+    lines.push([name, f(p.frameCpuP50), f(p.fps), f(p.total?.mean), ...["cpu", "source", "runtime", "bind", "style", "text", "layout", "keys", "paint", "resolve", "js", "input", "place", "prepare", "probe", "binds", "chunks", "uploadKb", "draws", "instances"].map((k) => f(p[k]?.mean)), f(mpx("fillKpx")), f(mpx("shadowKpx")), f(mpx("textureKpx")), f(p.gpuMs?.mean ?? p.gpu?.Ui2_ms), f(p.gpu?.frame_ms)].join(" | "));
   }
   return lines.join("\n");
 }

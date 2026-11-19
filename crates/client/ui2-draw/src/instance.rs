@@ -13,7 +13,7 @@
 //! | 48 | 4-7 | Unorm8x4 x4 | `c0..c3`: fill colour or gradient stop colours, tint |
 //! | 64 | 8 | Unorm8x4 | `border_color` |
 //! | 68 | 9 | Float16x4 | `stops`: gradient stop positions |
-//! | 76 | 10 | Float16x4 | `extra`: shadow or glyph blur sigma, spread, ellipse ratio, repeat period |
+//! | 76 | 10 | Float16x4 | `extra`: shadow sigma or tile size, spread or glyph contrast, ellipse ratio, repeat period |
 //! | 84 | 11 | Uint32x3 | `kind:8 flags:8 atlas_layer:8 n_stops:8`, `xform:16 clip:16`, `anchor:16 ext:16` |
 //!
 //! Colours are straight sRGB bytes. `xform` indexes the transform table (0 = identity), `clip` the clip table
@@ -31,9 +31,9 @@ pub const KIND_BOX: u8 = 0;
 pub const KIND_SHADOW: u8 = 1;
 /// Primitive kind: an RGBA sprite or external texture.
 pub const KIND_IMAGE: u8 = 2;
-/// Primitive kind: a coverage mask (glyph, icon) times a colour. `extra.x` above 0 blurs the coverage with a
-/// Gaussian of that standard deviation (local px = atlas texels; a text shadow, see `GlyphShadow`): the quad
-/// grows by the blur's reach and taps outside the sprite's own rectangle read nothing.
+/// Primitive kind: a coverage mask (glyph, icon) times a colour, one texel per pixel. `extra.y` above 0 is the
+/// contrast exponent of a glyph's linear coverage. The glyph of a text shadow (see `GlyphShadow`) is a sprite of
+/// its own in the atlas that holds the blurred alpha: it has no exponent.
 pub const KIND_MASK: u8 = 3;
 
 /// Flags bits 0-1: how the fill is computed. Solid: `c0`.

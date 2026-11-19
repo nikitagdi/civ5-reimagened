@@ -681,22 +681,19 @@ impl Glyphs {
 /// runtime hands the text's glyphs already moved by the shadow offset and in the shadow colour; the run is
 /// drawn under the text.
 ///
-/// SIMPLIFIED(SIMP-288): the text shadow blur is an approximation of the browser's Gaussian blur of the whole text layer: a separable Gaussian cut at `ceil(2 * sigma)` texels with at most 9 taps per axis, and a stretched pattern above a blur of 8 px.
+/// SIMPLIFIED(SIMP-288): the text shadow blur is an approximation of the browser's Gaussian blur of the whole text layer: each glyph is blurred on its own by a separable Gaussian cut at `ceil(2 * sigma)` texels, at most a standard deviation of 16 px.
 ///
 /// How the blur is computed (an approximation of the browser's Gaussian blur of the whole text layer):
-/// - Each glyph is blurred on its own, from its own coverage in the glyph atlas, by the fragment shader. The
-///   kernel is the separable Gaussian of standard deviation `sigma = blur / 2` sampled at whole atlas texels,
-///   cut at `ceil(2 * sigma)` texels from the centre and renormalized (a full Gaussian has about 4.6 % of its
-///   weight per axis beyond `2 * sigma`, so the faint outer tail of the shadow is missing).
-/// - The kernel is evaluated with bilinear taps that merge pairs of neighbouring texels, at most 9 taps per
-///   axis and 81 per pixel (`sigma` up to 4, a blur up to 8 px). The result is exactly that discrete kernel
-///   when the glyph sits on whole device pixels without a transform (glyph quads are placed on whole pixels);
-///   under a transform the bilinear base sample adds a little blur of its own.
-/// - Above `sigma = 4` the 9 x 9 pattern of `sigma = 4` is stretched by `sigma / 4`: taps then lie further
-///   apart than two texels and thin strokes show as faint bands instead of a smooth blur.
+/// - Each glyph is blurred on its own, once, on the CPU when it is rasterized: its linear coverage is raised to
+///   the run's contrast exponent (the alpha the sharp glyph shows, `glyph_contrast`) and convolved with the
+///   separable Gaussian of standard deviation `sigma = blur / 2` sampled at whole pixels, cut at `ceil(2 * sigma)`
+///   pixels from the centre and renormalized (a full Gaussian has about 4.6 % of its weight per axis beyond
+///   `2 * sigma`, so the faint outer tail of the shadow is missing). The blurred alpha is a glyph of its own in
+///   the atlas (`ui2_text::GlyphKey::blurred`, sigma in steps of 1/8 px), drawn like a sharp glyph: one texture
+///   read per pixel.
+/// - Above a standard deviation of 16 px the blur of 16 px is drawn.
 /// - The shadows of neighbouring glyphs are blended one over the other, so where their blurs overlap the
 ///   shadow is a little lighter than a blur of the whole run would be.
-/// - The coverage is the rasterizer's (gamma-corrected) coverage, blurred as it is.
 ///
 /// A glyph keeps exactly one instance, like in [`Glyphs`].
 #[derive(Debug, Clone, PartialEq)]
