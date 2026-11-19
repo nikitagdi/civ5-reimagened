@@ -1214,7 +1214,10 @@ mod tests {
     /// asked to fortify, the entry 1500 starts once and the unit ends in the held pose; asked idle
     /// again, it gets up (1580) and stands. Before the fix the `AIM_` graphs of the mechanized
     /// machine (the mobile SAM) looped 1500, and the method codes left the chooser of
-    /// `1_omni_state_01` with nothing to play.
+    /// `1_omni_state_01` with nothing to play. The machines run on the set's own blend graphs, as in
+    /// the client: on the synthetic fixture the entry states of ships, caravans and civilians fall
+    /// back to their action's clips and the entry never plays, which the test once took for a fault
+    /// of the machine. Every model is run and every failing one is listed.
     #[test]
     fn every_real_machine_idles_unasked_and_plays_the_fortify_entry_once() {
         use asset_format::{LogicalId, Manifest, ModelBlobV2};
@@ -1232,8 +1235,25 @@ mod tests {
             let v = manifest.variants(id).first()?;
             std::fs::read(dir.join(v.hash.to_string())).ok()
         };
+        // The blend graphs of the same set, as the client installs them (`data:dge-graphs`, set `client-data`):
+        // without them the entry states of the graphs (`ENTER_FORTIFY`, `AIM_ENTER_FORTIFY`) fall back to the
+        // clips of their action and never play the entry 1500.
+        let graphs = blob(&LogicalId::new(asset_format::DGE_GRAPHS_ID)).unwrap_or_else(|| {
+            panic!(
+                "{}: the set has no {} (set client-data): the client could not play its machines either",
+                dir.display(),
+                asset_format::DGE_GRAPHS_ID
+            )
+        });
+        let n = super::super::dge::use_in_this_thread(
+            std::str::from_utf8(&graphs).expect("the blend graph table is text"),
+        )
+        .expect("the blend graph table");
+        assert!(n > 0, "an empty blend graph table");
         let idle_family = [1000, 1020, 1040, 2000, 2020, 2040];
         let (mut checked, mut fortified) = (0, 0);
+        // Every model is checked; the failures are listed together at the end.
+        let mut failures: Vec<String> = Vec::new();
         for (id, _) in manifest.iter() {
             if !id.as_str().starts_with("md:") {
                 continue;
@@ -1263,6 +1283,8 @@ mod tests {
             let mut f = Fsm::new(3, 0);
             f.start(&def, &a.clips, 0.0);
             let (mut entries, mut seen_up) = (0, false);
+            let mut wrong: Vec<String> = Vec::new();
+            let mut played: Vec<u32> = Vec::new();
             for k in 1..=(30 * 150u64) {
                 if k == 30 * 60 {
                     f.request(1500);
@@ -1273,33 +1295,55 @@ mod tests {
                 f.step(&def, &a.clips);
                 let change = f.take_change();
                 let ec = f.playing_ec();
-                if k < 30 * 60 {
-                    assert!(
-                        ec.is_some_and(|e| idle_family.contains(&e) || Some(e) == idle_ec),
-                        "{}: idle plays {ec:?}",
-                        id.as_str()
-                    );
+                if let Some(c) = change
+                    && played.len() < 24
+                {
+                    played.push(c.ec);
+                }
+                if k < 30 * 60
+                    && !ec.is_some_and(|e| idle_family.contains(&e) || Some(e) == idle_ec)
+                    && wrong.is_empty()
+                {
+                    wrong.push(format!("idle plays {ec:?}"));
                 }
                 if change.is_some_and(|c| c.ec == 1500) {
                     entries += 1;
                 }
                 if k == 30 * 120 - 1 && has_fortify {
-                    assert_eq!(ec, Some(1520), "{}: the held pose", id.as_str());
-                    fortified += 1;
+                    if ec == Some(1520) {
+                        fortified += 1;
+                    } else {
+                        wrong.push(format!("the held pose is {ec:?}"));
+                    }
                 }
                 seen_up |= k > 30 * 120 && ec == Some(1580);
             }
             if has_fortify {
-                assert_eq!(entries, 1, "{}: the entry starts once", id.as_str());
-                assert!(seen_up, "{}: it gets up", id.as_str());
-                assert!(
-                    f.playing_ec().is_some_and(|e| idle_family.contains(&e)),
-                    "{}: idle again",
-                    id.as_str()
-                );
+                if entries != 1 {
+                    wrong.push(format!("the entry starts {entries} times"));
+                }
+                if !seen_up {
+                    wrong.push("it does not get up".into());
+                }
+                if !f.playing_ec().is_some_and(|e| idle_family.contains(&e)) {
+                    wrong.push(format!("not idle again ({:?})", f.playing_ec()));
+                }
+            }
+            if !wrong.is_empty() {
+                failures.push(format!(
+                    "{}: {} (clips played: {played:?})",
+                    id.as_str(),
+                    wrong.join("; ")
+                ));
             }
         }
         eprintln!("{checked} machines, {fortified} with the fortify family");
+        assert!(
+            failures.is_empty(),
+            "{} of {checked} machines:\n{}",
+            failures.len(),
+            failures.join("\n")
+        );
         assert!(checked > 100 && fortified > 50, "{checked} {fortified}");
     }
 

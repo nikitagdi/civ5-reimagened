@@ -73,6 +73,10 @@ pub enum Node {
 /// The installed table; before (or without) one, the table of `CIV5_DGE_GRAPHS`, else none (in
 /// this crate's unit tests: the synthetic `dge_fixture.txt`).
 pub fn graphs() -> &'static BTreeMap<String, Node> {
+    #[cfg(test)]
+    if let Some(g) = THREAD_TABLE.get() {
+        return g;
+    }
     if let Some(g) = INSTALLED.get() {
         return g;
     }
@@ -94,6 +98,23 @@ fn fallback_table() -> BTreeMap<String, Node> {
     return parse_table(include_str!("dge_fixture.txt")).expect("dge_fixture.txt");
     #[cfg(not(test))]
     BTreeMap::new()
+}
+
+#[cfg(test)]
+thread_local! {
+    /// A table for the tests of one thread (the real asset set's), ahead of the installed one: the other tests of
+    /// the process keep the synthetic fixture.
+    static THREAD_TABLE: std::cell::Cell<Option<&'static BTreeMap<String, Node>>> =
+        const { std::cell::Cell::new(None) };
+}
+
+/// Uses `text` as the table of the calling thread's tests (leaked: tests only).
+#[cfg(test)]
+pub(crate) fn use_in_this_thread(text: &str) -> Result<usize, String> {
+    let table = parse_table(text)?;
+    let n = table.len();
+    THREAD_TABLE.set(Some(Box::leak(Box::new(table))));
+    Ok(n)
 }
 
 /// Installs the table of the asset set (`data:dge-graphs`); the first one stays. Returns the number
