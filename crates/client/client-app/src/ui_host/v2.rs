@@ -90,14 +90,13 @@ pub(crate) fn mod_ids(set: &protocol::ModSetView) -> Vec<Arc<str>> {
 }
 
 /// The row of the game's `Cursors` table (see [`crate::cursor`]) that shows the cursor a skin asked for; `None` for
-/// `auto`, where the world's own cursor stays. The game has no hand or text beam of its own: a pointer is its
-/// link cursor, text its edit cursor, grabbing its grip.
+/// `auto`, where the world's own cursor stays. The game has no hand or text beam of its own: over a button it
+/// keeps its standard cursor, so a pointer is that one; text is its edit cursor, grabbing its grip.
 pub(crate) fn cursor_row(c: Cursor) -> Option<i32> {
     match c {
         Cursor::Auto => None,
-        Cursor::Default | Cursor::NotAllowed => Some(0),
+        Cursor::Default | Cursor::NotAllowed | Cursor::Pointer => Some(0),
         Cursor::Move => Some(12),
-        Cursor::Pointer => Some(20),
         Cursor::Grab | Cursor::Grabbing => Some(21),
         Cursor::Text => Some(22),
     }
@@ -2736,7 +2735,7 @@ mod tests {
                 .menu
                 .open
         );
-        assert_eq!(h.cursor_row(), Some(20), "the pointer over the button");
+        assert_eq!(h.cursor_row(), Some(0), "the game's standard cursor over the button");
         // Off the panels: the world's (the camera and the picker); the picked plot comes back as `map.click`.
         for (phase, t) in [(Move, 4.0), (Down, 5.0), (Up, 6.0)] {
             assert_eq!(
@@ -3277,7 +3276,7 @@ mod tests {
     fn skin_cursors_map_to_game_cursor_rows_and_the_minimap_to_shares() {
         assert_eq!(cursor_row(Cursor::Auto), None);
         assert_eq!(cursor_row(Cursor::Default), Some(0));
-        assert_eq!(cursor_row(Cursor::Pointer), Some(20));
+        assert_eq!(cursor_row(Cursor::Pointer), Some(0));
         assert_eq!(cursor_row(Cursor::Text), Some(22));
         assert_eq!(cursor_row(Cursor::Grabbing), Some(21));
         assert_eq!(minimap_share(0.0), 0);
